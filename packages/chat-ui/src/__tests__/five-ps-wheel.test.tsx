@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import {
-  FivePsTenancyRiskWheel,
+  FivePsOperatorRiskWheel,
   computeFivePs,
-} from '../generative-ui/blocks/5ps-tenancy-risk-wheel';
+} from '../generative-ui/blocks/5ps-operator-risk-wheel';
 import type { FivePsRiskWheelBlock } from '../generative-ui/types';
 
 describe('computeFivePs', () => {
   it('sums shares to 1.0 when total > 0', () => {
     const b = computeFivePs({
       paymentHistory: 10,
-      propertyFit: 20,
+      assetFit: 20,
       purpose: 30,
       person: 20,
       protection: 20,
@@ -22,7 +22,7 @@ describe('computeFivePs', () => {
   it('identifies the dominant dimension', () => {
     const b = computeFivePs({
       paymentHistory: 10,
-      propertyFit: 20,
+      assetFit: 20,
       purpose: 90,
       person: 20,
       protection: 20,
@@ -34,7 +34,7 @@ describe('computeFivePs', () => {
   it('returns zero shares when all scores are zero', () => {
     const b = computeFivePs({
       paymentHistory: 0,
-      propertyFit: 0,
+      assetFit: 0,
       purpose: 0,
       person: 0,
       protection: 0,
@@ -44,15 +44,15 @@ describe('computeFivePs', () => {
   });
 });
 
-describe('FivePsTenancyRiskWheel component', () => {
+describe('FivePsOperatorRiskWheel component', () => {
   const block: FivePsRiskWheelBlock = {
     id: 'w1',
-    type: 'five_ps_tenancy_risk_wheel',
+    type: 'five_ps_operator_risk_wheel',
     position: 'below',
-    title: '5 Ps of tenancy risk',
+    title: '5 Ps of operator risk',
     scores: {
       paymentHistory: 70,
-      propertyFit: 85,
+      assetFit: 85,
       purpose: 60,
       person: 80,
       protection: 55,
@@ -61,10 +61,10 @@ describe('FivePsTenancyRiskWheel component', () => {
   };
 
   it('renders and exposes rating + dominant dimension', () => {
-    render(<FivePsTenancyRiskWheel block={block} language="en" />);
-    const wheel = screen.getByTestId('five-ps-tenancy-risk-wheel');
+    render(<FivePsOperatorRiskWheel block={block} language="en" />);
+    const wheel = screen.getByTestId('five-ps-operator-risk-wheel');
     expect(wheel).toHaveAttribute('data-rating', 'B');
-    expect(wheel).toHaveAttribute('data-dominant', 'propertyFit');
-    expect(screen.getByTestId('five-ps-dominant').textContent).toContain('Property fit');
+    expect(wheel).toHaveAttribute('data-dominant', 'assetFit');
+    expect(screen.getByTestId('five-ps-dominant').textContent).toContain('Asset fit');
   });
 });

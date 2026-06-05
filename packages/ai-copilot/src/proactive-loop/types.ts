@@ -116,7 +116,7 @@ export interface ProactiveAuditEvent {
 /**
  * Executor port — the orchestrator calls this to actually run an approved
  * proposal. Implementations wrap the task-agents executor or a specific
- * orchestrator (vacancy-pipeline, arrears-ladder, etc.).
+ * orchestrator (available-capacity-pipeline, arrears-ladder, etc.).
  */
 export interface ProposalExecutor {
   execute(proposal: Proposal): Promise<ProposalOutcome>;

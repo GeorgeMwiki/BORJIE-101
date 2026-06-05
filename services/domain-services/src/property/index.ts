@@ -1,8 +1,10 @@
 import { randomHex } from '../common/id-generator.js';
 /**
- * Property domain service.
+ * Site domain service.
  *
- * Handles property and unit management for the BORJIE platform.
+ * Handles mining-site and unit (sub-tenement) management for the BORJIE
+ * platform — sites group the blocks, operating units, and assets that make
+ * up an owner's production footprint.
  */
 
 import type {
@@ -14,21 +16,21 @@ import type {
   ISOTimestamp,
 } from '@borjie/domain-models';
 import {
-  type Property,
-  type PropertyId,
-  type PropertyType,
-  type PropertyStatus,
+  type MiningSite,
+  type MiningSiteId,
+  type MiningSiteType,
+  type MiningSiteStatus,
   type OwnerId,
   type Address,
-  type Unit,
-  type UnitId,
-  type UnitType,
-  type UnitStatus,
+  type MiningUnit,
+  type MiningUnitId,
+  type MiningUnitType,
+  type MiningUnitStatus,
   type Money,
-  createProperty,
-  createUnit,
-  asPropertyId,
-  asUnitId,
+  createMiningSite,
+  createMiningUnit,
+  asMiningSiteId,
+  asMiningUnitId,
   ok,
   err,
   Block,
@@ -41,7 +43,7 @@ type BlockId = string & { readonly __brand: 'BlockId' };
 interface BlockShape {
   readonly id: BlockId;
   readonly tenantId: TenantId;
-  readonly propertyId: PropertyId;
+  readonly siteId: MiningSiteId;
   readonly blockCode: string;
   readonly name: string;
   readonly status: BlockStatus;
@@ -50,7 +52,7 @@ interface BlockShape {
 const { asBlockId, createBlock, generateBlockCode } = Block as unknown as {
   asBlockId: (id: string) => BlockId;
   createBlock: (..._args: unknown[]) => BlockShape;
-  generateBlockCode: (propertyCode: string, sequence: number) => string;
+  generateBlockCode: (siteCode: string, sequence: number) => string;
 };
 type Block = BlockShape;
 type BlockStatus = 'active' | 'inactive' | 'under_construction' | 'under_renovation' | 'demolished';
@@ -61,21 +63,21 @@ import { createEventEnvelope, generateEventId } from '../common/events.js';
 // Error Types
 // ============================================================================
 
-export const PropertyServiceError = {
-  PROPERTY_NOT_FOUND: 'PROPERTY_NOT_FOUND',
-  PROPERTY_CODE_EXISTS: 'PROPERTY_CODE_EXISTS',
+export const SiteServiceError = {
+  SITE_NOT_FOUND: 'SITE_NOT_FOUND',
+  SITE_CODE_EXISTS: 'SITE_CODE_EXISTS',
   UNIT_NOT_FOUND: 'UNIT_NOT_FOUND',
   UNIT_NUMBER_EXISTS: 'UNIT_NUMBER_EXISTS',
-  UNIT_OCCUPIED: 'UNIT_OCCUPIED',
-  INVALID_PROPERTY_DATA: 'INVALID_PROPERTY_DATA',
+  UNIT_IN_PRODUCTION: 'UNIT_IN_PRODUCTION',
+  INVALID_SITE_DATA: 'INVALID_SITE_DATA',
   INVALID_UNIT_DATA: 'INVALID_UNIT_DATA',
-  CANNOT_DELETE_WITH_ACTIVE_LEASES: 'CANNOT_DELETE_WITH_ACTIVE_LEASES',
+  CANNOT_DELETE_WITH_ACTIVE_OFFTAKES: 'CANNOT_DELETE_WITH_ACTIVE_OFFTAKES',
 } as const;
 
-export type PropertyServiceErrorCode = (typeof PropertyServiceError)[keyof typeof PropertyServiceError];
+export type SiteServiceErrorCode = (typeof SiteServiceError)[keyof typeof SiteServiceError];
 
-export interface PropertyServiceErrorResult {
-  code: PropertyServiceErrorCode;
+export interface SiteServiceErrorResult {
+  code: SiteServiceErrorCode;
   message: string;
 }
 
@@ -83,68 +85,68 @@ export interface PropertyServiceErrorResult {
 // Repository Interfaces
 // ============================================================================
 
-export interface PropertyRepository {
-  findById(id: PropertyId, tenantId: TenantId): Promise<Property | null>;
-  findByCode(code: string, tenantId: TenantId): Promise<Property | null>;
-  findMany(tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Property>>;
-  findByOwner(ownerId: OwnerId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Property>>;
-  findByManager(managerId: UserId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Property>>;
-  create(property: Property): Promise<Property>;
-  update(property: Property): Promise<Property>;
-  delete(id: PropertyId, tenantId: TenantId, deletedBy: UserId): Promise<void>;
+export interface SiteRepository {
+  findById(id: MiningSiteId, tenantId: TenantId): Promise<MiningSite | null>;
+  findByCode(code: string, tenantId: TenantId): Promise<MiningSite | null>;
+  findMany(tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningSite>>;
+  findByOwner(ownerId: OwnerId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningSite>>;
+  findByManager(managerId: UserId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningSite>>;
+  create(site: MiningSite): Promise<MiningSite>;
+  update(site: MiningSite): Promise<MiningSite>;
+  delete(id: MiningSiteId, tenantId: TenantId, deletedBy: UserId): Promise<void>;
   getNextSequence(tenantId: TenantId): Promise<number>;
 }
 
 export interface UnitRepository {
-  findById(id: UnitId, tenantId: TenantId): Promise<Unit | null>;
-  findByUnitNumber(unitNumber: string, propertyId: PropertyId, tenantId: TenantId): Promise<Unit | null>;
-  findByProperty(propertyId: PropertyId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Unit>>;
-  findByBlock(blockId: BlockId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Unit>>;
-  findByStatus(status: UnitStatus, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Unit>>;
-  findVacant(tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Unit>>;
-  create(unit: Unit): Promise<Unit>;
-  createMany(units: Unit[]): Promise<Unit[]>;
-  update(unit: Unit): Promise<Unit>;
-  updateMany(units: Unit[]): Promise<Unit[]>;
-  delete(id: UnitId, tenantId: TenantId, deletedBy: UserId): Promise<void>;
-  countByProperty(propertyId: PropertyId, tenantId: TenantId): Promise<{ total: number; occupied: number; vacant: number }>;
-  countByBlock(blockId: BlockId, tenantId: TenantId): Promise<{ total: number; occupied: number; vacant: number }>;
+  findById(id: MiningUnitId, tenantId: TenantId): Promise<MiningUnit | null>;
+  findByUnitNumber(unitNumber: string, siteId: MiningSiteId, tenantId: TenantId): Promise<MiningUnit | null>;
+  findBySite(siteId: MiningSiteId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningUnit>>;
+  findByBlock(blockId: BlockId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningUnit>>;
+  findByStatus(status: MiningUnitStatus, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningUnit>>;
+  findIdle(tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<MiningUnit>>;
+  create(unit: MiningUnit): Promise<MiningUnit>;
+  createMany(units: MiningUnit[]): Promise<MiningUnit[]>;
+  update(unit: MiningUnit): Promise<MiningUnit>;
+  updateMany(units: MiningUnit[]): Promise<MiningUnit[]>;
+  delete(id: MiningUnitId, tenantId: TenantId, deletedBy: UserId): Promise<void>;
+  countBySite(siteId: MiningSiteId, tenantId: TenantId): Promise<{ total: number; inProduction: number; idle: number }>;
+  countByBlock(blockId: BlockId, tenantId: TenantId): Promise<{ total: number; inProduction: number; idle: number }>;
 }
 
 export interface BlockRepository {
   findById(id: BlockId, tenantId: TenantId): Promise<Block | null>;
-  findByBlockCode(blockCode: string, propertyId: PropertyId, tenantId: TenantId): Promise<Block | null>;
-  findByProperty(propertyId: PropertyId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Block>>;
+  findByBlockCode(blockCode: string, siteId: MiningSiteId, tenantId: TenantId): Promise<Block | null>;
+  findBySite(siteId: MiningSiteId, tenantId: TenantId, pagination?: PaginationParams): Promise<PaginatedResult<Block>>;
   create(block: Block): Promise<Block>;
   update(block: Block): Promise<Block>;
   delete(id: BlockId, tenantId: TenantId, deletedBy: UserId): Promise<void>;
-  getNextSequence(propertyId: PropertyId, tenantId: TenantId): Promise<number>;
+  getNextSequence(siteId: MiningSiteId, tenantId: TenantId): Promise<number>;
 }
 
 // ============================================================================
 // Input Types
 // ============================================================================
 
-export interface CreatePropertyInput {
+export interface CreateSiteInput {
   name: string;
   code?: string;
-  type: PropertyType;
+  type: MiningSiteType;
   ownerId: OwnerId;
   address: Address;
   totalUnits?: number;
-  yearBuilt?: number;
+  yearEstablished?: number;
   totalArea?: number;
   amenities?: string[];
   description?: string;
   managerId?: UserId;
 }
 
-export interface UpdatePropertyInput {
+export interface UpdateSiteInput {
   name?: string;
-  status?: PropertyStatus;
+  status?: MiningSiteStatus;
   address?: Partial<Address>;
   totalUnits?: number;
-  yearBuilt?: number;
+  yearEstablished?: number;
   totalArea?: number;
   amenities?: string[];
   description?: string;
@@ -153,24 +155,24 @@ export interface UpdatePropertyInput {
 
 export interface CreateUnitInput {
   unitNumber: string;
-  floor: number;
-  type: UnitType;
-  bedrooms: number;
-  bathrooms: number;
-  monthlyRent: Money;
-  depositAmount: Money;
+  level: number;
+  type: MiningUnitType;
+  oreGradeGramsPerTonne: number;
+  recoveryPct: number;
+  operatingLevy: Money;
+  bondAmount: Money;
   area?: number;
   amenities?: string[];
   description?: string;
 }
 
 export interface UpdateUnitInput {
-  status?: UnitStatus;
-  type?: UnitType;
-  bedrooms?: number;
-  bathrooms?: number;
-  monthlyRent?: Money;
-  depositAmount?: Money;
+  status?: MiningUnitStatus;
+  type?: MiningUnitType;
+  oreGradeGramsPerTonne?: number;
+  recoveryPct?: number;
+  operatingLevy?: Money;
+  bondAmount?: Money;
   area?: number;
   amenities?: string[];
   description?: string;
@@ -180,7 +182,7 @@ export interface CreateBlockInput {
   name: string;
   blockCode?: string;
   description?: string;
-  floor?: number;
+  level?: number;
   wing?: string;
   amenities?: string[];
   features?: Record<string, unknown>;
@@ -208,62 +210,62 @@ export interface BulkCreateUnitInput {
   prefix: string;
   startNumber: number;
   count: number;
-  floor: number;
-  type: UnitType;
-  bedrooms: number;
-  bathrooms: number;
-  monthlyRent: Money;
-  depositAmount: Money;
+  level: number;
+  type: MiningUnitType;
+  oreGradeGramsPerTonne: number;
+  recoveryPct: number;
+  operatingLevy: Money;
+  bondAmount: Money;
   area?: number;
   amenities?: string[];
   blockId?: BlockId;
 }
 
 export interface BulkUpdateUnitStatusInput {
-  unitIds: UnitId[];
-  status: UnitStatus;
+  unitIds: MiningUnitId[];
+  status: MiningUnitStatus;
 }
 
 // ============================================================================
 // Stats Types
 // ============================================================================
 
-export interface PropertyStats {
-  propertyId: PropertyId;
+export interface SiteStats {
+  siteId: MiningSiteId;
   totalUnits: number;
-  occupiedUnits: number;
-  vacantUnits: number;
-  occupancyRate: number;
+  unitsInProduction: number;
+  idleUnits: number;
+  utilisationRate: number;
   potentialMonthlyRevenue: Money;
   actualMonthlyRevenue: Money;
   revenueEfficiency: number;
 }
 
 export interface UnitAvailability {
-  unitId: UnitId;
-  propertyId: PropertyId;
+  unitId: MiningUnitId;
+  siteId: MiningSiteId;
   isAvailable: boolean;
-  status: UnitStatus;
-  currentLeaseId: string | null;
-  leaseEndDate: string | null;
+  status: MiningUnitStatus;
+  currentOfftakeId: string | null;
+  offtakeEndDate: string | null;
   availableFrom: string | null;
-  monthlyRent: Money;
-  depositAmount: Money;
+  operatingLevy: Money;
+  bondAmount: Money;
 }
 
-export interface PropertyHealthScore {
-  propertyId: PropertyId;
+export interface SiteHealthScore {
+  siteId: MiningSiteId;
   overallScore: number; // 0-100
-  occupancyScore: number; // 0-100 based on occupancy rate
+  utilisationScore: number; // 0-100 based on production-utilisation rate
   revenueScore: number; // 0-100 based on revenue efficiency
   maintenanceScore: number; // 0-100 based on open work orders
   complianceScore: number; // 0-100 based on inspection/compliance status
   factors: {
-    occupancyRate: number;
+    utilisationRate: number;
     revenueEfficiency: number;
-    vacantUnits: number;
+    idleUnits: number;
     totalUnits: number;
-    averageRent: number;
+    averageLevy: number;
   };
   calculatedAt: string;
 }
@@ -272,19 +274,19 @@ export interface PropertyHealthScore {
 // Domain Events
 // ============================================================================
 
-export interface PropertyCreatedEvent {
+export interface SiteCreatedEvent {
   eventId: string;
-  eventType: 'PropertyCreated';
+  eventType: 'SiteCreated';
   timestamp: string;
   tenantId: TenantId;
   correlationId: string;
   causationId: string | null;
   metadata: Record<string, unknown>;
   payload: {
-    propertyId: PropertyId;
+    siteId: MiningSiteId;
     name: string;
     code: string;
-    type: PropertyType;
+    type: MiningSiteType;
     ownerId: OwnerId;
   };
 }
@@ -298,10 +300,10 @@ export interface UnitCreatedEvent {
   causationId: string | null;
   metadata: Record<string, unknown>;
   payload: {
-    unitId: UnitId;
-    propertyId: PropertyId;
+    unitId: MiningUnitId;
+    siteId: MiningSiteId;
     unitNumber: string;
-    type: UnitType;
+    type: MiningUnitType;
   };
 }
 
@@ -315,7 +317,7 @@ export interface BlockCreatedEvent {
   metadata: Record<string, unknown>;
   payload: {
     blockId: BlockId;
-    propertyId: PropertyId;
+    siteId: MiningSiteId;
     blockCode: string;
     name: string;
   };
@@ -330,62 +332,62 @@ export interface BulkUnitsCreatedEvent {
   causationId: string | null;
   metadata: Record<string, unknown>;
   payload: {
-    propertyId: PropertyId;
+    siteId: MiningSiteId;
     unitCount: number;
-    unitIds: UnitId[];
+    unitIds: MiningUnitId[];
   };
 }
 
 // ============================================================================
-// Property Service Implementation
+// Site Service Implementation
 // ============================================================================
 
 /**
- * Property and Unit management service.
- * Handles all CRUD operations and business logic for properties and units.
+ * Mining-site and unit management service.
+ * Handles all CRUD operations and business logic for sites and units.
  */
-export class PropertyService {
+export class SiteService {
   constructor(
-    private readonly propertyRepo: PropertyRepository,
+    private readonly siteRepo: SiteRepository,
     private readonly unitRepo: UnitRepository,
     private readonly eventBus: EventBus,
     private readonly blockRepo?: BlockRepository
   ) {}
 
-  // ==================== Property Operations ====================
+  // ==================== Site Operations ====================
 
   /**
-   * Create a new property.
+   * Create a new mining site.
    */
-  async createProperty(
+  async createSite(
     tenantId: TenantId,
-    input: CreatePropertyInput,
+    input: CreateSiteInput,
     createdBy: UserId,
     correlationId: string
-  ): Promise<Result<Property, PropertyServiceErrorResult>> {
-    // Generate property code if not provided
-    const code = input.code ?? await this.generatePropertyCode(tenantId);
+  ): Promise<Result<MiningSite, SiteServiceErrorResult>> {
+    // Generate site code if not provided
+    const code = input.code ?? await this.generateSiteCode(tenantId);
 
     // Check code uniqueness
-    const existing = await this.propertyRepo.findByCode(code, tenantId);
+    const existing = await this.siteRepo.findByCode(code, tenantId);
     if (existing) {
       return err({
-        code: PropertyServiceError.PROPERTY_CODE_EXISTS,
-        message: `Property with code ${code} already exists`,
+        code: SiteServiceError.SITE_CODE_EXISTS,
+        message: `Site with code ${code} already exists`,
       });
     }
 
     // Validate required fields
     if (!input.name || !input.type || !input.ownerId) {
       return err({
-        code: PropertyServiceError.INVALID_PROPERTY_DATA,
+        code: SiteServiceError.INVALID_SITE_DATA,
         message: 'Name, type, and owner are required',
       });
     }
 
-    const propertyId = asPropertyId(`prop_${Date.now()}_${randomHex(4)}`);
+    const siteId = asMiningSiteId(`site_${Date.now()}_${randomHex(4)}`);
 
-    const property = createProperty(propertyId, {
+    const site = createMiningSite(siteId, {
       tenantId,
       ownerId: input.ownerId,
       name: input.name,
@@ -393,156 +395,156 @@ export class PropertyService {
       type: input.type,
       address: input.address,
       ...(input.totalUnits !== undefined ? { totalUnits: input.totalUnits } : {}),
-      ...(input.yearBuilt !== undefined ? { yearBuilt: input.yearBuilt } : {}),
+      ...(input.yearEstablished !== undefined ? { yearEstablished: input.yearEstablished } : {}),
       ...(input.totalArea !== undefined ? { totalArea: input.totalArea } : {}),
       ...(input.amenities !== undefined ? { amenities: input.amenities } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.managerId !== undefined ? { managerId: input.managerId } : {}),
     }, createdBy);
 
-    const savedProperty = await this.propertyRepo.create(property);
+    const savedSite = await this.siteRepo.create(site);
 
     // Publish event
-    const event: PropertyCreatedEvent = {
+    const event: SiteCreatedEvent = {
       eventId: generateEventId(),
-      eventType: 'PropertyCreated',
+      eventType: 'SiteCreated',
       timestamp: new Date().toISOString(),
       tenantId,
       correlationId,
       causationId: null,
       metadata: {},
       payload: {
-        propertyId: savedProperty.id,
-        name: savedProperty.name,
-        code: savedProperty.code,
-        type: savedProperty.type,
-        ownerId: savedProperty.ownerId,
+        siteId: savedSite.id,
+        name: savedSite.name,
+        code: savedSite.code,
+        type: savedSite.type,
+        ownerId: savedSite.ownerId,
       },
     };
 
-    await this.eventBus.publish(createEventEnvelope(event, savedProperty.id, 'Property'));
+    await this.eventBus.publish(createEventEnvelope(event, savedSite.id, 'Site'));
 
-    return ok(savedProperty);
+    return ok(savedSite);
   }
 
   /**
-   * Get a property by ID.
+   * Get a site by ID.
    */
-  async getProperty(propertyId: PropertyId, tenantId: TenantId): Promise<Property | null> {
-    return this.propertyRepo.findById(propertyId, tenantId);
+  async getSite(siteId: MiningSiteId, tenantId: TenantId): Promise<MiningSite | null> {
+    return this.siteRepo.findById(siteId, tenantId);
   }
 
   /**
-   * Get a property by code.
+   * Get a site by code.
    */
-  async getPropertyByCode(code: string, tenantId: TenantId): Promise<Property | null> {
-    return this.propertyRepo.findByCode(code, tenantId);
+  async getSiteByCode(code: string, tenantId: TenantId): Promise<MiningSite | null> {
+    return this.siteRepo.findByCode(code, tenantId);
   }
 
   /**
-   * List all properties for a tenant.
+   * List all sites for a tenant.
    */
-  async listProperties(
+  async listSites(
     tenantId: TenantId,
     pagination?: PaginationParams
-  ): Promise<PaginatedResult<Property>> {
-    return this.propertyRepo.findMany(tenantId, pagination);
+  ): Promise<PaginatedResult<MiningSite>> {
+    return this.siteRepo.findMany(tenantId, pagination);
   }
 
   /**
-   * List properties by owner.
+   * List sites by owner.
    */
-  async listPropertiesByOwner(
+  async listSitesByOwner(
     ownerId: OwnerId,
     tenantId: TenantId,
     pagination?: PaginationParams
-  ): Promise<PaginatedResult<Property>> {
-    return this.propertyRepo.findByOwner(ownerId, tenantId, pagination);
+  ): Promise<PaginatedResult<MiningSite>> {
+    return this.siteRepo.findByOwner(ownerId, tenantId, pagination);
   }
 
   /**
-   * List properties by manager.
+   * List sites by manager.
    */
-  async listPropertiesByManager(
+  async listSitesByManager(
     managerId: UserId,
     tenantId: TenantId,
     pagination?: PaginationParams
-  ): Promise<PaginatedResult<Property>> {
-    return this.propertyRepo.findByManager(managerId, tenantId, pagination);
+  ): Promise<PaginatedResult<MiningSite>> {
+    return this.siteRepo.findByManager(managerId, tenantId, pagination);
   }
 
   /**
-   * Update a property.
+   * Update a site.
    */
-  async updateProperty(
-    propertyId: PropertyId,
+  async updateSite(
+    siteId: MiningSiteId,
     tenantId: TenantId,
-    input: UpdatePropertyInput,
+    input: UpdateSiteInput,
     updatedBy: UserId,
     correlationId: string
-  ): Promise<Result<Property, PropertyServiceErrorResult>> {
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
+  ): Promise<Result<MiningSite, SiteServiceErrorResult>> {
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
       return err({
-        code: PropertyServiceError.PROPERTY_NOT_FOUND,
-        message: 'Property not found',
+        code: SiteServiceError.SITE_NOT_FOUND,
+        message: 'Site not found',
       });
     }
 
-    const updatedProperty: Property = {
-      ...property,
-      name: input.name ?? property.name,
-      status: input.status ?? property.status,
-      address: input.address ? { ...property.address, ...input.address } : property.address,
-      totalUnits: input.totalUnits ?? property.totalUnits,
-      yearBuilt: input.yearBuilt ?? property.yearBuilt,
-      totalArea: input.totalArea ?? property.totalArea,
-      amenities: input.amenities ?? property.amenities,
-      description: input.description ?? property.description,
-      managerId: input.managerId !== undefined ? input.managerId : property.managerId,
+    const updatedSite: MiningSite = {
+      ...site,
+      name: input.name ?? site.name,
+      status: input.status ?? site.status,
+      address: input.address ? { ...site.address, ...input.address } : site.address,
+      totalUnits: input.totalUnits ?? site.totalUnits,
+      yearEstablished: input.yearEstablished ?? site.yearEstablished,
+      totalArea: input.totalArea ?? site.totalArea,
+      amenities: input.amenities ?? site.amenities,
+      description: input.description ?? site.description,
+      managerId: input.managerId !== undefined ? input.managerId : site.managerId,
       updatedAt: new Date().toISOString(),
       updatedBy,
     };
 
-    const savedProperty = await this.propertyRepo.update(updatedProperty);
-    return ok(savedProperty);
+    const savedSite = await this.siteRepo.update(updatedSite);
+    return ok(savedSite);
   }
 
   /**
-   * Delete a property (soft delete).
+   * Delete a site (soft delete).
    */
-  async deleteProperty(
-    propertyId: PropertyId,
+  async deleteSite(
+    siteId: MiningSiteId,
     tenantId: TenantId,
     deletedBy: UserId,
     correlationId: string
-  ): Promise<Result<void, PropertyServiceErrorResult>> {
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
+  ): Promise<Result<void, SiteServiceErrorResult>> {
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
       return err({
-        code: PropertyServiceError.PROPERTY_NOT_FOUND,
-        message: 'Property not found',
+        code: SiteServiceError.SITE_NOT_FOUND,
+        message: 'Site not found',
       });
     }
 
-    // Check for active leases - would need LeaseRepository
+    // Check for active offtakes - would need OfftakeRepository
     // For now, just delete
-    await this.propertyRepo.delete(propertyId, tenantId, deletedBy);
+    await this.siteRepo.delete(siteId, tenantId, deletedBy);
     return ok(undefined);
   }
 
   /**
-   * Assign a manager to a property.
+   * Assign a manager to a site.
    */
   async assignManager(
-    propertyId: PropertyId,
+    siteId: MiningSiteId,
     tenantId: TenantId,
     managerId: UserId | null,
     updatedBy: UserId,
     correlationId: string
-  ): Promise<Result<Property, PropertyServiceErrorResult>> {
-    return this.updateProperty(
-      propertyId,
+  ): Promise<Result<MiningSite, SiteServiceErrorResult>> {
+    return this.updateSite(
+      siteId,
       tenantId,
       { managerId },
       updatedBy,
@@ -551,52 +553,52 @@ export class PropertyService {
   }
 
   /**
-   * Get property statistics including occupancy and unit counts.
+   * Get site statistics including production-utilisation and unit counts.
    */
-  async getPropertyStats(
-    propertyId: PropertyId,
+  async getSiteStats(
+    siteId: MiningSiteId,
     tenantId: TenantId
-  ): Promise<Result<PropertyStats, PropertyServiceErrorResult>> {
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
+  ): Promise<Result<SiteStats, SiteServiceErrorResult>> {
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
       return err({
-        code: PropertyServiceError.PROPERTY_NOT_FOUND,
-        message: 'Property not found',
+        code: SiteServiceError.SITE_NOT_FOUND,
+        message: 'Site not found',
       });
     }
 
-    const counts = await this.unitRepo.countByProperty(propertyId, tenantId);
-    const occupancyRate = counts.total > 0 
-      ? Math.round((counts.occupied / counts.total) * 100) 
+    const counts = await this.unitRepo.countBySite(siteId, tenantId);
+    const utilisationRate = counts.total > 0
+      ? Math.round((counts.inProduction / counts.total) * 100)
       : 0;
 
     // Get units for revenue calculation
-    const units = await this.unitRepo.findByProperty(propertyId, tenantId);
+    const units = await this.unitRepo.findBySite(siteId, tenantId);
     let potentialMonthlyRevenue = 0;
     let actualMonthlyRevenue = 0;
 
     for (const unit of units.items) {
-      potentialMonthlyRevenue += unit.monthlyRent.amount;
-      if (unit.status === 'occupied') {
-        actualMonthlyRevenue += unit.monthlyRent.amount;
+      potentialMonthlyRevenue += unit.operatingLevy.amount;
+      if (unit.status === 'in_production') {
+        actualMonthlyRevenue += unit.operatingLevy.amount;
       }
     }
 
-    const stats: PropertyStats = {
-      propertyId,
+    const stats: SiteStats = {
+      siteId,
       totalUnits: counts.total,
-      occupiedUnits: counts.occupied,
-      vacantUnits: counts.vacant,
-      occupancyRate,
+      unitsInProduction: counts.inProduction,
+      idleUnits: counts.idle,
+      utilisationRate,
       potentialMonthlyRevenue: {
         amount: potentialMonthlyRevenue,
-        currency: units.items[0]?.monthlyRent.currency ?? 'USD',
+        currency: units.items[0]?.operatingLevy.currency ?? 'USD',
       } as Money,
       actualMonthlyRevenue: {
         amount: actualMonthlyRevenue,
-        currency: units.items[0]?.monthlyRent.currency ?? 'USD',
+        currency: units.items[0]?.operatingLevy.currency ?? 'USD',
       } as Money,
-      revenueEfficiency: potentialMonthlyRevenue > 0 
+      revenueEfficiency: potentialMonthlyRevenue > 0
         ? Math.round((actualMonthlyRevenue / potentialMonthlyRevenue) * 100)
         : 0,
     };
@@ -607,53 +609,53 @@ export class PropertyService {
   // ==================== Unit Operations ====================
 
   /**
-   * Create a new unit within a property.
+   * Create a new unit within a site.
    */
   async createUnit(
-    propertyId: PropertyId,
+    siteId: MiningSiteId,
     tenantId: TenantId,
     input: CreateUnitInput,
     createdBy: UserId,
     correlationId: string
-  ): Promise<Result<Unit, PropertyServiceErrorResult>> {
-    // Verify property exists
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
+  ): Promise<Result<MiningUnit, SiteServiceErrorResult>> {
+    // Verify site exists
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
       return err({
-        code: PropertyServiceError.PROPERTY_NOT_FOUND,
-        message: 'Property not found',
+        code: SiteServiceError.SITE_NOT_FOUND,
+        message: 'Site not found',
       });
     }
 
-    // Check unit number uniqueness within property
-    const existing = await this.unitRepo.findByUnitNumber(input.unitNumber, propertyId, tenantId);
+    // Check unit number uniqueness within site
+    const existing = await this.unitRepo.findByUnitNumber(input.unitNumber, siteId, tenantId);
     if (existing) {
       return err({
-        code: PropertyServiceError.UNIT_NUMBER_EXISTS,
-        message: `Unit ${input.unitNumber} already exists in this property`,
+        code: SiteServiceError.UNIT_NUMBER_EXISTS,
+        message: `Unit ${input.unitNumber} already exists in this site`,
       });
     }
 
     // Validate required fields
-    if (!input.unitNumber || !input.type || !input.monthlyRent) {
+    if (!input.unitNumber || !input.type || !input.operatingLevy) {
       return err({
-        code: PropertyServiceError.INVALID_UNIT_DATA,
-        message: 'Unit number, type, and monthly rent are required',
+        code: SiteServiceError.INVALID_UNIT_DATA,
+        message: 'Unit number, type, and operating levy are required',
       });
     }
 
-    const unitId = asUnitId(`unit_${Date.now()}_${randomHex(4)}`);
+    const unitId = asMiningUnitId(`unit_${Date.now()}_${randomHex(4)}`);
 
-    const unit = createUnit(unitId, {
+    const unit = createMiningUnit(unitId, {
       tenantId,
-      propertyId,
+      siteId,
       unitNumber: input.unitNumber,
-      floor: input.floor,
+      level: input.level,
       type: input.type,
-      bedrooms: input.bedrooms,
-      bathrooms: input.bathrooms,
-      monthlyRent: input.monthlyRent,
-      depositAmount: input.depositAmount,
+      oreGradeGramsPerTonne: input.oreGradeGramsPerTonne,
+      recoveryPct: input.recoveryPct,
+      operatingLevy: input.operatingLevy,
+      bondAmount: input.bondAmount,
       ...(input.area !== undefined ? { area: input.area } : {}),
       ...(input.amenities !== undefined ? { amenities: input.amenities } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
@@ -661,13 +663,13 @@ export class PropertyService {
 
     const savedUnit = await this.unitRepo.create(unit);
 
-    // Update property unit counts
-    const counts = await this.unitRepo.countByProperty(propertyId, tenantId);
-    await this.propertyRepo.update({
-      ...property,
+    // Update site unit counts
+    const counts = await this.unitRepo.countBySite(siteId, tenantId);
+    await this.siteRepo.update({
+      ...site,
       totalUnits: counts.total,
-      occupiedUnits: counts.occupied,
-      vacantUnits: counts.vacant,
+      activeUnits: counts.inProduction,
+      idleUnits: counts.idle,
       updatedAt: new Date().toISOString(),
       updatedBy: createdBy,
     });
@@ -683,7 +685,7 @@ export class PropertyService {
       metadata: {},
       payload: {
         unitId: savedUnit.id,
-        propertyId,
+        siteId,
         unitNumber: savedUnit.unitNumber,
         type: savedUnit.type,
       },
@@ -697,57 +699,57 @@ export class PropertyService {
   /**
    * Get a unit by ID.
    */
-  async getUnit(unitId: UnitId, tenantId: TenantId): Promise<Unit | null> {
+  async getUnit(unitId: MiningUnitId, tenantId: TenantId): Promise<MiningUnit | null> {
     return this.unitRepo.findById(unitId, tenantId);
   }
 
   /**
-   * List units by property.
+   * List units by site.
    */
-  async listUnitsByProperty(
-    propertyId: PropertyId,
+  async listUnitsBySite(
+    siteId: MiningSiteId,
     tenantId: TenantId,
     pagination?: PaginationParams
-  ): Promise<PaginatedResult<Unit>> {
-    return this.unitRepo.findByProperty(propertyId, tenantId, pagination);
+  ): Promise<PaginatedResult<MiningUnit>> {
+    return this.unitRepo.findBySite(siteId, tenantId, pagination);
   }
 
   /**
-   * List vacant units across all properties.
+   * List idle units (spare capacity) across all sites.
    */
-  async listVacantUnits(
+  async listIdleUnits(
     tenantId: TenantId,
     pagination?: PaginationParams
-  ): Promise<PaginatedResult<Unit>> {
-    return this.unitRepo.findVacant(tenantId, pagination);
+  ): Promise<PaginatedResult<MiningUnit>> {
+    return this.unitRepo.findIdle(tenantId, pagination);
   }
 
   /**
    * Update a unit.
    */
   async updateUnit(
-    unitId: UnitId,
+    unitId: MiningUnitId,
     tenantId: TenantId,
     input: UpdateUnitInput,
     updatedBy: UserId,
     correlationId: string
-  ): Promise<Result<Unit, PropertyServiceErrorResult>> {
+  ): Promise<Result<MiningUnit, SiteServiceErrorResult>> {
     const unit = await this.unitRepo.findById(unitId, tenantId);
     if (!unit) {
       return err({
-        code: PropertyServiceError.UNIT_NOT_FOUND,
+        code: SiteServiceError.UNIT_NOT_FOUND,
         message: 'Unit not found',
       });
     }
 
-    const updatedUnit: Unit = {
+    const updatedUnit: MiningUnit = {
       ...unit,
       status: input.status ?? unit.status,
       type: input.type ?? unit.type,
-      bedrooms: input.bedrooms ?? unit.bedrooms,
-      bathrooms: input.bathrooms ?? unit.bathrooms,
-      monthlyRent: input.monthlyRent ?? unit.monthlyRent,
-      depositAmount: input.depositAmount ?? unit.depositAmount,
+      oreGradeGramsPerTonne: input.oreGradeGramsPerTonne ?? unit.oreGradeGramsPerTonne,
+      recoveryPct: input.recoveryPct ?? unit.recoveryPct,
+      operatingLevy: input.operatingLevy ?? unit.operatingLevy,
+      bondAmount: input.bondAmount ?? unit.bondAmount,
       area: input.area ?? unit.area,
       amenities: input.amenities ?? unit.amenities,
       description: input.description ?? unit.description,
@@ -757,15 +759,15 @@ export class PropertyService {
 
     const savedUnit = await this.unitRepo.update(updatedUnit);
 
-    // Update property unit counts if status changed
+    // Update site unit counts if status changed
     if (input.status) {
-      const property = await this.propertyRepo.findById(unit.propertyId, tenantId);
-      if (property) {
-        const counts = await this.unitRepo.countByProperty(unit.propertyId, tenantId);
-        await this.propertyRepo.update({
-          ...property,
-          occupiedUnits: counts.occupied,
-          vacantUnits: counts.vacant,
+      const site = await this.siteRepo.findById(unit.siteId, tenantId);
+      if (site) {
+        const counts = await this.unitRepo.countBySite(unit.siteId, tenantId);
+        await this.siteRepo.update({
+          ...site,
+          activeUnits: counts.inProduction,
+          idleUnits: counts.idle,
           updatedAt: new Date().toISOString(),
           updatedBy,
         });
@@ -779,12 +781,12 @@ export class PropertyService {
    * Update unit status (convenience method).
    */
   async updateUnitStatus(
-    unitId: UnitId,
+    unitId: MiningUnitId,
     tenantId: TenantId,
-    status: UnitStatus,
+    status: MiningUnitStatus,
     updatedBy: UserId,
     correlationId: string
-  ): Promise<Result<Unit, PropertyServiceErrorResult>> {
+  ): Promise<Result<MiningUnit, SiteServiceErrorResult>> {
     return this.updateUnit(unitId, tenantId, { status }, updatedBy, correlationId);
   }
 
@@ -792,38 +794,38 @@ export class PropertyService {
    * Delete a unit (soft delete).
    */
   async deleteUnit(
-    unitId: UnitId,
+    unitId: MiningUnitId,
     tenantId: TenantId,
     deletedBy: UserId,
     correlationId: string
-  ): Promise<Result<void, PropertyServiceErrorResult>> {
+  ): Promise<Result<void, SiteServiceErrorResult>> {
     const unit = await this.unitRepo.findById(unitId, tenantId);
     if (!unit) {
       return err({
-        code: PropertyServiceError.UNIT_NOT_FOUND,
+        code: SiteServiceError.UNIT_NOT_FOUND,
         message: 'Unit not found',
       });
     }
 
-    // Check if unit is occupied
-    if (unit.status === 'occupied') {
+    // Check if unit is in production
+    if (unit.status === 'in_production') {
       return err({
-        code: PropertyServiceError.UNIT_OCCUPIED,
-        message: 'Cannot delete an occupied unit',
+        code: SiteServiceError.UNIT_IN_PRODUCTION,
+        message: 'Cannot delete a unit that is in production',
       });
     }
 
     await this.unitRepo.delete(unitId, tenantId, deletedBy);
 
-    // Update property counts
-    const property = await this.propertyRepo.findById(unit.propertyId, tenantId);
-    if (property) {
-      const counts = await this.unitRepo.countByProperty(unit.propertyId, tenantId);
-      await this.propertyRepo.update({
-        ...property,
+    // Update site counts
+    const site = await this.siteRepo.findById(unit.siteId, tenantId);
+    if (site) {
+      const counts = await this.unitRepo.countBySite(unit.siteId, tenantId);
+      await this.siteRepo.update({
+        ...site,
         totalUnits: counts.total,
-        occupiedUnits: counts.occupied,
-        vacantUnits: counts.vacant,
+        activeUnits: counts.inProduction,
+        idleUnits: counts.idle,
         updatedAt: new Date().toISOString(),
         updatedBy: deletedBy,
       });
@@ -835,42 +837,42 @@ export class PropertyService {
   // ==================== Block Operations ====================
 
   /**
-   * Create a block within a property.
+   * Create a block within a site.
    */
   async createBlock(
-    propertyId: PropertyId,
+    siteId: MiningSiteId,
     tenantId: TenantId,
     input: CreateBlockInput,
     createdBy: UserId,
     correlationId: string
-  ): Promise<Result<Block, PropertyServiceErrorResult>> {
+  ): Promise<Result<Block, SiteServiceErrorResult>> {
     if (!this.blockRepo) {
-      return err({ code: PropertyServiceError.INVALID_PROPERTY_DATA, message: 'Block repository not configured' });
+      return err({ code: SiteServiceError.INVALID_SITE_DATA, message: 'Block repository not configured' });
     }
 
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
-      return err({ code: PropertyServiceError.PROPERTY_NOT_FOUND, message: 'Property not found' });
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
+      return err({ code: SiteServiceError.SITE_NOT_FOUND, message: 'Site not found' });
     }
 
     // Generate block code if not provided
-    const sequence = await this.blockRepo.getNextSequence(propertyId, tenantId);
-    const blockCode = input.blockCode ?? generateBlockCode(property.code, sequence);
+    const sequence = await this.blockRepo.getNextSequence(siteId, tenantId);
+    const blockCode = input.blockCode ?? generateBlockCode(site.code, sequence);
 
     // Check uniqueness
-    const existing = await this.blockRepo.findByBlockCode(blockCode, propertyId, tenantId);
+    const existing = await this.blockRepo.findByBlockCode(blockCode, siteId, tenantId);
     if (existing) {
-      return err({ code: PropertyServiceError.PROPERTY_CODE_EXISTS, message: `Block code ${blockCode} already exists` });
+      return err({ code: SiteServiceError.SITE_CODE_EXISTS, message: `Block code ${blockCode} already exists` });
     }
 
     const blockId = asBlockId(`blk_${Date.now()}_${randomHex(4)}`);
     const block = createBlock(blockId, {
       tenantId,
-      propertyId,
+      siteId,
       blockCode,
       name: input.name,
       description: input.description,
-      floor: input.floor,
+      level: input.level,
       wing: input.wing,
       amenities: input.amenities,
       features: input.features,
@@ -891,7 +893,7 @@ export class PropertyService {
       correlationId,
       causationId: null,
       metadata: {},
-      payload: { blockId: savedBlock.id, propertyId, blockCode: savedBlock.blockCode, name: savedBlock.name },
+      payload: { blockId: savedBlock.id, siteId, blockCode: savedBlock.blockCode, name: savedBlock.name },
     };
     await this.eventBus.publish(createEventEnvelope(event, savedBlock.id, 'Block'));
 
@@ -907,17 +909,17 @@ export class PropertyService {
   }
 
   /**
-   * List blocks by property.
+   * List blocks by site.
    */
-  async listBlocksByProperty(
-    propertyId: PropertyId,
+  async listBlocksBySite(
+    siteId: MiningSiteId,
     tenantId: TenantId,
     pagination?: PaginationParams
   ): Promise<PaginatedResult<Block>> {
     if (!this.blockRepo) {
       return { items: [], total: 0, limit: pagination?.limit ?? 50, offset: pagination?.offset ?? 0, hasMore: false };
     }
-    return this.blockRepo.findByProperty(propertyId, tenantId, pagination);
+    return this.blockRepo.findBySite(siteId, tenantId, pagination);
   }
 
   /**
@@ -929,14 +931,14 @@ export class PropertyService {
     input: UpdateBlockInput,
     updatedBy: UserId,
     correlationId: string
-  ): Promise<Result<Block, PropertyServiceErrorResult>> {
+  ): Promise<Result<Block, SiteServiceErrorResult>> {
     if (!this.blockRepo) {
-      return err({ code: PropertyServiceError.INVALID_PROPERTY_DATA, message: 'Block repository not configured' });
+      return err({ code: SiteServiceError.INVALID_SITE_DATA, message: 'Block repository not configured' });
     }
 
     const block = await this.blockRepo.findById(blockId, tenantId);
     if (!block) {
-      return err({ code: PropertyServiceError.PROPERTY_NOT_FOUND, message: 'Block not found' });
+      return err({ code: SiteServiceError.SITE_NOT_FOUND, message: 'Block not found' });
     }
 
     const updatedBlock: Block = {
@@ -967,22 +969,22 @@ export class PropertyService {
     tenantId: TenantId,
     deletedBy: UserId,
     correlationId: string
-  ): Promise<Result<void, PropertyServiceErrorResult>> {
+  ): Promise<Result<void, SiteServiceErrorResult>> {
     if (!this.blockRepo) {
-      return err({ code: PropertyServiceError.INVALID_PROPERTY_DATA, message: 'Block repository not configured' });
+      return err({ code: SiteServiceError.INVALID_SITE_DATA, message: 'Block repository not configured' });
     }
 
     const block = await this.blockRepo.findById(blockId, tenantId);
     if (!block) {
-      return err({ code: PropertyServiceError.PROPERTY_NOT_FOUND, message: 'Block not found' });
+      return err({ code: SiteServiceError.SITE_NOT_FOUND, message: 'Block not found' });
     }
 
-    // Check for occupied units in block
+    // Check for in-production units in block
     const counts = await this.unitRepo.countByBlock(blockId, tenantId);
-    if (counts.occupied > 0) {
+    if (counts.inProduction > 0) {
       return err({
-        code: PropertyServiceError.CANNOT_DELETE_WITH_ACTIVE_LEASES,
-        message: 'Cannot delete block with occupied units',
+        code: SiteServiceError.CANNOT_DELETE_WITH_ACTIVE_OFFTAKES,
+        message: 'Cannot delete block with units in production',
       });
     }
 
@@ -993,31 +995,31 @@ export class PropertyService {
   // ==================== Health Scoring ====================
 
   /**
-   * Calculate a property health score (0-100) covering occupancy, revenue,
+   * Calculate a site health score (0-100) covering utilisation, revenue,
    * maintenance and compliance factors.
    */
-  async calculatePropertyHealthScore(
-    propertyId: PropertyId,
+  async calculateSiteHealthScore(
+    siteId: MiningSiteId,
     tenantId: TenantId
-  ): Promise<Result<PropertyHealthScore, PropertyServiceErrorResult>> {
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
-      return err({ code: PropertyServiceError.PROPERTY_NOT_FOUND, message: 'Property not found' });
+  ): Promise<Result<SiteHealthScore, SiteServiceErrorResult>> {
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
+      return err({ code: SiteServiceError.SITE_NOT_FOUND, message: 'Site not found' });
     }
 
-    const counts = await this.unitRepo.countByProperty(propertyId, tenantId);
-    const units = await this.unitRepo.findByProperty(propertyId, tenantId);
+    const counts = await this.unitRepo.countBySite(siteId, tenantId);
+    const units = await this.unitRepo.findBySite(siteId, tenantId);
 
-    const occupancyRate = counts.total > 0 ? (counts.occupied / counts.total) * 100 : 0;
-    const occupancyScore = Math.min(100, Math.round(occupancyRate));
+    const utilisationRate = counts.total > 0 ? (counts.inProduction / counts.total) * 100 : 0;
+    const utilisationScore = Math.min(100, Math.round(utilisationRate));
 
     // Revenue efficiency
     let potentialRevenue = 0;
     let actualRevenue = 0;
     for (const unit of units.items) {
-      potentialRevenue += unit.monthlyRent.amount;
-      if (unit.status === 'occupied') {
-        actualRevenue += unit.monthlyRent.amount;
+      potentialRevenue += unit.operatingLevy.amount;
+      if (unit.status === 'in_production') {
+        actualRevenue += unit.operatingLevy.amount;
       }
     }
     const revenueEfficiency = potentialRevenue > 0 ? (actualRevenue / potentialRevenue) * 100 : 0;
@@ -1038,27 +1040,27 @@ export class PropertyService {
 
     // Weighted overall score
     const overallScore = Math.round(
-      occupancyScore * 0.35 +
+      utilisationScore * 0.35 +
       revenueScore * 0.30 +
       maintenanceScore * 0.20 +
       complianceScore * 0.15
     );
 
-    const averageRent = counts.total > 0 ? Math.round(potentialRevenue / counts.total) : 0;
+    const averageLevy = counts.total > 0 ? Math.round(potentialRevenue / counts.total) : 0;
 
-    const healthScore: PropertyHealthScore = {
-      propertyId,
+    const healthScore: SiteHealthScore = {
+      siteId,
       overallScore,
-      occupancyScore,
+      utilisationScore,
       revenueScore,
       maintenanceScore,
       complianceScore,
       factors: {
-        occupancyRate: Math.round(occupancyRate * 10) / 10,
+        utilisationRate: Math.round(utilisationRate * 10) / 10,
         revenueEfficiency: Math.round(revenueEfficiency * 10) / 10,
-        vacantUnits: counts.vacant,
+        idleUnits: counts.idle,
         totalUnits: counts.total,
-        averageRent,
+        averageLevy,
       },
       calculatedAt: new Date().toISOString(),
     };
@@ -1069,49 +1071,49 @@ export class PropertyService {
   // ==================== Bulk Unit Operations ====================
 
   /**
-   * Create multiple units at once for a property.
+   * Create multiple units at once for a site.
    * Generates sequential unit numbers using a prefix.
    */
   async bulkCreateUnits(
-    propertyId: PropertyId,
+    siteId: MiningSiteId,
     tenantId: TenantId,
     input: BulkCreateUnitInput,
     createdBy: UserId,
     correlationId: string
-  ): Promise<Result<Unit[], PropertyServiceErrorResult>> {
-    const property = await this.propertyRepo.findById(propertyId, tenantId);
-    if (!property) {
-      return err({ code: PropertyServiceError.PROPERTY_NOT_FOUND, message: 'Property not found' });
+  ): Promise<Result<MiningUnit[], SiteServiceErrorResult>> {
+    const site = await this.siteRepo.findById(siteId, tenantId);
+    if (!site) {
+      return err({ code: SiteServiceError.SITE_NOT_FOUND, message: 'Site not found' });
     }
 
     if (input.count <= 0 || input.count > 200) {
-      return err({ code: PropertyServiceError.INVALID_UNIT_DATA, message: 'Count must be between 1 and 200' });
+      return err({ code: SiteServiceError.INVALID_UNIT_DATA, message: 'Count must be between 1 and 200' });
     }
 
-    const units: Unit[] = [];
+    const units: MiningUnit[] = [];
     for (let i = 0; i < input.count; i++) {
       const unitNumber = `${input.prefix}${String(input.startNumber + i).padStart(2, '0')}`;
 
       // Check uniqueness
-      const existing = await this.unitRepo.findByUnitNumber(unitNumber, propertyId, tenantId);
+      const existing = await this.unitRepo.findByUnitNumber(unitNumber, siteId, tenantId);
       if (existing) {
         return err({
-          code: PropertyServiceError.UNIT_NUMBER_EXISTS,
-          message: `Unit ${unitNumber} already exists in this property`,
+          code: SiteServiceError.UNIT_NUMBER_EXISTS,
+          message: `Unit ${unitNumber} already exists in this site`,
         });
       }
 
-      const unitId = asUnitId(`unit_${Date.now()}_${randomHex(4)}_${i}`);
-      const unit = createUnit(unitId, {
+      const unitId = asMiningUnitId(`unit_${Date.now()}_${randomHex(4)}_${i}`);
+      const unit = createMiningUnit(unitId, {
         tenantId,
-        propertyId,
+        siteId,
         unitNumber,
-        floor: input.floor,
+        level: input.level,
         type: input.type,
-        bedrooms: input.bedrooms,
-        bathrooms: input.bathrooms,
-        monthlyRent: input.monthlyRent,
-        depositAmount: input.depositAmount,
+        oreGradeGramsPerTonne: input.oreGradeGramsPerTonne,
+        recoveryPct: input.recoveryPct,
+        operatingLevy: input.operatingLevy,
+        bondAmount: input.bondAmount,
         ...(input.area !== undefined ? { area: input.area } : {}),
         ...(input.amenities !== undefined ? { amenities: input.amenities } : {}),
       }, createdBy);
@@ -1120,13 +1122,13 @@ export class PropertyService {
 
     const savedUnits = await this.unitRepo.createMany(units);
 
-    // Update property counts
-    const counts = await this.unitRepo.countByProperty(propertyId, tenantId);
-    await this.propertyRepo.update({
-      ...property,
+    // Update site counts
+    const counts = await this.unitRepo.countBySite(siteId, tenantId);
+    await this.siteRepo.update({
+      ...site,
       totalUnits: counts.total,
-      occupiedUnits: counts.occupied,
-      vacantUnits: counts.vacant,
+      activeUnits: counts.inProduction,
+      idleUnits: counts.idle,
       updatedAt: new Date().toISOString(),
       updatedBy: createdBy,
     });
@@ -1141,12 +1143,12 @@ export class PropertyService {
       causationId: null,
       metadata: {},
       payload: {
-        propertyId,
+        siteId,
         unitCount: savedUnits.length,
         unitIds: savedUnits.map(u => u.id),
       },
     };
-    await this.eventBus.publish(createEventEnvelope(event, propertyId, 'Property'));
+    await this.eventBus.publish(createEventEnvelope(event, siteId, 'Site'));
 
     return ok(savedUnits);
   }
@@ -1159,47 +1161,47 @@ export class PropertyService {
     input: BulkUpdateUnitStatusInput,
     updatedBy: UserId,
     correlationId: string
-  ): Promise<Result<Unit[], PropertyServiceErrorResult>> {
+  ): Promise<Result<MiningUnit[], SiteServiceErrorResult>> {
     if (input.unitIds.length === 0) {
-      return err({ code: PropertyServiceError.INVALID_UNIT_DATA, message: 'No unit IDs provided' });
+      return err({ code: SiteServiceError.INVALID_UNIT_DATA, message: 'No unit IDs provided' });
     }
     if (input.unitIds.length > 200) {
-      return err({ code: PropertyServiceError.INVALID_UNIT_DATA, message: 'Cannot update more than 200 units at once' });
+      return err({ code: SiteServiceError.INVALID_UNIT_DATA, message: 'Cannot update more than 200 units at once' });
     }
 
-    const updatedUnits: Unit[] = [];
+    const updatedUnits: MiningUnit[] = [];
     const now = new Date().toISOString();
-    const affectedProperties = new Set<PropertyId>();
+    const affectedSites = new Set<MiningSiteId>();
 
     for (const unitId of input.unitIds) {
       const unit = await this.unitRepo.findById(unitId, tenantId);
       if (!unit) {
-        return err({ code: PropertyServiceError.UNIT_NOT_FOUND, message: `Unit ${unitId} not found` });
+        return err({ code: SiteServiceError.UNIT_NOT_FOUND, message: `Unit ${unitId} not found` });
       }
 
-      if (input.status === 'vacant' && unit.status === 'occupied') {
-        // Cannot bulk-vacate occupied units (requires lease termination)
+      if (input.status === 'idle' && unit.status === 'in_production') {
+        // Cannot bulk-idle units that are in production (requires winding down the offtake)
         return err({
-          code: PropertyServiceError.UNIT_OCCUPIED,
-          message: `Cannot set occupied unit ${unit.unitNumber} to vacant. Terminate the lease first.`,
+          code: SiteServiceError.UNIT_IN_PRODUCTION,
+          message: `Cannot set in-production unit ${unit.unitNumber} to idle. Wind down the offtake first.`,
         });
       }
 
       updatedUnits.push({ ...unit, status: input.status, updatedAt: now, updatedBy });
-      affectedProperties.add(unit.propertyId);
+      affectedSites.add(unit.siteId);
     }
 
     const savedUnits = await this.unitRepo.updateMany(updatedUnits);
 
-    // Update property counts for all affected properties
-    for (const propertyId of affectedProperties) {
-      const property = await this.propertyRepo.findById(propertyId, tenantId);
-      if (property) {
-        const counts = await this.unitRepo.countByProperty(propertyId, tenantId);
-        await this.propertyRepo.update({
-          ...property,
-          occupiedUnits: counts.occupied,
-          vacantUnits: counts.vacant,
+    // Update site counts for all affected sites
+    for (const siteId of affectedSites) {
+      const site = await this.siteRepo.findById(siteId, tenantId);
+      if (site) {
+        const counts = await this.unitRepo.countBySite(siteId, tenantId);
+        await this.siteRepo.update({
+          ...site,
+          activeUnits: counts.inProduction,
+          idleUnits: counts.idle,
           updatedAt: now,
           updatedBy,
         });
@@ -1211,9 +1213,9 @@ export class PropertyService {
 
   // ==================== Helpers ====================
 
-  private async generatePropertyCode(tenantId: TenantId): Promise<string> {
-    const sequence = await this.propertyRepo.getNextSequence(tenantId);
+  private async generateSiteCode(tenantId: TenantId): Promise<string> {
+    const sequence = await this.siteRepo.getNextSequence(tenantId);
     const year = new Date().getFullYear();
-    return `PROP-${year}-${String(sequence).padStart(4, '0')}`;
+    return `SITE-${year}-${String(sequence).padStart(4, '0')}`;
   }
 }

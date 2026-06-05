@@ -56,7 +56,8 @@ export interface CotReservoir {
 
 // ─────────────────────────────────────────────────────────────────────
 // PII scrubber — Tanzania/Kenya-aware. Mirrors policy-gate's PII_PATTERNS
-// with the addition of KRA PIN, M-Pesa till/paybill shapes, and Kenyan
+// with the addition of Tanzania TRA TIN + Kenya KRA PIN tax IDs, M-Pesa
+// till/paybill shapes, and Kenyan
 // national-ID (8 digits) which the policy-gate output redactor does
 // NOT currently catch (output text is the user-facing surface and KRA
 // PINs are not expected to be echoed there; CoT thought text, however,
@@ -80,6 +81,9 @@ const COT_PII_PATTERNS: ReadonlyArray<PiiPattern> = [
   { kind: 'phone-gen',  re: /\b0[67]\d{2}([\s-])\d{3}\1\d{3}\b/g,       replace: '[redacted-phone]' },
   { kind: 'email',      re: /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi,  replace: '[redacted-email]' },
   { kind: 'nida-tz',    re: /\b\d{8}-\d{5}-\d{5}-\d{2}\b/g,             replace: '[redacted-nida]' },
+  // Tanzania TRA TIN — 123-456-789 (9 digits, NNN-NNN-NNN). Primary
+  // tax-ID entry; the Kenya KRA PIN below covers the KE jurisdiction.
+  { kind: 'tra-tin',    re: /\b\d{3}-\d{3}-\d{3}\b/g,                   replace: '[redacted-tra-tin]' },
   { kind: 'kra-pin',    re: /\b[A-Z]\d{9}[A-Z]\b/g,                     replace: '[redacted-kra-pin]' },
   // Kenyan national ID is a bare 8-digit number; only redact when it
   // appears with an "ID"/"NID" cue to avoid mauling unit-counts.
@@ -176,8 +180,8 @@ const COT_PII_PATTERNS_EXTENDED: ReadonlyArray<ExtendedPiiPattern> = [
   // Credit-card numbers — 13-19 digits with optional space/dash
   // groupings. The regex is intentionally permissive (catch any 13-19
   // digit run); the Luhn validator filters the noise. Numbers under
-  // 13 digits stay un-redacted because legitimate property numbers
-  // (lease IDs, invoice numbers) routinely sit in the 10-12 range.
+  // 13 digits stay un-redacted because legitimate mining-estate numbers
+  // (agreement IDs, invoice numbers) routinely sit in the 10-12 range.
   {
     kind: 'credit-card-luhn',
     re: /\b(?:\d[\s-]?){12,18}\d\b/g,

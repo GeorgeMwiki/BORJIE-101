@@ -16,9 +16,9 @@
  *                                 decision log, explanation +
  *                                 counterfactual, opt-out to human review
  *   5. dark-pattern-detector    — Brignull's 14-category taxonomy
- *   6. surveillance-consent     — cameras/sensors in rented units,
- *                                 per-tenant consent that does NOT
- *                                 transfer on tenancy change
+ *   6. surveillance-consent     — cameras/sensors at site facilities,
+ *                                 per-occupant consent that does NOT
+ *                                 transfer on site-occupant change
  *   7. accessibility            — WCAG 2.2 AA + Section 508 checks (16)
  *   8. createEthicsFramework    — composition root
  *

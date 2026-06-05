@@ -61,12 +61,12 @@ function synthesiseInput(
 ): unknown {
   // Best-effort defaults so the fallback path produces *something*.
   switch (scenario.name) {
-    case 'raise-rent':
+    case 'raise-royalty':
       return {
         unitIds: context.units.slice(0, Math.min(3, context.units.length)).map((u) => u.unitId),
         pctIncrease: 0.05,
         effectiveDateMs: context.nowMs + 30 * 24 * 60 * 60 * 1000,
-        microMarketVacancyRate: 0.05,
+        microMarketAvailableCapacityRate: 0.05,
         marketDemandIndex: 1,
       };
     case 'refinance':
@@ -77,13 +77,13 @@ function synthesiseInput(
         remainingTermMonths: 180,
         originationFeePct: 0.015,
       };
-    case 'acquire-property':
+    case 'acquire-site':
       return {
         unitCount: 5,
-        expectedMonthlyRentPerUnit: 50_000,
+        expectedMonthlyRoyaltyPerUnit: 50_000,
         purchasePrice: 8_000_000,
         financedPct: 0.7,
-        expectedOccupancy: 0.9,
+        expectedUtilisation: 0.9,
       };
     case 'fire-vendor':
       return {
@@ -98,16 +98,16 @@ function synthesiseInput(
         affectedUnitIds: context.units.slice(0, Math.min(3, context.units.length)).map((u) => u.unitId),
         repairCost: 250_000,
         repairDays: 5,
-        abatementPctOfRent: 0.5,
+        abatementPctOfRoyalty: 0.5,
         vendorCount: 2,
       };
-    case 'lease-renewal-batch':
+    case 'offtake-renewal-batch':
       return {
-        decisions: context.tenants.slice(0, 3).map((t) => ({
-          tenantId: t.tenantId,
+        decisions: context.counterparties.slice(0, 3).map((c) => ({
+          counterpartyId: c.counterpartyId,
           pctIncrease: 0.03,
         })),
-        microMarketVacancyRate: 0.05,
+        microMarketAvailableCapacityRate: 0.05,
       };
     default:
       return {};

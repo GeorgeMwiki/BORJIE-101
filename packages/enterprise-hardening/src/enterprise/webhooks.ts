@@ -16,10 +16,10 @@ import { z } from 'zod';
 export const WebhookEventCategory = {
   TENANT: 'tenant',
   USER: 'user',
-  PROPERTY: 'property',
-  LEASE: 'lease',
+  SITE: 'site',
+  OFFTAKE: 'offtake',
   PAYMENT: 'payment',
-  MAINTENANCE: 'maintenance',
+  OPERATIONS: 'operations',
   DOCUMENT: 'document',
   NOTIFICATION: 'notification',
 } as const;
@@ -62,7 +62,7 @@ export interface WebhookEndpoint {
 export interface WebhookEvent {
   readonly id: string;
   readonly tenantId: string;
-  readonly type: string;                  // e.g., 'payment.completed', 'lease.created'
+  readonly type: string;                  // e.g., 'payment.completed', 'offtake.created'
   readonly category: WebhookEventCategory;
   readonly timestamp: string;
   readonly data: Record<string, unknown>;
@@ -530,18 +530,18 @@ export const WebhookEventTypes = {
   USER_UPDATED: 'user.updated',
   USER_DELETED: 'user.deleted',
 
-  // Property events
-  PROPERTY_CREATED: 'property.created',
-  PROPERTY_UPDATED: 'property.updated',
-  UNIT_AVAILABLE: 'property.unit_available',
-  UNIT_OCCUPIED: 'property.unit_occupied',
+  // Site events
+  SITE_CREATED: 'site.created',
+  SITE_UPDATED: 'site.updated',
+  ASSET_AVAILABLE: 'site.asset_available',
+  ASSET_IN_PRODUCTION: 'site.asset_in_production',
 
-  // Lease events
-  LEASE_CREATED: 'lease.created',
-  LEASE_SIGNED: 'lease.signed',
-  LEASE_RENEWED: 'lease.renewed',
-  LEASE_TERMINATED: 'lease.terminated',
-  LEASE_EXPIRING: 'lease.expiring',
+  // Offtake events
+  OFFTAKE_CREATED: 'offtake.created',
+  OFFTAKE_SIGNED: 'offtake.signed',
+  OFFTAKE_RENEWED: 'offtake.renewed',
+  OFFTAKE_TERMINATED: 'offtake.terminated',
+  OFFTAKE_EXPIRING: 'offtake.expiring',
 
   // Payment events
   PAYMENT_RECEIVED: 'payment.received',
@@ -550,12 +550,12 @@ export const WebhookEventTypes = {
   INVOICE_CREATED: 'payment.invoice_created',
   INVOICE_OVERDUE: 'payment.invoice_overdue',
 
-  // Maintenance events
-  WORK_ORDER_CREATED: 'maintenance.work_order_created',
-  WORK_ORDER_ASSIGNED: 'maintenance.work_order_assigned',
-  WORK_ORDER_COMPLETED: 'maintenance.work_order_completed',
-  INSPECTION_SCHEDULED: 'maintenance.inspection_scheduled',
-  INSPECTION_COMPLETED: 'maintenance.inspection_completed',
+  // Operations events
+  WORK_ORDER_CREATED: 'operations.work_order_created',
+  WORK_ORDER_ASSIGNED: 'operations.work_order_assigned',
+  WORK_ORDER_COMPLETED: 'operations.work_order_completed',
+  INSPECTION_SCHEDULED: 'operations.inspection_scheduled',
+  INSPECTION_COMPLETED: 'operations.inspection_completed',
 
   // Document events
   DOCUMENT_UPLOADED: 'document.uploaded',

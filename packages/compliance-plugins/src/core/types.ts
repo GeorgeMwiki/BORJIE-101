@@ -1,5 +1,5 @@
 /**
- * Core type definitions for the country compliance plugin system.
+ * Core type definitions for the country mining-compliance plugin system.
  *
  * Every country BORJIE supports is represented by a `CountryPlugin`.
  * Plugins are pure data + pure functions — no I/O, no side effects —
@@ -58,40 +58,41 @@ export interface PaymentGateway {
 }
 
 /**
- * Sublease model:
- *   - 'consent-required'  → landlord must approve before sublease begins.
- *   - 'notice-only'       → tenant notifies; landlord may object on narrow grounds.
- *   - 'prohibited'        → sublease forbidden absent explicit clause.
+ * Sub-supply model (sub-contracting / assignment of an offtake or supply
+ * agreement to a third-party operator):
+ *   - 'consent-required'  → owner must approve before sub-supply begins.
+ *   - 'notice-only'       → counterparty notifies; owner may object on narrow grounds.
+ *   - 'prohibited'        → sub-supply forbidden absent explicit clause.
  */
-export type SubleaseConsentModel =
+export type SubSupplyConsentModel =
   | 'consent-required'
   | 'notice-only'
   | 'prohibited';
 
 /**
- * Per-country rules that shape how lease lifecycle logic runs.
- * All numbers are positive; `null` means "no statutory cap" and callers
- * should fall back to the lease agreement.
+ * Per-country rules that shape how the offtake / supply-agreement lifecycle
+ * runs. All numbers are positive; `null` means "no statutory cap" and callers
+ * should fall back to the offtake / supply agreement.
  */
 export interface CompliancePolicy {
-  /** Minimum security deposit expressed as months of rent. */
-  readonly minDepositMonths: number;
-  /** Maximum security deposit expressed as months of rent. */
-  readonly maxDepositMonths: number;
-  /** Notice period for non-renewal of residential lease, in days. */
+  /** Minimum performance bond expressed as months of royalty/payment. */
+  readonly minBondMonths: number;
+  /** Maximum performance bond expressed as months of royalty/payment. */
+  readonly maxBondMonths: number;
+  /** Notice period for non-renewal of an offtake/supply agreement, in days. */
   readonly noticePeriodDays: number;
-  /** Minimum permissible lease term in months. */
-  readonly minimumLeaseMonths: number;
-  /** Sublease consent model in force. */
-  readonly subleaseConsent: SubleaseConsentModel;
-  /** Statutory cap on late fees expressed as a fraction of rent (e.g. 0.10). */
+  /** Minimum permissible offtake/supply term in months. */
+  readonly minimumTermMonths: number;
+  /** Sub-supply consent model in force. */
+  readonly subSupplyConsent: SubSupplyConsentModel;
+  /** Statutory cap on late fees expressed as a fraction of the payment (e.g. 0.10). */
   readonly lateFeeCapRate: number | null;
-  /** Security-deposit return deadline after lease termination, in days. */
-  readonly depositReturnDays: number;
+  /** Performance-bond return deadline after agreement termination, in days. */
+  readonly bondReturnDays: number;
 }
 
 export interface DocumentTemplate {
-  /** Stable template ID (e.g. 'lease-agreement', 'notice-of-termination'). */
+  /** Stable template ID (e.g. 'offtake-agreement', 'notice-of-suspension'). */
   readonly id: string;
   readonly name: string;
   /** Path relative to the plugin — consumers load from their own CMS. */
@@ -105,8 +106,8 @@ export interface DocumentTemplate {
 import type { TaxRegimePort } from '../ports/tax-regime.port.js';
 import type { TaxFilingPort } from '../ports/tax-filing.port.js';
 import type { PaymentRailPort } from '../ports/payment-rail.port.js';
-import type { TenantScreeningPort } from '../ports/tenant-screening.port.js';
-import type { LeaseLawPort } from '../ports/lease-law.port.js';
+import type { CounterpartyScreeningPort } from '../ports/counterparty-screening.port.js';
+import type { MiningLawPort } from '../ports/mining-law.port.js';
 
 export interface CountryPlugin {
   /** ISO-3166-1 alpha-2 — upper-case, exactly 2 letters. */
@@ -134,14 +135,14 @@ export interface CountryPlugin {
   // `resolvePlugin()` registry layers DEFAULT_* implementations for any
   // plugin that does not, so callers can rely on non-null access.
   // -------------------------------------------------------------------------
-  /** Rental-income withholding. */
+  /** Mineral-royalty / sales withholding. */
   readonly taxRegime?: TaxRegimePort;
-  /** Regulator-ready filing payload producer. */
+  /** Regulator-ready royalty-return / filing payload producer. */
   readonly taxFiling?: TaxFilingPort;
   /** Preferred payment instruments. */
   readonly paymentRails?: PaymentRailPort;
-  /** External credit-bureau adapter (env-gated, consent-required). */
-  readonly tenantScreening?: TenantScreeningPort;
-  /** Jurisdiction-specific lease law. */
-  readonly leaseLaw?: LeaseLawPort;
+  /** External credit-bureau / counterparty-screening adapter (env-gated, consent-required). */
+  readonly counterpartyScreening?: CounterpartyScreeningPort;
+  /** Jurisdiction-specific mining law. */
+  readonly miningLaw?: MiningLawPort;
 }

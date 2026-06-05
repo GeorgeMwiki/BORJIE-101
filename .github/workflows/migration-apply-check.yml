@@ -32,20 +32,6 @@ jobs:
   apply-all-migrations:
     name: Apply every migration in order against Postgres 17
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: borjie
-          POSTGRES_PASSWORD: borjie
-          POSTGRES_DB: borjie_migration_check
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U borjie"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 30
     env:
       DATABASE_URL: postgres://borjie:borjie@localhost:5432/borjie_migration_check
       MIGRATIONS_DIR: packages/database/src/migrations
@@ -57,24 +43,34 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Wait for Postgres to be ready
+      # Runner-installed Postgres 17 with BOTH PostGIS and pgvector — vanilla /
+      # pgvector-only container images don't bundle PostGIS, which the baseline
+      # (0000) requires, so install all three from PGDG. This mirrors Supabase,
+      # which ships postgis + pgvector natively.
+      - name: Install + start PostgreSQL 17 + PostGIS + pgvector (PGDG)
         run: |
           set -e
-          for i in $(seq 1 30); do
-            if pg_isready -h localhost -p 5432 -U borjie >/dev/null 2>&1; then
-              echo "Postgres ready after ${i}s"
-              exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::Postgres did not become ready within 30s"
-          exit 1
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-17 postgresql-17-postgis-3 postgresql-17-pgvector
+          # Fresh cluster on 5432 with trust auth (throwaway CI DB).
+          sudo systemctl stop postgresql 2>/dev/null || true
+          for v in 16 17; do sudo pg_dropcluster --stop "$v" main 2>/dev/null || true; done
+          sudo pg_createcluster 17 main -p 5432 -- --auth-local=trust --auth-host=trust
+          sudo pg_ctlcluster 17 main start
+          for i in $(seq 1 30); do sudo -u postgres pg_isready -p 5432 >/dev/null 2>&1 && break; sleep 1; done
+          sudo -u postgres psql -p 5432 -v ON_ERROR_STOP=1 -c "CREATE ROLE borjie LOGIN SUPERUSER PASSWORD 'borjie'"
+          sudo -u postgres psql -p 5432 -v ON_ERROR_STOP=1 -c "CREATE DATABASE borjie_migration_check OWNER borjie"
+          echo "PostgreSQL 17 + PostGIS + pgvector ready on :5432"
 
-      - name: Try CREATE EXTENSION vector (best-effort)
+      - name: Try CREATE EXTENSION vector + postgis (best-effort)
         run: |
-          PGPASSWORD=borjie psql -h localhost -U borjie -d borjie_migration_check \
-            -c "CREATE EXTENSION IF NOT EXISTS vector" 2>&1 | tail -3 || \
-            echo "::warning::pgvector not available — migrations that depend on it may fail"
+          for ext in vector postgis postgis_topology pgcrypto "uuid-ossp" pg_trgm citext btree_gist; do
+            PGPASSWORD=borjie psql -h localhost -U borjie -d borjie_migration_check \
+              -c "CREATE EXTENSION IF NOT EXISTS \"${ext}\"" 2>&1 | tail -1 || \
+              echo "::warning::extension ${ext} not available — migrations depending on it may fail"
+          done
 
       - name: Seed Supabase roles (authenticated, anon, service_role)
         env:

@@ -101,7 +101,7 @@ describe('evaluateScopePredicate — kinds', () => {
 
   it('module_scope: deny on mismatch', () => {
     const verdict = evaluateScopePredicate({
-      predicate: { kind: 'module_scope', module: 'leasing' },
+      predicate: { kind: 'module_scope', module: 'offtake' },
       ctx: ctx(),
       target: { tenantId: 't_abc', moduleId: 'maintenance' },
     });
@@ -200,10 +200,10 @@ describe('renderScopeFilter', () => {
 
   it('module_scope merges predicate.module preferred over ctx', () => {
     const f = renderScopeFilter({
-      predicate: { kind: 'module_scope', module: 'leasing' },
+      predicate: { kind: 'module_scope', module: 'offtake' },
       ctx: ctx({ moduleId: 'maintenance' }),
     });
-    expect(f.moduleId).toBe('leasing');
+    expect(f.moduleId).toBe('offtake');
   });
 
   it('module_scope falls back to ctx.moduleId when predicate has none', () => {

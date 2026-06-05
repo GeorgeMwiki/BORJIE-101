@@ -197,18 +197,20 @@ export const TerminationReason = {
   END_OF_TERM: 'end_of_term',
   MUTUAL_AGREEMENT: 'mutual_agreement',
   TENANT_REQUEST: 'tenant_request',
-  LANDLORD_REQUEST: 'landlord_request',
+  // W-E migration: persisted value 'landlord_request' → 'owner_request'.
+  LANDLORD_REQUEST: 'owner_request',
   NON_PAYMENT: 'non_payment',
   LEASE_VIOLATION: 'lease_violation',
   PROPERTY_SALE: 'property_sale',
   PROPERTY_DAMAGE: 'property_damage',
-  EVICTION: 'eviction',
+  // W-E migration: persisted value 'eviction' → 'licence_suspension'.
+  EVICTION: 'licence_suspension',
   OTHER: 'other',
 } as const;
 export type TerminationReason = (typeof TerminationReason)[keyof typeof TerminationReason];
 export const TerminationReasonSchema = z.enum([
-  'end_of_term', 'mutual_agreement', 'tenant_request', 'landlord_request',
-  'non_payment', 'lease_violation', 'property_sale', 'property_damage', 'eviction', 'other'
+  'end_of_term', 'mutual_agreement', 'tenant_request', 'owner_request',
+  'non_payment', 'lease_violation', 'property_sale', 'property_damage', 'licence_suspension', 'other'
 ]);
 
 // ============================================================================
@@ -593,7 +595,8 @@ export const CaseType = {
   LEASE_VIOLATION: 'lease_violation',
   NOISE_COMPLAINT: 'noise_complaint',
   MAINTENANCE_DISPUTE: 'maintenance_dispute',
-  EVICTION: 'eviction',
+  // W-E migration: persisted value 'eviction' → 'licence_suspension'.
+  EVICTION: 'licence_suspension',
   HARASSMENT: 'harassment',
   SAFETY_CONCERN: 'safety_concern',
   BILLING_DISPUTE: 'billing_dispute',
@@ -602,7 +605,7 @@ export const CaseType = {
 export type CaseType = (typeof CaseType)[keyof typeof CaseType];
 export const CaseTypeSchema = z.enum([
   'arrears', 'deposit_dispute', 'damage_claim', 'lease_violation', 'noise_complaint',
-  'maintenance_dispute', 'eviction', 'harassment', 'safety_concern', 'billing_dispute', 'other'
+  'maintenance_dispute', 'licence_suspension', 'harassment', 'safety_concern', 'billing_dispute', 'other'
 ]);
 
 export const CaseSeverity = {
@@ -661,7 +664,8 @@ export const ResolutionType = {
   MUTUAL_AGREEMENT: 'mutual_agreement',
   MEDIATION_OUTCOME: 'mediation_outcome',
   COURT_ORDER: 'court_order',
-  EVICTION: 'eviction',
+  // W-E migration: persisted value 'eviction' → 'licence_suspension'.
+  EVICTION: 'licence_suspension',
   LEASE_TERMINATION: 'lease_termination',
   WARNING_ISSUED: 'warning_issued',
   NO_ACTION: 'no_action',
@@ -671,7 +675,7 @@ export const ResolutionType = {
 export type ResolutionType = (typeof ResolutionType)[keyof typeof ResolutionType];
 export const ResolutionTypeSchema = z.enum([
   'payment_plan', 'partial_payment', 'full_payment', 'deposit_deduction',
-  'mutual_agreement', 'mediation_outcome', 'court_order', 'eviction',
+  'mutual_agreement', 'mediation_outcome', 'court_order', 'licence_suspension',
   'lease_termination', 'warning_issued', 'no_action', 'withdrawn', 'other'
 ]);
 
@@ -693,19 +697,26 @@ export const EvidenceTypeSchema = z.enum([
   'payment_record', 'inspection_report', 'witness_statement', 'legal_document', 'other'
 ]);
 
+// W-E migration: notice vocabulary moved to the mining domain. Member KEYS
+// are kept stable (consumers reference `NoticeType.EVICTION_NOTICE` etc.) while
+// the string VALUES move — those persisted values are migrated concurrently by
+// the database agent. Renamed values:
+//   'eviction_warning' → 'licence_suspension_warning'
+//   'eviction_notice'  → 'licence_suspension_notice'
+//   'lease_violation'  → 'offtake_violation'
 export const NoticeType = {
   PAYMENT_REMINDER: 'payment_reminder',
   PAYMENT_DEMAND: 'payment_demand',
   LATE_FEE_NOTICE: 'late_fee_notice',
-  LEASE_VIOLATION: 'lease_violation',
+  LEASE_VIOLATION: 'offtake_violation',
   NOISE_WARNING: 'noise_warning',
   INSPECTION_NOTICE: 'inspection_notice',
   ENTRY_NOTICE: 'entry_notice',
   RENEWAL_OFFER: 'renewal_offer',
   NON_RENEWAL: 'non_renewal',
   TERMINATION: 'termination',
-  EVICTION_WARNING: 'eviction_warning',
-  EVICTION_NOTICE: 'eviction_notice',
+  EVICTION_WARNING: 'licence_suspension_warning',
+  EVICTION_NOTICE: 'licence_suspension_notice',
   DEPOSIT_DEDUCTION: 'deposit_deduction',
   MOVE_OUT_INSTRUCTIONS: 'move_out_instructions',
   LEGAL_DEMAND: 'legal_demand',
@@ -714,9 +725,9 @@ export const NoticeType = {
 } as const;
 export type NoticeType = (typeof NoticeType)[keyof typeof NoticeType];
 export const NoticeTypeSchema = z.enum([
-  'payment_reminder', 'payment_demand', 'late_fee_notice', 'lease_violation', 'noise_warning',
+  'payment_reminder', 'payment_demand', 'late_fee_notice', 'offtake_violation', 'noise_warning',
   'inspection_notice', 'entry_notice', 'renewal_offer', 'non_renewal', 'termination',
-  'eviction_warning', 'eviction_notice', 'deposit_deduction', 'move_out_instructions',
+  'licence_suspension_warning', 'licence_suspension_notice', 'deposit_deduction', 'move_out_instructions',
   'legal_demand', 'court_summons', 'other'
 ]);
 

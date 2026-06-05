@@ -215,9 +215,9 @@ describe('createMarketDataCacheService', () => {
 
     await svc.put(
       'k1',
-      'zillow',
-      { jurisdiction: 'TZ-DAR', bedrooms: 2 },
-      { rents: [{ rentMajor: 1200, currency: 'USD' }] },
+      'lme',
+      { jurisdiction: 'TZ-DAR', oreGrade: 2 },
+      { royaltyRates: [{ rateMajor: 1200, currency: 'USD' }] },
       60_000,
     );
 
@@ -225,7 +225,7 @@ describe('createMarketDataCacheService', () => {
 
     expect(out).not.toBeNull();
     expect(out?.resultJson).toEqual({
-      rents: [{ rentMajor: 1200, currency: 'USD' }],
+      royaltyRates: [{ rateMajor: 1200, currency: 'USD' }],
     });
     expect(typeof out?.fetchedAt).toBe('string');
     // The row should have an expires_at strictly in the future.
@@ -238,9 +238,9 @@ describe('createMarketDataCacheService', () => {
     const stub = makeStubDb([
       {
         cacheKey: 'expired-key',
-        provider: 'zillow',
+        provider: 'lme',
         queryJson: { jurisdiction: 'TZ-DAR' },
-        resultJson: { rents: [] },
+        resultJson: { royaltyRates: [] },
         fetchedAt: tenMinutesAgo,
         expiresAt: fiveMinutesAgo,
       },
@@ -258,7 +258,7 @@ describe('createMarketDataCacheService', () => {
     const stub = makeStubDb([
       {
         cacheKey: 'fresh-key',
-        provider: 'airbnb',
+        provider: 'comex',
         queryJson: { jurisdiction: 'KE-NAIROBI' },
         resultJson: { sample: 42 },
         fetchedAt: oneMinuteAgo,
@@ -279,7 +279,7 @@ describe('createMarketDataCacheService', () => {
     const stub = makeStubDb([
       {
         cacheKey: 'gone-1',
-        provider: 'zillow',
+        provider: 'lme',
         queryJson: {},
         resultJson: {},
         fetchedAt: tenMinutesAgo,
@@ -287,7 +287,7 @@ describe('createMarketDataCacheService', () => {
       },
       {
         cacheKey: 'gone-2',
-        provider: 'airbnb',
+        provider: 'comex',
         queryJson: {},
         resultJson: {},
         fetchedAt: tenMinutesAgo,
@@ -295,7 +295,7 @@ describe('createMarketDataCacheService', () => {
       },
       {
         cacheKey: 'kept',
-        provider: 'zillow',
+        provider: 'lme',
         queryJson: {},
         resultJson: {},
         fetchedAt: tenMinutesAgo,
@@ -315,10 +315,10 @@ describe('createMarketDataCacheService', () => {
     const stub = makeStubDb([]);
     const svc = createMarketDataCacheService(stub.client);
 
-    await expect(svc.put('k', 'zillow', {}, {}, 0)).rejects.toBeInstanceOf(
+    await expect(svc.put('k', 'lme', {}, {}, 0)).rejects.toBeInstanceOf(
       RangeError,
     );
-    await expect(svc.put('k', 'zillow', {}, {}, -1)).rejects.toBeInstanceOf(
+    await expect(svc.put('k', 'lme', {}, {}, -1)).rejects.toBeInstanceOf(
       RangeError,
     );
   });
@@ -327,7 +327,7 @@ describe('createMarketDataCacheService', () => {
     const stub = makeStubDb([]);
     const svc = createMarketDataCacheService(stub.client);
 
-    await expect(svc.put('', 'zillow', {}, {}, 1000)).rejects.toThrow(
+    await expect(svc.put('', 'lme', {}, {}, 1000)).rejects.toThrow(
       /cacheKey/,
     );
     await expect(svc.put('k', '', {}, {}, 1000)).rejects.toThrow(/provider/);

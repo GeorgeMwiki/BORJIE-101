@@ -2,7 +2,7 @@
 
 This is a **continuous, in-tree** runner that scores BORJIE's tool-use
 surface against the BFCL v4 protocol (Berkeley, 2026 refresh). It complements
-`pms-bench-1` (vertical property-management tasks) by exercising the GENERIC
+`pms-bench-1` (vertical mining-estate operations tasks) by exercising the GENERIC
 function-calling behaviour every agent in the platform depends on.
 
 ## What BFCL v4 measures

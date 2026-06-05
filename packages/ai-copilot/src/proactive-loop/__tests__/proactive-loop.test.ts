@@ -53,7 +53,7 @@ describe('proposal-templates — each produces a structurally-valid proposal', (
       source: 'market-surveillance',
       payload: { driftFlag: 'below_market', deltaPct: -0.18 },
     }),
-    rent_adjustment: mkSignal({
+    price_adjustment: mkSignal({
       source: 'market-surveillance',
       payload: { driftFlag: 'above_market', deltaPct: 0.25 },
     }),
@@ -64,17 +64,17 @@ describe('proposal-templates — each produces a structurally-valid proposal', (
     }),
     retention_offer: mkSignal({
       source: 'sentiment-monitor',
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       payload: { previousAvg: 0.4, currentAvg: -0.1, sampleCount: 12 },
     }),
-    arrears_early_intervention: mkSignal({
+    royalty_arrears_early_intervention: mkSignal({
       source: 'predictive-interventions',
       domain: 'finance',
       payload: { signalType: 'high_default_risk', signalStrength: 0.82 },
     }),
-    lease_renewal_nudge: mkSignal({
+    offtake_renewal_nudge: mkSignal({
       source: 'predictive-interventions',
-      domain: 'leasing',
+      domain: 'offtake',
       payload: { signalType: 'high_churn_risk', signalStrength: 0.77 },
     }),
     vendor_rotation: mkSignal({
@@ -82,9 +82,9 @@ describe('proposal-templates — each produces a structurally-valid proposal', (
       domain: 'procurement',
       payload: { title: 'vendor qa rework trend', confidence: 0.6 },
     }),
-    tenant_wellness_check: mkSignal({
+    buyer_wellness_check: mkSignal({
       source: 'sentiment-monitor',
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       severity: 'critical',
       payload: { previousAvg: 0.6, currentAvg: -0.8 },
     }),
@@ -130,7 +130,7 @@ describe('signal-sources — adapter normalisation', () => {
 
   it('sentiment-monitor — emits tenant_welfare signal', () => {
     const raw = {
-      type: 'TenantSentimentShift',
+      type: 'CounterpartySentimentShift',
       tenantId: TENANT,
       customerId: 'c1',
       previousAvg: 0.3,
@@ -140,7 +140,7 @@ describe('signal-sources — adapter normalisation', () => {
       observedAt: new Date().toISOString(),
     };
     const signal = sentimentMonitorSignalSource.normalize(raw);
-    expect(signal!.domain).toBe('tenant_welfare');
+    expect(signal!.domain).toBe('community_welfare');
     expect(signal!.severity).toBe('high');
   });
 
@@ -248,7 +248,7 @@ describe('proactive-orchestrator', () => {
     });
     const signal = mkSignal({
       source: 'sentiment-monitor',
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       severity: 'critical',
       payload: { previousAvg: 0.5, currentAvg: -0.9 },
     });
@@ -280,7 +280,7 @@ describe('proactive-orchestrator', () => {
       payload: { driftFlag: 'on_band', deltaPct: 0 },
     });
     const result = await orch.ingestSignal(signal);
-    // rent_adjustment requires above/below; marketing_campaign_launch requires below — neither match
+    // price_adjustment requires above/below; marketing_campaign_launch requires below — neither match
     expect(result.skipped).toBe(true);
     expect(result.skipReason).toBe('no_matching_template');
   });

@@ -35,15 +35,15 @@ function wire() {
 }
 
 const TITLE_HINT: Readonly<Record<ReportType, string>> = Object.freeze({
-  leasing_financial_performance: 'Leasing financial performance',
+  offtake_financial_performance: 'Offtake financial performance',
   conditional_survey_of_assets: 'Conditional survey',
   acquisition_deal_ic_memo: 'Acquisition IC memo',
   disposition_memo_asset_profile: 'Disposition memo',
   refinancing_strategy_memo: 'Refinancing memo',
   sustainability_ghg_report: 'Sustainability + GHG report',
   expansion_strategy_memo: 'Expansion strategy',
-  tenant_credit_risk_profile: 'Tenant credit profile',
-  rent_roll_arrears_ledger: 'Rent-roll + arrears ledger',
+  buyer_credit_risk_profile: 'Buyer credit profile',
+  royalty_roll_outstanding_ledger: 'Royalty-roll + outstanding ledger',
   annual_estate_operating_review: 'Annual Estate Operating Review',
 });
 

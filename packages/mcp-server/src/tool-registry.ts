@@ -148,9 +148,9 @@ export const BORJIE_TOOLS: ReadonlyArray<McpToolDefinition> = Object.freeze(
     }),
 
     Object.freeze({
-      name: 'query_arrears_projection',
+      name: 'query_outstanding_royalties_projection',
       description:
-        'Project the arrears curve for a tenant or unit over the next N months using the payments-ledger + paytime-prediction model.',
+        'Project the outstanding-royalties curve for a counterparty or unit over the next N months using the payments-ledger + paytime-prediction model.',
       inputSchema: Object.freeze({
         tenantProfileId: Object.freeze({
           type: 'string' as const,

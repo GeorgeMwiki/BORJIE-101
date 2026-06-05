@@ -39,7 +39,7 @@ describe('PlatformMetrics', () => {
 
     it('should record HTTP requests without tenant', () => {
       expect(() =>
-        metrics.recordHttpRequest('POST', '/api/properties', 201, 250)
+        metrics.recordHttpRequest('POST', '/api/sites', 201, 250)
       ).not.toThrow();
     });
 
@@ -56,13 +56,13 @@ describe('PlatformMetrics', () => {
   describe('Payment metrics', () => {
     it('should record payment transactions', () => {
       expect(() =>
-        metrics.recordPayment('rent', 'success', 50000, 'KES', 'tenant-1')
+        metrics.recordPayment('royalty', 'success', 50000, 'KES', 'tenant-1')
       ).not.toThrow();
     });
 
     it('should record failed payments', () => {
       expect(() =>
-        metrics.recordPayment('rent', 'failed', 50000, 'KES', 'tenant-1')
+        metrics.recordPayment('royalty', 'failed', 50000, 'KES', 'tenant-1')
       ).not.toThrow();
     });
 

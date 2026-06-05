@@ -23,7 +23,7 @@ function makeTool(
     id: 'noop',
     name: 'No-op',
     description: 'Doubles the input.',
-    requiredTier: 'tenant-resident',
+    requiredTier: 'counterparty-resident',
     requiresApproval: false,
     auditDestination: 'audit-events',
     schema: z.object({ value: z.number() }),
@@ -43,7 +43,7 @@ function makeCtx(
   const fixedDate = new Date('2026-01-01T00:00:00Z');
   return {
     callerId: 'u_test',
-    tier: 'tenant-resident',
+    tier: 'counterparty-resident',
     tenantId: 't_1',
     threadId: 'thread_1',
     approvalRecordId: null,
@@ -93,7 +93,7 @@ describe('createPowerToolRegistry', () => {
     const result = await registry.invoke(
       'noop',
       { value: 5 },
-      makeCtx({ tier: 'tenant-resident' }),
+      makeCtx({ tier: 'counterparty-resident' }),
     );
     expect(result.kind).toBe('refused');
     if (result.kind === 'refused') {
@@ -175,7 +175,7 @@ describe('createPowerToolRegistry', () => {
   });
 
   it('listForTier respects the tier ladder', () => {
-    registry.register(makeTool({ id: 'low', requiredTier: 'tenant-resident' }));
+    registry.register(makeTool({ id: 'low', requiredTier: 'counterparty-resident' }));
     registry.register(makeTool({ id: 'med', requiredTier: 'org-admin' }));
     registry.register(
       makeTool({ id: 'high', requiredTier: 'platform-sovereign' }),

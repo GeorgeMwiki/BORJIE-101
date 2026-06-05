@@ -3,7 +3,7 @@
 # Adapted from LITFIN default-policy.yaml
 # (`src/core/security/policies/default-policy.yaml`).
 #
-# Property-management SaaS framing: this is the fallback policy applied
+# Mining-estate OS framing: this is the fallback policy applied
 # when no tenant/role-specific overlay matches. Deny-by-default — tools
 # not listed in `allowedTools` are denied. Explicit `deniedTools`
 # patterns take precedence and exist to block destructive admin/system
@@ -24,14 +24,14 @@ description: "BORJIE baseline (deny-by-default) policy for autonomous AI agents"
 allowedTools:
   - navigate-user
   - explain-platform
-  - query-properties
-  - query-units
-  - query-tenants
-  - query-leases
-  - view-application-status
+  - query-assets
+  - query-sites
+  - query-counterparties
+  - query-offtakes
+  - view-buyer-application-status
   - view-payment-history
   - view-maintenance-tickets
-  - generate-rent-statement
+  - generate-royalty-statement
   - suggest-next-action
 
 # --- Tool denylist ----------------------------------------------------------
@@ -41,7 +41,7 @@ deniedTools:
   - "admin-*"
   - "delete-*"
   - "disburse-*"
-  - "modify-lease-*"
+  - "modify-offtake-*"
   - "modify-payment-*"
   - "officer-*"
   - "approve-*"
@@ -49,19 +49,19 @@ deniedTools:
   - "assign-*"
   - "system-*"
   - export-bulk-data
-  - send-eviction-notice
-  - view-other-tenant-data
-  - view-other-landlord-data
+  - send-licence-suspension-notice
+  - view-other-counterparty-data
+  - view-other-owner-data
 
 # --- DB table allowlist -----------------------------------------------------
 allowedDbTables:
-  - properties
-  - units
-  - tenants
-  - leases
+  - assets
+  - sites
+  - counterparties
+  - offtakes
   - payments
   - maintenance_tickets
-  - rent_statements
+  - royalty_statements
   - learning_sessions
   - concepts
 
@@ -94,8 +94,8 @@ humanApproval:
   - "delete-*"
   - send-notification-external
   - disburse-funds
-  - update-rent-amount
-  - terminate-lease
+  - update-royalty-amount
+  - terminate-offtake
 
 # --- Audit configuration ---------------------------------------------------
 audit:
@@ -108,55 +108,55 @@ actionClassification:
   sensitivity:
     high:
       - "disburse-*"
-      - "modify-lease-*"
+      - "modify-offtake-*"
       - "modify-payment-*"
       - "delete-*"
-      - terminate-lease
-      - send-eviction-notice
+      - terminate-offtake
+      - send-licence-suspension-notice
     medium:
       - send-notification-external
-      - update-tenant-profile
-      - update-rent-amount
+      - update-counterparty-profile
+      - update-royalty-amount
     low:
       - navigate-user
       - explain-platform
-      - query-properties
-      - query-units
+      - query-assets
+      - query-sites
   reversibility:
     irreversible:
       - "delete-*"
       - "disburse-*"
-      - send-eviction-notice
-      - terminate-lease
+      - send-licence-suspension-notice
+      - terminate-offtake
     reversible:
       - navigate-user
       - explain-platform
-      - update-tenant-profile
+      - update-counterparty-profile
   scope:
     system:
       - "admin-*"
       - "system-*"
     organization:
-      - "modify-lease-*"
+      - "modify-offtake-*"
       - "modify-payment-*"
-      - update-rent-amount
+      - update-royalty-amount
       - send-notification-external
     individual:
       - navigate-user
       - explain-platform
-      - query-properties
+      - query-assets
       - view-payment-history
   compliance:
     pii:
-      - update-tenant-profile
-      - query-tenants
-      - view-application-status
+      - update-counterparty-profile
+      - query-counterparties
+      - view-buyer-application-status
     financial:
       - "disburse-*"
       - "modify-payment-*"
-      - update-rent-amount
-      - generate-rent-statement
+      - update-royalty-amount
+      - generate-royalty-statement
     regulated:
       - query-audit
       - generate-report
-      - send-eviction-notice
+      - send-licence-suspension-notice

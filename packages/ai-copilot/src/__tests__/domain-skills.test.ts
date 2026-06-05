@@ -7,8 +7,8 @@
 
 import { describe, it, expect } from 'vitest';
 import {
-  // leasing
-  abstractLease,
+  // offtake
+  abstractOfftake,
   proposeRenewalOptions,
   // maintenance
   triageMaintenance,
@@ -30,64 +30,66 @@ import {
   EXTENDED_SCENARIOS,
 } from '../index.js';
 
-describe('leasing.abstract', () => {
-  it('extracts rent, deposit, and party names from a simple lease', () => {
+describe('offtake.abstract', () => {
+  it('extracts price, performance bond, and party names from a simple agreement', () => {
     const text = [
-      'LEASE AGREEMENT',
-      'Landlord: John Mwangi',
-      'Tenant: Asha Wanjiku',
-      'Unit: A-12',
+      'OFFTAKE AGREEMENT',
+      'Owner: John Mwangi',
+      'Buyer: Asha Wanjiku',
+      'Consignment: A-12',
       'Commencement date: 01/03/2026',
       'End date: 28/02/2027',
-      'Rent: KES 45,000 per month',
-      'Security deposit: KES 90,000',
-      'Service charge: KES 5,000',
+      'Price: TZS 45,000 per shipment',
+      'Performance bond: TZS 90,000',
+      'Cooperative levy: TZS 5,000',
       'Escalation: 5% per annum',
       'Notice period: 60 days',
       'Renewal clause present.',
-      'Late fee applies after 5 days.',
+      'Penalty applies after 5 days.',
+      'Force majeure clause present.',
     ].join('\n');
-    const r = abstractLease({ documentText: text });
-    expect(r.rentKes).toBe(45_000);
-    expect(r.depositKes).toBe(90_000);
-    expect(r.serviceChargeKes).toBe(5_000);
+    const r = abstractOfftake({ documentText: text });
+    expect(r.priceMinorUnits).toBe(45_000);
+    expect(r.performanceBondMinorUnits).toBe(90_000);
+    expect(r.cooperativeLevyMinorUnits).toBe(5_000);
     expect(r.escalationPct).toBe(5);
     expect(r.noticePeriodDays).toBe(60);
     expect(r.renewalClausePresent).toBe(true);
-    expect(r.lateFeeClausePresent).toBe(true);
-    expect(r.unit).toBe('A-12');
+    expect(r.penaltyClausePresent).toBe(true);
+    expect(r.forceMajeureClausePresent).toBe(true);
+    expect(r.consignment).toBe('A-12');
   });
 
   it('flags missing fields', () => {
-    const r = abstractLease({ documentText: 'hello' });
-    expect(r.flags).toContain('no_rent_amount_detected');
-    expect(r.flags).toContain('lease_dates_incomplete');
+    const r = abstractOfftake({ documentText: 'hello' });
+    expect(r.flags).toContain('no_price_amount_detected');
+    expect(r.flags).toContain('offtake_dates_incomplete');
   });
 });
 
-describe('leasing.renewal_propose', () => {
-  it('recommends conservative when tenant has poor payment score', () => {
+describe('offtake.renewal_propose', () => {
+  it('recommends conservative when buyer has poor payment score', () => {
     const r = proposeRenewalOptions({
-      leaseId: 'L1',
-      currentRentKes: 30_000,
-      marketMedianRentKes: 35_000,
-      tenantPaymentScore: 0.3,
-      tenantTenureMonths: 12,
-      vacancyRisk: 0.2,
+      offtakeId: 'O1',
+      currentPriceMinorUnits: 30_000,
+      marketMedianPriceMinorUnits: 35_000,
+      buyerPaymentScore: 0.3,
+      buyerTenureMonths: 12,
+      availableCapacityRisk: 0.2,
       maxIncreasePct: 0.1,
     });
     expect(r.recommended).toBe('conservative');
     expect(r.options).toHaveLength(3);
   });
 
-  it('recommends premium for long-tenure excellent payer with low vacancy risk', () => {
+  it('recommends premium for long-tenure excellent payer with low available-capacity risk', () => {
     const r = proposeRenewalOptions({
-      leaseId: 'L1',
-      currentRentKes: 30_000,
-      marketMedianRentKes: 35_000,
-      tenantPaymentScore: 0.9,
-      tenantTenureMonths: 36,
-      vacancyRisk: 0.05,
+      offtakeId: 'O1',
+      currentPriceMinorUnits: 30_000,
+      marketMedianPriceMinorUnits: 35_000,
+      buyerPaymentScore: 0.9,
+      buyerTenureMonths: 36,
+      availableCapacityRisk: 0.05,
       maxIncreasePct: 0.15,
     });
     expect(r.recommended).toBe('premium');
@@ -95,12 +97,12 @@ describe('leasing.renewal_propose', () => {
 
   it('caps increases at maxIncreasePct', () => {
     const r = proposeRenewalOptions({
-      leaseId: 'L1',
-      currentRentKes: 30_000,
-      marketMedianRentKes: 60_000, // huge market gap
-      tenantPaymentScore: 0.8,
-      tenantTenureMonths: 12,
-      vacancyRisk: 0.1,
+      offtakeId: 'O1',
+      currentPriceMinorUnits: 30_000,
+      marketMedianPriceMinorUnits: 60_000, // huge market gap
+      buyerPaymentScore: 0.8,
+      buyerTenureMonths: 12,
+      availableCapacityRisk: 0.1,
       maxIncreasePct: 0.1,
     });
     const market = r.options.find((o) => o.label === 'market')!;

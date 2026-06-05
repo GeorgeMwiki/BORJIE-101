@@ -12,7 +12,7 @@
 import type { ToolHandler } from '../../orchestrator/tool-dispatcher.js';
 import { createCaseTool } from './create-case.js';
 import { assignWorkOrderCommitTool } from './assign-work-order.js';
-import { approveLeaseRenewalTool } from './approve-lease-renewal.js';
+import { approveOfftakeRenewalTool } from './approve-lease-renewal.js';
 import { sendRentReminderTool } from './send-rent-reminder.js';
 import { draftOwnerStatementAdminTool } from './draft-owner-statement.js';
 import { approveTenderBidTool } from './approve-tender-bid.js';
@@ -40,7 +40,7 @@ export * from './update-autonomy-policy.js';
 export const ADMIN_SKILL_TOOLS: readonly ToolHandler[] = [
   createCaseTool,
   assignWorkOrderCommitTool,
-  approveLeaseRenewalTool,
+  approveOfftakeRenewalTool,
   sendRentReminderTool,
   draftOwnerStatementAdminTool,
   approveTenderBidTool,

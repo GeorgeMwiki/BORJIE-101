@@ -26,9 +26,9 @@ import {
 } from '../discover.js';
 import { createInMemoryReasoningStructureCache } from '../in-memory-cache.js';
 import {
-  EVICTION_TZ_DSM_STRUCTURE,
+  LICENCE_SUSPENSION_TZ_DSM_STRUCTURE,
   SEED_STRUCTURES,
-  TENANT_DISPUTE_GLOBAL_STRUCTURE,
+  COUNTERPARTY_DISPUTE_GLOBAL_STRUCTURE,
 } from '../canonical-structures.js';
 import {
   REASONING_STRUCTURE_SCHEMA_VERSION,
@@ -123,7 +123,7 @@ describe('discoverReasoningStructure — 8 task-class fixtures', () => {
 });
 
 describe('discoverReasoningStructure — cache behaviour', () => {
-  const fixture = FIXTURES[0]!; // eviction-tz-dsm
+  const fixture = FIXTURES[0]!; // licence-suspension-tz-dsm
 
   function makeStubResponse() {
     return {
@@ -171,14 +171,14 @@ describe('discoverReasoningStructure — cache behaviour', () => {
     const port: DiscovererPort = { discover: discoverSpy };
     const cache = createInMemoryReasoningStructureCache();
     await discoverReasoningStructure({
-      taskClass: 'eviction',
+      taskClass: 'licence-suspension',
       jurisdiction: 'TZ-DSM',
       samples: fixture.samples,
       cache,
       discoverer: port,
     });
     await discoverReasoningStructure({
-      taskClass: 'eviction',
+      taskClass: 'licence-suspension',
       jurisdiction: 'KE-NRB',
       samples: fixture.samples,
       cache,
@@ -191,33 +191,33 @@ describe('discoverReasoningStructure — cache behaviour', () => {
     const cache = createInMemoryReasoningStructureCache();
     // Manually seed a stale entry from an older schemaVersion.
     const stale: ReasoningStructure = {
-      ...EVICTION_TZ_DSM_STRUCTURE,
+      ...LICENCE_SUSPENSION_TZ_DSM_STRUCTURE,
       schemaVersion: REASONING_STRUCTURE_SCHEMA_VERSION - 1,
       jurisdiction: 'TZ-DSM',
     };
-    cache._entries.set('eviction::TZ-DSM', stale);
+    cache._entries.set('licence-suspension::TZ-DSM', stale);
     const fresh: ReasoningStructure = {
-      ...TENANT_DISPUTE_GLOBAL_STRUCTURE,
+      ...COUNTERPARTY_DISPUTE_GLOBAL_STRUCTURE,
       jurisdiction: 'GLOBAL',
     };
-    cache._entries.set('tenant-dispute::GLOBAL', fresh);
+    cache._entries.set('counterparty-dispute::GLOBAL', fresh);
 
     const removed = await cache.invalidateStaleSchemaVersions(
       REASONING_STRUCTURE_SCHEMA_VERSION,
     );
     expect(removed).toBe(1);
-    expect(cache._entries.has('eviction::TZ-DSM')).toBe(false);
-    expect(cache._entries.has('tenant-dispute::GLOBAL')).toBe(true);
+    expect(cache._entries.has('licence-suspension::TZ-DSM')).toBe(false);
+    expect(cache._entries.has('counterparty-dispute::GLOBAL')).toBe(true);
   });
 
   it('cache lookup returns null when stored entry has stale schemaVersion', async () => {
     const cache = createInMemoryReasoningStructureCache();
     const stale: ReasoningStructure = {
-      ...EVICTION_TZ_DSM_STRUCTURE,
+      ...LICENCE_SUSPENSION_TZ_DSM_STRUCTURE,
       schemaVersion: REASONING_STRUCTURE_SCHEMA_VERSION - 1,
     };
-    cache._entries.set('eviction::TZ-DSM', stale);
-    const hit = await cache.lookup({ taskClass: 'eviction', jurisdiction: 'TZ-DSM' });
+    cache._entries.set('licence-suspension::TZ-DSM', stale);
+    const hit = await cache.lookup({ taskClass: 'licence-suspension', jurisdiction: 'TZ-DSM' });
     expect(hit).toBeNull();
   });
 
@@ -236,7 +236,7 @@ describe('discoverReasoningStructure — cache behaviour', () => {
     const discoverSpy = vi.fn(async () => makeStubResponse());
     const port: DiscovererPort = { discover: discoverSpy };
     const result = await discoverReasoningStructure({
-      taskClass: 'eviction',
+      taskClass: 'licence-suspension',
       jurisdiction: 'TZ-DSM',
       samples: fixture.samples,
       cache: failingCache,
@@ -272,7 +272,7 @@ describe('discoverReasoningStructure — validation', () => {
   it('throws when a selected primitive is not in the library', async () => {
     await expect(
       discoverReasoningStructure({
-        taskClass: 'rent-proration',
+        taskClass: 'royalty-proration',
         jurisdiction: 'GLOBAL',
         samples: [],
         discoverer: baseDiscoverer({
@@ -294,7 +294,7 @@ describe('discoverReasoningStructure — validation', () => {
   it('throws on duplicate stepIds', async () => {
     await expect(
       discoverReasoningStructure({
-        taskClass: 'rent-proration',
+        taskClass: 'royalty-proration',
         jurisdiction: 'GLOBAL',
         samples: [],
         discoverer: baseDiscoverer({
@@ -311,7 +311,7 @@ describe('discoverReasoningStructure — validation', () => {
   it('throws on forward-referencing dependsOn (DAG violation)', async () => {
     await expect(
       discoverReasoningStructure({
-        taskClass: 'rent-proration',
+        taskClass: 'royalty-proration',
         jurisdiction: 'GLOBAL',
         samples: [],
         discoverer: baseDiscoverer({
@@ -328,7 +328,7 @@ describe('discoverReasoningStructure — validation', () => {
   it('throws on self-dependency', async () => {
     await expect(
       discoverReasoningStructure({
-        taskClass: 'rent-proration',
+        taskClass: 'royalty-proration',
         jurisdiction: 'GLOBAL',
         samples: [],
         discoverer: baseDiscoverer({
@@ -344,7 +344,7 @@ describe('discoverReasoningStructure — validation', () => {
   it('throws when step.primitive was not in SELECT output', async () => {
     await expect(
       discoverReasoningStructure({
-        taskClass: 'rent-proration',
+        taskClass: 'royalty-proration',
         jurisdiction: 'GLOBAL',
         samples: [],
         discoverer: baseDiscoverer({
@@ -390,10 +390,10 @@ describe('seed structures — must pass validator + cache round-trip', () => {
     });
   }
 
-  it('EVICTION_TZ_DSM_STRUCTURE includes all the critical primitives the L1 audit calls out', () => {
-    expect(EVICTION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('apply-tz-rental-act');
-    expect(EVICTION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('check-mediation-clause');
-    expect(EVICTION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('check-pii-boundary');
-    expect(EVICTION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('check-currency-chain');
+  it('LICENCE_SUSPENSION_TZ_DSM_STRUCTURE includes all the critical primitives the L1 audit calls out', () => {
+    expect(LICENCE_SUSPENSION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('apply-tz-mining-act');
+    expect(LICENCE_SUSPENSION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('check-mediation-clause');
+    expect(LICENCE_SUSPENSION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('check-pii-boundary');
+    expect(LICENCE_SUSPENSION_TZ_DSM_STRUCTURE.selectedPrimitives).toContain('check-currency-chain');
   });
 });

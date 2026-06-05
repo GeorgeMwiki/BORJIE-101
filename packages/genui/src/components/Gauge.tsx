@@ -3,7 +3,7 @@
 /**
  * 19. gauge — SVG radial progress dial.
  *
- * Used for NPS, collection-rate, occupancy. Thresholds drive the
+ * Used for NPS, collection-rate, recovery-rate. Thresholds drive the
  * arc colour bands; the needle's colour matches the active threshold.
  */
 

@@ -3,8 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
-import { getCsrfHeaders } from '@/lib/csrf';
-import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useT } from '@/i18n/t.client';
 
 interface FormState {
@@ -13,31 +12,15 @@ interface FormState {
 }
 
 /**
- * Resolve the api-gateway base URL. The owner-web Next app is served
- * on a different origin (:3010) from the gateway (:4001) in dev, so an
- * absolute URL is required for cookies to land in the correct jar.
- * Production places both behind the same TLS apex via the reverse
- * proxy and the env var resolves to "" (relative).
- *
- * In production builds requirePublicBaseUrl throws when the env var is
- * missing — we want a loud boot failure, not silent localhost fetches.
- */
-function gatewayBaseUrl(): string {
-  return requirePublicBaseUrl(
-    'NEXT_PUBLIC_API_GATEWAY_URL',
-    'http://localhost:4001',
-  ).replace(/\/$/, '');
-}
-
-/**
  * Swahili-first email + password sign-in for the owner cockpit.
  *
- * Posts to `/api/v1/auth/sign-in` (gateway) with `credentials: 'include'`
- * so the encrypted `borjie-session` HttpOnly cookie lands in the
- * owner-web jar. The cockpit's middleware reads the session on the
- * first /dashboard hit and rehydrates a Supabase user from the
- * cookie's access token — the browser never needs to carry the
- * Authorization header itself.
+ * Signs in directly via the Supabase browser client
+ * (`signInWithPassword`), which writes the `sb-*` SSR cookies that the
+ * cockpit middleware, `getOwnerSession`, and the in-app chat widget all
+ * read — the same proven path admin-web uses. (The previous gateway
+ * `/api/v1/auth/sign-in` → encrypted `borjie-session` cookie was never
+ * bridged into the Supabase SSR session the middleware gates on, so a
+ * "successful" sign-in bounced /dashboard → /sign-in in a loop.)
  */
 export function SignInForm() {
   const router = useRouter();
@@ -68,21 +51,16 @@ export function SignInForm() {
       return;
     }
     try {
-      const res = await fetch(`${gatewayBaseUrl()}/api/v1/auth/sign-in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-        credentials: 'include',
-        body: JSON.stringify(parsed.data),
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
       });
-      const json = (await res.json().catch(() => null)) as
-        | { success: true }
-        | { success: false; error: { code: string; message: string } }
-        | null;
-      if (!res.ok || !json?.success) {
-        const failure = json && !json.success ? json : null;
-        const msg =
-          failure?.error?.message ?? t('auth.signIn.errorSignInFailed');
-        setState({ phase: 'error', error: msg });
+      if (error) {
+        setState({
+          phase: 'error',
+          error: error.message ?? t('auth.signIn.errorSignInFailed'),
+        });
         return;
       }
       router.replace(next);

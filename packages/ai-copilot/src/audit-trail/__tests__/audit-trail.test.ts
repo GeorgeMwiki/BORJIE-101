@@ -124,15 +124,15 @@ describe('audit-trail/recorder', () => {
     const { recorder } = createHarness();
     const a = await recorder.record({
       tenantId: 't1', actor: { kind: 'human_action' },
-      actionKind: 'case.opened', actionCategory: 'leasing',
+      actionKind: 'case.opened', actionCategory: 'offtake',
     });
     const b = await recorder.record({
       tenantId: 't1', actor: { kind: 'ai_proposal' },
-      actionKind: 'renewal.drafted', actionCategory: 'leasing',
+      actionKind: 'renewal.drafted', actionCategory: 'offtake',
     });
     const c = await recorder.record({
       tenantId: 't2', actor: { kind: 'human_approval' },
-      actionKind: 'renewal.approved', actionCategory: 'leasing',
+      actionKind: 'renewal.approved', actionCategory: 'offtake',
     });
     expect(b.prevHash).toBe(a.thisHash);
     expect(b.sequenceId).toBe(2);
@@ -166,6 +166,48 @@ describe('audit-trail/recorder', () => {
     ).rejects.toThrow(/actionCategory/);
   });
 
+  it('accepts the canonical mining categories', async () => {
+    const { recorder } = createHarness();
+    const canonical = [
+      'offtake',
+      'royalty_collection',
+      'counterparty_welfare',
+      'licence_suspension',
+    ] as const;
+    for (const actionCategory of canonical) {
+      const row = await recorder.record({
+        tenantId: 't1',
+        actor: { kind: 'ai_autonomous' },
+        actionKind: 'mining.action',
+        actionCategory,
+      });
+      expect(row.actionCategory).toBe(actionCategory);
+      expect(row.thisHash).toMatch(/^[0-9a-f]{64}$/);
+    }
+  });
+
+  it('still accepts deprecated property-domain aliases (chain integrity)', async () => {
+    // Historical hash-chained rows persisted these labels; the hash covers
+    // actionCategory, so the recorder MUST keep accepting them verbatim or the
+    // existing chain stops verifying. Additive rename — never reject the old.
+    const { recorder } = createHarness();
+    const deprecated = [
+      'leasing',
+      'rent_collection',
+      'tenant_welfare',
+      'eviction',
+    ] as const;
+    for (const actionCategory of deprecated) {
+      const row = await recorder.record({
+        tenantId: 't1',
+        actor: { kind: 'human_action' },
+        actionKind: 'legacy.action',
+        actionCategory,
+      });
+      expect(row.actionCategory).toBe(actionCategory);
+    }
+  });
+
   it('rejects negative AI tokens/cost', async () => {
     const { recorder } = createHarness();
     await expect(
@@ -188,7 +230,7 @@ describe('audit-trail/verifier', () => {
     });
     await h.recorder.record({
       tenantId: 't1', actor: { kind: 'ai_execution' },
-      actionKind: 'b', actionCategory: 'leasing',
+      actionKind: 'b', actionCategory: 'offtake',
     });
     await h.recorder.record({
       tenantId: 't1', actor: { kind: 'human_approval' },

@@ -85,15 +85,15 @@ const FIXTURES: Record<ArtifactComponentType, { props: Record<string, unknown>; 
   },
   pivot_table: {
     props: {
-      rowDimensions: ['property'],
+      rowDimensions: ['asset'],
       colDimensions: ['month'],
-      measures: [{ field: 'rent', aggregator: 'sum', format: 'currency', currency: 'TZS' }],
+      measures: [{ field: 'royalty', aggregator: 'sum', format: 'currency', currency: 'TZS' }],
     },
-    data: { rows: [{ property: 'P1', month: 'Jan', rent: 200 }] },
+    data: { rows: [{ asset: 'P1', month: 'Jan', royalty: 200 }] },
     expectedKind: 'data-table',
   },
   form: {
-    props: { formId: 'lease', schemaJson: {}, values: {}, action: '/api/gateway/forms/lease' },
+    props: { formId: 'offtake', schemaJson: {}, values: {}, action: '/api/gateway/forms/offtake' },
     data: {},
     expectedKind: 'prefill-form',
   },
@@ -114,7 +114,7 @@ const FIXTURES: Record<ArtifactComponentType, { props: Record<string, unknown>; 
   },
   callout: {
     props: { severity: 'warning', title: 'Heads up' },
-    data: { message: 'rent due' },
+    data: { message: 'royalty due' },
     expectedKind: 'markdown-card',
   },
   image: {

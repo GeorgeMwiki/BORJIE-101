@@ -15,7 +15,7 @@
  * seed cannot ship.
  *
  * Cites `.audit/litfin-sota-2026-05-23/12-dynamic-per-user-ui.md`
- * §3 (persona-to-UI mapping for the 5 BOSS portals) and §5 Tier-1
+ * §3 (persona-to-UI mapping for the 5 persona portals) and §5 Tier-1
  * task #2 ("5 persona seed layouts in `packages/genui/src/seeds/`").
  */
 

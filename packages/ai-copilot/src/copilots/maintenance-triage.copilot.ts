@@ -37,7 +37,7 @@ interface TriageAIResponse {
     categoryConfidence: number;
     issuesIdentified: string[];
     safetyConcerns: string[];
-    requiresTenantAccess: boolean;
+    requiresSiteAccess: boolean;
     estimatedComplexity: number;
   };
   routing: {
@@ -61,10 +61,10 @@ interface TriageAIResponse {
       currency: string;
     };
   };
-  tenantCommunication: {
+  requesterCommunication: {
     acknowledgmentMessage: string;
     expectedResolutionMessage: string;
-    instructionsForTenant?: string;
+    instructionsForRequester?: string;
   };
   followUp: {
     inspectionRecommended: boolean;
@@ -91,14 +91,14 @@ export class MaintenanceTriageCopilot extends BaseCopilot<MaintenanceTriageInput
 
   protected transformInputToVariables(input: MaintenanceTriageInput): Record<string, unknown> {
     return {
-      propertyName: input.property.name,
-      propertyType: input.property.type,
-      propertyAge: input.property.age,
-      unitNumber: input.unit.number,
-      bedrooms: input.unit.bedrooms,
-      bathrooms: input.unit.bathrooms,
-      tenantName: input.tenant.name,
-      preferredContact: input.tenant.preferredContactMethod ?? 'app',
+      siteName: input.site.name,
+      siteType: input.site.type,
+      siteAge: input.site.age,
+      pitNumber: input.pit.number,
+      benches: input.pit.benches,
+      faces: input.pit.faces,
+      requesterName: input.requester.name,
+      preferredContact: input.requester.preferredContactMethod ?? 'app',
       requestText: input.requestText,
       recentHistory: input.recentHistory,
     };
@@ -155,7 +155,7 @@ export class MaintenanceTriageCopilot extends BaseCopilot<MaintenanceTriageInput
         categoryConfidence: aiResponse.triage.categoryConfidence,
         issuesIdentified: aiResponse.triage.issuesIdentified,
         safetyConcerns: aiResponse.triage.safetyConcerns,
-        requiresTenantAccess: aiResponse.triage.requiresTenantAccess,
+        requiresSiteAccess: aiResponse.triage.requiresSiteAccess,
         estimatedComplexity: aiResponse.triage.estimatedComplexity,
       },
       routing: {
@@ -170,7 +170,7 @@ export class MaintenanceTriageCopilot extends BaseCopilot<MaintenanceTriageInput
         },
       },
       workOrderDraft: aiResponse.workOrderDraft,
-      tenantCommunication: aiResponse.tenantCommunication,
+      requesterCommunication: aiResponse.requesterCommunication,
       followUp: aiResponse.followUp,
     };
 

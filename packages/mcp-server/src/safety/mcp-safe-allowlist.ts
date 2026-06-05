@@ -45,35 +45,35 @@ export interface McpToolPolicy {
 export const MCP_SAFE_POLICY: Readonly<Record<string, McpToolPolicy>> =
   Object.freeze({
     // ── Read-only, single-tenant, low-blast-radius ─────────────────
-    'property:list_for_tenant': {
+    'site:list_for_counterparty': {
       mcpSafe: true,
       citation: 'mcp-safe/2026-05-23/A1 — read-only, tenant-scoped, no PII outside the asking tenant',
-      reason: 'List properties belonging to the asking tenant.',
+      reason: 'List sites belonging to the asking tenant.',
     },
-    'property:get_by_id': {
+    'site:get_by_id': {
       mcpSafe: true,
       citation: 'mcp-safe/2026-05-23/A1',
-      reason: 'Fetch property detail; RLS enforces tenant boundary.',
+      reason: 'Fetch site detail; RLS enforces tenant boundary.',
     },
-    'lease:list_for_tenant': {
+    'offtake:list_for_counterparty': {
       mcpSafe: true,
       citation: 'mcp-safe/2026-05-23/A1',
-      reason: 'List leases belonging to the asking tenant.',
+      reason: 'List offtake agreements belonging to the asking tenant.',
     },
-    'lease:get_by_id': {
+    'offtake:get_by_id': {
       mcpSafe: true,
       citation: 'mcp-safe/2026-05-23/A1',
-      reason: 'Fetch lease detail; RLS enforces tenant boundary.',
+      reason: 'Fetch offtake detail; RLS enforces tenant boundary.',
     },
     'maintenance:list_open': {
       mcpSafe: true,
       citation: 'mcp-safe/2026-05-23/A1',
       reason: 'List open maintenance tickets for the asking tenant.',
     },
-    'payment:list_for_lease': {
+    'payment:list_for_offtake': {
       mcpSafe: true,
       citation: 'mcp-safe/2026-05-23/A2 — read-only, tenant-scoped, financial PII gated by tier',
-      reason: 'List rent payments for a lease the caller owns.',
+      reason: 'List royalty payments for an offtake the caller owns.',
       minTier: 'growth',
     },
 

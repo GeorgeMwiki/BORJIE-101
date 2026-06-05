@@ -283,9 +283,9 @@ describe('HIGH_RISK_LITERAL_ONLY_PREFIXES', () => {
     expect(isHighRiskLiteralOnly('md:set-killswitch')).toBe(true);
   });
 
-  it('classifies eviction + suspension verbs', () => {
-    expect(isHighRiskLiteralOnly('md:terminate-lease')).toBe(true);
-    expect(isHighRiskLiteralOnly('md:execute-eviction')).toBe(true);
+  it('classifies licence-suspension + suspension verbs', () => {
+    expect(isHighRiskLiteralOnly('md:terminate-offtake')).toBe(true);
+    expect(isHighRiskLiteralOnly('md:execute-suspension')).toBe(true);
     expect(isHighRiskLiteralOnly('md:suspend-org')).toBe(true);
     expect(isHighRiskLiteralOnly('md:force-status-change')).toBe(true);
   });

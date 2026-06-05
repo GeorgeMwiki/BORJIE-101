@@ -34,8 +34,8 @@
  *   - `numeric`    threshold-bounded equivalence (within tolerance)
  *
  * The threshold-bounded path is needed because numeric decisions
- * (rent estimate, refund amount, late-fee cents) are almost never
- * byte-identical between AI and human — agreement is "within X".
+ * (royalty estimate, payout amount, clearing-fee cents) are almost
+ * never byte-identical between AI and human — agreement is "within X".
  */
 export type DecisionKind = 'binary' | 'numeric';
 

@@ -44,8 +44,8 @@ export const SPEC_DEFAULT_THRESHOLDS: Readonly<TierThresholds> = TIER_DEFAULTS.g
  * Confidence-band router. Pure, total, deterministic.
  *
  * @param decision     Short human-readable label of what is being decided
- *                     (e.g. `"approve-refund:tenant=42"`). Embedded in the
- *                     verdict reason for audit-trail joinability.
+ *                     (e.g. `"approve-payout:counterparty=42"`). Embedded in
+ *                     the verdict reason for audit-trail joinability.
  * @param confidence   Numeric confidence in [0, 1]. Out-of-range values
  *                     deterministically escalate (we never auto-execute on
  *                     a confidence we can't validate).

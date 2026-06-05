@@ -7,14 +7,14 @@ import { useMemo } from 'react';
  *
  * The industry observer always reasons about a population slice. The
  * composer prepends this slice to every outgoing message as a grounding
- * hint, e.g. "(slice: KE-30 · Class-B · last 90 days)". That text is
+ * hint, e.g. "(slice: TZ-GE · Grade-B · last 90 days)". That text is
  * visible to the user, captured in the thread transcript, and therefore
  * auditable by platform staff reviewing the conversation.
  */
 
 export interface SliceState {
   readonly jurisdiction: string;
-  readonly propertyClass: string;
+  readonly assetClass: string;
   readonly timeWindow: string;
 }
 
@@ -25,28 +25,28 @@ export interface SliceOption {
 
 export const DEFAULT_SLICE: SliceState = {
   jurisdiction: 'ALL',
-  propertyClass: 'ALL',
+  assetClass: 'ALL',
   timeWindow: '90d',
 };
 
 export const JURISDICTION_OPTIONS: ReadonlyArray<SliceOption> = [
   { value: 'ALL', label: 'All jurisdictions' },
-  { value: 'KE-30', label: 'Kenya · Nairobi (KE-30)' },
-  { value: 'KE-47', label: 'Kenya · Kisumu (KE-47)' },
-  { value: 'KE-36', label: 'Kenya · Mombasa (KE-36)' },
+  { value: 'TZ-GE', label: 'Tanzania · Geita (TZ-GE)' },
+  { value: 'TZ-MW', label: 'Tanzania · Mwanza / Lake Zone (TZ-MW)' },
+  { value: 'TZ-LI', label: 'Tanzania · Nachingwea / Lindi (TZ-LI)' },
+  { value: 'TZ-MB', label: 'Tanzania · Mbeya / Chunya (TZ-MB)' },
+  { value: 'TZ-RU', label: 'Tanzania · Songea / Ruvuma (TZ-RU)' },
+  { value: 'KE-NB', label: 'Kenya · Nairobi (KE-NB)' },
   { value: 'UG-C', label: 'Uganda · Central (UG-C)' },
-  { value: 'TZ-02', label: 'Tanzania · Dar es Salaam (TZ-02)' },
-  { value: 'RW-01', label: 'Rwanda · Kigali (RW-01)' },
-  { value: 'ZA-GP', label: 'South Africa · Gauteng (ZA-GP)' },
 ];
 
-export const PROPERTY_CLASS_OPTIONS: ReadonlyArray<SliceOption> = [
-  { value: 'ALL', label: 'All classes' },
-  { value: 'Class-A', label: 'Class-A (premium)' },
-  { value: 'Class-B', label: 'Class-B (mid-market)' },
-  { value: 'Class-C', label: 'Class-C (affordable)' },
-  { value: 'commercial', label: 'Commercial' },
-  { value: 'mixed-use', label: 'Mixed-use' },
+export const ASSET_CLASS_OPTIONS: ReadonlyArray<SliceOption> = [
+  { value: 'ALL', label: 'All grades' },
+  { value: 'Grade-A', label: 'Grade-A (high g/t)' },
+  { value: 'Grade-B', label: 'Grade-B (mid g/t)' },
+  { value: 'Grade-C', label: 'Grade-C (marginal g/t)' },
+  { value: 'alluvial', label: 'Alluvial / placer' },
+  { value: 'hard-rock', label: 'Hard-rock' },
 ];
 
 export const TIME_WINDOW_OPTIONS: ReadonlyArray<SliceOption> = [
@@ -63,7 +63,7 @@ export function formatSliceHint(slice: SliceState): string {
     slice.jurisdiction === 'ALL' ? 'all jurisdictions' : slice.jurisdiction,
   );
   parts.push(
-    slice.propertyClass === 'ALL' ? 'all classes' : slice.propertyClass,
+    slice.assetClass === 'ALL' ? 'all grades' : slice.assetClass,
   );
   const time = TIME_WINDOW_OPTIONS.find((o) => o.value === slice.timeWindow);
   parts.push(time ? time.label.toLowerCase() : slice.timeWindow);
@@ -100,15 +100,15 @@ export function SliceSelector({ slice, onChange, disabled }: SliceSelectorProps)
       </select>
 
       <select
-        aria-label="Property class"
+        aria-label="Asset grade"
         disabled={disabled}
-        value={slice.propertyClass}
+        value={slice.assetClass}
         onChange={(e) =>
-          onChange({ ...slice, propertyClass: e.target.value })
+          onChange({ ...slice, assetClass: e.target.value })
         }
         className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-foreground disabled:opacity-50"
       >
-        {PROPERTY_CLASS_OPTIONS.map((o) => (
+        {ASSET_CLASS_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}
           </option>

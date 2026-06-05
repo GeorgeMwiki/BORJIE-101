@@ -28,12 +28,18 @@ export const kernelStakesEnum = pgEnum('kernel_stakes', [
   'critical',
 ]);
 
+// AwarenessTier — MIGRATED from the legacy property vocabulary
+// (`lease`/`unit`/`block`/`property`) to the mining domain
+// (`offtake`/`pit`/`zone`/`site`) as a coordinated cross-package pass.
+// Matches packages/central-intelligence kernel-types.ts AwarenessTier
+// verbatim. `tenant` (multi-tenancy), `portfolio`, `org`, `industry` are
+// preserved. Persisted rename ships in migration 0180.
 export const kernelTierEnum = pgEnum('kernel_tier', [
   'tenant',
-  'lease',
-  'unit',
-  'block',
-  'property',
+  'offtake',
+  'pit',
+  'zone',
+  'site',
   'portfolio',
   'org',
   'industry',

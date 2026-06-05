@@ -123,8 +123,8 @@ describe('WAVE-27 — global scaffold coverage', () => {
       expect(plugin.taxRegime).toBeDefined();
       expect(plugin.taxFiling).toBeDefined();
       expect(plugin.paymentRails).toBeDefined();
-      expect(plugin.tenantScreening).toBeDefined();
-      expect(plugin.leaseLaw).toBeDefined();
+      expect(plugin.counterpartyScreening).toBeDefined();
+      expect(plugin.miningLaw).toBeDefined();
     }
   });
 

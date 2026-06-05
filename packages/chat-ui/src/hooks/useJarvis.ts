@@ -81,7 +81,7 @@ export interface UseJarvisReturn {
   /**
    * Multimodal turn — read each `File` as base64, package the result as
    * `JarvisAttachment[]`, and submit alongside the text message. Useful
-   * for lease scans, property photos, and damage assessment images.
+   * for offtake scans, site photos, and damage assessment images.
    */
   thinkWithAttachments(
     message: string,

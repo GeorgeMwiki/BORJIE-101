@@ -66,7 +66,7 @@ describe('appendMessage', () => {
       role: 'assistant',
       contentJsonb: { type: 'text', text: 'with refs' },
       parentMessageId: 'm_0',
-      toolCallsJsonb: { calls: [{ name: 'read.lease' }] },
+      toolCallsJsonb: { calls: [{ name: 'read.offtake' }] },
       artifactRefIds: ['a_1', 'a_2'],
       actionPlanIds: ['ap_7'],
       assetRefs: ['core_entity_1'],

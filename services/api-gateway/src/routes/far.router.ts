@@ -70,7 +70,7 @@ const AssignSchema = z.object({
   notifyRecipients: z
     .array(
       z.object({
-        role: z.enum(['landlord', 'manager', 'vendor', 'tenant', 'other']),
+        role: z.enum(['owner', 'manager', 'vendor', 'tenant', 'other']),
         userId: z.string().nullable(),
         email: z.string().nullable(),
         phone: z.string().nullable(),

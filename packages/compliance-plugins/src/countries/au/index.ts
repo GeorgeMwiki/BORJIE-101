@@ -1,16 +1,17 @@
 /**
- * Australia (AU) — ATO foreign-resident rental withholding.
+ * Australia (AU) — ATO foreign-resident withholding + state mineral royalties.
  *
- * Source: ITAA 1936 § 128B — 10% final withholding on interest-like rent
- * structures (not typical rent); ordinary rent is assessed through tax
- * return, NOT withheld. This plugin flags the area as operator-configurable
- * so landlord-tenant consumers don't auto-withhold incorrectly.
+ * Source: ITAA 1936 § 128B — final withholding on interest-like structures;
+ * ordinary mineral proceeds are assessed through a tax return, NOT withheld.
+ * State royalties (e.g. WA gold royalty 2.5% of value) apply separately. This
+ * plugin flags the area as operator-configurable so consumers don't
+ * auto-withhold incorrectly.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
   stubWithholding,
@@ -58,19 +59,19 @@ const australiaCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 1, // VIC / NSW cap bond at 4 weeks for rent ≤ $350/wk
+    minBondMonths: 0,
+    maxBondMonths: 1, // state royalty-bond norm ≈ 4 weeks
     noticePeriodDays: 60,
-    minimumLeaseMonths: 6,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 6,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 14,
+    bondReturnDays: 14,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Residential Tenancy Agreement (AU)',
-      templatePath: 'au/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (AU)',
+      templatePath: 'au/offtake-agreement.hbs',
       locale: 'en-AU',
     },
   ],
@@ -89,7 +90,7 @@ export const australiaProfile: ExtendedCountryProfile = {
   }),
   taxRegime: stubWithholding(
     'AU-ATO-ITAA36-128B',
-    'CONFIGURE_FOR_YOUR_JURISDICTION: ordinary rental income is NOT withholding-taxed in AU. Foreign-resident landlords must file annual returns; configure operator rules.'
+    'CONFIGURE_FOR_YOUR_JURISDICTION: ordinary mineral proceeds are NOT withholding-taxed federally in AU. State royalties (e.g. WA gold 2.5%) apply; foreign-resident operators file annual returns. Configure operator rules.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -126,31 +127,31 @@ export const australiaProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
         id: 'au-bond-lodged',
-        label: 'Bond must be lodged with state authority (RTBA VIC / RBA NSW)',
+        label: 'Rehabilitation / performance bond lodged with state mines authority',
         mandatory: true,
-        citation: 'State Residential Tenancies Act',
+        citation: 'State Mining Act (e.g. Mining Act 1978 WA)',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 60,
-      'non-payment': 14,
+      'licence-expiry': 60,
+      'royalty-default': 14,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxWeeksOfRent: 4,
-        citation: 'VIC RTA 2018 § 31 / NSW RTA 2010 § 159',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxWeeksOfRoyalty: 4,
+        citation: 'State mining-bond practice (WA / NSW)',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
-        citation: 'No statutory cap; state frequency rules (≤ 1/year VIC).',
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
+        citation: 'No statutory cap; state royalty review rules apply.',
       },
     },
     defaultNoticeWindowDays: 60,
   }),
-  tenantScreening: buildStubScreeningPort('EQUIFAX_AU'),
+  counterpartyScreening: buildStubScreeningPort('EQUIFAX_AU'),
 };

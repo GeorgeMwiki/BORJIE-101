@@ -89,7 +89,7 @@ function makeRequest(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'th-orch-1',
     userMessage: 'what is the rent ledger status?',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'medium',
     surface: 'estate-manager-app',
     ...over,

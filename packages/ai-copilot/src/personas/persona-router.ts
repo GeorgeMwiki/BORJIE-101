@@ -26,7 +26,7 @@ import { createPublicGuide } from './public-guide.js';
 const personaFactories: Readonly<Record<BorjiePersonaId, () => BorjiePersona>> = {
   'manager-chat': createManagerChat,
   coworker: createCoworker,
-  'tenant-assistant': createTenantAssistant,
+  'counterparty-assistant': createTenantAssistant,
   'owner-advisor': createOwnerAdvisor,
   'borjie-studio': createBorjieStudio,
   'public-guide': createPublicGuide,

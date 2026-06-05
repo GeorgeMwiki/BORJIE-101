@@ -119,9 +119,9 @@ describe('compliance rule inheritance', () => {
   it('exposes numeric compliance defaults on every plugin', () => {
     for (const code of ['TZ', 'KE', 'UG', 'NG', 'ZA', 'US']) {
       const plugin = getCountryPlugin(code);
-      expect(plugin.compliance.minDepositMonths).toBeGreaterThanOrEqual(0);
-      expect(plugin.compliance.maxDepositMonths).toBeGreaterThanOrEqual(
-        plugin.compliance.minDepositMonths
+      expect(plugin.compliance.minBondMonths).toBeGreaterThanOrEqual(0);
+      expect(plugin.compliance.maxBondMonths).toBeGreaterThanOrEqual(
+        plugin.compliance.minBondMonths
       );
       expect(plugin.compliance.noticePeriodDays).toBeGreaterThan(0);
     }
@@ -129,13 +129,13 @@ describe('compliance rule inheritance', () => {
 
   it('US withStateOverride composes a new plugin without mutating the base', () => {
     const california = withStateOverride('CA', {
-      maxDepositMonths: 3,
+      maxBondMonths: 3,
       lateFeeCapRate: 0.06,
     });
-    expect(california.compliance.maxDepositMonths).toBe(3);
+    expect(california.compliance.maxBondMonths).toBe(3);
     expect(california.compliance.lateFeeCapRate).toBeCloseTo(0.06);
     // Base plugin remains untouched — no mutation.
-    expect(unitedStatesPlugin.compliance.maxDepositMonths).toBe(2);
+    expect(unitedStatesPlugin.compliance.maxBondMonths).toBe(2);
     expect(unitedStatesPlugin.compliance.lateFeeCapRate).toBeCloseTo(0.05);
     expect(california.countryName).toBe('United States (CA)');
   });

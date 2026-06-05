@@ -157,8 +157,8 @@ import type {
   FeatureExtractor,
   ForecastRepository,
 } from '@borjie/forecasting';
-import { PropertyGrading } from '@borjie/ai-copilot';
-type PropertyGradingService = import('@borjie/ai-copilot').PropertyGrading.PropertyGradingService;
+import { AssetGrading } from '@borjie/ai-copilot';
+type AssetGradingService = import('@borjie/ai-copilot').AssetGrading.AssetGradingService;
 import {
   createCreditRatingService,
   type CreditRatingService,
@@ -191,7 +191,9 @@ import {
   createKernelGoalsService,
   createPrivacyBudgetComposerService,
   createSensorRoutingService,
+  createPersonaRegistryService,
 } from '@borjie/database';
+import { createPersonaRegistry } from '@borjie/central-intelligence';
 type PrivacyBudgetComposerService = ReturnType<typeof createPrivacyBudgetComposerService>;
 import {
   createArrearsService,
@@ -203,6 +205,14 @@ import {
   createPostgresArrearsEntryLoader,
   type ArrearsEntryLoader,
 } from './arrears-infrastructure.js';
+// Wave WS-4 — platform billing (SaaS revenue). The service drives the
+// platform fee through the provider PORT (IPaymentProvider) + LedgerService.
+import {
+  PlatformBillingService,
+  makeTenantCurrencyResolver,
+} from './billing/platform-billing-service.js';
+import { buildLedgerService } from './ledger/index.js';
+import { StripePaymentProvider } from '@borjie/payments-ledger-service';
 
 // Wave 9 enterprise polish — Feature flags, GDPR, AI cost ledger.
 import {
@@ -414,6 +424,7 @@ import {
   type ConversationMemory,
   type ConversationAuditReader,
   type ConversationAuditRecorder,
+  type PersonaRegistry,
 } from '@borjie/central-intelligence';
 // PO-port wave-5 wiring #1 — six-layer cognitive memory (episodic, narrative,
 // procedural, reflective, topic-files, cohort cache). Lives ALONGSIDE the
@@ -784,9 +795,9 @@ export interface ServiceRegistry {
     readonly queryService: GraphQueryService | null;
   };
 
-  /** Property grading — A–F report card scoring + portfolio rollup.
+  /** Asset grading — A–F report card scoring + portfolio rollup.
    *  Postgres-backed in live mode, null when DATABASE_URL is unset. */
-  readonly propertyGrading: PropertyGradingService | null;
+  readonly assetGrading: AssetGradingService | null;
 
   /**
    * PO-port wave-5 wiring #1 — six-layer cognitive memory v2 (episodic,
@@ -1054,6 +1065,29 @@ export interface ServiceRegistry {
     readonly repo: PostgresFarRepository | null;
   };
 
+  /**
+   * Wave WS-4 — platform billing (the platform's own SaaS revenue path).
+   * Backs GET /api/v1/billing/subscription. Non-null ONLY when a payment
+   * provider is configured (STRIPE_SECRET_KEY) AND DATABASE_URL is set: the
+   * service drives the platform fee through the provider PORT (IPaymentProvider)
+   * and posts the receivable through LedgerService.post(). Null otherwise — the
+   * billing router falls through to its loud-failure / degraded path. Typed
+   * structurally (not via a hard import) so the registry file stays free of a
+   * billing-service dependency cycle.
+   */
+  readonly platformBilling: {
+    getSubscription(tenantId: string): Promise<unknown>;
+    subscribe(input: {
+      readonly tenantId: string;
+      readonly plan: string;
+      readonly mrrMinor: number;
+      readonly seats: number;
+      readonly billingPeriod: string;
+      readonly providerCustomerId: string;
+      readonly actorId: string;
+    }): Promise<unknown>;
+  } | null;
+
   /** Mining-domain Wave 5 — buyer financial-profile repo (credit limit,
    *  AML status, banking, payment history) over the `buyers` extension
    *  columns added by migration 0005. Null when DATABASE_URL is unset. */
@@ -1261,6 +1295,16 @@ export interface ServiceRegistry {
    * back to `LocalStorageProvider` when Supabase env is unset.
    */
   readonly documentStorage: DocumentStorageWiring;
+
+  /**
+   * Phase D D7 — Persona Registry admin surface. Kernel `PersonaRegistry`
+   * hydrated from the Drizzle-backed `createPersonaRegistryService` store.
+   * Null in degraded mode (no DB); the persona-registry router returns 503
+   * NOT_IMPLEMENTED when this slot is null. Built asynchronously in
+   * `buildServices` after the service object is constructed (mirrors the
+   * `mcp` post-construction patch pattern).
+   */
+  personaRegistry: PersonaRegistry | null;
 }
 
 export interface BuildServicesInput {
@@ -1436,6 +1480,43 @@ function buildGraphQueryService(): GraphQueryService | null {
   }
 }
 
+/**
+ * Wave WS-4 — build the platform-billing service for the LIVE registry.
+ *
+ * Non-null ONLY when a payment provider is configured (STRIPE_SECRET_KEY).
+ * The service drives the platform fee through the provider PORT
+ * (IPaymentProvider) and posts the receivable through LedgerService.post() —
+ * the established money seam, never a parallel ledger. When no provider key
+ * is present the slot stays null and the billing router falls through to its
+ * loud-failure / degraded path (unchanged behaviour). Typed via the registry
+ * slot shape (structural) so no billing-service type leaks into the slot.
+ */
+function buildPlatformBilling(
+  db: ReturnType<typeof createDatabaseClient>,
+): ServiceRegistry['platformBilling'] {
+  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeKey) return null;
+  try {
+    const provider = new StripePaymentProvider({
+      secretKey: stripeKey,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? '',
+    });
+    const ledger = buildLedgerService(db);
+    return new PlatformBillingService({
+      db,
+      provider,
+      ledger,
+      resolveCurrency: makeTenantCurrencyResolver(db),
+    });
+  } catch (err) {
+    logger.warn(
+      'service-registry: platform-billing init failed — returning null',
+      { value: err instanceof Error ? err.message : err },
+    );
+    return null;
+  }
+}
+
 function degradedRegistry(eventBus: EventBus): ServiceRegistry {
   // Single bus instance reused for the bus slot and the C2 fan-out /
   // dispatcher adapters so all three converge on the same in-memory
@@ -1601,7 +1682,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
         brainKernel: null,
       };
     })(),
-    propertyGrading: null,
+    assetGrading: null,
     creditRating: null,
     // Wave 29 — forecasting stays null in degraded mode; the router
     // returns 503 FORECAST_SERVICE_UNAVAILABLE. No mock data ever.
@@ -1617,6 +1698,8 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     damageDeductions: { service: null, repo: null },
     conditionalSurveys: { service: null, repo: null },
     far: { service: null, repo: null },
+    // Wave WS-4 — platform billing null in degraded mode (no DB / provider).
+    platformBilling: null,
     // Mining-domain Wave 5 — buyer / site / marketplace / ore repos.
     // All null in degraded mode (no DB to bind against).
     buyerFinancialProfile: null,
@@ -1691,6 +1774,11 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // back. The wiring stays a real `DocumentStorageWiring` so consumers
     // can switch on `mode` without null-checks.
     documentStorage: createDocumentStorageWiring(),
+    // Phase D D7 — persona registry is null in degraded mode (no DB to
+    // read personas from). The router returns 503 NOT_IMPLEMENTED when
+    // this slot is null. Async hydration in `buildServices` fills the
+    // slot when a DB client is available.
+    personaRegistry: null,
   };
 }
 
@@ -1708,6 +1796,26 @@ export function buildServices(input: BuildServicesInput): ServiceRegistry {
     registry,
     registry.agentCertification,
   );
+  // Phase D D7 — Persona Registry. `createPersonaRegistry` is async
+  // (hydrates from the store at construction) so it cannot be built
+  // inside the synchronous object literal. Mirrors the `mcp` patch
+  // pattern above: we start the hydration Promise here and patch the
+  // slot when it resolves. The router tolerates null (returns 503
+  // NOT_IMPLEMENTED) so the gateway is fully operable during the
+  // brief window before the Promise settles.
+  if (registry.db) {
+    const db = registry.db;
+    createPersonaRegistry({ store: createPersonaRegistryService(db) })
+      .then((pr) => {
+        (registry as { personaRegistry: typeof pr }).personaRegistry = pr;
+      })
+      .catch((err: unknown) => {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          'persona-registry: async hydration failed — slot stays null',
+        );
+      });
+  }
   return registry;
 }
 
@@ -2402,7 +2510,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // and threads three lazy Temporal dispatchers in front of the
       // synchronously-built bundle promise. The brain-kernel wiring
       // below merges these tools into the kernel's tool registry so
-      // every `platform.verify_nida` / `platform.evict_tenant` /
+      // every `platform.verify_nida` / `platform.suspend_licence` /
       // `platform.payout_owner` / `platform.file_kra_mri` call routes
       // through the real adapter when bound (and through the existing
       // deterministic placeholder refusal otherwise — see
@@ -2481,13 +2589,13 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         brainKernel,
       };
     })(),
-    // Mining-domain Wave 5 — property-grading adapters previously
-    // bound to `tenant_grading_weights` + `property_grade_snapshots`
+    // Mining-domain Wave 5 — asset-grading adapters previously
+    // bound to `tenant_grading_weights` + `asset_grade_snapshots`
     // (both removed by migration 0003). The mining ore-grading repo
     // (DrizzleOreGradingRepository) ships through the dedicated
-    // `oreGrading` slot below; the legacy `propertyGrading` slot stays
+    // `oreGrading` slot below; the legacy `assetGrading` slot stays
     // null in the live registry until follow-up batches retire it.
-    propertyGrading: null,
+    assetGrading: null,
     // Tenant credit rating — FICO-scale 300-850 + CRB bands + portable
     // certificate. Postgres-backed repository pulls real invoice /
     // payment / tenancy data — zero mocks.
@@ -2535,10 +2643,14 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       service: farService,
       repo: farRepo,
     },
+    // Wave WS-4 — platform billing (SaaS revenue). Non-null only when a
+    // payment provider (STRIPE_SECRET_KEY) is configured; drives the platform
+    // fee through the provider PORT + LedgerService.post(). Null otherwise.
+    platformBilling: buildPlatformBilling(db),
     // Mining-domain Wave 5 — live bindings of the new mining repos
     // surfaced through dedicated slots. The corresponding legacy slots
     // (financialProfile / riskReport / negotiation / warehouse /
-    // propertyGrading / far) stay null until follow-up batches retire
+    // assetGrading / far) stay null until follow-up batches retire
     // their consumer surfaces.
     buyerFinancialProfile: buyerFinancialProfileRepo,
     buyerRiskReport: buyerRiskReportRepo,
@@ -2549,7 +2661,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // Mining hard-fork wave 6 — bindings of the seven new mining-domain
     // replacement repos. Their legacy slots (waitlist / gamification /
     // stationMasterCoverageRepo / maintenanceTaxonomy / conditionalSurveys /
-    // renewal / propertyGrading) stay null in the live registry; consumers
+    // renewal / assetGrading) stay null in the live registry; consumers
     // migrate to these slots.
     offtakeQueue: offtakeQueueRepo,
     workerIncentives: workerIncentivesRepo,
@@ -2728,6 +2840,10 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // P54 — live mode: production path picks up Supabase env when set,
     // otherwise falls back to LocalStorageProvider transparently.
     documentStorage: createDocumentStorageWiring(),
+    // Phase D D7 — persona registry starts as null in the live object
+    // literal; `buildServices` patches it asynchronously after
+    // construction, mirroring the `mcp` post-construction patch pattern.
+    personaRegistry: null,
   };
 }
 

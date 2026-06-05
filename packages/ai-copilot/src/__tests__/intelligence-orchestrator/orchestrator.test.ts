@@ -63,13 +63,13 @@ describe('IntelligenceOrchestrator.generateContext', () => {
           costMomYoYPct: 40,
         },
         compliance: { criticalBreaches: 1, overdueItems: 2 },
-        leasing: { churnProbability: 0.75, leaseEndWithin60d: 1 },
-        occupancy: { occupancyPct: 70, vacancyCount: 3 },
-        tenantRisk: { riskGrade: 'D', complaintsLast90d: 3 },
+        offtake: { churnProbability: 0.75, offtakeEndWithin60d: 1 },
+        production: { productionPct: 70, availableCapacityCount: 3 },
+        counterpartyRisk: { riskGrade: 'D', complaintsLast90d: 3 },
       }),
     });
     const ctx = await o.generateContext({
-      scopeKind: 'property',
+      scopeKind: 'site',
       scopeId: 'p1',
       tenantId: 't1',
     });
@@ -87,11 +87,11 @@ describe('cross-module reasoner', () => {
       payments: null,
       maintenance: null,
       compliance: null,
-      leasing: null,
+      offtake: null,
       inspection: null,
       far: null,
-      tenantRisk: null,
-      occupancy: null,
+      counterpartyRisk: null,
+      production: null,
     });
     expect(out).toEqual([]);
   });
@@ -118,11 +118,11 @@ describe('cross-module reasoner', () => {
         computedAt: new Date().toISOString(),
       },
       compliance: null,
-      leasing: null,
+      offtake: null,
       inspection: null,
       far: null,
-      tenantRisk: null,
-      occupancy: null,
+      counterpartyRisk: null,
+      production: null,
     });
     expect(
       insights.some(
@@ -152,10 +152,10 @@ describe('proactive alert engine', () => {
         },
         maintenance: null,
         compliance: null,
-        leasing: null,
+        offtake: null,
         inspection: null,
-        tenantRisk: null,
-        occupancy: null,
+        counterpartyRisk: null,
+        production: null,
         crossModuleInsights: [],
       },
       0.5,
@@ -170,12 +170,12 @@ describe('proactive alert engine', () => {
 describe('portfolio early warning', () => {
   it('classifies red when breaches exist', () => {
     const health = runPortfolioHealthCheck('port1', 't1', {
-      propertyCount: 2,
-      totalUnits: 20,
-      occupiedUnits: 18,
-      propertySnapshots: [
+      siteCount: 2,
+      totalPits: 20,
+      activePits: 18,
+      siteSnapshots: [
         {
-          propertyId: 'p1',
+          siteId: 'p1',
           district: 'DAR-KINONDONI',
           payments: null,
           maintenance: null,
@@ -184,20 +184,20 @@ describe('portfolio early warning', () => {
             overdueItems: 2,
             criticalBreaches: 1,
             lastInspectionDate: null,
-            pendingNoticesToTenants: 0,
+            pendingNoticesToCounterparties: 0,
             pendingRegulatorFilings: 0,
           },
-          leasing: null,
-          occupancy: null,
+          offtake: null,
+          production: null,
         },
         {
-          propertyId: 'p2',
+          siteId: 'p2',
           district: 'DAR-ILALA',
           payments: null,
           maintenance: null,
           compliance: null,
-          leasing: null,
-          occupancy: null,
+          offtake: null,
+          production: null,
         },
       ],
     });
@@ -240,13 +240,13 @@ describe('decision feedback service', () => {
 
 describe('intelligent routing', () => {
   it('routes arrears language to collector', () => {
-    const d = routeAdminQuery('unit 4B is in arrears again — prepare a demand letter');
+    const d = routeAdminQuery('pit 4B is in arrears again — prepare a demand letter');
     expect(d.destination).toBe('collector');
     expect(d.fetchersToPrime).toContain('payments');
   });
 
-  it('routes plumbing language to maintenance_coordinator', () => {
-    const d = routeAdminQuery('the bathroom in unit 4B has been leaking for 3 weeks');
+  it('routes pumping language to maintenance_coordinator', () => {
+    const d = routeAdminQuery('the dewatering pump in pit 4B has been leaking for 3 weeks');
     expect(d.destination).toBe('maintenance_coordinator');
   });
 

@@ -8,7 +8,7 @@
 export interface Citation {
   readonly kind:
     | 'market_signal'
-    | 'occupancy_rollup'
+    | 'production_rollup'
     | 'churn_prediction'
     | 'inspection_finding'
     | 'statute'

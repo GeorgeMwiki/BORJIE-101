@@ -54,8 +54,31 @@ export type AIMessage =
 
 export type AIContentBlock =
   | { type: 'text'; text: string }
+  | {
+      type: 'image';
+      source: {
+        type: 'base64';
+        media_type: 'image/jpeg' | 'image/png';
+        data: string;
+      };
+    }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean };
+
+/**
+ * Media attachment for multimodal Brain turns (vision). Carries the raw
+ * base64-encoded image bytes (without any `data:...;base64,` prefix).
+ *
+ * Constraints enforced by the orchestrator before reaching the provider:
+ *   - Per-attachment decoded size <= 5 MB.
+ *   - At most 20 attachments per turn.
+ *   - mediaType restricted to `image/jpeg` / `image/png`.
+ */
+export interface MediaAttachment {
+  readonly mediaType: 'image/jpeg' | 'image/png';
+  readonly data: string;
+  readonly description?: string;
+}
 
 /**
  * AI completion response

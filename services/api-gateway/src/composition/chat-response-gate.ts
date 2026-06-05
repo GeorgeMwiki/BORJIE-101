@@ -86,18 +86,33 @@ function auditor(): AuditorAgent {
 // auditor cares about is whether the response cites >=1 evidence_id.
 // We strip surrounding punctuation and dedupe.
 
+// Flat (non-nested) quantifier — avoids ReDoS on inputs like
+// `[evidence::::::::::::::::` (no closing bracket).  The path segments
+// `corpus:abc-123` are captured as one flat run of allowed chars
+// separated by colons, which preserves the original matching semantics.
 const INLINE_EVIDENCE_RE =
-  /\[evidence(?::[A-Za-z0-9_\-:.]+)+\]|\[evidence:\s*([A-Za-z0-9_\-:.]+)\s*\]/g;
+  /\[evidence:[A-Za-z0-9_\-:.]{1,200}\]|\[evidence:\s*([A-Za-z0-9_\-:.]{1,200})\s*\]/g;
 const FOOTER_HEADER_RE = /^(?:sources|vyanzo)\s*:\s*$/im;
 const FOOTER_LINE_RE =
-  /(?:^|\n)\s*[-*]\s*(?:evidence_id\s*:\s*)?([A-Za-z0-9_\-:.]+)/g;
+  /(?:^|\n)\s*[-*]\s*(?:evidence_id\s*:\s*)?([A-Za-z0-9_\-:.]{1,200})/g;
+
+// Maximum response length fed to the regex engine.  Evidence ids are never
+// longer than a few hundred chars; anything beyond this cap is safely
+// truncated for the regex pass (the full text is still returned to callers).
+const MAX_REGEX_INPUT = 64_000;
 
 export function extractEvidenceIds(responseText: string): readonly string[] {
   if (typeof responseText !== 'string' || responseText.length === 0) {
     return [];
   }
+  // Cap the slice handed to the regex engine so a pathologically large
+  // response body cannot trigger catastrophic backtracking.
+  const safeText =
+    responseText.length > MAX_REGEX_INPUT
+      ? responseText.slice(0, MAX_REGEX_INPUT)
+      : responseText;
   const found = new Set<string>();
-  for (const match of responseText.matchAll(INLINE_EVIDENCE_RE)) {
+  for (const match of safeText.matchAll(INLINE_EVIDENCE_RE)) {
     const raw = match[1] ?? match[0];
     if (typeof raw !== 'string') continue;
     const cleaned = raw
@@ -108,9 +123,9 @@ export function extractEvidenceIds(responseText: string): readonly string[] {
   }
   // Footer extraction — only look at the slice after the first Sources/Vyanzo
   // header to avoid pulling bullet-list items from earlier in the response.
-  const headerMatch = responseText.match(FOOTER_HEADER_RE);
+  const headerMatch = safeText.match(FOOTER_HEADER_RE);
   if (headerMatch && typeof headerMatch.index === 'number') {
-    const footerSlice = responseText.slice(headerMatch.index + headerMatch[0].length);
+    const footerSlice = safeText.slice(headerMatch.index + headerMatch[0].length);
     for (const match of footerSlice.matchAll(FOOTER_LINE_RE)) {
       const candidate = match[1]?.trim();
       if (candidate && candidate.length > 0) found.add(candidate);

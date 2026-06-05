@@ -1,54 +1,72 @@
 /**
- * Unit domain model
- * Represents a rentable unit within a property
+ * Mining-unit domain model
+ * Represents an operating unit / sub-tenement within a mining site
+ * (e.g. a pit bench, an alluvial claim, a processing line). Units are
+ * the granular footprint a site's production is tracked against.
  */
 
 import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
 import type { Money } from '../common/money';
-import type { PropertyId } from './property';
+import type { MiningSiteId } from './property';
 
-export type UnitId = Brand<string, 'UnitId'>;
+export type MiningUnitId = Brand<string, 'MiningUnitId'>;
 
-export function asUnitId(id: string): UnitId {
-  return id as UnitId;
+/** @deprecated Use {@link MiningUnitId}. Transitional alias for the W-E migration. */
+export type UnitId = MiningUnitId;
+
+export function asMiningUnitId(id: string): MiningUnitId {
+  return id as MiningUnitId;
 }
 
-/** Unit type */
-export type UnitType =
-  | 'studio'
-  | 'one_bedroom'
-  | 'two_bedroom'
-  | 'three_bedroom'
-  | 'four_bedroom_plus'
-  | 'penthouse'
-  | 'office'
-  | 'retail'
-  | 'warehouse';
+/** @deprecated Use {@link asMiningUnitId}. */
+export const asUnitId = asMiningUnitId;
 
-/** Unit status */
-export type UnitStatus =
-  | 'vacant'
-  | 'occupied'
+/** Mining-unit type — the kind of operating unit within the site. */
+export type MiningUnitType =
+  | 'open_pit_bench'
+  | 'underground_stope'
+  | 'alluvial_claim'
+  | 'processing_line'
+  | 'cil_circuit'
+  | 'cip_circuit'
+  | 'gold_room'
+  | 'weighbridge'
+  | 'tailings_cell';
+
+/** @deprecated Use {@link MiningUnitType}. */
+export type UnitType = MiningUnitType;
+
+/** Mining-unit status (production / capacity state). */
+export type MiningUnitStatus =
+  | 'idle'
+  | 'in_production'
   | 'reserved'
   | 'under_maintenance'
   | 'not_available';
 
+/** @deprecated Use {@link MiningUnitStatus}. */
+export type UnitStatus = MiningUnitStatus;
+
 /**
- * Unit entity
+ * Mining-unit entity
  */
-export interface Unit extends EntityMetadata, SoftDeletable {
-  readonly id: UnitId;
+export interface MiningUnit extends EntityMetadata, SoftDeletable {
+  readonly id: MiningUnitId;
   readonly tenantId: TenantId;
-  readonly propertyId: PropertyId;
-  readonly unitNumber: string; // e.g., "A101"
-  readonly floor: number;
-  readonly type: UnitType;
-  readonly status: UnitStatus;
-  readonly bedrooms: number;
-  readonly bathrooms: number;
+  readonly siteId: MiningSiteId;
+  readonly unitNumber: string; // e.g., "PIT-A101"
+  readonly level: number; // bench / stope level
+  readonly type: MiningUnitType;
+  readonly status: MiningUnitStatus;
+  /** Estimated ore grade in grams per tonne (g/t). */
+  readonly oreGradeGramsPerTonne: number;
+  /** Expected metallurgical recovery, as a percentage. */
+  readonly recoveryPct: number;
   readonly area: number | null; // Square meters
-  readonly monthlyRent: Money;
-  readonly depositAmount: Money;
+  /** Periodic operating levy assessed on the unit (e.g. cooperative levy). */
+  readonly operatingLevy: Money;
+  /** Performance / rehabilitation bond held against the unit. */
+  readonly bondAmount: Money;
   readonly amenities: readonly string[];
   readonly description: string | null;
   readonly imageUrls: readonly string[];
@@ -56,40 +74,43 @@ export interface Unit extends EntityMetadata, SoftDeletable {
   readonly nextInspectionDue: ISOTimestamp | null;
 }
 
-/** Create a new unit */
-export function createUnit(
-  id: UnitId,
+/** @deprecated Use {@link MiningUnit}. */
+export type Unit = MiningUnit;
+
+/** Create a new mining unit */
+export function createMiningUnit(
+  id: MiningUnitId,
   data: {
     tenantId: TenantId;
-    propertyId: PropertyId;
+    siteId: MiningSiteId;
     unitNumber: string;
-    floor: number;
-    type: UnitType;
-    bedrooms: number;
-    bathrooms: number;
-    monthlyRent: Money;
-    depositAmount: Money;
+    level: number;
+    type: MiningUnitType;
+    oreGradeGramsPerTonne: number;
+    recoveryPct: number;
+    operatingLevy: Money;
+    bondAmount: Money;
     area?: number;
     amenities?: string[];
     description?: string;
   },
   createdBy: UserId
-): Unit {
+): MiningUnit {
   const now = new Date().toISOString();
 
   return {
     id,
     tenantId: data.tenantId,
-    propertyId: data.propertyId,
+    siteId: data.siteId,
     unitNumber: data.unitNumber,
-    floor: data.floor,
+    level: data.level,
     type: data.type,
-    status: 'vacant',
-    bedrooms: data.bedrooms,
-    bathrooms: data.bathrooms,
+    status: 'idle',
+    oreGradeGramsPerTonne: data.oreGradeGramsPerTonne,
+    recoveryPct: data.recoveryPct,
     area: data.area ?? null,
-    monthlyRent: data.monthlyRent,
-    depositAmount: data.depositAmount,
+    operatingLevy: data.operatingLevy,
+    bondAmount: data.bondAmount,
     amenities: data.amenities ?? [],
     description: data.description ?? null,
     imageUrls: [],
@@ -104,12 +125,15 @@ export function createUnit(
   };
 }
 
-/** Update unit status */
+/** @deprecated Use {@link createMiningUnit}. */
+export const createUnit = createMiningUnit;
+
+/** Update mining-unit status */
 export function updateUnitStatus(
-  unit: Unit,
-  status: UnitStatus,
+  unit: MiningUnit,
+  status: MiningUnitStatus,
   updatedBy: UserId
-): Unit {
+): MiningUnit {
   return {
     ...unit,
     status,
@@ -120,11 +144,11 @@ export function updateUnitStatus(
 
 /** Record inspection */
 export function recordInspection(
-  unit: Unit,
+  unit: MiningUnit,
   inspectionDate: ISOTimestamp,
   nextDueDate: ISOTimestamp,
   updatedBy: UserId
-): Unit {
+): MiningUnit {
   return {
     ...unit,
     lastInspectionDate: inspectionDate,
@@ -135,20 +159,20 @@ export function recordInspection(
 }
 
 /** Check if inspection is overdue */
-export function isInspectionOverdue(unit: Unit): boolean {
+export function isInspectionOverdue(unit: MiningUnit): boolean {
   if (!unit.nextInspectionDue) return false;
   return new Date(unit.nextInspectionDue) < new Date();
 }
 
-/** Update rent amount */
-export function updateRent(
-  unit: Unit,
-  newRent: Money,
+/** Update the unit's operating levy. */
+export function updateOperatingLevy(
+  unit: MiningUnit,
+  newLevy: Money,
   updatedBy: UserId
-): Unit {
+): MiningUnit {
   return {
     ...unit,
-    monthlyRent: newRent,
+    operatingLevy: newLevy,
     updatedAt: new Date().toISOString(),
     updatedBy,
   };

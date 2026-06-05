@@ -16,20 +16,15 @@ import {
   SupabaseAuthError,
   BrainConfigError,
   DEFAULT_PERSONAE,
-  migrationExtract,
-  migrationDiff,
-  MigrationExtractParamsSchema,
-  ExtractionBundleSchema,
   checkBrainHealth,
   streamTurn,
   type StreamTurnEvent,
 } from '@borjie/ai-copilot';
 import {
   createDatabaseClient,
+  withTenantContext,
   BrainThreadRepository,
-  MigrationWriterService,
 } from '@borjie/database';
-import { sql } from 'drizzle-orm';
 import {
   createNeo4jClient,
   createGraphQueryService,
@@ -45,6 +40,26 @@ import {
   recallSupportMemory,
   type RecallLang,
 } from '../services/support-cases/index.js';
+// R8 / LP-01 / LP-30 — per-turn cognitive enrichment. Reads the wired
+// cognitive bundle off the Hono context (set by `createCognitiveContextMiddleware`
+// in index.ts) and prepends a recalled-memory + (flag-gated, default-OFF)
+// deep-reasoning context block to the user's text. Fail-safe: never throws
+// into the turn (see `withCognitiveEnrichment`).
+import {
+  enrichBrainTurnWithCognitive,
+  type WiredCognitive,
+} from '../composition/cognitive-wiring.js';
+// LP-15 / LP-30 — privacy router consulted BEFORE the orchestrator (the
+// LLM provider boundary) on the MAIN brain turn. Classifies the payload by
+// data-sensitivity tier: DENIED (restricted data + no local model) refuses
+// the turn; CONFIDENTIAL strips PII before the provider sees it. Default
+// ENABLED but inert for ordinary (INTERNAL/PUBLIC) text; fail-conservative
+// on any error (never forwards raw text on a routing fault).
+import {
+  buildPrivacyRouter,
+  consultPrivacyRouter,
+  type WiredPrivacyRouter,
+} from '../composition/privacy-router-wiring.js';
 import { scrubMessage } from '../utils/safe-error';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
 import { withSecurityEvents } from '@borjie/observability';
@@ -68,22 +83,6 @@ function db() {
   if (dbCache) return dbCache;
   dbCache = createDatabaseClient(env().DATABASE_URL);
   return dbCache;
-}
-
-async function resolveTenantRegion(
-  _tenantId: string
-): Promise<{ country: string; currency: string; defaultCity?: string }> {
-  const country = process.env.DEFAULT_TENANT_COUNTRY?.trim() || '';
-  const currency = process.env.DEFAULT_TENANT_CURRENCY?.trim() || '';
-  const defaultCity = process.env.DEFAULT_TENANT_CITY?.trim() || undefined;
-  if (process.env.NODE_ENV === 'production' && (!country || !currency)) {
-    throw new Error(
-      'brain.hono: DEFAULT_TENANT_COUNTRY and DEFAULT_TENANT_CURRENCY are required in production.'
-    );
-  }
-  const out: { country: string; currency: string; defaultCity?: string } = { country, currency };
-  if (defaultCity !== undefined) out.defaultCity = defaultCity;
-  return out;
 }
 
 function registry() {
@@ -132,18 +131,6 @@ async function authenticate(c) {
     principal,
     ...principalToBrainContexts(principal),
   };
-}
-
-async function bindTenantGuc(
-  database: ReturnType<typeof createDatabaseClient>,
-  tenantId: string
-): Promise<void> {
-  if (!tenantId || typeof tenantId !== 'string') {
-    throw new SupabaseAuthError('missing_tenant_for_guc_bind', 403);
-  }
-  await database.execute(
-    sql`SELECT set_config('app.tenant_id', ${tenantId}, false), set_config('app.current_tenant_id', ${tenantId}, false)`
-  );
 }
 
 function handleError(c, err) {
@@ -257,7 +244,8 @@ brainRouter.get('/health', async (c) => {
     return handleError(c, err);
   }
   try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
+    // No session-scoped GUC bind: the thread-store repo binds tenant context
+    // per operation now, and `checkBrainHealth` probes a synthetic tenant.
     const brain = registry().for(ctx.tenant.tenantId);
     const health = await checkBrainHealth(brain);
     return c.json(health);
@@ -496,11 +484,11 @@ async function gateTurn(
       );
     }
   }
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-  } catch (err) {
-    return { ok: false, response: handleError(c, err) };
-  }
+  // Tenant context is bound PER OPERATION downstream — the thread-store repo
+  // wraps each read/write in a short per-tenant transaction, and support
+  // recall is wrapped in `withTenantContext` (see `withRecalledMemory`). A
+  // session-scoped bind here would be clobbered across the turn's LLM calls
+  // on the shared brain pool.
   return { ok: true, ctx };
 }
 
@@ -540,14 +528,23 @@ async function withRecalledMemory<
 >(c: any, ctx: TurnGateContext, body: T): Promise<T> {
   try {
     const lang = pickRecallLang(c.req.header('accept-language') ?? null);
-    const { preamble, cases } = await recallSupportMemory(
-      {
-        db: db(),
-        tenantId: ctx.tenant.tenantId,
-        userId: ctx.viewer.userId,
-        logger,
-      },
-      lang,
+    // Bind tenant context for the recall read in a short transaction (the
+    // brain pool is not request-pinned). The query is belt-and-braces
+    // (tenant_id + user_id) and never makes an external call, so it is safe
+    // inside the transaction.
+    const { preamble, cases } = await withTenantContext(
+      db(),
+      ctx.tenant.tenantId,
+      (tx) =>
+        recallSupportMemory(
+          {
+            db: tx,
+            tenantId: ctx.tenant.tenantId,
+            userId: ctx.viewer.userId,
+            logger,
+          },
+          lang,
+        ),
     );
     if (!preamble) return body;
     logger.info(
@@ -568,6 +565,198 @@ async function withRecalledMemory<
       'brain /turn: support-memory recall failed (continuing)',
     );
     return body;
+  }
+}
+
+// ─── R8 / LP-01 / LP-30 — per-turn cognitive enrichment ───────────────
+//
+// The composition root (index.ts) constructs the `WiredCognitive` bundle
+// once and exposes it on every request via `c.get('cognitive')`. Before
+// this wiring NOTHING on the live `/turn` path read that bundle — the
+// cognitive-memory recall and the (flag-gated) deep-reasoning composer
+// were "built but dark". This hook closes that gap: it calls
+// `enrichBrainTurnWithCognitive` and, when a non-empty context block comes
+// back, PREPENDS it to the user's text as additive grounding (same
+// immutable, best-effort contract as `withRecalledMemory`).
+//
+// Fail-safe posture (CLAUDE.md hot-path rule): the bundle may be absent
+// (middleware not mounted in a unit test) or fully degraded; the
+// enrichment is itself fail-safe (returns an empty result on any internal
+// error); and this wrapper try/catches so a fault NEVER blocks the turn.
+//
+// The deep composer inside the enrichment is gated by
+// `BORJIE_COGNITIVE_COMPOSER_ENABLED` (default OFF) and only spins on a
+// non-fast TTC route, so by default this hook is a cheap in-memory recall
+// — no extra LLM cost until the composer is canaried on.
+
+/** Conservative composer surface derived from the turn viewer. */
+function composerSurfaceForViewer(
+  viewer: TurnGateContext['viewer'],
+): 'owner-portal' | 'admin-portal' | 'tenant-app' {
+  if (viewer.isAdmin) return 'admin-portal';
+  if (viewer.isManagement) return 'owner-portal';
+  return 'tenant-app';
+}
+
+/**
+ * Read the wired cognitive bundle from the Hono context, enrich the turn,
+ * and prepend any context block to `userText`. Pure on the input body
+ * (immutability): builds a new object. Best-effort — returns the body
+ * unchanged on a missing bundle or any failure.
+ */
+async function withCognitiveEnrichment<
+  T extends { readonly userText: string; readonly threadId?: string },
+>(c: any, ctx: TurnGateContext, body: T): Promise<T> {
+  try {
+    const wired = c.get('cognitive') as WiredCognitive | undefined;
+    if (!wired || !wired.isLive) return body;
+    const enrichArgs: Parameters<typeof enrichBrainTurnWithCognitive>[0] = {
+      wired,
+      tenantId: ctx.tenant.tenantId,
+      userId: ctx.viewer.userId,
+      userText: body.userText,
+      personaId: 'mr-mwikila',
+      // Deep composer routing — conservative stakes; the composer slot is
+      // flag-gated (default OFF) and a low-stakes route stays on the fast
+      // path, so this is inert until the composer is enabled + a turn is
+      // routed deep. The surface mirrors the viewer's portal.
+      composer: { stakes: 'low', surface: composerSurfaceForViewer(ctx.viewer) },
+      ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
+      logger: {
+        debug: (message, meta) => logger.debug(meta ?? {}, message),
+        info: (message, meta) => logger.info(meta ?? {}, message),
+        warn: (message, meta) => logger.warn(meta ?? {}, message),
+        error: (message, meta) => logger.error(meta ?? {}, message),
+      },
+    };
+    const enrichment = await enrichBrainTurnWithCognitive(enrichArgs);
+    if (enrichment.enrichedSystemPrompt.length === 0) return body;
+    logger.info(
+      {
+        wiring: 'cognitive-enrichment',
+        tenantId: ctx.tenant.tenantId,
+        userId: ctx.viewer.userId,
+        citations: enrichment.citations.length,
+        composerStrategy: enrichment.composer?.route.strategy ?? 'none',
+      },
+      'brain /turn: injected cognitive enrichment (recall + deep-reasoning)',
+    );
+    return {
+      ...body,
+      userText: `${enrichment.enrichedSystemPrompt}\n\n${body.userText}`,
+    };
+  } catch (err) {
+    // Never let enrichment break the turn.
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: cognitive enrichment failed (continuing)',
+    );
+    return body;
+  }
+}
+
+// ─── LP-15 / LP-30 — privacy-router consult on the MAIN brain turn ────
+//
+// The orchestrator (`brain.orchestrator.handleTurn` / `startThread`) is the
+// LLM provider boundary for the main chat path. Before this wiring the
+// privacy router was only consulted on the `/ask` advisor path (via
+// `multi-llm-brain-adapter`); the main `/turn` dispatched to the provider
+// WITHOUT a sensitivity-tier check. This hook closes that gap by consulting
+// the router on the final user text just before dispatch:
+//   - DENIED (restricted data + no local model) → refuse the turn.
+//   - CONFIDENTIAL → substitute the PII-stripped text so no raw PII reaches
+//     the cloud provider (and is not persisted on the thread).
+//   - INTERNAL / PUBLIC → passthrough (the common case; zero cost).
+//
+// Built once per process (the router holds only a stripper + a health
+// probe). Default ENABLED, but ordinary text classifies INTERNAL → no
+// strip / no deny, so this is inert until genuinely sensitive content
+// appears. `consultPrivacyRouter` is fail-conservative on any error: a
+// routing fault PII-strips rather than forwarding raw text, and a strip
+// fault denies — it NEVER fails open to a raw-text egress.
+
+let brainPrivacyRouterCache: WiredPrivacyRouter | null = null;
+
+function brainPrivacyRouter(): WiredPrivacyRouter {
+  if (brainPrivacyRouterCache) return brainPrivacyRouterCache;
+  brainPrivacyRouterCache = buildPrivacyRouter({
+    env: process.env,
+    logger: {
+      info: (meta, msg) => logger.info(meta, msg),
+      warn: (meta, msg) => logger.warn(meta, msg),
+    },
+  });
+  return brainPrivacyRouterCache;
+}
+
+/** Test seam — drop the cached router so a test can rebuild with a new env. */
+export function __resetBrainPrivacyRouter(): void {
+  brainPrivacyRouterCache = null;
+}
+
+export interface BrainTurnPrivacyDecision {
+  /** True when the router refused the turn (restricted data, no local model). */
+  readonly refused: boolean;
+  /** Single-language refusal copy for the client, when refused. */
+  readonly message?: string;
+  /** The (possibly PII-stripped) body to dispatch when not refused. */
+  readonly body?: { readonly userText: string };
+}
+
+/** Single-language privacy-refusal copy. EN default; SW when locale toggles. */
+const PRIVACY_REFUSAL_TEXTS = Object.freeze({
+  en: 'I can’t process that request — it contains restricted data that must stay on-premises, and the local model is unavailable right now.',
+  sw: 'Siwezi kushughulikia ombi hilo — lina taarifa zilizozuiliwa ambazo lazima zibaki ndani ya mfumo, na modeli ya ndani haipatikani kwa sasa.',
+} as const);
+
+/**
+ * Consult the privacy router for the main brain turn. Returns a refusal
+ * directive when the router DENIED the turn; otherwise returns the
+ * (possibly PII-stripped) body to dispatch. Never throws — the underlying
+ * `consultPrivacyRouter` is fail-conservative, and this wrapper try/catches
+ * so a fault falls through to the unchanged body (the kernel pre-flight +
+ * evidence gate remain in force).
+ */
+async function consultBrainTurnPrivacy<
+  T extends { readonly userText: string },
+>(c: any, body: T): Promise<BrainTurnPrivacyDecision> {
+  try {
+    const wired = brainPrivacyRouter();
+    const decision = await consultPrivacyRouter(
+      wired,
+      { text: body.userText },
+      {
+        info: (meta, msg) => logger.info(meta, msg),
+        warn: (meta, msg) => logger.warn(meta, msg),
+      },
+    );
+    if (!decision.allowed) {
+      const lang: StrictWithholdLang = pickRecallLang(
+        c.req.header('accept-language') ?? null,
+      );
+      logger.warn(
+        {
+          wiring: 'privacy-router',
+          classification: decision.result.classification,
+          reason: decision.result.reason,
+        },
+        'brain /turn: privacy router DENIED dispatch (restricted data, no local model)',
+      );
+      return { refused: true, message: PRIVACY_REFUSAL_TEXTS[lang] };
+    }
+    // Substitute the processed (possibly stripped) text. When nothing was
+    // stripped this is identical to the input, so the object is rebuilt
+    // immutably either way.
+    return { refused: false, body: { ...body, userText: decision.processedText } };
+  } catch (err) {
+    // Defence-in-depth: consultPrivacyRouter is already fail-conservative,
+    // but a construction fault must not break the turn. Fall through with
+    // the unchanged body — kernel pre-flight + evidence gate still apply.
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: privacy-router consult failed (continuing with unprocessed text)',
+    );
+    return { refused: false };
   }
 }
 
@@ -1256,6 +1445,52 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // call; best-effort (never blocks the turn).
   body = await withRecalledMemory(c, gate.ctx, body);
 
+  // R8 / LP-01 / LP-30 — per-turn cognitive enrichment. Reads the wired
+  // cognitive bundle from `c.get('cognitive')` (set by the cognitive
+  // context middleware in index.ts) and prepends a recalled-memory +
+  // (flag-gated, default-OFF) deep-reasoning context block. This is the
+  // call-site that turns the previously-dark composer ON for a live turn.
+  // Best-effort + fail-safe (never throws into the turn); inert until the
+  // composer flag is enabled and a turn routes to a non-fast strategy.
+  body = await withCognitiveEnrichment(c, gate.ctx, body);
+
+  // LP-15 / LP-30 — privacy-router consult BEFORE the orchestrator (the LLM
+  // provider boundary). DENIED (restricted data + no local model) refuses
+  // the turn; CONFIDENTIAL substitutes the PII-stripped text so no raw PII
+  // reaches the cloud provider. Default ENABLED but inert for ordinary
+  // INTERNAL/PUBLIC text. Fail-conservative on any error (never forwards
+  // raw text on a routing fault).
+  const privacy = await consultBrainTurnPrivacy(c, body);
+  if (privacy.refused) {
+    if (wantsSse) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            message: privacy.message,
+            code: 'PRIVACY_DENIED',
+            retryable: false,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ threadId: body.threadId ?? null, refused: true }),
+        });
+      });
+    }
+    return c.json(
+      {
+        error: 'privacy_denied',
+        code: 'PRIVACY_DENIED',
+        responseText: privacy.message,
+      },
+      403,
+    );
+  }
+  if (privacy.body) {
+    body = { ...body, userText: privacy.body.userText };
+  }
+
   // G2 — Idempotency-Key cache lookup. Only applies to the JSON path
   // (SSE streams are not cacheable). When the client sends a valid key
   // and we have a fresh cached response for `(tenantId, userId, key)`
@@ -1315,11 +1550,8 @@ brainRouter.get('/threads', async (c) => {
   } catch (err) {
     return handleError(c, err);
   }
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-  } catch (err) {
-    return handleError(c, err);
-  }
+  // Thread-store reads self-bind tenant context per operation (the repo
+  // wraps each query in a short per-tenant transaction).
   const brain = registry().for(ctx.tenant.tenantId);
   const limit = Number(c.req.query('limit') ?? 50);
   const list = await brain.threads.listThreads(ctx.tenant.tenantId, {
@@ -1336,11 +1568,8 @@ brainRouter.get('/threads/:id', async (c) => {
   } catch (err) {
     return handleError(c, err);
   }
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-  } catch (err) {
-    return handleError(c, err);
-  }
+  // Thread-store reads self-bind tenant context per operation (the repo
+  // wraps each query in a short per-tenant transaction).
   const brain = registry().for(ctx.tenant.tenantId);
   const id = c.req.param('id');
   const thread = await brain.threads.getThread(id);
@@ -1352,67 +1581,17 @@ brainRouter.get('/threads/:id', async (c) => {
   return c.json({ thread, events });
 });
 
-brainRouter.post('/migrate/extract', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
-  try {
-    await authenticate(c);
-  } catch (err) {
-    return handleError(c, err);
-  }
-  let body;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_json' }, 400);
-  }
-  const parsed = MigrationExtractParamsSchema.safeParse(body);
-  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
-  const bundle = migrationExtract(parsed.data);
-  const diff = migrationDiff({ bundle } as Parameters<typeof migrationDiff>[0]);
-  return c.json({ bundle, diff });
-}));
-
-brainRouter.post('/migrate/commit', withSecurityEvents({ action: 'brain.create', resource: 'brain', severity: 'info' }, async (c) => {
-  let ctx;
-  try {
-    ctx = await authenticate(c);
-  } catch (err) {
-    return handleError(c, err);
-  }
-  if (!ctx.actor.roles.includes('admin')) {
-    return c.json({ error: 'admin_role_required', code: 'FORBIDDEN' }, 403);
-  }
-  let body;
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: 'invalid_json' }, 400);
-  }
-  const schema = (await import('zod')).z.object({
-    bundle: ExtractionBundleSchema,
-    bestEffort: (await import('zod')).z.boolean().optional().default(false),
-  });
-  const parsed = schema.safeParse(body);
-  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
-  try {
-    await bindTenantGuc(db(), ctx.tenant.tenantId);
-    const writer = new MigrationWriterService(db());
-    const region = await resolveTenantRegion(ctx.tenant.tenantId);
-    const report = await writer.commit(
-      parsed.data.bundle,
-      {
-        tenantId: ctx.tenant.tenantId,
-        ownerUserId: ctx.actor.id,
-        actorUserId: ctx.actor.id,
-        tenantCountry: region.country,
-        tenantCurrency: region.currency,
-        defaultCity: region.defaultCity,
-      },
-      { bestEffort: parsed.data.bestEffort }
-    );
-    return c.json({ report });
-  } catch (err) {
-    return handleError(c, err);
-  }
-}));
+// NOTE: the legacy `/brain/migrate/extract` + `/brain/migrate/commit` routes
+// were REMOVED in the RLS-pinning / dead-code sweep. They were a
+// property-domain relic from the BossNyumba hard-fork: they extracted/diffed/
+// committed `{ properties, units, tenants, employees, departments, teams }`
+// bundles via `MigrationWriterService`, whose backing tables were dropped in
+// migration 0003_mining_domain.sql (the service is now a no-op stub — gh-issue
+// #29). `/migrate/commit` in particular called a non-existent `writer.commit`
+// (the stub only exposes a no-op `write`), so it threw `writer.commit is not a
+// function` at runtime; it only type-checked because the handler params were
+// `any`. The supported migration surface is the live wizard at
+// `/api/v1/migration` (`migration.router.ts`), which uses a real per-run
+// commit service — NOT this dead brain endpoint.
 
 export { brainRouter };

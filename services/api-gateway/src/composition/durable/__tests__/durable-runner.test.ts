@@ -201,7 +201,7 @@ describe('durable-runner — defaults', () => {
 describe('durable-runner — happy path', () => {
   it('checkpoints pending → running → success on first attempt', async () => {
     const cs = makeInMemoryStore();
-    const goal = makeGoal([makeStep(1, 'rent.send-reminder')]);
+    const goal = makeGoal([makeStep(1, 'royalty.send-reminder')]);
     const executor = {
       async executeGoal() {
         return {
@@ -234,7 +234,7 @@ describe('durable-runner — happy path', () => {
     expect(cs.rows).toHaveLength(1);
     expect(cs.rows[0]?.state).toBe('success');
     expect(cs.rows[0]?.attemptCount).toBe(1);
-    expect(cs.rows[0]?.stepName).toBe('rent.send-reminder');
+    expect(cs.rows[0]?.stepName).toBe('royalty.send-reminder');
   });
 
   it('uses informational-{seq} as step name when toolName is null', async () => {
@@ -267,7 +267,7 @@ describe('durable-runner — happy path', () => {
 describe('durable-runner — retry-with-backoff', () => {
   it('retries on transient executor failure up to maxAttempts', async () => {
     const cs = makeInMemoryStore();
-    const goal = makeGoal([makeStep(1, 'rent.send-reminder')]);
+    const goal = makeGoal([makeStep(1, 'royalty.send-reminder')]);
     let calls = 0;
     const executor = {
       async executeGoal() {
@@ -326,7 +326,7 @@ describe('durable-runner — retry-with-backoff', () => {
 
   it('transitions step to paused when retries exhaust', async () => {
     const cs = makeInMemoryStore();
-    const goal = makeGoal([makeStep(1, 'rent.send-reminder')]);
+    const goal = makeGoal([makeStep(1, 'royalty.send-reminder')]);
     const executor = {
       async executeGoal() {
         return {
@@ -363,7 +363,7 @@ describe('durable-runner — retry-with-backoff', () => {
 
   it('throws-from-executor counted as a failed attempt', async () => {
     const cs = makeInMemoryStore();
-    const goal = makeGoal([makeStep(1, 'rent.send-reminder')]);
+    const goal = makeGoal([makeStep(1, 'royalty.send-reminder')]);
     const executor = {
       async executeGoal() {
         throw new Error('boom from inside executor');

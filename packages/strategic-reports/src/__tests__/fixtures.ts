@@ -36,11 +36,11 @@ import type {
   ConditionalSurveyPort,
   ExpansionAdvisorPort,
   GreenAngleAdvisorPort,
-  LeasingFinancialPort,
+  OfftakeFinancialPort,
   LifecycleAdvisorPort,
-  RentRollPort,
+  RoyaltyRollPort,
   SustainabilityAdvisorPort,
-  TenantContextPort,
+  BuyerContextPort,
 } from '../gatherers/ports.js';
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -220,19 +220,19 @@ export function createFakeCitationVerifier(opts: { force?: 'ok' | 'fail' } = {})
 
 const TZS = (value: number): { currency: string; value: number } => ({ currency: 'TZS', value });
 
-export const fixtureLeasingFinancial: LeasingFinancialPort = {
+export const fixtureOfftakeFinancial: OfftakeFinancialPort = {
   async fetchRevenueTrend() {
     return [
-      { periodLabel: 'Apr 2026', billed: TZS(10_000), collected: TZS(9_400), arrears: TZS(600) },
-      { periodLabel: 'May 2026', billed: TZS(10_500), collected: TZS(9_800), arrears: TZS(700) },
-      { periodLabel: 'Jun 2026', billed: TZS(11_000), collected: TZS(10_350), arrears: TZS(650) },
+      { periodLabel: 'Apr 2026', billed: TZS(10_000), collected: TZS(9_400), outstanding: TZS(600) },
+      { periodLabel: 'May 2026', billed: TZS(10_500), collected: TZS(9_800), outstanding: TZS(700) },
+      { periodLabel: 'Jun 2026', billed: TZS(11_000), collected: TZS(10_350), outstanding: TZS(650) },
     ];
   },
-  async fetchOccupancyTrend() {
+  async fetchProductionTrend() {
     return [
-      { periodLabel: 'Apr 2026', leasedUnits: 18, totalUnits: 20 },
-      { periodLabel: 'May 2026', leasedUnits: 19, totalUnits: 20 },
-      { periodLabel: 'Jun 2026', leasedUnits: 19, totalUnits: 20 },
+      { periodLabel: 'Apr 2026', producingSites: 18, totalSites: 20 },
+      { periodLabel: 'May 2026', producingSites: 19, totalSites: 20 },
+      { periodLabel: 'Jun 2026', producingSites: 19, totalSites: 20 },
     ];
   },
 };
@@ -240,25 +240,25 @@ export const fixtureLeasingFinancial: LeasingFinancialPort = {
 export const fixtureConditionalSurvey: ConditionalSurveyPort = {
   async fetchLatestSurvey() {
     return {
-      propertyId: 'prop-fixture',
+      siteId: 'site-fixture',
       surveyDateIso: '2026-04-15T10:00:00Z',
       surveyorId: 'surveyor-fixture',
       overallGrade: 'B',
       defects: [
-        { defectId: 'd-1', element: 'roof', severity: 'major', costEstimate: TZS(2_500), notedAtIso: '2026-04-15T10:00:00Z' },
-        { defectId: 'd-2', element: 'HVAC', severity: 'moderate', costEstimate: TZS(1_200), notedAtIso: '2026-04-15T10:00:00Z' },
-        { defectId: 'd-3', element: 'envelope', severity: 'critical', costEstimate: TZS(4_000), notedAtIso: '2026-04-15T10:00:00Z' },
+        { defectId: 'd-1', element: 'processing-plant', severity: 'major', costEstimate: TZS(2_500), notedAtIso: '2026-04-15T10:00:00Z' },
+        { defectId: 'd-2', element: 'conveyor', severity: 'moderate', costEstimate: TZS(1_200), notedAtIso: '2026-04-15T10:00:00Z' },
+        { defectId: 'd-3', element: 'tailings-dam', severity: 'critical', costEstimate: TZS(4_000), notedAtIso: '2026-04-15T10:00:00Z' },
       ],
     };
   },
   async fetchPriorSurvey() {
     return {
-      propertyId: 'prop-fixture',
+      siteId: 'site-fixture',
       surveyDateIso: '2025-04-15T10:00:00Z',
       surveyorId: 'surveyor-fixture',
       overallGrade: 'B',
       defects: [
-        { defectId: 'd-old-1', element: 'roof', severity: 'moderate', costEstimate: TZS(1_500), notedAtIso: '2025-04-15T10:00:00Z' },
+        { defectId: 'd-old-1', element: 'processing-plant', severity: 'moderate', costEstimate: TZS(1_500), notedAtIso: '2025-04-15T10:00:00Z' },
       ],
     };
   },
@@ -268,7 +268,7 @@ export const fixtureAcquisition: AcquisitionAdvisorPort = {
   async fetchDeal() {
     return {
       dealId: 'deal-fixture',
-      propertyId: 'prop-fixture',
+      siteId: 'site-fixture',
       askPrice: TZS(500_000),
       modelledValue: TZS(475_000),
       noi: TZS(40_000),
@@ -276,7 +276,7 @@ export const fixtureAcquisition: AcquisitionAdvisorPort = {
       compTriangulationRange: { low: TZS(460_000), high: TZS(490_000) },
       dealKillers: [
         { id: 'dk-env', title: 'Environmental REC under appendix B', severity: 'medium' },
-        { id: 'dk-title', title: 'Schedule B-II unresolved item', severity: 'low' },
+        { id: 'dk-title', title: 'Mineral-title encumbrance unresolved', severity: 'low' },
       ],
       recommendation: 'pursue',
     };
@@ -286,12 +286,12 @@ export const fixtureAcquisition: AcquisitionAdvisorPort = {
 export const fixtureLifecycle: LifecycleAdvisorPort = {
   async fetchDispositionThesis() {
     return {
-      propertyId: 'prop-fixture',
+      siteId: 'site-fixture',
       recommendedExit: 'list-next-quarter',
       impliedExitValue: TZS(520_000),
       buyerPool: [
         { buyerType: 'core-institutional', weight: 0.55 },
-        { buyerType: 'high-net-worth', weight: 0.30 },
+        { buyerType: 'strategic-offtaker', weight: 0.30 },
         { buyerType: 'value-add', weight: 0.15 },
       ],
       sensitivities: [
@@ -302,7 +302,7 @@ export const fixtureLifecycle: LifecycleAdvisorPort = {
   },
   async fetchRefinancingProposal() {
     return {
-      propertyId: 'prop-fixture',
+      siteId: 'site-fixture',
       currentLoan: { principal: TZS(300_000), ratePct: 8.25, maturityIso: '2027-06-30' },
       proposed: { principal: TZS(310_000), ratePct: 7.40, term_yrs: 10, ltvPct: 62.5, dscr: 1.35 },
       lenderShortlist: [
@@ -320,18 +320,18 @@ export const fixtureLifecycle: LifecycleAdvisorPort = {
 export const fixtureSustainability: SustainabilityAdvisorPort = {
   async fetchSnapshot() {
     return {
-      propertyId: 'prop-fixture',
+      siteId: 'site-fixture',
       periodLabel: 'FY26',
       scope1KgCO2e: 1500,
       scope2KgCO2e: 4500,
       scope3KgCO2e: 2300,
-      intensityKgCO2ePerM2: 22.5,
+      intensityKgCO2ePerTonne: 22.5,
       crremDeltaPct: -3.2,
       euTaxonomyAligned: true,
       bngNetGainPct: 12,
       nbsOpportunities: [
-        { id: 'nbs-1', title: 'Green roof retrofit', priority: 'high' },
-        { id: 'nbs-2', title: 'Permeable forecourt', priority: 'medium' },
+        { id: 'nbs-1', title: 'Rehabilitated-overburden revegetation', priority: 'high' },
+        { id: 'nbs-2', title: 'Permeable haul-road drainage', priority: 'medium' },
       ],
     };
   },
@@ -342,11 +342,11 @@ export const fixtureExpansion: ExpansionAdvisorPort = {
     return {
       orgId: 'org-fixture',
       markets: [
-        { market: 'Dar es Salaam', riskAdjYoCPct: 8.4, absorption_mo: 9, verdict: 'enter' },
+        { market: 'Geita', riskAdjYoCPct: 8.4, absorption_mo: 9, verdict: 'enter' },
         { market: 'Mwanza', riskAdjYoCPct: 7.1, absorption_mo: 14, verdict: 'monitor' },
       ],
       capitalStack: { debtPct: 60, prefEquityPct: 20, commonEquityPct: 20 },
-      preferredHbu: 'Mixed-use mid-density residential',
+      preferredHbu: 'Mixed gold + industrial-mineral extraction',
     };
   },
 };
@@ -356,26 +356,26 @@ export const fixtureGreenAngle: GreenAngleAdvisorPort = {
     return {
       orgId: 'org-fixture',
       topAngles: [
-        { id: 'ga-1', title: 'Solar canopy on garage', impactScore: 0.71, capexEstimate: TZS(18_000) },
-        { id: 'ga-2', title: 'Cool-roof coating', impactScore: 0.42, capexEstimate: TZS(4_500) },
+        { id: 'ga-1', title: 'Solar canopy on processing plant', impactScore: 0.71, capexEstimate: TZS(18_000) },
+        { id: 'ga-2', title: 'Dry-stack tailings retrofit', impactScore: 0.42, capexEstimate: TZS(4_500) },
       ],
     };
   },
 };
 
-export const fixtureTenantContext: TenantContextPort = {
-  async fetchTenantProfile() {
+export const fixtureBuyerContext: BuyerContextPort = {
+  async fetchBuyerProfile() {
     return {
-      tenantPersonId: 'person-fixture',
+      buyerPersonId: 'person-fixture',
       displayName: 'Asha Mwakapina',
       lifecycleStage: 'paying',
       paymentHistory: [
-        { periodLabel: 'Apr 2026', onTimePct: 98, arrearsDays: 0 },
-        { periodLabel: 'May 2026', onTimePct: 91, arrearsDays: 5 },
-        { periodLabel: 'Jun 2026', onTimePct: 100, arrearsDays: 0 },
+        { periodLabel: 'Apr 2026', onTimePct: 98, outstandingDays: 0 },
+        { periodLabel: 'May 2026', onTimePct: 91, outstandingDays: 5 },
+        { periodLabel: 'Jun 2026', onTimePct: 100, outstandingDays: 0 },
       ],
       complaints: [
-        { id: 'c-1', summary: 'Leaky tap in unit 4B', resolvedAtIso: '2026-04-10T00:00:00Z' },
+        { id: 'c-1', summary: 'Grade dispute on lot 4B', resolvedAtIso: '2026-04-10T00:00:00Z' },
       ],
       creditSignals: [
         { signal: 'on-time-streak', weight: 0.72 },
@@ -385,27 +385,27 @@ export const fixtureTenantContext: TenantContextPort = {
   },
 };
 
-export const fixtureRentRoll: RentRollPort = {
-  async fetchRentRoll() {
+export const fixtureRoyaltyRoll: RoyaltyRollPort = {
+  async fetchRoyaltyRoll() {
     return [
-      { unitId: 'u-1', tenantName: 'Asha M.', monthlyRent: TZS(800), leaseStartIso: '2025-01-01', leaseEndIso: '2026-12-31', arrears: TZS(0), arrearsAgeingDays: 0 },
-      { unitId: 'u-2', tenantName: 'Brian K.', monthlyRent: TZS(750), leaseStartIso: '2025-04-01', leaseEndIso: '2026-09-30', arrears: TZS(900), arrearsAgeingDays: 45 },
-      { unitId: 'u-3', tenantName: 'Carol N.', monthlyRent: TZS(820), leaseStartIso: '2024-11-01', leaseEndIso: '2026-10-31', arrears: TZS(1_640), arrearsAgeingDays: 95 },
-      { unitId: 'u-4', tenantName: 'Daudi T.', monthlyRent: TZS(700), leaseStartIso: '2025-06-01', leaseEndIso: '2027-05-31', arrears: TZS(0), arrearsAgeingDays: 0 },
+      { siteId: 's-1', buyerName: 'Asha M.', monthlyRoyalty: TZS(800), supplyStartIso: '2025-01-01', supplyEndIso: '2026-12-31', outstanding: TZS(0), outstandingAgeingDays: 0 },
+      { siteId: 's-2', buyerName: 'Brian K.', monthlyRoyalty: TZS(750), supplyStartIso: '2025-04-01', supplyEndIso: '2026-09-30', outstanding: TZS(900), outstandingAgeingDays: 45 },
+      { siteId: 's-3', buyerName: 'Carol N.', monthlyRoyalty: TZS(820), supplyStartIso: '2024-11-01', supplyEndIso: '2026-10-31', outstanding: TZS(1_640), outstandingAgeingDays: 95 },
+      { siteId: 's-4', buyerName: 'Daudi T.', monthlyRoyalty: TZS(700), supplyStartIso: '2025-06-01', supplyEndIso: '2027-05-31', outstanding: TZS(0), outstandingAgeingDays: 0 },
     ];
   },
 };
 
 export const fixtureAdvisorPorts: AdvisorPorts = Object.freeze({
-  leasingFinancial: fixtureLeasingFinancial,
+  offtakeFinancial: fixtureOfftakeFinancial,
   conditionalSurvey: fixtureConditionalSurvey,
   acquisition: fixtureAcquisition,
   lifecycle: fixtureLifecycle,
   sustainability: fixtureSustainability,
   expansion: fixtureExpansion,
   greenAngle: fixtureGreenAngle,
-  tenantContext: fixtureTenantContext,
-  rentRoll: fixtureRentRoll,
+  buyerContext: fixtureBuyerContext,
+  royaltyRoll: fixtureRoyaltyRoll,
 });
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -433,19 +433,19 @@ export function buildSpec(type: ReportType, overrides?: Partial<ReportSpec>): Re
 
 function scopeFor(type: ReportType): ReportSpec['scope'] {
   switch (type) {
-    case 'tenant_credit_risk_profile':
-      return { kind: 'tenant', tenantPersonId: 'person-fixture', orgId: 'org-fixture' };
+    case 'buyer_credit_risk_profile':
+      return { kind: 'buyer', buyerPersonId: 'person-fixture', orgId: 'org-fixture' };
     case 'acquisition_deal_ic_memo':
-      return { kind: 'deal', dealId: 'deal-fixture', orgId: 'org-fixture', propertyId: 'prop-fixture' };
-    case 'leasing_financial_performance':
+      return { kind: 'deal', dealId: 'deal-fixture', orgId: 'org-fixture', siteId: 'site-fixture' };
+    case 'offtake_financial_performance':
     case 'annual_estate_operating_review':
-    case 'rent_roll_arrears_ledger':
+    case 'royalty_roll_outstanding_ledger':
     case 'expansion_strategy_memo':
       return { kind: 'portfolio', orgId: 'org-fixture' };
     case 'conditional_survey_of_assets':
     case 'disposition_memo_asset_profile':
     case 'refinancing_strategy_memo':
     case 'sustainability_ghg_report':
-      return { kind: 'property', propertyId: 'prop-fixture', orgId: 'org-fixture' };
+      return { kind: 'site', siteId: 'site-fixture', orgId: 'org-fixture' };
   }
 }

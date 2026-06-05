@@ -9,7 +9,7 @@
  * emits a concrete JSON DAG.
  *
  * The 39 primitives are taken verbatim from Appendix C of the paper.
- * BORJIE adds 6 domain primitives (`apply-tz-rental-act`,
+ * BORJIE adds 6 domain primitives (`apply-tz-mining-act`,
  * `check-currency-chain`, etc.) flagged with `domain: 'borjie'` so
  * they remain identifiable in the discovered structures and can be
  * promoted into the universal library by operator action.
@@ -82,12 +82,12 @@ export const UNIVERSAL_PRIMITIVES: ReadonlyArray<ReasoningPrimitive> = Object.fr
 // ─────────────────────────────────────────────────────────────────────
 
 export const BORJIE_PRIMITIVES: ReadonlyArray<ReasoningPrimitive> = Object.freeze([
-  { id: 'apply-tz-rental-act', description: 'Apply the TZ Rental Act provisions (notice periods, deposit handling, advance-rent caps) to the situation.', domain: 'borjie', tags: ['legal', 'rules', 'jurisdiction'] },
-  { id: 'apply-ke-tenancy-rules', description: 'Apply the Kenya Rent Restriction Act provisions to the situation.', domain: 'borjie', tags: ['legal', 'rules', 'jurisdiction'] },
+  { id: 'apply-tz-mining-act', description: 'Apply the TZ Mining Act provisions (notice periods, performance-bond handling, royalty-escalation caps) to the situation.', domain: 'borjie', tags: ['legal', 'rules', 'jurisdiction'] },
+  { id: 'apply-ke-mining-rules', description: 'Apply the Kenya Mining Act provisions to the situation.', domain: 'borjie', tags: ['legal', 'rules', 'jurisdiction'] },
   { id: 'check-currency-chain', description: 'Resolve display currency via user → tenant → platform-default chain; convert via current FX rates.', domain: 'borjie', tags: ['currency', 'rules'] },
-  { id: 'check-mediation-clause', description: 'Check whether the lease has mediation opt-in; if so, mediation must precede eviction.', domain: 'borjie', tags: ['legal', 'rules'] },
+  { id: 'check-mediation-clause', description: 'Check whether the offtake has mediation opt-in; if so, mediation must precede licence suspension.', domain: 'borjie', tags: ['legal', 'rules'] },
   { id: 'check-pii-boundary', description: 'Ensure no PII from another tenant leaks into the response.', domain: 'borjie', tags: ['privacy', 'verification'] },
-  { id: 'check-payment-history', description: 'Pull the tenant payment history before any rent / arrears decision.', domain: 'borjie', tags: ['retrieval', 'finance'] },
+  { id: 'check-payment-history', description: 'Pull the counterparty payment history before any royalty / outstanding-royalty decision.', domain: 'borjie', tags: ['retrieval', 'finance'] },
 ]);
 
 export const ALL_PRIMITIVES: ReadonlyArray<ReasoningPrimitive> = Object.freeze([

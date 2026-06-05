@@ -57,6 +57,15 @@ describe('pii-scrubber', () => {
     expect(twice.scrubbed).toBe(once.scrubbed);
   });
 
+  it('redacts Tanzania TRA TIN (bare NNN-NNN-NNN shape)', () => {
+    // Bare 9-digit NNN-NNN-NNN (no "TIN" label word, which would
+    // otherwise be caught first by the labelled `tin_number` pattern).
+    const r = scrubPii('The Tanzania tax id 123-456-789 is on the return.');
+    expect(r.hasPii).toBe(true);
+    expect(r.scrubbed).toContain('<tra-tin:redacted>');
+    expect(r.scrubbed).not.toContain('123-456-789');
+  });
+
   it('redacts Kenyan KRA PIN (A123456789B shape)', () => {
     const r = scrubPii('My KRA PIN is A123456789Z for the filing.');
     expect(r.hasPii).toBe(true);

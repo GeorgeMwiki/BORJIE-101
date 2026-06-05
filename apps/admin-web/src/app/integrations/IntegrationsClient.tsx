@@ -40,7 +40,7 @@ export function IntegrationsClient() {
   const [revokeReason, setRevokeReason] = useState('');
   const [form, setForm] = useState({
     agentId: '',
-    scopes: 'read:property,read:lease',
+    scopes: 'read:site,read:licence',
     days: '90',
   });
 
@@ -77,7 +77,7 @@ export function IntegrationsClient() {
     });
     setIssuing(false);
     if (res.success) {
-      setForm({ agentId: '', scopes: 'read:property,read:lease', days: '90' });
+      setForm({ agentId: '', scopes: 'read:site,read:licence', days: '90' });
       void load();
     } else {
       setError(res.error ?? 'Failed to issue certification');

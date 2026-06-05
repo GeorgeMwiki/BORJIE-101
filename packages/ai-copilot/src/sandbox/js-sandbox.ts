@@ -55,9 +55,23 @@
 // downstream bundler static analysis does not bundle `isolated-vm`
 // (which has a native binding via node-gyp-build). The runtime value
 // is loaded by `loadIvm()` below, hidden from the analyzer.
-import type ivm from 'isolated-vm';
+// isolated-vm's bundled .d.ts is absent at build time whenever the optional
+// native install is skipped (CI / unsupported platforms), so DON'T hard-depend
+// on the optional package's types — type the module loosely here. loadIvm()
+// loads the runtime value via a guarded dynamic require and sanitizes init
+// errors, so runtime correctness does not rely on this static type.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- optional native dep; types absent at build
+type IvmModule = any;
 
-type IvmModule = typeof ivm;
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace --
+   Local stand-ins for the optional isolated-vm namespace types used as
+   annotations below (ivm.Isolate / ivm.Context). Keeps the build independent of
+   the optional native package's bundled .d.ts (absent in CI). */
+declare namespace ivm {
+  type Isolate = any;
+  type Context = any;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-namespace */
 
 let _ivmCache: IvmModule | null = null;
 let _ivmInitErrorMessage: string | null = null;

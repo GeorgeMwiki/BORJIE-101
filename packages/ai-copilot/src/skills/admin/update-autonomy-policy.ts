@@ -20,7 +20,7 @@ export const AutonomyDomainSchema = z.enum([
   'maintenance',
   'finance',
   'comms',
-  'leasing',
+  'offtake',
   'compliance',
   'marketing',
   'hr',
@@ -63,7 +63,7 @@ export const updateAutonomyPolicyTool: ToolHandler = {
       tenantId: { type: 'string' },
       domain: {
         type: 'string',
-        enum: ['maintenance', 'finance', 'comms', 'leasing', 'compliance', 'marketing', 'hr'],
+        enum: ['maintenance', 'finance', 'comms', 'offtake', 'compliance', 'marketing', 'hr'],
       },
       level: {
         type: 'string',

@@ -55,11 +55,11 @@ describe('portal -> primary persona routing', () => {
     expect(ids).toEqual(
       [
         'borjie-studio',
+        'counterparty-assistant',
         'coworker',
         'manager-chat',
         'owner-advisor',
         'public-guide',
-        'tenant-assistant',
       ].sort(),
     );
   });
@@ -74,8 +74,8 @@ describe('portal -> primary persona routing', () => {
     expect(resolvePersona('estate-manager-app').id).toBe('coworker');
   });
 
-  it('maps customer-app to tenant-assistant', () => {
-    expect(resolvePersona('customer-app').id).toBe('tenant-assistant');
+  it('maps customer-app to counterparty-assistant', () => {
+    expect(resolvePersona('customer-app').id).toBe('counterparty-assistant');
   });
 
   it('maps owner-portal to owner-advisor', () => {
@@ -137,42 +137,42 @@ describe('portal -> primary persona routing', () => {
 });
 
 describe('sub-persona routing - context signals', () => {
-  it('activates finance sub-layer for arrears keyword from authenticated admin', () => {
+  it('activates finance sub-layer for outstanding-royalties keyword from authenticated admin', () => {
     const result = routeToSubPersona(
       baseContext({
-        message: 'help me understand rent arrears for the Kilimani property',
+        message: 'help me understand outstanding royalties for the Geita site',
         portalId: 'admin-portal',
       }),
     );
     expect(result?.subPersonaId).toBe('finance');
   });
 
-  it('activates maintenance sub-layer for leak keyword', () => {
+  it('activates maintenance sub-layer for breakdown keyword', () => {
     const result = routeToSubPersona(
       baseContext({
-        message: 'there is a leak in unit 4B, we need a plumber today',
+        message: 'there is a pump breakdown at the pit, we need a fitter today',
       }),
     );
     expect(result?.subPersonaId).toBe('maintenance');
   });
 
-  it('activates leasing sub-layer on /leasing route', () => {
+  it('activates offtake sub-layer on /offtake route', () => {
     const result = routeToSubPersona(
-      baseContext({ route: '/leasing/renewals', message: 'propose a renewal' }),
+      baseContext({ route: '/offtake/renewals', message: 'propose a renewal' }),
     );
-    expect(result?.subPersonaId).toBe('leasing');
+    expect(result?.subPersonaId).toBe('offtake');
   });
 
   it('activates compliance sub-layer for DPA keyword', () => {
     const result = routeToSubPersona(
-      baseContext({ message: 'a tenant has filed a DPA data-subject access request' }),
+      baseContext({ message: 'a buyer has filed a DPA data-subject access request' }),
     );
     expect(result?.subPersonaId).toBe('compliance');
   });
 
   it('activates professor sub-layer on chatMode="teaching"', () => {
     const result = routeToSubPersona(
-      baseContext({ chatMode: 'teaching', message: 'explain how service charge works' }),
+      baseContext({ chatMode: 'teaching', message: 'explain how the cooperative levy works' }),
     );
     expect(result?.subPersonaId).toBe('professor');
   });
@@ -181,7 +181,7 @@ describe('sub-persona routing - context signals', () => {
     const result = routeToSubPersona(
       baseContext({
         route: '/portfolio/summary',
-        message: 'should I refurbish the Westlands block or sell it',
+        message: 'should I upgrade the Geita plant or sell the asset',
       }),
     );
     expect(result?.subPersonaId).toBe('advisor');
@@ -190,7 +190,7 @@ describe('sub-persona routing - context signals', () => {
   it('activates communications sub-layer for draft notice request', () => {
     const result = routeToSubPersona(
       baseContext({
-        message: 'draft a rent reminder notice in Swahili for tenants overdue',
+        message: 'draft a royalty reminder notice in Swahili for buyers overdue',
       }),
     );
     expect(result?.subPersonaId).toBe('communications');
@@ -198,20 +198,20 @@ describe('sub-persona routing - context signals', () => {
 
   it('is case-insensitive on message keywords', () => {
     const lower = routeToSubPersona(
-      baseContext({ message: 'tenant is in arrears again' }),
+      baseContext({ message: 'buyer has outstanding royalties again' }),
     );
     const upper = routeToSubPersona(
-      baseContext({ message: 'TENANT IS IN ARREARS AGAIN' }),
+      baseContext({ message: 'BUYER HAS OUTSTANDING ROYALTIES AGAIN' }),
     );
     expect(lower?.subPersonaId).toBe('finance');
     expect(upper?.subPersonaId).toBe('finance');
   });
 
   it('is case-insensitive on route patterns', () => {
-    const a = routeToSubPersona(baseContext({ route: '/LEASING/APPLICANTS' }));
-    const b = routeToSubPersona(baseContext({ route: '/leasing/applicants' }));
-    expect(a?.subPersonaId).toBe('leasing');
-    expect(b?.subPersonaId).toBe('leasing');
+    const a = routeToSubPersona(baseContext({ route: '/OFFTAKE/BUYERS' }));
+    const b = routeToSubPersona(baseContext({ route: '/offtake/buyers' }));
+    expect(a?.subPersonaId).toBe('offtake');
+    expect(b?.subPersonaId).toBe('offtake');
   });
 
   it('returns null when no signals reach threshold (fallback to base persona)', () => {
@@ -281,7 +281,7 @@ describe('sub-persona prompt composition', () => {
 
   it('every sub-persona registry entry has a non-empty prompt layer', () => {
     const ids = Object.keys(SUB_PERSONA_REGISTRY) as SubPersonaId[];
-    // Wave-11: 7 base sub-personae (finance/leasing/maintenance/compliance/
+    // Wave-11: 7 base sub-personae (finance/offtake/maintenance/compliance/
     // communications/professor/advisor). Wave-13 adds consultant. Accept ≥ 7.
     expect(ids.length).toBeGreaterThanOrEqual(7);
     for (const id of ids) {

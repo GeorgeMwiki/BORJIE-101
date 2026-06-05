@@ -141,13 +141,13 @@ const DEDUP_HINT_HEADERS = new Set([
   'national_id',
   'national id',
   'email',
-  'lease_ref',
+  'offtake_ref',
   'employee_ref',
   'employee_id',
-  'tenant_ref',
+  'counterparty_ref',
   'tenant_id',
-  'property_ref',
-  'property_id',
+  'asset_ref',
+  'asset_id',
 ]);
 
 function isHeaderDedupHint(header: string): boolean {

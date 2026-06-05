@@ -5,8 +5,8 @@
  * NOT pre-render a tab for every conceivable entity type. A new tenant
  * starts empty; tabs appear as the MD's entity types come into being
  * (typically via chat-driven kernel actions). When a tenant has zero
- * KRA filings the "Filings" tab is absent. The instant the first one
- * lands, the tab materialises — because the section's
+ * royalty filings the "Filings" tab is absent. The instant the first
+ * one lands, the tab materialises — because the section's
  * `visibility_predicate` flips true.
  *
  * Every Section in the registry declares:

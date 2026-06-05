@@ -1,9 +1,10 @@
 /**
- * Japan (JP) — 20.42% withholding on non-resident rental income.
+ * Japan (JP) — 20.42% withholding on non-resident mineral proceeds.
  *
- * Source: Income Tax Act § 212 — 20% on gross rent paid to non-resident
- * landlords + 2.1% reconstruction surtax (special income tax for
- * reconstruction) → blended 20.42%.
+ * Source: Income Tax Act § 212 — 20% on gross proceeds paid to non-resident
+ * operators + 2.1% reconstruction surtax (special income tax for
+ * reconstruction) → blended 20.42%. Mining tenure is governed by the
+ * Mining Act (鉱業法, Kōgyōhō).
  * JPY is zero-decimal — minor units divisor is 1.
  */
 
@@ -11,7 +12,7 @@ import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -57,19 +58,19 @@ const japanCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 6, // shikikin + reikin can be 1-6 months combined
+    minBondMonths: 1,
+    maxBondMonths: 6, // shikikin + reikin can be 1-6 months combined
     noticePeriodDays: 180,
-    minimumLeaseMonths: 24,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 24,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: '賃貸借契約書 (JP)',
-      templatePath: 'jp/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: '鉱物供給契約書 (JP Mineral Offtake)',
+      templatePath: 'jp/offtake-agreement.hbs',
       locale: 'ja-JP',
     },
   ],
@@ -91,7 +92,7 @@ export const japanProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     20.42,
     'JP-NTA-IT-212',
-    'Non-resident rental withholding: 20% income tax + 2.1% reconstruction surtax = 20.42% on gross rent (ITA § 212).'
+    'Non-resident withholding: 20% income tax + 2.1% reconstruction surtax = 20.42% on gross mineral proceeds (ITA § 212).'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -128,33 +129,33 @@ export const japanProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'jp-shakuchi-shakuya',
-        label: 'Land & House Lease Act protections (借地借家法)',
+        id: 'jp-kogyoho',
+        label: 'Mining Act tenure & obligations (鉱業法)',
         mandatory: true,
-        citation: 'Land and House Lease Act 1991',
+        citation: 'Mining Act 1950 (鉱業法)',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 180,
+      'licence-expiry': 180,
       'renewal-non-continuation': 180,
-      'non-payment': 30,
+      'royalty-default': 30,
     },
-    depositCapByRegime: {
-      'residential-standard': {
+    bondCapByRegime: {
+      'artisanal-standard': {
         citation:
-          'No statutory cap; shikikin + reikin industry practice 1-6 months.',
+          'No statutory cap; performance-bond industry practice 1-6 months royalty.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         citation:
-          'Land & House Lease Act § 32 — rent adjustment by agreement or court.',
+          'Royalty adjustment by agreement or court under the Mining Act.',
       },
     },
     defaultNoticeWindowDays: 180,
   }),
-  tenantScreening: buildStubScreeningPort('CIC_JP'),
+  counterpartyScreening: buildStubScreeningPort('CIC_JP'),
 };

@@ -48,19 +48,20 @@ export const HOT_CADENCE: CadenceSpec = {
 export const WARM_CADENCE: CadenceSpec = {
   tier: 'warm',
   intervalMs: HOUR_MS,
-  anomalyKinds: ['arrears-spike', 'vendor-reliability-drop'],
+  anomalyKinds: ['royalty-arrears-spike', 'vendor-reliability-drop'],
   opportunityKinds: ['vendor-rate-arbitrage'],
 } as const;
 
 /**
  * Cold — daily. Slow-moving stuff: churn, compliance deadlines,
- * policy-tightening (which examines a 30d window), rent-vs-market.
+ * policy-tightening (which examines a 30d window),
+ * offtake-price-vs-market.
  */
 export const COLD_CADENCE: CadenceSpec = {
   tier: 'cold',
   intervalMs: DAY_MS,
   anomalyKinds: ['churn-risk', 'compliance-deadline-near'],
-  opportunityKinds: ['policy-tightening', 'rent-vs-market'],
+  opportunityKinds: ['policy-tightening', 'offtake-price-vs-market'],
 } as const;
 
 export const ALL_CADENCES: ReadonlyArray<CadenceSpec> = [

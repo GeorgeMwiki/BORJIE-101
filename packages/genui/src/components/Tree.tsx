@@ -3,7 +3,7 @@
 /**
  * 17. tree — hierarchical navigation (no-dep recursive expand/collapse).
  *
- * Used for owner → portfolio → property → block → unit drill-downs.
+ * Used for owner → portfolio → site → block → unit drill-downs.
  * Click actions dispatch a DOM CustomEvent `genui:tree-action` with
  * the TreeAction payload so the host app can route to a tool/message/
  * navigate.

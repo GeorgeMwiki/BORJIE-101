@@ -38,8 +38,8 @@ describe('port coverage matrix', () => {
         taxRegime: true,
         taxFiling: true,
         paymentRails: true,
-        tenantScreening: true,
-        leaseLaw: true,
+        counterpartyScreening: true,
+        miningLaw: true,
       });
     }
   });
@@ -59,8 +59,8 @@ describe('resolvePlugin', () => {
     expect(ke.taxRegime).toBeDefined();
     expect(ke.taxFiling).toBeDefined();
     expect(ke.paymentRails).toBeDefined();
-    expect(ke.tenantScreening).toBeDefined();
-    expect(ke.leaseLaw).toBeDefined();
+    expect(ke.counterpartyScreening).toBeDefined();
+    expect(ke.miningLaw).toBeDefined();
   });
 
   it('falls back to DEFAULT_PLUGIN for unknown country without throwing', () => {
@@ -89,7 +89,7 @@ describe('resolvePlugin', () => {
 
 describe('flatRateWithholding helper', () => {
   it('rounds half-away-from-zero', () => {
-    expect(flatRateWithholding(1_000_000, 7.5, 'KRA-MRI', '').withholdingMinorUnits).toBe(75_000);
+    expect(flatRateWithholding(1_000_000, 7.5, 'TRA-ROYALTY', '').withholdingMinorUnits).toBe(75_000);
     expect(flatRateWithholding(3, 10, 'TEST', '').withholdingMinorUnits).toBe(0);
     expect(flatRateWithholding(5, 10, 'TEST', '').withholdingMinorUnits).toBe(1);
   });
@@ -140,26 +140,26 @@ describe.each(['TZ', 'KE', 'UG', 'NG', 'ZA', 'US'])(
       }
     });
 
-    it('lease-law exposes a residential clause set', () => {
-      const clauses = resolvePlugin(code).leaseLaw.requiredClauses('residential');
+    it('mining-law exposes an artisanal clause set', () => {
+      const clauses = resolvePlugin(code).miningLaw.requiredClauses('artisanal');
       expect(clauses.length).toBeGreaterThanOrEqual(3);
       expect(clauses.every((c) => c.citation.length > 0)).toBe(true);
     });
 
-    it('lease-law returns a numeric non-payment notice window', () => {
-      const days = resolvePlugin(code).leaseLaw.noticeWindowDays('non-payment');
+    it('mining-law returns a numeric royalty-default notice window', () => {
+      const days = resolvePlugin(code).miningLaw.noticeWindowDays('royalty-default');
       expect(days).not.toBeNull();
       expect(days).toBeGreaterThan(0);
     });
 
-    it('deposit-cap returns a residential-standard figure', () => {
-      const cap = resolvePlugin(code).leaseLaw.depositCapMultiple('residential-standard');
+    it('bond-cap returns an artisanal-standard figure', () => {
+      const cap = resolvePlugin(code).miningLaw.bondCapMultiple('artisanal-standard');
       expect(cap.citation.length).toBeGreaterThan(0);
     });
 
-    it('tenant-screening returns BUREAU_NOT_CONFIGURED without real adapter', async () => {
+    it('counterparty-screening returns BUREAU_NOT_CONFIGURED without real adapter', async () => {
       const plugin = resolvePlugin(code);
-      const result = await plugin.tenantScreening.lookupBureau(
+      const result = await plugin.counterpartyScreening.lookupBureau(
         { kind: 'national-id', value: 'REDACTED', country: code },
         code,
         'consent-token'
@@ -175,10 +175,10 @@ describe.each(['TZ', 'KE', 'UG', 'NG', 'ZA', 'US'])(
           runId: 'run-1',
           lineItems: [
             {
-              leaseId: 'L1',
-              tenantName: 'Test',
-              propertyReference: 'P1',
-              grossRentMinorUnits: 1_000_000,
+              offtakeId: 'L1',
+              counterpartyName: 'Test',
+              siteReference: 'P1',
+              grossValueMinorUnits: 1_000_000,
               withholdingMinorUnits: 75_000,
               currency: plugin.currencyCode,
               paymentDate: '2026-03-28',
@@ -202,15 +202,15 @@ describe.each(['TZ', 'KE', 'UG', 'NG', 'ZA', 'US'])(
   }
 );
 
-describe('Kenya tax regime specifics', () => {
-  it('applies 7.5% MRI on gross rent', () => {
+describe('Kenya royalty regime specifics', () => {
+  it('applies 5% withholding on gross mineral value', () => {
     const r = resolvePlugin('KE').taxRegime.calculateWithholding(
       10_000_000,
       'KES',
       PERIOD
     );
-    expect(r.withholdingMinorUnits).toBe(750_000);
-    expect(r.regulatorRef).toBe('KRA-MRI');
+    expect(r.withholdingMinorUnits).toBe(500_000);
+    expect(r.regulatorRef).toBe('KRA-WHT-MINERAL');
   });
 });
 
@@ -235,23 +235,23 @@ describe('Kenya payment rails', () => {
   });
 });
 
-describe('Kenya lease law', () => {
-  it('uses 14-day non-payment notice window', () => {
-    expect(resolvePlugin('KE').leaseLaw.noticeWindowDays('non-payment')).toBe(14);
+describe('Kenya mining law', () => {
+  it('uses 14-day royalty-default notice window', () => {
+    expect(resolvePlugin('KE').miningLaw.noticeWindowDays('royalty-default')).toBe(14);
   });
 
-  it('caps residential deposit at 3 months', () => {
-    const cap = resolvePlugin('KE').leaseLaw.depositCapMultiple(
-      'residential-standard'
+  it('caps artisanal performance bond at 3 months', () => {
+    const cap = resolvePlugin('KE').miningLaw.bondCapMultiple(
+      'artisanal-standard'
     );
-    expect(cap.maxMonthsOfRent).toBe(3);
+    expect(cap.maxMonthsOfRoyalty).toBe(3);
   });
 });
 
-describe('Uganda lease law', () => {
-  it('applies 10% rent-increase cap', () => {
-    const cap = resolvePlugin('UG').leaseLaw.rentIncreaseCap(
-      'residential-standard'
+describe('Uganda mining law', () => {
+  it('applies 10% royalty-escalation cap', () => {
+    const cap = resolvePlugin('UG').miningLaw.royaltyEscalationCap(
+      'artisanal-standard'
     );
     expect(cap.pctPerAnnum).toBe(10);
   });

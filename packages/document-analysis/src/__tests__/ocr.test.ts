@@ -30,7 +30,7 @@ describe('detectLanguage', () => {
 
   it('identifies Swahili-heavy text', () => {
     const text =
-      'Mkataba wa upangaji ni kati ya mwenye nyumba na mpangaji. Kodi ya mwezi ni TZS 850,000. Tarehe ya kuanza kwa mkataba ni leo.';
+      'Mkataba wa madini ni kati ya muuzaji na mnunuzi. Mrabaha wa mwezi ni TZS 850,000. Tarehe ya kuanza kwa mkataba ni leo.';
     expect(detectLanguage(text)).toBe('sw');
   });
 
@@ -53,10 +53,10 @@ describe('extractText — text-like MIME', () => {
 
   it('decodes a Buffer', async () => {
     const out = await extractText({
-      content: Buffer.from('Lease Agreement between A and B'),
+      content: Buffer.from('Offtake Agreement between A and B'),
       mimeType: 'text/plain',
     });
-    expect(out.text).toContain('Lease Agreement');
+    expect(out.text).toContain('Offtake Agreement');
     expect(out.language).toBe('en');
   });
 });

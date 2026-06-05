@@ -6,7 +6,7 @@
  *
  * Stages:
  *   1. BRAND REDACT — competitor brand names → "[REDACTED_BRAND]"
- *      (e.g. names of competing property-management platforms).
+ *      (e.g. names of competing mining-operations platforms).
  *   2. PII REGEX — emails, phones, national IDs, credit cards.
  *   3. PRESIDIO — pluggable Microsoft Presidio adapter for ML-based
  *      entity recognition (PERSON, LOCATION, ORG, IBAN, etc.).
@@ -42,9 +42,9 @@ const DEFAULT_BRAND_TERMS: ReadonlyArray<{
   readonly pattern: RegExp;
   readonly replacement: string;
 }> = Object.freeze([
-  // Common competing property-management platforms — keep this list
+  // Common competing mining-operations platforms — keep this list
   // minimal; ops can extend via setPiiScrubberConfig.
-  { pattern: /\b(?:AppFolio|Buildium|Yardi|RealPage|Entrata)\b/gi, replacement: '[REDACTED_BRAND]' },
+  { pattern: /\b(?:Micromine|Deswik|Maptek|MineRP|Pitram)\b/gi, replacement: '[REDACTED_BRAND]' },
 ]);
 
 function defaultBrandRedact(input: string): string {

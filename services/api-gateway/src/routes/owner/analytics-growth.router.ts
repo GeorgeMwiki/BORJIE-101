@@ -1,36 +1,37 @@
 /**
- * /api/v1/analytics/growth — owner-portal AnalyticsGrowthPage skeleton.
+ * /api/v1/analytics/growth — owner-portal AnalyticsGrowthPage.
  *
- * Wave-2 commit 0ee27a0 converted AnalyticsGrowthPage to render a
- * `MissingBackendNotice` declaring `GET /api/v1/analytics/growth` as the
- * missing endpoint. The UI expects time-series of NRG (net rental
- * growth), portfolio value trend, and tenancy churn. Until the
- * `analytics_growth` materialised view + read-model land, this returns
- * an empty series with `X-Backend-Status: degraded`.
+ * WS-4: now serves a REAL monthly growth series from the
+ * `analytics_growth_monthly` warehouse (migration 0176), populated by the
+ * consolidation-worker analytics-aggregate task from the mining domain
+ * (sites → production_records → sales → ledger_entries). The previous
+ * `X-Backend-Status: degraded` skeleton is gone.
  *
- * Follow-up (tracked in #33 as "analytics-growth aggregator"): wire the growth aggregator.
- *   Concrete next-step:
- *     1. Add Drizzle view `analytics_growth_monthly` joining
- *        properties → units → leases → invoices → payments grouped by
- *        month and tenantId.
- *     2. Add `repos.analyticsGrowth.series(tenantId, range)` returning
- *        `{ period, occupancy, revenue, noi }[]`.
- *     3. Replace the degraded payload below with the real series.
+ * The read runs on the RLS-pinned request client (`c.get('db')`), so tenant
+ * isolation is enforced by FORCE row-level security. Each point carries an
+ * ISO-4217 `currency` so the renderer threads it into
+ * `formatCurrency(amount, code)` — money is NEVER hardcoded. The series is
+ * `{ period, activeSites, productionKg, salesCount, revenueMinorUnits,
+ * royaltyMinorUnits, currency }[]`, newest month first.
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { growthSeries } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
+import { databaseMiddleware } from '../../middleware/database';
 import { requireRole } from '../../middleware/authorization';
 import { UserRole } from '../../types/user-role';
-import { buildDegradedList, isFlagOn, markDegraded, notImplementedFlagged } from './degraded-shape';
+import { resolveRange } from './analytics-range';
 
-const NEXT_STEP =
-  'create analytics_growth_monthly Drizzle view + repos.analyticsGrowth.series(tenantId, range) and replace this skeleton';
-
-const FLAG_KEY = 'flag.bff.analytics.growth';
+const QuerySchema = z.object({
+  range: z.enum(['30d', '90d', '12m']).optional(),
+  limit: z.coerce.number().int().positive().max(500).optional(),
+});
 
 const app = new Hono();
 app.use('*', authMiddleware);
+app.use('*', databaseMiddleware);
 app.use(
   '*',
   requireRole(
@@ -41,14 +42,34 @@ app.use(
   ),
 );
 
-app.get('/', async (c) => {
-  const auth = c.get('auth');
-  // Loud-failure path: 501 unless an operator turns the dev-mode flag on.
-  if (!(await isFlagOn(c, FLAG_KEY))) {
-    return notImplementedFlagged(c, FLAG_KEY, NEXT_STEP);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.get('/', async (c: any) => {
+  const { tenantId } = c.get('auth');
+  const parsed = QuerySchema.safeParse({
+    range: c.req.query('range'),
+    limit: c.req.query('limit'),
+  });
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters' },
+      },
+      400,
+    );
   }
-  markDegraded(c);
-  return c.json(buildDegradedList(auth.tenantId, NEXT_STEP));
+
+  const db = c.get('db');
+  const range = resolveRange(parsed.data.range);
+  const series = await growthSeries(db, tenantId, {
+    range,
+    limit: parsed.data.limit,
+  });
+
+  return c.json(
+    { success: true as const, data: series, meta: { tenantId, count: series.length } },
+    200,
+  );
 });
 
 export const analyticsGrowthRouter = app;

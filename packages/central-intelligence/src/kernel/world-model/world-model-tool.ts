@@ -2,10 +2,11 @@
  * World-model kernel tools — agent-loop callable wrappers around the
  * trajectory + regime-detection primitives.
  *
- * Three tools:
- *   - world.property_trajectory     forward-simulate a property
- *   - world.arrears_trajectory      forecast tenant arrears + default
- *   - world.market_regime           classify agency-level regime
+ * Three tools (the `world.*` tool-name tokens are a registered
+ * contract — kept verbatim; only the prose carries mining vocabulary):
+ *   - world.property_trajectory     forward-simulate a site
+ *   - world.arrears_trajectory      forecast counterparty outstanding royalties + default
+ *   - world.market_regime           classify estate-level regime
  *
  * Each tool takes a fetcher dependency that returns the historical
  * series. The composition root binds a Drizzle / repo reader; tests
@@ -143,10 +144,10 @@ export function createPropertyTrajectoryTool(
   return {
     name: 'world.property_trajectory',
     description:
-      'Forward-simulate a property\'s state vector (vacancy, rent, ' +
-      'arrears, work-order backlog, condition) over a forecast horizon. ' +
+      'Forward-simulate a site\'s state vector (spare capacity, payment, ' +
+      'outstanding royalties, work-order backlog, condition) over a forecast horizon. ' +
       'Returns the regime classification (stable / recovering / declining ' +
-      '/ volatile) and any horizon-day where vacancy or arrears crosses ' +
+      '/ volatile) and any horizon-day where spare capacity or outstanding royalties crosses ' +
       'a notable threshold.',
     inputJsonSchema: {
       type: 'object',
@@ -245,9 +246,9 @@ export function createArrearsTrajectoryTool(
   return {
     name: 'world.arrears_trajectory',
     description:
-      'Forecast a lease\'s arrears amount + default probability over a ' +
+      'Forecast an agreement\'s outstanding-royalty amount + default probability over a ' +
       'horizon. Returns expected/p10/p90 bands per sample point and a ' +
-      'companion default-probability series. Useful for arrears-stage ' +
+      'companion default-probability series. Useful for outstanding-royalty-stage ' +
       'triage and proactive outreach.',
     inputJsonSchema: {
       type: 'object',
@@ -346,10 +347,10 @@ export function createMarketRegimeTool(
   return {
     name: 'world.market_regime',
     description:
-      'Classify the agency-level market regime as stable, tightening, ' +
-      'loosening, or shock. Uses the agency\'s historical state vector ' +
+      'Classify the estate-level market regime as stable, tightening, ' +
+      'loosening, or shock. Uses the estate\'s historical state vector ' +
       'series. Useful for choosing between conservative and aggressive ' +
-      'rent / collections strategy.',
+      'pricing / collections strategy.',
     inputJsonSchema: {
       type: 'object',
       required: ['tenantId'],

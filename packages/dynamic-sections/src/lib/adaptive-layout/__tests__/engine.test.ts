@@ -118,20 +118,20 @@ describe('decideLayout — engine', () => {
       behavior: { recentActions: ['settings'] },
       masteryLevel: 'novice',
     });
-    const base = ['settings', 'tenant.payments', 'tenant.maintenance-pro'];
+    const base = ['settings', 'owner.payments', 'owner.maintenance-pro'];
     const out = decideLayout(ctx, base, [
       intentPolicy,
       recencyPolicy,
       roleMasteryPolicy,
     ]);
     // Intent (weight 25) wins over recency (weight 5):
-    //   tenant.payments → top
+    //   owner.payments → top
     //   settings → recency below intent
-    //   tenant.maintenance-pro → hidden (novice + .pro)
-    expect(out.sections[0]).toBe('tenant.payments');
+    //   owner.maintenance-pro → hidden (novice + .pro)
+    expect(out.sections[0]).toBe('owner.payments');
     expect(out.sections).toContain('settings');
-    expect(out.sections).not.toContain('tenant.maintenance-pro');
-    expect(out.hidden).toContain('tenant.maintenance-pro');
+    expect(out.sections).not.toContain('owner.maintenance-pro');
+    expect(out.hidden).toContain('owner.maintenance-pro');
   });
 
   it('is deterministic — same input yields identical output across runs', () => {
@@ -146,7 +146,7 @@ describe('decideLayout — engine', () => {
         urgency: 0.5,
       },
     });
-    const base = ['settings', 'tenant.payments', 'support-centre', 'reports'];
+    const base = ['settings', 'owner.payments', 'support-centre', 'reports'];
     const a = decideLayout(ctx, base, [
       intentPolicy,
       frustrationPolicy,
@@ -168,7 +168,7 @@ describe('decideLayout — engine', () => {
       intent: 'payment',
       behavior: { recentActions: ['settings', 'reports'] },
     });
-    const base = ['settings', 'tenant.payments', 'support-centre', 'reports'];
+    const base = ['settings', 'owner.payments', 'support-centre', 'reports'];
     const first = decideLayout(ctx, base, [intentPolicy, recencyPolicy]);
     const second = decideLayout(ctx, first.sections, [intentPolicy, recencyPolicy]);
     expect(second.sections).toEqual(first.sections);

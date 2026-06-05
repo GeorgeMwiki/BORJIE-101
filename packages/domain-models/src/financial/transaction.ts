@@ -54,7 +54,8 @@ export const TransactionCategorySchema = z.enum([
   'maintenance',
   'late_fee',
   'penalty',
-  'service_charge',
+  // W-E migration: persisted value 'service_charge' → 'cooperative_levy'.
+  'cooperative_levy',
   'platform_fee',
   'owner_disbursement',
   'other',

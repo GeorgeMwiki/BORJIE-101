@@ -178,7 +178,9 @@ export function shouldRetry(notification: Notification, maxRetries: number = 3):
 export const NOTIFICATION_TEMPLATES: Record<NotificationCategory, { title: string; body: string }> = {
   payment_due: {
     title: 'Payment Due Reminder',
-    body: 'Your rent payment of {{amount}} is due on {{dueDate}}.',
+    // W-E migration: body display text rent → royalty (category key and
+    // {{placeholders}} unchanged).
+    body: 'Your royalty payment of {{amount}} is due on {{dueDate}}.',
   },
   payment_received: {
     title: 'Payment Received',
@@ -201,12 +203,14 @@ export const NOTIFICATION_TEMPLATES: Record<NotificationCategory, { title: strin
     body: 'Your maintenance request #{{workOrderNumber}} has been completed. Please rate your experience.',
   },
   lease_expiring: {
-    title: 'Lease Expiring Soon',
-    body: 'Your lease will expire on {{expiryDate}}. Please contact us about renewal options.',
+    title: 'Offtake Expiring Soon',
+    // W-E migration: body display text lease → offtake (category key
+    // `lease_expiring` and {{placeholders}} unchanged).
+    body: 'Your offtake agreement will expire on {{expiryDate}}. Please contact us about renewal options.',
   },
   lease_renewal: {
-    title: 'Lease Renewal Available',
-    body: 'Your lease renewal is ready for review. Please sign by {{deadline}}.',
+    title: 'Offtake Renewal Available',
+    body: 'Your offtake renewal is ready for review. Please sign by {{deadline}}.',
   },
   inspection_scheduled: {
     title: 'Inspection Scheduled',

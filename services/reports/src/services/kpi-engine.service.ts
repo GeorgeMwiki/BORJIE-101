@@ -2,10 +2,10 @@
  * KPI Calculation Engine
  * 
  * Provides comprehensive Key Performance Indicator calculations
- * for property management operations.
+ * for mining-estate operations.
  */
 
-import type { TenantId, PropertyId } from '../types/index.js';
+import type { TenantId, SiteId } from '../types/index.js';
 import { logger } from '../logger.js';
 
 // ============================================================================
@@ -29,7 +29,7 @@ export interface KPIValue {
 }
 
 export interface FinancialKPIs {
-  grossPotentialRent: KPIValue;
+  grossPotentialRoyalty: KPIValue;
   effectiveGrossIncome: KPIValue;
   totalRevenue: KPIValue;
   totalExpenses: KPIValue;
@@ -47,7 +47,7 @@ export interface CollectionKPIs {
   totalBilled: KPIValue;
   totalCollected: KPIValue;
   totalOutstanding: KPIValue;
-  arrearsRate: KPIValue;
+  outstandingRate: KPIValue;
   avgDaysToCollect: KPIValue;
   badDebtWriteoff: KPIValue;
   agingBuckets: {
@@ -59,19 +59,19 @@ export interface CollectionKPIs {
   };
 }
 
-export interface OccupancyKPIs {
-  physicalOccupancy: KPIValue;
-  economicOccupancy: KPIValue;
+export interface AssetUtilisationKPIs {
+  physicalUtilisation: KPIValue;
+  economicUtilisation: KPIValue;
   totalUnits: number;
-  occupiedUnits: number;
-  vacantUnits: number;
+  producingUnits: number;
+  idleUnits: number;
   turnoverRate: KPIValue;
-  avgVacancyDays: KPIValue;
-  newLeases: KPIValue;
+  avgIdleDays: KPIValue;
+  newAgreements: KPIValue;
   renewals: KPIValue;
-  moveOuts: KPIValue;
+  offboardings: KPIValue;
   renewalRate: KPIValue;
-  avgLeaseLength: number; // months
+  avgAgreementLength: number; // months
 }
 
 export interface MaintenanceKPIs {
@@ -91,7 +91,7 @@ export interface MaintenanceKPIs {
   customerSatisfactionScore: KPIValue;
 }
 
-export interface TenantSatisfactionKPIs {
+export interface BuyerSatisfactionKPIs {
   overallSatisfaction: KPIValue;
   nps: KPIValue; // Net Promoter Score
   responseRate: KPIValue;
@@ -127,20 +127,20 @@ export interface PortfolioSummaryKPIs {
   tenantId: TenantId;
   financial: FinancialKPIs;
   collection: CollectionKPIs;
-  occupancy: OccupancyKPIs;
+  assetUtilisation: AssetUtilisationKPIs;
   maintenance: MaintenanceKPIs;
-  satisfaction: TenantSatisfactionKPIs;
+  satisfaction: BuyerSatisfactionKPIs;
   vendor: VendorPerformanceKPIs;
   healthScore: KPIValue; // 0-100
 }
 
-export interface PropertyKPIsDetail {
-  propertyId: PropertyId;
-  propertyName: string;
+export interface SiteKPIsDetail {
+  siteId: SiteId;
+  siteName: string;
   period: KPIPeriod;
   financial: FinancialKPIs;
   collection: CollectionKPIs;
-  occupancy: OccupancyKPIs;
+  assetUtilisation: AssetUtilisationKPIs;
   maintenance: MaintenanceKPIs;
   healthScore: number;
   ranking: number; // among portfolio
@@ -163,7 +163,7 @@ export interface KPIAlert {
   thresholdType: 'above' | 'below';
   severity: 'info' | 'warning' | 'critical';
   message: string;
-  propertyId?: PropertyId;
+  siteId?: SiteId;
   createdAt: Date;
 }
 
@@ -172,19 +172,19 @@ export interface KPIAlert {
 // ============================================================================
 
 export interface IKPIDataProvider {
-  getFinancialData(tenantId: TenantId, period: KPIPeriod, propertyIds?: PropertyId[]): Promise<RawFinancialData>;
-  getCollectionData(tenantId: TenantId, period: KPIPeriod, propertyIds?: PropertyId[]): Promise<RawCollectionData>;
-  getOccupancyData(tenantId: TenantId, period: KPIPeriod, propertyIds?: PropertyId[]): Promise<RawOccupancyData>;
-  getMaintenanceData(tenantId: TenantId, period: KPIPeriod, propertyIds?: PropertyId[]): Promise<RawMaintenanceData>;
+  getFinancialData(tenantId: TenantId, period: KPIPeriod, siteIds?: SiteId[]): Promise<RawFinancialData>;
+  getCollectionData(tenantId: TenantId, period: KPIPeriod, siteIds?: SiteId[]): Promise<RawCollectionData>;
+  getAssetUtilisationData(tenantId: TenantId, period: KPIPeriod, siteIds?: SiteId[]): Promise<RawAssetUtilisationData>;
+  getMaintenanceData(tenantId: TenantId, period: KPIPeriod, siteIds?: SiteId[]): Promise<RawMaintenanceData>;
   getSatisfactionData(tenantId: TenantId, period: KPIPeriod): Promise<RawSatisfactionData>;
   getVendorData(tenantId: TenantId, period: KPIPeriod): Promise<RawVendorData>;
-  getPropertyList(tenantId: TenantId): Promise<Array<{ id: PropertyId; name: string; units: number }>>;
+  getSiteList(tenantId: TenantId): Promise<Array<{ id: SiteId; name: string; units: number }>>;
 }
 
 export interface RawFinancialData {
   current: {
-    grossPotentialRent: number;
-    vacancy: number;
+    grossPotentialRoyalty: number;
+    idleCapacity: number;
     concessions: number;
     badDebt: number;
     otherIncome: number;
@@ -193,8 +193,8 @@ export interface RawFinancialData {
     debtService?: number;
   };
   previous: {
-    grossPotentialRent: number;
-    vacancy: number;
+    grossPotentialRoyalty: number;
+    idleCapacity: number;
     concessions: number;
     badDebt: number;
     otherIncome: number;
@@ -233,31 +233,31 @@ export interface RawCollectionData {
   } | null;
   targets?: {
     collectionRate: number;
-    arrearsRate: number;
+    outstandingRate: number;
   };
 }
 
-export interface RawOccupancyData {
+export interface RawAssetUtilisationData {
   current: {
     totalUnits: number;
-    occupiedUnits: number;
-    newLeases: number;
+    producingUnits: number;
+    newAgreements: number;
     renewals: number;
-    moveOuts: number;
-    avgVacancyDays: number;
-    avgLeaseLengthMonths: number;
-    economicOccupancyRate: number;
+    offboardings: number;
+    avgIdleDays: number;
+    avgAgreementLengthMonths: number;
+    economicUtilisationRate: number;
   };
   previous: {
     totalUnits: number;
-    occupiedUnits: number;
-    newLeases: number;
+    producingUnits: number;
+    newAgreements: number;
     renewals: number;
-    moveOuts: number;
-    avgVacancyDays: number;
+    offboardings: number;
+    avgIdleDays: number;
   } | null;
   targets?: {
-    occupancyRate: number;
+    utilisationRate: number;
     renewalRate: number;
   };
 }
@@ -355,20 +355,20 @@ export class KPIEngine {
   async calculatePortfolioKPIs(
     tenantId: TenantId,
     period: KPIPeriod,
-    propertyIds?: PropertyId[]
+    siteIds?: SiteId[]
   ): Promise<PortfolioSummaryKPIs> {
-    const [financial, collection, occupancy, maintenance, satisfaction, vendor] = await Promise.all([
-      this.calculateFinancialKPIs(tenantId, period, propertyIds),
-      this.calculateCollectionKPIs(tenantId, period, propertyIds),
-      this.calculateOccupancyKPIs(tenantId, period, propertyIds),
-      this.calculateMaintenanceKPIs(tenantId, period, propertyIds),
+    const [financial, collection, assetUtilisation, maintenance, satisfaction, vendor] = await Promise.all([
+      this.calculateFinancialKPIs(tenantId, period, siteIds),
+      this.calculateCollectionKPIs(tenantId, period, siteIds),
+      this.calculateAssetUtilisationKPIs(tenantId, period, siteIds),
+      this.calculateMaintenanceKPIs(tenantId, period, siteIds),
       this.calculateSatisfactionKPIs(tenantId, period),
       this.calculateVendorKPIs(tenantId, period),
     ]);
 
     // Calculate overall health score (weighted average of key metrics)
     const healthScore = this.calculateHealthScore({
-      occupancyRate: occupancy.physicalOccupancy.current,
+      utilisationRate: assetUtilisation.physicalUtilisation.current,
       collectionRate: collection.collectionRate.current,
       slaCompliance: maintenance.slaComplianceRate.current,
       satisfaction: satisfaction.overallSatisfaction.current,
@@ -379,7 +379,7 @@ export class KPIEngine {
       tenantId,
       financial,
       collection,
-      occupancy,
+      assetUtilisation,
       maintenance,
       satisfaction,
       vendor,
@@ -388,45 +388,45 @@ export class KPIEngine {
   }
 
   /**
-   * Calculate property-level KPIs with ranking
+   * Calculate site-level KPIs with ranking
    */
-  async calculatePropertyKPIs(
+  async calculateSiteKPIs(
     tenantId: TenantId,
-    propertyId: PropertyId,
+    siteId: SiteId,
     period: KPIPeriod
-  ): Promise<PropertyKPIsDetail> {
-    const properties = await this.dataProvider.getPropertyList(tenantId);
-    const property = properties.find((p) => p.id === propertyId);
-    if (!property) {
-      throw new Error(`Property ${propertyId} not found`);
+  ): Promise<SiteKPIsDetail> {
+    const sites = await this.dataProvider.getSiteList(tenantId);
+    const site = sites.find((p) => p.id === siteId);
+    if (!site) {
+      throw new Error(`Site ${siteId} not found`);
     }
 
-    const [financial, collection, occupancy, maintenance] = await Promise.all([
-      this.calculateFinancialKPIs(tenantId, period, [propertyId]),
-      this.calculateCollectionKPIs(tenantId, period, [propertyId]),
-      this.calculateOccupancyKPIs(tenantId, period, [propertyId]),
-      this.calculateMaintenanceKPIs(tenantId, period, [propertyId]),
+    const [financial, collection, assetUtilisation, maintenance] = await Promise.all([
+      this.calculateFinancialKPIs(tenantId, period, [siteId]),
+      this.calculateCollectionKPIs(tenantId, period, [siteId]),
+      this.calculateAssetUtilisationKPIs(tenantId, period, [siteId]),
+      this.calculateMaintenanceKPIs(tenantId, period, [siteId]),
     ]);
 
     const healthScore = this.calculateHealthScore({
-      occupancyRate: occupancy.physicalOccupancy.current,
+      utilisationRate: assetUtilisation.physicalUtilisation.current,
       collectionRate: collection.collectionRate.current,
       slaCompliance: maintenance.slaComplianceRate.current,
       satisfaction: 80, // Placeholder
     }).current;
 
-    // Calculate ranking among all properties
-    const allPropertyScores = await this.calculateAllPropertyHealthScores(tenantId, period);
-    const sortedScores = [...allPropertyScores].sort((a, b) => b.score - a.score);
-    const ranking = sortedScores.findIndex((p) => p.propertyId === propertyId) + 1;
+    // Calculate ranking among all sites
+    const allSiteScores = await this.calculateAllSiteHealthScores(tenantId, period);
+    const sortedScores = [...allSiteScores].sort((a, b) => b.score - a.score);
+    const ranking = sortedScores.findIndex((p) => p.siteId === siteId) + 1;
 
     return {
-      propertyId,
-      propertyName: property.name,
+      siteId,
+      siteName: site.name,
       period,
       financial,
       collection,
-      occupancy,
+      assetUtilisation,
       maintenance,
       healthScore,
       ranking,
@@ -443,16 +443,16 @@ export class KPIEngine {
     const kpis = await this.calculatePortfolioKPIs(tenantId, period);
     const alerts: KPIAlert[] = [];
 
-    // Check occupancy
-    if (kpis.occupancy.physicalOccupancy.current < 85) {
+    // Check asset utilisation
+    if (kpis.assetUtilisation.physicalUtilisation.current < 85) {
       alerts.push({
         id: `alert-occ-${Date.now()}`,
-        kpiName: 'Physical Occupancy',
-        currentValue: kpis.occupancy.physicalOccupancy.current,
+        kpiName: 'Physical Asset Utilisation',
+        currentValue: kpis.assetUtilisation.physicalUtilisation.current,
         threshold: 85,
         thresholdType: 'below',
-        severity: kpis.occupancy.physicalOccupancy.current < 75 ? 'critical' : 'warning',
-        message: `Physical occupancy (${kpis.occupancy.physicalOccupancy.current.toFixed(1)}%) is below target`,
+        severity: kpis.assetUtilisation.physicalUtilisation.current < 75 ? 'critical' : 'warning',
+        message: `Physical asset utilisation (${kpis.assetUtilisation.physicalUtilisation.current.toFixed(1)}%) is below target`,
         createdAt: new Date(),
       });
     }
@@ -531,12 +531,12 @@ export class KPIEngine {
     // Industry benchmarks (in production, these would come from a benchmark database)
     return [
       {
-        kpiName: 'Physical Occupancy',
+        kpiName: 'Physical Asset Utilisation',
         industryAvg: 92,
         topQuartile: 96,
         bottomQuartile: 85,
-        yourValue: kpis.occupancy.physicalOccupancy.current,
-        percentile: this.calculatePercentile(kpis.occupancy.physicalOccupancy.current, 85, 96),
+        yourValue: kpis.assetUtilisation.physicalUtilisation.current,
+        percentile: this.calculatePercentile(kpis.assetUtilisation.physicalUtilisation.current, 85, 96),
       },
       {
         kpiName: 'Collection Rate',
@@ -580,27 +580,27 @@ export class KPIEngine {
   private async calculateFinancialKPIs(
     tenantId: TenantId,
     period: KPIPeriod,
-    propertyIds?: PropertyId[]
+    siteIds?: SiteId[]
   ): Promise<FinancialKPIs> {
-    const data = await this.dataProvider.getFinancialData(tenantId, period, propertyIds);
+    const data = await this.dataProvider.getFinancialData(tenantId, period, siteIds);
     const c = data.current;
     const p = data.previous;
 
-    const effectiveGrossIncome = c.grossPotentialRent - c.vacancy - c.concessions - c.badDebt + c.otherIncome;
+    const effectiveGrossIncome = c.grossPotentialRoyalty - c.idleCapacity - c.concessions - c.badDebt + c.otherIncome;
     const totalExpenses = c.operatingExpenses + c.capitalExpenditures;
     const noi = effectiveGrossIncome - c.operatingExpenses;
-    const prevNoi = p ? (p.grossPotentialRent - p.vacancy - p.concessions - p.badDebt + p.otherIncome - p.operatingExpenses) : null;
+    const prevNoi = p ? (p.grossPotentialRoyalty - p.idleCapacity - p.concessions - p.badDebt + p.otherIncome - p.operatingExpenses) : null;
 
     return {
-      grossPotentialRent: this.createKPIValue(c.grossPotentialRent, p?.grossPotentialRent ?? null),
-      effectiveGrossIncome: this.createKPIValue(effectiveGrossIncome, p ? (p.grossPotentialRent - p.vacancy - p.concessions - p.badDebt + p.otherIncome) : null),
-      totalRevenue: this.createKPIValue(effectiveGrossIncome, p ? (p.grossPotentialRent - p.vacancy - p.concessions - p.badDebt + p.otherIncome) : null),
+      grossPotentialRoyalty: this.createKPIValue(c.grossPotentialRoyalty, p?.grossPotentialRoyalty ?? null),
+      effectiveGrossIncome: this.createKPIValue(effectiveGrossIncome, p ? (p.grossPotentialRoyalty - p.idleCapacity - p.concessions - p.badDebt + p.otherIncome) : null),
+      totalRevenue: this.createKPIValue(effectiveGrossIncome, p ? (p.grossPotentialRoyalty - p.idleCapacity - p.concessions - p.badDebt + p.otherIncome) : null),
       totalExpenses: this.createKPIValue(totalExpenses, p ? (p.operatingExpenses + p.capitalExpenditures) : null),
       operatingExpenses: this.createKPIValue(c.operatingExpenses, p?.operatingExpenses ?? null),
       netOperatingIncome: this.createKPIValue(noi, prevNoi, data.targets?.noi),
       operatingExpenseRatio: this.createKPIValue(
         effectiveGrossIncome > 0 ? (c.operatingExpenses / effectiveGrossIncome) * 100 : 0,
-        p ? ((p.operatingExpenses / (p.grossPotentialRent - p.vacancy + p.otherIncome)) * 100) : null,
+        p ? ((p.operatingExpenses / (p.grossPotentialRoyalty - p.idleCapacity + p.otherIncome)) * 100) : null,
         data.targets?.expenseRatio
       ),
       debtServiceCoverageRatio: c.debtService ? this.createKPIValue(
@@ -622,64 +622,64 @@ export class KPIEngine {
   private async calculateCollectionKPIs(
     tenantId: TenantId,
     period: KPIPeriod,
-    propertyIds?: PropertyId[]
+    siteIds?: SiteId[]
   ): Promise<CollectionKPIs> {
-    const data = await this.dataProvider.getCollectionData(tenantId, period, propertyIds);
+    const data = await this.dataProvider.getCollectionData(tenantId, period, siteIds);
     const c = data.current;
     const p = data.previous;
 
     const collectionRate = c.totalBilled > 0 ? (c.totalCollected / c.totalBilled) * 100 : 0;
     const prevCollectionRate = p && p.totalBilled > 0 ? (p.totalCollected / p.totalBilled) * 100 : null;
-    const arrearsRate = c.totalBilled > 0 ? (c.outstanding / c.totalBilled) * 100 : 0;
+    const outstandingRate = c.totalBilled > 0 ? (c.outstanding / c.totalBilled) * 100 : 0;
 
     return {
       collectionRate: this.createKPIValue(collectionRate, prevCollectionRate, data.targets?.collectionRate),
       totalBilled: this.createKPIValue(c.totalBilled, p?.totalBilled ?? null),
       totalCollected: this.createKPIValue(c.totalCollected, p?.totalCollected ?? null),
       totalOutstanding: this.createKPIValue(c.outstanding, p?.outstanding ?? null),
-      arrearsRate: this.createKPIValue(arrearsRate, p ? (p.outstanding / p.totalBilled) * 100 : null, data.targets?.arrearsRate),
+      outstandingRate: this.createKPIValue(outstandingRate, p ? (p.outstanding / p.totalBilled) * 100 : null, data.targets?.outstandingRate),
       avgDaysToCollect: this.createKPIValue(c.avgDaysToCollect, p?.avgDaysToCollect ?? null),
       badDebtWriteoff: this.createKPIValue(c.badDebtWriteoff, p?.badDebtWriteoff ?? null),
       agingBuckets: c.agingBuckets,
     };
   }
 
-  private async calculateOccupancyKPIs(
+  private async calculateAssetUtilisationKPIs(
     tenantId: TenantId,
     period: KPIPeriod,
-    propertyIds?: PropertyId[]
-  ): Promise<OccupancyKPIs> {
-    const data = await this.dataProvider.getOccupancyData(tenantId, period, propertyIds);
+    siteIds?: SiteId[]
+  ): Promise<AssetUtilisationKPIs> {
+    const data = await this.dataProvider.getAssetUtilisationData(tenantId, period, siteIds);
     const c = data.current;
     const p = data.previous;
 
-    const physicalOccupancy = c.totalUnits > 0 ? (c.occupiedUnits / c.totalUnits) * 100 : 0;
-    const prevPhysicalOccupancy = p && p.totalUnits > 0 ? (p.occupiedUnits / p.totalUnits) * 100 : null;
-    const turnoverRate = c.totalUnits > 0 ? (c.moveOuts / c.totalUnits) * 100 : 0;
-    const renewalRate = (c.renewals + c.moveOuts) > 0 ? (c.renewals / (c.renewals + c.moveOuts)) * 100 : 0;
+    const physicalUtilisation = c.totalUnits > 0 ? (c.producingUnits / c.totalUnits) * 100 : 0;
+    const prevPhysicalUtilisation = p && p.totalUnits > 0 ? (p.producingUnits / p.totalUnits) * 100 : null;
+    const turnoverRate = c.totalUnits > 0 ? (c.offboardings / c.totalUnits) * 100 : 0;
+    const renewalRate = (c.renewals + c.offboardings) > 0 ? (c.renewals / (c.renewals + c.offboardings)) * 100 : 0;
 
     return {
-      physicalOccupancy: this.createKPIValue(physicalOccupancy, prevPhysicalOccupancy, data.targets?.occupancyRate),
-      economicOccupancy: this.createKPIValue(c.economicOccupancyRate, null),
+      physicalUtilisation: this.createKPIValue(physicalUtilisation, prevPhysicalUtilisation, data.targets?.utilisationRate),
+      economicUtilisation: this.createKPIValue(c.economicUtilisationRate, null),
       totalUnits: c.totalUnits,
-      occupiedUnits: c.occupiedUnits,
-      vacantUnits: c.totalUnits - c.occupiedUnits,
-      turnoverRate: this.createKPIValue(turnoverRate, p ? (p.moveOuts / p.totalUnits) * 100 : null),
-      avgVacancyDays: this.createKPIValue(c.avgVacancyDays, p?.avgVacancyDays ?? null),
-      newLeases: this.createKPIValue(c.newLeases, p?.newLeases ?? null),
+      producingUnits: c.producingUnits,
+      idleUnits: c.totalUnits - c.producingUnits,
+      turnoverRate: this.createKPIValue(turnoverRate, p ? (p.offboardings / p.totalUnits) * 100 : null),
+      avgIdleDays: this.createKPIValue(c.avgIdleDays, p?.avgIdleDays ?? null),
+      newAgreements: this.createKPIValue(c.newAgreements, p?.newAgreements ?? null),
       renewals: this.createKPIValue(c.renewals, p?.renewals ?? null),
-      moveOuts: this.createKPIValue(c.moveOuts, p?.moveOuts ?? null),
+      offboardings: this.createKPIValue(c.offboardings, p?.offboardings ?? null),
       renewalRate: this.createKPIValue(renewalRate, null, data.targets?.renewalRate),
-      avgLeaseLength: c.avgLeaseLengthMonths,
+      avgAgreementLength: c.avgAgreementLengthMonths,
     };
   }
 
   private async calculateMaintenanceKPIs(
     tenantId: TenantId,
     period: KPIPeriod,
-    propertyIds?: PropertyId[]
+    siteIds?: SiteId[]
   ): Promise<MaintenanceKPIs> {
-    const data = await this.dataProvider.getMaintenanceData(tenantId, period, propertyIds);
+    const data = await this.dataProvider.getMaintenanceData(tenantId, period, siteIds);
     const c = data.current;
     const p = data.previous;
 
@@ -718,7 +718,7 @@ export class KPIEngine {
   private async calculateSatisfactionKPIs(
     tenantId: TenantId,
     period: KPIPeriod
-  ): Promise<TenantSatisfactionKPIs> {
+  ): Promise<BuyerSatisfactionKPIs> {
     const data = await this.dataProvider.getSatisfactionData(tenantId, period);
     const c = data.current;
     const p = data.previous;
@@ -774,27 +774,27 @@ export class KPIEngine {
   }
 
   private calculateHealthScore(metrics: {
-    occupancyRate: number;
+    utilisationRate: number;
     collectionRate: number;
     slaCompliance: number;
     satisfaction: number;
   }): KPIValue {
     // Weighted health score calculation
     const weights = {
-      occupancy: 0.30,
+      utilisation: 0.30,
       collection: 0.30,
       sla: 0.20,
       satisfaction: 0.20,
     };
 
     // Normalize each metric to 0-100 scale
-    const normalizedOccupancy = Math.min(100, metrics.occupancyRate);
+    const normalizedUtilisation = Math.min(100, metrics.utilisationRate);
     const normalizedCollection = Math.min(100, metrics.collectionRate);
     const normalizedSla = Math.min(100, metrics.slaCompliance);
     const normalizedSatisfaction = (metrics.satisfaction / 5) * 100; // Assuming 5-point scale
 
     const score =
-      normalizedOccupancy * weights.occupancy +
+      normalizedUtilisation * weights.utilisation +
       normalizedCollection * weights.collection +
       normalizedSla * weights.sla +
       normalizedSatisfaction * weights.satisfaction;
@@ -808,32 +808,32 @@ export class KPIEngine {
     return Math.round(((value - bottom) / (top - bottom)) * 100);
   }
 
-  private async calculateAllPropertyHealthScores(
+  private async calculateAllSiteHealthScores(
     tenantId: TenantId,
     period: KPIPeriod
-  ): Promise<Array<{ propertyId: PropertyId; score: number }>> {
-    const properties = await this.dataProvider.getPropertyList(tenantId);
-    const scores: Array<{ propertyId: PropertyId; score: number }> = [];
+  ): Promise<Array<{ siteId: SiteId; score: number }>> {
+    const sites = await this.dataProvider.getSiteList(tenantId);
+    const scores: Array<{ siteId: SiteId; score: number }> = [];
 
-    for (const property of properties) {
+    for (const site of sites) {
       try {
-        const [collection, occupancy, maintenance] = await Promise.all([
-          this.calculateCollectionKPIs(tenantId, period, [property.id]),
-          this.calculateOccupancyKPIs(tenantId, period, [property.id]),
-          this.calculateMaintenanceKPIs(tenantId, period, [property.id]),
+        const [collection, assetUtilisation, maintenance] = await Promise.all([
+          this.calculateCollectionKPIs(tenantId, period, [site.id]),
+          this.calculateAssetUtilisationKPIs(tenantId, period, [site.id]),
+          this.calculateMaintenanceKPIs(tenantId, period, [site.id]),
         ]);
 
         const score = this.calculateHealthScore({
-          occupancyRate: occupancy.physicalOccupancy.current,
+          utilisationRate: assetUtilisation.physicalUtilisation.current,
           collectionRate: collection.collectionRate.current,
           slaCompliance: maintenance.slaComplianceRate.current,
           satisfaction: 80, // Placeholder
         }).current;
 
-        scores.push({ propertyId: property.id, score });
+        scores.push({ siteId: site.id, score });
       } catch (err) {
-        // Skip properties with errors; log for observability so silent drops are traceable.
-        logger.warn(`[kpi-engine] skipped property ${property.id}`, { value: err instanceof Error ? err.message : String(err) });
+        // Skip sites with errors; log for observability so silent drops are traceable.
+        logger.warn(`[kpi-engine] skipped site ${site.id}`, { value: err instanceof Error ? err.message : String(err) });
       }
     }
 

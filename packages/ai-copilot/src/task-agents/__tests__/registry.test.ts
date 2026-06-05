@@ -33,20 +33,20 @@ describe('TASK_AGENT_REGISTRY', () => {
 
   it('includes every required Wave-30 agent id', () => {
     const required = [
-      'rent_reminder_agent',
+      'royalty_reminder_agent',
       'late_fee_calculator_agent',
-      'lease_renewal_scheduler_agent',
-      'move_out_notice_agent',
+      'offtake_renewal_scheduler_agent',
+      'site_closure_notice_agent',
       'inspection_reminder_agent',
       'vendor_invoice_approver_agent',
-      'tenant_sentiment_monitor_agent',
-      'arrears_ladder_tick_agent',
+      'buyer_sentiment_monitor_agent',
+      'royalty_arrears_ladder_tick_agent',
       'insurance_expiry_monitor_agent',
       'license_expiry_monitor_agent',
-      'utility_meter_reading_reminder_agent',
-      'vacancy_marketer_agent',
+      'production_meter_reading_reminder_agent',
+      'available_capacity_marketer_agent',
       'proactive_maintenance_alert_agent',
-      'cross_tenant_churn_risk_agent',
+      'cross_buyer_churn_risk_agent',
       'payment_plan_proposer_agent',
     ];
     for (const id of required) {

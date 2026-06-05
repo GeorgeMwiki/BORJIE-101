@@ -1,35 +1,36 @@
 /**
- * /api/v1/analytics/usage — owner-portal AnalyticsUsagePage skeleton.
+ * /api/v1/analytics/usage — owner-portal AnalyticsUsagePage.
  *
- * Wave-2 commit 0ee27a0 converted AnalyticsUsagePage to render a
- * `MissingBackendNotice` declaring `GET /api/v1/analytics/usage` as the
- * missing endpoint. The UI expects feature-usage metrics (logins,
- * payments processed, work-orders created) per active user. Until a
- * real usage warehouse export lands, this returns an empty series
- * with `X-Backend-Status: degraded`.
+ * WS-4: now serves a REAL feature-usage series from the
+ * `analytics_usage_daily` warehouse (migration 0175), populated by the
+ * consolidation-worker analytics-aggregate task from `audit_events`. The
+ * previous `X-Backend-Status: degraded` skeleton is gone.
  *
- * Follow-up api-gateway, ANL-USAGE-001 (#33): wire the usage aggregator.
- *   Concrete next-step:
- *     1. Add `analytics_usage_daily` warehouse table populated by the
- *        outbox worker from `audit_events`.
- *     2. Add `repos.analyticsUsage.series(tenantId, range, dimension)`
- *        returning `{ date, dimension, count }[]`.
- *     3. Replace the degraded payload below with the real series.
+ * The read runs on the RLS-pinned request client (`c.get('db')`), so tenant
+ * isolation is enforced by FORCE row-level security on the reserved
+ * connection. The series is `{ date, dimension, count }[]`, newest day first,
+ * optionally filtered by `dimension` and bounded by `range` (`30d` | `90d` |
+ * `12m`).
  */
 
 import { Hono } from 'hono';
+import { z } from 'zod';
+import { usageSeries } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
+import { databaseMiddleware } from '../../middleware/database';
 import { requireRole } from '../../middleware/authorization';
 import { UserRole } from '../../types/user-role';
-import { buildDegradedList, isFlagOn, markDegraded, notImplementedFlagged } from './degraded-shape';
+import { resolveRange } from './analytics-range';
 
-const NEXT_STEP =
-  'create analytics_usage_daily table + repos.analyticsUsage.series(tenantId, range, dimension) and replace this skeleton';
-
-const FLAG_KEY = 'flag.bff.analytics.usage';
+const QuerySchema = z.object({
+  dimension: z.string().trim().min(1).max(80).optional(),
+  range: z.enum(['30d', '90d', '12m']).optional(),
+  limit: z.coerce.number().int().positive().max(500).optional(),
+});
 
 const app = new Hono();
 app.use('*', authMiddleware);
+app.use('*', databaseMiddleware);
 app.use(
   '*',
   requireRole(
@@ -40,13 +41,36 @@ app.use(
   ),
 );
 
-app.get('/', async (c) => {
-  const auth = c.get('auth');
-  if (!(await isFlagOn(c, FLAG_KEY))) {
-    return notImplementedFlagged(c, FLAG_KEY, NEXT_STEP);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.get('/', async (c: any) => {
+  const { tenantId } = c.get('auth');
+  const parsed = QuerySchema.safeParse({
+    dimension: c.req.query('dimension'),
+    range: c.req.query('range'),
+    limit: c.req.query('limit'),
+  });
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'VALIDATION_ERROR', message: 'Invalid query parameters' },
+      },
+      400,
+    );
   }
-  markDegraded(c);
-  return c.json(buildDegradedList(auth.tenantId, NEXT_STEP));
+
+  const db = c.get('db');
+  const range = resolveRange(parsed.data.range);
+  const series = await usageSeries(db, tenantId, {
+    dimension: parsed.data.dimension,
+    range,
+    limit: parsed.data.limit,
+  });
+
+  return c.json(
+    { success: true as const, data: series, meta: { tenantId, count: series.length } },
+    200,
+  );
 });
 
 export const analyticsUsageRouter = app;

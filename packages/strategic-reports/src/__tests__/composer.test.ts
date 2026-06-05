@@ -43,7 +43,7 @@ describe('composer blueprints — every type carries the required structure', ()
 
 describe('buildUserPrompt — structured-output LLM request shape', () => {
   it('emits a citation key + a required-sections block', async () => {
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const evidence = await gathererFor(spec.type, fixtureAdvisorPorts)({ spec, now: () => new Date('2026-05-24T00:00:00Z') });
     const userPrompt = buildUserPrompt(evidence, BLUEPRINT_FOR[spec.type]);
     expect(userPrompt).toContain('# Caller request');
@@ -54,7 +54,7 @@ describe('buildUserPrompt — structured-output LLM request shape', () => {
   });
 
   it('falls back to a placeholder when caller-supplied prompt is missing', async () => {
-    const spec = buildSpec('leasing_financial_performance', { prompt: undefined });
+    const spec = buildSpec('offtake_financial_performance', { prompt: undefined });
     const evidence = await gathererFor(spec.type, fixtureAdvisorPorts)({ spec, now: () => new Date() });
     const userPrompt = buildUserPrompt(evidence, BLUEPRINT_FOR[spec.type]);
     expect(userPrompt).toContain('(no caller-supplied prompt)');
@@ -63,7 +63,7 @@ describe('buildUserPrompt — structured-output LLM request shape', () => {
 
 describe('parseSections — structured output parser', () => {
   it('extracts every section the brain emits', async () => {
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const evidence = await gathererFor(spec.type, fixtureAdvisorPorts)({ spec, now: () => new Date() });
     const bp = BLUEPRINT_FOR[spec.type];
     const brainContent = bp.sectionBlueprints
@@ -78,7 +78,7 @@ describe('parseSections — structured output parser', () => {
   });
 
   it('marks unmatched sections as evidenceUnavailable rather than dropping them', async () => {
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const evidence = await gathererFor(spec.type, fixtureAdvisorPorts)({ spec, now: () => new Date() });
     const bp = BLUEPRINT_FOR[spec.type];
     // Brain emits ONE section only.
@@ -94,7 +94,7 @@ describe('parseSections — structured output parser', () => {
 
 describe('buildCitations — every fragment becomes a Citation', () => {
   it('returns one citation per fragment', async () => {
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const evidence = await gathererFor(spec.type, fixtureAdvisorPorts)({ spec, now: () => new Date() });
     const citations = buildCitations(evidence);
     expect(citations.length).toBe(evidence.fragments.length);

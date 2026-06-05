@@ -70,6 +70,48 @@ export interface JWTPayload {
   iat: number;
 }
 
+/**
+ * Validate + normalise a signature-verified legacy HS256 payload into the
+ * app's `JWTPayload` shape. Throws when a required claim (`userId` /
+ * `tenantId`) is missing or empty so the caller's catch surfaces a 401
+ * `INVALID_TOKEN` rather than letting an under-specified token through.
+ */
+function coerceVerifiedJwtPayload(verified: unknown): JWTPayload {
+  if (typeof verified !== 'object' || verified === null) {
+    throw new Error('jwt payload is not an object');
+  }
+  const p = verified as Record<string, unknown>;
+  const userId = typeof p.userId === 'string' ? p.userId : '';
+  const tenantId = typeof p.tenantId === 'string' ? p.tenantId : '';
+  const role = p.role as UserRole;
+  // The PUBLIC role is the anonymous marketing visitor — intentionally
+  // tenant-less (the marketing widget mints { role: 'PUBLIC', tenantId: null }).
+  // Every OTHER role MUST carry a tenantId so the RLS GUC + authz checks are
+  // never mis-scoped by a signature-valid token that would otherwise flow
+  // downstream as tenantId: undefined. PUBLIC reaches only public routes,
+  // which touch no tenant data, so a tenant-less PUBLIC token is safe.
+  if (userId.length === 0) {
+    throw new Error('jwt payload missing userId claim');
+  }
+  if (String(role) !== 'PUBLIC' && tenantId.length === 0) {
+    throw new Error('jwt payload missing tenantId claim');
+  }
+  return {
+    userId,
+    tenantId,
+    role,
+    permissions: Array.isArray(p.permissions)
+      ? (p.permissions as string[])
+      : [],
+    propertyAccess: Array.isArray(p.propertyAccess)
+      ? (p.propertyAccess as string[])
+      : [],
+    jti: typeof p.jti === 'string' ? p.jti : undefined,
+    exp: typeof p.exp === 'number' ? p.exp : 0,
+    iat: typeof p.iat === 'number' ? p.iat : 0,
+  };
+}
+
 export const authMiddleware = createMiddleware(async (c, next) => {
   const authHeader = c.req.header('Authorization');
 
@@ -136,9 +178,15 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       };
     } else {
       // Pin algorithm to prevent alg=none / RS256-vs-HS256 confusion.
-      decoded = jwt.verify(token, JWT_SECRET, {
+      const verified = jwt.verify(token, JWT_SECRET, {
         algorithms: ['HS256'],
-      }) as JWTPayload;
+      });
+      // Validate the claim shape at this trust boundary instead of an
+      // unchecked `as JWTPayload`. A signature-valid token that lacks
+      // `tenantId` / `userId` must be rejected (401) — never allowed to
+      // flow downstream as `tenantId: undefined`, which would silently
+      // mis-scope the RLS GUC + authz checks.
+      decoded = coerceVerifiedJwtPayload(verified);
     }
 
     if (decoded.jti && tokenBlocklist.isRevoked(decoded.jti)) {

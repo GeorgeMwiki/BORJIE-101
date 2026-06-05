@@ -1,10 +1,11 @@
 /**
  * `@borjie/strategic-reports` — public types.
  *
- * PhD-grade report engine contracts. Every report — leasing financial,
- * conditional survey, acquisition IC memo, disposition, refinancing,
- * sustainability, expansion, tenant credit, rent-roll, annual estate
- * operating review — flows through the same five-stage pipeline:
+ * PhD-grade report engine contracts. Every report — offtake financial
+ * performance, conditional survey, acquisition IC memo, disposition,
+ * refinancing, sustainability, expansion, buyer credit, royalty-roll,
+ * annual estate operating review — flows through the same five-stage
+ * pipeline:
  *
  *   spec  →  gather evidence  →  multi-LLM synthesis  →  cite & verify  →  render & sign
  *
@@ -14,7 +15,7 @@
  *
  * Research basis:
  *   - HBR "Building a competitive intelligence function" (2024)
- *   - Royal Institute of Chartered Surveyors (RICS) Red Book Global VPS
+ *   - JORC / NI 43-101 mineral-resource reporting codes
  *   - IFRS S1/S2 climate-disclosure rendering norms
  *   - Anthropic Citations API (https://claude.com/blog/introducing-citations-api)
  *   - Mixture-of-Agents (Wang et al. 2024)
@@ -25,14 +26,14 @@
  *   - `@borjie/lifecycle-advisor`          — disposition / refi / IR
  *   - `@borjie/expansion-advisor`          — HBU / absorption / IRR
  *   - `@borjie/green-angle-advisor`        — green opportunities
- *   - `@borjie/user-context-store`         — tenant profile + signals
+ *   - `@borjie/user-context-store`         — buyer profile + signals
  *   - `@borjie/document-studio`            — Carbone / Typst / Puppeteer
  *   - `@borjie/ai-copilot`                 — multi-LLM synthesizer
  *
  * Concurrent-agent boundary (per task brief):
  *   - We DO NOT touch `services/scientific-discovery-sidecar/`, `infra/document-render/`,
  *     `packages/role-aware-advisor/`, `packages/user-context-store/src/`,
- *     `packages/carbon-market/`, or `apps/tenant-portal/`.
+ *     `packages/carbon-market/`, or `apps/buyer-portal/`.
  */
 
 import { z } from 'zod';
@@ -45,15 +46,15 @@ import { z } from 'zod';
 // ────────────────────────────────────────────────────────────────────────────
 
 export const REPORT_TYPES = [
-  'leasing_financial_performance',
+  'offtake_financial_performance',
   'conditional_survey_of_assets',
   'acquisition_deal_ic_memo',
   'disposition_memo_asset_profile',
   'refinancing_strategy_memo',
   'sustainability_ghg_report',
   'expansion_strategy_memo',
-  'tenant_credit_risk_profile',
-  'rent_roll_arrears_ledger',
+  'buyer_credit_risk_profile',
+  'royalty_roll_outstanding_ledger',
   'annual_estate_operating_review',
 ] as const;
 
@@ -103,19 +104,19 @@ export type ReportJurisdiction = (typeof REPORT_JURISDICTIONS)[number];
 
 // ────────────────────────────────────────────────────────────────────────────
 // Scope — what the report is about. Discriminated by `kind` so the gatherer
-// knows whether to call portfolio-level rollups, single-property advisors,
-// or tenant-context profiles.
+// knows whether to call portfolio-level rollups, single-site advisors,
+// or buyer-context profiles.
 // ────────────────────────────────────────────────────────────────────────────
 
 export type ReportScope =
-  | { readonly kind: 'tenant'; readonly tenantPersonId: string; readonly orgId: string }
-  | { readonly kind: 'property'; readonly propertyId: string; readonly orgId: string }
-  | { readonly kind: 'portfolio'; readonly orgId: string; readonly propertyIds?: ReadonlyArray<string> }
+  | { readonly kind: 'buyer'; readonly buyerPersonId: string; readonly orgId: string }
+  | { readonly kind: 'site'; readonly siteId: string; readonly orgId: string }
+  | { readonly kind: 'portfolio'; readonly orgId: string; readonly siteIds?: ReadonlyArray<string> }
   | {
       readonly kind: 'deal';
       readonly dealId: string;
       readonly orgId: string;
-      readonly propertyId?: string;
+      readonly siteId?: string;
     };
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -140,25 +141,25 @@ export const ReportSpecSchema = z.object({
   type: z.enum(REPORT_TYPES),
   scope: z.union([
     z.object({
-      kind: z.literal('tenant'),
-      tenantPersonId: z.string().min(1),
+      kind: z.literal('buyer'),
+      buyerPersonId: z.string().min(1),
       orgId: z.string().min(1),
     }),
     z.object({
-      kind: z.literal('property'),
-      propertyId: z.string().min(1),
+      kind: z.literal('site'),
+      siteId: z.string().min(1),
       orgId: z.string().min(1),
     }),
     z.object({
       kind: z.literal('portfolio'),
       orgId: z.string().min(1),
-      propertyIds: z.array(z.string().min(1)).optional(),
+      siteIds: z.array(z.string().min(1)).optional(),
     }),
     z.object({
       kind: z.literal('deal'),
       dealId: z.string().min(1),
       orgId: z.string().min(1),
-      propertyId: z.string().min(1).optional(),
+      siteId: z.string().min(1).optional(),
     }),
   ]),
   audience: z.enum(REPORT_AUDIENCES),
@@ -192,12 +193,12 @@ export const CitationSchema = z.object({
   source: z.object({
     kind: z.enum([
       'ledger_entry',
-      'lease',
+      'supply_agreement',
       'invoice',
       'message',
       'photo',
       'statute',
-      'tenant_record',
+      'buyer_record',
       'computation',
       'survey',
       'advisor_output',

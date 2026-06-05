@@ -10,7 +10,13 @@
  */
 import { z } from '@hono/zod-openapi';
 
-export const ChatModeEnum = z
+/**
+ * Internal persona lenses Mr. Mwikila blends per turn — the former CEO
+ * modes, PROMOTED from a row of buttons into the brain's internal palette.
+ * Surfaced READ-ONLY on the `turn.accepted` frame; NOT a control the owner
+ * picks. Mirrors `LensId` in `@borjie/ai-copilot`.
+ */
+export const LensIdEnum = z
   .enum([
     'build',
     'strategy',
@@ -18,10 +24,10 @@ export const ChatModeEnum = z
     'document',
     'finance',
     'risk',
-    'board-investor',
+    'board',
     'compliance',
   ])
-  .openapi('ChatMode');
+  .openapi('LensId');
 
 export const ChatLanguageEnum = z.enum(['sw', 'en']).openapi('ChatLanguage');
 
@@ -29,7 +35,10 @@ export const ChatTurnSchema = z
   .object({
     message: z.string().min(1).max(8000),
     sessionId: z.string().optional(),
-    mode: ChatModeEnum.default('build'),
+    // WS-0: there are no user-selectable modes. `mode` is accepted for
+    // wire-compatibility with older clients and DISCARDED by the server —
+    // the brain classifies the persona lens(es) itself from the message.
+    mode: z.string().optional(),
     // English default per CLAUDE.md (flipped 2026-05).
     language: ChatLanguageEnum.default('en'),
   })
@@ -42,7 +51,7 @@ export const ChatStreamFrameSchema = z
       data: z.object({
         tenantId: z.string(),
         userId: z.string(),
-        mode: ChatModeEnum,
+        lenses: z.array(LensIdEnum),
         language: ChatLanguageEnum,
         sessionId: z.string().nullable(),
         at: z.string().datetime(),

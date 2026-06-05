@@ -19,7 +19,6 @@ images:
   - { name: ghcr.io/georgemwiki/borjie-mcp-firs,              newTag: staging }
   - { name: ghcr.io/georgemwiki/borjie-mcp-nggis,             newTag: staging }
   - { name: ghcr.io/georgemwiki/borjie-mcp-opay,              newTag: staging }
-  - { name: ghcr.io/georgemwiki/borjie-document-intelligence, newTag: staging }
   - { name: ghcr.io/georgemwiki/borjie-domain-services,       newTag: staging }
   - { name: ghcr.io/georgemwiki/borjie-identity,              newTag: staging }
   - { name: ghcr.io/georgemwiki/borjie-notifications,         newTag: staging }
@@ -45,8 +44,6 @@ patches:
     target: { kind: Deployment, name: admin-web }
   - path: patches/replica-1.yaml
     target: { kind: Deployment, name: estate-manager-app }
-  - path: patches/replica-1.yaml
-    target: { kind: Deployment, name: document-intelligence }
   - path: patches/replica-1.yaml
     target: { kind: Deployment, name: domain-services }
   - path: patches/replica-1.yaml

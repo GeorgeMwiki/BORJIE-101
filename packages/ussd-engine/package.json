@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/ussd-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Pure USSD menu-tree + session state machine (LP-25). Feature-phone ingress for artisanal miners on low-bandwidth networks (*123# -> menu -> action). Bilingual en/sw, 182-char screen budget, 180s session TTL. Pure functions + an injected session store port (no direct SDK). Ported + re-skinned from LITFIN core/ussd.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

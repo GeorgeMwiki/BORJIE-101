@@ -10,8 +10,8 @@ describe('Blackboard', () => {
   });
 
   it('displays the concept title when given', () => {
-    render(<Blackboard language="en" conceptTitle="Rent Affordability" />);
-    expect(screen.getByTestId('blackboard-concept').textContent).toBe('Rent Affordability');
+    render(<Blackboard language="en" conceptTitle="Royalty Affordability" />);
+    expect(screen.getByTestId('blackboard-concept').textContent).toBe('Royalty Affordability');
   });
 
   it('renders children inside the canvas when given', () => {
@@ -34,7 +34,7 @@ describe('Blackboard', () => {
   it('accepts freeform notes in the textarea', () => {
     render(<Blackboard language="en" />);
     const notes = screen.getByTestId('blackboard-notes') as HTMLTextAreaElement;
-    fireEvent.change(notes, { target: { value: 'A tenant earning 100k can afford 33k rent' } });
-    expect(notes.value).toBe('A tenant earning 100k can afford 33k rent');
+    fireEvent.change(notes, { target: { value: 'An operator earning 100k can afford 33k royalty' } });
+    expect(notes.value).toBe('An operator earning 100k can afford 33k royalty');
   });
 });

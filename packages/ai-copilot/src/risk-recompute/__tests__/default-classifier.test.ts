@@ -41,33 +41,33 @@ describe('defaultRiskEventClassifier', () => {
     expect(defaultRiskEventClassifier('PaymentReceived', {})).toEqual([]);
   });
 
-  it('LeaseSigned dispatches credit_rating, churn_probability, property_grade', () => {
-    const out = defaultRiskEventClassifier('LeaseSigned', {
+  it('OfftakeSigned dispatches credit_rating, churn_probability, asset_grade', () => {
+    const out = defaultRiskEventClassifier('OfftakeSigned', {
       customerId: 'cust-1',
       propertyId: 'prop-1',
     });
     expect(out.map((m) => m.kind).sort()).toEqual([
+      'asset_grade',
       'churn_probability',
       'credit_rating',
-      'property_grade',
     ]);
   });
 
-  it('LeaseTerminated falls back to tenantCustomerId', () => {
-    const out = defaultRiskEventClassifier('LeaseTerminated', {
+  it('OfftakeTerminated falls back to tenantCustomerId', () => {
+    const out = defaultRiskEventClassifier('OfftakeTerminated', {
       tenantCustomerId: 'cust-2',
       propertyId: 'prop-2',
     });
     expect(out.find((m) => m.kind === 'credit_rating')?.entityId).toBe('cust-2');
-    expect(out.find((m) => m.kind === 'property_grade')?.entityId).toBe('prop-2');
+    expect(out.find((m) => m.kind === 'asset_grade')?.entityId).toBe('prop-2');
   });
 
-  it('LeaseSigned without ids returns empty array', () => {
-    expect(defaultRiskEventClassifier('LeaseSigned', {})).toEqual([]);
+  it('OfftakeSigned without ids returns empty array', () => {
+    expect(defaultRiskEventClassifier('OfftakeSigned', {})).toEqual([]);
   });
 
-  it('ArrearsCaseOpened dispatches credit_rating + churn_probability', () => {
-    const out = defaultRiskEventClassifier('ArrearsCaseOpened', {
+  it('OutstandingRoyaltiesCaseOpened dispatches credit_rating + churn_probability', () => {
+    const out = defaultRiskEventClassifier('OutstandingRoyaltiesCaseOpened', {
       customerId: 'cust-1',
     });
     expect(out).toEqual([
@@ -76,7 +76,7 @@ describe('defaultRiskEventClassifier', () => {
     ]);
   });
 
-  it('ArrearsCaseClosed dispatches the same set as ArrearsCaseOpened', () => {
+  it('ArrearsCaseClosed dispatches the same set as OutstandingRoyaltiesCaseOpened', () => {
     const out = defaultRiskEventClassifier('ArrearsCaseClosed', {
       customerId: 'c',
     });
@@ -86,27 +86,27 @@ describe('defaultRiskEventClassifier', () => {
     ]);
   });
 
-  it('InspectionCompleted dispatches property_grade only', () => {
+  it('InspectionCompleted dispatches asset_grade only', () => {
     const out = defaultRiskEventClassifier('InspectionCompleted', {
       propertyId: 'p1',
     });
-    expect(out).toEqual([{ kind: 'property_grade', entityId: 'p1' }]);
+    expect(out).toEqual([{ kind: 'asset_grade', entityId: 'p1' }]);
   });
 
-  it('PropertyInspectionSurveyAdded also maps to property_grade', () => {
-    const out = defaultRiskEventClassifier('PropertyInspectionSurveyAdded', {
+  it('SiteInspectionSurveyAdded also maps to asset_grade', () => {
+    const out = defaultRiskEventClassifier('SiteInspectionSurveyAdded', {
       propertyId: 'p1',
     });
-    expect(out).toEqual([{ kind: 'property_grade', entityId: 'p1' }]);
+    expect(out).toEqual([{ kind: 'asset_grade', entityId: 'p1' }]);
   });
 
-  it('WorkOrderClosed dispatches vendor_scorecard + property_grade', () => {
+  it('WorkOrderClosed dispatches vendor_scorecard + asset_grade', () => {
     const out = defaultRiskEventClassifier('WorkOrderClosed', {
       vendorId: 'v1',
       propertyId: 'p1',
     });
     expect(out.map((m) => m.kind).sort()).toEqual([
-      'property_grade',
+      'asset_grade',
       'vendor_scorecard',
     ]);
   });
@@ -118,21 +118,21 @@ describe('defaultRiskEventClassifier', () => {
     expect(out).toEqual([{ kind: 'vendor_scorecard', entityId: 'v1' }]);
   });
 
-  it('MessageReceived dispatches tenant_sentiment + churn_probability', () => {
+  it('MessageReceived dispatches buyer_sentiment + churn_probability', () => {
     const out = defaultRiskEventClassifier('MessageReceived', {
       customerId: 'c1',
     });
     expect(out.map((m) => m.kind)).toEqual([
-      'tenant_sentiment',
+      'buyer_sentiment',
       'churn_probability',
     ]);
   });
 
-  it('TenantChatMessage falls back to fromCustomerId', () => {
-    const out = defaultRiskEventClassifier('TenantChatMessage', {
+  it('CounterpartyChatMessage falls back to fromCustomerId', () => {
+    const out = defaultRiskEventClassifier('CounterpartyChatMessage', {
       fromCustomerId: 'c-x',
     });
-    expect(out.find((m) => m.kind === 'tenant_sentiment')?.entityId).toBe('c-x');
+    expect(out.find((m) => m.kind === 'buyer_sentiment')?.entityId).toBe('c-x');
   });
 
   it('RenewalConversationUpdated dispatches churn_probability only', () => {
@@ -142,11 +142,11 @@ describe('defaultRiskEventClassifier', () => {
     expect(out).toEqual([{ kind: 'churn_probability', entityId: 'c1' }]);
   });
 
-  it('MaintenancePhotoUploaded dispatches property_grade only', () => {
+  it('MaintenancePhotoUploaded dispatches asset_grade only', () => {
     const out = defaultRiskEventClassifier('MaintenancePhotoUploaded', {
       propertyId: 'p1',
     });
-    expect(out).toEqual([{ kind: 'property_grade', entityId: 'p1' }]);
+    expect(out).toEqual([{ kind: 'asset_grade', entityId: 'p1' }]);
   });
 
   it('rejects empty-string ids', () => {

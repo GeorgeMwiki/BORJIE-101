@@ -3,8 +3,13 @@
  *
  * Forces the brain to imagine alternative paths so it doesn't anchor
  * on the actual present. Three standardised perturbations per domain
- * (e.g. for `rent`: rent +30%, rent -30%, market shock) keep the
+ * (e.g. for `rent`: price +30%, price -30%, market shock) keep the
  * surface area small and auditable.
+ *
+ * NOTE — the `CounterfactualDomain` key values and the per-template
+ * `idSuffix`es are a public contract (re-exported from kernel/index.ts
+ * and pinned by the debate tests). They are kept verbatim; only the
+ * perturbation prose carries mining vocabulary.
  */
 
 import type { DebateDeps } from './debate-types.js';
@@ -20,7 +25,7 @@ export interface CounterfactualScenario {
   readonly id: string;
   /** The original question (unchanged across scenarios). */
   readonly question: string;
-  /** The perturbation (e.g. "if rent were 30% higher"). */
+  /** The perturbation (e.g. "if the offtake price were 30% higher"). */
   readonly perturbation: string;
 }
 
@@ -37,29 +42,29 @@ interface PerturbationTemplate {
 
 const TEMPLATES: Record<CounterfactualDomain, ReadonlyArray<PerturbationTemplate>> = {
   rent: [
-    { idSuffix: 'rent-up-30',     perturbation: 'if asking rent were 30% higher than current' },
-    { idSuffix: 'rent-down-30',   perturbation: 'if asking rent were 30% lower than current' },
-    { idSuffix: 'rent-mkt-shock', perturbation: 'if a market shock cut comparable rents by 20% this quarter' },
+    { idSuffix: 'rent-up-30',     perturbation: 'if the offtake price were 30% higher than current' },
+    { idSuffix: 'rent-down-30',   perturbation: 'if the offtake price were 30% lower than current' },
+    { idSuffix: 'rent-mkt-shock', perturbation: 'if a market shock cut comparable mineral prices by 20% this quarter' },
   ],
   vacancy: [
-    { idSuffix: 'vac-doubled',    perturbation: 'if vacancy doubled relative to last quarter' },
-    { idSuffix: 'vac-zero',       perturbation: 'if vacancy fell to zero across the portfolio' },
-    { idSuffix: 'vac-seasonal',   perturbation: 'if a seasonal exodus removed 25% of tenants in 60 days' },
+    { idSuffix: 'vac-doubled',    perturbation: 'if spare capacity doubled relative to last quarter' },
+    { idSuffix: 'vac-zero',       perturbation: 'if spare capacity fell to zero across the portfolio' },
+    { idSuffix: 'vac-seasonal',   perturbation: 'if a seasonal exodus removed 25% of counterparties in 60 days' },
   ],
   collection: [
-    { idSuffix: 'coll-down-15',   perturbation: 'if rent collection dropped by 15 percentage points' },
-    { idSuffix: 'coll-perfect',   perturbation: 'if rent collection were 100% on every lease this month' },
-    { idSuffix: 'coll-arrears',   perturbation: 'if 30% of tenants entered arrears simultaneously' },
+    { idSuffix: 'coll-down-15',   perturbation: 'if royalty collection dropped by 15 percentage points' },
+    { idSuffix: 'coll-perfect',   perturbation: 'if royalty collection were 100% on every agreement this month' },
+    { idSuffix: 'coll-arrears',   perturbation: 'if 30% of counterparties fell into outstanding royalties simultaneously' },
   ],
   maintenance: [
     { idSuffix: 'maint-spike-3x', perturbation: 'if maintenance work-orders spiked 3× over baseline' },
     { idSuffix: 'maint-quiet',    perturbation: 'if maintenance volume fell 50% with no underlying issue uptick' },
-    { idSuffix: 'maint-emerg',    perturbation: 'if a single building emergency consumed the monthly maintenance budget' },
+    { idSuffix: 'maint-emerg',    perturbation: 'if a single site emergency consumed the monthly maintenance budget' },
   ],
   'tenant-quality': [
-    { idSuffix: 'tq-improved',    perturbation: 'if tenant credit quality improved one full grade band across the book' },
-    { idSuffix: 'tq-declined',    perturbation: 'if tenant credit quality declined one full grade band across the book' },
-    { idSuffix: 'tq-mix-shift',   perturbation: 'if the tenant mix shifted from family leases to short-stay sublets' },
+    { idSuffix: 'tq-improved',    perturbation: 'if counterparty credit quality improved one full grade band across the book' },
+    { idSuffix: 'tq-declined',    perturbation: 'if counterparty credit quality declined one full grade band across the book' },
+    { idSuffix: 'tq-mix-shift',   perturbation: 'if the counterparty mix shifted from long-term offtakes to spot sales' },
   ],
 };
 

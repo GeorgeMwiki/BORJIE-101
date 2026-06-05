@@ -159,8 +159,8 @@ export const dispatchMaintenanceSkill: CodeSkill<
   id: 'dispatch-maintenance',
   name: 'Dispatch Maintenance',
   description:
-    'Score vendors by locality/category/rating/load, attach severity SLA, write dispatch entity.',
-  embedding: embed('maintenance ticket vendor dispatch severity sla assignment'),
+    'Score vendors by locality/category/rating/load, attach severity SLA, write dispatch entity for plant/equipment maintenance.',
+  embedding: embed('plant equipment maintenance ticket vendor dispatch severity sla assignment'),
   jurisdiction: 'platform',
   success_count: 0,
   failure_count: 0,

@@ -13,7 +13,7 @@
  * ──────────────────────────────────────────────────────────────────────
  *
  *   1.  Extract well-formed payloads from `ChatMessage.metadata`:
- *       - `uiBlocks`     — chat-ui native blocks (rent calculator, quiz, …)
+ *       - `uiBlocks`     — chat-ui native blocks (royalty calculator, quiz, …)
  *       - `uiParts`      — `@borjie/genui` AG-UI primitives (chart, kanban,
  *                          heatmap, markdown-card, diff-view, calendar, …)
  *       - `blackboard`   — `{ conceptTitle?, parts?: AgUiUiPart[] }`

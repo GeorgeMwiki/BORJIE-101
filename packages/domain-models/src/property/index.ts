@@ -1,97 +1,39 @@
 /**
- * Property domain models.
+ * Mining-site domain models (public subpath barrel).
  *
- * Properties represent real estate assets managed on the platform.
- * Units are the rentable subdivisions within properties.
+ * Mining sites represent the physical estate locations managed on the
+ * platform (pits, plants, alluvial blocks, tailings facilities). Units
+ * are the operating subdivisions within a site. This barrel re-exports
+ * the canonical `MiningSite` / `MiningUnit` / `Block` models and adds
+ * the owner-account value model + input DTOs.
  */
 
 import { BaseEntity, TenantScoped, Address, Money } from '../common';
 
-// ============================================================================
-// Property Entity
-// ============================================================================
-
-export interface Property extends BaseEntity, TenantScoped {
-  name: string;
-  type: PropertyType;
-  status: PropertyStatus;
-  address: Address;
-  ownerId: string; // Reference to owner account
-  managerId?: string; // Reference to assigned manager
-  totalUnits: number;
-  occupiedUnits: number;
-  amenities: string[];
-  images: PropertyImage[];
-  metadata?: Record<string, unknown>;
-}
-
-export type PropertyType =
-  | 'residential_apartment'
-  | 'residential_house'
-  | 'commercial_office'
-  | 'commercial_retail'
-  | 'mixed_use'
-  | 'industrial';
-
-export type PropertyStatus = 'active' | 'inactive' | 'under_renovation' | 'sold';
-
-export interface PropertyImage {
-  id: string;
-  url: string;
-  caption?: string;
-  isPrimary: boolean;
-  uploadedAt: Date;
-}
-
-// ============================================================================
-// Unit Entity
-// ============================================================================
-
-export interface Unit extends BaseEntity, TenantScoped {
-  propertyId: string;
-  unitNumber: string;
-  floor?: number;
-  type: UnitType;
-  status: UnitStatus;
-  bedrooms?: number;
-  bathrooms?: number;
-  squareMeters?: number;
-  rentAmount: Money;
-  depositAmount: Money;
-  amenities: string[];
-  images: PropertyImage[];
-  currentLeaseId?: string;
-  metadata?: Record<string, unknown>;
-}
-
-export type UnitType =
-  | 'studio'
-  | 'one_bedroom'
-  | 'two_bedroom'
-  | 'three_bedroom'
-  | 'penthouse'
-  | 'office_space'
-  | 'retail_shop'
-  | 'warehouse';
-
-export type UnitStatus = 'available' | 'occupied' | 'reserved' | 'maintenance' | 'unavailable';
+// Canonical entity models (mining site / unit / block).
+// `property` (site) and `block` each export their own
+// calculate*UtilisationRate helpers, so block is namespaced to avoid a
+// duplicate-symbol collision in this barrel.
+export * from './property';
+export * from './unit';
+export * as Block from './block';
 
 // ============================================================================
 // Owner Account Entity
 // ============================================================================
 
 export interface OwnerAccount extends BaseEntity, TenantScoped {
-  userId?: string; // Linked user for portal access
+  userId?: string; // Linked user for cockpit access
   name: string;
   type: OwnerType;
   contactInfo: OwnerContactInfo;
   bankDetails?: BankDetails;
   taxInfo?: TaxInfo;
-  properties: string[]; // Property IDs owned
+  sites: string[]; // Mining-site IDs owned
   disbursementSettings: DisbursementSettings;
 }
 
-export type OwnerType = 'individual' | 'company' | 'trust';
+export type OwnerType = 'individual' | 'company' | 'cooperative' | 'trust';
 
 export interface OwnerContactInfo {
   primaryEmail: string;
@@ -110,6 +52,7 @@ export interface BankDetails {
 }
 
 export interface TaxInfo {
+  /** TRA Taxpayer Identification Number (TIN). */
   taxId: string;
   vatRegistered: boolean;
   vatNumber?: string;
@@ -123,48 +66,48 @@ export interface DisbursementSettings {
 }
 
 // ============================================================================
-// DTOs
+// Input DTOs
 // ============================================================================
 
-export interface CreatePropertyInput {
+export interface CreateMiningSiteInput {
   name: string;
-  type: PropertyType;
+  type: import('./property').MiningSiteType;
   address: Address;
   ownerId: string;
   managerId?: string;
   amenities?: string[];
 }
 
-export interface UpdatePropertyInput {
+export interface UpdateMiningSiteInput {
   name?: string;
-  status?: PropertyStatus;
+  status?: import('./property').MiningSiteStatus;
   address?: Partial<Address>;
   managerId?: string;
   amenities?: string[];
 }
 
-export interface CreateUnitInput {
-  propertyId: string;
+export interface CreateMiningUnitInput {
+  siteId: string;
   unitNumber: string;
-  floor?: number;
-  type: UnitType;
-  bedrooms?: number;
-  bathrooms?: number;
-  squareMeters?: number;
-  rentAmount: Money;
-  depositAmount: Money;
+  level?: number;
+  type: import('./unit').MiningUnitType;
+  oreGradeGramsPerTonne: number;
+  recoveryPct: number;
+  area?: number;
+  operatingLevy: Money;
+  bondAmount: Money;
   amenities?: string[];
 }
 
-export interface UpdateUnitInput {
+export interface UpdateMiningUnitInput {
   unitNumber?: string;
-  floor?: number;
-  type?: UnitType;
-  status?: UnitStatus;
-  bedrooms?: number;
-  bathrooms?: number;
-  squareMeters?: number;
-  rentAmount?: Money;
-  depositAmount?: Money;
+  level?: number;
+  type?: import('./unit').MiningUnitType;
+  status?: import('./unit').MiningUnitStatus;
+  oreGradeGramsPerTonne?: number;
+  recoveryPct?: number;
+  area?: number;
+  operatingLevy?: Money;
+  bondAmount?: Money;
   amenities?: string[];
 }

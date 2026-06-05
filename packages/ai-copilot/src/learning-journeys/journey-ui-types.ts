@@ -2,8 +2,8 @@
  * Learning Journeys UI types — Wave-12 port from LitFin.
  *
  * Estate-management translation of LitFin's borrower journey. A journey is a
- * named, multi-step onboarding or training flow (admin onboarding, property
- * owner onboarding, tenant onboarding, estate officer training, migration
+ * named, multi-step onboarding or training flow (admin onboarding, site
+ * owner onboarding, counterparty onboarding, estate officer training, migration
  * wizard, compliance setup). Each step is typed for its dispatched UI surface.
  *
  * Pure types only — no I/O, no singletons.
@@ -11,8 +11,8 @@
 
 export type JourneyAudience =
   | 'admin'
-  | 'property-owner'
-  | 'tenant'
+  | 'owner'
+  | 'counterparty'
   | 'estate-officer'
   | 'station-master'
   | 'migration'

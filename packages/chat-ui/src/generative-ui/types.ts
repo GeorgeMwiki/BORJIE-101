@@ -1,5 +1,5 @@
 /**
- * Generative UI Engine Types (BORJIE estate-management edition)
+ * Generative UI Engine Types (BORJIE mining-estate edition)
  *
  * Ported from LitFin's generative UI. These types describe structured
  * JSON blocks the AI can return. The AdaptiveRenderer maps each type
@@ -7,21 +7,21 @@
  */
 
 export type AIMode =
-  | 'guide'        // operational guidance (tenancy workflow, maintenance steps)
+  | 'guide'        // operational guidance (offtake workflow, maintenance steps)
   | 'learn'        // training / pedagogy (concept teaching, quizzes)
-  | 'extract'      // document intelligence (lease parsing, ID extraction)
-  | 'risk'         // tenancy risk (5 Ps analysis, arrears projection)
-  | 'draft'        // document generation (notice templates, lease drafts)
+  | 'extract'      // document intelligence (offtake parsing, ID extraction)
+  | 'risk'         // operator risk (5 Ps analysis, outstanding-royalty projection)
+  | 'draft'        // document generation (notice templates, offtake drafts)
   | 'advise'       // advisory voice for owners (portfolio decisions)
   | 'explore';     // public / marketing surface
 
 export type UIBlockType =
-  | 'rent_affordability_calculator'
-  | 'arrears_projection_chart'
-  | 'property_comparison_table'
-  | 'lease_timeline_diagram'
+  | 'royalty_affordability_calculator'
+  | 'outstanding_royalty_projection_chart'
+  | 'asset_comparison_table'
+  | 'offtake_timeline_diagram'
   | 'maintenance_case_flow_diagram'
-  | 'five_ps_tenancy_risk_wheel'
+  | 'five_ps_operator_risk_wheel'
   | 'concept_card'
   | 'quiz'
   | 'action_buttons'
@@ -36,40 +36,40 @@ export interface UIBlockBase {
   readonly animate?: boolean;
 }
 
-/** Rent affordability calculator (rent / gross_income) */
-export interface RentAffordabilityCalculatorBlock extends UIBlockBase {
-  readonly type: 'rent_affordability_calculator';
-  readonly defaultRent: number;
+/** Royalty affordability calculator (royalty / gross_income) */
+export interface RoyaltyAffordabilityCalculatorBlock extends UIBlockBase {
+  readonly type: 'royalty_affordability_calculator';
+  readonly defaultRoyalty: number;
   readonly defaultIncome: number;
   readonly currency: string;
   readonly title?: string;
   readonly titleSw?: string;
 }
 
-/** Arrears projection chart (cumulative unpaid rent over N months) */
-export interface ArrearsProjectionChartBlock extends UIBlockBase {
-  readonly type: 'arrears_projection_chart';
+/** Outstanding-royalty projection chart (cumulative unpaid royalty over N months) */
+export interface OutstandingRoyaltyProjectionChartBlock extends UIBlockBase {
+  readonly type: 'outstanding_royalty_projection_chart';
   readonly title: string;
   readonly titleSw?: string;
-  readonly monthlyRent: number;
+  readonly monthlyRoyalty: number;
   readonly currency: string;
   readonly monthsDelinquent: number;
   readonly lateFeePerMonth: number;
   readonly points: readonly { readonly month: number; readonly cumulative: number }[];
 }
 
-/** Property comparison table for owner-advisor & tenant-assistant */
-export interface PropertyComparisonTableBlock extends UIBlockBase {
-  readonly type: 'property_comparison_table';
+/** Asset comparison table for owner-advisor & buyer-assistant */
+export interface AssetComparisonTableBlock extends UIBlockBase {
+  readonly type: 'asset_comparison_table';
   readonly title: string;
   readonly titleSw?: string;
   readonly columns: readonly { readonly header: string; readonly highlight?: boolean }[];
   readonly rows: readonly { readonly label: string; readonly values: readonly string[] }[];
 }
 
-/** Lease timeline diagram (signing -> rent start -> renewal -> end) */
-export interface LeaseTimelineDiagramBlock extends UIBlockBase {
-  readonly type: 'lease_timeline_diagram';
+/** Offtake timeline diagram (signing -> royalty start -> renewal -> end) */
+export interface OfftakeTimelineDiagramBlock extends UIBlockBase {
+  readonly type: 'offtake_timeline_diagram';
   readonly title: string;
   readonly titleSw?: string;
   readonly events: readonly {
@@ -94,14 +94,14 @@ export interface MaintenanceCaseFlowDiagramBlock extends UIBlockBase {
   }[];
 }
 
-/** 5 Ps tenancy-risk wheel */
+/** 5 Ps operator-risk wheel */
 export interface FivePsRiskWheelBlock extends UIBlockBase {
-  readonly type: 'five_ps_tenancy_risk_wheel';
+  readonly type: 'five_ps_operator_risk_wheel';
   readonly title: string;
   readonly titleSw?: string;
   readonly scores: {
     readonly paymentHistory: number;
-    readonly propertyFit: number;
+    readonly assetFit: number;
     readonly purpose: number;
     readonly person: number;
     readonly protection: number;
@@ -175,10 +175,10 @@ export interface DynamicVisualBlock extends UIBlockBase {
 }
 
 export type UIBlock =
-  | RentAffordabilityCalculatorBlock
-  | ArrearsProjectionChartBlock
-  | PropertyComparisonTableBlock
-  | LeaseTimelineDiagramBlock
+  | RoyaltyAffordabilityCalculatorBlock
+  | OutstandingRoyaltyProjectionChartBlock
+  | AssetComparisonTableBlock
+  | OfftakeTimelineDiagramBlock
   | MaintenanceCaseFlowDiagramBlock
   | FivePsRiskWheelBlock
   | ConceptCardBlock

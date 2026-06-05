@@ -59,29 +59,29 @@ const flushMicrotasks = async () => {
 
 describe('startDecisionTrace', () => {
   it('returns an active (non-finalised) trace with a stable id + start time', () => {
-    const trace = startDecisionTrace('brain.draft_lease', {
-      inputs: { tenantId: 't1', requestType: 'lease' },
+    const trace = startDecisionTrace('brain.draft_offtake', {
+      inputs: { tenantId: 't1', requestType: 'offtake' },
       context: { tenantId: 't1' },
       skipPersistence: true,
       skipOtelBridge: true,
     });
     expect(typeof trace.traceId).toBe('string');
     expect(trace.traceId.length).toBeGreaterThan(8);
-    expect(trace.name).toBe('brain.draft_lease');
+    expect(trace.name).toBe('brain.draft_offtake');
     expect(trace.isFinalised()).toBe(false);
     expect(typeof trace.startedAt).toBe('string');
     expect(Number.isNaN(Date.parse(trace.startedAt))).toBe(false);
   });
 
   it('addBranch records branches with rationale, score, and timestamp', () => {
-    const trace = startDecisionTrace('brain.draft_lease', {
+    const trace = startDecisionTrace('brain.draft_offtake', {
       inputs: {},
       skipPersistence: true,
       skipOtelBridge: true,
     });
     trace.addBranch({
       id: 'draft',
-      label: 'Draft the lease',
+      label: 'Draft the offtake',
       rationale: 'all kyc checks passed',
       score: 0.82,
       metadata: { kyc_tier: 'green' },
@@ -104,7 +104,7 @@ describe('startDecisionTrace', () => {
   });
 
   it('choose marks one branch as chosen and records its rationale', () => {
-    const trace = startDecisionTrace('brain.draft_lease', {
+    const trace = startDecisionTrace('brain.draft_offtake', {
       inputs: {},
       skipPersistence: true,
       skipOtelBridge: true,

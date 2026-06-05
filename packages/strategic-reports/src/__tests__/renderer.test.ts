@@ -42,7 +42,7 @@ describe('renderer — invalid spec', () => {
   it('returns invalid_spec for missing required fields', async () => {
     const engine = createReportEngine(baseDeps());
     // Cast through `unknown` so we can pass a deliberately broken shape.
-    const result = await engine.generateReport({ type: 'leasing_financial_performance' } as unknown as ReportSpec);
+    const result = await engine.generateReport({ type: 'offtake_financial_performance' } as unknown as ReportSpec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe('invalid_spec');
@@ -51,7 +51,7 @@ describe('renderer — invalid spec', () => {
 
   it('returns invalid_spec when scope is malformed', async () => {
     const engine = createReportEngine(baseDeps());
-    const spec = buildSpec('leasing_financial_performance', {
+    const spec = buildSpec('offtake_financial_performance', {
       scope: { kind: 'portfolio' } as unknown as ReportSpec['scope'],
     });
     const result = await engine.generateReport(spec);
@@ -105,7 +105,7 @@ describe('renderer — synthesis failure', () => {
       },
     };
     const engine = createReportEngine({ ...deps, brain: throwingBrain });
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -117,13 +117,13 @@ describe('renderer — synthesis failure', () => {
   it('passes the persona via the systemPrompt slot', async () => {
     const deps = baseDeps();
     const engine = createReportEngine(deps);
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     await engine.generateReport(spec);
     expect(deps.brain.calls.length).toBe(1);
     const first = deps.brain.calls[0]!;
     expect(first.systemPrompt).toContain(DISCIPLINE_PREFIX_LITERAL);
     // composerSystemNote is appended to the persona — check the join.
-    expect(first.systemPrompt).toContain('Compose a leasing-financial report');
+    expect(first.systemPrompt).toContain('Compose an offtake-financial report');
   });
 });
 
@@ -134,7 +134,7 @@ describe('renderer — citation verifier integration', () => {
       ...deps,
       citationVerifier: createFakeCitationVerifier({ force: 'fail' }),
     });
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -148,7 +148,7 @@ describe('renderer — citation verifier integration', () => {
       ...deps,
       citationVerifier: createFakeCitationVerifier({ force: 'ok' }),
     });
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(true);
   });
@@ -165,7 +165,7 @@ describe('renderer — render + persistence failure modes', () => {
         },
       },
     });
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -184,7 +184,7 @@ describe('renderer — render + persistence failure modes', () => {
         },
       },
     });
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -208,7 +208,7 @@ describe('renderer — render + persistence failure modes', () => {
         },
       },
     });
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -221,7 +221,7 @@ describe('renderer — happy-path artifact + audit + persistence wiring', () => 
   it('produces an artifact with sha256, an audit entry, and a persisted record', async () => {
     const deps = baseDeps();
     const engine = createReportEngine(deps);
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(true);
     if (!result.ok) return;

@@ -7,20 +7,20 @@ import {
 } from "../voices.js";
 
 describe("system prompts — pinned voice identity", () => {
-  it("Conservative Landlord names its role and anchors", () => {
-    expect(CONSERVATIVE_LANDLORD_SYSTEM).toMatch(/CONSERVATIVE LANDLORD/);
-    expect(CONSERVATIVE_LANDLORD_SYSTEM).toMatch(/rent owed/);
-    expect(CONSERVATIVE_LANDLORD_SYSTEM).toMatch(/lease covenant/);
+  it("Conservative Owner names its role and anchors", () => {
+    expect(CONSERVATIVE_LANDLORD_SYSTEM).toMatch(/CONSERVATIVE OWNER/);
+    expect(CONSERVATIVE_LANDLORD_SYSTEM).toMatch(/royalty \/ payment owed/);
+    expect(CONSERVATIVE_LANDLORD_SYSTEM).toMatch(/offtake covenant/);
   });
 
-  it("Pro-Tenant names its role and enforces fair-housing test", () => {
-    expect(PRO_TENANT_SYSTEM).toMatch(/PRO-TENANT/);
-    expect(PRO_TENANT_SYSTEM).toMatch(/fair-housing|anti-discrim/i);
+  it("Pro-Counterparty names its role and enforces fair-dealing test", () => {
+    expect(PRO_TENANT_SYSTEM).toMatch(/PRO-COUNTERPARTY/);
+    expect(PRO_TENANT_SYSTEM).toMatch(/fair-dealing|anti-discrim/i);
     expect(PRO_TENANT_SYSTEM).toMatch(/substituting/);
   });
 
-  it("Pragmatic PM names its role and forces address of tenant concerns", () => {
-    expect(PRAGMATIC_PM_SYSTEM).toMatch(/PRAGMATIC PROPERTY MANAGER/);
+  it("Pragmatic Ops names its role and forces address of counterparty concerns", () => {
+    expect(PRAGMATIC_PM_SYSTEM).toMatch(/PRAGMATIC OPERATIONS MANAGER/);
     expect(PRAGMATIC_PM_SYSTEM).toMatch(/MUST address/);
     expect(PRAGMATIC_PM_SYSTEM).toMatch(/Do NOT rubber-stamp/);
   });

@@ -26,28 +26,28 @@ function makeContext(overrides: Partial<SectionContext> = {}): SectionContext {
 describe('evaluatePredicate', () => {
   describe('has-entities', () => {
     it('returns true when entity count is positive', () => {
-      const ctx = makeContext({ entityCounts: { customers: 3 } });
+      const ctx = makeContext({ entityCounts: { 'ore-parcels': 3 } });
       const pred: VisibilityPredicate = {
         kind: 'has-entities',
-        entity_type: 'customers',
+        entity_type: 'ore-parcels',
       };
       expect(evaluatePredicate(pred, ctx)).toBe(true);
     });
 
     it('returns false when entity count is zero', () => {
-      const ctx = makeContext({ entityCounts: { customers: 0 } });
+      const ctx = makeContext({ entityCounts: { 'ore-parcels': 0 } });
       const pred: VisibilityPredicate = {
         kind: 'has-entities',
-        entity_type: 'customers',
+        entity_type: 'ore-parcels',
       };
       expect(evaluatePredicate(pred, ctx)).toBe(false);
     });
 
     it('returns false when entity_type is absent from the counts map', () => {
-      const ctx = makeContext({ entityCounts: { properties: 5 } });
+      const ctx = makeContext({ entityCounts: { 'pml-licences': 5 } });
       const pred: VisibilityPredicate = {
         kind: 'has-entities',
-        entity_type: 'customers',
+        entity_type: 'ore-parcels',
       };
       expect(evaluatePredicate(pred, ctx)).toBe(false);
     });
@@ -64,7 +64,7 @@ describe('evaluatePredicate', () => {
     });
 
     it('returns false when viewer holds none of the named roles', () => {
-      const ctx = makeContext({ roles: ['tenant'] });
+      const ctx = makeContext({ roles: ['operator'] });
       const pred: VisibilityPredicate = {
         kind: 'role-allowed',
         roles: ['platform_ops'],
@@ -102,13 +102,13 @@ describe('evaluatePredicate', () => {
   describe('and combinator', () => {
     it('returns true when every child predicate is true', () => {
       const ctx = makeContext({
-        entityCounts: { customers: 1 },
+        entityCounts: { 'ore-parcels': 1 },
         roles: ['md'],
       });
       const pred: VisibilityPredicate = {
         kind: 'and',
         preds: [
-          { kind: 'has-entities', entity_type: 'customers' },
+          { kind: 'has-entities', entity_type: 'ore-parcels' },
           { kind: 'role-allowed', roles: ['md'] },
         ],
       };
@@ -117,13 +117,13 @@ describe('evaluatePredicate', () => {
 
     it('returns false when any child predicate is false', () => {
       const ctx = makeContext({
-        entityCounts: { customers: 1 },
+        entityCounts: { 'ore-parcels': 1 },
         roles: [],
       });
       const pred: VisibilityPredicate = {
         kind: 'and',
         preds: [
-          { kind: 'has-entities', entity_type: 'customers' },
+          { kind: 'has-entities', entity_type: 'ore-parcels' },
           { kind: 'role-allowed', roles: ['md'] },
         ],
       };
@@ -142,7 +142,7 @@ describe('evaluatePredicate', () => {
       const pred: VisibilityPredicate = {
         kind: 'or',
         preds: [
-          { kind: 'has-entities', entity_type: 'customers' },
+          { kind: 'has-entities', entity_type: 'ore-parcels' },
           { kind: 'role-allowed', roles: ['platform_ops'] },
         ],
       };
@@ -154,7 +154,7 @@ describe('evaluatePredicate', () => {
       const pred: VisibilityPredicate = {
         kind: 'or',
         preds: [
-          { kind: 'has-entities', entity_type: 'customers' },
+          { kind: 'has-entities', entity_type: 'ore-parcels' },
           { kind: 'role-allowed', roles: ['platform_ops'] },
         ],
       };
@@ -170,7 +170,7 @@ describe('evaluatePredicate', () => {
   describe('nested combinators', () => {
     it('handles three-level nesting correctly', () => {
       const ctx = makeContext({
-        entityCounts: { campaigns: 2 },
+        entityCounts: { 'shipments': 2 },
         roles: ['md'],
         featureFlags: ['phase-j3'],
       });
@@ -181,7 +181,7 @@ describe('evaluatePredicate', () => {
           {
             kind: 'or',
             preds: [
-              { kind: 'has-entities', entity_type: 'campaigns' },
+              { kind: 'has-entities', entity_type: 'shipments' },
               { kind: 'role-allowed', roles: ['platform_ops'] },
             ],
           },

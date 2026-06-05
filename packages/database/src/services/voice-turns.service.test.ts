@@ -110,7 +110,7 @@ describe('createVoiceTurnsService', () => {
       inputTranscript: 'habari',
       responseText: 'salaam',
       responseAudioRef: null,
-      toolCalls: [{ name: 'rent.send-reminder', arguments: {} }],
+      toolCalls: [{ name: 'royalty.send-reminder', arguments: {} }],
       degradedMode: false,
       modelVersion: 'v1',
       promptHash: 'h',

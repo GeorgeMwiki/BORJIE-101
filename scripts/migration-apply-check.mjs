@@ -52,6 +52,7 @@ import {
 const ROOT = resolve(fileURLToPath(import.meta.url), '..', '..');
 
 const DEFAULTS = {
+  baselineDir: 'packages/database/drizzle',
   migrationsDir: 'packages/database/src/migrations',
   dbUrl: process.env.DATABASE_URL || '',
   report: '',
@@ -67,6 +68,7 @@ function parseArgs(argv) {
     const key = eq === -1 ? raw.slice(2) : raw.slice(2, eq);
     const value = eq === -1 ? 'true' : raw.slice(eq + 1);
     switch (key) {
+      case 'baseline-dir':   args.baselineDir = value === 'none' ? '' : value; break;
       case 'migrations-dir': args.migrationsDir = value; break;
       case 'db-url':         args.dbUrl = value; break;
       case 'report':         args.report = value; break;
@@ -284,9 +286,18 @@ async function main() {
       console.log(`  pgvector available: ${ok}`);
     }
 
-    const files = findMigrationFiles(args.migrationsDir);
+    // Apply the drizzle/ baseline (0000–00xx) FIRST, then the delta
+    // migrations in src/migrations/ — matching run-migrations.ts's
+    // baseline-first order. Without the baseline the deltas hit "relation
+    // does not exist" for core tables (tenants/users/buyers/document_uploads)
+    // created in the baseline, which is a false failure of the check.
+    const baselineFiles = args.baselineDir ? findMigrationFiles(args.baselineDir) : [];
+    const deltaFiles = findMigrationFiles(args.migrationsDir);
+    const files = [...baselineFiles, ...deltaFiles];
     // eslint-disable-next-line no-console
-    console.log(`Applying ${files.length} migrations from ${args.migrationsDir}...`);
+    console.log(
+      `Applying ${baselineFiles.length} baseline + ${deltaFiles.length} delta migrations (baseline-first)...`,
+    );
 
     const results = [];
     for (const f of files) {

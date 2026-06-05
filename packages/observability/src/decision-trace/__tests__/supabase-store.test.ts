@@ -29,7 +29,7 @@ function makeTrace(
 ): DecisionTraceFinalised {
   return Object.freeze({
     traceId: override.traceId ?? 'trace_abc_1',
-    name: override.name ?? 'brain.draft_lease',
+    name: override.name ?? 'brain.draft_offtake',
     startedAt: override.startedAt ?? '2026-01-01T00:00:00.000Z',
     finalisedAt: override.finalisedAt ?? '2026-01-01T00:00:01.000Z',
     durationMs: override.durationMs ?? 1000,
@@ -41,11 +41,11 @@ function makeTrace(
       attributes: Object.freeze({ feature_flag: 'on' }),
       ...(override.context ?? {}),
     }),
-    inputs: Object.freeze({ propertyId: 'p1', ...(override.inputs ?? {}) }),
+    inputs: Object.freeze({ siteId: 'p1', ...(override.inputs ?? {}) }),
     branches: override.branches ?? [
       Object.freeze({
         id: 'draft',
-        label: 'Draft the lease',
+        label: 'Draft the offtake',
         rationale: 'kyc green',
         score: 0.9,
         recordedAt: '2026-01-01T00:00:00.500Z',
@@ -54,7 +54,7 @@ function makeTrace(
     chosenBranchId: override.chosenBranchId ?? 'draft',
     chosenRationale: override.chosenRationale ?? 'kyc green',
     outcome: override.outcome ?? 'approved',
-    output: override.output ?? { leaseId: 'lease_1' },
+    output: override.output ?? { offtakeId: 'offtake_1' },
     error: override.error ?? null,
   });
 }
@@ -127,7 +127,7 @@ describe('SupabaseDecisionTraceStore', () => {
     expect(row.id).toBe('trace_abc_1');
     expect(row.tenant_id).toBe('tenant_1');
     expect(row.user_id).toBe('user_1');
-    expect(row.name).toBe('brain.draft_lease');
+    expect(row.name).toBe('brain.draft_offtake');
     expect(row.outcome).toBe('approved');
     expect(row.duration_ms).toBe(1000);
     expect(Array.isArray(row.branches)).toBe(true);

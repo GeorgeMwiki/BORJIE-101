@@ -10,10 +10,10 @@ import { normaliseModelKey } from './normalise-key.js';
 
 describe('Signature', () => {
   const baseSpec = {
-    taskName: 'extract_lease_terms',
+    taskName: 'extract_offtake_terms',
     taskKind: 'classify' as const,
-    objective: 'Extract structured lease terms from raw text.',
-    inputs: [{ name: 'lease_text', description: 'raw lease body', type: 'string' as const }],
+    objective: 'Extract structured offtake terms from raw text.',
+    inputs: [{ name: 'offtake_text', description: 'raw offtake body', type: 'string' as const }],
     outputs: [{ name: 'terms', description: 'parsed term object', type: 'object' as const }],
   };
 
@@ -35,17 +35,17 @@ describe('Signature', () => {
 
 describe('compileSignature', () => {
   const sig = defineSignature({
-    taskName: 'extract_lease_terms',
+    taskName: 'extract_offtake_terms',
     taskKind: 'classify',
     objective: 'Extract terms',
-    inputs: [{ name: 'lease_text', description: 'raw lease', type: 'string' }],
+    inputs: [{ name: 'offtake_text', description: 'raw offtake', type: 'string' }],
     outputs: [{ name: 'terms', description: 'terms object', type: 'object' }],
   });
 
   const examples: FewShotExample[] = [
-    { inputs: { lease_text: 'A 12-month lease...' }, outputs: { terms: { months: 12 } } },
-    { inputs: { lease_text: 'A 6-month lease...' }, outputs: { terms: { months: 6 } } },
-    { inputs: { lease_text: 'A 24-month lease...' }, outputs: { terms: { months: 24 } } },
+    { inputs: { offtake_text: 'A 12-month offtake...' }, outputs: { terms: { months: 12 } } },
+    { inputs: { offtake_text: 'A 6-month offtake...' }, outputs: { terms: { months: 6 } } },
+    { inputs: { offtake_text: 'A 24-month offtake...' }, outputs: { terms: { months: 24 } } },
   ];
 
   it('picks the highest-scoring instruction', async () => {
@@ -86,10 +86,10 @@ describe('compileSignature', () => {
 
 describe('PromptCache', () => {
   const sig = defineSignature({
-    taskName: 'extract_lease_terms',
+    taskName: 'extract_offtake_terms',
     taskKind: 'classify',
     objective: 'Extract terms',
-    inputs: [{ name: 'lease_text', description: 'raw', type: 'string' }],
+    inputs: [{ name: 'offtake_text', description: 'raw', type: 'string' }],
     outputs: [{ name: 'terms', description: 'parsed', type: 'object' }],
   });
 
@@ -109,14 +109,14 @@ describe('PromptCache', () => {
       model: 'anthropic/claude-haiku-4-5',
       signature: sig,
       candidateInstructions: ['Test instruction.'],
-      examplePool: [{ inputs: { lease_text: 'x' }, outputs: { terms: {} } }],
+      examplePool: [{ inputs: { offtake_text: 'x' }, outputs: { terms: {} } }],
       oracleEval: () => 0.9,
     });
     await cache.save(compiled);
-    expect(store.has('compiled-prompts/extract_lease_terms/claude-haiku-4-5.json')).toBe(true);
-    const loaded = await cache.load('extract_lease_terms', 'anthropic/claude-haiku-4-5');
+    expect(store.has('compiled-prompts/extract_offtake_terms/claude-haiku-4-5.json')).toBe(true);
+    const loaded = await cache.load('extract_offtake_terms', 'anthropic/claude-haiku-4-5');
     expect(loaded.compilerScore).toBe(0.9);
-    expect(loaded.signatureName).toBe('extract_lease_terms');
+    expect(loaded.signatureName).toBe('extract_offtake_terms');
   });
 
   it('second load hits the cache (no recompilation)', async () => {
@@ -127,15 +127,15 @@ describe('PromptCache', () => {
       model: 'anthropic/claude-haiku-4-5',
       signature: sig,
       candidateInstructions: ['Test.'],
-      examplePool: [{ inputs: { lease_text: 'x' }, outputs: { terms: {} } }],
+      examplePool: [{ inputs: { offtake_text: 'x' }, outputs: { terms: {} } }],
       oracleEval: () => {
         compileCount += 1;
         return 0.8;
       },
     });
     await cache.save(compiled);
-    await cache.load('extract_lease_terms', 'anthropic/claude-haiku-4-5');
-    await cache.load('extract_lease_terms', 'anthropic/claude-haiku-4-5');
+    await cache.load('extract_offtake_terms', 'anthropic/claude-haiku-4-5');
+    await cache.load('extract_offtake_terms', 'anthropic/claude-haiku-4-5');
     expect(compileCount).toBeGreaterThan(0); // compile happened once
     // Loading the cache does not re-invoke oracleEval.
   });

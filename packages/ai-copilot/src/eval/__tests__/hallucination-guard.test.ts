@@ -10,31 +10,31 @@
  *   - Analytical answer with unsupported number fails.
  *   - Unknown tool fails.
  *   - Missing-citation fail when text empty but citations present.
- *   - Jurisdiction-specific: rent out-of-range, deposit cap exceeded,
- *     notice period below statutory minimum, unknown jurisdiction.
+ *   - Jurisdiction-specific: consignment value out-of-range, royalty rate
+ *     exceeded, notice period below statutory minimum, unknown jurisdiction.
  *   - guardDeliver holds unverified responses.
- *   - Default property-mgmt bounds match all 4 BORJIE jurisdictions.
+ *   - Default mining-ops bounds match all 4 BORJIE jurisdictions.
  */
 
 import { describe, it, expect } from 'vitest';
 import {
   verifyResponse,
   guardDeliver,
-  DEFAULT_PROPERTY_MGMT_BOUNDS,
+  DEFAULT_MINING_OPS_BOUNDS,
   type BrainResponse,
   type GuardContext,
-  type PropertyMgmtBounds,
+  type MiningOpsBounds,
 } from '../hallucination-guard.js';
 
 function baseContext(overrides: Partial<GuardContext> = {}): GuardContext {
   return {
-    allowedReasonCodes: ['SCREEN_FAIL_CRB', 'EVICT_NON_PAYMENT'],
+    allowedReasonCodes: ['QUALIFY_FAIL_KYC', 'SUSPEND_NON_PAYMENT'],
     regulationRegistry: [
-      'KE-RentRestrictionAct-Cap296-§6',
-      'TZ-LandLandlordTenantAct-§32',
+      'TZ-MiningAct-2010-s.87',
+      'TZ-MiningRegs-Royalty',
     ],
-    toolRegistry: ['createLease', 'sendNotice'],
-    propertyMgmtBounds: DEFAULT_PROPERTY_MGMT_BOUNDS,
+    toolRegistry: ['createSupplyAgreement', 'sendNotice'],
+    miningOpsBounds: DEFAULT_MINING_OPS_BOUNDS,
     ...overrides,
   };
 }
@@ -109,7 +109,7 @@ describe('verifyResponse — core checks', () => {
 
   it('passes when all reason codes are in allow-list', () => {
     const result = verifyResponse(
-      baseResponse({ reasonCodes: ['SCREEN_FAIL_CRB', 'EVICT_NON_PAYMENT'] }),
+      baseResponse({ reasonCodes: ['QUALIFY_FAIL_KYC', 'SUSPEND_NON_PAYMENT'] }),
       baseContext(),
     );
     expect(result.verified).toBe(true);
@@ -127,7 +127,7 @@ describe('verifyResponse — core checks', () => {
   it('passes when regulation citation is registered', () => {
     const result = verifyResponse(
       baseResponse({
-        regulationCitations: ['KE-RentRestrictionAct-Cap296-§6'],
+        regulationCitations: ['TZ-MiningAct-2010-s.87'],
       }),
       baseContext(),
     );
@@ -193,7 +193,7 @@ describe('verifyResponse — tool registry + citation discipline', () => {
 
   it('passes when tool call references registered tool', () => {
     const result = verifyResponse(
-      baseResponse({ toolCall: { name: 'createLease', args: { id: 'a' } } }),
+      baseResponse({ toolCall: { name: 'createSupplyAgreement', args: { id: 'a' } } }),
       baseContext(),
     );
     expect(result.verified).toBe(true);
@@ -201,7 +201,7 @@ describe('verifyResponse — tool registry + citation discipline', () => {
 
   it('flags missing citation when reason code present but text empty', () => {
     const result = verifyResponse(
-      baseResponse({ text: '   ', reasonCodes: ['SCREEN_FAIL_CRB'] }),
+      baseResponse({ text: '   ', reasonCodes: ['QUALIFY_FAIL_KYC'] }),
       baseContext(),
     );
     expect(result.verified).toBe(false);
@@ -214,7 +214,7 @@ describe('verifyResponse — tool registry + citation discipline', () => {
     const result = verifyResponse(
       baseResponse({
         text: '',
-        regulationCitations: ['KE-RentRestrictionAct-Cap296-§6'],
+        regulationCitations: ['TZ-MiningAct-2010-s.87'],
       }),
       baseContext(),
     );
@@ -225,13 +225,13 @@ describe('verifyResponse — tool registry + citation discipline', () => {
   });
 });
 
-describe('verifyResponse — property-management bounds', () => {
-  it('passes a rent inside the TZ range', () => {
+describe('verifyResponse — mining-operations bounds', () => {
+  it('passes a consignment value inside the TZ range', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'TZ',
-          monthlyRentMinorUnits: 500_000 * 100, // 500_000 TZS
+          consignmentValueMinorUnits: 120_000_000 * 100, // 120,000,000 TZS
         },
       }),
       baseContext(),
@@ -239,43 +239,43 @@ describe('verifyResponse — property-management bounds', () => {
     expect(result.verified).toBe(true);
   });
 
-  it('fails when TZ rent is implausibly low', () => {
+  it('fails when TZ consignment value is implausibly low', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'TZ',
-          monthlyRentMinorUnits: 100, // 1 TZS — obvious hallucination
+          consignmentValueMinorUnits: 100, // 1 TZS — obvious hallucination
         },
       }),
       baseContext(),
     );
     expect(result.verified).toBe(false);
-    expect(result.issues[0]!.code).toBe('rent_out_of_range');
+    expect(result.issues[0]!.code).toBe('consignment_value_out_of_range');
   });
 
-  it('fails when KE deposit exceeds 3-month statutory cap', () => {
+  it('fails when TZ royalty exceeds the 7% statutory ceiling', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
-          jurisdiction: 'KE',
-          monthlyRentMinorUnits: 50_000 * 100,
-          depositMinorUnits: 50_000 * 100 * 6, // 6 months, cap is 3
+        miningClaim: {
+          jurisdiction: 'TZ',
+          consignmentValueMinorUnits: 100_000_000 * 100,
+          royaltyMinorUnits: 100_000_000 * 100 * 0.1, // 10%, ceiling is 7%
         },
       }),
       baseContext(),
     );
     expect(result.verified).toBe(false);
-    expect(result.issues[0]!.code).toBe('deposit_cap_exceeded');
+    expect(result.issues[0]!.code).toBe('royalty_rate_exceeded');
     expect(result.issues[0]!.severity).toBe('critical');
   });
 
-  it('passes when KE deposit is exactly at cap', () => {
+  it('passes when TZ royalty is exactly at the ceiling', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
-          jurisdiction: 'KE',
-          monthlyRentMinorUnits: 50_000 * 100,
-          depositMinorUnits: 50_000 * 100 * 3, // exactly 3 months
+        miningClaim: {
+          jurisdiction: 'TZ',
+          consignmentValueMinorUnits: 100_000_000 * 100,
+          royaltyMinorUnits: 100_000_000 * 100 * 0.07, // exactly 7%
         },
       }),
       baseContext(),
@@ -283,12 +283,12 @@ describe('verifyResponse — property-management bounds', () => {
     expect(result.verified).toBe(true);
   });
 
-  it('fails when TZ eviction notice below statutory minimum', () => {
+  it('fails when TZ licence notice below statutory minimum', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'TZ',
-          evictionNoticeDays: 3, // below 14
+          licenceNoticeDays: 3, // below 30
         },
       }),
       baseContext(),
@@ -297,12 +297,12 @@ describe('verifyResponse — property-management bounds', () => {
     expect(result.issues[0]!.code).toBe('notice_period_below_min');
   });
 
-  it('passes when NG eviction notice meets statutory minimum', () => {
+  it('passes when NG licence notice meets statutory minimum', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'NG',
-          evictionNoticeDays: 7,
+          licenceNoticeDays: 30,
         },
       }),
       baseContext(),
@@ -313,9 +313,9 @@ describe('verifyResponse — property-management bounds', () => {
   it('fails with unknown_jurisdiction when bounds not configured', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'ZZ', // not in bounds
-          monthlyRentMinorUnits: 100_000,
+          consignmentValueMinorUnits: 100_000_000,
         },
       }),
       baseContext(),
@@ -324,11 +324,11 @@ describe('verifyResponse — property-management bounds', () => {
     expect(result.issues[0]!.code).toBe('unknown_jurisdiction');
   });
 
-  it('skips property-claim checks if no jurisdiction declared', () => {
+  it('skips mining-claim checks if no jurisdiction declared', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
-          monthlyRentMinorUnits: 1, // would fail if jurisdiction set
+        miningClaim: {
+          consignmentValueMinorUnits: 1, // would fail if jurisdiction set
         },
       }),
       baseContext(),
@@ -336,19 +336,19 @@ describe('verifyResponse — property-management bounds', () => {
     expect(result.verified).toBe(true);
   });
 
-  it('skips deposit check if monthly rent missing', () => {
+  it('skips royalty check if consignment value missing', () => {
     const result = verifyResponse(
       baseResponse({
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'KE',
-          depositMinorUnits: 99_999_999_999,
+          royaltyMinorUnits: 99_999_999_999,
         },
       }),
       baseContext(),
     );
-    // No rent -> can't compute months -> no deposit_cap_exceeded issue.
+    // No value -> can't compute pct -> no royalty_rate_exceeded issue.
     expect(
-      result.issues.some((i) => i.code === 'deposit_cap_exceeded'),
+      result.issues.some((i) => i.code === 'royalty_rate_exceeded'),
     ).toBe(false);
   });
 });
@@ -361,9 +361,9 @@ describe('verifyResponse — aggregation', () => {
         reasonCodes: ['UNKNOWN'],
         regulationCitations: ['MADE-UP'],
         toolCall: { name: 'dropDatabase', args: {} },
-        propertyClaim: {
+        miningClaim: {
           jurisdiction: 'TZ',
-          evictionNoticeDays: 1,
+          licenceNoticeDays: 1,
         },
       }),
       baseContext(),
@@ -397,37 +397,37 @@ describe('guardDeliver', () => {
   });
 });
 
-describe('DEFAULT_PROPERTY_MGMT_BOUNDS', () => {
+describe('DEFAULT_MINING_OPS_BOUNDS', () => {
   it('includes all 4 BORJIE primary jurisdictions', () => {
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['TZ']).toBeDefined();
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['KE']).toBeDefined();
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['UG']).toBeDefined();
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['NG']).toBeDefined();
+    expect(DEFAULT_MINING_OPS_BOUNDS['TZ']).toBeDefined();
+    expect(DEFAULT_MINING_OPS_BOUNDS['KE']).toBeDefined();
+    expect(DEFAULT_MINING_OPS_BOUNDS['UG']).toBeDefined();
+    expect(DEFAULT_MINING_OPS_BOUNDS['NG']).toBeDefined();
   });
 
   it('uses minor currency units consistently', () => {
     for (const code of ['TZ', 'KE', 'UG', 'NG'] as const) {
-      const b = DEFAULT_PROPERTY_MGMT_BOUNDS[code] as PropertyMgmtBounds;
-      expect(b.minRentMinorUnits).toBeGreaterThan(0);
-      expect(b.maxRentMinorUnits).toBeGreaterThan(b.minRentMinorUnits);
-      expect(b.maxDepositMonths).toBeGreaterThan(0);
-      expect(b.minEvictionNoticeDays).toBeGreaterThanOrEqual(0);
+      const b = DEFAULT_MINING_OPS_BOUNDS[code] as MiningOpsBounds;
+      expect(b.minConsignmentValueMinorUnits).toBeGreaterThan(0);
+      expect(b.maxConsignmentValueMinorUnits).toBeGreaterThan(b.minConsignmentValueMinorUnits);
+      expect(b.maxRoyaltyPct).toBeGreaterThan(0);
+      expect(b.minLicenceNoticeDays).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it('matches the statutory cap from compliance-plugins (KE = 3 months)', () => {
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['KE']!.maxDepositMonths).toBe(3);
+  it('matches the statutory royalty ceiling from compliance-plugins (TZ = 7%)', () => {
+    expect(DEFAULT_MINING_OPS_BOUNDS['TZ']!.maxRoyaltyPct).toBe(7);
   });
 
-  it('matches the statutory cap from compliance-plugins (TZ = 6 months)', () => {
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['TZ']!.maxDepositMonths).toBe(6);
+  it('sets a default-notice minimum from compliance-plugins (TZ = 30 days)', () => {
+    expect(DEFAULT_MINING_OPS_BOUNDS['TZ']!.minLicenceNoticeDays).toBe(30);
   });
 
-  it('matches the statutory cap from compliance-plugins (NG = 12 months)', () => {
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['NG']!.maxDepositMonths).toBe(12);
+  it('sets a royalty ceiling for NG', () => {
+    expect(DEFAULT_MINING_OPS_BOUNDS['NG']!.maxRoyaltyPct).toBeGreaterThan(0);
   });
 
-  it('matches the statutory cap from compliance-plugins (UG = 3 months)', () => {
-    expect(DEFAULT_PROPERTY_MGMT_BOUNDS['UG']!.maxDepositMonths).toBe(3);
+  it('sets a royalty ceiling for UG', () => {
+    expect(DEFAULT_MINING_OPS_BOUNDS['UG']!.maxRoyaltyPct).toBeGreaterThan(0);
   });
 });

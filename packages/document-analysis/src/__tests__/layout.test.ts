@@ -26,7 +26,7 @@ describe('parseLayout', () => {
     expect(photos.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('detects a signature block on the lease application', async () => {
+  it('detects a signature block on the offtake application', async () => {
     const text = loadFixture('lease-application');
     const layout = await parseLayout({ text });
     const sig = layout.blocks.find((b) => b.kind === 'signature');
@@ -35,10 +35,10 @@ describe('parseLayout', () => {
 
   it('detects a table block when columns are aligned', async () => {
     const text = `Header
-Unit       Rent       Status
-A1         900000     occupied
-A2         950000     occupied
-A3         800000     vacant
+Unit       Royalty    Status
+A1         900000     active
+A2         950000     active
+A3         800000     idle
 `;
     const layout = await parseLayout({ text });
     const table = layout.blocks.find((b) => b.kind === 'table');

@@ -1,7 +1,7 @@
 /**
  * StreakCounter — visible streak counter for staff.
  *
- * E.g. days-without-maintenance-overrun, on-time rent streak, inspection
+ * E.g. days-without-maintenance-overrun, on-time royalty streak, inspection
  * streak. Pure presentational, tenant-tagged.
  */
 

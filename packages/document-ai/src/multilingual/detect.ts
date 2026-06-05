@@ -31,12 +31,12 @@ const FRANC_TO_LANG: Readonly<Record<string, LanguageCode>> = Object.freeze({
 
 const FALLBACK_KEYWORDS: ReadonlyArray<{ readonly lang: LanguageCode; readonly terms: ReadonlyArray<string> }> =
   Object.freeze([
-    { lang: 'sw', terms: ['mkataba', 'mwenye', 'mpangaji', 'kodi', 'nyumba', 'mwezi', 'tarehe'] },
-    { lang: 'fr', terms: ['contrat', 'loyer', 'locataire', 'propriétaire', 'mensuel', 'date'] },
-    { lang: 'pt', terms: ['contrato', 'aluguer', 'inquilino', 'proprietário', 'mensal', 'data'] },
-    { lang: 'lg', terms: ['enyumba', 'omupangisa', 'omuwumbi', 'kukola', 'omwezi'] },
-    { lang: 'yo', terms: ['adehun', 'ile', 'osu', 'oluyalo', 'iyaluile'] },
-    { lang: 'en', terms: ['agreement', 'tenant', 'landlord', 'rent', 'month', 'date'] },
+    { lang: 'sw', terms: ['mkataba', 'mwenye', 'mnunuzi', 'mrabaha', 'madini', 'mwezi', 'tarehe'] },
+    { lang: 'fr', terms: ['contrat', 'redevance', 'acheteur', 'vendeur', 'mensuel', 'date'] },
+    { lang: 'pt', terms: ['contrato', 'royalties', 'comprador', 'vendedor', 'mensal', 'data'] },
+    { lang: 'lg', terms: ['eddagala', 'omuguzi', 'omuwumbi', 'kukola', 'omwezi'] },
+    { lang: 'yo', terms: ['adehun', 'erọ', 'osu', 'olura', 'oluta'] },
+    { lang: 'en', terms: ['agreement', 'buyer', 'seller', 'royalty', 'month', 'date'] },
   ]);
 
 const ARABIC_RANGE = /[؀-ۿ]/;

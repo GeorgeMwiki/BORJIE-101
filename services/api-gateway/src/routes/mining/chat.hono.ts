@@ -21,7 +21,12 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { streamSSE } from 'hono/streaming';
 import pino from 'pino';
 import { authMiddleware } from '../../middleware/hono-auth';
-import { databaseMiddleware } from '../../middleware/database';
+// NoPin: this route streams (SSE) and fans out to the LLM (Master Brain +
+// juniors). Pinning a reserved connection across that multi-second stream
+// would exhaust the pool, so we inject the db WITHOUT pinning; the
+// orchestrator binds tenant context per DB op (its single corpus read runs
+// inside `withTenantContext`, the LLM calls stay outside any transaction).
+import { databaseMiddlewareNoPin } from '../../middleware/database';
 import { runChatOrchestrator } from './chat-orchestrator';
 import { chatTurnRoute } from './_openapi/route-defs';
 
@@ -29,7 +34,7 @@ const logger = pino({ level: process.env.LOG_LEVEL ?? 'info', name: 'mining-chat
 
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
-app.use('*', databaseMiddleware);
+app.use('*', databaseMiddlewareNoPin);
 
 // SSE streaming handlers don't conform to the discriminated-response type
 // `OpenAPIHono` infers from the spec — `streamSSE` returns a `Response`
@@ -41,22 +46,9 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
   const input = c.req.valid('json');
   return streamSSE(c, async (stream) => {
     try {
-      await stream.writeSSE({
-        event: 'turn.accepted',
-        data: JSON.stringify({
-          tenantId,
-          userId,
-          mode: input.mode,
-          language: input.language,
-          sessionId: input.sessionId ?? null,
-          at: new Date().toISOString(),
-        }),
-      });
-
       for await (const evt of runChatOrchestrator({
         tenantId,
         userId,
-        mode: input.mode,
         language: input.language,
         message: input.message,
         sessionId: input.sessionId ?? null,
@@ -64,8 +56,20 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
       })) {
         switch (evt.type) {
           case 'turn_accepted':
-            // Already emitted above; the orchestrator yields this for
-            // its own state machine — skip the duplicate wire frame.
+            // The orchestrator classifies the persona lens(es) from the
+            // message (there is no user-selected mode) and yields them here
+            // so the wire frame can surface the read-only blend.
+            await stream.writeSSE({
+              event: 'turn.accepted',
+              data: JSON.stringify({
+                tenantId,
+                userId,
+                lenses: evt.lenses,
+                language: evt.language,
+                sessionId: input.sessionId ?? null,
+                at: new Date().toISOString(),
+              }),
+            });
             break;
           case 'junior_call':
             await stream.writeSSE({
@@ -99,7 +103,7 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
             break;
           case 'error':
             logger.warn(
-              { tenantId, mode: input.mode, err: evt.message, source: evt.source },
+              { tenantId, err: evt.message, source: evt.source },
               'chat orchestrator soft-error',
             );
             await stream.writeSSE({
@@ -115,7 +119,7 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      logger.error({ tenantId, mode: input.mode, err: message }, 'chat stream failed');
+      logger.error({ tenantId, err: message }, 'chat stream failed');
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({ kind: 'fatal', message, retryable: false }),

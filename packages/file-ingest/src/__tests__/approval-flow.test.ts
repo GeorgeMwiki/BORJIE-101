@@ -208,7 +208,7 @@ describe('IngestExecutor', () => {
   });
 
   it('reports the new entity tab link in the chat-ready report', async () => {
-    const { store, plan } = await buildPlanForFixture('property-portfolio.csv', false);
+    const { store, plan } = await buildPlanForFixture('mining-asset-register.csv', false);
     const ledger = new ApprovalLedger();
     ledger.propose(plan, 'alice');
     ledger.approve(plan.ingest_plan_id, 'bob');
@@ -217,7 +217,7 @@ describe('IngestExecutor', () => {
       tenant_id: TENANT,
       executor_actor_id: 'carol',
     });
-    expect(report.tab_link).toEqual('app://entities/property');
+    expect(report.tab_link).toEqual('app://entities/mining_asset');
     expect(report.conversation_id).toEqual('conv-1');
   });
 

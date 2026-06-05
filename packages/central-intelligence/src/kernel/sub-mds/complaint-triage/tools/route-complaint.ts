@@ -50,10 +50,10 @@ export function routeComplaint(args: RouteComplaintArgs): RouteComplaintResult {
     case 'billing':
       desk = 'billing-desk';
       break;
-    case 'neighbor-noise':
+    case 'community':
       desk = 'community-desk';
       break;
-    case 'lease-question':
+    case 'contract-question':
       desk = 'owner-direct';
       break;
     case 'other':

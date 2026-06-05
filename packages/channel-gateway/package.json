@@ -1,0 +1,35 @@
+{
+  "name": "@borjie/channel-gateway",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Unified inbound ChannelEvent canonicalizer (LP-25). Normalizes WhatsApp / SMS / USSD / voice / email / web into one ChannelEvent shape, verifies provider signatures via an injected port, maps sender -> tenant tier, and synchronizes conversation state across channels (WhatsApp 24h window, handoffs) via an injected store. Pure + ports; no direct SDK. Ported + re-skinned from LITFIN core/channels + core/omnichannel.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

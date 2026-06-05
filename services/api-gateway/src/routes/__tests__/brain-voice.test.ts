@@ -272,13 +272,13 @@ describe('routeGeminiServerFrame', () => {
   it('emits a tool_call from the toolCall envelope', () => {
     const { events, cb } = collector();
     routeGeminiServerFrame(
-      { toolCall: { functionCalls: [{ id: 'fc1', name: 'get_unit_health', args: { unit: 'U1' } }] } },
+      { toolCall: { functionCalls: [{ id: 'fc1', name: 'get_pit_health', args: { unit: 'U1' } }] } },
       's',
       cb,
     );
     expect(events).toContainEqual([
       'tool_call',
-      { callId: 'fc1', name: 'get_unit_health', args: { unit: 'U1' } },
+      { callId: 'fc1', name: 'get_pit_health', args: { unit: 'U1' } },
     ]);
   });
 

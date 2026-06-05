@@ -23,8 +23,8 @@ import {
 } from './xml-prompt.js';
 
 const samplePrompt: XmlPrompt = {
-  role: 'You are an inspection planner for a property-management SaaS.',
-  context: 'Unit 3B last inspected 90 days ago. Tenant reports water stain.',
+  role: 'You are an inspection planner for a mining estate operating system.',
+  context: 'Excavator EX-3B last inspected 90 days ago. Operator reports a hydraulic leak.',
   task: 'Draft an inspection plan with 3 line items.',
   outputFormat: 'JSON: { items: string[] }',
 };
@@ -75,7 +75,7 @@ describe('parseXml', () => {
     expect(parsed).toBeDefined();
     expect(parsed!.role).toContain('inspection planner');
     expect(parsed!.task).toContain('Draft');
-    expect(parsed!.context).toContain('Unit 3B');
+    expect(parsed!.context).toContain('EX-3B');
     expect(parsed!.outputFormat).toContain('JSON');
   });
 

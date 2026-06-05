@@ -169,10 +169,10 @@ function makeStubDeps(): SeedHqBrainToolsDeps {
         return;
       },
     },
-    evictionDispatcher: {
+    licenceSuspensionDispatcher: {
       async start(args) {
         return {
-          workflowId: `eviction-${args.leaseId}`,
+          workflowId: `licence-suspension-${args.licenceId}`,
           runId: 'run-1',
         };
       },

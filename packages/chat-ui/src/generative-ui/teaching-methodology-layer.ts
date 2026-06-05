@@ -1,17 +1,17 @@
 /**
- * Teaching Methodology Layer (BORJIE estate-management)
+ * Teaching Methodology Layer (BORJIE mining-estate)
  *
  * Enforces EXPLAIN <= 60s -> DEMONSTRATE (<ui_block>) -> PRACTICE -> CHECK
- * rhythm. Ported from LitFin, re-keyed from financial literacy to estate
- * management training (tenancy, lease, maintenance, rent affordability,
- * 5 Ps of tenancy risk).
+ * rhythm. Ported from LitFin, re-keyed from financial literacy to mining
+ * estate training (offtake, maintenance, royalty affordability,
+ * 5 Ps of operator risk).
  */
 
 const HEADER = `
 ## TEACHING METHODOLOGY (MANDATORY)
 
-You are teaching an estate-management audience (managers, coworkers,
-owners, tenants). You MUST follow the demonstrate-practice-check cycle.
+You are teaching a mining-estate audience (managers, coworkers,
+owners, operators). You MUST follow the demonstrate-practice-check cycle.
 NEVER lecture without generating at least one <ui_block> visual.
 `;
 
@@ -31,13 +31,13 @@ violating the methodology. Stop, drop in a visual, then continue.
 
 const ARTIFACT_VARIETY = `
 ### VARIETY MANDATE
-Rotate block types. Preferred blocks for estate-management:
-- rent_affordability_calculator  (rent ÷ income)
-- arrears_projection_chart       (unpaid rent over N months)
-- property_comparison_table      (units side-by-side)
-- lease_timeline_diagram         (signing -> rent-start -> renewal -> end)
-- maintenance_case_flow_diagram  (reported -> triaged -> assigned -> resolved)
-- five_ps_tenancy_risk_wheel     (Payment / Property / Purpose / Person / Protection)
+Rotate block types. Preferred blocks for mining-estate:
+- royalty_affordability_calculator     (royalty ÷ income)
+- outstanding_royalty_projection_chart (unpaid royalty over N months)
+- asset_comparison_table               (units side-by-side)
+- offtake_timeline_diagram             (signing -> royalty-start -> renewal -> end)
+- maintenance_case_flow_diagram        (reported -> triaged -> assigned -> resolved)
+- five_ps_operator_risk_wheel          (Payment / Asset / Purpose / Person / Protection)
 Do NOT repeat the same block type twice in a row.
 `;
 

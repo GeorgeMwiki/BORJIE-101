@@ -4,8 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { z } from 'zod';
 
-import { apiBaseUrl } from '@/lib/api';
-import { getCsrfHeaders } from '@/lib/csrf';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
 
@@ -76,34 +75,27 @@ export function OwnerSignInForm({ locale }: OwnerSignInFormProps) {
     }
     setPhase({ kind: 'submitting' });
     try {
-      const res = await fetch(`${apiBaseUrl()}/api/v1/auth/sign-in`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-        credentials: 'include',
-        body: JSON.stringify(parsed.data),
+      const supabase = createSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({
+        email: parsed.data.email,
+        password: parsed.data.password,
       });
-      const json = (await res.json().catch(() => null)) as
-        | { success: true }
-        | { success: false; error: { code: string; message: string; field?: string } }
-        | null;
-      if (res.ok && json?.success) {
-        // Cross-origin redirect — the cockpit on a different origin
-        // owns its own Next router; assigning location is the only
-        // correct exit.
+      if (!error) {
+        // Cross-origin redirect — the cockpit on a different origin owns
+        // its own Next router; assigning location is the only correct
+        // exit. (Prod shares a TLS apex so the Supabase sb-* cookies
+        // carry; in local dev sign in at the cockpit's own /sign-in.)
         window.location.assign(targetUrl());
         return;
       }
-      const failure = json && !json.success ? json : null;
-      const code = failure?.error?.code ?? 'UNKNOWN';
-      const msg = failure?.error?.message ?? t.errors.signInFailed;
-      const fieldHint = failure?.error?.field;
-      const field =
-        code === 'INVALID_CREDENTIALS'
-          ? 'password'
-          : fieldHint === 'email' || fieldHint === 'password'
-            ? (fieldHint as 'email' | 'password')
-            : 'form';
-      setPhase({ kind: 'error', field, message: msg });
+      const field = /credential|password|invalid login/i.test(error.message)
+        ? 'password'
+        : 'form';
+      setPhase({
+        kind: 'error',
+        field,
+        message: error.message ?? t.errors.signInFailed,
+      });
     } catch (err) {
       setPhase({
         kind: 'error',

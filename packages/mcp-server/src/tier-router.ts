@@ -2,7 +2,7 @@
  * Tier Router — standard / pro / enterprise gating.
  *
  * BORJIE SaaS subscriptions map 1:1 to MCP tiers:
- *   standard   — property basics (graph read, case list, letter read)
+ *   standard   — site basics (graph read, case list, letter read)
  *   pro        — writes, ai-cost insights, warehouse, taxonomy, IoT
  *   enterprise — everything, including skill-execution and compliance-plugin
  *                enumeration.
@@ -29,7 +29,7 @@ export const DEFAULT_TIER_DEFINITIONS: ReadonlyArray<TierDefinition> =
         'get_tenant_risk_profile',
         'list_maintenance_cases',
         'generate_letter',
-        'query_arrears_projection',
+        'query_outstanding_royalties_projection',
         'list_occupancy_timeline',
         'get_maintenance_taxonomy',
       ]),
@@ -47,7 +47,7 @@ export const DEFAULT_TIER_DEFINITIONS: ReadonlyArray<TierDefinition> =
         'list_maintenance_cases',
         'create_maintenance_case',
         'generate_letter',
-        'query_arrears_projection',
+        'query_outstanding_royalties_projection',
         'list_occupancy_timeline',
         'query_ai_cost_summary',
         'get_maintenance_taxonomy',

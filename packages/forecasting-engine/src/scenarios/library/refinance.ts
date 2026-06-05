@@ -27,10 +27,10 @@ export const refinanceScenario: Scenario<typeof refinanceInputs> = {
 
     const dayMs = 24 * 60 * 60 * 1000;
     const horizonMonths = Math.max(1, Math.floor(ctx.business.horizonDays / 30));
-    const noi: { t: number; p10: number; p50: number; p90: number }[] = [];
+    const margin: { t: number; p10: number; p50: number; p90: number }[] = [];
     for (let m = 1; m <= horizonMonths; m += 1) {
       const p50 = savingsPerMonth - (m === 1 ? origFee : 0);
-      noi.push({
+      margin.push({
         t: ctx.business.nowMs + m * 30 * dayMs,
         p10: p50 - Math.abs(p50) * 0.2,
         p50,
@@ -43,8 +43,8 @@ export const refinanceScenario: Scenario<typeof refinanceInputs> = {
 
     return {
       scenarioName: 'refinance',
-      projectedNoi: noi,
-      retentionProbability: 1, // tenants unaffected
+      projectedNetMargin: margin,
+      retentionProbability: 1, // counterparties unaffected
       complianceScore: 1,
       intentAlignment:
         ctx.business.ownerIntent.archetype === 'cashflow-first' ? 0.9 : 0.7,

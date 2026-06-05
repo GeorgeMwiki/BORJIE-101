@@ -61,8 +61,8 @@ describe('parity-capability-dashboard router', () => {
     expect(ids).toEqual([
       'gepg',
       'kra-mri',
-      'lease-renewal',
       'maintenance-triage',
+      'offtake-renewal',
       'rent-reconciliation',
       'voice-agent',
     ]);

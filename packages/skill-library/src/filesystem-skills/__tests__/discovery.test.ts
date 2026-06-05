@@ -11,12 +11,12 @@ function setupFs(): InMemorySkillFileSystem {
   const fs = new InMemorySkillFileSystem();
   fs.addDir('/home/user/.borjie/skills');
   fs.addFile(
-    '/home/user/.borjie/skills/handle-late-rent/SKILL.md',
+    '/home/user/.borjie/skills/handle-late-royalty/SKILL.md',
     `---
-name: handle-late-rent
-description: Late-rent handler.
+name: handle-late-royalty
+description: Late-royalty handler.
 when_to_use:
-  - tenant late
+  - counterparty late
 allowed_tools: [Read, Write]
 jurisdiction_aware: true
 ---
@@ -47,7 +47,7 @@ describe('discoverSkills', () => {
     });
     expect(result.skills.map((s) => s.manifest.name)).toEqual([
       'compile-weekly-report',
-      'handle-late-rent',
+      'handle-late-royalty',
     ]);
     expect(result.errors).toEqual([]);
   });
@@ -95,7 +95,7 @@ body`
     });
     expect(r.skills.map((s) => s.manifest.name).sort()).toEqual([
       'compile-weekly-report',
-      'handle-late-rent',
+      'handle-late-royalty',
     ]);
     expect(r.errors).toHaveLength(1);
     expect(r.errors[0]?.skill_dir).toContain('broken');
@@ -185,8 +185,8 @@ describe('applyAllowlist', () => {
     const { skills } = await discoverSkills(fs, {
       platform_root: '/home/user/.borjie/skills',
     });
-    const r = applyAllowlist(skills, ['handle-late-rent']);
-    expect(r.allowed.map((s) => s.manifest.name)).toEqual(['handle-late-rent']);
+    const r = applyAllowlist(skills, ['handle-late-royalty']);
+    expect(r.allowed.map((s) => s.manifest.name)).toEqual(['handle-late-royalty']);
     expect(r.excluded.map((s) => s.manifest.name)).toEqual([
       'compile-weekly-report',
     ]);
@@ -197,7 +197,7 @@ describe('applyAllowlist', () => {
     const { skills } = await discoverSkills(fs, {
       platform_root: '/home/user/.borjie/skills',
     });
-    const r = applyAllowlist(skills, ['handle-late-rent']);
+    const r = applyAllowlist(skills, ['handle-late-royalty']);
     // R1 §E.2: allowlist is a CONTEXT FILTER, not a sandbox.
     // The on-disk file is still readable; the loader does not delete or
     // hide it. We assert this via the InMemoryFs which still has the
@@ -218,7 +218,7 @@ describe('filterJurisdictionMisuse', () => {
     const { safe, excluded_for_jurisdiction } = filterJurisdictionMisuse(skills);
     expect(safe.map((s) => s.manifest.name)).toEqual(['compile-weekly-report']);
     expect(excluded_for_jurisdiction.map((s) => s.manifest.name)).toEqual([
-      'handle-late-rent',
+      'handle-late-royalty',
     ]);
   });
 
@@ -226,12 +226,12 @@ describe('filterJurisdictionMisuse', () => {
     const fs = setupFs();
     fs.addDir('/data/tenants/acme/skills');
     fs.addFile(
-      '/data/tenants/acme/skills/kra/SKILL.md',
+      '/data/tenants/acme/skills/tra/SKILL.md',
       `---
-name: kra-thing
-description: KE-only.
+name: tra-thing
+description: TZ-only.
 when_to_use:
-  - KE filing
+  - TZ filing
 allowed_tools: [Read]
 jurisdiction_aware: true
 ---
@@ -243,6 +243,6 @@ body`
       tenant_roots: [{ tenant_id: 'acme', root: '/data/tenants/acme/skills' }],
     });
     const { safe } = filterJurisdictionMisuse(skills);
-    expect(safe.map((s) => s.manifest.name)).toContain('kra-thing');
+    expect(safe.map((s) => s.manifest.name)).toContain('tra-thing');
   });
 });

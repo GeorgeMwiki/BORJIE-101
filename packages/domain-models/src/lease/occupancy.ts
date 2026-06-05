@@ -1,12 +1,15 @@
 /**
- * Occupancy domain model
- * Represents the active tenure of a customer in a unit
+ * Production-tenure (asset-utilisation) domain model
+ * Represents the active operating tenure of a counterparty / operator
+ * on a mining unit — from mobilisation through to close-out. Tracks
+ * the onboarding checklist, production-handover meter readings, and
+ * site-access handover.
  */
 
 import { z } from 'zod';
 import type { Brand, TenantId, UserId, EntityMetadata, ISOTimestamp } from '../common/types';
 import type { CustomerId, LeaseId } from '../payments/payment-intent';
-import type { UnitId } from '../property/unit';
+import type { MiningUnitId } from '../property/unit';
 import {
   OccupancyStatus,
   OccupancyStatusSchema,
@@ -18,18 +21,24 @@ import {
 // Type Aliases
 // ============================================================================
 
-export type OccupancyId = Brand<string, 'OccupancyId'>;
+export type ProductionTenureId = Brand<string, 'ProductionTenureId'>;
 
-export function asOccupancyId(id: string): OccupancyId {
-  return id as OccupancyId;
+/** @deprecated Use {@link ProductionTenureId}. Transitional alias (W-E phase). */
+export type OccupancyId = ProductionTenureId;
+
+export function asProductionTenureId(id: string): ProductionTenureId {
+  return id as ProductionTenureId;
 }
+
+/** @deprecated Use {@link asProductionTenureId}. */
+export const asOccupancyId = asProductionTenureId;
 
 // ============================================================================
 // Nested Types
 // ============================================================================
 
-/** Additional occupant on the lease */
-export interface AdditionalOccupant {
+/** Additional operator / crew member on the production tenure. */
+export interface AdditionalOperator {
   readonly name: string;
   readonly relationship: string;
   readonly dateOfBirth: ISOTimestamp | null;
@@ -39,7 +48,7 @@ export interface AdditionalOccupant {
   readonly email: string | null;
 }
 
-export const AdditionalOccupantSchema = z.object({
+export const AdditionalOperatorSchema = z.object({
   name: z.string(),
   relationship: z.string(),
   dateOfBirth: z.string().datetime().nullable(),
@@ -49,9 +58,9 @@ export const AdditionalOccupantSchema = z.object({
   email: z.string().nullable(),
 });
 
-/** Meter reading for move-in/move-out */
+/** Meter reading captured at mobilisation / close-out. */
 export interface MeterReading {
-  readonly meterType: 'electricity' | 'water' | 'gas' | 'other';
+  readonly meterType: 'electricity' | 'water' | 'fuel' | 'other';
   readonly meterNumber: string;
   readonly reading: number;
   readonly unit: string;
@@ -60,7 +69,7 @@ export interface MeterReading {
 }
 
 export const MeterReadingSchema = z.object({
-  meterType: z.enum(['electricity', 'water', 'gas', 'other']),
+  meterType: z.enum(['electricity', 'water', 'fuel', 'other']),
   meterNumber: z.string(),
   reading: z.number(),
   unit: z.string(),
@@ -88,89 +97,89 @@ export const OnboardingChecklistItemSchema = z.object({
 });
 
 // ============================================================================
-// Occupancy Zod Schema
+// Production-tenure Zod Schema
 // ============================================================================
 
-export const OccupancySchema = z.object({
+export const ProductionTenureSchema = z.object({
   id: z.string(),
   tenantId: z.string(),
-  leaseId: z.string(),
+  offtakeId: z.string(),
   unitId: z.string(),
-  customerId: z.string(),
+  counterpartyId: z.string(),
 
   status: OccupancyStatusSchema,
   onboardingState: OnboardingStateSchema,
 
   // Dates
-  moveInDate: z.string().datetime(),
-  moveOutDate: z.string().datetime().nullable(),
-  expectedMoveOutDate: z.string().datetime().nullable(),
+  mobilisationDate: z.string().datetime(),
+  closeoutDate: z.string().datetime().nullable(),
+  expectedCloseoutDate: z.string().datetime().nullable(),
   noticeGivenDate: z.string().datetime().nullable(),
 
-  // Move-in
-  moveInCompletedAt: z.string().datetime().nullable(),
-  moveInInspectionId: z.string().nullable(),
-  moveInMeterReadings: z.array(MeterReadingSchema),
-  keysHandedOver: z.boolean(),
-  keysHandoverDate: z.string().datetime().nullable(),
+  // Mobilisation
+  mobilisationCompletedAt: z.string().datetime().nullable(),
+  mobilisationInspectionId: z.string().nullable(),
+  mobilisationMeterReadings: z.array(MeterReadingSchema),
+  accessGranted: z.boolean(),
+  accessGrantDate: z.string().datetime().nullable(),
 
-  // Move-out
-  moveOutCompletedAt: z.string().datetime().nullable(),
-  moveOutInspectionId: z.string().nullable(),
-  moveOutMeterReadings: z.array(MeterReadingSchema),
-  keysReturned: z.boolean(),
-  keysReturnDate: z.string().datetime().nullable(),
+  // Close-out
+  closeoutCompletedAt: z.string().datetime().nullable(),
+  closeoutInspectionId: z.string().nullable(),
+  closeoutMeterReadings: z.array(MeterReadingSchema),
+  accessRevoked: z.boolean(),
+  accessRevokeDate: z.string().datetime().nullable(),
 
   // Onboarding
   onboardingChecklist: z.array(OnboardingChecklistItemSchema),
 
-  // Additional occupants
-  additionalOccupants: z.array(AdditionalOccupantSchema),
+  // Additional operators
+  additionalOperators: z.array(AdditionalOperatorSchema),
 
   notes: z.string().nullable(),
 });
 
-export type OccupancyData = z.infer<typeof OccupancySchema>;
+export type ProductionTenureData = z.infer<typeof ProductionTenureSchema>;
 
 // ============================================================================
-// Occupancy Interface
+// Production-tenure Interface
 // ============================================================================
 
-export interface Occupancy extends EntityMetadata {
-  readonly id: OccupancyId;
+export interface ProductionTenure extends EntityMetadata {
+  readonly id: ProductionTenureId;
   readonly tenantId: TenantId;
-  readonly leaseId: LeaseId;
-  readonly unitId: UnitId;
-  readonly customerId: CustomerId;
+  readonly offtakeId: LeaseId;
+  readonly unitId: MiningUnitId;
+  readonly counterpartyId: CustomerId;
 
   readonly status: OccupancyStatus;
   readonly onboardingState: OnboardingState;
 
   // Dates
-  readonly moveInDate: ISOTimestamp;
-  readonly moveOutDate: ISOTimestamp | null;
-  readonly expectedMoveOutDate: ISOTimestamp | null;
+  readonly mobilisationDate: ISOTimestamp;
+  readonly closeoutDate: ISOTimestamp | null;
+  readonly expectedCloseoutDate: ISOTimestamp | null;
   readonly noticeGivenDate: ISOTimestamp | null;
 
-  // Move-in
-  readonly moveInCompletedAt: ISOTimestamp | null;
-  readonly moveInInspectionId: string | null;
-  readonly moveInMeterReadings: readonly MeterReading[];
-  readonly keysHandedOver: boolean;
-  readonly keysHandoverDate: ISOTimestamp | null;
+  // Mobilisation
+  readonly mobilisationCompletedAt: ISOTimestamp | null;
+  readonly mobilisationInspectionId: string | null;
+  readonly mobilisationMeterReadings: readonly MeterReading[];
+  readonly accessGranted: boolean;
+  readonly accessGrantDate: ISOTimestamp | null;
 
-  // Move-out
-  readonly moveOutCompletedAt: ISOTimestamp | null;
-  readonly moveOutInspectionId: string | null;
-  readonly moveOutMeterReadings: readonly MeterReading[];
-  readonly keysReturned: boolean;
-  readonly keysReturnDate: ISOTimestamp | null;
+  // Close-out
+  readonly closeoutCompletedAt: ISOTimestamp | null;
+  readonly closeoutInspectionId: string | null;
+  readonly closeoutMeterReadings: readonly MeterReading[];
+  readonly accessRevoked: boolean;
+  readonly accessRevokeDate: ISOTimestamp | null;
 
   // Onboarding
   readonly onboardingChecklist: readonly OnboardingChecklistItem[];
 
-  // Additional occupants
-  readonly additionalOccupants: readonly AdditionalOccupant[];
+  // Additional operators
+  readonly additionalOperators: readonly AdditionalOperator[];
 
   readonly notes: string | null;
 
@@ -179,54 +188,57 @@ export interface Occupancy extends EntityMetadata {
   readonly deletedBy: UserId | null;
 }
 
+/** @deprecated Use {@link ProductionTenure}. */
+export type Occupancy = ProductionTenure;
+
 // ============================================================================
 // Factory Functions
 // ============================================================================
 
-export function createOccupancy(
-  id: OccupancyId,
+export function createProductionTenure(
+  id: ProductionTenureId,
   data: {
     tenantId: TenantId;
-    leaseId: LeaseId;
-    unitId: UnitId;
-    customerId: CustomerId;
-    moveInDate: ISOTimestamp;
-    expectedMoveOutDate?: ISOTimestamp;
-    additionalOccupants?: AdditionalOccupant[];
+    offtakeId: LeaseId;
+    unitId: MiningUnitId;
+    counterpartyId: CustomerId;
+    mobilisationDate: ISOTimestamp;
+    expectedCloseoutDate?: ISOTimestamp;
+    additionalOperators?: AdditionalOperator[];
   },
   createdBy: UserId
-): Occupancy {
+): ProductionTenure {
   const now = new Date().toISOString();
 
   return {
     id,
     tenantId: data.tenantId,
-    leaseId: data.leaseId,
+    offtakeId: data.offtakeId,
     unitId: data.unitId,
-    customerId: data.customerId,
+    counterpartyId: data.counterpartyId,
 
     status: 'pending_move_in',
     onboardingState: 'a0_pre_move_in',
 
-    moveInDate: data.moveInDate,
-    moveOutDate: null,
-    expectedMoveOutDate: data.expectedMoveOutDate ?? null,
+    mobilisationDate: data.mobilisationDate,
+    closeoutDate: null,
+    expectedCloseoutDate: data.expectedCloseoutDate ?? null,
     noticeGivenDate: null,
 
-    moveInCompletedAt: null,
-    moveInInspectionId: null,
-    moveInMeterReadings: [],
-    keysHandedOver: false,
-    keysHandoverDate: null,
+    mobilisationCompletedAt: null,
+    mobilisationInspectionId: null,
+    mobilisationMeterReadings: [],
+    accessGranted: false,
+    accessGrantDate: null,
 
-    moveOutCompletedAt: null,
-    moveOutInspectionId: null,
-    moveOutMeterReadings: [],
-    keysReturned: false,
-    keysReturnDate: null,
+    closeoutCompletedAt: null,
+    closeoutInspectionId: null,
+    closeoutMeterReadings: [],
+    accessRevoked: false,
+    accessRevokeDate: null,
 
     onboardingChecklist: [],
-    additionalOccupants: data.additionalOccupants ?? [],
+    additionalOperators: data.additionalOperators ?? [],
 
     notes: null,
 
@@ -240,14 +252,17 @@ export function createOccupancy(
   };
 }
 
+/** @deprecated Use {@link createProductionTenure}. */
+export const createOccupancy = createProductionTenure;
+
 // ============================================================================
 // Business Logic Functions
 // ============================================================================
 
-export function startMoveIn(occupancy: Occupancy, updatedBy: UserId): Occupancy {
+export function startMobilisation(tenure: ProductionTenure, updatedBy: UserId): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     status: 'active',
     onboardingState: 'a1_welcome_setup',
     updatedAt: now,
@@ -255,33 +270,39 @@ export function startMoveIn(occupancy: Occupancy, updatedBy: UserId): Occupancy 
   };
 }
 
-export function completeMoveIn(
-  occupancy: Occupancy,
+/** @deprecated Use {@link startMobilisation}. */
+export const startMoveIn = startMobilisation;
+
+export function completeMobilisation(
+  tenure: ProductionTenure,
   inspectionId: string,
   meterReadings: MeterReading[],
   updatedBy: UserId
-): Occupancy {
+): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
-    moveInCompletedAt: now,
-    moveInInspectionId: inspectionId,
-    moveInMeterReadings: meterReadings,
-    keysHandedOver: true,
-    keysHandoverDate: now,
+    ...tenure,
+    mobilisationCompletedAt: now,
+    mobilisationInspectionId: inspectionId,
+    mobilisationMeterReadings: meterReadings,
+    accessGranted: true,
+    accessGrantDate: now,
     updatedAt: now,
     updatedBy,
   };
 }
 
+/** @deprecated Use {@link completeMobilisation}. */
+export const completeMoveIn = completeMobilisation;
+
 export function advanceOnboarding(
-  occupancy: Occupancy,
+  tenure: ProductionTenure,
   nextState: OnboardingState,
   updatedBy: UserId
-): Occupancy {
+): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     onboardingState: nextState,
     updatedAt: now,
     updatedBy,
@@ -289,90 +310,106 @@ export function advanceOnboarding(
 }
 
 export function giveNotice(
-  occupancy: Occupancy,
-  expectedMoveOutDate: ISOTimestamp,
+  tenure: ProductionTenure,
+  expectedCloseoutDate: ISOTimestamp,
   updatedBy: UserId
-): Occupancy {
+): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     status: 'notice_given',
     noticeGivenDate: now,
-    expectedMoveOutDate,
+    expectedCloseoutDate,
     updatedAt: now,
     updatedBy,
   };
 }
 
-export function startMoveOut(occupancy: Occupancy, updatedBy: UserId): Occupancy {
+export function startCloseout(tenure: ProductionTenure, updatedBy: UserId): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     status: 'pending_move_out',
     updatedAt: now,
     updatedBy,
   };
 }
 
-export function completeMoveOut(
-  occupancy: Occupancy,
+/** @deprecated Use {@link startCloseout}. */
+export const startMoveOut = startCloseout;
+
+export function completeCloseout(
+  tenure: ProductionTenure,
   inspectionId: string,
   meterReadings: MeterReading[],
   updatedBy: UserId
-): Occupancy {
+): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     status: 'moved_out',
-    moveOutDate: now,
-    moveOutCompletedAt: now,
-    moveOutInspectionId: inspectionId,
-    moveOutMeterReadings: meterReadings,
-    keysReturned: true,
-    keysReturnDate: now,
+    closeoutDate: now,
+    closeoutCompletedAt: now,
+    closeoutInspectionId: inspectionId,
+    closeoutMeterReadings: meterReadings,
+    accessRevoked: true,
+    accessRevokeDate: now,
     updatedAt: now,
     updatedBy,
   };
 }
 
-export function markEvicted(occupancy: Occupancy, updatedBy: UserId): Occupancy {
+/** @deprecated Use {@link completeCloseout}. */
+export const completeMoveOut = completeCloseout;
+
+/**
+ * Mark the tenure as terminated by a licence-suspension / incursion
+ * response (the mining-domain analogue of a forced removal).
+ */
+export function markSuspended(tenure: ProductionTenure, updatedBy: UserId): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     status: 'evicted',
-    moveOutDate: now,
+    closeoutDate: now,
     updatedAt: now,
     updatedBy,
   };
 }
 
-export function markAbandoned(occupancy: Occupancy, updatedBy: UserId): Occupancy {
+/** @deprecated Use {@link markSuspended}. */
+export const markEvicted = markSuspended;
+
+export function markAbandoned(tenure: ProductionTenure, updatedBy: UserId): ProductionTenure {
   const now = new Date().toISOString();
   return {
-    ...occupancy,
+    ...tenure,
     status: 'abandoned',
-    moveOutDate: now,
+    closeoutDate: now,
     updatedAt: now,
     updatedBy,
   };
 }
 
-export function isOnboardingComplete(occupancy: Occupancy): boolean {
-  return occupancy.onboardingState === 'a6_complete';
+export function isOnboardingComplete(tenure: ProductionTenure): boolean {
+  return tenure.onboardingState === 'a6_complete';
 }
 
-export function isActive(occupancy: Occupancy): boolean {
-  return occupancy.status === 'active';
+export function isActive(tenure: ProductionTenure): boolean {
+  return tenure.status === 'active';
 }
 
-export function hasGivenNotice(occupancy: Occupancy): boolean {
-  return occupancy.status === 'notice_given' || occupancy.noticeGivenDate !== null;
+export function hasGivenNotice(tenure: ProductionTenure): boolean {
+  return tenure.status === 'notice_given' || tenure.noticeGivenDate !== null;
 }
 
-export function getDaysUntilMoveOut(occupancy: Occupancy): number | null {
-  if (!occupancy.expectedMoveOutDate) return null;
+export function getDaysUntilCloseout(tenure: ProductionTenure): number | null {
+  if (!tenure.expectedCloseoutDate) return null;
   const now = new Date();
-  const moveOut = new Date(occupancy.expectedMoveOutDate);
-  const diffTime = moveOut.getTime() - now.getTime();
+  const closeout = new Date(tenure.expectedCloseoutDate);
+  const diffTime = closeout.getTime() - now.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
+
+/** @deprecated Use {@link getDaysUntilCloseout}. */
+export const getDaysUntilMoveOut = getDaysUntilCloseout;

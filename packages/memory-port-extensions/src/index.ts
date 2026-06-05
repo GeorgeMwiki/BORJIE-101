@@ -22,3 +22,4 @@ export * from './kg-entity-resolution.js';
 export * from './vector-index-ops.js';
 export * from './cache-invalidation-by-fact.js';
 export * from './recall-scoring.js';
+export * from './reflective-signal-sink.js';

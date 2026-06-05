@@ -267,10 +267,10 @@ const RULE_PATTERNS: ReadonlyArray<RulePattern> = [
         'organizationId',
         'tenant_id',
         'tenantId',
-        'landlord_id',
-        'landlordId',
-        'property_id',
-        'propertyId',
+        'owner_id',
+        'ownerId',
+        'site_id',
+        'siteId',
       ];
       for (const key of identifierKeys) {
         const value = req.toolArgs[key];
@@ -332,8 +332,8 @@ function extractTenantIdValues(
     'organizationId',
     'tenant_id',
     'tenantId',
-    'landlord_id',
-    'landlordId',
+    'owner_id',
+    'ownerId',
   ]);
 
   for (const [key, value] of Object.entries(obj)) {

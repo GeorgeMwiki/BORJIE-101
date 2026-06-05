@@ -1,9 +1,9 @@
 # =============================================================================
 # document-render — default-deny + targeted allow-list
 # =============================================================================
-# Internal renderer. Allow inbound from api-gateway, reports, document-
-# intelligence; egress for observability only (no external HTTPS needed —
-# all dependencies are baked into the image).
+# Internal renderer. Allow inbound from api-gateway and reports; egress for
+# observability only (no external HTTPS needed — all dependencies are baked
+# into the image).
 # =============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -64,9 +64,6 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: reports
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: document-intelligence
       ports:
         - protocol: TCP
           port: 4000

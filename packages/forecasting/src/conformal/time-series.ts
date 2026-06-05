@@ -36,7 +36,7 @@ export interface ConformalWrapperOptions {
   /** Minimum calibration residuals required per step. */
   readonly minPerStep?: number;
   /** Optional clamp lower/upper to a domain box, e.g. [0,1] for
-   *  occupancy probabilities. */
+   *  utilisation probabilities. */
   readonly clamp?: { readonly lower: number; readonly upper: number };
 }
 

@@ -1,11 +1,11 @@
 /**
- * Alternative-data tenant credit scoring model.
+ * Alternative-data counterparty credit scoring model.
  *
  * Phase D D10 — Comprehensive Gap Closure (Sub-feature 4 of 6).
  *
- * Combines three structural cash-flow signals that EXISTING US PropTech
+ * Combines three structural cash-flow signals that conventional
  * credit-bureau adapters do not capture (because the underlying data
- * does not exist in the US FCRA tradeline universe):
+ * does not exist in the formal tradeline universe):
  *
  *   1. M-Pesa cash-flow signal — transaction frequency over the last
  *      30 days + distinct-recipients count (proxies for income
@@ -16,7 +16,7 @@
  *      arrived on the expected schedule (proxy for income reliability).
  *
  * Each signal normalises to [0, 1000]. The model output is a weighted
- * blend with a band classification matching the rent-history rating's
+ * blend with a band classification matching the credit-history rating's
  * `poor | fair | good | excellent` taxonomy so downstream consumers
  * can blend the two ratings without remapping.
  *
@@ -140,7 +140,7 @@ export function scoreUtilityOnTime(signal: UtilityPaymentSignal): number {
  * Payroll regularity → [0,1000].
  * 100% on-schedule = 1000. 0% = 0. No payroll signal = 400 (slightly
  * below neutral — irregular/cash income is a moderate risk signal in
- * the rental context).
+ * the mining-counterparty context).
  */
 export function scorePayrollRegularity(signal: PayrollSignal): number {
   if (signal.periodsObserved === 0) return 400;
@@ -149,7 +149,7 @@ export function scorePayrollRegularity(signal: PayrollSignal): number {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Band classifier — same thresholds as rent-history rating
+// Band classifier — same thresholds as credit-history rating
 // ─────────────────────────────────────────────────────────────────────
 
 export function bandFor(score: number): CreditBand {

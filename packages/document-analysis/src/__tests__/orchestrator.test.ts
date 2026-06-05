@@ -51,14 +51,14 @@ async function ingestAndAnalyze(
   return analyzeDocument(document.id, tenantId, pipeline);
 }
 
-describe('Orchestrator end-to-end — lease application', () => {
+describe('Orchestrator end-to-end — offtake application', () => {
   it('classifies, extracts, resolves, and routes to ESTATE', async () => {
     const pipeline = makePipeline();
     pipeline.resolver.seed('tenant-a', [
-      { entityId: 'lessee-001', displayName: 'Asha Mwangi' },
+      { entityId: 'buyer-001', displayName: 'Asha Mwangi' },
     ]);
     const text = loadFixture('lease-application');
-    const out = await ingestAndAnalyze(pipeline, 'tenant-a', 'lease.txt', text);
+    const out = await ingestAndAnalyze(pipeline, 'tenant-a', 'offtake.txt', text);
 
     expect(out.docType).toBe('lease_application');
     expect(out.docTypeConfidence).toBeGreaterThan(0.5);
@@ -77,7 +77,7 @@ describe('Orchestrator end-to-end — lease application', () => {
     // Entity resolution: Asha Mwangi exact-matches.
     const resolved = pipeline.entities
       .snapshot()
-      .find((e) => e.resolvedEntityId === 'lessee-001');
+      .find((e) => e.resolvedEntityId === 'buyer-001');
     expect(resolved).toBeDefined();
     expect(resolved?.resolutionMethod).toBe('exact_match');
 
@@ -143,7 +143,7 @@ describe('Orchestrator — events emitted at every stage', () => {
   it('emits ingested → ocr_done → parsed → extracted → resolved → routed → done', async () => {
     const pipeline = makePipeline();
     const text = loadFixture('lease-application');
-    await ingestAndAnalyze(pipeline, 'tenant-a', 'lease.txt', text);
+    await ingestAndAnalyze(pipeline, 'tenant-a', 'offtake.txt', text);
     const stages = pipeline.events.events.map((e) => e.stage);
     expect(stages).toEqual([
       'ingested',
@@ -202,7 +202,7 @@ describe('Citation', () => {
   it('renderCitation returns page + bbox for an extraction', async () => {
     const pipeline = makePipeline();
     const text = loadFixture('lease-application');
-    await ingestAndAnalyze(pipeline, 'tenant-a', 'lease.txt', text);
+    await ingestAndAnalyze(pipeline, 'tenant-a', 'offtake.txt', text);
     const applicant = pipeline.extractions
       .snapshot()
       .find((s) => s.key === 'applicant_name');

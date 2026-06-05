@@ -3,7 +3,7 @@
  * the canonical BORJIE scenario that exercises all 5 deferred patterns
  * the L1 audit punted on:
  *
- *   1. GoT          — merge per-property finance into cross-portfolio view
+ *   1. GoT          — merge per-site finance into cross-portfolio view
  *   2. LATS         — 60-day execution plan (which to refinance first?)
  *   3. raw ToT      — fixed refinance-route decision tree
  *   4. PRM substrate — score each step + emit a training sample
@@ -36,7 +36,7 @@ import type {
 } from '../../lats/index.js';
 
 // Pre-built refinance decision tree used by the composition. Mirrors the
-// shape of the existing `EVICTION_DECISION_TREE` etc. but local to this
+// shape of the existing `LICENCE_SUSPENSION_TREE` etc. but local to this
 // integration test so the composition stays self-contained.
 const REFINANCE_TREE: DecisionTree = {
   id: 'refinance-route.v1',
@@ -68,7 +68,7 @@ const REFINANCE_TREE: DecisionTree = {
     },
     q_jurisdiction: {
       id: 'q_jurisdiction',
-      question: 'Is the property in a refinance-friendly jurisdiction?',
+      question: 'Is the site in a refinance-friendly jurisdiction?',
       edges: [
         {
           label: 'TZ',
@@ -91,39 +91,39 @@ const REFINANCE_TREE: DecisionTree = {
 
 describe('Portfolio-refinance composition — GoT ∘ LATS ∘ ToT ∘ PRM ∘ SoT', () => {
   it('produces a coherent refinance plan and emits a PRM training sample', async () => {
-    // === Step 1: GoT — per-property → city merge → regulatory overlay ===
+    // === Step 1: GoT — per-site → region merge → regulatory overlay ===
     const gotStub = createStubModel({
       rules: [
-        { match: 'market-DSM', respond: '[score: 0.88] DSM BoT prime = 11.5%, vs current 13.0%' },
-        { match: 'market-ARU', respond: '[score: 0.82] ARU BoT prime = 11.8%, vs current 12.1%' },
-        { match: 'finance-DSM', respond: '[score: 0.90] 1.5% drop, breakeven 14mo' },
-        { match: 'finance-ARU', respond: '[score: 0.76] 0.3% drop, marginal' },
-        { match: 'merge-cities', respond: '[score: 0.93] DSM tranche dominates' },
+        { match: 'market-GEI', respond: '[score: 0.88] GEI BoT prime = 11.5%, vs current 13.0%' },
+        { match: 'market-MWZ', respond: '[score: 0.82] MWZ BoT prime = 11.8%, vs current 12.1%' },
+        { match: 'finance-GEI', respond: '[score: 0.90] 1.5% drop, breakeven 14mo' },
+        { match: 'finance-MWZ', respond: '[score: 0.76] 0.3% drop, marginal' },
+        { match: 'merge-regions', respond: '[score: 0.93] GEI tranche dominates' },
         { match: 'regulatory', respond: '[score: 0.96] Within BoT cap; OK' },
       ],
     });
     const gotResult = await runGoT(
       {
-        question: 'Across my 12 properties, which to refinance?',
+        question: 'Across my 12 sites, which to refinance?',
         ops: [
-          { kind: 'generate', id: 'mkt-DSM', prompt: 'market-DSM', labels: ['city:DSM'] },
-          { kind: 'generate', id: 'mkt-ARU', prompt: 'market-ARU', labels: ['city:ARU'] },
-          { kind: 'refine', id: 'fin-DSM', from: 'mkt-DSM', prompt: 'finance-DSM' },
-          { kind: 'refine', id: 'fin-ARU', from: 'mkt-ARU', prompt: 'finance-ARU' },
-          { kind: 'merge', id: 'cities', from: ['fin-DSM', 'fin-ARU'], prompt: 'merge-cities' },
-          { kind: 'refine', id: 'overlay', from: 'cities', prompt: 'regulatory' },
+          { kind: 'generate', id: 'mkt-GEI', prompt: 'market-GEI', labels: ['region:GEI'] },
+          { kind: 'generate', id: 'mkt-MWZ', prompt: 'market-MWZ', labels: ['region:MWZ'] },
+          { kind: 'refine', id: 'fin-GEI', from: 'mkt-GEI', prompt: 'finance-GEI' },
+          { kind: 'refine', id: 'fin-MWZ', from: 'mkt-MWZ', prompt: 'finance-MWZ' },
+          { kind: 'merge', id: 'regions', from: ['fin-GEI', 'fin-MWZ'], prompt: 'merge-regions' },
+          { kind: 'refine', id: 'overlay', from: 'regions', prompt: 'regulatory' },
         ],
       },
       gotStub.call,
     );
     expect(gotResult.bestNodeId).toBe('overlay');
 
-    // === Step 2: raw ToT — decide refinance route for the top-tranche property ===
+    // === Step 2: raw ToT — decide refinance route for the top-tranche site ===
     const totCtx: ToTContext = {
       facts: {
         rate_drop_pct: 1.5,
         breakeven_months: 14,
-        jurisdiction: 'TZ-DSM',
+        jurisdiction: 'TZ-GEITA',
       },
     };
     const totResult = runToTTree({ tree: REFINANCE_TREE, ctx: totCtx });
@@ -219,7 +219,7 @@ describe('Portfolio-refinance composition — GoT ∘ LATS ∘ ToT ∘ PRM ∘ S
         steps: prmSteps,
         outcome: 'success',
         rewardSignal: latsResult.bestTotalReward,
-        metadata: { jurisdiction: 'TZ-DSM', tot_outcome: totResult.outcome },
+        metadata: { jurisdiction: 'TZ-GEITA', tot_outcome: totResult.outcome },
       },
       async (s) => {
         captured.push(s);
@@ -232,7 +232,7 @@ describe('Portfolio-refinance composition — GoT ∘ LATS ∘ ToT ∘ PRM ∘ S
     const skeletonModel: ModelAdapter = async () =>
       JSON.stringify([
         'Refinance verdict',
-        'Top properties',
+        'Top sites',
         'Execution timeline',
         'Risk callouts',
         'What we need from you',

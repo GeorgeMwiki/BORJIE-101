@@ -64,7 +64,7 @@ function mapRole(advisorRole: AdvisorRole): UCSRole | null {
       return 'tenant';
     case 'owner':
       return 'owner';
-    case 'property-manager':
+    case 'site-manager':
       return 'pm';
     case 'estate-manager':
       return 'estate_mgr';

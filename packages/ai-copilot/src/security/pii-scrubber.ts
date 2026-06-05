@@ -10,7 +10,7 @@
  * Removes personally-identifiable information from text BEFORE it reaches the
  * LLM (or a log sink). Tailored for East Africa:
  *   - Tanzania NIDA national ID
- *   - Tanzania TIN
+ *   - Tanzania TRA TIN + Kenya KRA PIN (multi-jurisdiction tax IDs)
  *   - +255 / +254 mobile numbers (Swahili + English context lines)
  *   - Email, credit card, SSN-like, IP, passport, API-key-ish tokens
  *
@@ -29,6 +29,7 @@
 export type PiiType =
   | 'national_id'
   | 'tin_number'
+  | 'tra_tin'
   | 'kra_pin'
   | 'phone_number'
   | 'email'
@@ -92,6 +93,15 @@ const PII_PATTERNS: readonly PiiPattern[] = [
     type: 'tin_number',
     regex: /\bTIN[\s:]*\d{3}[-\s]?\d{3}[-\s]?\d{3}\b/i,
     replacement: '[TIN]',
+  },
+  // Tanzania TRA TIN + Kenya KRA PIN — multi-jurisdiction tax-ID pair
+  // (Tanzania-first, built for the world). TRA TIN is the primary
+  // entry: the bare 9-digit NNN-NNN-NNN shape (distinct from the
+  // labelled `TIN: …` pattern above, which keeps its own placeholder).
+  {
+    type: 'tra_tin',
+    regex: /\b\d{3}-\d{3}-\d{3}\b/,
+    replacement: '<tra-tin:redacted>',
   },
   // Kenya KRA PIN — A2b-2 wire #3. 11 chars: uppercase letter + 9
   // digits + uppercase letter. Narrow shape to avoid product SKU
@@ -256,7 +266,7 @@ const MONETARY_PATTERNS: readonly RegExp[] = SHARED_MONETARY_PATTERNS;
 
 // Placeholders we emit — never re-scrub them.
 const PLACEHOLDER_RX =
-  /\[(?:NIDA_ID|TIN|PHONE|EMAIL|CARD|ACCOUNT|PASSPORT|SSN|IP|API_KEY|DOB|NIN|MPESA_PIN|BASE64_PII)\]|<kra-pin:redacted>/;
+  /\[(?:NIDA_ID|TIN|PHONE|EMAIL|CARD|ACCOUNT|PASSPORT|SSN|IP|API_KEY|DOB|NIN|MPESA_PIN|BASE64_PII)\]|<(?:tra-tin|kra-pin):redacted>/;
 
 // Round-3 audit M3 — precompile a global-flag regex for every PII
 // pattern at module load. Each `scrubPii` call now reuses the same

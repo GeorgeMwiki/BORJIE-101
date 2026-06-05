@@ -17,7 +17,7 @@ export const FIXTURE_TOOLS: Record<string, ToolTier> = Object.freeze({
   'tenant.voice_call': 'write',
   'lease.draft_renewal': 'write',
   'lease.send_to_tenant': 'write',
-  'notice.draft_eviction_notice': 'destructive',
+  'notice.draft_licence_suspension_notice': 'destructive',
   // Compliance
   'kra.compile_mri_batch': 'read',
   'kra.file_via_mcp': 'write',
@@ -180,7 +180,7 @@ export const ARREARS_CHASE_AOP: AOP = Object.freeze({
     {
       kind: 'tool',
       id: 'draft-notice',
-      tool: 'notice.draft_eviction_notice',
+      tool: 'notice.draft_licence_suspension_notice',
       args: { tone: 'formal' },
     },
   ],
@@ -199,7 +199,7 @@ export const UNGUARDED_EVICTION_AOP: AOP = Object.freeze({
     {
       kind: 'tool',
       id: 'draft-notice',
-      tool: 'notice.draft_eviction_notice',
+      tool: 'notice.draft_licence_suspension_notice',
       args: { tone: 'formal' },
     },
   ],

@@ -34,8 +34,8 @@ afterEach(() => {
 });
 
 describe('enforceMinTier — pass through (no upgrade)', () => {
-  it('passes through when selected meets floor (opus on lease_drafting)', () => {
-    const r = enforceMinTier('lease_drafting', 'opus');
+  it('passes through when selected meets floor (opus on offtake_drafting)', () => {
+    const r = enforceMinTier('offtake_drafting', 'opus');
     expect(r.upgraded).toBe(false);
     expect(r.resolved).toBe('opus');
     expect(r.reason).toBeNull();
@@ -47,8 +47,8 @@ describe('enforceMinTier — pass through (no upgrade)', () => {
     expect(r.resolved).toBe('opus');
   });
 
-  it('passes through when sonnet meets sonnet floor (rent_calculation)', () => {
-    const r = enforceMinTier('rent_calculation', 'sonnet');
+  it('passes through when sonnet meets sonnet floor (royalty_calculation)', () => {
+    const r = enforceMinTier('royalty_calculation', 'sonnet');
     expect(r.upgraded).toBe(false);
     expect(r.resolved).toBe('sonnet');
   });
@@ -62,16 +62,16 @@ describe('enforceMinTier — pass through (no upgrade)', () => {
 });
 
 describe('enforceMinTier — upgrade enforced', () => {
-  it('upgrades haiku → opus for lease_drafting', () => {
-    const r = enforceMinTier('lease_drafting', 'haiku');
+  it('upgrades haiku → opus for offtake_drafting', () => {
+    const r = enforceMinTier('offtake_drafting', 'haiku');
     expect(r.upgraded).toBe(true);
     expect(r.resolved).toBe('opus');
     expect(r.original).toBe('haiku');
-    expect(r.reason?.toLowerCase()).toContain('lease');
+    expect(r.reason?.toLowerCase()).toContain('offtake');
   });
 
-  it('upgrades sonnet → opus for eviction_notice', () => {
-    const r = enforceMinTier('eviction_notice', 'sonnet');
+  it('upgrades sonnet → opus for licence_suspension_notice', () => {
+    const r = enforceMinTier('licence_suspension_notice', 'sonnet');
     expect(r.upgraded).toBe(true);
     expect(r.resolved).toBe('opus');
   });
@@ -92,26 +92,26 @@ describe('enforceMinTier — upgrade enforced', () => {
 
 describe('enforceMinTier — audit log', () => {
   it('appends to the enforcement log on upgrade only', () => {
-    enforceMinTier('lease_drafting', 'opus'); // no upgrade
-    enforceMinTier('lease_drafting', 'haiku'); // upgrade
+    enforceMinTier('offtake_drafting', 'opus'); // no upgrade
+    enforceMinTier('offtake_drafting', 'haiku'); // upgrade
     const log = getEnforcementLog();
     expect(log).toHaveLength(1);
-    expect(log[0]?.taskCategory).toBe('lease_drafting');
+    expect(log[0]?.taskCategory).toBe('offtake_drafting');
     expect(log[0]?.enforcedFamily).toBe('opus');
   });
 
   it('groups stats by task category', () => {
-    enforceMinTier('lease_drafting', 'haiku');
-    enforceMinTier('lease_drafting', 'sonnet');
-    enforceMinTier('eviction_notice', 'haiku');
+    enforceMinTier('offtake_drafting', 'haiku');
+    enforceMinTier('offtake_drafting', 'sonnet');
+    enforceMinTier('licence_suspension_notice', 'haiku');
     const stats = getEnforcementStats();
-    expect(stats.lease_drafting).toBe(2);
-    expect(stats.eviction_notice).toBe(1);
+    expect(stats.offtake_drafting).toBe(2);
+    expect(stats.licence_suspension_notice).toBe(1);
   });
 
   it('bounds the log at 500 entries (ring buffer)', () => {
     for (let i = 0; i < 600; i += 1) {
-      enforceMinTier('lease_drafting', 'haiku');
+      enforceMinTier('offtake_drafting', 'haiku');
     }
     expect(getEnforcementLog()).toHaveLength(500);
   });
@@ -121,7 +121,7 @@ describe('enforceMinTier — logger + audit-sink wiring', () => {
   it('calls the injected logger on upgrade', () => {
     const warn = vi.fn();
     setMinTierLogger({ warn });
-    enforceMinTier('lease_drafting', 'haiku');
+    enforceMinTier('offtake_drafting', 'haiku');
     expect(warn).toHaveBeenCalledOnce();
     const call = warn.mock.calls[0];
     expect(call?.[0]).toMatchObject({ from: 'haiku', to: 'opus' });
@@ -130,17 +130,17 @@ describe('enforceMinTier — logger + audit-sink wiring', () => {
   it('does NOT call the logger on pass-through', () => {
     const warn = vi.fn();
     setMinTierLogger({ warn });
-    enforceMinTier('lease_drafting', 'opus');
+    enforceMinTier('offtake_drafting', 'opus');
     expect(warn).not.toHaveBeenCalled();
   });
 
   it('calls the injected audit sink on upgrade', () => {
     const sink = vi.fn();
     setEnforcementAuditSink(sink);
-    enforceMinTier('lease_drafting', 'haiku');
+    enforceMinTier('offtake_drafting', 'haiku');
     expect(sink).toHaveBeenCalledOnce();
     expect(sink.mock.calls[0]?.[0]).toMatchObject({
-      taskCategory: 'lease_drafting',
+      taskCategory: 'offtake_drafting',
       enforcedFamily: 'opus',
     });
   });
@@ -149,13 +149,13 @@ describe('enforceMinTier — logger + audit-sink wiring', () => {
     setEnforcementAuditSink(() => {
       throw new Error('boom');
     });
-    expect(() => enforceMinTier('lease_drafting', 'haiku')).not.toThrow();
+    expect(() => enforceMinTier('offtake_drafting', 'haiku')).not.toThrow();
   });
 });
 
 describe('helpers', () => {
-  it('requiresOpusFamily is true for lease_drafting', () => {
-    expect(requiresOpusFamily('lease_drafting')).toBe(true);
+  it('requiresOpusFamily is true for offtake_drafting', () => {
+    expect(requiresOpusFamily('offtake_drafting')).toBe(true);
   });
 
   it('requiresOpusFamily is false for casual_chat', () => {
@@ -167,7 +167,7 @@ describe('helpers', () => {
   });
 
   it('requiresSonnetOrBetter is true for opus-tier (transitivity)', () => {
-    expect(requiresSonnetOrBetter('lease_drafting')).toBe(true);
+    expect(requiresSonnetOrBetter('offtake_drafting')).toBe(true);
   });
 
   it('requiresSonnetOrBetter is false for unknown', () => {

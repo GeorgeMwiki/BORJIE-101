@@ -33,8 +33,8 @@ describe('MCP_SAFE_POLICY', () => {
 
 describe('isToolMcpSafe', () => {
   it('returns true for whitelisted tools', () => {
-    expect(isToolMcpSafe('property:list_for_tenant')).toBe(true);
-    expect(isToolMcpSafe('lease:get_by_id')).toBe(true);
+    expect(isToolMcpSafe('site:list_for_counterparty')).toBe(true);
+    expect(isToolMcpSafe('offtake:get_by_id')).toBe(true);
   });
 
   it('returns false for explicitly denied tools (with citation)', () => {
@@ -47,14 +47,14 @@ describe('isToolMcpSafe', () => {
 
   it('returns false for unknown tools (deny-by-default)', () => {
     expect(isToolMcpSafe('not_a_registered_tool')).toBe(false);
-    expect(isToolMcpSafe('property:exfiltrate_database')).toBe(false);
+    expect(isToolMcpSafe('site:exfiltrate_database')).toBe(false);
     expect(isToolMcpSafe('')).toBe(false);
   });
 });
 
 describe('getMcpToolPolicy', () => {
   it('returns the full policy record for a registered tool', () => {
-    const p = getMcpToolPolicy('property:list_for_tenant');
+    const p = getMcpToolPolicy('site:list_for_counterparty');
     expect(p).not.toBeNull();
     expect(p?.mcpSafe).toBe(true);
     expect(p?.citation).toMatch(/^mcp-safe\//);
@@ -74,47 +74,47 @@ describe('getMcpToolPolicy', () => {
 describe('filterMcpSafe', () => {
   it('keeps only mcpSafe=true entries', () => {
     const tools = [
-      { name: 'property:list_for_tenant' },
+      { name: 'site:list_for_counterparty' },
       { name: 'simulate_decision' },
       { name: 'sovereign:adjust_pricing' },
-      { name: 'lease:get_by_id' },
+      { name: 'offtake:get_by_id' },
       { name: 'unknown_tool' },
     ];
     const filtered = filterMcpSafe(tools);
     expect(filtered.map((t) => t.name)).toEqual([
-      'property:list_for_tenant',
-      'lease:get_by_id',
+      'site:list_for_counterparty',
+      'offtake:get_by_id',
     ]);
   });
 
   it('preserves additional properties on tool objects', () => {
     const tools = [
-      { name: 'property:list_for_tenant', description: 'list props' },
+      { name: 'site:list_for_counterparty', description: 'list props' },
     ];
     const filtered = filterMcpSafe(tools);
-    expect(filtered[0]).toEqual({ name: 'property:list_for_tenant', description: 'list props' });
+    expect(filtered[0]).toEqual({ name: 'site:list_for_counterparty', description: 'list props' });
   });
 });
 
 describe('filterMcpSafeForTier', () => {
   const tools = [
-    { name: 'property:list_for_tenant' }, // no minTier
-    { name: 'payment:list_for_lease' }, // minTier: growth
+    { name: 'site:list_for_counterparty' }, // no minTier
+    { name: 'payment:list_for_offtake' }, // minTier: growth
     { name: 'maintenance:create_ticket' }, // minTier: growth
     { name: 'simulate_decision' }, // denied
   ];
 
   it('free tier sees only no-minTier tools', () => {
     const f = filterMcpSafeForTier(tools, 'free');
-    expect(f.map((t) => t.name)).toEqual(['property:list_for_tenant']);
+    expect(f.map((t) => t.name)).toEqual(['site:list_for_counterparty']);
   });
 
   it('growth tier sees growth-and-below tools', () => {
     const f = filterMcpSafeForTier(tools, 'growth');
     expect(f.map((t) => t.name).sort()).toEqual([
       'maintenance:create_ticket',
-      'payment:list_for_lease',
-      'property:list_for_tenant',
+      'payment:list_for_offtake',
+      'site:list_for_counterparty',
     ]);
   });
 
@@ -122,8 +122,8 @@ describe('filterMcpSafeForTier', () => {
     const f = filterMcpSafeForTier(tools, 'enterprise');
     expect(f.map((t) => t.name).sort()).toEqual([
       'maintenance:create_ticket',
-      'payment:list_for_lease',
-      'property:list_for_tenant',
+      'payment:list_for_offtake',
+      'site:list_for_counterparty',
     ]);
   });
 

@@ -16,9 +16,9 @@ function catalogue(known: ReadonlyArray<string>): VpLineWorkerCatalogue {
 }
 
 describe('vp.finance — orchestrate', () => {
-  it('routes an arrears intent to arrears.chaser', async () => {
+  it('routes an arrears intent to royalty.chaser', async () => {
     const vp = createVpFinance({
-      lineWorkerCatalogue: catalogue(['arrears.chaser']),
+      lineWorkerCatalogue: catalogue(['royalty.chaser']),
     });
     const intent: OwnerIntent = {
       kind: 'investigate',
@@ -28,7 +28,7 @@ describe('vp.finance — orchestrate', () => {
     };
     const plan = await vp.orchestrate(intent);
     expect(plan.spawns).toHaveLength(1);
-    expect(plan.spawns[0]?.subMdId).toBe('arrears.chaser');
+    expect(plan.spawns[0]?.subMdId).toBe('royalty.chaser');
   });
 
   it('records external-comm risk-tier for missing KRA filing assistant', async () => {
@@ -41,7 +41,7 @@ describe('vp.finance — orchestrate', () => {
     };
     const plan = await vp.orchestrate(intent);
     expect(plan.gaps).toHaveLength(1);
-    expect(plan.gaps[0]?.missingLineWorker).toBe('kra.filing-assistant');
+    expect(plan.gaps[0]?.missingLineWorker).toBe('tra.filing-assistant');
     expect(plan.gaps[0]?.suggestedRiskTier).toBe('external-comm');
   });
 
@@ -52,7 +52,7 @@ describe('vp.finance — orchestrate', () => {
       weekStartingIso: '2026-05-11',
       rollups: [
         {
-          lineWorker: 'arrears.chaser',
+          lineWorker: 'royalty.chaser',
           outcome: 'attention',
           metric: 'open-arrears',
           value: 125_000,

@@ -23,7 +23,7 @@ import type { AutonomyDomain } from '../autonomy/types.js';
 /**
  * Four-tier stakes scale. Rising stakes unlock larger thinking budgets and
  * more powerful models. `critical` is reserved for decisions that are
- * simultaneously irreversible, regulated, and affect housing or a
+ * simultaneously irreversible, regulated, and affect livelihoods or a
  * vulnerable counterparty — the narrow class where deep deliberation
  * is genuinely required and cost is irrelevant compared to regret.
  */
@@ -47,19 +47,19 @@ export const DECISION_STAKES: readonly DecisionStakes[] = [
  */
 export interface DecisionContext {
   readonly domain: AutonomyDomain;
-  /** Stable verb identifying the decision, e.g. `lease.terminate`. */
+  /** Stable verb identifying the decision, e.g. `offtake.terminate`. */
   readonly actionType: string;
   /** Money amount in minor units (cents / shillings cents), if applicable. */
   readonly amountMinorUnits?: number;
   /** True if the action cannot be undone by a follow-up action. */
   readonly reversible: boolean;
-  /** True if the decision falls under tribunal / tax / housing-authority rules. */
+  /** True if the decision falls under Mining Commission / TRA / regulatory rules. */
   readonly regulated: boolean;
-  /** True if a wrong outcome could leave someone without shelter. */
-  readonly affectsHousing: boolean;
+  /** True if a wrong outcome could cut off an operators livelihood (site shutdown, lost offtake). */
+  readonly affectsLivelihoods: boolean;
   /** True if the decision output appears in public listings, tenders, etc. */
   readonly publiclyVisible: boolean;
-  /** True if the counterparty is a vulnerable household or minor tenant. */
+  /** True if the counterparty is a vulnerable household or marginal ASM operator. */
   readonly counterpartyIsVulnerable: boolean;
   /** Optional correlation id for audit tracing. */
   readonly correlationId?: string;

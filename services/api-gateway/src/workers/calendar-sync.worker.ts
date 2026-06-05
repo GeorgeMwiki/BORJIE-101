@@ -28,6 +28,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext, withTenantContext } from '@borjie/database';
 
 import type { CalendarDelivery } from '../services/notification-dispatch/calendar-providers';
 import {
@@ -123,7 +124,21 @@ export function createCalendarSyncWorker(
       // Atomic claim: flip ready calendar rows to 'sending'. Recover any rows
       // the email dispatch worker left in 'sending' (it discards calendar rows
       // after claiming them) by including that status for channel='calendar'.
-      const res = await options.db.execute(sql`
+      // Cross-tenant claim: pull ready calendar rows for ALL tenants. Run in
+      // a SERVICE-ROLE transaction to DECLARE cross-tenant intent (binding a
+      // single tenant GUC would scope the claim to one tenant). In production
+      // the worker's DATABASE_URL is the Supabase service_role (BYPASSRLS), so
+      // the claim spans tenants via the ROLE — the sibling reminders-dispatch
+      // worker relies on the same. NOTE: `reminders` has no
+      // `service_role_bypass` RLS policy, so under an RLS-ENFORCED
+      // (NOBYPASSRLS) role this claim matches zero rows (fail-closed, never a
+      // cross-tenant read) until such a policy is added — identical to the
+      // prior no-GUC behaviour, so this is not a regression. Each row's
+      // per-tenant writes below re-bind the row's own tenant context.
+      const res = await withServiceRoleContext(
+        options.db as unknown as Parameters<typeof withServiceRoleContext>[0],
+        (txDb) =>
+          (txDb as unknown as DbLike).execute(sql`
         UPDATE reminders
            SET status = 'sending'
          WHERE id IN (
@@ -136,7 +151,8 @@ export function createCalendarSyncWorker(
             FOR UPDATE SKIP LOCKED
          )
          RETURNING id, tenant_id, owner_id, title, body, trigger_at, payload
-      `);
+      `),
+      );
       const out: PendingCalendarItem[] = [];
       for (const row of asRows(res)) {
         const item = rowToItem(row);
@@ -157,7 +173,11 @@ export function createCalendarSyncWorker(
 
   async function markSent(item: PendingCalendarItem): Promise<void> {
     try {
-      await options.db.execute(sql`
+      await withTenantContext(
+        options.db as unknown as Parameters<typeof withTenantContext>[0],
+        item.tenantId,
+        (txDb) =>
+          (txDb as unknown as DbLike).execute(sql`
         UPDATE reminders
            SET status = 'sent',
                dispatched_at = ${now()},
@@ -165,7 +185,8 @@ export function createCalendarSyncWorker(
          WHERE id = ${item.id}
            AND tenant_id = ${item.tenantId}
            AND dispatched_at IS NULL
-      `);
+      `),
+      );
     } catch (err) {
       options.logger.warn(
         {
@@ -183,14 +204,19 @@ export function createCalendarSyncWorker(
     errorMessage: string,
   ): Promise<void> {
     try {
-      await options.db.execute(sql`
+      await withTenantContext(
+        options.db as unknown as Parameters<typeof withTenantContext>[0],
+        item.tenantId,
+        (txDb) =>
+          (txDb as unknown as DbLike).execute(sql`
         UPDATE reminders
            SET status = 'failed',
                dispatched_at = ${now()},
                dispatch_error = ${errorMessage.slice(0, 4000)}
          WHERE id = ${item.id}
            AND tenant_id = ${item.tenantId}
-      `);
+      `),
+      );
     } catch (err) {
       options.logger.warn(
         {
@@ -210,13 +236,18 @@ export function createCalendarSyncWorker(
    */
   async function requeue(item: PendingCalendarItem): Promise<void> {
     try {
-      await options.db.execute(sql`
+      await withTenantContext(
+        options.db as unknown as Parameters<typeof withTenantContext>[0],
+        item.tenantId,
+        (txDb) =>
+          (txDb as unknown as DbLike).execute(sql`
         UPDATE reminders
            SET status = 'scheduled'
          WHERE id = ${item.id}
            AND tenant_id = ${item.tenantId}
            AND dispatched_at IS NULL
-      `);
+      `),
+      );
     } catch (err) {
       options.logger.warn(
         {
@@ -227,15 +258,6 @@ export function createCalendarSyncWorker(
         'calendar-sync: requeue failed',
       );
     }
-  }
-
-  async function bindTenant(tenantId: string): Promise<void> {
-    // Bind the RLS GUC for the connection-store reads/writes this delivery
-    // triggers. Session-scoped (false) like the request middleware; the worker
-    // re-binds before every row so there is no stale-context window.
-    await options.db.execute(
-      sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`,
-    );
   }
 
   function endIsoFor(item: PendingCalendarItem): string {
@@ -257,16 +279,11 @@ export function createCalendarSyncWorker(
   async function syncOne(
     item: PendingCalendarItem,
   ): Promise<'synced' | 'skipped' | 'failed'> {
-    try {
-      await bindTenant(item.tenantId);
-    } catch (err) {
-      await markFailed(
-        item,
-        `rls_bind_failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      return 'failed';
-    }
-
+    // No session-scoped GUC bind here: the connection-store (getActive /
+    // updateTokens) and the mark* writes each open their own short per-tenant
+    // transaction (withTenantContext), and the provider OAuth refresh +
+    // Calendar upsert run strictly BETWEEN those store calls — so no pooled
+    // connection is ever held across a network round-trip.
     const tz = timeZoneFor(item);
     const outcome = await options.delivery.deliver(item.tenantId, item.ownerId, {
       sourceId: item.id,

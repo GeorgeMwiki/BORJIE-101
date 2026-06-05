@@ -8,13 +8,13 @@
  *
  * Architecture:
  *   Borjie AI (the ONE identity per portal)
- *   |-- finance dimension (arrears, M-Pesa, owner statements, KRA)
- *   |-- leasing dimension (renewals, negotiations, lease lifecycle)
+ *   |-- finance dimension (outstanding royalties, GePG, owner statements, TRA)
+ *   |-- offtake dimension (renewals, negotiations, supply-agreement lifecycle)
  *   |-- maintenance dimension (case triage, tenders, FAR)
- *   |-- compliance dimension (DPA 2019, KRA, landlord-tenant law, notices)
- *   |-- communications dimension (tenant/owner letters, campaigns, Swahili)
+ *   |-- compliance dimension (DPA 2019, TRA, Mining Act licence law, notices)
+ *   |-- communications dimension (buyer/owner letters, campaigns, Swahili)
  *   |-- professor dimension (Socratic teaching, Bloom's-adaptive)
- *   |-- advisor dimension (Harvard-PhD-level estate-ops strategy)
+ *   |-- advisor dimension (Harvard-PhD-level mining-estate strategy)
  *
  * All dimensions REPORT TO the primary persona. The transition is seamless.
  * No handoff, no new greeting, just the same voice with new expertise.
@@ -30,7 +30,7 @@
  */
 export type SubPersonaId =
   | 'finance'
-  | 'leasing'
+  | 'offtake'
   | 'maintenance'
   | 'compliance'
   | 'communications'
@@ -120,9 +120,9 @@ import {
   FINANCE_METADATA,
 } from './sub-personas/finance-persona.js';
 import {
-  LEASING_PROMPT_LAYER,
-  LEASING_METADATA,
-} from './sub-personas/leasing-persona.js';
+  OFFTAKE_PROMPT_LAYER,
+  OFFTAKE_METADATA,
+} from './sub-personas/offtake-persona.js';
 import {
   MAINTENANCE_PROMPT_LAYER,
   MAINTENANCE_METADATA,
@@ -162,28 +162,27 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     },
     preferredTools: [
       'skill.kenya.mpesa_reconcile',
-      'skill.kenya.kra_rental_summary',
+      'skill.kenya.tra_royalty_summary',
       'skill.kenya.service_charge_reconcile',
       'skill.finance.draft_owner_statement',
       'skill.finance.draft_arrears_notice',
-      'get_tenant_risk_drivers',
-      'get_property_rollup',
+      'get_counterparty_risk_drivers',
+      'get_site_rollup',
     ],
     routePatterns: [
       '/finance/*',
-      '/arrears/*',
+      '/royalties/*',
       '/statements/*',
       '/payments/*',
       '/ledger/*',
     ],
     keywordSignals: [
-      'arrears',
-      'mpesa',
-      'm-pesa',
-      'kra',
+      'outstanding royalties',
+      'gepg',
+      'tra',
       'owner statement',
-      'rent payment',
-      'service charge',
+      'royalty payment',
+      'cooperative levy',
       'invoice',
       'receipt',
       'ledger',
@@ -195,11 +194,11 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     ],
   },
 
-  leasing: {
-    id: 'leasing',
-    displayLabel: 'Borjie Leasing',
-    displayLabelSw: 'Upangaji wa Borjie',
-    promptLayer: LEASING_PROMPT_LAYER,
+  offtake: {
+    id: 'offtake',
+    displayLabel: 'Borjie Offtake',
+    displayLabelSw: 'Mauzo ya Madini ya Borjie',
+    promptLayer: OFFTAKE_PROMPT_LAYER,
     toneOverrides: {
       warmth: 'warm',
       depth: 'deep',
@@ -207,33 +206,33 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       formality: 'professional',
     },
     preferredTools: [
-      'skill.leasing.abstract',
-      'skill.leasing.renewal_propose',
-      'skill.leasing.negotiation_open',
-      'skill.leasing.negotiation_counter',
-      'skill.leasing.negotiation_close',
-      'get_unit_health',
+      'skill.offtake.abstract',
+      'skill.offtake.renewal_propose',
+      'skill.offtake.negotiation_open',
+      'skill.offtake.negotiation_counter',
+      'skill.offtake.negotiation_close',
+      'get_pit_health',
     ],
     routePatterns: [
-      '/leasing/*',
-      '/leases/*',
+      '/offtake/*',
+      '/supply-agreements/*',
       '/renewals/*',
       '/negotiations/*',
-      '/applicants/*',
+      '/buyers/*',
     ],
     keywordSignals: [
-      'lease',
+      'supply agreement',
+      'offtake',
       'renewal',
-      'applicant',
-      'viewing',
-      'move-in',
-      'move-out',
-      'rent increase',
+      'prospective buyer',
+      'site visit',
+      'consignment',
+      'dispatch',
+      'price increase',
       'negotiate',
       'counter offer',
-      'deposit',
-      'vacancy',
-      'tenancy',
+      'performance bond',
+      'spot sale',
     ],
   },
 
@@ -251,7 +250,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     preferredTools: [
       'skill.maintenance.triage',
       'skill.maintenance.assign_work_order',
-      'get_unit_health',
+      'get_pit_health',
       'get_vendor_scorecard',
     ],
     routePatterns: [
@@ -268,10 +267,10 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'vendor',
       'tender',
       'bid',
-      'caretaker',
-      'leak',
+      'mine foreman',
+      'breakdown',
       'electrical',
-      'plumbing',
+      'pump',
       'emergency',
       'inspection',
       'far',
@@ -306,16 +305,16 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'dpa',
       'data protection',
       'compliance',
-      'kra',
+      'tra',
       'legal',
-      'eviction',
-      'termination',
+      'licence suspension',
+      'revocation',
       'notice',
       'audit',
       'evidence',
       'dispute',
       'court',
-      'landlord-tenant act',
+      'mining act',
       'data subject',
     ],
   },
@@ -397,7 +396,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     },
     preferredTools: [
       'get_portfolio_overview',
-      'get_property_rollup',
+      'get_site_rollup',
       'skill.core.advise',
       'skill.estate.dcf_valuation',
       'skill.estate.npv_repair_vs_replace',
@@ -418,7 +417,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'advise me on',
       'structure the deal',
       'refinance or sell',
-      'refurbish or divest',
+      'expand or divest',
       'should we acquire',
       'how do i decide',
       'board memo',
@@ -440,7 +439,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
       'what is our biggest issue',
       'show me improvements',
       'show me our bottlenecks',
-      'how has arrears resolution improved',
+      'how has royalty collection improved',
       'what should we focus on',
       'where are we losing money',
     ],
@@ -459,7 +458,7 @@ export const SUB_PERSONA_REGISTRY: Readonly<Record<SubPersonaId, SubPersonaConfi
     },
     preferredTools: [
       'get_portfolio_overview',
-      'get_property_rollup',
+      'get_site_rollup',
       'skill.core.advise',
     ],
     routePatterns: ['/strategy/*', '/portfolio/*', '/insights/*', '/dashboard'],
@@ -519,7 +518,7 @@ export function getSubPersonasForRoute(route: string): ReadonlyArray<SubPersonaC
 
 export const SUB_PERSONA_METADATA_REGISTRY = {
   finance: FINANCE_METADATA,
-  leasing: LEASING_METADATA,
+  offtake: OFFTAKE_METADATA,
   maintenance: MAINTENANCE_METADATA,
   compliance: COMPLIANCE_METADATA,
   communications: COMMUNICATIONS_METADATA,

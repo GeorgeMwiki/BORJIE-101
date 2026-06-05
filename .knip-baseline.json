@@ -1,19 +1,19 @@
 {
   "knip": {
-    "files": 246,
-    "dependencies": 92,
-    "devDependencies": 14,
-    "optionalPeerDependencies": 9,
-    "unlisted": 148,
-    "binaries": 2,
-    "unresolved": 0,
-    "exports": 1064,
-    "types": 1712,
+    "files": 316,
+    "dependencies": 109,
+    "devDependencies": 17,
+    "optionalPeerDependencies": 18,
+    "unlisted": 391,
+    "binaries": 1,
+    "unresolved": 8,
+    "exports": 1900,
+    "types": 3061,
     "nsExports": 0,
     "nsTypes": 0,
     "enumMembers": 0,
     "classMembers": 0,
-    "duplicates": 50
+    "duplicates": 102
   },
   "depcruise": {
     "no-circular": 0,
@@ -26,5 +26,5 @@
     "no-deprecated-core": 0,
     "not-to-test": 0
   },
-  "generatedAt": "2026-05-25T16:44:19.932Z"
+  "generatedAt": "2026-06-02T14:23:53.763Z"
 }

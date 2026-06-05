@@ -69,19 +69,19 @@ const PLATFORM_SEEDS: Record<string, OrgSeedRunner> = {
     // here.
     console.log('[run-seed]   platform-defaults: no-op (mining taxonomies pending)');
   },
-  // Knowledge-base RAG corpus. The runner logs guidance for wiring the
-  // Drizzle knowledge store — the authoritative seed function lives in the
-  // ai-copilot package (`seedPlatformKnowledge`). Keep this entry so
-  // operators discover the workflow.
+  // Knowledge-base RAG corpus. The legacy property-domain seed
+  // (`seedPlatformKnowledge` — Rental Act / RICS / M-Pesa rent) was
+  // removed with the rest of the BossNyumba relics. The mining ground
+  // truth now flows through the first-boot corpus ingest job
+  // (services/consolidation-worker/src/tasks/borjie-corpus-ingest.ts),
+  // which upserts every chunk into `intelligence_corpus_chunks` with
+  // tenant_id = NULL so every tenant inherits it. No seed runner needed.
   'knowledge-base': async () => {
     console.log(
-      '[run-seed]   knowledge-base: invoke seedPlatformKnowledge from',
+      '[run-seed]   knowledge-base: no-op (mining corpus flows via',
     );
     console.log(
-      '[run-seed]   @borjie/ai-copilot with a DrizzleKnowledgeStore',
-    );
-    console.log(
-      '[run-seed]   bound to this database. See packages/ai-copilot/src/knowledge/platform-seed.ts.',
+      '[run-seed]   consolidation-worker borjie-corpus-ingest, not this runner)',
     );
   },
 };

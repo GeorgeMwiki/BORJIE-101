@@ -1,6 +1,6 @@
 /**
  * Pre-shipped Zod schemas for the most common forms we see in
- * property management workflows. Each schema is paired with a
+ * mining estate document workflows. Each schema is paired with a
  * `keywords` array that the extractor uses for term-matching when no
  * brain is available, and that the brain uses to label fields in its
  * structured output.

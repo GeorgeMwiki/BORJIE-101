@@ -23,6 +23,7 @@ import {
   ModelInfo,
   AIContentBlock,
   AIMessage,
+  MediaAttachment,
 } from './ai-provider.js';
 import { applyPrefixCache } from './anthropic-prefix-cache.js';
 
@@ -510,4 +511,45 @@ export function buildToolResultMessage(
       ...(r.isError !== undefined ? { is_error: r.isError } : {}),
     })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Multimodal helpers
+// ---------------------------------------------------------------------------
+
+/** Models in the Anthropic catalog that accept image input blocks. */
+const ANTHROPIC_VISION_MODELS: ReadonlySet<string> = new Set<string>([
+  ANTHROPIC_MODELS.OPUS_4_6,
+  ANTHROPIC_MODELS.SONNET_4_6,
+  ANTHROPIC_MODELS.HAIKU_4_5,
+]);
+
+/**
+ * Whether `modelId` supports vision (image content blocks).
+ */
+export function anthropicModelSupportsVision(modelId: string): boolean {
+  return ANTHROPIC_VISION_MODELS.has(modelId);
+}
+
+/**
+ * Build an Anthropic-shaped user message that combines a single `text`
+ * block with one `image` block per attachment. Returns a fresh `AIMessage`
+ * with an immutable content array — never mutates the caller's input.
+ */
+export function buildMultimodalUserMessage(
+  userText: string,
+  attachments: ReadonlyArray<MediaAttachment>,
+): AIMessage {
+  const content: AIContentBlock[] = [
+    { type: 'text', text: userText },
+    ...attachments.map<AIContentBlock>((att) => ({
+      type: 'image',
+      source: {
+        type: 'base64',
+        media_type: att.mediaType,
+        data: att.data,
+      },
+    })),
+  ];
+  return { role: 'user', content };
 }

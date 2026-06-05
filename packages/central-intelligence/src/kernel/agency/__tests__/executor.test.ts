@@ -117,7 +117,7 @@ describe('createExecutor', () => {
         {
           seq: 0,
           description: 'send',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
         },
       ],
@@ -297,7 +297,7 @@ describe('createExecutor', () => {
         {
           seq: 0,
           description: 'a',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
         },
         {
@@ -332,7 +332,7 @@ describe('createExecutor', () => {
         {
           seq: 0,
           description: 'a',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
         },
       ],

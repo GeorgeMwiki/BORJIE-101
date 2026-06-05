@@ -113,7 +113,7 @@ function makeRequest(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'thread-1',
     userMessage: 'How is collection looking this month?',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'medium',
     surface: 'estate-manager-app',
     ...over,
@@ -239,7 +239,7 @@ describe('brain kernel — thinkStream (token-level streaming)', () => {
 
     const events = await collect(
       kernel.thinkStream(
-        makeRequest({ scope: PLATFORM_SCOPE, tier: 'property', surface: 'platform-hq' }),
+        makeRequest({ scope: PLATFORM_SCOPE, tier: 'site', surface: 'platform-hq' }),
       ),
     );
     expect(streamed).toBe(false);

@@ -64,9 +64,9 @@ function makeStubSensor(
   return { sensor, calls };
 }
 
-const TZ_RENTAL_ACT: ConstitutionRulePrompt = {
-  id: 'tz-rental-act-notice-period',
-  description: 'TZ Rental Act: 14-day written notice required before eviction for non-payment.',
+const TZ_MINING_ACT: ConstitutionRulePrompt = {
+  id: 'tz-mining-act-notice-period',
+  description: 'TZ Mining Act: 14-day written notice required before licence suspension for non-payment.',
 };
 
 const KRA_TAX_FILING: ConstitutionRulePrompt = {
@@ -191,11 +191,11 @@ describe('runThreeAgentDebate — pipeline', () => {
   it('Constitutional rules propagate to the critic — system + user prompts mention each rule id', async () => {
     const { sensor, calls } = makeStubSensor((c) => `reply-${c.callIdx}`);
     await runThreeAgentDebate('Q?', 'C', sensor, {
-      constitutionalRules: [TZ_RENTAL_ACT, KRA_TAX_FILING],
+      constitutionalRules: [TZ_MINING_ACT, KRA_TAX_FILING],
     });
     // Critic is call idx=1.
     const criticCall = calls[1]!;
-    expect(criticCall.system).toContain('tz-rental-act-notice-period');
+    expect(criticCall.system).toContain('tz-mining-act-notice-period');
     expect(criticCall.system).toContain('14-day');
     expect(criticCall.system).toContain('kra-tax-filing');
     expect(criticCall.system).toContain('KRA');

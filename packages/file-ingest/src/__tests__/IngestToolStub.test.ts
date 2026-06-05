@@ -132,8 +132,8 @@ describe('IngestToolStub — end-to-end API surface', () => {
     expect(res.summary).toContain('8 new employee');
   });
 
-  it('property portfolio CSV completes the flow', async () => {
-    const bytes = readFileSync(join(FIXTURES, 'property-portfolio.csv'));
+  it('mining asset register CSV completes the flow', async () => {
+    const bytes = readFileSync(join(FIXTURES, 'mining-asset-register.csv'));
     const res = await runIngestFlow({
       tenant_id: 'tenant-1',
       conversation_id: 'conv-42',
@@ -145,7 +145,7 @@ describe('IngestToolStub — end-to-end API surface', () => {
       executor_actor_id: 'system-executor',
     });
     expect(res.entities_created).toEqual(8);
-    expect(res.tab_link).toEqual('app://entities/property');
+    expect(res.tab_link).toEqual('app://entities/mining_asset');
   });
 
   it('routes to llm-proposal when heuristic confidence is in the mid band', async () => {

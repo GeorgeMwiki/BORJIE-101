@@ -54,7 +54,6 @@ borjie/
 │   ├── api-gateway                 JSON: { JWT_SECRET, ANTHROPIC_API_KEY, ... }
 │   ├── brain-evolution-worker      JSON: per-service env
 │   ├── document-render             JSON: per-service env
-│   ├── onboarding-orchestrator     JSON: per-service env
 │   ├── outcomes-metering           JSON: per-service env
 │   ├── parcel-service              JSON: per-service env
 │   ├── scientific-discovery-sidecar JSON: per-service env

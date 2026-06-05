@@ -139,8 +139,8 @@ export function createKernelSubstrateService(
     provenance: {
       async record(rec) {
         const tier = rec.tier as
-          | 'tenant' | 'lease' | 'unit' | 'block'
-          | 'property' | 'portfolio' | 'org' | 'industry';
+          | 'tenant' | 'offtake' | 'pit' | 'zone'
+          | 'site' | 'portfolio' | 'org' | 'industry';
         await db
           .insert(kernelProvenance)
           .values({

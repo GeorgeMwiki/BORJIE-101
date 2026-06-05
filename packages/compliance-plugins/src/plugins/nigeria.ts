@@ -1,9 +1,9 @@
 /**
- * Nigeria (NG) compliance plugin.
+ * Nigeria (NG) mining-compliance plugin.
  *
- * Defaults pull from the Tenancy Law of Lagos State (most common baseline);
- * state-level variants can override via a future sub-plugin pattern similar
- * to the US plugin's state hook.
+ * Defaults pull from the Nigerian Minerals and Mining Act 2007 (the federal
+ * baseline); state-level variants can override via a future sub-plugin pattern
+ * similar to the US plugin's state hook.
  */
 
 import { buildPhoneNormalizer } from '../core/phone.js';
@@ -19,33 +19,33 @@ import {
 import type { PaymentRailPort } from '../ports/payment-rail.port.js';
 import {
   buildStubBureauResult,
-  type TenantScreeningPort,
-} from '../ports/tenant-screening.port.js';
-import type { LeaseLawPort } from '../ports/lease-law.port.js';
+  type CounterpartyScreeningPort,
+} from '../ports/counterparty-screening.port.js';
+import type { MiningLawPort } from '../ports/mining-law.port.js';
 
 // --- Nigeria port implementations -------------------------------------------
 
-/** FIRS rental WHT — 10% on gross rent (CITA §78). */
+/** Nigeria mineral royalty — 5% on gross value (Minerals and Mining Act 2007 §33). */
 const nigeriaTaxRegime: TaxRegimePort = {
-  calculateWithholding(grossRentMinorUnits, _currency, _period) {
+  calculateWithholding(grossValueMinorUnits, _currency, _period) {
     return flatRateWithholding(
-      grossRentMinorUnits,
-      10,
-      'FIRS-WHT-RENT',
-      'FIRS withholding tax on rent — 10% on gross (Companies Income Tax Act §78).'
+      grossValueMinorUnits,
+      5,
+      'NG-MINERAL-ROYALTY',
+      'Nigeria mineral royalty — 5% on gross value of minerals won (Nigerian Minerals and Mining Act 2007 §33).'
     );
   },
 };
 
 const nigeriaTaxFiling: TaxFilingPort = {
-  prepareFiling(run, _tenantProfile, _period) {
+  prepareFiling(run, _operatorProfile, _period) {
     return {
       filingFormat: 'csv',
       payload: buildGenericCsvPayload(run),
       targetRegulator: 'FIRS',
       submitEndpointHint: 'https://taxpromax.firs.gov.ng',
       instructions:
-        'Submit WHT schedule via TaxPro-Max under Withholding Tax — Rent. ' +
+        'Submit the royalty schedule via TaxPro-Max under Mineral Royalty. ' +
         'Remit by the 21st of the following month.',
     };
   },
@@ -61,7 +61,7 @@ const nigeriaPaymentRails: PaymentRailPort = {
   },
 };
 
-const nigeriaTenantScreening: TenantScreeningPort = {
+const nigeriaCounterpartyScreening: CounterpartyScreeningPort = {
   async lookupBureau(identityDocument, _country, consentToken) {
     if (!consentToken) return buildStubBureauResult('CRC_CREDIT_BUREAU_NG', ['CONSENT_TOKEN_INVALID']);
     void identityDocument;
@@ -70,33 +70,33 @@ const nigeriaTenantScreening: TenantScreeningPort = {
   },
 };
 
-const nigeriaLeaseLaw: LeaseLawPort = {
-  requiredClauses(_leaseKind) {
+const nigeriaMiningLaw: MiningLawPort = {
+  requiredClauses(_operationKind) {
     return Object.freeze([
-      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Tenancy Law of Lagos State 2011 §3.' },
-      { id: 'premises', label: 'Premises', mandatory: true, citation: 'Tenancy Law of Lagos State 2011 §3.' },
-      { id: 'rent-amount', label: 'Rent amount and frequency in NGN', mandatory: true, citation: 'Tenancy Law of Lagos State 2011 §7.' },
+      { id: 'parties', label: 'Parties', mandatory: true, citation: 'Nigerian Minerals and Mining Act 2007 §3.' },
+      { id: 'site', label: 'Licensed area', mandatory: true, citation: 'Nigerian Minerals and Mining Act 2007 §3.' },
+      { id: 'royalty-rate', label: 'Royalty/payment rate and frequency in NGN', mandatory: true, citation: 'Nigerian Minerals and Mining Act 2007 §33.' },
       { id: 'stamp-duty', label: 'Evidence of stamp duty payment', mandatory: true, citation: 'Stamp Duties Act.' },
     ]);
   },
   noticeWindowDays(reason) {
     switch (reason) {
-      case 'non-payment': return 7; // Lagos — 7 days notice on default
-      case 'end-of-term':
-      case 'renewal-non-continuation': return 180; // Yearly tenancy
-      case 'landlord-repossession': return 180;
-      case 'breach-of-covenant': return 30;
-      case 'illegal-use':
-      case 'nuisance': return 7;
+      case 'royalty-default': return 7; // 7 days notice on default
+      case 'licence-expiry':
+      case 'renewal-non-continuation': return 180; // Annual licence
+      case 'state-repossession': return 180;
+      case 'breach-of-condition': return 30;
+      case 'illegal-mining':
+      case 'environmental-breach': return 7;
       default: return null;
     }
   },
-  depositCapMultiple(regime) {
-    if (regime === 'commercial') return { maxMonthsOfRent: 24, citation: 'Market norm — 1-2 years upfront.' };
-    return { maxMonthsOfRent: 12, citation: 'Tenancy Law of Lagos State 2011 §4(3) — no more than one year upfront.' };
+  bondCapMultiple(regime) {
+    if (regime === 'industrial') return { maxMonthsOfRoyalty: 24, citation: 'Market norm — 1-2 years upfront.' };
+    return { maxMonthsOfRoyalty: 12, citation: 'Nigerian Minerals and Mining Act 2007 — no more than one year upfront.' };
   },
-  rentIncreaseCap(_regime) {
-    return { citation: 'No statutory cap; tenant may petition court if increase arbitrary (§37 Tenancy Law Lagos).' };
+  royaltyEscalationCap(_regime) {
+    return { citation: 'No statutory cap; operator may petition the Mining Cadastre Office if escalation arbitrary.' };
   },
 };
 
@@ -156,31 +156,31 @@ export const nigeriaPlugin: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 1,
-    maxDepositMonths: 12,
+    minBondMonths: 1,
+    maxBondMonths: 12,
     noticePeriodDays: 180,
-    minimumLeaseMonths: 12,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 12,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Tenancy Agreement (NG)',
-      templatePath: 'ng/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (NG)',
+      templatePath: 'ng/offtake-agreement.hbs',
       locale: 'en-NG',
     },
     {
-      id: 'notice-of-termination',
-      name: 'Quit Notice (NG)',
-      templatePath: 'ng/notice-of-termination.hbs',
+      id: 'notice-of-suspension',
+      name: 'Licence Suspension Notice (NG)',
+      templatePath: 'ng/notice-of-suspension.hbs',
       locale: 'en-NG',
     },
   ],
   taxRegime: nigeriaTaxRegime,
   taxFiling: nigeriaTaxFiling,
   paymentRails: nigeriaPaymentRails,
-  tenantScreening: nigeriaTenantScreening,
-  leaseLaw: nigeriaLeaseLaw,
+  counterpartyScreening: nigeriaCounterpartyScreening,
+  miningLaw: nigeriaMiningLaw,
 };

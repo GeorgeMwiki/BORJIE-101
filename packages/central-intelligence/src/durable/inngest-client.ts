@@ -9,9 +9,9 @@
  *
  * Background (Phase F + .audit/litfin-sota-2026-05-23/16-agent-orchestration-teams.md):
  *   The audit grades durable execution as "the single biggest reliability
- *   lift" for the agent registry. Long-horizon flows — eviction (≤ 30
- *   days), monthly close, lease renewal — need every LLM call, tool
- *   call, and DB write to become a resumable checkpoint.
+ *   lift" for the agent registry. Long-horizon flows — licence-suspension
+ *   (≤ 30 days), monthly close, agreement renewal — need every LLM call,
+ *   tool call, and DB write to become a resumable checkpoint.
  *
  * Design constraints:
  *   - `inngest` is an OPTIONAL peer dep. The kernel must type-check and

@@ -4,8 +4,8 @@
  * Coverage (6+):
  *   1. heuristic scorer auto-passes a reflection mentioning no rule
  *      category keywords
- *   2. heuristic scorer flags a reflection containing a TZ Rental
- *      Act keyword (eviction) with score 0.5
+ *   2. heuristic scorer flags a reflection containing a TZ Mining
+ *      Act keyword (licence suspension) with score 0.5
  *   3. heuristic scorer flags a GDPR-relevant reflection (phone)
  *   4. Claude path: parses a well-formed JSON-array response
  *   5. Claude path: malformed response → backfilled with auto-pass
@@ -38,14 +38,14 @@ describe('constitutional-critic — heuristic path', () => {
     expect(v.passed).toBe(true);
   });
 
-  it('flags a TZ Rental Act keyword (eviction) at 0.5', async () => {
+  it('flags a TZ Mining Act keyword (licence suspension) at 0.5', async () => {
     const critic = createConstitutionalCritic();
     const v = await critic.score(
-      reflection('User asked about eviction process for non-paying tenant.'),
+      reflection('User asked about licence suspension process for non-paying counterparty.'),
     );
     const tzScores = v.scores.filter((s) =>
       BORJIE_CONSTITUTION.find(
-        (r) => r.id === s.ruleId && r.category === 'tz-rental-act',
+        (r) => r.id === s.ruleId && r.category === 'tz-mining-act',
       ),
     );
     expect(tzScores.some((s) => s.score === 0.5)).toBe(true);
@@ -119,8 +119,8 @@ describe('constitutional-critic — Claude path', () => {
       },
     };
     const critic = createConstitutionalCritic({ anthropicClient: client });
-    const v = await critic.score(reflection('eviction discussed'));
-    // Heuristic should fire (eviction keyword)
+    const v = await critic.score(reflection('licence suspension discussed'));
+    // Heuristic should fire (licence suspension keyword)
     expect(v.scores.some((s) => s.score < 1)).toBe(true);
   });
 

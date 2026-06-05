@@ -42,8 +42,8 @@ const EN_STOP_WORDS = new Set([
   'hereby',
   'parties',
   'agreement',
-  'tenant',
-  'landlord',
+  'buyer',
+  'seller',
 ]);
 
 const SW_STOP_WORDS = new Set([
@@ -66,13 +66,13 @@ const SW_STOP_WORDS = new Set([
   'baada',
   'kabla',
   'mkataba',
-  'mpangaji',
-  'mwenyenyumba',
+  'mnunuzi',
+  'muuzaji',
   'malipo',
   'kitambulisho',
   'taarifa',
-  'kodi',
-  'nyumba',
+  'mrabaha',
+  'madini',
   'mwezi',
   'mwaka',
   'shilingi',

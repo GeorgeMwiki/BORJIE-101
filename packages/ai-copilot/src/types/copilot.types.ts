@@ -40,20 +40,18 @@ export const MaintenanceUrgency = {
 export type MaintenanceUrgency = typeof MaintenanceUrgency[keyof typeof MaintenanceUrgency];
 
 /**
- * Maintenance category classification
+ * Maintenance category classification — mining equipment taxonomy
+ * (mirrors the central-intelligence maintenance-dispatch classifier).
  */
 export const MaintenanceCategory = {
-  PLUMBING: 'PLUMBING',
+  PUMPING: 'PUMPING',
   ELECTRICAL: 'ELECTRICAL',
-  HVAC: 'HVAC',
-  APPLIANCE: 'APPLIANCE',
+  HYDRAULICS: 'HYDRAULICS',
+  PROCESSING: 'PROCESSING',
+  VEHICLE: 'VEHICLE',
   STRUCTURAL: 'STRUCTURAL',
-  PEST_CONTROL: 'PEST_CONTROL',
   SAFETY: 'SAFETY',
-  EXTERIOR: 'EXTERIOR',
-  COMMON_AREA: 'COMMON_AREA',
-  COSMETIC: 'COSMETIC',
-  OTHER: 'OTHER',
+  GENERAL: 'GENERAL',
 } as const;
 
 export type MaintenanceCategory = typeof MaintenanceCategory[keyof typeof MaintenanceCategory];
@@ -62,7 +60,7 @@ export type MaintenanceCategory = typeof MaintenanceCategory[keyof typeof Mainte
  * Input for maintenance triage request
  */
 export interface MaintenanceTriageInput {
-  /** Tenant's original request text */
+  /** Requester's original request text */
   requestText: string;
   /** Any attached images/files */
   attachments?: {
@@ -70,22 +68,22 @@ export interface MaintenanceTriageInput {
     url: string;
     description?: string;
   }[];
-  /** Property context */
-  property: {
+  /** Site context */
+  site: {
     id: string;
     name: string;
     type: string;
     age: number;
   };
-  /** Unit context */
-  unit: {
+  /** Pit context */
+  pit: {
     id: string;
     number: string;
-    bedrooms: number;
-    bathrooms: number;
+    benches: number;
+    faces: number;
   };
-  /** Tenant context */
-  tenant: {
+  /** Requester context */
+  requester: {
     id: string;
     name: string;
     phone?: string;
@@ -126,8 +124,8 @@ export interface MaintenanceTriageOutput extends CopilotOutputBase {
     issuesIdentified: string[];
     /** Potential safety concerns */
     safetyConcerns: string[];
-    /** Whether tenant access is needed */
-    requiresTenantAccess: boolean;
+    /** Whether site access is needed */
+    requiresSiteAccess: boolean;
     /** Estimated complexity (1-5) */
     estimatedComplexity: number;
   };
@@ -162,11 +160,11 @@ export interface MaintenanceTriageOutput extends CopilotOutputBase {
     };
   };
   
-  /** Tenant communication */
-  tenantCommunication: {
+  /** Requester communication */
+  requesterCommunication: {
     acknowledgmentMessage: string;
     expectedResolutionMessage: string;
-    instructionsForTenant?: string;
+    instructionsForRequester?: string;
   };
   
   /** Follow-up recommendations */
@@ -190,7 +188,7 @@ export const OwnerReportType = {
   ANNUAL_REPORT: 'ANNUAL_REPORT',
   MAINTENANCE_UPDATE: 'MAINTENANCE_UPDATE',
   FINANCIAL_ALERT: 'FINANCIAL_ALERT',
-  OCCUPANCY_UPDATE: 'OCCUPANCY_UPDATE',
+  PRODUCTION_UPDATE: 'PRODUCTION_UPDATE',
   MARKET_ANALYSIS: 'MARKET_ANALYSIS',
   CUSTOM: 'CUSTOM',
 } as const;
@@ -222,13 +220,13 @@ export interface OwnerReportingInput {
   };
   /** Portfolio data */
   portfolio: {
-    propertyCount: number;
-    totalUnits: number;
-    properties: {
+    siteCount: number;
+    totalPits: number;
+    sites: {
       id: string;
       name: string;
-      units: number;
-      occupancyRate: number;
+      pits: number;
+      productionRate: number;
       monthlyRevenue: number;
     }[];
   };
@@ -246,7 +244,7 @@ export interface OwnerReportingInput {
   };
   /** Key events to highlight */
   keyEvents?: {
-    type: 'move_in' | 'move_out' | 'renewal' | 'maintenance' | 'payment' | 'other';
+    type: 'onboarding' | 'offboarding' | 'renewal' | 'maintenance' | 'payment' | 'other';
     description: string;
     date: string;
     financialImpact?: number;
@@ -323,13 +321,13 @@ export interface OwnerReportingOutput extends CopilotOutputBase {
  * Communication type
  */
 export const CommunicationType = {
-  LEASE_RENEWAL: 'LEASE_RENEWAL',
-  RENT_REMINDER: 'RENT_REMINDER',
+  OFFTAKE_RENEWAL: 'OFFTAKE_RENEWAL',
+  PAYMENT_REMINDER: 'PAYMENT_REMINDER',
   LATE_PAYMENT: 'LATE_PAYMENT',
   MAINTENANCE_UPDATE: 'MAINTENANCE_UPDATE',
   POLICY_NOTICE: 'POLICY_NOTICE',
   WELCOME_MESSAGE: 'WELCOME_MESSAGE',
-  MOVE_OUT_INFO: 'MOVE_OUT_INFO',
+  OFFBOARDING_INFO: 'OFFBOARDING_INFO',
   GENERAL_NOTICE: 'GENERAL_NOTICE',
   EMERGENCY_ALERT: 'EMERGENCY_ALERT',
   APPRECIATION: 'APPRECIATION',
@@ -362,7 +360,7 @@ export interface CommunicationDraftingInput {
   channel: CommunicationChannel;
   /** Recipient info */
   recipient: {
-    type: 'tenant' | 'owner' | 'vendor' | 'prospect';
+    type: 'buyer' | 'owner' | 'vendor' | 'prospect';
     id: string;
     name: string;
     email?: string;
@@ -376,12 +374,12 @@ export interface CommunicationDraftingInput {
   };
   /** Context for the communication */
   context: {
-    property?: { id: string; name: string; address: string };
-    unit?: { id: string; number: string };
-    lease?: { id: string; startDate: string; endDate: string; rentAmount: number };
+    site?: { id: string; name: string; location: string };
+    pit?: { id: string; number: string };
+    offtake?: { id: string; startDate: string; endDate: string; paymentAmount: number };
     relatedMaintenance?: { id: string; description: string; status: string };
-    financialContext?: { 
-      amountDue?: number; 
+    financialContext?: {
+      amountDue?: number;
       daysOverdue?: number;
       paymentHistory?: string;
     };
@@ -484,8 +482,8 @@ export const RiskAlertCategory = {
   OPERATIONAL: 'OPERATIONAL',
   COMPLIANCE: 'COMPLIANCE',
   SAFETY: 'SAFETY',
-  TENANT: 'TENANT',
-  PROPERTY: 'PROPERTY',
+  COUNTERPARTY: 'COUNTERPARTY',
+  SITE: 'SITE',
   MARKET: 'MARKET',
   FRAUD: 'FRAUD',
 } as const;
@@ -508,7 +506,7 @@ export interface RiskAlertInput {
   }[];
   /** Affected entities */
   affectedEntities: {
-    type: 'tenant' | 'property' | 'unit' | 'owner' | 'portfolio';
+    type: 'counterparty' | 'site' | 'pit' | 'owner' | 'portfolio';
     id: string;
     name: string;
     additionalInfo?: Record<string, unknown>;
@@ -616,27 +614,24 @@ export const MaintenanceUrgencySchema = z.enum([
 ]);
 
 export const MaintenanceCategorySchema = z.enum([
-  'PLUMBING',
+  'PUMPING',
   'ELECTRICAL',
-  'HVAC',
-  'APPLIANCE',
+  'HYDRAULICS',
+  'PROCESSING',
+  'VEHICLE',
   'STRUCTURAL',
-  'PEST_CONTROL',
   'SAFETY',
-  'EXTERIOR',
-  'COMMON_AREA',
-  'COSMETIC',
-  'OTHER',
+  'GENERAL',
 ]);
 
 export const CommunicationTypeSchema = z.enum([
-  'LEASE_RENEWAL',
-  'RENT_REMINDER',
+  'OFFTAKE_RENEWAL',
+  'PAYMENT_REMINDER',
   'LATE_PAYMENT',
   'MAINTENANCE_UPDATE',
   'POLICY_NOTICE',
   'WELCOME_MESSAGE',
-  'MOVE_OUT_INFO',
+  'OFFBOARDING_INFO',
   'GENERAL_NOTICE',
   'EMERGENCY_ALERT',
   'APPRECIATION',
@@ -657,8 +652,8 @@ export const RiskAlertCategorySchema = z.enum([
   'OPERATIONAL',
   'COMPLIANCE',
   'SAFETY',
-  'TENANT',
-  'PROPERTY',
+  'COUNTERPARTY',
+  'SITE',
   'MARKET',
   'FRAUD',
 ]);
@@ -670,19 +665,19 @@ export const MaintenanceTriageInputSchema = z.object({
     url: z.string().url(),
     description: z.string().optional(),
   })).optional(),
-  property: z.object({
+  site: z.object({
     id: z.string(),
     name: z.string(),
     type: z.string(),
     age: z.number().min(0),
   }),
-  unit: z.object({
+  pit: z.object({
     id: z.string(),
     number: z.string(),
-    bedrooms: z.number().min(0),
-    bathrooms: z.number().min(0),
+    benches: z.number().min(0),
+    faces: z.number().min(0),
   }),
-  tenant: z.object({
+  requester: z.object({
     id: z.string(),
     name: z.string(),
     phone: z.string().optional(),
@@ -701,7 +696,7 @@ export const CommunicationDraftingInputSchema = z.object({
   communicationType: CommunicationTypeSchema,
   channel: CommunicationChannelSchema,
   recipient: z.object({
-    type: z.enum(['tenant', 'owner', 'vendor', 'prospect']),
+    type: z.enum(['buyer', 'owner', 'vendor', 'prospect']),
     id: z.string(),
     name: z.string(),
     email: z.string().email().optional(),
@@ -714,20 +709,20 @@ export const CommunicationDraftingInputSchema = z.object({
     }).optional(),
   }),
   context: z.object({
-    property: z.object({
+    site: z.object({
       id: z.string(),
       name: z.string(),
-      address: z.string(),
+      location: z.string(),
     }).optional(),
-    unit: z.object({
+    pit: z.object({
       id: z.string(),
       number: z.string(),
     }).optional(),
-    lease: z.object({
+    offtake: z.object({
       id: z.string(),
       startDate: z.string(),
       endDate: z.string(),
-      rentAmount: z.number(),
+      paymentAmount: z.number(),
     }).optional(),
     relatedMaintenance: z.object({
       id: z.string(),

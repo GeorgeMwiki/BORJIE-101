@@ -50,14 +50,14 @@ describe('BORJIE_CONSTITUTION_V1', () => {
 
   it('all 12 expected clause ids are present', () => {
     const expected = [
-      'C01-EVICTION-NOTICE',
-      'C02-TENANT-DATA-PROTECTION',
+      'C01-LICENCE-SUSPENSION-NOTICE',
+      'C02-COUNTERPARTY-DATA-PROTECTION',
       'C03-OWNER-FUNDS-SEGREGATION',
-      'C04-RENT-CAPS-AND-ARREARS',
+      'C04-ROYALTY-RATES-AND-OUTSTANDING',
       'C05-NON-DISCRIMINATION',
       'C06-MOBILE-MONEY-TRANSPARENCY',
-      'C07-HABITABILITY',
-      'C08-HOUSEHOLD-PRIVACY',
+      'C07-MINE-SITE-SAFETY',
+      'C08-WORKFORCE-PRIVACY',
       'C09-NO-AUTONOMOUS-FILING',
       'C10-HONEST-MARKETING',
       'C11-AUDIT-TRAIL-INTEGRITY',
@@ -83,10 +83,10 @@ describe('BORJIE_CONSTITUTION_V1', () => {
 });
 
 describe('clausesForAction', () => {
-  it('returns the eviction clause for eviction.notice.send', () => {
-    const out = clausesForAction('eviction.notice.send');
+  it('returns the licence-suspension clause for licence.suspension.send', () => {
+    const out = clausesForAction('licence.suspension.send');
     const ids = out.map((c) => c.id);
-    expect(ids).toContain('C01-EVICTION-NOTICE');
+    expect(ids).toContain('C01-LICENCE-SUSPENSION-NOTICE');
   });
 
   it('returns the trust-account clause for payment.disburse', () => {
@@ -98,9 +98,9 @@ describe('clausesForAction', () => {
     expect(clausesForAction('unknown.unmapped.action')).toHaveLength(0);
   });
 
-  it('returns the non-discrimination clause for tenant screening', () => {
+  it('returns the non-discrimination clause for counterparty screening', () => {
     expect(
-      clausesForAction('tenant.screen.score').map((c) => c.id),
+      clausesForAction('counterparty.screen.score').map((c) => c.id),
     ).toContain('C05-NON-DISCRIMINATION');
   });
 
@@ -132,20 +132,24 @@ describe('clausesForJurisdiction', () => {
   });
 
   it('chained filter (action then jurisdiction) composes correctly', () => {
-    const evictionForKe = clausesForJurisdiction(
+    const suspensionForKe = clausesForJurisdiction(
       'KE',
-      clausesForAction('eviction.notice.send'),
+      clausesForAction('licence.suspension.send'),
     );
-    expect(evictionForKe.map((c) => c.id)).toContain('C01-EVICTION-NOTICE');
+    expect(suspensionForKe.map((c) => c.id)).toContain(
+      'C01-LICENCE-SUSPENSION-NOTICE',
+    );
   });
 
   it('jurisdiction filter omits scoped-out clauses even when action matches', () => {
-    // C01 EVICTION-NOTICE is scoped to TZ, KE, UG, NG — not RW or ZA.
-    const evictionForRw = clausesForJurisdiction(
+    // C01 LICENCE-SUSPENSION-NOTICE is scoped to TZ, KE, UG, NG — not RW or ZA.
+    const suspensionForRw = clausesForJurisdiction(
       'RW',
-      clausesForAction('eviction.notice.send'),
+      clausesForAction('licence.suspension.send'),
     );
-    expect(evictionForRw.map((c) => c.id)).not.toContain('C01-EVICTION-NOTICE');
+    expect(suspensionForRw.map((c) => c.id)).not.toContain(
+      'C01-LICENCE-SUSPENSION-NOTICE',
+    );
   });
 });
 
@@ -160,10 +164,10 @@ describe('renderConstitutionAsContext', () => {
 
   it('action + jurisdiction filter renders a narrower context', () => {
     const block = renderConstitutionAsContext(
-      'eviction.notice.send',
+      'licence.suspension.send',
       'KE',
     );
-    expect(block).toContain('C01-EVICTION-NOTICE');
+    expect(block).toContain('C01-LICENCE-SUSPENSION-NOTICE');
     // Should not include unrelated clauses like vendor recommendation.
     expect(block).not.toContain('C12-VENDOR-CONFLICT-DISCLOSURE');
   });

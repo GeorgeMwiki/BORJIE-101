@@ -86,14 +86,14 @@ export const marketSurveillanceSignalSource: SignalSource<MarketDriftRaw> = {
 
 // ---------------------------------------------------------------------------
 // Sentiment-monitor adapter
-// Source emits `TenantSentimentShift` — a rolling-average tenant sentiment
-// has dropped below a threshold. Maps to `tenant_welfare` (retention /
-// wellness check) and `communications` — we pick tenant_welfare because
+// Source emits `CounterpartySentimentShift` — a rolling-average counterparty sentiment
+// has dropped below a threshold. Maps to `community_welfare` (retention /
+// wellness check) and `communications` — we pick community_welfare because
 // the canonical template is a retention offer.
 // ---------------------------------------------------------------------------
 
 interface SentimentShiftRaw {
-  readonly type: 'TenantSentimentShift';
+  readonly type: 'CounterpartySentimentShift';
   readonly tenantId: string;
   readonly customerId: string | null;
   readonly previousAvg: number;
@@ -105,9 +105,9 @@ interface SentimentShiftRaw {
 
 export const sentimentMonitorSignalSource: SignalSource<SentimentShiftRaw> = {
   sourceId: 'sentiment-monitor',
-  eventType: 'TenantSentimentShift',
+  eventType: 'CounterpartySentimentShift',
   normalize(raw) {
-    if (!isObject(raw) || raw.type !== 'TenantSentimentShift') return null;
+    if (!isObject(raw) || raw.type !== 'CounterpartySentimentShift') return null;
     const drop = Number(raw.previousAvg) - Number(raw.currentAvg);
     const severity: SignalSeverity =
       drop >= 0.8 ? 'critical' : drop >= 0.5 ? 'high' : drop >= 0.25 ? 'medium' : 'low';
@@ -115,7 +115,7 @@ export const sentimentMonitorSignalSource: SignalSource<SentimentShiftRaw> = {
       signalId: freshSignalId('sentiment-monitor'),
       source: 'sentiment-monitor',
       tenantId: raw.tenantId,
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       severity,
       payload: {
         customerId: raw.customerId,
@@ -132,7 +132,7 @@ export const sentimentMonitorSignalSource: SignalSource<SentimentShiftRaw> = {
 // Predictive-interventions adapter
 // Source emits `PredictiveInterventionOpportunity`. Maps to `finance` when
 // signalType is default/late risk, `communications` when sentiment collapse,
-// `tenant_welfare` for churn risk.
+// `community_welfare` for churn risk.
 // ---------------------------------------------------------------------------
 
 type PredictiveSignalType =
@@ -161,7 +161,7 @@ function predictiveDomain(signalType: PredictiveSignalType): AutonomyDomain {
       return 'communications';
     case 'high_churn_risk':
     default:
-      return 'tenant_welfare';
+      return 'community_welfare';
   }
 }
 
@@ -195,7 +195,7 @@ export const predictiveInterventionsSignalSource: SignalSource<PredictiveOpportu
 // Source emits anonymised cross-tenant `PatternInsight` rows. Because the
 // insights are cross-tenant, we synthesize one Signal per TENANT SCOPE the
 // caller asks about — the orchestrator routes these as advisory signals.
-// Maps to `strategic` via the `tenant_welfare` domain (closest autonomous
+// Maps to `strategic` via the `community_welfare` domain (closest autonomous
 // domain) but severity is always <= medium (these are slow-moving trends).
 // ---------------------------------------------------------------------------
 
@@ -222,7 +222,7 @@ export const patternMiningSignalSource: SignalSource<PatternInsightRaw> = {
       signalId: freshSignalId('pattern-mining'),
       source: 'pattern-mining',
       tenantId: raw.tenantIdForDelivery,
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       severity,
       payload: {
         insightId: raw.id,

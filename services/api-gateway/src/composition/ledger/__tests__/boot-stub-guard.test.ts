@@ -24,10 +24,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
 
 import {
   resolveSettlementLedgerPort,
+  resolveSettlementPayoutPort,
   SettlementError,
   __setSettlementLedgerPortForTests,
   __setSettlementProductionLedgerPort,
   __allowSettlementLedgerStub,
+  __setSettlementPayoutPortForTests,
+  __setSettlementProductionPayoutPort,
+  __allowSettlementPayoutStub,
 } from '../../../services/settlement';
 import {
   resolvePayrollLedgerPort,
@@ -47,6 +51,9 @@ function resetLedgerResolverState(): void {
   __setSettlementLedgerPortForTests(null);
   __setSettlementProductionLedgerPort(null);
   __allowSettlementLedgerStub(false);
+  __setSettlementPayoutPortForTests(null);
+  __setSettlementProductionPayoutPort(null);
+  __allowSettlementPayoutStub(false);
   __setPayrollLedgerPortForTests(null);
   __setPayrollProductionLedgerPort(null);
   __allowPayrollLedgerStub(false);
@@ -95,6 +102,55 @@ describe('settlement ledger port — boot fail-loud guard (M1)', () => {
     };
     __setSettlementProductionLedgerPort(sentinel);
     expect(resolveSettlementLedgerPort()).toBe(sentinel);
+  });
+});
+
+describe('settlement PAYOUT port — boot fail-loud guard (the silent-stub money bug)', () => {
+  it('throws PAYOUT_NOT_WIRED when no production payout port is registered and the stub is not allowed', () => {
+    // This pristine state IS the db-present-payout-unwired state: a real boot
+    // runs registerProductionLedgerPorts(db), which wires the LEDGER port but
+    // deliberately does NOT allow the payout stub (the Tanzania TZS B2C rail is
+    // external-blocked). The bug was that resolveSettlementPayoutPort silently
+    // returned a stub fabricating a fake mpesa-<sha256> ref while firing NO real
+    // transfer — seller stamped 'paying_out', never paid. It must fail loud.
+    const err = catchSettlementError(() => resolveSettlementPayoutPort());
+    expect(err.code).toBe('PAYOUT_NOT_WIRED');
+  });
+
+  it('NEVER hands back the fabricated-success stub when not in no-db mode', () => {
+    // It must THROW (never return a port whose payout() fabricates success).
+    expect(() => resolveSettlementPayoutPort()).toThrow(SettlementError);
+  });
+
+  it('returns the dev stub ONLY after the stub is explicitly allowed (no-db mode)', async () => {
+    __allowSettlementPayoutStub(true);
+    const res = await resolveSettlementPayoutPort().payout({
+      tenantId: 't',
+      settlementId: 's',
+      netTzs: 1000,
+      sellerUserId: 'u',
+    });
+    // Dev stub returns a deterministic fake ref (fires NO real transfer).
+    expect(res.provider).toBe('mpesa_b2c');
+    expect(res.providerRef).toMatch(/^mpesa-/);
+  });
+
+  it('returns the production payout port (never the stub) once one is registered', () => {
+    const sentinel = {
+      async payout() {
+        return { provider: 'mpesa_b2c' as const, providerRef: 'real-ref' };
+      },
+    };
+    __setSettlementProductionPayoutPort(sentinel);
+    expect(resolveSettlementPayoutPort()).toBe(sentinel);
+  });
+
+  it('registerProductionLedgerPorts(null) makes the payout stub reachable (no-db boot still works)', () => {
+    expect(catchSettlementError(() => resolveSettlementPayoutPort()).code).toBe(
+      'PAYOUT_NOT_WIRED',
+    );
+    registerProductionLedgerPorts(null);
+    expect(() => resolveSettlementPayoutPort()).not.toThrow();
   });
 });
 

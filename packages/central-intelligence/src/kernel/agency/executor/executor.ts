@@ -20,7 +20,7 @@
  * `sovereignLedger` port. A tool is considered sovereign-tier when
  * EITHER its `stakes === 'critical'` OR its `name` is in
  * `SOVEREIGN_TIER_ACTION_NAMES` (a deny-list of irreversible / high-
- * regulatory-impact actions: tenant eviction, owner payout, KRA
+ * regulatory-impact actions: licence suspension, owner payout, KRA
  * filings, GePG control-number revocations, market-rate-band overrides,
  * inspection major-damage flags).
  *
@@ -35,7 +35,7 @@
  *     be un-executed (e.g. an external API call has already gone out),
  *     so the failure here signals downstream callers that a manual
  *     reconciliation (compensating-action workflow) is required.
- *     Regulators demand fail-closed for tenant eviction, owner payout,
+ *     Regulators demand fail-closed for licence suspension, owner payout,
  *     KRA MRI, GePG, market-rate overrides, and inspection major-
  *     damage flags — the hash-chained audit row is non-negotiable.
  */
@@ -108,8 +108,17 @@ export const SOVEREIGN_AUDIT_WRITE_FAILED_REASON =
  * the hash-chained sovereign ledger so an external audit can reconstruct
  * the chain after the fact.
  */
+// NOTE — these sovereign-tier action-name tokens are a frozen security
+// contract: they are pinned across the four-eye-approval, counter-model,
+// and executor-counter-model test suites. The mining canonical token for
+// the irreversible licence-suspension proposal is
+// `licence-suspension-proposed`; `kra-mri-filed` denotes the KRA/TRA
+// royalty filing. The token VALUES are kept in lockstep with those
+// suites — a rename MUST be applied to every pinning suite in the same
+// change so the sovereign-tier classification (and the approvals it
+// forces) stays byte-for-byte identical.
 export const SOVEREIGN_TIER_ACTION_NAMES: ReadonlyArray<string> = [
-  'tenant-eviction-proposed',
+  'licence-suspension-proposed',
   'owner-payout-executed',
   'kra-mri-filed',
   'gepg-control-number-revoked',
@@ -158,7 +167,7 @@ export interface ExecutorDeps {
    * the executor cannot do that — but downstream callers see a
    * `failed` outcome and can dispatch a compensating-action workflow.
    *
-   * Regulators require this for tenant eviction, owner payout, KRA
+   * Regulators require this for licence suspension, owner payout, KRA
    * MRI, GePG, market-rate overrides, and inspection-as-major-damage:
    * the hash-chained audit row is non-negotiable, so an action that
    * cannot be audited must be treated as failed even if the underlying

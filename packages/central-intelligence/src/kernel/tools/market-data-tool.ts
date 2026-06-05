@@ -1,9 +1,12 @@
 /**
- * Market data kernel tools — wraps a `MarketDataPort` (Zillow / Airbnb /
- * etc.) into Tool definitions the streaming agent-loop can invoke.
+ * Market data kernel tools — wraps a `MarketDataPort` (LME / Kitco /
+ * etc. mineral-price feeds) into Tool definitions the streaming
+ * agent-loop can invoke.
  *
  * Two tools, both platform-scope (external-market data is industry-tier
- * intelligence, not tenant-scoped):
+ * intelligence, not tenant-scoped). (The `market.*` tool-name tokens
+ * are a registered contract — kept verbatim; only the prose carries
+ * mining vocabulary.)
  *
  *   - market.comparable_rents
  *   - market.vacancy_trends
@@ -170,8 +173,8 @@ function assertPlatformOrTenant(
   ctx: ScopeContext,
 ): { ok: true } | { ok: false; message: string } {
   // Platform-tier external data is callable from either scope — a
-  // tenant-scope user asking "what's the market rent for a 2BR in
-  // Brooklyn" should get the same answer as a platform user.
+  // tenant-scope user asking "what's the market price for gold doré in
+  // Geita" should get the same answer as a platform user.
   if (ctx.kind !== 'platform' && ctx.kind !== 'tenant') {
     return { ok: false, message: 'market kernel tool: unsupported scope' };
   }
@@ -190,11 +193,11 @@ export function createMarketComparableRentsTool(
   return {
     name: 'market.comparable_rents',
     description:
-      'Fetch external comparable-rent observations for a jurisdiction + ' +
-      'property class. Backed by a configured market-data provider ' +
-      `(${provider}). Returns recent rent observations with privacy-` +
-      'fingerprinted addresses. Useful for rent-recommendation, vacancy ' +
-      'analysis, and external benchmarking.',
+      'Fetch external comparable-price observations for a jurisdiction + ' +
+      'asset class. Backed by a configured market-data provider ' +
+      `(${provider}). Returns recent price observations with privacy-` +
+      'fingerprinted locations. Useful for price-recommendation, spare-' +
+      'capacity analysis, and external benchmarking.',
     inputJsonSchema: {
       type: 'object',
       required: ['jurisdiction', 'propertyClass'],
@@ -323,8 +326,8 @@ export function createMarketVacancyTrendsTool(
   return {
     name: 'market.vacancy_trends',
     description:
-      'Fetch external vacancy-trend statistics (mean / p50 / p90 days vacant + ' +
-      `sample size) for a jurisdiction + property class. Backed by ${provider}.`,
+      'Fetch external spare-capacity-trend statistics (mean / p50 / p90 days idle + ' +
+      `sample size) for a jurisdiction + asset class. Backed by ${provider}.`,
     inputJsonSchema: {
       type: 'object',
       required: ['jurisdiction', 'propertyClass'],

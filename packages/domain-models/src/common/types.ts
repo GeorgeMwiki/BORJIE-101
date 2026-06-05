@@ -22,7 +22,14 @@ export type PaymentIntentId = Brand<string, 'PaymentIntentId'>;
 export type StatementId = Brand<string, 'StatementId'>;
 export type AccountId = Brand<string, 'AccountId'>;
 export type OwnerId = Brand<string, 'OwnerId'>;
-export type PropertyId = Brand<string, 'PropertyId'>;
+/**
+ * @deprecated Prefer `MiningSiteId` from `../property/property`. Brand-aligned
+ * to `'MiningSiteId'` (NOT `'PropertyId'`) so the deprecated alias and the
+ * canonical id share ONE nominal brand across the monorepo — this prevents
+ * PropertyId↔MiningSiteId collisions at package boundaries (e.g. the
+ * payments-ledger money path). Full identifier rename tracked in INT-5.
+ */
+export type PropertyId = Brand<string, 'MiningSiteId'>;
 export type LedgerEntryId = Brand<string, 'LedgerEntryId'>;
 export type UnitId = Brand<string, 'UnitId'>;
 export type BlockId = Brand<string, 'BlockId'>;

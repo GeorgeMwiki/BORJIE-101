@@ -9,20 +9,20 @@
 
 import type { AnyScenario } from './scenario.js';
 import { asAnyScenario } from './scenario.js';
-import { acquirePropertyScenario } from './library/acquire-property.js';
+import { acquireSiteScenario } from './library/acquire-site.js';
 import { refinanceScenario } from './library/refinance.js';
-import { raiseRentScenario } from './library/raise-rent.js';
+import { raiseRoyaltyScenario } from './library/raise-royalty.js';
 import { fireVendorScenario } from './library/fire-vendor.js';
 import { waterMainCrisisScenario } from './library/water-main-crisis.js';
-import { leaseRenewalBatchScenario } from './library/lease-renewal-batch.js';
+import { offtakeRenewalBatchScenario } from './library/offtake-renewal-batch.js';
 
 const LIBRARY: ReadonlyArray<AnyScenario> = [
-  asAnyScenario(acquirePropertyScenario),
+  asAnyScenario(acquireSiteScenario),
   asAnyScenario(refinanceScenario),
-  asAnyScenario(raiseRentScenario),
+  asAnyScenario(raiseRoyaltyScenario),
   asAnyScenario(fireVendorScenario),
   asAnyScenario(waterMainCrisisScenario),
-  asAnyScenario(leaseRenewalBatchScenario),
+  asAnyScenario(offtakeRenewalBatchScenario),
 ];
 
 export function listScenarios(): ReadonlyArray<AnyScenario> {
@@ -34,12 +34,12 @@ export function getScenario(name: string): AnyScenario | undefined {
 }
 
 const KEYWORDS: ReadonlyArray<{ pattern: RegExp; name: string }> = [
-  { pattern: /\b(acquire|buy|purchase)\b.*\b(property|building|portfolio)\b/i, name: 'acquire-property' },
+  { pattern: /\b(acquire|buy|purchase)\b.*\b(site|concession|tenement|portfolio)\b/i, name: 'acquire-site' },
   { pattern: /\b(refinance|refi)\b/i, name: 'refinance' },
-  { pattern: /\b(raise|increase|bump)\b.*\brent\b/i, name: 'raise-rent' },
+  { pattern: /\b(raise|increase|bump)\b.*\b(royalty|royalties)\b/i, name: 'raise-royalty' },
   { pattern: /\b(fire|drop|replace)\b.*\bvendor\b/i, name: 'fire-vendor' },
   { pattern: /\b(water|leak|crisis|cascade|burst)\b/i, name: 'water-main-crisis' },
-  { pattern: /\b(renew|renewal)\b.*\bleases?\b/i, name: 'lease-renewal-batch' },
+  { pattern: /\b(renew|renewal)\b.*\b(offtakes?|supply\s+agreements?)\b/i, name: 'offtake-renewal-batch' },
 ];
 
 export function pickScenarioByText(text: string): AnyScenario | undefined {

@@ -52,6 +52,11 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'policy_rollout.', tier: 'high' },
   { prefix: 'owner.connected_agents.revoke', tier: 'high' },
   { prefix: 'admin.kill-switch.', tier: 'high' },
+  { prefix: 'admin.killswitch.', tier: 'high' },
+  { prefix: 'admin.four_eye.', tier: 'high' },
+  { prefix: 'admin.feature_flag.set', tier: 'high' },
+  { prefix: 'admin.policy.edit_rule', tier: 'high' },
+  { prefix: 'admin.tenant.suspend', tier: 'high' },
   { prefix: 'owner.regulator.approve_disclosure', tier: 'high' },
   { prefix: 'owner.licence.submit_renewal', tier: 'high' },
   { prefix: 'owner.inspection.sign', tier: 'high' },
@@ -104,6 +109,7 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'manager.inspection.generate_narrative', tier: 'medium' },
   { prefix: 'insurance.get_quotes', tier: 'medium' },
   { prefix: 'documents.upload', tier: 'medium' },
+  { prefix: 'ops.parties.create', tier: 'medium' },
 
   // ── LOW (autonomous read / navigate / display) ───────────────────
   { prefix: 'mining.ui.navigate', tier: 'low' },
@@ -170,6 +176,9 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'admin.kill-switch.status', tier: 'low' },
   { prefix: 'admin.pilot-errors.recent', tier: 'low' },
   { prefix: 'admin.tenants.list-recent', tier: 'low' },
+  { prefix: 'admin.audit.export', tier: 'high' },
+  { prefix: 'buyer.notifications.mark_read', tier: 'low' },
+  { prefix: 'mwikila.', tier: 'low' },
 ]);
 
 const DEFAULT_TIER: RiskTier = 'high';

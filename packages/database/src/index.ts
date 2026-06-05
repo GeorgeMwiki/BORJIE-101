@@ -6,8 +6,18 @@
 export {
   createDatabaseClient,
   createReadonlyDatabaseClient,
+  withReservedConnection,
   type DatabaseClient,
 } from './client.js';
+// RLS per-operation tenant-context helpers — `withTenantContext` (tenant
+// transaction + SET LOCAL) and `withServiceRoleContext` (cross-tenant system
+// jobs). Now used across the gateway (brain thread store, calendar store,
+// proactive scheduler, owner-docs) so they must be reachable from the barrel.
+export {
+  withTenantContext,
+  withServiceRoleContext,
+  type WithTenantContextOpts,
+} from './rls/with-tenant-context.js';
 export * from './schemas/index.js';
 export * from './repositories/index.js';
 export * from './services/index.js';

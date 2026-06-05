@@ -148,6 +148,33 @@ function warnFallbackOnce(reason: string): void {
       `Snippet isolation is REDUCED: shared V8 heap, weaker timeout enforcement.`);
 }
 
+let _ivmConfirmed = false;
+function confirmIsolatedVmOnce(): void {
+  if (_ivmConfirmed) return;
+  _ivmConfirmed = true;
+  logger.info(
+    `[central-intelligence/sandbox] Backend active: isolated-vm — full V8-isolate ` +
+      `isolation (hard per-context memory cap + structured-clone boundary).`,
+  );
+}
+
+/**
+ * One-shot probe of which sandbox backend THIS process will use, WITHOUT
+ * running a snippet. `'isolated-vm'` = full isolation; `'node-vm-fallback'` =
+ * the reduced shared-heap path (no hard memory cap). Call at service boot to
+ * log / assert the sandbox security posture — a silent fallback in production
+ * means untrusted code runs with weaker isolation. Cheap + memoised (delegates
+ * to loadIvm's own cache).
+ */
+export function probeSandboxBackend(): SandboxBackend {
+  try {
+    loadIvm();
+    return 'isolated-vm';
+  } catch {
+    return 'node-vm-fallback';
+  }
+}
+
 /**
  * Run a JS snippet in a fresh V8 isolate.
  *
@@ -204,6 +231,7 @@ export async function runInSandbox(
   let ivmRuntime: IvmModule;
   try {
     ivmRuntime = loadIvm();
+    confirmIsolatedVmOnce();
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'unknown';
     warnFallbackOnce(reason);
@@ -569,11 +597,17 @@ async function runInVmFallback(
       const ctx = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
       const wrapped = '(function(){ ' + workerData.code + ' })()';
       const result = vm.runInContext(wrapped, ctx, { timeout: workerData.timeoutMs, displayErrors: false });
-      // Strip non-clonable values via JSON round-trip.
-      let safe;
-      try { safe = JSON.parse(JSON.stringify(result === undefined ? null : result)); }
-      catch { safe = null; }
-      parentPort.postMessage({ ok: true, result: safe });
+      // Marshal the result via JSON round-trip. A function / symbol /
+      // otherwise non-serializable TOP-LEVEL result must be REJECTED — not
+      // silently coerced to null — so the node:vm fallback upholds the same
+      // "only structured-clonable values cross" guarantee as the isolated-vm
+      // boundary. JSON.stringify returns undefined for such values.
+      const serialized = JSON.stringify(result === undefined ? null : result);
+      if (serialized === undefined) {
+        parentPort.postMessage({ ok: false, notClonable: true });
+      } else {
+        parentPort.postMessage({ ok: true, result: JSON.parse(serialized) });
+      }
     } catch (err) {
       const msg = err && err.message ? String(err.message) : '(non-error throw)';
       const timedOut = /Script execution timed out|timeout/i.test(msg);
@@ -631,10 +665,20 @@ async function runInVmFallback(
 
     worker.once(
       'message',
-      (msg: { ok: boolean; result?: unknown; message?: string; timedOut?: boolean }) => {
+      (msg: { ok: boolean; result?: unknown; message?: string; timedOut?: boolean; notClonable?: boolean }) => {
         clearTimeout(killTimer);
         void worker.terminate();
-        if (msg.ok) {
+        if (msg.notClonable) {
+          settle({
+            ok: false,
+            error: {
+              code: 'SANDBOX_RESULT_NOT_CLONABLE',
+              message: 'Result is not structured-clonable (functions/proxies forbidden)',
+            },
+            durationMs: Date.now() - started,
+            memoryUsedBytes: 0,
+          });
+        } else if (msg.ok) {
           const scrubbed = scrubForReturn(msg.result, 0);
           settle({
             ok: true,

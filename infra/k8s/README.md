@@ -24,7 +24,6 @@ infra/k8s/
 ├── mcp-server-nin/              Per-service tree (Deployment, stdio MCP)
 ├── mcp-server-opay/             Per-service tree (Deployment, stdio MCP)
 ├── mcp-server-process-intel/    Per-service tree (Deployment + pm4py sidecar)
-├── onboarding-orchestrator/     Per-service tree (Deployment)
 ├── outbox-processor/            Per-service tree (Deployment, singleton drainer)
 ├── outcomes-metering/           Per-service tree (Deployment)
 ├── parcel-service/              Per-service tree (Deployment)
@@ -50,7 +49,7 @@ runtime topology:
 
 | Shape                  | base files                                                    | Examples                                          |
 |------------------------|---------------------------------------------------------------|---------------------------------------------------|
-| HTTP backend           | deployment + service + hpa + pdb + networkpolicy + servicemonitor + externalsecret | voice-agent, sleep-pass-orchestrator, payments-ledger, field-capture-service, onboarding-orchestrator, outcomes-metering, parcel-service |
+| HTTP backend           | deployment + service + hpa + pdb + networkpolicy + servicemonitor + externalsecret | voice-agent, sleep-pass-orchestrator, payments-ledger, field-capture-service, outcomes-metering, parcel-service |
 | Singleton-loop worker  | deployment + networkpolicy + externalsecret                   | consolidation-worker, outbox-processor, proactive-triggers-worker |
 | Stdio MCP server       | deployment + networkpolicy + externalsecret                   | mcp-server-firs, mcp-server-nin, mcp-server-nggis, mcp-server-opay, mcp-server-process-intel |
 | Scheduled CronJob      | cronjob  + networkpolicy + externalsecret                     | brain-evolution-worker, apollo-gauntlet-runner    |
@@ -121,7 +120,6 @@ SERVICES=(
   mcp-server-nin
   mcp-server-opay
   mcp-server-process-intel
-  onboarding-orchestrator
   outbox-processor
   outcomes-metering
   parcel-service

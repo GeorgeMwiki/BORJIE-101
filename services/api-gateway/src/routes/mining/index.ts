@@ -61,6 +61,10 @@ import { miningReportsRouter } from './reports.hono';
 import { miningPortfolioMapRouter } from './portfolio-map.hono';
 import { miningMarketplaceRouter } from './marketplace.hono';
 import { miningBidsRouter } from './bids.hono';
+// Wave WS-2 — buyer ↔ seller bid chat + post-settlement seller ratings.
+// Threads hang off request_for_bid_responses; ratings off settlements.
+// Tables: bid_messages (0172), seller_ratings (0173).
+import { miningBidMessagingRouter } from './bid-messaging.hono';
 import { miningBuyersKycRouter } from './buyers-kyc.hono';
 import { miningCsrPlansRouter } from './csr-plans.hono';
 import { miningDocsRouter } from './docs.hono';
@@ -74,7 +78,7 @@ import { miningOnboardingRouter } from './onboarding.hono';
 // land on real, RLS-scoped read surfaces:
 //   /esg          → village_meetings (community engagement; real rows)
 //   /procurement  → procurement_recommendations (real rows)
-//   /accounting   → empty contract (accounting-journal table still needed)
+//   /accounting   → real journal lines from payments-ledger ledger_entries (WS-4)
 //   /legal        → empty contract (contracts-library table still needed)
 //   /ancillary    → empty contract (ancillary-business table still needed)
 import { miningEsgRouter } from './esg.hono';
@@ -103,6 +107,11 @@ import { miningTasksRouter } from './tasks.hono';
 
 // Worker safety — pre-shift toolbox talks (list / schedule / ack).
 import { miningToolboxRouter } from './toolbox.hono';
+
+// WS-3 workforce wires — worker payslip read (own committed line item) +
+// worker leave requests with single manager approval (NO four-eye) + audit.
+import { miningPayslipRouter } from './payslip.hono';
+import { miningLeaveRequestsRouter } from './leave-requests.hono';
 
 // DOC-INTEL — "documents as alive entities" (upload / sessions /
 // ask / summary).
@@ -160,15 +169,21 @@ mining.route('/reports', miningReportsRouter);
 mining.route('/portfolio-map', miningPortfolioMapRouter);
 mining.route('/marketplace', miningMarketplaceRouter);
 mining.route('/bids', miningBidsRouter);
+// WS-2 — bid chat (thread per RFB response) + post-settlement seller
+// ratings + reputation aggregate. Endpoints: /bid-messaging/threads/
+// :responseId/messages, /bid-messaging/settlements/:settlementId/rate,
+// /bid-messaging/reputation/:sellerTenantId.
+mining.route('/bid-messaging', miningBidMessagingRouter);
 mining.route('/buyers', miningBuyersKycRouter);
 // /csr-plans — Corporate Social Responsibility commitments + delivered_pct
 // (migration 0082).
 mining.route('/csr-plans', miningCsrPlansRouter);
 
-// Owner-os panel BFFs (PANELS-WIRE final 5). `/esg` + `/procurement`
-// return real tenant rows; `/accounting`, `/legal`, `/ancillary` return a
-// real empty list (200, []) until their domain tables are modelled, so
-// every panel renders a proper "no records yet" state instead of a stub.
+// Owner-os panel BFFs (PANELS-WIRE final 5). `/esg` + `/procurement` return
+// real tenant rows; `/accounting` reads REAL journal lines from the
+// payments-ledger `ledger_entries` (WS-4 — a read-only projection, never a
+// parallel ledger); `/legal` + `/ancillary` return a real empty list (200, [])
+// until their domain tables are modelled, so each panel renders a proper state.
 mining.route('/esg', miningEsgRouter);
 mining.route('/procurement', miningProcurementRouter);
 mining.route('/accounting', miningAccountingRouter);
@@ -197,6 +212,11 @@ mining.route('/tasks', miningTasksRouter);
 
 // Worker safety pulse — toolbox-talks.
 mining.route('/toolbox-talks', miningToolboxRouter);
+
+// WS-3 workforce wires — worker payslip (own committed line item) + leave
+// requests (worker submit / manager approve|reject with audit append).
+mining.route('/payslip', miningPayslipRouter);
+mining.route('/leave-requests', miningLeaveRequestsRouter);
 
 // "Documents as alive entities" — corpus-scoped doc-intelligence.
 mining.route('/document-intelligence', miningDocumentIntelligenceRouter);

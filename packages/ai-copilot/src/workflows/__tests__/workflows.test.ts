@@ -52,16 +52,16 @@ describe('workflow engine — happy paths', () => {
   };
 
   const ids = [
-    'onboard_new_property',
-    'process_rent_payment',
+    'onboard_new_site',
+    'process_royalty_payment',
     'resolve_maintenance_case',
-    'execute_lease_renewal',
+    'execute_offtake_renewal',
     'run_arrears_recovery_ladder',
-    'execute_move_out_inspection',
-    'onboard_new_tenant',
+    'execute_offboarding_inspection',
+    'onboard_new_counterparty',
     'draft_monthly_owner_report',
     'vendor_dispatch',
-    'rent_repricing_review',
+    'royalty_repricing_review',
   ];
 
   for (const id of ids) {
@@ -79,7 +79,7 @@ describe('workflow engine — approval paths', () => {
     const engine = new WorkflowEngine(store);
     const run = await engine.start({
       tenantId: 't1',
-      workflowId: 'execute_lease_renewal',
+      workflowId: 'execute_offtake_renewal',
       initiatedBy: 'user_1',
       initiatorRoles: ['OWNER'],
       input: {},
@@ -92,7 +92,7 @@ describe('workflow engine — approval paths', () => {
     const engine = new WorkflowEngine(store);
     let run = await engine.start({
       tenantId: 't1',
-      workflowId: 'onboard_new_tenant',
+      workflowId: 'onboard_new_counterparty',
       initiatedBy: 'u',
       initiatorRoles: ['OWNER'],
       input: {},
@@ -111,7 +111,7 @@ describe('workflow engine — approval paths', () => {
     const engine = new WorkflowEngine(store);
     const run = await engine.start({
       tenantId: 't1',
-      workflowId: 'onboard_new_tenant',
+      workflowId: 'onboard_new_counterparty',
       initiatedBy: 'u',
       initiatorRoles: ['OWNER'],
       input: {},
@@ -131,7 +131,7 @@ describe('workflow engine — isolation + idempotency', () => {
     const engine = new WorkflowEngine(store);
     const run = await engine.start({
       tenantId: 't1',
-      workflowId: 'process_rent_payment',
+      workflowId: 'process_royalty_payment',
       initiatedBy: 'u',
       initiatorRoles: ['OWNER'],
       input: {},
@@ -145,7 +145,7 @@ describe('workflow engine — isolation + idempotency', () => {
     const engine = new WorkflowEngine(store);
     const a = await engine.start({
       tenantId: 't1',
-      workflowId: 'process_rent_payment',
+      workflowId: 'process_royalty_payment',
       initiatedBy: 'u',
       initiatorRoles: ['OWNER'],
       input: { amount: 1000 },
@@ -153,7 +153,7 @@ describe('workflow engine — isolation + idempotency', () => {
     });
     const b = await engine.start({
       tenantId: 't1',
-      workflowId: 'process_rent_payment',
+      workflowId: 'process_royalty_payment',
       initiatedBy: 'u',
       initiatorRoles: ['OWNER'],
       input: { amount: 9999 },
@@ -168,9 +168,9 @@ describe('workflow engine — isolation + idempotency', () => {
     await expect(
       engine.start({
         tenantId: 't1',
-        workflowId: 'onboard_new_property',
+        workflowId: 'onboard_new_site',
         initiatedBy: 'u',
-        initiatorRoles: ['TENANT'],
+        initiatorRoles: ['COUNTERPARTY'],
         input: {},
       })
     ).rejects.toThrow(/role check/);
@@ -181,7 +181,7 @@ describe('workflow engine — isolation + idempotency', () => {
     const engine = new WorkflowEngine(store);
     const run = await engine.start({
       tenantId: 't1',
-      workflowId: 'execute_lease_renewal',
+      workflowId: 'execute_offtake_renewal',
       initiatedBy: 'u',
       initiatorRoles: ['OWNER'],
       input: {},

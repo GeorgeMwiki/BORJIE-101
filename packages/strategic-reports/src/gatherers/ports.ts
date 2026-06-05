@@ -27,32 +27,32 @@ export interface RevenueLine {
   readonly periodLabel: string; // 'Apr 2026', 'FY26-Q2'
   readonly billed: MoneyAmount;
   readonly collected: MoneyAmount;
-  readonly arrears: MoneyAmount;
+  readonly outstanding: MoneyAmount;
 }
 
-export interface OccupancyLine {
+export interface ProductionLine {
   readonly periodLabel: string;
-  readonly leasedUnits: number;
-  readonly totalUnits: number;
+  readonly producingSites: number;
+  readonly totalSites: number;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Leasing financial port — drives leasing_financial_performance + AOR rollup.
+// Offtake financial port — drives offtake_financial_performance + AOR rollup.
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface LeasingFinancialPort {
+export interface OfftakeFinancialPort {
   fetchRevenueTrend(args: {
     readonly orgId: string;
-    readonly propertyId?: string;
+    readonly siteId?: string;
     readonly periodStart: string;
     readonly periodEnd: string;
   }): Promise<ReadonlyArray<RevenueLine>>;
-  fetchOccupancyTrend(args: {
+  fetchProductionTrend(args: {
     readonly orgId: string;
-    readonly propertyId?: string;
+    readonly siteId?: string;
     readonly periodStart: string;
     readonly periodEnd: string;
-  }): Promise<ReadonlyArray<OccupancyLine>>;
+  }): Promise<ReadonlyArray<ProductionLine>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ export interface LeasingFinancialPort {
 
 export interface SurveyDefect {
   readonly defectId: string;
-  readonly element: string; // 'roof', 'envelope', 'HVAC', 'lift'
+  readonly element: string; // 'processing-plant', 'haul-road', 'conveyor', 'tailings-dam'
   readonly severity: 'minor' | 'moderate' | 'major' | 'critical';
   readonly costEstimate: MoneyAmount;
   readonly photoRef?: string;
@@ -69,7 +69,7 @@ export interface SurveyDefect {
 }
 
 export interface SurveySnapshot {
-  readonly propertyId: string;
+  readonly siteId: string;
   readonly surveyDateIso: string;
   readonly surveyorId: string;
   readonly overallGrade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -77,8 +77,8 @@ export interface SurveySnapshot {
 }
 
 export interface ConditionalSurveyPort {
-  fetchLatestSurvey(args: { readonly propertyId: string }): Promise<SurveySnapshot | null>;
-  fetchPriorSurvey(args: { readonly propertyId: string }): Promise<SurveySnapshot | null>;
+  fetchLatestSurvey(args: { readonly siteId: string }): Promise<SurveySnapshot | null>;
+  fetchPriorSurvey(args: { readonly siteId: string }): Promise<SurveySnapshot | null>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ export interface ConditionalSurveyPort {
 
 export interface AcquisitionDeal {
   readonly dealId: string;
-  readonly propertyId: string;
+  readonly siteId: string;
   readonly askPrice: MoneyAmount;
   readonly modelledValue: MoneyAmount;
   readonly noi: MoneyAmount;
@@ -106,7 +106,7 @@ export interface AcquisitionAdvisorPort {
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface DispositionThesis {
-  readonly propertyId: string;
+  readonly siteId: string;
   readonly recommendedExit: 'hold' | 'list-now' | 'list-next-quarter' | 'wait';
   readonly impliedExitValue: MoneyAmount;
   readonly buyerPool: ReadonlyArray<{ readonly buyerType: string; readonly weight: number }>;
@@ -114,7 +114,7 @@ export interface DispositionThesis {
 }
 
 export interface RefinancingProposal {
-  readonly propertyId: string;
+  readonly siteId: string;
   readonly currentLoan: { readonly principal: MoneyAmount; readonly ratePct: number; readonly maturityIso: string };
   readonly proposed: { readonly principal: MoneyAmount; readonly ratePct: number; readonly term_yrs: number; readonly ltvPct: number; readonly dscr: number };
   readonly lenderShortlist: ReadonlyArray<{ readonly name: string; readonly fitScore: number }>;
@@ -122,8 +122,8 @@ export interface RefinancingProposal {
 }
 
 export interface LifecycleAdvisorPort {
-  fetchDispositionThesis(args: { readonly propertyId: string }): Promise<DispositionThesis | null>;
-  fetchRefinancingProposal(args: { readonly propertyId: string }): Promise<RefinancingProposal | null>;
+  fetchDispositionThesis(args: { readonly siteId: string }): Promise<DispositionThesis | null>;
+  fetchRefinancingProposal(args: { readonly siteId: string }): Promise<RefinancingProposal | null>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -131,12 +131,12 @@ export interface LifecycleAdvisorPort {
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface SustainabilitySnapshot {
-  readonly propertyId: string;
+  readonly siteId: string;
   readonly periodLabel: string;
   readonly scope1KgCO2e: number;
   readonly scope2KgCO2e: number;
   readonly scope3KgCO2e: number;
-  readonly intensityKgCO2ePerM2: number;
+  readonly intensityKgCO2ePerTonne: number;
   readonly crremDeltaPct: number; // -ve = below pathway, +ve = above
   readonly euTaxonomyAligned: boolean;
   readonly bngNetGainPct?: number;
@@ -144,7 +144,7 @@ export interface SustainabilitySnapshot {
 }
 
 export interface SustainabilityAdvisorPort {
-  fetchSnapshot(args: { readonly propertyId: string; readonly periodStart: string; readonly periodEnd: string }): Promise<SustainabilitySnapshot | null>;
+  fetchSnapshot(args: { readonly siteId: string; readonly periodStart: string; readonly periodEnd: string }): Promise<SustainabilitySnapshot | null>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -172,38 +172,38 @@ export interface GreenAngleAdvisorPort {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Tenant context port — drives tenant_credit_risk_profile.
+// Buyer context port — drives buyer_credit_risk_profile.
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface TenantContextProfile {
-  readonly tenantPersonId: string;
+export interface BuyerContextProfile {
+  readonly buyerPersonId: string;
   readonly displayName: string;
-  readonly lifecycleStage: string; // 'onboarding', 'paying', 'arrears', 'churn-risk'
-  readonly paymentHistory: ReadonlyArray<{ readonly periodLabel: string; readonly onTimePct: number; readonly arrearsDays: number }>;
+  readonly lifecycleStage: string; // 'onboarding', 'paying', 'outstanding', 'churn-risk'
+  readonly paymentHistory: ReadonlyArray<{ readonly periodLabel: string; readonly onTimePct: number; readonly outstandingDays: number }>;
   readonly complaints: ReadonlyArray<{ readonly id: string; readonly summary: string; readonly resolvedAtIso?: string }>;
   readonly creditSignals: ReadonlyArray<{ readonly signal: string; readonly weight: number }>;
 }
 
-export interface TenantContextPort {
-  fetchTenantProfile(args: { readonly tenantPersonId: string; readonly orgId: string }): Promise<TenantContextProfile | null>;
+export interface BuyerContextPort {
+  fetchBuyerProfile(args: { readonly buyerPersonId: string; readonly orgId: string }): Promise<BuyerContextProfile | null>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Rent-roll port — drives rent_roll_arrears_ledger + AOR.
+// Royalty-roll port — drives royalty_roll_outstanding_ledger + AOR.
 // ────────────────────────────────────────────────────────────────────────────
 
-export interface RentRollEntry {
-  readonly unitId: string;
-  readonly tenantName: string;
-  readonly monthlyRent: MoneyAmount;
-  readonly leaseStartIso: string;
-  readonly leaseEndIso: string;
-  readonly arrears: MoneyAmount;
-  readonly arrearsAgeingDays: number;
+export interface RoyaltyRollEntry {
+  readonly siteId: string;
+  readonly buyerName: string;
+  readonly monthlyRoyalty: MoneyAmount;
+  readonly supplyStartIso: string;
+  readonly supplyEndIso: string;
+  readonly outstanding: MoneyAmount;
+  readonly outstandingAgeingDays: number;
 }
 
-export interface RentRollPort {
-  fetchRentRoll(args: { readonly orgId: string; readonly propertyId?: string; readonly asOfIso: string }): Promise<ReadonlyArray<RentRollEntry>>;
+export interface RoyaltyRollPort {
+  fetchRoyaltyRoll(args: { readonly orgId: string; readonly siteId?: string; readonly asOfIso: string }): Promise<ReadonlyArray<RoyaltyRollEntry>>;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -211,15 +211,15 @@ export interface RentRollPort {
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface AdvisorPorts {
-  readonly leasingFinancial?: LeasingFinancialPort;
+  readonly offtakeFinancial?: OfftakeFinancialPort;
   readonly conditionalSurvey?: ConditionalSurveyPort;
   readonly acquisition?: AcquisitionAdvisorPort;
   readonly lifecycle?: LifecycleAdvisorPort;
   readonly sustainability?: SustainabilityAdvisorPort;
   readonly expansion?: ExpansionAdvisorPort;
   readonly greenAngle?: GreenAngleAdvisorPort;
-  readonly tenantContext?: TenantContextPort;
-  readonly rentRoll?: RentRollPort;
+  readonly buyerContext?: BuyerContextPort;
+  readonly royaltyRoll?: RoyaltyRollPort;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

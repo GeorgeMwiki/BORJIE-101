@@ -32,6 +32,9 @@ import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { UserRole } from '../../types/user-role';
+import { buildRegulatorPack } from './regulator-pack';
+import { fetchRegulatorPackSources } from './regulator-pack-fetch';
+import { resolveRegulatorPackSigningSecret } from './regulator-pack-secret';
 
 const moduleLogger = createLogger('admin-superpowers');
 
@@ -325,12 +328,55 @@ app.post('/bulk-action/:journalId/approve', async (c: any) => {
     );
   }
 
+  // ─── export_regulator_pack — build the verifiable bundle on approval ───
+  // The action is stamped in afterState by the bulk-action proposer. When it
+  // is the regulator-pack export, the SECOND-eye approval is where we actually
+  // assemble + return the artifact (audit bundle + compliance filings +
+  // evidence chain), hash-stamped + HMAC-signed. The target tenant is the
+  // journal row's entityId (the tenant_orgs id from the bulk payload).
+  const afterState =
+    (candidate.afterState as Record<string, unknown> | null) ?? {};
+  const approvedAction = String(afterState.action ?? '');
+  let regulatorPack: ReturnType<typeof buildRegulatorPack> | undefined;
+  if (approvedAction === 'export_regulator_pack') {
+    try {
+      regulatorPack = await buildRegulatorPackForApproval(
+        c,
+        candidate,
+        provenance,
+        auth.userId,
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      moduleLogger.error('admin-superpowers: regulator-pack build failed', {
+        journalId,
+        targetTenantId: candidate.entityId,
+        approverId: auth.userId,
+        error: message,
+      });
+      // FAIL-CLOSED: do not flip the journal to applied if the regulator
+      // artifact could not be produced — the approver must know the export
+      // did not happen.
+      return c.json(
+        {
+          success: false,
+          error: { code: 'REGULATOR_PACK_FAILED', message },
+        },
+        500,
+      );
+    }
+  }
+
   const nextProvenance = {
     ...provenance,
     status: 'applied',
     approved_by_user_id: auth.userId,
     approved_by_role: auth.role,
     approved_at: new Date().toISOString(),
+    ...(regulatorPack !== undefined && {
+      regulator_pack_hash: regulatorPack.bundleHash,
+      regulator_pack_signed: regulatorPack.bundleSignature !== null,
+    }),
     ...(parsed.data.decisionNote !== undefined && {
       approver_note: parsed.data.decisionNote,
     }),
@@ -348,6 +394,7 @@ app.post('/bulk-action/:journalId/approve', async (c: any) => {
     approvingActorId: auth.userId,
     entityType: row.entityType,
     entityId: row.entityId,
+    regulatorPackExported: regulatorPack !== undefined,
   });
 
   return c.json({
@@ -357,9 +404,66 @@ app.post('/bulk-action/:journalId/approve', async (c: any) => {
       journalId: row.id,
       entityType: row.entityType,
       entityId: row.entityId,
+      ...(regulatorPack !== undefined && { regulatorPack }),
     },
   });
 });
+
+/**
+ * Build a regulator pack for an approved `export_regulator_pack` journal row.
+ * Resolves the export window (defaults to the trailing 12 months ending now
+ * when the proposer did not pin one in provenance), fetches the four corpora
+ * for the TARGET tenant (RLS re-bound to that tenant), and returns the
+ * hash-stamped + signed bundle.
+ */
+async function buildRegulatorPackForApproval(
+  c: any,
+  candidate: { readonly entityId: string; readonly actorId: string },
+  provenance: Record<string, unknown>,
+  approverUserId: string,
+): Promise<ReturnType<typeof buildRegulatorPack>> {
+  const db = c.get('db');
+  const targetTenantId = candidate.entityId;
+  const now = new Date();
+  const period = resolveExportPeriod(provenance, now);
+  const sources = await fetchRegulatorPackSources(db, targetTenantId, period);
+  const signingSecret = resolveRegulatorPackSigningSecret();
+  return buildRegulatorPack(
+    sources,
+    {
+      tenantId: targetTenantId,
+      periodStart: period.start.toISOString(),
+      periodEnd: period.end.toISOString(),
+      generatedAt: now.toISOString(),
+      requestedBy: candidate.actorId,
+      approvedBy: approverUserId,
+    },
+    signingSecret,
+  );
+}
+
+/**
+ * Resolve the export window from provenance (`period_start` / `period_end`
+ * ISO strings stamped by the proposer) or default to the trailing 12 months.
+ */
+function resolveExportPeriod(
+  provenance: Record<string, unknown>,
+  now: Date,
+): { readonly start: Date; readonly end: Date } {
+  const end = parseIsoOr(provenance.period_end, now);
+  const defaultStart = new Date(end.getTime());
+  defaultStart.setFullYear(defaultStart.getFullYear() - 1);
+  const start = parseIsoOr(provenance.period_start, defaultStart);
+  return { start, end };
+}
+
+function parseIsoOr(value: unknown, fallback: Date): Date {
+  if (typeof value === 'string') {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return fallback;
+}
 
 export const adminSuperpowersRouter = app;
 export default adminSuperpowersRouter;

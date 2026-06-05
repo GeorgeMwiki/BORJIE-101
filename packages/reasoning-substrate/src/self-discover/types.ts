@@ -22,20 +22,20 @@ import type { ReasoningPrimitive } from './module-library.js';
  * task class triggers a fresh discovery cycle (3× one-time cost).
  */
 export type BorjieTaskClass =
-  | 'eviction'
-  | 'lease-renewal'
-  | 'rent-collection'
-  | 'tenant-dispute'
+  | 'licence-suspension'
+  | 'offtake-renewal'
+  | 'royalty-collection'
+  | 'counterparty-dispute'
   | 'late-fee-compute'
-  | 'rent-proration'
-  | 'deposit-refund'
+  | 'royalty-proration'
+  | 'bond-refund'
   | 'mediation-offer'
   | 'payment-plan'
   | 'kra-mri-submit'
-  | 'tenant-onboarding'
+  | 'counterparty-onboarding'
   | 'maintenance-triage'
   | 'currency-convert'
-  | 'rent-roll-consolidation'
+  | 'royalty-roll-consolidation'
   | 'portfolio-grading';
 
 // ─────────────────────────────────────────────────────────────────────

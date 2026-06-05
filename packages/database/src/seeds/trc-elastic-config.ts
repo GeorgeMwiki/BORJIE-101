@@ -138,13 +138,13 @@ const TRC_LEASE_EXCEPTION_POLICY = {
       maxAmountMinor: TZS_500K_MINOR,
       approver: 'ESTATE_MANAGER',
       description:
-        'Rent <= 500K TZS — Department / EMU may sign; no DG involvement.',
+        'Royalty <= 500K TZS — Department / EMU may sign; no DG involvement.',
     },
     {
       maxAmountMinor: null,
       approver: 'DIRECTOR_GENERAL',
       description:
-        'Rent > 500K TZS — bareland routes via DCEI then DG; developed routes direct to DG.',
+        'Royalty > 500K TZS — exploration-block routes via DCEI then DG; producing-site routes direct to DG.',
     },
   ],
   autoApproveRules: [],

@@ -234,28 +234,6 @@ services:
   # exist for the day each gains its own HTTP wrapper. Until then, leaving
   # `replicas: 0` keeps the build wiring present without booting half-services.)
   # ===========================================================================
-  document-intelligence:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.service
-      args:
-        SERVICE_NAME: document-intelligence
-        PACKAGE_NAME: "@borjie/document-intelligence-service"
-    container_name: borjie-prod-document-intelligence
-    <<: [*common-restart, *common-logging]
-    env_file: .env.production
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-    depends_on:
-      postgres: { condition: service_healthy }
-    networks: [data-plane, control-plane]
-    deploy:
-      replicas: 0
-      resources:
-        limits: { cpus: "1.0", memory: 1G }
-
   domain-services:
     build:
       context: .

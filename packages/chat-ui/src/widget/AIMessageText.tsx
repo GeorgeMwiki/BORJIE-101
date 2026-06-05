@@ -30,8 +30,8 @@ function cleanForDisplay(text: string): string {
     '',
   );
   cleaned = cleaned
-    .replace(/  - /g, '. ')
-    .replace(/  -/g, '.')
+    .replace(/ {2}- /g, '. ')
+    .replace(/ {2}-/g, '.')
     .replace(/ - /g, '. ')
     .replace(/ -/g, '. ')
     .replace(/ -- /g, '. ');

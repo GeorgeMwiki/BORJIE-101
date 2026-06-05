@@ -80,19 +80,19 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'narrative',
       narrative:
-        'Portfolio gross revenue was strong this month with growth across all asset classes. ' +
-        'Collections improved 4.2% versus prior month, driven by higher on-time payment rates.',
+        'Gross offtake revenue was strong this month with growth across all mineral streams. ' +
+        'Royalty collections improved 4.2% versus prior month, driven by higher on-time settlement rates.',
     }),
   });
   adapter.register('payments-ledger.revenue.by_property', {
     resolve: async () => ({
       kind: 'table',
       table: {
-        headers: ['Property', 'Units', 'Revenue', 'Var %'],
+        headers: ['Site', 'Pits', 'Revenue', 'Var %'],
         rows: [
-          ['TRC Plaza', 24, 32400, '+3.2%'],
-          ['Mwanza Heights', 18, 22500, '+1.8%'],
-          ['Dar Apartments', 36, 48000, '+5.1%'],
+          ['Geita Block 7', 24, 32400, '+3.2%'],
+          ['Mwanza North', 18, 22500, '+1.8%'],
+          ['Kahama Pit', 36, 48000, '+5.1%'],
         ],
       },
     }),
@@ -112,8 +112,8 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
       table: {
         headers: ['Line item', 'Plan', 'Actual', 'Variance'],
         rows: [
-          ['Rent', 100000, 102300, '+2.3%'],
-          ['Service charge', 20000, 19200, '-4.0%'],
+          ['Royalty', 100000, 102300, '+2.3%'],
+          ['Cooperative levy', 20000, 19200, '-4.0%'],
           ['Late fees', 1500, 2400, '+60%'],
         ],
       },
@@ -123,19 +123,19 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'narrative',
       narrative:
-        'Portfolio occupancy stands at 93.4%, in line with the healthy range for residential. ' +
-        'Vacancy is concentrated in two units pending refurbishment.',
+        'Portfolio asset utilisation stands at 93.4%, in line with the healthy range for active pits. ' +
+        'Available capacity is concentrated in two pits pending mobilisation.',
     }),
   });
   adapter.register('occupancy.by_property', {
     resolve: async () => ({
       kind: 'table',
       table: {
-        headers: ['Property', 'Total', 'Occupied', 'Rate'],
+        headers: ['Site', 'Total', 'Active', 'Rate'],
         rows: [
-          ['TRC Plaza', 24, 23, '95.8%'],
-          ['Mwanza Heights', 18, 17, '94.4%'],
-          ['Dar Apartments', 36, 33, '91.6%'],
+          ['Geita Block 7', 24, 23, '95.8%'],
+          ['Mwanza North', 18, 17, '94.4%'],
+          ['Kahama Pit', 36, 33, '91.6%'],
         ],
       },
     }),
@@ -144,11 +144,11 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'table',
       table: {
-        headers: ['Unit', 'Days vacant', 'Cause'],
+        headers: ['Pit', 'Days idle', 'Cause'],
         rows: [
-          ['TRC Plaza 4B', 8, 'Lease end'],
-          ['Mwanza 12', 23, 'Refurb'],
-          ['Dar 27', 41, 'Refurb'],
+          ['Geita 4B', 8, 'Mobilisation'],
+          ['Mwanza 12', 23, 'Rehabilitation'],
+          ['Kahama 27', 41, 'Rehabilitation'],
         ],
       },
     }),
@@ -157,8 +157,8 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'narrative',
       narrative:
-        'Arrears stand at 4.1% of the rent roll. The 90+ bucket remains the primary risk; ' +
-        'two cases are now in the legal queue.',
+        'Outstanding royalties stand at 4.1% of royalties due. The 90+ bucket remains the primary risk; ' +
+        'two cases are now in the recovery queue.',
     }),
   });
   adapter.register('payments-ledger.arrears.buckets', {
@@ -179,11 +179,11 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'table',
       table: {
-        headers: ['Tenant', 'Balance', 'Oldest'],
+        headers: ['Counterparty', 'Balance', 'Oldest'],
         rows: [
-          ['Tenant A', 3200, '92 days'],
-          ['Tenant B', 2100, '67 days'],
-          ['Tenant C', 1800, '45 days'],
+          ['Buyer A', 3200, '92 days'],
+          ['Buyer B', 2100, '67 days'],
+          ['Buyer C', 1800, '45 days'],
         ],
       },
     }),
@@ -192,8 +192,8 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'narrative',
       narrative:
-        'Overall building condition is rated 3.8 / 5 across the portfolio. ' +
-        'Roof and exterior trim are the highest-priority items for the next 12 months.',
+        'Overall plant condition is rated 3.8 / 5 across the portfolio. ' +
+        'The crusher and conveyor lines are the highest-priority items for the next 12 months.',
     }),
   });
   adapter.register('inspections.condition.components', {
@@ -202,9 +202,9 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
       table: {
         headers: ['Component', 'Rating', 'Action'],
         rows: [
-          ['Roof', '2.5', 'Replace 2026'],
-          ['HVAC', '3.5', 'Service 2026'],
-          ['Lifts', '4.0', 'Service 2027'],
+          ['Crusher', '2.5', 'Replace 2026'],
+          ['CIL circuit', '3.5', 'Service 2026'],
+          ['Conveyor', '4.0', 'Service 2027'],
         ],
       },
     }),
@@ -231,8 +231,8 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
       kind: 'kpi_grid',
       kpi_grid: {
         metrics: [
-          { label: 'Occupancy', value: '93.4%', delta: '+1.2pp' },
-          { label: 'NOI', value: '78.2k', delta: '+4.1%' },
+          { label: 'Recovery', value: '93.4%', delta: '+1.2pp' },
+          { label: 'Royalty', value: '78.2k', delta: '+4.1%' },
           { label: 'Collections', value: '96.7%', delta: '+0.5pp' },
         ],
       },
@@ -242,8 +242,8 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'narrative',
       narrative:
-        'Top three: complete refurbishments at Mwanza and Dar; close on the Mbeya acquisition; ' +
-        'roll out the new tenant onboarding flow.',
+        'Top three: complete rehabilitation at Mwanza and Kahama; close on the Mbeya acquisition; ' +
+        'roll out the new buyer onboarding flow.',
     }),
   });
   adapter.register('strategy.financial_plan', {
@@ -254,7 +254,7 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
         rows: [
           ['Revenue', 320000, 326400, '+2.0%'],
           ['Op-Ex', 195000, 199500, '+2.3%'],
-          ['NOI', 125000, 126900, '+1.5%'],
+          ['Operating margin', 125000, 126900, '+1.5%'],
         ],
       },
     }),
@@ -266,8 +266,8 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
         headers: ['Risk', 'Likelihood', 'Impact', 'Mitigation'],
         rows: [
           ['FX volatility', 'M', 'M', 'Hedge 50% of USD flow'],
-          ['Refurb delay', 'H', 'M', 'Penalty clauses'],
-          ['Tenant churn', 'L', 'H', 'Retention program'],
+          ['Rehabilitation delay', 'H', 'M', 'Penalty clauses'],
+          ['Buyer churn', 'L', 'H', 'Retention program'],
         ],
       },
     }),
@@ -284,7 +284,7 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
     resolve: async () => ({
       kind: 'table',
       table: {
-        headers: ['Period', 'Revenue', 'Op-Ex', 'NOI'],
+        headers: ['Period', 'Revenue', 'Op-Ex', 'Margin'],
         rows: [
           ['Q1', 305000, 188000, 117000],
           ['Q2', 318000, 192000, 126000],
@@ -307,9 +307,9 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
       table: {
         headers: ['Item', 'Status', 'Due'],
         rows: [
-          ['Fire safety audit', 'Passed', '—'],
-          ['Annual tax filing', 'In progress', '2026-06-30'],
-          ['Building permit renewal', 'Pending', '2026-09-15'],
+          ['Mine safety audit', 'Passed', '—'],
+          ['TRA royalty return', 'In progress', '2026-06-30'],
+          ['Mining licence renewal', 'Pending', '2026-09-15'],
         ],
       },
     }),
@@ -333,9 +333,9 @@ export function createDevDataAdapter(): InMemoryReportDataAdapter {
       table: {
         headers: ['Date', 'Reference', 'Description', 'Amount'],
         rows: [
-          ['2026-04-01', 'INV-001', 'Monthly rent', 1500],
+          ['2026-04-01', 'INV-001', 'Monthly royalty', 1500],
           ['2026-04-05', 'PMT-001', 'Payment received', -1500],
-          ['2026-04-15', 'INV-002', 'Service charge', 180],
+          ['2026-04-15', 'INV-002', 'Cooperative levy', 180],
         ],
       },
     }),

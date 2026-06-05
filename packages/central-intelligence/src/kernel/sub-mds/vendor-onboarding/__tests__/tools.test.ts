@@ -82,11 +82,11 @@ describe('draftMsa', () => {
   it('produces a draft, never auto-signs', () => {
     const d = draftMsa({
       vendorId: 'v1',
-      vendorLegalName: 'Aqua Plumb Ltd',
-      ownerLegalName: 'Asha Estates Ltd',
+      vendorLegalName: 'PumpPro Services Ltd',
+      ownerLegalName: 'Asha Mining Ltd',
       jurisdiction: 'KE',
-      capabilityTags: ['plumber', 'gas-fitter'],
-      serviceAreas: ['Kilimani', 'Westlands'],
+      capabilityTags: ['pump-tech', 'hydraulics-tech'],
+      serviceAreas: ['Geita', 'Kahama'],
       emergencyAvailable: true,
       paymentTermsDays: 30,
       language: 'en',
@@ -99,13 +99,13 @@ describe('draftMsa', () => {
   it('clauses include governing law per jurisdiction', () => {
     const ke = draftMsa({
       vendorId: 'v1', vendorLegalName: 'X', ownerLegalName: 'Y',
-      jurisdiction: 'KE', capabilityTags: ['plumber'], serviceAreas: [],
+      jurisdiction: 'KE', capabilityTags: ['pump-tech'], serviceAreas: [],
       emergencyAvailable: false, paymentTermsDays: 30, language: 'en',
     });
     expect(ke.body).toContain('Kenya');
     const tz = draftMsa({
       vendorId: 'v1', vendorLegalName: 'X', ownerLegalName: 'Y',
-      jurisdiction: 'TZ', capabilityTags: ['plumber'], serviceAreas: [],
+      jurisdiction: 'TZ', capabilityTags: ['pump-tech'], serviceAreas: [],
       emergencyAvailable: false, paymentTermsDays: 30, language: 'en',
     });
     expect(tz.body).toContain('Tanzania');
@@ -114,7 +114,7 @@ describe('draftMsa', () => {
   it('renders Swahili when language=sw', () => {
     const d = draftMsa({
       vendorId: 'v1', vendorLegalName: 'X', ownerLegalName: 'Y',
-      jurisdiction: 'TZ', capabilityTags: ['plumber'], serviceAreas: [],
+      jurisdiction: 'TZ', capabilityTags: ['pump-tech'], serviceAreas: [],
       emergencyAvailable: true, paymentTermsDays: 30, language: 'sw',
     });
     expect(d.title).toContain('Mkataba');
@@ -126,8 +126,8 @@ describe('setupPaymentRail', () => {
     vendorId: 'v1',
     rail: 'mpesa',
     accountToken: 'tok-xxx',
-    accountLabel: '254 7** *** 123',
-    currency: 'KES',
+    accountLabel: '255 7** *** 123',
+    currency: 'TZS',
   };
 
   function mkRegistry(): { registry: PaymentRegistryPort; added: string[] } {

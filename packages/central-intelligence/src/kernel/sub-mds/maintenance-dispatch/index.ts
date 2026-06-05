@@ -1,7 +1,7 @@
 /**
  * maintenance.dispatch — public API for the Tier-A sub-MD.
  *
- * Evidence: cross-vendor 45% emergency-response reduction, 15-20%
+ * Evidence: cross-contractor 45% emergency-response reduction, 15-20%
  * spend reduction, 89-96% classification accuracy. No documented
  * major failure modes (per R3 evidence audit).
  */
@@ -28,7 +28,7 @@ export const MAINTENANCE_DISPATCH_NAME = 'maintenance.dispatch';
 
 export const MAINTENANCE_DISPATCH_TOOLS = Object.freeze([
   'maintenance.classify_ticket',
-  'maintenance.pick_vendor',
+  'maintenance.pick_contractor',
   'maintenance.dispatch_work_order',
   'maintenance.follow_up',
 ] as const);
@@ -96,20 +96,20 @@ export type {
   TicketCategory,
   TicketUrgency,
 } from './tools/classify-ticket.js';
-export { pickVendor } from './tools/pick-vendor.js';
+export { pickContractor } from './tools/pick-contractor.js';
 export type {
-  PickVendorArgs,
-  PickVendorResult,
-  VendorPick,
-  VendorRecord,
-} from './tools/pick-vendor.js';
+  PickContractorArgs,
+  PickContractorResult,
+  ContractorPick,
+  ContractorRecord,
+} from './tools/pick-contractor.js';
 export { dispatchWorkOrder, recallWorkOrder } from './tools/dispatch.js';
 export type {
   DispatchArgs,
   DispatchAuditSink,
   DispatchResult,
   DispatchTransportPort,
-  VendorChannel,
+  ContractorChannel,
   WorkOrderDraft,
 } from './tools/dispatch.js';
 export { followUp } from './tools/follow-up.js';

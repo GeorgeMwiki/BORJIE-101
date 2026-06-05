@@ -38,9 +38,10 @@ export {
 } from './kernel-prior-turns.service.js';
 
 // Kernel grounding — Drizzle-backed GroundingFactsProvider that reads
-// occupancy, active leases, open work-orders, and lease-expiry counts.
-// Triggered by user-message keywords; produces tenant-scoped facts the
-// kernel mixes into the system prompt as grounding evidence.
+// production/asset-utilisation, active offtakes, open work-orders, and
+// licence-expiry counts. Triggered by user-message keywords; produces
+// tenant-scoped facts the kernel mixes into the system prompt as
+// grounding evidence.
 export {
   createKernelGroundingProvider,
   type GroundingFactShape,
@@ -51,8 +52,8 @@ export {
 
 // Kernel cohort — Drizzle-backed TenantAggregateSource for the
 // graph-privacy DP aggregator. Composed at the api-gateway sovereign
-// composition root; reads cross-tenant arrears / collections /
-// renewals / maintenance-TTC. Returns per-tenant per-statistic
+// composition root; reads cross-tenant outstanding-royalties /
+// collections / renewals / maintenance-TTC. Returns per-tenant per-statistic
 // contributions; missing data ⇒ empty array (the aggregator handles
 // that path safely). Port shape duck-typed locally so this package
 // does not compile-time-depend on @borjie/graph-privacy.
@@ -249,7 +250,7 @@ export {
 
 // Market-rate snapshots (migration 0103) — Drizzle-backed adapter for
 // the market-surveillance agent's snapshot persistence. `listActiveUnits`
-// is composed elsewhere from the occupancy/units repository.
+// is composed elsewhere from the production/sites repository.
 export {
   createMarketRateSnapshotsService,
   type DriftFlag,
@@ -260,7 +261,7 @@ export {
 
 // Tenant predictions + intervention opportunities (migration 0106) —
 // Drizzle-backed adapter for the predictive-interventions agent.
-// `listActiveTenants` is composed elsewhere from occupancy/lease repos.
+// `listActiveTenants` is composed elsewhere from production/offtake repos.
 export {
   createTenantPredictionsService,
   type InterventionOpportunityShape,
@@ -471,6 +472,16 @@ export {
 } from './platform/killswitch-write.service.js';
 
 export {
+  createPlatformAutonomySettingsService,
+  type PlatformAutonomySettingsService,
+  type AutonomySettingsDeps,
+  type AutonomySettingSnapshot,
+  type SetAutonomySettingArgs,
+  type SetAutonomySettingResult,
+  type RestoreAutonomySettingArgs,
+} from './platform/autonomy-settings.service.js';
+
+export {
   createServiceHeartbeatService,
   type ServiceHealthRow as PlatformServiceHealthRow,
   type ServiceHealthState as PlatformServiceHealthState,
@@ -639,6 +650,19 @@ export {
   type A2ATaskStatus as A2aTaskStatus,
   type TaskStore as A2aTaskStorePort,
 } from './a2a-task-store.service.js';
+
+// Persona registry (migration 0184) — Drizzle-backed persistence for the
+// kernel's `PersonaRegistryStore` port. Adapts to the central-intelligence
+// `createPersonaRegistry({ store })` factory at the api-gateway composition
+// root so the persona-registry admin router writes to the REAL table instead
+// of returning 503. `PersistedPersonaIdentity` is structurally identical to
+// the kernel's `PersonaIdentity`, so the service satisfies the store port
+// directly (no adapter).
+export {
+  createPersonaRegistryService,
+  type PersonaRegistryService,
+  type PersistedPersonaIdentity,
+} from './persona-registry.service.js';
 
 // Carbon-market book (migration 0170) — Drizzle-backed
 // `BookEntryRepository` from `packages/carbon-market/src/types.ts`.

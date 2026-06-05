@@ -28,7 +28,6 @@ resources:
   - mcp-firs-deployment.yaml
   - mcp-nggis-deployment.yaml
   - mcp-opay-deployment.yaml
-  - document-intelligence-deployment.yaml
   - domain-services-deployment.yaml
   - identity-deployment.yaml
   - notifications-deployment.yaml
@@ -37,7 +36,7 @@ resources:
   - webhooks-deployment.yaml
   - customer-app-deployment.yaml
   - owner-portal-deployment.yaml
-  - admin-web-deployment.yaml
+  - admin-platform-portal-deployment.yaml
   - estate-manager-app-deployment.yaml
   - ingress.yaml
 

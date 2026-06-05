@@ -26,6 +26,9 @@ const PII_PATTERNS: ReadonlyArray<{
   { kind: 'EMAIL', re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g },
   // TZ national ID (NIDA): 20 digits, often dash-grouped (8-4/5-5-2/3).
   { kind: 'NIDA', re: /\b\d{8}-?\d{4,5}-?\d{5}-?\d{2,3}\b/g },
+  // TZ TRA TIN: 123-456-789 (9 digits, NNN-NNN-NNN). Primary tax-ID
+  // entry (Tanzania-first, built for the world).
+  { kind: 'TRA_TIN', re: /\b\d{3}-\d{3}-\d{3}\b/g },
   // KE KRA PIN: A123456789Z.
   { kind: 'KRA_PIN', re: /\b[A-Z]\d{9}[A-Z]\b/g },
   // TZ mobile: +2557xxxxxxxx / 07xxxxxxxx / +2556xxxxxxxx / 06xxxxxxxx.

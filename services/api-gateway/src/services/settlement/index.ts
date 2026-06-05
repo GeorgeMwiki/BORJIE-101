@@ -48,6 +48,16 @@ import { createHash } from 'node:crypto';
 let ledgerPortOverride: SettlementLedgerPort | null = null;
 let ledgerPortProduction: SettlementLedgerPort | null = null;
 let payoutPortOverride: SettlementPayoutPort | null = null;
+let payoutPortProduction: SettlementPayoutPort | null = null;
+// Fail-loud guard for the payout port, symmetric with `ledgerStubAllowed`
+// below. The dev SHA-256 payout stub fires NO real transfer yet fabricates a
+// success ref — if reached with a database present it would stamp the
+// settlement `paying_out` and tell the seller they were paid while no money
+// moved. The stub is therefore gated: reachable ONLY after the composition
+// root declares no-db mode via `__allowSettlementPayoutStub(true)` (from
+// `registerProductionLedgerPorts` when `getDb()` is null). Otherwise
+// `resolveSettlementPayoutPort` throws PAYOUT_NOT_WIRED.
+let payoutStubAllowed = false;
 // Fail-loud guard (M1). The dev SHA-256 stub writes NOTHING to the ledger
 // yet returns a fake journal id — if it were ever reached in an
 // environment that HAS a database, the orchestrator would stamp
@@ -97,6 +107,31 @@ export function __setSettlementPayoutPortForTests(
 }
 
 /**
+ * Composition-root seam — register the REAL payout adapter (M-Pesa B2C /
+ * wallet-credit / ClickPesa) once at boot. Takes precedence over the dev stub
+ * but NOT over a test override. When no real adapter exists yet for the
+ * tenant's rail (e.g. the Tanzania TZS B2C rail is still external-blocked),
+ * leave this unregistered so `resolveSettlementPayoutPort` fails loud rather
+ * than fabricating a payout success.
+ */
+export function __setSettlementProductionPayoutPort(
+  port: SettlementPayoutPort | null,
+): void {
+  payoutPortProduction = port;
+}
+
+/**
+ * Composition-root seam — declare the dev payout stub is allowed because there
+ * is NO database (DATABASE_URL unset). Called from
+ * `registerProductionLedgerPorts` ONLY in the `db === null` branch. When never
+ * called, `resolveSettlementPayoutPort` fails loud rather than fabricating
+ * success.
+ */
+export function __allowSettlementPayoutStub(allowed: boolean): void {
+  payoutStubAllowed = allowed;
+}
+
+/**
  * Resolve the active settlement ledger port. Resolution order:
  *   1. test override (in-memory adapter), when set;
  *   2. production adapter wrapping the REAL `LedgerService.post()` from
@@ -138,13 +173,34 @@ export function resolveSettlementLedgerPort(): SettlementLedgerPort {
 }
 
 /**
- * Resolve the active payout port. Production composition wires
- * M-Pesa B2C / wallet-credit / future-Stripe per the seller's
- * payout-preference profile. Dev fallback returns a deterministic
- * stub so tests + dev flows complete.
+ * Resolve the active payout port. Resolution order mirrors the ledger port:
+ *   1. test override, when set;
+ *   2. production adapter (real M-Pesa B2C / wallet-credit / ClickPesa)
+ *      registered at boot by `composition/ledger`;
+ *   3. dev stub — ONLY when the composition root has explicitly declared
+ *      no-db mode (`__allowSettlementPayoutStub`). It fires NO real transfer
+ *      and returns a deterministic fake ref purely so dev flows complete.
+ *
+ * If a database EXISTS but no production payout adapter is registered (e.g.
+ * the Tanzania TZS B2C rail is still external-blocked), this throws a loud
+ * `PAYOUT_NOT_WIRED` — NEVER the silent stub. Fabricating a payout success
+ * would stamp the settlement `paying_out` with a fake provider ref and tell
+ * the seller they were paid while no money moved. Symmetric with
+ * `resolveSettlementLedgerPort`'s `LEDGER_NOT_WIRED` guard (M1).
  */
 export function resolveSettlementPayoutPort(): SettlementPayoutPort {
   if (payoutPortOverride) return payoutPortOverride;
+  if (payoutPortProduction) return payoutPortProduction;
+  if (!payoutStubAllowed) {
+    throw new SettlementError(
+      'PAYOUT_NOT_WIRED',
+      'Settlement payout port is not wired: a database is present but no ' +
+        'production payout adapter was registered (the seller-payout rail — ' +
+        'e.g. Tanzania TZS M-Pesa B2C / ClickPesa — is not wired at boot). ' +
+        'Refusing the dev stub, which fires NO real transfer yet fabricates a ' +
+        'success ref, telling the seller they were paid while no money moved.',
+    );
+  }
   return {
     async payout(
       input: SettlementPayoutInput,

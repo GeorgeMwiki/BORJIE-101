@@ -99,7 +99,9 @@ const PII_PATTERNS: ReadonlyArray<RegExp> = [
   /\b(?:\d[ -]*?){13,19}\b/g,
   // East African phone (+255/+254/+256 + 9 digits).
   /\+?2(?:54|55|56)[ -]?\d{3}[ -]?\d{3}[ -]?\d{3}\b/g,
-  // KRA PIN / TIN: A + 9 digits + letter.
+  // Tanzania TRA TIN: NNN-NNN-NNN (9 digits, dashed).
+  /\b\d{3}-\d{3}-\d{3}\b/g,
+  // Kenya KRA PIN: A + 9 digits + letter.
   /\bA\d{9}[A-Z]\b/g,
   // NIDA (TZ national ID): 20 digits, dashes optional.
   /\b\d{8}-?\d{5}-?\d{5}-?\d{2}\b/g,

@@ -1,17 +1,18 @@
 /**
- * Brazil (BR) — IRPF (imposto de renda pessoa física) on rental income.
+ * Brazil (BR) — IRPF withholding on mineral proceeds + CFEM royalty.
  *
- * Source: Lei 7.713/88 — rental income from non-residents is withheld at
- * 15% (or 25% in tax-haven scenarios). Residents are taxed progressively
- * via carnê-leão and not withheld at source. Plugin defaults to 15% for
- * non-resident landlords and flags operator configuration for residents.
+ * Source: Lei 7.713/88 — proceeds paid to non-residents are withheld at
+ * 15% (or 25% in tax-haven scenarios). CFEM (Compensação Financeira pela
+ * Exploração de Recursos Minerais) is a separate mineral royalty collected
+ * by the ANM. Plugin defaults to 15% withholding for non-resident operators
+ * and flags operator configuration for residents.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -64,19 +65,19 @@ const brazilCore: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 3, // Lei 8.245/91 § 38
+    minBondMonths: 0,
+    maxBondMonths: 3, // Lei 8.245/91 § 38
     noticePeriodDays: 30,
-    minimumLeaseMonths: 12,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 12,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: 0.1,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Contrato de Locação Residencial (BR)',
-      templatePath: 'br/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Contrato de Fornecimento Mineral (BR Mineral Offtake)',
+      templatePath: 'br/offtake-agreement.hbs',
       locale: 'pt-BR',
     },
   ],
@@ -138,7 +139,7 @@ export const brazilProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     15,
     'BR-RFB-Lei-7713',
-    'IRPF withholding on non-resident rental income: 15% (Lei 7.713/88). Residents use carnê-leão instead — configure per landlord.'
+    'IRPF withholding on non-resident mineral proceeds: 15% (Lei 7.713/88). CFEM royalty (ANM) applies separately — configure per operator.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -175,32 +176,32 @@ export const brazilProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'br-lei-8245',
-        label: 'Lease governed by Lei do Inquilinato (Lei 8.245/91)',
+        id: 'br-codigo-mineracao',
+        label: 'Supply governed by the Código de Mineração (Decreto-Lei 227/1967)',
         mandatory: true,
-        citation: 'Lei 8.245/91',
+        citation: 'Decreto-Lei 227/1967; CFEM (Lei 8.001/90)',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 30,
-      'non-payment': 15, // denuncia vazia
+      'licence-expiry': 30,
+      'royalty-default': 15,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 3,
-        citation: 'Lei 8.245/91 § 38 (caução máxima 3 aluguéis)',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 3,
+        citation: 'Código de Mineração — garantia (≈ 3 months royalty)',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         indexedTo: 'LOCAL_INDEX',
         citation: 'IGP-M / IPCA indexation annually (agreement-defined).',
       },
     },
     defaultNoticeWindowDays: 30,
   }),
-  tenantScreening: buildStubScreeningPort('SERASA_BR'),
+  counterpartyScreening: buildStubScreeningPort('SERASA_BR'),
 };

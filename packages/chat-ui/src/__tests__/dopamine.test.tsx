@@ -38,7 +38,7 @@ describe('ConfettiTrigger', () => {
     const { container } = render(
       <ConfettiTrigger
         active={false}
-        kind="tenant-signed-lease"
+        kind="buyer-signed-offtake"
         tenantId="t-1"
         userId="u-1"
       />,
@@ -51,7 +51,7 @@ describe('ConfettiTrigger', () => {
     const { container } = render(
       <ConfettiTrigger
         active={true}
-        kind="tenant-on-time-payment"
+        kind="buyer-on-time-payment"
         tenantId="t-1"
         userId="u-1"
         particleCount={10}
@@ -96,18 +96,18 @@ describe('AchievementBadge', () => {
     id: 'b-1',
     tenantId: 't-1',
     userId: 'u-1',
-    titleEn: 'First 100 Leases',
+    titleEn: 'First 100 Offtakes',
     titleSw: 'Mikataba 100 ya kwanza',
-    descriptionEn: 'Signed 100 leases',
+    descriptionEn: 'Signed 100 offtakes',
     descriptionSw: 'Umesaini mikataba 100',
     tier: 'gold',
     earnedAt: '2026-04-19T10:00:00Z',
-    iconKey: 'lease',
+    iconKey: 'offtake',
   };
 
   it('renders English title by default', () => {
     render(<AchievementBadge badge={baseBadge} />);
-    expect(screen.getByText('First 100 Leases')).toBeInTheDocument();
+    expect(screen.getByText('First 100 Offtakes')).toBeInTheDocument();
   });
 
   it('renders Swahili title when locale=sw', () => {

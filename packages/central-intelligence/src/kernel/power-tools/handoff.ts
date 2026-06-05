@@ -9,7 +9,7 @@
  * and what the receiving tier needs to action.
  *
  * Tier model:
- *   - requiredTier: tenant-resident (any tier can ASK to hand off)
+ *   - requiredTier: counterparty-resident (any tier can ASK to hand off)
  *   - the handoff TARGET tier is validated against `meetsTier(target,
  *     caller)` — you may only escalate UP, never lateral or down.
  *
@@ -86,7 +86,7 @@ export const handoffPowerTool: PowerTool<HandoffArgs, HandoffOutput> = {
   name: 'Tier handoff',
   description:
     'Hand off the conversation to a higher tier when the current tier hits a permission gap. The receiving tier inherits the full context on the next turn.',
-  requiredTier: 'tenant-resident',
+  requiredTier: 'counterparty-resident',
   requiresApproval: false,
   auditDestination: 'audit-events',
   schema: HandoffSchema,

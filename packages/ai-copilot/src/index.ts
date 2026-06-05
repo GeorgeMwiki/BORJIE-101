@@ -1,35 +1,35 @@
 /**
  * @borjie/ai-copilot
- * 
+ *
  * AI copilots, predictive workflows, and governed automation
- * for the BORJIE property management platform.
- * 
+ * for the Borjie mining estate operating system.
+ *
  * Features:
  * - Maintenance triage copilot
  * - Owner reporting copilot
  * - Communication drafting copilot
  * - Risk alerting copilot
- * - Arrears risk prediction
- * - Churn risk prediction
+ * - Royalty arrears risk prediction
+ * - Buyer churn risk prediction
  * - Maintenance recurrence prediction
- * - Occupancy health scoring
+ * - Production health scoring
  * - Governed prompt library
  * - Human-in-the-loop review workflows
  * - AI governance and audit logging
- * 
+ *
  * @example
  * ```typescript
  * import { createAICopilot } from '@borjie/ai-copilot';
- * 
+ *
  * const copilot = createAICopilot({
  *   openai: { apiKey: process.env.OPENAI_API_KEY },
  * });
- * 
+ *
  * // Triage a maintenance request
  * const result = await copilot.triageMaintenance(input, tenant, actor, context);
- * 
- * // Predict arrears risk
- * const risk = await copilot.predictArrearsRisk(input, tenant);
+ *
+ * // Predict royalty arrears risk
+ * const risk = await copilot.predictRoyaltyArrearsRisk(input, tenant);
  * ```
  */
 
@@ -98,7 +98,22 @@ export type {
   AICompletionResponse,
   AIProviderError,
   ModelInfo,
+  AIContentBlock,
+  AIMessage,
+  MediaAttachment,
 } from './providers/ai-provider.js';
+
+// Anthropic provider multimodal helpers (vision turns).
+export {
+  anthropicModelSupportsVision,
+  buildMultimodalUserMessage,
+  ANTHROPIC_MODELS,
+} from './providers/anthropic.js';
+
+export type {
+  AnthropicProviderConfig,
+  AnthropicModelId,
+} from './providers/anthropic.js';
 
 // Shared Anthropic client (used by services migrating off OpenAI)
 export {
@@ -264,7 +279,7 @@ export {
   generateRenewalOptions,
   PricingStrategy,
   type RenewalOptimizerConfig,
-  type LeaseData,
+  type OfftakeData,
   type PricingOption,
   type RenewalOptimizationResult,
 } from './services/renewal-optimizer.js';
@@ -375,13 +390,13 @@ export {
   generateRenewalStrategy,
   RenewalStrategy,
   IncentiveType,
-  DEFAULT_PROPERTY_POLICIES,
+  DEFAULT_SITE_POLICIES,
   type RenewalStrategyConfig,
-  type TenantRenewalData,
+  type CounterpartyRenewalData,
   type MarketCompData,
-  type PropertyPolicies,
+  type SitePolicies,
   type RenewalOption,
-  type VacancyScenario,
+  type AvailableCapacityScenario,
   type RenewalStrategyResult,
 } from './services/renewal-strategy-generator.js';
 
@@ -416,8 +431,8 @@ export * from './workflows/index.js';
 export * from './document-analysis/index.js';
 export * from './skills/estate/index.js';
 
-// Property grading — Mr. Mwikila's A–F report card system.
-export * as PropertyGrading from './property-grading/index.js';
+// Asset grading — Mr. Mwikila's A–F report card system.
+export * as AssetGrading from './asset-grading/index.js';
 
 // Conversational Personalization
 export {
@@ -466,8 +481,8 @@ export * as OrgAwareness from './org-awareness/index.js';
 export * as OrgSkills from './skills/org/index.js';
 
 // ============================================
-// Tenant Credit Rating — FICO-scale 300-850 rating, portable certificate,
-// opt-in cross-landlord sharing. Barrel-exported so the api-gateway router
+// Counterparty Credit Rating — FICO-scale 300-850 rating, portable certificate,
+// opt-in cross-owner sharing. Barrel-exported so the api-gateway router
 // can import the service factory and certificate helpers directly.
 // ============================================
 export * from './credit-rating/index.js';
@@ -492,9 +507,9 @@ export * as LearningLoop from './learning-loop/index.js';
 // ============================================
 // Risk-Recompute dispatcher — Wave 27 Agent F (Part B.6). Event-driven
 // risk-score recomputation. Subscribes to the platform event bus and
-// fans-out payment/lease/case/inspection/message events to the
-// per-kind compute functions (credit-rating, property-grade,
-// vendor-scorecard, churn-probability, tenant-sentiment). Namespaced
+// fans-out payment/offtake/case/inspection/message events to the
+// per-kind compute functions (credit-rating, asset-grade,
+// vendor-scorecard, churn-probability, counterparty-sentiment). Namespaced
 // so the router factory + types stay addressable without colliding
 // with the existing per-service exports; the dispatcher factory and
 // default classifier are also re-exported directly so the api-gateway
@@ -583,7 +598,7 @@ export * as NewHeadTour from './onboarding/new-head/index.js';
 // aggregation, consent manager, and budget ledger.
 //
 // ExtendedThinking — stake-aware router toggling extended inner-loop
-// reasoning for high-stakes decisions (terminations, evictions,
+// reasoning for high-stakes decisions (terminations, licence suspensions,
 // tribunal filings) vs low-stakes (reminders).
 //
 // MultiScriptHarness — regression gate across Arabic, CJK, Devanagari,
@@ -605,7 +620,7 @@ export * as NewHeadTour from './onboarding/new-head/index.js';
 // (already namespaced above; kept adjacent for the linguistic DNA
 // surface map).
 //
-// ArrearsLadder / MoveOut / TenderToContract — explicit state-machine
+// RoyaltyArrearsLadder / SiteClosure / TenderToContract — explicit state-machine
 // orchestrators for previously-implicit multi-step workflows.
 // ============================================
 export * as EstateGlossary from './estate-glossary/index.js';
@@ -624,15 +639,15 @@ export * as ProactiveLoop from './proactive-loop/index.js';
 // isolated from the main barrel.
 // ============================================
 export * as GraphSignals from './graph-signals/index.js';
-export * as ArrearsLadderOrchestrator from './orchestrators/arrears-ladder/index.js';
-export * as MoveOutOrchestrator from './orchestrators/move-out/index.js';
+export * as RoyaltyArrearsLadderOrchestrator from './orchestrators/royalty-arrears-ladder/index.js';
+export * as SiteClosureOrchestrator from './orchestrators/site-closure/index.js';
 export * as TenderToContractOrchestrator from './orchestrators/tender-to-contract/index.js';
 
 // ============================================
 // Parity K6.2 — GDPR Art. 20 / PDPA s.27 DSAR compiler. Closes parity-gap G3
 // (BOSS lacked a data-export path beside `gdpr-service.executeDeletion`). The
 // compiler assembles a single JSON bundle of every personal-data row for one
-// subject across the property-management surfaces (customers, leases,
+// subject across the mining-estate surfaces (customers, offtakes,
 // payments, communications, voice turns, owner statements, maintenance
 // tickets, KRA MRI filings, GePG transactions, CoT reservoir). Per-field
 // classifications are layered through a `ClassificationLookup` port wired
@@ -691,13 +706,24 @@ export * as MiningJuniors from './juniors/index.js';
 export {
   createMasterBrainAgent,
   createDefaultMasterBrainAgent,
+  formatRetrievedContextBlock,
   type MasterBrainAgent,
   type MasterBrainInput,
   type MasterBrainOutput,
+  type RetrievedContextChunk,
   MasterBrainInputSchema,
   MasterBrainOutputSchema,
   MasterBrainMode,
 } from './juniors/master-brain.js';
+export {
+  classifyLenses,
+  LENS_REGISTRY,
+  DEFAULT_LENS_ID,
+  type Lens,
+  type LensId,
+  type LensSelection,
+  type ClassifyLensesOptions,
+} from './juniors/lens-router.js';
 export {
   createDocumentAgent,
   documentAgent,
@@ -715,3 +741,8 @@ export {
   type SynthesisResult,
 } from './juniors/index.js';
 export { lazyClaudeClient, type ClaudeClient } from './juniors/_shared.js';
+
+// Audit Trail v2 — namespace export so api-gateway can `import { AuditTrail }`
+// and call helpers like `AuditTrail.exportBundle(...)`. The barrel under
+// ./audit-trail re-exports the full surface.
+export * as AuditTrail from './audit-trail/index.js';

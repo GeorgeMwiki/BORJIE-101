@@ -1,10 +1,10 @@
 /**
  * BORJIE AI Copilot Orchestrator
- * 
+ *
  * Main entry point for all AI copilot functionality.
  * Provides a unified interface for:
  * - Copilot invocations (maintenance triage, owner reporting, etc.)
- * - Predictive analytics (arrears risk, churn risk, etc.)
+ * - Predictive analytics (royalty arrears risk, buyer churn risk, etc.)
  * - Human-in-the-loop review workflows
  * - AI governance and audit
  */
@@ -30,12 +30,12 @@ import {
   RiskAlertOutput,
 } from './types/copilot.types.js';
 import {
-  ArrearsRiskInput,
-  ArrearsRiskPrediction,
-  ChurnRiskInput,
-  ChurnRiskPrediction,
-  OccupancyHealthInput,
-  OccupancyHealthScore,
+  RoyaltyArrearsRiskInput,
+  RoyaltyArrearsRiskPrediction,
+  BuyerChurnRiskInput,
+  BuyerChurnRiskPrediction,
+  ProductionHealthInput,
+  ProductionHealthScore,
   PredictionHorizon,
 } from './types/prediction.types.js';
 import {
@@ -290,14 +290,14 @@ export class AICopilot {
   // ===================================
 
   /**
-   * Predict arrears risk for a tenant
+   * Predict royalty arrears risk for a counterparty
    */
-  async predictArrearsRisk(
-    input: ArrearsRiskInput,
+  async predictRoyaltyArrearsRisk(
+    input: RoyaltyArrearsRiskInput,
     tenant: AITenantContext,
     horizon?: PredictionHorizon
-  ): Promise<AIResult<ArrearsRiskPrediction, PredictionError>> {
-    const result = await this.predictionEngine.predictArrearsRisk(input, tenant, horizon);
+  ): Promise<AIResult<RoyaltyArrearsRiskPrediction, PredictionError>> {
+    const result = await this.predictionEngine.predictRoyaltyArrearsRisk(input, tenant, horizon);
     if (result.success) {
       await this.governanceService.logPrediction(
         result.data,
@@ -309,14 +309,14 @@ export class AICopilot {
   }
 
   /**
-   * Predict churn risk for a tenant
+   * Predict buyer churn risk for a counterparty
    */
-  async predictChurnRisk(
-    input: ChurnRiskInput,
+  async predictBuyerChurnRisk(
+    input: BuyerChurnRiskInput,
     tenant: AITenantContext,
     horizon?: PredictionHorizon
-  ): Promise<AIResult<ChurnRiskPrediction, PredictionError>> {
-    const result = await this.predictionEngine.predictChurnRisk(input, tenant, horizon);
+  ): Promise<AIResult<BuyerChurnRiskPrediction, PredictionError>> {
+    const result = await this.predictionEngine.predictBuyerChurnRisk(input, tenant, horizon);
     if (result.success) {
       await this.governanceService.logPrediction(
         result.data,
@@ -328,13 +328,13 @@ export class AICopilot {
   }
 
   /**
-   * Score occupancy health for a property
+   * Score production health for a site
    */
-  async scoreOccupancyHealth(
-    input: OccupancyHealthInput,
+  async scoreProductionHealth(
+    input: ProductionHealthInput,
     tenant: AITenantContext
-  ): Promise<AIResult<OccupancyHealthScore, PredictionError>> {
-    const result = await this.predictionEngine.scoreOccupancyHealth(input, tenant);
+  ): Promise<AIResult<ProductionHealthScore, PredictionError>> {
+    const result = await this.predictionEngine.scoreProductionHealth(input, tenant);
     if (result.success) {
       await this.governanceService.logPrediction(
         result.data,
@@ -417,11 +417,11 @@ export class AICopilot {
    *
    * Available tools:
    *  - get_case_timeline: Complete chronological case history
-   *  - get_tenant_risk_drivers: Why a tenant is at risk
+   *  - get_counterparty_risk_drivers: Why a counterparty is at risk
    *  - get_vendor_scorecard: Vendor performance metrics
-   *  - get_unit_health: Unit health composite score
+   *  - get_pit_health: Pit health composite score
    *  - get_parcel_compliance: Expiring documents/obligations
-   *  - get_property_rollup: Property-level KPIs
+   *  - get_site_rollup: Site-level KPIs
    *  - generate_evidence_pack: Court-ready evidence bundle
    *  - get_portfolio_overview: Portfolio-wide summary
    *  - get_graph_stats: Graph health/completeness

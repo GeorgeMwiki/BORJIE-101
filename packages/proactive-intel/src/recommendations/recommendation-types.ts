@@ -42,7 +42,7 @@ export interface RecommendationBase {
   readonly confidence: Confidence;
   readonly severity: Severity;
   readonly projectedImpactUsdCents: number; // 0 if non-monetary
-  readonly suggestedAction: string; // e.g. "Send STK push reminders to top 5 arrears tenants"
+  readonly suggestedAction: string; // e.g. "Send STK push reminders to top 5 operators with outstanding royalties"
   readonly approvalAsk: string; // e.g. "Want me to do it?"
   readonly summary: string; // owner-facing one-liner
   readonly agUiPart: AgUiApprovalDialogPart;

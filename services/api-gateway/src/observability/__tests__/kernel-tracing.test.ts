@@ -32,7 +32,7 @@ const scope: KernelTraceScope = {
   tenantId: 'tnt-001',
   userId: 'user-abc',
   surface: 'tenant-app',
-  tier: 'lease',
+  tier: 'offtake',
   stakes: 'medium',
   scopeKind: 'tenant',
 };
@@ -85,7 +85,7 @@ describe('withKernelSpan', () => {
     const attrs = turn!.attributes;
     expect(attrs['borjie.kernel.tenantId']).toBe('tnt-001');
     expect(attrs['borjie.kernel.surface']).toBe('tenant-app');
-    expect(attrs['borjie.kernel.tier']).toBe('lease');
+    expect(attrs['borjie.kernel.tier']).toBe('offtake');
     expect(attrs['borjie.kernel.stakes']).toBe('medium');
     expect(attrs['borjie.kernel.scopeKind']).toBe('tenant');
     // userId should be hashed, not raw

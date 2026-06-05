@@ -144,7 +144,7 @@ export function ComplianceDeadlinesSection(
     <SectionStub
       {...props}
       title="Compliance Deadlines"
-      description="Statutory deadlines (TMAA, NEMC, KRA, OSHA) coming due within 30 days."
+      description="Statutory deadlines (TMAA, NEMC, TRA, OSHA) coming due within 30 days."
       genUiPartKind="timeline"
     />
   );

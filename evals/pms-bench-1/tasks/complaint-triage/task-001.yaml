@@ -1,15 +1,15 @@
 id: complaint-triage-001
 scenario: complaint-triage
-title: 'Noise complaint from upstairs neighbor (third occurrence)'
+title: 'Night-shift noise grievance from an adjacent crew (third occurrence)'
 context:
-  complainant: {id: tnt-401, name: 'Daniel Mahasi', unit: '6B'}
-  subject_tenant: {id: tnt-402, name: 'Lisa Nyaga', unit: '7B'}
-  complaint:
+  complainant: {id: wk-401, name: 'Daniel Mahasi', crew: 'Crew 6B'}
+  subject_party: {id: wk-402, name: 'Lisa Nyaga', crew: 'Crew 7B'}
+  grievance:
     submitted_at: '2026-05-17T22:30:00Z'
     kind: 'noise'
     severity_self_assessed: high
-    description: 'Loud music every weekend night until 3am — third complaint'
-    prior_complaints: 2
+    description: 'Loud generator and drilling near the camp every night until 3am — third grievance'
+    prior_grievances: 2
 expected_actions:
   - {tool: 'complaint.classify_severity', expected_class: 'P2-recurring'}
   - {tool: 'complaint.send_formal_warning_to_subject', tone: 'firm-respectful'}

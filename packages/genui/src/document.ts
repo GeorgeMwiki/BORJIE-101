@@ -66,10 +66,10 @@ export const PortalPersonaSchema = z.enum(PORTAL_PERSONAS);
 
 /** Vetted intent keys — the primary-action button cannot fire arbitrary URLs. */
 export const PORTAL_PRIMARY_INTENTS = [
-  'pay_rent',
+  'pay_royalty',
   'request_maintenance',
-  'create_lease',
-  'add_property',
+  'create_offtake',
+  'add_asset',
   'open_chat',
   'review_approvals',
   'invite_user',

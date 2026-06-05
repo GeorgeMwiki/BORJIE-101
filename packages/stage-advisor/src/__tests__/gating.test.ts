@@ -128,7 +128,7 @@ describe('gatedCapabilities — recommendedFlagKeys matches unlocked', () => {
 describe('gatedCapabilities — per-role exhaustive coverage', () => {
   const allRoles: StageRole[] = [
     'admin',
-    'property-manager',
+    'site-manager',
     'estate-manager',
     'owner',
     'tenant',

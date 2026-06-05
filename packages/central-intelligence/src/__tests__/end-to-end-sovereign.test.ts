@@ -248,11 +248,11 @@ describe('e2e — surface → persona routing across all surfaces', () => {
       threadId: 't',
       userMessage: 'q',
       scope: { ...TENANT_SCOPE },
-      tier: 'lease',
+      tier: 'offtake',
       stakes: 'low',
       surface: 'tenant-app',
     });
-    expect(persona.id).toBe('tenant-resident');
+    expect(persona.id).toBe('counterparty-resident');
   });
 
   it('estate-manager-app routes to estate-manager persona', () => {

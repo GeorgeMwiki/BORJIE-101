@@ -103,7 +103,7 @@ async function loadKatex(): Promise<unknown> {
     // package to be installed. Hosts that want server-side math
     // simply `pnpm add katex` and the lazy import resolves it.
     const moduleName: string = 'katex';
-    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func -- dynamic-import shim; literal body, no user input
     const dynamicImport = new Function('m', 'return import(m)') as (m: string) => Promise<unknown>;
     const mod = (await dynamicImport(moduleName)) as { default?: unknown } & Record<string, unknown>;
     return mod.default ?? mod;

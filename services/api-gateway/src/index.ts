@@ -123,6 +123,10 @@ import { personalKbRouter } from './routes/personal-kb.hono';
 // Roadmap R9 — smart-compose ghost text endpoint
 // (POST /brain/compose/suggest).
 import { brainComposeRouter } from './routes/brain-compose.hono';
+// Wave MD-INTELLIGENCE — Managing-Director cross-domain HTTP surface
+// (POST /md/correlations, /md/causation/trace, /md/baselines/compare,
+// /md/insights/emit) backing the four MD brain super-power tools.
+import { mdRouter } from './routes/md/index.hono';
 import { pnlTableRouter } from './routes/bff/pnl-table.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
@@ -223,6 +227,10 @@ import { pilotFeedbackRouter } from './routes/pilot-feedback.hono';
 // `services.sentryToGithubBridge`; when unbound the route returns 503
 // with a clear "not wired" body.
 import { sentryWebhookRouter } from './routes/sentry-webhook.hono';
+// LP-25 / LP-30 — unified channel ingress (whatsapp/sms/voice/email/web)
+// + feature-phone USSD session webhook. Signature-verify-first, then
+// sender->tier resolution and cross-channel state-sync. See route file.
+import { createChannelsRouter } from './routes/channels.hono';
 // Piece L brain↔tab loop — module update proposals (CRUD + approval).
 import proposalsRouter from './routes/proposals.hono';
 // Scope segmentation taxonomy + nodes (Wave SCOPE-SEGMENTATION).
@@ -293,7 +301,6 @@ import sessionReplayRouter from './routes/session-replay.router';
 // Wave 12 — MCP server + agent platform
 import mcpRouter, { agentCardRouter } from './routes/mcp.router';
 // Wave 11 — public marketing (Mr. Mwikila), workflows
-import publicMarketingRouter from './routes/public-marketing.router';
 import publicSandboxRouter from './routes/public-sandbox.router';
 import publicLeadsRouter from './routes/public-leads.router';
 // Borjie marketing-widget public chat — unauthenticated SSE stream of
@@ -376,6 +383,10 @@ import platformOverviewRouter from './routes/platform-overview.router';
 import taskAgentsRouter from './routes/task-agents.router';
 // Wave 27 Agent E — Tenant Branding (per-tenant AI persona identity overrides)
 import tenantBrandingRouter from './routes/tenant-branding.router';
+// Phase D D7 — Persona Registry admin surface (SUPER_ADMIN / ADMIN only).
+// Reads `services.personaRegistry` (kernel PersonaRegistry hydrated from
+// the Drizzle-backed store). Returns 503 NOT_IMPLEMENTED when slot is null.
+import personaRegistryRouter from './routes/persona-registry.router';
 // Wave 27 Agent C — Audit Trail v2 (cryptographically-verifiable append-only log)
 import auditTrailRouter from './routes/audit-trail.router';
 // Wave-K Tier-3 — Sovereign action-ledger admin surface (tail + verify).
@@ -507,6 +518,9 @@ import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 // Admin-side bulk-action surface — distinct whitelist + 4-eye approval
 // for HIGH-impact verbs (suspend tenant, regulator-pack export, etc).
 import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
+// Admin Control Tower — cross-tenant toggles wired to REAL platform state
+// (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
+import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 // Real Holt-Winters forecasts (cash-flow, production, royalty) wired
@@ -598,6 +612,13 @@ import {
   createCognitiveContextMiddleware,
   type WiredCognitive,
 } from './composition/cognitive-wiring';
+// LP-30 — composer deep-execution deps. Builds the 10-port CompositionDeps
+// whose `cot` + `substrate` ports run the real `runLATS` +
+// `discoverReasoningStructure` executors. Threaded into `wireCognitive` so
+// the TTC-routed deep composer is available (flag default OFF, fail-safe;
+// opt-in via env after a staging canary).
+import { buildCognitiveCompositionDeps } from './composition/cognitive-composition-deps-wiring';
+import { resolveSkillEmbedder } from './composition/sovereign';
 import {
   createHeartbeatSupervisor,
   createBackgroundSupervisor,
@@ -1024,10 +1045,18 @@ wireTranslation({ db: getDb(), logger });
 // ----------------------------------------------------------------------------
 // R8 wiring follow-up — construct the cognitive-memory + persistent-memory
 // bundles so brain-turn handlers can prepend recalled context to the system
-// prompt. The 12-wire cognitive-composition.compose() pipeline is deferred
-// until the cognitive-engine / brain-llm-router / calibration ports land
-// (see composition/cognitive-wiring.ts file header). Construction is
-// fail-soft: a broken bundle degrades to null and enrichment short-circuits.
+// prompt.
+//
+// LP-30 — the 12-wire cognitive-composition.compose() pipeline is now LIVE:
+// `compositionDeps` supplies the 10 ports, whose `cot` + `substrate` ports run
+// the real `@borjie/extended-reasoning` `runLATS` and
+// `@borjie/reasoning-substrate` `discoverReasoningStructure` executors. The
+// composer is TTC-routed (Self-Discover / LATS) and gated by
+// `BORJIE_COGNITIVE_COMPOSER_ENABLED` (default OFF; opt-in via env after a
+// staging canary — set to '1'/'true'/'on' to enable). Construction is
+// fail-soft: a broken bundle degrades to null,
+// `runForTurn` returns null on any error, and enrichment falls back to
+// memory-recall-only — the gateway always boots and always serves the turn.
 // ----------------------------------------------------------------------------
 const wiredCognitive: WiredCognitive = wireCognitive({
   db: getDb(),
@@ -1037,6 +1066,17 @@ const wiredCognitive: WiredCognitive = wireCognitive({
     warn: (message, meta) => logger.warn(meta ?? {}, message),
     error: (message, meta) => logger.error(meta ?? {}, message),
   },
+  // LP-30 — turn the deep composer on. The embedder is shared with the kernel
+  // + skill retriever; the inference port falls back to a deterministic
+  // degraded stub when no Anthropic key is present so the pipeline still runs.
+  compositionDeps: buildCognitiveCompositionDeps({
+    embedder: resolveSkillEmbedder(),
+    logger: {
+      info: (meta, msg) => logger.info(meta, msg),
+      warn: (meta, msg) => logger.warn(meta, msg),
+    },
+  }),
+  env: process.env,
 });
 
 // Wave 12 — heartbeat engine + Wave 27 Agent F risk-recompute dispatcher.
@@ -1520,7 +1560,7 @@ api.route('/tenants', tenantsRouter);
 api.route('/users', usersRouter);
 api.route('/notifications', notificationsRouter);
 // Phase F.5 tenant-signup flow mounts FIRST so specific paths
-// (/signup, /first-property, /first-tenant-import, /first-md-chat,
+// (/signup, /first-site, /first-workforce-import, /first-md-chat,
 // /checklist) match before the legacy customer move-in router.
 api.route('/onboarding', onboardingFlowRouter);
 api.route('/onboarding', onboardingRouter);
@@ -1560,6 +1600,8 @@ api.route('/', personalKbRouter);
 // Roadmap R9 — smart-compose ghost-text suggestions
 // (POST /brain/compose/suggest).
 api.route('/brain', brainComposeRouter);
+// Wave MD-INTELLIGENCE — MD cross-domain super-power tools surface.
+api.route('/md', mdRouter);
 // R-FUTURE-3 — PnL BFF for owner-web finance surface
 // (GET /owner/finance/pnl?month=YYYY-MM).
 api.route('/owner/finance', pnlTableRouter);
@@ -1696,6 +1738,14 @@ api.route('/pilot/feedback', pilotFeedbackRouter);
 // returns 503 with a clear "not wired" body. HMAC signature verified
 // via SENTRY_WEBHOOK_SECRET env var (see route file).
 api.route('/webhooks/sentry', sentryWebhookRouter);
+// LP-25 / LP-30 — unified channel ingress + USSD. Mounted at
+// /api/v1/webhooks/channels/:channel (POST) and
+// /api/v1/webhooks/channels/ussd/session (POST). Signature is verified
+// FIRST on the raw body (fail-closed); an invalid signature returns 400
+// and never reaches the brain. Sender->tier is fail-soft (anonymous on
+// no match). In-memory stores by default; production injects Redis-backed
+// conversation + USSD session stores.
+api.route('/webhooks/channels', createChannelsRouter());
 // Piece L brain↔tab loop — module update proposals CRUD + audit.
 // Tenant-scoped via the route's auth middleware; RLS belt-and-braces.
 api.route('/proposals', proposalsRouter);
@@ -1840,11 +1890,13 @@ api.route('/mcp', mcpRouter);
 // .well-known/ path would require mounting at the express root; this variant
 // is still discoverable by A2A clients that follow our OpenAPI spec).
 api.route('/.well-known/agent.json', agentCardRouter);
-// Wave 11 — public marketing (Mr. Mwikila, unauthenticated) + AI workflow engine
-// Borjie public chat mounts FIRST so its /chat handler wins lookup over
-// the legacy pre-Borjie marketing-brain /chat under the same prefix.
+// Wave 11 — public marketing (Mr. Mwikila, unauthenticated) + AI workflow engine.
+// The mining public chat owns /public/chat. The legacy real-estate
+// marketing-brain router (public-marketing.router.ts) was REMOVED: its /chat
+// only shadow-collided with this one (a reorder would have silently reverted
+// the marketing chat to canned property text), and its /pricing-advice +
+// /demo-estate + /waitlist routes were unreferenced by any app.
 api.route('/public', publicChatRouter);
-api.route('/public', publicMarketingRouter);
 api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);
 api.route('/public/status', publicStatusRouter);
@@ -1934,6 +1986,10 @@ api.route('/platform/overview', platformOverviewRouter);
 api.route('/task-agents', taskAgentsRouter);
 // Wave 27 Agent E — Tenant Branding (per-tenant AI persona identity)
 api.route('/tenant-branding', tenantBrandingRouter);
+// Phase D D7 — Persona Registry admin CRUD (SUPER_ADMIN / ADMIN only).
+// Reads `services.personaRegistry` (kernel PersonaRegistry from
+// the Drizzle-backed store); returns 503 NOT_IMPLEMENTED when null.
+api.route('/persona-registry', personaRegistryRouter);
 // Wave 27 Agent C — Audit Trail v2 (record / verify / bundle / entries)
 api.route('/audit-trail', auditTrailRouter);
 // Wave-K Tier-3 — Sovereign action-ledger admin (tail + verify).
@@ -2006,6 +2062,10 @@ api.route('/owner/pinned-items', ownerPinnedItemsRouter);
 api.route('/owner/superpowers', ownerSuperpowersRouter);
 // Admin counterpart — only the bulk-action verb-set differs.
 api.route('/admin/superpowers', adminSuperpowersRouter);
+// Admin Control Tower — GET /controls + POST /toggle (+ /toggle/:id/approve).
+// Each toggle drives a real platform control; HIGH-impact ones are four-eye
+// gated and only mutate state on the second-eye approval. SOC2-audited.
+api.route('/admin/control-tower', adminControlTowerRouter);
 api.route('/public/share', publicShareResolverRouter);
 // Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
 // covers /request, /pending, /approve/:token, /reject/:token under

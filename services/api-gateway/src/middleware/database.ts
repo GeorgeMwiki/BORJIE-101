@@ -16,6 +16,7 @@
 import { createMiddleware } from 'hono/factory';
 import {
   createDatabaseClient,
+  withReservedConnection,
   TenantRepository,
   UserRepository,
   selectEncryptionPort,
@@ -259,37 +260,183 @@ declare module 'hono' {
 import { sql } from 'drizzle-orm';
 
 /**
- * Database middleware
+ * Rebuild the repository container on a specific Drizzle client. Used to
+ * re-bind `TenantRepository` / `UserRepository` onto the per-request
+ * RESERVED connection so their queries run on the same backend connection
+ * that carries the tenant GUC. Reuses the process-singleton encryption
+ * port + audit sink (those are stateless ports, independent of the client).
+ */
+function rebuildRepositoriesOn(database: DatabaseClient): Repositories {
+  const deps = { encPort, encAudit };
+  return {
+    tenants: new TenantRepository(database, deps),
+    users: new UserRepository(database, deps),
+  };
+}
+
+/**
+ * True when `db` is a real pooled postgres.js-backed Drizzle client that
+ * exposes `.reserve()` — i.e. we can pin a request to one connection.
+ * A mock/in-memory client pre-injected by a unit test has no `$client`, so
+ * we fall back to the legacy direct-bind path for it.
+ */
+function hasReservableClient(db: unknown): boolean {
+  const client = (db as { $client?: { reserve?: unknown } } | null | undefined)
+    ?.$client;
+  return typeof client?.reserve === 'function';
+}
+
+/** Internal sentinel so a GUC-bind failure becomes a 500, while a genuine
+ *  downstream handler error still propagates to Hono's error handler. */
+class RlsBindError extends Error {}
+
+const RLS_BIND_SQL = (tenantId: string) =>
+  sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`;
+
+/**
+ * Database middleware — request-scoped RLS connection pinning.
  *
- * Injects database client and repositories into request context AND sets
- * `app.current_tenant_id` on the connection so the RLS policies attached to
- * every tenant-scoped table actually fire. Without this set, every RLS
- * `tenant_id = current_setting('app.current_tenant_id')` predicate would
- * evaluate to NULL = NULL (FALSE) — silently zero rows or, worse, RLS bypass
- * depending on Postgres setting.
+ * Injects the database client + repositories into the request context and
+ * binds the canonical `app.current_tenant_id` GUC so the FORCE-RLS policy on
+ * every tenant-scoped table fires.
  *
- * GUC name canonicalisation: this middleware sets `app.current_tenant_id`.
- * Migration 0172 unified `public.current_app_tenant_id()` (the helper used
- * by 0155 / 0156 / 0169 policies) to read the same name, so every
- * tenant-scoped policy now agrees on a single GUC. The legacy
- * `app.tenant_id` name is retained as a COALESCE fallback inside the
- * helper for out-of-band tooling — DO NOT introduce a second
- * set_config call here for that legacy name.
+ * THE PINNING INVARIANT (security-critical):
+ * postgres.js checks out a connection PER STATEMENT. Binding the GUC with
+ * `set_config(..., false)` on the shared pool and then reading as a separate
+ * statement can land the read on a DIFFERENT connection whose GUC was last
+ * set by another tenant's request — leaking rows across tenants under
+ * concurrent load. So when a tenant is present we RESERVE one connection for
+ * the whole request (`withReservedConnection`), bind the GUC on it, expose a
+ * Drizzle client bound to that exact connection as `c.get('db')`, rebuild the
+ * repos on it, and release (with a GUC reset) when the request ends. Every
+ * statement the request issues therefore runs on the one connection that
+ * carries its tenant GUC. This is NOT a request-wide transaction — per-
+ * statement write atomicity is preserved exactly as before; only the
+ * connection is held.
  *
- * Order of operations:
- *  1. Look up the authenticated principal that `authMiddleware` already
- *     attached to `c.get('auth')`.
- *  2. Cast the tenant id and call `SET LOCAL app.current_tenant_id = ...`
- *     on the same connection that subsequent repo queries will use. The
- *     `SET LOCAL` form scopes the setting to the current transaction; we
- *     wrap it in `BEGIN`/`COMMIT` (or use postgres.js' implicit txn) so the
- *     setting cannot leak across requests sharing the pool.
+ * GUC name: ONLY the canonical `app.current_tenant_id` is set (migration
+ * 0172 unified `public.current_app_tenant_id()` to read it, with a legacy
+ * `app.tenant_id` COALESCE fallback for out-of-band tooling). Do NOT add a
+ * second set_config for the legacy name here.
+ *
+ * Streaming / long-external-call routers (LLM streams, calendar OAuth, MCP)
+ * must NOT use this middleware — holding a reserved connection across a
+ * multi-second external round-trip would exhaust the pool. They use
+ * `databaseMiddlewareNoPin` and bind tenant context per DB operation via
+ * `withTenantContext(...)`, keeping the external call outside any txn.
  */
 export const databaseMiddleware = createMiddleware(async (c, next) => {
-  // Unit tests can pre-populate `db` and `repos` on the context to exercise
-  // routers without a live Postgres. We honour an existing binding so the
-  // middleware becomes a no-op in that case; in production the context is
-  // always empty at this point so the real client is created as before.
+  // Unit tests can pre-populate `db` / `repos` on the context to exercise
+  // routers without a live Postgres. We honour an existing binding; in
+  // production the context is empty here so the real client is created.
+  const preInjectedDb = c.get('db');
+  const database = preInjectedDb ?? getDatabase();
+  const baseRepos = c.get('repos') ?? getRepositories();
+  const useMockData = !preInjectedDb && (USE_MOCK_DATA || !database);
+
+  c.set('useMockData', useMockData);
+
+  if (useMockData && process.env.NODE_ENV !== 'test') {
+    c.set('db', database);
+    c.set('repos', baseRepos);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'LIVE_DATA_NOT_CONFIGURED',
+          message: 'A live database connection is required for this endpoint.',
+        },
+      },
+      503
+    );
+  }
+
+  const auth = c.get('auth') as { tenantId?: string } | undefined;
+  const tenantId = auth?.tenantId;
+
+  // ── Pinned path: real pooled client + a tenant to bind ───────────────
+  if (database && !useMockData && tenantId && hasReservableClient(database)) {
+    try {
+      await withReservedConnection(database as DatabaseClient, async (reqDb) => {
+        try {
+          await reqDb.execute(RLS_BIND_SQL(tenantId));
+        } catch (error) {
+          throw new RlsBindError(
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+        // Expose the reserved-connection client + repos for the request.
+        c.set('db', reqDb);
+        c.set('repos', rebuildRepositoriesOn(reqDb));
+        await next();
+      });
+    } catch (err) {
+      if (err instanceof RlsBindError) {
+        logger.error(
+          { error: err.message, tenantId },
+          'Failed to set RLS tenant context on reserved connection',
+        );
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'RLS_CONTEXT_FAILED',
+              message: 'Could not establish tenant security context.',
+            },
+          },
+          500
+        );
+      }
+      // A genuine downstream handler error — re-throw to Hono's onError.
+      throw err;
+    }
+    return;
+  }
+
+  // ── Fallback path: no tenant, or a mock client with no `.reserve()` ──
+  // Mirrors the historical direct-bind behaviour. A mock client used in
+  // unit tests has no pool, so there is no cross-connection window to
+  // close; a no-tenant request (e.g. the public calendar callback) binds
+  // its own tenant context per operation.
+  c.set('db', database);
+  c.set('repos', baseRepos);
+  if (database && !useMockData && tenantId) {
+    try {
+      await database.execute(RLS_BIND_SQL(tenantId));
+    } catch (error) {
+      logger.error({ error, tenantId }, 'Failed to set RLS tenant context');
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'RLS_CONTEXT_FAILED',
+            message: 'Could not establish tenant security context.',
+          },
+        },
+        500
+      );
+    }
+  }
+  await next();
+});
+
+/**
+ * Database middleware — NO connection pinning.
+ *
+ * Injects the database client + repositories (and the mock-data gate) but
+ * does NOT reserve a connection and does NOT bind the tenant GUC. For
+ * streaming / long-external-call routers (LLM token streams, calendar
+ * OAuth, MCP) that would otherwise hold a reserved pool connection across a
+ * multi-second external round-trip.
+ *
+ * CONTRACT for routers using this: bind tenant context PER DB OPERATION via
+ * `withTenantContext(db, tenantId, fn)` (a short SET LOCAL transaction), and
+ * keep every external call (LLM / payment / calendar API) OUTSIDE any such
+ * transaction. Routers that maintain their own dedicated client + per-op
+ * `set_config(..., true)` (e.g. brain-teach, brain-voice) get the mock gate
+ * + service context from this without an unused reserved connection.
+ */
+export const databaseMiddlewareNoPin = createMiddleware(async (c, next) => {
   const preInjectedDb = c.get('db');
   const database = preInjectedDb ?? getDatabase();
   const repos = c.get('repos') ?? getRepositories();
@@ -310,43 +457,6 @@ export const databaseMiddleware = createMiddleware(async (c, next) => {
       },
       503
     );
-  }
-
-  // Set RLS tenant context BEFORE any repository runs queries.
-  if (database && !useMockData) {
-    const auth = c.get('auth') as { tenantId?: string } | undefined;
-    const tenantId = auth?.tenantId;
-    if (tenantId) {
-      try {
-        // postgres.js executes one statement per call on a checked-out connection.
-        // `SET` (not `SET LOCAL`) lasts the session — for a pooled connection that
-        // means until the next setting overrides it. Since every authenticated
-        // request resets it before any read, no cross-tenant leak is possible.
-        // Using `set_config` avoids interpolation issues and is safe against
-        // SQL injection via the boolean third argument.
-        // Set ONLY the canonical GUC name `app.current_tenant_id`. Migration
-        // 0172b unified `public.current_app_tenant_id()` to read this name
-        // first and fall back to the legacy `app.tenant_id` for out-of-band
-        // tooling — so setting both here is redundant and re-introduces the
-        // GUC-name drift that F2 closed. The middleware MUST set the canonical
-        // name and only the canonical name.
-        await database.execute(
-          sql`SELECT set_config('app.current_tenant_id', ${tenantId}, false)`
-        );
-      } catch (error) {
-        logger.error({ error, tenantId }, 'Failed to set RLS tenant context');
-        return c.json(
-          {
-            success: false,
-            error: {
-              code: 'RLS_CONTEXT_FAILED',
-              message: 'Could not establish tenant security context.',
-            },
-          },
-          500
-        );
-      }
-    }
   }
 
   await next();

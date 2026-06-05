@@ -12,7 +12,7 @@ import { applyConstraintsAndIndexes } from '../schema/constraints.js';
 
 async function main() {
   console.log('═══════════════════════════════════════════════════════════════'); // eslint-disable-line no-console -- init script CLI banner
-  console.log('  Borjie — Canonical Property Graph Initialization'); // eslint-disable-line no-console -- init script CLI banner
+  console.log('  Borjie — Canonical Mining Graph Initialization'); // eslint-disable-line no-console -- init script CLI banner
   console.log('═══════════════════════════════════════════════════════════════'); // eslint-disable-line no-console -- init script CLI banner
   console.log('');
 

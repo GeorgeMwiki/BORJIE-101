@@ -67,6 +67,7 @@ import type {
 import {
   __setSettlementProductionLedgerPort,
   __allowSettlementLedgerStub,
+  __allowSettlementPayoutStub,
 } from '../../services/settlement';
 import type {
   PayrollLedgerPort,
@@ -483,6 +484,7 @@ export function registerProductionLedgerPorts(
   if (!db) {
     __allowSettlementLedgerStub(true);
     __allowPayrollLedgerStub(true);
+    __allowSettlementPayoutStub(true);
     moduleLogger.warn(
       {},
       'ledger_production_wiring_skipped_no_db (dev stub explicitly allowed — no database present)',
@@ -492,6 +494,18 @@ export function registerProductionLedgerPorts(
   const ledger = buildLedgerService(db);
   __setSettlementProductionLedgerPort(createSettlementLedgerAdapter(db, ledger));
   __setPayrollProductionLedgerPort(createPayrollLedgerAdapter(db, ledger));
+  // NOTE: no production settlement PAYOUT adapter is registered here yet — the
+  // seller-payout rail (Tanzania TZS M-Pesa B2C / ClickPesa) lives in the
+  // external-blocked `services/payments/` package. We deliberately leave the
+  // payout port unregistered with a db present, so `resolveSettlementPayoutPort`
+  // fails LOUD (PAYOUT_NOT_WIRED) instead of fabricating a fake payout success
+  // (seller stamped 'paying_out' with a bogus ref while no money moves). Wire
+  // the real adapter here via `__setSettlementProductionPayoutPort(...)` once
+  // the TZS B2C rail is available.
+  moduleLogger.warn(
+    {},
+    'settlement_payout_port_not_wired (db present, no production payout adapter — resolveSettlementPayoutPort will fail loud PAYOUT_NOT_WIRED; wire the TZS B2C rail before live marketplace settlements)',
+  );
   moduleLogger.info(
     {},
     'ledger_production_wiring_active (settlement + payroll → LedgerService.post)',

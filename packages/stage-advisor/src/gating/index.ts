@@ -35,7 +35,7 @@ import type {
  */
 const ROLE_ALLOW: Readonly<Record<StageRole, ReadonlyArray<CapabilityId>>> = {
   admin: CAPABILITY_IDS,
-  'property-manager': CAPABILITY_IDS,
+  'site-manager': CAPABILITY_IDS,
   'estate-manager': [
     'org-setup',
     'first-property',

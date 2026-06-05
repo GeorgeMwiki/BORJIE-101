@@ -292,7 +292,7 @@ describe('createLibsodiumAdapter — XChaCha20-Poly1305 path (when libsodium ava
 
   it('round-trips via the libsodium AEAD when available', async () => {
     const blob = await port.encrypt({
-      plaintext: 'lease-signature-base64-blob',
+      plaintext: 'offtake-signature-base64-blob',
       classification: KRA_PIN_CLASS,
       tenantId: 'tenant-libsodium',
     });
@@ -301,6 +301,6 @@ describe('createLibsodiumAdapter — XChaCha20-Poly1305 path (when libsodium ava
       classification: KRA_PIN_CLASS,
       tenantId: 'tenant-libsodium',
     });
-    expect(decoded).toBe('lease-signature-base64-blob');
+    expect(decoded).toBe('offtake-signature-base64-blob');
   });
 });

@@ -32,8 +32,8 @@ function mockResponse(
     model: 'claude-opus-4-7',
     role: 'assistant',
     content: [
-      { type: 'thinking', thinking: 'I should consider the rent prorate.', signature: 'sig-abc' },
-      { type: 'text', text: 'Prorated rent is KES 15,200.' },
+      { type: 'thinking', thinking: 'I should consider the royalty prorate.', signature: 'sig-abc' },
+      { type: 'text', text: 'Prorated royalty is KES 15,200.' },
     ],
     stop_reason: 'end_turn',
     usage: { input_tokens: 200, output_tokens: 80 },

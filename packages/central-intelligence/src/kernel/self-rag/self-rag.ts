@@ -11,9 +11,10 @@
  *   - IsUSE  (usefulness)  — does the response solve the user's task?
  *
  * BORJIE policy (per `2025-progressive-intelligence.md` §5):
- *   Zero-tolerance for hallucinated rent numbers / unit IDs / lease
- *   terms — IsSUP MUST be enforced on any financial or contractual
- *   claim. The kernel calls `enforceSelfRag(...)` after the sensor's
+ *   Zero-tolerance for hallucinated royalty numbers / unit IDs /
+ *   offtake-agreement terms — IsSUP MUST be enforced on any financial
+ *   or contractual claim. The kernel calls `enforceSelfRag(...)` after
+ *   the sensor's
  *   response and before the policy gate; when the verdict blocks, the
  *   kernel emits a `RUN_ERROR` refusal instead of returning the answer.
  *
@@ -124,22 +125,26 @@ export interface SelfRagInput {
  * these patterns is present.
  *
  * Conservative regexes — we'd rather over-trigger and force grounding
- * than let an unsupported rent number through. The detector matches:
+ * than let an unsupported royalty number through. The detector matches:
  *
  *   - currency amounts ("TZS 450,000", "KES 12,000", "$1,200")
- *   - "rent of …" / "deposit of …" / "fee of …" + a number
- *   - lease / contract / clause references with a section number
- *   - explicit policy statements ("according to the lease …")
+ *   - "royalty of …" / "rent of …" / "fee of …" + a number
+ *   - offtake / agreement / clause references with a section number
+ *   - explicit policy statements ("according to the offtake agreement …")
+ *
+ * Mining vocabulary is added ALONGSIDE the legacy real-estate terms
+ * (additive — over-triggering on more financial/contractual claims
+ * never weakens the grounding gate).
  */
 const FINANCIAL_REGEXES: ReadonlyArray<RegExp> = [
   // ISO-4217 + common informal labels. Kept in sync with policy-gate's
   // ABSOLUTE_MONEY_PATTERN and ai-copilot's MONETARY_PATTERNS.
   /\b(?:TZS|KES|UGX|RWF|NGN|ZAR|GHS|EGP|USD|EUR|GBP|CHF|JPY|CNY|INR|AUD|CAD|Ksh|KShs|Tsh|TShs|Sh|Shs)\s*[\d,]+(?:\.\d+)?/i,
   /\$\s*\d[\d,]*(?:\.\d+)?/,
-  /\b(?:rent|deposit|fee|fine|penalty|surcharge|payment)\s+of\s+[\d,]+/i,
-  /\b(?:lease|contract)\s+(?:clause|section|article)\s+[\d.]+/i,
-  /\baccording to (?:the )?(?:lease|contract|tenancy agreement)/i,
-  /\b(?:tenant|owner|landlord)\s+(?:must|shall|is required to)\s+pay/i,
+  /\b(?:royalty|rent|deposit|fee|fine|penalty|surcharge|payment)\s+of\s+[\d,]+/i,
+  /\b(?:offtake|supply|lease|contract)\s+(?:agreement\s+)?(?:clause|section|article)\s+[\d.]+/i,
+  /\baccording to (?:the )?(?:offtake agreement|supply agreement|lease|contract|tenancy agreement)/i,
+  /\b(?:counterparty|tenant|owner|landlord)\s+(?:must|shall|is required to)\s+pay/i,
 ];
 
 export function containsFinancialClaim(text: string): boolean {

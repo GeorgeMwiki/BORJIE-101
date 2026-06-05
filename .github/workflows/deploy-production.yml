@@ -52,7 +52,6 @@ jobs:
 
       - name: Build ${{ matrix.app }}
         run: pnpm -r --filter=./apps/${{ matrix.app }} build
-        continue-on-error: true
 
       - name: Upload ${{ matrix.app }} artifact
         uses: actions/upload-artifact@v7
@@ -90,7 +89,16 @@ jobs:
           terraform apply -auto-approve tfplan
         env:
           AWS_REGION: eu-west-1
-        continue-on-error: true
+
+      - name: Run database migrations (baseline-first, gated)
+        # Applies the drizzle/ baseline THEN src/migrations/ via the canonical
+        # baseline-first runner (packages/database/src/run-migrations.ts). MUST
+        # succeed before app cutover — without this a live-looking gateway
+        # serves against an un-migrated / drifted schema. Requires the
+        # PRODUCTION_DATABASE_URL secret (prod DB reachable from the runner).
+        run: pnpm -C packages/database run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
 
       - name: Deploy summary
         run: |
@@ -105,12 +113,14 @@ jobs:
     needs: deploy
     steps:
       - name: Run health checks
+        # Fails the deploy (and thus the Slack notify status) if the gateway
+        # is not actually serving. Requires the PRODUCTION_URL repo variable.
         run: |
-          echo "Running health checks against production..."
-          # curl -sf "${{ vars.PRODUCTION_URL }}/api/health" || exit 1
-          # curl -sf "${{ vars.PRODUCTION_URL }}/api/ready" || exit 1
-          echo "Health checks placeholder - configure PRODUCTION_URL variable"
-        continue-on-error: true
+          echo "Running health checks against ${{ vars.PRODUCTION_URL }}..."
+          curl -sf --retry 5 --retry-delay 10 --retry-all-errors "${{ vars.PRODUCTION_URL }}/health" \
+            || { echo "::error::gateway /health failed"; exit 1; }
+          curl -sf --retry 5 --retry-delay 10 --retry-all-errors "${{ vars.PRODUCTION_URL }}/health/deep" \
+            || { echo "::error::gateway /health/deep degraded/unhealthy"; exit 1; }
 
   notify:
     name: Notify Slack

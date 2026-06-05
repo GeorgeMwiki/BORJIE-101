@@ -1,8 +1,8 @@
 /**
  * `maintenance.classify_ticket` — read tier.
  *
- * Classifies a free-text maintenance ticket into (urgency, category,
- * required_skill). Bilingual (Swahili + English).
+ * Classifies a free-text equipment-maintenance ticket into (urgency,
+ * category, required_skill). Bilingual (Swahili + English).
  *
  * The implementation is a lexical-prior model: a curated keyword
  * table per category × urgency, scored with simple additive weights.
@@ -13,14 +13,14 @@
 
 export type TicketUrgency = 'emergency' | 'high' | 'medium' | 'low';
 export type TicketCategory =
-  | 'plumbing'
+  | 'pumping'
   | 'electrical'
-  | 'hvac'
-  | 'appliance'
+  | 'hydraulics'
+  | 'processing'
   | 'structural'
-  | 'pest'
-  | 'cosmetic'
-  | 'security';
+  | 'vehicle'
+  | 'general'
+  | 'safety';
 
 export interface ClassifiedTicket {
   readonly urgency: TicketUrgency;
@@ -40,35 +40,36 @@ interface KeywordRule {
 }
 
 const KEYWORDS: ReadonlyArray<KeywordRule> = [
-  // PLUMBING
-  { category: 'plumbing', urgencyBoost: 'emergency', weight: 5, tokens: ['water main', 'main pipe', 'flooding', 'flooded', 'mafuriko', 'maji yanavuja sana', 'bomba kuu', 'flooding apartment'], skills: ['plumber', 'emergency-water'] },
-  { category: 'plumbing', urgencyBoost: 'high', weight: 4, tokens: ['no hot water', 'no water', 'hakuna maji ya moto', 'hakuna maji', 'water heater'], skills: ['plumber'] },
-  { category: 'plumbing', weight: 3, tokens: ['leak', 'leaking', 'drip', 'dripping', 'choo kimeziba', 'toilet blocked', 'toilet clogged', 'inavuja', 'inavuja maji', 'sink blocked', 'tap', 'mfereji', 'bomba', 'sink', 'toilet'], skills: ['plumber'] },
+  // PUMPING (dewatering — a flooded pit is an emergency)
+  { category: 'pumping', urgencyBoost: 'emergency', weight: 5, tokens: ['pit flooding', 'pit flooded', 'shimo limejaa maji', 'dewatering pump failed', 'pampu kuu imekufa', 'water rising in the pit'], skills: ['pump-tech', 'emergency-dewatering'] },
+  { category: 'pumping', urgencyBoost: 'high', weight: 4, tokens: ['slurry pump down', 'borehole pump', 'pampu ya maji', 'no pumping', 'pump not pumping'], skills: ['pump-tech'] },
+  { category: 'pumping', weight: 3, tokens: ['pump leak', 'pump leaking', 'pampu inavuja', 'pump seal', 'pump impeller', 'pump', 'pampu'], skills: ['pump-tech'] },
   // ELECTRICAL
-  { category: 'electrical', urgencyBoost: 'emergency', weight: 5, tokens: ['sparks', 'electrical fire', 'cheche za umeme', 'umeme unawaka moto', 'burning smell wires'], skills: ['electrician', 'emergency-electrical'] },
-  { category: 'electrical', urgencyBoost: 'high', weight: 4, tokens: ['no power', 'power out', 'hakuna umeme', 'umeme umekatika', 'breaker tripping', 'breaker keeps tripping', 'circuit breaker'], skills: ['electrician'] },
-  { category: 'electrical', weight: 3, tokens: ['socket', 'plug', 'switch', 'umeme', 'bulb', 'taa', 'light not working', 'taa haifanyi kazi', 'flickering', 'lights flickering', 'wiring', 'electrical'], skills: ['electrician'] },
-  // HVAC / GAS
-  { category: 'hvac', urgencyBoost: 'high', weight: 5, tokens: ['gas leak', 'gas smell', 'harufu ya gesi', 'gesi inavuja', 'smell gas', 'harufu kali ya gesi', 'gas from the cooker', 'gas in the kitchen', 'gas in kitchen'], skills: ['gas-fitter', 'emergency-gas'] },
-  { category: 'hvac', weight: 3, tokens: ['ac not cooling', 'air conditioner', 'aircon', 'kiyoyozi', 'heater not working', 'fan', 'feni', 'vent', 'a/c', ' ac ', 'cooling'], skills: ['hvac-tech'] },
-  // APPLIANCE
-  { category: 'appliance', weight: 3, tokens: ['fridge', 'refrigerator', 'friji', 'friji haifanyi', 'oven', 'jiko', 'stove', 'cooker', 'microwave', 'washing machine', 'dishwasher', 'kettle'], skills: ['appliance-tech'] },
-  // STRUCTURAL
-  { category: 'structural', urgencyBoost: 'high', weight: 4, tokens: ['ceiling collapse', 'wall crack', 'crack in the wall', 'paa limeanguka', 'ukuta umepasuka', 'roof leak', 'paa linavuja', 'crack getting wider', 'big crack'], skills: ['mason', 'structural'] },
-  { category: 'structural', weight: 3, tokens: ['door broken', 'window broken', 'mlango', 'dirisha', 'kufuli', 'mlango umevunjika', 'dirisha limevunjika', 'door will not close'], skills: ['handyman'] },
-  // PEST
-  { category: 'pest', weight: 4, tokens: ['rats', 'mice', 'panya', 'cockroach', 'cockroaches', 'mende', 'mende wengi', 'bedbugs', 'kunguni', 'pest', 'wadudu', 'termites', 'mchwa', 'termite damage'], skills: ['pest-control'] },
-  // COSMETIC
-  { category: 'cosmetic', weight: 2, tokens: ['paint', 'rangi', 'scuff', 'mark on wall', 'doa ukutani', 'cleaning', 'fresh coat', 'deep cleaning', 'rangi ya ukuta'], skills: ['painter', 'cleaner'] },
-  // SECURITY
-  { category: 'security', urgencyBoost: 'high', weight: 5, tokens: ['break-in', 'break in', 'broken lock', 'wizi', 'wameingia', 'gate broken', 'lango limevunjika', 'lango la mbele limevunjika', 'cctv', 'alarm', 'cctv camera', 'alarm system'], skills: ['locksmith', 'security'] },
+  { category: 'electrical', urgencyBoost: 'emergency', weight: 5, tokens: ['sparks', 'electrical fire', 'cheche za umeme', 'umeme unawaka moto', 'transformer burning', 'switchgear arcing'], skills: ['electrician', 'emergency-electrical'] },
+  { category: 'electrical', urgencyBoost: 'high', weight: 4, tokens: ['no power', 'power out', 'hakuna umeme', 'umeme umekatika', 'breaker tripping', 'breaker keeps tripping', 'switchgear', 'transformer'], skills: ['electrician'] },
+  { category: 'electrical', weight: 3, tokens: ['cable', 'isolator', 'umeme', 'panel', 'motor not starting', 'starter', 'wiring', 'electrical'], skills: ['electrician'] },
+  // HYDRAULICS
+  { category: 'hydraulics', urgencyBoost: 'high', weight: 5, tokens: ['hydraulic hose burst', 'hydraulic leak', 'mafuta ya haidroliki yanavuja', 'boom will not lift', 'ram leaking', 'cylinder leak'], skills: ['hydraulics-tech', 'emergency-hydraulics'] },
+  { category: 'hydraulics', weight: 3, tokens: ['hydraulic', 'haidroliki', 'hose', 'cylinder', 'ram', 'boom'], skills: ['hydraulics-tech'] },
+  // PROCESSING (crusher / mill / wash plant)
+  { category: 'processing', urgencyBoost: 'high', weight: 4, tokens: ['crusher jammed', 'crusher down', 'kisagaji kimekwama', 'ball mill stopped', 'mill liner', 'wash plant down', 'screen blocked'], skills: ['process-fitter'] },
+  { category: 'processing', weight: 3, tokens: ['crusher', 'mill', 'kinu', 'cyclone', 'screen', 'wash plant', 'conveyor belt', 'belt torn'], skills: ['process-fitter', 'fitter'] },
+  // VEHICLE / FLEET
+  { category: 'vehicle', weight: 3, tokens: ['haul truck', 'excavator engine', 'loader', 'lori', 'dozer', 'tyre', 'tipper', 'engine overheating', 'gari', 'fleet'], skills: ['diesel-mechanic'] },
+  // STRUCTURAL / CIVIL
+  { category: 'structural', urgencyBoost: 'high', weight: 4, tokens: ['ramp collapse', 'retaining wall crack', 'ukuta umepasuka', 'headframe', 'crack getting wider', 'big crack', 'ground subsidence'], skills: ['rigger', 'civil'] },
+  { category: 'structural', weight: 3, tokens: ['gate broken', 'door broken', 'mlango', 'fence', 'mlango umevunjika', 'structure'], skills: ['handyman'] },
+  // SAFETY EQUIPMENT
+  { category: 'safety', urgencyBoost: 'high', weight: 5, tokens: ['gas detector', 'kigunduzi cha gesi', 'ventilation fan down', 'feni ya hewa', 'fire suppression', 'emergency stop', 'methane alarm'], skills: ['safety-tech'] },
+  // GENERAL (low-priority — signage, paint, housekeeping)
+  { category: 'general', weight: 2, tokens: ['signage', 'paint', 'rangi', 'cleaning', 'housekeeping', 'fresh coat', 'deep cleaning'], skills: ['general-hand'] },
 ];
 
 const EMERGENCY_TOKENS = ['emergency', 'urgent', 'now', 'haraka', 'sasa hivi', 'dharura', 'tafadhali haraka', 'imezama'];
 const HIGH_TOKENS = ['asap', 'today', 'leo', 'soon', 'urgent', 'mara moja'];
 const LOW_TOKENS = ['when possible', 'no rush', 'haina haraka', 'sometime', 'eventually'];
 
-const SWAHILI_INDICATORS = ['ya', 'na', 'kwa', 'haba', 'haba', 'tafadhali', 'maji', 'umeme', 'mlango', 'choo', 'jiko', 'haki', 'hakuna', 'shida', 'tatizo', 'rangi', 'paa'];
+const SWAHILI_INDICATORS = ['ya', 'na', 'kwa', 'tafadhali', 'maji', 'umeme', 'mlango', 'pampu', 'kinu', 'haki', 'hakuna', 'shida', 'tatizo', 'rangi', 'shimo'];
 
 export function classifyTicket(text: string): ClassifiedTicket {
   const lower = text.toLowerCase();
@@ -90,7 +91,7 @@ export function classifyTicket(text: string): ClassifiedTicket {
     }
   }
 
-  let category: TicketCategory = 'cosmetic';
+  let category: TicketCategory = 'general';
   let topScore = 0;
   for (const [cat, score] of scores) {
     if (score > topScore) {
@@ -113,7 +114,7 @@ export function classifyTicket(text: string): ClassifiedTicket {
   // If no category match at all, downgrade
   if (topScore === 0) {
     urgency = 'low';
-    category = 'cosmetic';
+    category = 'general';
   }
 
   // Confidence — proportional to score, capped 0.95
@@ -131,7 +132,7 @@ export function classifyTicket(text: string): ClassifiedTicket {
     rationale:
       matched.length > 0
         ? `Matched tokens: ${matched.slice(0, 5).join(', ')}`
-        : 'No category tokens matched; defaulted to cosmetic/low',
+        : 'No category tokens matched; defaulted to general/low',
   });
 }
 

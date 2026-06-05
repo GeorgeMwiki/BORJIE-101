@@ -5,7 +5,13 @@
  * Tests use the in-memory builders here for deterministic runs.
  */
 
-import type { IsoTimestamp } from '../types.js';
+import type {
+  IsoTimestamp,
+  PassId,
+  SleepEmission,
+  SleepRunFinalize,
+  SleepRunStore,
+} from '../types.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // DLQ port — used by `dead-letter-replay`
@@ -259,5 +265,124 @@ export function createInMemoryTenantAdapter(
       dormant.push(tenantId);
     },
     dormant: () => [...dormant],
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Sleep-run store — used by `runSleepTick` (LP-21a)
+// ─────────────────────────────────────────────────────────────────────
+
+interface InMemoryRunRow {
+  readonly id: string;
+  readonly passId: PassId;
+  status: 'running' | 'done' | 'failed' | 'timeout' | 'skipped';
+  readonly startedAt: IsoTimestamp;
+  completedAt: IsoTimestamp | null;
+  errorText: string | null;
+}
+
+interface InMemoryEmissionRow {
+  readonly runId: string;
+  readonly kind: string;
+  readonly payload: unknown;
+}
+
+export interface InMemorySleepRunStore extends SleepRunStore {
+  /** Inspect persisted run rows (tests). */
+  runs(): ReadonlyArray<InMemoryRunRow>;
+  /** Inspect persisted emission rows (tests). */
+  emissions(): ReadonlyArray<InMemoryEmissionRow>;
+}
+
+/**
+ * Deterministic in-memory {@link SleepRunStore} for tests + standalone mode.
+ *
+ * Mirrors the production single-flight + stale-row-rescue semantics:
+ *   - A still-fresh `running` row for the same pass causes `beginRun` to
+ *     return `null` (another worker is in flight — skip this tick).
+ *   - A `running` row older than `rescueAgeMs` is reaped to `failed`
+ *     ("presumed crash") and a fresh row is inserted, so a crashed pass is
+ *     never permanently wedged.
+ *
+ * @param opts.rescueAgeMs stale-row rescue window (default 30 min).
+ * @param opts.nowMs       monotonic clock injection for deterministic tests.
+ * @param opts.idFactory   id generator (default monotonic counter).
+ */
+export function createInMemorySleepRunStore(opts: {
+  readonly rescueAgeMs?: number;
+  readonly nowMs?: () => number;
+  readonly idFactory?: () => string;
+} = {}): InMemorySleepRunStore {
+  const rescueAgeMs = opts.rescueAgeMs ?? 30 * 60 * 1000;
+  const nowMs = opts.nowMs ?? (() => Date.now());
+  let seq = 0;
+  const idFactory = opts.idFactory ?? (() => `run_${++seq}`);
+
+  const rows: InMemoryRunRow[] = [];
+  const emissionRows: InMemoryEmissionRow[] = [];
+
+  function freshestRunning(passId: PassId): InMemoryRunRow | undefined {
+    return rows
+      .filter((r) => r.passId === passId && r.status === 'running')
+      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+  }
+
+  return {
+    async beginRun(passId) {
+      const stuck = freshestRunning(passId);
+      if (stuck) {
+        const ageMs = nowMs() - Date.parse(stuck.startedAt);
+        if (ageMs > rescueAgeMs) {
+          stuck.status = 'failed';
+          stuck.completedAt = new Date(nowMs()).toISOString();
+          stuck.errorText = `presumed crash — 'running' for ${Math.round(
+            ageMs / 60000,
+          )}min, exceeded ${rescueAgeMs / 60000}min budget`;
+          // fall through to insert a fresh row
+        } else {
+          // single-flight: another worker is legitimately in flight
+          return null;
+        }
+      }
+      const row: InMemoryRunRow = {
+        id: idFactory(),
+        passId,
+        status: 'running',
+        startedAt: new Date(nowMs()).toISOString(),
+        completedAt: null,
+        errorText: null,
+      };
+      rows.push(row);
+      return row.id;
+    },
+
+    async recordEmissions(
+      runId: string | null,
+      emissions: ReadonlyArray<SleepEmission>,
+    ) {
+      if (!runId || emissions.length === 0) return;
+      for (const e of emissions) {
+        emissionRows.push({ runId, kind: e.kind, payload: e.payload });
+      }
+    },
+
+    async finalizeRun(runId: string | null, fin: SleepRunFinalize) {
+      if (!runId) return;
+      const row = rows.find((r) => r.id === runId);
+      if (!row) return;
+      row.status = fin.status;
+      row.completedAt = new Date(nowMs()).toISOString();
+      row.errorText = fin.errorText ?? null;
+    },
+
+    async lastRunAt(passId) {
+      const latest = rows
+        .filter((r) => r.passId === passId)
+        .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))[0];
+      return latest?.startedAt ?? null;
+    },
+
+    runs: () => rows.map((r) => ({ ...r })),
+    emissions: () => emissionRows.map((e) => ({ ...e })),
   };
 }

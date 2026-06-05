@@ -7,7 +7,7 @@
  *
  * The batcher is greedy: every step whose deps are all satisfied lands
  * in the next batch. This minimises wall-clock without re-running any
- * step. For property-mgmt agents most plans are 5-30 steps, so the
+ * step. For mining estate agents most plans are 5-30 steps, so the
  * O(steps^2) edge scan is irrelevant.
  */
 

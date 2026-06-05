@@ -61,10 +61,13 @@ import {
 import {
   AIProvider,
   AIMessage,
+  MediaAttachment,
 } from '../providers/ai-provider.js';
 import {
   ANTHROPIC_MODELS,
   buildToolResultMessage,
+  buildMultimodalUserMessage,
+  anthropicModelSupportsVision,
 } from '../providers/anthropic.js';
 import { CompiledPrompt } from '../types/prompt.types.js';
 import { asPromptId } from '../types/core.types.js';
@@ -75,12 +78,31 @@ import { AIGovernanceService } from '../governance/ai-governance.js';
 // Public types
 // ---------------------------------------------------------------------------
 
+/**
+ * Maximum decoded size (in bytes) of any single multimodal attachment.
+ * The api-gateway accepts a slightly looser 10 MB total upload limit;
+ * the orchestrator enforces 5 MB per attachment as defence-in-depth.
+ */
+export const MAX_MEDIA_ATTACHMENT_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Maximum number of media attachments allowed in a single multimodal turn.
+ */
+export const MAX_MEDIA_ATTACHMENTS_PER_TURN = 20;
+
 export interface TurnRequest {
   threadId: string;
   tenant: AITenantContext;
   actor: AIActor;
   userText: string;
   attachments?: UserMessageEvent['attachments'];
+  /**
+   * Multimodal attachments (vision turns). When present, the orchestrator
+   * builds an Anthropic content-array first turn (text + image blocks) and
+   * targets a vision-capable model. Validated for size (<=5 MB decoded
+   * each) and count (<=20) before reaching the provider.
+   */
+  mediaAttachments?: ReadonlyArray<MediaAttachment>;
   /** Explicit persona override (e.g. employee chatting with Coworker). */
   forcePersonaId?: string;
   /** Viewer for visibility filtering when rendering context. */
@@ -157,6 +179,15 @@ export class Orchestrator {
     req: TurnRequest
   ): Promise<AIResult<TurnResult, { code: string; message: string; retryable: boolean }>> {
     const turnStart = Date.now();
+
+    // Validate multimodal attachments up front — fail fast, before any
+    // thread read / persona resolve, with a structured error the caller
+    // can surface back to the user.
+    if (req.mediaAttachments && req.mediaAttachments.length > 0) {
+      const attErr = validateMediaAttachments(req.mediaAttachments);
+      if (attErr) return aiErr(attErr);
+    }
+
     const thread = await this.cfg.threads.getThread(req.threadId);
     if (!thread) {
       return aiErr({
@@ -251,6 +282,11 @@ export class Orchestrator {
     teamId?: string;
     employeeId?: string;
     forcePersonaId?: string;
+    /**
+     * Multimodal attachments forwarded to the first turn. Same validation
+     * rules as `handleTurn.mediaAttachments` — applied inside `handleTurn`.
+     */
+    mediaAttachments?: ReadonlyArray<MediaAttachment>;
   }): Promise<AIResult<{ thread: { id: string; primaryPersonaId: string }; turn: TurnResult }, { code: string; message: string; retryable: boolean }>> {
     const intent = input.forcePersonaId
       ? {
@@ -294,6 +330,12 @@ export class Orchestrator {
       actor: input.actor,
       userText: input.initialUserText,
       viewer: input.viewer,
+      ...(input.forcePersonaId !== undefined
+        ? { forcePersonaId: input.forcePersonaId }
+        : {}),
+      ...(input.mediaAttachments !== undefined
+        ? { mediaAttachments: input.mediaAttachments }
+        : {}),
     });
     if (!turn.success) {
       const e = (turn as { success: false; error: { code: string; message: string; retryable: boolean } }).error;
@@ -367,13 +409,26 @@ export class Orchestrator {
       .filter(Boolean)
       .join('\n');
 
+    // When the turn carries media attachments (vision), confirm the
+    // persona's tier maps to a vision-capable Anthropic model.
+    const resolvedModelId = modelForTier(persona.modelTier);
+    if (req.mediaAttachments && req.mediaAttachments.length > 0) {
+      if (!anthropicModelSupportsVision(resolvedModelId)) {
+        return aiErr({
+          code: 'VISION_UNSUPPORTED_MODEL',
+          message: `Persona ${persona.id} resolves to model ${resolvedModelId} which does not support vision input`,
+          retryable: false,
+        });
+      }
+    }
+
     const compiled: CompiledPrompt = {
       promptId: asPromptId(`persona:${persona.id}`),
       version: '1.0.0',
       systemPrompt: persona.systemPrompt,
       userPrompt,
       modelConfig: {
-        modelId: modelForTier(persona.modelTier),
+        modelId: resolvedModelId,
         maxTokens: 2048,
         temperature: 0.4,
       },
@@ -405,9 +460,14 @@ export class Orchestrator {
     //     blocks to the conversation, and loop
     //   - otherwise, break with the final text
     const hardCategory = inferHardCategory(persona, req.userText);
-    const messages: AIMessage[] = [
-      { role: 'user', content: userPrompt },
-    ];
+    // First user message: if the turn carries media attachments, build a
+    // content-array message with text + image blocks (multimodal). Otherwise
+    // pass the plain text userPrompt as today.
+    const initialUserMessage: AIMessage =
+      req.mediaAttachments && req.mediaAttachments.length > 0
+        ? buildMultimodalUserMessage(userPrompt, req.mediaAttachments)
+        : { role: 'user', content: userPrompt };
+    const messages: AIMessage[] = [initialUserMessage];
     const maxLoops = req.maxToolLoopIterations ?? 5;
     const tokenBudget =
       handoffPacket?.tokenBudget ??
@@ -834,6 +894,61 @@ function summarizeForHandoff(responseText: string): string {
     .slice(0, 5)
     .join(' | ')
     .slice(0, 1000);
+}
+
+/**
+ * Approximate the decoded byte length of a base64 string without allocating
+ * a Buffer. Anthropic's base64 image payload is roughly `(chars*3)/4` minus
+ * padding (0–2 `=` characters).
+ */
+function approxDecodedBase64Bytes(base64: string): number {
+  if (!base64) return 0;
+  const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((base64.length * 3) / 4) - padding);
+}
+
+/**
+ * Validate the multimodal attachments array. Returns `null` when the
+ * attachments are acceptable, otherwise a structured error the orchestrator
+ * surfaces to the caller. Pure function — does not mutate its input.
+ */
+export function validateMediaAttachments(
+  attachments: ReadonlyArray<MediaAttachment>,
+): { code: string; message: string; retryable: false } | null {
+  if (attachments.length > MAX_MEDIA_ATTACHMENTS_PER_TURN) {
+    return {
+      code: 'TOO_MANY_ATTACHMENTS',
+      message: `at most ${MAX_MEDIA_ATTACHMENTS_PER_TURN} media attachments allowed per turn (received ${attachments.length})`,
+      retryable: false,
+    };
+  }
+  for (let i = 0; i < attachments.length; i += 1) {
+    const att = attachments[i];
+    if (!att) continue;
+    if (att.mediaType !== 'image/jpeg' && att.mediaType !== 'image/png') {
+      return {
+        code: 'ATTACHMENT_MEDIA_TYPE_UNSUPPORTED',
+        message: `attachment[${i}] mediaType ${att.mediaType} is not supported (allowed: image/jpeg, image/png)`,
+        retryable: false,
+      };
+    }
+    if (typeof att.data !== 'string' || att.data.length === 0) {
+      return {
+        code: 'ATTACHMENT_EMPTY',
+        message: `attachment[${i}] data is empty`,
+        retryable: false,
+      };
+    }
+    const decoded = approxDecodedBase64Bytes(att.data);
+    if (decoded > MAX_MEDIA_ATTACHMENT_BYTES) {
+      return {
+        code: 'ATTACHMENT_TOO_LARGE',
+        message: `attachment[${i}] is ${decoded} bytes (max ${MAX_MEDIA_ATTACHMENT_BYTES})`,
+        retryable: false,
+      };
+    }
+  }
+  return null;
 }
 
 // Zod schemas reserved for future contract validation (kept here so the

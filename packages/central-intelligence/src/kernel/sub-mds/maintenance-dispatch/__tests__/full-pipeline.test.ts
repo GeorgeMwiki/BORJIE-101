@@ -13,9 +13,9 @@ const llm: SubMdLlmPort = {
   async generate() {
     return {
       text: JSON.stringify({
-        summary: 'Route emergency water faster',
+        summary: 'Route emergency dewatering faster',
         steps: [
-          { id: 'closer-vendor', description: 'Prefer closest emergency plumber', expectedImpact: '-30% response' },
+          { id: 'closer-contractor', description: 'Prefer closest emergency pump-tech', expectedImpact: '-30% response' },
         ],
         predicted: { metric: 'emergency-response-reduction', value: 0.3, unit: 'fraction' },
       }),
@@ -76,7 +76,7 @@ describe('maintenance.dispatch — full pipeline', () => {
     const sub = createMaintenanceDispatchSubMd({ scope: { tenantId: TENANT } });
     expect(sub.toolBelt.length).toBe(4);
     expect(sub.toolBelt).toContain('maintenance.classify_ticket');
-    expect(sub.toolBelt).toContain('maintenance.pick_vendor');
+    expect(sub.toolBelt).toContain('maintenance.pick_contractor');
     expect(sub.toolBelt).toContain('maintenance.dispatch_work_order');
     expect(sub.toolBelt).toContain('maintenance.follow_up');
   });

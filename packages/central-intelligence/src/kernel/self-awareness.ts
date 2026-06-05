@@ -174,11 +174,11 @@ export interface BrainModule {
 }
 
 /**
- * The 27+ kernel modules. Property-management-aware: tenant ops,
- * lease lifecycle, market-rate surveillance, KRA/MRI compute, and
- * maintenance triage are part of the inventory even though their
- * code lives in ai-copilot — the BRAIN's posture is of capabilities,
- * not packages.
+ * The 27+ kernel modules. Mining-estate-aware: counterparty ops,
+ * offtake/supply-agreement lifecycle, market-rate surveillance,
+ * KRA/TRA royalty compute, and maintenance triage are part of the
+ * inventory even though their code lives in ai-copilot — the BRAIN's
+ * posture is of capabilities, not packages.
  */
 export const BRAIN_MODULES: ReadonlyArray<BrainModule> = [
   // Memory (4)
@@ -192,13 +192,13 @@ export const BRAIN_MODULES: ReadonlyArray<BrainModule> = [
     id: 'semantic',
     name: 'Semantic memory',
     category: 'memory',
-    oneLiner: 'Long-term facts about tenants, properties, and agencies, decayed by relevance.',
+    oneLiner: 'Long-term facts about counterparties, sites, and orgs, decayed by relevance.',
   },
   {
     id: 'procedural',
     name: 'Procedural memory',
     category: 'memory',
-    oneLiner: 'Learned workflow patterns (e.g. "this estate prefers Friday rent reminders").',
+    oneLiner: 'Learned workflow patterns (e.g. "this estate prefers Friday royalty reminders").',
   },
   {
     id: 'reflective',
@@ -242,7 +242,7 @@ export const BRAIN_MODULES: ReadonlyArray<BrainModule> = [
     id: 'voice-bridge',
     name: 'Voice bridge',
     category: 'sensing',
-    oneLiner: 'Voice-mode binding for tenant + owner-portal; carries pace / tone / vocab register.',
+    oneLiner: 'Voice-mode binding for counterparty-app + owner-portal; carries pace / tone / vocab register.',
   },
   {
     id: 'cohort-signal',
@@ -273,20 +273,20 @@ export const BRAIN_MODULES: ReadonlyArray<BrainModule> = [
     id: 'world-model',
     name: 'World model + trajectory',
     category: 'reasoning',
-    oneLiner: 'Forward-simulates property / tenant / owner state vectors to reason about where this is headed.',
+    oneLiner: 'Forward-simulates site / counterparty / owner state vectors to reason about where this is headed.',
   },
   {
     id: 'continuous-grading',
-    name: 'Continuous property grading',
+    name: 'Continuous site grading',
     category: 'reasoning',
-    oneLiner: 'Rolling property-grade band (A–F) with explanation; updates on every event.',
+    oneLiner: 'Rolling site-grade band (A–F) with explanation; updates on every event.',
   },
   // Policy (5)
   {
     id: 'inviolable',
     name: 'Inviolable rules',
     category: 'policy',
-    oneLiner: 'Hard refusals (PII exfiltration, cross-tenant leaks, eviction promises, security changes).',
+    oneLiner: 'Hard refusals (PII exfiltration, cross-tenant leaks, licence-suspension promises, security changes).',
   },
   {
     id: 'public-inviolable',
@@ -323,13 +323,13 @@ export const BRAIN_MODULES: ReadonlyArray<BrainModule> = [
     id: 'briefing',
     name: 'Briefing composer',
     category: 'output',
-    oneLiner: 'Builds the morning / weekly portfolio briefing for owners and estate managers.',
+    oneLiner: 'Builds the morning / weekly portfolio briefing for owners and site managers.',
   },
   {
     id: 'proactive-nudge',
     name: 'Proactive nudge router',
     category: 'output',
-    oneLiner: 'Schedules unsolicited nudges (rent reminders, lease expiry, market shifts) with dedupe.',
+    oneLiner: 'Schedules unsolicited nudges (royalty reminders, agreement expiry, market shifts) with dedupe.',
   },
   {
     id: 'confidence',
@@ -362,30 +362,30 @@ export const BRAIN_MODULES: ReadonlyArray<BrainModule> = [
     category: 'audit',
     oneLiner: 'End-of-turn Jaccard intent overlap (en+sw stopwords) catches prompt-injection drift.',
   },
-  // Agency (4) — property-management capabilities live here
+  // Agency (4) — mining-estate capabilities live here
   {
     id: 'goal-tracker',
     name: 'Goal tracker',
     category: 'agency',
-    oneLiner: 'Tracks long-running goals (collect rent, close vacancy, resolve dispute) across turns.',
+    oneLiner: 'Tracks long-running goals (collect royalties, fill spare capacity, resolve dispute) across turns.',
   },
   {
     id: 'rent-reconciliation',
-    name: 'Rent reconciliation',
+    name: 'Royalty reconciliation',
     category: 'agency',
-    oneLiner: 'Matches incoming M-Pesa / bank rails to lease IDs; flags partial / late / overpayment.',
+    oneLiner: 'Matches incoming M-Pesa / bank rails to agreement IDs; flags partial / late / overpayment.',
   },
   {
     id: 'kra-mri-compute',
-    name: 'KRA + MRI compute',
+    name: 'KRA + TRA royalty compute',
     category: 'agency',
-    oneLiner: 'Withholding-tax + monthly rental income calculator with statute citation per line.',
+    oneLiner: 'Withholding-tax + mineral-royalty income calculator with statute citation per line.',
   },
   {
     id: 'market-rate',
     name: 'Market-rate surveillance',
     category: 'agency',
-    oneLiner: 'Daily comparable-rent crawl per estate; alerts on >10 % deviation from portfolio.',
+    oneLiner: 'Daily comparable mineral-price crawl per estate; alerts on >10 % deviation from portfolio.',
   },
   {
     id: 'maintenance-triage',
@@ -445,7 +445,7 @@ const HOW_TO_USE = [
   '',
   'HOW TO USE THIS SELF-KNOWLEDGE:',
   '- When the user asks "what can you do?", answer from this list, not from generic AI capability lore.',
-  '- When a reply leans on one of these modules, name it explicitly ("I am pulling from KRA + MRI compute" / "the rent reconciliation matched your M-Pesa receipt").',
+  '- When a reply leans on one of these modules, name it explicitly ("I am pulling from KRA + TRA royalty compute" / "the royalty reconciliation matched your M-Pesa receipt").',
   '- When a question is OUTSIDE this list, say so plainly. Do not pretend to have a capability the brain does not run.',
 ];
 
@@ -453,9 +453,10 @@ const HOW_TO_USE = [
  * Render the BRAIN SELF-AWARENESS block. The kernel prepends this to
  * every system prompt so the LLM speaks from real posture.
  *
- * Property-management framing is implicit in the module list — the
- * brain advertises rent reconciliation, KRA compute, market-rate
- * surveillance, maintenance triage as first-class capabilities.
+ * Mining-estate framing is implicit in the module list — the brain
+ * advertises royalty reconciliation, KRA/TRA royalty compute,
+ * market-rate surveillance, maintenance triage as first-class
+ * capabilities.
  */
 export function renderModuleInventoryBlock(
   modules: ReadonlyArray<BrainModule> = BRAIN_MODULES,
@@ -478,12 +479,12 @@ export function renderModuleInventoryBlock(
 
 /**
  * User-facing canonical answer to "what are you?". One paragraph,
- * grounded in the inventory. Used by tenant-app and marketing
- * surfaces when the LLM is asked the meta-question.
+ * grounded in the inventory. Used by the counterparty-app and
+ * marketing surfaces when the LLM is asked the meta-question.
  */
 export function describeCapabilities(): string {
   return [
-    'I am the Borjie brain — a property-management cognition layer.',
+    'I am the Borjie brain — a mining-estate cognition layer.',
     `I have ${BRAIN_MODULES.length} modules running across ${CATEGORY_ORDER.length} categories:`,
     'memory (episodic / semantic / procedural / reflective),',
     'identity (per-surface persona + per-tenant branding + per-user opener),',
@@ -492,7 +493,7 @@ export function describeCapabilities(): string {
     'policy (inviolable rules, public limits, policy gate, four-eye approval, drift gate),',
     'output (normaliser, briefing composer, proactive nudges, confidence scoring),',
     'audit (CoT reservoir, provenance, persona-vector probe, tool-loop drift detector),',
-    'agency (goal tracker, rent reconciliation, KRA + MRI compute, market-rate surveillance, maintenance triage).',
+    'agency (goal tracker, royalty reconciliation, KRA + TRA royalty compute, market-rate surveillance, maintenance triage).',
     'I am not a chatbot describing the platform — I AM the platform, speaking on its behalf.',
   ].join(' ');
 }

@@ -12,7 +12,7 @@
 /** Domains cover the autonomy domains PLUS categories introduced here. */
 export type ApprovalGrantDomain =
   | 'finance'
-  | 'leasing'
+  | 'offtake'
   | 'maintenance'
   | 'compliance'
   | 'communications'
@@ -21,11 +21,11 @@ export type ApprovalGrantDomain =
   | 'procurement'
   | 'insurance'
   | 'legal_proceedings'
-  | 'tenant_welfare';
+  | 'community_welfare';
 
 export const APPROVAL_GRANT_DOMAINS: readonly ApprovalGrantDomain[] = [
   'finance',
-  'leasing',
+  'offtake',
   'maintenance',
   'compliance',
   'communications',
@@ -34,7 +34,7 @@ export const APPROVAL_GRANT_DOMAINS: readonly ApprovalGrantDomain[] = [
   'procurement',
   'insurance',
   'legal_proceedings',
-  'tenant_welfare',
+  'community_welfare',
 ] as const;
 
 export type ApprovalGrantKind = 'single_action' | 'standing_authorization';

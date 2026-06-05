@@ -102,6 +102,12 @@ jobs:
       BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET || 'borjie-backups-prod' }}
       BACKUP_PREFIX: ${{ vars.BACKUP_PREFIX || 'borjie' }}
       AWS_REGION: ${{ vars.AWS_REGION || 'eu-west-1' }}
+      # `secrets` is NOT an allowed context in `if:` conditions (GitHub rejects
+      # the whole workflow with "Unrecognized named-value: 'secrets'"). Surface
+      # the secret through job-level env — which IS allowed in `if:` — so the
+      # conditional AWS / Slack steps below can gate on its presence.
+      AWS_RESTORE_TEST_ROLE_ARN: ${{ secrets.AWS_RESTORE_TEST_ROLE_ARN }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
     steps:
       - name: Checkout
@@ -129,14 +135,14 @@ jobs:
           openssl version
 
       - name: Configure AWS credentials (OIDC)
-        if: ${{ secrets.AWS_RESTORE_TEST_ROLE_ARN != '' }}
+        if: ${{ env.AWS_RESTORE_TEST_ROLE_ARN != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_RESTORE_TEST_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure AWS credentials (static fallback)
-        if: ${{ secrets.AWS_RESTORE_TEST_ROLE_ARN == '' }}
+        if: ${{ env.AWS_RESTORE_TEST_ROLE_ARN == '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -269,10 +275,11 @@ jobs:
             fi
           }
 
+          # Core multi-tenant tables that always exist in the mining schema.
+          # (The old property-domain tables — properties/units/leases — were
+          # removed in the property→mining migration; checking them here would
+          # fail the drill against a real mining backup.)
           check_table "tenants" "${MIN_TENANTS}"
-          check_table "properties" "${MIN_PROPERTIES}"
-          check_table "units" "${MIN_UNITS}"
-          check_table "leases" "${MIN_LEASES}"
           check_table "users" "${MIN_USERS}"
 
           echo "summary_path=${SUMMARY_PATH}" >> "$GITHUB_OUTPUT"
@@ -310,8 +317,6 @@ jobs:
 
       - name: Notify Slack on failure
         if: failure() && env.SLACK_WEBHOOK_URL != ''
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -sS -X POST -H 'Content-Type: application/json' \
             --data "$(jq -n \

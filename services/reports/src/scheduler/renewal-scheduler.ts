@@ -1,17 +1,17 @@
 /**
  * Renewal Scheduler
  *
- * Daily CRON job that scans all active leases and fires
+ * Daily CRON job that scans all active supply agreements and fires
  * `RenewalWindowOpened` events at T-90, T-60, and T-30 days before expiry.
  *
  * The scheduler is transport-agnostic: it depends on:
- *   - `RenewalSchedulerRepository` — to fetch candidate leases
+ *   - `RenewalSchedulerRepository` — to fetch candidate supply agreements
  *   - `EventPublisher`             — to push events to the outbox/bus
  *   - `Clock`                      — injectable for determinism in tests
  *
  * Duplicate emission is prevented by checking `renewalWindowOpenedAt` on the
- * lease row; the scheduler only opens the window once, but emits a distinct
- * `RenewalReminder` event for each of T-60 and T-30 after the initial open.
+ * supply-agreement row; the scheduler only opens the window once, but emits a
+ * distinct `RenewalReminder` event for each of T-60 and T-30 after the initial open.
  */
 
 import type { TenantId, ISOTimestamp } from '@borjie/domain-models';
@@ -19,9 +19,9 @@ import type { TenantId, ISOTimestamp } from '@borjie/domain-models';
 export type RenewalWindowDay = 90 | 60 | 30;
 
 export interface RenewalCandidate {
-  readonly leaseId: string;
+  readonly supplyAgreementId: string;
   readonly tenantId: TenantId;
-  readonly leaseNumber: string;
+  readonly supplyAgreementNumber: string;
   readonly customerId: string;
   readonly endDate: ISOTimestamp;
   readonly renewalWindowOpenedAt: ISOTimestamp | null;
@@ -37,15 +37,15 @@ export interface RenewalCandidate {
 
 export interface RenewalSchedulerRepository {
   /**
-   * Return active leases whose endDate falls within the given window days
-   * from `now`, excluding leases in terminal states.
+   * Return active supply agreements whose endDate falls within the given
+   * window days from `now`, excluding agreements in terminal states.
    */
-  findLeasesExpiringWithin(
+  findSupplyAgreementsExpiringWithin(
     days: number,
     now: Date,
   ): Promise<RenewalCandidate[]>;
   markRenewalWindowOpened(
-    leaseId: string,
+    supplyAgreementId: string,
     tenantId: TenantId,
     openedAt: ISOTimestamp,
   ): Promise<void>;
@@ -84,7 +84,7 @@ function daysBetween(from: Date, to: Date): number {
 }
 
 export interface RenewalSchedulerRunResult {
-  readonly scannedLeases: number;
+  readonly scannedSupplyAgreements: number;
   readonly windowsOpened: number;
   readonly remindersEmitted: number;
 }
@@ -97,47 +97,47 @@ export class RenewalScheduler {
   }
 
   /**
-   * Run a full sweep. Safe to invoke daily — idempotent per lease per window
-   * because of the `renewalWindowOpenedAt` guard on the initial open.
+   * Run a full sweep. Safe to invoke daily — idempotent per supply agreement
+   * per window because of the `renewalWindowOpenedAt` guard on the initial open.
    */
   async runDaily(correlationId: string): Promise<RenewalSchedulerRunResult> {
     const now = this.clock.now();
-    const leases = await this.deps.repo.findLeasesExpiringWithin(90, now);
+    const supplyAgreements = await this.deps.repo.findSupplyAgreementsExpiringWithin(90, now);
 
     let windowsOpened = 0;
     let remindersEmitted = 0;
 
-    for (const lease of leases) {
+    for (const supplyAgreement of supplyAgreements) {
       if (
-        lease.renewalStatus === 'accepted' ||
-        lease.renewalStatus === 'declined' ||
-        lease.renewalStatus === 'terminated' ||
-        lease.renewalStatus === 'expired'
+        supplyAgreement.renewalStatus === 'accepted' ||
+        supplyAgreement.renewalStatus === 'declined' ||
+        supplyAgreement.renewalStatus === 'terminated' ||
+        supplyAgreement.renewalStatus === 'expired'
       ) {
         continue;
       }
 
-      const daysLeft = daysBetween(now, new Date(lease.endDate));
+      const daysLeft = daysBetween(now, new Date(supplyAgreement.endDate));
       const matchedWindow = WINDOWS.find((w) => daysLeft <= w && daysLeft > 0);
       if (!matchedWindow) continue;
 
-      if (!lease.renewalWindowOpenedAt) {
+      if (!supplyAgreement.renewalWindowOpenedAt) {
         const openedAt = now.toISOString() as ISOTimestamp;
         await this.deps.repo.markRenewalWindowOpened(
-          lease.leaseId,
-          lease.tenantId,
+          supplyAgreement.supplyAgreementId,
+          supplyAgreement.tenantId,
           openedAt,
         );
         await this.deps.publisher.publish({
           eventType: 'RenewalWindowOpened',
-          tenantId: lease.tenantId,
-          aggregateId: lease.leaseId,
-          aggregateType: 'Lease',
+          tenantId: supplyAgreement.tenantId,
+          aggregateId: supplyAgreement.supplyAgreementId,
+          aggregateType: 'SupplyAgreement',
           correlationId,
           payload: {
-            leaseId: lease.leaseId,
-            leaseNumber: lease.leaseNumber,
-            customerId: lease.customerId,
+            supplyAgreementId: supplyAgreement.supplyAgreementId,
+            supplyAgreementNumber: supplyAgreement.supplyAgreementNumber,
+            customerId: supplyAgreement.customerId,
             windowDay: matchedWindow,
             daysUntilExpiry: daysLeft,
           },
@@ -149,14 +149,14 @@ export class RenewalScheduler {
       // Already open — emit a cheap reminder event at each threshold crossing
       await this.deps.publisher.publish({
         eventType: 'RenewalReminder',
-        tenantId: lease.tenantId,
-        aggregateId: lease.leaseId,
-        aggregateType: 'Lease',
+        tenantId: supplyAgreement.tenantId,
+        aggregateId: supplyAgreement.supplyAgreementId,
+        aggregateType: 'SupplyAgreement',
         correlationId,
         payload: {
-          leaseId: lease.leaseId,
-          leaseNumber: lease.leaseNumber,
-          customerId: lease.customerId,
+          supplyAgreementId: supplyAgreement.supplyAgreementId,
+          supplyAgreementNumber: supplyAgreement.supplyAgreementNumber,
+          customerId: supplyAgreement.customerId,
           windowDay: matchedWindow,
           daysUntilExpiry: daysLeft,
         },
@@ -165,7 +165,7 @@ export class RenewalScheduler {
     }
 
     return {
-      scannedLeases: leases.length,
+      scannedSupplyAgreements: supplyAgreements.length,
       windowsOpened,
       remindersEmitted,
     };

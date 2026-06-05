@@ -131,9 +131,9 @@ describe('KE_DPA formatter', () => {
         {
           recordId: 'r1',
           dataSubjectId: 'cust_1',
-          dataSubjectCategory: 'tenant',
+          dataSubjectCategory: 'buyer',
           dataCategories: ['name', 'email'],
-          purpose: 'Tenant management',
+          purpose: 'Buyer management',
           processingBasis: 'contract',
           consentGiven: true,
           consentGivenAt: '2026-01-01T00:00:00Z',

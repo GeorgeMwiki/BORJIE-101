@@ -75,10 +75,10 @@ const RENDER_FIXTURES: Array<{
   {
     type: 'form',
     props: {
-      formId: 'lease-renewal',
+      formId: 'offtake-renewal',
       schemaJson: {},
       values: {},
-      action: '/api/gateway/forms/lease-renewal',
+      action: '/api/gateway/forms/offtake-renewal',
     },
     data: {},
   },

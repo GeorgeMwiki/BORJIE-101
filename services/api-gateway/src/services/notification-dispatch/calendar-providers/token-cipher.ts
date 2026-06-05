@@ -116,16 +116,18 @@ export function createCalendarTokenCipher(rawKey: string): CalendarTokenCipher {
     },
 
     open(blob: string): string {
-      if (typeof blob !== 'string') {
+      if (typeof blob !== 'string' || !blob.startsWith(`${BLOB_PREFIX}.`)) {
         throw new CalendarTokenDecryptError();
       }
-      const parts = blob.split('.');
-      if (parts.length !== 4 || `${parts[0]}` !== BLOB_PREFIX) {
+      // BLOB_PREFIX itself contains a dot ('v1.gcm'), so strip it before
+      // splitting the remaining `<nonce>.<tag>.<ciphertext>` (exactly 3 parts).
+      const parts = blob.slice(BLOB_PREFIX.length + 1).split('.');
+      if (parts.length !== 3) {
         throw new CalendarTokenDecryptError();
       }
-      const nonce = Buffer.from(parts[1] as string, 'base64url');
-      const tag = Buffer.from(parts[2] as string, 'base64url');
-      const ciphertext = Buffer.from(parts[3] as string, 'base64url');
+      const nonce = Buffer.from(parts[0] as string, 'base64url');
+      const tag = Buffer.from(parts[1] as string, 'base64url');
+      const ciphertext = Buffer.from(parts[2] as string, 'base64url');
       if (nonce.length !== NONCE_BYTES || tag.length !== TAG_BYTES) {
         throw new CalendarTokenDecryptError();
       }
@@ -164,7 +166,10 @@ export function createCalendarTokenCipherFromEnv(
  * store layer + tests to assert a column value is NOT plaintext before write.
  */
 export function isSealedCalendarToken(value: string): boolean {
-  if (typeof value !== 'string') return false;
-  const parts = value.split('.');
-  return parts.length === 4 && parts[0] === BLOB_PREFIX;
+  if (typeof value !== 'string' || !value.startsWith(`${BLOB_PREFIX}.`)) {
+    return false;
+  }
+  // BLOB_PREFIX contains a dot ('v1.gcm'); the remainder must be exactly the
+  // three base64url segments `<nonce>.<tag>.<ciphertext>`.
+  return value.slice(BLOB_PREFIX.length + 1).split('.').length === 3;
 }

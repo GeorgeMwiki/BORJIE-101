@@ -22,7 +22,7 @@ function makeApprovedRecord(id: string): ApprovalRecord {
       proposerUserId: 'u_proposer',
       thoughtId: 'th_1',
       summary: 'test action',
-      toolName: 'tool.evict_tenant',
+      toolName: 'tool.suspend_licence',
       payload: {},
       stakes: 'critical',
       proposedAt: now.toISOString(),
@@ -39,7 +39,7 @@ function makeApprovedRecord(id: string): ApprovalRecord {
       },
       plan: {
         tier: 'critical',
-        steps: ['execute eviction'],
+        steps: ['execute licence-suspension'],
         risks: [],
         reversalPlan: '',
       },

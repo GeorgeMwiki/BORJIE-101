@@ -93,11 +93,11 @@ export const marketingCampaignLaunchTemplate: ProposalTemplate = {
       tenantId: signal.tenantId,
       domain: 'marketing',
       templateId: 'marketing_campaign_launch',
-      title: 'Launch marketing campaign — unit is below market',
-      rationale: `Market-surveillance reports this unit rents ${(magnitude * 100).toFixed(1)}% below the 30-day market median. A targeted campaign should close the gap.`,
-      suggestedAction: 'Publish refreshed listing + send open-house invite wave for affected unit.',
+      title: 'Launch marketing campaign — pit output is below market',
+      rationale: `Market-surveillance reports this pit's offtake price is ${(magnitude * 100).toFixed(1)}% below the 30-day market median. A targeted campaign should close the gap.`,
+      suggestedAction: 'Publish refreshed listing + send buyer-outreach wave for affected pit.',
       estimatedImpact: {
-        metric: 'expected_rent_recovery_pct',
+        metric: 'expected_price_recovery_pct',
         magnitude,
         unit: 'percent',
       },
@@ -108,16 +108,16 @@ export const marketingCampaignLaunchTemplate: ProposalTemplate = {
 };
 
 // ---------------------------------------------------------------------------
-// 2. rent_adjustment
+// 2. price_adjustment
 //    Source: market-surveillance → `above_market` or `below_market`
-//    Suggestion: adjust asking rent towards market median.
+//    Suggestion: adjust offtake price towards market median.
 // ---------------------------------------------------------------------------
 
-export const rentAdjustmentTemplate: ProposalTemplate = {
-  templateId: 'rent_adjustment',
+export const priceAdjustmentTemplate: ProposalTemplate = {
+  templateId: 'price_adjustment',
   sourceId: 'market-surveillance',
-  domain: 'leasing',
-  autonomyAction: 'adjust_asking_rent',
+  domain: 'offtake',
+  autonomyAction: 'adjust_asking_price',
   safetyCritical: false,
   matches(signal) {
     if (signal.source !== 'market-surveillance') return false;
@@ -130,13 +130,13 @@ export const rentAdjustmentTemplate: ProposalTemplate = {
     return {
       signalId: signal.signalId,
       tenantId: signal.tenantId,
-      domain: 'leasing',
-      templateId: 'rent_adjustment',
-      title: `Rent adjustment recommended — ${direction} asking rent`,
-      rationale: `Our rent is ${(Math.abs(deltaPct) * 100).toFixed(1)}% off the market median; a ${direction} aligns us with comps.`,
-      suggestedAction: `Update next renewal draft with a ${direction} toward market median.`,
+      domain: 'offtake',
+      templateId: 'price_adjustment',
+      title: `Price adjustment recommended — ${direction} offtake price`,
+      rationale: `Our offtake price is ${(Math.abs(deltaPct) * 100).toFixed(1)}% off the market median; a ${direction} aligns us with comps.`,
+      suggestedAction: `Update next offtake-renewal draft with a ${direction} toward market median.`,
       estimatedImpact: {
-        metric: 'rent_delta_pct',
+        metric: 'price_delta_pct',
         magnitude: Math.abs(deltaPct),
         unit: 'percent',
       },
@@ -195,7 +195,7 @@ export const maintenancePreventiveTemplate: ProposalTemplate = {
 export const retentionOfferTemplate: ProposalTemplate = {
   templateId: 'retention_offer',
   sourceId: 'sentiment-monitor',
-  domain: 'tenant_welfare',
+  domain: 'community_welfare',
   autonomyAction: 'send_retention_offer',
   safetyCritical: false,
   matches(signal) {
@@ -211,10 +211,10 @@ export const retentionOfferTemplate: ProposalTemplate = {
     return {
       signalId: signal.signalId,
       tenantId: signal.tenantId,
-      domain: 'tenant_welfare',
+      domain: 'community_welfare',
       templateId: 'retention_offer',
       title: 'Send retention offer — sentiment decay detected',
-      rationale: `Tenant sentiment dropped ${drop.toFixed(2)} over the monitoring window. A timely outreach can prevent churn.`,
+      rationale: `Buyer sentiment dropped ${drop.toFixed(2)} over the monitoring window. A timely outreach can prevent churn.`,
       suggestedAction: 'Send a personalised retention offer (credit, waiver, or call from manager).',
       estimatedImpact: {
         metric: 'churn_risk_reduction',
@@ -228,13 +228,13 @@ export const retentionOfferTemplate: ProposalTemplate = {
 };
 
 // ---------------------------------------------------------------------------
-// 5. arrears_early_intervention
+// 5. royalty_arrears_early_intervention
 //    Source: predictive-interventions → high_default_risk
 //    Suggestion: proactive payment-plan offer BEFORE the miss.
 // ---------------------------------------------------------------------------
 
-export const arrearsEarlyInterventionTemplate: ProposalTemplate = {
-  templateId: 'arrears_early_intervention',
+export const royaltyArrearsEarlyInterventionTemplate: ProposalTemplate = {
+  templateId: 'royalty_arrears_early_intervention',
   sourceId: 'predictive-interventions',
   domain: 'finance',
   autonomyAction: 'offer_payment_plan',
@@ -253,10 +253,10 @@ export const arrearsEarlyInterventionTemplate: ProposalTemplate = {
       signalId: signal.signalId,
       tenantId: signal.tenantId,
       domain: 'finance',
-      templateId: 'arrears_early_intervention',
+      templateId: 'royalty_arrears_early_intervention',
       title: 'Offer payment plan — default risk elevated',
       rationale: `Predictive model flags default risk at ${(strength * 100).toFixed(0)}% over the horizon. Early intervention outperforms post-default collection.`,
-      suggestedAction: 'Offer a 3-month payment plan tailored to tenant history.',
+      suggestedAction: 'Offer a 3-month payment plan tailored to buyer history.',
       estimatedImpact: {
         metric: 'default_risk_reduction',
         magnitude: strength * 0.6,
@@ -269,15 +269,15 @@ export const arrearsEarlyInterventionTemplate: ProposalTemplate = {
 };
 
 // ---------------------------------------------------------------------------
-// 6. lease_renewal_nudge
+// 6. offtake_renewal_nudge
 //    Source: predictive-interventions → high_churn_risk
-//    Suggestion: early renewal nudge with incentive.
+//    Suggestion: early offtake-renewal nudge with incentive.
 // ---------------------------------------------------------------------------
 
-export const leaseRenewalNudgeTemplate: ProposalTemplate = {
-  templateId: 'lease_renewal_nudge',
+export const offtakeRenewalNudgeTemplate: ProposalTemplate = {
+  templateId: 'offtake_renewal_nudge',
   sourceId: 'predictive-interventions',
-  domain: 'leasing',
+  domain: 'offtake',
   autonomyAction: 'send_renewal_nudge',
   safetyCritical: false,
   matches(signal) {
@@ -289,11 +289,11 @@ export const leaseRenewalNudgeTemplate: ProposalTemplate = {
     return {
       signalId: signal.signalId,
       tenantId: signal.tenantId,
-      domain: 'leasing',
-      templateId: 'lease_renewal_nudge',
-      title: 'Send lease-renewal nudge — churn risk elevated',
-      rationale: `Churn probability is ${(strength * 100).toFixed(0)}% for this tenant. Early renewal conversation preserves occupancy.`,
-      suggestedAction: 'Send renewal nudge with modest incentive (e.g. waived month-one fee).',
+      domain: 'offtake',
+      templateId: 'offtake_renewal_nudge',
+      title: 'Send offtake-renewal nudge — churn risk elevated',
+      rationale: `Churn probability is ${(strength * 100).toFixed(0)}% for this buyer. Early offtake-renewal conversation preserves committed capacity.`,
+      suggestedAction: 'Send offtake-renewal nudge with modest incentive (e.g. waived month-one fee).',
       estimatedImpact: {
         metric: 'retention_probability',
         magnitude: strength * 0.5,
@@ -345,17 +345,17 @@ export const vendorRotationTemplate: ProposalTemplate = {
 };
 
 // ---------------------------------------------------------------------------
-// 8. tenant_wellness_check
+// 8. buyer_wellness_check
 //    Source: sentiment-monitor (alternate path when severity is critical)
 //    Suggestion: personal wellness check from a human manager.
 //    SAFETY-CRITICAL — always routes to approval; this must NOT be
 //    auto-executed by the AI, a human makes the call.
 // ---------------------------------------------------------------------------
 
-export const tenantWellnessCheckTemplate: ProposalTemplate = {
-  templateId: 'tenant_wellness_check',
+export const buyerWellnessCheckTemplate: ProposalTemplate = {
+  templateId: 'buyer_wellness_check',
   sourceId: 'sentiment-monitor',
-  domain: 'tenant_welfare',
+  domain: 'community_welfare',
   autonomyAction: 'flag_for_wellness_check',
   safetyCritical: true,
   matches(signal) {
@@ -365,11 +365,11 @@ export const tenantWellnessCheckTemplate: ProposalTemplate = {
     return {
       signalId: signal.signalId,
       tenantId: signal.tenantId,
-      domain: 'tenant_welfare',
-      templateId: 'tenant_wellness_check',
-      title: 'Flag tenant for wellness check',
+      domain: 'community_welfare',
+      templateId: 'buyer_wellness_check',
+      title: 'Flag buyer for wellness check',
       rationale: 'Critical sentiment drop detected — may indicate hardship or distress.',
-      suggestedAction: 'Manager places a personal phone call to check on tenant wellbeing.',
+      suggestedAction: 'Manager places a personal phone call to check on buyer wellbeing.',
       estimatedImpact: {
         metric: 'wellbeing_intervention',
         magnitude: 1,
@@ -387,13 +387,13 @@ export const tenantWellnessCheckTemplate: ProposalTemplate = {
 
 export const DEFAULT_PROPOSAL_TEMPLATES: readonly ProposalTemplate[] = [
   marketingCampaignLaunchTemplate,
-  rentAdjustmentTemplate,
+  priceAdjustmentTemplate,
   maintenancePreventiveTemplate,
   retentionOfferTemplate,
-  arrearsEarlyInterventionTemplate,
-  leaseRenewalNudgeTemplate,
+  royaltyArrearsEarlyInterventionTemplate,
+  offtakeRenewalNudgeTemplate,
   vendorRotationTemplate,
-  tenantWellnessCheckTemplate,
+  buyerWellnessCheckTemplate,
 ] as const;
 
 // ---------------------------------------------------------------------------

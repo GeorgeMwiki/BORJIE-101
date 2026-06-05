@@ -7,7 +7,7 @@
  *   1. Classifies the document kind.
  *   2. Extracts structured fields via the per-kind parser.
  *   3. Spawns an analysis "agent" (function call) that summarises + links
- *      the extracted data to domain entities (lease -> unit, invoice ->
+ *      the extracted data to domain entities (offtake -> pit, invoice ->
  *      work order).
  *   4. Emits an analysis envelope the caller stores on the document.
  *
@@ -33,9 +33,9 @@ export const DocumentUploadSchema = z.object({
   uploadedAt: z.string().datetime().default(() => new Date().toISOString()),
   hintedKind: z
     .enum([
-      'lease_agreement',
-      'rent_roll',
-      'tenant_application',
+      'offtake_agreement',
+      'royalty_roll',
+      'counterparty_application',
       'maintenance_invoice',
       'compliance_notice',
       'government_letter',
@@ -58,7 +58,7 @@ export interface AnalysisEnvelope {
 }
 
 export interface SuggestedLink {
-  readonly entityType: 'unit' | 'property' | 'lease' | 'tenant' | 'work_order' | 'invoice';
+  readonly entityType: 'pit' | 'site' | 'offtake' | 'counterparty' | 'work_order' | 'invoice';
   readonly reason: string;
   readonly hintedIdentifier?: string;
 }
@@ -92,18 +92,18 @@ function buildSuggestedLinks(
   const links: SuggestedLink[] = [];
   const ex = analysis.extracted;
   switch (kind) {
-    case 'lease_agreement':
-      if (typeof ex.tenant === 'string')
-        links.push({ entityType: 'tenant', reason: 'tenant named in lease', hintedIdentifier: ex.tenant });
-      links.push({ entityType: 'lease', reason: 'new lease document' });
-      links.push({ entityType: 'unit', reason: 'lease attaches to a unit' });
+    case 'offtake_agreement':
+      if (typeof ex.buyer === 'string')
+        links.push({ entityType: 'counterparty', reason: 'buyer named in offtake', hintedIdentifier: ex.buyer });
+      links.push({ entityType: 'offtake', reason: 'new offtake document' });
+      links.push({ entityType: 'pit', reason: 'offtake attaches to a pit' });
       break;
-    case 'rent_roll':
-      links.push({ entityType: 'property', reason: 'rent roll summarises property-level rentals' });
+    case 'royalty_roll':
+      links.push({ entityType: 'site', reason: 'royalty roll summarises site-level royalties' });
       break;
-    case 'tenant_application':
+    case 'counterparty_application':
       if (typeof ex.applicantName === 'string')
-        links.push({ entityType: 'tenant', reason: 'applicant record', hintedIdentifier: ex.applicantName });
+        links.push({ entityType: 'counterparty', reason: 'applicant record', hintedIdentifier: ex.applicantName });
       break;
     case 'maintenance_invoice':
       links.push({ entityType: 'work_order', reason: 'invoice settles a work order' });
@@ -111,10 +111,10 @@ function buildSuggestedLinks(
       break;
     case 'compliance_notice':
       if (typeof ex.partyServed === 'string')
-        links.push({ entityType: 'tenant', reason: 'notice served to tenant', hintedIdentifier: ex.partyServed });
+        links.push({ entityType: 'counterparty', reason: 'notice served to counterparty', hintedIdentifier: ex.partyServed });
       break;
     case 'government_letter':
-      links.push({ entityType: 'property', reason: 'government letter usually references a property' });
+      links.push({ entityType: 'site', reason: 'government letter usually references a site' });
       break;
     case 'unknown':
       break;

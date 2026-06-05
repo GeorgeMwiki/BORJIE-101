@@ -1,27 +1,37 @@
 /**
- * Continuous grading — property-management 5-axis live evaluation.
+ * Continuous grading — mining-estate 5-axis live evaluation.
  *
- * The property-management analogue of LITFIN's `five-c-continuous`. The
+ * The mining-estate analogue of LITFIN's `five-c-continuous`. The
  * Borjie brain reads its asset's pulse on every meaningful turn —
- * the moment a tenant signs, Occupancy lifts; the moment an inspection
- * fails, Asset Quality darkens — so the assistant's reasoning always
- * grounds in the building's CURRENT state, not the snapshot at sign-up.
+ * the moment a buyer signs an offtake, utilisation lifts; the moment
+ * an inspection fails, Asset Quality darkens — so the assistant's
+ * reasoning always grounds in the site's CURRENT state, not the
+ * snapshot at onboarding.
  *
  * Five axes (5 axes × ~150-200 LOC each), each producing
  * { score, band, evidence, missing, watchpoints }:
  *
- *   1. Occupancy           — units occupied / total, trend, vacancy days
- *   2. Collections         — on-time rate, arrears days, dispute count
+ *   1. Utilisation         — units in production / total, trend, idle days
+ *   2. Collections         — on-time rate, outstanding-royalty days, dispute count
  *   3. Asset Quality       — maintenance backlog, inspection pass rate,
  *                            age-of-defects
- *   4. Compliance          — KRA MRI filed/late, GePG control numbers
+ *   4. Compliance          — KRA/TRA royalty filed/late, GePG control numbers
  *                            reconciled, certificates valid
- *   5. Tenant Satisfaction — sentiment rolling, NPS, complaint rate
+ *   5. Counterparty Satisfaction — sentiment rolling, NPS, complaint rate
  *
  * The overall score is the weighted mean. Each axis carries evidence /
  * missing / watchpoints arrays the brain can fold into its system
  * prompt — so the rendered briefing tells the LLM exactly which axis
  * needs lifting, with concrete handles the user can pull.
+ *
+ * NOTE — the exported type / function / axis-key names (`PropertyGrade`,
+ * `gradeProperty`, `evaluatePropertyGrade`, `GradeAxisKey` values such
+ * as `occupancy`/`tenantSatisfaction`, and the `PropertyGradeInputs`
+ * fields) are a public contract: they are re-exported from
+ * `kernel/index.ts` and parallel the `@borjie/ai-copilot`
+ * property-grading subsystem. They are kept verbatim; only the prose
+ * and surfaced evidence semantics carry the mining vocabulary. A full
+ * symbol rename belongs in a coordinated cross-package pass.
  *
  * Pure functions; deterministic; no IO.
  *

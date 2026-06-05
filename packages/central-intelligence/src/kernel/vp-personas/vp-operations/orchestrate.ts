@@ -34,25 +34,25 @@ export function routeOpsIntent(intent: OwnerIntent): ReadonlyArray<OpsRoute> {
   const t = intent.text.toLowerCase();
   const routes: OpsRoute[] = [];
 
-  if (/maintenance|repair|leak|broken|electrical|plumb/.test(t)) {
+  if (/maintenance|repair|leak|broken|breakdown|equipment|electrical|hydraulic/.test(t)) {
     routes.push({
       lineWorker: 'maintenance.dispatch',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Dispatch maintenance triage for the reported issue',
+      description: 'Dispatch equipment-maintenance triage for the reported issue',
     });
   }
-  if (/complaint|noise|dispute|nuisance|angry|unhappy/.test(t)) {
+  if (/complaint|grievance|noise|dispute|nuisance|angry|unhappy/.test(t)) {
     routes.push({
       lineWorker: 'complaint.triage',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Classify and route the incoming complaint',
+      description: 'Classify and route the incoming grievance',
     });
   }
-  if (/onboard|new tenant|move-?in|move in|welcome pack/.test(t)) {
+  if (/onboard|new operator|new worker|induction|orientation/.test(t)) {
     routes.push({
       lineWorker: 'tenant.onboarding-officer',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Run the tenant onboarding checklist',
+      description: 'Run the operator / worker onboarding checklist',
     });
   }
   if (/inspect|walk-?through|condition report|annual check/.test(t)) {

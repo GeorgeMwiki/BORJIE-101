@@ -13,21 +13,21 @@
  */
 
 import type { HypothesisSeed } from '../types.js';
-import { VACANCY_SEEDS } from './vacancy.js';
-import { ARREARS_SEEDS } from './arrears.js';
+import { AVAILABLE_CAPACITY_SEEDS } from './available-capacity.js';
+import { OUTSTANDING_ROYALTIES_SEEDS } from './outstanding-royalties.js';
 import { MAINTENANCE_SEEDS } from './maintenance.js';
 import { PRICING_SEEDS } from './pricing.js';
 import { CHURN_SEEDS } from './churn.js';
 
 export const SEED_LIBRARY: readonly HypothesisSeed[] = [
-  ...VACANCY_SEEDS,
-  ...ARREARS_SEEDS,
+  ...AVAILABLE_CAPACITY_SEEDS,
+  ...OUTSTANDING_ROYALTIES_SEEDS,
   ...MAINTENANCE_SEEDS,
   ...PRICING_SEEDS,
   ...CHURN_SEEDS,
 ];
 
-export { VACANCY_SEEDS, ARREARS_SEEDS, MAINTENANCE_SEEDS, PRICING_SEEDS, CHURN_SEEDS };
+export { AVAILABLE_CAPACITY_SEEDS, OUTSTANDING_ROYALTIES_SEEDS, MAINTENANCE_SEEDS, PRICING_SEEDS, CHURN_SEEDS };
 
 /** Look up a single seed by id; undefined if not found. */
 export function findSeedById(id: string): HypothesisSeed | undefined {

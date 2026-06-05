@@ -41,10 +41,10 @@ const SAMPLES: Record<ArtifactComponentType, { props: unknown; data: unknown }> 
   },
   form: {
     props: {
-      formId: 'lease-renewal',
+      formId: 'offtake-renewal',
       schemaJson: {},
       values: {},
-      action: '/api/gateway/forms/lease-renewal',
+      action: '/api/gateway/forms/offtake-renewal',
     },
     data: {},
   },
@@ -122,22 +122,22 @@ const SAMPLES: Record<ArtifactComponentType, { props: unknown; data: unknown }> 
   },
   callout: {
     props: { severity: 'warning', title: 'Heads up' },
-    data: { message: 'rent due tomorrow' },
+    data: { message: 'royalty due tomorrow' },
   },
   comparison: {
     props: {
       columns: ['Tier A', 'Tier B'],
-      rows: [{ key: 'r', label: 'Rent', values: ['100', '200'] }],
+      rows: [{ key: 'r', label: 'Royalty', values: ['100', '200'] }],
     },
     data: {},
   },
   pivot_table: {
     props: {
-      rowDimensions: ['property'],
+      rowDimensions: ['asset'],
       colDimensions: ['month'],
-      measures: [{ field: 'rent', aggregator: 'sum', format: 'currency', currency: 'TZS' }],
+      measures: [{ field: 'royalty', aggregator: 'sum', format: 'currency', currency: 'TZS' }],
     },
-    data: { rows: [{ property: 'P1', month: 'Jan', rent: 200 }] },
+    data: { rows: [{ asset: 'P1', month: 'Jan', royalty: 200 }] },
   },
   sparkline: {
     props: { label: 'Latency', value: 124, format: 'number', sparkline: [1, 2, 3] },

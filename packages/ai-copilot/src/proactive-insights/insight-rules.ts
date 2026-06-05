@@ -47,15 +47,15 @@ export const INSIGHT_RULES: readonly InsightRule[] = [
   {
     id: 'renewal_window_90d',
     category: 'renewal_opportunity',
-    description: 'Surfaces lease renewal drafts within 90 days',
+    description: 'Surfaces offtake renewal drafts within 90 days',
     evaluate(ctx): ProactiveInsight | null {
-      if (!ctx.leasesExpiring90 || ctx.leasesExpiring90 < 1) return null;
+      if (!ctx.offtakesExpiring90 || ctx.offtakesExpiring90 < 1) return null;
       return insight(
         'renewal_window_90d',
         'renewal_opportunity',
         'medium',
-        'Leases nearing expiry',
-        `${ctx.leasesExpiring90} lease${ctx.leasesExpiring90 === 1 ? '' : 's'} will expire within 90 days. I can draft proposals.`,
+        'Offtakes nearing expiry',
+        `${ctx.offtakesExpiring90} offtake${ctx.offtakesExpiring90 === 1 ? '' : 's'} will expire within 90 days. I can draft proposals.`,
         { label: 'Review drafts', action: 'open_renewal_drafts' },
       );
     },
@@ -126,17 +126,17 @@ export const INSIGHT_RULES: readonly InsightRule[] = [
     },
   },
   {
-    id: 'tenant_satisfaction_checkin',
-    category: 'tenant_satisfaction',
+    id: 'counterparty_satisfaction_checkin',
+    category: 'counterparty_satisfaction',
     description: 'Suggests a check-in after recent maintenance',
     evaluate(ctx): ProactiveInsight | null {
-      if (!ctx.currentPage.includes('tenant')) return null;
+      if (!ctx.currentPage.includes('counterparty')) return null;
       return insight(
-        'tenant_satisfaction_checkin',
-        'tenant_satisfaction',
+        'counterparty_satisfaction_checkin',
+        'counterparty_satisfaction',
         'low',
         'Check-in message',
-        'Want me to draft a short check-in message for this tenant?',
+        'Want me to draft a short check-in message for this counterparty?',
         { label: 'Draft', action: 'draft_checkin' },
       );
     },
@@ -177,17 +177,17 @@ export const INSIGHT_RULES: readonly InsightRule[] = [
     },
   },
   {
-    id: 'bulk_tenant_outreach',
-    category: 'tenant_satisfaction',
-    description: 'Suggests bulk outreach on the tenant list page',
+    id: 'bulk_counterparty_outreach',
+    category: 'counterparty_satisfaction',
+    description: 'Suggests bulk outreach on the counterparty list page',
     evaluate(ctx): ProactiveInsight | null {
-      if (!ctx.currentPage.endsWith('tenants')) return null;
+      if (!ctx.currentPage.endsWith('counterparties')) return null;
       return insight(
-        'bulk_tenant_outreach',
-        'tenant_satisfaction',
+        'bulk_counterparty_outreach',
+        'counterparty_satisfaction',
         'low',
         'Bulk outreach',
-        'I can draft a one-click monthly check-in to every tenant on this list.',
+        'I can draft a one-click monthly check-in to every counterparty on this list.',
         { label: 'Draft outreach', action: 'draft_bulk_outreach' },
       );
     },

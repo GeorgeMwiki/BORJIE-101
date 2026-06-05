@@ -28,7 +28,7 @@ describe('formatPolicyDecisionOcsf', () => {
   it('produces a valid OCSF 6003 (Policy Decision) shape', () => {
     const out = formatPolicyDecisionOcsf({
       timestampMs: 1_700_000_000_000,
-      taskCategory: 'lease_drafting',
+      taskCategory: 'offtake_drafting',
       originalFamily: 'haiku',
       enforcedFamily: 'opus',
       reason: 'Lease contracts are legally binding',
@@ -41,7 +41,7 @@ describe('formatPolicyDecisionOcsf', () => {
     expect(out.time).toBe(1_700_000_000_000);
     expect(out.enrichments).toContainEqual({
       name: 'task_category',
-      value: 'lease_drafting',
+      value: 'offtake_drafting',
     });
     expect(out.enrichments).toContainEqual({
       name: 'original_family',
@@ -56,7 +56,7 @@ describe('formatPolicyDecisionOcsf', () => {
   it('includes the policy desc from the enforcement reason', () => {
     const out = formatPolicyDecisionOcsf({
       timestampMs: 1,
-      taskCategory: 'lease_drafting',
+      taskCategory: 'offtake_drafting',
       originalFamily: 'haiku',
       enforcedFamily: 'opus',
       reason: 'Custom reason text',
@@ -69,19 +69,19 @@ describe('bindMinTierToOcsf', () => {
   it('fires the emitter on min-tier upgrade', () => {
     const emit = vi.fn();
     bindMinTierToOcsf(emit);
-    enforceMinTier('lease_drafting', 'haiku');
+    enforceMinTier('offtake_drafting', 'haiku');
     expect(emit).toHaveBeenCalledOnce();
     const ocsf = emit.mock.calls[0]?.[0];
     expect(ocsf.class_uid).toBe(6003);
     expect(ocsf.enrichments.find((e: { name: string }) => e.name === 'task_category')?.value).toBe(
-      'lease_drafting',
+      'offtake_drafting',
     );
   });
 
   it('does NOT fire on pass-through (no upgrade)', () => {
     const emit = vi.fn();
     bindMinTierToOcsf(emit);
-    enforceMinTier('lease_drafting', 'opus');
+    enforceMinTier('offtake_drafting', 'opus');
     expect(emit).not.toHaveBeenCalled();
   });
 
@@ -89,7 +89,7 @@ describe('bindMinTierToOcsf', () => {
     bindMinTierToOcsf(() => {
       throw new Error('OCSF sink down');
     });
-    expect(() => enforceMinTier('lease_drafting', 'haiku')).not.toThrow();
+    expect(() => enforceMinTier('offtake_drafting', 'haiku')).not.toThrow();
   });
 });
 

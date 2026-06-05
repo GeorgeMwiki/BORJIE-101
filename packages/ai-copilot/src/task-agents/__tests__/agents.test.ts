@@ -81,7 +81,7 @@ describe('rent_reminder_agent — with dispatcher wired', () => {
     const exec = makeExec(services);
     const out = await exec.execute({
       tenantId: TENANT,
-      agentId: 'rent_reminder_agent',
+      agentId: 'royalty_reminder_agent',
       payload: { channels: ['sms'], leadTimeDays: 3 },
       trigger: { kind: 'manual', userId: 'u' },
     });
@@ -103,7 +103,7 @@ describe('arrears_ladder_tick_agent — wraps the ladder task', () => {
     const exec = makeExec(services);
     const out = await exec.execute({
       tenantId: TENANT,
-      agentId: 'arrears_ladder_tick_agent',
+      agentId: 'royalty_arrears_ladder_tick_agent',
       payload: {},
       trigger: { kind: 'manual', userId: 'u' },
     });
@@ -158,7 +158,7 @@ describe('vacancy_marketer_agent — requests marketplace publish', () => {
     const exec = makeExec(services);
     const out = await exec.execute({
       tenantId: TENANT,
-      agentId: 'vacancy_marketer_agent',
+      agentId: 'available_capacity_marketer_agent',
       payload: {
         unitId: 'u_42',
         propertyId: 'p_1',

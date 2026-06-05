@@ -52,8 +52,8 @@ import type { BrainDecision } from '../kernel-types.js';
 /**
  * Scope key for namespacing cache entries. Cross-tenant matches must
  * never happen, so the tenantId is part of the key. The surface and
- * personaId capture the rendering context — a Swahili tenant-resident
- * surface and a sovereign-admin HQ surface produce different
+ * personaId capture the rendering context — a Swahili counterparty-
+ * resident surface and a sovereign-admin HQ surface produce different
  * BrainDecisions for the same userMessage.
  */
 export interface SemanticCacheScope {

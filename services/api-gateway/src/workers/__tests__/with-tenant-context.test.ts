@@ -1,17 +1,24 @@
 /**
- * withWorkerTenantContext — G8 robustness-audit closure tests.
+ * withWorkerTenantContext — connection-pinning contract tests.
  *
- * Verifies the helper:
- *   1. Wraps the body in BEGIN / SET LOCAL / <body> / COMMIT.
- *   2. Binds BOTH the canonical `app.current_tenant_id` and legacy
- *      `app.tenant_id` GUC names.
- *   3. ROLLBACKs on body throw and re-raises the original error.
- *   4. ROLLBACKs even when the body's first DB call fails (simulates
- *      Supabase connection reap mid-tick).
- *   5. Rejects an empty tenantId as a programmer error.
+ * The helper delegates to `@borjie/database`'s `withTenantContext`, which
+ * opens a REAL Drizzle transaction (postgres.js `.begin()` — pins one
+ * connection) and binds `app.current_tenant_id` + `app.tenant_id` +
+ * `app.is_service_role` via SET LOCAL, then runs the body on the pinned `tx`.
  *
- * The DB is stubbed — we capture every execute() call and assert on
- * the SQL text + ordering.
+ * These unit tests assert that CONTRACT against a transaction-capable stub:
+ *   1. it opens a transaction and binds BOTH tenant GUC names (transaction-
+ *      local) before running the body;
+ *   2. the body receives — and must use — the pinned `tx` handle;
+ *   3. a body throw rejects with the original error (the driver rolls the
+ *      transaction back — that part is exercised against a real Postgres in
+ *      `src/__tests__/worker-tenant-context-pinning.test.ts`);
+ *   4. each call opens its OWN transaction (no cross-tenant carryover);
+ *   5. an empty tenantId is rejected before any DB work.
+ *
+ * NOTE: the previous implementation issued raw `BEGIN`/`SET LOCAL`/`COMMIT`
+ * as separate `execute()` calls, which did NOT pin on a pooled client; those
+ * SQL-sequence assertions were removed with that broken implementation.
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -21,118 +28,113 @@ interface CapturedCall {
   readonly sql: string;
 }
 
-function makeStubDb(opts?: { failAt?: (text: string) => boolean }) {
-  const calls: CapturedCall[] = [];
-  return {
-    calls,
-    execute: vi.fn(async (q: unknown) => {
-      const sqlObj = q as {
-        strings?: ReadonlyArray<string>;
-        queryChunks?: ReadonlyArray<{ value?: string }>;
-      };
-      const text =
-        sqlObj?.strings?.join(' ') ??
-        sqlObj?.queryChunks?.map((c) => c.value ?? '').join(' ') ??
-        '';
-      calls.push({ sql: text });
-      if (opts?.failAt && opts.failAt(text)) {
-        throw new Error('connection terminated unexpectedly');
-      }
-      return { rows: [] };
-    }),
+function sqlTextOf(q: unknown): string {
+  const sqlObj = q as {
+    strings?: ReadonlyArray<string>;
+    queryChunks?: ReadonlyArray<{ value?: string }>;
   };
+  return (
+    sqlObj?.strings?.join(' ') ??
+    sqlObj?.queryChunks?.map((c) => c.value ?? '').join(' ') ??
+    ''
+  );
+}
+
+/**
+ * Transaction-capable stub. `withTenantContext` calls `db.transaction(fn)`;
+ * our stub runs `fn` against a single `tx` whose `execute` records every
+ * statement — so we can assert the SET LOCAL binds + the body's calls all
+ * land on the SAME pinned handle. The real driver auto-ROLLBACKs + rethrows
+ * on a callback throw; the stub just rethrows (rollback is the driver's job).
+ */
+function makeTxStubDb(opts?: { failAt?: (text: string) => boolean }) {
+  const calls: CapturedCall[] = [];
+  const txExecute = vi.fn(async (q: unknown) => {
+    const text = sqlTextOf(q);
+    calls.push({ sql: text });
+    if (opts?.failAt?.(text)) {
+      throw new Error('connection terminated unexpectedly');
+    }
+    return { rows: [] };
+  });
+  const tx = { execute: txExecute };
+  const transaction = vi.fn(
+    async <T>(fn: (t: typeof tx) => Promise<T>): Promise<T> => fn(tx),
+  );
+  return { calls, tx, transaction, execute: txExecute };
 }
 
 describe('withWorkerTenantContext', () => {
-  it('wraps the body in BEGIN; SET LOCAL <both GUCs>; <body>; COMMIT', async () => {
-    const db = makeStubDb();
-    const body = vi.fn(async () => 'ok');
+  it('opens a transaction, binds both GUCs (SET LOCAL), runs the body on the pinned tx', async () => {
+    const db = makeTxStubDb();
+    const body = vi.fn(async (tx: { execute: (q: unknown) => Promise<unknown> }) => {
+      await tx.execute({ strings: ['SELECT 1 FROM widgets'] });
+      return 'ok';
+    });
 
     const result = await withWorkerTenantContext(db, 't_happy', body);
 
     expect(result).toBe('ok');
+    expect(db.transaction).toHaveBeenCalledOnce();
     expect(body).toHaveBeenCalledOnce();
+    // body received the SAME handle the GUCs were bound on.
+    expect(body.mock.calls[0]![0]).toBe(db.tx);
 
-    // Order: BEGIN -> set_config -> COMMIT (body has no DB calls
-    // here, but the wrapper's own SQL is enough to verify the shape).
-    expect(/^\s*BEGIN/.test(db.calls[0]!.sql)).toBe(true);
-    expect(db.calls[1]!.sql).toContain('set_config');
-    expect(db.calls[1]!.sql).toContain('app.current_tenant_id');
-    expect(db.calls[1]!.sql).toContain('app.tenant_id');
-    expect(/^\s*COMMIT/.test(db.calls[db.calls.length - 1]!.sql)).toBe(true);
+    const setConfig = db.calls.filter((c) => c.sql.includes('set_config'));
+    expect(setConfig.length).toBeGreaterThanOrEqual(2);
+    expect(db.calls.some((c) => c.sql.includes('app.current_tenant_id'))).toBe(true);
+    expect(db.calls.some((c) => c.sql.includes('app.tenant_id'))).toBe(true);
+    // The GUC binds happen BEFORE the body's own query.
+    const firstBodyIdx = db.calls.findIndex((c) => c.sql.includes('widgets'));
+    const lastBindIdx = db.calls.reduce(
+      (acc, c, i) => (c.sql.includes('set_config') ? i : acc),
+      -1,
+    );
+    expect(lastBindIdx).toBeGreaterThanOrEqual(0);
+    expect(lastBindIdx).toBeLessThan(firstBodyIdx);
   });
 
-  it('emits ROLLBACK and re-raises when the body throws', async () => {
-    const db = makeStubDb();
+  it('rejects with the original error when the body throws (driver rolls back)', async () => {
+    const db = makeTxStubDb();
     const original = new Error('body failed mid-tick');
     await expect(
       withWorkerTenantContext(db, 't_throw', async () => {
         throw original;
       }),
     ).rejects.toBe(original);
-    const rollbackIdx = db.calls.findIndex((c) => /^\s*ROLLBACK/.test(c.sql));
-    const commitIdx = db.calls.findIndex((c) => /^\s*COMMIT/.test(c.sql));
-    expect(rollbackIdx).toBeGreaterThanOrEqual(0);
-    // No COMMIT must have fired — the txn is rolled back, not committed.
-    expect(commitIdx).toBe(-1);
+    expect(db.transaction).toHaveBeenCalledOnce();
   });
 
-  it('emits ROLLBACK when set_config itself throws (connection reaped before body)', async () => {
-    // Worst-case scenario: Supabase reaps the conn after BEGIN but
-    // before set_config returns. The helper must still emit ROLLBACK
-    // so no half-bound GUC leaks if the conn ever returns to a pool.
-    const db = makeStubDb({
-      failAt: (text) => text.includes('set_config'),
-    });
+  it('rejects when the GUC bind itself throws (connection reaped before body)', async () => {
+    const db = makeTxStubDb({ failAt: (text) => text.includes('set_config') });
+    const body = vi.fn(async () => 'never reached');
     await expect(
-      withWorkerTenantContext(db, 't_reap', async () => 'never reached'),
+      withWorkerTenantContext(db, 't_reap', body),
     ).rejects.toThrow('connection terminated unexpectedly');
-    const rollbackIdx = db.calls.findIndex((c) => /^\s*ROLLBACK/.test(c.sql));
-    expect(rollbackIdx).toBeGreaterThanOrEqual(0);
+    expect(body).not.toHaveBeenCalled();
   });
 
-  it('isolates tenant context — sequential calls with different tenants do not leak', async () => {
-    // Confirms each call binds its OWN tenant; the BEGIN/COMMIT pair
-    // guarantees the binding cannot survive into the next caller's
-    // txn.
-    const db = makeStubDb();
+  it('opens a fresh transaction per call — sequential tenants cannot leak', async () => {
+    const db = makeTxStubDb();
     await withWorkerTenantContext(db, 't_alpha', async () => undefined);
     await withWorkerTenantContext(db, 't_beta', async () => undefined);
 
+    // One transaction per call; each binds its own GUCs inside it.
+    expect(db.transaction).toHaveBeenCalledTimes(2);
     const setConfigCalls = db.calls.filter((c) => c.sql.includes('set_config'));
-    expect(setConfigCalls).toHaveLength(2);
-    // The drizzle tagged-template stub joins the strings together; the
-    // tenant id is bound via a parameterised slot ($1) so we cannot
-    // recover the literal value from the stub. We assert ordering
-    // instead: both set_config calls live INSIDE their own BEGIN/COMMIT
-    // pair, so a stray binding cannot survive.
-    const beginIdxs = db.calls
-      .map((c, i) => ({ c, i }))
-      .filter(({ c }) => /^\s*BEGIN/.test(c.sql))
-      .map(({ i }) => i);
-    const commitIdxs = db.calls
-      .map((c, i) => ({ c, i }))
-      .filter(({ c }) => /^\s*COMMIT/.test(c.sql))
-      .map(({ i }) => i);
-    expect(beginIdxs).toHaveLength(2);
-    expect(commitIdxs).toHaveLength(2);
-    // Every BEGIN precedes its matching COMMIT.
-    expect(beginIdxs[0]).toBeLessThan(commitIdxs[0]!);
-    expect(beginIdxs[1]).toBeLessThan(commitIdxs[1]!);
-    // The first COMMIT lands before the second BEGIN — no overlapping
-    // txns share the same connection state.
-    expect(commitIdxs[0]).toBeLessThan(beginIdxs[1]!);
+    // ≥2 binds per call (current_tenant_id + tenant_id [+ is_service_role]).
+    expect(setConfigCalls.length).toBeGreaterThanOrEqual(4);
   });
 
-  it('rejects empty tenantId as a programmer error', async () => {
-    const db = makeStubDb();
+  it('rejects empty tenantId as a programmer error — before any DB work', async () => {
+    const db = makeTxStubDb();
     await expect(
       withWorkerTenantContext(db, '', async () => undefined),
     ).rejects.toThrow('tenantId must be non-empty');
     await expect(
       withWorkerTenantContext(db, '   ', async () => undefined),
     ).rejects.toThrow('tenantId must be non-empty');
-    // The helper rejected BEFORE emitting any SQL — no half-open txn.
+    expect(db.transaction).not.toHaveBeenCalled();
     expect(db.calls).toHaveLength(0);
   });
 });

@@ -3,16 +3,16 @@
  *
  * Thoughts are DAG vertices; edges express data dependencies. Unlike ToT
  * (a tree), GoT permits aggregation (merge two parents) and refinement
- * loops, which is exactly what BORJIE portfolio reasoning needs:
+ * loops, which is exactly what BORJIE estate reasoning needs:
  *
- *   Q: "Across my 12 properties in Dar/Arusha/Mwanza, which should I
+ *   Q: "Across my 12 mining sites in Geita/Mwanza/Songea, which should I
  *       refinance given current Bank of Tanzania rates?"
  *
- *   per-property:        market-data-DSM   market-data-ARU   market-data-MWZ
+ *   per-site:            market-data-GEI   market-data-MWZ   market-data-SNG
  *                              |                  |                  |
- *                          finance-DSM        finance-ARU         finance-MWZ
+ *                          finance-GEI        finance-MWZ         finance-SNG
  *                                  \                |               /
- *                                   merge(cross-property comparison)
+ *                                   merge(cross-site comparison)
  *                                              |
  *                                       regulatory-overlay (TZ)
  *                                              |
@@ -32,7 +32,7 @@ export interface GoTNode {
   readonly content: JsonValue;
   /** Self-rated quality 0..1. Higher = preferred for downstream selection. */
   readonly score: number;
-  /** Soft labels (e.g. `property:12B`, `jurisdiction:TZ-DSM`) — used by merge. */
+  /** Soft labels (e.g. `site:12B`, `jurisdiction:TZ-GEITA`) — used by merge. */
   readonly labels: ReadonlyArray<string>;
 }
 

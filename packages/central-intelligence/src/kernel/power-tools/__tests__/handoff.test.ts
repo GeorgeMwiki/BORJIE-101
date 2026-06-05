@@ -24,7 +24,7 @@ function makeCtx(
 describe('handoffPowerTool', () => {
   it('declares the expected static shape', () => {
     expect(handoffPowerTool.id).toBe('handoff');
-    expect(handoffPowerTool.requiredTier).toBe('tenant-resident');
+    expect(handoffPowerTool.requiredTier).toBe('counterparty-resident');
     expect(handoffPowerTool.requiresApproval).toBe(false);
     expect(handoffPowerTool.auditDestination).toBe('audit-events');
   });
@@ -62,7 +62,7 @@ describe('handoffPowerTool', () => {
 
   it('refuses downward handoff', async () => {
     const result = await handoffPowerTool.execute(makeCtx({ tier: 'org-admin' }), {
-      targetTier: 'tenant-resident',
+      targetTier: 'counterparty-resident',
       intent: 'defer',
       rationale: 'try to handle it at the resident-concierge level',
       conversationRef: 'conv_1',

@@ -62,6 +62,32 @@ export {
   type AddCustomFieldParams,
 } from './core-entity.repository.js';
 
+// Wave WS-4 ANALYTICS — analytics warehouse reads + aggregations
+// (migrations 0175/0176/0177). Read fns back the owner-portal Analytics
+// routers; aggregate fns back the consolidation-worker analytics-aggregate
+// task. All run on the passed (RLS-pinned) Drizzle client.
+export {
+  usageSeries,
+  growthSeries,
+  listExportTemplates,
+  aggregateUsageDaily,
+  aggregateGrowthMonthly,
+  type UsageSeriesPoint,
+  type GrowthSeriesPoint,
+  type ExportTemplateRow,
+  type DateRange as AnalyticsDateRange,
+  type AggregateResult as AnalyticsAggregateResult,
+} from './analytics-warehouse.repository.js';
+
+// Wave WS-4 ACCOUNTING — READ-ONLY projection over the canonical
+// payments-ledger `ledger_entries` for the owner-portal accounting tab.
+// Reads existing journals (never a parallel ledger, never a write).
+export {
+  listLedgerLines,
+  type AccountingLedgerLine,
+  type ListLedgerOptions,
+} from './accounting-ledger-read.repository.js';
+
 // Enum guards — bug fix A-BUG-DEEP #9. Property-domain enums (lease,
 // customer, document) retained as opaque type aliases until the
 // mining-domain equivalents replace them.

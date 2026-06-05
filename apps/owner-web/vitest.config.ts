@@ -3,7 +3,7 @@
  *
  * The root vitest.config restricts include to `packages/**` and
  * `services/**`, so apps need their own. jsdom because future tests
- * will mount React components (SiteSelector, CeoModeSwitcher, etc.).
+ * will mount React components (SiteSelector, ChatPanel, etc.).
  *
  * Alias map:
  *  - `@/*` → `src/*` (matches the Next.js tsconfig path mapping).

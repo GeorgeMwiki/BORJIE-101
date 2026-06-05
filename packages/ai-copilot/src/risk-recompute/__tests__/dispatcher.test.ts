@@ -105,11 +105,11 @@ describe('risk-recompute/dispatcher', () => {
     expect(err?.errorMessage).toContain('db down');
   });
 
-  it('maps InspectionCompleted → property_grade for the affected propertyId', async () => {
+  it('maps InspectionCompleted → asset_grade for the affected assetId', async () => {
     const calls: RiskComputeJob[] = [];
     const dispatcher = createRiskRecomputeDispatcher({
       registry: {
-        property_grade: async (job) => {
+        asset_grade: async (job) => {
           calls.push(job);
         },
       },
@@ -121,18 +121,18 @@ describe('risk-recompute/dispatcher', () => {
       payload: { propertyId: 'p_1', surveyId: 's_1' },
     });
     expect(calls).toHaveLength(1);
-    expect(calls[0].kind).toBe('property_grade');
+    expect(calls[0].kind).toBe('asset_grade');
     expect(calls[0].entityId).toBe('p_1');
   });
 
-  it('maps WorkOrderClosed → vendor_scorecard + property_grade', async () => {
+  it('maps WorkOrderClosed → vendor_scorecard + asset_grade', async () => {
     const kinds: string[] = [];
     const dispatcher = createRiskRecomputeDispatcher({
       registry: {
         vendor_scorecard: async (j) => {
           kinds.push(j.kind);
         },
-        property_grade: async (j) => {
+        asset_grade: async (j) => {
           kinds.push(j.kind);
         },
       },
@@ -144,7 +144,7 @@ describe('risk-recompute/dispatcher', () => {
       payload: { vendorId: 'v_1', propertyId: 'p_2' },
     });
     expect(res.jobsDispatched).toBe(2);
-    expect(kinds.sort()).toEqual(['property_grade', 'vendor_scorecard']);
+    expect(kinds.sort()).toEqual(['asset_grade', 'vendor_scorecard']);
   });
 
   it('subscribeTo wires into a SubscribableEventBus', async () => {

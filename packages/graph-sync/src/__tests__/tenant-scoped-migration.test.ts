@@ -78,7 +78,7 @@ beforeEach(() => {
 describe('Neo4jClient.readQuery — tenant guard', () => {
   it('accepts a well-scoped query and forwards params to session.run', async () => {
     const client = freshClient();
-    await client.readQuery('MATCH (p:Property {_tenantId: $tenantId}) RETURN p', {
+    await client.readQuery('MATCH (p:Site {_tenantId: $tenantId}) RETURN p', {
       tenantId: 'tenant-1',
     });
     expect(runCalls.length).toBe(1);
@@ -89,7 +89,7 @@ describe('Neo4jClient.readQuery — tenant guard', () => {
   it('runtime-rejects params without tenantId BEFORE opening session', async () => {
     const client = freshClient();
     // @ts-expect-error — TenantScopedParams compile-time guard requires tenantId
-    await expect(client.readQuery('MATCH (p:Property {_tenantId: $tenantId}) RETURN p', {})).rejects.toBeInstanceOf(
+    await expect(client.readQuery('MATCH (p:Site {_tenantId: $tenantId}) RETURN p', {})).rejects.toBeInstanceOf(
       TenantScopeViolation,
     );
     expect(runCalls.length).toBe(0);
@@ -98,7 +98,7 @@ describe('Neo4jClient.readQuery — tenant guard', () => {
   it('runtime-rejects empty tenantId', async () => {
     const client = freshClient();
     await expect(
-      client.readQuery('MATCH (p:Property {_tenantId: $tenantId}) RETURN p', { tenantId: '' }),
+      client.readQuery('MATCH (p:Site {_tenantId: $tenantId}) RETURN p', { tenantId: '' }),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
     expect(runCalls.length).toBe(0);
   });
@@ -106,7 +106,7 @@ describe('Neo4jClient.readQuery — tenant guard', () => {
   it('runtime-rejects Cypher missing $tenantId', async () => {
     const client = freshClient();
     await expect(
-      client.readQuery('MATCH (p:Property) RETURN p', { tenantId: 'tenant-1' }),
+      client.readQuery('MATCH (p:Site) RETURN p', { tenantId: 'tenant-1' }),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
     expect(runCalls.length).toBe(0);
   });
@@ -118,7 +118,7 @@ describe('Neo4jClient.readQuery — tenant guard', () => {
       status: 'active',
     };
     await client.readQuery(
-      'MATCH (p:Property {_tenantId: $tenantId, status: $status}) RETURN p',
+      'MATCH (p:Site {_tenantId: $tenantId, status: $status}) RETURN p',
       params,
     );
     expect(runCalls[0]!.params).toEqual({ tenantId: 'tenant-1', status: 'active' });
@@ -133,7 +133,7 @@ describe('Neo4jClient.writeQuery — tenant guard', () => {
   it('accepts a well-scoped MERGE', async () => {
     const client = freshClient();
     await client.writeQuery(
-      'MERGE (p:Property {_tenantId: $tenantId, _id: $id}) SET p.name = $name',
+      'MERGE (p:Site {_tenantId: $tenantId, _id: $id}) SET p.name = $name',
       { tenantId: 'tenant-1', id: 'p-1', name: 'Acme' },
     );
     expect(runCalls.length).toBe(1);
@@ -143,7 +143,7 @@ describe('Neo4jClient.writeQuery — tenant guard', () => {
   it('runtime-rejects writes without $tenantId in the Cypher', async () => {
     const client = freshClient();
     await expect(
-      client.writeQuery('MATCH (p:Property) DETACH DELETE p', { tenantId: 'tenant-1' }),
+      client.writeQuery('MATCH (p:Site) DETACH DELETE p', { tenantId: 'tenant-1' }),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
     expect(runCalls.length).toBe(0);
   });
@@ -152,7 +152,7 @@ describe('Neo4jClient.writeQuery — tenant guard', () => {
     const client = freshClient();
     await expect(
       client.writeQuery(
-        'MERGE (p:Property {_tenantId: $tenantId, _id: $id})',
+        'MERGE (p:Site {_tenantId: $tenantId, _id: $id})',
         { tenantId: '   ', id: 'p-1' },
       ),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
@@ -167,7 +167,7 @@ describe('Neo4jClient.runSchemaQuery — schema bypass', () => {
   it('allows CREATE CONSTRAINT without tenantId', async () => {
     const client = freshClient();
     await client.runSchemaQuery(
-      'CREATE CONSTRAINT uniq_property_tenant_id IF NOT EXISTS FOR (n:Property) REQUIRE (n._tenantId, n._id) IS UNIQUE',
+      'CREATE CONSTRAINT uniq_site_tenant_id IF NOT EXISTS FOR (n:Site) REQUIRE (n._tenantId, n._id) IS UNIQUE',
     );
     expect(runCalls.length).toBe(1);
     expect(runCalls[0]!.cypher).toContain('CREATE CONSTRAINT');
@@ -176,7 +176,7 @@ describe('Neo4jClient.runSchemaQuery — schema bypass', () => {
   it('allows CREATE INDEX without tenantId', async () => {
     const client = freshClient();
     await client.runSchemaQuery(
-      'CREATE INDEX idx_unit_tenant IF NOT EXISTS FOR (n:Unit) ON (n._tenantId)',
+      'CREATE INDEX idx_pit_tenant IF NOT EXISTS FOR (n:Pit) ON (n._tenantId)',
     );
     expect(runCalls.length).toBe(1);
     expect(runCalls[0]!.cypher).toContain('CREATE INDEX');
@@ -223,12 +223,12 @@ describe('applyConstraintsAndIndexes — routes through runSchemaQuery', () => {
   it('emits a CONSTRAINT that includes the tenant predicate in the schema', async () => {
     const client = freshClient();
     await applyConstraintsAndIndexes(client);
-    const propertyConstraint = runCalls.find(
-      c => /CREATE CONSTRAINT uniq_property/.test(c.cypher),
+    const siteConstraint = runCalls.find(
+      c => /CREATE CONSTRAINT uniq_site/.test(c.cypher),
     );
-    expect(propertyConstraint).toBeDefined();
-    expect(propertyConstraint!.cypher).toContain('n._tenantId');
-    expect(propertyConstraint!.cypher).toContain('n._id');
+    expect(siteConstraint).toBeDefined();
+    expect(siteConstraint!.cypher).toContain('n._tenantId');
+    expect(siteConstraint!.cypher).toContain('n._id');
   });
 });
 
@@ -240,9 +240,9 @@ describe('GraphSyncEngine — batch operations include $tenantId predicate', () 
   it('batchUpsertNodes emits Cypher with $tenantId AND passes top-level tenantId', async () => {
     const client = freshClient();
     const engine = new GraphSyncEngine(client);
-    await engine.batchUpsertNodes('Property', [
-      { label: 'Property', id: 'p-1', tenantId: 'tenant-1', properties: { name: 'A' } },
-      { label: 'Property', id: 'p-2', tenantId: 'tenant-1', properties: { name: 'B' } },
+    await engine.batchUpsertNodes('Site', [
+      { label: 'Site', id: 'p-1', tenantId: 'tenant-1', properties: { name: 'A' } },
+      { label: 'Site', id: 'p-2', tenantId: 'tenant-1', properties: { name: 'B' } },
     ]);
     expect(runCalls.length).toBe(1);
     expect(runCalls[0]!.cypher).toContain('$tenantId');
@@ -254,9 +254,9 @@ describe('GraphSyncEngine — batch operations include $tenantId predicate', () 
     const client = freshClient();
     const engine = new GraphSyncEngine(client);
     await expect(
-      engine.batchUpsertNodes('Property', [
-        { label: 'Property', id: 'p-1', tenantId: 'tenant-1', properties: {} },
-        { label: 'Property', id: 'p-2', tenantId: 'tenant-2', properties: {} },
+      engine.batchUpsertNodes('Site', [
+        { label: 'Site', id: 'p-1', tenantId: 'tenant-1', properties: {} },
+        { label: 'Site', id: 'p-2', tenantId: 'tenant-2', properties: {} },
       ]),
     ).rejects.toThrow(/heterogeneous tenantId/);
     expect(runCalls.length).toBe(0);
@@ -265,13 +265,13 @@ describe('GraphSyncEngine — batch operations include $tenantId predicate', () 
   it('batchUpsertRelationships emits Cypher with $tenantId predicate', async () => {
     const client = freshClient();
     const engine = new GraphSyncEngine(client);
-    await engine.batchUpsertRelationships('Property', 'Unit', 'HAS_UNIT', [
+    await engine.batchUpsertRelationships('Site', 'Pit', 'HAS_PIT', [
       {
-        fromLabel: 'Property',
+        fromLabel: 'Site',
         fromId: 'p-1',
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: 'u-1',
-        type: 'HAS_UNIT',
+        type: 'HAS_PIT',
         tenantId: 'tenant-1',
       },
     ]);
@@ -284,21 +284,21 @@ describe('GraphSyncEngine — batch operations include $tenantId predicate', () 
     const client = freshClient();
     const engine = new GraphSyncEngine(client);
     await expect(
-      engine.batchUpsertRelationships('Property', 'Unit', 'HAS_UNIT', [
+      engine.batchUpsertRelationships('Site', 'Pit', 'HAS_PIT', [
         {
-          fromLabel: 'Property',
+          fromLabel: 'Site',
           fromId: 'p-1',
-          toLabel: 'Unit',
+          toLabel: 'Pit',
           toId: 'u-1',
-          type: 'HAS_UNIT',
+          type: 'HAS_PIT',
           tenantId: 'tenant-1',
         },
         {
-          fromLabel: 'Property',
+          fromLabel: 'Site',
           fromId: 'p-2',
-          toLabel: 'Unit',
+          toLabel: 'Pit',
           toId: 'u-2',
-          type: 'HAS_UNIT',
+          type: 'HAS_PIT',
           tenantId: 'tenant-2',
         },
       ]),
@@ -310,7 +310,7 @@ describe('GraphSyncEngine — batch operations include $tenantId predicate', () 
     const client = freshClient();
     const engine = new GraphSyncEngine(client);
     await engine.upsertNode({
-      label: 'Property',
+      label: 'Site',
       id: 'p-1',
       tenantId: 'tenant-1',
       properties: { name: 'Acme' },
@@ -322,7 +322,7 @@ describe('GraphSyncEngine — batch operations include $tenantId predicate', () 
   it('removeNode carries $tenantId in its MATCH clause', async () => {
     const client = freshClient();
     const engine = new GraphSyncEngine(client);
-    await engine.removeNode('Property', 'tenant-1', 'p-1');
+    await engine.removeNode('Site', 'tenant-1', 'p-1');
     expect(runCalls[0]!.cypher).toContain('$tenantId');
     expect(runCalls[0]!.params).toMatchObject({ tenantId: 'tenant-1' });
   });
@@ -339,7 +339,7 @@ describe('Barrel re-exports', () => {
   });
 
   it('re-exports scopeNodePattern from the public surface', () => {
-    expect(scopeNodePattern('(p:Property)')).toBe('(p:Property {_tenantId: $tenantId})');
+    expect(scopeNodePattern('(p:Site)')).toBe('(p:Site {_tenantId: $tenantId})');
   });
 
   it('re-exports TenantScopeViolation as a value', () => {

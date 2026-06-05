@@ -30,11 +30,11 @@ export const fireVendorScenario: Scenario<typeof fireVendorInputs> = {
     const monthlySavings = oldMonthlyCost - newMonthlyCost;
 
     const onboardingMonths = Math.ceil(input.onboardingDays / 30);
-    const noi: { t: number; p10: number; p50: number; p90: number }[] = [];
+    const margin: { t: number; p10: number; p50: number; p90: number }[] = [];
     for (let m = 1; m <= horizonMonths; m += 1) {
       const inLag = m <= onboardingMonths;
       const base = inLag ? -oldMonthlyCost * 0.5 : monthlySavings;
-      noi.push({
+      margin.push({
         t: ctx.business.nowMs + m * 30 * dayMs,
         p10: base - Math.abs(base) * 0.3,
         p50: base,
@@ -44,8 +44,8 @@ export const fireVendorScenario: Scenario<typeof fireVendorInputs> = {
 
     return {
       scenarioName: 'fire-vendor',
-      projectedNoi: noi,
-      retentionProbability: 0.95, // tenants get faster service eventually
+      projectedNetMargin: margin,
+      retentionProbability: 0.95, // counterparties get faster service eventually
       complianceScore: 0.95,
       intentAlignment: 0.7,
       cashShortfallProbability: 0.05,

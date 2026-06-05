@@ -35,8 +35,8 @@ import { z } from 'zod';
 // ─────────────────────────────────────────────────────────────────────
 
 export const DISCOVERY_AREAS = [
-  'vacancy',
-  'arrears',
+  'available_capacity',
+  'outstanding_royalties',
   'maintenance',
   'pricing',
   'churn',
@@ -52,9 +52,9 @@ export type DiscoveryArea = (typeof DISCOVERY_AREAS)[number];
 
 export const PERSPECTIVES = [
   'owner',
-  'tenant',
+  'counterparty',
   'vendor',
-  'caretaker',
+  'site_supervisor',
   'auditor',
   'regulator',
   'underwriter',
@@ -68,7 +68,7 @@ export type Perspective = (typeof PERSPECTIVES)[number];
 // ─────────────────────────────────────────────────────────────────────
 
 export const HypothesisSeedSchema = z.object({
-  /** Stable id e.g. `vacancy-01`. */
+  /** Stable id e.g. `available_capacity-01`. */
   id: z.string().min(1),
   /** Discovery area bucket. */
   area: z.enum(DISCOVERY_AREAS),

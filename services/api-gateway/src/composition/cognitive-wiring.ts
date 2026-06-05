@@ -18,14 +18,19 @@
  *                                       pending-thread tracker, MemGPT
  *                                       summariser (temporal continuity
  *                                       substrate).
- *   - `@borjie/cognitive-composition` — only the *types* are consumed
- *                                       here. The 12-wire `compose()`
- *                                       pipeline requires the heavy
- *                                       cognitive-engine + brain-router
- *                                       + calibration ports to be wired
- *                                       and is deferred until those
- *                                       adapters land (see "Deferred"
- *                                       section below).
+ *   - `@borjie/cognitive-composition` — LP-01: the 12-wire `compose()`
+ *                                       pipeline is now WIRED (no longer
+ *                                       pinned `null`). When the caller
+ *                                       supplies `compositionDeps`, the
+ *                                       composer is built + exposed on
+ *                                       `WiredCognitive.composition`,
+ *                                       TTC-routed to Self-Discover / LATS
+ *                                       and gated by
+ *                                       `BORJIE_COGNITIVE_COMPOSER_ENABLED`.
+ *                                       The deep execution of the reasoning
+ *                                       packages is injected via the
+ *                                       `CompositionDeps` ports (see
+ *                                       `cognitive-composer-wiring.ts`).
  *
  * Public API summary (discovered from each package's `src/index.ts`):
  *
@@ -114,10 +119,13 @@
  *   - Drizzle-backed adapters for `cognitive_memory_cells` (mig 0027)
  *     and `session_memory` (mig 0029). Land alongside the embedding-
  *     service Drizzle cache port.
- *   - The 12-wire `cognitive-composition.compose()` pipeline. Requires
- *     `cognitive-engine.infer`, `brain-llm-router.cascade`,
- *     `calibration-monitor`, `conformal-calibration-online`, and the
- *     `cognitive_wiring_health` Postgres writer.
+ *   - LP-01 deep-execution binding: the composer pipeline now RUNS, but
+ *     binding the literal `@borjie/extended-reasoning` `runLATS` and
+ *     `@borjie/reasoning-substrate` `discoverReasoningStructure` calls
+ *     into the `CompositionDeps` substrate/cot ports requires adding those
+ *     two workspace deps to `services/api-gateway/package.json` + an
+ *     install. The TTC strategy ROUTING (`routeReasoning`) is wired and
+ *     tested now; the serial pass swaps in the real reasoning executors.
  *
  * @module services/api-gateway/src/composition/cognitive-wiring
  */
@@ -147,6 +155,18 @@ import {
   type UpstreamEmbedder,
   type ReinforcementRepository,
 } from '@borjie/cognitive-memory';
+
+// LP-01 — the TTC-routed deep-reasoning composer wiring. Replaces the
+// historical `composition: null` slot with a real, flag-gated, fail-safe
+// composer. The heavy `CompositionDeps` are supplied by the caller; this
+// module stays free of the cognitive-engine / brain-router adapters.
+import {
+  wireCognitiveComposer,
+  type WiredCognitiveComposer,
+  type WireCognitiveComposerDeps,
+  type RunComposerArgs,
+  type ComposerTurnResult,
+} from './cognitive-composer-wiring.js';
 
 import {
   // Session
@@ -197,13 +217,15 @@ export interface WiredCognitive {
   /** Session-memory, skills, pending-threads. `null` on boot failure. */
   readonly persistent: PersistentMemoryBundle | null;
   /**
-   * The 12-wire `cognitive-composition.compose()` pipeline is deferred
-   * (requires several heavy ports that are not yet wired). The slot is
-   * always `null` in this PR; a follow-up wave will replace it with the
-   * real composer once the inference / brain-router / calibration ports
-   * land. Consumers that read `wired.composition` MUST null-check.
+   * LP-01 — the 12-wire `cognitive-composition.compose()` pipeline,
+   * TTC-routed to Self-Discover / LATS and env-flag-gated by
+   * `BORJIE_COGNITIVE_COMPOSER_ENABLED`. `null` when no `compositionDeps`
+   * were supplied to {@link wireCognitive} (the common boot path until the
+   * heavy cognitive-engine / brain-router adapters land) or when composer
+   * construction failed. Consumers MUST null-check and fall back to the
+   * memory-recall-only enrichment. `runForTurn` is itself fail-safe.
    */
-  readonly composition: null;
+  readonly composition: WiredCognitiveComposer | null;
   /** Whether at least one bundle was constructed. False means full
    *  degradation — the enrichment function will return empty. */
   readonly isLive: boolean;
@@ -242,6 +264,17 @@ export interface WireCognitiveDeps {
    *  zero-vector embedder is used so the wiring still boots without
    *  any LLM provider configured. */
   readonly upstreamEmbedder?: UpstreamEmbedder;
+  /**
+   * LP-01 — optional cognitive-composition ports. When supplied, the
+   * 12-wire deep-reasoning composer is constructed and exposed on
+   * `WiredCognitive.composition`, TTC-routed to Self-Discover / LATS and
+   * gated by `BORJIE_COGNITIVE_COMPOSER_ENABLED`. When omitted the slot is
+   * `null` and consumers fall back to memory-recall-only enrichment.
+   */
+  readonly compositionDeps?: WireCognitiveComposerDeps['compositionDeps'];
+  /** Env source for the composer flag. Defaults to an empty record
+   *  (flag OFF) so tests and degraded boots never read `process.env`. */
+  readonly env?: Readonly<Record<string, string | undefined>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -388,12 +421,27 @@ function buildPersistentMemoryBundle(
 export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
   const cognitiveMemory = buildCognitiveMemoryBundle(deps);
   const persistent = buildPersistentMemoryBundle(deps);
+
+  // LP-01 — build the TTC-routed deep-reasoning composer when the caller
+  // supplied the cognitive-composition ports. `wireCognitiveComposer` is
+  // itself fail-safe (returns null on construction failure) so a composer
+  // problem never blocks the gateway boot.
+  let composition: WiredCognitiveComposer | null = null;
+  if (deps.compositionDeps !== undefined) {
+    composition = wireCognitiveComposer({
+      compositionDeps: deps.compositionDeps,
+      env: deps.env ?? {},
+      logger: deps.logger,
+    });
+  }
+
   const isLive = cognitiveMemory !== null || persistent !== null;
   if (isLive) {
     deps.logger.info('cognitive-wiring: bundles constructed', {
       cognitiveMemory: cognitiveMemory !== null,
       persistent: persistent !== null,
-      composition: false, // 12-wire pipeline deferred (see file header).
+      composition: composition !== null,
+      composerEnabled: composition?.enabled ?? false,
     });
   } else {
     deps.logger.warn(
@@ -403,7 +451,7 @@ export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
   return Object.freeze({
     cognitiveMemory,
     persistent,
-    composition: null,
+    composition,
     isLive,
   });
 }
@@ -429,6 +477,36 @@ export interface EnrichArgs {
   readonly now?: () => Date;
   /** Optional logger; defaults to a silent logger. */
   readonly logger?: CognitiveLogger;
+  /**
+   * LP-01 / LP-30 — optional deep-reasoning composer inputs. When the
+   * `wired.composition` slot is present AND its env flag enabled, the
+   * composer is TTC-routed (Self-Discover / LATS) over these signals and a
+   * deep-reasoning block is folded into the enriched prompt. Omit them to
+   * keep memory-recall-only enrichment (the composer is also skipped when
+   * its slot is null / disabled / a fast route is chosen — all fail-safe).
+   */
+  readonly composer?: ComposerEnrichInput;
+}
+
+/**
+ * Optional inputs that route the deep composer for this turn. All fields
+ * carry conservative defaults so a caller can opt in with `{}` and still
+ * get a safe (low-stakes, owner-portal) routing decision — the composer
+ * only spins on a non-fast route AND when its env flag is on.
+ */
+export interface ComposerEnrichInput {
+  /** Stakes signal for the TTC allocator. Default 'low'. */
+  readonly stakes?: RunComposerArgs['stakes'];
+  /** Surface signal for the TTC allocator. Default 'owner-portal'. */
+  readonly surface?: RunComposerArgs['surface'];
+  /** Ambiguity / difficulty score in [0,1] from the normaliser. */
+  readonly ambiguityScore?: number;
+  /** Per-tenant / per-tier cost ceiling forwarded to the allocator. */
+  readonly costCeilingUsd?: number;
+  /** Force the cross-provider judge on the composed answer. */
+  readonly requireJudge?: boolean;
+  /** Turn id for the composer's hash-chained provenance. Default derived. */
+  readonly turnId?: string;
 }
 
 export interface EnrichResult {
@@ -441,6 +519,15 @@ export interface EnrichResult {
   /** Recall results in case the caller wants to display them in a
    *  side-channel (e.g. the "what I remembered" debug panel). */
   readonly recallResults: ReadonlyArray<RecallResult>;
+  /**
+   * LP-01 / LP-30 — the deep-reasoning composer result, when the composer
+   * ran (non-fast route + flag enabled + no error). `null` on the common
+   * path so the caller can tell the composer apart from memory recall for
+   * telemetry. Its `route.strategy` + `output.confidenceLabel` are useful
+   * on an ops dashboard. The composer's text is ALSO folded into
+   * `enrichedSystemPrompt` as an additive block — never replaces recall.
+   */
+  readonly composer: ComposerTurnResult | null;
 }
 
 const EMPTY_CITATIONS: ReadonlyArray<string> = Object.freeze([]);
@@ -450,6 +537,7 @@ const EMPTY_RESULT: EnrichResult = Object.freeze({
   enrichedSystemPrompt: '',
   citations: EMPTY_CITATIONS,
   recallResults: EMPTY_RECALL_RESULTS,
+  composer: null,
 });
 
 const DEFAULT_TOP_K = 3;
@@ -487,6 +575,20 @@ function formatSessionBlock(
   const text = summary.summary_md.trim();
   if (text.length === 0) return '';
   return ['# RECENT SESSION CONTEXT', text].join('\n');
+}
+
+/**
+ * Format the deep-reasoning composer output into an additive prompt block.
+ * Returns '' when the composer did not run or produced no usable text (the
+ * caller then keeps memory-recall-only enrichment). Tagged with the routed
+ * strategy + confidence so the persona model can weight the scaffold.
+ */
+function formatComposerBlock(result: ComposerTurnResult | null): string {
+  if (result === null) return '';
+  const text = result.output.text.trim();
+  if (text.length === 0) return '';
+  const header = `# DEEP REASONING (${result.route.strategy}|confidence=${result.output.confidenceLabel})`;
+  return [header, text].join('\n');
 }
 
 /**
@@ -542,9 +644,28 @@ export async function enrichBrainTurnWithCognitive(
   if (args.now !== undefined) sessionRecallArgs.now = args.now;
   const sessionSummary = await safeSessionRecall(sessionRecallArgs);
 
+  // LP-01 / LP-30 — deep-reasoning composer. Fail-safe + null-guarded: runs
+  // ONLY when the composer slot is present, its env flag is on, and the TTC
+  // route is non-fast. `runForTurn` never throws (returns null on disabled /
+  // fast / error), and this helper double-guards so the hot path is never
+  // broken by the composer. When it returns null the enrichment is exactly
+  // the prior memory-recall-only behaviour.
+  const composeArgs: { -readonly [K in keyof SafeComposeDeepArgs]: SafeComposeDeepArgs[K] } = {
+    wired: args.wired,
+    tenantId: args.tenantId,
+    userText: trimmedText,
+    logger,
+  };
+  if (args.threadId !== undefined) composeArgs.threadId = args.threadId;
+  if (args.composer !== undefined) composeArgs.composer = args.composer;
+  const composerResult = await safeComposeDeep(composeArgs);
+
   const memoryBlock = formatRecallBlock(recallResults, args.personaId);
   const sessionBlock = formatSessionBlock(sessionSummary);
-  const parts = [memoryBlock, sessionBlock].filter((p) => p.length > 0);
+  const composerBlock = formatComposerBlock(composerResult);
+  const parts = [memoryBlock, sessionBlock, composerBlock].filter(
+    (p) => p.length > 0,
+  );
 
   if (parts.length === 0) {
     return EMPTY_RESULT;
@@ -557,6 +678,7 @@ export async function enrichBrainTurnWithCognitive(
     enrichedSystemPrompt,
     citations,
     recallResults: Object.freeze(recallResults.slice()),
+    composer: composerResult,
   });
 }
 
@@ -671,6 +793,72 @@ async function safeSessionRecall(
   }
 }
 
+// Conservative composer-routing defaults. Owner-portal + low stakes keep the
+// TTC allocator from over-firing the deep composer on ordinary chat; the
+// composer only escalates above these when the caller passes higher stakes /
+// ambiguity. Mirrors the kernel-preflight conservative posture in brain.hono.
+const COMPOSER_DEFAULT_STAKES: RunComposerArgs['stakes'] = 'low';
+const COMPOSER_DEFAULT_SURFACE: RunComposerArgs['surface'] = 'owner-portal';
+
+interface SafeComposeDeepArgs {
+  readonly wired: WiredCognitive;
+  readonly tenantId: string;
+  readonly userText: string;
+  readonly threadId?: string;
+  readonly composer?: ComposerEnrichInput;
+  readonly logger: CognitiveLogger;
+}
+
+/**
+ * Invoke the deep-reasoning composer for a turn. NEVER throws — triple
+ * fail-safe:
+ *   1. `wired.composition === null` (no compositionDeps / construction
+ *      failed) → returns null, memory-recall-only enrichment is used.
+ *   2. `runForTurn` is itself fail-safe — returns null on a disabled flag,
+ *      a fast TTC route, or any compose error.
+ *   3. This wrapper try/catches defensively so even a contract violation in
+ *      the composer can never break the brain turn.
+ */
+async function safeComposeDeep(
+  args: SafeComposeDeepArgs,
+): Promise<ComposerTurnResult | null> {
+  const composition = args.wired.composition;
+  if (composition === null) return null;
+  try {
+    const input = args.composer ?? {};
+    const runArgs: { -readonly [K in keyof RunComposerArgs]: RunComposerArgs[K] } = {
+      tenantId: args.tenantId,
+      turnId:
+        input.turnId ??
+        (args.threadId !== undefined
+          ? `brain-turn-compose:${args.threadId}`
+          : `brain-turn-compose:${args.tenantId}`),
+      userMessage: args.userText,
+      stakes: input.stakes ?? COMPOSER_DEFAULT_STAKES,
+      surface: input.surface ?? COMPOSER_DEFAULT_SURFACE,
+      logger: args.logger,
+    };
+    if (input.ambiguityScore !== undefined) {
+      runArgs.ambiguityScore = input.ambiguityScore;
+    }
+    if (input.costCeilingUsd !== undefined) {
+      runArgs.costCeilingUsd = input.costCeilingUsd;
+    }
+    if (input.requireJudge !== undefined) {
+      runArgs.requireJudge = input.requireJudge;
+    }
+    return await composition.runForTurn(runArgs);
+  } catch (err) {
+    // Defence-in-depth: `runForTurn` should already swallow everything, but
+    // a contract violation must NEVER break the turn. Skip the deep block.
+    args.logger.warn(
+      'cognitive-wiring: deep composer threw unexpectedly; skipping deep-reasoning block',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Hono middleware factory — sets `c.set('cognitive', wired)` so routes
 // can read the bundle via `c.get('cognitive')`. The composition root
@@ -714,8 +902,12 @@ export const __testables = Object.freeze({
   createFixedVectorEmbedder,
   formatRecallBlock,
   formatSessionBlock,
+  formatComposerBlock,
+  safeComposeDeep,
   clampTopK,
   createSilentLogger,
   DEFAULT_TOP_K,
   EMPTY_RESULT,
+  COMPOSER_DEFAULT_STAKES,
+  COMPOSER_DEFAULT_SURFACE,
 });

@@ -14,11 +14,18 @@
  * shape. Routers that read both forms continue to work.
  *
  * Additional shims:
- *   - `complianceExportService` — request-scoped accessor used by the
- *     compliance router. Constructed on first access because it lives
- *     in the reports package (different dep graph); we keep the lazy
- *     accessor pattern so we don't pay the cost unless the route is
- *     called.
+ *   - `complianceExportService` — read by the compliance router for the
+ *     `/exports/:id/generate` + `/download` endpoints. NOT bound here yet:
+ *     `ComplianceExportService` (services/reports) needs three concrete
+ *     adapters — a Drizzle `ComplianceExportRepository`, an `ObjectStorage`
+ *     adapter, and a `ComplianceDataProvider` (tz_tra / ke_dpa / ke_kra /
+ *     tz_land_act regulator-data queries) — none of which exist in the repo
+ *     today. The key is deliberately left absent so those two routes return
+ *     a clear 503 ("ComplianceExportService not yet wired") rather than
+ *     generating EMPTY regulator filings off a stubbed data provider. The
+ *     `/exports` list + schedule endpoints already work via the direct
+ *     Drizzle path on `c.get('services').db`. Bind here once the three
+ *     adapters land in the composition root (e.g. `registry.complianceExport`).
  *   - `arrearsRepo` / `arrearsLedgerPort` — the arrears router pulls
  *     these separately; left undefined for now (route returns 503).
  *   - `gamificationRepo` — fallback for the gamification router when
@@ -165,11 +172,11 @@ export function createServiceContextMiddleware(registry: ServiceRegistry) {
       c.set('autonomyPolicyService', registry.autonomy.policyService);
     }
 
-    // Property grading — live in Postgres-backed mode, null otherwise.
-    // The router reads `services.propertyGrading` and emits 503 when it
+    // Asset grading — live in Postgres-backed mode, null otherwise.
+    // The router reads `services.assetGrading` and emits 503 when it
     // is absent, so flat-key consumers are not required.
-    if (registry.propertyGrading) {
-      c.set('propertyGradingService', registry.propertyGrading);
+    if (registry.assetGrading) {
+      c.set('assetGradingService', registry.assetGrading);
     }
 
     // Credit rating — FICO 300-850 + CRB bands. Router reads

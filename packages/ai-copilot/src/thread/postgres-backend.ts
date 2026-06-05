@@ -24,7 +24,10 @@ export interface BrainThreadRepositoryLike {
   createThread(
     t: Omit<Thread, 'createdAt' | 'updatedAt'>
   ): Promise<Thread>;
-  getThread(threadId: string): Promise<Thread | null>;
+  // `tenantId` is optional for back-compat, but the adapter ALWAYS passes it
+  // (from `tenantIdResolver`) so the concrete repo can pin the read inside a
+  // per-tenant RLS transaction rather than relying on an ambient session GUC.
+  getThread(threadId: string, tenantId?: string): Promise<Thread | null>;
   listThreads(
     tenantId: string,
     opts?: {
@@ -36,9 +39,9 @@ export interface BrainThreadRepositoryLike {
       limit?: number;
     }
   ): Promise<Thread[]>;
-  archiveThread(threadId: string): Promise<void>;
+  archiveThread(threadId: string, tenantId?: string): Promise<void>;
   appendEvent(tenantId: string, event: ThreadEvent): Promise<void>;
-  listEvents(threadId: string): Promise<ThreadEvent[]>;
+  listEvents(threadId: string, tenantId?: string): Promise<ThreadEvent[]>;
 }
 
 /**
@@ -57,7 +60,9 @@ export class PostgresThreadStoreBackend implements ThreadStoreBackend {
   }
 
   async getThread(threadId: string): Promise<Thread | null> {
-    return this.repo.getThread(threadId);
+    // Always pass the resolved tenant so the repo pins the read to a
+    // per-tenant RLS transaction (the in-flight turn's tenant).
+    return this.repo.getThread(threadId, this.tenantIdResolver());
   }
 
   async listThreads(
@@ -68,7 +73,7 @@ export class PostgresThreadStoreBackend implements ThreadStoreBackend {
   }
 
   async archiveThread(threadId: string): Promise<void> {
-    return this.repo.archiveThread(threadId);
+    return this.repo.archiveThread(threadId, this.tenantIdResolver());
   }
 
   async appendEvent(event: ThreadEvent): Promise<void> {
@@ -76,6 +81,6 @@ export class PostgresThreadStoreBackend implements ThreadStoreBackend {
   }
 
   async listEvents(threadId: string): Promise<ThreadEvent[]> {
-    return this.repo.listEvents(threadId);
+    return this.repo.listEvents(threadId, this.tenantIdResolver());
   }
 }

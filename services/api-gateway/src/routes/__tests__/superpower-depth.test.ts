@@ -73,6 +73,7 @@ interface DbState {
   readonly selectRows: Row[];
   readonly updateRows: Row[];
   insertCalls: number;
+  updateCalls: number;
   insertFailOn?: (id: string) => boolean;
 }
 
@@ -130,8 +131,16 @@ function makeDbStub(state: DbState) {
             where(_w: unknown) {
               return {
                 async returning() {
-                  if (state.selectRows.length === 0) return [];
-                  const merged = { ...state.selectRows[0], ...input };
+                  // For undo-journal routes: the select-then-update pattern
+                  // needs selectRows to have the candidate to merge into.
+                  // For dispatcher updates (e.g. eventOutbox snooze): selectRows
+                  // is empty but the update itself should succeed — return a
+                  // synthetic row with the set-fields so the dispatcher can read
+                  // back `row.id`.
+                  const base = state.selectRows.length > 0
+                    ? state.selectRows[0]
+                    : { id: `stub-row-${++state.updateCalls}` };
+                  const merged = { ...base, ...input };
                   state.updateRows.push(merged);
                   return [merged];
                 },
@@ -192,6 +201,7 @@ describe('§1 bulk-action — per-item failure manifest', () => {
       selectRows: [],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
       insertFailOn: (id) => id === 'r2',
     };
     const app = await buildSuperpowersApp(state);
@@ -232,6 +242,7 @@ describe('§1 bulk-action — per-item failure manifest', () => {
       selectRows: [],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildSuperpowersApp(state);
     const res = await app.request('/owner/superpowers/bulk-action', {
@@ -266,6 +277,7 @@ describe('§2 undo-by-id — targeted rollback', () => {
       selectRows: [], // empty → not-found path
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/undo-by-id', {
@@ -303,6 +315,7 @@ describe('§2 undo-by-id — targeted rollback', () => {
       ],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/undo-by-id', {
@@ -339,6 +352,7 @@ describe('§2 undo-by-id — targeted rollback', () => {
       ],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/undo-by-id', {
@@ -375,6 +389,7 @@ describe('§2 undo-by-id — targeted rollback', () => {
       ],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/undo-by-id', {
@@ -407,6 +422,7 @@ describe('§3 redo-by-id — Cmd-Shift-Z parity', () => {
       selectRows: [],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/redo-by-id', {
@@ -443,6 +459,7 @@ describe('§3 redo-by-id — Cmd-Shift-Z parity', () => {
       ],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/redo-by-id', {
@@ -480,6 +497,7 @@ describe('§3 redo-by-id — Cmd-Shift-Z parity', () => {
       ],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/redo-by-id', {
@@ -517,6 +535,7 @@ describe('§3 redo-by-id — Cmd-Shift-Z parity', () => {
       ],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildUndoApp(state);
     const res = await app.request('/owner/undo-journal/redo-by-id', {
@@ -557,6 +576,7 @@ describe('§4 prefill/undo-field — per-field undo banner', () => {
       selectRows: [],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildSuperpowersApp(state);
     const res = await app.request('/owner/superpowers/prefill/undo-field', {
@@ -594,6 +614,7 @@ describe('§4 prefill/undo-field — per-field undo banner', () => {
       selectRows: [],
       updateRows: [],
       insertCalls: 0,
+      updateCalls: 0,
     };
     const app = await buildSuperpowersApp(state);
     const res = await app.request('/owner/superpowers/prefill/undo-field', {

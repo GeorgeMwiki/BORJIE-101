@@ -1,11 +1,15 @@
 # @borjie/domain-models
 
-Shared TypeScript types and Zod schemas for the Borjie domain (Property, Unit, Lease, Tenant, Payment, Case, Inspection, etc.). Consumed by services, API client, and frontends so every boundary speaks the same shape.
+Shared TypeScript types and Zod schemas for the Borjie mining-estate domain (MiningSite, MiningUnit, Offtake, Counterparty, Payment, Royalty/Regulatory, Inspection, etc.). Consumed by services, API client, and frontends so every boundary speaks the same shape.
 
 ## Usage
 
 ```ts
-import { LeaseSchema, type Lease } from '@borjie/domain-models'
+import { Offtake, type Offtake as OfftakeType } from '@borjie/domain-models'
 
-const lease: Lease = LeaseSchema.parse(input)
+const offtake: OfftakeType = Offtake.createOfftake(/* … */)
 ```
+
+## Regulatory rule sets
+
+Per-jurisdiction mining statutes (TZ Mining Act 2010, KE Mining Act 2016) live under `src/regulatory/` as pure data and are exported via `REGULATORY_RULE_SETS` for the kernel's regulatory-mirror policy gate.

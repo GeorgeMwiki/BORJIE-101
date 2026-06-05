@@ -141,8 +141,8 @@ describe('generateAgentCard', () => {
       resources: [],
     });
     const names = card.capabilities.map((c) => c.name);
-    expect(names).toContain('property-graph-query');
-    expect(names).toContain('tenant-risk-scoring');
+    expect(names).toContain('mining-estate-graph-query');
+    expect(names).toContain('counterparty-risk-scoring');
     expect(names).toContain('maintenance-lifecycle');
     expect(names).toContain('universal-skill-dispatch');
   });

@@ -1,21 +1,21 @@
 /**
- * UI Block Generator (BORJIE estate-management)
+ * UI Block Generator (BORJIE mining-estate)
  *
  * Zero-LLM post-processing. Given the AI's raw text + tool calls, produce
- * structured UI blocks. Re-keyed from LitFin financial topics to estate
- * management topics: rent affordability, arrears, lease, maintenance,
- * property comparison, and the 5 Ps of tenancy risk.
+ * structured UI blocks. Re-keyed from LitFin financial topics to mining
+ * estate topics: royalty affordability, outstanding royalties, offtake,
+ * maintenance, asset comparison, and the 5 Ps of operator risk.
  */
 
 import { generateBlockId } from './types';
 import type {
   UIBlock,
-  RentAffordabilityCalculatorBlock,
+  RoyaltyAffordabilityCalculatorBlock,
   FivePsRiskWheelBlock,
-  ArrearsProjectionChartBlock,
-  LeaseTimelineDiagramBlock,
+  OutstandingRoyaltyProjectionChartBlock,
+  OfftakeTimelineDiagramBlock,
   MaintenanceCaseFlowDiagramBlock,
-  PropertyComparisonTableBlock,
+  AssetComparisonTableBlock,
   ConceptCardBlock,
   QuickRepliesBlock,
 } from './types';
@@ -38,24 +38,24 @@ function safeId(): string {
   }
 }
 
-const RENT_AFFORDABILITY_PATTERNS = [
-  /rent affordability/i,
-  /rent[- ]to[- ]income/i,
-  /rent ratio/i,
+const ROYALTY_AFFORDABILITY_PATTERNS = [
+  /royalty affordability/i,
+  /royalty[- ]to[- ]income/i,
+  /royalty ratio/i,
   /can .{0,20}afford/i,
 ];
 
-const ARREARS_PATTERNS = [
-  /arrears/i,
-  /unpaid rent/i,
-  /rent overdue/i,
+const OUTSTANDING_ROYALTY_PATTERNS = [
+  /outstanding royalt(y|ies)/i,
+  /unpaid royalty/i,
+  /royalty overdue/i,
   /delinquen(t|cy)/i,
 ];
 
-const LEASE_TIMELINE_PATTERNS = [
-  /lease (timeline|lifecycle|period|term)/i,
+const OFFTAKE_TIMELINE_PATTERNS = [
+  /offtake (timeline|lifecycle|period|term)/i,
   /renewal window/i,
-  /lease end/i,
+  /offtake end/i,
 ];
 
 const MAINTENANCE_PATTERNS = [
@@ -67,13 +67,13 @@ const MAINTENANCE_PATTERNS = [
 const FIVE_PS_PATTERNS = [
   /five ?p'?s/i,
   /5 ?p'?s/i,
-  /tenancy risk/i,
-  /payment history.{0,40}property fit/i,
+  /operator risk/i,
+  /payment history.{0,40}asset fit/i,
 ];
 
-const PROPERTY_COMPARISON_PATTERNS = [
-  /compare (these )?properties/i,
-  /property comparison/i,
+const ASSET_COMPARISON_PATTERNS = [
+  /compare (these )?assets/i,
+  /asset comparison/i,
   /unit A .{0,20}unit B/i,
   /side by side/i,
 ];
@@ -92,13 +92,13 @@ function matchAny(text: string, patterns: readonly RegExp[]): boolean {
  * cannot resolve `t()` calls itself).
  */
 export interface BlockGeneratorLabels {
-  readonly leaseTimelineSigning?: string;
-  readonly leaseTimelineRentStart?: string;
-  readonly leaseTimelineRenewalWindow?: string;
-  readonly leaseTimelineLeaseEnd?: string;
+  readonly offtakeTimelineSigning?: string;
+  readonly offtakeTimelineRoyaltyStart?: string;
+  readonly offtakeTimelineRenewalWindow?: string;
+  readonly offtakeTimelineOfftakeEnd?: string;
   readonly maintenanceInProgress?: string;
-  readonly propertyComparisonMonthlyRent?: string;
-  readonly propertyComparisonSecurityDeposit?: string;
+  readonly assetComparisonMonthlyRoyalty?: string;
+  readonly assetComparisonSecurityDeposit?: string;
   readonly quickReplyGoDeeper?: string;
   readonly quickReplyTestMe?: string;
 }
@@ -121,46 +121,46 @@ export function generateBlocks(input: BlockGeneratorInput): readonly UIBlock[] {
 
   // English defaults — consumer apps override via `labels` to localise.
   const L = {
-    leaseTimelineSigning: labels.leaseTimelineSigning ?? 'Signing',
-    leaseTimelineRentStart: labels.leaseTimelineRentStart ?? 'Rent start',
-    leaseTimelineRenewalWindow: labels.leaseTimelineRenewalWindow ?? 'Renewal window',
-    leaseTimelineLeaseEnd: labels.leaseTimelineLeaseEnd ?? 'Lease end',
+    offtakeTimelineSigning: labels.offtakeTimelineSigning ?? 'Signing',
+    offtakeTimelineRoyaltyStart: labels.offtakeTimelineRoyaltyStart ?? 'Royalty start',
+    offtakeTimelineRenewalWindow: labels.offtakeTimelineRenewalWindow ?? 'Renewal window',
+    offtakeTimelineOfftakeEnd: labels.offtakeTimelineOfftakeEnd ?? 'Offtake end',
     maintenanceInProgress: labels.maintenanceInProgress ?? 'In progress',
-    propertyComparisonMonthlyRent: labels.propertyComparisonMonthlyRent ?? 'Monthly rent',
-    propertyComparisonSecurityDeposit: labels.propertyComparisonSecurityDeposit ?? 'Security deposit',
+    assetComparisonMonthlyRoyalty: labels.assetComparisonMonthlyRoyalty ?? 'Monthly royalty',
+    assetComparisonSecurityDeposit: labels.assetComparisonSecurityDeposit ?? 'Security deposit',
     quickReplyGoDeeper: labels.quickReplyGoDeeper ?? 'Go deeper',
     quickReplyTestMe: labels.quickReplyTestMe ?? 'Test me',
   };
 
   if (
-    toolCalls.includes('rent-affordability-calculator') ||
-    matchAny(responseText, RENT_AFFORDABILITY_PATTERNS)
+    toolCalls.includes('royalty-affordability-calculator') ||
+    matchAny(responseText, ROYALTY_AFFORDABILITY_PATTERNS)
   ) {
-    const block: RentAffordabilityCalculatorBlock = {
+    const block: RoyaltyAffordabilityCalculatorBlock = {
       id: safeId(),
-      type: 'rent_affordability_calculator',
+      type: 'royalty_affordability_calculator',
       position: 'below',
-      defaultRent: 25000,
+      defaultRoyalty: 25000,
       defaultIncome: 100000,
       currency: defaultCurrency,
     };
     blocks.push(block);
   }
 
-  if (matchAny(responseText, ARREARS_PATTERNS)) {
+  if (matchAny(responseText, OUTSTANDING_ROYALTY_PATTERNS)) {
     const monthsDelinquent = 3;
-    const monthlyRent = 25000;
+    const monthlyRoyalty = 25000;
     const lateFeePerMonth = 1000;
     const points = Array.from({ length: monthsDelinquent + 1 }, (_, i) => ({
       month: i,
-      cumulative: i * (monthlyRent + lateFeePerMonth),
+      cumulative: i * (monthlyRoyalty + lateFeePerMonth),
     }));
-    const block: ArrearsProjectionChartBlock = {
+    const block: OutstandingRoyaltyProjectionChartBlock = {
       id: safeId(),
-      type: 'arrears_projection_chart',
+      type: 'outstanding_royalty_projection_chart',
       position: 'below',
-      title: 'Arrears projection',
-      monthlyRent,
+      title: 'Outstanding-royalty projection',
+      monthlyRoyalty,
       currency: defaultCurrency,
       monthsDelinquent,
       lateFeePerMonth,
@@ -169,17 +169,17 @@ export function generateBlocks(input: BlockGeneratorInput): readonly UIBlock[] {
     blocks.push(block);
   }
 
-  if (matchAny(responseText, LEASE_TIMELINE_PATTERNS)) {
-    const block: LeaseTimelineDiagramBlock = {
+  if (matchAny(responseText, OFFTAKE_TIMELINE_PATTERNS)) {
+    const block: OfftakeTimelineDiagramBlock = {
       id: safeId(),
-      type: 'lease_timeline_diagram',
+      type: 'offtake_timeline_diagram',
       position: 'below',
-      title: 'Lease timeline',
+      title: 'Offtake timeline',
       events: [
-        { label: L.leaseTimelineSigning, date: 'Month 0', status: 'completed' },
-        { label: L.leaseTimelineRentStart, date: 'Month 0', status: 'completed' },
-        { label: L.leaseTimelineRenewalWindow, date: 'Month 10', status: 'current' },
-        { label: L.leaseTimelineLeaseEnd, date: 'Month 12', status: 'upcoming' },
+        { label: L.offtakeTimelineSigning, date: 'Month 0', status: 'completed' },
+        { label: L.offtakeTimelineRoyaltyStart, date: 'Month 0', status: 'completed' },
+        { label: L.offtakeTimelineRenewalWindow, date: 'Month 10', status: 'current' },
+        { label: L.offtakeTimelineOfftakeEnd, date: 'Month 12', status: 'upcoming' },
       ],
     };
     blocks.push(block);
@@ -206,12 +206,12 @@ export function generateBlocks(input: BlockGeneratorInput): readonly UIBlock[] {
   if (matchAny(responseText, FIVE_PS_PATTERNS)) {
     const block: FivePsRiskWheelBlock = {
       id: safeId(),
-      type: 'five_ps_tenancy_risk_wheel',
+      type: 'five_ps_operator_risk_wheel',
       position: 'below',
-      title: '5 Ps of tenancy risk',
+      title: '5 Ps of operator risk',
       scores: {
         paymentHistory: 70,
-        propertyFit: 85,
+        assetFit: 85,
         purpose: 60,
         person: 80,
         protection: 55,
@@ -221,17 +221,17 @@ export function generateBlocks(input: BlockGeneratorInput): readonly UIBlock[] {
     blocks.push(block);
   }
 
-  if (matchAny(responseText, PROPERTY_COMPARISON_PATTERNS)) {
-    const block: PropertyComparisonTableBlock = {
+  if (matchAny(responseText, ASSET_COMPARISON_PATTERNS)) {
+    const block: AssetComparisonTableBlock = {
       id: safeId(),
-      type: 'property_comparison_table',
+      type: 'asset_comparison_table',
       position: 'below',
-      title: 'Property comparison',
+      title: 'Asset comparison',
       columns: [{ header: 'Unit A' }, { header: 'Unit B', highlight: true }],
       rows: [
-        { label: L.propertyComparisonMonthlyRent, values: ['25,000', '30,000'] },
-        { label: 'Bedrooms', values: ['2', '3'] },
-        { label: L.propertyComparisonSecurityDeposit, values: ['50,000', '60,000'] },
+        { label: L.assetComparisonMonthlyRoyalty, values: ['25,000', '30,000'] },
+        { label: 'Pits', values: ['2', '3'] },
+        { label: L.assetComparisonSecurityDeposit, values: ['50,000', '60,000'] },
       ],
     };
     blocks.push(block);

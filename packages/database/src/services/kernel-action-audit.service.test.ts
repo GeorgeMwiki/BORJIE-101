@@ -78,7 +78,7 @@ describe('createKernelActionAuditService', () => {
       userId: 'u',
       goalId: 'g',
       stepId: 's',
-      toolName: 'rent.send-reminder',
+      toolName: 'royalty.send-reminder',
       decision: 'done',
       payloadHash: 'abcd',
       outcome: 'ok',
@@ -88,7 +88,7 @@ describe('createKernelActionAuditService', () => {
       latencyMs: 1000,
     });
     expect(stub.rows).toHaveLength(1);
-    expect(stub.rows[0]?.toolName).toBe('rent.send-reminder');
+    expect(stub.rows[0]?.toolName).toBe('royalty.send-reminder');
     expect(stub.rows[0]?.decision).toBe('done');
     expect(stub.rows[0]?.payloadHash).toBe('abcd');
     expect(stub.rows[0]?.startedAt instanceof Date).toBe(true);

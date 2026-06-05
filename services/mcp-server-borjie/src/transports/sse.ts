@@ -24,6 +24,7 @@
  * Works.
  */
 
+import { randomUUID } from 'node:crypto';
 import { createDispatcher, type DispatcherDeps } from '../dispatcher.js';
 import {
   buildError,
@@ -108,9 +109,11 @@ export function formatSseEvent(event: SseEvent): string {
  */
 export function createSseHandler(deps: SseHandlerDeps) {
   const dispatcher = createDispatcher(deps);
+  // Session IDs are used to route subsequent MCP requests back to the right
+  // SSE channel — predictable ids would allow session hijacking.
   const newSessionId =
     deps.newSessionId ??
-    (() => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`);
+    (() => `sess_${randomUUID()}`);
 
   function onConnect(input: SseConnectInput, channel: Omit<SseChannel, 'sessionId'>): SseChannel {
     const sessionId = input.resumeSessionId ?? newSessionId();

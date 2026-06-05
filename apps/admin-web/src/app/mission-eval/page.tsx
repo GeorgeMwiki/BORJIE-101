@@ -19,7 +19,7 @@ export default function MissionEvalPage() {
   return (
     <PageShell
       title="Mission-eval"
-      subtitle="Eval runs, captured CoT, judge scores, and re-judge actions across the property-management capability surface."
+      subtitle="Eval runs, captured CoT, judge scores, and re-judge actions across the mining-estate capability surface."
     >
       <MissionEvalClient />
     </PageShell>

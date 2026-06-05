@@ -7,7 +7,7 @@
  * Each scaffold is an `ExtendedCountryProfile` with:
  *   - Real ISO currency + language + date-format data.
  *   - Stubbed tax regime (`requiresManualConfiguration: true`).
- *   - Default lease-law and tenant-screening ports.
+ *   - Default mining-law and counterparty-screening ports.
  *   - Generic payment rails (Stripe / bank / manual).
  *
  * The root country barrel (../index.ts) merges these with the 18 full-fidelity

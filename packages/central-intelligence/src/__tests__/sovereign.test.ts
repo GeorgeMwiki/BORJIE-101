@@ -96,11 +96,11 @@ describe('surface → persona routing', () => {
       threadId: 't',
       userMessage: 'q',
       scope: { ...SCOPE, kind: 'tenant', tenantId: 't_acme' } as any,
-      tier: 'lease',
+      tier: 'offtake',
       stakes: 'low',
       surface: 'tenant-app',
     });
-    expect(persona.id).toBe('tenant-resident');
+    expect(persona.id).toBe('counterparty-resident');
   });
 
   it('personalises every persona with the operator\'s name', () => {

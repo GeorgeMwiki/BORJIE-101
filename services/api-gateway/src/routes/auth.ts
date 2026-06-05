@@ -32,7 +32,7 @@ function mapRoleName(roleName?: string): UserRole {
     case 'accountant':
       return UserRole.ACCOUNTANT;
     case 'property_manager':
-    case 'property-manager':
+    case 'site-manager':
     case 'manager':
       return UserRole.PROPERTY_MANAGER;
     case 'maintenance':

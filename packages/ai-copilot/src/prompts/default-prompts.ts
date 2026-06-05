@@ -1,7 +1,7 @@
 /**
  * Default Governed Prompts
- * 
- * Pre-configured prompts for BORJIE AI copilots.
+ *
+ * Pre-configured prompts for Borjie AI copilots.
  * These serve as starting templates that can be customized per tenant.
  */
 
@@ -11,30 +11,30 @@ import { PromptCategory, CreatePromptRequest } from '../types/prompt.types.js';
 /**
  * Maintenance Triage System Prompt
  */
-export const MAINTENANCE_TRIAGE_SYSTEM_PROMPT = `You are an expert property maintenance triage assistant for BORJIE property management platform.
+export const MAINTENANCE_TRIAGE_SYSTEM_PROMPT = `You are an expert mining equipment-maintenance triage assistant for the Borjie mining estate operating system.
 
 Your role is to:
-1. Analyze maintenance requests from tenants
+1. Analyze maintenance requests from site crews
 2. Classify urgency and category accurately
 3. Identify safety concerns immediately
 4. Recommend appropriate routing and scheduling
 5. Generate professional work order details
-6. Draft tenant-friendly communications
+6. Draft crew-friendly communications
 
 URGENCY LEVELS (use exactly these values):
-- EMERGENCY: Life safety issues, gas leaks, flooding, no heat in winter, electrical hazards
-- URGENT: Major service disruption, broken locks, no hot water, HVAC failure in extreme weather
-- HIGH: Significant inconvenience, appliance failures, plumbing issues affecting daily use
-- MEDIUM: Standard maintenance, minor leaks, cosmetic issues affecting comfort
+- EMERGENCY: Life-safety issues, pit flooding, gas/methane alarms, electrical fires, ground subsidence
+- URGENT: Major production disruption, dewatering pump failure, ventilation fan down, switchgear arcing
+- HIGH: Significant impact, hydraulic hose burst, crusher jam, haul-truck breakdown affecting daily output
+- MEDIUM: Standard maintenance, minor leaks, conveyor wear affecting throughput
 - LOW: Minor cosmetic issues, non-urgent repairs, improvement requests
 - SCHEDULED: Planned maintenance, inspections, seasonal work
 
 CATEGORIES (use exactly these values):
-PLUMBING, ELECTRICAL, HVAC, APPLIANCE, STRUCTURAL, PEST_CONTROL, SAFETY, EXTERIOR, COMMON_AREA, COSMETIC, OTHER
+PUMPING, ELECTRICAL, HYDRAULICS, PROCESSING, VEHICLE, STRUCTURAL, SAFETY, GENERAL
 
-Always prioritize tenant safety and property protection.
+Always prioritize crew safety and asset protection.
 Be specific in work order descriptions for vendor clarity.
-Consider property age and maintenance history in your assessment.`;
+Consider site age and maintenance history in your assessment.`;
 
 /**
  * Maintenance Triage Task Prompt
@@ -49,9 +49,9 @@ export const MAINTENANCE_TRIAGE_PROMPT: CreatePromptRequest = {
   template: `Analyze the following maintenance request and provide a structured triage assessment.
 
 ## Maintenance Request
-**Property:** {{propertyName}} ({{propertyType}}, {{propertyAge}} years old)
-**Unit:** {{unitNumber}} ({{bedrooms}} bed, {{bathrooms}} bath)
-**Tenant:** {{tenantName}}
+**Site:** {{siteName}} ({{siteType}}, {{siteAge}} years old)
+**Pit:** {{pitNumber}} ({{benches}} benches, {{faces}} faces)
+**Requester:** {{requesterName}}
 **Preferred Contact:** {{preferredContact}}
 
 **Request:**
@@ -70,16 +70,16 @@ Provide your analysis in the following JSON structure:
   "triage": {
     "urgency": "EMERGENCY|URGENT|HIGH|MEDIUM|LOW|SCHEDULED",
     "urgencyConfidence": 0.0-1.0,
-    "category": "PLUMBING|ELECTRICAL|HVAC|...",
+    "category": "PUMPING|ELECTRICAL|HYDRAULICS|PROCESSING|VEHICLE|STRUCTURAL|SAFETY|GENERAL",
     "subcategory": "optional specific subcategory",
     "categoryConfidence": 0.0-1.0,
     "issuesIdentified": ["issue1", "issue2"],
     "safetyConcerns": ["concern1 if any"],
-    "requiresTenantAccess": true|false,
+    "requiresSiteAccess": true|false,
     "estimatedComplexity": 1-5
   },
   "routing": {
-    "vendorType": "plumber|electrician|hvac_tech|general_maintenance|...",
+    "vendorType": "pump-tech|electrician|hydraulics-tech|process-fitter|diesel-mechanic|...",
     "skillsRequired": ["skill1", "skill2"],
     "estimatedServiceHours": 0.5-8,
     "suggestedScheduling": {
@@ -91,13 +91,13 @@ Provide your analysis in the following JSON structure:
   "workOrderDraft": {
     "title": "concise work order title",
     "description": "detailed description for vendor",
-    "internalNotes": "notes for property manager",
+    "internalNotes": "notes for site manager",
     "estimatedCost": { "min": 0, "max": 0, "currency": "<ISO-4217, e.g. TZS/KES/UGX>" }
   },
-  "tenantCommunication": {
-    "acknowledgmentMessage": "immediate response to tenant",
+  "requesterCommunication": {
+    "acknowledgmentMessage": "immediate response to requester",
     "expectedResolutionMessage": "timeline and next steps",
-    "instructionsForTenant": "any prep needed"
+    "instructionsForRequester": "any prep needed"
   },
   "followUp": {
     "inspectionRecommended": true|false,
@@ -106,15 +106,15 @@ Provide your analysis in the following JSON structure:
   }
 }`,
   variables: [
-    { name: 'propertyName', type: 'string', description: 'Property name', required: true },
-    { name: 'propertyType', type: 'string', description: 'Property type (apartment, house, etc)', required: true },
-    { name: 'propertyAge', type: 'number', description: 'Property age in years', required: true },
-    { name: 'unitNumber', type: 'string', description: 'Unit identifier', required: true },
-    { name: 'bedrooms', type: 'number', description: 'Number of bedrooms', required: true },
-    { name: 'bathrooms', type: 'number', description: 'Number of bathrooms', required: true },
-    { name: 'tenantName', type: 'string', description: 'Tenant name', required: true },
+    { name: 'siteName', type: 'string', description: 'Site name', required: true },
+    { name: 'siteType', type: 'string', description: 'Site type (open-pit, underground, alluvial, etc)', required: true },
+    { name: 'siteAge', type: 'number', description: 'Site age in years', required: true },
+    { name: 'pitNumber', type: 'string', description: 'Pit identifier', required: true },
+    { name: 'benches', type: 'number', description: 'Number of benches', required: true },
+    { name: 'faces', type: 'number', description: 'Number of active faces', required: true },
+    { name: 'requesterName', type: 'string', description: 'Requester name', required: true },
     { name: 'preferredContact', type: 'string', description: 'Preferred contact method', required: false, defaultValue: 'app' },
-    { name: 'requestText', type: 'string', description: 'Original request from tenant', required: true },
+    { name: 'requestText', type: 'string', description: 'Original request from requester', required: true },
     { name: 'recentHistory', type: 'array', description: 'Recent maintenance history', required: false },
   ],
   modelConstraints: {
@@ -129,19 +129,19 @@ Provide your analysis in the following JSON structure:
   },
   testCases: [
     {
-      name: 'emergency-gas-leak',
-      description: 'Should identify gas leak as emergency',
+      name: 'emergency-methane-alarm',
+      description: 'Should identify methane alarm as emergency',
       inputs: {
-        propertyName: 'Sunrise Apartments',
-        propertyType: 'apartment',
-        propertyAge: 15,
-        unitNumber: '4B',
-        bedrooms: 2,
-        bathrooms: 1,
-        tenantName: 'John Kamau',
-        requestText: 'I smell gas in my kitchen near the stove. It started about 30 minutes ago.',
+        siteName: 'Geita North Pit',
+        siteType: 'open-pit',
+        siteAge: 15,
+        pitNumber: 'P-4B',
+        benches: 6,
+        faces: 2,
+        requesterName: 'John Kamau',
+        requestText: 'The methane alarm in the lower decline is going off. It started about 30 minutes ago.',
       },
-      expectedOutputContains: ['EMERGENCY', 'gas', 'safety'],
+      expectedOutputContains: ['EMERGENCY', 'methane', 'safety'],
       expectedConfidenceMin: 0.9,
     },
   ],
@@ -151,7 +151,7 @@ Provide your analysis in the following JSON structure:
 /**
  * Owner Reporting System Prompt
  */
-export const OWNER_REPORTING_SYSTEM_PROMPT = `You are a professional property investment reporting assistant for BORJIE.
+export const OWNER_REPORTING_SYSTEM_PROMPT = `You are a professional mining estate reporting assistant for Borjie.
 
 Your role is to:
 1. Analyze portfolio performance data
@@ -180,12 +180,12 @@ Financial Accuracy:
  */
 export const OWNER_REPORTING_PROMPT: CreatePromptRequest = {
   name: 'owner-monthly-report',
-  description: 'Generate monthly portfolio performance report for property owners',
+  description: 'Generate monthly portfolio performance report for owners',
   domain: CopilotDomain.OWNER_REPORTING,
   category: PromptCategory.TASK,
   riskLevel: RiskLevel.MEDIUM,
   systemPrompt: OWNER_REPORTING_SYSTEM_PROMPT,
-  template: `Generate a professional monthly property investment report.
+  template: `Generate a professional monthly mining estate report.
 
 ## Report Details
 **Owner:** {{ownerName}}
@@ -195,12 +195,12 @@ export const OWNER_REPORTING_PROMPT: CreatePromptRequest = {
 **Detail Level:** {{detailLevel}}
 
 ## Portfolio Overview
-**Total Properties:** {{propertyCount}}
-**Total Units:** {{totalUnits}}
+**Total Sites:** {{siteCount}}
+**Total Pits:** {{totalPits}}
 
-### Properties
-{{#each properties}}
-- **{{name}}**: {{units}} units, {{occupancyRate}}% occupied, {{monthlyRevenue}} revenue
+### Sites
+{{#each sites}}
+- **{{name}}**: {{pits}} pits, {{productionRate}}% production, {{monthlyRevenue}} revenue
 {{/each}}
 
 ## Financial Summary
@@ -252,9 +252,9 @@ export const OWNER_REPORTING_PROMPT: CreatePromptRequest = {
     { name: 'periodEnd', type: 'string', description: 'Report period end date', required: true },
     { name: 'tone', type: 'string', description: 'Desired tone', required: false, defaultValue: 'professional' },
     { name: 'detailLevel', type: 'string', description: 'Level of detail', required: false, defaultValue: 'detailed' },
-    { name: 'propertyCount', type: 'number', description: 'Total properties', required: true },
-    { name: 'totalUnits', type: 'number', description: 'Total units', required: true },
-    { name: 'properties', type: 'array', description: 'Property details', required: true },
+    { name: 'siteCount', type: 'number', description: 'Total sites', required: true },
+    { name: 'totalPits', type: 'number', description: 'Total pits', required: true },
+    { name: 'sites', type: 'array', description: 'Site details', required: true },
     { name: 'totalRevenue', type: 'string', description: 'Total revenue', required: true },
     { name: 'totalExpenses', type: 'string', description: 'Total expenses', required: true },
     { name: 'netOperatingIncome', type: 'string', description: 'NOI', required: true },
@@ -279,13 +279,13 @@ export const OWNER_REPORTING_PROMPT: CreatePromptRequest = {
 /**
  * Communication Drafting System Prompt
  */
-export const COMMUNICATION_DRAFTING_SYSTEM_PROMPT = `You are a professional communication specialist for BORJIE property management.
+export const COMMUNICATION_DRAFTING_SYSTEM_PROMPT = `You are a professional communication specialist for the Borjie mining estate operating system.
 
 Your role is to:
 1. Draft clear, professional communications
 2. Match the requested tone and context
-3. Ensure compliance with housing regulations
-4. Be culturally appropriate for the Kenyan market
+3. Ensure compliance with mining and trade regulations
+4. Be culturally appropriate for the East African market
 5. Include all necessary information without being verbose
 6. Create versions optimized for different channels
 
@@ -335,9 +335,9 @@ export const COMMUNICATION_DRAFTING_PROMPT: CreatePromptRequest = {
 {{/if}}
 
 ## Context
-{{#if property}}**Property:** {{property.name}}, {{property.address}}{{/if}}
-{{#if unit}}**Unit:** {{unit.number}}{{/if}}
-{{#if lease}}**Lease:** {{lease.startDate}} to {{lease.endDate}}, Rent: {{lease.rentAmount}}{{/if}}
+{{#if site}}**Site:** {{site.name}}, {{site.location}}{{/if}}
+{{#if pit}}**Pit:** {{pit.number}}{{/if}}
+{{#if offtake}}**Offtake:** {{offtake.startDate}} to {{offtake.endDate}}, Payment: {{offtake.paymentAmount}}{{/if}}
 {{#if financialContext}}
 {{#if financialContext.amountDue}}**Amount Due:** {{financialContext.amountDue}}{{/if}}
 {{#if financialContext.daysOverdue}}**Days Overdue:** {{financialContext.daysOverdue}}{{/if}}
@@ -370,7 +370,7 @@ export const COMMUNICATION_DRAFTING_PROMPT: CreatePromptRequest = {
     "greeting": "appropriate greeting",
     "body": "main message body",
     "closing": "appropriate closing",
-    "signaturePlaceholder": "[Property Manager Name]\\n[BORJIE]",
+    "signaturePlaceholder": "[Site Manager Name]\\n[Borjie]",
     "fullMessage": "complete combined message",
     "characterCount": 0,
     "wordCount": 0
@@ -401,9 +401,9 @@ export const COMMUNICATION_DRAFTING_PROMPT: CreatePromptRequest = {
     { name: 'recipientEmail', type: 'string', description: 'Recipient email', required: false },
     { name: 'preferredLanguage', type: 'string', description: 'Preferred language', required: false },
     { name: 'communicationHistory', type: 'object', description: 'Communication history', required: false },
-    { name: 'property', type: 'object', description: 'Property context', required: false },
-    { name: 'unit', type: 'object', description: 'Unit context', required: false },
-    { name: 'lease', type: 'object', description: 'Lease context', required: false },
+    { name: 'site', type: 'object', description: 'Site context', required: false },
+    { name: 'pit', type: 'object', description: 'Pit context', required: false },
+    { name: 'offtake', type: 'object', description: 'Offtake context', required: false },
     { name: 'financialContext', type: 'object', description: 'Financial context', required: false },
     { name: 'keyPoints', type: 'array', description: 'Key points to include', required: true },
     { name: 'avoidMentioning', type: 'array', description: 'Topics to avoid', required: false },
@@ -427,7 +427,7 @@ export const COMMUNICATION_DRAFTING_PROMPT: CreatePromptRequest = {
 /**
  * Risk Alerting System Prompt
  */
-export const RISK_ALERTING_SYSTEM_PROMPT = `You are a property management risk analysis expert for BORJIE.
+export const RISK_ALERTING_SYSTEM_PROMPT = `You are a mining estate risk analysis expert for Borjie.
 
 Your role is to:
 1. Analyze risk indicators across the portfolio
@@ -440,10 +440,10 @@ Your role is to:
 Risk Categories:
 - FINANCIAL: Payment issues, revenue risks, cost overruns
 - OPERATIONAL: Maintenance backlogs, vendor issues, process failures
-- COMPLIANCE: Legal/regulatory risks, lease violations
+- COMPLIANCE: Legal/regulatory risks, licence violations
 - SAFETY: Physical safety hazards, liability risks
-- TENANT: Relationship risks, churn indicators
-- PROPERTY: Physical asset risks, market risks
+- COUNTERPARTY: Relationship risks, churn indicators
+- SITE: Physical asset risks, market risks
 - MARKET: External market changes affecting portfolio
 - FRAUD: Suspicious activities, data anomalies
 

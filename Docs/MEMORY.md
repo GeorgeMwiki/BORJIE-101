@@ -1,7 +1,8 @@
 # Borjie Memory — Long-Lived Assistant Context
 
-**Last Updated:** 2026-05-22 (post Wave 28+ wave-4 — providers, perf
-indexes, owner backend, a11y, memory layer, UI-1..5, P-6..10)
+**Last Updated:** 2026-06-02 (property-management → AI-native mining
+estate OS domain re-home complete; invisible persona-lens routing.
+Prior: Wave 28+ wave-4)
 
 This file holds long-lived context that any LLM-based assistant
 (Claude Code, Cursor, IDE extensions) should load on every fresh
@@ -10,14 +11,21 @@ Move detail into topic files referenced from here.
 
 ## Project identity
 
-- **Borjie** = this repo. AI-native multi-tenant property-
-  management SaaS for East Africa.
-- **PROJECT_BOUNDARY.md** is canonical: never reference Pongezi or
-  any other project in code, docs, or config.
-- Tanzania-first defaults (TZS), pan-African ambitions (KES, UGX,
-  ZAR also supported). Never hard-code jurisdiction / currency /
-  locale in business logic — users choose their display currency,
-  resolved via `user → tenant → platform-default` chain.
+- **Borjie** = this repo. AI-native, multi-tenant **mining estate
+  operating system** for Tanzanian (and pan-African) artisanal-to-
+  mid-tier mining. **Mr. Mwikila** is its brain layer — orchestrating
+  licences, royalty, workforce, treasury, compliance, marketplace,
+  holdings, subsidiaries, family office, succession and the full asset
+  register end-to-end. (Re-homed from the retired property-management
+  product; never reintroduce landlord/tenant/lease/rent domain vocab —
+  use offtake/royalty/licence/counterparty.)
+- **PROJECT_BOUNDARY.md** is canonical: never reference Pongezi,
+  BossNyumba or any other project in code, docs, or config.
+- Tanzania-first defaults (TZS); **Kenya / Uganda / Nigeria** are
+  planned expansion markets — built for the world. Never hard-code
+  jurisdiction / currency / locale in business logic — users choose
+  their display currency, resolved via `user → tenant →
+  platform-default` chain.
 
 ## Current wave state — Wave 28+
 
@@ -107,6 +115,16 @@ owner backend skeletons, a11y, and security follow-ups (see
   tenant_id` GUC bound by `services/api-gateway/src/middleware/`.
   Never disable RLS, never double-filter from app code.
 - **Supabase JWT is canonical auth** — no Clerk imports anywhere.
+- **No user-visible "modes" — invisible persona routing.** Mr. Mwikila
+  classifies each owner message into 1..N internal persona **lenses**
+  (the former eight CEO modes) and blends them itself; chat surfaces
+  send only `{ message, language, sessionId }` — never a `mode`. The
+  lens registry + deterministic `classifyLenses` live in
+  `packages/ai-copilot/src/juniors/lens-router.ts`; the orchestrator
+  derives the brain mode + blended directive from the selection.
+- **PII redactors are multi-jurisdiction.** Tax-ID scrubbers match
+  BOTH the Tanzania TRA TIN (primary) and the Kenya KRA PIN — keep all
+  mirrors in sync (Tanzania-first, built for the world).
 - **HIGH-risk policy prefixes** (sovereign / kill_switch / four_eye
   / policy_rollout) must hit literal policy rules; no reason-resolver
   generalisation.

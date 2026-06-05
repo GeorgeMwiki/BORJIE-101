@@ -2,8 +2,9 @@
  * Shared report types and interfaces
  */
 
+// TenantId is the multi-tenancy (per-org) scope key, NOT a real-estate renter.
 export type TenantId = string;
-export type PropertyId = string;
+export type SiteId = string;
 export type CustomerId = string;
 
 export interface DateRange {
@@ -12,24 +13,24 @@ export interface DateRange {
 }
 
 export interface ReportFilters {
-  propertyIds?: PropertyId[];
+  siteIds?: SiteId[];
   unitIds?: string[];
   status?: string[];
 }
 
 export type ReportType =
   | 'financial'
-  | 'occupancy'
+  | 'asset_utilisation'
   | 'maintenance'
-  | 'tenant'
-  | 'property';
+  | 'buyer'
+  | 'site';
 
 export type ReportFormat = 'pdf' | 'excel' | 'csv';
 
 export interface ReportParams {
   tenantId: TenantId;
   dateRange?: DateRange;
-  propertyIds?: PropertyId[];
+  siteIds?: SiteId[];
   unitIds?: string[];
   period?: string;
 }

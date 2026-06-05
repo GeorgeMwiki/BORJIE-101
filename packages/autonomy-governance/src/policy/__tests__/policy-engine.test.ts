@@ -148,7 +148,7 @@ describe('evaluate — DB table gates', () => {
   it('denies a tool when its targetTable matches a deny pattern', () => {
     const policy = loadBaseline();
     const r = evaluate(
-      { toolName: 'query-properties', targetTable: 'audit_trail' },
+      { toolName: 'query-assets', targetTable: 'audit_trail' },
       {},
       policy,
     );
@@ -159,7 +159,7 @@ describe('evaluate — DB table gates', () => {
   it('denies a tool when its targetTable is not on the allowlist', () => {
     const policy = loadBaseline();
     const r = evaluate(
-      { toolName: 'query-properties', targetTable: 'undeclared_table' },
+      { toolName: 'query-assets', targetTable: 'undeclared_table' },
       {},
       policy,
     );
@@ -170,7 +170,7 @@ describe('evaluate — DB table gates', () => {
   it('allows a tool when its targetTable is on the allowlist', () => {
     const policy = loadBaseline();
     const r = evaluate(
-      { toolName: 'query-properties', targetTable: 'properties' },
+      { toolName: 'query-assets', targetTable: 'assets' },
       {},
       policy,
     );
@@ -180,7 +180,7 @@ describe('evaluate — DB table gates', () => {
   it('wildcard deny matches subordinate tables', () => {
     const policy = loadBaseline();
     const r = evaluate(
-      { toolName: 'query-properties', targetTable: 'admin_users' },
+      { toolName: 'query-assets', targetTable: 'admin_users' },
       {},
       policy,
     );
@@ -219,23 +219,23 @@ describe('evaluate — human approval escalation', () => {
 version: "1.0"
 description: "approval test"
 allowedTools:
-  - terminate-lease
+  - terminate-offtake
 deniedTools: []
 allowedDbTables: []
 deniedDbTables: []
 networkEgress: []
 humanApproval:
-  - terminate-lease
+  - terminate-offtake
 audit: { enabled: true, hashChain: true, retentionYears: 7 }
 actionClassification: {}
 `;
     const p = parsePolicyYaml(yaml);
-    const r = evaluate({ toolName: 'terminate-lease' }, {}, p);
+    const r = evaluate({ toolName: 'terminate-offtake' }, {}, p);
     expect(r.decision).toBe('escalate');
     expect(r.matchedRule).toBe('humanApproval');
     expect(r.requiresHumanApproval).toBe(true);
     // baseline confirmation: the same tool is denied because not on allowlist
-    const r2 = evaluate({ toolName: 'terminate-lease' }, {}, policy);
+    const r2 = evaluate({ toolName: 'terminate-offtake' }, {}, policy);
     expect(r2.decision).toBe('deny');
   });
 });
@@ -296,7 +296,7 @@ describe('evaluate — purity (no mutation)', () => {
     evaluate({ toolName: 'navigate-user' }, {}, policy);
     evaluate({ toolName: 'admin-delete' }, {}, policy);
     evaluate(
-      { toolName: 'query-properties', targetTable: 'properties' },
+      { toolName: 'query-assets', targetTable: 'assets' },
       {},
       policy,
     );

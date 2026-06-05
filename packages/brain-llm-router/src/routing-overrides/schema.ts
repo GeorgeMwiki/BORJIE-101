@@ -19,13 +19,13 @@ import { MODEL_FAMILIES, type ModelFamily } from '../dynamic-registry/baselines.
  *   - the alternate providers don't implement the capability (voice
  *     transcribe / image generation), OR
  *   - the legal-significance bar is too high to leave to ops
- *     (lease_drafting / eviction_notice / financial_advice /
+ *     (offtake_drafting / licence_suspension_notice / financial_advice /
  *     legal_review). The min-tier policy already pins these to opus.
  */
 export const LOCKED_CATEGORIES: ReadonlySet<string> = Object.freeze(
   new Set<string>([
-    'lease_drafting',
-    'eviction_notice',
+    'offtake_drafting',
+    'licence_suspension_notice',
     'financial_advice',
     'legal_review',
     'voice_transcribe',

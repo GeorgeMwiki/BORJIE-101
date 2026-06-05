@@ -29,7 +29,7 @@ function makeRecorder(
     id,
     name: id,
     description: `recorder ${id}`,
-    requiredTier: 'tenant-resident',
+    requiredTier: 'counterparty-resident',
     requiresApproval: false,
     auditDestination: 'audit-events',
     schema: z.object({ tag: z.string() }),

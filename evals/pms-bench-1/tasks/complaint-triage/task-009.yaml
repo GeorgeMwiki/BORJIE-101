@@ -1,13 +1,13 @@
 id: complaint-triage-009
 scenario: complaint-triage
-title: 'Repeat unjustified complaint — pattern recognition'
+title: 'Repeat unjustified grievance — pattern recognition'
 context:
-  complainant: {id: tnt-412, name: 'Margaret Ndila', unit: '8B', prior_complaints: 9, sustained_complaints: 0}
-  complaint:
+  complainant: {id: wk-412, name: 'Margaret Ndila', crew: 'Crew 8B', prior_grievances: 9, sustained_grievances: 0}
+  grievance:
     submitted_at: '2026-05-17T17:00:00Z'
     kind: 'noise'
     severity_self_assessed: high
-    description: 'Heard footsteps from upstairs again at 8pm'
+    description: 'Felt ground vibration from the next bench again at 8pm'
 expected_actions:
   - {tool: 'complaint.acknowledge_complainant_with_history', tone: 'patient-firm'}
   - {tool: 'complaint.log_pattern_observation'}

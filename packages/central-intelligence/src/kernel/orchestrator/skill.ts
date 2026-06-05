@@ -4,7 +4,7 @@
  * A Skill is a self-contained, model-callable behaviour bundle:
  *
  *   skills/
- *   ├── monthly-arrears-chase/
+ *   ├── monthly-royalty-chase/
  *   │   ├── SKILL.md       (YAML frontmatter + prose)
  *   │   ├── prompt.md      (the Skill's prompt template)
  *   │   └── code/          (optional deterministic logic)
@@ -13,10 +13,10 @@
  * SKILL.md frontmatter shape:
  *
  *   ---
- *   name: monthly-arrears-chase
- *   description: Compose the month-end arrears chase for a property.
- *   when_to_use: When the user asks for arrears summaries or chase texts.
- *   tools_allowed: [lookupTenantArrears, getMarketRateBand]
+ *   name: monthly-royalty-chase
+ *   description: Compose the month-end outstanding-royalties chase for a site.
+ *   when_to_use: When the user asks for outstanding-royalties summaries or chase texts.
+ *   tools_allowed: [lookupCounterpartyArrears, getMarketRateBand]
  *   tier: pro
  *   ---
  *   ...prose body...

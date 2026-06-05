@@ -1,17 +1,17 @@
 id: maintenance-dispatch-010
 scenario: maintenance-dispatch
-title: 'Pest infestation in shared corridor — affects multiple units'
+title: 'Haul-road washout on a shared ramp — affects multiple pits'
 context:
-  property: {id: prop-110, block: 'Block B', unit: 'common-area-floor-3'}
-  initiator: {role: 'tenant', id: tnt-110}
+  asset: {id: site-110, zone: 'Mwanza Zone', pit: 'shared-ramp-level-3'}
+  initiator: {role: 'operator', id: op-110}
   report:
     submitted_at: '2026-05-17T08:30:00Z'
     severity_self_assessed: high
-    description: 'Cockroaches all over floor 3 corridor since yesterday'
-    affected_units: [tnt-110, tnt-111, tnt-112]
+    description: 'Heavy overnight rain washed out the shared haul ramp; trucks cannot pass since this morning'
+    affected_operators: [op-110, op-111, op-112]
 expected_actions:
   - {tool: 'maintenance.classify_severity', expected_class: 'P2-shared'}
-  - {tool: 'maintenance.dispatch_vendor', vendor_skill: 'pest-control', sla_hours: 24}
-  - {tool: 'maintenance.notify_block_residents', tone: 'transparent-action-oriented'}
+  - {tool: 'maintenance.dispatch_vendor', vendor_skill: 'site-services', sla_hours: 24}
+  - {tool: 'maintenance.notify_site_crew', tone: 'transparent-action-oriented'}
 expected_escalation: false
 scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.3, cost-efficiency: 0.2}

@@ -24,6 +24,11 @@ import {
   type OwnerOSSpawnIntent,
 } from './types.js';
 
+// Bounded input cap: model output processed here is brain SSE chunks,
+// not arbitrary user input, but guard anyway — the [\s\S]*? lazy scan
+// over a very long no-match input is O(n·m) on the surrounding \s*
+// quantifiers, which CodeQL flags as polynomial-redos.
+const SPAWN_TAG_MAX_LEN = 256_000;
 const SPAWN_TAG_PATTERN = /<spawn_tabs>\s*(\{[\s\S]*?\})\s*<\/spawn_tabs>/i;
 
 export interface ExtractSpawnResult {
@@ -56,7 +61,11 @@ function safeParseJson(raw: string): unknown {
  */
 export function extractSpawnTabs(text: string): ExtractSpawnResult {
   let batch: OwnerOSSpawnBatch = { tabs: [] };
-  let body = text;
+  // Truncate to cap before applying the regex to prevent polynomial-time
+  // scanning on pathologically long inputs without a closing tag.
+  const safeText =
+    text.length > SPAWN_TAG_MAX_LEN ? text.slice(0, SPAWN_TAG_MAX_LEN) : text;
+  let body = safeText;
 
   body = body.replace(SPAWN_TAG_PATTERN, (_m, json: string) => {
     const parsed = safeParseJson(json);

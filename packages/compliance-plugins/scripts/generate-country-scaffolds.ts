@@ -19,7 +19,7 @@
  * from publicly-known tables (ISO-3166, ISO-4217, ITU-T E.164, CLDR).
  *
  * STRICT RULES:
- *   - NEVER invent tax rates — all scaffolds flag `requiresManualConfiguration`.
+ *   - NEVER invent royalty rates — all scaffolds flag `requiresManualConfiguration`.
  *   - NEVER overwrite the 18 real-data plugins (guarded by `REAL_DATA_CODES`).
  *   - NEVER mutate: emit a whole new file each run.
  */
@@ -409,22 +409,22 @@ function renderScaffoldFile(row: IsoRow): string {
  * Generated on ${GENERATED_AT} by \`scripts/generate-country-scaffolds.ts\`.
  * Do not hand-edit — rerun the generator. To promote this country to a
  * full-fidelity plugin, COPY this file to \`../${code.toLowerCase()}/index.ts\`,
- * delete this scaffold, and wire the real tax + lease-law sources.
+ * delete this scaffold, and wire the real royalty + mining-law sources.
  *
  * Scaffold behaviour:
  *   - Currency + language + dateFormat from public ISO sources.
  *   - TaxRegimePort: zero-rate stub flagged \`requiresManualConfiguration\`.
  *   - PaymentRailPort: generic Stripe + bank + manual.
- *   - LeaseLawPort: DEFAULT_LEASE_LAW.
- *   - TenantScreeningPort: DEFAULT_TENANT_SCREENING.
+ *   - MiningLawPort: DEFAULT_MINING_LAW.
+ *   - CounterpartyScreeningPort: DEFAULT_COUNTERPARTY_SCREENING.
  *   - TaxFilingPort: DEFAULT_TAX_FILING.
  */
 
 import { buildPhoneNormalizer } from '../../../core/phone.js';
 import type { CountryPlugin } from '../../../core/types.js';
 import {
-  DEFAULT_LEASE_LAW,
-  DEFAULT_TENANT_SCREENING,
+  DEFAULT_MINING_LAW,
+  DEFAULT_COUNTERPARTY_SCREENING,
 } from '../../../ports/index.js';
 import {
   buildPaymentRailsPort,
@@ -446,13 +446,13 @@ const ${identBase}Core: CountryPlugin = {
     { id: 'manual', name: 'Manual reconciliation', kind: 'bank-rail', envPrefix: 'MANUAL' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 2,
+    minBondMonths: 0,
+    maxBondMonths: 2,
     noticePeriodDays: 30,
-    minimumLeaseMonths: 1,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 1,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [],
 };
@@ -466,7 +466,7 @@ export const ${identBase}ScaffoldProfile: ExtendedCountryProfile = {
   taxRegime: stubWithholding(
     ${jsStringLiteral(`${code}-MANUAL-CONFIG`)},
     ${jsStringLiteral(
-      `CONFIGURE_FOR_YOUR_JURISDICTION: ${name} has no programmed withholding rate. Consult local tax counsel and promote this scaffold (see countries/_generated/README.md).`
+      `CONFIGURE_FOR_YOUR_JURISDICTION: ${name} has no programmed mineral-royalty / withholding rate. Consult local mining-tax counsel and promote this scaffold (see countries/_generated/README.md).`
     )}
   ),
   paymentRails: buildPaymentRailsPort([
@@ -504,15 +504,15 @@ export const ${identBase}ScaffoldProfile: ExtendedCountryProfile = {
       supportsDisbursement: true,
     },
   ]),
-  leaseLaw: DEFAULT_LEASE_LAW,
-  tenantScreening: DEFAULT_TENANT_SCREENING,
+  miningLaw: DEFAULT_MINING_LAW,
+  counterpartyScreening: DEFAULT_COUNTERPARTY_SCREENING,
 };
 
 export const ${identBase}ScaffoldMetadata = Object.freeze({
   status: 'scaffold' as const,
   generatedAt: ${jsStringLiteral(GENERATED_AT)},
   promotionGuide:
-    'To replace this scaffold with full-fidelity data, copy to ../${code.toLowerCase()}/index.ts and implement real tax rates + lease-law from local sources. See _generated/README.md.',
+    'To replace this scaffold with full-fidelity data, copy to ../${code.toLowerCase()}/index.ts and implement real royalty rates + mining-law from local sources. See _generated/README.md.',
 });
 `;
 }
@@ -541,7 +541,7 @@ function renderBarrel(scaffoldRows: readonly IsoRow[]): string {
  * Each scaffold is an \`ExtendedCountryProfile\` with:
  *   - Real ISO currency + language + date-format data.
  *   - Stubbed tax regime (\`requiresManualConfiguration: true\`).
- *   - Default lease-law and tenant-screening ports.
+ *   - Default mining-law and counterparty-screening ports.
  *   - Generic payment rails (Stripe / bank / manual).
  *
  * The root country barrel (../index.ts) merges these with the 18 full-fidelity

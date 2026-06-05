@@ -14,7 +14,7 @@ function fixtureInput(): A2AAgentCardInput {
   return {
     id: 'borjie-agent',
     name: 'BORJIE',
-    description: 'Multi-tenant property-management agent',
+    description: 'Multi-tenant mining estate agent',
     version: '1.0.0',
     capabilities: [
       {
@@ -26,11 +26,11 @@ function fixtureInput(): A2AAgentCardInput {
     ],
     skills: [
       {
-        id: 'arrears.project',
-        name: 'Project arrears curve',
-        description: 'Project tenant arrears over the next 90 days',
+        id: 'royalty-arrears.project',
+        name: 'Project outstanding-royalty curve',
+        description: 'Project counterparty outstanding royalties over the next 90 days',
         tags: ['finance', 'forecast'],
-        examples: ['What will tenant T-42 owe by month-end?'],
+        examples: ['What will counterparty C-42 owe by month-end?'],
       },
     ],
     authentication: {

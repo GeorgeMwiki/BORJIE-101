@@ -29,32 +29,32 @@ describe('ShadowService', () => {
   });
 
   it('enable adds domains and marks config recordOnly', async () => {
-    const cfg = await svc.enable(TENANT, ['finance', 'leasing'], 7);
+    const cfg = await svc.enable(TENANT, ['finance', 'offtake'], 7);
     expect(cfg.tenantId).toBe(TENANT);
     expect(cfg.domains).toContain('finance');
-    expect(cfg.domains).toContain('leasing');
+    expect(cfg.domains).toContain('offtake');
     expect(cfg.recordOnly).toBe(true);
     expect(cfg.disablesAt).not.toBeNull();
   });
 
   it('enable is union-merging — called twice, both sets are present', async () => {
     await svc.enable(TENANT, ['finance'], null);
-    const second = await svc.enable(TENANT, ['leasing'], null);
-    expect(second.domains).toEqual(expect.arrayContaining(['finance', 'leasing']));
+    const second = await svc.enable(TENANT, ['offtake'], null);
+    expect(second.domains).toEqual(expect.arrayContaining(['finance', 'offtake']));
   });
 
   it('isShadow returns true only for enabled domains', async () => {
     await svc.enable(TENANT, ['finance'], null);
     expect(await svc.isShadow(TENANT, 'finance')).toBe(true);
-    expect(await svc.isShadow(TENANT, 'leasing')).toBe(false);
+    expect(await svc.isShadow(TENANT, 'offtake')).toBe(false);
     expect(await svc.isShadow('other_tenant', 'finance')).toBe(false);
   });
 
   it('disable removes specific domains', async () => {
-    await svc.enable(TENANT, ['finance', 'leasing', 'maintenance'], null);
-    const after = await svc.disable(TENANT, ['leasing']);
+    await svc.enable(TENANT, ['finance', 'offtake', 'maintenance'], null);
+    const after = await svc.disable(TENANT, ['offtake']);
     expect(after?.domains).toEqual(expect.arrayContaining(['finance', 'maintenance']));
-    expect(after?.domains).not.toContain('leasing');
+    expect(after?.domains).not.toContain('offtake');
   });
 
   it('disable that removes all domains drops the config entirely', async () => {
@@ -114,7 +114,7 @@ describe('ShadowService', () => {
   it('report bucket with no human decision returns null agreementPct', async () => {
     await svc.recordDecision({
       tenantId: TENANT,
-      domain: 'leasing',
+      domain: 'offtake',
       wouldHaveActed: true,
       action: 'approve_renewal',
       rationale: 'within policy',
@@ -127,16 +127,16 @@ describe('ShadowService', () => {
       new Date(Date.now() - 3_600_000).toISOString(),
       new Date(Date.now() + 3_600_000).toISOString(),
     );
-    expect(report.byDomain.leasing.agreementPct).toBeNull();
+    expect(report.byDomain.offtake.agreementPct).toBeNull();
     expect(report.overallAgreementPct).toBeNull();
   });
 
   it('tenant isolation — never leaks between tenants', async () => {
     await svc.enable('tenant_a', ['finance'], null);
-    await svc.enable('tenant_b', ['leasing'], null);
+    await svc.enable('tenant_b', ['offtake'], null);
     expect(await svc.isShadow('tenant_a', 'finance')).toBe(true);
-    expect(await svc.isShadow('tenant_a', 'leasing')).toBe(false);
+    expect(await svc.isShadow('tenant_a', 'offtake')).toBe(false);
     expect(await svc.isShadow('tenant_b', 'finance')).toBe(false);
-    expect(await svc.isShadow('tenant_b', 'leasing')).toBe(true);
+    expect(await svc.isShadow('tenant_b', 'offtake')).toBe(true);
   });
 });

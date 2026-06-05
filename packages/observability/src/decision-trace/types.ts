@@ -2,7 +2,7 @@
  * DecisionTrace types — ported from LITFIN observability.
  *
  * A DecisionTrace is the unit-of-explanation a human auditor cares about:
- *   "Why did the brain refuse to draft this lease?"
+ *   "Why did the brain refuse to draft this offtake agreement?"
  *   "Why was this payout flagged?"
  *
  * It sits ON TOP of raw OTel spans + Langfuse traces. A trace captures:
@@ -93,7 +93,7 @@ export interface DecisionTrace {
   addAttribute(key: string, value: unknown): void;
   /**
    * Close the trace. `output` is the final decision payload (e.g. the
-   * lease draft, or `{ refused: true, reason: '…' }`). `outcome` is a
+   * offtake-agreement draft, or `{ refused: true, reason: '…' }`). `outcome` is a
    * coarse-grained outcome enum for filtering in dashboards.
    *
    * Subsequent calls to addBranch / choose / addAttribute / finalize

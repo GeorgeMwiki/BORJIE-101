@@ -17,7 +17,7 @@
  * the orchestrator knows the metadata; the BODY is loaded only when the
  * skill is invoked (contextually loaded, mirroring Claude Code's pattern).
  *
- * A session-scoped allowlist `skills: ['handle-late-rent', 'compile-weekly-report']`
+ * A session-scoped allowlist `skills: ['handle-late-royalty', 'compile-weekly-report']`
  * filters which skills are SURFACED to the model. Skills not in the
  * allowlist remain on disk (Read/Bash can still reach them) but the model
  * is not told about them.
@@ -29,7 +29,7 @@
  */
 export interface SkillManifest {
   /**
-   * Stable slug, e.g. "handle-late-rent". Must match
+   * Stable slug, e.g. "handle-late-royalty". Must match
    * `/^[a-z][a-z0-9_-]{1,63}$/`. Used as the allowlist key.
    */
   readonly name: string;
@@ -37,7 +37,7 @@ export interface SkillManifest {
   readonly description: string;
   /**
    * When the model should pick this skill. Short imperative phrases.
-   * Multiple cues allowed (e.g. ["tenant 5+ days late", "missed rent"]).
+   * Multiple cues allowed (e.g. ["counterparty 5+ days late", "missed royalty"]).
    */
   readonly when_to_use: ReadonlyArray<string>;
   /**

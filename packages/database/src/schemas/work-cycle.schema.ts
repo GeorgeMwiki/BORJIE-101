@@ -31,6 +31,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 // ============================================================================
 // work_cycle_journal — append-only journal of every tick
@@ -86,7 +87,11 @@ export const workCycleState = pgTable(
     tenantId: text('tenant_id').primaryKey(),
     lastTickNo: bigint('last_tick_no', { mode: 'bigint' })
       .notNull()
-      .default(0n),
+      // SQL-side default 0 (DDL: DEFAULT 0). A JS BigInt literal default
+      // (`0n`) is not JSON-serializable, which crashes drizzle-kit's
+      // snapshot diff (push/generate). `sql\`0\`` is equivalent at the DB
+      // level and serializes cleanly. Reads still return a JS BigInt.
+      .default(sql`0`),
     lastTickAt: timestamp('last_tick_at', { withTimezone: true }),
     /** 'idle' | 'active' | 'night' | 'observe'. Default 'idle'. */
     currentMode: text('current_mode').notNull().default('idle'),

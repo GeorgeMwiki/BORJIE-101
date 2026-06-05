@@ -80,8 +80,8 @@ function buildClauses(args: {
     c.push(`5. Malipo: siku ${args.paymentTermsDays} baada ya kazi kukamilika`);
     c.push(`6. Sheria inayotumika: ${jurisdictionLawNameSw(args.jurisdiction)}`);
     c.push(`7. Kusitisha: pande zote zinaweza kusitisha kwa taarifa ya siku 30`);
-    c.push(`8. Bima: muuzaji anahitajika kuwa na bima ya umma`);
-    c.push(`9. Faragha: data ya wapangaji haitatumika nje ya kazi husika`);
+    c.push(`8. Bima: mkandarasi anahitajika kuwa na bima ya umma`);
+    c.push(`9. Faragha: data ya wahusika haitatumika nje ya kazi husika`);
     c.push(`10. Mzozo: usuluhishi katika ${jurisdictionVenueNameSw(args.jurisdiction)}`);
   } else {
     c.push(`1. Services: ${args.capabilityTags.join(', ') || 'unspecified'}`);
@@ -91,8 +91,8 @@ function buildClauses(args: {
     c.push(`5. Payment terms: ${args.paymentTermsDays} days after job completion`);
     c.push(`6. Governing law: ${jurisdictionLawName(args.jurisdiction)}`);
     c.push(`7. Termination: either party may terminate on 30-day notice`);
-    c.push(`8. Insurance: vendor must maintain public-liability insurance`);
-    c.push(`9. Privacy: tenant data shall not be used outside scope-of-work`);
+    c.push(`8. Insurance: contractor must maintain public-liability insurance`);
+    c.push(`9. Privacy: counterparty data shall not be used outside scope-of-work`);
     c.push(`10. Disputes: arbitration in ${jurisdictionVenueName(args.jurisdiction)}`);
   }
   return c;
@@ -107,15 +107,15 @@ function renderBody(args: {
 }): string {
   const lines: string[] = [];
   if (args.sw) {
-    lines.push(`Mkataba huu (rasimu) ni kati ya ${args.ownerName} ("Mmiliki") na ${args.vendorName} ("Muuzaji"), kwa mujibu wa sheria za ${jurisdictionLawNameSw(args.jurisdiction)}.`);
+    lines.push(`Mkataba huu (rasimu) ni kati ya ${args.ownerName} ("Mmiliki") na ${args.vendorName} ("Mkandarasi"), kwa mujibu wa sheria za ${jurisdictionLawNameSw(args.jurisdiction)}.`);
   } else {
-    lines.push(`This DRAFT Master Service Agreement is between ${args.ownerName} ("Owner") and ${args.vendorName} ("Vendor"), governed by ${jurisdictionLawName(args.jurisdiction)}.`);
+    lines.push(`This DRAFT Master Service Agreement is between ${args.ownerName} ("Owner") and ${args.vendorName} ("Contractor"), governed by ${jurisdictionLawName(args.jurisdiction)}.`);
   }
   lines.push('');
   for (const c of args.clauses) lines.push(c);
   lines.push('');
   lines.push(args.sw ? 'Sahihi (mmiliki): _______________' : 'Owner signature: _______________');
-  lines.push(args.sw ? 'Sahihi (muuzaji): _______________' : 'Vendor signature: _______________');
+  lines.push(args.sw ? 'Sahihi (mkandarasi): _______________' : 'Contractor signature: _______________');
   return lines.join('\n');
 }
 

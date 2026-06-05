@@ -99,6 +99,24 @@ const ALLOWLIST = [
     tracked_in: 'Docs/DEP_HYGIENE.md (fastify 5.x migration)',
     next_review: '2026-Q3',
   },
+  {
+    package: 'undici',
+    severity: ['high'],
+    fix: '>=6.24.0',
+    reason:
+      'GHSA-vrm6-8vpv-qv8q: undici Unbounded Memory Consumption in WebSocket permessage-deflate decompression. The vulnerable copies are transitive dupes (undici@0.28.0 and 5.29.0) pulled by deep dependencies; our direct + primary undici resolves to 6.26.0 (already patched). BORJIE never opens an undici WebSocket client with permessage-deflate — the attack surface (a malicious WS server streaming crafted compressed frames to an undici WS client) does not exist in our code. Forcing the legacy 0.28/5.29 copies across the 0/5 → 6 major boundary is deferred to a dedicated dedupe PR.',
+    tracked_in: 'Docs/DEP_HYGIENE.md (undici transitive dedupe)',
+    next_review: '2026-Q3',
+  },
+  {
+    package: 'vitest',
+    severity: ['critical'],
+    fix: '>=4.1.0',
+    reason:
+      'GHSA-5xrq-8626-4rwp: arbitrary file read/execute ONLY while the Vitest UI server is listening (`vitest --ui` / `--api`). BORJIE never starts the Vitest UI server — CI and local both run `vitest run` (headless, no listening server). The direct dependency is vitest ^4.1.6 (patched); the flagged <4.1.0 copy is a transitive dev-only dupe whose UI websocket file-serving endpoint is never started. Test tooling only — never shipped to production.',
+    tracked_in: 'Docs/DEP_HYGIENE.md (vitest transitive dedupe)',
+    next_review: '2026-Q3',
+  },
 ];
 
 function isAllowlisted(advisory) {

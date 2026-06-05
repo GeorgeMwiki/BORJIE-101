@@ -61,13 +61,13 @@ export interface SecurityEvent {
   readonly at: string;
   /** "<resource>.<verb>" — stable identifier for grep + aggregation. */
   readonly action: string;
-  /** Top-level resource the request touches (e.g. 'lease', 'payment'). */
+  /** Top-level resource the request touches (e.g. 'offtake', 'payment'). */
   readonly resource: string;
   /** Severity drives alert routing — `critical` pages SRE. */
   readonly severity: SecurityEventSeverity;
   /** HTTP verb of the inbound request. */
   readonly method: string;
-  /** Route path with parameters substituted ('/leases/:id'). */
+  /** Route path with parameters substituted ('/offtakes/:id'). */
   readonly route: string;
   /** Resolved tenant — empty when the request was unauthenticated. */
   readonly tenantId: string | null;
@@ -228,9 +228,9 @@ function headerStr(
  *
  * @example
  * ```ts
- * app.post('/leases', withSecurityEvents({
- *   action: 'lease.create',
- *   resource: 'lease',
+ * app.post('/offtakes', withSecurityEvents({
+ *   action: 'offtake.create',
+ *   resource: 'offtake',
  *   severity: 'info',
  * }, async (c) => {
  *   // existing handler body

@@ -22,24 +22,24 @@ export interface MicroLesson {
 export const ESTATE_MICRO_LESSONS: readonly MicroLesson[] = [
   {
     id: 'ml-deposit-refund',
-    titleEn: 'Security deposit refunds in 45 seconds',
-    titleSw: 'Kurejesha amana ya dhamana kwa sekunde 45',
+    titleEn: 'Performance deposit refunds in 45 seconds',
+    titleSw: 'Kurejesha amana ya utendaji kwa sekunde 45',
     bodyEn:
-      'Kenya Landlord-Tenant Act: return within 30 days minus documented damage. Tanzania typical practice: 14 days. Itemize or owe the full amount.',
+      'Kenya practice: return within 30 days minus documented shortfall. Tanzania typical practice: 14 days. Itemize or owe the full amount.',
     bodySw:
-      'Sheria ya Kenya: rejesha ndani ya siku 30 ukitoa uharibifu. Tanzania: siku 14. Orodhesha au rejesha yote.',
+      'Utaratibu wa Kenya: rejesha ndani ya siku 30 ukitoa upungufu. Tanzania: siku 14. Orodhesha au rejesha yote.',
     durationSeconds: 45,
     conceptId: 'deposit_structures',
     tags: ['deposit', 'compliance'],
   },
   {
-    id: 'ml-rent-affordability',
+    id: 'ml-royalty-affordability',
     titleEn: 'The 30% rule and why it matters',
     titleSw: 'Kanuni ya 30% na sababu yake',
     bodyEn:
-      'If rent exceeds 30% of gross income, default risk climbs sharply. Use income-to-rent ratio as a first vetting screen.',
+      'If royalty commitments exceed 30% of gross revenue, default risk climbs sharply. Use the payment-to-revenue ratio as a first vetting screen.',
     bodySw:
-      'Ikiwa kodi inazidi 30% ya mapato, hatari ya kushindwa kulipa huongezeka. Tumia uwiano huu kama kigezo cha kwanza.',
+      'Ikiwa mrabaha unazidi 30% ya mapato, hatari ya kushindwa kulipa huongezeka. Tumia uwiano huu kama kigezo cha kwanza.',
     durationSeconds: 40,
     conceptId: 'rent_affordability',
     tags: ['vetting', 'risk'],
@@ -61,9 +61,9 @@ export const ESTATE_MICRO_LESSONS: readonly MicroLesson[] = [
     titleEn: 'FAR inspection essentials',
     titleSw: 'Msingi wa ukaguzi wa FAR',
     bodyEn:
-      'Structural, mechanical, electrical, plumbing. Snap a photo per zone. BORJIE attaches them to the inspection record.',
+      'Structural, mechanical, electrical, pumping. Snap a photo per zone. Borjie attaches them to the inspection record.',
     bodySw:
-      'Muundo, mitambo, umeme, mabomba. Piga picha kila eneo. BORJIE inaziunganisha na rekodi.',
+      'Muundo, mitambo, umeme, mabomba. Piga picha kila eneo. Borjie inaziunganisha na rekodi.',
     durationSeconds: 55,
     conceptId: 'rent_affordability',
     tags: ['inspection', 'compliance'],
@@ -73,9 +73,9 @@ export const ESTATE_MICRO_LESSONS: readonly MicroLesson[] = [
     titleEn: 'Why we use tenders',
     titleSw: 'Kwa nini tunatumia zabuni',
     bodyEn:
-      'Three quotes beat a single vendor pick every time. BORJIE scores bids on price, track record, and vendor tier.',
+      'Three quotes beat a single vendor pick every time. Borjie scores bids on price, track record, and vendor tier.',
     bodySw:
-      'Zabuni tatu ni bora kuliko chaguo moja. BORJIE inapima kwa bei, rekodi, na kiwango.',
+      'Zabuni tatu ni bora kuliko chaguo moja. Borjie inapima kwa bei, rekodi, na kiwango.',
     durationSeconds: 35,
     conceptId: 'gepg_reconciliation',
     tags: ['tenders', 'procurement'],
@@ -93,16 +93,16 @@ export const ESTATE_MICRO_LESSONS: readonly MicroLesson[] = [
     tags: ['arrears', 'collections'],
   },
   {
-    id: 'ml-rent-escalation',
+    id: 'ml-price-escalation',
     titleEn: 'Three escalation clauses',
-    titleSw: 'Vifungu vitatu vya kupanda kwa kodi',
+    titleSw: 'Vifungu vitatu vya kupanda kwa bei',
     bodyEn:
-      'CPI-indexed (fairest to tenants), fixed percent (simplest), negotiated (risky — renewal is uncertain).',
+      'CPI-indexed (fairest to buyers), fixed percent (simplest), negotiated (risky — renewal is uncertain).',
     bodySw:
-      'Kulingana na mfumuko (haki kwa wapangaji), asilimia fasili (rahisi), mazungumzo (hatari).',
+      'Kulingana na mfumuko (haki kwa wanunuzi), asilimia fasili (rahisi), mazungumzo (hatari).',
     durationSeconds: 45,
     conceptId: 'rent_escalation',
-    tags: ['leases', 'pricing'],
+    tags: ['offtakes', 'pricing'],
   },
   {
     id: 'ml-vendor-tiers',

@@ -1,17 +1,18 @@
 /**
- * India (IN) — TDS under § 194-I / § 194-IB of the Income-tax Act 1961.
+ * India (IN) — TDS under § 194-I / § 194-O of the Income-tax Act 1961 plus
+ * mineral royalties under the MMDR Act 1957.
  *
- * Source: CBDT circulars — 10% TDS on rent for land/building above
- * ₹240,000 p.a. paid by a non-individual; § 194-IB applies 5% TDS for
- * individuals / HUFs paying > ₹50,000 / month. Plugin uses 10% default;
- * callers override for § 194-IB cases.
+ * Source: CBDT circulars — 10% TDS applies to specified mineral-supply
+ * payments; the MMDR Act 1957 Second Schedule sets ad-valorem royalty rates
+ * collected by the states. Plugin uses 10% withholding default; callers
+ * override per mineral / state royalty schedule.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -60,19 +61,19 @@ const indiaCore: CountryPlugin = {
     { id: 'razorpay', name: 'Razorpay', kind: 'card', envPrefix: 'RAZORPAY' },
   ],
   compliance: {
-    minDepositMonths: 2, // Model Tenancy Act 2021: max 2 for residential
-    maxDepositMonths: 2,
+    minBondMonths: 2, // performance-bond norm ≈ 2 months royalty
+    maxBondMonths: 2,
     noticePeriodDays: 60,
-    minimumLeaseMonths: 11,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 11,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Leave & License Agreement (IN)',
-      templatePath: 'in/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake Agreement (IN)',
+      templatePath: 'in/offtake-agreement.hbs',
       locale: 'en-IN',
     },
   ],
@@ -91,7 +92,7 @@ export const indiaProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     10,
     'IN-CBDT-IT-194I',
-    'TDS on rent — 10% on land/building rent where annual rent > ₹2.4 lakh (§ 194-I). Override to 5% for § 194-IB individual payers.'
+    'TDS on mineral-supply payments — 10% baseline (§ 194-I family). MMDR Act 1957 ad-valorem royalty applies separately per state schedule.'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -139,7 +140,7 @@ export const indiaProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
         id: 'in-stamp-duty',
@@ -148,32 +149,32 @@ export const indiaProfile: ExtendedCountryProfile = {
         citation: 'Registration Act 1908 § 17',
       },
       {
-        id: 'in-deposit-cap',
-        label: 'Deposit cap — 2 months residential (Model Tenancy Act 2021)',
+        id: 'in-bond-cap',
+        label: 'Performance-bond cap — 2 months royalty (artisanal)',
         mandatory: true,
-        citation: 'Model Tenancy Act 2021 § 11',
+        citation: 'MMDR Act 1957; Mineral Concession Rules.',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 60,
-      'non-payment': 30,
+      'licence-expiry': 60,
+      'royalty-default': 30,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxMonthsOfRent: 2,
-        citation: 'Model Tenancy Act 2021 § 11 (residential)',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxMonthsOfRoyalty: 2,
+        citation: 'Mineral Concession Rules (artisanal / small-scale).',
       },
-      commercial: {
-        maxMonthsOfRent: 6,
-        citation: 'Model Tenancy Act 2021 § 11 (non-residential)',
+      industrial: {
+        maxMonthsOfRoyalty: 6,
+        citation: 'Mineral Concession Rules (industrial / large-scale).',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
-        citation: 'Per agreement; 3-month notice for revision (MTA § 12).',
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
+        citation: 'Per agreement; MMDR royalty schedule revised periodically by the Centre.',
       },
     },
     defaultNoticeWindowDays: 60,
   }),
-  tenantScreening: buildStubScreeningPort('CIBIL_IN'),
+  counterpartyScreening: buildStubScreeningPort('CIBIL_IN'),
 };

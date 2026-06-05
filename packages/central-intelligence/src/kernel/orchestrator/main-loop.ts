@@ -61,6 +61,12 @@ import {
   renderPlanModePreview,
   type PermissionMode,
 } from './permission-mode.js';
+// LP-07 — typed stage-event bus (intent → megaprompt → plan → step →
+// outcome → learning) as the single OTel / learning seam over the loop.
+import {
+  createTurnStageEmitter,
+  type StageEventBus,
+} from './stage-event-bus.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public request / response shapes
@@ -243,6 +249,15 @@ export interface OrchestratorDeps {
     warn(msg: string, meta?: Record<string, unknown>): void;
     error?(msg: string, meta?: Record<string, unknown>): void;
   };
+  /**
+   * LP-07 — optional typed stage-event bus. When wired, the loop emits the
+   * `intent → megaprompt → plan → step → outcome → learning` lifecycle to
+   * the bus as a single OTel / learning seam. Emission is fail-safe (a
+   * throwing subscriber is isolated by the bus); when omitted the loop runs
+   * exactly as before. The composition root binds an OTel-span sink and the
+   * learning signal-emitter here.
+   */
+  readonly stageBus?: StageEventBus;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -318,6 +333,20 @@ export async function thinkExtended(
   let budget = Budget.of(req.budget ?? {}, clock);
   let lastText = '';
   const pendingContextInjections: ChatMessage[] = [];
+
+  // LP-07 — per-turn stage emitter. No-op when no bus is wired. Holds a
+  // per-turn sequence so events for THIS turn stay ordered even when the
+  // shared bus interleaves concurrent turns.
+  const stages = createTurnStageEmitter({
+    bus: deps.stageBus,
+    turnId: req.threadId, // best-available turn id at the orchestrator seam
+    threadId: req.threadId,
+    tenantId: req.scope.kind === 'tenant' ? req.scope.tenantId : null,
+    clock,
+  });
+  // `intent` — emitted at the very start of the turn lifecycle.
+  await stages.intent(req.userMessage.length, { tier: req.tier });
+  let stepIndex = 0;
 
   const ctx: HookContext = {
     threadId: req.threadId,
@@ -422,6 +451,11 @@ export async function thinkExtended(
     deps.maxPermissionDenyRetries ?? DEFAULT_PERMISSION_DENY_RETRIES;
   let consecutivePermissionDenies = 0;
 
+  // LP-07 — `plan` stage, emitted once after the plan is loaded / seeded
+  // and before the agentic loop begins.
+  await stages.plan(plan.state().rootGoals.length);
+  let megapromptEmitted = false;
+
   while (budget.remaining() && !plan.isComplete()) {
     const goal = plan.currentGoal();
     const tools = await deps.toolSearch.searchRelevant(
@@ -474,8 +508,15 @@ export async function thinkExtended(
     ];
     pendingContextInjections.length = 0;
 
+    const assembledSystem = assembleSystem(req.persona, plan, memory.totalBytes);
+    // LP-07 — `megaprompt` stage, emitted once on the first loop tick with
+    // the assembled system-prompt size (prompt-cache telemetry).
+    if (!megapromptEmitted) {
+      await stages.megaprompt(assembledSystem.length);
+      megapromptEmitted = true;
+    }
     let decision: Decision = await deps.router.call({
-      system: assembleSystem(req.persona, plan, memory.totalBytes),
+      system: assembledSystem,
       tools,
       messages,
     });
@@ -802,6 +843,14 @@ export async function thinkExtended(
       budget.snapshot(),
     );
 
+    // LP-07 — `step` stage, emitted once per dispatched tool/decision.
+    stepIndex += 1;
+    await stages.step(
+      stepIndex,
+      decisionToolName(toRun),
+      result.kind,
+    );
+
     if (goal) {
       plan = plan.advance({ goalId: goal.id, newStatus: 'complete' });
     }
@@ -821,6 +870,9 @@ export async function thinkExtended(
         },
         ctx,
       );
+      // LP-07 — `outcome` + `learning` stages for a clean answer.
+      await stages.outcome('answer', stepIndex);
+      await stages.learning('success');
       return {
         kind: 'answer',
         text: toRun.text,
@@ -864,6 +916,11 @@ export async function thinkExtended(
   );
 
   if (snapshot.exhausted && snapshot.exhaustionAxis) {
+    // LP-07 — budget exhaustion is a `partial` learning signal.
+    await stages.outcome('budget-exhausted', stepIndex, {
+      axis: snapshot.exhaustionAxis,
+    });
+    await stages.learning('partial');
     return {
       kind: 'budget-exhausted',
       axis: snapshot.exhaustionAxis,
@@ -871,6 +928,9 @@ export async function thinkExtended(
     };
   }
 
+  // LP-07 — loop completed without an explicit respond/final decision.
+  await stages.outcome('answer', stepIndex);
+  await stages.learning(lastText.length > 0 ? 'success' : 'partial');
   return {
     kind: 'answer',
     text: lastText,
@@ -878,6 +938,18 @@ export async function thinkExtended(
     citations: [],
     artifacts: [],
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// LP-07 — map a dispatched decision to a stable tool-name label for the
+// `step` stage event. Decisions that aren't tool calls get a synthetic
+// label so the OTel span still has a name.
+// ─────────────────────────────────────────────────────────────────────
+
+function decisionToolName(decision: Decision): string {
+  if (decision.kind === 'tool_call') return decision.call.toolName;
+  if (decision.kind === 'spawn_sub_md') return `spawn:${decision.spawn.subMdId}`;
+  return decision.kind;
 }
 
 // ─────────────────────────────────────────────────────────────────────

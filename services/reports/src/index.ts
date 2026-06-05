@@ -105,12 +105,12 @@ export {
   type KPIValue,
   type FinancialKPIs,
   type CollectionKPIs,
-  type OccupancyKPIs,
+  type AssetUtilisationKPIs,
   type MaintenanceKPIs,
-  type TenantSatisfactionKPIs,
+  type BuyerSatisfactionKPIs,
   type VendorPerformanceKPIs,
   type PortfolioSummaryKPIs,
-  type PropertyKPIsDetail,
+  type SiteKPIsDetail,
   type KPIBenchmark,
   type KPIAlert,
   type IKPIDataProvider,
@@ -175,13 +175,13 @@ export {
 } from './interactive/index.js';
 
 // ============================================================================
-// Occupancy Timeline Export (NEW 22)
+// Asset-utilisation Timeline Export (NEW 22)
 // ============================================================================
 export {
-  buildOccupancyTimelineReport,
-  type OccupancyTimelineExportInput,
-  type OccupancyTimelinePeriodInput,
-} from './reports/occupancy-timeline-export.js';
+  buildAssetUtilisationTimelineReport,
+  type AssetUtilisationTimelineExportInput,
+  type AssetUtilisationTimelinePeriodInput,
+} from './reports/asset-utilisation-timeline-export.js';
 
 // ============================================================================
 // Analytics Service
@@ -189,10 +189,10 @@ export {
 export {
   AnalyticsService,
   type PortfolioKPIs,
-  type PropertyKPIs,
+  type SiteKPIs,
   type RevenueAnalytics,
   type MaintenanceAnalytics,
-  type TenantChurnAnalytics,
-  type ArrearsAgingReport,
+  type BuyerChurnAnalytics,
+  type OutstandingAgingReport,
   type IAnalyticsDataProvider,
 } from './services/analytics.service.js';

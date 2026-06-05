@@ -1,13 +1,13 @@
 /**
- * Dynamic rent optimizer — the proposer.
+ * Dynamic price optimizer — the proposer.
  *
- * Pipeline per unit:
+ * Pipeline per pit:
  *   1. Budget-guard (ledger.assertWithinBudget)
- *   2. Jurisdiction lookup (rent-increase cap, if any)
+ *   2. Jurisdiction lookup (price-increase cap, if any)
  *   3. LLM proposal (PricingLLMPort)
  *   4. Regulatory clamp (never exceed cap)
  *   5. Build immutable recommendation with citations + provenance
- *   6. Persist to rent_recommendations
+ *   6. Persist to price_recommendations
  *   7. Queue into ApprovalService (never auto-apply)
  *
  * Everything is pure on top of the injected ports. The repo + LLM + approval
@@ -26,27 +26,27 @@ import type {
   ApprovalQueuePort,
   PricingInputs,
   PricingLLMPort,
-  RentControlLookup,
-  RentRecommendation,
-  RentRecommendationRepository,
+  PriceControlLookup,
+  PriceRecommendation,
+  PriceRecommendationRepository,
 } from './types.js';
 
 export interface DynamicPricingDeps {
   readonly ledger?: CostLedger;
   readonly llm: PricingLLMPort;
-  readonly repo: RentRecommendationRepository;
+  readonly repo: PriceRecommendationRepository;
   readonly approvalQueue?: ApprovalQueuePort;
-  readonly rentControl: RentControlLookup;
+  readonly priceControl: PriceControlLookup;
   readonly now?: () => Date;
 }
 
-export interface DynamicRentOptimizer {
+export interface DynamicPriceOptimizer {
   propose(
     inputs: PricingInputs,
     options?: { readonly correlationId?: string; readonly autoQueue?: boolean },
   ): Promise<
     AiNativeResult<{
-      readonly recommendation: RentRecommendation;
+      readonly recommendation: PriceRecommendation;
       readonly approvalRequestId: string | null;
     }>
   >;
@@ -57,10 +57,10 @@ function buildPrompt(inputs: PricingInputs): string {
   // serializer noise. Keep ordered fields.
   const lines: string[] = [
     `tenant:${inputs.tenantId}`,
-    `unit:${inputs.unitId}`,
+    `pit:${inputs.pitId}`,
     `country:${inputs.countryCode}`,
     `currency:${inputs.currencyCode}`,
-    `current_rent_minor:${inputs.currentRentMinor}`,
+    `current_rent_minor:${inputs.currentPriceMinor}`,
     inputs.market
       ? `market:${inputs.market.driftFlag ?? 'unknown'}|median=${
           inputs.market.marketMedianMinor ?? 'n/a'
@@ -68,9 +68,9 @@ function buildPrompt(inputs: PricingInputs): string {
           inputs.market.marketP75Minor ?? 'n/a'
         }|n=${inputs.market.sampleSize}`
       : 'market:absent',
-    inputs.occupancy
-      ? `occupancy:pct=${inputs.occupancy.occupancyPct.toFixed(3)}|vacancyDays=${inputs.occupancy.vacancyDays}`
-      : 'occupancy:absent',
+    inputs.production
+      ? `production:pct=${inputs.production.productionPct.toFixed(3)}|availableCapacityDays=${inputs.production.availableCapacityDays}`
+      : 'production:absent',
     inputs.churn
       ? `churn:p=${inputs.churn.churnProbability.toFixed(3)}|horizon=${inputs.churn.horizonDays}`
       : 'churn:absent',
@@ -101,11 +101,11 @@ function buildCitations(inputs: PricingInputs): readonly Citation[] {
       note: `drift=${inputs.market.driftFlag ?? 'unknown'} n=${inputs.market.sampleSize}`,
     });
   }
-  if (inputs.occupancy) {
+  if (inputs.production) {
     out.push({
-      kind: 'occupancy_rollup',
-      ref: inputs.occupancy.rollupHash,
-      note: `window=${inputs.occupancy.windowDays}d`,
+      kind: 'production_rollup',
+      ref: inputs.production.rollupHash,
+      note: `window=${inputs.production.windowDays}d`,
     });
   }
   if (inputs.churn) {
@@ -131,26 +131,26 @@ function buildCitations(inputs: PricingInputs): readonly Citation[] {
   return Object.freeze(out);
 }
 
-export function createDynamicRentOptimizer(
+export function createDynamicPriceOptimizer(
   deps: DynamicPricingDeps,
-): DynamicRentOptimizer {
+): DynamicPriceOptimizer {
   const now = deps.now ?? (() => new Date());
 
   return {
     async propose(inputs, options) {
       // 1) Validate
-      if (!inputs.tenantId || !inputs.unitId) {
+      if (!inputs.tenantId || !inputs.pitId) {
         return {
           success: false,
           code: 'VALIDATION',
-          message: 'tenantId and unitId are required',
+          message: 'tenantId and pitId are required',
         };
       }
-      if (inputs.currentRentMinor < 0) {
+      if (inputs.currentPriceMinor < 0) {
         return {
           success: false,
           code: 'VALIDATION',
-          message: 'currentRentMinor must be non-negative',
+          message: 'currentPriceMinor must be non-negative',
         };
       }
 
@@ -177,7 +177,7 @@ export function createDynamicRentOptimizer(
       }
 
       // 3) Global-first jurisdiction lookup — every caller MUST supply country
-      const cap = deps.rentControl(inputs.countryCode);
+      const cap = deps.priceControl(inputs.countryCode);
 
       // 4) LLM proposal
       const prompt = buildPrompt(inputs);
@@ -204,17 +204,17 @@ export function createDynamicRentOptimizer(
       });
 
       // 6) Regulatory clamp
-      let clamped = raw.recommendedRentMinor;
+      let clamped = raw.recommendedPriceMinor;
       let capBreached = false;
       if (
         cap.maxIncreasePct !== null &&
         cap.maxIncreasePct >= 0 &&
-        inputs.currentRentMinor > 0
+        inputs.currentPriceMinor > 0
       ) {
         const ceiling =
-          inputs.currentRentMinor +
+          inputs.currentPriceMinor +
           Math.floor(
-            (inputs.currentRentMinor * cap.maxIncreasePct) / 100,
+            (inputs.currentPriceMinor * cap.maxIncreasePct) / 100,
           );
         if (clamped > ceiling) {
           clamped = ceiling;
@@ -224,9 +224,9 @@ export function createDynamicRentOptimizer(
 
       // 7) Build recommendation
       const deltaPct =
-        inputs.currentRentMinor === 0
+        inputs.currentPriceMinor === 0
           ? 0
-          : ((clamped - inputs.currentRentMinor) / inputs.currentRentMinor) *
+          : ((clamped - inputs.currentPriceMinor) / inputs.currentPriceMinor) *
             100;
 
       const citations: Citation[] = [...buildCitations(inputs)];
@@ -234,18 +234,18 @@ export function createDynamicRentOptimizer(
         citations.push({
           kind: 'statute',
           ref: cap.sourceCitation,
-          note: `rent-increase cap clamped LLM output`,
+          note: `price-increase cap clamped LLM output`,
         });
       }
 
-      const rec: RentRecommendation = Object.freeze({
+      const rec: PriceRecommendation = Object.freeze({
         id: generateId('rrec'),
         tenantId: inputs.tenantId,
-        unitId: inputs.unitId,
-        propertyId: inputs.propertyId ?? null,
+        pitId: inputs.pitId,
+        siteId: inputs.siteId ?? null,
         currencyCode: inputs.currencyCode,
-        currentRentMinor: inputs.currentRentMinor,
-        recommendedRentMinor: clamped,
+        currentPriceMinor: inputs.currentPriceMinor,
+        recommendedPriceMinor: clamped,
         deltaPct,
         confidence: Math.max(0, Math.min(1, raw.confidence)),
         suggestedReviewDate: toYmd(addDays(now(), 90)),
@@ -265,11 +265,11 @@ export function createDynamicRentOptimizer(
       // 9) Queue into ApprovalService (never auto-apply)
       let approvalRequestId: string | null = null;
       if ((options?.autoQueue ?? true) && deps.approvalQueue) {
-        const queued = await deps.approvalQueue.queueRentChange({
+        const queued = await deps.approvalQueue.queuePriceChange({
           tenantId: inputs.tenantId,
-          unitId: inputs.unitId,
-          currentRentMinor: inputs.currentRentMinor,
-          recommendedRentMinor: clamped,
+          pitId: inputs.pitId,
+          currentPriceMinor: inputs.currentPriceMinor,
+          recommendedPriceMinor: clamped,
           currencyCode: inputs.currencyCode,
           recommendationId: rec.id,
           explanation: raw.explanation,

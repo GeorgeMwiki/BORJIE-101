@@ -13,12 +13,12 @@ import {
 } from '../personas/harvard-phd-persona.js';
 
 describe('Harvard-PhD persona — credential anchors', () => {
-  it('discipline prefix names Harvard, MBA, JD, PhD, RICS', () => {
+  it('discipline prefix names Harvard, MBA, JD, PhD, AusIMM', () => {
     expect(DISCIPLINE_PREFIX_LITERAL).toContain('Harvard');
     expect(DISCIPLINE_PREFIX_LITERAL).toContain('MBA');
     expect(DISCIPLINE_PREFIX_LITERAL).toContain('JD');
     expect(DISCIPLINE_PREFIX_LITERAL).toContain('PhD');
-    expect(DISCIPLINE_PREFIX_LITERAL).toContain('RICS');
+    expect(DISCIPLINE_PREFIX_LITERAL).toContain('AusIMM');
   });
 });
 
@@ -40,7 +40,7 @@ describe('Harvard-PhD persona — evidence-norms hallmarks', () => {
 describe('Harvard-PhD persona — full prompt build', () => {
   it('produces three blank-line separated paragraphs', () => {
     const prompt = buildHarvardPhdPersona({
-      type: 'leasing_financial_performance',
+      type: 'offtake_financial_performance',
       audience: 'board',
       jurisdiction: 'TZ',
     });
@@ -75,28 +75,28 @@ describe('Harvard-PhD persona — full prompt build', () => {
 
   it('audience modulation surfaces — board vs owner differ', () => {
     const owner = buildHarvardPhdPersona({
-      type: 'leasing_financial_performance',
+      type: 'offtake_financial_performance',
       audience: 'owner',
       jurisdiction: 'TZ',
     });
     const board = buildHarvardPhdPersona({
-      type: 'leasing_financial_performance',
+      type: 'offtake_financial_performance',
       audience: 'board',
       jurisdiction: 'TZ',
     });
-    expect(owner).toContain('property owner');
+    expect(owner).toContain('mining owner');
     expect(board).toContain('Board of Directors');
     expect(owner).not.toEqual(board);
   });
 
   it('jurisdiction frame surfaces — TZ vs KE differ', () => {
     const tz = buildHarvardPhdPersona({
-      type: 'leasing_financial_performance',
+      type: 'offtake_financial_performance',
       audience: 'board',
       jurisdiction: 'TZ',
     });
     const ke = buildHarvardPhdPersona({
-      type: 'leasing_financial_performance',
+      type: 'offtake_financial_performance',
       audience: 'board',
       jurisdiction: 'KE',
     });
@@ -106,7 +106,7 @@ describe('Harvard-PhD persona — full prompt build', () => {
 
   it('refuses marketing language explicitly', () => {
     const prompt = buildHarvardPhdPersona({
-      type: 'leasing_financial_performance',
+      type: 'offtake_financial_performance',
       audience: 'board',
       jurisdiction: 'TZ',
     });
@@ -119,7 +119,7 @@ describe('Harvard-PhD persona — full prompt build', () => {
 
   it('action-oriented: every section closes with a Verdict line', () => {
     const prompt = buildHarvardPhdPersona({
-      type: 'rent_roll_arrears_ledger',
+      type: 'royalty_roll_outstanding_ledger',
       audience: 'internal',
       jurisdiction: 'UG',
     });

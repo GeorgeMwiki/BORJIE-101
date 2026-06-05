@@ -1,5 +1,7 @@
 
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/hono-auth';
@@ -7,6 +9,29 @@ import { databaseMiddleware } from '../middleware/database';
 import { roles, userRoles } from '@borjie/database';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+// Runtime validation at the trust boundary. Without this, POST/PUT
+// /users trusted arbitrary JSON: a non-string email, an object where a
+// name was expected, or a multi-megabyte password (bcrypt DoS) all
+// flowed straight into the repo/hash path. bcrypt silently truncates at
+// 72 bytes, so we cap the password length explicitly.
+const CreateUserSchema = z.object({
+  email: z.string().email().max(320),
+  firstName: z.string().min(1).max(200),
+  lastName: z.string().min(1).max(200),
+  phone: z.string().max(40).optional(),
+  password: z.string().min(8).max(200).optional(),
+  role: z.string().min(1).max(80).optional(),
+});
+
+const UpdateUserSchema = z
+  .object({
+    firstName: z.string().min(1).max(200).optional(),
+    lastName: z.string().min(1).max(200).optional(),
+    phone: z.string().max(40).optional(),
+    status: z.string().min(1).max(40).optional(),
+  })
+  .strict();
 type RoleInfo = { role: string; permissions: string[] };
 
 // any — Drizzle select builder chain type widens through generics in a
@@ -120,7 +145,7 @@ const USER_WRITE_ROLES = new Set(['super_admin', 'admin', 'tenant_admin']);
 // Only super_admin may create other super_admins or cross-tenant admins.
 const SUPER_ADMIN_ONLY_ROLES = new Set(['super_admin']);
 
-app.post('/', withSecurityEvents({ action: 'user.create', resource: 'user', severity: 'info' }, async (c) => {
+app.post('/', zValidator('json', CreateUserSchema), withSecurityEvents({ action: 'user.create', resource: 'user', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const repos = c.get('repos') as any;
   const db = c.get('db');
@@ -134,7 +159,7 @@ app.post('/', withSecurityEvents({ action: 'user.create', resource: 'user', seve
     );
   }
 
-  const body = await c.req.json();
+  const body = c.req.valid('json');
 
   // A non-super-admin cannot mint a super-admin. This is the role-
   // escalation defense — previously POST /users trusted body.role
@@ -185,12 +210,12 @@ app.post('/', withSecurityEvents({ action: 'user.create', resource: 'user', seve
   return c.json({ success: true, data: mapUser(row, roleMap.get(row.id)) }, 201);
 }));
 
-app.put('/:id', withSecurityEvents({ action: 'user.update', resource: 'user', severity: 'info' }, async (c) => {
+app.put('/:id', zValidator('json', UpdateUserSchema), withSecurityEvents({ action: 'user.update', resource: 'user', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const repos = c.get('repos') as any;
   const db = c.get('db');
   const id = c.req.param('id');
-  const body = await c.req.json();
+  const body = c.req.valid('json');
   const row = await repos.users.update(id, auth.tenantId, {
     firstName: body.firstName,
     lastName: body.lastName,

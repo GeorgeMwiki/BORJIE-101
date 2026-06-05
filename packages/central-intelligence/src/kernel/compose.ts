@@ -22,6 +22,8 @@
  */
 
 import { createBrainKernel, type BrainKernel } from './kernel.js';
+import type { SemanticCachePort } from './semantic-cache-port.js';
+import type { IntentVerifierPort } from './intent-verification.js';
 import { createBrainCache } from './brain-cache.js';
 // Phase E.5.1 — orchestrator wire-up. The composition root builds the
 // 9-hook PreToolUse / PostToolUse / Stop chain from the same ports that
@@ -163,6 +165,14 @@ export interface ComposeSovereignConfig {
   readonly groundingFacts?: GroundingFactsProvider;
   readonly approvalStore?: ApprovalStore;
   readonly nudgeDedupe?: NudgeDedupeStore;
+  /** LP-03 — read-through semantic response cache. Fail-safe: a miss or a
+   * null embedder falls through to the normal LLM path. */
+  readonly semanticCache?: SemanticCachePort;
+  readonly semanticCacheEnabled?: boolean;
+  /** LP-04 — intent verifier checked post-LLM / pre-tool-dispatch. Advisory by
+   * default (logs, never blocks); enforced only under the STRICT env toggle. */
+  readonly intentVerifier?: IntentVerifierPort;
+  readonly intentVerificationEnabled?: boolean;
   /**
    * Optional per-tenant persona-branding resolver. The kernel calls
    * this before rendering the identity preamble so an agency can
@@ -239,9 +249,9 @@ export interface ComposeSovereignConfig {
   /**
    * Optional resolver for per-action role-group approval policies.
    * Passed through to `createApprovalGate` so high-stakes write
-   * actions (eviction.propose, owner_payout.disburse, etc.) consult
-   * a DB-backed policy table at propose-time instead of the legacy
-   * "any 2 distinct admins" default.
+   * actions (licence_suspension.propose, royalty_payout.disburse, etc.)
+   * consult a DB-backed policy table at propose-time instead of the
+   * legacy "any 2 distinct admins" default.
    */
   readonly approvalPolicyResolver?: ApprovalPolicyResolver;
   /**
@@ -487,6 +497,12 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   if (config.reflexionRetriever) (kernelDeps as any).reflexionRetriever = config.reflexionRetriever;
   if (config.reflexionWriter)   (kernelDeps as any).reflexionWriter = config.reflexionWriter;
   if (config.selfRagJudge)      (kernelDeps as any).selfRagJudge = config.selfRagJudge;
+  // LP-30 — forward the semantic-cache + intent-verifier ports the gateway
+  // constructs so they actually reach the kernel hot path.
+  if (config.semanticCache)     (kernelDeps as any).semanticCache = config.semanticCache;
+  if (config.semanticCacheEnabled !== undefined) (kernelDeps as any).semanticCacheEnabled = config.semanticCacheEnabled;
+  if (config.intentVerifier)    (kernelDeps as any).intentVerifier = config.intentVerifier;
+  if (config.intentVerificationEnabled !== undefined) (kernelDeps as any).intentVerificationEnabled = config.intentVerificationEnabled;
   // C4 — Sensorium / Brain Skin.
   if (config.behaviorSignalSource) (kernelDeps as any).behaviorSignalSource = config.behaviorSignalSource;
   // Cognitive-load + affective accumulators are always wired so the

@@ -353,8 +353,10 @@ export const SYSTEM_POLICIES = {
     isSystem: true,
     rules: [
       {
+        // W-E migration: RBAC resource vocabulary 'lease' → 'offtake'
+        // (aligned with ResourceCategory.LEASE in ../identity/role.ts).
         actions: ['read', 'update', 'list'],
-        resources: ['lease', 'payment', 'maintenance', 'document'],
+        resources: ['offtake', 'payment', 'maintenance', 'document'],
         conditions: {
           logic: 'AND' as const,
           conditions: [

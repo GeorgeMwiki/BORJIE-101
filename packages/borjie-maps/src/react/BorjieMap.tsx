@@ -100,7 +100,6 @@ export function BorjieMap(props: BorjieMapProps): JSX.Element {
     return () => {
       if (typeof cleanup === 'function') cleanup();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     props,
     styleConfig,

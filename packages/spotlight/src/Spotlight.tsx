@@ -4,7 +4,7 @@
  * Usage:
  *   <Spotlight
  *     userRoles={['OWNER']}
- *     entities={{ units, properties, tenants }}
+ *     entities={{ units, sites, counterparties }}
  *     onAction={(action) => navigate(action.route ?? '/')}
  *   />
  *
@@ -130,7 +130,7 @@ export function Spotlight(props: SpotlightProps): JSX.Element | null {
           ref={inputRef}
           type="text"
           value={query}
-          placeholder="Search actions, units, tenants... or ask Mr. Mwikila"
+          placeholder="Search actions, units, buyers... or ask Mr. Mwikila"
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onInputKeyDown}
           style={inputStyle}

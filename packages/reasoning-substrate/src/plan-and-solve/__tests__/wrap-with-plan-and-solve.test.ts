@@ -2,16 +2,16 @@
  * Plan-and-Solve+ tests.
  *
  * Ten sample tasks covering the MD's everyday workload:
- *   1. rent proration
+ *   1. royalty proration
  *   2. late-fee compute
- *   3. lease-renewal date math
+ *   3. offtake-renewal date math
  *   4. currency convert (KES→TZS)
  *   5. KRA-MRI submit (high-stakes, all-or-fail strictness)
- *   6. eviction-notice math (high-stakes)
- *   7. deposit-refund split
+ *   6. licence-suspension-notice math (high-stakes)
+ *   7. performance-bond-refund split
  *   8. mediation-offer drafting
  *   9. payment-plan structuring
- *  10. portfolio-level rent-roll consolidation
+ *  10. portfolio-level royalty-roll consolidation
  *
  * Each task asserts:
  *   - the canonical 4-step skeleton is present
@@ -39,35 +39,35 @@ interface PlanAndSolveTask {
 
 const TASKS: ReadonlyArray<PlanAndSolveTask> = [
   {
-    id: 'rent-proration',
-    description: 'Rent proration — strict, requires move-in day + monthly rent.',
-    callerPrompt: 'You are BORJIE MD computing prorated rent.',
+    id: 'royalty-proration',
+    description: 'Royalty proration — strict, requires mobilisation day + monthly royalty.',
+    callerPrompt: 'You are BORJIE MD computing prorated royalty.',
     config: {
       extractionStrictness: 'strict',
-      requiredVariables: ['moveInDay', 'monthDays', 'monthlyRentKES'],
+      requiredVariables: ['mobilisationDay', 'monthDays', 'monthlyRoyaltyKES'],
     },
-    mustInclude: ['Step 1 — Plan', 'moveInDay', 'monthlyRentKES', 'TENTATIVE'],
+    mustInclude: ['Step 1 — Plan', 'mobilisationDay', 'monthlyRoyaltyKES', 'TENTATIVE'],
   },
   {
     id: 'late-fee-compute',
     description: 'Late-fee — strict, jurisdiction-aware.',
-    callerPrompt: 'You are BORJIE MD computing late fees under TZ Rental Act.',
+    callerPrompt: 'You are BORJIE MD computing late fees under TZ Mining Act.',
     config: {
       extractionStrictness: 'strict',
       requiredVariables: ['daysLate', 'principalKES', 'jurisdiction'],
-      addendum: 'Cap late fee at 10% of monthly rent (TZ Rental Act §11).',
+      addendum: 'Cap late fee at 10% of monthly royalty (TZ Mining Act §11).',
     },
     mustInclude: ['daysLate', 'jurisdiction', 'Cap late fee at 10%'],
   },
   {
-    id: 'lease-renewal',
-    description: 'Lease renewal — lenient, only one required variable.',
-    callerPrompt: 'You are BORJIE MD computing lease renewal dates.',
+    id: 'offtake-renewal',
+    description: 'Offtake renewal — lenient, only one required variable.',
+    callerPrompt: 'You are BORJIE MD computing offtake renewal dates.',
     config: {
       extractionStrictness: 'lenient',
-      requiredVariables: ['leaseStartDate'],
+      requiredVariables: ['offtakeStartDate'],
     },
-    mustInclude: ['You may proceed to Step 3', 'leaseStartDate'],
+    mustInclude: ['You may proceed to Step 3', 'offtakeStartDate'],
   },
   {
     id: 'currency-convert',
@@ -85,22 +85,22 @@ const TASKS: ReadonlyArray<PlanAndSolveTask> = [
     callerPrompt: 'You are BORJIE MD preparing KRA-MRI rental income submission.',
     config: {
       extractionStrictness: 'all-or-fail',
-      requiredVariables: ['landlordKraPin', 'taxYear', 'grossRentKES', 'allowableExpensesKES'],
+      requiredVariables: ['ownerKraPin', 'taxYear', 'grossRoyaltyKES', 'allowableExpensesKES'],
     },
     mustInclude: [
       'If ANY required variable is UNKNOWN, STOP at Step 2',
-      'landlordKraPin',
+      'ownerKraPin',
       'taxYear',
     ],
   },
   {
-    id: 'eviction-notice-math',
-    description: 'Eviction notice — all-or-fail; nothing can be UNKNOWN.',
-    callerPrompt: 'You are BORJIE MD evaluating eviction notice lawfulness.',
+    id: 'licence-suspension-notice-math',
+    description: 'Licence-suspension notice — all-or-fail; nothing can be UNKNOWN.',
+    callerPrompt: 'You are BORJIE MD evaluating licence-suspension notice lawfulness.',
     config: {
       extractionStrictness: 'all-or-fail',
       requiredVariables: [
-        'tenantId',
+        'counterpartyId',
         'jurisdiction',
         'unpaidAmount',
         'daysLate',
@@ -115,14 +115,14 @@ const TASKS: ReadonlyArray<PlanAndSolveTask> = [
     ],
   },
   {
-    id: 'deposit-refund',
-    description: 'Deposit refund split — strict.',
-    callerPrompt: 'You are BORJIE MD computing deposit refunds on vacate.',
+    id: 'bond-refund',
+    description: 'Performance-bond refund split — strict.',
+    callerPrompt: 'You are BORJIE MD computing performance-bond refunds on close-out.',
     config: {
       extractionStrictness: 'strict',
-      requiredVariables: ['depositKES', 'damageCostKES', 'unpaidRentKES'],
+      requiredVariables: ['bondKES', 'damageCostKES', 'unpaidRoyaltyKES'],
     },
-    mustInclude: ['damageCostKES', 'unpaidRentKES'],
+    mustInclude: ['damageCostKES', 'unpaidRoyaltyKES'],
   },
   {
     id: 'mediation-offer-draft',
@@ -130,10 +130,10 @@ const TASKS: ReadonlyArray<PlanAndSolveTask> = [
     callerPrompt: 'You are BORJIE MD drafting mediation offers.',
     config: {
       extractionStrictness: 'strict',
-      requiredVariables: ['tenantId', 'arrearsKES', 'mediationDeadline'],
+      requiredVariables: ['counterpartyId', 'outstandingRoyaltiesKES', 'mediationDeadline'],
       addendum: 'Tone: firm but non-threatening. No threats of escalation in the body.',
     },
-    mustInclude: ['Tone: firm but non-threatening', 'arrearsKES', 'mediationDeadline'],
+    mustInclude: ['Tone: firm but non-threatening', 'outstandingRoyaltiesKES', 'mediationDeadline'],
   },
   {
     id: 'payment-plan-structure',
@@ -141,14 +141,14 @@ const TASKS: ReadonlyArray<PlanAndSolveTask> = [
     callerPrompt: 'You are BORJIE MD proposing payment plans.',
     config: {
       extractionStrictness: 'strict',
-      requiredVariables: ['arrearsKES', 'planMonths', 'aprPercent', 'firstInstallmentDate'],
+      requiredVariables: ['outstandingRoyaltiesKES', 'planMonths', 'aprPercent', 'firstInstallmentDate'],
     },
     mustInclude: ['planMonths', 'aprPercent'],
   },
   {
-    id: 'portfolio-rent-roll',
-    description: 'Portfolio rent-roll consolidation — lenient (multi-unit, missing data tolerable).',
-    callerPrompt: 'You are BORJIE MD consolidating portfolio rent-roll.',
+    id: 'portfolio-royalty-roll',
+    description: 'Portfolio royalty-roll consolidation — lenient (multi-unit, missing data tolerable).',
+    callerPrompt: 'You are BORJIE MD consolidating portfolio royalty-roll.',
     config: {
       extractionStrictness: 'lenient',
       requiredVariables: ['estateId', 'period'],
@@ -209,10 +209,10 @@ describe('wrapWithPlanAndSolve — defaults + edge cases', () => {
   it('appends addendum AFTER the four steps', () => {
     const out = wrapWithPlanAndSolve('MD.', {
       extractionStrictness: 'strict',
-      addendum: 'Cite TZ Rental Act §11.',
+      addendum: 'Cite TZ Mining Act §11.',
     });
     const reflectIdx = out.indexOf('Step 4 — Reflect');
-    const addendumIdx = out.indexOf('Cite TZ Rental Act §11.');
+    const addendumIdx = out.indexOf('Cite TZ Mining Act §11.');
     expect(reflectIdx).toBeGreaterThan(0);
     expect(addendumIdx).toBeGreaterThan(reflectIdx);
   });

@@ -3,10 +3,10 @@ import type { ReactNode } from 'react';
 import type {
   AdaptiveMessageMetadata,
   UIBlock,
-  RentAffordabilityCalculatorBlock,
-  ArrearsProjectionChartBlock,
-  PropertyComparisonTableBlock,
-  LeaseTimelineDiagramBlock,
+  RoyaltyAffordabilityCalculatorBlock,
+  OutstandingRoyaltyProjectionChartBlock,
+  AssetComparisonTableBlock,
+  OfftakeTimelineDiagramBlock,
   MaintenanceCaseFlowDiagramBlock,
   FivePsRiskWheelBlock,
   ConceptCardBlock,
@@ -17,12 +17,12 @@ import type {
   DynamicVisualBlock,
 } from './types';
 import type { Language, Translator } from '../chat-modes/types';
-import { RentAffordabilityCalculator } from './blocks/rent-affordability-calculator';
-import { ArrearsProjectionChart } from './blocks/arrears-projection-chart';
-import { PropertyComparisonTable } from './blocks/property-comparison-table';
-import { LeaseTimelineDiagram } from './blocks/lease-timeline-diagram';
+import { RoyaltyAffordabilityCalculator } from './blocks/royalty-affordability-calculator';
+import { OutstandingRoyaltyProjectionChart } from './blocks/outstanding-royalty-projection-chart';
+import { AssetComparisonTable } from './blocks/asset-comparison-table';
+import { OfftakeTimelineDiagram } from './blocks/offtake-timeline-diagram';
 import { MaintenanceCaseFlowDiagram } from './blocks/maintenance-case-flow-diagram';
-import { FivePsTenancyRiskWheel } from './blocks/5ps-tenancy-risk-wheel';
+import { FivePsOperatorRiskWheel } from './blocks/5ps-operator-risk-wheel';
 import { logger } from '../logger.js';
 
 interface AdaptiveRendererProps {
@@ -72,38 +72,38 @@ function renderBlock(
   },
 ): ReactNode {
   switch (block.type) {
-    case 'rent_affordability_calculator':
+    case 'royalty_affordability_calculator':
       return (
-        <RentAffordabilityCalculator
+        <RoyaltyAffordabilityCalculator
           key={block.id}
-          block={block as RentAffordabilityCalculatorBlock}
+          block={block as RoyaltyAffordabilityCalculatorBlock}
           language={language}
           t={t}
         />
       );
-    case 'arrears_projection_chart':
+    case 'outstanding_royalty_projection_chart':
       return (
-        <ArrearsProjectionChart
+        <OutstandingRoyaltyProjectionChart
           key={block.id}
-          block={block as ArrearsProjectionChartBlock}
+          block={block as OutstandingRoyaltyProjectionChartBlock}
           language={language}
           t={t}
         />
       );
-    case 'property_comparison_table':
+    case 'asset_comparison_table':
       return (
-        <PropertyComparisonTable
+        <AssetComparisonTable
           key={block.id}
-          block={block as PropertyComparisonTableBlock}
+          block={block as AssetComparisonTableBlock}
           language={language}
           t={t}
         />
       );
-    case 'lease_timeline_diagram':
+    case 'offtake_timeline_diagram':
       return (
-        <LeaseTimelineDiagram
+        <OfftakeTimelineDiagram
           key={block.id}
-          block={block as LeaseTimelineDiagramBlock}
+          block={block as OfftakeTimelineDiagramBlock}
           language={language}
           t={t}
         />
@@ -117,9 +117,9 @@ function renderBlock(
           t={t}
         />
       );
-    case 'five_ps_tenancy_risk_wheel':
+    case 'five_ps_operator_risk_wheel':
       return (
-        <FivePsTenancyRiskWheel
+        <FivePsOperatorRiskWheel
           key={block.id}
           block={block as FivePsRiskWheelBlock}
           language={language}

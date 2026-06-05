@@ -40,13 +40,13 @@ describe('retrieveCrossThread — tenant isolation', () => {
         tenantId: 't_a',
         ownerPersonaId: 'persona_1',
         projectId: 'proj_1',
-        message: makeMessage('m_1', 'thr_a', 'eviction protocol'),
+        message: makeMessage('m_1', 'thr_a', 'incursion response protocol'),
       },
       {
         tenantId: 't_b',
         ownerPersonaId: 'persona_1',
         projectId: 'proj_1',
-        message: makeMessage('m_2', 'thr_b', 'eviction protocol'),
+        message: makeMessage('m_2', 'thr_b', 'incursion response protocol'),
       },
     ];
     const repo = createInMemoryRetrievalRepository({ entries });
@@ -54,7 +54,7 @@ describe('retrieveCrossThread — tenant isolation', () => {
       tenantId: 't_a',
       ownerPersonaId: 'persona_1',
       projectId: 'proj_1',
-      query: 'eviction',
+      query: 'incursion',
       repository: repo,
     });
     expect(result.length).toBe(1);
@@ -198,7 +198,7 @@ describe('retrieveCrossThread — limit', () => {
         projectId: 'proj_1',
         message: {
           ...makeMessage('m_1', 'thr_a', ''),
-          contentJsonb: { type: 'tool_use', name: 'read.lease' },
+          contentJsonb: { type: 'tool_use', name: 'read.offtake' },
         },
       },
     ];

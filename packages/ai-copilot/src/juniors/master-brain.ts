@@ -172,12 +172,33 @@ export function formatRetrievedContextBlock(
   return lines.length > 1 ? lines.join('\n') : '';
 }
 
+/**
+ * Render the INTERNAL lens-blend steering block. The chat orchestrator
+ * classifies the owner message into 1..N persona lenses (the owner never
+ * picks a mode) and injects them via `context.activeLenses` +
+ * `context.lensDirective`. Surfacing them as a dedicated prompt line — not
+ * just buried in CONTEXT_JSON — makes the brain actually reason through the
+ * blend when selecting juniors. No lenses ⇒ `''` (prompt byte-identical to
+ * the un-lensed path, so legacy callers are unaffected).
+ */
+export function formatActiveLensBlock(
+  context: Readonly<Record<string, unknown>>,
+): string {
+  const lenses = context['activeLenses'];
+  const directive = context['lensDirective'];
+  if (!Array.isArray(lenses) || lenses.length === 0) return '';
+  if (typeof directive !== 'string' || directive.trim().length === 0) return '';
+  return `ACTIVE_LENSES (${lenses.join(', ')}):\n${directive}`;
+}
+
 export function buildMasterBrainUserPrompt(input: MasterBrainInput): string {
   const retrieved = formatRetrievedContextBlock(input.retrievedContext);
+  const lensBlock = formatActiveLensBlock(input.context);
   return [
     `TENANT: ${input.tenantId}`,
     `MODE: ${input.mode}`,
     `LANGUAGE: ${input.language}`,
+    ...(lensBlock ? [lensBlock] : []),
     `CONTEXT_JSON: ${JSON.stringify(input.context).slice(0, 4_000)}`,
     ...(retrieved ? [retrieved] : []),
     `OWNER_QUERY:`,

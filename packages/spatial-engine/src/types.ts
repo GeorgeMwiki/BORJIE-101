@@ -56,9 +56,14 @@ export type AuthoritativeSource =
   | 'microsoft_ml_footprints'
   | 'unknown';
 
-export type OccupancyStatus =
-  | 'vacant'
-  | 'occupied'
+/**
+ * Asset-utilisation status of a mapped unit (mining-estate analogue of
+ * real-estate occupancy). `available` = spare capacity not yet under
+ * an active offtake; `in_production` = contracted and producing.
+ */
+export type UtilisationStatus =
+  | 'available'
+  | 'in_production'
   | 'reserved'
   | 'under_maintenance'
   | 'not_available'
@@ -81,27 +86,26 @@ export type ElementCondition =
   | 'unknown';
 
 export type RoomType =
-  | 'bedroom'
-  | 'bathroom'
-  | 'kitchen'
-  | 'living'
-  | 'dining'
   | 'office'
+  | 'control_room'
+  | 'laboratory'
+  | 'workshop'
   | 'storage'
   | 'utility'
-  | 'balcony'
+  | 'canteen'
+  | 'change_room'
   | 'corridor'
-  | 'commercial'
+  | 'processing_floor'
   | 'other';
 
 export type MapLayerKind =
-  | 'occupancy'
+  | 'utilisation'
   | 'condition'
   | 'status'
-  | 'arrears'
+  | 'outstanding_royalties'
   | 'compliance'
   | 'maintenance'
-  | 'rent_band'
+  | 'royalty_band'
   | 'custom';
 
 // ============================================================================
@@ -121,7 +125,7 @@ export interface Provenance {
 export interface Parcel extends Provenance {
   readonly id: string;
   readonly tenantId: string;
-  readonly propertyId?: string;
+  readonly siteId?: string;
   readonly name: string;
   readonly boundary: GeoJsonMultiPolygon;
   readonly centroid: GeoJsonPoint;
@@ -158,11 +162,11 @@ export interface Unit {
   readonly id: string;
   readonly tenantId: string;
   readonly floorId: string;
-  readonly leasableUnitId?: string;
+  readonly contractedUnitId?: string;
   readonly unitCode: string;
   readonly outline: GeoJsonPolygon;
   readonly areaSqm: number;
-  readonly occupancyStatus: OccupancyStatus;
+  readonly utilisationStatus: UtilisationStatus;
   readonly metadata: Readonly<Record<string, unknown>>;
 }
 

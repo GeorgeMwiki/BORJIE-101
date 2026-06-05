@@ -7,10 +7,10 @@
  * Why this file exists (ProdFix-1 wires 4 + 5):
  *
  *   The HQ tool registry already supports optional `nida`, `eardhi`,
- *   `evictionDispatcher`, `ownerPayoutDispatcher`, and `kraMriDispatcher`
+ *   `licenceSuspensionDispatcher`, `ownerPayoutDispatcher`, and `kraMriDispatcher`
  *   slots — every one of them was unbound in the gateway composition
  *   root, so `platform.verify_nida` / `platform.verify_eardhi_title` /
- *   `platform.evict_tenant` / `platform.payout_owner` /
+ *   `platform.suspend_licence` / `platform.payout_owner` /
  *   `platform.file_kra_mri` all surfaced their placeholder stubs
  *   (see {@link NOT_YET_WIRED_REASON}) even when the real adapters +
  *   workflow dispatchers were available.
@@ -134,7 +134,7 @@ export function createHqToolPortBindings(
     return null;
   });
 
-  const lazyEvictionDispatcher = createLazyEvictionDispatcher(
+  const lazyLicenceSuspensionDispatcher = createLazyLicenceSuspensionDispatcher(
     temporalBundlePromise,
   );
   const lazyOwnerPayoutDispatcher = createLazyOwnerPayoutDispatcher(
@@ -152,7 +152,7 @@ export function createHqToolPortBindings(
       : {}),
     ...(nidaPort ? { nida: nidaPort } : {}),
     ...(eardhiPort ? { eardhi: eardhiPort } : {}),
-    evictionDispatcher: lazyEvictionDispatcher,
+    licenceSuspensionDispatcher: lazyLicenceSuspensionDispatcher,
     ownerPayoutDispatcher: lazyOwnerPayoutDispatcher,
     kraMriDispatcher: lazyKraMriDispatcher,
     ...(logger
@@ -386,19 +386,19 @@ function formatConnectorFailure(outcome: {
 // tool's executor surfaces a deterministic refusal (caller sees the
 // same shape as the placeholder stub — see NOT_YET_WIRED_REASON).
 
-function createLazyEvictionDispatcher(
+function createLazyLicenceSuspensionDispatcher(
   bundlePromise: Promise<TemporalDispatcherBundle | null>,
-): hqTools.SeedHqBrainToolsDeps['evictionDispatcher'] {
+): hqTools.SeedHqBrainToolsDeps['licenceSuspensionDispatcher'] {
   return {
     async start(args) {
       const bundle = await bundlePromise;
       if (!bundle) throw new Error('temporal-not-ready');
-      return bundle.evictionDispatcher.start(args);
+      return bundle.licenceSuspensionDispatcher.start(args);
     },
     async withdraw(args) {
       const bundle = await bundlePromise;
       if (!bundle) throw new Error('temporal-not-ready');
-      return bundle.evictionDispatcher.withdraw(args);
+      return bundle.licenceSuspensionDispatcher.withdraw(args);
     },
   };
 }

@@ -4,9 +4,9 @@
  * K-D ships a Reflexion outer loop: at session end, a verbal
  * reflection is written into the Reflection memory tier so the next
  * session can read it. To make those reflections retrievable by
- * task_class (so a future eviction turn loads "lessons from last
- * eviction"), each reflection should carry a `taskClass` tag matching
- * the discovered Self-Discover structure.
+ * task_class (so a future licence-suspension turn loads "lessons from
+ * last licence-suspension"), each reflection should carry a `taskClass`
+ * tag matching the discovered Self-Discover structure.
  *
  * This shim takes a free-form Reflexion writer port and a discovered
  * `ReasoningStructure`, and writes a TAGGED reflection. Duck-typed —

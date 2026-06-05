@@ -7,22 +7,17 @@ import OpenAI from 'openai';
 import { z } from 'zod';
 import { MAINTENANCE_TRIAGE_CLASSIFICATION_PROMPT } from '../prompts/index.js';
 
-// Types
+// Types — mining equipment-maintenance taxonomy
+// (mirrors the central-intelligence maintenance-dispatch classifier).
 export const MaintenanceCategory = {
-  PLUMBING: 'PLUMBING',
+  PUMPING: 'PUMPING',
   ELECTRICAL: 'ELECTRICAL',
-  HVAC: 'HVAC',
-  APPLIANCE: 'APPLIANCE',
+  HYDRAULICS: 'HYDRAULICS',
+  PROCESSING: 'PROCESSING',
+  VEHICLE: 'VEHICLE',
   STRUCTURAL: 'STRUCTURAL',
-  PEST_CONTROL: 'PEST_CONTROL',
   SAFETY: 'SAFETY',
-  EXTERIOR: 'EXTERIOR',
-  COMMON_AREA: 'COMMON_AREA',
-  COSMETIC: 'COSMETIC',
-  ROOFING: 'ROOFING',
-  FLOORING: 'FLOORING',
-  LOCKS_SECURITY: 'LOCKS_SECURITY',
-  OTHER: 'OTHER',
+  GENERAL: 'GENERAL',
 } as const;
 
 export type MaintenanceCategory = (typeof MaintenanceCategory)[keyof typeof MaintenanceCategory];
@@ -73,9 +68,8 @@ export interface ClassifyMaintenanceResult {
 }
 
 const ClassifyMaintenanceResultSchema = z.object({
-  category: z.enum(['PLUMBING', 'ELECTRICAL', 'HVAC', 'APPLIANCE', 'STRUCTURAL',
-    'PEST_CONTROL', 'SAFETY', 'EXTERIOR', 'COMMON_AREA', 'COSMETIC',
-    'ROOFING', 'FLOORING', 'LOCKS_SECURITY', 'OTHER']),
+  category: z.enum(['PUMPING', 'ELECTRICAL', 'HYDRAULICS', 'PROCESSING',
+    'VEHICLE', 'STRUCTURAL', 'SAFETY', 'GENERAL']),
   subcategory: z.string().optional(),
   severity: z.enum(['CRITICAL', 'HIGH', 'MEDIUM', 'LOW']),
   urgency: z.enum(['EMERGENCY', 'URGENT', 'HIGH', 'STANDARD', 'LOW']),

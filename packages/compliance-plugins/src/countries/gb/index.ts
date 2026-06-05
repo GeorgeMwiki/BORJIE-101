@@ -1,19 +1,20 @@
 /**
- * United Kingdom (GB) — HMRC Non-Resident Landlord Scheme.
+ * United Kingdom (GB) — HMRC withholding on non-resident mineral proceeds.
  *
  * Source: Income Tax Act 2007 Part 11 & Finance Act 1995 § 42 —
- * letting agents / tenants must withhold 20% basic-rate tax on rent paid
- * to a non-resident landlord unless the landlord holds HMRC approval.
+ * UK payers must withhold 20% basic-rate tax on proceeds paid to a
+ * non-resident operator unless the operator holds HMRC approval.
  *
- * Deposit law: Housing Act 2004 Part 6 mandates deposit protection in an
- * authorised scheme within 30 days (TDP / DPS / MyDeposits).
+ * Mining law: Mines (Working Facilities and Support) Act 1966 + the Crown
+ * Estate / Coal Authority licensing regime govern mineral rights and the
+ * performance bonds required of operators.
  */
 
 import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -65,19 +66,19 @@ const ukCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 5, // Tenant Fees Act 2019: 5 weeks < £50k annual rent
+    minBondMonths: 0,
+    maxBondMonths: 5, // performance-bond norm ≈ 5 weeks royalty
     noticePeriodDays: 60,
-    minimumLeaseMonths: 6,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 6,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 10,
+    bondReturnDays: 10,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: 'Assured Shorthold Tenancy Agreement (GB)',
-      templatePath: 'gb/ast-agreement.hbs',
+      id: 'offtake-agreement',
+      name: 'Mineral Offtake & Supply Agreement (GB)',
+      templatePath: 'gb/offtake-agreement.hbs',
       locale: 'en-GB',
     },
   ],
@@ -96,8 +97,8 @@ export const ukProfile: ExtendedCountryProfile = {
   }),
   taxRegime: buildFlatWithholding(
     20,
-    'GB-HMRC-NRLS',
-    'Non-Resident Landlord Scheme: 20% basic-rate withholding on rent paid to a non-resident landlord (ITA 2007 Part 11).'
+    'GB-HMRC-NR',
+    'Non-resident withholding: 20% basic-rate tax on mineral proceeds paid to a non-resident operator (ITA 2007 Part 11).'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -134,40 +135,40 @@ export const ukProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
-        id: 'gb-deposit-scheme',
-        label: 'Deposit must sit in authorised TDP / DPS / MyDeposits scheme',
+        id: 'gb-bond-security',
+        label: 'Performance / restoration bond held against operator obligations',
         mandatory: true,
-        citation: 'Housing Act 2004 Part 6',
+        citation: 'Mines (Working Facilities and Support) Act 1966',
       },
       {
-        id: 'gb-section-21-grounds',
-        label: 'Notice grounds (Section 21 or Section 8 Housing Act 1988)',
+        id: 'gb-notice-grounds',
+        label: 'Notice / termination grounds for the offtake or supply agreement',
         mandatory: true,
-        citation: 'Housing Act 1988 §§ 8, 21',
+        citation: 'Coal Industry Act 1994; Crown Estate licence conditions',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 60, // Section 21 — 2 months
+      'licence-expiry': 60, // 2 months
       'renewal-non-continuation': 60,
-      'non-payment': 14, // Section 8 Ground 8 — 14 days
-      'breach-of-covenant': 14,
+      'royalty-default': 14, // 14-day cure
+      'breach-of-condition': 14,
     },
-    depositCapByRegime: {
-      'residential-standard': {
-        maxWeeksOfRent: 5,
-        citation: 'Tenant Fees Act 2019 (annual rent < £50k → 5 weeks cap)',
+    bondCapByRegime: {
+      'artisanal-standard': {
+        maxWeeksOfRoyalty: 5,
+        citation: 'Performance-bond norm (≈ 5 weeks royalty for small operators)',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         citation:
-          'No statutory cap on AST rent increases — Section 13 procedure applies on periodic tenancies.',
+          'No statutory cap on royalty escalation — review procedure applies per agreement.',
       },
     },
     defaultNoticeWindowDays: 60,
   }),
-  tenantScreening: buildStubScreeningPort('EXPERIAN_GB'),
+  counterpartyScreening: buildStubScreeningPort('EXPERIAN_GB'),
 };

@@ -1,6 +1,6 @@
 /**
- * VP Finance — weekly report drafting. NOI, occupancy, arrears, cash
- * position rendered as KPI cards via genui.
+ * VP Finance — weekly report drafting. NOI, asset-utilization,
+ * outstanding-royalties, cash position rendered as KPI cards via genui.
  */
 
 import type { ScopeContext } from '../../../types.js';
@@ -33,8 +33,8 @@ export async function draftFinanceWeeklyReport(args: {
   readonly weekStartingIso: string;
   readonly rollups: ReadonlyArray<VpLineWorkerRollup>;
 }): Promise<VpWeeklyReport> {
-  const arrears = pick(args.rollups, 'arrears.chaser');
-  const kra = pick(args.rollups, 'kra.filing-assistant');
+  const arrears = pick(args.rollups, 'royalty.chaser');
+  const kra = pick(args.rollups, 'tra.filing-assistant');
   const utilities = pick(args.rollups, 'utility-billing-clerk');
   const cashflow = pick(args.rollups, 'cashflow-forecaster');
 
@@ -43,25 +43,25 @@ export async function draftFinanceWeeklyReport(args: {
       title: 'NOI',
       headline: 'Net operating income (rolling)',
       ...(cashflow ? { rollup: cashflow } : {}),
-      numericUnit: 'KES',
+      numericUnit: 'TZS',
       fallbackCommentary: 'Forecast vs. actual from cashflow-forecaster.',
     }),
     buildVpReportCard({
-      title: 'Occupancy',
-      headline: 'Occupancy (billing-side)',
+      title: 'Asset utilization',
+      headline: 'Asset utilization (billing-side)',
       ...(utilities ? { rollup: utilities } : {}),
       numericUnit: '%',
     }),
     buildVpReportCard({
       title: 'Arrears',
-      headline: 'Open arrears balance',
+      headline: 'Open outstanding-royalties balance',
       ...(arrears ? { rollup: arrears } : {}),
-      numericUnit: 'KES',
+      numericUnit: 'TZS',
       fallbackCommentary: 'Aging buckets in line-worker rollup.',
     }),
     buildVpReportCard({
       title: 'Cash position',
-      headline: 'KRA filing readiness',
+      headline: 'TRA filing readiness',
       ...(kra ? { rollup: kra } : {}),
       fallbackCommentary: 'Filing window status.',
     }),

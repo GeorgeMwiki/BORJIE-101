@@ -74,7 +74,7 @@ function makeRequest(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: `th-${Math.random().toString(36).slice(2, 8)}`,
     userMessage: 'How is the rent ledger this month?',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'medium',
     surface: 'estate-manager-app',
     ...over,

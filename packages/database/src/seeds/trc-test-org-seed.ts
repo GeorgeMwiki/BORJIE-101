@@ -6,10 +6,10 @@
  *
  *   - 1 tenant (TRC Corporation, country TZ, currency TZS)
  *   - 1 root organization (TRC Head Office)
- *   - 5 roles (internal_admin, property_manager, estate_manager, owner, customer)
+ *   - 5 roles (internal_admin, site-manager, estate_manager, owner, customer)
  *   - 5 users, one per role, with deterministic IDs and stable email aliases
  *
- * The seed deliberately writes NO properties, units, leases, payments,
+ * The seed deliberately writes NO sites, blocks, offtakes, payments,
  * maintenance, or transactions. All operational data must be created by
  * the user's first conversation with the MD agent. This guarantees:
  *
@@ -86,17 +86,21 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   },
   {
     id: TRC_ROLE_IDS.property_manager,
-    name: 'property_manager',
-    displayName: 'Property Manager',
-    description: 'Day-to-day operator: leasing, collections, maintenance, vendors.',
+    // Persisted role name uses the canonical mining vocabulary (INT-5):
+    // legacy 'property_manager' -> 'site-manager'. The TS object key / natural-
+    // key id stay stable so onConflictDoNothing remains idempotent against rows
+    // seeded before the rename; migration 0183 relabels any such legacy row.
+    name: 'site-manager',
+    displayName: 'Site Manager',
+    description: 'Day-to-day operator: offtakes, royalty collections, maintenance, contractors.',
     priority: 70,
     permissions: [
-      'property:read',
-      'property:write',
+      'site:read',
+      'site:write',
       'unit:read',
       'unit:write',
-      'lease:read',
-      'lease:write',
+      'offtake:read',
+      'offtake:write',
       'tenant:read',
       'tenant:write',
       'maintenance:read',
@@ -109,14 +113,14 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
     id: TRC_ROLE_IDS.estate_manager,
     name: 'estate_manager',
     displayName: 'Estate Manager',
-    description: 'Portfolio-level oversight: approvals, reporting, owner relations.',
+    description: 'Estate-level oversight: approvals, reporting, owner relations.',
     priority: 80,
     permissions: [
-      'property:read',
-      'property:write',
+      'site:read',
+      'site:write',
       'unit:read',
-      'lease:read',
-      'lease:approve',
+      'offtake:read',
+      'offtake:approve',
       'maintenance:read',
       'maintenance:approve',
       'payment:read',
@@ -129,13 +133,13 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   {
     id: TRC_ROLE_IDS.owner,
     name: 'owner',
-    displayName: 'Property Owner',
-    description: 'Sees only their own portfolio: ROI, statements, advisory.',
+    displayName: 'Mining Estate Owner',
+    description: 'Sees only their own estate: ROI, statements, advisory.',
     priority: 60,
     permissions: [
-      'property:read:own',
+      'site:read:own',
       'unit:read:own',
-      'lease:read:own',
+      'offtake:read:own',
       'payment:read:own',
       'report:read:own',
       'communication:read:own',
@@ -144,11 +148,11 @@ const TRC_ROLES: readonly TrcRoleSpec[] = [
   {
     id: TRC_ROLE_IDS.customer,
     name: 'customer',
-    displayName: 'Tenant / Resident',
-    description: 'Pays rent, raises tickets, sees their own lease and notices.',
+    displayName: 'Buyer / Counterparty',
+    description: 'Pays royalties, raises tickets, sees their own offtake and notices.',
     priority: 20,
     permissions: [
-      'lease:read:own',
+      'offtake:read:own',
       'payment:read:own',
       'payment:write:own',
       'maintenance:read:own',
@@ -190,7 +194,7 @@ const TRC_USERS: readonly TrcUserSpec[] = [
     id: TRC_USER_IDS.property_manager,
     roleName: 'property_manager',
     firstName: 'TRC',
-    lastName: 'PropertyManager',
+    lastName: 'SiteManager',
     email: 'trc+pm@borjie.test',
     phone: '+255700000002',
     isOwner: false,
@@ -220,7 +224,7 @@ const TRC_USERS: readonly TrcUserSpec[] = [
     id: TRC_USER_IDS.customer,
     roleName: 'customer',
     firstName: 'TRC',
-    lastName: 'Tenant',
+    lastName: 'Buyer',
     email: 'trc+tenant@borjie.test',
     phone: '+255700000005',
     isOwner: false,
@@ -362,7 +366,7 @@ export async function seedTrcTestOrg(db: DatabaseClient): Promise<void> {
   // memory (semantic facts + core blocks + reflexion lessons) and the
   // elastic-architecture config (tenant.settings.elasticConfig +
   // approval_policies). Both are idempotent — re-running this seed
-  // produces no net change. Operational data (properties/units/leases/
+  // produces no net change. Operational data (sites/blocks/offtakes/
   // payments) is STILL not seeded; that contract is preserved.
   const baseline = await seedTrcQuestionnaireBaseline(db);
   const elastic = await seedTrcElasticConfig(db);
@@ -377,6 +381,6 @@ export async function seedTrcTestOrg(db: DatabaseClient): Promise<void> {
   console.log(
     `[trc]   elastic: config_keys=${elastic.elasticConfigKeys.length} approval_policies=${elastic.approvalPoliciesWritten}`,
   );
-  console.log(`[trc]   NOTE: no properties/units/leases/payments seeded —`);
+  console.log(`[trc]   NOTE: no sites/blocks/offtakes/payments seeded —`); // eslint-disable-line no-console -- reason: seed-script CLI progress output
   console.log(`[trc]   all operational data flows from the user's first MD chat.`);
 }

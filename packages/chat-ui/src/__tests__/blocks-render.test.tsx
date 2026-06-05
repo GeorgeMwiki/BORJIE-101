@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ArrearsProjectionChart } from '../generative-ui/blocks/arrears-projection-chart';
-import { PropertyComparisonTable } from '../generative-ui/blocks/property-comparison-table';
-import { LeaseTimelineDiagram } from '../generative-ui/blocks/lease-timeline-diagram';
+import { OutstandingRoyaltyProjectionChart } from '../generative-ui/blocks/outstanding-royalty-projection-chart';
+import { AssetComparisonTable } from '../generative-ui/blocks/asset-comparison-table';
+import { OfftakeTimelineDiagram } from '../generative-ui/blocks/offtake-timeline-diagram';
 import { MaintenanceCaseFlowDiagram } from '../generative-ui/blocks/maintenance-case-flow-diagram';
 import type {
-  ArrearsProjectionChartBlock,
-  LeaseTimelineDiagramBlock,
+  OutstandingRoyaltyProjectionChartBlock,
+  OfftakeTimelineDiagramBlock,
   MaintenanceCaseFlowDiagramBlock,
-  PropertyComparisonTableBlock,
+  AssetComparisonTableBlock,
 } from '../generative-ui/types';
 
-describe('ArrearsProjectionChart', () => {
+describe('OutstandingRoyaltyProjectionChart', () => {
   it('renders the chart with provided points', () => {
-    const block: ArrearsProjectionChartBlock = {
+    const block: OutstandingRoyaltyProjectionChartBlock = {
       id: 'a1',
-      type: 'arrears_projection_chart',
+      type: 'outstanding_royalty_projection_chart',
       position: 'below',
-      title: 'Arrears',
-      monthlyRent: 25000,
+      title: 'Outstanding royalties',
+      monthlyRoyalty: 25000,
       currency: 'KES',
       monthsDelinquent: 3,
       lateFeePerMonth: 1000,
@@ -29,87 +29,87 @@ describe('ArrearsProjectionChart', () => {
         { month: 3, cumulative: 78000 },
       ],
     };
-    render(<ArrearsProjectionChart block={block} language="en" />);
-    expect(screen.getByTestId('arrears-projection-chart')).toBeInTheDocument();
-    expect(screen.getByTestId('arrears-line')).toBeInTheDocument();
+    render(<OutstandingRoyaltyProjectionChart block={block} language="en" />);
+    expect(screen.getByTestId('outstanding-royalty-projection-chart')).toBeInTheDocument();
+    expect(screen.getByTestId('outstanding-royalty-line')).toBeInTheDocument();
   });
 
   it('handles empty points gracefully', () => {
-    const block: ArrearsProjectionChartBlock = {
+    const block: OutstandingRoyaltyProjectionChartBlock = {
       id: 'a2',
-      type: 'arrears_projection_chart',
+      type: 'outstanding_royalty_projection_chart',
       position: 'below',
-      title: 'Arrears',
-      monthlyRent: 10000,
+      title: 'Outstanding royalties',
+      monthlyRoyalty: 10000,
       currency: 'KES',
       monthsDelinquent: 0,
       lateFeePerMonth: 0,
       points: [],
     };
-    render(<ArrearsProjectionChart block={block} language="en" />);
-    expect(screen.getByTestId('arrears-projection-chart')).toBeInTheDocument();
+    render(<OutstandingRoyaltyProjectionChart block={block} language="en" />);
+    expect(screen.getByTestId('outstanding-royalty-projection-chart')).toBeInTheDocument();
   });
 });
 
-describe('PropertyComparisonTable', () => {
+describe('AssetComparisonTable', () => {
   it('renders headers and rows', () => {
-    const block: PropertyComparisonTableBlock = {
+    const block: AssetComparisonTableBlock = {
       id: 'p1',
-      type: 'property_comparison_table',
+      type: 'asset_comparison_table',
       position: 'below',
-      title: 'Property comparison',
+      title: 'Asset comparison',
       columns: [{ header: 'Unit A' }, { header: 'Unit B', highlight: true }],
-      rows: [{ label: 'Rent', values: ['25,000', '30,000'] }],
+      rows: [{ label: 'Royalty', values: ['25,000', '30,000'] }],
     };
-    render(<PropertyComparisonTable block={block} language="en" />);
+    render(<AssetComparisonTable block={block} language="en" />);
     expect(screen.getByText('Unit A')).toBeInTheDocument();
     expect(screen.getByText('Unit B')).toBeInTheDocument();
     expect(screen.getByText('25,000')).toBeInTheDocument();
   });
 
   it('shows empty state when no rows', () => {
-    const block: PropertyComparisonTableBlock = {
+    const block: AssetComparisonTableBlock = {
       id: 'p2',
-      type: 'property_comparison_table',
+      type: 'asset_comparison_table',
       position: 'below',
       title: 'Empty',
       columns: [],
       rows: [],
     };
-    render(<PropertyComparisonTable block={block} language="en" />);
-    expect(screen.getByTestId('property-comparison-empty')).toBeInTheDocument();
+    render(<AssetComparisonTable block={block} language="en" />);
+    expect(screen.getByTestId('asset-comparison-empty')).toBeInTheDocument();
   });
 });
 
-describe('LeaseTimelineDiagram', () => {
+describe('OfftakeTimelineDiagram', () => {
   it('renders each event by status', () => {
-    const block: LeaseTimelineDiagramBlock = {
+    const block: OfftakeTimelineDiagramBlock = {
       id: 'l1',
-      type: 'lease_timeline_diagram',
+      type: 'offtake_timeline_diagram',
       position: 'below',
-      title: 'Lease timeline',
+      title: 'Offtake timeline',
       events: [
         { label: 'Signing', date: 'Jan', status: 'completed' },
         { label: 'Renewal', date: 'Oct', status: 'current' },
         { label: 'End', date: 'Dec', status: 'upcoming' },
       ],
     };
-    render(<LeaseTimelineDiagram block={block} language="en" />);
-    expect(screen.getByTestId('lease-event-completed')).toBeInTheDocument();
-    expect(screen.getByTestId('lease-event-current')).toBeInTheDocument();
-    expect(screen.getByTestId('lease-event-upcoming')).toBeInTheDocument();
+    render(<OfftakeTimelineDiagram block={block} language="en" />);
+    expect(screen.getByTestId('offtake-event-completed')).toBeInTheDocument();
+    expect(screen.getByTestId('offtake-event-current')).toBeInTheDocument();
+    expect(screen.getByTestId('offtake-event-upcoming')).toBeInTheDocument();
   });
 
   it('shows empty state when events missing', () => {
-    const block: LeaseTimelineDiagramBlock = {
+    const block: OfftakeTimelineDiagramBlock = {
       id: 'l2',
-      type: 'lease_timeline_diagram',
+      type: 'offtake_timeline_diagram',
       position: 'below',
       title: 'Empty',
       events: [],
     };
-    render(<LeaseTimelineDiagram block={block} language="en" />);
-    expect(screen.getByTestId('lease-timeline-empty')).toBeInTheDocument();
+    render(<OfftakeTimelineDiagram block={block} language="en" />);
+    expect(screen.getByTestId('offtake-timeline-empty')).toBeInTheDocument();
   });
 });
 

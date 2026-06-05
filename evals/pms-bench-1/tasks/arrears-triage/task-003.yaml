@@ -1,25 +1,25 @@
 id: arrears-triage-003
 scenario: arrears-triage
-title: '3-day arrears, long-standing tenant, payment failure (bank reject)'
+title: '3-day outstanding royalty, long-standing offtaker, payment failure (bank reject)'
 context:
-  tenant:
-    id: tnt-003
+  counterparty:
+    id: cpty-003
     name: 'Grace Mboya'
-    arrears_days: 3
-    history: 5-year-tenant-zero-prior-arrears
-  property:
-    id: prop-003
-    block: 'Block B'
-    unit: '7C'
-  lease:
-    monthly_rent_minor: 85000000
+    outstanding_days: 3
+    history: 5-year-offtaker-zero-prior-default
+  asset:
+    id: site-003
+    zone: 'Lake Zone'
+    pit: 'Pit 7C'
+  offtake:
+    monthly_royalty_minor: 85000000
     currency: TZS
   events:
     - {at: '2026-04-30', kind: 'payment_attempted', amount_minor: 85000000}
     - {at: '2026-05-01', kind: 'payment_failed', reason: 'insufficient_funds'}
 expected_actions:
-  - {tool: 'arrears.send_friendly_nudge', tone: 'warm-respectful'}
-  - {tool: 'arrears.offer_payment_retry', delay_hours: 48}
+  - {tool: 'royalty.send_friendly_nudge', tone: 'warm-respectful'}
+  - {tool: 'royalty.offer_payment_retry', delay_hours: 48}
 expected_escalation: false
 scorer_weights:
   action-correctness: 0.3

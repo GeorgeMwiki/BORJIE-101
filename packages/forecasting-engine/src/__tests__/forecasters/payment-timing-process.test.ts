@@ -15,8 +15,8 @@ import {
   expectedArrivalsOverHorizon,
 } from '../../forecasters/stochastic/maintenance-arrival-process.js';
 import {
-  simulateLeaseLifecycle,
-} from '../../forecasters/discrete-event/lease-lifecycle-sim.js';
+  simulateOfftakeLifecycle,
+} from '../../forecasters/discrete-event/offtake-lifecycle-sim.js';
 import {
   simulateMaintenanceQueue,
 } from '../../forecasters/discrete-event/maintenance-queue-sim.js';
@@ -25,11 +25,11 @@ describe('paymentTimingProcess', () => {
   it('fits log-normal interval and samples deterministically by seed', () => {
     const dayMs = 86_400_000;
     const obs = Array.from({ length: 12 }, (_, i) => ({
-      tenantId: 't1',
+      counterpartyId: 't1',
       tMs: i * 30 * dayMs,
     }));
     const params = fitPaymentTiming(obs);
-    expect(params.tenantId).toBe('t1');
+    expect(params.counterpartyId).toBe('t1');
     const a = samplePaymentTimes({ params, horizonMs: 365 * dayMs, seed: 7 });
     const b = samplePaymentTimes({ params, horizonMs: 365 * dayMs, seed: 7 });
     expect(a).toEqual(b);
@@ -40,7 +40,7 @@ describe('paymentTimingProcess', () => {
   });
 
   it('throws on too-few observations', () => {
-    expect(() => fitPaymentTiming([{ tenantId: 't', tMs: 0 }])).toThrow();
+    expect(() => fitPaymentTiming([{ counterpartyId: 't', tMs: 0 }])).toThrow();
   });
 });
 
@@ -80,20 +80,20 @@ describe('maintenanceArrivalProcess', () => {
   });
 });
 
-describe('leaseLifecycleSim', () => {
-  it('emits at least one lease-signed event', () => {
-    const ev = simulateLeaseLifecycle({
-      tenantId: 't1',
+describe('offtakeLifecycleSim', () => {
+  it('emits at least one offtake-signed event', () => {
+    const ev = simulateOfftakeLifecycle({
+      counterpartyId: 't1',
       startMs: 0,
       horizonMs: 365 * 86_400_000,
-      monthlyRent: 50_000,
+      monthlyRoyalty: 50_000,
       paymentReliability: 0.9,
       renewalProbability: 0.7,
-      leaseTermMonths: 12,
-      daysToFillVacant: 30,
+      offtakeTermMonths: 12,
+      daysToReContract: 30,
       seed: 42,
     });
-    expect(ev.find((e) => e.kind === 'lease-signed')).toBeDefined();
+    expect(ev.find((e) => e.kind === 'offtake-signed')).toBeDefined();
     expect(ev.length).toBeGreaterThan(1);
   });
 });

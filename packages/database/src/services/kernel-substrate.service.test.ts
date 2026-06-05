@@ -135,7 +135,7 @@ describe('createKernelSubstrateService', () => {
       thoughtId: 'th-4',
       threadId: 'thr-4',
       scopeKind: 'tenant',
-      tier: 'lease',
+      tier: 'offtake',
       stakes: 'medium',
       inputHash: 'in',
       outputHash: 'out',
@@ -145,7 +145,7 @@ describe('createKernelSubstrateService', () => {
       judgeScore: 0.8,
       cohortFingerprints: ['fp1', 'fp2'],
       toolCallSummaries: [
-        { toolName: 'rent.send', latencyMs: 100, ok: true },
+        { toolName: 'royalty.send', latencyMs: 100, ok: true },
       ],
       latencyMs: 250,
       producedAt: '2026-05-08T12:00:00Z',

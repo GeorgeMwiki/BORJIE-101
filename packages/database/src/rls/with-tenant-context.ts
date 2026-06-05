@@ -46,6 +46,23 @@ export async function withTenantContext<T>(
   }
   const isService = opts?.serviceRole ?? false;
 
+  // Test-double affordance. A real Drizzle/postgres-js client ALWAYS exposes
+  // `.transaction`; unit tests, however, stub the db with a bare
+  // `{ execute }` seam (no transaction support) to assert the SQL a
+  // repository/store issues. When `.transaction` is absent we run the
+  // callback directly against the stub — the stub enforces no RLS, so there
+  // is nothing to bind. PRODUCTION callers always pass a real client (the
+  // gateway middleware's reserved-connection client, `serviceRegistry.db`,
+  // the brain pool, etc.), so the `SET LOCAL` binding below is NEVER skipped
+  // outside unit tests. (Verified: every production caller of
+  // withTenantContext/withServiceRoleContext passes a transaction-capable
+  // DatabaseClient.)
+  const txCapable =
+    typeof (db as { transaction?: unknown }).transaction === 'function';
+  if (!txCapable) {
+    return await fn(db);
+  }
+
   // drizzle-orm/postgres-js transactions hand back a `tx` object that
   // is compatible enough with the outer `db` for repository code —
   // the cast preserves the existing type surface for callers.

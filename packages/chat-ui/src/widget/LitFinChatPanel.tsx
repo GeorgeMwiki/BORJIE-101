@@ -43,9 +43,8 @@ interface LitFinChatPanelProps {
   /**
    * EN compliance line shown in the bottom footer. Defaults to the
    * generic "owner" copy so a missing prop never reverts to the wrong
-   * domain (the Borjie mining domain says "mine owner", BossNyumba real
-   * estate says "landlord"). Mount components MUST pass the domain-
-   * specific copy.
+   * domain (the Borjie mining domain says "mine owner"). Mount
+   * components MUST pass the domain-specific copy.
    */
   readonly disclaimerEn?: string;
   /** SW compliance line. Same fallback rules as disclaimerEn. */

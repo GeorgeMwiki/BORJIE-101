@@ -34,11 +34,11 @@ export function routeRiskComplianceIntent(intent: OwnerIntent): ReadonlyArray<Rc
   const t = intent.text.toLowerCase();
   const routes: RcRoute[] = [];
 
-  if (/filing|deadline|return|compliance window|regulator|county/.test(t)) {
+  if (/filing|deadline|return|compliance window|regulator|county|mining commission|licence|permit/.test(t)) {
     routes.push({
       lineWorker: 'compliance.filing-monitor',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Check the regulatory filing calendar for upcoming windows',
+      description: 'Check the regulatory filing calendar (Mining Commission / TRA) for upcoming windows',
     });
   }
   if (/insurance|policy|premium|cover/.test(t)) {

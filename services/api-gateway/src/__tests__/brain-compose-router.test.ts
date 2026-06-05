@@ -134,7 +134,7 @@ describe('POST /brain/compose/suggest', () => {
     expect(body.data.cached).toBe(true);
   });
 
-  it('defaults to Swahili when language is omitted', async () => {
+  it('defaults to English when language is omitted', async () => {
     const app = mount();
     const res = await app.request('/brain/compose/suggest', {
       method: 'POST',
@@ -148,7 +148,7 @@ describe('POST /brain/compose/suggest', () => {
     const body = (await res.json()) as {
       data: { suggestion: string };
     };
-    expect(body.data.suggestion).toBe(' wiki hii');
+    expect(body.data.suggestion).toBe(' this week');
   });
 
   it('returns empty suggestion for unknown input', async () => {

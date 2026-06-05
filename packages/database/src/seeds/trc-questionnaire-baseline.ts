@@ -18,7 +18,7 @@
  *
  * Disclaimer (mirrors the questionnaire memo's product-neutrality note):
  *   This seed is INTERNAL test data only — `trc-*` ids are confined to
- *   the dev / test tenant. The productized fixture is "Demo Estate
+ *   the dev / test tenant. The productized fixture is "Demo Mining
  *   Corporation" with `demo-*` ids. Nothing here references the research
  *   client by name in customer-facing copy or product strings.
  *
@@ -76,7 +76,7 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
     idSuffix: 'approval-bareland-threshold',
     key: 'approval.bareland_dg_threshold_tzs',
     text:
-      'Bareland leases at or above 500,000 TZS/month route to the Directorate of Civil Engineering & Infrastructure first, then to the Director General. Below 500,000 TZS stay department-level (EMU only, no DG).',
+      'Exploration-block offtakes at or above 500,000 TZS/month route to the Directorate of Civil Engineering & Infrastructure first, then to the Director General. Below 500,000 TZS stay department-level (EMU only, no DG).',
     rationale:
       'Captured from the questionnaire Section 1 approval-flow pseudocode; threshold is org-configurable.',
     confidence: 0.95,
@@ -86,8 +86,8 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
     idSuffix: 'approval-developed-threshold',
     key: 'approval.developed_dg_threshold_tzs',
     text:
-      'Developed-asset (warehouse, building) leases at or above 500,000 TZS/month route directly to the Director General. Below 500,000 TZS stay at EMU level.',
-    rationale: 'Section 1 ELIF branch — developed assets skip the DCEI step.',
+      'Producing-site (processing yard, ore shed) offtakes at or above 500,000 TZS/month route directly to the Director General. Below 500,000 TZS stay at EMU level.',
+    rationale: 'Section 1 ELIF branch — producing sites skip the DCEI step.',
     confidence: 0.95,
     sectionRef: 'Section 1 — Approval flow',
   },
@@ -96,7 +96,7 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
     key: 'roles.owner_mapping',
     text:
       'The Estate Management Unit (EMU) is modelled as the Owner account, even though the parent organisation legally owns the asset. EMU has full control; only EMU can delete the account.',
-    rationale: 'Section 1 EMU mapping; same primitive applies to NHC and banks.',
+    rationale: 'Section 1 EMU mapping; same primitive applies to STAMICO and banks.',
     confidence: 0.95,
     sectionRef: 'Section 1 — Roles',
   },
@@ -118,7 +118,7 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
     confidence: 0.85,
     sectionRef: 'Section 1 — Roles',
   },
-  // ── Section 2 — property + geo --------------------------------------------
+  // ── Section 2 — asset classification + geo --------------------------------
   {
     idSuffix: 'geo-hierarchy-labels',
     key: 'geo.hierarchy_labels',
@@ -130,28 +130,28 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
   },
   {
     idSuffix: 'property-classes',
-    key: 'property.classes_adopted',
+    key: 'asset.classes_adopted',
     text:
-      'Property classes adopted by TRC: commercial, mixed-use, villas, hotels, plots, warehouses, bareland. Each class has owner-selected sub-attributes (rooms, kitchens, bathrooms, furnishing level, appliances, fixtures, size).',
-    rationale: 'Section 2 — property classification superset.',
+      'Mining asset classes adopted by TRC: hard-rock site, alluvial site, processing yard, ore shed, exploration block, tailings facility, open-cast block. Each class has owner-selected sub-attributes (ore grade, recovery rate, mineral type, equipment, capacity, size).',
+    rationale: 'Section 2 — mining-asset classification superset.',
     confidence: 0.9,
-    sectionRef: 'Section 2 — Property classification',
+    sectionRef: 'Section 2 — Asset classification',
   },
   {
     idSuffix: 'leasing-granularity',
-    key: 'leasing.granularity',
+    key: 'offtake.granularity',
     text:
-      'Lease granularity is owner-controlled: whole plot, building, single room, or section of a floor are all valid. History nests infinitely: building -> unit -> customer -> contract -> payments -> documents -> maintenance events.',
-    rationale: 'Section 2 — leasing flexibility + arbitrary subdivision.',
+      'Offtake granularity is owner-controlled: whole concession, site, single block, or section of a pit are all valid. History nests infinitely: site -> block -> buyer -> contract -> payments -> documents -> maintenance events.',
+    rationale: 'Section 2 — offtake flexibility + arbitrary subdivision.',
     confidence: 0.95,
-    sectionRef: 'Section 2 — Leasing flexibility',
+    sectionRef: 'Section 2 — Offtake flexibility',
   },
   // ── Section 3 — registry + audit pains ------------------------------------
   {
     idSuffix: 'pain-double-leasing',
-    key: 'pain.double_leasing_risk',
+    key: 'pain.double_offtake_risk',
     text:
-      'Double-leasing (same asset leased to two customers) is a top revenue-loss cause; auto-flag when a lease intersects an existing one on the same asset slice.',
+      'Double-allocation (same asset committed to two buyers) is a top revenue-loss cause; auto-flag when an offtake intersects an existing one on the same asset slice.',
     rationale: 'Section 3 — core pain points listed by TRC.',
     confidence: 0.95,
     sectionRef: 'Section 3 — Asset registry pain',
@@ -160,7 +160,7 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
     idSuffix: 'pain-pricing-negotiation',
     key: 'pain.under_pricing_high_value',
     text:
-      'High-value TRC assets are routinely under-leased due to poor pricing negotiations. The AI must surface comparable-rent benchmarks before any DG-tier negotiation.',
+      'High-value TRC assets are routinely under-priced due to poor pricing negotiations. The AI must surface comparable-royalty benchmarks before any DG-tier negotiation.',
     rationale: 'Section 3 — pricing pain.',
     confidence: 0.9,
     sectionRef: 'Section 3 — Pricing pain',
@@ -168,10 +168,10 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
   // ── Section 4 — customer journey ------------------------------------------
   {
     idSuffix: 'tenant-app-universality',
-    key: 'tenant.app_is_cross_org',
+    key: 'buyer.app_is_cross_org',
     text:
-      'Tenants use ONE app across many organisations; tenancy with TRC is bootstrapped by a special invite code issued by EMU, never by a TRC-siloed download.',
-    rationale: 'Section 4 — universal tenant identity.',
+      'Buyers use ONE app across many organisations; a relationship with TRC is bootstrapped by a special invite code issued by EMU, never by a TRC-siloed download.',
+    rationale: 'Section 4 — universal buyer identity.',
     confidence: 0.95,
     sectionRef: 'Section 4 — Customer journey',
   },
@@ -199,7 +199,7 @@ const TRC_SEMANTIC_FACTS: readonly TrcSemanticFact[] = [
     idSuffix: 'pain-areas-calculation',
     key: 'pain.areas_calculation_drift',
     text:
-      'Manual Excel-based "areas" (arrears) calculation is the biggest operational stressor. Canonical ledger + interactive verification + audit trail must supersede the manual workflow.',
+      'Manual Excel-based "areas" (outstanding-royalty) calculation is the biggest operational stressor. Canonical ledger + interactive verification + audit trail must supersede the manual workflow.',
     rationale: 'Section 14 — operational pain point.',
     confidence: 0.95,
     sectionRef: 'Section 14 — Operational',
@@ -224,19 +224,19 @@ const TRC_CORE_BLOCKS: readonly TrcCoreBlock[] = [
     idSuffix: 'project-profile',
     blockKind: 'project',
     text:
-      'This tenant is a large multi-district public-sector estate operator. Geo hierarchy: District > Region > Station > Asset (Districts contain Regions). Approval threshold: 500,000 TZS/month splits EMU-only vs DG-routing. Default currency TZS, locale sw-TZ, timezone Africa/Dar_es_Salaam. Primary payment rail GePG. The brain should default to Harvard-PhD-grade estate-advisor tone with action-plan-style replies, never static reports.',
+      'This tenant is a large multi-district mining estate operator. Geo hierarchy: District > Region > Station > Asset (Districts contain Regions). Approval threshold: 500,000 TZS/month splits EMU-only vs DG-routing. Default currency TZS, locale sw-TZ, timezone Africa/Dar_es_Salaam. Primary payment rail GePG. The brain should default to Harvard-PhD-grade mining-estate-advisor tone with action-plan-style replies, never static reports.',
   },
   {
     idSuffix: 'preferences-elastic-architecture',
     blockKind: 'preferences',
     text:
-      'Always honour the elastic-architecture directive: never force a fixed framework on this org. Approval thresholds, geo-labels, role hierarchy, property classes, and workflow rules are all owner-configured. Pull current values from tenant.settings.elasticConfig and approval_policies before making routing decisions.',
+      'Always honour the elastic-architecture directive: never force a fixed framework on this org. Approval thresholds, geo-labels, role hierarchy, asset classes, and workflow rules are all owner-configured. Pull current values from tenant.settings.elasticConfig and approval_policies before making routing decisions.',
   },
   {
     idSuffix: 'preferences-known-pains',
     blockKind: 'preferences',
     text:
-      'Known operational pains to actively defend against: (1) double-leasing on the same asset slice — auto-flag overlaps; (2) under-pricing of high-value assets — surface comparable-rent benchmarks before DG negotiations; (3) arrears-calculation drift versus Excel — keep the canonical ledger as source of truth and reconcile every export.',
+      'Known operational pains to actively defend against: (1) double-allocation of the same asset slice — auto-flag overlaps; (2) under-pricing of high-value assets — surface comparable-royalty benchmarks before DG negotiations; (3) outstanding-royalty calculation drift versus Excel — keep the canonical ledger as source of truth and reconcile every export.',
   },
 ];
 
@@ -257,37 +257,37 @@ interface TrcLesson {
 const TRC_LESSONS: readonly TrcLesson[] = [
   {
     idSuffix: 'leasing-double-lease-guard',
-    taskTag: 'leasing.create',
+    taskTag: 'offtake.create',
     lesson:
-      'Before confirming a new lease, query existing active leases on the same asset slice; reject or flag any temporal overlap — double-leasing is the #1 named revenue-loss cause.',
+      'Before confirming a new offtake, query existing active offtakes on the same asset slice; reject or flag any temporal overlap — double-allocation is the #1 named revenue-loss cause.',
     evidence: 'questionnaire:section-3 / asset-registry pain',
   },
   {
     idSuffix: 'leasing-price-benchmark',
-    taskTag: 'leasing.negotiate',
+    taskTag: 'offtake.negotiate',
     lesson:
-      'For high-value assets (rent >= 500,000 TZS/month), surface a comparable-rent band from market-rate snapshots before sending any offer — under-pricing is the named pricing pain.',
+      'For high-value assets (royalty >= 500,000 TZS/month), surface a comparable-royalty band from market-rate snapshots before sending any offer — under-pricing is the named pricing pain.',
     evidence: 'questionnaire:section-3 / pricing pain',
   },
   {
     idSuffix: 'arrears-canonical-ledger',
-    taskTag: 'arrears.compute',
+    taskTag: 'outstanding_royalties.compute',
     lesson:
-      'Compute arrears from the canonical ledger entries; never round-trip through Excel exports. If a discrepancy is flagged, reconcile against payment_intents and GePG receipts, not against the operator\'s spreadsheet.',
+      'Compute outstanding royalties from the canonical ledger entries; never round-trip through Excel exports. If a discrepancy is flagged, reconcile against payment_intents and GePG receipts, not against the operator\'s spreadsheet.',
     evidence: 'questionnaire:section-14 / areas-calculation drift',
   },
   {
     idSuffix: 'approval-route-by-threshold',
     taskTag: 'approval.route',
     lesson:
-      'Route lease requests by asset type AND monthly rent. Bareland >= 500K -> DCEI then DG; developed >= 500K -> DG direct; below 500K -> EMU only. Thresholds are configurable per-tenant — read from tenants.settings.elasticConfig.approvalThresholds.',
+      'Route offtake requests by asset type AND monthly royalty. Exploration-block >= 500K -> DCEI then DG; producing-site >= 500K -> DG direct; below 500K -> EMU only. Thresholds are configurable per-tenant — read from tenants.settings.elasticConfig.approvalThresholds.',
     evidence: 'questionnaire:section-1 / approval flow pseudocode',
   },
   {
     idSuffix: 'station-routing-by-proximity',
     taskTag: 'application.route',
     lesson:
-      'Tenant applications must route to the nearest station master / designated individual by proximity to the target asset, not by district-only mapping. Use geo_assignments.responsibility plus station coordinates.',
+      'Buyer applications must route to the nearest station master / designated individual by proximity to the target asset, not by district-only mapping. Use geo_assignments.responsibility plus station coordinates.',
     evidence: 'questionnaire:section-1 / station-office-initiated workflow',
   },
   {
@@ -301,7 +301,7 @@ const TRC_LESSONS: readonly TrcLesson[] = [
     idSuffix: 'maintenance-evidence-bundle',
     taskTag: 'maintenance.intake',
     lesson:
-      'For every maintenance ticket, guide the tenant through evidence capture (photos + short video) BEFORE the cost-assessment step. Mediation is faster and more defensible when evidence precedes negotiation.',
+      'For every maintenance ticket, guide the buyer through evidence capture (photos + short video) BEFORE the cost-assessment step. Mediation is faster and more defensible when evidence precedes negotiation.',
     evidence: 'questionnaire:section-7 / maintenance flow',
   },
 ];

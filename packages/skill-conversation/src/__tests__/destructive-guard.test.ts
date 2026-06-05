@@ -80,6 +80,6 @@ describe('SCOPE_POLICY introspection', () => {
   });
 
   it('exposes the tenant-authority list', () => {
-    expect(SCOPE_POLICY.tenantAuthority).toContain('notice.draft_eviction_notice');
+    expect(SCOPE_POLICY.tenantAuthority).toContain('notice.draft_licence_suspension_notice');
   });
 });

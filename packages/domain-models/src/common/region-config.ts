@@ -49,7 +49,13 @@ export interface ComplianceConfig {
   readonly taxpayerIdLabel: string;
   readonly taxpayerIdRegex: RegExp | null;
   readonly businessRegLabel: string | null;
+  // W-E migration: notice-period for ending a mining counterparty's
+  // production tenure (licence-suspension), residential/commercial split.
+  readonly licenceSuspensionNoticeDaysResidential: number;
+  readonly licenceSuspensionNoticeDaysCommercial: number;
+  /** @deprecated Use {@link ComplianceConfig.licenceSuspensionNoticeDaysResidential}. */
   readonly evictionNoticeDaysResidential: number;
+  /** @deprecated Use {@link ComplianceConfig.licenceSuspensionNoticeDaysCommercial}. */
   readonly evictionNoticeDaysCommercial: number;
   readonly depositReturnDays: number;
 }
@@ -91,8 +97,8 @@ interface RegionOverlay {
   readonly taxpayerIdLabel: string;
   readonly taxpayerIdRegex: RegExp | null;
   readonly businessRegLabel: string | null;
-  readonly evictionNoticeDaysResidential: number;
-  readonly evictionNoticeDaysCommercial: number;
+  readonly licenceSuspensionNoticeDaysResidential: number;
+  readonly licenceSuspensionNoticeDaysCommercial: number;
 }
 
 const REGION_OVERLAYS: Record<string, RegionOverlay> = {
@@ -113,8 +119,8 @@ const REGION_OVERLAYS: Record<string, RegionOverlay> = {
     taxpayerIdLabel: 'TIN',
     taxpayerIdRegex: /^\d{9}$/,
     businessRegLabel: 'BRELA Registration Number',
-    evictionNoticeDaysResidential: 90,
-    evictionNoticeDaysCommercial: 90,
+    licenceSuspensionNoticeDaysResidential: 90,
+    licenceSuspensionNoticeDaysCommercial: 90,
   },
   KE: {
     currencyMinorUnits: 2,
@@ -133,8 +139,8 @@ const REGION_OVERLAYS: Record<string, RegionOverlay> = {
     taxpayerIdLabel: 'KRA PIN',
     taxpayerIdRegex: /^[A-Z]\d{9}[A-Z]$/,
     businessRegLabel: 'Business Registration Number',
-    evictionNoticeDaysResidential: 60,
-    evictionNoticeDaysCommercial: 90,
+    licenceSuspensionNoticeDaysResidential: 60,
+    licenceSuspensionNoticeDaysCommercial: 90,
   },
   UG: {
     currencyMinorUnits: 0,
@@ -153,8 +159,8 @@ const REGION_OVERLAYS: Record<string, RegionOverlay> = {
     taxpayerIdLabel: 'TIN',
     taxpayerIdRegex: /^\d{10}$/,
     businessRegLabel: 'URSB Registration Number',
-    evictionNoticeDaysResidential: 60,
-    evictionNoticeDaysCommercial: 90,
+    licenceSuspensionNoticeDaysResidential: 60,
+    licenceSuspensionNoticeDaysCommercial: 90,
   },
   RW: {
     countryName: 'Rwanda',
@@ -174,8 +180,8 @@ const REGION_OVERLAYS: Record<string, RegionOverlay> = {
     taxpayerIdLabel: 'TIN',
     taxpayerIdRegex: /^\d{9}$/,
     businessRegLabel: 'RDB Registration Number',
-    evictionNoticeDaysResidential: 30,
-    evictionNoticeDaysCommercial: 60,
+    licenceSuspensionNoticeDaysResidential: 30,
+    licenceSuspensionNoticeDaysCommercial: 60,
   },
 };
 
@@ -226,6 +232,9 @@ const GENERIC_CONFIG: RegionConfig = {
     taxpayerIdLabel: 'Tax ID',
     taxpayerIdRegex: null,
     businessRegLabel: null,
+    licenceSuspensionNoticeDaysResidential: 30,
+    licenceSuspensionNoticeDaysCommercial: 60,
+    // @deprecated mirror — kept so consumers reading the old keys compile.
     evictionNoticeDaysResidential: 30,
     evictionNoticeDaysCommercial: 60,
     depositReturnDays: 30,
@@ -280,13 +289,20 @@ function buildFromPlugin(
         overlay?.taxpayerIdRegex ?? GENERIC_CONFIG.compliance.taxpayerIdRegex,
       businessRegLabel:
         overlay?.businessRegLabel ?? GENERIC_CONFIG.compliance.businessRegLabel,
+      licenceSuspensionNoticeDaysResidential:
+        overlay?.licenceSuspensionNoticeDaysResidential ??
+        plugin.compliance.noticePeriodDays,
+      licenceSuspensionNoticeDaysCommercial:
+        overlay?.licenceSuspensionNoticeDaysCommercial ??
+        plugin.compliance.noticePeriodDays,
+      // @deprecated mirrors — kept so old-key consumers compile.
       evictionNoticeDaysResidential:
-        overlay?.evictionNoticeDaysResidential ??
+        overlay?.licenceSuspensionNoticeDaysResidential ??
         plugin.compliance.noticePeriodDays,
       evictionNoticeDaysCommercial:
-        overlay?.evictionNoticeDaysCommercial ??
+        overlay?.licenceSuspensionNoticeDaysCommercial ??
         plugin.compliance.noticePeriodDays,
-      depositReturnDays: plugin.compliance.depositReturnDays,
+      depositReturnDays: plugin.compliance.bondReturnDays,
     },
     mobileMoneyProviders: mobileMoneyFromPlugin(plugin),
   };
@@ -313,8 +329,15 @@ function buildSyntheticRwanda(): RegionConfig {
       taxpayerIdLabel: overlay.taxpayerIdLabel,
       taxpayerIdRegex: overlay.taxpayerIdRegex,
       businessRegLabel: overlay.businessRegLabel,
-      evictionNoticeDaysResidential: overlay.evictionNoticeDaysResidential,
-      evictionNoticeDaysCommercial: overlay.evictionNoticeDaysCommercial,
+      licenceSuspensionNoticeDaysResidential:
+        overlay.licenceSuspensionNoticeDaysResidential,
+      licenceSuspensionNoticeDaysCommercial:
+        overlay.licenceSuspensionNoticeDaysCommercial,
+      // @deprecated mirrors — kept so old-key consumers compile.
+      evictionNoticeDaysResidential:
+        overlay.licenceSuspensionNoticeDaysResidential,
+      evictionNoticeDaysCommercial:
+        overlay.licenceSuspensionNoticeDaysCommercial,
       depositReturnDays: RW_SYNTHETIC.depositReturnDays,
     },
     mobileMoneyProviders: RW_SYNTHETIC.mobileMoneyProviders,

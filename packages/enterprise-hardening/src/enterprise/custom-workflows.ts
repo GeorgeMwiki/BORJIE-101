@@ -186,10 +186,10 @@ export interface WorkflowTemplate {
  */
 export const WorkflowTemplates: WorkflowTemplate[] = [
   {
-    id: 'lease-renewal-reminder',
-    name: 'Lease Renewal Reminder',
-    description: 'Send automated reminders before lease expiration',
-    category: 'leases',
+    id: 'offtake-renewal-reminder',
+    name: 'Offtake Renewal Reminder',
+    description: 'Send automated reminders before offtake agreement expiration',
+    category: 'offtakes',
     trigger: {
       id: 'trigger-1',
       type: TriggerType.SCHEDULE,
@@ -201,10 +201,10 @@ export const WorkflowTemplates: WorkflowTemplate[] = [
     actions: [
       {
         id: 'find-expiring',
-        name: 'Find Expiring Leases',
+        name: 'Find Expiring Offtakes',
         type: ActionType.CUSTOM_SCRIPT,
         config: {
-          script: 'findLeasesExpiringIn',
+          script: 'findOfftakesExpiringIn',
           params: { daysAhead: '{{variables.reminderDays}}' },
         },
         nextActions: ['send-reminder'],
@@ -214,9 +214,9 @@ export const WorkflowTemplates: WorkflowTemplate[] = [
         name: 'Send Renewal Reminder',
         type: ActionType.SEND_EMAIL,
         config: {
-          template: 'lease-renewal-reminder',
-          to: '{{lease.tenantEmail}}',
-          subject: 'Your lease is expiring soon',
+          template: 'offtake-renewal-reminder',
+          to: '{{offtake.counterpartyEmail}}',
+          subject: 'Your offtake agreement is expiring soon',
         },
       },
     ],
@@ -263,7 +263,7 @@ export const WorkflowTemplates: WorkflowTemplate[] = [
         type: ActionType.SEND_EMAIL,
         config: {
           template: 'payment-reminder-friendly',
-          to: '{{event.tenantEmail}}',
+          to: '{{event.counterpartyEmail}}',
         },
       },
       {
@@ -272,7 +272,7 @@ export const WorkflowTemplates: WorkflowTemplate[] = [
         type: ActionType.SEND_EMAIL,
         config: {
           template: 'payment-warning',
-          to: '{{event.tenantEmail}}',
+          to: '{{event.counterpartyEmail}}',
         },
       },
       {
@@ -348,10 +348,10 @@ export const WorkflowTemplates: WorkflowTemplate[] = [
       },
       {
         id: 'notify-manager',
-        name: 'Notify Property Manager',
+        name: 'Notify Site Manager',
         type: ActionType.SEND_NOTIFICATION,
         config: {
-          to: '{{event.propertyManagerId}}',
+          to: '{{event.siteManagerId}}',
           message: 'Emergency maintenance request requires attention',
           priority: 'urgent',
         },

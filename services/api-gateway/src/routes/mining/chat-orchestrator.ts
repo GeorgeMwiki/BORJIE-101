@@ -27,58 +27,30 @@
 
 import {
   BorjieConfigError,
+  classifyLenses,
   createDefaultMasterBrainAgent,
   executeJuniors,
   lazyClaudeClient,
   type DispatchPlanStep,
   type JuniorExecutionResult,
+  type LensId,
   type RetrievedContextChunk,
 } from '@borjie/ai-copilot';
 import { createPiiTokeniser } from '@borjie/document-ai';
+import { withTenantContext } from '@borjie/database';
 import {
   CORPUS_TOPK_DEFAULT,
-  findCorpusEvidenceTopK,
+  embedQueryViaOpenAI,
+  searchCorpusTopK,
   type CorpusEvidence,
 } from './chat-corpus-evidence';
 
 // ─────────────────────────────────────────────────────────────────────
-// Owner-facing modes the chat surface accepts
+// Persona lenses are classified INTERNALLY — the owner never picks a mode.
+// `classifyLenses(message)` (from @borjie/ai-copilot) maps the message to
+// 1..N lenses, blends their directives, and derives the brain's own
+// MasterBrainMode. See `juniors/lens-router.ts`.
 // ─────────────────────────────────────────────────────────────────────
-
-export type ChatMode =
-  | 'build'
-  | 'strategy'
-  | 'operations'
-  | 'document'
-  | 'finance'
-  | 'risk'
-  | 'board-investor'
-  | 'compliance';
-
-/**
- * Map an owner-facing ChatMode to a Master Brain internal mode. The
- * Master Brain's prompt is keyed on its own enum, so we project the
- * owner mode down to the closest internal label.
- */
-function toMasterBrainMode(
-  mode: ChatMode,
-): 'ask' | 'planning' | 'compliance' | 'remediation' | 'sales' {
-  switch (mode) {
-    case 'strategy':
-    case 'build':
-      return 'planning';
-    case 'operations':
-    case 'risk':
-      return 'ask';
-    case 'finance':
-      return 'sales';
-    case 'document':
-    case 'board-investor':
-      return 'ask';
-    case 'compliance':
-      return 'compliance';
-  }
-}
 
 // ─────────────────────────────────────────────────────────────────────
 // SSE event union — what the route streams
@@ -87,7 +59,11 @@ function toMasterBrainMode(
 export type JuniorCallStatus = 'running' | 'done' | 'error';
 
 export type ChatSseEvent =
-  | { readonly type: 'turn_accepted'; readonly mode: ChatMode; readonly language: 'sw' | 'en' }
+  | {
+      readonly type: 'turn_accepted';
+      readonly lenses: ReadonlyArray<LensId>;
+      readonly language: 'sw' | 'en';
+    }
   | {
       readonly type: 'junior_call';
       readonly junior: string;
@@ -113,7 +89,6 @@ export type ChatSseEvent =
 export interface OrchestratorInput {
   readonly tenantId: string;
   readonly userId: string;
-  readonly mode: ChatMode;
   readonly language: 'sw' | 'en';
   readonly message: string;
   readonly sessionId: string | null;
@@ -127,7 +102,17 @@ export interface OrchestratorInput {
 export async function* runChatOrchestrator(
   input: OrchestratorInput,
 ): AsyncGenerator<ChatSseEvent, void, unknown> {
-  yield { type: 'turn_accepted', mode: input.mode, language: input.language };
+  // No user-selected mode (WS-0): the brain classifies the persona lens(es)
+  // from the message itself and blends them. The lens router is deterministic
+  // and LLM-free, so it runs before any API call — the turn_accepted frame can
+  // name the selected lenses immediately, and the blend steers every step that
+  // follows (Master Brain dispatch + per-junior synthesis).
+  const lensSelection = classifyLenses(input.message);
+  yield {
+    type: 'turn_accepted',
+    lenses: lensSelection.lenses,
+    language: input.language,
+  };
 
   if (!process.env.ANTHROPIC_API_KEY?.trim()) {
     yield {
@@ -147,12 +132,31 @@ export async function* runChatOrchestrator(
   // synthesizer so the answer is GROUNDED in the corpus (not just citing
   // ids). Empty retrieval ⇒ `retrievedContext` is [] and the prompts are
   // byte-identical to the un-grounded path.
-  const corpusChunks = await findCorpusEvidenceTopK({
-    db: input.db,
-    tenantId: input.tenantId,
-    message: input.message,
-    k: CORPUS_TOPK_DEFAULT,
-  });
+  // This router mounts `databaseMiddlewareNoPin` (it streams + fans out to
+  // the LLM), so the request connection is NOT pinned. Embed the query
+  // OUTSIDE any DB transaction (external OpenAI round-trip), then run the
+  // corpus read inside a SHORT per-tenant transaction so RLS FORCE sees the
+  // tenant GUC — without holding a pooled connection across the LLM work
+  // below. Best-effort: any failure degrades to the un-grounded path
+  // (identical to an empty retrieval).
+  let corpusChunks: ReadonlyArray<CorpusEvidence> = [];
+  try {
+    const queryEmbedding = await embedQueryViaOpenAI(input.message);
+    corpusChunks = await withTenantContext(
+      input.db as Parameters<typeof withTenantContext>[0],
+      input.tenantId,
+      (tx) =>
+        searchCorpusTopK({
+          db: tx,
+          tenantId: input.tenantId,
+          message: input.message,
+          k: CORPUS_TOPK_DEFAULT,
+          embedding: queryEmbedding,
+        }),
+    );
+  } catch {
+    corpusChunks = [];
+  }
   const retrievedContext = tokeniseRetrievedContext(corpusChunks);
 
   // ── Master Brain ─────────────────────────────────────────────────
@@ -161,10 +165,14 @@ export async function* runChatOrchestrator(
     const masterBrain = createDefaultMasterBrainAgent();
     brainOut = await masterBrain.processInput({
       tenantId: input.tenantId,
-      mode: toMasterBrainMode(input.mode),
+      mode: lensSelection.derivedMode,
       query: input.message,
       language: input.language === 'sw' ? 'sw' : 'en',
-      context: { sessionId: input.sessionId ?? null, ownerMode: input.mode },
+      context: {
+        sessionId: input.sessionId ?? null,
+        activeLenses: lensSelection.lenses,
+        lensDirective: lensSelection.directive,
+      },
       retrievedContext: [...retrievedContext],
     });
   } catch (err) {
@@ -206,8 +214,12 @@ export async function* runChatOrchestrator(
     context: {
       tenantId: input.tenantId,
       chat_message: input.message,
-      mode: input.mode,
-      lmbm_context: { sessionId: input.sessionId ?? null, ownerMode: input.mode },
+      mode: lensSelection.derivedMode,
+      lmbm_context: {
+        sessionId: input.sessionId ?? null,
+        activeLenses: lensSelection.lenses,
+        primaryLens: lensSelection.primary,
+      },
       retrieved_context: retrievedContext,
     },
     claude,

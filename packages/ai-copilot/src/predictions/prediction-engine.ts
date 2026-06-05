@@ -1,11 +1,11 @@
 /**
  * Prediction Engine
- * 
+ *
  * Core engine for running predictive models including:
- * - Arrears risk prediction
- * - Churn risk prediction
- * - Maintenance recurrence prediction
- * - Occupancy health scoring
+ * - Royalty arrears risk prediction
+ * - Buyer churn risk prediction
+ * - Equipment maintenance recurrence prediction
+ * - Production health scoring
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -27,14 +27,14 @@ import {
   PredictionBase,
   FeatureImportance,
   RecommendedAction,
-  ArrearsRiskInput,
-  ArrearsRiskPrediction,
-  ChurnRiskInput,
-  ChurnRiskPrediction,
+  RoyaltyArrearsRiskInput,
+  RoyaltyArrearsRiskPrediction,
+  BuyerChurnRiskInput,
+  BuyerChurnRiskPrediction,
   MaintenanceRecurrenceInput,
   MaintenanceRecurrencePrediction,
-  OccupancyHealthInput,
-  OccupancyHealthScore,
+  ProductionHealthInput,
+  ProductionHealthScore,
 } from '../types/prediction.types.js';
 
 /**
@@ -88,31 +88,31 @@ export class PredictionEngine {
    * Initialize default model configurations
    */
   private initializeDefaultConfigs(): void {
-    // Arrears risk model config
-    this.modelConfigs.set(PredictionModelType.ARREARS_RISK, {
+    // Royalty arrears risk model config
+    this.modelConfigs.set(PredictionModelType.ROYALTY_ARREARS_RISK, {
       version: '1.0.0',
       featureWeights: {
         onTimeRate: -0.4,
         avgDaysLate: 0.2,
         currentArrearsAmount: 0.3,
-        rentToIncomeRatio: 0.15,
+        paymentToRevenueRatio: 0.15,
         hasAutoPay: -0.15,
-        tenancyMonths: -0.1,
+        relationshipMonths: -0.1,
         arrearsCount12m: 0.2,
       },
       thresholds: { low: 0.2, medium: 0.4, high: 0.6, critical: 0.8 },
       parameters: {},
     });
 
-    // Churn risk model config
-    this.modelConfigs.set(PredictionModelType.CHURN_RISK, {
+    // Buyer churn risk model config
+    this.modelConfigs.set(PredictionModelType.BUYER_CHURN_RISK, {
       version: '1.0.0',
       featureWeights: {
         daysUntilExpiry: -0.2,
         renewalsCompleted: -0.15,
         maintenanceSatisfaction: -0.2,
         complaintCount12m: 0.25,
-        rentVsMarket: 0.2,
+        priceVsMarket: 0.2,
         loginFrequency: -0.1,
         communicationSentiment: -0.15,
       },
@@ -124,9 +124,9 @@ export class PredictionEngine {
     this.modelConfigs.set(PredictionModelType.MAINTENANCE_RECURRENCE, {
       version: '1.0.0',
       featureWeights: {
-        similarIssuesThisUnit: 0.35,
-        similarIssuesProperty: 0.15,
-        propertyAge: 0.15,
+        similarIssuesThisPit: 0.35,
+        similarIssuesSite: 0.15,
+        siteAge: 0.15,
         systemAge: 0.2,
         seasonalPattern: 0.15,
       },
@@ -134,11 +134,11 @@ export class PredictionEngine {
       parameters: {},
     });
 
-    // Occupancy health model config
-    this.modelConfigs.set(PredictionModelType.OCCUPANCY_HEALTH, {
+    // Production health model config
+    this.modelConfigs.set(PredictionModelType.PRODUCTION_HEALTH, {
       version: '1.0.0',
       featureWeights: {
-        occupancyRate: 0.3,
+        productionRate: 0.3,
         collectionRate: 0.25,
         renewalRate: 0.2,
         marketPosition: 0.15,
@@ -157,14 +157,14 @@ export class PredictionEngine {
   }
 
   /**
-   * Predict arrears risk
+   * Predict royalty arrears risk
    */
-  async predictArrearsRisk(
-    input: ArrearsRiskInput,
+  async predictRoyaltyArrearsRisk(
+    input: RoyaltyArrearsRiskInput,
     tenant: AITenantContext,
     horizon: PredictionHorizon = PredictionHorizon.MONTH
-  ): Promise<AIResult<ArrearsRiskPrediction, PredictionError>> {
-    const config = this.modelConfigs.get(PredictionModelType.ARREARS_RISK)!;
+  ): Promise<AIResult<RoyaltyArrearsRiskPrediction, PredictionError>> {
+    const config = this.modelConfigs.get(PredictionModelType.ROYALTY_ARREARS_RISK)!;
     const predictionId = asPredictionId(uuidv4());
 
     try {
@@ -197,14 +197,14 @@ export class PredictionEngine {
         direction: input.paymentHistory.avgDaysLate > 5 ? 'positive' : 'negative',
       });
 
-      // Current arrears
+      // Current outstanding royalties
       const arrearsWeight = config.featureWeights.currentArrearsAmount ?? 0;
-      const arrearsNormalized = Math.min(input.paymentHistory.currentArrearsAmount / input.currentContext.rentAmount, 2) / 2;
+      const arrearsNormalized = Math.min(input.paymentHistory.currentArrearsAmount / input.currentContext.paymentAmount, 2) / 2;
       const arrearsContribution = arrearsWeight * arrearsNormalized;
       riskScore += arrearsContribution;
       features.push({
         feature: 'currentArrearsAmount',
-        displayName: 'Current Arrears',
+        displayName: 'Current Outstanding Royalties',
         value: input.paymentHistory.currentArrearsAmount,
         importance: Math.abs(arrearsWeight),
         direction: input.paymentHistory.currentArrearsAmount > 0 ? 'positive' : 'negative',
@@ -248,10 +248,10 @@ export class PredictionEngine {
       // Build prediction
       const now = new Date();
       const expiresAt = this.calculateExpirationDate(now, horizon);
-      
-      const prediction: ArrearsRiskPrediction = {
+
+      const prediction: RoyaltyArrearsRiskPrediction = {
         id: predictionId,
-        modelType: PredictionModelType.ARREARS_RISK,
+        modelType: PredictionModelType.ROYALTY_ARREARS_RISK,
         modelVersion: config.version,
         horizon,
         probability: riskScore,
@@ -264,14 +264,14 @@ export class PredictionEngine {
         input,
         prediction: {
           arrearsProbability: riskScore,
-          expectedArrearsAmount: riskScore * input.currentContext.rentAmount,
+          expectedArrearsAmount: riskScore * input.currentContext.paymentAmount,
           expectedArrearsDays: Math.round(riskScore * 30),
           riskTier,
         },
         recommendedActions: recommendations,
         alertConfig: {
           shouldAlert: riskLevel !== RiskLevel.LOW,
-          alertPriority: riskLevel === RiskLevel.CRITICAL ? 'critical' : 
+          alertPriority: riskLevel === RiskLevel.CRITICAL ? 'critical' :
                         riskLevel === RiskLevel.HIGH ? 'high' : 'medium',
           alertRecipients: this.getAlertRecipients(riskLevel),
           alertMessage: this.generateArrearsAlertMessage(input, riskTier, riskScore),
@@ -290,7 +290,7 @@ export class PredictionEngine {
       const predictionError: PredictionError = {
         code: 'PREDICTION_ERROR',
         message: error instanceof Error ? error.message : 'Unknown error',
-        modelType: PredictionModelType.ARREARS_RISK,
+        modelType: PredictionModelType.ROYALTY_ARREARS_RISK,
         retryable: true,
       };
       this.eventListeners.forEach(l => l.onPredictionError?.(predictionError));
@@ -299,14 +299,14 @@ export class PredictionEngine {
   }
 
   /**
-   * Predict churn risk
+   * Predict buyer churn risk
    */
-  async predictChurnRisk(
-    input: ChurnRiskInput,
+  async predictBuyerChurnRisk(
+    input: BuyerChurnRiskInput,
     tenant: AITenantContext,
     horizon: PredictionHorizon = PredictionHorizon.QUARTER
-  ): Promise<AIResult<ChurnRiskPrediction, PredictionError>> {
-    const config = this.modelConfigs.get(PredictionModelType.CHURN_RISK)!;
+  ): Promise<AIResult<BuyerChurnRiskPrediction, PredictionError>> {
+    const config = this.modelConfigs.get(PredictionModelType.BUYER_CHURN_RISK)!;
     const predictionId = asPredictionId(uuidv4());
 
     try {
@@ -315,53 +315,53 @@ export class PredictionEngine {
 
       // Days until expiry (closer = higher risk)
       const daysUntilExpiryWeight = config.featureWeights.daysUntilExpiry ?? 0;
-      const expiryFactor = input.leaseStatus.daysUntilExpiry <= 90 ?
-        1 - (input.leaseStatus.daysUntilExpiry / 90) : 0;
+      const expiryFactor = input.supplyAgreementStatus.daysUntilExpiry <= 90 ?
+        1 - (input.supplyAgreementStatus.daysUntilExpiry / 90) : 0;
       riskScore += daysUntilExpiryWeight * expiryFactor * -1;
       features.push({
         feature: 'daysUntilExpiry',
-        displayName: 'Days Until Lease Expiry',
-        value: input.leaseStatus.daysUntilExpiry,
+        displayName: 'Days Until Supply-Agreement Expiry',
+        value: input.supplyAgreementStatus.daysUntilExpiry,
         importance: Math.abs(daysUntilExpiryWeight),
-        direction: input.leaseStatus.daysUntilExpiry < 60 ? 'positive' : 'neutral',
+        direction: input.supplyAgreementStatus.daysUntilExpiry < 60 ? 'positive' : 'neutral',
       });
 
       // Complaint count
       const complaintCountWeight = config.featureWeights.complaintCount12m ?? 0;
-      const complaintNormalized = Math.min(input.tenantEngagement.complaintCount12m / 5, 1);
+      const complaintNormalized = Math.min(input.counterpartyEngagement.complaintCount12m / 5, 1);
       riskScore += complaintCountWeight * complaintNormalized;
       features.push({
         feature: 'complaintCount12m',
         displayName: 'Complaints (12 months)',
-        value: input.tenantEngagement.complaintCount12m,
+        value: input.counterpartyEngagement.complaintCount12m,
         importance: Math.abs(complaintCountWeight),
-        direction: input.tenantEngagement.complaintCount12m > 2 ? 'positive' : 'negative',
+        direction: input.counterpartyEngagement.complaintCount12m > 2 ? 'positive' : 'negative',
       });
 
-      // Rent vs market
-      const rentVsMarketWeight = config.featureWeights.rentVsMarket ?? 0;
-      const rentDiff = (input.marketFactors.currentRent - input.marketFactors.marketRateEstimate) /
+      // Price vs market
+      const priceVsMarketWeight = config.featureWeights.priceVsMarket ?? 0;
+      const priceDiff = (input.marketFactors.currentPrice - input.marketFactors.marketRateEstimate) /
         input.marketFactors.marketRateEstimate;
-      const rentFactor = rentDiff > 0 ? rentDiff : 0;
-      riskScore += rentVsMarketWeight * rentFactor;
+      const priceFactor = priceDiff > 0 ? priceDiff : 0;
+      riskScore += priceVsMarketWeight * priceFactor;
       features.push({
-        feature: 'rentVsMarket',
-        displayName: 'Rent vs Market Rate',
-        value: `${(rentDiff * 100).toFixed(1)}%`,
-        importance: Math.abs(rentVsMarketWeight),
-        direction: rentDiff > 0.1 ? 'positive' : rentDiff < -0.1 ? 'negative' : 'neutral',
+        feature: 'priceVsMarket',
+        displayName: 'Price vs Market Rate',
+        value: `${(priceDiff * 100).toFixed(1)}%`,
+        importance: Math.abs(priceVsMarketWeight),
+        direction: priceDiff > 0.1 ? 'positive' : priceDiff < -0.1 ? 'negative' : 'neutral',
       });
 
       // Renewals completed (loyalty indicator)
       const renewalsWeight = config.featureWeights.renewalsCompleted ?? 0;
-      const loyaltyFactor = Math.min(input.leaseStatus.renewalsCompleted / 3, 1);
+      const loyaltyFactor = Math.min(input.supplyAgreementStatus.renewalsCompleted / 3, 1);
       riskScore += renewalsWeight * (1 - loyaltyFactor);
       features.push({
         feature: 'renewalsCompleted',
         displayName: 'Previous Renewals',
-        value: input.leaseStatus.renewalsCompleted,
+        value: input.supplyAgreementStatus.renewalsCompleted,
         importance: Math.abs(renewalsWeight),
-        direction: input.leaseStatus.renewalsCompleted >= 2 ? 'negative' : 'positive',
+        direction: input.supplyAgreementStatus.renewalsCompleted >= 2 ? 'negative' : 'positive',
       });
 
       // Clamp
@@ -386,26 +386,26 @@ export class PredictionEngine {
 
       // Determine primary churn factor
       const sortedFeatures = features.sort((a, b) => b.importance - a.importance);
-      const primaryFactor = sortedFeatures.find(f => f.direction === 'positive')?.displayName ?? 
+      const primaryFactor = sortedFeatures.find(f => f.direction === 'positive')?.displayName ??
         'General dissatisfaction';
 
       // Calculate financial impact
-      const vacancyMonths = 1.5; // Average time to re-let
-      const turnoverCost = input.marketFactors.currentRent * 0.5; // Turnover costs
+      const availableCapacityMonths = 1.5; // Average time to re-contract
+      const turnoverCost = input.marketFactors.currentPrice * 0.5; // Turnover costs
       const financialImpact = {
-        vacancyCost: input.marketFactors.currentRent * vacancyMonths,
+        availableCapacityCost: input.marketFactors.currentPrice * availableCapacityMonths,
         turnoverCost,
-        rentLoss: input.marketFactors.currentRent * vacancyMonths,
-        totalImpact: input.marketFactors.currentRent * vacancyMonths + turnoverCost,
+        paymentLoss: input.marketFactors.currentPrice * availableCapacityMonths,
+        totalImpact: input.marketFactors.currentPrice * availableCapacityMonths + turnoverCost,
       };
 
       // Generate retention recommendations
       const recommendations = this.generateChurnRecommendations(input, riskScore, riskTier, primaryFactor);
 
       const now = new Date();
-      const prediction: ChurnRiskPrediction = {
+      const prediction: BuyerChurnRiskPrediction = {
         id: predictionId,
-        modelType: PredictionModelType.CHURN_RISK,
+        modelType: PredictionModelType.BUYER_CHURN_RISK,
         modelVersion: config.version,
         horizon,
         probability: riskScore,
@@ -438,7 +438,7 @@ export class PredictionEngine {
       const predictionError: PredictionError = {
         code: 'PREDICTION_ERROR',
         message: error instanceof Error ? error.message : 'Unknown error',
-        modelType: PredictionModelType.CHURN_RISK,
+        modelType: PredictionModelType.BUYER_CHURN_RISK,
         retryable: true,
       };
       return aiErr(predictionError);
@@ -446,29 +446,29 @@ export class PredictionEngine {
   }
 
   /**
-   * Score occupancy health
+   * Score production health
    */
-  async scoreOccupancyHealth(
-    input: OccupancyHealthInput,
+  async scoreProductionHealth(
+    input: ProductionHealthInput,
     tenant: AITenantContext
-  ): Promise<AIResult<OccupancyHealthScore, PredictionError>> {
-    const config = this.modelConfigs.get(PredictionModelType.OCCUPANCY_HEALTH)!;
+  ): Promise<AIResult<ProductionHealthScore, PredictionError>> {
+    const config = this.modelConfigs.get(PredictionModelType.PRODUCTION_HEALTH)!;
     const predictionId = asPredictionId(uuidv4());
 
     try {
       // Calculate component scores
-      const occupancyScore = (input.portfolio.occupiedUnits / input.portfolio.totalUnits) * 100;
+      const productionScore = (input.portfolio.activePits / input.portfolio.totalPits) * 100;
       const collectionScore = input.financialMetrics.collectionRate * 100;
-      const retentionScore = input.tenantComposition.renewalRate * 100;
+      const retentionScore = input.counterpartyComposition.renewalRate * 100;
       const marketPositionScore = Math.min(
         100,
         Math.max(0, 50 + (input.financialMetrics.marketRateComparison * 50))
       );
-      const efficiencyScore = Math.max(0, 100 - (input.tenantComposition.tenantTurnoverRate12m * 200));
+      const efficiencyScore = Math.max(0, 100 - (input.counterpartyComposition.counterpartyTurnoverRate12m * 200));
 
       // Calculate overall score (weighted average)
       const overallScore =
-        occupancyScore * (config.featureWeights.occupancyRate ?? 0) +
+        productionScore * (config.featureWeights.productionRate ?? 0) +
         collectionScore * (config.featureWeights.collectionRate ?? 0) +
         retentionScore * (config.featureWeights.renewalRate ?? 0) +
         marketPositionScore * (config.featureWeights.marketPosition ?? 0) +
@@ -486,8 +486,8 @@ export class PredictionEngine {
       const trend: 'improving' | 'stable' | 'declining' = 'stable';
 
       // Generate SWOT-like insights
-      const insights = this.generateOccupancyInsights(input, {
-        occupancy: occupancyScore,
+      const insights = this.generateProductionInsights(input, {
+        production: productionScore,
         collection: collectionScore,
         retention: retentionScore,
         marketPosition: marketPositionScore,
@@ -495,8 +495,8 @@ export class PredictionEngine {
       });
 
       // Generate improvement recommendations
-      const improvements = this.generateOccupancyImprovements(input, {
-        occupancy: occupancyScore,
+      const improvements = this.generateProductionImprovements(input, {
+        production: productionScore,
         collection: collectionScore,
         retention: retentionScore,
       });
@@ -505,9 +505,9 @@ export class PredictionEngine {
                        overallScore >= 50 ? RiskLevel.MEDIUM : RiskLevel.HIGH;
 
       const now = new Date();
-      const prediction: OccupancyHealthScore = {
+      const prediction: ProductionHealthScore = {
         id: predictionId,
-        modelType: PredictionModelType.OCCUPANCY_HEALTH,
+        modelType: PredictionModelType.PRODUCTION_HEALTH,
         modelVersion: config.version,
         horizon: PredictionHorizon.MONTH,
         probability: overallScore / 100,
@@ -517,7 +517,7 @@ export class PredictionEngine {
         generatedAt: now.toISOString(),
         expiresAt: this.calculateExpirationDate(now, PredictionHorizon.MONTH).toISOString(),
         featureImportance: [
-          { feature: 'occupancyRate', displayName: 'Occupancy Rate', value: occupancyScore, importance: 0.3, direction: occupancyScore >= 90 ? 'positive' : 'negative' },
+          { feature: 'productionRate', displayName: 'Production Rate', value: productionScore, importance: 0.3, direction: productionScore >= 90 ? 'positive' : 'negative' },
           { feature: 'collectionRate', displayName: 'Collection Rate', value: collectionScore, importance: 0.25, direction: collectionScore >= 95 ? 'positive' : 'negative' },
           { feature: 'renewalRate', displayName: 'Renewal Rate', value: retentionScore, importance: 0.2, direction: retentionScore >= 70 ? 'positive' : 'negative' },
         ],
@@ -528,7 +528,7 @@ export class PredictionEngine {
           trend,
         },
         componentScores: {
-          occupancy: Math.round(occupancyScore),
+          production: Math.round(productionScore),
           collection: Math.round(collectionScore),
           retention: Math.round(retentionScore),
           marketPosition: Math.round(marketPositionScore),
@@ -538,7 +538,7 @@ export class PredictionEngine {
         improvements,
         projectedImpact: {
           revenueUplift: this.calculateRevenueUplift(input, improvements),
-          occupancyImprovement: improvements.length > 0 ? 3 : 0,
+          productionImprovement: improvements.length > 0 ? 3 : 0,
           collectionImprovement: improvements.length > 0 ? 2 : 0,
           timeToImpactDays: 90,
         },
@@ -551,7 +551,7 @@ export class PredictionEngine {
       return aiErr({
         code: 'PREDICTION_ERROR',
         message: error instanceof Error ? error.message : 'Unknown error',
-        modelType: PredictionModelType.OCCUPANCY_HEALTH,
+        modelType: PredictionModelType.PRODUCTION_HEALTH,
         retryable: true,
       });
     }
@@ -573,23 +573,23 @@ export class PredictionEngine {
   private getAlertRecipients(riskLevel: RiskLevel): string[] {
     switch (riskLevel) {
       case RiskLevel.CRITICAL:
-        return ['property-manager', 'finance-manager', 'senior-management'];
+        return ['site-manager', 'finance-manager', 'senior-management'];
       case RiskLevel.HIGH:
-        return ['property-manager', 'collections-agent'];
+        return ['site-manager', 'collections-agent'];
       case RiskLevel.MEDIUM:
-        return ['property-manager'];
+        return ['site-manager'];
       default:
         return [];
     }
   }
 
-  private generateArrearsAlertMessage(input: ArrearsRiskInput, tier: string, score: number): string {
-    return `Arrears risk alert for tenant in unit ${input.unitId}: Risk tier ${tier} (score: ${(score * 100).toFixed(0)}%). ` +
-      `Current arrears: ${input.paymentHistory.currentArrearsAmount}. Payment on-time rate: ${(input.paymentHistory.onTimeRate * 100).toFixed(0)}%.`;
+  private generateArrearsAlertMessage(input: RoyaltyArrearsRiskInput, tier: string, score: number): string {
+    return `Outstanding-royalties risk alert for counterparty at pit ${input.pitId}: Risk tier ${tier} (score: ${(score * 100).toFixed(0)}%). ` +
+      `Current outstanding royalties: ${input.paymentHistory.currentArrearsAmount}. Payment on-time rate: ${(input.paymentHistory.onTimeRate * 100).toFixed(0)}%.`;
   }
 
   private generateArrearsRecommendations(
-    input: ArrearsRiskInput,
+    input: RoyaltyArrearsRiskInput,
     score: number,
     tier: string
   ): RecommendedAction[] {
@@ -601,7 +601,7 @@ export class PredictionEngine {
         priority: 'high',
         category: 'payment',
         title: 'Enable Auto-Pay',
-        description: 'Reach out to tenant to set up automatic rent payments',
+        description: 'Reach out to counterparty to set up automatic royalty payments',
         expectedImpact: {
           metric: 'onTimeRate',
           currentValue: input.paymentHistory.onTimeRate,
@@ -619,7 +619,7 @@ export class PredictionEngine {
         priority: score >= 0.7 ? 'immediate' : 'high',
         category: 'collections',
         title: 'Offer Payment Plan',
-        description: 'Proactively offer a payment arrangement before arrears escalate',
+        description: 'Proactively offer a payment arrangement before outstanding royalties escalate',
         expectedImpact: {
           metric: 'arrearsRisk',
           currentValue: score,
@@ -637,7 +637,7 @@ export class PredictionEngine {
         priority: 'immediate',
         category: 'relationship',
         title: 'Personal Outreach Call',
-        description: 'Schedule a call to understand tenant situation and discuss options',
+        description: 'Schedule a call to understand counterparty situation and discuss options',
         expectedImpact: {
           metric: 'retention',
           changePercent: 20,
@@ -650,15 +650,15 @@ export class PredictionEngine {
   }
 
   private generateChurnRecommendations(
-    input: ChurnRiskInput,
+    input: BuyerChurnRiskInput,
     score: number,
     tier: string,
     primaryFactor: string
   ): RecommendedAction[] {
     const actions: RecommendedAction[] = [];
 
-    // Early renewal offer for high-risk tenants close to expiry
-    if (input.leaseStatus.daysUntilExpiry <= 90 && score >= 0.4) {
+    // Early renewal offer for high-risk buyers close to expiry
+    if (input.supplyAgreementStatus.daysUntilExpiry <= 90 && score >= 0.4) {
       actions.push({
         id: 'early-renewal',
         priority: 'high',
@@ -677,7 +677,7 @@ export class PredictionEngine {
     }
 
     // Address complaints
-    if (input.tenantEngagement.complaintCount12m > 2) {
+    if (input.counterpartyEngagement.complaintCount12m > 2) {
       actions.push({
         id: 'complaint-resolution',
         priority: 'high',
@@ -692,16 +692,16 @@ export class PredictionEngine {
       });
     }
 
-    // Rent adjustment consideration
-    const rentDiff = (input.marketFactors.currentRent - input.marketFactors.marketRateEstimate) / 
+    // Price adjustment consideration
+    const priceDiff = (input.marketFactors.currentPrice - input.marketFactors.marketRateEstimate) /
       input.marketFactors.marketRateEstimate;
-    if (rentDiff > 0.1 && score >= 0.5) {
+    if (priceDiff > 0.1 && score >= 0.5) {
       actions.push({
-        id: 'rent-review',
+        id: 'price-review',
         priority: 'medium',
         category: 'pricing',
-        title: 'Rent Review',
-        description: 'Consider rent adjustment or added value to align with market',
+        title: 'Price Review',
+        description: 'Consider price adjustment or added value to align with market',
         expectedImpact: {
           metric: 'churnProbability',
           currentValue: score,
@@ -715,56 +715,56 @@ export class PredictionEngine {
     return actions;
   }
 
-  private generateOccupancyInsights(
-    input: OccupancyHealthInput,
-    scores: { occupancy: number; collection: number; retention: number; marketPosition: number; operationalEfficiency: number }
+  private generateProductionInsights(
+    input: ProductionHealthInput,
+    scores: { production: number; collection: number; retention: number; marketPosition: number; operationalEfficiency: number }
   ): { strengths: string[]; weaknesses: string[]; opportunities: string[]; threats: string[] } {
     const strengths: string[] = [];
     const weaknesses: string[] = [];
     const opportunities: string[] = [];
     const threats: string[] = [];
 
-    if (scores.occupancy >= 95) strengths.push('Excellent occupancy rate');
-    else if (scores.occupancy < 85) weaknesses.push('Below-target occupancy');
+    if (scores.production >= 95) strengths.push('Excellent production rate');
+    else if (scores.production < 85) weaknesses.push('Below-target production');
 
-    if (scores.collection >= 98) strengths.push('Strong rent collection');
+    if (scores.collection >= 98) strengths.push('Strong royalty collection');
     else if (scores.collection < 90) weaknesses.push('Collection rate needs improvement');
 
-    if (scores.retention >= 75) strengths.push('High tenant retention');
-    else if (scores.retention < 60) weaknesses.push('Tenant turnover is a concern');
+    if (scores.retention >= 75) strengths.push('High counterparty retention');
+    else if (scores.retention < 60) weaknesses.push('Counterparty turnover is a concern');
 
     if (input.marketContext.marketTrend === 'growing') {
-      opportunities.push('Growing market presents rent increase opportunity');
+      opportunities.push('Growing market presents price increase opportunity');
     } else if (input.marketContext.marketTrend === 'declining') {
-      threats.push('Declining market may impact occupancy');
+      threats.push('Declining market may impact production');
     }
 
-    if (input.marketContext.localVacancyRate > 0.1) {
-      threats.push('High local vacancy rate increases competition');
+    if (input.marketContext.localAvailableCapacityRate > 0.1) {
+      threats.push('High local available-capacity rate increases competition');
     } else {
-      opportunities.push('Low local vacancy supports pricing power');
+      opportunities.push('Low local available-capacity supports pricing power');
     }
 
     return { strengths, weaknesses, opportunities, threats };
   }
 
-  private generateOccupancyImprovements(
-    input: OccupancyHealthInput,
-    scores: { occupancy: number; collection: number; retention: number }
+  private generateProductionImprovements(
+    input: ProductionHealthInput,
+    scores: { production: number; collection: number; retention: number }
   ): RecommendedAction[] {
     const improvements: RecommendedAction[] = [];
 
-    if (scores.occupancy < 90) {
+    if (scores.production < 90) {
       improvements.push({
         id: 'marketing-boost',
         priority: 'high',
         category: 'marketing',
         title: 'Increase Marketing Efforts',
-        description: 'Enhance listing visibility and consider promotional offers for vacant units',
+        description: 'Enhance offtake listing visibility and consider promotional offers for idle pits',
         expectedImpact: {
-          metric: 'occupancy',
-          currentValue: scores.occupancy,
-          projectedValue: Math.min(95, scores.occupancy + 5),
+          metric: 'production',
+          currentValue: scores.production,
+          projectedValue: Math.min(95, scores.production + 5),
           changePercent: 5,
         },
         automationAvailable: true,
@@ -793,17 +793,17 @@ export class PredictionEngine {
     return improvements;
   }
 
-  private calculateRevenueUplift(input: OccupancyHealthInput, improvements: RecommendedAction[]): number {
+  private calculateRevenueUplift(input: ProductionHealthInput, improvements: RecommendedAction[]): number {
     let uplift = 0;
     for (const action of improvements) {
-      if (action.expectedImpact.metric === 'occupancy' && action.expectedImpact.changePercent) {
-        const avgRent = input.financialMetrics.avgRentPerUnit;
-        const additionalUnits = (input.portfolio.totalUnits * action.expectedImpact.changePercent) / 100;
-        uplift += avgRent * additionalUnits * 12; // Annual impact
+      if (action.expectedImpact.metric === 'production' && action.expectedImpact.changePercent) {
+        const avgRevenue = input.financialMetrics.avgRevenuePerPit;
+        const additionalPits = (input.portfolio.totalPits * action.expectedImpact.changePercent) / 100;
+        uplift += avgRevenue * additionalPits * 12; // Annual impact
       }
       if (action.expectedImpact.metric === 'collection' && action.expectedImpact.changePercent) {
-        const totalRent = input.financialMetrics.grossPotentialRent;
-        uplift += totalRent * (action.expectedImpact.changePercent / 100);
+        const totalRevenue = input.financialMetrics.grossPotentialRevenue;
+        uplift += totalRevenue * (action.expectedImpact.changePercent / 100);
       }
     }
     return Math.round(uplift);

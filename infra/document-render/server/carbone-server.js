@@ -97,10 +97,13 @@ export function buildCarboneApp(opts = {}) {
     }
     const templatePath = resolveTemplate(templateId);
     if (!templatePath) {
+      // Reflect only the safe, basename-stripped version of the id so no
+      // raw user input appears in the response body (js/reflected-xss).
+      const safeId = String(templateId ?? '').replace(/[^\w.\-]/g, '_').slice(0, 120);
       return res
         .status(404)
         .type('text/plain')
-        .send(`template not found: ${templateId}`);
+        .send(`template not found: ${safeId}`);
     }
     const options = convertTo ? { convertTo } : {};
     // Carbone has no built-in per-render timeout (unlike puppeteer/typst);

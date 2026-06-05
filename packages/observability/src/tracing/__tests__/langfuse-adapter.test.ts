@@ -256,12 +256,12 @@ describe('emitLangfuseSpan — OTel pipeline integration', () => {
       tracer,
       'low-level.call',
       'tool-call',
-      { traceName: 'business.rent.collect' },
+      { traceName: 'business.royalty.collect' },
       async () => undefined,
     );
     const span = findSpan('low-level.call');
     expect(span!.attributes['langfuse.trace.name']).toBe(
-      'business.rent.collect',
+      'business.royalty.collect',
     );
     expect(span!.attributes['langfuse.observation.type']).toBe('span');
     expect(span!.attributes['langfuse.observation.metadata.borjie_kind']).toBe(

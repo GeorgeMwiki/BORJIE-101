@@ -163,18 +163,18 @@ describe('createProceduralMemoryService', () => {
     await svc.record({
       tenantId: 't_demo',
       userId: 'u_alice',
-      patternName: 'monday-arrears-pull',
-      toolSequence: ['arrears.list', 'report.export'],
-      triggerKeywords: ['arrears', 'monday'],
+      patternName: 'monday-royalties-pull',
+      toolSequence: ['royalties.list', 'report.export'],
+      triggerKeywords: ['royalties', 'monday'],
       success: true,
     });
 
     expect(stub.rows).toHaveLength(1);
     const row = stub.rows[0]!;
-    expect(row.patternName).toBe('monday-arrears-pull');
+    expect(row.patternName).toBe('monday-royalties-pull');
     expect(row.invocations).toBe(1);
     expect(row.successes).toBe(1);
-    expect(row.toolSequence).toEqual(['arrears.list', 'report.export']);
+    expect(row.toolSequence).toEqual(['royalties.list', 'report.export']);
   });
 
   it('record bumps invocations and successes when re-run', async () => {
@@ -186,7 +186,7 @@ describe('createProceduralMemoryService', () => {
       userId: 'u_alice',
       patternName: 'p1',
       toolSequence: ['t.a'],
-      triggerKeywords: ['arrears'],
+      triggerKeywords: ['royalties'],
       success: true,
     });
     await svc.record({
@@ -194,7 +194,7 @@ describe('createProceduralMemoryService', () => {
       userId: 'u_alice',
       patternName: 'p1',
       toolSequence: ['t.a'],
-      triggerKeywords: ['arrears'],
+      triggerKeywords: ['royalties'],
       success: false,
     });
     await svc.record({
@@ -202,7 +202,7 @@ describe('createProceduralMemoryService', () => {
       userId: 'u_alice',
       patternName: 'p1',
       toolSequence: ['t.a'],
-      triggerKeywords: ['arrears'],
+      triggerKeywords: ['royalties'],
       success: true,
     });
 
@@ -217,9 +217,9 @@ describe('createProceduralMemoryService', () => {
         id: 'r1',
         tenantId: 't_demo',
         userId: 'u_alice',
-        patternName: 'arrears-pull',
-        toolSequence: ['arrears.list'],
-        triggerKeywords: ['arrears', 'overdue'],
+        patternName: 'royalties-pull',
+        toolSequence: ['royalties.list'],
+        triggerKeywords: ['royalties', 'overdue'],
         invocations: 4,
         successes: 4,
         lastInvokedAt: new Date(),
@@ -243,25 +243,25 @@ describe('createProceduralMemoryService', () => {
     const out = await svc.match({
       tenantId: 't_demo',
       userId: 'u_alice',
-      userMessage: 'show me overdue tenants and arrears today',
+      userMessage: 'show me overdue buyers and royalties today',
     });
 
     expect(out).toHaveLength(1);
-    expect(out[0]?.patternName).toBe('arrears-pull');
+    expect(out[0]?.patternName).toBe('royalties-pull');
     expect((out[0]?.matchScore ?? 0)).toBeGreaterThan(0);
   });
 
   it('match ranks patterns by keyword overlap, then by success rate', async () => {
-    // Both patterns share one trigger ("arrears") with the message.
+    // Both patterns share one trigger ("royalties") with the message.
     // The first has higher success rate; should rank first.
     const stub = makeStubDb([
       {
         id: 'r1',
         tenantId: 't_demo',
         userId: 'u_alice',
-        patternName: 'arrears-low-success',
+        patternName: 'royalties-low-success',
         toolSequence: ['t.a'],
-        triggerKeywords: ['arrears'],
+        triggerKeywords: ['royalties'],
         invocations: 10,
         successes: 1,
         lastInvokedAt: new Date(),
@@ -271,9 +271,9 @@ describe('createProceduralMemoryService', () => {
         id: 'r2',
         tenantId: 't_demo',
         userId: 'u_alice',
-        patternName: 'arrears-high-success',
+        patternName: 'royalties-high-success',
         toolSequence: ['t.b'],
-        triggerKeywords: ['arrears'],
+        triggerKeywords: ['royalties'],
         invocations: 10,
         successes: 9,
         lastInvokedAt: new Date(),
@@ -285,11 +285,11 @@ describe('createProceduralMemoryService', () => {
     const out = await svc.match({
       tenantId: 't_demo',
       userId: 'u_alice',
-      userMessage: 'arrears report please',
+      userMessage: 'royalties report please',
     });
 
     expect(out).toHaveLength(2);
-    expect(out[0]?.patternName).toBe('arrears-high-success');
-    expect(out[1]?.patternName).toBe('arrears-low-success');
+    expect(out[0]?.patternName).toBe('royalties-high-success');
+    expect(out[1]?.patternName).toBe('royalties-low-success');
   });
 });

@@ -210,13 +210,13 @@ export interface HqToolRegistryWiringDeps {
   readonly extraHilPayoutUsdCents?: number;
   /**
    * Temporal-backed workflow dispatchers for the 3 new sovereign tools
-   * (`evict_tenant`, `payout_owner`, `file_kra_mri`). The composition
+   * (`suspend_licence`, `payout_owner`, `file_kra_mri`). The composition
    * root builds these via {@link createTemporalDispatcherFromEnv} in
    * `./temporal-dispatcher-wiring.ts`; when omitted, the registry falls
    * back to placeholder stub that throw a deterministic refusal.
    */
-  readonly evictionDispatcher?:
-    | hqTools.SeedHqBrainToolsDeps['evictionDispatcher']
+  readonly licenceSuspensionDispatcher?:
+    | hqTools.SeedHqBrainToolsDeps['licenceSuspensionDispatcher']
     | null;
   readonly ownerPayoutDispatcher?:
     | hqTools.SeedHqBrainToolsDeps['ownerPayoutDispatcher']
@@ -347,8 +347,8 @@ export function createHqToolRegistry(
       ...(deps.heartbeatExtraProbes
         ? { heartbeatExtraProbes: deps.heartbeatExtraProbes }
         : {}),
-      ...(deps.evictionDispatcher
-        ? { evictionDispatcher: deps.evictionDispatcher }
+      ...(deps.licenceSuspensionDispatcher
+        ? { licenceSuspensionDispatcher: deps.licenceSuspensionDispatcher }
         : {}),
       ...(deps.ownerPayoutDispatcher
         ? { ownerPayoutDispatcher: deps.ownerPayoutDispatcher }
@@ -372,8 +372,8 @@ export function createHqToolRegistry(
   // placeholder stub.
   const mergedHqDeps = {
     ...hqDeps,
-    ...(deps.evictionDispatcher
-      ? { evictionDispatcher: deps.evictionDispatcher }
+    ...(deps.licenceSuspensionDispatcher
+      ? { licenceSuspensionDispatcher: deps.licenceSuspensionDispatcher }
       : {}),
     ...(deps.ownerPayoutDispatcher
       ? { ownerPayoutDispatcher: deps.ownerPayoutDispatcher }
@@ -433,7 +433,7 @@ export interface BuildHqDepsFromDbOptions {
    * Temporal-backed workflow dispatcher adapters for the 3 sovereign
    * tools. When omitted the bundle falls back to placeholder stub.
    */
-  readonly evictionDispatcher?: hqTools.SeedHqBrainToolsDeps['evictionDispatcher'];
+  readonly licenceSuspensionDispatcher?: hqTools.SeedHqBrainToolsDeps['licenceSuspensionDispatcher'];
   readonly ownerPayoutDispatcher?: hqTools.SeedHqBrainToolsDeps['ownerPayoutDispatcher'];
   readonly kraMriDispatcher?: hqTools.SeedHqBrainToolsDeps['kraMriDispatcher'];
   /**
@@ -514,12 +514,12 @@ export function buildHqDepsFromDb(
     : notYetWiredConsolidationRunner();
 
   // Temporal-backed dispatchers. Fall back to deterministic placeholder
-  // stubs (see NOT_YET_WIRED_REASON.EVICTION_DISPATCHER /
+  // stubs (see NOT_YET_WIRED_REASON.LICENCE_SUSPENSION_DISPATCHER /
   // OWNER_PAYOUT_DISPATCHER / KRA_MRI_DISPATCHER) when the composition
   // root has not yet supplied real adapters (Phase C —
   // `temporal-dispatcher-wiring.ts` provides them).
-  const evictionDispatcher =
-    options.evictionDispatcher ?? notYetWiredEvictionDispatcher();
+  const licenceSuspensionDispatcher =
+    options.licenceSuspensionDispatcher ?? notYetWiredLicenceSuspensionDispatcher();
   const ownerPayoutDispatcher =
     options.ownerPayoutDispatcher ?? notYetWiredOwnerPayoutDispatcher();
   const kraMriDispatcher =
@@ -545,7 +545,7 @@ export function buildHqDepsFromDb(
     killswitchWrite: killswitchService,
     invoices: invoiceService,
     announcements: announcementService,
-    evictionDispatcher,
+    licenceSuspensionDispatcher,
     ownerPayoutDispatcher,
     kraMriDispatcher,
     nida,
@@ -720,7 +720,7 @@ function buildNotYetWiredHqDeps(): Omit<
         throw new NotYetWiredError('announcements.recall');
       },
     },
-    evictionDispatcher: notYetWiredEvictionDispatcher(),
+    licenceSuspensionDispatcher: notYetWiredLicenceSuspensionDispatcher(),
     ownerPayoutDispatcher: notYetWiredOwnerPayoutDispatcher(),
     kraMriDispatcher: notYetWiredKraMriDispatcher(),
     nida: notYetWiredNidaPort(),
@@ -734,13 +734,13 @@ function buildNotYetWiredHqDeps(): Omit<
 // real Temporal dispatchers in.
 // ─────────────────────────────────────────────────────────────────────
 
-function notYetWiredEvictionDispatcher(): hqTools.SeedHqBrainToolsDeps['evictionDispatcher'] {
+function notYetWiredLicenceSuspensionDispatcher(): hqTools.SeedHqBrainToolsDeps['licenceSuspensionDispatcher'] {
   return {
     async start() {
-      throw new NotYetWiredError('evictionDispatcher');
+      throw new NotYetWiredError('licenceSuspensionDispatcher');
     },
     async withdraw() {
-      throw new NotYetWiredError('evictionDispatcher.withdraw');
+      throw new NotYetWiredError('licenceSuspensionDispatcher.withdraw');
     },
   };
 }

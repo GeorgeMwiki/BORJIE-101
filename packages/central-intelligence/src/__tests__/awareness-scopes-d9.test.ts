@@ -27,8 +27,8 @@ describe('composeScope — allowed pairs', () => {
     }
   });
 
-  it('manager @ unit tier is allowed', () => {
-    const r = composeScope('manager', 'unit');
+  it('manager @ pit tier is allowed', () => {
+    const r = composeScope('manager', 'pit');
     expect(isRoleScope(r)).toBe(true);
   });
 
@@ -65,10 +65,10 @@ describe('composeScope — disallowed pairs', () => {
 
 describe('composeScope — k-floor boosts', () => {
   it('admin role boosts k by 5 above the base tier', () => {
-    const r = composeScope('admin', 'property');
+    const r = composeScope('admin', 'site');
     expect(isRoleScope(r)).toBe(true);
     if (isRoleScope(r)) {
-      // property base k = 10, +5 admin boost
+      // site base k = 10, +5 admin boost
       expect(r.minK).toBeGreaterThanOrEqual(15);
     }
   });

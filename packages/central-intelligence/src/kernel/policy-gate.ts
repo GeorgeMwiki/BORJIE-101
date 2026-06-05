@@ -24,15 +24,16 @@
  *   4. Off-hours sensitive-action context check — refuses sovereign-
  *      tier (`stakes: 'critical'`) actions outside Tanzania business
  *      hours (08:00–18:00 EAT, Mon–Fri) unless the caller has supplied
- *      `afterHoursOverride: true`. Property management example: an
- *      eviction proposal at 23:30 on a Sunday almost never reflects a
- *      sober decision.
+ *      `afterHoursOverride: true`. Mining-estate example: a
+ *      licence-suspension proposal at 23:30 on a Sunday almost never
+ *      reflects a sober decision.
  *
  *   5. PII redaction — phone / national-id / email leakage that the
  *      sensor accidentally reproduced from a tool result.
  *
  *   6. Numerical claim hedging + regulatory hedge — un-cited absolute
- *      numbers and eviction/lockout language get softened.
+ *      numbers and licence-suspension / agreement-termination language
+ *      get softened.
  *
  * The new context checks (1)–(4) only fire when `input.request` is
  * supplied. Existing callers that pass `{ text, hasCitations }` see
@@ -120,9 +121,20 @@ const NUMERICAL_PATTERN = /\b\d{1,3}(?:[.,]\d+)?%/g; // 92.3% etc
 const ABSOLUTE_MONEY_PATTERN =
   /\b(?:TZS|KES|UGX|RWF|NGN|ZAR|GHS|EGP|USD|EUR|GBP|CHF|JPY|CNY|INR|AUD|CAD|Ksh|KShs|Tsh|TShs|Sh|Shs)\s?\d[\d,]*(?:\.\d+)?\b/gi;
 
+// Sensitive-action language that warrants the regulatory hedge.
+// Mining-estate vocabulary (licence suspension, agreement / offtake
+// termination, permit revocation, site lockout) sits ALONGSIDE the
+// legacy real-estate patterns — keeping both is strictly safer
+// (recognising MORE termination language never weakens the gate) and
+// keeps parity with the already-migrated inviolable.ts which refuses
+// autonomous licence-suspension approval.
 const REGULATORY_TRIGGERS: ReadonlyArray<RegExp> = [
   /\bevict\w*/i,
-  /\bterminate? (the )?lease\b/i,
+  /\blicen[cs]e[-\s]?suspen\w*/i,
+  /\bsuspend\w* (the )?licen[cs]e\b/i,
+  /\bpermit[-\s]?revo\w*/i,
+  /\brevoke\w* (the )?permit\b/i,
+  /\bterminate? (the )?(lease|offtake|supply)( agreement)?\b/i,
   /\bvacate (the )?premises\b/i,
   /\blockout\b/i,
 ];
@@ -344,15 +356,22 @@ export { isWithinBusinessHoursEAT };
 // D9 helpers — language consistency + 10x numerical sanity.
 // ──────────────────────────────────────────────────────────────────
 
+// Domain word-lists below are language-detection HEURISTICS only.
+// Mining-estate vocabulary is added ALONGSIDE the legacy terms so the
+// EN/SW mismatch detector keeps working on historical records while
+// also catching mining-domain phrasing. Terms are additive — none are
+// removed — so no existing detection weakens.
 const SWAHILI_MARKERS: ReadonlyArray<RegExp> = [
   /\b(ni|na|ya|wa|katika|kwa|kwamba|hii|hiyo|hivyo|sasa|baada|kabla)\b/gi,
   /\b(nyumba|pango|kodi|mwenye|mpangaji|mwezi|siku|leo|jana|kesho)\b/gi,
+  /\b(madini|mgodi|migodi|mrabaha|leseni|mnunuzi|uzalishaji|tani)\b/gi,
   /\b(habari|asante|tafadhali|samahani|karibu|jambo|mambo)\b/gi,
 ];
 
 const ENGLISH_MARKERS: ReadonlyArray<RegExp> = [
   /\b(the|and|is|are|was|were|will|with|in|on|at|by|for|to|of|from)\b/gi,
   /\b(rent|lease|tenant|property|unit|payment|invoice|arrears|notice|month|day)\b/gi,
+  /\b(royalty|offtake|mineral|site|licence|license|permit|buyer|production|tonnage)\b/gi,
 ];
 
 export function detectLanguageMismatch(text: string, expected: 'en' | 'sw'): boolean {

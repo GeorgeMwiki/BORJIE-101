@@ -20,7 +20,7 @@ export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
   return (
     <div className={`flex flex-col gap-1 ${isOwner ? '' : 'items-end'}`}>
       <div className="text-badge text-neutral-500">
-        {isOwner ? 'Owner' : `Master Brain · ${message.mode}`} · {fmtTime(message.createdAt)}
+        {isOwner ? 'Owner' : 'Master Brain'} · {fmtTime(message.createdAt)}
       </div>
       <div
         className={`max-w-2xl rounded-lg px-3 py-2 text-sm leading-relaxed ${

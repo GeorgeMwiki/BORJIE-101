@@ -81,13 +81,13 @@ describe('classifySeverity', () => {
 describe('DEFAULT_THRESHOLDS', () => {
   it('contains an entry for every documented RiskKind', () => {
     const expected = [
-      'arrears_risk',
+      'outstanding_royalties_risk',
       'churn_risk',
       'incident_risk',
       'vendor_decay',
       'renewal_opportunity',
       'compliance_drift',
-      'void_risk',
+      'available_capacity_risk',
       'repair_recurrence',
       'payment_method_decay',
       'litigation_exposure',

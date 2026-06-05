@@ -55,7 +55,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
       - name: pnpm -r typecheck
         run: pnpm -r typecheck
 
@@ -89,7 +89,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - run: pnpm exec turbo run build --filter='./packages/*' --filter='./services/*'
 
       - name: pnpm -r test
         run: pnpm -r test
@@ -113,6 +113,21 @@ jobs:
     env:
       NEXT_PUBLIC_APP_URL: https://ci-build.borjie.invalid
       NEXT_PUBLIC_API_URL: https://ci-build.borjie.invalid/api
+      NEXT_PUBLIC_API_GATEWAY_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_API_BASE_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_MARKETING_SITE_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_MARKETING_ORIGIN: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_OWNER_WEB_ORIGIN: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_ADMIN_WEB_ORIGIN: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_OWNER_PORTAL_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_PDFJS_WORKER_URL: https://ci-build.borjie.invalid/pdf.worker.js
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-build-anon-key-placeholder
+      NEXT_PUBLIC_MAPBOX_TOKEN: pk.ci-build-placeholder
+      NEXT_PUBLIC_WORKFORCE_APP_IOS_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_WORKFORCE_APP_ANDROID_URL: https://ci-build.borjie.invalid
+      NEXT_PUBLIC_BORJIE_ENV: ci
       NEXT_PUBLIC_TENANT_CURRENCY: TZS
       NEXT_PUBLIC_TENANT_LOCALE: sw
       NEXT_PUBLIC_TENANT_COUNTRY: TZ
@@ -127,8 +142,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      - name: pnpm -r build
-        run: pnpm -r build
+      - name: turbo build (topological)
+        run: pnpm build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

@@ -1,6 +1,6 @@
 /**
  * VP People — weekly report.
- *   - vendor performance scorecards
+ *   - contractor performance scorecards
  *   - employee attrition risk
  *   - payroll on-time hit-rate
  */
@@ -40,8 +40,8 @@ export async function draftPeopleWeeklyReport(args: {
 
   const cards: VpReportCard[] = [
     buildVpReportCard({
-      title: 'Vendor performance',
-      headline: 'Vendor scorecard (median)',
+      title: 'Contractor performance',
+      headline: 'Contractor scorecard (median)',
       ...(vendor ? { rollup: vendor } : {}),
       numericUnit: '/100',
     }),

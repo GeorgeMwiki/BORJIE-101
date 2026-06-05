@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { detectLanguage, detectLanguageSync } from '../detect.js';
 
 describe('detectLanguage (async, fallback heuristic)', () => {
-  it('detects Swahili from a property-management phrase', async () => {
+  it('detects Swahili from a mining document phrase', async () => {
     const code = await detectLanguage(
-      'Mkataba wa pango wa nyumba, mpangaji atalipa kodi ya kila mwezi.',
+      'Mkataba wa madini, mnunuzi atalipa mrabaha ya kila mwezi.',
       { loader: async () => null }
     );
     expect(code).toBe('sw');
@@ -12,7 +12,7 @@ describe('detectLanguage (async, fallback heuristic)', () => {
 
   it('detects French from a contract phrase', async () => {
     const code = await detectLanguage(
-      'Le locataire doit payer le loyer mensuel à la date convenue.',
+      "L'acheteur doit payer la redevance mensuelle à la date convenue.",
       { loader: async () => null }
     );
     expect(code).toBe('fr');
@@ -20,14 +20,14 @@ describe('detectLanguage (async, fallback heuristic)', () => {
 
   it('detects English when keywords match', async () => {
     const code = await detectLanguage(
-      'The tenant shall pay the rent each month on the agreed date.',
+      'The buyer shall pay the royalty each month on the agreed date.',
       { loader: async () => null }
     );
     expect(code).toBe('en');
   });
 
   it('detects Arabic by script range', async () => {
-    const code = await detectLanguage('عقد إيجار شهري', { loader: async () => null });
+    const code = await detectLanguage('عقد تعدين شهري', { loader: async () => null });
     expect(code).toBe('ar');
   });
 
@@ -51,7 +51,7 @@ describe('detectLanguage (async, fallback heuristic)', () => {
 
 describe('detectLanguageSync', () => {
   it('detects Swahili synchronously', () => {
-    const code = detectLanguageSync('Mwenye nyumba na mpangaji wamekubaliana.');
+    const code = detectLanguageSync('Mwenye madini na mnunuzi wamekubaliana.');
     expect(code).toBe('sw');
   });
   it('detects Amharic by script', () => {

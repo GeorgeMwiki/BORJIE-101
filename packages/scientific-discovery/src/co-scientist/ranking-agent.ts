@@ -109,7 +109,7 @@ async function judgePair(
 ): Promise<'a' | 'b' | 'draw'> {
   const completion = await llm.complete({
     system:
-      'You are a tournament judge. Given two property-economics hypotheses, pick ' +
+      'You are a tournament judge. Given two mining-economics hypotheses, pick ' +
       'the one with stronger actionability and identifiability. Reply ONLY with one ' +
       'of "A", "B", or "DRAW".',
     prompt: [

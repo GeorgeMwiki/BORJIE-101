@@ -109,7 +109,7 @@ describe('RLS isolation — orchestrator', () => {
     const { document } = await ingestDocument(
       {
         tenantId: 'tenant-a',
-        filename: 'lease.txt',
+        filename: 'offtake.txt',
         mimeType: 'text/plain',
         content: text,
       },

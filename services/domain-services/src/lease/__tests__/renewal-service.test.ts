@@ -7,28 +7,28 @@ import type { TenantId, UserId, ISOTimestamp } from '@borjie/domain-models';
 import type { EventBus } from '../../common/events.js';
 import {
   RenewalService,
-  type RenewalLeaseSnapshot,
+  type RenewalOfftakeSnapshot,
   type RenewalRepository,
 } from '../renewal-service.js';
 
-function makeLease(
-  overrides: Partial<RenewalLeaseSnapshot> = {},
-): RenewalLeaseSnapshot {
+function makeOfftake(
+  overrides: Partial<RenewalOfftakeSnapshot> = {},
+): RenewalOfftakeSnapshot {
   return {
-    id: 'lease_1',
+    id: 'offtake_1',
     tenantId: 'tnt_1' as TenantId,
-    leaseNumber: 'L-2026-000001',
+    offtakeNumber: 'O-2026-000001',
     propertyId: 'prop_1',
     unitId: 'unit_1',
     customerId: 'cust_1',
     startDate: '2026-01-01T00:00:00.000Z' as ISOTimestamp,
     endDate: '2026-12-31T00:00:00.000Z' as ISOTimestamp,
-    rentAmount: 100000,
-    rentCurrency: 'KES',
+    royaltyAmount: 100000,
+    royaltyCurrency: 'KES',
     renewalStatus: 'not_started',
     renewalWindowOpenedAt: null,
     renewalProposedAt: null,
-    renewalProposedRent: null,
+    renewalProposedRoyalty: null,
     renewalDecidedAt: null,
     renewalDecisionBy: null,
     terminationDate: null,
@@ -37,32 +37,32 @@ function makeLease(
   };
 }
 
-function makeRepo(initial: RenewalLeaseSnapshot): {
+function makeRepo(initial: RenewalOfftakeSnapshot): {
   repo: RenewalRepository;
-  store: RenewalLeaseSnapshot;
+  store: RenewalOfftakeSnapshot;
 } {
-  const store: RenewalLeaseSnapshot = { ...initial };
+  const store: RenewalOfftakeSnapshot = { ...initial };
   const repo: RenewalRepository = {
     findById: vi.fn(async () => ({ ...store })),
-    update: vi.fn(async (lease) => {
-      Object.assign(store, lease);
+    update: vi.fn(async (offtake) => {
+      Object.assign(store, offtake);
       return { ...store };
     }),
     createRenewedLease: vi.fn(async (params) => ({
-      id: params.newLeaseId,
+      id: params.newOfftakeId,
       tenantId: params.tenantId,
-      leaseNumber: params.newLeaseNumber,
+      offtakeNumber: params.newOfftakeNumber,
       propertyId: store.propertyId,
       unitId: store.unitId,
       customerId: store.customerId,
       startDate: params.startDate,
       endDate: params.endDate,
-      rentAmount: params.rentAmount,
-      rentCurrency: params.rentCurrency,
+      royaltyAmount: params.royaltyAmount,
+      royaltyCurrency: params.royaltyCurrency,
       renewalStatus: 'not_started',
       renewalWindowOpenedAt: null,
       renewalProposedAt: null,
-      renewalProposedRent: null,
+      renewalProposedRoyalty: null,
       renewalDecidedAt: null,
       renewalDecisionBy: null,
       terminationDate: null,
@@ -86,10 +86,10 @@ const correlationId = 'corr_1';
 
 describe('RenewalService', () => {
   it('openRenewalWindow transitions not_started -> window_opened', async () => {
-    const { repo } = makeRepo(makeLease());
+    const { repo } = makeRepo(makeOfftake());
     const service = new RenewalService(repo, makeEventBus());
     const result = await service.openRenewalWindow(
-      'lease_1',
+      'offtake_1',
       tenantId,
       userId,
       correlationId,
@@ -101,44 +101,44 @@ describe('RenewalService', () => {
     }
   });
 
-  it('proposeRenewal requires positive rent', async () => {
-    const { repo } = makeRepo(makeLease({ renewalStatus: 'window_opened' }));
+  it('proposeRenewal requires positive royalty', async () => {
+    const { repo } = makeRepo(makeOfftake({ renewalStatus: 'window_opened' }));
     const service = new RenewalService(repo, makeEventBus());
     const bad = await service.proposeRenewal(
-      'lease_1',
+      'offtake_1',
       tenantId,
-      { proposedRent: 0, proposedBy: userId },
+      { proposedRoyalty: 0, proposedBy: userId },
       correlationId,
     );
     expect(bad.ok).toBe(false);
   });
 
-  it('proposeRenewal records proposed rent', async () => {
-    const { repo } = makeRepo(makeLease({ renewalStatus: 'window_opened' }));
+  it('proposeRenewal records proposed royalty', async () => {
+    const { repo } = makeRepo(makeOfftake({ renewalStatus: 'window_opened' }));
     const service = new RenewalService(repo, makeEventBus());
     const result = await service.proposeRenewal(
-      'lease_1',
+      'offtake_1',
       tenantId,
-      { proposedRent: 110000, proposedBy: userId },
+      { proposedRoyalty: 110000, proposedBy: userId },
       correlationId,
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.renewalStatus).toBe('proposed');
-      expect(result.value.renewalProposedRent).toBe(110000);
+      expect(result.value.renewalProposedRoyalty).toBe(110000);
     }
   });
 
-  it('acceptRenewal creates a new lease', async () => {
+  it('acceptRenewal creates a new offtake', async () => {
     const { repo } = makeRepo(
-      makeLease({
+      makeOfftake({
         renewalStatus: 'proposed',
-        renewalProposedRent: 120000,
+        renewalProposedRoyalty: 120000,
       }),
     );
     const service = new RenewalService(repo, makeEventBus());
     const result = await service.acceptRenewal(
-      'lease_1',
+      'offtake_1',
       tenantId,
       {
         newEndDate: '2027-12-31T00:00:00.000Z' as ISOTimestamp,
@@ -148,18 +148,18 @@ describe('RenewalService', () => {
     );
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.rentAmount).toBe(120000);
-      expect(result.value.id).not.toBe('lease_1');
+      expect(result.value.royaltyAmount).toBe(120000);
+      expect(result.value.id).not.toBe('offtake_1');
     }
   });
 
   it('declineRenewal from proposed succeeds', async () => {
-    const { repo } = makeRepo(makeLease({ renewalStatus: 'proposed' }));
+    const { repo } = makeRepo(makeOfftake({ renewalStatus: 'proposed' }));
     const service = new RenewalService(repo, makeEventBus());
     const result = await service.declineRenewal(
-      'lease_1',
+      'offtake_1',
       tenantId,
-      { declinedBy: userId, reason: 'tenant relocating' },
+      { declinedBy: userId, reason: 'counterparty relocating' },
       correlationId,
     );
     expect(result.ok).toBe(true);
@@ -169,12 +169,12 @@ describe('RenewalService', () => {
   });
 
   it('rejects transitions from terminal states', async () => {
-    const { repo } = makeRepo(makeLease({ renewalStatus: 'accepted' }));
+    const { repo } = makeRepo(makeOfftake({ renewalStatus: 'accepted' }));
     const service = new RenewalService(repo, makeEventBus());
     const result = await service.proposeRenewal(
-      'lease_1',
+      'offtake_1',
       tenantId,
-      { proposedRent: 100, proposedBy: userId },
+      { proposedRoyalty: 100, proposedBy: userId },
       correlationId,
     );
     expect(result.ok).toBe(false);

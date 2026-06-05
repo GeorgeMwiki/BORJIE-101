@@ -2,7 +2,7 @@
  * Privacy Controls - GDPR & CCPA Compliance
  * 
  * Implements privacy-by-design principles and data subject rights management
- * for multi-tenant property management SaaS.
+ * for the multi-tenant mining estate operating system.
  */
 
 import { z } from 'zod';
@@ -126,7 +126,7 @@ export interface DataSubjectRequest {
  * Personal Data Inventory Entry
  */
 export interface PersonalDataInventory {
-  readonly fieldPath: string;          // e.g., "users.email", "leases.tenant_phone"
+  readonly fieldPath: string;          // e.g., "users.email", "offtakes.counterparty_phone"
   readonly dataCategory: DataCategory;
   readonly sensitivity: 'low' | 'medium' | 'high' | 'critical';
   readonly legalBasis: LegalBasis;

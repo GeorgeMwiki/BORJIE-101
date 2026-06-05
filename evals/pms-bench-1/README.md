@@ -2,7 +2,7 @@
 
 **Internal vertical benchmark suite for Borjie sub-MDs.**
 
-Inspired by τ2-bench. 50 property-management tasks across 5 scenarios, scored with `pass^k` so a flaky sub-MD can't game us with one lucky run.
+Inspired by τ2-bench. 50 mining-estate operations tasks across 5 scenarios, scored with `pass^k` so a flaky sub-MD can't game us with one lucky run.
 
 ## Methodology
 
@@ -12,7 +12,7 @@ For each task fixture, we:
 2. Each run is scored by 4 scorers:
    - **action-correctness** — did the MD pick the right tool?
    - **escalation-correctness** — did the MD escalate at the right point?
-   - **communication-quality** — LLM-judged owner/tenant comms quality.
+   - **communication-quality** — LLM-judged owner/counterparty comms quality.
    - **cost-efficiency** — resolution-quality / $ spent.
 3. A run is a "pass" iff its weighted composite score `>= 0.80`.
 4. The task passes if `>= ceil(k * 0.6)` runs pass (i.e. ≤2 failures out of 5).
@@ -23,12 +23,18 @@ This is the `pass^k` metric: it stresses tail behaviour, not just averages.
 
 | Scenario             | Tasks | Sub-MDs exercised             |
 |----------------------|-------|-------------------------------|
-| arrears-triage       | 10    | arrears-md                    |
-| maintenance-dispatch | 10    | maintenance-md                |
-| kra-filing           | 10    | tax-md, kra-md                |
-| lease-renewal        | 10    | lease-md, renewal-md          |
-| complaint-triage     | 10    | concierge-md, complaint-md    |
+| arrears-triage       | 10    | royalty.chaser                |
+| maintenance-dispatch | 10    | maintenance.dispatch          |
+| kra-filing           | 10    | tra.filing_assistant          |
+| lease-renewal        | 10    | offtake.coordinator           |
+| complaint-triage     | 10    | complaint.triage              |
 | **TOTAL**            | **50**|                               |
+
+The scenario directory names (`arrears-triage`, `kra-filing`, `lease-renewal`, …)
+are stable runner keys wired into the sub-MD adapter, the cost-efficiency
+budget map and the test suite. The *content* of every fixture is mining-estate
+domain (royalty defaults, offtake renewals, TRA royalty returns, equipment
+maintenance, site grievances) — only the keys are held fixed.
 
 ## Fixture shape
 
@@ -37,27 +43,27 @@ Each task is a YAML file in `tasks/<scenario>/task-NNN.yaml` with:
 ```yaml
 id: arrears-triage-001
 scenario: arrears-triage
-title: '12-day arrears, first-time delinquency'
+title: '12-day outstanding royalty, first-time default'
 context:
-  tenant:
-    id: tnt-001
+  counterparty:
+    id: cpty-001
     name: 'Asha Mwakasege'
-    arrears_days: 12
-    history: first-delinquency
-  property:
-    id: prop-001
-    block: 'Block A'
-    unit: '4B'
-  lease:
-    monthly_rent_minor: 65000000  # TZS minor units
+    outstanding_days: 12
+    history: first-default
+  asset:
+    id: site-001
+    zone: 'Geita Zone'
+    pit: 'Pit 4B'
+  offtake:
+    monthly_royalty_minor: 65000000  # TZS minor units
     currency: TZS
   events:
-    - {at: '2026-04-15', kind: 'invoice.issued', amount_minor: 65000000}
-    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 65000000}
+    - {at: '2026-04-15', kind: 'royalty_return.issued', amount_minor: 65000000}
+    - {at: '2026-04-30', kind: 'royalty_return.due', amount_minor: 65000000}
     - {at: '2026-05-12', kind: 'partial_payment', amount_minor: 20000000}
 expected_actions:
-  - {tool: 'arrears.send_reminder', tone: 'firm-but-empathetic'}
-  - {tool: 'arrears.propose_payment_plan', max_installments: 3}
+  - {tool: 'royalty.send_reminder', tone: 'firm-but-empathetic'}
+  - {tool: 'royalty.propose_payment_plan', max_installments: 3}
 expected_escalation: false
 scorer_weights:
   action-correctness: 0.4

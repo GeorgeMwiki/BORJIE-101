@@ -23,7 +23,7 @@ export function generateAgentCard(deps: AgentCardDeps): AgentCard {
   return Object.freeze({
     name: 'BORJIE Agent Platform',
     description:
-      'Multi-tenant property-management SaaS exposing canonical property graph reads, tenant risk reports, maintenance case lifecycle, letter generation, arrears projection, occupancy timeline, AI-cost summaries, compliance-plugin enumeration, warehouse inventory, and universal skill dispatch via MCP and REST.',
+      'Multi-tenant mining estate operating system exposing canonical mining-estate graph reads, counterparty risk reports, maintenance case lifecycle, letter generation, outstanding-royalty projection, production timeline, AI-cost summaries, compliance-plugin enumeration, warehouse inventory, and universal skill dispatch via MCP and REST.',
     url: deps.baseUrl,
     version: deps.version ?? '0.1.0',
     provider: Object.freeze({
@@ -38,14 +38,14 @@ export function generateAgentCard(deps: AgentCardDeps): AgentCard {
     }),
     capabilities: Object.freeze([
       Object.freeze({
-        name: 'property-graph-query',
+        name: 'mining-estate-graph-query',
         description:
-          'Query the Canonical Property Graph for entities, relationships, and computed rollups.',
+          'Query the Canonical Mining Estate Graph for entities, relationships, and computed rollups.',
       }),
       Object.freeze({
-        name: 'tenant-risk-scoring',
+        name: 'counterparty-risk-scoring',
         description:
-          'Compute or read tenant risk profiles (arrears, churn, dispute).',
+          'Compute or read counterparty risk profiles (outstanding royalties, churn, dispute).',
       }),
       Object.freeze({
         name: 'maintenance-lifecycle',
@@ -58,14 +58,14 @@ export function generateAgentCard(deps: AgentCardDeps): AgentCard {
           'Generate country-compliant letters via the active compliance-plugin template catalog.',
       }),
       Object.freeze({
-        name: 'arrears-projection',
+        name: 'outstanding-royalty-projection',
         description:
-          'Project the arrears curve for a tenant or unit using the paytime-prediction model.',
+          'Project the outstanding-royalty curve for a counterparty or asset using the paytime-prediction model.',
       }),
       Object.freeze({
-        name: 'occupancy-timeline',
+        name: 'production-timeline',
         description:
-          'Retrieve move-in / move-out / vacancy events for a unit or property.',
+          'Retrieve mobilisation / closeout / available-capacity events for a unit or asset.',
       }),
       Object.freeze({
         name: 'ai-cost-accounting',

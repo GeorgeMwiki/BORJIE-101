@@ -951,7 +951,7 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
         tenantId,
         channel: 'email',
         recipient: { customerId },
-        templateKey: 'lease.created',
+        templateKey: 'offtake.created',
         data: {
           leaseId: (genericPayload(event) as { leaseId?: string }).leaseId,
           startDate: (genericPayload(event) as { startDate?: unknown }).startDate,
@@ -963,7 +963,7 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
       });
       await auditLog({
         tenantId,
-        action: 'lease.created',
+        action: 'offtake.created',
         target: {
           type: 'Lease',
           id: String((genericPayload(event) as { leaseId?: string }).leaseId ?? event.aggregateId ?? ''),
@@ -1001,7 +1001,7 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
   );
 
   bus.subscribe(
-    'LeaseTerminated',
+    'OfftakeTerminated',
     safeHandler('lease-terminated', logger, async (event) => {
       const tenantId = extractTenant(event);
       const customerId = extractCustomer(event);
@@ -1824,10 +1824,10 @@ export function registerDomainEventSubscribers(deps: EventSubscriberDeps): void 
     safeHandler('property-created', logger, async (event) => {
       const tenantId = extractTenant(event);
       if (!tenantId) return;
-      emitMetric({ name: 'property.created', value: 1, tags: { tenantId } });
+      emitMetric({ name: 'site.created', value: 1, tags: { tenantId } });
       await auditLog({
         tenantId,
-        action: 'property.created',
+        action: 'site.created',
         target: { type: 'Property', id: String(event.aggregateId ?? '') },
         metadata: genericPayload(event),
         ...(event.metadata?.correlationId !== undefined

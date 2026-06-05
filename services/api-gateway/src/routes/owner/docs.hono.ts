@@ -41,10 +41,16 @@ import {
   documentUploads,
   documentCorpusLinks,
   intelligenceCorpusChunks,
+  withTenantContext,
 } from '@borjie/database';
 
 import { authMiddleware } from '../../middleware/hono-auth';
-import { databaseMiddleware } from '../../middleware/database';
+// NoPin: /explain and /qa await a one-shot LLM (`callBrainOnce`) mid-request,
+// and /intake awaits a storage presign — none may hold a reserved pool
+// connection across that external call. Inject the db WITHOUT pinning and
+// bind tenant context per DB op via `withTenantContext` (RLS FORCE still
+// fires); the brain call + presign stay strictly outside any transaction.
+import { databaseMiddlewareNoPin } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { callBrainOnce } from './brain-call.js';
 // Wave OWNER-OS — REAL Supabase Storage presigned PUT replacing the
@@ -153,7 +159,7 @@ function mapCategoryToDocumentType(category: string): string {
 
 const app = new Hono();
 app.use('*', authMiddleware);
-app.use('*', databaseMiddleware);
+app.use('*', databaseMiddlewareNoPin);
 
 // ---------------------------------------------------------------------------
 // POST /intake — register an owner-intake document
@@ -213,9 +219,13 @@ app.post('/intake', async (c: any) => {
         .slice(0, 7)}/${id}`;
 
   try {
-    const [row] = await db
-      .insert(documentUploads)
-      .values({
+    // Persist the intake row, then append its hash-chain audit — each in a
+    // short per-tenant transaction (NoPin router → bind the GUC per op). The
+    // storage presign above already ran OUTSIDE any transaction.
+    const [row] = await withTenantContext(db, auth.tenantId, (tx) =>
+      tx
+        .insert(documentUploads)
+        .values({
         id,
         tenantId: auth.tenantId,
         customerId: null,
@@ -245,7 +255,8 @@ app.post('/intake', async (c: any) => {
         createdBy: auth.userId,
         updatedBy: auth.userId,
       })
-      .returning();
+        .returning(),
+    );
 
     moduleLogger.info('owner-docs: intake registered', {
       tenantId: auth.tenantId,
@@ -261,8 +272,9 @@ app.post('/intake', async (c: any) => {
     // trace every URL that left the gateway against an owner request.
     // Best-effort — a chain gap is logged but does not block delivery.
     try {
-      await db.execute(
-        sql`
+      await withTenantContext(db, auth.tenantId, (tx) =>
+        tx.execute(
+          sql`
           WITH prev AS (
             SELECT this_hash, sequence_id
               FROM ai_audit_chain
@@ -309,6 +321,7 @@ app.post('/intake', async (c: any) => {
             ${now.toISOString()}::timestamptz
           )
         `,
+        ),
       );
     } catch (auditErr) {
       moduleLogger.warn('owner-docs: presign audit-chain append failed', {
@@ -365,31 +378,33 @@ app.get('/', async (c: any) => {
   const limitRaw = c.req.query('limit');
   const limit = Math.min(Math.max(Number(limitRaw ?? 50) || 50, 1), 200);
 
-  const rows = await db
-    .select({
-      id: documentUploads.id,
-      fileName: documentUploads.fileName,
-      mimeType: documentUploads.mimeType,
-      fileSize: documentUploads.fileSize,
-      fileUrl: documentUploads.fileUrl,
-      kind: documentUploads.kind,
-      ingestionStatus: documentUploads.ingestionStatus,
-      ingestionError: documentUploads.ingestionError,
-      ingestedAt: documentUploads.ingestedAt,
-      tags: documentUploads.tags,
-      metadata: documentUploads.metadata,
-      createdAt: documentUploads.createdAt,
-      createdBy: documentUploads.createdBy,
-    })
-    .from(documentUploads)
-    .where(
-      and(
-        eq(documentUploads.tenantId, auth.tenantId),
-        eq(documentUploads.entityType, ENTITY_TYPE),
-      ),
-    )
-    .orderBy(desc(documentUploads.createdAt))
-    .limit(limit);
+  const rows = await withTenantContext(db, auth.tenantId, (tx) =>
+    tx
+      .select({
+        id: documentUploads.id,
+        fileName: documentUploads.fileName,
+        mimeType: documentUploads.mimeType,
+        fileSize: documentUploads.fileSize,
+        fileUrl: documentUploads.fileUrl,
+        kind: documentUploads.kind,
+        ingestionStatus: documentUploads.ingestionStatus,
+        ingestionError: documentUploads.ingestionError,
+        ingestedAt: documentUploads.ingestedAt,
+        tags: documentUploads.tags,
+        metadata: documentUploads.metadata,
+        createdAt: documentUploads.createdAt,
+        createdBy: documentUploads.createdBy,
+      })
+      .from(documentUploads)
+      .where(
+        and(
+          eq(documentUploads.tenantId, auth.tenantId),
+          eq(documentUploads.entityType, ENTITY_TYPE),
+        ),
+      )
+      .orderBy(desc(documentUploads.createdAt))
+      .limit(limit),
+  );
 
   return c.json(ok({ documents: rows }), 200);
 });
@@ -487,7 +502,11 @@ app.post('/:id/explain', async (c: any) => {
     return c.json(err('OWNER_DOCS_DB_UNAVAILABLE', 'Database not configured'), 503);
   }
 
-  const loaded = await loadDocumentWithChunks(db, auth.tenantId, id);
+  // Tenant-bound read in a short txn (NoPin router → bind GUC per op). The
+  // brain call below runs OUTSIDE this transaction.
+  const loaded = await withTenantContext(db, auth.tenantId, (tx) =>
+    loadDocumentWithChunks(tx, auth.tenantId, id),
+  );
   if (!loaded) return c.json(err('NOT_FOUND', 'Document not found'), 404);
 
   const { doc, chunkTexts } = loaded;
@@ -556,7 +575,11 @@ app.post('/:id/qa', async (c: any) => {
     return c.json(err('OWNER_DOCS_DB_UNAVAILABLE', 'Database not configured'), 503);
   }
 
-  const loaded = await loadDocumentWithChunks(db, auth.tenantId, id);
+  // Tenant-bound read in a short txn (NoPin router → bind GUC per op). The
+  // brain call below runs OUTSIDE this transaction.
+  const loaded = await withTenantContext(db, auth.tenantId, (tx) =>
+    loadDocumentWithChunks(tx, auth.tenantId, id),
+  );
   if (!loaded) return c.json(err('NOT_FOUND', 'Document not found'), 404);
   const { doc, chunkTexts } = loaded;
   const language = parsed.data.language;

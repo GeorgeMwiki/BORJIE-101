@@ -55,7 +55,11 @@ import {
   type SseEvent,
 } from '@borjie/mcp-server-borjie';
 import { oauthAgentTokens } from '@borjie/database';
-import { databaseMiddleware } from '../middleware/database';
+// NoPin: this is a long-lived MCP surface (SSE transport + JSON-RPC proxy to
+// the gateway). It must never hold a reserved pool connection across the
+// stream / proxy round-trip. The agent-token lookup is an intentional
+// RLS-bypass-by-secret-hash (tenant-independent), so no GUC binding is needed.
+import { databaseMiddlewareNoPin } from '../middleware/database';
 import { createLogger } from '../utils/logger';
 
 const moduleLogger = createLogger('mcp-public');
@@ -185,7 +189,7 @@ function buildDeps(db: unknown) {
 }
 
 const app = new Hono();
-app.use('*', databaseMiddleware);
+app.use('*', databaseMiddlewareNoPin);
 
 // ─── POST /mcp ─────────────────────────────────────────────────────────────
 // We use the dispatcher directly (not createHttpHandler) so the URL

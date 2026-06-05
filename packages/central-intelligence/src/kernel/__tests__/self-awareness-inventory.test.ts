@@ -46,7 +46,7 @@ describe('BRAIN_MODULES', () => {
     }
   });
 
-  it('advertises property-management capabilities', () => {
+  it('advertises mining-estate capabilities', () => {
     const ids = new Set(BRAIN_MODULES.map((m) => m.id));
     expect(ids.has('rent-reconciliation')).toBe(true);
     expect(ids.has('kra-mri-compute')).toBe(true);
@@ -113,10 +113,10 @@ describe('renderModuleInventoryBlock', () => {
     }
   });
 
-  it('cites property-management capabilities verbatim', () => {
+  it('cites mining-estate capabilities verbatim', () => {
     const block = renderModuleInventoryBlock();
-    expect(block).toMatch(/Rent reconciliation/);
-    expect(block).toMatch(/KRA \+ MRI compute/);
+    expect(block).toMatch(/Royalty reconciliation/);
+    expect(block).toMatch(/KRA \+ TRA royalty compute/);
     expect(block).toMatch(/Market-rate surveillance/);
     expect(block).toMatch(/Maintenance triage/);
   });
@@ -126,8 +126,8 @@ describe('describeCapabilities', () => {
   it('produces a single-paragraph user-facing answer', () => {
     const out = describeCapabilities();
     expect(out).toMatch(/I am the Borjie brain/);
-    expect(out).toMatch(/property-management/);
-    expect(out).toMatch(/rent reconciliation/);
+    expect(out).toMatch(/mining-estate/);
+    expect(out).toMatch(/royalty reconciliation/);
     expect(out).toMatch(/I AM the platform/);
   });
 

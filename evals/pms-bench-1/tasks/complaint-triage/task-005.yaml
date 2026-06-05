@@ -1,13 +1,13 @@
 id: complaint-triage-005
 scenario: complaint-triage
-title: 'Anonymous complaint via dropbox — limited info'
+title: 'Anonymous grievance via dropbox — limited info'
 context:
   complainant: {id: anonymous}
-  complaint:
+  grievance:
     submitted_at: '2026-05-17T11:00:00Z'
     kind: 'unknown'
     severity_self_assessed: medium
-    description: 'Someone is renting their unit on Airbnb — against rules'
+    description: 'Someone is selling ore through an unlicensed dealer off-site — against the rules'
 expected_actions:
   - {tool: 'complaint.log_anonymous_tip'}
   - {tool: 'complaint.flag_for_investigation', dispatch: 'compliance-officer'}

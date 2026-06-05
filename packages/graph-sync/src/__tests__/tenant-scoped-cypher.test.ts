@@ -48,14 +48,14 @@ describe('assertCypherReferencesTenantId', () => {
   it('accepts queries that reference $tenantId', () => {
     expect(() =>
       assertCypherReferencesTenantId(
-        'MATCH (p:Property {_tenantId: $tenantId}) RETURN p',
+        'MATCH (p:Site {_tenantId: $tenantId}) RETURN p',
       ),
     ).not.toThrow();
   });
 
   it('rejects queries that omit $tenantId', () => {
     expect(() =>
-      assertCypherReferencesTenantId('MATCH (p:Property) RETURN p'),
+      assertCypherReferencesTenantId('MATCH (p:Site) RETURN p'),
     ).toThrow(TenantScopeViolation);
   });
 
@@ -71,7 +71,7 @@ describe('createTenantScopedCypher — readScoped', () => {
     const reader = fakeReader();
     const client = createTenantScopedCypher({ reader });
     await client.readScoped<{ id: string }>(
-      'MATCH (p:Property {_tenantId: $tenantId}) RETURN p._id AS id',
+      'MATCH (p:Site {_tenantId: $tenantId}) RETURN p._id AS id',
       { tenantId: 'tenant-1' },
     );
     expect(reader.calls.length).toBe(1);
@@ -82,7 +82,7 @@ describe('createTenantScopedCypher — readScoped', () => {
     const reader = fakeReader();
     const client = createTenantScopedCypher({ reader });
     await expect(
-      client.readScoped('MATCH (p:Property) RETURN p', { tenantId: 'tenant-1' }),
+      client.readScoped('MATCH (p:Site) RETURN p', { tenantId: 'tenant-1' }),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
     expect(reader.calls.length).toBe(0);
   });
@@ -92,7 +92,7 @@ describe('createTenantScopedCypher — readScoped', () => {
     const client = createTenantScopedCypher({ reader });
     await expect(
       client.readScoped(
-        'MATCH (p:Property {_tenantId: $tenantId}) RETURN p',
+        'MATCH (p:Site {_tenantId: $tenantId}) RETURN p',
         { tenantId: '' },
       ),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
@@ -103,7 +103,7 @@ describe('createTenantScopedCypher — readScoped', () => {
     const client = createTenantScopedCypher({ reader });
     await expect(
       client.readScoped(
-        'MATCH (p:Property {_tenantId: $tenantId}) RETURN p',
+        'MATCH (p:Site {_tenantId: $tenantId}) RETURN p',
         { tenantId: '   ' },
       ),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
@@ -113,7 +113,7 @@ describe('createTenantScopedCypher — readScoped', () => {
     const reader = fakeReader();
     const client = createTenantScopedCypher({ reader });
     await client.readScoped(
-      'MATCH (p:Property {_tenantId: $tenantId, status: $status}) RETURN p',
+      'MATCH (p:Site {_tenantId: $tenantId, status: $status}) RETURN p',
       { tenantId: 'tenant-1', status: 'active' },
     );
     expect(reader.calls[0]!.params.status).toBe('active');
@@ -123,10 +123,10 @@ describe('createTenantScopedCypher — readScoped', () => {
     const reader = fakeReader();
     const client = createTenantScopedCypher({ reader, strict: false });
     await expect(
-      client.readScoped('MATCH (p:Property) RETURN p', { tenantId: 'tenant-1' }),
+      client.readScoped('MATCH (p:Site) RETURN p', { tenantId: 'tenant-1' }),
     ).resolves.toEqual([]);
     await expect(
-      client.readScoped('MATCH (p:Property) RETURN p', {
+      client.readScoped('MATCH (p:Site) RETURN p', {
         tenantId: '',
       }),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
@@ -139,7 +139,7 @@ describe('createTenantScopedCypher — writeScoped', () => {
     const writer = fakeWriter();
     const client = createTenantScopedCypher({ reader, writer });
     await client.writeScoped(
-      'MERGE (p:Property {_tenantId: $tenantId, _id: $id}) SET p.name = $name',
+      'MERGE (p:Site {_tenantId: $tenantId, _id: $id}) SET p.name = $name',
       { tenantId: 'tenant-1', id: 'p-1', name: 'Acme Block' },
     );
     expect(writer.calls.length).toBe(1);
@@ -150,7 +150,7 @@ describe('createTenantScopedCypher — writeScoped', () => {
     const client = createTenantScopedCypher({ reader });
     await expect(
       client.writeScoped(
-        'MERGE (p:Property {_tenantId: $tenantId})',
+        'MERGE (p:Site {_tenantId: $tenantId})',
         { tenantId: 'tenant-1' },
       ),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
@@ -162,7 +162,7 @@ describe('createTenantScopedCypher — writeScoped', () => {
     const client = createTenantScopedCypher({ reader, writer });
     await expect(
       client.writeScoped(
-        'MATCH (p:Property) DETACH DELETE p',
+        'MATCH (p:Site) DETACH DELETE p',
         { tenantId: 'tenant-1' },
       ),
     ).rejects.toBeInstanceOf(TenantScopeViolation);
@@ -189,17 +189,17 @@ describe('Cross-tenant leak prevention (regression for Gap D)', () => {
 
 describe('scopeNodePattern', () => {
   it('adds the tenant gate to a bag-less node pattern', () => {
-    expect(scopeNodePattern('(p:Property)')).toBe('(p:Property {_tenantId: $tenantId})');
+    expect(scopeNodePattern('(p:Site)')).toBe('(p:Site {_tenantId: $tenantId})');
   });
 
   it('adds the tenant gate to a node pattern that already has a bag', () => {
-    expect(scopeNodePattern('(p:Property {status: "active"})')).toBe(
-      '(p:Property {_tenantId: $tenantId, status: "active"})',
+    expect(scopeNodePattern('(p:Site {status: "active"})')).toBe(
+      '(p:Site {_tenantId: $tenantId, status: "active"})',
     );
   });
 
   it('leaves an already-scoped pattern alone', () => {
-    const already = '(p:Property {_tenantId: $tenantId})';
+    const already = '(p:Site {_tenantId: $tenantId})';
     expect(scopeNodePattern(already)).toBe(already);
   });
 

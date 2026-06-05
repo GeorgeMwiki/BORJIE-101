@@ -1,11 +1,11 @@
 /**
- * South Korea (KR) — 20.42% withholding on non-resident rental income
- * (20% domestic + 2% local income tax surtax). Resident landlords file
+ * South Korea (KR) — 20.42% withholding on non-resident mineral proceeds
+ * (20% domestic + 2% local income tax surtax). Resident operators file
  * comprehensive income tax (종합소득세) instead — defer to operator config.
  *
  * Sources:
  *  - Income Tax Act Art. 156 / Presidential Decree Art. 207
- *  - Housing Lease Protection Act (주택임대차보호법)
+ *  - Mining Industry Act (광업법) — mining rights + royalty framework
  *
  * NOTE: RRN (resident registration number) is HIGHLY sensitive under
  * Korea's Personal Information Protection Act (PIPA). Validator flags
@@ -16,7 +16,7 @@ import { buildPhoneNormalizer } from '../../core/phone.js';
 import type { CountryPlugin } from '../../core/types.js';
 import {
   buildFlatWithholding,
-  buildLeaseLawPort,
+  buildMiningLawPort,
   buildPaymentRailsPort,
   buildStubScreeningPort,
 } from '../_shared.js';
@@ -57,19 +57,19 @@ const koreaCore: CountryPlugin = {
     { id: 'stripe', name: 'Stripe', kind: 'card', envPrefix: 'STRIPE' },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 24, // jeonse deposits can be enormous — no statutory cap
+    minBondMonths: 0,
+    maxBondMonths: 24, // large upfront performance bonds — no statutory cap
     noticePeriodDays: 60,
-    minimumLeaseMonths: 24, // HLPA guarantees 2-year minimum on residential
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 24, // typical 2-year minimum mining-supply term
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [
     {
-      id: 'lease-agreement',
-      name: '주택임대차계약서 (KR)',
-      templatePath: 'kr/lease-agreement.hbs',
+      id: 'offtake-agreement',
+      name: '광물 공급 계약서 (KR Mineral Offtake)',
+      templatePath: 'kr/offtake-agreement.hbs',
       locale: 'ko-KR',
     },
   ],
@@ -91,7 +91,7 @@ export const koreaProfile: ExtendedCountryProfile = {
   taxRegime: buildFlatWithholding(
     20.42,
     'KR-NTS-ITA-156',
-    'Non-resident rental withholding: 20% income tax + 2% local surtax (Income Tax Act Art. 156).'
+    'Non-resident mineral-proceeds withholding: 20% income tax + 2% local surtax (Income Tax Act Art. 156).'
   ),
   paymentRails: buildPaymentRailsPort([
     {
@@ -139,39 +139,39 @@ export const koreaProfile: ExtendedCountryProfile = {
       supportsDisbursement: false,
     },
   ]),
-  leaseLaw: buildLeaseLawPort({
+  miningLaw: buildMiningLawPort({
     requiredClauses: [
       {
         id: 'kr-term',
-        label: 'Minimum 2-year term (주택임대차보호법 제4조)',
+        label: 'Minimum 2-year supply term (광업법)',
         mandatory: true,
-        citation: 'Housing Lease Protection Act Art. 4',
+        citation: 'Mining Industry Act Art. 12 (mining-right term)',
       },
       {
-        id: 'kr-deposit',
-        label: 'Deposit (보증금 / 전세금) and return conditions',
+        id: 'kr-bond',
+        label: 'Performance bond (보증금) and return conditions',
         mandatory: true,
-        citation: 'Housing Lease Protection Act Art. 3-3',
+        citation: 'Mining Industry Act — security for obligations',
       },
     ],
     noticeWindowDaysByReason: {
-      'end-of-term': 60,
+      'licence-expiry': 60,
       'renewal-non-continuation': 60,
-      'non-payment': 30,
+      'royalty-default': 30,
     },
-    depositCapByRegime: {
-      'residential-standard': {
+    bondCapByRegime: {
+      'artisanal-standard': {
         citation:
-          'No statutory cap — jeonse deposits commonly exceed 70% of property value.',
+          'No statutory cap — upfront performance bonds are negotiated per offtake.',
       },
     },
-    rentIncreaseCapByRegime: {
-      'residential-standard': {
+    royaltyEscalationCapByRegime: {
+      'artisanal-standard': {
         pctPerAnnum: 5,
-        citation: 'Housing Lease Protection Act Enforcement Decree Art. 8 (5% cap on renewal)',
+        citation: 'Mining-supply renewal practice (5% escalation cap on renewal)',
       },
     },
     defaultNoticeWindowDays: 60,
   }),
-  tenantScreening: buildStubScreeningPort('NICE_KR'),
+  counterpartyScreening: buildStubScreeningPort('NICE_KR'),
 };

@@ -1,0 +1,20 @@
+{
+  "signatureName": "extract_offtake_terms",
+  "signatureVersion": "abc123",
+  "model": "anthropic/claude-haiku-4-5",
+  "compiledSystem": "<role>Task: extract_offtake_terms (classify)</role>\n<objective>Extract structured offtake terms from raw text.</objective>\n<inputs>\n<offtake_text>: raw offtake body\n</inputs>\n<outputs>\n<terms>: parsed term object\n</outputs>",
+  "compiledInstruction": "Read the offtake text. For every numeric field, JSON-format the result. Be strict about month-counts.",
+  "demonstrations": [
+    {
+      "inputs": { "offtake_text": "A 12-month offtake starting June 1." },
+      "outputs": { "terms": { "months": 12, "start_iso": "2026-06-01" } }
+    },
+    {
+      "inputs": { "offtake_text": "Six-month supply agreement, July through December." },
+      "outputs": { "terms": { "months": 6, "start_iso": "2026-07-01" } }
+    }
+  ],
+  "compiledAt": "2026-05-19T08:00:00.000Z",
+  "compilerScore": 0.94,
+  "compilerName": "MIPROv2-port"
+}

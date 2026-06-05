@@ -21,7 +21,7 @@ describe('AutonomyPolicyService', () => {
     expect(policy.tenantId).toBe(TENANT);
     expect(policy.autonomousModeEnabled).toBe(false);
     expect(policy.finance.reminderDayOffsets).toEqual([5, 10, 20]);
-    expect(policy.leasing.maxAutoApproveRentIncreasePct).toBe(8);
+    expect(policy.offtake.maxAutoApproveRentIncreasePct).toBe(8);
     expect(policy.maintenance.autoApproveBelowMinorUnits).toBe(100_000);
     expect(policy.compliance.autoSendLegalNotices).toBe(false);
   });
@@ -83,10 +83,10 @@ describe('AutonomyPolicyService', () => {
   it('isAuthorized approves renewal within rent-increase ceiling', async () => {
     await svc.createPolicy(TENANT, 'head_1');
     await svc.updatePolicy(TENANT, { autonomousModeEnabled: true });
-    const under = await svc.isAuthorized(TENANT, 'leasing', 'approve_renewal', {
+    const under = await svc.isAuthorized(TENANT, 'offtake', 'approve_renewal', {
       rentIncreasePct: 6,
     });
-    const over = await svc.isAuthorized(TENANT, 'leasing', 'approve_renewal', {
+    const over = await svc.isAuthorized(TENANT, 'offtake', 'approve_renewal', {
       rentIncreasePct: 12,
     });
     expect(under.authorized).toBe(true);

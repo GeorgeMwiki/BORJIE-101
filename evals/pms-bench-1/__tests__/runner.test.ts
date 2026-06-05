@@ -89,9 +89,9 @@ describe('pms-bench-1 runner — mock-llm end-to-end', () => {
     const llm = createMockLlm();
     const { writer } = createMemorySloWriter();
     const supportedNow: Record<string, string> = {
-      'arrears-triage': 'arrears.chaser',
-      'kra-filing': 'kra.filing_assistant',
-      'lease-renewal': 'lease.coordinator',
+      'arrears-triage': 'royalty.chaser',
+      'kra-filing': 'tra.filing_assistant',
+      'lease-renewal': 'offtake.coordinator',
     };
 
     const failures: Array<{ id: string; passCount: number; mean: number }> = [];

@@ -40,7 +40,7 @@ export type OrgStage = (typeof ORG_STAGES)[number];
  */
 export const STAGE_ROLES = [
   'admin',
-  'property-manager',
+  'site-manager',
   'estate-manager',
   'owner',
   'tenant',

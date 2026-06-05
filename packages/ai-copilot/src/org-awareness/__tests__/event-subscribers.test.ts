@@ -32,7 +32,7 @@ describe('event-subscribers', () => {
     const obs = buildObservation({
       eventType: 'maintenance.case.reopened',
       tenantId: 't1',
-      payload: { caseId: 'case-1', actorKind: 'tenant' },
+      payload: { caseId: 'case-1', actorKind: 'counterparty' },
     });
     expect(obs?.isReopen).toBe(true);
   });

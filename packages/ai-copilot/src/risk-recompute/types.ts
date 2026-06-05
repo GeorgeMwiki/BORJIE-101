@@ -2,9 +2,9 @@
  * Risk-Recompute types — Wave 27 (Part B.6 amplification).
  *
  * Event-driven risk score recomputation. Today credit-rating +
- * property-grade + vendor-scorecard + churn-probability are all
+ * asset-grade + vendor-scorecard + churn-probability are all
  * scheduled batches. This module flips them to event-driven: every
- * relevant event (payment/missed-payment/lease-signed/case-opened/
+ * relevant event (payment/missed-payment/offtake-signed/case-opened/
  * inspection-completed/message-received) triggers an async recompute
  * of affected risk scores for the affected entities.
  *
@@ -21,27 +21,27 @@
 
 export type RiskKind =
   | 'credit_rating'
-  | 'property_grade'
+  | 'asset_grade'
   | 'vendor_scorecard'
   | 'churn_probability'
-  | 'tenant_sentiment';
+  | 'buyer_sentiment';
 
 export const RISK_KINDS: readonly RiskKind[] = [
   'credit_rating',
-  'property_grade',
+  'asset_grade',
   'vendor_scorecard',
   'churn_probability',
-  'tenant_sentiment',
+  'buyer_sentiment',
 ] as const;
 
 /**
  * A queued recompute job. `entityId` is the subject the score is
  * computed against:
- *   - credit_rating      → customerId (tenant-of-property / lessee)
- *   - property_grade     → propertyId
+ *   - credit_rating      → customerId (buyer / off-taker / counterparty)
+ *   - asset_grade        → assetId
  *   - vendor_scorecard   → vendorId
  *   - churn_probability  → customerId
- *   - tenant_sentiment   → customerId
+ *   - buyer_sentiment    → customerId
  */
 export interface RiskComputeJob {
   readonly tenantId: string;

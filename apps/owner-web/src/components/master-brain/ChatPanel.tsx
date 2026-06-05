@@ -3,24 +3,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { useChatSession } from '@/lib/queries/chat';
 import { useLocale } from '@/lib/locale';
-import { CEO_MODES, type CeoModeId } from '@/lib/ceo-modes';
 import { ChatBubble } from './ChatBubble';
 import { Composer } from './Composer';
 import { BreadcrumbStrip } from './BreadcrumbStrip';
 import { EvidencePanel } from './EvidencePanel';
 
-interface ChatPanelProps {
-  readonly mode: CeoModeId;
-}
-
 /**
  * Full Master Brain chat panel.
  *
  * Owns: transcript + streaming reply, in-flight breadcrumbs, evidence
- * side-panel state. Mode is owned by the parent so the persona
- * switcher above can rebind it without unmounting this component.
+ * side-panel state. There is no mode — Mr. Mwikila picks the persona
+ * lens(es) per message on its own.
  */
-export function ChatPanel({ mode }: ChatPanelProps) {
+export function ChatPanel() {
   // Thread the owner's ACTIVE locale (borjie_locale cookie, the single
   // source of truth) into the chat hook so the gateway is told the real
   // language. Default owner locale is `en`; `useLocale` also re-renders
@@ -36,9 +31,6 @@ export function ChatPanel({ mode }: ChatPanelProps) {
       behavior: 'smooth',
     });
   }, [state.messages.length, state.streamingText]);
-
-  const activeMode = CEO_MODES.find((m) => m.id === mode);
-  const modeName = activeMode?.label ?? mode;
 
   return (
     <section className="flex h-chart-xl overflow-hidden rounded-lg border border-border bg-surface/40">
@@ -58,7 +50,7 @@ export function ChatPanel({ mode }: ChatPanelProps) {
           {state.streaming && state.streamingText ? (
             <div className="flex flex-col items-end gap-1">
               <div className="text-badge text-neutral-500">
-                Master Brain · {modeName} · streaming…
+                Master Brain · streaming…
               </div>
               <div className="max-w-2xl rounded-lg border border-warning/40 bg-warning-subtle/20 px-3 py-2 text-sm leading-relaxed text-foreground">
                 <p className="whitespace-pre-wrap">{state.streamingText}</p>
@@ -82,7 +74,7 @@ export function ChatPanel({ mode }: ChatPanelProps) {
         <Composer
           busy={state.streaming}
           onAbort={abort}
-          onSubmit={(content) => void send({ content, mode })}
+          onSubmit={(content) => void send({ content })}
         />
       </div>
       <EvidencePanel

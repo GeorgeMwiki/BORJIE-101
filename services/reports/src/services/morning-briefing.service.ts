@@ -1,11 +1,11 @@
 /**
  * Morning Briefing Generator
  * 
- * Generates daily operational briefings for property managers
+ * Generates daily operational briefings for site managers
  * with AI-powered insights and actionable items.
  */
 
-import type { TenantId, PropertyId, UserId } from '../types/index.js';
+import type { TenantId, SiteId, UserId } from '../types/index.js';
 import type {
   KPIEngine,
   PortfolioSummaryKPIs,
@@ -23,32 +23,32 @@ export interface BriefingRecipient {
   name: string;
   email: string;
   role: string;
-  propertyIds?: PropertyId[]; // Scope to specific properties
+  siteIds?: SiteId[]; // Scope to specific sites
 }
 
 export interface UrgentItem {
   id: string;
-  type: 'work_order' | 'payment' | 'lease' | 'compliance' | 'escalation' | 'alert';
+  type: 'work_order' | 'payment' | 'supply_agreement' | 'compliance' | 'escalation' | 'alert';
   priority: 'critical' | 'high' | 'medium';
   title: string;
   description: string;
   actionRequired: string;
   actionUrl?: string;
   dueAt?: Date;
-  propertyId?: PropertyId;
-  propertyName?: string;
+  siteId?: SiteId;
+  siteName?: string;
 }
 
 export interface ScheduledItem {
   id: string;
   time: string;
-  type: 'inspection' | 'vendor_visit' | 'meeting' | 'move_in' | 'move_out' | 'renewal' | 'other';
+  type: 'inspection' | 'vendor_visit' | 'meeting' | 'onboarding' | 'offboarding' | 'renewal' | 'other';
   title: string;
   description: string;
   location?: string;
   participants?: string[];
-  propertyId?: PropertyId;
-  propertyName?: string;
+  siteId?: SiteId;
+  siteName?: string;
 }
 
 export interface AIInsight {
@@ -58,18 +58,18 @@ export interface AIInsight {
   title: string;
   description: string;
   suggestedAction?: string;
-  propertyId?: PropertyId;
+  siteId?: SiteId;
 }
 
 export interface ExpiringItem {
   id: string;
-  type: 'lease' | 'insurance' | 'license' | 'contract' | 'document';
+  type: 'supply_agreement' | 'insurance' | 'license' | 'contract' | 'document';
   name: string;
   expiresAt: Date;
   daysRemaining: number;
   status: 'pending_action' | 'in_progress' | 'scheduled';
-  propertyId?: PropertyId;
-  propertyName?: string;
+  siteId?: SiteId;
+  siteName?: string;
 }
 
 export interface QuickMetric {
@@ -114,12 +114,12 @@ export interface MorningBriefing {
 
   // Portfolio summary
   portfolioSnapshot: {
-    totalProperties: number;
+    totalSites: number;
     totalUnits: number;
-    occupancyRate: number;
+    assetUtilisationRate: number;
     collectionRate: number;
     openWorkOrders: number;
-    arrearsAccounts: number;
+    outstandingAccounts: number;
   };
 
   // Vendor information
@@ -133,7 +133,7 @@ export interface MorningBriefing {
   yesterdaySummary?: {
     paymentsReceived: number;
     workOrdersCompleted: number;
-    newLeases: number;
+    newAgreements: number;
     issues: string[];
   };
 
@@ -147,15 +147,15 @@ export interface MorningBriefing {
 // ============================================================================
 
 export interface IMorningBriefingDataProvider {
-  getUrgentItems(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<UrgentItem[]>;
-  getScheduledItems(tenantId: TenantId, date: Date, propertyIds?: PropertyId[]): Promise<ScheduledItem[]>;
-  getExpiringItems(tenantId: TenantId, daysAhead: number, propertyIds?: PropertyId[]): Promise<ExpiringItem[]>;
-  getAIInsights(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<AIInsight[]>;
-  getYesterdaySummary(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<MorningBriefing['yesterdaySummary']>;
+  getUrgentItems(tenantId: TenantId, siteIds?: SiteId[]): Promise<UrgentItem[]>;
+  getScheduledItems(tenantId: TenantId, date: Date, siteIds?: SiteId[]): Promise<ScheduledItem[]>;
+  getExpiringItems(tenantId: TenantId, daysAhead: number, siteIds?: SiteId[]): Promise<ExpiringItem[]>;
+  getAIInsights(tenantId: TenantId, siteIds?: SiteId[]): Promise<AIInsight[]>;
+  getYesterdaySummary(tenantId: TenantId, siteIds?: SiteId[]): Promise<MorningBriefing['yesterdaySummary']>;
   getVendorUpdates(tenantId: TenantId): Promise<MorningBriefing['vendorUpdates']>;
   getWeather?(location?: string): Promise<WeatherInfo | null>;
   getRecipients(tenantId: TenantId): Promise<BriefingRecipient[]>;
-  getPortfolioStats(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<MorningBriefing['portfolioSnapshot']>;
+  getPortfolioStats(tenantId: TenantId, siteIds?: SiteId[]): Promise<MorningBriefing['portfolioSnapshot']>;
 }
 
 // ============================================================================
@@ -165,19 +165,19 @@ export interface IMorningBriefingDataProvider {
 export class MorningBriefingService {
   private readonly tips: string[] = [
     'Proactive communication with tenants reduces support requests by 40%.',
-    'Schedule preventive maintenance during low-occupancy periods.',
+    'Schedule preventive maintenance during low-utilisation periods.',
     'Follow up on overdue payments within the first 7 days for best results.',
-    'Regular property inspections help identify issues before they escalate.',
-    'Renewing leases 90 days before expiry increases retention rates.',
+    'Regular site inspections help identify issues before they escalate.',
+    'Renewing supply agreements 90 days before expiry increases retention rates.',
     'Keep vendor scorecards updated for better service quality.',
-    'Document all tenant interactions for compliance and reference.',
+    'Document all buyer interactions for compliance and reference.',
     'Energy efficiency upgrades can reduce operating costs by 15-20%.',
   ];
 
   private readonly quotes: string[] = [
-    '"The key to successful property management is proactive maintenance and clear communication." - Industry Expert',
-    '"A well-maintained property attracts and retains quality tenants." - Real Estate Wisdom',
-    '"In property management, the small details make the biggest difference." - Operations Best Practice',
+    '"The key to successful mining-estate management is proactive maintenance and clear communication." - Industry Expert',
+    '"A well-maintained site attracts and retains quality buyers." - Mining Operations Wisdom',
+    '"In mining-estate management, the small details make the biggest difference." - Operations Best Practice',
     '"Customer satisfaction is not a department, it\'s everyone\'s job." - Service Excellence',
   ];
 
@@ -194,7 +194,7 @@ export class MorningBriefingService {
     recipient: BriefingRecipient
   ): Promise<MorningBriefing> {
     const now = new Date();
-    const propertyIds = recipient.propertyIds;
+    const siteIds = recipient.siteIds;
 
     // Fetch all data in parallel
     const [
@@ -208,14 +208,14 @@ export class MorningBriefingService {
       kpiAlerts,
       weather,
     ] = await Promise.all([
-      this.dataProvider.getUrgentItems(tenantId, propertyIds),
-      this.dataProvider.getScheduledItems(tenantId, now, propertyIds),
-      this.dataProvider.getExpiringItems(tenantId, 30, propertyIds),
-      this.dataProvider.getAIInsights(tenantId, propertyIds),
-      this.dataProvider.getYesterdaySummary(tenantId, propertyIds),
+      this.dataProvider.getUrgentItems(tenantId, siteIds),
+      this.dataProvider.getScheduledItems(tenantId, now, siteIds),
+      this.dataProvider.getExpiringItems(tenantId, 30, siteIds),
+      this.dataProvider.getAIInsights(tenantId, siteIds),
+      this.dataProvider.getYesterdaySummary(tenantId, siteIds),
       this.dataProvider.getVendorUpdates(tenantId),
-      this.dataProvider.getPortfolioStats(tenantId, propertyIds),
-      this.getKPIAlerts(tenantId, propertyIds),
+      this.dataProvider.getPortfolioStats(tenantId, siteIds),
+      this.getKPIAlerts(tenantId, siteIds),
       // Follow-up KI-005 (#33): weather location should come from tenant.primaryCity
       //   once the tenants-table migration lands. Passing undefined lets
       //   the provider fall back to its own default or skip the lookup.
@@ -304,7 +304,7 @@ export class MorningBriefingService {
 
     // Quick stats
     lines.push('📊 *Quick Stats*');
-    lines.push(`• Occupancy: ${briefing.portfolioSnapshot.occupancyRate.toFixed(1)}%`);
+    lines.push(`• Asset Utilisation: ${briefing.portfolioSnapshot.assetUtilisationRate.toFixed(1)}%`);
     lines.push(`• Collection: ${briefing.portfolioSnapshot.collectionRate.toFixed(1)}%`);
     lines.push(`• Open Work Orders: ${briefing.portfolioSnapshot.openWorkOrders}`);
     lines.push('');
@@ -345,7 +345,7 @@ export class MorningBriefingService {
   // Private Methods
   // ============================================================================
 
-  private async getKPIAlerts(tenantId: TenantId, propertyIds?: PropertyId[]): Promise<KPIAlert[]> {
+  private async getKPIAlerts(tenantId: TenantId, siteIds?: SiteId[]): Promise<KPIAlert[]> {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const period: KPIPeriod = {
@@ -368,10 +368,10 @@ export class MorningBriefingService {
   ): QuickMetric[] {
     return [
       {
-        name: 'Occupancy Rate',
-        value: portfolio.occupancyRate,
+        name: 'Asset Utilisation Rate',
+        value: portfolio.assetUtilisationRate,
         unit: '%',
-        status: portfolio.occupancyRate >= 90 ? 'good' : portfolio.occupancyRate >= 80 ? 'warning' : 'critical',
+        status: portfolio.assetUtilisationRate >= 90 ? 'good' : portfolio.assetUtilisationRate >= 80 ? 'warning' : 'critical',
       },
       {
         name: 'Collection Rate',
@@ -385,9 +385,9 @@ export class MorningBriefingService {
         status: portfolio.openWorkOrders <= 5 ? 'good' : portfolio.openWorkOrders <= 15 ? 'warning' : 'critical',
       },
       {
-        name: 'Arrears Accounts',
-        value: portfolio.arrearsAccounts,
-        status: portfolio.arrearsAccounts <= 3 ? 'good' : portfolio.arrearsAccounts <= 10 ? 'warning' : 'critical',
+        name: 'Outstanding Accounts',
+        value: portfolio.outstandingAccounts,
+        status: portfolio.outstandingAccounts <= 3 ? 'good' : portfolio.outstandingAccounts <= 10 ? 'warning' : 'critical',
       },
       {
         name: 'Payments Yesterday',
@@ -438,12 +438,12 @@ export class MorningBriefingService {
     // Portfolio Snapshot
     lines.push('PORTFOLIO SNAPSHOT');
     lines.push('-'.repeat(30));
-    lines.push(`Properties: ${briefing.portfolioSnapshot.totalProperties}`);
+    lines.push(`Sites: ${briefing.portfolioSnapshot.totalSites}`);
     lines.push(`Units: ${briefing.portfolioSnapshot.totalUnits}`);
-    lines.push(`Occupancy: ${briefing.portfolioSnapshot.occupancyRate.toFixed(1)}%`);
+    lines.push(`Asset Utilisation: ${briefing.portfolioSnapshot.assetUtilisationRate.toFixed(1)}%`);
     lines.push(`Collection Rate: ${briefing.portfolioSnapshot.collectionRate.toFixed(1)}%`);
     lines.push(`Open Work Orders: ${briefing.portfolioSnapshot.openWorkOrders}`);
-    lines.push(`Arrears Accounts: ${briefing.portfolioSnapshot.arrearsAccounts}`);
+    lines.push(`Outstanding Accounts: ${briefing.portfolioSnapshot.outstandingAccounts}`);
     lines.push('');
 
     // Urgent Items
@@ -553,9 +553,9 @@ export class MorningBriefingService {
   
   <h2>📊 Portfolio Snapshot</h2>
   <div class="metric-grid">
-    <div class="metric ${briefing.portfolioSnapshot.occupancyRate >= 90 ? 'good' : briefing.portfolioSnapshot.occupancyRate >= 80 ? 'warning' : 'critical'}">
-      <div class="metric-value">${briefing.portfolioSnapshot.occupancyRate.toFixed(1)}%</div>
-      <div class="metric-label">Occupancy</div>
+    <div class="metric ${briefing.portfolioSnapshot.assetUtilisationRate >= 90 ? 'good' : briefing.portfolioSnapshot.assetUtilisationRate >= 80 ? 'warning' : 'critical'}">
+      <div class="metric-value">${briefing.portfolioSnapshot.assetUtilisationRate.toFixed(1)}%</div>
+      <div class="metric-label">Asset Utilisation</div>
     </div>
     <div class="metric ${briefing.portfolioSnapshot.collectionRate >= 95 ? 'good' : briefing.portfolioSnapshot.collectionRate >= 85 ? 'warning' : 'critical'}">
       <div class="metric-value">${briefing.portfolioSnapshot.collectionRate.toFixed(1)}%</div>
@@ -613,7 +613,7 @@ export class MorningBriefingService {
   </div>
 
   <div class="footer">
-    <p>Generated at ${briefing.generatedAt.toLocaleString()} | BORJIE Property Management</p>
+    <p>Generated at ${briefing.generatedAt.toLocaleString()} | BORJIE Mining Estate OS</p>
   </div>
 </body>
 </html>

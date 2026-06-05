@@ -271,18 +271,6 @@ export const tailStrings = {
     },
   },
 
-  // ── lib/ceo-modes.ts (labelSw values) ────────────────────────────
-  ceoModes: {
-    build: { sw: 'Jenga', en: 'Build' },
-    strategy: { sw: 'Mkakati', en: 'Strategy' },
-    operations: { sw: 'Uendeshaji', en: 'Operations' },
-    document: { sw: 'Hati', en: 'Document' },
-    finance: { sw: 'Fedha', en: 'Finance' },
-    risk: { sw: 'Hatari', en: 'Risk' },
-    board: { sw: 'Bodi / Wawekezaji', en: 'Board / Investor' },
-    compliance: { sw: 'Uzingatiaji', en: 'Compliance' },
-  },
-
   // ── lib/cockpit-sse.ts (sw toast branches) ───────────────────────
   cockpitSse: {
     decisionRecorded: {
@@ -319,6 +307,14 @@ export const tailStrings = {
       sw: 'Mr. Mwikila anapendekeza kubandika: {title}',
       en: 'Mr. Mwikila suggests pinning: {title}',
     },
+  },
+
+  // ── components/genui-tab/GenUITabHost.tsx ────────────────────────
+  genUITabHost: {
+    loading: { sw: 'Inapakia kichupo…', en: 'Loading tab…' },
+    notFound: { sw: 'Kichupo hiki hakipatikani tena.', en: 'This tab is no longer available.' },
+    errorPrefix: { sw: 'Imeshindwa kupakia kichupo hiki:', en: 'Could not load this tab:' },
+    empty: { sw: 'Kichupo hiki bado hakina sehemu.', en: 'This tab has no sections yet.' },
   },
 
   // ── lib/screens.ts (titleSw values, keyed by screen id) ──────────

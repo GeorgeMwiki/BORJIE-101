@@ -45,6 +45,15 @@ paths = [
   '''(^|/)\.audit/.*''',
   '''(^|/)\.planning/.*''',
   '''(^|/)\.research/.*''',
+
+  # Pre-existing false positives — security-reviewed (PR #74). None contain a
+  # real secret value; gitleaks generic-api-key / vault-service-token rules
+  # over-fire on identifiers, empty env-var declarations, and secret *refs*.
+  '''(^|/)\.env\.example$''',               # env template — placeholder / empty vars (e.g. MCP_API_KEYS=)
+  '''\.env\.(sample|template|example)$''',  # sibling env templates
+  '''(^|/)seeds?/.*''',                     # domain / knowledge seed fixtures (factKeys, claim text)
+  '''(^|/)k8s/.*\.ya?ml$''',                # infra manifests consume secrets via secretKeyRef / external stores
+  '''(^|/)risk-scanner/.*\.ts$''',          # risk-rule predicate constants — `s.<field>` mis-fires as a Vault token
 ]
 
 # 2. Regex patterns — explicit allowlist for obvious test/example tokens.
@@ -63,6 +72,11 @@ regexes = [
   '''<(api-key|kra-pin|nida-num|mpesa-txn|email|phone|model|provider)-redacted>''',
   '''\[redacted\]''',
   '''<redacted>''',
+
+  # Confirmed false-positive source literals (security-reviewed, PR #74).
+  '''borjie\.[a-z_]+\.v[0-9]+''',           # client storage-key constants (borjie.buyer_signup.v1)
+  '''borjie-c2pa-stub-v[0-9]+''',           # geo-intelligence c2pa placeholder secret
+  '''royaltyCutOff[0-9]+d''',               # owner-web RoyaltyDraftPanel type-literal key
 ]
 
 # 3. Stop-words — commit messages / file content with these markers are

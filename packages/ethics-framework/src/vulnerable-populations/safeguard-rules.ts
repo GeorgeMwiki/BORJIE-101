@@ -8,9 +8,9 @@
  * Citations:
  *  - TZ Land Act 1999 § 30 (special protection — widows, elderly)
  *  - TZ Persons with Disabilities Act 2010 §§ 30–35 (accessibility)
- *  - KE Rental Housing Act 2017 (proposed; cabinet draft)
- *    + KE Persons with Disabilities Act 2003
- *  - ZA Rental Housing Act 50 of 1999 § 4 (no unfair discrimination)
+ *  - KE Persons with Disabilities Act 2003 (no unfair discrimination)
+ *  - ZA Promotion of Equality and Prevention of Unfair Discrimination
+ *    Act 4 of 2000 § 6 (no unfair discrimination)
  *  - UG Persons with Disabilities Act 2020
  *  - RW Law N°01/2007 (Rights of Persons with Disabilities)
  *  - NG Discrimination Against Persons with Disabilities Act 2018
@@ -164,13 +164,13 @@ const RULES: ReadonlyArray<SafeguardRule> = Object.freeze([
     source: 'ABA Tenant Vulnerability Handbook',
     reason: 'Sole caregiver — extended cooling-off recommended.',
   },
-  // ── Survivor of eviction ────────────────────────────────────────────
+  // ── Survivor of displacement ────────────────────────────────────────
   {
-    factor: 'survivor-of-eviction',
+    factor: 'survivor-of-displacement',
     jurisdiction: 'GLOBAL',
     safeguards: ['advocacy-contact', 'mandatory-explanation'],
-    source: 'HUD Eviction Protection Program guidance (2022)',
-    reason: 'Eviction history — mandatory human explanation + advocacy.',
+    source: 'IFC Performance Standard 5 — Land Acquisition & Involuntary Resettlement (2012)',
+    reason: 'Displacement / resettlement history — mandatory human explanation + advocacy.',
   },
 ]);
 

@@ -4,8 +4,8 @@
  * Pipeline:
  *   1. Validate context (tenant, country).
  *   2. Budget guard.
- *   3. Global-first: resolve jurisdiction's lease-law snapshot via
- *      LeaseLawDispatchPort (NEVER hardcode Kenya/US defaults).
+ *   3. Global-first: resolve jurisdiction's legal-law snapshot via
+ *      LegalLawDispatchPort (NEVER hardcode Kenya/US defaults).
  *   4. LLM composes the first draft + cites required clauses.
  *   5. Autonomy decision — queue_for_review by default; auto-send ONLY when
  *      policy allows AND the kind is NOT in FORBIDDEN_AUTO_SEND.
@@ -32,14 +32,14 @@ import {
   type LegalDraftRepository,
   type LegalDraftRow,
   type LegalDrafterLLMPort,
-  type LeaseLawDispatchPort,
+  type LegalLawDispatchPort,
   type TenantContextForLegal,
 } from './types.js';
 
 export interface LegalDrafterDeps {
   readonly ledger?: CostLedger;
   readonly llm: LegalDrafterLLMPort;
-  readonly leaseLaw: LeaseLawDispatchPort;
+  readonly legalLaw: LegalLawDispatchPort;
   readonly autonomy?: AutonomyPolicyLookup;
   readonly repo: LegalDraftRepository;
   readonly now?: () => Date;
@@ -115,7 +115,7 @@ export function createLegalDrafter(deps: LegalDrafterDeps): LegalDrafter {
       // 3) Global-first dispatch
       let law;
       try {
-        law = deps.leaseLaw.resolve(
+        law = deps.legalLaw.resolve(
           input.context.countryCode,
           input.documentKind,
           input.context.subdivision,
@@ -127,7 +127,7 @@ export function createLegalDrafter(deps: LegalDrafterDeps): LegalDrafter {
           message:
             err instanceof Error
               ? err.message
-              : `no lease-law plugin for country ${input.context.countryCode}`,
+              : `no legal-law plugin for country ${input.context.countryCode}`,
         };
       }
 
@@ -174,7 +174,7 @@ export function createLegalDrafter(deps: LegalDrafterDeps): LegalDrafter {
       let needsHumanReview = true;
 
       if (isForbiddenAutoSend(input.documentKind)) {
-        // Non-negotiable: eviction notices always require human review.
+        // Non-negotiable: licence-suspension notices always require human review.
         autonomyDecision = 'auto_send_forbidden';
         needsHumanReview = true;
       } else if (deps.autonomy) {
@@ -210,9 +210,9 @@ export function createLegalDrafter(deps: LegalDrafterDeps): LegalDrafter {
           sourceTag: law.sourceTag,
         }),
         subjectCustomerId: input.context.subjectCustomerId ?? null,
-        subjectLeaseId: input.context.subjectLeaseId ?? null,
-        subjectPropertyId: input.context.subjectPropertyId ?? null,
-        subjectUnitId: input.context.subjectUnitId ?? null,
+        subjectOfftakeId: input.context.subjectOfftakeId ?? null,
+        subjectSiteId: input.context.subjectSiteId ?? null,
+        subjectPitId: input.context.subjectPitId ?? null,
         languageCode: output.languageCode ?? input.context.languageCode ?? null,
         draftTitle: output.title,
         draftBody: output.body,

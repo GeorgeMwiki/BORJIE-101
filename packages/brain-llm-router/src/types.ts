@@ -79,7 +79,7 @@ export interface BrainLLMRequest {
   readonly temperature?: number;
   readonly stopSequences?: readonly string[];
   readonly tools?: readonly BrainLLMToolDef[];
-  /** Anthropic extended-thinking parameter. Other adapters stub. */
+  /** Anthropic extended-thinking parameter; non-Anthropic adapters ignore it. */
   readonly thinking?: { readonly budgetTokens: number };
   /** Per-call timeout (ms). Defaults to provider default. */
   readonly timeoutMs?: number;

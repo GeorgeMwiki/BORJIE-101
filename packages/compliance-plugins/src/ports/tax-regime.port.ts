@@ -1,10 +1,10 @@
 /**
- * TaxRegimePort — rental-income withholding tax contract.
+ * TaxRegimePort — mineral-royalty / sales withholding tax contract.
  *
- * Every country plugin declares how withholding is calculated for rent
- * received, independent of currency. Rates MUST come from well-known
- * public sources; unknown jurisdictions MUST return a structured
- * "CONFIGURE_FOR_YOUR_JURISDICTION" stub — NEVER invent a rate.
+ * Every country plugin declares how withholding is calculated for the gross
+ * value of minerals sold / payments received, independent of currency. Rates
+ * MUST come from well-known public sources; unknown jurisdictions MUST return
+ * a structured "CONFIGURE_FOR_YOUR_JURISDICTION" stub — NEVER invent a rate.
  *
  * All money is expressed in minor units (e.g. cents) to avoid float drift.
  * The returned `withholdingMinorUnits` is a non-negative integer.
@@ -30,7 +30,7 @@ export interface TaxPeriod {
 export interface WithholdingResult {
   /** Amount to withhold in minor units, non-negative integer. */
   readonly withholdingMinorUnits: number;
-  /** Regulator reference / code (e.g. 'KRA-MRI', 'HMRC-NRL', 'IRS-1099'). */
+  /** Regulator reference / code (e.g. 'TRA-ROYALTY', 'KRA-WHT-MINERAL', 'IRS-1099'). */
   readonly regulatorRef: string;
   /**
    * Human-readable note about the rate applied — always emitted so downstream
@@ -39,24 +39,25 @@ export interface WithholdingResult {
   readonly rateNote: string;
   /**
    * Set to `true` when this jurisdiction has no programmed rate. Callers
-   * SHOULD block auto-disbursement and ask the landlord to configure.
+   * SHOULD block auto-disbursement and ask the operator to configure.
    */
   readonly requiresManualConfiguration?: boolean;
 }
 
 export interface TaxRegimePort {
   /**
-   * Compute withholding for gross rent received during `period`.
+   * Compute withholding for the gross mineral value / payment received
+   * during `period`.
    *
    * Contract:
-   *  - `grossRentMinorUnits` must be a non-negative integer.
+   *  - `grossValueMinorUnits` must be a non-negative integer.
    *  - Rounding is half-away-from-zero to a whole minor unit.
    *  - Returning `withholdingMinorUnits: 0` is valid (e.g. US federal).
    *  - Implementations MUST NOT throw on unknown inputs — return a stub
    *    with `requiresManualConfiguration: true` instead.
    */
   calculateWithholding(
-    grossRentMinorUnits: number,
+    grossValueMinorUnits: number,
     currency: CurrencyCode,
     period: TaxPeriod
   ): WithholdingResult;
@@ -68,12 +69,12 @@ export interface TaxRegimePort {
  * hot-path ever crashes on an unimplemented jurisdiction.
  */
 export const DEFAULT_TAX_REGIME: TaxRegimePort = {
-  calculateWithholding(grossRentMinorUnits, _currency, _period) {
-    if (!Number.isInteger(grossRentMinorUnits) || grossRentMinorUnits < 0) {
+  calculateWithholding(grossValueMinorUnits, _currency, _period) {
+    if (!Number.isInteger(grossValueMinorUnits) || grossValueMinorUnits < 0) {
       return {
         withholdingMinorUnits: 0,
         regulatorRef: 'GENERIC',
-        rateNote: 'Invalid gross rent input — no withholding computed.',
+        rateNote: 'Invalid gross-value input — no withholding computed.',
         requiresManualConfiguration: true,
       };
     }
@@ -89,17 +90,18 @@ export const DEFAULT_TAX_REGIME: TaxRegimePort = {
 };
 
 /**
- * Helper used by country plugins that apply a single flat rate on gross
- * rent. Kept in the port file so every plugin uses the same rounding.
+ * Helper used by country plugins that apply a single flat rate on the gross
+ * mineral value / payment. Kept in the port file so every plugin uses the
+ * same rounding.
  */
 export function flatRateWithholding(
-  grossRentMinorUnits: number,
+  grossValueMinorUnits: number,
   ratePct: number,
   regulatorRef: string,
   rateNote: string
 ): WithholdingResult {
-  const safeGross = Number.isInteger(grossRentMinorUnits)
-    ? Math.max(0, grossRentMinorUnits)
+  const safeGross = Number.isInteger(grossValueMinorUnits)
+    ? Math.max(0, grossValueMinorUnits)
     : 0;
   const raw = (safeGross * ratePct) / 100;
   const rounded = Math.round(raw);

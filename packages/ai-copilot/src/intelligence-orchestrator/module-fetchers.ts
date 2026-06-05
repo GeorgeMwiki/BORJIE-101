@@ -1,11 +1,11 @@
 /**
  * Module Data Fetchers — interface + in-memory mock.
  *
- * Typed fetchers for each BORJIE domain. Each fetcher is tenant-scoped
+ * Typed fetchers for each Borjie domain. Each fetcher is tenant-scoped
  * and returns a null-safe snapshot consumable by the orchestrator.
  *
  * Real implementations bridge to domain-services (arrears, maintenance,
- * compliance, leasing, inspection, FAR, tenant-risk, occupancy). A mock
+ * compliance, offtake, inspection, FAR, tenant-risk, production). A mock
  * implementation is provided for tests and local-dev bootstrapping.
  *
  * @module intelligence-orchestrator/module-fetchers
@@ -15,11 +15,11 @@ import type {
   PaymentsSnapshot,
   MaintenanceSnapshot,
   ComplianceSnapshot,
-  LeasingSnapshot,
+  OfftakeSnapshot,
   InspectionSnapshot,
   FARSnapshot,
-  TenantRiskSnapshot,
-  OccupancySnapshot,
+  CounterpartyRiskSnapshot,
+  ProductionSnapshot,
 } from './types.js';
 
 export interface ModuleDataFetchers {
@@ -38,11 +38,11 @@ export interface ModuleDataFetchers {
     scopeId: string,
     tenantId: string,
   ): Promise<ComplianceSnapshot | null>;
-  fetchLeasing(
+  fetchOfftake(
     scopeKind: string,
     scopeId: string,
     tenantId: string,
-  ): Promise<LeasingSnapshot | null>;
+  ): Promise<OfftakeSnapshot | null>;
   fetchInspection(
     scopeKind: string,
     scopeId: string,
@@ -53,16 +53,16 @@ export interface ModuleDataFetchers {
     scopeId: string,
     tenantId: string,
   ): Promise<FARSnapshot | null>;
-  fetchTenantRisk(
+  fetchCounterpartyRisk(
     scopeKind: string,
     scopeId: string,
     tenantId: string,
-  ): Promise<TenantRiskSnapshot | null>;
-  fetchOccupancy(
+  ): Promise<CounterpartyRiskSnapshot | null>;
+  fetchProduction(
     scopeKind: string,
     scopeId: string,
     tenantId: string,
-  ): Promise<OccupancySnapshot | null>;
+  ): Promise<ProductionSnapshot | null>;
 }
 
 // ============================================================================
@@ -73,22 +73,22 @@ export interface MockSnapshots {
   readonly payments?: Partial<PaymentsSnapshot> | null;
   readonly maintenance?: Partial<MaintenanceSnapshot> | null;
   readonly compliance?: Partial<ComplianceSnapshot> | null;
-  readonly leasing?: Partial<LeasingSnapshot> | null;
+  readonly offtake?: Partial<OfftakeSnapshot> | null;
   readonly inspection?: Partial<InspectionSnapshot> | null;
   readonly far?: Partial<FARSnapshot> | null;
-  readonly tenantRisk?: Partial<TenantRiskSnapshot> | null;
-  readonly occupancy?: Partial<OccupancySnapshot> | null;
+  readonly counterpartyRisk?: Partial<CounterpartyRiskSnapshot> | null;
+  readonly production?: Partial<ProductionSnapshot> | null;
 }
 
 export function createMockFetchers(snapshots: MockSnapshots): ModuleDataFetchers {
   const p = snapshots.payments;
   const m = snapshots.maintenance;
   const c = snapshots.compliance;
-  const l = snapshots.leasing;
+  const l = snapshots.offtake;
   const i = snapshots.inspection;
   const f = snapshots.far;
-  const t = snapshots.tenantRisk;
-  const o = snapshots.occupancy;
+  const t = snapshots.counterpartyRisk;
+  const o = snapshots.production;
 
   return {
     async fetchPayments() {
@@ -100,8 +100,8 @@ export function createMockFetchers(snapshots: MockSnapshots): ModuleDataFetchers
     async fetchCompliance() {
       return c === null ? null : c ? buildCompliance(c) : null;
     },
-    async fetchLeasing() {
-      return l === null ? null : l ? buildLeasing(l) : null;
+    async fetchOfftake() {
+      return l === null ? null : l ? buildOfftake(l) : null;
     },
     async fetchInspection() {
       return i === null ? null : i ? buildInspection(i) : null;
@@ -109,11 +109,11 @@ export function createMockFetchers(snapshots: MockSnapshots): ModuleDataFetchers
     async fetchFAR() {
       return f === null ? null : f ? buildFAR(f) : null;
     },
-    async fetchTenantRisk() {
-      return t === null ? null : t ? buildTenantRisk(t) : null;
+    async fetchCounterpartyRisk() {
+      return t === null ? null : t ? buildCounterpartyRisk(t) : null;
     },
-    async fetchOccupancy() {
-      return o === null ? null : o ? buildOccupancy(o) : null;
+    async fetchProduction() {
+      return o === null ? null : o ? buildProduction(o) : null;
     },
   };
 }
@@ -154,18 +154,18 @@ function buildCompliance(c: Partial<ComplianceSnapshot>): ComplianceSnapshot {
     overdueItems: c.overdueItems ?? 0,
     criticalBreaches: c.criticalBreaches ?? 0,
     lastInspectionDate: c.lastInspectionDate ?? null,
-    pendingNoticesToTenants: c.pendingNoticesToTenants ?? 0,
+    pendingNoticesToCounterparties: c.pendingNoticesToCounterparties ?? 0,
     pendingRegulatorFilings: c.pendingRegulatorFilings ?? 0,
   };
 }
 
-function buildLeasing(l: Partial<LeasingSnapshot>): LeasingSnapshot {
+function buildOfftake(l: Partial<OfftakeSnapshot>): OfftakeSnapshot {
   return {
-    leaseEndWithin60d: l.leaseEndWithin60d ?? 0,
+    offtakeEndWithin60d: l.offtakeEndWithin60d ?? 0,
     pendingRenewals: l.pendingRenewals ?? 0,
     churnProbability: l.churnProbability ?? 0,
-    avgRentVsMarketPct: l.avgRentVsMarketPct ?? 0,
-    vacancyWaterfall30d: l.vacancyWaterfall30d ?? 0,
+    avgPriceVsMarketPct: l.avgPriceVsMarketPct ?? 0,
+    availableCapacityWaterfall30d: l.availableCapacityWaterfall30d ?? 0,
   };
 }
 
@@ -186,7 +186,7 @@ function buildFAR(f: Partial<FARSnapshot>): FARSnapshot {
   };
 }
 
-function buildTenantRisk(t: Partial<TenantRiskSnapshot>): TenantRiskSnapshot {
+function buildCounterpartyRisk(t: Partial<CounterpartyRiskSnapshot>): CounterpartyRiskSnapshot {
   return {
     riskGrade: t.riskGrade ?? 'C',
     riskScore: t.riskScore ?? 50,
@@ -196,11 +196,11 @@ function buildTenantRisk(t: Partial<TenantRiskSnapshot>): TenantRiskSnapshot {
   };
 }
 
-function buildOccupancy(o: Partial<OccupancySnapshot>): OccupancySnapshot {
+function buildProduction(o: Partial<ProductionSnapshot>): ProductionSnapshot {
   return {
-    occupancyPct: o.occupancyPct ?? 100,
-    vacancyCount: o.vacancyCount ?? 0,
-    avgVacancyDays: o.avgVacancyDays ?? 0,
-    timeOnMarketDays: o.timeOnMarketDays ?? 0,
+    productionPct: o.productionPct ?? 100,
+    availableCapacityCount: o.availableCapacityCount ?? 0,
+    avgAvailableCapacityDays: o.avgAvailableCapacityDays ?? 0,
+    timeToCommissionDays: o.timeToCommissionDays ?? 0,
   };
 }

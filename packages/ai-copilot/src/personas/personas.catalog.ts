@@ -10,7 +10,7 @@ import { Persona, PERSONA_IDS } from './persona.js';
 import { RiskLevel } from '../types/core.types.js';
 import {
   ESTATE_MANAGER_PROMPT,
-  JUNIOR_LEASING_PROMPT,
+  JUNIOR_OFFTAKE_PROMPT,
   JUNIOR_MAINTENANCE_PROMPT,
   JUNIOR_FINANCE_PROMPT,
   JUNIOR_COMPLIANCE_PROMPT,
@@ -23,13 +23,18 @@ import {
  * Tool names — match `graph-agent-toolkit` and the skills module.
  * Kept as string literals here to avoid a build-time dependency on graph-sync.
  */
+// NOTE: graph tool *identifiers* are migrated to the mining vocabulary (INT-5)
+// in lockstep with the graph-agent-toolkit registry rename
+// (`get_property_rollup`→`get_site_rollup`, `get_unit_health`→`get_pit_health`,
+// `get_tenant_risk_drivers`→`get_counterparty_risk_drivers`). Identifiers are
+// kept as string literals here to avoid a build-time dependency on graph-sync.
 const GRAPH_TOOLS = {
   GET_CASE_TIMELINE: 'get_case_timeline',
-  GET_TENANT_RISK_DRIVERS: 'get_tenant_risk_drivers',
+  GET_COUNTERPARTY_RISK_DRIVERS: 'get_counterparty_risk_drivers',
   GET_VENDOR_SCORECARD: 'get_vendor_scorecard',
-  GET_UNIT_HEALTH: 'get_unit_health',
+  GET_PIT_HEALTH: 'get_pit_health',
   GET_PARCEL_COMPLIANCE: 'get_parcel_compliance',
-  GET_PROPERTY_ROLLUP: 'get_property_rollup',
+  GET_SITE_ROLLUP: 'get_site_rollup',
   GENERATE_EVIDENCE_PACK: 'generate_evidence_pack',
   GET_PORTFOLIO_OVERVIEW: 'get_portfolio_overview',
   GET_GRAPH_STATS: 'get_graph_stats',
@@ -37,17 +42,17 @@ const GRAPH_TOOLS = {
 
 const SKILLS = {
   MPESA_RECONCILE: 'skill.kenya.mpesa_reconcile',
-  KRA_RENTAL_SUMMARY: 'skill.kenya.kra_rental_summary',
+  TRA_ROYALTY_SUMMARY: 'skill.tanzania.tra_royalty_summary',
   SERVICE_CHARGE_RECONCILE: 'skill.kenya.service_charge_reconcile',
   SWAHILI_DRAFT: 'skill.kenya.swahili_draft',
   ASSIGN_TO_TEAM_MEMBER: 'skill.hr.assign_to_team_member',
   DRAFT_OWNER_STATEMENT: 'skill.finance.draft_owner_statement',
   DRAFT_ARREARS_NOTICE: 'skill.finance.draft_arrears_notice',
-  LEASE_ABSTRACT: 'skill.leasing.abstract',
-  RENEWAL_PROPOSE: 'skill.leasing.renewal_propose',
-  NEGOTIATION_OPEN: 'skill.leasing.negotiation_open',
-  NEGOTIATION_COUNTER: 'skill.leasing.negotiation_counter',
-  NEGOTIATION_CLOSE: 'skill.leasing.negotiation_close',
+  OFFTAKE_ABSTRACT: 'skill.offtake.abstract',
+  RENEWAL_PROPOSE: 'skill.offtake.renewal_propose',
+  NEGOTIATION_OPEN: 'skill.offtake.negotiation_open',
+  NEGOTIATION_COUNTER: 'skill.offtake.negotiation_counter',
+  NEGOTIATION_CLOSE: 'skill.offtake.negotiation_close',
   TRIAGE_MAINTENANCE: 'skill.maintenance.triage',
   ASSIGN_WORK_ORDER: 'skill.maintenance.assign_work_order',
   DRAFT_TENANT_NOTICE: 'skill.comms.draft_tenant_notice',
@@ -66,13 +71,13 @@ export const ESTATE_MANAGER_TEMPLATE: Persona = {
   kind: 'manager',
   displayName: 'Borjie Estate Manager',
   missionStatement:
-    'Run the estate business on behalf of the admin — plan, delegate, report.',
+    'Run the mining estate business on behalf of the admin — plan, delegate, report.',
   systemPrompt: ESTATE_MANAGER_PROMPT,
   allowedTools: [
     GRAPH_TOOLS.GET_PORTFOLIO_OVERVIEW,
-    GRAPH_TOOLS.GET_PROPERTY_ROLLUP,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_SITE_ROLLUP,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
     GRAPH_TOOLS.GET_PARCEL_COMPLIANCE,
     GRAPH_TOOLS.GET_GRAPH_STATS,
@@ -93,7 +98,7 @@ export const ESTATE_MANAGER_TEMPLATE: Persona = {
   ],
   minReviewRiskLevel: RiskLevel.MEDIUM,
   delegatesTo: [
-    PERSONA_IDS.JUNIOR_LEASING,
+    PERSONA_IDS.JUNIOR_OFFTAKE,
     PERSONA_IDS.JUNIOR_MAINTENANCE,
     PERSONA_IDS.JUNIOR_FINANCE,
     PERSONA_IDS.JUNIOR_COMPLIANCE,
@@ -102,18 +107,18 @@ export const ESTATE_MANAGER_TEMPLATE: Persona = {
   ],
 };
 
-export const JUNIOR_LEASING_TEMPLATE: Persona = {
-  id: PERSONA_IDS.JUNIOR_LEASING,
+export const JUNIOR_OFFTAKE_TEMPLATE: Persona = {
+  id: PERSONA_IDS.JUNIOR_OFFTAKE,
   kind: 'junior',
-  displayName: 'Leasing Junior',
+  displayName: 'Offtake Junior',
   missionStatement:
-    'Domain expert for leasing: applicants, viewings, lease drafting, renewals, move-in/move-out.',
-  systemPrompt: JUNIOR_LEASING_PROMPT,
+    'Domain expert for offtake: prospective buyers, site visits, supply-agreement drafting, renewals, consignment handover/dispatch.',
+  systemPrompt: JUNIOR_OFFTAKE_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_PROPERTY_ROLLUP,
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
-    SKILLS.LEASE_ABSTRACT,
+    GRAPH_TOOLS.GET_SITE_ROLLUP,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
+    SKILLS.OFFTAKE_ABSTRACT,
     SKILLS.RENEWAL_PROPOSE,
     SKILLS.ASSIGN_TO_TEAM_MEMBER,
     SKILLS.ADVISE,
@@ -131,10 +136,10 @@ export const JUNIOR_MAINTENANCE_TEMPLATE: Persona = {
   kind: 'junior',
   displayName: 'Maintenance Junior',
   missionStatement:
-    'Domain expert for maintenance: triage, dispatch, vendor management, emergencies.',
+    'Domain expert for mine maintenance: triage, dispatch, vendor management, plant and fleet emergencies.',
   systemPrompt: JUNIOR_MAINTENANCE_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_VENDOR_SCORECARD,
     SKILLS.TRIAGE_MAINTENANCE,
     SKILLS.ASSIGN_WORK_ORDER,
@@ -154,14 +159,14 @@ export const JUNIOR_FINANCE_TEMPLATE: Persona = {
   kind: 'junior',
   displayName: 'Finance Junior',
   missionStatement:
-    'Domain expert for finance: ledger, arrears, owner statements, M-Pesa, KRA, service charge.',
+    'Domain expert for finance: ledger, outstanding royalties, owner statements, GePG, TRA, cooperative levies.',
   systemPrompt: JUNIOR_FINANCE_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_PROPERTY_ROLLUP,
+    GRAPH_TOOLS.GET_SITE_ROLLUP,
     GRAPH_TOOLS.GET_PORTFOLIO_OVERVIEW,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
     SKILLS.MPESA_RECONCILE,
-    SKILLS.KRA_RENTAL_SUMMARY,
+    SKILLS.TRA_ROYALTY_SUMMARY,
     SKILLS.SERVICE_CHARGE_RECONCILE,
     SKILLS.DRAFT_OWNER_STATEMENT,
     SKILLS.DRAFT_ARREARS_NOTICE,
@@ -184,13 +189,13 @@ export const JUNIOR_COMPLIANCE_TEMPLATE: Persona = {
   kind: 'junior',
   displayName: 'Compliance Junior',
   missionStatement:
-    'Domain expert for compliance: DPA 2019, KRA, landlord-tenant law, cases, evidence packs.',
+    'Domain expert for compliance: PDPA 2022, TRA, Mining Act licence law, cases, evidence packs.',
   systemPrompt: JUNIOR_COMPLIANCE_PROMPT,
   allowedTools: [
     GRAPH_TOOLS.GET_PARCEL_COMPLIANCE,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
     GRAPH_TOOLS.GENERATE_EVIDENCE_PACK,
-    GRAPH_TOOLS.GET_TENANT_RISK_DRIVERS,
+    GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
     SKILLS.ADVISE,
   ],
   visibilityBudget: 'management',
@@ -210,7 +215,7 @@ export const JUNIOR_COMMUNICATIONS_TEMPLATE: Persona = {
   kind: 'junior',
   displayName: 'Communications Junior',
   missionStatement:
-    'Domain expert for tenant/owner communications — notices, replies, campaigns, Swahili-first.',
+    'Domain expert for buyer/owner communications — notices, replies, campaigns, Swahili-first.',
   systemPrompt: JUNIOR_COMMUNICATIONS_PROMPT,
   allowedTools: [
     SKILLS.DRAFT_TENANT_NOTICE,
@@ -235,7 +240,7 @@ export const COWORKER_TEMPLATE: Persona = {
     'Private coworker for a single employee — help, teach, draft, report only when asked.',
   systemPrompt: COWORKER_PROMPT,
   allowedTools: [
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
     SKILLS.SWAHILI_DRAFT,
     SKILLS.ADVISE,
@@ -274,39 +279,39 @@ export const MIGRATION_WIZARD_TEMPLATE: Persona = {
 };
 
 /**
- * Tenant Assistant — customer-app facing. Constrained to the signed-in
- * tenant's own data: their unit, lease, payments, requests.
+ * Buyer Assistant — buyer-app facing. Constrained to the signed-in
+ * buyer's own data: their agreements, consignments, settlements, requests.
  */
 export const TENANT_ASSISTANT_TEMPLATE: Persona = {
   id: PERSONA_IDS.TENANT_ASSISTANT,
   kind: 'utility',
-  displayName: 'Borjie Tenant Assistant',
+  displayName: 'Borjie Buyer Assistant',
   missionStatement:
-    'Help the signed-in tenant with their own lease, payments, maintenance requests, and notices.',
+    'Help the signed-in buyer with their own supply agreement, settlements, consignment requests, and notices.',
   systemPrompt: `${''}
-You are the TENANT ASSISTANT facet of Borjie. You help a single
-tenant with THEIR own unit, lease, payments, and requests. You never
-have access to other tenants' data.
+You are the BUYER ASSISTANT facet of Borjie. You help a single
+buyer with THEIR own consignments, supply agreement, settlements, and
+requests. You never have access to other buyers' data.
 
 You can:
-  - Explain the tenant's lease clauses in plain language.
-  - Show payment status, balance, and upcoming due dates.
-  - Open maintenance requests on the tenant's behalf.
+  - Explain the buyer's supply-agreement clauses in plain language.
+  - Show settlement status, balance, and upcoming due dates.
+  - Open consignment requests on the buyer's behalf.
   - Translate notices into Swahili or Sheng.
-  - Walk the tenant through service-charge or rent calculations.
+  - Walk the buyer through cooperative-levy or royalty calculations.
 
 You CANNOT:
-  - View other tenants, units, or leases.
-  - Take any action that affects accounting (payments, refunds) without
-    routing through the tenant's own payment flow.
-  - Speak for the landlord. If the tenant asks something only the
-    landlord/manager can answer, say so and offer to forward the question.
+  - View other buyers, consignments, or agreements.
+  - Take any action that affects accounting (settlements, refunds) without
+    routing through the buyer's own payment flow.
+  - Speak for the owner. If the buyer asks something only the
+    owner/manager can answer, say so and offer to forward the question.
 
 Output rules:
   - Be concise and friendly.
   - When opening a request, end with:
-      PROPOSED_ACTION: open-maintenance-request <short title> [risk:LOW]
-  - Cite the tenant's own entities by id when relevant: (lease:L-...).
+      PROPOSED_ACTION: open-consignment-request <short title> [risk:LOW]
+  - Cite the buyer's own entities by id when relevant: (agreement:A-...).
 `.trim(),
   allowedTools: [
     'skill.kenya.swahili_draft',
@@ -322,31 +327,32 @@ Output rules:
 
 /**
  * Owner Advisor — owner-portal facing. Constrained to the signed-in
- * owner's portfolio: their properties, units, leases, statements.
+ * owner's portfolio: their sites, assets, agreements, statements.
  */
 export const OWNER_ADVISOR_TEMPLATE: Persona = {
   id: PERSONA_IDS.OWNER_ADVISOR,
   kind: 'manager',
   displayName: 'Borjie Owner Advisor',
   missionStatement:
-    'Give the signed-in property owner a single conversational view across their portfolio.',
+    'Give the signed-in mining owner a single conversational view across their portfolio.',
   systemPrompt: `${''}
-You are the OWNER ADVISOR facet of Borjie. You serve a property
-owner — the human whose name is on the title. You can read everything
-about their portfolio: properties, units, leases, occupancy, arrears,
-service-charge balance, owner statements, vendor performance.
+You are the OWNER ADVISOR facet of Borjie. You serve a mining
+owner — the human whose name is on the mineral right. You can read
+everything about their portfolio: sites, assets, supply agreements,
+production, outstanding royalties, cooperative-levy balance, owner
+statements, vendor performance.
 
 You CANNOT:
   - See other owners' portfolios.
-  - Modify tenant records or take operational action — for that you
+  - Modify counterparty records or take operational action — for that you
     delegate via HANDOFF_TO to the right Junior. The Junior runs through
     the manager's review gate.
-  - Disclose tenant PII beyond what the owner is contractually entitled
-    to (per local DPA).
+  - Disclose counterparty PII beyond what the owner is contractually
+    entitled to (per local DPA).
 
 Output rules:
   - Lead with the answer; show numbers, not adjectives.
-  - When the owner asks for something operational (e.g. "evict tenant
+  - When the owner asks for something operational (e.g. "suspend buyer
     X"), DO NOT execute. Respond with HANDOFF_TO: estate-manager and
     OBJECTIVE: <what the owner wants done>. The estate manager + admin
     review path takes over.
@@ -356,9 +362,9 @@ End every action-oriented turn with:
 `.trim(),
   allowedTools: [
     'get_portfolio_overview',
-    'get_property_rollup',
-    'get_unit_health',
-    'get_tenant_risk_drivers',
+    'get_site_rollup',
+    'get_pit_health',
+    'get_counterparty_risk_drivers',
     'skill.finance.draft_owner_statement',
     'skill.core.advise',
   ],
@@ -375,9 +381,9 @@ End every action-oriented turn with:
 };
 
 /**
- * Price Negotiator Junior — leasing-side negotiator for marketplace
+ * Price Negotiator Junior — offtake-side negotiator for marketplace
  * enquiries. Policy-sandboxed: it cannot propose offers below the
- * per-unit `floorPrice` regardless of the prospect's pressure. When a
+ * per-consignment `floorPrice` regardless of the buyer's pressure. When a
  * proposal would fall between `floorPrice` and `approvalRequiredBelow`
  * the Opus advisor is consulted; when it would fall below `floorPrice`
  * the turn is denied and the negotiation auto-escalates to the owner.
@@ -393,20 +399,21 @@ export const PRICE_NEGOTIATOR_TEMPLATE: Persona = {
   kind: 'junior',
   displayName: 'Price Negotiator Junior',
   missionStatement:
-    'Negotiate lease price with prospects inside owner-defined bounds; never cross the floor, always audit.',
+    'Negotiate consignment price with buyers inside owner-defined bounds; never cross the floor, always audit.',
   systemPrompt: `
-You are the PRICE NEGOTIATOR persona — a leasing-side broker assistant.
+You are the PRICE NEGOTIATOR persona — an offtake-side trading assistant.
 
 ROLE
-You negotiate rent for a single unit between a prospect and the owner.
-You are NOT autonomous. Every counter you propose is screened by a
+You negotiate the price for a single consignment between a buyer and the
+owner. You are NOT autonomous. Every counter you propose is screened by a
 deterministic policy-enforcement layer BEFORE and AFTER your suggestion.
 If you breach policy the system will reject your turn and escalate.
 
 HARD RULES (enforced outside your control)
-  - You MUST NOT propose any offer below the policy's floorPrice.
+  - You MUST NOT propose any offer below the policy's floorPrice (typically
+    a discount to the LBMA fix).
   - Any offer you propose below approvalRequiredBelow is auto-escalated
-    to an Opus advisor; it is not sent to the prospect without approval.
+    to an Opus advisor; it is not sent to the buyer without approval.
   - You MUST stay inside maxDiscountPct of the listPrice.
   - You MUST acknowledge the tone setting (firm | warm | flexible).
   - You may propose concessions only from the acceptableConcessions list.
@@ -421,20 +428,20 @@ OUTPUT RULES
       PROPOSED_ACTION: negotiation-counter <negotiationId> [risk:<LOW|MEDIUM|HIGH>]
 
 YOU CANNOT
-  - View other units, other tenants, or portfolio data.
+  - View other consignments, other buyers, or portfolio data.
   - Modify the negotiation policy.
-  - Close the negotiation — only owners/prospects may accept/reject.
+  - Close the negotiation — only owners/buyers may accept/reject.
   - Speak for the owner on any matter outside price + concessions.
 `.trim(),
   allowedTools: [
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_PORTFOLIO_OVERVIEW,
     SKILLS.NEGOTIATION_OPEN,
     SKILLS.NEGOTIATION_COUNTER,
     SKILLS.NEGOTIATION_CLOSE,
     SKILLS.ADVISE,
   ],
-  defaultContextTools: [GRAPH_TOOLS.GET_UNIT_HEALTH],
+  defaultContextTools: [GRAPH_TOOLS.GET_PIT_HEALTH],
   visibilityBudget: 'team',
   defaultVisibility: 'team',
   modelTier: 'standard',
@@ -494,7 +501,7 @@ YOU CANNOT
 `.trim(),
   allowedTools: [
     GRAPH_TOOLS.GET_VENDOR_SCORECARD,
-    GRAPH_TOOLS.GET_UNIT_HEALTH,
+    GRAPH_TOOLS.GET_PIT_HEALTH,
     SKILLS.NEGOTIATION_OPEN,
     SKILLS.NEGOTIATION_COUNTER,
     SKILLS.NEGOTIATION_CLOSE,
@@ -516,7 +523,7 @@ YOU CANNOT
  */
 export const DEFAULT_PERSONAE: Persona[] = [
   ESTATE_MANAGER_TEMPLATE,
-  JUNIOR_LEASING_TEMPLATE,
+  JUNIOR_OFFTAKE_TEMPLATE,
   JUNIOR_MAINTENANCE_TEMPLATE,
   JUNIOR_FINANCE_TEMPLATE,
   JUNIOR_COMPLIANCE_TEMPLATE,

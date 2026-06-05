@@ -6,8 +6,14 @@
  * when the authenticated variant has no access token.
  */
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, configure, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { FloatingAskBorjie } from '../borjie/FloatingAskBorjie';
+
+// These tests assert on streamed (mock SSE) assistant text via waitFor. Under
+// parallel CI load (full `pnpm -r test` + apps on one runner) the default 1000ms
+// async-util timeout is too tight and flakes — it passes in isolation. Raising
+// the timeout makes the streaming assertions robust without weakening them.
+configure({ asyncUtilTimeout: 15000 });
 
 function makeSseResponse(chunks: readonly string[]): Response {
   const encoder = new TextEncoder();
@@ -64,7 +70,7 @@ describe('FloatingAskBorjie', () => {
     fireEvent.click(fab);
     const panel = await screen.findByTestId('borjie-chat-panel');
     expect(panel).toBeInTheDocument();
-    expect(panel.textContent ?? '').toMatch(/AI Mining Managing Director/i);
+    expect(panel.textContent ?? '').toMatch(/the brain layer within Borjie/i);
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/v1/public/chat',

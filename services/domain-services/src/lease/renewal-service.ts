@@ -1,23 +1,23 @@
 /**
- * Lease Renewal Service
+ * Offtake Renewal Service
  *
- * Explicit renewal lifecycle on top of the existing `LeaseService`.
+ * Explicit renewal lifecycle on top of the existing `OfftakeService`.
  * Handles five transitions:
  *
- *   1. openRenewalWindow  — moves lease to `window_opened` and emits
+ *   1. openRenewalWindow  — moves offtake to `window_opened` and emits
  *                           `RenewalWindowOpened`.
- *   2. proposeRenewal     — records proposed rent and emits
+ *   2. proposeRenewal     — records proposed royalty and emits
  *                           `RenewalProposed`.
- *   3. acceptRenewal      — creates a NEW lease row (immutable old lease
+ *   3. acceptRenewal      — creates a NEW offtake row (immutable old offtake
  *                           retained for audit) and emits `RenewalAccepted`.
- *   4. declineRenewal     — marks old lease `declined` and emits
+ *   4. declineRenewal     — marks old offtake `declined` and emits
  *                           `RenewalDeclined`.
- *   5. terminate          — terminates lease outside of renewal path and
+ *   5. terminate          — terminates offtake outside of renewal path and
  *                           emits `LeaseTerminatedByRenewal`.
  *
  * The service is transport-agnostic and depends only on a repository + event
- * bus. It does not mutate the old lease on accept — instead a linked new
- * lease row is inserted and `renewedToLeaseId` is stamped on the old.
+ * bus. It does not mutate the old offtake on accept — instead a linked new
+ * offtake row is inserted and `renewedToOfftakeId` is stamped on the old.
  */
 
 import type {
@@ -31,11 +31,11 @@ import { createEventEnvelope, generateEventId } from '../common/events.js';
 import { randomHex } from '../common/id-generator.js';
 
 // ---------------------------------------------------------------------------
-// Domain model (deliberately narrow — we don't re-import the Lease aggregate
-// to avoid cross-module drift in the lease barrel).
+// Domain model (deliberately narrow — we don't re-import the Offtake aggregate
+// to avoid cross-module drift in the offtake barrel).
 // ---------------------------------------------------------------------------
 
-export type LeaseRenewalStatus =
+export type OfftakeRenewalStatus =
   | 'not_started'
   | 'window_opened'
   | 'proposed'
@@ -44,41 +44,55 @@ export type LeaseRenewalStatus =
   | 'terminated'
   | 'expired';
 
-export interface RenewalLeaseSnapshot {
+/** @deprecated Use {@link OfftakeRenewalStatus}. */
+export type LeaseRenewalStatus = OfftakeRenewalStatus;
+
+export interface RenewalOfftakeSnapshot {
   readonly id: string;
   readonly tenantId: TenantId;
-  readonly leaseNumber: string;
+  readonly offtakeNumber: string;
   readonly propertyId: string;
   readonly unitId: string;
   readonly customerId: string;
   readonly startDate: ISOTimestamp;
   readonly endDate: ISOTimestamp | null;
-  readonly rentAmount: number;
-  readonly rentCurrency: string;
-  readonly renewalStatus: LeaseRenewalStatus;
+  readonly royaltyAmount: number;
+  readonly royaltyCurrency: string;
+  readonly renewalStatus: OfftakeRenewalStatus;
   readonly renewalWindowOpenedAt: ISOTimestamp | null;
   readonly renewalProposedAt: ISOTimestamp | null;
-  readonly renewalProposedRent: number | null;
+  readonly renewalProposedRoyalty: number | null;
   readonly renewalDecidedAt: ISOTimestamp | null;
   readonly renewalDecisionBy: UserId | null;
   readonly terminationDate: ISOTimestamp | null;
   readonly terminationReasonNotes: string | null;
 }
 
+/**
+ * @deprecated Use {@link RenewalOfftakeSnapshot}. Retained because
+ * off-limits importers (api-gateway composition root) reference this name
+ * in their `RenewalRepository` stub signatures.
+ */
+export type RenewalLeaseSnapshot = RenewalOfftakeSnapshot;
+
 export interface RenewalRepository {
-  findById(id: string, tenantId: TenantId): Promise<RenewalLeaseSnapshot | null>;
-  update(lease: RenewalLeaseSnapshot): Promise<RenewalLeaseSnapshot>;
+  findById(id: string, tenantId: TenantId): Promise<RenewalOfftakeSnapshot | null>;
+  update(offtake: RenewalOfftakeSnapshot): Promise<RenewalOfftakeSnapshot>;
+  // NOTE (cross-package contract): `createRenewedLease` + `nextLeaseSequence`
+  // method names are implemented by the api-gateway composition-root stub
+  // (off-limits). Their names are frozen; only the param/field semantics
+  // migrate to the offtake domain.
   createRenewedLease(params: {
-    fromLeaseId: string;
+    fromOfftakeId: string;
     tenantId: TenantId;
-    newLeaseId: string;
-    newLeaseNumber: string;
+    newOfftakeId: string;
+    newOfftakeNumber: string;
     startDate: ISOTimestamp;
     endDate: ISOTimestamp;
-    rentAmount: number;
-    rentCurrency: string;
+    royaltyAmount: number;
+    royaltyCurrency: string;
     createdBy: UserId;
-  }): Promise<RenewalLeaseSnapshot>;
+  }): Promise<RenewalOfftakeSnapshot>;
   nextLeaseSequence(tenantId: TenantId): Promise<number>;
 }
 
@@ -87,7 +101,7 @@ export interface RenewalRepository {
 // ---------------------------------------------------------------------------
 
 export const RenewalServiceError = {
-  LEASE_NOT_FOUND: 'LEASE_NOT_FOUND',
+  OFFTAKE_NOT_FOUND: 'OFFTAKE_NOT_FOUND',
   INVALID_TRANSITION: 'INVALID_TRANSITION',
   INVALID_INPUT: 'INVALID_INPUT',
 } as const;
@@ -131,8 +145,8 @@ interface RenewalEventBase extends DomainEvent {
 export interface RenewalWindowOpenedEvent extends RenewalEventBase {
   readonly eventType: 'RenewalWindowOpened';
   readonly payload: {
-    readonly leaseId: string;
-    readonly leaseNumber: string;
+    readonly offtakeId: string;
+    readonly offtakeNumber: string;
     readonly customerId: string;
     readonly endDate: ISOTimestamp | null;
     readonly openedBy: UserId;
@@ -142,8 +156,8 @@ export interface RenewalWindowOpenedEvent extends RenewalEventBase {
 export interface RenewalProposedEvent extends RenewalEventBase {
   readonly eventType: 'RenewalProposed';
   readonly payload: {
-    readonly leaseId: string;
-    readonly proposedRent: number;
+    readonly offtakeId: string;
+    readonly proposedRoyalty: number;
     readonly proposedBy: UserId;
   };
 }
@@ -151,8 +165,8 @@ export interface RenewalProposedEvent extends RenewalEventBase {
 export interface RenewalAcceptedEvent extends RenewalEventBase {
   readonly eventType: 'RenewalAccepted';
   readonly payload: {
-    readonly previousLeaseId: string;
-    readonly newLeaseId: string;
+    readonly previousOfftakeId: string;
+    readonly newOfftakeId: string;
     readonly acceptedBy: UserId;
   };
 }
@@ -160,28 +174,35 @@ export interface RenewalAcceptedEvent extends RenewalEventBase {
 export interface RenewalDeclinedEvent extends RenewalEventBase {
   readonly eventType: 'RenewalDeclined';
   readonly payload: {
-    readonly leaseId: string;
+    readonly offtakeId: string;
     readonly declinedBy: UserId;
     readonly reason: string | null;
   };
 }
 
-export interface LeaseTerminatedByRenewalEvent extends RenewalEventBase {
+// NOTE (cross-package wire contract): the `LeaseTerminatedByRenewal`
+// discriminator is NOT in the canonical rename map and is consumed by name
+// by the api-gateway event-subscribers (off-limits). The string is left
+// intact; only the surrounding domain symbols migrate to offtake.
+export interface OfftakeTerminatedByRenewalEvent extends RenewalEventBase {
   readonly eventType: 'LeaseTerminatedByRenewal';
   readonly payload: {
-    readonly leaseId: string;
+    readonly offtakeId: string;
     readonly terminationDate: ISOTimestamp;
     readonly reason: string;
     readonly terminatedBy: UserId;
   };
 }
 
+/** @deprecated Use {@link OfftakeTerminatedByRenewalEvent}. */
+export type LeaseTerminatedByRenewalEvent = OfftakeTerminatedByRenewalEvent;
+
 // ---------------------------------------------------------------------------
 // Inputs
 // ---------------------------------------------------------------------------
 
 export interface ProposeRenewalInput {
-  readonly proposedRent: number;
+  readonly proposedRoyalty: number;
   readonly proposedBy: UserId;
 }
 
@@ -206,10 +227,10 @@ export interface TerminateInput {
 // ---------------------------------------------------------------------------
 
 /**
- * Valid forward transitions. Reverse transitions are disallowed — once a
- * lease is accepted/declined/terminated it is immutable.
+ * Valid forward transitions. Reverse transitions are disallowed — once an
+ * offtake is accepted/declined/terminated it is immutable.
  */
-const ALLOWED_TRANSITIONS: Record<LeaseRenewalStatus, LeaseRenewalStatus[]> = {
+const ALLOWED_TRANSITIONS: Record<OfftakeRenewalStatus, OfftakeRenewalStatus[]> = {
   not_started: ['window_opened', 'terminated'],
   window_opened: ['proposed', 'declined', 'terminated', 'expired'],
   proposed: ['accepted', 'declined', 'terminated', 'expired'],
@@ -226,24 +247,24 @@ export class RenewalService {
   ) {}
 
   async openRenewalWindow(
-    leaseId: string,
+    offtakeId: string,
     tenantId: TenantId,
     openedBy: UserId,
     correlationId: string,
-  ): Promise<Result<RenewalLeaseSnapshot, RenewalServiceErrorResult>> {
-    const lease = await this.repo.findById(leaseId, tenantId);
-    if (!lease) {
-      return err('LEASE_NOT_FOUND', 'Lease not found');
+  ): Promise<Result<RenewalOfftakeSnapshot, RenewalServiceErrorResult>> {
+    const offtake = await this.repo.findById(offtakeId, tenantId);
+    if (!offtake) {
+      return err('OFFTAKE_NOT_FOUND', 'Offtake not found');
     }
-    if (!this.canTransition(lease.renewalStatus, 'window_opened')) {
+    if (!this.canTransition(offtake.renewalStatus, 'window_opened')) {
       return err(
         'INVALID_TRANSITION',
-        `Cannot open renewal window from ${lease.renewalStatus}`,
+        `Cannot open renewal window from ${offtake.renewalStatus}`,
       );
     }
     const now = new Date().toISOString() as ISOTimestamp;
-    const updated: RenewalLeaseSnapshot = {
-      ...lease,
+    const updated: RenewalOfftakeSnapshot = {
+      ...offtake,
       renewalStatus: 'window_opened',
       renewalWindowOpenedAt: now,
     };
@@ -258,40 +279,40 @@ export class RenewalService {
       causationId: null,
       metadata: {},
       payload: {
-        leaseId: saved.id,
-        leaseNumber: saved.leaseNumber,
+        offtakeId: saved.id,
+        offtakeNumber: saved.offtakeNumber,
         customerId: saved.customerId,
         endDate: saved.endDate,
         openedBy,
       },
     };
-    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Lease'));
+    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Offtake'));
     return ok(saved);
   }
 
   async proposeRenewal(
-    leaseId: string,
+    offtakeId: string,
     tenantId: TenantId,
     input: ProposeRenewalInput,
     correlationId: string,
-  ): Promise<Result<RenewalLeaseSnapshot, RenewalServiceErrorResult>> {
-    if (input.proposedRent <= 0) {
-      return err('INVALID_INPUT', 'proposedRent must be positive');
+  ): Promise<Result<RenewalOfftakeSnapshot, RenewalServiceErrorResult>> {
+    if (input.proposedRoyalty <= 0) {
+      return err('INVALID_INPUT', 'proposedRoyalty must be positive');
     }
-    const lease = await this.repo.findById(leaseId, tenantId);
-    if (!lease) return err('LEASE_NOT_FOUND', 'Lease not found');
-    if (!this.canTransition(lease.renewalStatus, 'proposed')) {
+    const offtake = await this.repo.findById(offtakeId, tenantId);
+    if (!offtake) return err('OFFTAKE_NOT_FOUND', 'Offtake not found');
+    if (!this.canTransition(offtake.renewalStatus, 'proposed')) {
       return err(
         'INVALID_TRANSITION',
-        `Cannot propose renewal from ${lease.renewalStatus}`,
+        `Cannot propose renewal from ${offtake.renewalStatus}`,
       );
     }
     const now = new Date().toISOString() as ISOTimestamp;
-    const updated: RenewalLeaseSnapshot = {
-      ...lease,
+    const updated: RenewalOfftakeSnapshot = {
+      ...offtake,
       renewalStatus: 'proposed',
       renewalProposedAt: now,
-      renewalProposedRent: input.proposedRent,
+      renewalProposedRoyalty: input.proposedRoyalty,
     };
     const saved = await this.repo.update(updated);
     const event: RenewalProposedEvent = {
@@ -303,30 +324,30 @@ export class RenewalService {
       causationId: null,
       metadata: {},
       payload: {
-        leaseId: saved.id,
-        proposedRent: input.proposedRent,
+        offtakeId: saved.id,
+        proposedRoyalty: input.proposedRoyalty,
         proposedBy: input.proposedBy,
       },
     };
-    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Lease'));
+    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Offtake'));
     return ok(saved);
   }
 
   async acceptRenewal(
-    leaseId: string,
+    offtakeId: string,
     tenantId: TenantId,
     input: AcceptRenewalInput,
     correlationId: string,
-  ): Promise<Result<RenewalLeaseSnapshot, RenewalServiceErrorResult>> {
-    const lease = await this.repo.findById(leaseId, tenantId);
-    if (!lease) return err('LEASE_NOT_FOUND', 'Lease not found');
-    if (!this.canTransition(lease.renewalStatus, 'accepted')) {
+  ): Promise<Result<RenewalOfftakeSnapshot, RenewalServiceErrorResult>> {
+    const offtake = await this.repo.findById(offtakeId, tenantId);
+    if (!offtake) return err('OFFTAKE_NOT_FOUND', 'Offtake not found');
+    if (!this.canTransition(offtake.renewalStatus, 'accepted')) {
       return err(
         'INVALID_TRANSITION',
-        `Cannot accept renewal from ${lease.renewalStatus}`,
+        `Cannot accept renewal from ${offtake.renewalStatus}`,
       );
     }
-    if (lease.renewalProposedRent == null) {
+    if (offtake.renewalProposedRoyalty == null) {
       return err(
         'INVALID_INPUT',
         'Cannot accept renewal without a proposal',
@@ -334,28 +355,28 @@ export class RenewalService {
     }
 
     const now = new Date().toISOString() as ISOTimestamp;
-    // Stamp decision on the OLD lease (immutable from here)
-    const oldLeaseUpdate: RenewalLeaseSnapshot = {
-      ...lease,
+    // Stamp decision on the OLD offtake (immutable from here)
+    const oldOfftakeUpdate: RenewalOfftakeSnapshot = {
+      ...offtake,
       renewalStatus: 'accepted',
       renewalDecidedAt: now,
       renewalDecisionBy: input.acceptedBy,
     };
-    await this.repo.update(oldLeaseUpdate);
+    await this.repo.update(oldOfftakeUpdate);
 
     const sequence = await this.repo.nextLeaseSequence(tenantId);
-    const newLeaseId = `lease_${Date.now()}_${randomHex(4)}`;
-    const newLeaseNumber = `L-${new Date().getFullYear()}-${String(sequence).padStart(6, '0')}`;
+    const newOfftakeId = `offtake_${Date.now()}_${randomHex(4)}`;
+    const newOfftakeNumber = `O-${new Date().getFullYear()}-${String(sequence).padStart(6, '0')}`;
 
-    const newLease = await this.repo.createRenewedLease({
-      fromLeaseId: lease.id,
+    const newOfftake = await this.repo.createRenewedLease({
+      fromOfftakeId: offtake.id,
       tenantId,
-      newLeaseId,
-      newLeaseNumber,
-      startDate: (lease.endDate ?? now) as ISOTimestamp,
+      newOfftakeId,
+      newOfftakeNumber,
+      startDate: (offtake.endDate ?? now) as ISOTimestamp,
       endDate: input.newEndDate,
-      rentAmount: lease.renewalProposedRent,
-      rentCurrency: lease.rentCurrency,
+      royaltyAmount: offtake.renewalProposedRoyalty,
+      royaltyCurrency: offtake.royaltyCurrency,
       createdBy: input.acceptedBy,
     });
 
@@ -368,38 +389,38 @@ export class RenewalService {
       causationId: null,
       metadata: {},
       payload: {
-        previousLeaseId: lease.id,
-        newLeaseId: newLease.id,
+        previousOfftakeId: offtake.id,
+        newOfftakeId: newOfftake.id,
         acceptedBy: input.acceptedBy,
       },
     };
     await this.eventBus.publish(
-      createEventEnvelope(event, newLease.id, 'Lease'),
+      createEventEnvelope(event, newOfftake.id, 'Offtake'),
     );
-    return ok(newLease);
+    return ok(newOfftake);
   }
 
   async declineRenewal(
-    leaseId: string,
+    offtakeId: string,
     tenantId: TenantId,
     input: DeclineRenewalInput,
     correlationId: string,
-  ): Promise<Result<RenewalLeaseSnapshot, RenewalServiceErrorResult>> {
-    const lease = await this.repo.findById(leaseId, tenantId);
-    if (!lease) return err('LEASE_NOT_FOUND', 'Lease not found');
-    if (!this.canTransition(lease.renewalStatus, 'declined')) {
+  ): Promise<Result<RenewalOfftakeSnapshot, RenewalServiceErrorResult>> {
+    const offtake = await this.repo.findById(offtakeId, tenantId);
+    if (!offtake) return err('OFFTAKE_NOT_FOUND', 'Offtake not found');
+    if (!this.canTransition(offtake.renewalStatus, 'declined')) {
       return err(
         'INVALID_TRANSITION',
-        `Cannot decline renewal from ${lease.renewalStatus}`,
+        `Cannot decline renewal from ${offtake.renewalStatus}`,
       );
     }
     const now = new Date().toISOString() as ISOTimestamp;
-    const updated: RenewalLeaseSnapshot = {
-      ...lease,
+    const updated: RenewalOfftakeSnapshot = {
+      ...offtake,
       renewalStatus: 'declined',
       renewalDecidedAt: now,
       renewalDecisionBy: input.declinedBy,
-      terminationReasonNotes: input.reason ?? lease.terminationReasonNotes,
+      terminationReasonNotes: input.reason ?? offtake.terminationReasonNotes,
     };
     const saved = await this.repo.update(updated);
     const event: RenewalDeclinedEvent = {
@@ -411,32 +432,32 @@ export class RenewalService {
       causationId: null,
       metadata: {},
       payload: {
-        leaseId: saved.id,
+        offtakeId: saved.id,
         declinedBy: input.declinedBy,
         reason: input.reason ?? null,
       },
     };
-    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Lease'));
+    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Offtake'));
     return ok(saved);
   }
 
   async terminate(
-    leaseId: string,
+    offtakeId: string,
     tenantId: TenantId,
     input: TerminateInput,
     correlationId: string,
-  ): Promise<Result<RenewalLeaseSnapshot, RenewalServiceErrorResult>> {
-    const lease = await this.repo.findById(leaseId, tenantId);
-    if (!lease) return err('LEASE_NOT_FOUND', 'Lease not found');
-    if (!this.canTransition(lease.renewalStatus, 'terminated')) {
+  ): Promise<Result<RenewalOfftakeSnapshot, RenewalServiceErrorResult>> {
+    const offtake = await this.repo.findById(offtakeId, tenantId);
+    if (!offtake) return err('OFFTAKE_NOT_FOUND', 'Offtake not found');
+    if (!this.canTransition(offtake.renewalStatus, 'terminated')) {
       return err(
         'INVALID_TRANSITION',
-        `Cannot terminate from ${lease.renewalStatus}`,
+        `Cannot terminate from ${offtake.renewalStatus}`,
       );
     }
     const now = new Date().toISOString() as ISOTimestamp;
-    const updated: RenewalLeaseSnapshot = {
-      ...lease,
+    const updated: RenewalOfftakeSnapshot = {
+      ...offtake,
       renewalStatus: 'terminated',
       renewalDecidedAt: now,
       renewalDecisionBy: input.terminatedBy,
@@ -444,7 +465,7 @@ export class RenewalService {
       terminationReasonNotes: input.reason,
     };
     const saved = await this.repo.update(updated);
-    const event: LeaseTerminatedByRenewalEvent = {
+    const event: OfftakeTerminatedByRenewalEvent = {
       eventId: generateEventId(),
       eventType: 'LeaseTerminatedByRenewal',
       timestamp: now,
@@ -453,19 +474,19 @@ export class RenewalService {
       causationId: null,
       metadata: {},
       payload: {
-        leaseId: saved.id,
+        offtakeId: saved.id,
         terminationDate: input.terminationDate,
         reason: input.reason,
         terminatedBy: input.terminatedBy,
       },
     };
-    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Lease'));
+    await this.eventBus.publish(createEventEnvelope(event, saved.id, 'Offtake'));
     return ok(saved);
   }
 
   private canTransition(
-    from: LeaseRenewalStatus,
-    to: LeaseRenewalStatus,
+    from: OfftakeRenewalStatus,
+    to: OfftakeRenewalStatus,
   ): boolean {
     return ALLOWED_TRANSITIONS[from].includes(to);
   }

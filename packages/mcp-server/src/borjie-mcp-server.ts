@@ -112,7 +112,7 @@ const DEFAULT_CONFIG: McpServerConfig = Object.freeze({
   name: 'borjie-mcp-server',
   version: '0.1.0',
   description:
-    'BORJIE property-management platform — MCP server exposing tenant-scoped tools and resources to Claude Desktop, GPT, Cursor, and partner platforms.',
+    'BORJIE mining estate operating system — MCP server exposing tenant-scoped tools and resources to Claude Desktop, GPT, Cursor, and partner platforms.',
 });
 
 export function createBorjieMcpServer(

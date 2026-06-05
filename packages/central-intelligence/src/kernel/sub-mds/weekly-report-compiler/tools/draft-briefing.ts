@@ -43,24 +43,24 @@ export function draftBriefing(args: DraftBriefingArgs): DraftedBriefing {
   lines.push(`## ${sw ? 'Mtiririko wa pesa' : 'Cashflow'}`);
   lines.push(`- ${sw ? 'Jumla iliyokusanywa' : 'Gross collected'}: ${money(snapshot.cashflow.grossCollectedMinor, snapshot.cashflow.currency)} [c:cashflow.gross]`);
   lines.push(`- ${sw ? 'Halisi iliyokusanywa' : 'Net collected'}: ${money(snapshot.cashflow.netCollectedMinor, snapshot.cashflow.currency)} [c:cashflow.net]`);
-  lines.push(`- ${sw ? 'Deni la sasa' : 'Open arrears balance'}: ${money(snapshot.cashflow.arrearsBalanceMinor, snapshot.cashflow.currency)} [c:cashflow.arrears]`);
+  lines.push(`- ${sw ? 'Salio la mrabaha unaodaiwa' : 'Outstanding royalties balance'}: ${money(snapshot.cashflow.arrearsBalanceMinor, snapshot.cashflow.currency)} [c:cashflow.arrears]`);
   lines.push('');
-  lines.push(`## ${sw ? 'Wakaaji' : 'Occupancy'}`);
-  lines.push(`- ${sw ? 'Kiwango cha ukaaji' : 'Occupancy rate'}: ${(snapshot.occupancy.occupancyRate * 100).toFixed(1)}% (${snapshot.occupancy.occupiedUnits}/${snapshot.occupancy.totalUnits}) [c:occupancy.rate]`);
-  lines.push(`- ${sw ? 'Mikataba mipya' : 'New lease signs'}: ${snapshot.occupancy.newSignsThisWeek} [c:occupancy.signs]`);
-  lines.push(`- ${sw ? 'Walioondoka' : 'Moved out'}: ${snapshot.occupancy.movedOutThisWeek}`);
+  lines.push(`## ${sw ? 'Matumizi ya mali' : 'Asset utilization'}`);
+  lines.push(`- ${sw ? 'Kiwango cha matumizi' : 'Utilization rate'}: ${(snapshot.occupancy.occupancyRate * 100).toFixed(1)}% (${snapshot.occupancy.occupiedUnits}/${snapshot.occupancy.totalUnits}) [c:occupancy.rate]`);
+  lines.push(`- ${sw ? 'Mikataba mipya ya mauzo' : 'New offtake signs'}: ${snapshot.occupancy.newSignsThisWeek} [c:occupancy.signs]`);
+  lines.push(`- ${sw ? 'Zilizosimama' : 'Idled'}: ${snapshot.occupancy.movedOutThisWeek}`);
   lines.push('');
-  lines.push(`## ${sw ? 'Madeni' : 'Arrears'}`);
-  lines.push(`- ${sw ? 'Mikataba yenye deni' : 'Leases in arrears'}: ${snapshot.arrears.leasesInArrears}`);
-  lines.push(`- ${sw ? 'Deni mpya wiki hii' : 'New this week'}: ${snapshot.arrears.newArrearsThisWeek} [c:arrears.newThisWeek]`);
-  lines.push(`- ${sw ? 'Yaliyotatuliwa' : 'Cured'}: ${snapshot.arrears.curedThisWeek}`);
+  lines.push(`## ${sw ? 'Mrabaha unaodaiwa' : 'Outstanding royalties'}`);
+  lines.push(`- ${sw ? 'Akaunti zinazodaiwa' : 'Accounts outstanding'}: ${snapshot.arrears.leasesInArrears}`);
+  lines.push(`- ${sw ? 'Mpya wiki hii' : 'New this week'}: ${snapshot.arrears.newArrearsThisWeek} [c:arrears.newThisWeek]`);
+  lines.push(`- ${sw ? 'Yaliyotatuliwa' : 'Cleared'}: ${snapshot.arrears.curedThisWeek}`);
   lines.push('');
   lines.push(`## ${sw ? 'Matengenezo' : 'Maintenance'}`);
   lines.push(`- ${sw ? 'Tiketi zinazoendelea' : 'Open tickets'}: ${snapshot.maintenance.openTickets} [c:maintenance.openTickets]`);
   lines.push(`- ${sw ? 'Tiketi za dharura' : 'Emergency tickets'}: ${snapshot.maintenance.emergencyTicketsThisWeek} [c:maintenance.emergency]`);
   lines.push(`- ${sw ? 'Muda wa kujibu' : 'Avg response'}: ${(snapshot.maintenance.avgResponseSeconds).toFixed(0)}s`);
   lines.push('');
-  lines.push(`## ${sw ? 'Malalamiko' : 'Complaints'}`);
+  lines.push(`## ${sw ? 'Malalamiko' : 'Grievances'}`);
   lines.push(`- ${sw ? 'Mpya wiki hii' : 'New this week'}: ${snapshot.complaints.newComplaintsThisWeek} [c:complaints.new]`);
   lines.push(`- ${sw ? 'Muhimu (critical)' : 'Critical'}: ${snapshot.complaints.criticalComplaintsThisWeek} [c:complaints.critical]`);
   lines.push('');
@@ -99,8 +99,8 @@ function renderHeadline(s: PortfolioKpiSnapshot, anomalies: ReadonlyArray<Anomal
   }
   if (anomalies.length === 0) {
     return sw
-      ? `Wiki tulivu: kiwango cha ukaaji ${(s.occupancy.occupancyRate * 100).toFixed(1)}%, hakuna mabadiliko makubwa.`
-      : `Quiet week: occupancy at ${(s.occupancy.occupancyRate * 100).toFixed(1)}%, no major variances.`;
+      ? `Wiki tulivu: kiwango cha matumizi ya mali ${(s.occupancy.occupancyRate * 100).toFixed(1)}%, hakuna mabadiliko makubwa.`
+      : `Quiet week: asset utilization at ${(s.occupancy.occupancyRate * 100).toFixed(1)}%, no major variances.`;
   }
   return sw ? 'Mabadiliko madogo dhidi ya utabiri.' : 'Minor / moderate variances vs forecast.';
 }

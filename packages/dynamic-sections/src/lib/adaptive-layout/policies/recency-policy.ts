@@ -12,8 +12,8 @@
  * Conflict resolution:
  *   - Recency weight (5) is intentionally LOWER than intent (25),
  *     frustration (10/20) and role-mastery (12).
- *   - This is the right precedence: if the user just paid rent and
- *     is now back with a payment intent, "Payments" wins regardless
+ *   - This is the right precedence: if the user just paid a royalty
+ *     and is now back with a payment intent, "Payments" wins regardless
  *     of "where they went a moment ago" being something else.
  *   - But recency dominates the empty-policy-set baseline, so a
  *     returning user lands on the same first tab they used last

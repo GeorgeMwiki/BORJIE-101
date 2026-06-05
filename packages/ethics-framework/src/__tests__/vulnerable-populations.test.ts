@@ -82,9 +82,9 @@ describe('getVulnerabilitySafeguards — pure helper', () => {
     expect(advocacies[0]?.jurisdiction).toBe('TZ');
   });
 
-  it('survivor-of-eviction yields mandatory-explanation + advocacy', () => {
+  it('survivor-of-displacement yields mandatory-explanation + advocacy', () => {
     const kinds = getVulnerabilitySafeguards({
-      factors: ['survivor-of-eviction'],
+      factors: ['survivor-of-displacement'],
       jurisdiction: 'GLOBAL',
     }).map((s) => s.kind);
     expect(kinds).toContain('mandatory-explanation');

@@ -42,7 +42,7 @@ describe('tierRank', () => {
   });
 
   it('produces a strictly monotone ladder tenant → industry', () => {
-    const order = ['tenant', 'lease', 'unit', 'block', 'property', 'portfolio', 'org', 'industry'] as const;
+    const order = ['tenant', 'offtake', 'pit', 'zone', 'site', 'portfolio', 'org', 'industry'] as const;
     for (let i = 1; i < order.length; i++) {
       expect(tierRank(order[i]!)).toBeGreaterThan(tierRank(order[i - 1]!));
     }
@@ -51,28 +51,28 @@ describe('tierRank', () => {
 
 describe('commonAncestor', () => {
   it('returns the larger of two tiers', () => {
-    expect(commonAncestor('lease', 'property')).toBe('property');
+    expect(commonAncestor('offtake', 'site')).toBe('site');
     expect(commonAncestor('industry', 'tenant')).toBe('industry');
   });
 
   it('is reflexive — same tier returns same tier', () => {
-    expect(commonAncestor('block', 'block')).toBe('block');
+    expect(commonAncestor('zone', 'zone')).toBe('zone');
   });
 
   it('is order-independent', () => {
-    expect(commonAncestor('unit', 'org')).toBe(commonAncestor('org', 'unit'));
+    expect(commonAncestor('pit', 'org')).toBe(commonAncestor('org', 'pit'));
   });
 });
 
 describe('isTierCompatibleWithScope', () => {
   it('passes tenant scope at every non-industry tier', () => {
-    for (const tier of ['tenant', 'lease', 'unit', 'block', 'property', 'portfolio', 'org'] as const) {
+    for (const tier of ['tenant', 'offtake', 'pit', 'zone', 'site', 'portfolio', 'org'] as const) {
       expect(isTierCompatibleWithScope(tier, TENANT_SCOPE).ok).toBe(true);
     }
   });
 
   it('rejects platform scope at any tier other than industry', () => {
-    for (const tier of ['tenant', 'lease', 'unit', 'block', 'property', 'portfolio', 'org'] as const) {
+    for (const tier of ['tenant', 'offtake', 'pit', 'zone', 'site', 'portfolio', 'org'] as const) {
       const v = isTierCompatibleWithScope(tier, PLATFORM_SCOPE);
       expect(v.ok).toBe(false);
       if (!v.ok) {
@@ -105,20 +105,20 @@ describe('locusPhrase', () => {
     expect(locusPhrase('tenant', TENANT_SCOPE)).toMatch(/concierge/);
   });
 
-  it('returns lease tier phrase', () => {
-    expect(locusPhrase('lease', TENANT_SCOPE)).toMatch(/lease/);
+  it('returns offtake tier phrase', () => {
+    expect(locusPhrase('offtake', TENANT_SCOPE)).toMatch(/offtake/);
   });
 
-  it('returns unit tier phrase', () => {
-    expect(locusPhrase('unit', TENANT_SCOPE)).toMatch(/unit/);
+  it('returns pit tier phrase', () => {
+    expect(locusPhrase('pit', TENANT_SCOPE)).toMatch(/pit/);
   });
 
-  it('returns block tier phrase', () => {
-    expect(locusPhrase('block', TENANT_SCOPE)).toMatch(/block/);
+  it('returns zone tier phrase', () => {
+    expect(locusPhrase('zone', TENANT_SCOPE)).toMatch(/zone/);
   });
 
-  it('returns property tier phrase', () => {
-    expect(locusPhrase('property', TENANT_SCOPE)).toMatch(/property/);
+  it('returns site tier phrase', () => {
+    expect(locusPhrase('site', TENANT_SCOPE)).toMatch(/site/);
   });
 
   it('returns portfolio tier phrase', () => {
@@ -131,18 +131,18 @@ describe('locusPhrase', () => {
 });
 
 describe('cohortMinK — full table', () => {
-  it('lease/tenant tier requires k>=5', () => {
+  it('offtake/tenant tier requires k>=5', () => {
     expect(cohortMinK('tenant')).toBe(5);
-    expect(cohortMinK('lease')).toBe(5);
+    expect(cohortMinK('offtake')).toBe(5);
   });
 
-  it('unit/block tier requires k>=7', () => {
-    expect(cohortMinK('unit')).toBe(7);
-    expect(cohortMinK('block')).toBe(7);
+  it('pit/zone tier requires k>=7', () => {
+    expect(cohortMinK('pit')).toBe(7);
+    expect(cohortMinK('zone')).toBe(7);
   });
 
-  it('property tier requires k>=10', () => {
-    expect(cohortMinK('property')).toBe(10);
+  it('site tier requires k>=10', () => {
+    expect(cohortMinK('site')).toBe(10);
   });
 
   it('portfolio tier requires k>=15', () => {
@@ -158,7 +158,7 @@ describe('cohortMinK — full table', () => {
   });
 
   it('contains is reflexive at every tier', () => {
-    for (const tier of ['tenant', 'lease', 'unit', 'block', 'property', 'portfolio', 'org', 'industry'] as const) {
+    for (const tier of ['tenant', 'offtake', 'pit', 'zone', 'site', 'portfolio', 'org', 'industry'] as const) {
       expect(contains(tier, tier)).toBe(true);
     }
   });

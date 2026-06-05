@@ -16,7 +16,7 @@ describe("DEFECTION_CASES", () => {
     expect(DEFECTION_CASES.length).toBe(10);
   });
 
-  it("covers owner_payout / kra_filing / eviction_notice / lease_renewal / deposit_return", () => {
+  it("covers owner_payout / royalty_return / licence_suspension / offtake_renewal / retention_release", () => {
     const scenarios = new Set(DEFECTION_CASES.map((c) => c.scenario));
     expect(scenarios.size).toBe(5);
   });

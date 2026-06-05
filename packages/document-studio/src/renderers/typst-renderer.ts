@@ -3,9 +3,9 @@
  *
  * Typst is the modern LaTeX alternative (Rust-based, 10–100× faster
  * compile, single-pass reference resolution). The research report
- * picks it for court-formatted legal docs (eviction notice, rent
- * increase notice, demand letter) where speed + clean error messages
- * matter.
+ * picks it for court-formatted legal docs (licence-suspension notice,
+ * royalty demand notice, demand letter) where speed + clean error
+ * messages matter.
  *
  * Two execution modes, tried in order:
  *

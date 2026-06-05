@@ -22,21 +22,21 @@ export function createSustainabilityGatherer(deps: SustainabilityGathererDeps): 
     const charts: EvidencePack['charts'][number][] = [];
     const health: EvidencePack['sourceHealth'][number][] = [];
     const port = deps.ports.sustainability;
-    const propertyId = spec.scope.kind === 'property' ? spec.scope.propertyId : null;
+    const siteId = spec.scope.kind === 'site' ? spec.scope.siteId : null;
 
     if (!port) {
       health.push(sourceHealth('sustainability-advisor', 'unavailable', 'sustainability port not wired'));
       return packed(spec, fragments, charts, tables, health);
     }
-    if (!propertyId) {
-      health.push(sourceHealth('sustainability-advisor', 'unavailable', 'sustainability report requires property scope'));
+    if (!siteId) {
+      health.push(sourceHealth('sustainability-advisor', 'unavailable', 'sustainability report requires site scope'));
       return packed(spec, fragments, charts, tables, health);
     }
 
     let snapshot: SustainabilitySnapshot | null = null;
     try {
       snapshot = await port.fetchSnapshot({
-        propertyId,
+        siteId,
         periodStart: spec.period.periodStart,
         periodEnd: spec.period.periodEnd,
       });
@@ -51,42 +51,42 @@ export function createSustainabilityGatherer(deps: SustainabilityGathererDeps): 
       buildEvidenceFragment({
         id: 'sus-scope1',
         summary: `Scope 1: ${snapshot.scope1KgCO2e.toFixed(0)} kgCO2e in ${snapshot.periodLabel}.`,
-        source: { kind: 'advisor_output', ref: `sustainability:scope1:${propertyId}` },
+        source: { kind: 'advisor_output', ref: `sustainability:scope1:${siteId}` },
       }),
     );
     fragments.push(
       buildEvidenceFragment({
         id: 'sus-scope2',
         summary: `Scope 2: ${snapshot.scope2KgCO2e.toFixed(0)} kgCO2e (market-based) in ${snapshot.periodLabel}.`,
-        source: { kind: 'advisor_output', ref: `sustainability:scope2:${propertyId}` },
+        source: { kind: 'advisor_output', ref: `sustainability:scope2:${siteId}` },
       }),
     );
     fragments.push(
       buildEvidenceFragment({
         id: 'sus-scope3',
         summary: `Scope 3: ${snapshot.scope3KgCO2e.toFixed(0)} kgCO2e in ${snapshot.periodLabel}.`,
-        source: { kind: 'advisor_output', ref: `sustainability:scope3:${propertyId}` },
+        source: { kind: 'advisor_output', ref: `sustainability:scope3:${siteId}` },
       }),
     );
     fragments.push(
       buildEvidenceFragment({
         id: 'sus-intensity',
-        summary: `Intensity: ${snapshot.intensityKgCO2ePerM2.toFixed(1)} kgCO2e/m² GIA.`,
-        source: { kind: 'advisor_output', ref: `sustainability:intensity:${propertyId}` },
+        summary: `Intensity: ${snapshot.intensityKgCO2ePerTonne.toFixed(1)} kgCO2e/tonne extracted.`,
+        source: { kind: 'advisor_output', ref: `sustainability:intensity:${siteId}` },
       }),
     );
     fragments.push(
       buildEvidenceFragment({
         id: 'sus-crrem',
         summary: `CRREM delta: ${snapshot.crremDeltaPct.toFixed(1)}% vs the 1.5°C pathway.`,
-        source: { kind: 'advisor_output', ref: `sustainability:crrem:${propertyId}` },
+        source: { kind: 'advisor_output', ref: `sustainability:crrem:${siteId}` },
       }),
     );
     fragments.push(
       buildEvidenceFragment({
         id: 'sus-eut',
         summary: `EU Taxonomy 7.7 alignment: ${snapshot.euTaxonomyAligned ? 'ALIGNED' : 'NOT ALIGNED'}.`,
-        source: { kind: 'advisor_output', ref: `sustainability:eu-tax:${propertyId}` },
+        source: { kind: 'advisor_output', ref: `sustainability:eu-tax:${siteId}` },
       }),
     );
     if (snapshot.bngNetGainPct !== undefined) {
@@ -94,7 +94,7 @@ export function createSustainabilityGatherer(deps: SustainabilityGathererDeps): 
         buildEvidenceFragment({
           id: 'sus-bng',
           summary: `BNG net-gain: ${snapshot.bngNetGainPct.toFixed(1)}%.`,
-          source: { kind: 'advisor_output', ref: `sustainability:bng:${propertyId}` },
+          source: { kind: 'advisor_output', ref: `sustainability:bng:${siteId}` },
         }),
       );
     }
@@ -103,7 +103,7 @@ export function createSustainabilityGatherer(deps: SustainabilityGathererDeps): 
         buildEvidenceFragment({
           id: `sus-nbs-${i + 1}`,
           summary: `NbS opportunity ${o.title} (${o.priority}).`,
-          source: { kind: 'advisor_output', ref: `sustainability:nbs:${propertyId}:${o.id}` },
+          source: { kind: 'advisor_output', ref: `sustainability:nbs:${siteId}:${o.id}` },
         }),
       );
     });

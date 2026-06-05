@@ -33,15 +33,15 @@ const CLAUSE_TO_REP_ACTION: ReadonlyArray<{
   readonly action: string;
   readonly jurisdiction: 'TZ' | 'KE' | 'UG' | 'NG' | 'RW' | 'ZA';
 }> = [
-  { id: 'C01-EVICTION-NOTICE', action: 'eviction.notice.send', jurisdiction: 'TZ' },
-  { id: 'C02-TENANT-DATA-PROTECTION', action: 'tenant.profile.read', jurisdiction: 'KE' },
+  { id: 'C01-LICENCE-SUSPENSION-NOTICE', action: 'licence.suspension.send', jurisdiction: 'TZ' },
+  { id: 'C02-COUNTERPARTY-DATA-PROTECTION', action: 'counterparty.profile.read', jurisdiction: 'KE' },
   { id: 'C03-OWNER-FUNDS-SEGREGATION', action: 'payment.disburse', jurisdiction: 'KE' },
-  { id: 'C04-RENT-CAPS-AND-ARREARS', action: 'rent.increase.propose', jurisdiction: 'KE' },
-  { id: 'C05-NON-DISCRIMINATION', action: 'tenant.screen.score', jurisdiction: 'ZA' },
+  { id: 'C04-ROYALTY-RATES-AND-OUTSTANDING', action: 'royalty.rate.propose', jurisdiction: 'KE' },
+  { id: 'C05-NON-DISCRIMINATION', action: 'counterparty.screen.score', jurisdiction: 'ZA' },
   { id: 'C06-MOBILE-MONEY-TRANSPARENCY', action: 'payment.mpesa.initiate', jurisdiction: 'KE' },
-  { id: 'C07-HABITABILITY', action: 'maintenance.workorder.defer', jurisdiction: 'ZA' },
-  { id: 'C08-HOUSEHOLD-PRIVACY', action: 'household.member.share', jurisdiction: 'KE' },
-  { id: 'C09-NO-AUTONOMOUS-FILING', action: 'eviction.filing.submit', jurisdiction: 'KE' },
+  { id: 'C07-MINE-SITE-SAFETY', action: 'maintenance.workorder.defer', jurisdiction: 'ZA' },
+  { id: 'C08-WORKFORCE-PRIVACY', action: 'workforce.member.share', jurisdiction: 'KE' },
+  { id: 'C09-NO-AUTONOMOUS-FILING', action: 'licence.filing.submit', jurisdiction: 'KE' },
   { id: 'C10-HONEST-MARKETING', action: 'listing.image.aiedit', jurisdiction: 'NG' },
   { id: 'C11-AUDIT-TRAIL-INTEGRITY', action: 'audit.event.delete', jurisdiction: 'TZ' },
   { id: 'C12-VENDOR-CONFLICT-DISCLOSURE', action: 'vendor.recommend', jurisdiction: 'UG' },
@@ -49,8 +49,8 @@ const CLAUSE_TO_REP_ACTION: ReadonlyArray<{
 
 describe('applicableClauses', () => {
   it('returns clauses matched by action and jurisdiction', () => {
-    const out = applicableClauses('eviction.notice.send', 'TZ');
-    expect(out.map((c) => c.id)).toContain('C01-EVICTION-NOTICE');
+    const out = applicableClauses('licence.suspension.send', 'TZ');
+    expect(out.map((c) => c.id)).toContain('C01-LICENCE-SUSPENSION-NOTICE');
   });
 
   it('returns empty when action tag is unknown', () => {
@@ -58,9 +58,9 @@ describe('applicableClauses', () => {
   });
 
   it('excludes clauses out of jurisdiction even if action matches', () => {
-    // C01 is not scoped to RW, so eviction.notice.send in RW yields no C01.
-    const out = applicableClauses('eviction.notice.send', 'RW');
-    expect(out.map((c) => c.id)).not.toContain('C01-EVICTION-NOTICE');
+    // C01 is not scoped to RW, so licence.suspension.send in RW yields no C01.
+    const out = applicableClauses('licence.suspension.send', 'RW');
+    expect(out.map((c) => c.id)).not.toContain('C01-LICENCE-SUSPENSION-NOTICE');
   });
 });
 
@@ -112,18 +112,18 @@ describe('verifyResponse — severity behaviour', () => {
   it('warn clauses surface warnings but do not block', () => {
     // C04 is `warn`.
     const v = verifyResponse({
-      candidateResponse: 'A rent increase proposal without explicit citation.',
-      action: 'rent.increase.propose',
+      candidateResponse: 'A royalty rate proposal without explicit citation.',
+      action: 'royalty.rate.propose',
       jurisdiction: 'KE',
     });
     expect(v.pass).toBe(true);
     expect(v.warnings.length).toBeGreaterThan(0);
-    expect(v.warnings[0]).toMatch(/C04-RENT-CAPS-AND-ARREARS/);
+    expect(v.warnings[0]).toMatch(/C04-ROYALTY-RATES-AND-OUTSTANDING/);
   });
 
   it('vendor recommendation surfaces C12 warning', () => {
     const v = verifyResponse({
-      candidateResponse: 'Recommending Acme Plumbing for the leak.',
+      candidateResponse: 'Recommending Acme Assay Lab for the parcel.',
       action: 'vendor.recommend',
       jurisdiction: 'KE',
     });
@@ -133,14 +133,16 @@ describe('verifyResponse — severity behaviour', () => {
 });
 
 describe('verifyResponse — jurisdiction filtering removes inapplicable clauses', () => {
-  it('eviction-clause violation does not fire in RW (clause scoped out)', () => {
+  it('licence-suspension-clause violation does not fire in RW (clause scoped out)', () => {
     const v = verifyResponse({
       candidateResponse: 'A response with no citation.',
-      action: 'eviction.notice.send',
+      action: 'licence.suspension.send',
       jurisdiction: 'RW',
     });
     // C01 is not in RW jurisdiction list, so no violation fires.
-    expect(v.violations.map((c) => c.id)).not.toContain('C01-EVICTION-NOTICE');
+    expect(v.violations.map((c) => c.id)).not.toContain(
+      'C01-LICENCE-SUSPENSION-NOTICE',
+    );
   });
 
   it('trust-account clause C03 does not apply in NG (out of jurisdiction)', () => {
@@ -170,8 +172,9 @@ describe('verifyResponse — jurisdiction filtering removes inapplicable clauses
 describe('verifyResponse — escalation logic', () => {
   it('escalates when any refuse clause applies', () => {
     const v = verifyResponse({
-      candidateResponse: 'Per C01-EVICTION-NOTICE, the lawful notice is met.',
-      action: 'eviction.notice.send',
+      candidateResponse:
+        'Per C01-LICENCE-SUSPENSION-NOTICE, the lawful notice is met.',
+      action: 'licence.suspension.send',
       jurisdiction: 'KE',
     });
     expect(v.escalate).toBe(true);
@@ -179,8 +182,8 @@ describe('verifyResponse — escalation logic', () => {
 
   it('does not escalate when only one warn applies and nothing refuses', () => {
     const v = verifyResponse({
-      candidateResponse: 'Proposing increase.',
-      action: 'rent.increase.propose',
+      candidateResponse: 'Proposing rate.',
+      action: 'royalty.rate.propose',
       jurisdiction: 'KE',
     });
     // Only C04 warn applies, no refuse -> no escalation.
@@ -192,7 +195,7 @@ describe('verifyResponse — purity and trace', () => {
   it('is deterministic (same input -> identical verdict)', () => {
     const input: VerifyInput = {
       candidateResponse: 'Per C09-NO-AUTONOMOUS-FILING, awaiting human approval.',
-      action: 'eviction.filing.submit',
+      action: 'licence.filing.submit',
       jurisdiction: 'KE',
     };
     const a = verifyResponse(input);
@@ -203,7 +206,7 @@ describe('verifyResponse — purity and trace', () => {
   it('returns frozen result arrays', () => {
     const v = verifyResponse({
       candidateResponse: 'no citations',
-      action: 'eviction.notice.send',
+      action: 'licence.suspension.send',
       jurisdiction: 'TZ',
     });
     expect(Object.isFrozen(v.violations)).toBe(true);
@@ -214,11 +217,11 @@ describe('verifyResponse — purity and trace', () => {
 
   it('per-clause trace covers every applicable clause', () => {
     const v = verifyResponse({
-      candidateResponse: 'Per C01-EVICTION-NOTICE.',
-      action: 'eviction.notice.send',
+      candidateResponse: 'Per C01-LICENCE-SUSPENSION-NOTICE.',
+      action: 'licence.suspension.send',
       jurisdiction: 'KE',
     });
-    const applicable = applicableClauses('eviction.notice.send', 'KE');
+    const applicable = applicableClauses('licence.suspension.send', 'KE');
     expect(v.trace.length).toBe(applicable.length);
     for (const a of applicable) {
       expect(v.trace.find((t) => t.clauseId === a.id)).toBeDefined();
@@ -227,15 +230,15 @@ describe('verifyResponse — purity and trace', () => {
 
   it('clause id citation is hyphen / underscore / case insensitive', () => {
     const variants = [
-      'C01-EVICTION-NOTICE',
-      'c01-eviction-notice',
-      'C01_EVICTION_NOTICE',
-      'C01-eviction_notice',
+      'C01-LICENCE-SUSPENSION-NOTICE',
+      'c01-licence-suspension-notice',
+      'C01_LICENCE_SUSPENSION_NOTICE',
+      'C01-licence_suspension_notice',
     ];
     for (const cite of variants) {
       const v = verifyResponse({
         candidateResponse: `Per ${cite}, lawful notice is met.`,
-        action: 'eviction.notice.send',
+        action: 'licence.suspension.send',
         jurisdiction: 'TZ',
       });
       expect(v.pass).toBe(true);
@@ -247,11 +250,11 @@ describe('renderAuditTrace', () => {
   it('renders a single-line audit string with verdict fields', () => {
     const v = verifyResponse({
       candidateResponse: 'Per C09-NO-AUTONOMOUS-FILING.',
-      action: 'eviction.filing.submit',
+      action: 'licence.filing.submit',
       jurisdiction: 'KE',
     });
     const line = renderAuditTrace(v);
-    expect(line).toContain('action=eviction.filing.submit');
+    expect(line).toContain('action=licence.filing.submit');
     expect(line).toContain('jurisdiction=KE');
     expect(line).toContain('pass=true');
     expect(line).toContain('escalate=true');
@@ -261,11 +264,11 @@ describe('renderAuditTrace', () => {
   it('lists violation ids when present', () => {
     const v = verifyResponse({
       candidateResponse: 'no citations',
-      action: 'eviction.notice.send',
+      action: 'licence.suspension.send',
       jurisdiction: 'TZ',
     });
     const line = renderAuditTrace(v);
-    expect(line).toContain('C01-EVICTION-NOTICE');
+    expect(line).toContain('C01-LICENCE-SUSPENSION-NOTICE');
   });
 });
 

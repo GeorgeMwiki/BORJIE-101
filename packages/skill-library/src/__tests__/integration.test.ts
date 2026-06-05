@@ -21,8 +21,8 @@ import {
   EchoSkillCompiler,
   // built-ins
   BUILTIN_SKILLS,
-  handleLateRentSkill,
-  prepareKraFilingSkill,
+  handleLateRoyaltySkill,
+  prepareTraFilingSkill,
 } from '../index.js';
 import type {
   McpToolDescriptor,
@@ -37,16 +37,16 @@ describe('Integration #1 — Subagent + Voyager library', () => {
     for (const s of BUILTIN_SKILLS) lib.register(s);
     const store = new StubEntityStore();
     const sit: SkillSituation = {
-      description: 'late rent ticket needs the ladder',
-      embedding: handleLateRentSkill.embedding,
-      jurisdiction: 'KE',
+      description: 'late royalty ticket needs the ladder',
+      embedding: handleLateRoyaltySkill.embedding,
+      jurisdiction: 'TZ',
       tenant_id: 't1',
     };
     const skillResult = await lib.executeFirstMatch({
       situation: sit,
       input: {
         tenant_id: 't1',
-        lease_id: 'L-1',
+        agreement_id: 'A-1',
         days_late: 12,
         preferred_channel: 'sms',
       },
@@ -57,7 +57,7 @@ describe('Integration #1 — Subagent + Voyager library', () => {
 
     const spec: SubAgentSpec = {
       name: 'drafter',
-      description: 'Draft a tenant notice from a skill result.',
+      description: 'Draft a counterparty notice from a skill result.',
       allowed_tools: ['Read'],
       system_prompt: 'Draft a polite reminder.',
       max_turns: 3,
@@ -88,16 +88,16 @@ describe('Integration #2 — Filesystem skills + allowlist + body load', () => {
     const fs = new InMemorySkillFileSystem();
     fs.addDir('/skills');
     fs.addFile(
-      '/skills/handle-late-rent/SKILL.md',
+      '/skills/handle-late-royalty/SKILL.md',
       `---
-name: handle-late-rent
+name: handle-late-royalty
 description: A
 when_to_use: [late]
 allowed_tools: [Read]
 jurisdiction_aware: true
 ---
 
-Late rent body content.`
+Late royalty body content.`
     );
     fs.addFile(
       '/skills/compile-weekly-report/SKILL.md',
@@ -158,7 +158,7 @@ describe('Integration #4 — Voyager library quarantines a flaky skill end-to-en
       id: 'flaky',
       name: 'flaky',
       description: 'often fails',
-      embedding: handleLateRentSkill.embedding,
+      embedding: handleLateRoyaltySkill.embedding,
       jurisdiction: 'platform',
       code: {
         source: '',
@@ -172,7 +172,7 @@ describe('Integration #4 — Voyager library quarantines a flaky skill end-to-en
     lib.register(flakySkill);
     const sit: SkillSituation = {
       description: 's',
-      embedding: handleLateRentSkill.embedding,
+      embedding: handleLateRoyaltySkill.embedding,
       jurisdiction: 'platform',
       tenant_id: 't',
     };
@@ -196,14 +196,14 @@ describe('Integration #4 — Voyager library quarantines a flaky skill end-to-en
 });
 
 describe('Integration #5 — Jurisdiction gating end-to-end', () => {
-  it('refuses to retrieve a KE-only skill into a TZ tenant context', async () => {
+  it('refuses to retrieve a TZ-only skill into a KE tenant context', async () => {
     const lib = new VoyagerSkillLibrary();
-    lib.register(prepareKraFilingSkill);
+    lib.register(prepareTraFilingSkill);
     const sit: SkillSituation = {
       description: 'monthly filing time',
-      embedding: prepareKraFilingSkill.embedding,
-      jurisdiction: 'TZ',
-      tenant_id: 't-tz',
+      embedding: prepareTraFilingSkill.embedding,
+      jurisdiction: 'KE',
+      tenant_id: 't-ke',
     };
     const r = await lib.executeFirstMatch({
       situation: sit,
@@ -214,24 +214,24 @@ describe('Integration #5 — Jurisdiction gating end-to-end', () => {
     expect(r.error?.code).toBe('no_match');
   });
 
-  it('allows the same skill into a KE tenant context', async () => {
+  it('allows the same skill into a TZ tenant context', async () => {
     const lib = new VoyagerSkillLibrary();
-    lib.register(prepareKraFilingSkill);
+    lib.register(prepareTraFilingSkill);
     const store = new StubEntityStore();
     const sit: SkillSituation = {
-      description: 'kra rental income monthly mri filing',
-      embedding: prepareKraFilingSkill.embedding,
-      jurisdiction: 'KE',
-      tenant_id: 't-ke',
+      description: 'tra mineral royalty monthly return filing',
+      embedding: prepareTraFilingSkill.embedding,
+      jurisdiction: 'TZ',
+      tenant_id: 't-tz',
     };
     const r = await lib.executeFirstMatch({
       situation: sit,
       input: {
         period_yyyy_mm: '2026-04',
         payments: [
-          { property_id: 'p1', amount: 100_000, currency: 'KES', payment_date: '2026-04-10' },
+          { site_id: 's1', amount: 100_000, currency: 'TZS', payment_date: '2026-04-10' },
         ],
-        mri_rate: 0.075,
+        royalty_rate: 0.06,
       },
       entity_store: store,
       correlation_id: 'c',
@@ -276,7 +276,7 @@ describe('Integration #7 — Compile a new skill from traces, register, execute'
       traces: [{ input: { x: 1 }, expected_output: { echoed: { x: 1 } } }],
       proposed_id: 'echo-test',
       jurisdiction: 'platform',
-      description_embedding: handleLateRentSkill.embedding,
+      description_embedding: handleLateRoyaltySkill.embedding,
     });
     const lib = new VoyagerSkillLibrary();
     lib.register({
@@ -288,7 +288,7 @@ describe('Integration #7 — Compile a new skill from traces, register, execute'
     });
     const sit: SkillSituation = {
       description: 'echo time',
-      embedding: handleLateRentSkill.embedding,
+      embedding: handleLateRoyaltySkill.embedding,
       jurisdiction: 'platform',
       tenant_id: 't',
     };

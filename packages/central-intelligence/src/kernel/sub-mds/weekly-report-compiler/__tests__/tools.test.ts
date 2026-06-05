@@ -20,7 +20,7 @@ function mkPort(): KpiDataPort {
         grossCollectedMinor: 1_000_000_00,
         netCollectedMinor: 950_000_00,
         arrearsBalanceMinor: 75_000_00,
-        currency: 'KES',
+        currency: 'TZS',
         citation: { metric: 'cashflow', sourceTable: 'cashflow', sourceRowId: 'cf-1', capturedAtMs: 1000 },
       };
     },
@@ -147,7 +147,7 @@ describe('citeEvidence + draftBriefing', () => {
       snapshot: snap,
       anomalies: r.anomalies,
       citations: cite.citations,
-      portfolioName: 'Asha Estates',
+      portfolioName: 'Asha Mining',
       language: 'en',
     });
     expect(b.draftStatus).toBe('queued-for-owner-review');
@@ -162,7 +162,7 @@ describe('citeEvidence + draftBriefing', () => {
     const cite = citeEvidence({ snapshot: snap, anomalies: [] });
     const b = draftBriefing({
       snapshot: snap, anomalies: [], citations: cite.citations,
-      portfolioName: 'Asha Estates', language: 'sw',
+      portfolioName: 'Asha Mining', language: 'sw',
     });
     expect(b.markdown).toContain('Muhtasari');
     expect(b.markdown).toContain('Mtiririko');

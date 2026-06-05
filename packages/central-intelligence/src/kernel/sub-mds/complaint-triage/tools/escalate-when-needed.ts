@@ -103,7 +103,7 @@ export function escalateWhenNeeded(args: EscalateArgs): EscalationDirective {
     return Object.freeze(result);
   }
 
-  // Chatter or neighbour noise low priority
+  // Chatter or community-grievance low priority
   if (severity === 'chatter') {
     const result: EscalationDirective = {
       channel: 'standard-queue',
@@ -118,7 +118,7 @@ export function escalateWhenNeeded(args: EscalateArgs): EscalationDirective {
   const fallback: EscalationDirective = {
     channel: 'standard-queue',
     slaMinutes: 1440,
-    tags: tags(category === 'neighbor-noise' ? ['community'] : []),
+    tags: tags(category === 'community' ? ['community'] : []),
     mustNotifyOwner: false,
     reasoning: `${category} × ${severity} — standard queue`,
   };

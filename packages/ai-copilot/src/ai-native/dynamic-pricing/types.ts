@@ -1,9 +1,9 @@
 /**
- * Dynamic rent optimizer types.
+ * Dynamic price optimizer types.
  *
  * The pricing loop is data-in -> LLM -> (clamped) proposal -> approval queue.
  * NOTHING here applies a price change directly. The ApprovalService owns the
- * actual rent mutation.
+ * actual price mutation.
  */
 
 import type { Citation } from '../phl-common/types.js';
@@ -17,9 +17,9 @@ export interface AiProvenance {
 
 export interface MarketSignal {
   readonly id: string;
-  readonly unitId: string;
+  readonly pitId: string;
   readonly currencyCode: string;
-  readonly ourRentMinor: number;
+  readonly ourPriceMinor: number;
   readonly marketMedianMinor: number | null;
   readonly marketP25Minor: number | null;
   readonly marketP75Minor: number | null;
@@ -28,25 +28,25 @@ export interface MarketSignal {
   readonly observedAt: string; // ISO-8601
 }
 
-export interface OccupancyRollup {
-  readonly unitId: string;
+export interface ProductionRollup {
+  readonly pitId: string;
   readonly windowDays: number;
-  readonly occupancyPct: number; // 0..1
-  readonly vacancyDays: number;
+  readonly productionPct: number; // 0..1
+  readonly availableCapacityDays: number;
   readonly rollupHash: string;
 }
 
 export interface ChurnSignal {
   readonly id: string;
   readonly customerId: string;
-  readonly unitId: string;
+  readonly pitId: string;
   readonly churnProbability: number; // 0..1
   readonly horizonDays: number;
 }
 
 export interface InspectionSignal {
   readonly id: string;
-  readonly unitId: string;
+  readonly pitId: string;
   readonly conditionGrade: 'A' | 'B' | 'C' | 'D' | 'F';
   readonly issuesCount: number;
   readonly observedAt: string;
@@ -54,26 +54,26 @@ export interface InspectionSignal {
 
 export interface PricingInputs {
   readonly tenantId: string;
-  readonly unitId: string;
-  readonly propertyId?: string;
-  readonly countryCode: string; // ISO-3166-1 alpha-2 — drives rent-control lookup
+  readonly pitId: string;
+  readonly siteId?: string;
+  readonly countryCode: string; // ISO-3166-1 alpha-2 — drives price-control lookup
   readonly market?: MarketSignal;
-  readonly occupancy?: OccupancyRollup;
+  readonly production?: ProductionRollup;
   readonly churn?: ChurnSignal;
   readonly inspection?: InspectionSignal;
   readonly seasonalityMonth?: number; // 1..12
-  readonly currentRentMinor: number;
+  readonly currentPriceMinor: number;
   readonly currencyCode: string;
 }
 
-export interface RentRecommendation {
+export interface PriceRecommendation {
   readonly id: string;
   readonly tenantId: string;
-  readonly unitId: string;
-  readonly propertyId: string | null;
+  readonly pitId: string;
+  readonly siteId: string | null;
   readonly currencyCode: string;
-  readonly currentRentMinor: number;
-  readonly recommendedRentMinor: number;
+  readonly currentPriceMinor: number;
+  readonly recommendedPriceMinor: number;
   readonly deltaPct: number;
   readonly confidence: number;
   readonly suggestedReviewDate: string; // YYYY-MM-DD
@@ -87,9 +87,9 @@ export interface RentRecommendation {
   readonly createdAt: string;
 }
 
-export interface RentIncreaseCapSnapshot {
+export interface PriceIncreaseCapSnapshot {
   /**
-   * Maximum rent-increase percentage permitted in the jurisdiction in a
+   * Maximum price-increase percentage permitted in the jurisdiction in a
    * trailing 12-month window. `null` means unrestricted — caller uses
    * their own ceiling.
    */
@@ -98,17 +98,17 @@ export interface RentIncreaseCapSnapshot {
 }
 
 /**
- * Global-first rent-control lookup. The composition root binds this to the
- * jurisdiction plugin's leaseLaw snapshot. When a plugin declares no
- * `rentIncreaseCap`, `maxIncreasePct` is null and no regulatory clamp fires.
+ * Global-first price-control lookup. The composition root binds this to the
+ * jurisdiction plugin's mineral-royalty snapshot. When a plugin declares no
+ * `priceIncreaseCap`, `maxIncreasePct` is null and no regulatory clamp fires.
  */
-export interface RentControlLookup {
-  (countryCode: string): RentIncreaseCapSnapshot;
+export interface PriceControlLookup {
+  (countryCode: string): PriceIncreaseCapSnapshot;
 }
 
 export interface PricingLLMPort {
   /**
-   * Compute a per-unit recommendation. Inputs are pre-assembled — the LLM
+   * Compute a per-pit recommendation. Inputs are pre-assembled — the LLM
    * just has to reason about them and justify its delta.
    *
    * Returns the RAW recommendation (may exceed regulatory cap — the caller
@@ -118,7 +118,7 @@ export interface PricingLLMPort {
     readonly inputs: PricingInputs;
     readonly promptHash: string;
   }): Promise<{
-    readonly recommendedRentMinor: number;
+    readonly recommendedPriceMinor: number;
     readonly confidence: number;
     readonly explanation: string;
     readonly modelVersion: string;
@@ -128,27 +128,27 @@ export interface PricingLLMPort {
   }>;
 }
 
-export interface RentRecommendationRepository {
-  insert(row: RentRecommendation): Promise<RentRecommendation>;
-  listByUnit(
+export interface PriceRecommendationRepository {
+  insert(row: PriceRecommendation): Promise<PriceRecommendation>;
+  listByPit(
     tenantId: string,
-    unitId: string,
+    pitId: string,
     limit?: number,
-  ): Promise<readonly RentRecommendation[]>;
+  ): Promise<readonly PriceRecommendation[]>;
 }
 
 export interface ApprovalQueuePort {
   /**
    * Queue a recommendation into the approval chain. Returns the
    * approval_request_id so downstream code can track the decision.
-   * Every ApprovalService-compatible implementation must route rent changes
+   * Every ApprovalService-compatible implementation must route price changes
    * according to the owner's autonomy policy.
    */
-  queueRentChange(input: {
+  queuePriceChange(input: {
     readonly tenantId: string;
-    readonly unitId: string;
-    readonly currentRentMinor: number;
-    readonly recommendedRentMinor: number;
+    readonly pitId: string;
+    readonly currentPriceMinor: number;
+    readonly recommendedPriceMinor: number;
     readonly currencyCode: string;
     readonly recommendationId: string;
     readonly explanation: string;

@@ -67,7 +67,7 @@ describe('evaluateAutonomyCap', () => {
     const state = emptyState(TENANT);
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'arrears-triage', tier: 'mutate', estimatedCostUsdCents: 10 },
+      { subMd: 'royalty-triage', tier: 'mutate', estimatedCostUsdCents: 10 },
       state,
     );
     expect(verdict.kind).toBe('allow');
@@ -78,7 +78,7 @@ describe('evaluateAutonomyCap', () => {
     const cap = defaultCap(TENANT);
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'arrears-triage', tier: 'destroy', estimatedCostUsdCents: 0 },
+      { subMd: 'royalty-triage', tier: 'destroy', estimatedCostUsdCents: 0 },
       emptyState(TENANT),
     );
     expect(verdict.kind).toBe('deny-tier-blocked');
@@ -94,7 +94,7 @@ describe('evaluateAutonomyCap', () => {
     };
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'arrears-triage', tier: 'mutate', estimatedCostUsdCents: 1 },
+      { subMd: 'royalty-triage', tier: 'mutate', estimatedCostUsdCents: 1 },
       state,
     );
     expect(verdict.kind).toBe('slowdown-ask-owner');
@@ -109,7 +109,7 @@ describe('evaluateAutonomyCap', () => {
     };
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'arrears-triage', tier: 'mutate', estimatedCostUsdCents: 1 },
+      { subMd: 'royalty-triage', tier: 'mutate', estimatedCostUsdCents: 1 },
       state,
     );
     expect(verdict.kind).toBe('deny-cap-exceeded');
@@ -128,7 +128,7 @@ describe('evaluateAutonomyCap', () => {
     };
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'arrears-triage', tier: 'mutate', estimatedCostUsdCents: 0 },
+      { subMd: 'royalty-triage', tier: 'mutate', estimatedCostUsdCents: 0 },
       state,
     );
     expect(verdict.kind).toBe('deny-cap-exceeded');
@@ -161,7 +161,7 @@ describe('evaluateAutonomyCap', () => {
     };
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'arrears-triage', tier: 'mutate', estimatedCostUsdCents: 1 },
+      { subMd: 'royalty-triage', tier: 'mutate', estimatedCostUsdCents: 1 },
       state,
     );
     expect(verdict.kind).toBe('deny-cap-exceeded');
@@ -174,19 +174,19 @@ describe('evaluateAutonomyCap', () => {
       maxAutonomousMutationsPerDay: 100,
       maxAutonomousCostUsdCentsPerDay: 10_000_00,
       perSubMdCaps: {
-        'kra-filing': { maxMutationsPerDay: 2, maxCostUsdCentsPerDay: 100 },
+        'tra-filing': { maxMutationsPerDay: 2, maxCostUsdCentsPerDay: 100 },
       },
       updatedBy: 'tester',
     });
     const state: AutonomyRollingState = {
       ...emptyState(TENANT),
       perSubMd: {
-        'kra-filing': { mutationsToday: 2, costUsdCentsToday: 0 },
+        'tra-filing': { mutationsToday: 2, costUsdCentsToday: 0 },
       },
     };
     const verdict = evaluateAutonomyCap(
       cap,
-      { subMd: 'kra-filing', tier: 'mutate', estimatedCostUsdCents: 0 },
+      { subMd: 'tra-filing', tier: 'mutate', estimatedCostUsdCents: 0 },
       state,
     );
     expect(verdict.kind).toBe('deny-cap-exceeded');

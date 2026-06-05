@@ -377,8 +377,8 @@ async function persistExtraction(
   const overallConfidence = clampConfidence(args.outcome.overallConfidence).toFixed(4);
   const fieldCount = Object.keys(args.outcome.extractedFields).length;
 
-  await withWorkerTenantContext(deps.db, doc.tenantId, async () => {
-    await runInsertExtraction(deps.db, {
+  await withWorkerTenantContext(deps.db, doc.tenantId, async (tx) => {
+    await runInsertExtraction(tx, {
       extractionId,
       tenantId: doc.tenantId,
       documentUploadId: doc.documentId,
@@ -397,14 +397,14 @@ async function persistExtraction(
       durationMs,
     });
 
-    await runBackpointUpload(deps.db, {
+    await runBackpointUpload(tx, {
       tenantId: doc.tenantId,
       documentId: doc.documentId,
       extractionId,
       updatedAt: args.completedAt,
     });
 
-    await runAuditAppend(deps.db, {
+    await runAuditAppend(tx, {
       tenantId: doc.tenantId,
       documentId: doc.documentId,
       extractionId,
@@ -624,9 +624,9 @@ async function indexDocumentCorpus(
     const language = asLanguage(doc);
     const now = new Date();
 
-    await withWorkerTenantContext(deps.db, doc.tenantId, async () => {
+    await withWorkerTenantContext(deps.db, doc.tenantId, async (tx) => {
       for (const row of embedded) {
-        await runUpsertCorpusChunk(deps.db, {
+        await runUpsertCorpusChunk(tx, {
           chunkId: row.chunkId,
           tenantId: doc.tenantId,
           sourceFile,
@@ -637,7 +637,7 @@ async function indexDocumentCorpus(
           documentId: doc.documentId,
           ingestedAt: now,
         });
-        await runInsertCorpusLink(deps.db, {
+        await runInsertCorpusLink(tx, {
           tenantId: doc.tenantId,
           documentId: doc.documentId,
           chunkId: row.chunkId,

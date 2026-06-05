@@ -12,7 +12,7 @@ import type { Language } from '../chat-modes/types';
 export type PortalId = 'customer' | 'estate-manager' | 'admin' | 'owner' | 'public';
 
 export type PersonaId =
-  | 'tenant-assistant'
+  | 'counterparty-assistant'
   | 'coworker'
   | 'manager-chat'
   | 'owner-advisor'
@@ -21,7 +21,7 @@ export type PersonaId =
 export type SubPersona =
   | 'finance'
   | 'maintenance'
-  | 'leasing'
+  | 'offtake'
   | 'compliance'
   | 'learning'
   | 'advisor'

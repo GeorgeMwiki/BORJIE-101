@@ -185,12 +185,12 @@ describe('hashPayload', () => {
   // which broke the ledger chain verifier for any non-flat payload.
   it('deep-sorts nested object keys — same hash regardless of producer order', () => {
     const a = hashPayload({
-      lease: { id: 'l_1', tenantId: 't_1', amountCents: 100 },
+      offtake: { id: 'l_1', tenantId: 't_1', amountCents: 100 },
       owner: { id: 'o_1', email: 'x@y.com' },
     });
     const b = hashPayload({
       owner: { email: 'x@y.com', id: 'o_1' },
-      lease: { tenantId: 't_1', amountCents: 100, id: 'l_1' },
+      offtake: { tenantId: 't_1', amountCents: 100, id: 'l_1' },
     });
     expect(a).toBe(b);
   });
@@ -209,7 +209,7 @@ describe('computeRowHash', () => {
   it('changes when prevHash changes', () => {
     const base = {
       tenantId: 't',
-      actionType: 'eviction.proposed',
+      actionType: 'licence.suspension-proposed',
       payloadHash: 'p',
       executedAt: new Date('2026-05-14T00:00:00Z'),
     };
@@ -221,7 +221,7 @@ describe('computeRowHash', () => {
   it('changes when payloadHash changes', () => {
     const base = {
       tenantId: 't',
-      actionType: 'eviction.proposed',
+      actionType: 'licence.suspension-proposed',
       executedAt: new Date('2026-05-14T00:00:00Z'),
       prevHash: GENESIS_HASH,
     };
@@ -242,8 +242,8 @@ describe('createSovereignActionLedgerService.appendLedgerEntry', () => {
     const svc = createSovereignActionLedgerService(stub.client);
     const res = await svc.appendLedgerEntry({
       tenantId: 't1',
-      actionType: 'tenant.eviction-proposed',
-      payloadJson: { leaseId: 'l_1' },
+      actionType: 'operator.licence-suspension-proposed',
+      payloadJson: { offtakeId: 'l_1' },
       proposer: 'u_admin',
       approvers: ['u_admin', 'u_finance'],
       executedAt: new Date('2026-05-14T00:00:00Z'),
@@ -260,8 +260,8 @@ describe('createSovereignActionLedgerService.appendLedgerEntry', () => {
     const svc = createSovereignActionLedgerService(stub.client);
     const first = await svc.appendLedgerEntry({
       tenantId: 't1',
-      actionType: 'tenant.eviction-proposed',
-      payloadJson: { leaseId: 'l_1' },
+      actionType: 'operator.licence-suspension-proposed',
+      payloadJson: { offtakeId: 'l_1' },
       proposer: 'u_admin',
       approvers: ['u_admin', 'u_finance'],
       executedAt: new Date('2026-05-14T00:00:00Z'),
@@ -377,6 +377,30 @@ describe('createSovereignActionLedgerService.appendLedgerEntry / PII redaction',
     expect(persistedPayload).toContain('<kra-pin:redacted>');
     expect(persistedPayload).toContain('[PHONE]');
     expect(persistedPayload).toContain('[EMAIL]');
+    // Amount + non-PII fields preserved.
+    expect(persistedPayload).toContain('9000');
+    expect(persistedPayload).toContain('Asha Kweli');
+  });
+
+  it('redacts Tanzania TRA TIN from payload_json before persist', async () => {
+    const stub = makeStubDb();
+    const svc = createSovereignActionLedgerService(stub.client);
+    await svc.appendLedgerEntry({
+      tenantId: 't1',
+      actionType: 'tax.tra-filing-prepared',
+      payloadJson: {
+        traTin: '123-456-789',
+        ownerName: 'Asha Kweli',
+        amount: 9000,
+      },
+      proposer: 'u_admin',
+      approvers: ['u_admin', 'u_finance'],
+      executedAt: new Date('2026-05-14T00:00:00Z'),
+    });
+    expect(stub.rows).toHaveLength(1);
+    const persistedPayload = JSON.stringify(stub.rows[0]?.payloadJson ?? {});
+    expect(persistedPayload).not.toContain('123-456-789');
+    expect(persistedPayload).toContain('<tra-tin:redacted>');
     // Amount + non-PII fields preserved.
     expect(persistedPayload).toContain('9000');
     expect(persistedPayload).toContain('Asha Kweli');

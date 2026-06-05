@@ -78,7 +78,7 @@ export function defaultAllowLowStakes(
 //
 // {
 //   "actions": {
-//     "rent.send-reminder": {
+//     "royalty.send-reminder": {
 //       "authorized": true,
 //       "requiresApproval": false
 //     },

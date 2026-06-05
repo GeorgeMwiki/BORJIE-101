@@ -1,5 +1,6 @@
 /**
- * VP Growth — orchestration. Renewals, leasing, pricing, acquisitions.
+ * VP Growth — orchestration. Offtake renewals, after-hours buyer
+ * contact, pricing, acquisitions.
  */
 
 import {
@@ -11,8 +12,8 @@ import {
 } from '../shared/vp-base.js';
 
 export const VP_GROWTH_LINE_WORKERS = Object.freeze([
-  'lease.coordinator',
-  'leasing.after-hours-contact',
+  'offtake.coordinator',
+  'after_hours_contact',
   'pricing.analyst',
   'vacancy.acquisitions-scout',
 ] as const);
@@ -29,21 +30,21 @@ export function routeGrowthIntent(intent: OwnerIntent): ReadonlyArray<GrowthRout
   const t = intent.text.toLowerCase();
   const routes: GrowthRoute[] = [];
 
-  if (/renew|lease end|expir(?:e|ing|y)|new lease|sign lease/.test(t)) {
+  if (/renew|offtake end|expir(?:e|ing|y)|new offtake|sign offtake/.test(t)) {
     routes.push({
-      lineWorker: 'lease.coordinator',
+      lineWorker: 'offtake.coordinator',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Run the renewal / new-lease funnel',
+      description: 'Run the offtake renewal / new-agreement funnel',
     });
   }
-  if (/after hours|late evening|night|weekend prospect|out of office/.test(t)) {
+  if (/after hours|late evening|night|weekend buyer|out of office/.test(t)) {
     routes.push({
-      lineWorker: 'leasing.after-hours-contact',
+      lineWorker: 'after_hours_contact',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Stand in for after-hours prospect contact (drafts only)',
+      description: 'Stand in for after-hours buyer contact (drafts only)',
     });
   }
-  if (/pric(?:e|ing)|comp set|market rate|raise rent|reduce rent/.test(t)) {
+  if (/pric(?:e|ing)|comp set|market rate|raise price|reduce price/.test(t)) {
     routes.push({
       lineWorker: 'pricing.analyst',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
@@ -89,7 +90,7 @@ export async function orchestrateGrowth(args: {
       spawns: Object.freeze([]),
       gaps: Object.freeze([]),
       summary:
-        'I did not find a renewal, leasing, pricing, or acquisition signal in your note.',
+        'I did not find an offtake-renewal, buyer-contact, pricing, or acquisition signal in your note.',
     });
   }
 
@@ -102,7 +103,7 @@ export async function orchestrateGrowth(args: {
         missingLineWorker: route.lineWorker,
         reason: `VP Growth needed ${route.lineWorker} for intent "${intent.text}".`,
         suggestedRiskTier:
-          route.lineWorker === 'leasing.after-hours-contact' ? 'external-comm' : 'mutate',
+          route.lineWorker === 'after_hours_contact' ? 'external-comm' : 'mutate',
       });
       continue;
     }

@@ -40,9 +40,9 @@ describe('verifyIntent — happy path', () => {
     expect(v.layer).toBe('rule');
   });
 
-  it('permits a normal property query', () => {
+  it('permits a normal asset query', () => {
     const v = verifyIntent(
-      req('query-properties', { filters: { city: 'Dar es Salaam' } }),
+      req('query-assets', { filters: { city: 'Geita' } }),
     );
     expect(v.permitted).toBe(true);
   });
@@ -56,8 +56,8 @@ describe('verifyIntent — happy path', () => {
 describe('verifyIntent — SQL injection rules', () => {
   it('blocks a semicolon-DROP', () => {
     const v = verifyIntent(
-      req('query-properties', {
-        rawSql: "SELECT * FROM properties; DROP TABLE leases",
+      req('query-assets', {
+        rawSql: "SELECT * FROM assets; DROP TABLE offtakes",
       }),
     );
     expect(v.permitted).toBe(false);
@@ -67,7 +67,7 @@ describe('verifyIntent — SQL injection rules', () => {
 
   it('blocks a standalone DROP TABLE', () => {
     const v = verifyIntent(
-      req('query-properties', { rawSql: 'drop table properties' }),
+      req('query-assets', { rawSql: 'drop table assets' }),
     );
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('sql_destructive_standalone');
@@ -75,7 +75,7 @@ describe('verifyIntent — SQL injection rules', () => {
 
   it('blocks DELETE FROM …', () => {
     const v = verifyIntent(
-      req('query-properties', { rawSql: 'delete from leases' }),
+      req('query-assets', { rawSql: 'delete from offtakes' }),
     );
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('sql_destructive_standalone');
@@ -142,20 +142,20 @@ describe('verifyIntent — prompt-injection-in-args', () => {
 
 describe('verifyIntent — scope escalation', () => {
   it('blocks all_users', () => {
-    const v = verifyIntent(req('query-properties', { scope: 'all_users' }));
+    const v = verifyIntent(req('query-assets', { scope: 'all_users' }));
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('scope_escalation');
   });
 
   it('blocks service_role', () => {
-    const v = verifyIntent(req('query-properties', { auth: 'service_role' }));
+    const v = verifyIntent(req('query-assets', { auth: 'service_role' }));
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('scope_escalation');
   });
 
   it('blocks all_tenants', () => {
     const v = verifyIntent(
-      req('query-properties', { scope: 'all_tenants' }),
+      req('query-assets', { scope: 'all_tenants' }),
     );
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('scope_escalation');
@@ -165,7 +165,7 @@ describe('verifyIntent — scope escalation', () => {
 describe('verifyIntent — cross-tenant access', () => {
   it('blocks an args orgId different from session', () => {
     const v = verifyIntent(
-      req('query-properties', { orgId: 'tenant-bbb' }, { sessionContext: SESSION }),
+      req('query-assets', { orgId: 'tenant-bbb' }, { sessionContext: SESSION }),
     );
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('cross_tenant_access');
@@ -173,7 +173,7 @@ describe('verifyIntent — cross-tenant access', () => {
 
   it('blocks a nested tenant_id mismatch', () => {
     const v = verifyIntent(
-      req('query-properties', {
+      req('query-assets', {
         target: { tenant_id: 'tenant-zzz', name: 'x' },
       }),
     );
@@ -183,7 +183,7 @@ describe('verifyIntent — cross-tenant access', () => {
 
   it('allows when orgId matches session', () => {
     const v = verifyIntent(
-      req('query-properties', { orgId: 'tenant-aaa' }),
+      req('query-assets', { orgId: 'tenant-aaa' }),
     );
     expect(v.permitted).toBe(true);
   });
@@ -191,19 +191,19 @@ describe('verifyIntent — cross-tenant access', () => {
 
 describe('verifyIntent — wildcard identifier', () => {
   it('blocks user_id = "*"', () => {
-    const v = verifyIntent(req('query-tenants', { user_id: '*' }));
+    const v = verifyIntent(req('query-counterparties', { user_id: '*' }));
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('wildcard_identifier');
   });
 
   it('blocks orgId = "all"', () => {
-    const v = verifyIntent(req('query-tenants', { orgId: 'all' }));
+    const v = verifyIntent(req('query-counterparties', { orgId: 'all' }));
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('wildcard_identifier');
   });
 
   it('blocks tenantId = "any"', () => {
-    const v = verifyIntent(req('query-tenants', { tenantId: 'any' }));
+    const v = verifyIntent(req('query-counterparties', { tenantId: 'any' }));
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('wildcard_identifier');
   });
@@ -211,14 +211,14 @@ describe('verifyIntent — wildcard identifier', () => {
 
 describe('verifyIntent — overly broad query', () => {
   it('blocks empty filter object on query tools', () => {
-    const v = verifyIntent(req('query-properties', { filters: {} }));
+    const v = verifyIntent(req('query-assets', { filters: {} }));
     expect(v.permitted).toBe(false);
     expect(v.matchedRule).toBe('overly_broad_query');
   });
 
   it('blocks SELECT * FROM with no WHERE', () => {
     const v = verifyIntent(
-      req('query-properties', { rawSql: 'SELECT * FROM properties' }),
+      req('query-assets', { rawSql: 'SELECT * FROM assets' }),
     );
     // The semicolon-injection rule may also fire here, but either way
     // the verdict is denial — guard on `permitted` only.
@@ -235,7 +235,7 @@ describe('verifyIntentBatch', () => {
   it('returns one verdict per request when all permitted', () => {
     const verdicts = verifyIntentBatch([
       req('navigate-user', {}),
-      req('query-properties', { city: 'Arusha' }),
+      req('query-assets', { city: 'Mwanza' }),
     ]);
     expect(verdicts).toHaveLength(2);
     expect(verdicts.every((v) => v.permitted)).toBe(true);
@@ -244,7 +244,7 @@ describe('verifyIntentBatch', () => {
   it('short-circuits remaining verdicts after a denial', () => {
     const verdicts = verifyIntentBatch([
       req('navigate-user', {}),
-      req('query-properties', { rawSql: 'drop table x' }),
+      req('query-assets', { rawSql: 'drop table x' }),
       req('navigate-user', {}),
       req('navigate-user', {}),
     ]);

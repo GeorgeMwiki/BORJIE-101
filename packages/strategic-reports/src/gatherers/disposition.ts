@@ -21,20 +21,20 @@ export function createDispositionGatherer(deps: DispositionGathererDeps): Gather
     const health: EvidencePack['sourceHealth'][number][] = [];
 
     const port = deps.ports.lifecycle;
-    const propertyId = spec.scope.kind === 'property' ? spec.scope.propertyId : null;
+    const siteId = spec.scope.kind === 'site' ? spec.scope.siteId : null;
 
     if (!port) {
       health.push(sourceHealth('lifecycle-advisor', 'unavailable', 'lifecycle port not wired'));
       return packed(spec, fragments, [], tables, health);
     }
-    if (!propertyId) {
-      health.push(sourceHealth('lifecycle-advisor', 'unavailable', 'disposition memo requires property scope'));
+    if (!siteId) {
+      health.push(sourceHealth('lifecycle-advisor', 'unavailable', 'disposition memo requires site scope'));
       return packed(spec, fragments, [], tables, health);
     }
 
     let thesis: DispositionThesis | null = null;
     try {
-      thesis = await port.fetchDispositionThesis({ propertyId });
+      thesis = await port.fetchDispositionThesis({ siteId });
       health.push(sourceHealth('lifecycle-advisor', thesis ? 'ok' : 'partial'));
     } catch (e) {
       health.push(sourceHealth('lifecycle-advisor', 'unavailable', e instanceof Error ? e.message : String(e)));
@@ -47,7 +47,7 @@ export function createDispositionGatherer(deps: DispositionGathererDeps): Gather
       buildEvidenceFragment({
         id: 'd-exit',
         summary: `Recommended exit: ${thesis.recommendedExit}. Implied exit value ${formatMoney(thesis.impliedExitValue)}.`,
-        source: { kind: 'advisor_output', ref: `lifecycle:disposition:${propertyId}` },
+        source: { kind: 'advisor_output', ref: `lifecycle:disposition:${siteId}` },
         data: { thesis },
       }),
     );
@@ -57,7 +57,7 @@ export function createDispositionGatherer(deps: DispositionGathererDeps): Gather
         buildEvidenceFragment({
           id: `d-buyer-${i + 1}`,
           summary: `Buyer pool ${bp.buyerType} weight ${(bp.weight * 100).toFixed(1)}%.`,
-          source: { kind: 'advisor_output', ref: `lifecycle:buyer-pool:${propertyId}:${bp.buyerType}` },
+          source: { kind: 'advisor_output', ref: `lifecycle:buyer-pool:${siteId}:${bp.buyerType}` },
         }),
       );
     });
@@ -77,7 +77,7 @@ export function createDispositionGatherer(deps: DispositionGathererDeps): Gather
         buildEvidenceFragment({
           id: `d-sens-${i + 1}`,
           summary: `Sensitivity ${s.factor}: delta ${s.delta} → impact ${s.impactPct.toFixed(1)}%.`,
-          source: { kind: 'advisor_output', ref: `lifecycle:sensitivity:${propertyId}:${s.factor}` },
+          source: { kind: 'advisor_output', ref: `lifecycle:sensitivity:${siteId}:${s.factor}` },
         }),
       );
     });

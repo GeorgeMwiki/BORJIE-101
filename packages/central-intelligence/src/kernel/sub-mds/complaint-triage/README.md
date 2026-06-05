@@ -1,8 +1,8 @@
 # complaint.triage — Tier-A sub-MD
 
-Classify, route, draft empathy response, and escalate when needed.
-Bilingual (Swahili + English). Every tenant-facing reply is DRAFTED and
-queued for owner review — never auto-sent.
+Classify, route, draft empathy response, and escalate site grievances
+when needed. Bilingual (Swahili + English). Every reporter-facing reply
+is DRAFTED and queued for owner review — never auto-sent.
 
 ## Tools
 
@@ -22,8 +22,16 @@ queued for owner review — never auto-sent.
 | fair-treatment / privacy         | owner-direct-phone     | 60/240m | legal |
 | maintenance × urgent             | maintenance-fast-lane  | 240m  | maintenance |
 | billing × urgent                 | billing-fast-lane      | 240m  | billing |
-| neighbor-noise (non-chatter)     | standard-queue         | 1440m | community |
+| community (non-chatter)          | standard-queue         | 1440m | community |
 | chatter (anywhere)               | standard-queue         | 4320m | —       |
+
+## Grievance taxonomy
+
+Categories: `safety` (rockfall, pit collapse, gas, blast accident),
+`fair-treatment`, `privacy`, `billing` (settlement / royalty / payment),
+`community` (neighbouring-village dust, blasting noise, water,
+land), `contract-question` (offtake / employment / land), `maintenance`
+(equipment — pumps, generators, crushers, drills), and `other`.
 
 ## Risk tier
 

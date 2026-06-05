@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 24. slider-input — range input for rent-negotiation, budget-allocation,
+ * 24. slider-input — range input for royalty-negotiation, budget-allocation,
  * pricing what-if. The brain emits the bounds + initial value; the
  * component dispatches `genui:slider-change` (or the configured kind)
  * via CustomEvent so the host portal can wire it to a tool/message.

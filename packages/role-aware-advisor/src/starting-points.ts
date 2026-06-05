@@ -182,7 +182,7 @@ export function generateStartingPoints(args: {
 
   // PM arrears chip
   if (
-    user.role === 'property-manager' &&
+    user.role === 'site-manager' &&
     (context.arrearsCount ?? 0) > 0
   ) {
     candidates.push({
@@ -288,7 +288,7 @@ function roleDefaults(role: Role): StartingPoint[] {
           reason: 'role default — owner',
         },
       ];
-    case 'property-manager':
+    case 'site-manager':
       return [
         {
           id: 'default-pm-renewals',

@@ -101,7 +101,7 @@ describe('sentiment-monitor', () => {
     expect(repo.signals).toHaveLength(1);
   });
 
-  it('emits TenantSentimentShift when rolling delta exceeds threshold', async () => {
+  it('emits CounterpartySentimentShift when rolling delta exceeds threshold', async () => {
     const llm: ClassifyLLMPort = {
       async classify() {
         return {
@@ -165,7 +165,7 @@ describe('sentiment-monitor', () => {
 
     expect(publishShift).toHaveBeenCalledTimes(1);
     const args = publishShift.mock.calls[0][0];
-    expect(args.type).toBe('TenantSentimentShift');
+    expect(args.type).toBe('CounterpartySentimentShift');
     expect(args.currentAvg).toBe(-0.5);
   });
 

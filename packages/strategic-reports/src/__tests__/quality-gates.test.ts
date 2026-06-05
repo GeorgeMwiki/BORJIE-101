@@ -40,8 +40,8 @@ function buildItem(id: string, owner = 'a-owner', successCriterion = 'measurable
 
 function buildReport(overrides?: Partial<StrategicReport>): StrategicReport {
   const base: StrategicReport = {
-    type: 'leasing_financial_performance',
-    spec: buildSpec('leasing_financial_performance'),
+    type: 'offtake_financial_performance',
+    spec: buildSpec('offtake_financial_performance'),
     title: 'Test report',
     executiveSummary: 'Concise summary.',
     sections: [],
@@ -168,7 +168,7 @@ describe('renderer — page-budget warning surfaces (does not fail)', () => {
       advisorPorts: fixtureAdvisorPorts,
     };
     const engine = createReportEngine(deps);
-    const spec = buildSpec('leasing_financial_performance');
+    const spec = buildSpec('offtake_financial_performance');
     const result = await engine.generateReport(spec);
     expect(result.ok).toBe(true);
     if (result.ok) {

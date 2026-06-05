@@ -58,15 +58,15 @@ const ROUTING_MATRIX: Readonly<Record<Exclude<DocType, 'unknown'>, ReadonlyArray
       module: 'estate',
       action: 'create_lease_application',
       requiredKeys: ['applicant_name', 'requested_asset'],
-      optionalKeys: ['applicant_phone', 'applicant_nida', 'requested_rent'],
+      optionalKeys: ['applicant_phone', 'applicant_nida', 'requested_royalty'],
     },
   ],
   lease_contract: [
     {
       module: 'estate',
       action: 'create_lease',
-      requiredKeys: ['tenant_name', 'asset_reference', 'monthly_rent'],
-      optionalKeys: ['lease_start_date', 'lease_end_date', 'landlord_name'],
+      requiredKeys: ['buyer_name', 'asset_reference', 'monthly_royalty'],
+      optionalKeys: ['offtake_start_date', 'offtake_end_date', 'owner_name'],
     },
   ],
   payment_receipt: [
@@ -105,7 +105,7 @@ const ROUTING_MATRIX: Readonly<Record<Exclude<DocType, 'unknown'>, ReadonlyArray
     {
       module: 'estate',
       action: 'create_renewal_request',
-      requiredKeys: ['tenant_name', 'asset_reference'],
+      requiredKeys: ['counterparty_name', 'asset_reference'],
       optionalKeys: ['requested_renewal_date'],
     },
   ],
@@ -113,7 +113,7 @@ const ROUTING_MATRIX: Readonly<Record<Exclude<DocType, 'unknown'>, ReadonlyArray
     {
       module: 'legal',
       action: 'process_termination',
-      requiredKeys: ['tenant_name', 'asset_reference'],
+      requiredKeys: ['counterparty_name', 'asset_reference'],
       optionalKeys: ['effective_date'],
     },
   ],
@@ -256,15 +256,20 @@ function extractionToResolvedEntity(
 function extractedKeyToEntityType(key: string): ResolvedEntityType | null {
   // The classifier emits canonical-ish keys; map to the dispatch-router
   // entity-type enum. Unknown keys return null so they're dropped.
-  if (key === 'applicant_name' || key === 'tenant_name' || key === 'complainant_name')
+  if (
+    key === 'applicant_name' ||
+    key === 'buyer_name' ||
+    key === 'counterparty_name' ||
+    key === 'complainant_name'
+  )
     return 'customer';
   if (key === 'payer_name') return 'customer';
   if (key === 'asset_reference' || key === 'requested_asset') return 'unit';
-  if (key === 'amount' || key === 'monthly_rent' || key === 'requested_rent')
+  if (key === 'amount' || key === 'monthly_royalty' || key === 'requested_royalty')
     return 'amount';
   if (key === 'gepg_reference' || key === 'mpesa_reference' || key === 'invoice_number')
     return 'invoice';
-  if (key === 'inspection_date' || key === 'payment_date' || key === 'lease_start_date')
+  if (key === 'inspection_date' || key === 'payment_date' || key === 'offtake_start_date')
     return 'date';
   if (key === 'id_number') return 'tenant_user';
   return null;

@@ -1,26 +1,26 @@
 id: arrears-triage-004
 scenario: arrears-triage
-title: '60-day arrears, tenant disputes amount (alleges maintenance offset)'
+title: '60-day outstanding royalty, counterparty disputes amount (alleges assay grade offset)'
 context:
-  tenant:
-    id: tnt-004
+  counterparty:
+    id: cpty-004
     name: 'Joseph Kimani'
-    arrears_days: 60
+    outstanding_days: 60
     history: dispute-active
-  property:
-    id: prop-004
-    block: 'Block A'
-    unit: '2D'
-  lease:
-    monthly_rent_minor: 95000000
+  asset:
+    id: site-004
+    zone: 'Geita Zone'
+    pit: 'Pit 2D'
+  offtake:
+    monthly_royalty_minor: 95000000
     currency: TZS
   events:
-    - {at: '2026-03-30', kind: 'invoice.due', amount_minor: 95000000}
-    - {at: '2026-04-15', kind: 'tenant.dispute.opened', basis: 'maintenance-offset', claimed_minor: 40000000}
-    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 95000000}
+    - {at: '2026-03-30', kind: 'royalty_return.due', amount_minor: 95000000}
+    - {at: '2026-04-15', kind: 'counterparty.dispute.opened', basis: 'assay-grade-offset', claimed_minor: 40000000}
+    - {at: '2026-04-30', kind: 'royalty_return.due', amount_minor: 95000000}
 expected_actions:
-  - {tool: 'arrears.hold_collection_pending_dispute'}
-  - {tool: 'arrears.flag_for_legal_review'}
+  - {tool: 'royalty.hold_collection_pending_dispute'}
+  - {tool: 'royalty.flag_for_legal_review'}
 expected_escalation: true
 expected_escalation_reason: 'active dispute — must not collect until resolved'
 scorer_weights:

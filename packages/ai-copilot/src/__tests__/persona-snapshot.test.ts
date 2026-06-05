@@ -30,18 +30,18 @@ describe('persona catalog snapshots', () => {
     // platform-level decision — should never slip in unreviewed.
     expect(ids).toMatchInlineSnapshot(`
       [
+        "counterparty-assistant",
         "coworker",
         "coworker.tender-negotiator",
         "estate-manager",
         "junior.communications",
         "junior.compliance",
         "junior.finance",
-        "junior.leasing",
         "junior.maintenance",
+        "junior.offtake",
         "junior.price-negotiator",
         "migration-wizard",
         "owner-advisor",
-        "tenant-assistant",
       ]
     `);
   });
@@ -63,8 +63,8 @@ describe('persona catalog snapshots', () => {
           "junior.communications",
           "junior.compliance",
           "junior.finance",
-          "junior.leasing",
           "junior.maintenance",
+          "junior.offtake",
           "migration-wizard",
         ],
         "id": "estate-manager",
@@ -102,18 +102,18 @@ describe('persona catalog snapshots', () => {
     // When a hash changes, re-run with `vitest -u` to update, and make
     // sure the diff is a deliberate improvement — not a typo or accident.
     expect(Object.keys(hashes).sort()).toEqual([
+      'counterparty-assistant',
       'coworker',
       'coworker.tender-negotiator',
       'estate-manager',
       'junior.communications',
       'junior.compliance',
       'junior.finance',
-      'junior.leasing',
       'junior.maintenance',
+      'junior.offtake',
       'junior.price-negotiator',
       'migration-wizard',
       'owner-advisor',
-      'tenant-assistant',
     ]);
     // Each hash should be a 16-char hex. Stability is enforced by the
     // snapshot of the full hash-map via toMatchSnapshot below.

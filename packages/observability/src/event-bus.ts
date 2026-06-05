@@ -451,7 +451,7 @@ export class EventBus {
   private determinePriority<T>(event: DomainEvent<T>): EventPriority {
     // Determine priority based on event type
     const criticalTypes = ['PaymentFailed', 'SecurityBreach', 'SystemFailure'];
-    const highTypes = ['PaymentReceived', 'LeaseTerminated', 'MaintenanceUrgent'];
+    const highTypes = ['PaymentReceived', 'OfftakeTerminated', 'MaintenanceUrgent'];
     const lowTypes = ['MetricRecorded', 'LogEntry'];
 
     if (criticalTypes.some(t => event.type.includes(t))) return 'critical';

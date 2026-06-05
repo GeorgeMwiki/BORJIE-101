@@ -58,8 +58,8 @@ describe('ProactiveInsights: insight engine', () => {
     expect(results.some((r) => r.id === 'arrears_60_day_crossing')).toBe(false);
   });
 
-  it('renewal_window_90d fires when leasesExpiring90 > 0', () => {
-    const results = evaluateInsights(ctx({ leasesExpiring90: 2 }));
+  it('renewal_window_90d fires when offtakesExpiring90 > 0', () => {
+    const results = evaluateInsights(ctx({ offtakesExpiring90: 2 }));
     expect(results.some((r) => r.id === 'renewal_window_90d')).toBe(true);
   });
 
@@ -113,7 +113,7 @@ describe('ProactiveInsights: insight engine', () => {
       ctx({
         currentPage: '/manager/arrears/case_1',
         openArrearsCases: 5,
-        leasesExpiring90: 4,
+        offtakesExpiring90: 4,
         overdueTickets: 6,
         expiringCompliance: 2,
       }),
@@ -130,7 +130,7 @@ describe('ProactiveInsights: predictive needs', () => {
   });
 
   it('provides role-based fallback when no signals', () => {
-    const needs = predictNeeds(ctx({ role: 'tenant', currentPage: '/me' }));
+    const needs = predictNeeds(ctx({ role: 'counterparty', currentPage: '/me' }));
     expect(needs.length).toBeGreaterThan(0);
   });
 });

@@ -41,6 +41,18 @@
 -- mirroring 0153 / 0157).
 -- =============================================================================
 
-ALTER TYPE document_type ADD VALUE IF NOT EXISTS 'mining_licence';
-ALTER TYPE document_type ADD VALUE IF NOT EXISTS 'royalty_return';
-ALTER TYPE document_type ADD VALUE IF NOT EXISTS 'accountant_export';
+-- Fresh-DB guard: on a fresh database the document_type enum does not exist
+-- yet — it is created (with these three mining values already included) by
+-- 0185_document_uploads_foundation.sql, which lands later in lex order. A
+-- bare ALTER TYPE here aborts with "type document_type does not exist".
+-- Guarding on type existence makes this a no-op on fresh (0185 supplies the
+-- values) and a fully idempotent additive ALTER on production (where the enum
+-- predates the mining values). EXECUTE keeps ADD VALUE deferred to runtime.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'document_type') THEN
+    EXECUTE 'ALTER TYPE document_type ADD VALUE IF NOT EXISTS ''mining_licence''';
+    EXECUTE 'ALTER TYPE document_type ADD VALUE IF NOT EXISTS ''royalty_return''';
+    EXECUTE 'ALTER TYPE document_type ADD VALUE IF NOT EXISTS ''accountant_export''';
+  END IF;
+END $$;

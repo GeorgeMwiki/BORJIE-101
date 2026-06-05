@@ -370,11 +370,11 @@ function PortalReadout(): JSX.Element {
 describe('Multi-app mounting', () => {
   it('each app root owns its own chat context', () => {
     const { rerender } = render(
-      <BorjieAIProvider portal="customer" defaultPersona="tenant-assistant" currentPath="/">
+      <BorjieAIProvider portal="customer" defaultPersona="counterparty-assistant" currentPath="/">
         <PortalReadout />
       </BorjieAIProvider>,
     );
-    expect(screen.getByTestId('portal-readout-customer').textContent).toBe('customer:tenant-assistant');
+    expect(screen.getByTestId('portal-readout-customer').textContent).toBe('customer:counterparty-assistant');
 
     rerender(
       <BorjieAIProvider portal="owner" defaultPersona="owner-advisor" currentPath="/portfolio">

@@ -24,7 +24,7 @@ import { ThreadStore } from '../thread/thread-store.js';
 import { VisibilityLabel } from '../thread/visibility.js';
 
 export interface ToolHandler {
-  /** Tool name, e.g. `skill.finance.draft_arrears_notice` or `get_unit_health`. */
+  /** Tool name, e.g. `skill.finance.draft_arrears_notice` or `get_pit_health`. */
   name: string;
   /** Human-readable description — surfaced to the LLM as tool definition. */
   description: string;

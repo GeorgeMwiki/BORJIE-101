@@ -8,7 +8,7 @@ import type { DateRange } from './report-types.js';
 export interface WorkOrderItem {
   workOrderId: string;
   unitName: string;
-  propertyName: string;
+  siteName: string;
   category: string;
   priority: string;
   status: string;
@@ -48,7 +48,7 @@ export function maintenanceReportToReportData(
       headers: [
         'ID',
         'Unit',
-        'Property',
+        'Site',
         'Category',
         'Priority',
         'Status',
@@ -58,7 +58,7 @@ export function maintenanceReportToReportData(
       rows: data.workOrders.map((w) => [
         w.workOrderId.slice(0, 8),
         w.unitName,
-        w.propertyName,
+        w.siteName,
         w.category,
         w.priority,
         w.status,

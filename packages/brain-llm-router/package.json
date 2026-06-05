@@ -85,6 +85,22 @@
     "./policy-audit": {
       "types": "./src/policy-audit/index.ts",
       "default": "./src/policy-audit/index.ts"
+    },
+    "./prompt-budget": {
+      "types": "./src/prompt-budget/index.ts",
+      "default": "./src/prompt-budget/index.ts"
+    },
+    "./cross-provider-auditor": {
+      "types": "./src/cross-provider-auditor/index.ts",
+      "default": "./src/cross-provider-auditor/index.ts"
+    },
+    "./judge-loop": {
+      "types": "./src/judge-loop/index.ts",
+      "default": "./src/judge-loop/index.ts"
+    },
+    "./effort": {
+      "types": "./src/effort/index.ts",
+      "default": "./src/effort/index.ts"
     }
   },
   "scripts": {

@@ -392,8 +392,8 @@ async function auditDispatch(db: DbLike, args: AuditDispatchArgs): Promise<void>
     // BEGIN/COMMIT so the tenant GUC binding is transaction-local.
     // ai_audit_chain is RLS-FORCED; without the GUC bind every INSERT
     // here would be silently rejected and the chain would gap.
-    await withWorkerTenantContext(db, args.tenantId, async () => {
-      await db.execute(sql`
+    await withWorkerTenantContext(db, args.tenantId, async (tx) => {
+      await tx.execute(sql`
         INSERT INTO ai_audit_chain (
           id, tenant_id, sequence_id, turn_id, action, prev_hash, this_hash, payload
         ) VALUES (

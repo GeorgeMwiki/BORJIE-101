@@ -255,3 +255,90 @@ export type {
   CrossFamilyFallbackEvent,
   CrossFamilyFallbackEmitter,
 } from './policy-audit/index.js';
+
+// Prompt budget — trim cascade + token telemetry (LP-08)
+export {
+  estimateTokens,
+  estimateTokensOfMany,
+  DEFAULT_PROMPT_BUDGET,
+  PROMPT_BUDGET_BY_INTENT,
+  budgetForIntent,
+  trimToBudget,
+  summarizeOverflowHistory,
+  setPromptBudgetSink,
+  resetPromptBudgetSink,
+  emitPromptBudgetEvent,
+} from './prompt-budget/index.js';
+export type {
+  PromptBudget,
+  PromptLayer,
+  TrimResult,
+  HistoryTurn,
+  HistorySummariser,
+  SummarizeOptions,
+  SummarizeResult,
+  PromptBudgetEvent,
+  PromptBudgetSink,
+} from './prompt-budget/index.js';
+
+// Concurrency-gate Redis/Upstash backend — multi-replica (LP-10)
+export {
+  InMemoryConcurrencyStore,
+  UpstashConcurrencyStore,
+  createStoreBackedGate,
+  ACQUIRE_LUA,
+  RELEASE_LUA,
+} from './concurrency-gate/index.js';
+export type {
+  ConcurrencyStore,
+  RedisEvalPort,
+  UpstashStoreLogger,
+  UpstashStoreOptions,
+  StoreBackedGateOptions,
+} from './concurrency-gate/index.js';
+
+// Cross-provider numeric-claim auditor (LP-11)
+export {
+  auditResponse,
+  extractPrimaryClaim,
+  compareClaims,
+  shouldSampleForAudit,
+  sampleRateForIntent,
+  SAMPLE_RATE_BY_INTENT,
+  NUMERIC_TOLERANCE,
+  DEFAULT_SAMPLE_RATE,
+  ADVISORY_SAMPLE_RATE,
+  FULL_SAMPLE_RATE,
+} from './cross-provider-auditor/index.js';
+export type {
+  ExtractedClaim,
+  ClaimComparison,
+  AuditableResponse,
+  SecondOpinionPort,
+  ProviderAuditEvent,
+  ProviderAuditSink,
+  AuditorConfig,
+  AuditOutcome,
+  SampleDecisionOptions,
+} from './cross-provider-auditor/index.js';
+
+// Self-judge regenerate loop (LP-11)
+export { runJudgeLoop } from './judge-loop/index.js';
+export type {
+  JudgeVerdict,
+  GeneratePort,
+  JudgePort,
+  JudgeLoopConfig,
+  JudgeLoopAttempt,
+  JudgeLoopResult,
+} from './judge-loop/index.js';
+
+// Per-thread reasoning-effort selector (LP-12)
+export {
+  coerceEffort,
+  resolveEffortModel,
+  selectEffort,
+  effortLabel,
+  DEFAULT_EFFORT,
+} from './effort/index.js';
+export type { ReasoningEffort } from './effort/index.js';

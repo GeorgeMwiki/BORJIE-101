@@ -2,7 +2,7 @@
   "version": 1,
   "personaId": "internal_admin",
   "topbar": {
-    "logo": { "label": "Boss Nyumba — Platform", "href": "/admin", "markId": "midnight-ledger" },
+    "logo": { "label": "Borjie — Platform", "href": "/admin", "markId": "midnight-ledger" },
     "search": { "enabled": true, "placeholder": "Search tenants, escalations, audits…", "scope": "global" },
     "notifications": { "enabled": true, "pollSeconds": 30 },
     "profile": {

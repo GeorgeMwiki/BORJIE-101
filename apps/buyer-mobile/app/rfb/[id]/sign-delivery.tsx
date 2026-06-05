@@ -20,6 +20,7 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { Card } from '@/components/Card'
 import { tokens } from '@/ui-litfin'
 import { apiFetch } from '@/api/client'
+import { rateSeller } from '@/api/bid-messaging'
 
 interface SignDeliveryResponse {
   readonly success: boolean
@@ -78,6 +79,81 @@ function deriveChecksum(rfbId: string): string {
   // Stable within the screen session — re-tapping "Sign" within the
   // same mount uses the same checksum so the backend collapses replays.
   return `coc-${rfbId}-${Date.now()}`
+}
+
+/**
+ * Post-settlement seller rating. Appears once a settlement exists; the
+ * buyer picks 1–5 stars and submits to
+ * POST /api/v1/mining/bid-messaging/settlements/:settlementId/rate.
+ * One rating per settlement (idempotent server-side).
+ */
+function RateSellerCard({
+  settlementId,
+  isSw,
+}: {
+  readonly settlementId: string
+  readonly isSw: boolean
+}): JSX.Element {
+  const [stars, setStars] = useState<number>(0)
+  const mutation = useMutation({
+    mutationFn: (value: number) => rateSeller({ settlementId, stars: value }),
+  })
+
+  return (
+    <Card>
+      <Text style={styles.cardTitle}>
+        {isSw ? 'Mkadirie muuzaji' : 'Rate the seller'}
+      </Text>
+      {mutation.isSuccess ? (
+        <Text style={styles.successTitle}>
+          {isSw ? 'Asante kwa ukadiriaji wako' : 'Thanks for your rating'}
+        </Text>
+      ) : (
+        <>
+          <View style={styles.starsRow}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pressable
+                key={n}
+                accessibilityRole="button"
+                accessibilityLabel={`${n} ${isSw ? 'nyota' : 'stars'}`}
+                onPress={() => setStars(n)}
+                disabled={mutation.isPending}
+                style={styles.star}
+              >
+                <Text style={[styles.starGlyph, n <= stars && styles.starGlyphOn]}>
+                  ★
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Pressable
+            onPress={() => stars > 0 && mutation.mutate(stars)}
+            disabled={stars === 0 || mutation.isPending}
+            style={({ pressed }) => [
+              styles.cta,
+              pressed && styles.ctaPressed,
+              (stars === 0 || mutation.isPending) && styles.ctaDisabled,
+            ]}
+          >
+            <Text style={styles.ctaText}>
+              {mutation.isPending
+                ? isSw
+                  ? 'Inatuma…'
+                  : 'Submitting…'
+                : isSw
+                  ? 'Wasilisha ukadiriaji'
+                  : 'Submit rating'}
+            </Text>
+          </Pressable>
+          {mutation.isError ? (
+            <Text style={styles.errorBody}>
+              {isSw ? 'Imeshindwa kutuma ukadiriaji' : 'Failed to submit rating'}
+            </Text>
+          ) : null}
+        </>
+      )}
+    </Card>
+  )
 }
 
 export default function SignDeliveryScreen(): JSX.Element {
@@ -213,6 +289,10 @@ export default function SignDeliveryScreen(): JSX.Element {
           </Card>
         ) : null}
 
+        {mutation.isSuccess && mutation.data ? (
+          <RateSellerCard settlementId={mutation.data.settlementId} isSw={isSw} />
+        ) : null}
+
         <Pressable
           onPress={onSubmit}
           disabled={mutation.isPending || mutation.isSuccess}
@@ -321,6 +401,14 @@ const styles = StyleSheet.create({
     marginBottom: tokens.space.sm,
   },
   errorBody: { ...tokens.type.body, color: tokens.color.danger },
+  starsRow: {
+    flexDirection: 'row',
+    gap: tokens.space.xs,
+    marginBottom: tokens.space.sm,
+  },
+  star: { padding: tokens.space.xs },
+  starGlyph: { fontSize: 28, color: tokens.color.border },
+  starGlyphOn: { color: tokens.color.gold },
   cta: {
     backgroundColor: tokens.color.gold,
     borderRadius: tokens.radius.xl,

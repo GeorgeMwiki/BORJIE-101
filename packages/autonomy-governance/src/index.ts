@@ -215,3 +215,28 @@ export {
   type IntentVerification,
   type SessionContext as IntentSessionContext,
 } from './policy/index.js';
+
+// Sovereign-claim — defence-in-depth on the sovereign tier-elevation
+// gate (LP-14). An HMAC-signed claim tying (userId, role, mfaVerifiedAt,
+// scope) plus a recent-MFA freshness window, so a stolen cookie or
+// role-string alone cannot mint a sovereign action. Ported from LITFIN
+// `src/core/governance/tier-policy/sovereign-claim.ts`, re-skinned to
+// mining (royalty / licence / payout / kill-switch scopes) and made a
+// pure leaf via an injected CryptoPort. Wire `assertSovereignClaim()`
+// BEFORE the tier-policy check on every sovereign tool.
+export {
+  SOVEREIGN_SCOPES,
+  DEFAULT_MAX_AGE_MS as SOVEREIGN_DEFAULT_MAX_AGE_MS,
+  DEFAULT_SOVEREIGN_ROLE,
+  CLOCK_SKEW_TOLERANCE_MS as SOVEREIGN_CLOCK_SKEW_TOLERANCE_MS,
+  SovereignClaimDenied,
+  signSovereignClaim,
+  assertSovereignClaim,
+  tryVerifySovereignClaim,
+  type CryptoPort as SovereignCryptoPort,
+  type SovereignScope,
+  type SovereignClaim,
+  type SovereignClaimVerifyOptions,
+  type SovereignClaimError,
+  type SovereignClaimResult,
+} from './sovereign-claim/index.js';

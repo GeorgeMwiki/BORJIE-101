@@ -2,25 +2,25 @@
  * Entity Resolver — maps natural-language references to concrete entity IDs.
  *
  * Examples:
- *  "unit 4B at Goba"       -> { kind: 'unit', id: 'u_123', label: '4B — Goba' }
- *  "apartment 12 Westlands" -> { kind: 'unit', id: 'u_456', label: '12 — Westlands' }
- *  "tenant Jane Mwangi"    -> { kind: 'tenant', id: 't_789', label: 'Jane Mwangi' }
+ *  "unit 4B at Geita"      -> { kind: 'unit', id: 'u_123', label: '4B — Geita' }
+ *  "pit 12 Nachingwea"     -> { kind: 'unit', id: 'u_456', label: '12 — Nachingwea' }
+ *  "buyer Jane Mwangi"     -> { kind: 'counterparty', id: 'c_789', label: 'Jane Mwangi' }
  *
  * The resolver is deterministic: the same query + index yields the same
- * ranking. Scoring uses token overlap + property-name co-occurrence.
+ * ranking. Scoring uses token overlap + site-name co-occurrence.
  */
 
 import type { EntityIndex } from './spotlight-engine.js';
 
 export interface EntityMatch {
-  readonly kind: 'unit' | 'property' | 'tenant';
+  readonly kind: 'unit' | 'site' | 'counterparty';
   readonly id: string;
   readonly label: string;
   readonly context?: string;
   readonly score: number;
 }
 
-const UNIT_PATTERN = /\b(?:unit|apartment|flat|door|house|plot)\s*([A-Z0-9][A-Z0-9\-/]{0,10})\b/i;
+const UNIT_PATTERN = /\b(?:unit|pit|block|shaft|adit|plot)\s*([A-Z0-9][A-Z0-9\-/]{0,10})\b/i;
 
 export function resolveEntities(query: string, index: EntityIndex): readonly EntityMatch[] {
   const q = query.toLowerCase();
@@ -37,44 +37,44 @@ export function resolveEntities(query: string, index: EntityIndex): readonly Ent
     else if (unitRef && label.includes(unitRef)) score += 0.6;
     for (const tok of tokens) {
       if (label.includes(tok)) score += 0.2;
-      if (u.propertyName && u.propertyName.toLowerCase().includes(tok)) score += 0.3;
+      if (u.siteName && u.siteName.toLowerCase().includes(tok)) score += 0.3;
     }
     if (score > 0)
       matches.push({
         kind: 'unit',
         id: u.id,
-        label: `${u.label}${u.propertyName ? ` — ${u.propertyName}` : ''}`,
-        context: u.propertyName ?? '',
+        label: `${u.label}${u.siteName ? ` — ${u.siteName}` : ''}`,
+        context: u.siteName ?? '',
         score: Math.min(1, score),
       });
   }
 
-  for (const p of index.properties) {
+  for (const s of index.sites) {
     let score = 0;
-    const name = p.name.toLowerCase();
+    const name = s.name.toLowerCase();
     for (const tok of tokens) {
       if (name.includes(tok)) score += 0.4;
     }
     if (score > 0)
       matches.push({
-        kind: 'property',
-        id: p.id,
-        label: p.name,
+        kind: 'site',
+        id: s.id,
+        label: s.name,
         score: Math.min(1, score),
       });
   }
 
-  for (const t of index.tenants) {
+  for (const c of index.counterparties) {
     let score = 0;
-    const name = t.name.toLowerCase();
+    const name = c.name.toLowerCase();
     for (const tok of tokens) {
       if (name.includes(tok)) score += 0.35;
     }
     if (score > 0)
       matches.push({
-        kind: 'tenant',
-        id: t.id,
-        label: t.name,
+        kind: 'counterparty',
+        id: c.id,
+        label: c.name,
         score: Math.min(1, score),
       });
   }

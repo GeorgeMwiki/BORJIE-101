@@ -29,7 +29,7 @@ export function buildDefaultPolicy(tenantId: string): AutonomyPolicy {
       autoApproveWaiversMinorUnits: 25_000_00,
       escalateArrearsAboveMinorUnits: 500_000_00,
     },
-    leasing: {
+    offtake: {
       autoApproveRenewalsSameTerms: true,
       maxAutoApproveRentIncreasePct: 8,
       autoApproveApplicationScoreMin: 0.75,
@@ -87,7 +87,7 @@ export function buildDefaultPolicy(tenantId: string): AutonomyPolicy {
       autoFileToTribunal: false,
       autoScheduleMediation: false,
     },
-    tenant_welfare: {
+    community_welfare: {
       autoOfferPaymentPlansBelowMinorUnits: 100_000_00,
       autoEnrollInHardshipRelief: false,
       escalateVulnerableHouseholds: true,

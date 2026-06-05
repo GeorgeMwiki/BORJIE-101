@@ -1,5 +1,5 @@
 /**
- * Graph Agent Toolkit — AI Agent ↔ CPG Bridge
+ * Graph Agent Toolkit — AI Agent ↔ CMG Bridge
  *
  * Provides a structured tool interface that the AI copilot can call.
  * Each tool:
@@ -49,7 +49,7 @@ const CaseTimelineParams = z.object({
   caseId: z.string().describe('The case ID to generate timeline for'),
 });
 
-const TenantRiskParams = z.object({
+const CounterpartyRiskParams = z.object({
   customerId: z.string().describe('The customer ID to analyze risk for'),
 });
 
@@ -58,16 +58,16 @@ const VendorScorecardParams = z.object({
   windowDays: z.number().optional().default(365).describe('Lookback window in days'),
 });
 
-const UnitHealthParams = z.object({
-  unitId: z.string().describe('The unit ID to check health for'),
+const PitHealthParams = z.object({
+  unitId: z.string().describe('The pit ID to check health for'),
 });
 
 const ParcelComplianceParams = z.object({
   parcelId: z.string().describe('The parcel ID to check compliance for'),
 });
 
-const PropertyRollupParams = z.object({
-  propertyId: z.string().describe('The property ID to generate rollup for'),
+const SiteRollupParams = z.object({
+  propertyId: z.string().describe('The site ID to generate rollup for'),
 });
 
 const EvidencePackParams = z.object({
@@ -78,9 +78,9 @@ const PortfolioOverviewParams = z.object({});
 
 const GraphStatsParams = z.object({});
 
-// NEW 22: Unit Occupancy Timeline
-const UnitOccupancyTimelineParams = z.object({
-  unitId: z.string().describe('The unit ID to build occupancy timeline for'),
+// NEW 22: Pit Occupancy Timeline
+const PitOccupancyTimelineParams = z.object({
+  unitId: z.string().describe('The pit ID to build occupancy timeline for'),
   page: z.number().optional().default(1).describe('Page number (1-based)'),
   limit: z
     .number()
@@ -98,9 +98,9 @@ export const GRAPH_TOOL_DEFINITIONS: GraphToolDefinition[] = [
     parameters: CaseTimelineParams,
   },
   {
-    name: 'get_tenant_risk_drivers',
-    description: 'Analyze why a specific tenant/customer is at risk of churn, default, or dispute. Returns risk drivers with severity scores and evidence paths (overdue invoices, unresolved maintenance, active disputes). Use when asked about tenant risk, churn prediction, or relationship health.',
-    parameters: TenantRiskParams,
+    name: 'get_counterparty_risk_drivers',
+    description: 'Analyze why a specific counterparty/customer is at risk of churn, default, or dispute. Returns risk drivers with severity scores and evidence paths (overdue invoices, unresolved maintenance, active disputes). Use when asked about counterparty risk, churn prediction, or relationship health.',
+    parameters: CounterpartyRiskParams,
   },
   {
     name: 'get_vendor_scorecard',
@@ -108,19 +108,19 @@ export const GRAPH_TOOL_DEFINITIONS: GraphToolDefinition[] = [
     parameters: VendorScorecardParams,
   },
   {
-    name: 'get_unit_health',
-    description: 'Get a comprehensive health report for a specific unit including occupancy status, open maintenance issues, overdue invoices, and inspection history. Returns a composite health score. Use when asked about unit condition or tenant experience.',
-    parameters: UnitHealthParams,
+    name: 'get_pit_health',
+    description: 'Get a comprehensive health report for a specific pit including occupancy status, open maintenance issues, overdue invoices, and inspection history. Returns a composite health score. Use when asked about pit condition or counterparty experience.',
+    parameters: PitHealthParams,
   },
   {
     name: 'get_parcel_compliance',
-    description: 'Check compliance status of a land parcel including expiring documents, expiring leases, and pending tasks. Returns compliance score and days until expiry. Use for land management, compliance monitoring, and document tracking.',
+    description: 'Check compliance status of a land parcel including expiring documents, expiring offtakes, and pending tasks. Returns compliance score and days until expiry. Use for land management, compliance monitoring, and document tracking.',
     parameters: ParcelComplianceParams,
   },
   {
-    name: 'get_property_rollup',
-    description: 'Get an enterprise-level KPI summary for a property including occupancy rate, active leases, open work orders, overdue invoices, and revenue metrics. Use for property performance analysis and owner reporting.',
-    parameters: PropertyRollupParams,
+    name: 'get_site_rollup',
+    description: 'Get an enterprise-level KPI summary for a site including occupancy rate, active offtakes, open work orders, overdue invoices, and revenue metrics. Use for site performance analysis and owner reporting.',
+    parameters: SiteRollupParams,
   },
   {
     name: 'generate_evidence_pack',
@@ -129,7 +129,7 @@ export const GRAPH_TOOL_DEFINITIONS: GraphToolDefinition[] = [
   },
   {
     name: 'get_portfolio_overview',
-    description: 'Get a high-level overview of all properties in the portfolio with occupancy rates and unit counts. Use for portfolio-level analysis, owner dashboards, and regional reporting.',
+    description: 'Get a high-level overview of all sites in the portfolio with occupancy rates and pit counts. Use for portfolio-level analysis, owner dashboards, and regional reporting.',
     parameters: PortfolioOverviewParams,
   },
   {
@@ -138,9 +138,9 @@ export const GRAPH_TOOL_DEFINITIONS: GraphToolDefinition[] = [
     parameters: GraphStatsParams,
   },
   {
-    name: 'GET_UNIT_OCCUPANCY_TIMELINE',
-    description: 'Get a paginated chronological occupancy timeline for a unit using Neo4j (:Unit)-[:OCCUPIED_BY]->(:Customer) edges. Returns tenants, rents, entry/exit dates, and exit reasons sorted by period. Supports 20+ year histories via pagination. Use for longitudinal unit analysis, tenant-churn investigations, and occupancy reporting.',
-    parameters: UnitOccupancyTimelineParams,
+    name: 'GET_PIT_OCCUPANCY_TIMELINE',
+    description: 'Get a paginated chronological occupancy timeline for a pit using Neo4j (:Pit)-[:OCCUPIED_BY]->(:Customer) edges. Returns counterparties, rents, entry/exit dates, and exit reasons sorted by period. Supports 20+ year histories via pagination. Use for longitudinal pit analysis, counterparty-churn investigations, and occupancy reporting.',
+    parameters: PitOccupancyTimelineParams,
   },
 ];
 
@@ -238,9 +238,9 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     return service.getCaseTimeline(tenantId, caseId);
   },
 
-  get_tenant_risk_drivers: async (service, tenantId, params) => {
-    const { customerId } = TenantRiskParams.parse(params);
-    return service.getTenantRiskDrivers(tenantId, customerId);
+  get_counterparty_risk_drivers: async (service, tenantId, params) => {
+    const { customerId } = CounterpartyRiskParams.parse(params);
+    return service.getCounterpartyRiskDrivers(tenantId, customerId);
   },
 
   get_vendor_scorecard: async (service, tenantId, params) => {
@@ -248,9 +248,9 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     return service.getVendorScorecard(tenantId, vendorId, windowDays);
   },
 
-  get_unit_health: async (service, tenantId, params) => {
-    const { unitId } = UnitHealthParams.parse(params);
-    return service.getUnitHealth(tenantId, unitId);
+  get_pit_health: async (service, tenantId, params) => {
+    const { unitId } = PitHealthParams.parse(params);
+    return service.getPitHealth(tenantId, unitId);
   },
 
   get_parcel_compliance: async (service, tenantId, params) => {
@@ -258,9 +258,9 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     return service.getParcelCompliance(tenantId, parcelId);
   },
 
-  get_property_rollup: async (service, tenantId, params) => {
-    const { propertyId } = PropertyRollupParams.parse(params);
-    return service.getPropertyRollup(tenantId, propertyId);
+  get_site_rollup: async (service, tenantId, params) => {
+    const { propertyId } = SiteRollupParams.parse(params);
+    return service.getSiteRollup(tenantId, propertyId);
   },
 
   generate_evidence_pack: async (service, tenantId, params) => {
@@ -276,25 +276,25 @@ const TOOL_HANDLERS: Record<string, ToolHandler> = {
     return service.getGraphStats(tenantId);
   },
 
-  GET_UNIT_OCCUPANCY_TIMELINE: async (service, tenantId, params) => {
-    const { unitId, page, limit } = UnitOccupancyTimelineParams.parse(params);
+  GET_PIT_OCCUPANCY_TIMELINE: async (service, tenantId, params) => {
+    const { unitId, page, limit } = PitOccupancyTimelineParams.parse(params);
     // Delegate to the query service's occupancy-timeline method. If the
     // concrete GraphQueryService does not yet expose this method, throw
     // a recognisable error so the binder can stub-fill.
     const svc = service as unknown as {
-      getUnitOccupancyTimeline?: (
+      getPitOccupancyTimeline?: (
         tenantId: string,
         unitId: string,
         page: number,
         limit: number
       ) => Promise<unknown>;
     };
-    if (typeof svc.getUnitOccupancyTimeline !== 'function') {
+    if (typeof svc.getPitOccupancyTimeline !== 'function') {
       throw new Error(
-        'GraphQueryService.getUnitOccupancyTimeline not implemented — bind via graph-sync infra layer.'
+        'GraphQueryService.getPitOccupancyTimeline not implemented — bind via graph-sync infra layer.'
       );
     }
-    return svc.getUnitOccupancyTimeline(tenantId, unitId, page, limit);
+    return svc.getPitOccupancyTimeline(tenantId, unitId, page, limit);
   },
 };
 
@@ -311,7 +311,7 @@ function generateEvidenceSummary(toolName: string, data: unknown): string {
       const timeline = data as Array<{ nodeLabel: string; title: string }>;
       return `Timeline with ${timeline.length} events: ${timeline.slice(0, 3).map(e => `${e.nodeLabel}: ${e.title}`).join(', ')}${timeline.length > 3 ? '...' : ''}`;
     }
-    case 'get_tenant_risk_drivers': {
+    case 'get_counterparty_risk_drivers': {
       const risk = data as { overallRiskLevel: string; drivers: Array<{ factor: string }> };
       return `Risk level: ${risk.overallRiskLevel}. Drivers: ${risk.drivers.map(d => d.factor).join(', ') || 'none'}`;
     }
@@ -319,17 +319,17 @@ function generateEvidenceSummary(toolName: string, data: unknown): string {
       const vendor = data as { vendorName: string; totalWorkOrders: number; completedWorkOrders: number };
       return `Vendor ${vendor.vendorName}: ${vendor.completedWorkOrders}/${vendor.totalWorkOrders} completed`;
     }
-    case 'get_unit_health': {
+    case 'get_pit_health': {
       const unit = data as { unitName: string; healthScore: number; issues: unknown[] };
-      return `Unit ${unit.unitName}: health score ${unit.healthScore}/100, ${unit.issues.length} issue(s)`;
+      return `Pit ${unit.unitName}: health score ${unit.healthScore}/100, ${unit.issues.length} issue(s)`;
     }
     case 'generate_evidence_pack': {
       const pack = data as { caseNumber: string; totalItems: number };
       return `Evidence pack for case ${pack.caseNumber}: ${pack.totalItems} items assembled`;
     }
     case 'get_portfolio_overview': {
-      const properties = data as Array<{ propertyName: string }>;
-      return `Portfolio: ${properties.length} properties`;
+      const sites = data as Array<{ propertyName: string }>;
+      return `Portfolio: ${sites.length} sites`;
     }
     default:
       return JSON.stringify(data).substring(0, 200);

@@ -73,7 +73,7 @@ function makeRequest(over: Partial<ThoughtRequest> = {}): ThoughtRequest {
     threadId: 'thread-1',
     userMessage: 'How is collection looking this month?',
     scope: TENANT_SCOPE,
-    tier: 'property',
+    tier: 'site',
     stakes: 'medium',
     surface: 'estate-manager-app',
     ...over,
@@ -121,7 +121,7 @@ describe('brain kernel — 13-step pipeline', () => {
   it('refuses platform scope at non-industry tier', async () => {
     const kernel = createBrainKernel({ sensors: [scriptedSensor('s', { text: '' })] });
     const decision = await kernel.think(
-      makeRequest({ scope: PLATFORM_SCOPE, tier: 'property', surface: 'platform-hq' }),
+      makeRequest({ scope: PLATFORM_SCOPE, tier: 'site', surface: 'platform-hq' }),
     );
     expect(decision.kind).toBe('refusal');
   });

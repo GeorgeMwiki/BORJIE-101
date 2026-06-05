@@ -40,7 +40,7 @@ type AnyCtx = any;
 
 const CAPABILITIES = [
   'rent-reconciliation',
-  'lease-renewal',
+  'offtake-renewal',
   'kra-mri',
   'gepg',
   'maintenance-triage',
@@ -49,7 +49,7 @@ const CAPABILITIES = [
 
 const CAPABILITY_PREFIXES: Record<(typeof CAPABILITIES)[number], ReadonlyArray<string>> = {
   'rent-reconciliation': ['finance.', 'tenant.payment', 'arrears.', 'recon.'],
-  'lease-renewal': ['lease.', 'renewal.', 'tenant.renew', 'leasing.'],
+  'offtake-renewal': ['lease.', 'renewal.', 'tenant.renew', 'leasing.'],
   'kra-mri': ['compliance.kra', 'tax.', 'mri.'],
   'gepg': ['gepg.', 'gov.payment', 'public.bill'],
   'maintenance-triage': ['maintenance.', 'workorder.', 'triage.'],

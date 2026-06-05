@@ -28,7 +28,7 @@ const VALID_REFUSAL_CATEGORIES: ReadonlyArray<RefusalCategory> = [
 ];
 
 const EXPECTED_PERSONAS = [
-  'tenant-resident',
+  'counterparty-resident',
   'estate-manager',
   'owner-advisor',
   'org-admin',
@@ -85,7 +85,7 @@ describe('CAPABILITY_CARDS', () => {
 
 describe('renderCapabilityCardMarkdown', () => {
   const tenantCard = CAPABILITY_CARDS.find(
-    (c) => c.personaId === 'tenant-resident',
+    (c) => c.personaId === 'counterparty-resident',
   )!;
 
   it('produces a markdown doc with the expected sections', () => {

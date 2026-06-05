@@ -105,7 +105,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
       >
         <input
           {...register('question')}
-          placeholder="What does the licence say about annual rent?"
+          placeholder="What does the licence say about the annual royalty?"
           className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-warning"
         />
         <button

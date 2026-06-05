@@ -12,7 +12,7 @@
  *      proposals (continue/block/abandon) + emits one `goal_stalled`
  *      event.
  *   5. runStallDetection threshold — fresh goal does NOT stall.
- *   6. Property-management cadence: maintenance 7d, lease-renewal 30d,
+ *   6. Mining-estate cadence: maintenance 7d, offtake-renewal 30d,
  *      payment-chase 14d each trigger correctly at their thresholds.
  *   7. Block reason inference — picks the latest failed audit row's
  *      error message when present.
@@ -61,15 +61,15 @@ function makeGoalsPort(goals: ReadonlyArray<Goal>): Pick<GoalsPort, 'list'> {
 }
 
 describe('categoriseGoal', () => {
-  it('lease/renewal/tenancy → lease-renewal', () => {
+  it('lease/renewal/tenancy → offtake-renewal', () => {
     expect(
       categoriseGoal(makeGoal({ title: 'Renewal review for A-101' })),
-    ).toBe('lease-renewal');
+    ).toBe('offtake-renewal');
     expect(
       categoriseGoal(
         makeGoal({ title: 'wake-tenancy hand-off', description: '' }),
       ),
-    ).toBe('lease-renewal');
+    ).toBe('offtake-renewal');
   });
 
   it('arrears/payment/rent → payment-chase', () => {
@@ -85,7 +85,7 @@ describe('categoriseGoal', () => {
               id: 's_1',
               seq: 1,
               description: 'send reminder',
-              toolName: 'rent.send-reminder',
+              toolName: 'royalty.send-reminder',
               toolPayload: null,
               status: 'pending',
               startedAt: null,
@@ -117,7 +117,7 @@ describe('categoriseGoal', () => {
 
 describe('thresholdFor', () => {
   it('returns built-in defaults per category', () => {
-    expect(thresholdFor('lease-renewal')).toBe(30);
+    expect(thresholdFor('offtake-renewal')).toBe(30);
     expect(thresholdFor('maintenance')).toBe(7);
     expect(thresholdFor('payment-chase')).toBe(14);
     expect(thresholdFor('default')).toBe(7);
@@ -288,7 +288,7 @@ describe('runStallDetection', () => {
     expect(out.stalled[0]?.threshold).toBe(14);
   });
 
-  it('triggers correctly at lease-renewal 30d boundary', async () => {
+  it('triggers correctly at offtake-renewal 30d boundary', async () => {
     const thirtyOneDaysAgo = new Date('2026-04-13T00:00:00Z').toISOString();
     const goal = makeGoal({
       title: 'Renewal review for A-101',
@@ -302,7 +302,7 @@ describe('runStallDetection', () => {
       },
     );
     expect(out.stalled).toHaveLength(1);
-    expect(out.stalled[0]?.category).toBe('lease-renewal');
+    expect(out.stalled[0]?.category).toBe('offtake-renewal');
   });
 
   it('block proposal carries the latest failed audit row error message', async () => {

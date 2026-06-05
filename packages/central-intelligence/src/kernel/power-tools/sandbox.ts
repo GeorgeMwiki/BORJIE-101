@@ -192,15 +192,16 @@ export function createSandboxPowerTool(
 
 /**
  * Map the power-tool's tier ladder onto F7's 4-step `SandboxTier`. The
- * power-tool tier list has 6 entries (tenant-resident → sovereign-admin);
- * F7 only cares about 4 cap levels. Anything below `owner-advisor`
- * collapses to `free`, sovereign tiers collapse to `sovereign`. The
- * power-tool's `requiredTier` already blocks tenant-resident, so the
- * `free` row here is only reachable via mis-wiring.
+ * power-tool tier list has 6 entries (counterparty-resident →
+ * sovereign-admin); F7 only cares about 4 cap levels. Anything below
+ * `owner-advisor` collapses to `free`, sovereign tiers collapse to
+ * `sovereign`. The power-tool's `requiredTier` already blocks
+ * counterparty-resident, so the `free` row here is only reachable via
+ * mis-wiring.
  */
 function mapPowerToolTierToSandboxTier(tier: PowerToolTier): SandboxTier {
   switch (tier) {
-    case 'tenant-resident':
+    case 'counterparty-resident':
       return 'free';
     case 'owner-advisor':
       return 'pro';

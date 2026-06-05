@@ -102,8 +102,8 @@ services:
   # The following packages under services/ are PURE LIBRARIES in this
   # workspace. They export modules but DO NOT start an HTTP server:
   #
-  #   identity, notifications, payments, document-intelligence,
-  #   webhooks, domain-services, reports (library surface)
+  #   identity, notifications, payments, webhooks, domain-services,
+  #   reports (library surface)
   #
   # They are consumed in-process by api-gateway. Running them as standalone
   # containers would boot, load modules, then immediately exit — there is

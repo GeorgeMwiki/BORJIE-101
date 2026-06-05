@@ -77,12 +77,26 @@ const KNOWN_SCOPES = new Set([
 // Helpers
 // ============================================================================
 
-/** Generate an 8-char user_code from the unambiguous alphabet. */
+/** Generate an 8-char user_code from the unambiguous alphabet.
+ *
+ * Uses rejection sampling to eliminate modulo bias.  The alphabet length
+ * (31) does not divide 256 evenly (256 % 31 = 8), so a naive `byte % 31`
+ * gives the first 8 characters double probability.  We discard bytes >=
+ * floor(256/31)*31 = 248 and draw fresh ones — the expected extra draws
+ * per character is < 3 % (8/256), imperceptible at this scale.
+ */
 function generateUserCode(): string {
-  const bytes = randomBytes(USER_CODE_LEN);
+  const len = USER_CODE_ALPHABET.length;
+  // Largest multiple of `len` that fits in a byte — values >= this are biased.
+  const ceiling = Math.floor(256 / len) * len;
   let out = '';
-  for (let i = 0; i < USER_CODE_LEN; i += 1) {
-    out += USER_CODE_ALPHABET[bytes[i]! % USER_CODE_ALPHABET.length];
+  while (out.length < USER_CODE_LEN) {
+    const buf = randomBytes(USER_CODE_LEN - out.length + 4); // small headroom
+    for (let i = 0; i < buf.length && out.length < USER_CODE_LEN; i += 1) {
+      const b = buf[i]!;
+      if (b >= ceiling) continue; // reject biased byte
+      out += USER_CODE_ALPHABET[b % len];
+    }
   }
   // Insert a dash in the middle so it reads as "ABCD-EFGH".
   return `${out.slice(0, 4)}-${out.slice(4)}`;

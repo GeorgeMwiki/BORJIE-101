@@ -29,7 +29,7 @@ describe('computeDelta', () => {
     const d = computeDelta(
       {
         id: 'p2',
-        metric: 'occupancy',
+        metric: 'utilisation',
         band: { t: 0, p10: 0.7, p50: 0.8, p90: 0.85 },
         createdAtMs: 0,
       },
@@ -58,7 +58,7 @@ describe('lessonFromDelta', () => {
     const d = computeDelta(
       {
         id: 'p4',
-        metric: 'noi',
+        metric: 'net_margin',
         band: { t: 0, p10: 1000, p50: 1200, p90: 1400 },
         createdAtMs: 0,
       },
@@ -66,7 +66,7 @@ describe('lessonFromDelta', () => {
     );
     const lesson = lessonFromDelta(d, 12345);
     expect(lesson).not.toBeNull();
-    expect(lesson?.forMetric).toBe('noi');
+    expect(lesson?.forMetric).toBe('net_margin');
     expect(lesson?.summary).toContain('underestimated');
     expect(lesson?.createdAt).toBe(12345);
   });
@@ -169,8 +169,8 @@ describe('computeDelta — H2 relativeError denominator', () => {
     // and the model would never learn it was systematically under-predicting.
     const d = computeDelta(
       {
-        id: 'arrears-healthy-prop',
-        metric: 'arrears',
+        id: 'outstanding-royalties-healthy-unit',
+        metric: 'outstanding_royalties',
         band: { t: 0, p10: -1, p50: 0, p90: 1 },
         createdAtMs: 0,
       },
@@ -186,7 +186,7 @@ describe('computeDelta — H2 relativeError denominator', () => {
     const d = computeDelta(
       {
         id: 'zero-vs-zero',
-        metric: 'arrears',
+        metric: 'outstanding_royalties',
         band: { t: 0, p10: 0, p50: 0, p90: 0 },
         createdAtMs: 0,
       },

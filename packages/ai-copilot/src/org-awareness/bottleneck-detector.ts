@@ -43,7 +43,7 @@ export interface BottleneckDetectorDeps {
 
 const ALL_PROCESS_KINDS: readonly ProcessKind[] = [
   'maintenance_case',
-  'lease_renewal',
+  'offtake_renewal',
   'arrears_case',
   'payment_reconcile',
   'approval_decision',

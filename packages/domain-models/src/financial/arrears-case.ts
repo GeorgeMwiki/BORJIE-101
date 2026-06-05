@@ -1,6 +1,8 @@
 /**
- * Arrears Case domain model
- * Tracks overdue accounts and collection actions
+ * Outstanding-royalties (arrears) case domain model
+ * Tracks counterparties with overdue royalty / payment balances and the
+ * collection actions taken against them. "Arrears" here means the
+ * outstanding royalties / payments owed under an offtake agreement.
  */
 
 import { z } from 'zod';

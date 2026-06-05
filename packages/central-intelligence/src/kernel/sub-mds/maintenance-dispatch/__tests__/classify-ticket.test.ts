@@ -15,74 +15,74 @@ const URGENCY_RANK: Record<TicketUrgency, number> = { low: 0, medium: 1, high: 2
  * 50+ labelled cases mixing English, Swahili, and noisy free-text.
  */
 const CASES: ReadonlyArray<Case> = [
-  // PLUMBING — 10
-  { text: 'Water main burst in the basement, flooding fast', expectedCategory: 'plumbing', expectedUrgencyAtLeast: 'emergency' },
-  { text: 'Bomba kuu limepasuka, maji mengi yanavuja sana', expectedCategory: 'plumbing', expectedUrgencyAtLeast: 'emergency' },
-  { text: 'No hot water in the apartment since yesterday', expectedCategory: 'plumbing', expectedUrgencyAtLeast: 'high' },
-  { text: 'Hakuna maji ya moto tangu jana', expectedCategory: 'plumbing', expectedUrgencyAtLeast: 'high' },
-  { text: 'Kitchen sink is leaking under the cabinet', expectedCategory: 'plumbing' },
-  { text: 'Choo kimeziba tena, tafadhali nisaidie', expectedCategory: 'plumbing' },
-  { text: 'Toilet blocked, water rising', expectedCategory: 'plumbing' },
-  { text: 'Mfereji wa bafu unavuja, samahani', expectedCategory: 'plumbing' },
-  { text: 'Dripping tap in master bathroom for two weeks', expectedCategory: 'plumbing' },
-  { text: 'Water heater not working, hakuna maji ya moto', expectedCategory: 'plumbing', expectedUrgencyAtLeast: 'high' },
+  // PUMPING — 10
+  { text: 'Pit flooding fast, water rising in the pit', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'emergency' },
+  { text: 'Shimo limejaa maji, pampu kuu imekufa', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'emergency' },
+  { text: 'Slurry pump down at the wash plant since yesterday', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'high' },
+  { text: 'Pampu ya maji haifanyi, no pumping at all', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'high' },
+  { text: 'Borehole pump tripping intermittently', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'high' },
+  { text: 'Pump leak at the seal in the sump', expectedCategory: 'pumping' },
+  { text: 'Pampu inavuja kwenye sili', expectedCategory: 'pumping' },
+  { text: 'Pump impeller worn, low flow', expectedCategory: 'pumping' },
+  { text: 'Dripping pump gland, needs attention', expectedCategory: 'pumping' },
+  { text: 'Dewatering pump failed overnight, urgent', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'emergency' },
 
   // ELECTRICAL — 8
-  { text: 'Cheche za umeme zinatoka sketi, hatari!', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'emergency' },
-  { text: 'Electrical fire in the kitchen socket, sparks everywhere', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'emergency' },
-  { text: 'Umeme umekatika ghorofa nzima', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'high' },
-  { text: 'No power in the building since this morning', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'high' },
-  { text: 'Breaker keeps tripping every time I use the kettle', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'high' },
-  { text: 'Bulb in living room burned out', expectedCategory: 'electrical' },
-  { text: 'Taa ya jikoni haifanyi kazi', expectedCategory: 'electrical' },
-  { text: 'Plug socket loose in bedroom', expectedCategory: 'electrical' },
+  { text: 'Cheche za umeme zinatoka panel, hatari!', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'emergency' },
+  { text: 'Electrical fire at the switchgear, sparks everywhere', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'emergency' },
+  { text: 'Umeme umekatika site nzima', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'high' },
+  { text: 'No power at the plant since this morning', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'high' },
+  { text: 'Breaker keeps tripping on the main feeder', expectedCategory: 'electrical', expectedUrgencyAtLeast: 'high' },
+  { text: 'Cable damaged in the substation', expectedCategory: 'electrical' },
+  { text: 'Motor not starting on the conveyor drive', expectedCategory: 'electrical' },
+  { text: 'Isolator faulty in the MCC room', expectedCategory: 'electrical' },
 
-  // HVAC / GAS — 5
-  { text: 'I smell gas in the kitchen, harufu kali ya gesi', expectedCategory: 'hvac', expectedUrgencyAtLeast: 'high' },
-  { text: 'Gas leak from the cooker, very strong smell', expectedCategory: 'hvac', expectedUrgencyAtLeast: 'high' },
-  { text: 'AC not cooling at all, very hot', expectedCategory: 'hvac' },
-  { text: 'Kiyoyozi hakifanyi kazi tena', expectedCategory: 'hvac' },
-  { text: 'Heater not working in bedroom', expectedCategory: 'hvac' },
+  // HYDRAULICS — 5
+  { text: 'Hydraulic hose burst on the excavator boom', expectedCategory: 'hydraulics', expectedUrgencyAtLeast: 'high' },
+  { text: 'Mafuta ya haidroliki yanavuja, ram leaking', expectedCategory: 'hydraulics', expectedUrgencyAtLeast: 'high' },
+  { text: 'Boom will not lift on the loader', expectedCategory: 'hydraulics', expectedUrgencyAtLeast: 'high' },
+  { text: 'Hydraulic cylinder seeping oil', expectedCategory: 'hydraulics' },
+  { text: 'Hose chafing near the ram', expectedCategory: 'hydraulics' },
 
-  // APPLIANCE — 5
-  { text: 'Fridge not cooling, food going bad', expectedCategory: 'appliance' },
-  { text: 'Friji haifanyi kazi vizuri, chakula kinaharibika', expectedCategory: 'appliance' },
-  { text: 'Oven not heating up', expectedCategory: 'appliance' },
-  { text: 'Washing machine making strange noise', expectedCategory: 'appliance' },
-  { text: 'Microwave stopped working completely', expectedCategory: 'appliance' },
+  // PROCESSING — 5
+  { text: 'Crusher jammed, production stopped', expectedCategory: 'processing', expectedUrgencyAtLeast: 'high' },
+  { text: 'Kisagaji kimekwama, ball mill stopped', expectedCategory: 'processing', expectedUrgencyAtLeast: 'high' },
+  { text: 'Wash plant down, screen blocked', expectedCategory: 'processing', expectedUrgencyAtLeast: 'high' },
+  { text: 'Mill liner worn on the ball mill', expectedCategory: 'processing' },
+  { text: 'Conveyor belt torn at the crusher discharge', expectedCategory: 'processing' },
+
+  // VEHICLE — 5
+  { text: 'Haul truck engine overheating on the ramp', expectedCategory: 'vehicle' },
+  { text: 'Excavator engine knocking, lori halifanyi', expectedCategory: 'vehicle' },
+  { text: 'Loader tyre flat at the stockpile', expectedCategory: 'vehicle' },
+  { text: 'Dozer not starting this morning', expectedCategory: 'vehicle' },
+  { text: 'Tipper gari brakes spongy, fleet check', expectedCategory: 'vehicle' },
 
   // STRUCTURAL — 5
-  { text: 'Ceiling collapsed in the hallway, urgent!', expectedCategory: 'structural', expectedUrgencyAtLeast: 'high' },
-  { text: 'Paa limeanguka ukumbini, haraka tafadhali', expectedCategory: 'structural', expectedUrgencyAtLeast: 'high' },
-  { text: 'Big crack in the wall, getting wider', expectedCategory: 'structural', expectedUrgencyAtLeast: 'high' },
-  { text: 'Front door broken, will not close', expectedCategory: 'structural' },
-  { text: 'Dirisha la bafu limevunjika', expectedCategory: 'structural' },
+  { text: 'Ramp collapse risk, ground subsidence, urgent!', expectedCategory: 'structural', expectedUrgencyAtLeast: 'high' },
+  { text: 'Retaining wall crack getting wider, ukuta umepasuka', expectedCategory: 'structural', expectedUrgencyAtLeast: 'high' },
+  { text: 'Headframe member bent, big crack at the base', expectedCategory: 'structural', expectedUrgencyAtLeast: 'high' },
+  { text: 'Front gate broken, will not close', expectedCategory: 'structural' },
+  { text: 'Perimeter fence down near the magazine', expectedCategory: 'structural' },
 
-  // PEST — 5
-  { text: 'Lots of cockroaches in the kitchen', expectedCategory: 'pest' },
-  { text: 'Mende wengi sana jikoni', expectedCategory: 'pest' },
-  { text: 'Rats in the storeroom, panya wameingia', expectedCategory: 'pest' },
-  { text: 'Bedbugs in the bedroom, kunguni wamenikalia', expectedCategory: 'pest' },
-  { text: 'Termite damage in the wooden floor, mchwa', expectedCategory: 'pest' },
+  // SAFETY — 5
+  { text: 'Gas detector down in the decline, methane alarm not working', expectedCategory: 'safety', expectedUrgencyAtLeast: 'high' },
+  { text: 'Ventilation fan down underground, feni ya hewa imezimika', expectedCategory: 'safety', expectedUrgencyAtLeast: 'high' },
+  { text: 'Fire suppression system fault on the genset', expectedCategory: 'safety', expectedUrgencyAtLeast: 'high' },
+  { text: 'Emergency stop not latching on the crusher', expectedCategory: 'safety', expectedUrgencyAtLeast: 'high' },
+  { text: 'Kigunduzi cha gesi hakifanyi kazi', expectedCategory: 'safety', expectedUrgencyAtLeast: 'high' },
 
-  // COSMETIC — 5
-  { text: 'Wall needs a fresh coat of paint', expectedCategory: 'cosmetic', expectedUrgencyAtMost: 'medium' },
-  { text: 'Rangi ya ukuta imechakaa, when possible', expectedCategory: 'cosmetic', expectedUrgencyAtMost: 'low' },
-  { text: 'Scuff mark on living room wall', expectedCategory: 'cosmetic', expectedUrgencyAtMost: 'medium' },
-  { text: 'Deep cleaning needed in apartment', expectedCategory: 'cosmetic' },
-  { text: 'Doa ukutani la kahawa', expectedCategory: 'cosmetic' },
-
-  // SECURITY — 5
-  { text: 'There was a break-in last night, lock broken', expectedCategory: 'security', expectedUrgencyAtLeast: 'high' },
-  { text: 'Lango la mbele limevunjika, hatari', expectedCategory: 'security', expectedUrgencyAtLeast: 'high' },
-  { text: 'CCTV camera in the corridor not working', expectedCategory: 'security' },
-  { text: 'Alarm system keeps going off randomly', expectedCategory: 'security' },
-  { text: 'Wameingia ndani, broken lock kwa mlango wa nyuma', expectedCategory: 'security', expectedUrgencyAtLeast: 'high' },
+  // GENERAL — 5
+  { text: 'Signage at the gate needs a fresh coat of paint', expectedCategory: 'general', expectedUrgencyAtMost: 'medium' },
+  { text: 'Rangi ya ofisi imechakaa, when possible', expectedCategory: 'general', expectedUrgencyAtMost: 'low' },
+  { text: 'Housekeeping in the change house, no rush', expectedCategory: 'general', expectedUrgencyAtMost: 'low' },
+  { text: 'Deep cleaning needed in the canteen', expectedCategory: 'general' },
+  { text: 'Office signage faded', expectedCategory: 'general' },
 
   // EXTRA edge cases — 3
-  { text: 'Tap dripping, no rush', expectedCategory: 'plumbing', expectedUrgencyAtMost: 'low' },
-  { text: 'Urgent emergency now: flooding apartment from upstairs', expectedCategory: 'plumbing', expectedUrgencyAtLeast: 'emergency' },
-  { text: 'Lights flickering on and off in hallway', expectedCategory: 'electrical' },
+  { text: 'Pump dripping, no rush', expectedCategory: 'pumping', expectedUrgencyAtMost: 'low' },
+  { text: 'Urgent emergency now: pit flooding from the upper bench', expectedCategory: 'pumping', expectedUrgencyAtLeast: 'emergency' },
+  { text: 'Motor not starting on the screen drive', expectedCategory: 'electrical' },
 ];
 
 function isAtLeast(a: TicketUrgency, b: TicketUrgency): boolean {
@@ -117,17 +117,17 @@ describe('classifyTicket — accuracy harness', () => {
   });
 
   it('detects Swahili language on heavy-Swahili input', () => {
-    const r = classifyTicket('Bomba kuu limepasuka, maji mengi yanavuja sana, tafadhali haraka');
+    const r = classifyTicket('Shimo limejaa maji, pampu kuu imekufa, tafadhali haraka');
     expect(r.detectedLanguage === 'sw' || r.detectedLanguage === 'mixed').toBe(true);
   });
 
   it('detects English on heavy-English input', () => {
-    const r = classifyTicket('The kitchen sink in the apartment is leaking under the cabinet');
+    const r = classifyTicket('The slurry pump at the wash plant is leaking under the bearing');
     expect(r.detectedLanguage).toBe('en');
   });
 
   it('returns rationale and required skills', () => {
-    const r = classifyTicket('Toilet blocked, water rising fast');
+    const r = classifyTicket('Crusher jammed, production stopped fast');
     expect(r.requiredSkills.length).toBeGreaterThanOrEqual(1);
     expect(r.rationale.length).toBeGreaterThan(0);
   });

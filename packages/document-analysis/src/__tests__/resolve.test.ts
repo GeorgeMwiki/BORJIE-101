@@ -38,8 +38,8 @@ describe('resolveEntities — exact + fuzzy', () => {
   it('resolves an exact name match', async () => {
     const resolver = new InMemoryEntityResolver();
     resolver.seed('tenant-a', [
-      { entityId: 'lessee-001', displayName: 'Asha Mwangi' },
-      { entityId: 'lessee-002', displayName: 'Patricia Mwafula' },
+      { entityId: 'buyer-001', displayName: 'Asha Mwangi' },
+      { entityId: 'buyer-002', displayName: 'Patricia Mwafula' },
     ]);
     const out = await resolveEntities(
       'tenant-a',
@@ -51,7 +51,7 @@ describe('resolveEntities — exact + fuzzy', () => {
       ],
       resolver,
     );
-    expect(out[0]?.resolvedEntityId).toBe('lessee-001');
+    expect(out[0]?.resolvedEntityId).toBe('buyer-001');
     expect(out[0]?.resolutionMethod).toBe('exact_match');
     expect(out[0]?.resolutionConfidence).toBe(1);
   });
@@ -59,7 +59,7 @@ describe('resolveEntities — exact + fuzzy', () => {
   it('resolves a fuzzy match (case + typo)', async () => {
     const resolver = new InMemoryEntityResolver();
     resolver.seed('tenant-a', [
-      { entityId: 'lessee-001', displayName: 'Asha Mwangi' },
+      { entityId: 'buyer-001', displayName: 'Asha Mwangi' },
     ]);
     const out = await resolveEntities(
       'tenant-a',
@@ -71,7 +71,7 @@ describe('resolveEntities — exact + fuzzy', () => {
       ],
       resolver,
     );
-    expect(out[0]?.resolvedEntityId).toBe('lessee-001');
+    expect(out[0]?.resolvedEntityId).toBe('buyer-001');
     expect(out[0]?.resolutionMethod).toBe('fuzzy');
     expect(out[0]?.resolutionConfidence).toBeGreaterThan(0.75);
   });
@@ -79,7 +79,7 @@ describe('resolveEntities — exact + fuzzy', () => {
   it('flags HITL when nobody matches well', async () => {
     const resolver = new InMemoryEntityResolver();
     resolver.seed('tenant-a', [
-      { entityId: 'lessee-001', displayName: 'Joseph Kibwana' },
+      { entityId: 'buyer-001', displayName: 'Joseph Kibwana' },
     ]);
     const out = await resolveEntities(
       'tenant-a',
@@ -128,7 +128,7 @@ describe('resolveEntities — exact + fuzzy', () => {
   it('keeps tenants isolated', async () => {
     const resolver = new InMemoryEntityResolver();
     resolver.seed('tenant-a', [
-      { entityId: 'lessee-001', displayName: 'Asha Mwangi' },
+      { entityId: 'buyer-001', displayName: 'Asha Mwangi' },
     ]);
     // tenant-b: nothing seeded.
     const out = await resolveEntities(

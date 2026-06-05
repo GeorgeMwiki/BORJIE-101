@@ -90,7 +90,7 @@ describe('createProject — tier gate', () => {
       description: 'with details',
       customInstructions: 'always cite sources',
       memoryScopeId: 'mn_42',
-      moduleScope: ['maintenance', 'leasing'],
+      moduleScope: ['maintenance', 'offtake'],
       pinned: true,
       idGenerator,
       repository,
@@ -98,7 +98,7 @@ describe('createProject — tier gate', () => {
     expect(p.description).toBe('with details');
     expect(p.customInstructions).toBe('always cite sources');
     expect(p.memoryScopeId).toBe('mn_42');
-    expect([...(p.moduleScope ?? [])]).toEqual(['maintenance', 'leasing']);
+    expect([...(p.moduleScope ?? [])]).toEqual(['maintenance', 'offtake']);
     expect(p.pinned).toBe(true);
   });
 });

@@ -74,10 +74,10 @@ describe('runSoT — skeleton-of-thought mobile FMP path', () => {
     const clock = makeVirtualClock();
     const skeleton = tieredModel(150, () =>
       JSON.stringify([
-        'Q2 occupancy',
+        'Q2 production',
         'Top-line revenue',
         'Maintenance spend',
-        'Tenant churn',
+        'Counterparty churn',
         'Forecast for Q3',
       ]),
       clock,
@@ -91,7 +91,7 @@ describe('runSoT — skeleton-of-thought mobile FMP path', () => {
     const synthesis = tieredModel(200, () => 'Stitched final briefing.', clock);
     const events: SoTEvent[] = [];
     const result = await runSoT({
-      question: 'Give me a Q2 owner briefing for property 12B',
+      question: 'Give me a Q2 owner briefing for site 12B',
       skeletonModel: skeleton.adapter,
       pointModel,
       synthesisModel: synthesis.adapter,

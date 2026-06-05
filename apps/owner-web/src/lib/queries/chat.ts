@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
-import type { CeoModeId } from '@/lib/ceo-modes';
 import type { Locale } from '@/lib/locale-shared';
 import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import { streamSse } from '@/lib/sse-stream';
@@ -22,7 +21,6 @@ export interface ChatState {
 
 export interface SendOptions {
   readonly content: string;
-  readonly mode: CeoModeId;
 }
 
 /**
@@ -68,7 +66,7 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
   }, [abort]);
 
   const send = useCallback(
-    async ({ content, mode }: SendOptions): Promise<void> => {
+    async ({ content }: SendOptions): Promise<void> => {
       const trimmed = content.trim();
       if (!trimmed) return;
       abortRef.current?.abort();
@@ -81,7 +79,6 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
         content: trimmed,
         evidenceIds: [],
         breadcrumbs: [],
-        mode,
         createdAt: new Date().toISOString(),
       };
       setState((prev) => ({
@@ -101,7 +98,7 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
       try {
         for await (const ev of streamSse({
           path: '/api/v1/mining/chat',
-          body: { message: trimmed, mode, language },
+          body: { message: trimmed, language },
           signal: controller.signal,
         })) {
           sawAny = true;
@@ -137,7 +134,6 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
           content: acc || '…',
           evidenceIds,
           breadcrumbs,
-          mode,
           createdAt: new Date().toISOString(),
         };
         setState((prev) => ({

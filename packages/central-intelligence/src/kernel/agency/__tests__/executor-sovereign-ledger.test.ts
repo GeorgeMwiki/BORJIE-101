@@ -118,19 +118,19 @@ function denyListNamedTool(): ActionToolDef<
   // Use the first deny-list entry — stake intentionally NOT critical so
   // the deny-list path is the only thing that flips this to sovereign.
   return {
-    name: 'tenant-eviction-proposed',
+    name: 'licence-suspension-proposed',
     description: 'Deny-listed sovereign-tier action with non-critical stakes.',
     stakes: 'high',
     inputSchema: {},
     async invoke() {
-      return { ok: false as const, message: 'eviction service unavailable' };
+      return { ok: false as const, message: 'licence-suspension service unavailable' };
     },
   };
 }
 
 function lowStakesTool(): ActionToolDef<Record<string, unknown>, { id: string }> {
   return {
-    name: 'rent.send-reminder-stub',
+    name: 'royalty.send-reminder-stub',
     description: 'Low-stakes tool — must NOT hit the ledger.',
     stakes: 'low',
     inputSchema: {},
@@ -146,10 +146,10 @@ describe('createExecutor — sovereign action ledger', () => {
   it('isSovereignTier flags critical stakes AND deny-list names', () => {
     expect(isSovereignTier({ name: 'arbitrary', stakes: 'critical' })).toBe(true);
     expect(
-      isSovereignTier({ name: 'tenant-eviction-proposed', stakes: 'high' }),
+      isSovereignTier({ name: 'licence-suspension-proposed', stakes: 'high' }),
     ).toBe(true);
     expect(
-      isSovereignTier({ name: 'rent.send-reminder', stakes: 'low' }),
+      isSovereignTier({ name: 'royalty.send-reminder', stakes: 'low' }),
     ).toBe(false);
     expect(SOVEREIGN_TIER_ACTION_NAMES.length).toBeGreaterThan(0);
   });
@@ -233,9 +233,9 @@ describe('createExecutor — sovereign action ledger', () => {
     expect(out.stepsFailed).toBe(1);
     expect(ledger.calls).toHaveLength(1);
     const entry = ledger.calls[0];
-    expect(entry?.actionType).toBe('tenant-eviction-proposed');
+    expect(entry?.actionType).toBe('licence-suspension-proposed');
     expect(entry?.payloadJson.outcome).toBe('failure');
-    expect(entry?.payloadJson.error).toBe('eviction service unavailable');
+    expect(entry?.payloadJson.error).toBe('licence-suspension service unavailable');
     expect(entry?.payloadJson.output).toBeNull();
   });
 

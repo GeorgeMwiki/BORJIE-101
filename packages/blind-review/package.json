@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/blind-review",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Blind-review indistinguishability panel (LP-16 / PO-22, M5 milestone). Anonymize -> shuffle -> N-reviewer Turing-style panel over marginal mining licence/royalty/payout decisions, with an accuracy<=0.55 indistinguishability bar. Pure functions, deterministic seeds, no live I/O. Ported from LITFIN security/blind-review, re-skinned to mining.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

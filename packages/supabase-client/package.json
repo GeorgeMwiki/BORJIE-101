@@ -23,11 +23,12 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
+    "ws": "^8.20.1",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/node": "^25.8.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "@types/node": "^25.8.0"
+    "vitest": "^4.1.6"
   }
 }

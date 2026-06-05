@@ -9,8 +9,8 @@
 #     -t borjie/payments-ledger:dev .
 #
 # NOTE: Several "services/*" packages in this workspace are pure libraries
-# (identity, notifications, payments, document-intelligence, webhooks,
-# domain-services). They export modules but do NOT start an HTTP server and
+# (identity, notifications, payments, webhooks, domain-services). They
+# export modules but do NOT start an HTTP server and
 # therefore cannot be run as standalone containers with this Dockerfile —
 # they're consumed in-process by the api-gateway. Only services with a real
 # HTTP/CRON entrypoint should be built here (currently: payments-ledger,

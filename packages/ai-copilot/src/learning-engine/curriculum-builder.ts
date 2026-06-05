@@ -2,7 +2,7 @@
  * Curriculum Builder — assembles a dynamic curriculum for a user.
  *
  * Inputs:
- *   - user's role (owner, tenant, estate-officer, admin, station-master)
+ *   - user's role (owner, counterparty, estate-officer, admin, station-master)
  *   - portfolio context (e.g. size, countries, has-arrears-cases)
  *   - concepts-catalog from ai-copilot/classroom
  *
@@ -14,7 +14,7 @@ import { ESTATE_CONCEPTS, type Concept } from '../classroom/concepts-catalog.js'
 
 export type CurriculumRole =
   | 'owner'
-  | 'tenant'
+  | 'counterparty'
   | 'estate-officer'
   | 'admin'
   | 'station-master';
@@ -53,7 +53,7 @@ const ROLE_CATEGORY_WEIGHT: Readonly<
     operations: 0.4,
     strategy: 1.0,
   },
-  tenant: {
+  counterparty: {
     financial: 0.5,
     tenancy: 1.0,
     compliance: 0.2,

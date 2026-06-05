@@ -48,13 +48,13 @@ compliancePluginsRouter.get('/', (c) => {
       kind: gateway.kind,
     })),
     compliance: {
-      minDepositMonths: plugin.compliance.minDepositMonths,
-      maxDepositMonths: plugin.compliance.maxDepositMonths,
+      minBondMonths: plugin.compliance.minBondMonths,
+      maxBondMonths: plugin.compliance.maxBondMonths,
       noticePeriodDays: plugin.compliance.noticePeriodDays,
-      minimumLeaseMonths: plugin.compliance.minimumLeaseMonths,
-      subleaseConsent: plugin.compliance.subleaseConsent,
+      minimumTermMonths: plugin.compliance.minimumTermMonths,
+      subSupplyConsent: plugin.compliance.subSupplyConsent,
       lateFeeCapRate: plugin.compliance.lateFeeCapRate,
-      depositReturnDays: plugin.compliance.depositReturnDays,
+      bondReturnDays: plugin.compliance.bondReturnDays,
     },
   }));
 

@@ -2,7 +2,11 @@
  * Extended scenarios — expands the golden set toward the 200-scenario target.
  *
  * Each scenario is a structural regression test (not an LLM-quality judgment)
- * covering a real-world estate-management workflow in the Kenyan market.
+ * covering a real-world mining-estate workflow in the Tanzanian market.
+ *
+ * Note: `category` values reuse the `Scenario` union from `scenario.ts`
+ * (e.g. `'leasing'` is the offtake-domain bucket); the user-facing content
+ * (ids, names, prompts, tools) is mining.
  */
 
 import { Scenario } from './scenario.js';
@@ -12,83 +16,83 @@ import { PERSONA_IDS } from '../personas/persona.js';
  * Extended scenarios (~70 additional on top of the 30 in golden-scenarios.ts).
  */
 export const EXTENDED_SCENARIOS: Scenario[] = [
-  // ---------------- Leasing (extended) ----------------
+  // ---------------- Offtake (extended) ----------------
   {
-    id: 'leasing.new_applicant_inquiry',
-    name: 'New applicant inquiry via WhatsApp',
+    id: 'offtake.new_buyer_inquiry',
+    name: 'New buyer inquiry via WhatsApp',
     category: 'leasing',
-    turns: [{ userText: 'A new applicant sent a WhatsApp asking about availability at Block A.' }],
-    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING },
+    turns: [{ userText: 'A new buyer sent a WhatsApp asking about doré availability at the Geita site.' }],
+    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE },
   },
   {
-    id: 'leasing.viewing_no_show_followup',
-    name: 'Viewing no-show follow-up',
+    id: 'offtake.site_visit_no_show_followup',
+    name: 'Site-visit no-show follow-up',
     category: 'leasing',
-    turns: [{ userText: 'Applicant missed viewing yesterday. How should we follow up?' }],
-    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING },
+    turns: [{ userText: 'Buyer missed the site visit yesterday. How should we follow up?' }],
+    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE },
   },
   {
-    id: 'leasing.background_check',
-    name: 'Tenant screening background check',
+    id: 'offtake.counterparty_due_diligence',
+    name: 'Counterparty qualification check',
     category: 'leasing',
-    turns: [{ userText: 'Run a tenant screening check for applicant ID APP-332.' }],
-    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING },
+    turns: [{ userText: 'Run a counterparty qualification check for buyer ID BUY-332.' }],
+    expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE },
   },
   {
-    id: 'leasing.security_deposit_negotiation',
-    name: 'Deposit negotiation request',
+    id: 'offtake.performance_bond_negotiation',
+    name: 'Performance-bond negotiation request',
     category: 'leasing',
     turns: [
-      { userText: 'Applicant for D-4 asks if they can pay deposit in two installments — advise.' },
+      { userText: 'Buyer for consignment D-4 asks if they can post the performance bond in two installments — advise.' },
     ],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
       expectProposedAction: { riskAtLeast: 'MEDIUM' },
     },
   },
   {
-    id: 'leasing.lease_abstract_from_pdf',
-    name: 'Abstract lease from PDF',
+    id: 'offtake.agreement_abstract_from_pdf',
+    name: 'Abstract supply agreement from PDF',
     category: 'leasing',
-    turns: [{ userText: 'Please abstract the lease L-99 I just uploaded (47 data points).' }],
+    turns: [{ userText: 'Please abstract the supply agreement A-99 I just uploaded (47 data points).' }],
     expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_LEASING,
-      expectToolCalls: ['skill.leasing.abstract'],
+      expectInitialPersona: PERSONA_IDS.JUNIOR_OFFTAKE,
+      expectToolCalls: ['skill.offtake.abstract'],
     },
   },
   {
-    id: 'leasing.vacancy_marketing_push',
-    name: 'Multi-unit vacancy push',
+    id: 'offtake.consignment_marketing_push',
+    name: 'Multi-consignment marketing push',
     category: 'leasing',
     turns: [
-      { userText: 'Kilimani has 3 vacancies. Plan leasing activity for the next 2 weeks.' },
+      { userText: 'Geita has 3 unsold consignments. Plan offtake activity for the next 2 weeks.' },
     ],
     expect: { expectProposedAction: { riskAtLeast: 'MEDIUM' } },
   },
 
   // ---------------- Maintenance (extended) ----------------
   {
-    id: 'maintenance.gas_leak_emergency',
-    name: 'Gas leak — emergency',
+    id: 'maintenance.explosives_hazard_emergency',
+    name: 'Explosives hazard — emergency',
     category: 'maintenance',
-    turns: [{ userText: 'Tenant in F-2 smells gas in the kitchen. What do we do?' }],
+    turns: [{ userText: 'A fitter at the magazine reports a damaged detonator store. What do we do?' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE,
       expectProposedAction: { riskAtLeast: 'HIGH' },
     },
   },
   {
-    id: 'maintenance.pest_infestation',
-    name: 'Pest infestation at property',
+    id: 'maintenance.conveyor_belt_fault',
+    name: 'Conveyor belt fault at plant',
     category: 'maintenance',
-    turns: [{ userText: 'Multiple units at Block C are reporting cockroach infestation.' }],
+    turns: [{ userText: 'The main conveyor at the CIL plant keeps tripping out.' }],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE },
   },
   {
-    id: 'maintenance.ac_not_cooling',
-    name: 'AC not cooling',
+    id: 'maintenance.cyclone_underperforming',
+    name: 'Cyclone underperforming',
     category: 'maintenance',
-    turns: [{ userText: 'Unit E-9 reports their AC is not cooling properly.' }],
+    turns: [{ userText: 'The classification cyclone is not cutting at the target size.' }],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE },
   },
   {
@@ -96,7 +100,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Preventive maintenance schedule',
     category: 'maintenance',
     turns: [
-      { userText: 'Schedule preventive maintenance for generators across all 3 properties.' },
+      { userText: 'Schedule preventive maintenance for the generators across all 3 sites.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE },
   },
@@ -105,7 +109,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Work order cost estimate escalation',
     category: 'maintenance',
     turns: [
-      { userText: 'Vendor quoted KES 85,000 for the roof repair. Do we approve?' },
+      { userText: 'Vendor quoted TSh 85,000,000 for the mill-liner replacement. Do we approve?' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE,
@@ -113,11 +117,11 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'maintenance.caretaker_assignment',
-    name: 'Caretaker assignment from team pool',
+    id: 'maintenance.foreman_assignment',
+    name: 'Foreman assignment from team pool',
     category: 'maintenance',
     turns: [
-      { userText: 'Assign the weekly common-area inspections to Block A caretakers.' },
+      { userText: 'Assign the weekly plant inspections to the Geita site foremen.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE },
   },
@@ -126,7 +130,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Recurring issue detection',
     category: 'maintenance',
     turns: [
-      { userText: 'Is there a recurring plumbing problem at Block B? Pull the trend.' },
+      { userText: 'Is there a recurring pump problem at the Kahama site? Pull the trend.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE },
   },
@@ -142,11 +146,11 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
 
   // ---------------- Finance (extended) ----------------
   {
-    id: 'finance.mpesa_phone_fallback',
-    name: 'M-Pesa phone fallback matching',
+    id: 'finance.gepg_phone_fallback',
+    name: 'GePG phone fallback matching',
     category: 'finance',
     turns: [
-      { userText: 'Payment from 0712345678 matches no account ref — reconcile by phone.' },
+      { userText: 'Payment from 0712345678 matches no control number — reconcile by phone.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
@@ -155,20 +159,20 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
   },
   {
     id: 'finance.owner_statement_monthly',
-    name: 'Monthly owner statement for Mwangi',
+    name: 'Monthly owner statement for Mwita',
     category: 'finance',
-    turns: [{ userText: 'Draft March 2026 statement for owner Mwangi and email it.' }],
+    turns: [{ userText: 'Draft March 2026 statement for owner Mwita and email it.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
       expectToolCalls: ['skill.finance.draft_owner_statement'],
     },
   },
   {
-    id: 'finance.deposit_refund',
-    name: 'Deposit refund on move-out',
+    id: 'finance.bond_refund',
+    name: 'Performance-bond refund on dispatch',
     category: 'finance',
     turns: [
-      { userText: 'Tenant in B-6 moved out. Deposit was KES 60,000; deduct KES 8,000 damages.' },
+      { userText: 'Buyer for consignment B-6 collected the lot. Bond was TSh 60,000,000; deduct TSh 8,000,000 shortfall.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
@@ -180,7 +184,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Write off bad debt — CRITICAL review',
     category: 'finance',
     turns: [
-      { userText: 'Write off KES 220,000 bad debt for abscondee tenant T-88.' },
+      { userText: 'Write off TSh 220,000,000 bad debt for defaulting buyer B-88.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
@@ -189,11 +193,11 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'finance.service_charge_overshoot',
-    name: 'Service charge overshoot alert',
+    id: 'finance.cooperative_levy_overshoot',
+    name: 'Cooperative-levy overshoot alert',
     category: 'finance',
     turns: [
-      { userText: 'Security category went 20% over budget this month at Kilimani. Investigate.' },
+      { userText: 'The security category went 20% over budget this month at the Chunya cooperative. Investigate.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
@@ -201,23 +205,23 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'finance.kra_threshold_breach',
-    name: 'KRA annual threshold breach',
+    id: 'finance.tra_threshold_breach',
+    name: 'TRA annual threshold check',
     category: 'finance',
     turns: [
-      { userText: 'Is owner Wanjiku projected to exceed the KRA MRI threshold this year?' },
+      { userText: 'Is owner Wanjiku projected to exceed the TRA royalty-reporting threshold this year?' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.kenya.kra_rental_summary'],
+      expectToolCalls: ['skill.kenya.tra_royalty_summary'],
     },
   },
   {
-    id: 'finance.stratified_arrears',
-    name: 'Stratified arrears pipeline',
+    id: 'finance.stratified_outstanding_royalties',
+    name: 'Stratified outstanding-royalty pipeline',
     category: 'finance',
     turns: [
-      { userText: 'Stratify all tenants in arrears — gentle, firm, legal — and draft notices.' },
+      { userText: 'Stratify all buyers with outstanding royalties — gentle, firm, legal — and draft notices.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
@@ -227,10 +231,10 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
   },
   {
     id: 'finance.payment_plan_proposal',
-    name: 'Payment plan for struggling tenant',
+    name: 'Payment plan for struggling buyer',
     category: 'finance',
     turns: [
-      { userText: 'Tenant T-54 asks to split March rent into 3 installments. Propose terms.' },
+      { userText: 'Buyer B-54 asks to split the March royalty into 3 installments. Propose terms.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
@@ -248,18 +252,18 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
   // ---------------- Compliance (extended) ----------------
   {
     id: 'compliance.dpa_access_request',
-    name: 'DPA access request',
+    name: 'PDPA access request',
     category: 'compliance',
     turns: [
-      { userText: 'Tenant T-90 requests their personal data under DPA. Produce the packet.' },
+      { userText: 'Buyer B-90 requests their personal data under the PDPA. Produce the packet.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE },
   },
   {
-    id: 'compliance.expiring_licenses',
-    name: 'Expiring licenses',
+    id: 'compliance.expiring_licences',
+    name: 'Expiring mineral-right licences',
     category: 'compliance',
-    turns: [{ userText: 'Which property licenses expire in the next 30 days?' }],
+    turns: [{ userText: 'Which mineral-right licences expire in the next 30 days?' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE,
       expectToolCalls: ['get_parcel_compliance'],
@@ -269,7 +273,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     id: 'compliance.demand_letter_drafting',
     name: 'Demand letter drafting',
     category: 'compliance',
-    turns: [{ userText: 'Draft a demand letter to tenant T-19 for 3 months unpaid rent.' }],
+    turns: [{ userText: 'Draft a demand letter to buyer B-19 for 3 months of unpaid royalties.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE,
       expectAdvisorConsulted: true,
@@ -277,21 +281,21 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'compliance.court_prep',
-    name: 'Court preparation for case C-5',
+    id: 'compliance.commission_prep',
+    name: 'Mining Commission preparation for case C-5',
     category: 'compliance',
-    turns: [{ userText: 'We go to court Monday for C-5. Compile the evidence pack.' }],
+    turns: [{ userText: 'We appear before the Mining Commission Monday for C-5. Compile the evidence pack.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE,
       expectToolCalls: ['generate_evidence_pack'],
     },
   },
   {
-    id: 'compliance.license_violation_report',
-    name: 'Tenant license-violation report',
+    id: 'compliance.licence_violation_report',
+    name: 'Licence-condition violation report',
     category: 'compliance',
     turns: [
-      { userText: 'Tenant T-77 running a business from a residential unit. How do we respond?' },
+      { userText: 'A holder is exporting unprocessed ore in breach of the beneficiation condition. How do we respond?' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE,
@@ -299,11 +303,11 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'compliance.kra_violation_alert',
-    name: 'Potential KRA compliance risk',
+    id: 'compliance.tra_violation_alert',
+    name: 'Potential TRA compliance risk',
     category: 'compliance',
     turns: [
-      { userText: 'Have we missed any MRI filings in the last 6 months? Audit.' },
+      { userText: 'Have we missed any royalty-return filings in the last 6 months? Audit.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE },
   },
@@ -321,7 +325,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Planned power outage broadcast',
     category: 'communications',
     turns: [
-      { userText: 'Broadcast Saturday 2pm-6pm power outage to Block A and Block C tenants.' },
+      { userText: 'Broadcast Saturday 2pm-6pm power outage at the plant to all Geita and Kahama buyers.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
@@ -329,11 +333,11 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'comms.service_charge_notice',
-    name: 'Monthly service charge notice',
+    id: 'comms.cooperative_levy_notice',
+    name: 'Monthly cooperative-levy notice',
     category: 'communications',
     turns: [
-      { userText: 'Send the monthly service charge notice to all active tenants, Swahili + English.' },
+      { userText: 'Send the monthly cooperative-levy notice to all active members, Swahili + English.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
@@ -345,7 +349,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Renewal invitation batch',
     category: 'communications',
     turns: [
-      { userText: 'Send renewal invitations to tenants whose leases end in the next 60 days.' },
+      { userText: 'Send renewal invitations to buyers whose supply agreements end in the next 60 days.' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
@@ -354,10 +358,10 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
   },
   {
     id: 'comms.water_outage_short',
-    name: 'Short-notice water outage',
+    name: 'Short-notice process-water outage',
     category: 'communications',
     turns: [
-      { userText: 'Water tank cleaning tomorrow 8-11am. Notify Block B tenants.' },
+      { userText: 'Process-water line maintenance tomorrow 8-11am. Notify the Kahama site team.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS },
   },
@@ -372,10 +376,10 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'comms.lead_nurture_campaign',
-    name: 'Lead nurture campaign build',
+    id: 'comms.buyer_nurture_campaign',
+    name: 'Buyer nurture campaign build',
     category: 'communications',
-    turns: [{ userText: 'Build a 4-step lead nurture campaign over 14 days.' }],
+    turns: [{ userText: 'Build a 4-step buyer nurture campaign over 14 days.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
       expectToolCalls: ['skill.comms.draft_campaign'],
@@ -386,17 +390,17 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'SMS-only blast with truncation',
     category: 'communications',
     turns: [
-      { userText: 'SMS-only rent reminder to all Block D tenants. Keep under 160 chars.' },
+      { userText: 'SMS-only royalty reminder to all Geita buyers. Keep under 160 chars.' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS },
   },
 
   // ---------------- Migration (extended) ----------------
   {
-    id: 'migration.legacy_yardi_export',
-    name: 'Legacy Yardi export',
+    id: 'migration.legacy_erp_export',
+    name: 'Legacy ERP export',
     category: 'migration',
-    turns: [{ userText: "Importing a Yardi property export CSV. Extract + diff please." }],
+    turns: [{ userText: "Importing a legacy mine-ERP asset export CSV. Extract + diff please." }],
     expect: {
       expectInitialPersona: PERSONA_IDS.MIGRATION_WIZARD,
       expectProposedAction: { riskAtLeast: 'HIGH' },
@@ -406,7 +410,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     id: 'migration.excel_spreadsheet',
     name: 'Excel spreadsheet migration',
     category: 'migration',
-    turns: [{ userText: 'Import tenants from this Excel sheet — 450 rows.' }],
+    turns: [{ userText: 'Import buyers from this Excel sheet — 450 rows.' }],
     expect: { expectInitialPersona: PERSONA_IDS.MIGRATION_WIZARD },
   },
   {
@@ -414,7 +418,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'Duplicate detection during diff',
     category: 'migration',
     turns: [
-      { userText: 'Some of these tenants might already exist. How do you handle duplicates?' },
+      { userText: 'Some of these buyers might already exist. How do you handle duplicates?' },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.MIGRATION_WIZARD },
   },
@@ -439,19 +443,19 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [
       {
         forcePersonaId: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-002`,
-        userText: 'Walk me through logging an emergency water leak.',
+        userText: 'Walk me through logging an emergency water inrush at the pit.',
       },
     ],
     expect: { expectInitialPersona: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-002` },
   },
   {
-    id: 'coworker.lease_clause_explain',
-    name: 'Explain lease clause',
+    id: 'coworker.agreement_clause_explain',
+    name: 'Explain supply-agreement clause',
     category: 'coworker',
     turns: [
       {
         forcePersonaId: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-002`,
-        userText: 'What does the late-fee clause in lease L-4421 actually allow us to charge?',
+        userText: 'What does the default-interest clause in supply agreement A-4421 actually allow us to charge?',
       },
     ],
     expect: {
@@ -478,7 +482,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [
       {
         forcePersonaId: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-002`,
-        userText: 'I need to authorize a KES 18,000 emergency repair. Ask my manager.',
+        userText: 'I need to authorize a TSh 18,000,000 emergency repair. Ask my manager.',
       },
     ],
     expect: {
@@ -487,13 +491,13 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'coworker.draft_tenant_reply',
-    name: 'Draft tenant reply (Swahili)',
+    id: 'coworker.draft_buyer_reply',
+    name: 'Draft buyer reply (Swahili)',
     category: 'coworker',
     turns: [
       {
         forcePersonaId: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-002`,
-        userText: 'Draft a short Swahili reply to tenant T-120 confirming inspection Tuesday 10am.',
+        userText: 'Draft a short Swahili reply to buyer B-120 confirming the site visit Tuesday 10am.',
       },
     ],
     expect: {
@@ -516,11 +520,11 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
 
   // ---------------- Governance (extended) ----------------
   {
-    id: 'governance.eviction_always_advisor',
-    name: 'Eviction language always routes to advisor',
+    id: 'governance.suspension_always_advisor',
+    name: 'Licence-suspension language always routes to advisor',
     category: 'governance',
     turns: [
-      { userText: 'We need to evict the tenant in unit G-3 by end of month.' },
+      { userText: 'We need to suspend the buyer on consignment G-3 by end of month.' },
     ],
     expect: {
       expectAdvisorConsulted: true,
@@ -534,7 +538,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [
       {
         userText:
-          'Plan a full turnover for 5 units: collect arrears, move-out inspections, renewal offers to replacements, maintenance prep.',
+          'Plan a full dispatch for 5 consignments: collect outstanding royalties, dispatch inspections, renewal offers to replacements, plant prep.',
       },
     ],
     expect: {
@@ -546,7 +550,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     id: 'governance.refund_advisor_required',
     name: 'Refund above threshold triggers advisor',
     category: 'governance',
-    turns: [{ userText: 'Process a refund of KES 150,000 to owner for an overcharge.' }],
+    turns: [{ userText: 'Process a refund of TSh 150,000,000 to an owner for an overcharge.' }],
     expect: {
       expectAdvisorConsulted: true,
       expectProposedAction: { riskAtLeast: 'HIGH' },
@@ -554,9 +558,9 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
   },
   {
     id: 'governance.data_erasure_high_risk',
-    name: 'Data erasure under DPA',
+    name: 'Data erasure under PDPA',
     category: 'governance',
-    turns: [{ userText: 'Erase tenant T-99\'s records per their DPA request.' }],
+    turns: [{ userText: 'Erase buyer B-99\'s records per their PDPA request.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMPLIANCE,
       expectProposedAction: { riskAtLeast: 'HIGH' },
@@ -566,7 +570,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     id: 'governance.portfolio_no_handoff_needed',
     name: 'Portfolio overview needs no handoff',
     category: 'governance',
-    turns: [{ userText: 'What is our current occupancy rate across the portfolio?' }],
+    turns: [{ userText: 'What is our current production rate across the portfolio?' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.ESTATE_MANAGER,
       expectToolCalls: ['get_portfolio_overview'],
@@ -576,7 +580,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     id: 'governance.advisor_skipped_for_low_risk',
     name: 'Advisor not consulted for low-risk',
     category: 'governance',
-    turns: [{ userText: 'What team do I assign a leaky tap to?' }],
+    turns: [{ userText: 'What team do I assign a leaking hydraulic line to?' }],
     expect: {
       expectAdvisorConsulted: false,
     },
@@ -587,7 +591,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     id: 'portfolio.quarterly_report',
     name: 'Quarterly board report',
     category: 'finance',
-    turns: [{ userText: 'Prepare a Q1 board report across all 5 properties.' }],
+    turns: [{ userText: 'Prepare a Q1 board report across all 5 sites.' }],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE },
   },
   {
@@ -597,7 +601,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [
       {
         userText:
-          'It is month-end. Coordinate reconciliation, owner statements, and KRA MRI summary.',
+          'It is month-end. Coordinate reconciliation, owner statements, and TRA royalty-return summary.',
       },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE },
@@ -607,7 +611,7 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     name: 'After-hours emergency',
     category: 'maintenance',
     turns: [
-      { userText: 'It is 2am. Ceiling collapsed in unit H-1. What do we do right now?' },
+      { userText: 'It is 2am. A stope wall collapsed at the H-1 working. What do we do right now?' },
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_MAINTENANCE,
@@ -615,13 +619,13 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'portfolio.new_property_onboarding',
-    name: 'Onboard new property to portfolio',
+    id: 'portfolio.new_site_onboarding',
+    name: 'Onboard new site to portfolio',
     category: 'migration',
     turns: [
       {
         userText:
-          'Onboard a new property: 40 units, caretaker + maintenance team, import owner and tenants.',
+          'Onboard a new site: 40 assets, foreman + maintenance team, import owner and buyers.',
       },
     ],
     expect: { expectInitialPersona: PERSONA_IDS.MIGRATION_WIZARD },

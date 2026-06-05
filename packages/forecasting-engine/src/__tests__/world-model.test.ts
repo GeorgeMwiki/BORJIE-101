@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { WorldModel } from '../world-model/world-model.js';
-import { TenantGraph } from '../world-model/tenant-graph.js';
+import { CounterpartyGraph } from '../world-model/tenant-graph.js';
 import { CashflowState } from '../world-model/cashflow-state.js';
 import { ComplianceState } from '../world-model/compliance-state.js';
 import { MarketCache } from '../world-model/market-cache.js';
@@ -10,14 +10,14 @@ import type { BusinessContext } from '../types.js';
 function makeContext(): BusinessContext {
   return {
     orgId: 'org-test',
-    tenants: [
-      { tenantId: 't1', unitId: 'u1', tenureDays: 365, monthlyRent: 50_000, paymentReliability: 0.95, leaseEndsAt: Date.now() + 365 * 86_400_000 },
-      { tenantId: 't2', unitId: 'u2', tenureDays: 180, monthlyRent: 45_000, paymentReliability: 0.85, leaseEndsAt: Date.now() + 200 * 86_400_000 },
+    counterparties: [
+      { counterpartyId: 't1', unitId: 'u1', tenureDays: 365, monthlyRoyalty: 50_000, paymentReliability: 0.95, offtakeEndsAt: Date.now() + 365 * 86_400_000 },
+      { counterpartyId: 't2', unitId: 'u2', tenureDays: 180, monthlyRoyalty: 45_000, paymentReliability: 0.85, offtakeEndsAt: Date.now() + 200 * 86_400_000 },
     ],
     units: [
-      { unitId: 'u1', propertyId: 'p1', microMarketId: 'mm1', occupied: true, listedRent: 50_000 },
-      { unitId: 'u2', propertyId: 'p1', microMarketId: 'mm1', occupied: true, listedRent: 45_000 },
-      { unitId: 'u3', propertyId: 'p1', microMarketId: 'mm1', occupied: false, listedRent: 48_000 },
+      { unitId: 'u1', siteId: 'p1', microMarketId: 'mm1', inProduction: true, listedRoyalty: 50_000 },
+      { unitId: 'u2', siteId: 'p1', microMarketId: 'mm1', inProduction: true, listedRoyalty: 45_000 },
+      { unitId: 'u3', siteId: 'p1', microMarketId: 'mm1', inProduction: false, listedRoyalty: 48_000 },
     ],
     cashBalance: 1_000_000,
     horizonDays: 90,
@@ -28,10 +28,10 @@ function makeContext(): BusinessContext {
 }
 
 describe('WorldModel', () => {
-  it('reports occupancy + rent roll', () => {
+  it('reports utilisation + royalty roll', () => {
     const wm = WorldModel.fromContext(makeContext());
-    expect(wm.occupancyRate()).toBeCloseTo(2 / 3, 5);
-    expect(wm.monthlyRentRoll()).toBe(95_000);
+    expect(wm.utilisationRate()).toBeCloseTo(2 / 3, 5);
+    expect(wm.monthlyRoyaltyRoll()).toBe(95_000);
   });
 
   it('is immutable on cash update', () => {
@@ -44,16 +44,16 @@ describe('WorldModel', () => {
 
   it('is immutable on unit update', () => {
     const wm = WorldModel.fromContext(makeContext());
-    const next = wm.withUnit('u3', { occupied: true });
-    expect(wm.state.units.find((u) => u.unitId === 'u3')?.occupied).toBe(false);
-    expect(next.state.units.find((u) => u.unitId === 'u3')?.occupied).toBe(true);
+    const next = wm.withUnit('u3', { inProduction: true });
+    expect(wm.state.units.find((u) => u.unitId === 'u3')?.inProduction).toBe(false);
+    expect(next.state.units.find((u) => u.unitId === 'u3')?.inProduction).toBe(true);
   });
 });
 
-describe('TenantGraph', () => {
-  it('builds neighbour adjacency from shared property', () => {
+describe('CounterpartyGraph', () => {
+  it('builds neighbour adjacency from shared site', () => {
     const ctx = makeContext();
-    const g = TenantGraph.build(ctx.tenants, ctx.units);
+    const g = CounterpartyGraph.build(ctx.counterparties, ctx.units);
     expect(g.size()).toBe(2);
     expect(g.neighboursOf('t1')).toContain('t2');
     expect(g.neighboursOf('t1')).not.toContain('t1');
@@ -94,22 +94,22 @@ describe('MarketCache', () => {
   it('returns defaults when market missing', () => {
     const cache = new MarketCache();
     const sig = cache.getOrDefault('unknown');
-    expect(sig.vacancyRate).toBe(0.05);
+    expect(sig.availableCapacityRate).toBe(0.05);
   });
 
   it('updates immutably on with()', () => {
     const c0 = new MarketCache();
     const c1 = c0.with({
       microMarketId: 'mm1',
-      medianRent: 50_000,
-      vacancyRate: 0.07,
-      daysToLeaseMedian: 21,
+      medianRoyalty: 50_000,
+      availableCapacityRate: 0.07,
+      daysToContractMedian: 21,
       demandIndex: 1.1,
       updatedAtMs: Date.now(),
     });
     expect(c0.size()).toBe(0);
     expect(c1.size()).toBe(1);
-    expect(c1.get('mm1')?.medianRent).toBe(50_000);
+    expect(c1.get('mm1')?.medianRoyalty).toBe(50_000);
   });
 });
 

@@ -98,7 +98,7 @@ declare module 'hono' {
     voice: unknown;
 
     // Wave 26 BFF service shims
-    propertyGradingService: unknown;
+    assetGradingService: unknown;
     creditRatingService: unknown;
     subleaseService: unknown;
     damageDeductionService: unknown;

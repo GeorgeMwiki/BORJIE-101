@@ -4,8 +4,6 @@
  * The wire shape that the gateway SSE channel emits.
  */
 
-import type { CeoModeId } from '@/lib/ceo-modes';
-
 export interface ChatEvidence {
   readonly id: string;
   readonly label: string;
@@ -26,6 +24,5 @@ export interface ChatMessage {
   readonly content: string;
   readonly evidenceIds: ReadonlyArray<string>;
   readonly breadcrumbs: ReadonlyArray<ChatBreadcrumb>;
-  readonly mode: CeoModeId;
   readonly createdAt: string;
 }

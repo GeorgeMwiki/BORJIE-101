@@ -34,7 +34,7 @@
  *
  * Property-management thresholds (overridable via `StallThresholds`):
  *
- *     lease-renewal goal       → 30 days
+ *     offtake-renewal goal     → 30 days
  *     maintenance-related goal →  7 days
  *     payment / arrears chase  → 14 days
  *     default                  →  7 days
@@ -79,7 +79,7 @@ export interface StalledGoalReport {
 }
 
 export type StallCategory =
-  | 'lease-renewal'
+  | 'offtake-renewal'
   | 'maintenance'
   | 'payment-chase'
   | 'default';
@@ -176,7 +176,7 @@ export function categoriseGoal(goal: Goal): StallCategory {
     if (step.description) tokens.push(step.description.toLowerCase());
   }
   const blob = tokens.join(' | ');
-  if (LEASE_KEYWORDS.some((kw) => blob.includes(kw))) return 'lease-renewal';
+  if (LEASE_KEYWORDS.some((kw) => blob.includes(kw))) return 'offtake-renewal';
   if (PAYMENT_KEYWORDS.some((kw) => blob.includes(kw))) return 'payment-chase';
   if (MAINTENANCE_KEYWORDS.some((kw) => blob.includes(kw))) return 'maintenance';
   return 'default';
@@ -188,7 +188,7 @@ export function thresholdFor(
 ): number {
   const t = { ...DEFAULT_THRESHOLDS, ...(overrides ?? {}) };
   switch (category) {
-    case 'lease-renewal':
+    case 'offtake-renewal':
       return t.leaseRenewalDays;
     case 'maintenance':
       return t.maintenanceDays;

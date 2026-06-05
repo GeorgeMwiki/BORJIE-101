@@ -1,0 +1,30 @@
+{
+  "name": "@borjie/learning-signal-emitter",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Learning signal emitter (LP-17). One (action, outcome) → reward-scored → per-tier isolation-gated → fanned out to injected sinks (belief / mastery / pattern / reflexion / preference). Pure reward model + isolation gate; never writes a belief directly (routes through the belief sink). Ported from LITFIN learning/signal-emitter + reward-model + per-tier-isolation.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6",
+    "@types/node": "^25.8.0"
+  }
+}

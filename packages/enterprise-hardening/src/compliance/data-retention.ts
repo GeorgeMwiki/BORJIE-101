@@ -12,7 +12,7 @@ import { z } from 'zod';
  */
 export const RetentionPolicyType = {
   TIME_BASED: 'TIME_BASED',           // Delete after X days
-  EVENT_BASED: 'EVENT_BASED',         // Delete X days after event (e.g., lease end)
+  EVENT_BASED: 'EVENT_BASED',         // Delete X days after event (e.g., offtake end)
   LEGAL_REQUIREMENT: 'LEGAL_REQUIREMENT', // Retain for legal/regulatory requirement
   INDEFINITE: 'INDEFINITE',           // Keep forever (with periodic review)
 } as const;
@@ -131,7 +131,7 @@ export interface RetentionScheduleEntry {
 }
 
 /**
- * Pre-defined retention policies for property management domain
+ * Pre-defined retention policies for the mining estate domain
  */
 export const DefaultRetentionPolicies: Record<string, Omit<RetentionPolicy, 'id' | 'createdAt' | 'updatedAt'>> = {
   // Financial records - 7 years (IRS requirement)
@@ -154,21 +154,21 @@ export const DefaultRetentionPolicies: Record<string, Omit<RetentionPolicy, 'id'
     ],
   },
 
-  // Lease documents - 6 years after lease end
-  LEASE_DOCUMENTS: {
-    name: 'Lease Document Retention',
-    description: 'Retain lease documents for 6 years after lease termination',
+  // Offtake agreements - 6 years after agreement end
+  OFFTAKE_DOCUMENTS: {
+    name: 'Offtake Document Retention',
+    description: 'Retain offtake agreements for 6 years after termination',
     classification: RetentionClassification.LEGAL,
     policyType: RetentionPolicyType.EVENT_BASED,
     retentionPeriodDays: 2190, // ~6 years
     archiveAfterDays: 90,
-    triggerEvent: 'lease.terminated',
+    triggerEvent: 'offtake.terminated',
     legalBasis: 'Statute of Limitations',
     enabled: true,
     appliesTo: [
-      { entityType: 'Lease' },
-      { entityType: 'LeaseDocument' },
-      { entityType: 'LeaseAmendment' },
+      { entityType: 'Offtake' },
+      { entityType: 'OfftakeDocument' },
+      { entityType: 'OfftakeAmendment' },
     ],
   },
 

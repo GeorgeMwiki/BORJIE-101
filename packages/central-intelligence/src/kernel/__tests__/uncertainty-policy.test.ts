@@ -185,7 +185,7 @@ describe('uncertainty policy — kernel integration', () => {
       threadId: 'th',
       userMessage: 'should we evict unit 4B?',
       scope: TENANT_SCOPE,
-      tier: 'property',
+      tier: 'site',
       stakes: 'critical',
       surface: 'estate-manager-app',
       ...over,

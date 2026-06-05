@@ -64,15 +64,25 @@ function makeDb(selectRows: ReadonlyArray<Record<string, unknown>> = []): OcrExt
   readonly calls: ReadonlyArray<RecordedCall>;
 } {
   const calls: RecordedCall[] = [];
+  const execute = async (query: unknown) => {
+    const text = sqlToText(query);
+    calls.push({ text });
+    // The candidate SELECT returns the seeded ready-doc rows.
+    if (/FROM document_uploads/i.test(text) && /SELECT/i.test(text)) {
+      return { rows: selectRows };
+    }
+    return { rows: [] };
+  };
   const db = {
-    async execute(query: unknown) {
-      const text = sqlToText(query);
-      calls.push({ text });
-      // The candidate SELECT returns the seeded ready-doc rows.
-      if (/FROM document_uploads/i.test(text) && /SELECT/i.test(text)) {
-        return { rows: selectRows };
-      }
-      return { rows: [] };
+    execute,
+    // Transaction-capable: withWorkerTenantContext → withTenantContext calls
+    // `db.transaction(fn)` and PINS the connection. The tx shares the SAME
+    // recorder so the SET LOCAL binds + the body's writes all land in `calls`.
+    // A callback throw rethrows (the real driver also rolls back + rethrows).
+    async transaction<T>(
+      fn: (tx: { execute: typeof execute }) => Promise<T>,
+    ): Promise<T> {
+      return fn({ execute });
     },
   };
   return Object.assign(db, {
@@ -185,17 +195,15 @@ describe('runOcrExtractionForDocument', () => {
     expect(result.producedBy).toBe('mock-ocr');
 
     const texts = db.calls.map((c) => c.text);
-    // Transaction envelope.
-    expect(texts.some((t) => /^BEGIN$/i.test(t))).toBe(true);
-    expect(texts.some((t) => /COMMIT/i.test(t))).toBe(true);
-    // GUC binding for BOTH names.
+    // Tenant context is bound inside a PINNED transaction (withWorkerTenantContext
+    // → withTenantContext → db.transaction). BOTH GUC names are bound via SET
+    // LOCAL — now as SEPARATE set_config statements. The literal BEGIN/COMMIT
+    // are the driver's concern, not raw statements on the pooled client.
     expect(
-      texts.some(
-        (t) =>
-          /set_config/i.test(t) &&
-          /app\.current_tenant_id/i.test(t) &&
-          /app\.tenant_id/i.test(t),
-      ),
+      texts.some((t) => /set_config/i.test(t) && /app\.current_tenant_id/i.test(t)),
+    ).toBe(true);
+    expect(
+      texts.some((t) => /set_config/i.test(t) && /app\.tenant_id/i.test(t)),
     ).toBe(true);
     // Insert into ocr_extractions.
     expect(texts.some((t) => /INSERT INTO ocr_extractions/i.test(t))).toBe(true);
@@ -207,18 +215,17 @@ describe('runOcrExtractionForDocument', () => {
     expect(texts.some((t) => /INSERT INTO ai_audit_chain/i.test(t))).toBe(true);
   });
 
-  it('orders BEGIN → set_config → writes → COMMIT', async () => {
+  it('binds the GUC (SET LOCAL) before the writes, inside the pinned txn', async () => {
     const { deps, db } = makeDeps();
     await runOcrExtractionForDocument(deps, READY_DOC);
     const texts = db.calls.map((c) => c.text);
-    const begin = texts.findIndex((t) => /^BEGIN$/i.test(t));
-    const setcfg = texts.findIndex((t) => /set_config/i.test(t));
+    const setcfg = texts.findIndex(
+      (t) => /set_config/i.test(t) && /app\.current_tenant_id/i.test(t),
+    );
     const insert = texts.findIndex((t) => /INSERT INTO ocr_extractions/i.test(t));
-    const commit = texts.findIndex((t) => /COMMIT/i.test(t));
-    expect(begin).toBeGreaterThanOrEqual(0);
-    expect(begin).toBeLessThan(setcfg);
+    expect(setcfg).toBeGreaterThanOrEqual(0);
+    expect(insert).toBeGreaterThanOrEqual(0);
     expect(setcfg).toBeLessThan(insert);
-    expect(insert).toBeLessThan(commit);
   });
 
   it('tags the provider with the async prefix so it supersedes the heuristic row', async () => {
@@ -268,22 +275,33 @@ describe('runOcrExtractionForDocument', () => {
     expect(result.extractionId).toBeNull();
   });
 
-  it('rolls back when a write throws inside the txn', async () => {
+  it('fails the doc (driver rolls back) when a write throws inside the txn', async () => {
     const calls: string[] = [];
-    const db: OcrExtractionDb = {
-      async execute(query: unknown) {
-        const text = sqlToText(query);
-        calls.push(text);
-        if (/INSERT INTO ocr_extractions/i.test(text)) {
-          throw new Error('unique violation');
-        }
-        return { rows: [] };
+    const execute = async (query: unknown) => {
+      const text = sqlToText(query);
+      calls.push(text);
+      if (/INSERT INTO ocr_extractions/i.test(text)) {
+        throw new Error('unique violation');
+      }
+      return { rows: [] };
+    };
+    const db = {
+      execute,
+      async transaction<T>(
+        fn: (tx: { execute: typeof execute }) => Promise<T>,
+      ): Promise<T> {
+        return fn({ execute });
       },
     };
-    const { deps } = makeDeps({ db: db as ReturnType<typeof makeDb> });
+    const { deps } = makeDeps({ db: db as unknown as ReturnType<typeof makeDb> });
     const result = await runOcrExtractionForDocument(deps, READY_DOC);
     expect(result.status).toBe('failed');
-    expect(calls.some((t) => /ROLLBACK/i.test(t))).toBe(true);
+    // The write threw inside the PINNED transaction; the driver rolls it back
+    // + rethrows and the per-doc handler marks the doc failed — no half-written
+    // row is committed. The GUC was bound on the tx first. The literal ROLLBACK
+    // is the driver's job now, not a raw statement on the pooled client.
+    expect(calls.some((t) => /set_config/i.test(t))).toBe(true);
+    expect(calls.some((t) => /INSERT INTO ocr_extractions/i.test(t))).toBe(true);
   });
 });
 

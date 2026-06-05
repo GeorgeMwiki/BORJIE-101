@@ -54,10 +54,10 @@ const ESTATE_OPS_JUNIOR: Omit<ResolvedAgent, 'surface'> = {
   title: 'Site Junior',
 };
 
-const TENANT_JUNIOR: Omit<ResolvedAgent, 'surface'> = {
-  id: 'tenant-junior',
-  display_name: 'Tenancy Concierge',
-  title: 'Customer Junior',
+const BUYER_JUNIOR: Omit<ResolvedAgent, 'surface'> = {
+  id: 'buyer-junior',
+  display_name: 'Buyer Concierge',
+  title: 'Buyer Junior',
 };
 
 /**
@@ -110,7 +110,7 @@ export function resolveAudience(input: ResolveAudienceInput): ResolvedAgent {
     surface === 'borjie-customer-app' ||
     surface === 'borjie-tenant-portal'
   ) {
-    return { ...TENANT_JUNIOR, surface };
+    return { ...BUYER_JUNIOR, surface };
   }
 
   // Defensive fallback — should never hit if types are honoured.

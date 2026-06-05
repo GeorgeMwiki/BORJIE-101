@@ -76,11 +76,19 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', '__tests__/**/*.test.ts'],
     pool: 'forks',
+    // Run before any test-file's imports to guarantee USE_MOCK_DATA and
+    // BORJIE_SKIP_DOTENV are set before database.ts / hono-auth.ts
+    // capture their module-level constants from process.env.
+    setupFiles: ['src/test-setup.ts'],
     server: {
       deps: {
         inline: ['@hono/node-server'],
       },
     },
-    testTimeout: 10000,
+    // 30s: gives heavy tests (brain-streaming, brain-idempotency) enough
+    // headroom when the full suite runs in parallel under system load.
+    // Individual tests that genuinely hang will still fail — just not
+    // due to import-time + startup overhead racing the clock.
+    testTimeout: 30000,
   },
 });

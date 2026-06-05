@@ -74,7 +74,7 @@ function filterSeeds(
 async function rephraseViaLlm(seed: HypothesisSeed, llm: LLMClient): Promise<string> {
   const completion = await llm.complete({
     system:
-      'You are a property-economics analyst. Rephrase a causal hypothesis seed ' +
+      'You are a mining-economics analyst. Rephrase a causal hypothesis seed ' +
       'into a single specific testable claim. Reply with ONE sentence and no preamble.',
     prompt: `Seed: ${seed.statement}\nTreatment: ${seed.suggestedTreatmentVar}\nOutcome: ${seed.suggestedOutcomeVar}`,
     maxTokens: 120,

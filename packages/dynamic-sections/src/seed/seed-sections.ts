@@ -1,12 +1,12 @@
 /**
  * Seed sections — mining-domain (Borjie hard-fork).
  *
- * The original BossNyumba-fork seed shipped property-management /
- * CRM entity types (employees · customers · properties · leads ·
- * deals · kra-filings · campaigns · recommendations · internal-staff)
- * which are wrong for Borjie. This rewrite replaces them with the
- * eight mining-domain section descriptors that match the actual
- * owner-cockpit and admin-web surfaces.
+ * The original fork seed shipped generic CRM / back-office entity
+ * types (employees · counterparties · deals · filings ·
+ * recommendations · internal-staff) which are wrong for Borjie. This
+ * rewrite replaces them with the eight mining-domain section
+ * descriptors that match the actual owner-cockpit and admin-web
+ * surfaces.
  *
  * The eight mining sections:
  *   - pml-licences           — Primary Mining Licence registrations

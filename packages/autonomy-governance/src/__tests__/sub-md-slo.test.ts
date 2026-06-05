@@ -16,7 +16,7 @@ const TENANT = '11111111-1111-1111-1111-111111111111';
 describe('parseSubMdSlo', () => {
   it('produces a frozen SLO with shadow as default canary stage', () => {
     const slo = parseSubMdSlo({
-      subMd: 'arrears-triage',
+      subMd: 'royalty-triage',
       tenantId: null,
       metric: 'resolution-quality',
       target: 0.85,
@@ -60,7 +60,7 @@ describe('computeDelta', () => {
 
 describe('evaluateSlo', () => {
   const baseSlo: SubMdSlo = Object.freeze({
-    subMd: 'arrears-triage',
+    subMd: 'royalty-triage',
     tenantId: TENANT,
     metric: 'resolution-quality',
     target: 0.85,
@@ -71,7 +71,7 @@ describe('evaluateSlo', () => {
 
   function mkEvent(delta: number, i: number): SloEvent {
     return Object.freeze({
-      subMd: 'arrears-triage',
+      subMd: 'royalty-triage',
       tenantId: TENANT,
       timestamp: new Date(Date.now() - i * 1000).toISOString(),
       metric: 'resolution-quality',

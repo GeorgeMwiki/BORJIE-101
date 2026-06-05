@@ -23,7 +23,7 @@
  *
  * This module deliberately does NOT pull in `@borjie/observability`'s
  * `EventBus`. The platform's domain-event bus is shaped for
- * aggregate-root DDD events (PaymentReceived, LeaseTerminated) — the
+ * aggregate-root DDD events (PaymentReceived, OfftakeTerminated) — the
  * brain bus is shaped for **communication ingestion**: stream-like,
  * ACL-first, with a different read model (per-user / per-role).
  * Re-using the observability bus would have meant grafting ACL onto a

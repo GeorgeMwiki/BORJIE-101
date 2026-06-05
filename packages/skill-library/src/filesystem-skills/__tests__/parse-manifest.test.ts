@@ -6,14 +6,14 @@ import {
 } from '../parse-manifest.js';
 
 const validSource = `---
-name: handle-late-rent
-description: Walk a late-rent ticket through the ladder.
+name: handle-late-royalty
+description: Walk a late-royalty ticket through the ladder.
 when_to_use:
-  - tenant 5+ days late
-  - missed rent
+  - counterparty 5+ days late
+  - missed royalty
 allowed_tools: [Read, Write]
 jurisdiction_aware: true
-code_entrypoint: ./handle-late-rent.skill.ts
+code_entrypoint: ./handle-late-royalty.skill.ts
 version: 1.0.0
 ---
 
@@ -24,7 +24,7 @@ Markdown body here.`;
 describe('splitFrontmatter', () => {
   it('separates a valid frontmatter from the body', () => {
     const { raw, body } = splitFrontmatter(validSource, 'test/SKILL.md');
-    expect(raw['name']).toBe('handle-late-rent');
+    expect(raw['name']).toBe('handle-late-royalty');
     expect(body.startsWith('# Body')).toBe(true);
   });
 
@@ -78,10 +78,10 @@ describe('toSkillManifest', () => {
   it('builds a typed manifest from valid frontmatter', () => {
     const { raw } = splitFrontmatter(validSource, 'p');
     const m = toSkillManifest(raw, 'p');
-    expect(m.name).toBe('handle-late-rent');
+    expect(m.name).toBe('handle-late-royalty');
     expect(m.jurisdiction_aware).toBe(true);
     expect(m.allowed_tools).toEqual(['Read', 'Write']);
-    expect(m.code_entrypoint).toBe('./handle-late-rent.skill.ts');
+    expect(m.code_entrypoint).toBe('./handle-late-royalty.skill.ts');
     expect(m.version).toBe('1.0.0');
   });
 

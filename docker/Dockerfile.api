@@ -23,7 +23,7 @@ WORKDIR /app
 
 # Copy workspace config files first (cache-friendly)
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY tsconfig.base.json tsconfig.json ./
+COPY tsconfig.base.json tsconfig.json turbo.json ./
 COPY .npmrc ./
 
 # Copy packages and the api-gateway itself. api-gateway transitively depends
@@ -55,15 +55,19 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/package.json ./
 COPY --from=deps /app/pnpm-lock.yaml ./
 COPY --from=deps /app/pnpm-workspace.yaml ./
-COPY tsconfig.base.json tsconfig.json ./
+COPY tsconfig.base.json tsconfig.json turbo.json ./
 COPY --from=deps /app/packages ./packages
 COPY --from=deps /app/services ./services
 
-# Build api-gateway and every workspace package it transitively
-# depends on. With the per-package node_modules symlinks now present,
-# pnpm's topological order is enough to satisfy the cross-package tsc
-# imports (the previous "topo bug" was actually missing symlinks).
-RUN pnpm --filter=@borjie/api-gateway... --workspace-concurrency=1 build
+# Build api-gateway + its FULL dependency closure with TURBO (not raw pnpm).
+# WHY turbo: several packages import @borjie/* as `peerDependencies` (declared
+# that way to break dependency cycles). pnpm's `--filter ... build` orders
+# packages by `dependencies` ONLY — it does NOT topologically sort peers, so it
+# builds a consumer (e.g. executive-brief-engine) before its peer
+# (@borjie/persona-runtime) and tsc fails TS2307. turbo's task graph DOES order
+# peers (`build.dependsOn: ["^build"]`), exactly like the green workspace CI
+# build. --no-daemon: one-shot container build, no turbo daemon needed.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/api-gateway --no-daemon
 
 # NOTE: production-only pruning (`pnpm deploy --prod`) is intentionally not
 # performed here — in a pnpm workspace with `workspace:*` symlinks, deploy

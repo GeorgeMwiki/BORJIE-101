@@ -13,7 +13,10 @@ vi.mock('expo-linking', () => ({
 }))
 
 vi.mock('@/api/client', () => ({
-  apiFetch: vi.fn(async () => ({ success: false }))
+  apiFetch: vi.fn(async () => ({
+    success: true,
+    data: { url: 'https://borjie.app/s/offer/offer-9', token: 'tok-1' }
+  }))
 }))
 
 vi.mock('react-native', () => ({
@@ -50,7 +53,7 @@ describe('buyer-mobile superpowers/navigate', () => {
 })
 
 describe('buyer-mobile superpowers/share', () => {
-  it('falls back to a deterministic deep link when share-link API is offline', async () => {
+  it('returns ok + the server-minted url when the share-link API succeeds', async () => {
     const { shareEntity } = await import('../share')
     const res = await shareEntity({ entityType: 'offer', entityId: 'offer-9', title: 'Bid 12 Mt' })
     expect(res.ok).toBe(true)

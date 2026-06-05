@@ -1,10 +1,10 @@
 /**
  * Regional Estate Learning — country/district-specific estate patterns.
  *
- * Port of LitFin's regional-credit-learning to property management:
- * - Tanzania: TRA district quirks, Swahili tenant comms conventions, GePG
+ * Port of LitFin's regional-credit-learning to mining estate management:
+ * - Tanzania: TRA district quirks, Swahili counterparty comms conventions, GePG
  *   reconciliation edge cases.
- * - Kenya: M-Pesa settlement windows, KRA withholding, rent deposit
+ * - Kenya: M-Pesa settlement windows, KRA withholding, payment deposit
  *   handling expectations.
  *
  * Pluggable per country via @borjie/compliance-plugins. The shape here
@@ -41,9 +41,9 @@ const PROFILES: Readonly<Record<string, RegionalEstateProfile>> = Object.freeze(
     preferredCommsChannels: ['whatsapp', 'sms', 'call'],
     languageDefaults: ['sw', 'en'],
     regulatoryQuirks: [
-      'GePG receipt required for government tenants',
+      'GePG receipt required for government counterparties',
       'TRA VAT on agency fees',
-      'Land-office consent for assignment of lease',
+      'Mining-licence consent for assignment of offtake',
     ],
     paymentRailGotchas: [
       'GePG control-number 24h settlement window',
@@ -60,13 +60,13 @@ const PROFILES: Readonly<Record<string, RegionalEstateProfile>> = Object.freeze(
     regionCode: 'TZ-DAR-KINONDONI',
     commonArrearsCauses: [
       'school-fees quarter',
-      'traffic-impact on agents reaching property',
+      'traffic-impact on agents reaching site',
     ],
     preferredCommsChannels: ['whatsapp', 'sms'],
     languageDefaults: ['sw', 'en'],
     regulatoryQuirks: [
       'Kinondonini-specific waste management levy',
-      'GePG receipt required for government tenants',
+      'GePG receipt required for government counterparties',
     ],
     paymentRailGotchas: [
       'GePG control-number 24h settlement window',
@@ -86,9 +86,9 @@ const PROFILES: Readonly<Record<string, RegionalEstateProfile>> = Object.freeze(
     preferredCommsChannels: ['sms', 'whatsapp', 'call'],
     languageDefaults: ['en', 'sw'],
     regulatoryQuirks: [
-      'KRA rental-income monthly return',
-      'deposit held separately per Rent Restriction Act',
-      'KRA withholding at 10% on commercial rent',
+      'KRA mineral-income monthly return',
+      'deposit held separately per local royalty regulations',
+      'KRA withholding at 10% on commercial royalties',
     ],
     paymentRailGotchas: [
       'M-Pesa paybill 24h settlement',
@@ -156,7 +156,7 @@ export interface RegionalOutcomeRepository {
   insert(record: EstateOutcomeRecord): Promise<void>;
 }
 
-/** Record a lease-outcome so future reasoning can refine the regional profile. */
+/** Record an offtake-outcome so future reasoning can refine the regional profile. */
 export async function recordEstateOutcome(
   repo: RegionalOutcomeRepository,
   record: EstateOutcomeRecord,

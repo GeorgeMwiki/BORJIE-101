@@ -2,36 +2,36 @@ import { describe, expect, it } from 'vitest';
 import { generateBlocks, promoteInsightToConcept } from '../generative-ui/block-generator';
 
 describe('generateBlocks', () => {
-  it('produces a rent-affordability calculator when text mentions rent affordability', () => {
+  it('produces a royalty-affordability calculator when text mentions royalty affordability', () => {
     const blocks = generateBlocks({
-      responseText: 'Let us compute rent affordability for this tenant.',
+      responseText: 'Let us compute royalty affordability for this operator.',
       toolCalls: [],
     });
-    expect(blocks.some((b) => b.type === 'rent_affordability_calculator')).toBe(true);
+    expect(blocks.some((b) => b.type === 'royalty_affordability_calculator')).toBe(true);
   });
 
-  it('produces an arrears projection when text mentions arrears', () => {
+  it('produces an outstanding-royalty projection when text mentions outstanding royalties', () => {
     const blocks = generateBlocks({
-      responseText: 'The tenant is in arrears for three months.',
+      responseText: 'The operator has outstanding royalties for three months.',
       toolCalls: [],
     });
-    expect(blocks.some((b) => b.type === 'arrears_projection_chart')).toBe(true);
+    expect(blocks.some((b) => b.type === 'outstanding_royalty_projection_chart')).toBe(true);
   });
 
-  it('produces a 5 Ps wheel when text mentions tenancy risk', () => {
+  it('produces a 5 Ps wheel when text mentions operator risk', () => {
     const blocks = generateBlocks({
-      responseText: "Here's the tenancy risk breakdown using the 5 Ps.",
+      responseText: "Here's the operator risk breakdown using the 5 Ps.",
       toolCalls: [],
     });
-    expect(blocks.some((b) => b.type === 'five_ps_tenancy_risk_wheel')).toBe(true);
+    expect(blocks.some((b) => b.type === 'five_ps_operator_risk_wheel')).toBe(true);
   });
 
-  it('produces a lease timeline on the lease lifecycle keyword', () => {
+  it('produces an offtake timeline on the offtake lifecycle keyword', () => {
     const blocks = generateBlocks({
-      responseText: 'Consider the lease lifecycle from signing through lease end.',
+      responseText: 'Consider the offtake lifecycle from signing through offtake end.',
       toolCalls: [],
     });
-    expect(blocks.some((b) => b.type === 'lease_timeline_diagram')).toBe(true);
+    expect(blocks.some((b) => b.type === 'offtake_timeline_diagram')).toBe(true);
   });
 
   it('produces a maintenance flow on the work-order keyword', () => {
@@ -42,12 +42,12 @@ describe('generateBlocks', () => {
     expect(blocks.some((b) => b.type === 'maintenance_case_flow_diagram')).toBe(true);
   });
 
-  it('produces a property comparison when the response compares properties', () => {
+  it('produces an asset comparison when the response compares assets', () => {
     const blocks = generateBlocks({
-      responseText: 'Let us do a property comparison between these two flats.',
+      responseText: 'Let us do an asset comparison between these two sites.',
       toolCalls: [],
     });
-    expect(blocks.some((b) => b.type === 'property_comparison_table')).toBe(true);
+    expect(blocks.some((b) => b.type === 'asset_comparison_table')).toBe(true);
   });
 
   it('produces no blocks on neutral text', () => {
@@ -63,7 +63,7 @@ describe('promoteInsightToConcept', () => {
   it('extracts short sentences as key points', () => {
     const block = promoteInsightToConcept(
       'Security deposits',
-      'Deposits protect the landlord against damage. They are refundable. Up to two months is typical.',
+      'Deposits protect the owner against damage. They are refundable. Up to two months is typical.',
     );
     expect(block.type).toBe('concept_card');
     expect(block.keyPoints.length).toBeGreaterThan(1);

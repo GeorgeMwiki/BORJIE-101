@@ -6,7 +6,7 @@
  *   - createInMemoryReasoningStructureCache()
  *   - the 39+6 primitive library
  *   - SELECT / ADAPT / IMPLEMENT meta-prompt builders
- *   - seed structures (eviction TZ-DSM, tenant-dispute GLOBAL)
+ *   - seed structures (licence-suspension TZ-DSM, counterparty-dispute GLOBAL)
  *   - all types
  */
 
@@ -33,7 +33,7 @@ export {
 } from './discover.js';
 export { createInMemoryReasoningStructureCache } from './in-memory-cache.js';
 export {
-  EVICTION_TZ_DSM_STRUCTURE,
-  TENANT_DISPUTE_GLOBAL_STRUCTURE,
+  LICENCE_SUSPENSION_TZ_DSM_STRUCTURE,
+  COUNTERPARTY_DISPUTE_GLOBAL_STRUCTURE,
   SEED_STRUCTURES,
 } from './canonical-structures.js';

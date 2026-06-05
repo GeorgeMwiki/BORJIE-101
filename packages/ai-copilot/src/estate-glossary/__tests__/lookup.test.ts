@@ -9,7 +9,7 @@ import {
   translate,
   computeCoverage,
 } from '../lookup.js';
-import { TENANCY_ENTRIES } from '../glossary-data/tenancy.js';
+import { MINING_RIGHTS_ENTRIES } from '../glossary-data/mining-rights.js';
 
 describe('estate-glossary/lookup', () => {
   const registry = getDefaultGlossaryRegistry();
@@ -20,14 +20,14 @@ describe('estate-glossary/lookup', () => {
   });
 
   it('refuses duplicate termIds in a custom corpus', () => {
-    const first = TENANCY_ENTRIES[0];
+    const first = MINING_RIGHTS_ENTRIES[0];
     expect(() => buildGlossaryRegistry([first, first])).toThrowError(/duplicate/i);
   });
 
   it('looks up a canonical term by id', () => {
-    const entry = lookupTerm('tenancy.lease');
+    const entry = lookupTerm('tenancy.mineral_right');
     expect(entry).toBeDefined();
-    expect(entry?.english).toBe('lease');
+    expect(entry?.english).toBe('mineral right');
     expect(entry?.category).toBe('tenancy');
   });
 
@@ -36,20 +36,20 @@ describe('estate-glossary/lookup', () => {
   });
 
   it('searches English text case-insensitively', () => {
-    const hits = searchByText('LEASE');
+    const hits = searchByText('MINERAL RIGHT');
     expect(hits.length).toBeGreaterThan(0);
-    expect(hits.some((e) => e.termId === 'tenancy.lease')).toBe(true);
+    expect(hits.some((e) => e.termId === 'tenancy.mineral_right')).toBe(true);
   });
 
   it('searches by Swahili translation when locale filter is given', () => {
-    const hits = searchByText('kodi', { locale: 'sw' });
-    expect(hits.some((e) => e.termId === 'finance.rent')).toBe(true);
+    const hits = searchByText('mrabaha', { locale: 'sw' });
+    expect(hits.some((e) => e.termId === 'finance.royalty')).toBe(true);
   });
 
   it('filters results by jurisdiction and category', () => {
-    const kenyanTenancy = searchByText('tenancy', { jurisdiction: 'KE', category: 'tenancy' });
-    expect(kenyanTenancy.every((e) => e.jurisdictions.includes('KE'))).toBe(true);
-    expect(kenyanTenancy.every((e) => e.category === 'tenancy')).toBe(true);
+    const tzMineralRights = searchByText('mineral', { jurisdiction: 'TZ', category: 'tenancy' });
+    expect(tzMineralRights.every((e) => e.jurisdictions.includes('TZ'))).toBe(true);
+    expect(tzMineralRights.every((e) => e.category === 'tenancy')).toBe(true);
   });
 
   it('applies a limit when given', () => {
@@ -64,9 +64,9 @@ describe('estate-glossary/lookup', () => {
   });
 
   it('translates to locale when available and falls back to English', () => {
-    expect(translate('finance.rent', 'sw')).toBe('kodi');
+    expect(translate('finance.royalty', 'sw')).toBe('mrabaha');
     // A locale where translation is empty must fall back to English
-    const hindi = translate('finance.rent', 'hi');
+    const hindi = translate('finance.royalty', 'hi');
     expect(hindi).toBeTruthy();
   });
 

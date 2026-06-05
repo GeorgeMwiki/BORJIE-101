@@ -83,10 +83,10 @@ export function getReportSubject(
 ): string {
   const typeLabels: Record<string, string> = {
     financial: 'Financial Report',
-    occupancy: 'Occupancy Report',
+    asset_utilisation: 'Asset Utilisation Report',
     maintenance: 'Maintenance Report',
-    tenant: 'Tenant Report',
-    property: 'Property Report',
+    buyer: 'Buyer Report',
+    site: 'Site Report',
   };
   const typeLabel = typeLabels[reportType] ?? reportType;
   return `BORJIE - ${typeLabel} (${format.toUpperCase()})`;

@@ -1,7 +1,7 @@
 /**
  * Graph Sync Engine — PostgreSQL → Neo4j ETL
  *
- * Incrementally syncs relational data into the Canonical Property Graph.
+ * Incrementally syncs relational data into the Canonical Mining Graph.
  *
  * Architecture:
  *  - PostgreSQL is the source of truth (ACID transactions)
@@ -21,9 +21,9 @@ import type { Neo4jClient } from '../client/neo4j-client.js';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface SyncEvent {
-  eventType: string;       // e.g., 'property.created', 'lease.activated'
+  eventType: string;       // e.g., 'site.created', 'offtake.activated'
   tenantId: string;
-  entityType: string;      // e.g., 'Property', 'Lease'
+  entityType: string;      // e.g., 'Site', 'Offtake'
   entityId: string;
   data: Record<string, unknown>;
   timestamp: string;
@@ -340,10 +340,10 @@ export class GraphSyncEngine {
 type EventHandler = (engine: GraphSyncEngine, event: SyncEvent, result: SyncResult) => Promise<void>;
 
 const EVENT_HANDLERS: Record<string, EventHandler> = {
-  // Property events
-  'property.created': async (engine, event, result) => {
+  // Site events
+  'site.created': async (engine, event, result) => {
     await engine.upsertNode({
-      label: 'Property',
+      label: 'Site',
       id: event.entityId,
       tenantId: event.tenantId,
       properties: event.data,
@@ -351,9 +351,9 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
     result.nodesCreated++;
   },
 
-  'property.updated': async (engine, event, result) => {
+  'site.updated': async (engine, event, result) => {
     await engine.upsertNode({
-      label: 'Property',
+      label: 'Site',
       id: event.entityId,
       tenantId: event.tenantId,
       properties: event.data,
@@ -361,11 +361,11 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
     result.nodesUpdated++;
   },
 
-  // Unit events
-  'unit.created': async (engine, event, result) => {
+  // Pit events
+  'pit.created': async (engine, event, result) => {
     const data = event.data;
     await engine.upsertNode({
-      label: 'Unit',
+      label: 'Pit',
       id: event.entityId,
       tenantId: event.tenantId,
       properties: data,
@@ -374,22 +374,22 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
 
     if (data.propertyId) {
       await engine.upsertRelationship({
-        fromLabel: 'Property',
+        fromLabel: 'Site',
         fromId: String(data.propertyId),
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: event.entityId,
-        type: 'HAS_UNIT',
+        type: 'HAS_PIT',
         tenantId: event.tenantId,
       });
       result.relationshipsCreated++;
     }
   },
 
-  // Lease events
-  'lease.created': async (engine, event, result) => {
+  // Offtake events
+  'offtake.created': async (engine, event, result) => {
     const data = event.data;
     await engine.upsertNode({
-      label: 'Lease',
+      label: 'Offtake',
       id: event.entityId,
       tenantId: event.tenantId,
       properties: data,
@@ -398,9 +398,9 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
 
     if (data.unitId) {
       await engine.upsertRelationship({
-        fromLabel: 'Lease',
+        fromLabel: 'Offtake',
         fromId: event.entityId,
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(data.unitId),
         type: 'APPLIES_TO',
         tenantId: event.tenantId,
@@ -412,18 +412,18 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
       await engine.upsertRelationship({
         fromLabel: 'Customer',
         fromId: String(data.customerId),
-        toLabel: 'Lease',
+        toLabel: 'Offtake',
         toId: event.entityId,
-        type: 'HAS_LEASE',
+        type: 'HAS_OFFTAKE',
         tenantId: event.tenantId,
       });
       result.relationshipsCreated++;
     }
   },
 
-  'lease.activated': async (engine, event, result) => {
+  'offtake.activated': async (engine, event, result) => {
     await engine.upsertNode({
-      label: 'Lease',
+      label: 'Offtake',
       id: event.entityId,
       tenantId: event.tenantId,
       properties: { ...event.data, status: 'active' },
@@ -431,9 +431,9 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
     result.nodesUpdated++;
   },
 
-  'lease.terminated': async (engine, event, result) => {
+  'offtake.terminated': async (engine, event, result) => {
     await engine.upsertNode({
-      label: 'Lease',
+      label: 'Offtake',
       id: event.entityId,
       tenantId: event.tenantId,
       properties: { ...event.data, status: 'terminated' },
@@ -492,9 +492,9 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
       await engine.upsertRelationship({
         fromLabel: 'Invoice',
         fromId: event.entityId,
-        toLabel: 'Lease',
+        toLabel: 'Offtake',
         toId: String(data.leaseId),
-        type: 'FOR_LEASE',
+        type: 'FOR_OFFTAKE',
         tenantId: event.tenantId,
       });
       result.relationshipsCreated++;
@@ -516,7 +516,7 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
       await engine.upsertRelationship({
         fromLabel: 'WorkOrder',
         fromId: event.entityId,
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(data.unitId),
         type: 'TARGETS',
         tenantId: event.tenantId,
@@ -574,7 +574,7 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
       await engine.upsertRelationship({
         fromLabel: 'MaintenanceRequest',
         fromId: event.entityId,
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(data.unitId),
         type: 'ABOUT',
         tenantId: event.tenantId,
@@ -622,7 +622,7 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
       await engine.upsertRelationship({
         fromLabel: 'Case',
         fromId: event.entityId,
-        toLabel: 'Unit',
+        toLabel: 'Pit',
         toId: String(data.unitId),
         type: 'CASE_ABOUT',
         tenantId: event.tenantId,
@@ -634,7 +634,7 @@ const EVENT_HANDLERS: Record<string, EventHandler> = {
       await engine.upsertRelationship({
         fromLabel: 'Case',
         fromId: event.entityId,
-        toLabel: 'Lease',
+        toLabel: 'Offtake',
         toId: String(data.leaseId),
         type: 'CASE_ABOUT',
         tenantId: event.tenantId,
@@ -778,9 +778,9 @@ function sanitizeProperties(props: Record<string, unknown>): Record<string, unkn
  */
 function mapAssociatedTypeToLabel(associatedType: string): string | null {
   const mapping: Record<string, string> = {
-    lease: 'Lease',
-    property: 'Property',
-    unit: 'Unit',
+    offtake: 'Offtake',
+    site: 'Site',
+    pit: 'Pit',
     work_order: 'WorkOrder',
     case: 'Case',
     notice: 'Notice',

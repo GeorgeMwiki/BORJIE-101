@@ -21,7 +21,8 @@ const EXPECTED_SYSTEM_ROLE_VALUES = [
   'super_admin',
   'platform_support',
   'tenant_admin',
-  'property_manager',
+  // W-E migration: 'property_manager' → 'site_manager'.
+  'site_manager',
   'owner',
   'estate_manager',
   'accountant',
@@ -137,8 +138,8 @@ describe('DEFAULT_AUTHORITY_FOR_ROLE', () => {
     expect(DEFAULT_AUTHORITY_FOR_ROLE['tenant_admin']).toBe('ADMIN_L1');
   });
 
-  it('maps PROPERTY_MANAGER and ACCOUNTANT roles to ADMIN_L3', () => {
-    expect(DEFAULT_AUTHORITY_FOR_ROLE['property_manager']).toBe('ADMIN_L3');
+  it('maps SITE_MANAGER and ACCOUNTANT roles to ADMIN_L3', () => {
+    expect(DEFAULT_AUTHORITY_FOR_ROLE['site_manager']).toBe('ADMIN_L3');
     expect(DEFAULT_AUTHORITY_FOR_ROLE['accountant']).toBe('ADMIN_L3');
   });
 

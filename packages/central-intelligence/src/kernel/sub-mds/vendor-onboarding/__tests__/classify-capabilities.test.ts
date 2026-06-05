@@ -12,56 +12,56 @@ interface Case {
 
 const CASES: ReadonlyArray<Case> = [
   // Single-trade — 30
-  { text: 'I am a plumber, fixing taps, sinks and toilets', expectedTags: ['plumber'] },
-  { text: 'Plumbing services — bomba na mfereji', expectedTags: ['plumber'] },
-  { text: 'Electrician for residential properties, wiring and breakers', expectedTags: ['electrician'] },
+  { text: 'I am a pump tech, dewatering and slurry pump overhauls', expectedTags: ['pump-tech'] },
+  { text: 'Huduma za pampu — borehole pump na dewatering', expectedTags: ['pump-tech'] },
+  { text: 'Electrician for site power, wiring and switchgear', expectedTags: ['electrician'] },
   { text: 'Mimi ni fundi wa umeme, ninafanya wiring', expectedTags: ['electrician'] },
-  { text: 'HVAC technician, aircon installation and servicing', expectedTags: ['hvac-tech'] },
-  { text: 'Mimi ni mtaalam wa kiyoyozi, kuweka na ku-service', expectedTags: ['hvac-tech'] },
-  { text: 'Gas fitter — LPG cylinder installation and leak repair', expectedTags: ['gas-fitter'] },
-  { text: 'Fundi wa gesi, ufungaji wa LPG cylinder', expectedTags: ['gas-fitter'] },
-  { text: 'Mason specialising in plastering and concrete work', expectedTags: ['mason'] },
-  { text: 'Fundi wa ujenzi, plastering na sement', expectedTags: ['mason'] },
-  { text: 'Handyman — general repairs, fixing things around the house', expectedTags: ['handyman'] },
-  { text: 'Fundi wa kawaida, ku-fix vitu vya nyumbani', expectedTags: ['handyman'] },
-  { text: 'Painter — wall painting interior and exterior', expectedTags: ['painter'] },
-  { text: 'Mfanyikazi wa rangi, kupaka rangi za nyumba', expectedTags: ['painter'] },
-  { text: 'Cleaning services — deep cleaning of apartments', expectedTags: ['cleaner'] },
-  { text: 'Huduma za usafi, kufanya usafi wa nyumba', expectedTags: ['cleaner'] },
-  { text: 'Pest control — fumigation against mende, panya, kunguni', expectedTags: ['pest-control'] },
-  { text: 'Ku-control wadudu wa nyumbani, fumigation', expectedTags: ['pest-control'] },
-  { text: 'Locksmith — lock and key repair, master keys', expectedTags: ['locksmith'] },
-  { text: 'Kurekebisha kufuli na funguo za nyumba', expectedTags: ['locksmith'] },
-  { text: 'Security installations — CCTV, alarm, access control', expectedTags: ['security'] },
-  { text: 'Huduma za usalama, ufungaji wa CCTV', expectedTags: ['security'] },
-  { text: 'Appliance technician — fridge, oven, washing machine', expectedTags: ['appliance-tech'] },
-  { text: 'Fundi wa friji na jiko', expectedTags: ['appliance-tech'] },
-  { text: 'Roofer — roofing repair and replacement, paa la nyumba', expectedTags: ['roofer'] },
-  { text: 'Mfanyikazi wa paa, kurekebisha paa la nyumba', expectedTags: ['roofer'] },
-  { text: 'Landscaper — gardening, lawn maintenance, planting', expectedTags: ['landscaper'] },
-  { text: 'Mtu wa bustani, kupanda miti na kukata nyasi', expectedTags: ['landscaper'] },
-  { text: 'Carpenter — custom furniture and built-ins', expectedTags: ['carpenter'] },
-  { text: 'Seremala, samani za kawaida na za maalum', expectedTags: ['carpenter'] },
+  { text: 'Hydraulics technician, hose and cylinder repair', expectedTags: ['hydraulics-tech'] },
+  { text: 'Mtaalam wa haidroliki, ku-service ram na hose', expectedTags: ['hydraulics-tech'] },
+  { text: 'Process fitter — crusher and ball mill maintenance', expectedTags: ['process-fitter'] },
+  { text: 'Fundi wa kinu, kurekebisha screen na cyclone', expectedTags: ['process-fitter'] },
+  { text: 'Diesel mechanic for haul truck and excavator engines', expectedTags: ['diesel-mechanic'] },
+  { text: 'Fundi wa injini za magari, loader na fleet', expectedTags: ['diesel-mechanic'] },
+  { text: 'Boilermaker — welding and wear plate work', expectedTags: ['boilermaker'] },
+  { text: 'Fundi wa kulehemu, plate work na fabrication chutes', expectedTags: ['boilermaker'] },
+  { text: 'Rigger — crane lifting and winch operations', expectedTags: ['rigger'] },
+  { text: 'Huduma za rigging na lifting kwa crane', expectedTags: ['rigger'] },
+  { text: 'Civil works — concrete, retaining wall and road works', expectedTags: ['civil'] },
+  { text: 'Fundi wa ujenzi, sement na culvert', expectedTags: ['civil'] },
+  { text: 'Mine surveyor — pegging and GPS survey', expectedTags: ['surveyor'] },
+  { text: 'Mhandisi wa upimaji, mine survey na pegging', expectedTags: ['surveyor'] },
+  { text: 'Blasting contractor — shotfirer, explosives handling', expectedTags: ['blasting'] },
+  { text: 'Huduma za milipuko, baruti na blast design', expectedTags: ['blasting'] },
+  { text: 'Assayer — fire assay and sampling lab', expectedTags: ['assayer'] },
+  { text: 'Huduma za maabara, assay na sampling', expectedTags: ['assayer'] },
+  { text: 'Safety tech — ventilation, gas detection, mine rescue', expectedTags: ['safety-tech'] },
+  { text: 'Huduma za usalama, fire suppression mgodini', expectedTags: ['safety-tech'] },
+  { text: 'Haulage — tipper cartage and logistics', expectedTags: ['haulage'] },
+  { text: 'Huduma za usafirishaji wa madini, transport', expectedTags: ['haulage'] },
+  { text: 'Fabrication — sheet metal and machining workshop', expectedTags: ['fabrication'] },
+  { text: 'Workshop fabricator, machining na sheet metal', expectedTags: ['fabrication'] },
+  { text: 'General hand — cleaning and housekeeping at camp', expectedTags: ['general-hand'] },
+  { text: 'Fundi wa kawaida, usafi wa camp', expectedTags: ['general-hand'] },
 
   // Multi-trade — 12
-  { text: 'Plumber and electrician — full property services', expectedTags: ['plumber', 'electrician'] },
-  { text: 'Painter and mason combined for renovation jobs', expectedTags: ['painter', 'mason'] },
-  { text: 'Cleaning and pest control bundle service', expectedTags: ['cleaner', 'pest-control'] },
-  { text: 'Security and locksmith — full access services', expectedTags: ['security', 'locksmith'] },
-  { text: 'Carpenter and painter — interior fit-out specialist', expectedTags: ['carpenter', 'painter'] },
-  { text: 'HVAC and electrical, full systems', expectedTags: ['hvac-tech', 'electrician'] },
-  { text: 'Plumber and gas fitter — water and gas systems', expectedTags: ['plumber', 'gas-fitter'] },
-  { text: 'Mason and roofer — structural works', expectedTags: ['mason', 'roofer'] },
-  { text: 'Appliance and HVAC tech — full kitchen and aircon services', expectedTags: ['appliance-tech', 'hvac-tech'] },
-  { text: 'Handyman and painter for small jobs', expectedTags: ['handyman', 'painter'] },
-  { text: 'Landscaper and cleaner for outdoor + indoor', expectedTags: ['landscaper', 'cleaner'] },
-  { text: 'Fundi wa umeme na fundi wa mfereji', expectedTags: ['electrician', 'plumber'] },
+  { text: 'Pump tech and electrician — full plant services', expectedTags: ['pump-tech', 'electrician'] },
+  { text: 'Civil and boilermaker combined for structural works', expectedTags: ['civil', 'boilermaker'] },
+  { text: 'Haulage and general hand bundle service', expectedTags: ['haulage', 'general-hand'] },
+  { text: 'Safety and surveyor — compliance services', expectedTags: ['safety-tech', 'surveyor'] },
+  { text: 'Fabrication and boilermaker — workshop welding fit-out', expectedTags: ['fabrication', 'boilermaker'] },
+  { text: 'Hydraulics and electrician, full systems', expectedTags: ['hydraulics-tech', 'electrician'] },
+  { text: 'Pump tech and assayer — water and lab', expectedTags: ['pump-tech', 'assayer'] },
+  { text: 'Civil and rigger — structural lifting works', expectedTags: ['civil', 'rigger'] },
+  { text: 'Diesel mechanic and hydraulics tech — full fleet services', expectedTags: ['diesel-mechanic', 'hydraulics-tech'] },
+  { text: 'General hand and haulage for site logistics', expectedTags: ['general-hand', 'haulage'] },
+  { text: 'Surveyor and blasting for bench design', expectedTags: ['surveyor', 'blasting'] },
+  { text: 'Fundi wa umeme na fundi wa pampu', expectedTags: ['electrician', 'pump-tech'] },
 
   // Emergency tag — 4
-  { text: 'Plumber, 24/7 emergency response', expectedTags: ['plumber'] },
+  { text: 'Pump tech, 24/7 emergency dewatering response', expectedTags: ['pump-tech'] },
   { text: 'Electrician — around the clock for emergencies', expectedTags: ['electrician'] },
-  { text: 'Fundi wa dharura, ninapatikana saa zote', expectedTags: ['handyman'] },
-  { text: 'On-call HVAC technician for emergencies', expectedTags: ['hvac-tech'] },
+  { text: 'Fundi wa dharura, ninapatikana saa zote, general hand', expectedTags: ['general-hand'] },
+  { text: 'On-call hydraulics technician for emergencies', expectedTags: ['hydraulics-tech'] },
 
   // Empty / unclassifiable — 4
   { text: 'I do many things', expectedTags: [] },
@@ -96,12 +96,12 @@ describe('classifyCapabilities — accuracy harness', () => {
   });
 
   it('detects emergency on-call', () => {
-    const r = classifyCapabilities('Plumber, 24/7 emergency response');
+    const r = classifyCapabilities('Pump tech, 24/7 emergency dewatering response');
     expect(r.emergencyAvailable).toBe(true);
   });
 
   it('extracts service areas when present', () => {
-    const r = classifyCapabilities('Plumber. Areas: Kilimani, Westlands, Kileleshwa');
+    const r = classifyCapabilities('Pump tech. Areas: Geita, Kahama, Shinyanga');
     expect(r.serviceAreas.length).toBeGreaterThanOrEqual(1);
   });
 

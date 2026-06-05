@@ -62,8 +62,8 @@ describe('createArrears30dDetector', () => {
     expect(goals[0]?.priority).toBe('high');
     expect(goals[0]?.steps).toHaveLength(3);
     expect(goals[0]?.steps[0]?.toolName).toBeNull();
-    expect(goals[0]?.steps[1]?.toolName).toBe('rent.send-reminder');
-    expect(goals[0]?.steps[2]?.toolName).toBe('arrears.escalate');
+    expect(goals[0]?.steps[1]?.toolName).toBe('royalty.send-reminder');
+    expect(goals[0]?.steps[2]?.toolName).toBe('outstanding-royalties.escalate');
   });
 
   it('edge: empty read port result returns empty array', async () => {
@@ -111,7 +111,7 @@ describe('createLeaseExpiring30dDetector', () => {
     expect(goals[0]?.title).toContain('B-204');
     expect(goals[0]?.priority).toBe('medium');
     expect(goals[0]?.steps).toHaveLength(2);
-    expect(goals[0]?.steps[1]?.toolName).toBe('rent.send-reminder');
+    expect(goals[0]?.steps[1]?.toolName).toBe('royalty.send-reminder');
     expect(goals[0]?.steps[1]?.toolPayload).toMatchObject({
       leaseId: 'l_42',
       channel: 'email',

@@ -1,17 +1,17 @@
 id: complaint-triage-003
 scenario: complaint-triage
-title: 'Parking dispute (one tenant blocking anothers car)'
+title: 'Loader-bay obstruction dispute (one crew blocking anothers bay)'
 context:
-  complainant: {id: tnt-405, name: 'Stephen Onyango', unit: '5C'}
-  subject_tenant: {id: tnt-406, name: 'Visitor of unit 5D', unit: 'guest-of-5D'}
-  complaint:
+  complainant: {id: wk-405, name: 'Stephen Onyango', crew: 'Crew 5C'}
+  subject_party: {id: wk-406, name: 'Contractor for Crew 5D', crew: 'contractor-of-5D'}
+  grievance:
     submitted_at: '2026-05-17T07:30:00Z'
-    kind: 'parking'
+    kind: 'bay-obstruction'
     severity_self_assessed: medium
-    description: 'Guest car blocking my reserved spot for 2 days'
+    description: 'Contractor truck blocking my assigned loader bay for 2 days'
 expected_actions:
   - {tool: 'complaint.classify_severity', expected_class: 'P3-disputes'}
-  - {tool: 'complaint.contact_host_unit', host: '5D', tone: 'neutral-factual'}
+  - {tool: 'complaint.contact_subject_party', subject: '5D', tone: 'neutral-factual'}
   - {tool: 'complaint.update_complainant', tone: 'informative-supportive'}
 expected_escalation: false
 scorer_weights: {action-correctness: 0.4, escalation-correctness: 0.1, communication-quality: 0.4, cost-efficiency: 0.1}

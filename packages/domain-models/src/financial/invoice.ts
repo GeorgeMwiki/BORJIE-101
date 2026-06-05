@@ -42,7 +42,8 @@ export const InvoiceTypeSchema = z.enum([
   'maintenance',
   'late_fee',
   'penalty',
-  'service_charge',
+  // W-E migration: persisted value 'service_charge' → 'cooperative_levy'.
+  'cooperative_levy',
   'other',
 ]);
 export type InvoiceType = z.infer<typeof InvoiceTypeSchema>;

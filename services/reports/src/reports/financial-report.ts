@@ -1,18 +1,18 @@
 /**
- * Financial Report - Rent roll, income statement, cash flow
+ * Financial Report - Royalty roll, income statement, cash flow
  */
 
 import type { ReportData } from '../generators/generator.interface.js';
 import type { DateRange } from './report-types.js';
 
-export interface RentRollItem {
+export interface RoyaltyRollItem {
   unitId: string;
   unitName: string;
-  propertyName: string;
-  monthlyRent: number;
+  siteName: string;
+  monthlyRoyalty: number;
   status: string;
-  tenantName?: string;
-  leaseEndDate?: Date;
+  buyerName?: string;
+  supplyEndDate?: Date;
 }
 
 export interface IncomeStatementItem {
@@ -29,11 +29,11 @@ export interface CashFlowItem {
 }
 
 export interface FinancialReportData {
-  rentRoll: {
-    units: RentRollItem[];
+  royaltyRoll: {
+    units: RoyaltyRollItem[];
     totalUnits: number;
-    occupiedUnits: number;
-    totalMonthlyRent: number;
+    producingUnits: number;
+    totalMonthlyRoyalty: number;
   };
   incomeStatement: {
     revenue: number;
@@ -56,15 +56,15 @@ export function financialReportToReportData(
   const sections: ReportData['sections'] = [];
 
   sections.push({
-    title: 'Rent Roll',
+    title: 'Royalty Roll',
     table: {
-      headers: ['Unit', 'Property', 'Monthly Rent', 'Status', 'Tenant'],
-      rows: data.rentRoll.units.map((u) => [
+      headers: ['Unit', 'Site', 'Monthly Royalty', 'Status', 'Buyer'],
+      rows: data.royaltyRoll.units.map((u) => [
         u.unitName,
-        u.propertyName,
-        u.monthlyRent,
+        u.siteName,
+        u.monthlyRoyalty,
         u.status,
-        u.tenantName ?? '',
+        u.buyerName ?? '',
       ]),
     },
   });
@@ -97,9 +97,9 @@ export function financialReportToReportData(
   return {
     sections,
     summary: {
-      'Total Units': data.rentRoll.totalUnits,
-      'Occupied Units': data.rentRoll.occupiedUnits,
-      'Total Monthly Rent': data.rentRoll.totalMonthlyRent,
+      'Total Units': data.royaltyRoll.totalUnits,
+      'Producing Units': data.royaltyRoll.producingUnits,
+      'Total Monthly Royalty': data.royaltyRoll.totalMonthlyRoyalty,
       'Total Revenue': data.incomeStatement.revenue,
       'Total Expenses': data.incomeStatement.expenses,
       'Net Operating Income': data.incomeStatement.netOperatingIncome,

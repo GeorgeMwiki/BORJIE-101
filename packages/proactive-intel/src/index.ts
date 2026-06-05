@@ -3,7 +3,8 @@
  *
  * Phase J5 — Proactive Intelligence Loop, core ship. This PR lands:
  *   - tick scheduler (3 cadence tiers + short runner)
- *   - 3 anomaly detectors (cashflow-dip, arrears-spike, churn-risk)
+ *   - 3 anomaly detectors (cashflow-dip, royalty-arrears-spike,
+ *     churn-risk)
  *   - recommendation composer (DetectorEvent -> Recommendation)
  *   - fatigue tracker + policy (per-tenant accept/ignore ratchet)
  *
@@ -12,7 +13,7 @@
  *     compliance-deadline-near, vendor-reliability-drop) — already
  *     scaffolded in detectors/ but not re-exported here yet
  *   - 3 opportunity detectors (vendor-rate-arbitrage,
- *     policy-tightening, rent-vs-market)
+ *     policy-tightening, offtake-price-vs-market)
  *   - notification adapter (Sierra-style chat-first → WhatsApp → email
  *     digest fallback)
  *
@@ -46,8 +47,8 @@ export type {
 export type {
   ForecastBand,
   CashflowForecastSlice,
-  ArrearsTimePoint,
-  ArrearsSeries,
+  RoyaltyArrearsTimePoint,
+  RoyaltyArrearsSeries,
   CustomerOwnerSignal,
   CostObservation,
   SloObservation,
@@ -79,7 +80,7 @@ export type {
 
 // Core anomaly detectors (3 of 7 wired in this PR)
 export { detectCashflowDip } from './detectors/cashflow-dip.detector.js';
-export { detectArrearsSpike } from './detectors/arrears-spike.detector.js';
+export { detectRoyaltyArrearsSpike } from './detectors/royalty-arrears-spike.detector.js';
 export { detectChurnRisk } from './detectors/churn-risk.detector.js';
 
 // Recommendations

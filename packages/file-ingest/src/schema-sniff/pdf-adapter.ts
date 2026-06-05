@@ -16,7 +16,7 @@
  *    adapters) — see {@link DosGuardError}.
  *  - The free-text fallback runs every emitted row through the local PII
  *    redactor BEFORE it leaves the adapter. The redactor mirrors the
- *    sovereign-action-ledger redaction regexes (KRA PIN, NIDA, MSISDN per
+ *    sovereign-action-ledger redaction regexes (TRA TIN, NIDA, MSISDN per
  *    country, generic E.164 phone, email).
  */
 

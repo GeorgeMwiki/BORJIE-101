@@ -1,6 +1,6 @@
 /**
  * REDESIGN — LLM proposes routing improvements (closest competent
- * vendor, SLA tightening, channel switch).
+ * contractor, SLA tightening, channel switch).
  */
 
 import { runRedesignStage } from '../shared/redesign-stage.js';

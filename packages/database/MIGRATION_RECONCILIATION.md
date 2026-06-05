@@ -67,6 +67,46 @@ Consequences / drift baked into the tooling:
   script does exist, but the test does not actually exercise the
   `src/migrations/` path the prod runner uses.
 
+### DR-T4 — INT-4: `incidents` baseline gap on standalone `src/migrations/` apply (FIXED in the runner)
+
+- **Symptom.** `incidents` is a real Drizzle table
+  (`src/schemas/safety-csr.schema.ts`) and `src/migrations/0082_misc_pre_launch_tables.sql`
+  does `ALTER TABLE incidents …`, but **no `src/migrations/` file CREATEs it** —
+  the `CREATE TABLE IF NOT EXISTS incidents` lives in the BASELINE,
+  `drizzle/0003_mining_domain.sql:789`. Applying `src/migrations/` STANDALONE
+  on an empty DB therefore fails at `0082` with
+  `relation "incidents" does not exist`. (`0082`'s `IF NOT EXISTS` column
+  guards do not help: the bare `ALTER TABLE incidents ADD CONSTRAINT …` and
+  `CREATE INDEX … ON incidents` still target a non-existent relation.)
+- **Root cause.** The two-dir lineage above (`drizzle/` baseline + `src/migrations/`
+  deltas) was historically applied by **two separate runners** (DR-T1). The
+  canonical bootstrap is baseline-FIRST: `drizzle/` (creates `incidents`) then
+  `src/migrations/` (alters it). Any path that applies `src/migrations/` ALONE
+  is the only place the gap bites.
+- **Fix (in `packages/database`, forward-only, no edit to the immutable 0082).**
+  `src/run-migrations.ts` now applies BOTH phases in order —
+  `drizzle/` (BASELINE_DIR) then `src/migrations/` (MIGRATIONS_DIR) — keyed off
+  the shared `drizzle.__drizzle_migrations` ledger (the dirs use disjoint number
+  ranges so filename hashes never collide). This folds the old
+  `scripts/apply-borjie-mining-migration.mjs` baseline phase into the canonical
+  runner, so EVERY from-scratch bootstrap through `pnpm db:migrate` /
+  `runMigrations()` is baseline-first and `0082` always sees `incidents`. It
+  also resolves DR-T1's split-tracking re-execution risk for the runner path.
+  Verified end-to-end against ephemeral Postgres in
+  `src/__tests__/mining-vocab-migrations.integration.test.ts` (standalone-0082
+  fails; baseline-then-0082 succeeds).
+- **Residual (standalone CI harness only).** `scripts/migration-apply-check.mjs`
+  (workflows `migration-apply-check.yml` / `migration-apply-fresh.yml`) still
+  applies `--migrations-dir=packages/database/src/migrations` ALONE, so it will
+  still report `0082` as failing on a fresh DB. Two equivalent, out-of-package
+  follow-ups close it (neither edits a shipped migration): (a) add `0082` to
+  `scripts/__allowlists__/migration-apply-allowlist.mjs` with reason "incidents
+  created in baseline drizzle/0003; apply is baseline-first via run-migrations.ts"
+  — the same accepted-risk pattern already used for the RLS/PostGIS/pgvector
+  baseline-dependent migrations; or (b) point those workflows at the baseline-first
+  `run-migrations.ts` (or apply `drizzle/` before `src/migrations/`). `migrate-prod.ts`
+  has the same standalone shape and would benefit from the same baseline-first fold.
+
 ---
 
 ## 2a. On-disk migration numbers + gaps

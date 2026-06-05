@@ -179,7 +179,7 @@ export const AOPStepSchema: z.ZodType<AOPStep> = z.lazy(() =>
  * tens of thousands of steps would pass parser/validate today. Loops have
  * their own `exit_when.max` but the outer steps array did not. 200 steps
  * is well above any production SOP the team has authored (the longest
- * fixture is the arrears-chase loop with ~12 steps) and below the
+ * fixture is the royalty-arrears-chase loop with ~12 steps) and below the
  * platform's autonomy + cost budget.
  */
 export const AOP_MAX_STEPS = 200;
@@ -203,7 +203,7 @@ export const AOPSchema = z.object({
    * Explicit allowlist of PII keys this AOP is permitted to pass into tool
    * args. Without listing the key here, the permission-validator rejects
    * the AOP at compile time. Conservative: empty by default; LLM-authored
-   * AOPs that try to ferry `kra_pin` etc. through a write-tier tool
+   * AOPs that try to ferry `tra_pin` etc. through a write-tier tool
    * must be edited by a human reviewer to add the explicit grant.
    */
   grants: z.array(z.string().min(1)).optional(),

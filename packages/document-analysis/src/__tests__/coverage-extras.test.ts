@@ -23,32 +23,32 @@ import {
 import { resolveEntities } from '../resolve/index.js';
 import type { ExtractedField } from '../extract/entity-extractor.js';
 
-const RENEWAL_TEXT = `BORJIE — TENANT LEASE RENEWAL REQUEST
+const RENEWAL_TEXT = `BORJIE — BUYER OFFTAKE RENEWAL REQUEST
 
-I would like to renew tenancy for an additional 12 months.
-Tenant Name: Patricia Mwafula
-Property Reference: PROP-DAR-0001
+I would like to renew offtake for an additional 12 months.
+Buyer Name: Patricia Mwafula
+Site Reference: ML-GEITA-0001
 Renewal Date: 2025-05-01
 
 Sincerely,
 Patricia
 `;
 
-const TERMINATION_TEXT = `BORJIE — NOTICE TO VACATE
+const TERMINATION_TEXT = `BORJIE — NOTICE TO TERMINATE
 
-Tenant Name: Patricia Mwafula
-Property Reference: PROP-DAR-0001
+Buyer Name: Patricia Mwafula
+Site Reference: ML-GEITA-0001
 Effective Date: 2025-04-30
 
-I hereby give notice of termination of my tenancy.
+I hereby give notice of termination of my offtake.
 `;
 
-const VENDOR_TEXT = `BAHARI PLUMBING LTD
+const VENDOR_TEXT = `BAHARI MINING SERVICES LTD
 INVOICE No: BPL-2025-0142
 
-Vendor: Bahari Plumbing
+Vendor: Bahari Mining Services
 Date: 2025-02-09
-Description: Emergency tap repair PROP-DAR-0001 unit 12B.
+Description: Emergency pump repair ML-GEITA-0001 unit 12B.
 Subtotal: TZS 60,000
 VAT (18%): TZS 10,800
 Grand Total: TZS 70,800
@@ -56,13 +56,13 @@ TIN No: 123-456-789
 `;
 
 describe('extractEntities — renewal_request profile', () => {
-  it('extracts tenant + asset + renewal date', () => {
+  it('extracts buyer + asset + renewal date', () => {
     const fields = extractEntities({ docType: 'renewal_request', text: RENEWAL_TEXT });
-    expect(fields.find((f) => f.key === 'tenant_name')?.value).toBe(
+    expect(fields.find((f) => f.key === 'counterparty_name')?.value).toBe(
       'Patricia Mwafula',
     );
     expect(fields.find((f) => f.key === 'asset_reference')?.value).toBe(
-      'PROP-DAR-0001',
+      'ML-GEITA-0001',
     );
     expect(fields.find((f) => f.key === 'requested_renewal_date')?.value).toBe(
       '2025-05-01',
@@ -71,16 +71,16 @@ describe('extractEntities — renewal_request profile', () => {
 });
 
 describe('extractEntities — termination_notice profile', () => {
-  it('extracts tenant + asset + effective date', () => {
+  it('extracts buyer + asset + effective date', () => {
     const fields = extractEntities({
       docType: 'termination_notice',
       text: TERMINATION_TEXT,
     });
-    expect(fields.find((f) => f.key === 'tenant_name')?.value).toBe(
+    expect(fields.find((f) => f.key === 'counterparty_name')?.value).toBe(
       'Patricia Mwafula',
     );
     expect(fields.find((f) => f.key === 'asset_reference')?.value).toBe(
-      'PROP-DAR-0001',
+      'ML-GEITA-0001',
     );
     expect(fields.find((f) => f.key === 'effective_date')?.value).toBe(
       '2025-04-30',
@@ -119,7 +119,7 @@ describe('decideRouting — secondary doc types', () => {
     const decisions = decideRouting({
       docType: 'renewal_request',
       docTypeConfidence: 0.9,
-      extractions: [fieldAt('tenant_name'), fieldAt('asset_reference')],
+      extractions: [fieldAt('counterparty_name'), fieldAt('asset_reference')],
     });
     expect(decisions[0]?.targetAction).toBe('create_renewal_request');
   });
@@ -128,7 +128,7 @@ describe('decideRouting — secondary doc types', () => {
     const decisions = decideRouting({
       docType: 'termination_notice',
       docTypeConfidence: 0.9,
-      extractions: [fieldAt('tenant_name'), fieldAt('asset_reference')],
+      extractions: [fieldAt('counterparty_name'), fieldAt('asset_reference')],
     });
     expect(decisions[0]?.targetModule).toBe('legal');
   });
@@ -160,7 +160,7 @@ describe('resolveEntities — embedding fallback', () => {
     const resolver = new InMemoryEntityResolver();
     resolver.seed('tenant-a', [
       {
-        entityId: 'lessee-001',
+        entityId: 'buyer-001',
         displayName: 'something completely different',
         embedding: [0.1, 0.2, 0.3],
       },
@@ -272,9 +272,9 @@ describe('TesseractUnavailableError', () => {
 describe('detectLanguage edge cases', () => {
   it('returns mixed when both languages tie', async () => {
     const { detectLanguage } = await import('../ocr/language.js');
-    // Mix: same count of English + Swahili stop words.
+    // Mix: comparable counts of English + Swahili stop words, neither dominant.
     expect(
-      detectLanguage('the and of mkataba mpangaji kodi nyumba mwezi'),
+      detectLanguage('the and of mkataba madini mrabaha mwezi'),
     ).toBe('mixed');
   });
   it('returns mixed for whitespace-only', async () => {

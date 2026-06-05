@@ -3,7 +3,7 @@
  */
 
 import type { GlossaryEntry } from '../types.js';
-import { TENANCY_ENTRIES } from './tenancy.js';
+import { MINING_RIGHTS_ENTRIES } from './mining-rights.js';
 import { FINANCE_ENTRIES } from './finance.js';
 import { COMPLIANCE_ENTRIES } from './compliance.js';
 import { MAINTENANCE_ENTRIES } from './maintenance.js';
@@ -17,7 +17,7 @@ import {
 } from './misc.js';
 
 export const ALL_GLOSSARY_ENTRIES: readonly GlossaryEntry[] = Object.freeze([
-  ...TENANCY_ENTRIES,
+  ...MINING_RIGHTS_ENTRIES,
   ...FINANCE_ENTRIES,
   ...COMPLIANCE_ENTRIES,
   ...MAINTENANCE_ENTRIES,
@@ -30,7 +30,7 @@ export const ALL_GLOSSARY_ENTRIES: readonly GlossaryEntry[] = Object.freeze([
 ]);
 
 export {
-  TENANCY_ENTRIES,
+  MINING_RIGHTS_ENTRIES,
   FINANCE_ENTRIES,
   COMPLIANCE_ENTRIES,
   MAINTENANCE_ENTRIES,

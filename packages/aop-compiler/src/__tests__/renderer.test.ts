@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { renderToDiagram } from '../renderer/to-diagram.js';
 import { renderToProse } from '../renderer/to-prose.js';
-import { arrearsChase } from './fixtures/arrears-chase.aop.js';
-import { leaseRenewal } from './fixtures/lease-renewal.aop.js';
-import { kraFiling } from './fixtures/kra-filing.aop.js';
+import { royaltyArrearsChase } from './fixtures/royalty-arrears-chase.aop.js';
+import { offtakeRenewal } from './fixtures/offtake-renewal.aop.js';
+import { traFiling } from './fixtures/tra-filing.aop.js';
 import type { AOP } from '../types.js';
 
 /**
@@ -28,9 +28,9 @@ function assertValidMermaid(src: string): void {
 
 describe('renderToDiagram', () => {
   it.each<[string, AOP]>([
-    ['arrears-chase', arrearsChase],
-    ['lease-renewal', leaseRenewal],
-    ['kra-filing', kraFiling],
+    ['royalty-arrears-chase', royaltyArrearsChase],
+    ['offtake-renewal', offtakeRenewal],
+    ['tra-filing', traFiling],
   ])('produces valid Mermaid for %s', (_name, ast) => {
     const out = renderToDiagram(ast);
     assertValidMermaid(out);
@@ -40,21 +40,21 @@ describe('renderToDiagram', () => {
   });
 
   it('emits tool, monitor, and hook node shapes', () => {
-    const out = renderToDiagram(arrearsChase);
+    const out = renderToDiagram(royaltyArrearsChase);
     expect(out).toContain('send-reminder["'); // tool: square
     expect(out).toContain('wait-3d(["'); // monitor: stadium
     expect(out).toContain('ask-owner-approval{{"'); // hook: hex
   });
 
   it('emits labelled edges for hooks (approve)', () => {
-    const out = renderToDiagram(arrearsChase);
+    const out = renderToDiagram(royaltyArrearsChase);
     expect(out).toMatch(/ask-owner-approval -->\|approve\| draft-notice/);
   });
 });
 
 describe('renderToProse', () => {
   it('produces a non-empty plain-text summary', () => {
-    for (const ast of [arrearsChase, leaseRenewal, kraFiling]) {
+    for (const ast of [royaltyArrearsChase, offtakeRenewal, traFiling]) {
       const prose = renderToProse(ast);
       expect(prose).toContain(ast.name);
       expect(prose.split('\n').length).toBeGreaterThan(ast.steps.length);
@@ -62,11 +62,11 @@ describe('renderToProse', () => {
   });
 
   it('describes the cron trigger in English', () => {
-    expect(renderToProse(arrearsChase)).toContain('Runs on schedule');
-    expect(renderToProse(kraFiling)).toContain('Africa/Nairobi');
+    expect(renderToProse(royaltyArrearsChase)).toContain('Runs on schedule');
+    expect(renderToProse(traFiling)).toContain('Africa/Dar_es_Salaam');
   });
 
   it('describes event trigger', () => {
-    expect(renderToProse(leaseRenewal)).toContain('lease.t_minus_60d');
+    expect(renderToProse(offtakeRenewal)).toContain('offtake.t_minus_60d');
   });
 });

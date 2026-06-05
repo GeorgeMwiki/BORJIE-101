@@ -28,7 +28,7 @@ describe('createInMemoryGoalsPort', () => {
         {
           seq: 0,
           description: 'Send reminder',
-          toolName: 'rent.send-reminder',
+          toolName: 'royalty.send-reminder',
           toolPayload: { leaseId: 'L1', channel: 'sms' },
         },
       ],

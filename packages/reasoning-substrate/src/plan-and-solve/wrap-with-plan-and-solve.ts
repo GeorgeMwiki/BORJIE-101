@@ -14,7 +14,7 @@
  *     'You are BORJIE MD. Tone: firm but non-threatening.',
  *     {
  *       extractionStrictness: 'all-or-fail',
- *       requiredVariables: ['tenantId', 'leaseId', 'jurisdiction', 'unpaidAmount'],
+ *       requiredVariables: ['counterpartyId', 'offtakeId', 'jurisdiction', 'unpaidAmount'],
  *     },
  *   );
  */

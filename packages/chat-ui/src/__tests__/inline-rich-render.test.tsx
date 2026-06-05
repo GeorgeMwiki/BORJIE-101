@@ -42,7 +42,7 @@ describe('hasInlineRichContent', () => {
     expect(
       hasInlineRichContent({
         blackboard: {
-          conceptTitle: 'Rent Affordability',
+          conceptTitle: 'Royalty Affordability',
           parts: [{ kind: 'kpi-grid', tiles: [] }],
         },
       }),
@@ -53,7 +53,7 @@ describe('hasInlineRichContent', () => {
     expect(
       hasInlineRichContent({
         tabDetail: {
-          title: 'Arrears dashboard',
+          title: 'Outstanding royalties dashboard',
           parts: [{ kind: 'kpi-grid', tiles: [] }],
         },
       }),
@@ -97,13 +97,13 @@ describe('InlineRichRender', () => {
       <InlineRichRender
         metadata={{
           tabDetail: {
-            title: 'Arrears Dashboard',
+            title: 'Outstanding Royalties Dashboard',
             subtitle: 'Q2 forecast',
             parts: [
               {
                 kind: 'kpi-grid',
                 tiles: [
-                  { label: 'Open arrears', value: 12, format: 'number' },
+                  { label: 'Open outstanding royalties', value: 12, format: 'number' },
                 ],
               },
             ],
@@ -114,7 +114,7 @@ describe('InlineRichRender', () => {
     );
     expect(screen.getByTestId('inline-tab-detail')).toBeInTheDocument();
     expect(screen.getByTestId('inline-tab-detail-title').textContent).toBe(
-      'Arrears Dashboard',
+      'Outstanding Royalties Dashboard',
     );
     expect(screen.getByTestId('inline-tab-detail-subtitle').textContent).toBe(
       'Q2 forecast',
@@ -126,7 +126,7 @@ describe('InlineRichRender', () => {
       <InlineRichRender
         metadata={{
           blackboard: {
-            conceptTitle: 'Rent Affordability Ratio',
+            conceptTitle: 'Royalty Affordability Ratio',
             parts: [
               {
                 kind: 'kpi-grid',
@@ -140,7 +140,7 @@ describe('InlineRichRender', () => {
     );
     expect(screen.getByTestId('inline-blackboard')).toBeInTheDocument();
     expect(screen.getByTestId('inline-blackboard-concept').textContent).toBe(
-      'Rent Affordability Ratio',
+      'Royalty Affordability Ratio',
     );
   });
 

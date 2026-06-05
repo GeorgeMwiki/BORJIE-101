@@ -19,7 +19,7 @@
 
 import { Hono } from 'hono';
 import { swaggerUI } from '@hono/swagger-ui';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { logger } from '../../utils/logger.js';
 
@@ -46,20 +46,18 @@ async function loadSpec(): Promise<{ yaml: string | null; path: string | null; e
   if (loadError !== null) return { yaml: null, path: null, error: loadError };
   for (const candidate of SPEC_CANDIDATES) {
     try {
-      // SCRUB-5f: justified-because `candidate` is iterated from the
-      // compile-time SPEC_CANDIDATES array of resolved literal paths;
-      // never user input.
+      // Open the file atomically — avoids the TOCTOU check-then-use race
+      // that arises from doing stat() then readFile() as two separate calls.
+      // `candidate` is iterated from the compile-time SPEC_CANDIDATES array
+      // of resolved literal paths; never user input.
       // eslint-disable-next-line security/detect-non-literal-fs-filename
-      const s = await stat(candidate);
-      if (!s.isFile()) continue;
-      // SCRUB-5f: same — candidate is a known-trusted literal path.
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
-      cachedYaml = await readFile(candidate, 'utf8');
+      const content = await readFile(candidate, 'utf8');
+      cachedYaml = content;
       cachedPath = candidate;
       logger.info('mining-openapi: spec loaded', { specPath: candidate, bytes: cachedYaml.length });
       return { yaml: cachedYaml, path: candidate, error: null };
     } catch {
-      // Try the next candidate.
+      // File absent or not readable — try the next candidate.
     }
   }
   loadError =

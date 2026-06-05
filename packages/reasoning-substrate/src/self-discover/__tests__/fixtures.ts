@@ -22,13 +22,13 @@ export interface SelfDiscoverFixture {
 
 export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
   {
-    id: 'eviction-tz-dsm',
-    taskClass: 'eviction',
+    id: 'licence-suspension-tz-dsm',
+    taskClass: 'licence-suspension',
     jurisdiction: 'TZ-DSM',
     samples: [
       {
-        description: 'Tenant t_8821 has 4 missed payments; landlord requests eviction; mediation_opt_in=true.',
-        variables: { tenantId: 't_8821', missedPayments: 4, mediationOptIn: true },
+        description: 'Counterparty c_8821 has 4 missed payments; owner requests licence suspension; mediation_opt_in=true.',
+        variables: { counterpartyId: 'c_8821', missedPayments: 4, mediationOptIn: true },
         jurisdiction: 'TZ-DSM',
       },
     ],
@@ -36,7 +36,7 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
       'gather-relevant-facts',
       'check-payment-history',
       'identify-relevant-rules',
-      'apply-tz-rental-act',
+      'apply-tz-mining-act',
       'check-mediation-clause',
       'consider-alternatives',
       'propose-and-verify',
@@ -45,13 +45,13 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     expectedMinSteps: 8,
   },
   {
-    id: 'lease-renewal-ke-nrb',
-    taskClass: 'lease-renewal',
+    id: 'offtake-renewal-ke-nrb',
+    taskClass: 'offtake-renewal',
     jurisdiction: 'KE-NRB',
     samples: [
       {
-        description: 'Compute renewal date for lease L-4422 (started 2025-04-01, 12-mo term).',
-        variables: { leaseId: 'L-4422' },
+        description: 'Compute renewal date for offtake O-4422 (started 2025-04-01, 12-mo term).',
+        variables: { offtakeId: 'O-4422' },
         jurisdiction: 'KE-NRB',
       },
     ],
@@ -63,12 +63,12 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     expectedMinSteps: 3,
   },
   {
-    id: 'rent-collection-global',
-    taskClass: 'rent-collection',
+    id: 'royalty-collection-global',
+    taskClass: 'royalty-collection',
     jurisdiction: 'GLOBAL',
     samples: [
       {
-        description: 'Generate monthly rent invoice for tenant t_4 unit u_3.',
+        description: 'Generate monthly royalty invoice for counterparty c_4 unit u_3.',
       },
     ],
     expectedPrimitives: [
@@ -81,12 +81,12 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     expectedMinSteps: 5,
   },
   {
-    id: 'tenant-dispute-global',
-    taskClass: 'tenant-dispute',
+    id: 'counterparty-dispute-global',
+    taskClass: 'counterparty-dispute',
     jurisdiction: 'GLOBAL',
     samples: [
       {
-        description: 'Tenant disputes a charge on their March statement.',
+        description: 'Counterparty disputes a charge on their March statement.',
       },
     ],
     expectedPrimitives: [
@@ -104,14 +104,14 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     jurisdiction: 'TZ-DSM',
     samples: [
       {
-        description: 'Late fee for tenant t_8821 — 17 days overdue on KES 32,500.',
+        description: 'Late fee for counterparty c_8821 — 17 days overdue on KES 32,500.',
         variables: { daysLate: 17, principalKES: 32500 },
         jurisdiction: 'TZ-DSM',
       },
     ],
     expectedPrimitives: [
       'identify-relevant-rules',
-      'apply-tz-rental-act',
+      'apply-tz-mining-act',
       'apply-formula',
       'check-currency-chain',
       'verify-with-edge-case',
@@ -119,13 +119,13 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     expectedMinSteps: 5,
   },
   {
-    id: 'rent-proration-global',
-    taskClass: 'rent-proration',
+    id: 'royalty-proration-global',
+    taskClass: 'royalty-proration',
     jurisdiction: 'GLOBAL',
     samples: [
       {
-        description: 'Move-in day 12 of a 30-day month; monthly rent KES 24,000.',
-        variables: { moveInDay: 12, monthDays: 30, monthlyRentKES: 24000 },
+        description: 'Mobilisation day 12 of a 30-day month; monthly royalty KES 24,000.',
+        variables: { mobilisationDay: 12, monthDays: 30, monthlyRoyaltyKES: 24000 },
       },
     ],
     expectedPrimitives: [
@@ -136,19 +136,19 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     expectedMinSteps: 3,
   },
   {
-    id: 'deposit-refund-tz-dsm',
-    taskClass: 'deposit-refund',
+    id: 'bond-refund-tz-dsm',
+    taskClass: 'bond-refund',
     jurisdiction: 'TZ-DSM',
     samples: [
       {
-        description: 'Compute deposit refund: KES 60,000 deposit, KES 8,500 damage, no unpaid rent.',
-        variables: { depositKES: 60000, damageKES: 8500 },
+        description: 'Compute performance-bond refund: KES 60,000 bond, KES 8,500 damage, no unpaid royalty.',
+        variables: { bondKES: 60000, damageKES: 8500 },
         jurisdiction: 'TZ-DSM',
       },
     ],
     expectedPrimitives: [
       'gather-relevant-facts',
-      'apply-tz-rental-act',
+      'apply-tz-mining-act',
       'apply-formula',
       'check-output-format',
     ],
@@ -160,8 +160,8 @@ export const FIXTURES: ReadonlyArray<SelfDiscoverFixture> = [
     jurisdiction: 'KE-NRB',
     samples: [
       {
-        description: 'Prepare KRA-MRI submission for landlord L-12, tax year 2025.',
-        variables: { landlordId: 'L-12', taxYear: 2025 },
+        description: 'Prepare KRA-MRI submission for owner L-12, tax year 2025.',
+        variables: { ownerId: 'L-12', taxYear: 2025 },
         jurisdiction: 'KE-NRB',
       },
     ],

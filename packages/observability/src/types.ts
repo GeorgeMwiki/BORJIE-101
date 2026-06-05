@@ -191,32 +191,32 @@ export interface IEventStore {
 // Predefined Domain Event Types
 // ============================================================================
 
-/** Property-related events */
-export interface PropertyCreatedPayload {
-  propertyId: string;
+/** Site-related events */
+export interface SiteCreatedPayload {
+  siteId: string;
   name: string;
   type: string;
   address: string;
 }
 
-export interface PropertyUpdatedPayload {
-  propertyId: string;
+export interface SiteUpdatedPayload {
+  siteId: string;
   changes: Record<string, { from: unknown; to: unknown }>;
 }
 
-/** Lease-related events */
-export interface LeaseCreatedPayload {
-  leaseId: string;
-  propertyId: string;
+/** Offtake-related events */
+export interface OfftakeCreatedPayload {
+  offtakeId: string;
+  siteId: string;
   unitId: string;
-  tenantId: string;
+  buyerId: string;
   startDate: string;
   endDate: string;
-  rentAmount: number;
+  royaltyAmount: number;
 }
 
-export interface LeaseTerminatedPayload {
-  leaseId: string;
+export interface OfftakeTerminatedPayload {
+  offtakeId: string;
   reason: string;
   effectiveDate: string;
 }
@@ -224,7 +224,7 @@ export interface LeaseTerminatedPayload {
 /** Payment-related events */
 export interface PaymentReceivedPayload {
   paymentId: string;
-  leaseId: string;
+  offtakeId: string;
   amount: number;
   currency: string;
   method: string;
@@ -233,7 +233,7 @@ export interface PaymentReceivedPayload {
 
 export interface PaymentFailedPayload {
   paymentId: string;
-  leaseId: string;
+  offtakeId: string;
   amount: number;
   reason: string;
 }
@@ -241,7 +241,7 @@ export interface PaymentFailedPayload {
 /** Maintenance-related events */
 export interface MaintenanceRequestCreatedPayload {
   requestId: string;
-  propertyId: string;
+  siteId: string;
   unitId: string;
   category: string;
   priority: string;

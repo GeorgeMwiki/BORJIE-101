@@ -12,18 +12,18 @@
  *   - `nationalIdValidator` — per-country ID pattern matcher
  *   - `taxRegime`     — TaxRegimePort implementation
  *   - `paymentRails`  — PaymentRailPort implementation
- *   - `leaseLaw`      — LeaseLawPort implementation
- *   - `tenantScreening` — TenantScreeningPort implementation
+ *   - `miningLaw`      — MiningLawPort implementation
+ *   - `counterpartyScreening` — CounterpartyScreeningPort implementation
  *
  * Every field has a sensible default on the GLOBAL fallback in `index.ts`,
  * so unlisted jurisdictions still work end-to-end.
  */
 
 import type { CountryPlugin } from '../core/types.js';
-import type { LeaseLawPort } from '../ports/lease-law.port.js';
+import type { MiningLawPort } from '../ports/mining-law.port.js';
 import type { PaymentRailPort } from '../ports/payment-rail.port.js';
 import type { TaxRegimePort } from '../ports/tax-regime.port.js';
-import type { TenantScreeningPort } from '../ports/tenant-screening.port.js';
+import type { CounterpartyScreeningPort } from '../ports/counterparty-screening.port.js';
 
 /** Validation verdict for a national ID value. */
 export type IdValidationStatus =
@@ -35,7 +35,7 @@ export interface IdValidationResult {
   readonly status: IdValidationStatus;
   /** The pattern / rule that matched, if any — useful for audit. */
   readonly ruleId?: string;
-  /** Free-text note surfaced to the landlord when status != 'valid'. */
+  /** Free-text note surfaced to the operator when status != 'valid'. */
   readonly note?: string;
   /**
    * True when the value is PII-sensitive under local law and MUST NOT be
@@ -76,8 +76,8 @@ export interface ExtendedCountryProfile {
   /** Port implementations. */
   readonly taxRegime: TaxRegimePort;
   readonly paymentRails: PaymentRailPort;
-  readonly leaseLaw: LeaseLawPort;
-  readonly tenantScreening: TenantScreeningPort;
+  readonly miningLaw: MiningLawPort;
+  readonly counterpartyScreening: CounterpartyScreeningPort;
 }
 
 /** Build a validator that dispatches through a simple RegExp. */

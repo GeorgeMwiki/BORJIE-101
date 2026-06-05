@@ -144,7 +144,13 @@ export interface DecisionRecorderDeps {
 
 export interface DecisionRecorder {
   recordDecision(input: RecordDecisionInput): Promise<RecordedDecision>;
-  recordOutcome(input: RecordOutcomeInput): Promise<RecordedOutcome>;
+  /**
+   * `exec` (optional) overrides the recorder's own db handle for this call —
+   * pass a pinned transaction handle (e.g. from `withWorkerTenantContext`) so
+   * the existence check, hash read, and INSERT all run on the SAME connection
+   * carrying the tenant GUC. Defaults to the recorder's pooled client.
+   */
+  recordOutcome(input: RecordOutcomeInput, exec?: DbLike): Promise<RecordedOutcome>;
   recordLink(input: RecordLinkInput): Promise<RecordedLink>;
 }
 
@@ -171,9 +177,10 @@ export function createDecisionRecorder(
   async function lastOutcomeHash(
     tenantId: string,
     decisionId: string,
+    exec: DbLike = deps.db,
   ): Promise<string | null> {
     const rows = rowsOf(
-      await deps.db.execute(sql`
+      await exec.execute(sql`
         SELECT entry_hash
           FROM decision_outcomes
          WHERE tenant_id = ${tenantId}
@@ -220,9 +227,10 @@ export function createDecisionRecorder(
   async function decisionExists(
     tenantId: string,
     decisionId: string,
+    exec: DbLike = deps.db,
   ): Promise<boolean> {
     const rows = rowsOf(
-      await deps.db.execute(sql`
+      await exec.execute(sql`
         SELECT 1 FROM decisions WHERE tenant_id = ${tenantId} AND id = ${decisionId} LIMIT 1
       `),
     );
@@ -415,7 +423,7 @@ export function createDecisionRecorder(
       });
     },
 
-    async recordOutcome(input) {
+    async recordOutcome(input, exec: DbLike = deps.db) {
       const parsed = RecordOutcomeSchema.safeParse(input);
       if (!parsed.success) {
         throw new DecisionRecorderError(
@@ -424,7 +432,7 @@ export function createDecisionRecorder(
         );
       }
       const value = parsed.data;
-      const exists = await decisionExists(value.tenantId, value.decisionId);
+      const exists = await decisionExists(value.tenantId, value.decisionId, exec);
       if (!exists) {
         throw new DecisionRecorderError(
           'unknown_decision',
@@ -433,7 +441,7 @@ export function createDecisionRecorder(
       }
 
       const observedAt = value.observedAt ?? now().toISOString();
-      const prev = await lastOutcomeHash(value.tenantId, value.decisionId);
+      const prev = await lastOutcomeHash(value.tenantId, value.decisionId, exec);
       const payload = {
         tenant_id: value.tenantId,
         decision_id: value.decisionId,
@@ -449,7 +457,7 @@ export function createDecisionRecorder(
       let rows: ReadonlyArray<ExecRow> = [];
       try {
         rows = rowsOf(
-          await deps.db.execute(sql`
+          await exec.execute(sql`
             INSERT INTO decision_outcomes (
               tenant_id, decision_id, outcome_summary, observed_value_tzs,
               observed_at, retrospective_grade, learnings, recorded_by,

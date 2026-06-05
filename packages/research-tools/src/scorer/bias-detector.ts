@@ -123,10 +123,17 @@ export interface BiasDetectInput {
  * Detect all applicable flags. Returns a deduplicated, deterministic
  * order (matches the BIAS_FLAGS const order in types.ts).
  */
+// Maximum character count fed to the pattern matchers.  Regulator feed
+// content can be arbitrarily large; cap prevents linear-time scans from
+// becoming a DoS vector when the caller is in a tight loop over many docs.
+const MAX_MATCH_INPUT = 128_000;
+
 export function detectBiasFlags(input: BiasDetectInput): ReadonlyArray<BiasFlag> {
   const flags = new Set<BiasFlag>();
 
-  const text = input.content ?? '';
+  const rawText = input.content ?? '';
+  const text =
+    rawText.length > MAX_MATCH_INPUT ? rawText.slice(0, MAX_MATCH_INPUT) : rawText;
   const uri = input.uri ?? '';
 
   // opinion

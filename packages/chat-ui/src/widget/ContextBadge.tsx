@@ -15,7 +15,7 @@ interface ContextBadgeProps {
 const PERSONA_LABELS_EN: Record<SubPersona, string> = {
   finance: 'Finance',
   maintenance: 'Maintenance',
-  leasing: 'Leasing',
+  offtake: 'Offtake',
   compliance: 'Compliance',
   learning: 'Training',
   advisor: 'Portfolio advisor',
@@ -25,7 +25,7 @@ const PERSONA_LABELS_EN: Record<SubPersona, string> = {
 const PERSONA_LABELS_SW: Record<SubPersona, string> = {
   finance: 'Fedha',
   maintenance: 'Matengenezo',
-  leasing: 'Kukodisha',
+  offtake: 'Mauzo',
   compliance: 'Uzingatiaji',
   learning: 'Mafunzo',
   advisor: 'Mshauri wa kwingineko',
@@ -33,7 +33,7 @@ const PERSONA_LABELS_SW: Record<SubPersona, string> = {
 };
 
 const PORTAL_LABELS_EN: Record<RouteContext['portal'], string> = {
-  customer: 'Tenant app',
+  customer: 'Buyer app',
   'estate-manager': 'Manager app',
   admin: 'Admin portal',
   owner: 'Owner portal',
@@ -41,7 +41,7 @@ const PORTAL_LABELS_EN: Record<RouteContext['portal'], string> = {
 };
 
 const PORTAL_LABELS_SW: Record<RouteContext['portal'], string> = {
-  customer: 'Programu ya mpangaji',
+  customer: 'Programu ya mnunuzi',
   'estate-manager': 'Programu ya meneja',
   admin: 'Bandari ya msimamizi',
   owner: 'Bandari ya mmiliki',

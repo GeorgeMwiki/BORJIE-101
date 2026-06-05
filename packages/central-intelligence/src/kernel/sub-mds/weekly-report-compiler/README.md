@@ -9,7 +9,7 @@ UI kind.
 
 | Tool                       | Tier  | Notes                                                |
 |----------------------------|-------|------------------------------------------------------|
-| `report.gather_kpis`       | read  | Pulls cashflow/occupancy/arrears/maintenance/complaints |
+| `report.gather_kpis`       | read  | Pulls cashflow/asset-utilization/outstanding-royalties/maintenance/grievances |
 | `report.detect_anomalies`  | read  | Predicted-vs-actual via forecasting outcome-recorder  |
 | `report.draft_briefing`    | DRAFT | Markdown briefing with inline `[c:...]` citation refs |
 | `report.cite_evidence`     | read  | Builds Citations API entries                          |
@@ -31,7 +31,7 @@ to the owner inbox.
   citation tag.
 - If forecasting-engine data is unavailable, the anomaly section is
   hidden — the sub-MD does NOT invent forecasts.
-- Single-portfolio scope — never compares across owners.
+- Single-operation scope — never compares across owners.
 - Charts: never render from a single data point.
 - Headline matches the highest-severity anomaly when present.
 

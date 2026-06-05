@@ -19,10 +19,10 @@ import type { CountryPluginRegistry } from '../core/registry.js';
 import { buildPhoneNormalizer } from '../core/phone.js';
 import type { CountryPlugin } from '../core/types.js';
 import {
-  DEFAULT_LEASE_LAW,
+  DEFAULT_MINING_LAW,
   DEFAULT_PAYMENT_RAIL_PORT,
   DEFAULT_TAX_REGIME,
-  DEFAULT_TENANT_SCREENING,
+  DEFAULT_COUNTERPARTY_SCREENING,
 } from '../ports/index.js';
 import { setNationalIdResolver } from '../validators/national-id.js';
 
@@ -139,13 +139,13 @@ const globalCorePlugin: CountryPlugin = {
     },
   ],
   compliance: {
-    minDepositMonths: 0,
-    maxDepositMonths: 2,
+    minBondMonths: 0,
+    maxBondMonths: 2,
     noticePeriodDays: 30,
-    minimumLeaseMonths: 1,
-    subleaseConsent: 'consent-required',
+    minimumTermMonths: 1,
+    subSupplyConsent: 'consent-required',
     lateFeeCapRate: null,
-    depositReturnDays: 30,
+    bondReturnDays: 30,
   },
   documentTemplates: [],
 };
@@ -158,8 +158,8 @@ export const GLOBAL_DEFAULT_PROFILE: ExtendedCountryProfile = {
   nationalIdValidator: null,
   taxRegime: DEFAULT_TAX_REGIME,
   paymentRails: DEFAULT_PAYMENT_RAIL_PORT,
-  leaseLaw: DEFAULT_LEASE_LAW,
-  tenantScreening: DEFAULT_TENANT_SCREENING,
+  miningLaw: DEFAULT_MINING_LAW,
+  counterpartyScreening: DEFAULT_COUNTERPARTY_SCREENING,
 };
 
 /**
@@ -190,8 +190,8 @@ export function registerAllCountryPlugins(
       ...profile.plugin,
       taxRegime: profile.taxRegime,
       paymentRails: profile.paymentRails,
-      leaseLaw: profile.leaseLaw,
-      tenantScreening: profile.tenantScreening,
+      miningLaw: profile.miningLaw,
+      counterpartyScreening: profile.counterpartyScreening,
     } as unknown as import('../core/types.js').CountryPlugin);
   }
 }
@@ -209,12 +209,12 @@ export function resolveExtendedProfile(
 }
 
 /**
- * Best-effort default country for tenant onboarding forms. Real IP-based
+ * Best-effort default country for operator onboarding forms. Real IP-based
  * geolocation is out of scope for this wave — callers wire that in later.
  * Today: returns the first registered profile's country as a deterministic
  * hint ('DE' when extended profiles are present).
  */
-export function getTenantCountryDefault(): string {
+export function getOperatorCountryDefault(): string {
   return 'DE';
 }
 

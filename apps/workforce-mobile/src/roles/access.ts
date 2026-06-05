@@ -63,6 +63,16 @@ export const SCREEN_ROLE_ACCESS: Readonly<Record<string, ReadonlyArray<Role>>> =
   'W-M-21': ['employee', 'manager', 'owner'],
   'W-M-22': ['employee', 'manager', 'owner'],
 
+  // Worker self-service screens under app/(worker)/ (WS-3 workforce wires).
+  // The route guard consults these ids; without them canSee() returns false
+  // and the screen renders the forbidden card. W-PAY = own payslip read;
+  // W-LEAVE = own leave requests + submit; W-INC = safety incident report.
+  // Managers + owners can also see them (a manager reviews their own pay/leave;
+  // the owner audits the surfaces).
+  'W-PAY': ['employee', 'manager', 'owner'],
+  'W-LEAVE': ['employee', 'manager', 'owner'],
+  'W-INC': ['employee', 'manager'],
+
   // Cross-role feature screens (no W-M / O-M prefix).
   'photo-advisor': ['owner', 'manager', 'employee'],
   // Chat-first home tab — single surface for all three roles. The persona

@@ -1,10 +1,10 @@
 /**
- * PricingElasticity — P(lease signed in 30 days | ask delta vs median).
+ * PricingElasticity — P(offtake contracted in 30 days | ask delta vs median).
  *
  * Hand-coded log-linear curve. Higher ask vs median → lower
  * conversion. Season factor models high/low season effects.
  *
- * Monotonicity: P(signed) is non-increasing in askPriceDelta.
+ * Monotonicity: P(contracted) is non-increasing in askPriceDelta.
  */
 
 import type { CausalModel } from './causal-model.js';
@@ -17,7 +17,7 @@ export interface PricingInput {
 
 export interface PricingOutput {
   readonly probabilitySigned: number;
-  readonly expectedDaysToLease: number;
+  readonly expectedDaysToContract: number;
   readonly drivers: ReadonlyArray<string>;
 }
 
@@ -25,7 +25,7 @@ export const pricingElasticity: CausalModel<PricingInput, PricingOutput> = {
   meta: {
     id: 'pricing.elasticity.v1',
     description:
-      'Probability a unit signs in 30d, and expected days-to-lease, given price vs market.',
+      'Probability a unit is contracted in 30d, and expected days-to-contract, given price vs market.',
     inputName: 'askPriceDelta',
     outputName: 'probabilitySigned',
     monotonicity: 'decreasing',
@@ -46,6 +46,6 @@ export const pricingElasticity: CausalModel<PricingInput, PricingOutput> = {
     if (input.askPriceDelta > 0.05) drivers.push(`asking ${(input.askPriceDelta * 100).toFixed(1)}% above median`);
     if (input.microMarketDemandIndex < 0.9) drivers.push('soft demand');
     if (input.seasonFactor < 0.95) drivers.push('off-season');
-    return { probabilitySigned: p, expectedDaysToLease: expectedDays, drivers };
+    return { probabilitySigned: p, expectedDaysToContract: expectedDays, drivers };
   },
 };

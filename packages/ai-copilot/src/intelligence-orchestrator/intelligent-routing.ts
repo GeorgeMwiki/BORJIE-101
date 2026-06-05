@@ -2,7 +2,7 @@
  * Intelligent Routing — LLM-free routing of admin queries to the right
  * sub-persona + module fetcher.
  *
- * Maps user text to one of BORJIE's operational sub-personas via
+ * Maps user text to one of Borjie's operational sub-personas via
  * keyword+heuristics. No LLM involved — pure deterministic routing so the
  * system behaves the same every run.
  *
@@ -15,7 +15,7 @@
 export type RoutingDestination =
   | 'manager'
   | 'owner_advisor'
-  | 'tenant_ops'
+  | 'counterparty_ops'
   | 'collector'
   | 'maintenance_coordinator'
   | 'compliance_officer'
@@ -51,17 +51,17 @@ const RULES: readonly RouteRule[] = [
     destination: 'collector',
     keywords: [
       /\barrear/i,
-      /\b(late|overdue)\s*(rent|payment)/i,
+      /\b(late|overdue)\s*(royalty|payment)/i,
       /\bcollect/i,
       /\bdemand\s+letter/i,
     ],
-    fetchersToPrime: ['payments', 'tenantRisk', 'compliance'],
+    fetchersToPrime: ['payments', 'counterpartyRisk', 'compliance'],
     rationale: 'mentions arrears / collection / demand',
   },
   {
     destination: 'maintenance_coordinator',
     keywords: [
-      /\b(leak|leaking|broken|repair|plumbing|electrical|hvac)\b/i,
+      /\b(leak|leaking|broken|repair|pump|hydraulic|electrical|crusher)\b/i,
       /\bmaintenance/i,
       /\bfix\s+/i,
       /\bcase/i,
@@ -83,26 +83,26 @@ const RULES: readonly RouteRule[] = [
   {
     destination: 'marketplace_agent',
     keywords: [
-      /\bvacan/i,
+      /\b(idle|available\s+capacity)/i,
       /\bmarketplace/i,
       /\blisting/i,
       /\bshow(ing|er)\b/i,
       /\b(advertise|campaign)/i,
     ],
-    fetchersToPrime: ['occupancy', 'leasing'],
-    rationale: 'mentions vacancy / marketplace / listing',
+    fetchersToPrime: ['production', 'offtake'],
+    rationale: 'mentions available capacity / marketplace / listing',
   },
   {
-    destination: 'tenant_ops',
+    destination: 'counterparty_ops',
     keywords: [
-      /\btenant\b/i,
-      /\blease/i,
+      /\b(buyer|counterparty)\b/i,
+      /\bofftake/i,
       /\brenewal/i,
       /\bcomplain/i,
       /\bdispute/i,
     ],
-    fetchersToPrime: ['leasing', 'tenantRisk', 'payments'],
-    rationale: 'mentions tenant / lease / renewal / complaint',
+    fetchersToPrime: ['offtake', 'counterpartyRisk', 'payments'],
+    rationale: 'mentions buyer / offtake / renewal / complaint',
   },
   {
     destination: 'owner_advisor',
@@ -113,7 +113,7 @@ const RULES: readonly RouteRule[] = [
       /\byield\b/i,
       /\broi\b/i,
     ],
-    fetchersToPrime: ['payments', 'maintenance', 'occupancy'],
+    fetchersToPrime: ['payments', 'maintenance', 'production'],
     rationale: 'mentions owner / portfolio / yield',
   },
   {

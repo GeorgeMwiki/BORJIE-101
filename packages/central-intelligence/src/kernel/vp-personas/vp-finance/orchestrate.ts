@@ -12,8 +12,8 @@ import {
 } from '../shared/vp-base.js';
 
 export const VP_FINANCE_LINE_WORKERS = Object.freeze([
-  'arrears.chaser',
-  'kra.filing-assistant',
+  'royalty.chaser',
+  'tra.filing-assistant',
   'utility-billing-clerk',
   'cashflow-forecaster',
 ] as const);
@@ -30,25 +30,25 @@ export function routeFinanceIntent(intent: OwnerIntent): ReadonlyArray<FinanceRo
   const t = intent.text.toLowerCase();
   const routes: FinanceRoute[] = [];
 
-  if (/arrears|overdue|late rent|chase|outstanding/.test(t)) {
+  if (/outstanding royalties|royalt|overdue|late payment|chase|outstanding/.test(t)) {
     routes.push({
-      lineWorker: 'arrears.chaser',
+      lineWorker: 'royalty.chaser',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Run the arrears ladder for overdue accounts',
+      description: 'Run the outstanding-royalties ladder for overdue accounts',
     });
   }
-  if (/kra|tax|mri|withholding|filing/.test(t)) {
+  if (/tra|kra|tax|mri|withholding|filing/.test(t)) {
     routes.push({
-      lineWorker: 'kra.filing-assistant',
+      lineWorker: 'tra.filing-assistant',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Prepare the KRA filing — owner signs off before submission',
+      description: 'Prepare the TRA royalty filing — owner signs off before submission',
     });
   }
-  if (/utility|water|electric|kplc|nairobi water|levy|service charge/.test(t)) {
+  if (/utility|water|electric|tanesco|fuel|diesel|levy|service charge/.test(t)) {
     routes.push({
       lineWorker: 'utility-billing-clerk',
       initialInput: { ownerIntent: intent.text, correlationId: intent.correlationId },
-      description: 'Reconcile utility bills and post tenant allocations',
+      description: 'Reconcile utility / fuel bills and post counterparty allocations',
     });
   }
   if (/cash ?flow|forecast|noi|projection|liquidity/.test(t)) {
@@ -90,7 +90,7 @@ export async function orchestrateFinance(args: {
       spawns: Object.freeze([]),
       gaps: Object.freeze([]),
       summary:
-        'I did not find a financial lever to pull. Ask me about arrears, KRA, utilities, or cashflow.',
+        'I did not find a financial lever to pull. Ask me about outstanding royalties, TRA, utilities, or cashflow.',
     });
   }
 
@@ -102,7 +102,7 @@ export async function orchestrateFinance(args: {
       gaps.push({
         missingLineWorker: route.lineWorker,
         reason: `VP Finance needed ${route.lineWorker} for intent "${intent.text}" but it is not registered for this scope.`,
-        suggestedRiskTier: route.lineWorker === 'kra.filing-assistant' ? 'external-comm' : 'mutate',
+        suggestedRiskTier: route.lineWorker === 'tra.filing-assistant' ? 'external-comm' : 'mutate',
       });
       continue;
     }

@@ -2,25 +2,25 @@
  * Report Generation Service
  */
 
-import type { TenantId, PropertyId, CustomerId, DateRange, ReportFilters } from '../types/index.js';
+import type { TenantId, SiteId, CustomerId, DateRange, ReportFilters } from '../types/index.js';
 
-export interface RentRollUnit {
+export interface RoyaltyRollUnit {
   unitId: string;
   unitName: string;
-  propertyName: string;
-  monthlyRent: number;
+  siteName: string;
+  monthlyRoyalty: number;
   status: string;
-  tenantName?: string;
-  leaseEndDate?: Date;
+  buyerName?: string;
+  supplyEndDate?: Date;
 }
 
-export interface RentRollReport {
+export interface RoyaltyRollReport {
   tenantId: TenantId;
   generatedAt: Date;
-  units: RentRollUnit[];
+  units: RoyaltyRollUnit[];
   totalUnits: number;
-  occupiedUnits: number;
-  totalMonthlyRent: number;
+  producingUnits: number;
+  totalMonthlyRoyalty: number;
 }
 
 export interface CollectionReport {
@@ -33,14 +33,14 @@ export interface CollectionReport {
   payments: Array<{ date: Date; amount: number; reference: string; customerName: string }>;
 }
 
-export interface OccupancyReport {
+export interface AssetUtilisationReport {
   tenantId: TenantId;
   dateRange: DateRange;
   totalUnits: number;
-  occupiedUnits: number;
+  producingUnits: number;
   availableUnits: number;
-  occupancyRate: number;
-  byProperty: Array<{ propertyId: string; propertyName: string; totalUnits: number; occupiedUnits: number; occupancyRate: number }>;
+  assetUtilisationRate: number;
+  bySite: Array<{ siteId: string; siteName: string; totalUnits: number; producingUnits: number; assetUtilisationRate: number }>;
 }
 
 export interface MaintenanceReport {
@@ -64,7 +64,7 @@ export interface FinancialSummary {
   breakdown: Record<string, number>;
 }
 
-export interface TenantStatement {
+export interface BuyerStatement {
   tenantId: TenantId;
   customerId: CustomerId;
   customerName: string;
@@ -76,22 +76,22 @@ export interface TenantStatement {
   lineItems: Array<{ date: Date; description: string; debit: number; credit: number; balance: number }>;
 }
 
-export interface PropertyPerformance {
+export interface SitePerformance {
   tenantId: TenantId;
-  propertyId: PropertyId;
-  propertyName: string;
+  siteId: SiteId;
+  siteName: string;
   dateRange: DateRange;
   revenue: number;
   expenses: number;
   noi: number;
-  occupancyRate: number;
+  assetUtilisationRate: number;
   collectionRate: number;
 }
 
 export interface IReportDataProvider {
-  getUnits(tenantId: TenantId, filters?: ReportFilters): Promise<RentRollUnit[]>;
+  getUnits(tenantId: TenantId, filters?: ReportFilters): Promise<RoyaltyRollUnit[]>;
   getPayments(tenantId: TenantId, dateRange: DateRange): Promise<CollectionReport['payments']>;
-  getOccupancyData(tenantId: TenantId, dateRange: DateRange): Promise<OccupancyReport['byProperty']>;
+  getAssetUtilisationData(tenantId: TenantId, dateRange: DateRange): Promise<AssetUtilisationReport['bySite']>;
   getMaintenanceData(tenantId: TenantId, dateRange: DateRange): Promise<{
     total: number;
     completed: number;
@@ -101,18 +101,18 @@ export interface IReportDataProvider {
     byPriority: Record<string, number>;
   }>;
   getFinancialData(tenantId: TenantId, period: string): Promise<FinancialSummary>;
-  getCustomerStatementData(tenantId: TenantId, customerId: CustomerId, dateRange: DateRange): Promise<Omit<TenantStatement, 'tenantId' | 'customerId' | 'dateRange'>>;
-  getPropertyPerformanceData(tenantId: TenantId, propertyId: PropertyId, dateRange: DateRange): Promise<Omit<PropertyPerformance, 'tenantId' | 'propertyId' | 'dateRange'>>;
+  getCustomerStatementData(tenantId: TenantId, customerId: CustomerId, dateRange: DateRange): Promise<Omit<BuyerStatement, 'tenantId' | 'customerId' | 'dateRange'>>;
+  getSitePerformanceData(tenantId: TenantId, siteId: SiteId, dateRange: DateRange): Promise<Omit<SitePerformance, 'tenantId' | 'siteId' | 'dateRange'>>;
 }
 
 export class ReportService {
   constructor(private readonly dataProvider: IReportDataProvider) {}
 
-  async generateRentRollReport(tenantId: TenantId, filters?: ReportFilters): Promise<RentRollReport> {
+  async generateRoyaltyRollReport(tenantId: TenantId, filters?: ReportFilters): Promise<RoyaltyRollReport> {
     const units = await this.dataProvider.getUnits(tenantId, filters);
-    const occupiedUnits = units.filter((u) => u.status === 'occupied' || u.status === 'OCCUPIED').length;
-    const totalMonthlyRent = units.reduce((sum, u) => sum + u.monthlyRent, 0);
-    return { tenantId, generatedAt: new Date(), units, totalUnits: units.length, occupiedUnits, totalMonthlyRent };
+    const producingUnits = units.filter((u) => u.status === 'producing' || u.status === 'PRODUCING').length;
+    const totalMonthlyRoyalty = units.reduce((sum, u) => sum + u.monthlyRoyalty, 0);
+    return { tenantId, generatedAt: new Date(), units, totalUnits: units.length, producingUnits, totalMonthlyRoyalty };
   }
 
   async generateCollectionReport(tenantId: TenantId, dateRange: DateRange): Promise<CollectionReport> {
@@ -124,13 +124,13 @@ export class ReportService {
     return { tenantId, dateRange, totalBilled, totalCollected, totalOutstanding, collectionRate, payments };
   }
 
-  async generateOccupancyReport(tenantId: TenantId, dateRange: DateRange): Promise<OccupancyReport> {
-    const byProperty = await this.dataProvider.getOccupancyData(tenantId, dateRange);
-    const totalUnits = byProperty.reduce((sum, p) => sum + p.totalUnits, 0);
-    const occupiedUnits = byProperty.reduce((sum, p) => sum + p.occupiedUnits, 0);
-    const availableUnits = totalUnits - occupiedUnits;
-    const occupancyRate = totalUnits > 0 ? (occupiedUnits / totalUnits) * 100 : 0;
-    return { tenantId, dateRange, totalUnits, occupiedUnits, availableUnits, occupancyRate, byProperty };
+  async generateAssetUtilisationReport(tenantId: TenantId, dateRange: DateRange): Promise<AssetUtilisationReport> {
+    const bySite = await this.dataProvider.getAssetUtilisationData(tenantId, dateRange);
+    const totalUnits = bySite.reduce((sum, p) => sum + p.totalUnits, 0);
+    const producingUnits = bySite.reduce((sum, p) => sum + p.producingUnits, 0);
+    const availableUnits = totalUnits - producingUnits;
+    const assetUtilisationRate = totalUnits > 0 ? (producingUnits / totalUnits) * 100 : 0;
+    return { tenantId, dateRange, totalUnits, producingUnits, availableUnits, assetUtilisationRate, bySite };
   }
 
   async generateMaintenanceReport(tenantId: TenantId, dateRange: DateRange): Promise<MaintenanceReport> {
@@ -142,13 +142,13 @@ export class ReportService {
     return this.dataProvider.getFinancialData(tenantId, period);
   }
 
-  async generateTenantStatement(tenantId: TenantId, customerId: CustomerId, dateRange: DateRange): Promise<TenantStatement> {
+  async generateBuyerStatement(tenantId: TenantId, customerId: CustomerId, dateRange: DateRange): Promise<BuyerStatement> {
     const data = await this.dataProvider.getCustomerStatementData(tenantId, customerId, dateRange);
     return { tenantId, customerId, dateRange, ...data };
   }
 
-  async generatePropertyPerformance(tenantId: TenantId, propertyId: PropertyId, dateRange: DateRange): Promise<PropertyPerformance> {
-    const data = await this.dataProvider.getPropertyPerformanceData(tenantId, propertyId, dateRange);
-    return { tenantId, propertyId, dateRange, ...data };
+  async generateSitePerformance(tenantId: TenantId, siteId: SiteId, dateRange: DateRange): Promise<SitePerformance> {
+    const data = await this.dataProvider.getSitePerformanceData(tenantId, siteId, dateRange);
+    return { tenantId, siteId, dateRange, ...data };
   }
 }

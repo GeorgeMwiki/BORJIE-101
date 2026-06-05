@@ -43,11 +43,11 @@ describe('frustrationPolicy', () => {
         urgency: 0.5,
       },
     });
-    const base = ['home', 'reports', 'support-centre', 'tenant.help'];
+    const base = ['home', 'reports', 'support-centre', 'owner.help'];
     const out = decideLayout(ctx, base, [frustrationPolicy]);
     expect(out.sections[0]).toBe('support-centre');
-    expect(out.sections[1]).toBe('tenant.help');
-    expect(out.pinned).toEqual(['support-centre', 'tenant.help']);
+    expect(out.sections[1]).toBe('owner.help');
+    expect(out.pinned).toEqual(['support-centre', 'owner.help']);
   });
 
   it('hides marketing/upsell sections when frustration is high', () => {
@@ -184,9 +184,9 @@ describe('recencyPolicy', () => {
 describe('intentPolicy', () => {
   it('pins payment sections when intent="payment"', () => {
     const ctx = makeContext({ intent: 'payment' });
-    const base = ['home', 'maintenance', 'tenant.payments', 'settings'];
+    const base = ['home', 'maintenance', 'owner.payments', 'settings'];
     const out = decideLayout(ctx, base, [intentPolicy]);
-    expect(out.sections[0]).toBe('tenant.payments');
+    expect(out.sections[0]).toBe('owner.payments');
   });
 
   it('overrides recency when both are present', () => {
@@ -194,10 +194,10 @@ describe('intentPolicy', () => {
       intent: 'payment',
       behavior: { recentActions: ['settings', 'maintenance'] },
     });
-    const base = ['home', 'settings', 'maintenance', 'tenant.payments'];
+    const base = ['home', 'settings', 'maintenance', 'owner.payments'];
     const out = decideLayout(ctx, base, [intentPolicy, recencyPolicy]);
     // Intent (weight 25) > recency (weight 5) → payments first.
-    expect(out.sections[0]).toBe('tenant.payments');
+    expect(out.sections[0]).toBe('owner.payments');
     // Recency-pinned settings + maintenance follow.
     expect(out.sections).toContain('settings');
     expect(out.sections).toContain('maintenance');
@@ -205,23 +205,23 @@ describe('intentPolicy', () => {
 
   it('abstains for unknown intents', () => {
     const ctx = makeContext({ intent: 'never-heard-of-this' });
-    const base = ['home', 'tenant.payments'];
+    const base = ['home', 'owner.payments'];
     const out = decideLayout(ctx, base, [intentPolicy]);
     expect(out.sections).toEqual(base);
   });
 
   it('abstains when intent is null', () => {
     const ctx = makeContext({ intent: null });
-    const base = ['home', 'tenant.payments'];
+    const base = ['home', 'owner.payments'];
     const out = decideLayout(ctx, base, [intentPolicy]);
     expect(out.sections).toEqual(base);
   });
 
   it('is case-insensitive on the intent string', () => {
     const ctx = makeContext({ intent: 'PAYMENT' });
-    const base = ['home', 'tenant.payments'];
+    const base = ['home', 'owner.payments'];
     const out = decideLayout(ctx, base, [intentPolicy]);
-    expect(out.sections[0]).toBe('tenant.payments');
+    expect(out.sections[0]).toBe('owner.payments');
   });
 });
 
@@ -280,8 +280,8 @@ describe('cross-policy interactions', () => {
     const base = [
       'home',
       'settings',
-      'tenant.reports',
-      'tenant.reports.pro',
+      'owner.reports',
+      'owner.reports.pro',
       'maintenance',
     ];
     const out = decideLayout(ctx, base, [
@@ -290,12 +290,12 @@ describe('cross-policy interactions', () => {
       roleMasteryPolicy,
       recencyPolicy,
     ]);
-    // Intent → tenant.reports + tenant.reports.pro pinned (weight 25 each).
-    // tenant.reports.pro also gets expert boost.
+    // Intent → owner.reports + owner.reports.pro pinned (weight 25 each).
+    // owner.reports.pro also gets expert boost.
     // Recency → home, settings (weight 5).
-    expect(out.sections[0]).toMatch(/tenant\.reports/);
+    expect(out.sections[0]).toMatch(/owner\.reports/);
     expect(out.sections.slice(0, 2)).toEqual(
-      expect.arrayContaining(['tenant.reports', 'tenant.reports.pro']),
+      expect.arrayContaining(['owner.reports', 'owner.reports.pro']),
     );
   });
 });

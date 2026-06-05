@@ -9,20 +9,20 @@ import { ACTION_CATALOG, findActionById } from '../action-catalog.js';
 describe('spotlight engine', () => {
   it('matches an action by title keyword', () => {
     const results = searchSpotlight(
-      { query: 'arrears', userRoles: ['OWNER'] },
+      { query: 'outstanding royalties', userRoles: ['OWNER'] },
       undefined
     );
     expect(results.length).toBeGreaterThan(0);
-    expect(results[0].title.toLowerCase()).toContain('arrears');
+    expect(results[0].title.toLowerCase()).toContain('royalt');
   });
 
   it('hides actions the user has no role for', () => {
     const results = searchSpotlight(
-      { query: 'draft lease', userRoles: ['TENANT'] },
+      { query: 'draft offtake', userRoles: ['TENANT'] },
       undefined
     );
-    // mutate.lease.draft requires OWNER/MANAGER — should not appear for TENANT.
-    expect(results.find((r) => r.id === 'action:mutate.lease.draft')).toBeUndefined();
+    // mutate.offtake.draft requires OWNER/MANAGER — should not appear for TENANT.
+    expect(results.find((r) => r.id === 'action:mutate.offtake.draft')).toBeUndefined();
   });
 
   it('returns persona handoff when query has zero matches', () => {
@@ -38,11 +38,11 @@ describe('spotlight engine', () => {
       { query: 'unit 4B', userRoles: ['OWNER'] },
       {
         units: [
-          { id: 'u1', label: '4B', propertyName: 'Goba' },
-          { id: 'u2', label: '9C', propertyName: 'Upanga' },
+          { id: 'u1', label: '4B', siteName: 'Geita' },
+          { id: 'u2', label: '9C', siteName: 'Kahama' },
         ],
-        properties: [],
-        tenants: [],
+        sites: [],
+        counterparties: [],
       }
     );
     const entityHit = results.find((r) => r.kind === 'entity');
@@ -51,9 +51,9 @@ describe('spotlight engine', () => {
   });
 
   it('executes an action only for authorised roles', () => {
-    const ok = executeAction('mutate.lease.draft', ['OWNER']);
+    const ok = executeAction('mutate.offtake.draft', ['OWNER']);
     expect(ok.ok).toBe(true);
-    const denied = executeAction('mutate.lease.draft', ['TENANT']);
+    const denied = executeAction('mutate.offtake.draft', ['TENANT']);
     expect(denied.ok).toBe(false);
   });
 
@@ -76,28 +76,28 @@ describe('spotlight engine', () => {
 
 describe('entity resolver', () => {
   it('resolves unit by explicit reference', () => {
-    const matches = resolveEntities('unit 4B at Goba', {
-      units: [{ id: 'u1', label: '4B', propertyName: 'Goba' }],
-      properties: [],
-      tenants: [],
+    const matches = resolveEntities('unit 4B at Geita', {
+      units: [{ id: 'u1', label: '4B', siteName: 'Geita' }],
+      sites: [],
+      counterparties: [],
     });
     expect(matches[0]?.id).toBe('u1');
   });
 
-  it('resolves tenant by full name', () => {
+  it('resolves counterparty by full name', () => {
     const matches = resolveEntities('jane mwangi', {
       units: [],
-      properties: [],
-      tenants: [{ id: 't1', name: 'Jane Mwangi' }],
+      sites: [],
+      counterparties: [{ id: 'c1', name: 'Jane Mwangi' }],
     });
-    expect(matches[0]?.id).toBe('t1');
+    expect(matches[0]?.id).toBe('c1');
   });
 
   it('returns empty array for irrelevant query', () => {
     const matches = resolveEntities('xyzzy', {
       units: [{ id: 'u1', label: '4B' }],
-      properties: [],
-      tenants: [],
+      sites: [],
+      counterparties: [],
     });
     expect(matches.length).toBe(0);
   });

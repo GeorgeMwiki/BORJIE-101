@@ -1,25 +1,25 @@
 id: arrears-triage-010
 scenario: arrears-triage
-title: 'New tenant, first month, 5-day arrears'
+title: 'New counterparty, first month, 5-day outstanding royalty'
 context:
-  tenant:
-    id: tnt-010
+  counterparty:
+    id: cpty-010
     name: 'Linda Achieng'
-    arrears_days: 5
-    history: new-tenant
-    move_in_date: '2026-04-15'
-  property:
-    id: prop-010
-    block: 'Block D'
-    unit: '1B'
-  lease:
-    monthly_rent_minor: 55000000
+    outstanding_days: 5
+    history: new-counterparty
+    mobilisation_date: '2026-04-15'
+  asset:
+    id: site-010
+    zone: 'Chunya Zone'
+    pit: 'Pit 1B'
+  offtake:
+    monthly_royalty_minor: 55000000
     currency: TZS
   events:
-    - {at: '2026-04-15', kind: 'lease.activated'}
-    - {at: '2026-04-30', kind: 'invoice.due', amount_minor: 55000000}
+    - {at: '2026-04-15', kind: 'offtake.activated'}
+    - {at: '2026-04-30', kind: 'royalty_return.due', amount_minor: 55000000}
 expected_actions:
-  - {tool: 'arrears.send_first_invoice_followup', tone: 'welcoming-clear'}
+  - {tool: 'royalty.send_first_invoice_followup', tone: 'welcoming-clear'}
 expected_escalation: false
 scorer_weights:
   action-correctness: 0.4

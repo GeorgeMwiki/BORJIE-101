@@ -95,10 +95,10 @@ export interface JarvisRouterConfig {
 }
 
 const ALL_TIERS = [
-  'tenant', 'lease', 'unit', 'block', 'property',
+  'tenant', 'offtake', 'pit', 'zone', 'site',
   'portfolio', 'org', 'industry',
 ] as const;
-const CONSUMER_TIERS = ['tenant', 'lease', 'unit', 'property'] as const;
+const CONSUMER_TIERS = ['tenant', 'offtake', 'pit', 'site'] as const;
 
 const ProposeActionSchema = z.object({
   thoughtId: z.string().min(1).max(120),
@@ -224,11 +224,11 @@ function tierToNumber(tier: ThoughtRequest['tier']): 1 | 2 | 3 | 4 | 5 {
       return 1;
     case 'portfolio':
       return 2;
-    case 'property':
-    case 'block':
+    case 'site':
+    case 'zone':
       return 3;
-    case 'unit':
-    case 'lease':
+    case 'pit':
+    case 'offtake':
       return 4;
     case 'tenant':
       return 5;
@@ -241,7 +241,7 @@ function surfacePersonaId(surface: JarvisSurface): string {
   // Surface → default persona's id, used as the ScopeContext personaId
   // hint. Real persona selection is done server-side via selectPersona().
   switch (surface) {
-    case 'tenant-app':         return 'tenant-resident';
+    case 'tenant-app':         return 'counterparty-resident';
     case 'owner-portal':       return 'owner-advisor';
     case 'estate-manager-app': return 'estate-manager';
     case 'admin-portal':       return 'org-admin';
@@ -769,8 +769,8 @@ function withSharedHook(config: JarvisRouterConfig): JarvisRouterConfig {
   });
 }
 
-export const tenantJarvisRouter   = createJarvisRouter(withSharedHook({ surface: 'tenant-app',         defaultTier: 'lease',    greetingStyle: 'warm',   consumerSurface: true }));
+export const tenantJarvisRouter   = createJarvisRouter(withSharedHook({ surface: 'tenant-app',         defaultTier: 'offtake',  greetingStyle: 'warm',   consumerSurface: true }));
 export const ownerJarvisRouter    = createJarvisRouter(withSharedHook({ surface: 'owner-portal',       defaultTier: 'portfolio',greetingStyle: 'warm' }));
-export const managerJarvisRouter  = createJarvisRouter(withSharedHook({ surface: 'estate-manager-app', defaultTier: 'property', greetingStyle: 'terse' }));
+export const managerJarvisRouter  = createJarvisRouter(withSharedHook({ surface: 'estate-manager-app', defaultTier: 'site',     greetingStyle: 'terse' }));
 export const orgAdminJarvisRouter = createJarvisRouter(withSharedHook({ surface: 'admin-portal',       defaultTier: 'org',      greetingStyle: 'warm' }));
 export const platformHqJarvisRouter = createJarvisRouter(withSharedHook({ surface: 'platform-hq',      defaultTier: 'industry', greetingStyle: 'warm' }));

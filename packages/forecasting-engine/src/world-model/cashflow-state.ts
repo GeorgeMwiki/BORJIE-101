@@ -8,7 +8,7 @@
 export interface CashflowEvent {
   readonly t: number; // ms
   readonly amount: number; // signed: positive = inflow
-  readonly kind: 'rent' | 'expense' | 'vendor' | 'tax' | 'other';
+  readonly kind: 'royalty' | 'expense' | 'vendor' | 'tax' | 'other';
   readonly note?: string;
 }
 

@@ -2,7 +2,7 @@
  * BORJIE Constitution citation verifier.
  *
  * Pure-function evaluator that takes a candidate AI response, the action
- * the brain proposes to take, and the tenant jurisdiction. Returns a
+ * the brain proposes to take, and the operator jurisdiction. Returns a
  * verdict object the calling gate can act on:
  *
  *   - `pass: false` when any `severity:refuse` clause applies and is
@@ -35,7 +35,7 @@ import {
 /**
  * Input to the verifier. `candidateResponse` is the natural-language
  * draft the brain is about to emit; `action` is the action tag (e.g.
- * `eviction.notice.send`); `jurisdiction` is the tenant location.
+ * `licence.suspension.send`); `jurisdiction` is the operator location.
  *
  * `evidence` is an optional structured payload used by clause-specific
  * detectors (e.g. for C03 — the disbursement waterfall, for C06 —

@@ -1,7 +1,7 @@
 /**
  * VP Growth — weekly report.
- *   - renewal rate
- *   - vacancy days
+ *   - offtake renewal rate
+ *   - lot time-to-offtake days
  *   - pricing vs market
  *   - candidate acquisitions
  */
@@ -36,22 +36,22 @@ export async function draftGrowthWeeklyReport(args: {
   readonly weekStartingIso: string;
   readonly rollups: ReadonlyArray<VpLineWorkerRollup>;
 }): Promise<VpWeeklyReport> {
-  const lease = pick(args.rollups, 'lease.coordinator');
-  const afterHours = pick(args.rollups, 'leasing.after-hours-contact');
+  const offtake = pick(args.rollups, 'offtake.coordinator');
+  const afterHours = pick(args.rollups, 'after_hours_contact');
   const pricing = pick(args.rollups, 'pricing.analyst');
   const acquisitions = pick(args.rollups, 'vacancy.acquisitions-scout');
 
   const cards: VpReportCard[] = [
     buildVpReportCard({
       title: 'Renewal rate',
-      headline: 'Lease renewal rate',
-      ...(lease ? { rollup: lease } : {}),
+      headline: 'Offtake renewal rate',
+      ...(offtake ? { rollup: offtake } : {}),
       numericUnit: '%',
-      fallbackCommentary: 'Cohort renewal funnel.',
+      fallbackCommentary: 'Cohort offtake-renewal funnel.',
     }),
     buildVpReportCard({
-      title: 'Vacancy days',
-      headline: 'Avg vacancy-to-lease days',
+      title: 'Lot time-to-offtake',
+      headline: 'Avg lot time-to-offtake days',
       ...(afterHours ? { rollup: afterHours } : {}),
       numericUnit: 'days',
     }),

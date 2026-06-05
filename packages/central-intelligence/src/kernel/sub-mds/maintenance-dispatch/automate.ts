@@ -25,7 +25,7 @@ export function automateMaintenance(
     },
     hookNames: [
       'maintenance.classify_ticket',
-      'maintenance.pick_vendor',
+      'maintenance.pick_contractor',
       'maintenance.dispatch_work_order',
       'maintenance.follow_up',
     ],

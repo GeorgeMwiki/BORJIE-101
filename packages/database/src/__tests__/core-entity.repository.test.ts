@@ -268,7 +268,7 @@ describe('MMR rerank', () => {
       [
         { id: 'a', display_name: 'plot one acacia road', combined: 0.9 },
         { id: 'b', display_name: 'plot one acacia road north', combined: 0.85 },
-        { id: 'c', display_name: 'warehouse mwakatundu', combined: 0.8 },
+        { id: 'c', display_name: 'processing yard mwakatundu', combined: 0.8 },
       ],
       0.1,
     );
@@ -714,7 +714,7 @@ describe('CoreEntityRepository invariants (simulator)', () => {
     // top-1 pick equals the candidate with the highest combined.
     const candidates = [
       { id: 'land-1', display_name: 'plot 42 acacia', combined: 0.9 },
-      { id: 'land-2', display_name: 'godown b mwakatundu', combined: 0.7 },
+      { id: 'land-2', display_name: 'ore shed b mwakatundu', combined: 0.7 },
       { id: 'land-3', display_name: 'plot 99 baobab', combined: 0.5 },
     ];
     const reranked = mmrRerank(candidates, 0.5);
