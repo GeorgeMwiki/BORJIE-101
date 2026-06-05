@@ -1460,3 +1460,26 @@ export * from './payroll-runs.schema.js';
 // FORCE RLS on app.current_tenant_id. Consumed by routes/damage-claims.hono.ts
 // + the site.damage_claim.* / site.rehabilitation.approve_plan brain tools.
 export * from './site-damage-settlement.schema.js';
+
+// staff_members + staff_kpis + org_tasks + org_escalations (migration 0280).
+// Org / team-management write surface ported from the BN org/team stack
+// (itself a LitFin iter-27..31 port), retargeted real-estate -> mining: a
+// mining operator hires a staff member (site_supervisor / pit_foreman /
+// safety_officer / geologist / accountant), assigns a KPI, schedules a task,
+// or escalates to a human (compliance_breach / safety_incident /
+// payment_default). KPI metric units are currency-neutral. Tenant-scoped
+// FORCE RLS on app.current_tenant_id. Consumed by routes/org-admin.hono.ts +
+// the staff.* brain tools.
+export * from './org-team-management.schema.js';
+
+// md_plans + md_subagent_runs + md_sandbox_writes + md_sandbox_commits +
+// md_sandbox_rejects (migration 0281). Agentic plan / subagent + sandbox-
+// preview surface ported from the BN md-agentic stack (itself a LitFin
+// iter-32 plan-mode + iter-36 agent-teams / sandbox-writes port), retargeted
+// real-estate -> mining: Claude-Code-parity plan mode + agent teams + a
+// worktree-style sandbox where the brain STAGES a mutation against the gap-2
+// org/team tables, the owner reviews, then commits (atomic write + audit) or
+// rejects. Subagent dispatch is honest-degraded (persists pending runs, never
+// fabricates results). Tenant-scoped FORCE RLS on app.current_tenant_id.
+// Consumed by routes/md-agentic.hono.ts + the plan.* / sandbox.* brain tools.
+export * from './md-agentic.schema.js';
