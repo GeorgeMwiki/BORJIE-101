@@ -84,6 +84,8 @@ import {
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
 import { takeQueuedPrompt } from '@/lib/owner-os/queued-prompt';
+import { useChatMode } from './use-chat-mode';
+import { ChatModeSurface } from './ChatModeSurface';
 import {
   appendBoardElement,
   boardElementSchema,
@@ -332,6 +334,17 @@ export function HomeChatTeach({
   // unauthenticated, so the gate + panel simply stay hidden.
   const masteryQuery = useMyMastery();
   const shortcutsQuery = useMyShortcuts();
+  // Pedagogical chat-mode (teaching / quiz / review / discussion). The
+  // brain-teach SSE stream emits no discrete mode frame, so the mode is
+  // detected from each completed assistant turn (see `ingestAssistantTurn`
+  // at stream end). `conversation` is the default and renders nothing
+  // extra, so the surface stays unchanged until a turn signals a mode.
+  const {
+    state: chatModeState,
+    ingestAssistantTurn,
+    revertMode: revertChatMode,
+    reset: resetChatMode,
+  } = useChatMode();
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -445,6 +458,10 @@ export function HomeChatTeach({
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
+        // Accumulate the assistant reply locally so chat-mode detection at
+        // stream end reads the full turn text without racing async state.
+        let assistantText = '';
+        const turnToolCalls: string[] = [];
 
         while (true) {
           const { value, done } = await reader.read();
@@ -462,6 +479,7 @@ export function HomeChatTeach({
             }
             if (frame.event === 'message_chunk') {
               const chunk = typeof payload.text === 'string' ? payload.text : '';
+              assistantText += chunk;
               const evidence = Array.isArray(payload.evidence_ids)
                 ? (payload.evidence_ids as ReadonlyArray<unknown>).filter(
                     (x): x is string => typeof x === 'string',
@@ -482,6 +500,15 @@ export function HomeChatTeach({
             } else if (frame.event === 'ui_block') {
               const block = normaliseUiBlock(payload.block);
               if (block) {
+                // Map the teach frame's block type to a synthetic tool-call
+                // hint so chat-mode detection is anchored on the structured
+                // signal, not only the reply prose. concept_card ⇒ teaching,
+                // metric_strip ⇒ assessment/quiz.
+                if (block.type === 'concept_card') {
+                  turnToolCalls.push('teach-concept');
+                } else if (block.type === 'metric_strip') {
+                  turnToolCalls.push('assess-knowledge');
+                }
                 if (block.type === 'step_progress') {
                   const next = typeof (block as { current?: unknown }).current === 'number'
                     ? Number((block as { current?: number }).current)
@@ -703,6 +730,19 @@ export function HomeChatTeach({
             m.id === assistantId ? { ...m, streaming: false } : m,
           ),
         );
+
+        // Turn complete: run pedagogical chat-mode detection over the full
+        // accumulated reply (+ structured block hints). The reducer keeps
+        // `conversation` when no mode signal is strong, so the surface is
+        // unchanged for ordinary replies. `messages` is the pre-turn
+        // snapshot; +2 accounts for the user+assistant pair just added.
+        if (assistantText.trim().length > 0) {
+          ingestAssistantTurn({
+            responseText: assistantText,
+            toolCalls: turnToolCalls,
+            sessionMessageCount: messages.length + 2,
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Stream failed.';
         setLastError(msg);
@@ -724,7 +764,7 @@ export function HomeChatTeach({
         abortRef.current = null;
       }
     },
-    [isStreaming, languagePreference, lessonStep, messages, onTabSseFrame],
+    [isStreaming, languagePreference, lessonStep, messages, onTabSseFrame, ingestAssistantTurn],
   );
 
   const onReset = useCallback(() => {
@@ -736,7 +776,8 @@ export function HomeChatTeach({
     setLastError(null);
     setLessonStep(1);
     setAffectiveProfile(null);
-  }, []);
+    resetChatMode();
+  }, [resetChatMode]);
 
   const emptyKind = resolveEmptyKind({
     configured,
@@ -1016,6 +1057,14 @@ export function HomeChatTeach({
               />
             </div>
           ) : null}
+
+          <ChatModeSurface
+            state={chatModeState}
+            language={languagePreference}
+            onModeRevert={revertChatMode}
+            onFollowUp={onSuggestion}
+            disabled={composerDisabled || isStreaming}
+          />
 
           <AskComposer
             busy={isStreaming}
