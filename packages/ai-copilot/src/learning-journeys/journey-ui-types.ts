@@ -41,7 +41,7 @@ export interface JourneyBaseStep {
   readonly descriptionEn: string;
   readonly descriptionSw: string;
   readonly expectedMinutes: number;
-  /** Concept IDs from classroom/concepts-catalog this step teaches. */
+  /** Concept IDs from training/concepts-catalog this step teaches. */
   readonly conceptIds: readonly string[];
   /** Step IDs that must be completed before this step unlocks. */
   readonly prerequisites: readonly string[];

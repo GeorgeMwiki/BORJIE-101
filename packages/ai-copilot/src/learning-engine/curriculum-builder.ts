@@ -4,13 +4,13 @@
  * Inputs:
  *   - user's role (owner, counterparty, estate-officer, admin, station-master)
  *   - portfolio context (e.g. size, countries, has-arrears-cases)
- *   - concepts-catalog from ai-copilot/classroom
+ *   - concepts-catalog from ai-copilot/training
  *
  * Output: ordered list of concept IDs the user should study next.
  * Purely deterministic. Caller persists + revisits weekly.
  */
 
-import { ESTATE_CONCEPTS, type Concept } from '../classroom/concepts-catalog.js';
+import { ESTATE_CONCEPTS, type Concept } from '../training/concepts-catalog.js';
 
 export type CurriculumRole =
   | 'owner'

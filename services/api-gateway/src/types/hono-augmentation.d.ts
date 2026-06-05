@@ -94,7 +94,6 @@ declare module 'hono' {
     // Wave 12 — AI copilot subsystems
     mcp: unknown;
     agentCertification: unknown;
-    classroom: unknown;
     voice: unknown;
 
     // Wave 26 BFF service shims

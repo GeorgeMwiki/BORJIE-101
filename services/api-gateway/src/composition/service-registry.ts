@@ -256,10 +256,6 @@ import {
 import type { BorjieMcpServer } from '@borjie/mcp-server';
 import { buildMcpServer } from './mcp-wiring.js';
 import {
-  createClassroomService,
-  type ClassroomService,
-} from './classroom-wiring.js';
-import {
   createMonthlyCloseWiring,
   type MonthlyCloseWiring,
 } from './monthly-close-wiring.js';
@@ -742,7 +738,6 @@ export interface ServiceRegistry {
   /** Wave 12 — AI copilot subsystems wired into the composition root. */
   readonly mcp: BorjieMcpServer | null;
   readonly agentCertification: AgentCertificationService | null;
-  readonly classroom: ClassroomService | null;
   readonly training: TrainingAdminEndpoints | null;
   readonly voice: VoiceRouter | null;
 
@@ -1583,7 +1578,6 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     },
     mcp: null,
     agentCertification: null,
-    classroom: null,
     training: null,
     voice: null,
     orgAwareness: buildOrgAwareness(eventBus),
@@ -2137,22 +2131,16 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     issuerId: 'borjie-gateway',
   });
 
-  // Wave 12 — Classroom (BKT-backed with Postgres persistence).
-  const classroom = createClassroomService(db);
-
-  // Adaptive Training — sits on top of classroom BKT and uses the in-memory
-  // repo for pilot (the Postgres adapter lives in the training module and
-  // can be dropped in once the training tables are migrated live).
+  // Adaptive Training — admin-driven, Mr. Mwikila-generated training paths.
+  // Uses the in-memory repo for pilot (the Postgres adapter lives in the
+  // training module and can be dropped in once the training tables are
+  // migrated live). Mastery starts empty per process; the training delivery
+  // service feeds progression back through its own BKT updates.
   const trainingRepo = createInMemoryTrainingRepository();
   const trainingGenerator = createTrainingGenerator({});
   const trainingMastery: MasteryPort = {
-    async getMastery(tenantId: string, userId: string) {
-      const rows = (await classroom.getMastery(tenantId, userId)) ?? [];
-      const map: Record<string, number> = {};
-      for (const r of rows as ReadonlyArray<{ conceptId: string; pKnow: number }>) {
-        map[r.conceptId] = r.pKnow;
-      }
-      return map;
+    async getMastery(_tenantId: string, _userId: string) {
+      return {} as Record<string, number>;
     },
   };
   const trainingAssignmentService = createTrainingAssignmentService({
@@ -2396,7 +2384,6 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // as input. We place a `null` here and patch it post-return.
     mcp: null,
     agentCertification,
-    classroom,
     training,
     voice,
     orgAwareness: buildOrgAwareness(eventBus),

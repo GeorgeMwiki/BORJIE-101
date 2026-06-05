@@ -71,8 +71,7 @@
  * Type-safety: `BrainKernel` is derived via `ReturnType<typeof
  * createBrainKernel>` to dodge the package-barrel namespace drift
  * (TS2709) the rest of this composition layer also works around — see
- * `voice-agent-wiring.ts` and `classroom-wiring.ts` for the same
- * pattern.
+ * `voice-agent-wiring.ts` for the same pattern.
  */
 
 import {
