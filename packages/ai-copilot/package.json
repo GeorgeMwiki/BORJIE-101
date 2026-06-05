@@ -50,6 +50,10 @@
       "types": "./src/training/index.ts",
       "default": "./dist/training/index.js"
     },
+    "./courses": {
+      "types": "./src/courses/index.ts",
+      "default": "./dist/courses/index.js"
+    },
     "./autonomy": {
       "types": "./src/autonomy/index.ts",
       "default": "./dist/autonomy/index.js"
