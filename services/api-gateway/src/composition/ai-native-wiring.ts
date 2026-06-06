@@ -24,11 +24,13 @@
  *     the voice agent.
  *
  * Persistence note: doc-intelligence entities/obligations, price
- * recommendations, and legal drafts have NO active Drizzle table in
- * `@borjie/database` (they live only in the archived BossNyumba migrations).
- * Those three repos are therefore in-process, tenant-scoped, and explicitly
- * documented as the durability gap (`ai-native/in-memory-repos.ts`). The
- * voice agent's persistence IS durable (Drizzle).
+ * recommendations, and legal drafts are now DURABLE — backed by FORCE-RLS
+ * tenant-scoped Postgres tables (`document_entities` / `document_obligations`,
+ * `price_recommendations`, `legal_drafts` — migrations 0287-0289) via the
+ * Drizzle repos in `ai-native/drizzle-repos.ts`. The in-process, tenant-scoped
+ * maps in `ai-native/in-memory-repos.ts` remain ONLY as the fallback for the
+ * no-DB / test boot path (when `deps.db` is null). The voice agent's
+ * persistence is likewise durable (Drizzle `voice_turns`).
  *
  * Degradation: when no Anthropic key is configured (`buildAnthropicClient`
  * is null), the three LLM-backed capabilities are omitted so the route falls
@@ -64,6 +66,11 @@ import {
   createInMemoryPriceRecommendationRepo,
   createInMemoryLegalDraftRepo,
 } from './ai-native/in-memory-repos.js';
+import {
+  createDrizzleDocIntelligenceRepo,
+  createDrizzlePriceRecommendationRepo,
+  createDrizzleLegalDraftRepo,
+} from './ai-native/drizzle-repos.js';
 import {
   createDynamicPricingRouteService,
   createDocIntelligenceRouteService,
@@ -159,8 +166,16 @@ export function buildAiNativeServices(
   // --- LLM-backed capabilities (require an Anthropic client) ---------------
   const buildClient = deps.buildAnthropicClient;
   if (buildClient) {
+    // Persistence: when a Drizzle client is present the three PhL repos are
+    // DURABLE (migrations 0287-0289, FORCE-RLS tenant-scoped tables). When
+    // `db` is null (test / no-DB boot) they fall back to the in-process,
+    // tenant-scoped maps so the routes still function within a process.
+    const db = deps.db;
+
     // dynamic-pricing — singleton service (LLM port reads inputs.tenantId).
-    const priceRepo = createInMemoryPriceRecommendationRepo();
+    const priceRepo = db
+      ? createDrizzlePriceRecommendationRepo(db)
+      : createInMemoryPriceRecommendationRepo();
     const optimizer = DynamicPricingNs.createDynamicPriceOptimizer({
       llm: createPricingLlmPort(buildClient),
       repo: priceRepo,
@@ -175,7 +190,9 @@ export function buildAiNativeServices(
     );
 
     // doc-intelligence — per-tenant service (LLM port is tenant-bound).
-    const docRepo = createInMemoryDocIntelligenceRepo();
+    const docRepo = db
+      ? createDrizzleDocIntelligenceRepo(db)
+      : createInMemoryDocIntelligenceRepo();
     services.docIntelligenceRepo = docRepo;
     services.docIntelligence = createDocIntelligenceRouteService(
       (tenantId: string) =>
@@ -187,7 +204,9 @@ export function buildAiNativeServices(
     );
 
     // legal-drafter — singleton service (LLM port reads context.tenantId).
-    const legalRepo = createInMemoryLegalDraftRepo();
+    const legalRepo = db
+      ? createDrizzleLegalDraftRepo(db)
+      : createInMemoryLegalDraftRepo();
     services.legalDraftRepo = legalRepo;
     const drafter = LegalDrafterNs.createLegalDrafter({
       llm: createLegalDrafterLlmPort(buildClient),

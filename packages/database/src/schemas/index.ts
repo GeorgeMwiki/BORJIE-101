@@ -1528,3 +1528,19 @@ export * from './training-scenarios.schema.js';
 // routes/courses.hono.ts. Ported from the BN course-gen stack, retargeted
 // real-estate → mining.
 export * from './courses.schema.js';
+
+// AI-native (Agent PhL) durable persistence (migrations 0287-0289). Three
+// tenant-scoped tables that make the dynamic-pricing / doc-intelligence /
+// legal-drafter capabilities durable (they previously persisted only to an
+// in-process map because the tables lived in the BossNyumba .archive tree):
+//   - price_recommendations (0287) — one `proposed` mineral-price proposal per
+//     row; money as minor-units + ISO-4217 currency_code (never a literal).
+//   - document_entities + document_obligations (0288) — extracted entities and
+//     obligations per uploaded document, each citing a char span.
+//   - legal_drafts (0289) — first-draft mining-contract documents; the DB
+//     FORCE-enforces the licence_suspension_notice must-review invariant.
+// All FORCE RLS on app.current_tenant_id. Backed by the api-gateway
+// composition root's ai-native/drizzle-repos.ts + ai-native-wiring.ts.
+export * from './ai-native-pricing.schema.js';
+export * from './ai-native-document-intelligence.schema.js';
+export * from './ai-native-legal-drafts.schema.js';

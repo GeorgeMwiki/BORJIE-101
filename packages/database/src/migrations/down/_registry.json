@@ -296,6 +296,36 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0287_ai_native_price_recommendations.sql",
+      "down": "down/0287_down_ai_native_price_recommendations.sql",
+      "reverses": "CREATE TABLE price_recommendations + status/confidence CHECK constraints + indexes + FORCE RLS tenant-isolation policy on app.current_tenant_id + revoke anon (Agent PhL dynamic-pricing durable store; replaces the in-process map in services/api-gateway ai-native/in-memory-repos). DATA LOSS: discards every proposed mineral-price recommendation",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0288_ai_native_document_intelligence.sql",
+      "down": "down/0288_down_ai_native_document_intelligence.sql",
+      "reverses": "CREATE TABLE document_entities + document_obligations + entity_kind/confidence CHECK constraints + indexes + FORCE RLS tenant-isolation policies on app.current_tenant_id + revoke anon (Agent PhL doc-intelligence durable store; replaces the in-process map in services/api-gateway ai-native/in-memory-repos). DATA LOSS: discards every extracted entity + obligation",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0289_ai_native_legal_drafts.sql",
+      "down": "down/0289_down_ai_native_legal_drafts.sql",
+      "reverses": "CREATE TABLE legal_drafts + document_kind/status/autonomy_decision/confidence CHECK constraints + the licence_suspension_notice must-review compliance invariant + indexes + FORCE RLS tenant-isolation policy on app.current_tenant_id + revoke anon (Agent PhL legal-drafter durable store; replaces the in-process map in services/api-gateway ai-native/in-memory-repos). DATA LOSS: discards every first-draft legal document",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
