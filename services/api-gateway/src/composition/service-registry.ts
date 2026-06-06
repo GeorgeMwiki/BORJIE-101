@@ -88,6 +88,15 @@ import {
   createMiningMaintenanceTaxonomyService,
   type MiningMaintenanceTaxonomyService,
 } from '@borjie/domain-services/maintenance-taxonomy';
+// Mining ADVISOR wave — stage-aware capability advisor (REAL, over the
+// Drizzle `StageAdvisorDb` adapter + migration 0295 tables). Backs the
+// `/api/v1/stage` route; once the `stageAdvisor` slot is non-null the route
+// resolves a live service instead of returning 503 SERVICE_UNAVAILABLE.
+import {
+  createStageAdvisor,
+  type StageAdvisor,
+} from '@borjie/stage-advisor';
+import { createDrizzleStageAdvisorDb } from './stage/drizzle-stage-advisor-db.js';
 // Wave 26 Z3 — rich ApprovalWorkflowService + Postgres adapters for
 // move-out checklists and approval requests. Pairs with migration 0097.
 import { ApprovalWorkflowService } from '@borjie/domain-services/approvals';
@@ -697,6 +706,13 @@ export interface ServiceRegistry {
   readonly featureFlags: FeatureFlagsService | null;
   readonly gdpr: GdprService | null;
   readonly aiCostLedger: CostLedger | null;
+
+  /** Mining ADVISOR wave — stage-aware capability advisor (migration 0295).
+   *  Null in degraded mode (no DB to read metrics/state from); the
+   *  `/api/v1/stage` router returns 503 SERVICE_UNAVAILABLE when this slot
+   *  is unwired. Backed by the Drizzle `StageAdvisorDb` adapter in the live
+   *  registry below. */
+  readonly stageAdvisor: StageAdvisor | null;
 
   /** Wave-K W-Data — DSAR (Art.20/PDPA s.27) port wiring. The data
    *  source is null in degraded mode; the dsar router falls back to
@@ -1590,6 +1606,11 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     featureFlags: null,
     gdpr: null,
     aiCostLedger: null,
+    // Mining ADVISOR wave — stage-advisor needs a real DB to read the
+    // org metrics / persisted hysteresis state from; null in degraded mode
+    // so the /api/v1/stage router returns 503 SERVICE_UNAVAILABLE rather
+    // than fabricating a stage.
+    stageAdvisor: null,
     // Wave-K W-Data — DSAR data source is null in degraded mode (no
     // DB to read from). The classification lookup is always wired
     // because it is an in-process frozen registry. The budget
@@ -2322,6 +2343,16 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     equipmentMaintenanceTaxonomyRepo,
   );
 
+  // Mining ADVISOR wave — stage-aware capability advisor (REAL) over the
+  // Drizzle `StageAdvisorDb` adapter bound to the shared RLS-pinned client.
+  // Reads org metrics + persisted hysteresis state from the `stage_advisor_*`
+  // tables (migration 0295). Once this slot is non-null the `/api/v1/stage`
+  // router resolves a live service. No trigger sink wired in this wave — the
+  // route only generates/reads nudges; high-urgency fan-out is a follow-up.
+  const stageAdvisor = createStageAdvisor({
+    db: createDrizzleStageAdvisorDb(db),
+  });
+
   // Wave 12 — Voice router. If neither ELEVENLABS_API_KEY nor OPENAI_API_KEY
   // is set, `voice` stays null and the HTTP router returns a clean 503
   // with a MISSING_KEY reason.
@@ -2464,6 +2495,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     featureFlags: featureFlagsService,
     gdpr: gdprService,
     aiCostLedger,
+    // Mining ADVISOR wave — live stage-advisor (Drizzle-backed). Resolves
+    // the `/api/v1/stage` route's `services.stageAdvisor`.
+    stageAdvisor,
     // Wave-K W-Data — DSAR data source wired against the live Drizzle
     // client. The classification lookup is the same in-process registry
     // used by the scrubber middleware so RESTRICTED fields are tagged

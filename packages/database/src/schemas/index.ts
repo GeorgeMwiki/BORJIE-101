@@ -1557,3 +1557,13 @@ export * from './ai-native-legal-drafts.schema.js';
 // All FORCE RLS on app.current_tenant_id.
 export * from './inventory-management.schema.js';
 export * from './procurement-coordination.schema.js';
+
+// Mining ADVISOR wave — stage-advisor durable store (migration 0295).
+//   - stage_advisor_metrics / _org_state / _state — per-tenant latest snapshots
+//     + persisted hysteresis state for the seven-stage lifecycle classifier.
+//   - stage_advisor_nudges (append-only delivery log) + _nudge_dismissals
+//     (sticky suppression) — back the proactive-nudge idempotency + dismissal.
+//   - stage_advisor_transitions (append-only) — backs GET /api/v1/stage/history.
+// All FORCE RLS on app.current_tenant_id. Backed by the api-gateway composition
+// root's stage/drizzle-stage-advisor-db.ts → routes/stage/index.ts.
+export * from './stage-advisor.schema.js';
