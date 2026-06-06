@@ -74,57 +74,85 @@ function resolveMigrationPath(baseDir: string, name: string): string {
  * Exported for unit-test coverage.
  */
 export function stripWrappingTransaction(content: string): string {
-  // Migration files are bounded — reject pathologically large inputs early
-  // so the alternation-heavy `leadingNoise` regex cannot be exploited.
-  // A real migration is at most a few MB; 10 MB is a safe ceiling.
+  // Migration files are bounded — reject pathologically large inputs early.
   if (content.length > 10_000_000) {
     throw new Error('Migration file exceeds 10 MB safety limit');
   }
-  // Leading: any mix of whitespace + `-- line comment` lines + `/* block */`
-  // comments, then `BEGIN;` or `BEGIN WORK;` or `START TRANSACTION;`.
-  // Alternation order: most specific first (block comment > line comment >
-  // whitespace) to minimise backtracking.
-  // ReDoS-safe: each alternative dispatches on a distinct first char and
-  // matches a single unit (one whitespace char, one `--` line comment, or one
-  // `/* */` block), so the outer `*` consumes one deterministic chunk per
-  // iteration. No `(x+)*` and no overlapping alternatives, so a large leading
-  // comment block (e.g. 0160) cannot trigger catastrophic backtracking.
-  const leadingNoise = `(?:[ \\t\\r\\n]|--[^\\n]*|/\\*[\\s\\S]*?\\*/)*`;
-  const beginRe = new RegExp(
-    `^(${leadingNoise})(?:BEGIN(?:\\s+WORK)?|START\\s+TRANSACTION)\\s*;\\s*`,
-    'i',
-  );
-  // Short-circuit: only a BEGIN-wrapped migration needs unwrapping. The vast
-  // majority self-manage no transaction; returning early avoids any trailing
-  // scan over a large non-wrapped body.
-  if (!beginRe.test(content)) {
-    return content;
-  }
-  const afterBegin = content.replace(beginRe, '$1');
-  // Strip the trailing `COMMIT;` / `END;` wrapper, tolerating trailing blank
-  // lines and `--` comment lines, via a LINEAR line-walk (no regex
-  // backtracking — a plpgsql body with many mid-statement `END`s and a long
-  // tail can never wedge this).
-  const lines = afterBegin.split('\n');
-  let end = lines.length;
-  while (end > 0) {
-    const trimmed = lines[end - 1].trim();
+  // Detect + strip a wrapping `BEGIN; … COMMIT;` (or `END;`) via a pure
+  // LINE-WALK — NO backtracking-prone regex anywhere (only bounded, anchored,
+  // single-line tests). postgres-js's `sql.unsafe()` rejects explicit
+  // transaction control, so a migration that self-wraps must be unwrapped
+  // before we re-wrap it in `sql.begin()`. Earlier regex detection
+  // catastrophically backtracked on migrations with large `--` comment headers
+  // (e.g. 0151, 0160), wedging a fresh-DB migrate at ~100% CPU. A line-walk is
+  // strictly linear and cannot be exploited.
+  const lines = content.split('\n');
+
+  // First significant line: skip leading blank / `--` line / `/* … */` block
+  // comment lines.
+  let first = 0;
+  let inBlockComment = false;
+  while (first < lines.length) {
+    let text = lines[first];
+    if (inBlockComment) {
+      const close = text.indexOf('*/');
+      if (close === -1) {
+        first += 1;
+        continue;
+      }
+      text = text.slice(close + 2);
+      inBlockComment = false;
+    }
+    const trimmed = text.trim();
     if (trimmed === '' || trimmed.startsWith('--')) {
-      end -= 1;
+      first += 1;
+      continue;
+    }
+    if (trimmed.startsWith('/*')) {
+      const close = trimmed.indexOf('*/', 2);
+      if (close === -1) {
+        inBlockComment = true;
+        first += 1;
+        continue;
+      }
+      if (trimmed.slice(close + 2).trim() === '') {
+        first += 1;
+        continue;
+      }
+    }
+    break;
+  }
+  if (
+    first >= lines.length ||
+    !/^(?:BEGIN(?:\s+WORK)?|START\s+TRANSACTION)\s*;?\s*$/i.test(
+      lines[first].trim(),
+    )
+  ) {
+    return content; // not a BEGIN-wrapped migration — leave untouched
+  }
+
+  // Last significant line: skip trailing blank / `--` comment lines.
+  let last = lines.length - 1;
+  while (last > first) {
+    const trimmed = lines[last].trim();
+    if (trimmed === '' || trimmed.startsWith('--')) {
+      last -= 1;
       continue;
     }
     break;
   }
-  if (end === 0) {
-    return content;
+  if (
+    !/^(?:COMMIT(?:\s+WORK)?|END)\s*;?\s*(?:--.*)?$/i.test(lines[last].trim())
+  ) {
+    return content; // no matching trailing COMMIT/END — leave untouched
   }
-  // The last significant line must be a bare COMMIT/END (optionally with a
-  // trailing inline comment); single-line + anchored, so no backtracking risk.
-  if (!/^(?:COMMIT(?:\s+WORK)?|END)\s*;?\s*(?:--.*)?$/i.test(lines[end - 1].trim())) {
-    return content;
-  }
-  // Drop the COMMIT/END line and everything after it (trailing comments / ws).
-  return lines.slice(0, end - 1).join('\n');
+
+  // Preserve leading comment lines, drop the BEGIN line, keep the body, drop
+  // the COMMIT/END line and anything after it.
+  return [
+    ...lines.slice(0, first),
+    ...lines.slice(first + 1, last),
+  ].join('\n');
 }
 
 export interface RunMigrationsOptions {
