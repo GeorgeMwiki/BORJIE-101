@@ -191,6 +191,10 @@ export const routesBStrings = {
       en: 'Ask about this site',
     },
     activeSite: { sw: 'Mgodi unaonyeshwa', en: 'Active site' },
+    noSites: {
+      sw: 'Hakuna machimbo bado. Ongeza machimbo kwenye Onboarding ili kufungua dirisha hili.',
+      en: 'No sites yet. Add a site on the Onboarding surface to open this cockpit.',
+    },
   },
 
   /** app/(routes)/workforce-tabs/kiosk/KioskClockInSurface.tsx. */

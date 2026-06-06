@@ -763,10 +763,11 @@ describe('GET /api/v1/currency-rates', () => {
 });
 
 // ===========================================================================
-// 12) GET /api/v1/warehouse/items (daysRemaining decoration)
+// 12) GET /api/v1/warehouse/items — mining ore-stockpile listing
+//     (`/items` is a legacy alias onto the mining stockpile handler)
 // ===========================================================================
 
-describe('GET /api/v1/warehouse/items — daysRemaining decoration', () => {
+describe('GET /api/v1/warehouse/items — ore-stockpile listing (legacy alias)', () => {
   it('rejects without bearer token (401)', async () => {
     const app = mount({ prefix: '/warehouse', router: warehouseRouter }, {});
     const res = await app.request('/warehouse/items');
@@ -789,20 +790,36 @@ describe('GET /api/v1/warehouse/items — daysRemaining decoration', () => {
     expect(body.error.code).toBe('NOT_IMPLEMENTED');
   });
 
-  it('decorates items with daysRemaining when burn rate is present', async () => {
+  it('returns grade-enriched stockpiles from the mining warehouse service', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let seenArgs: { tenantId?: string; filters?: any } = {};
     const warehouseStub = {
-      listItems: async () => [
-        {
-          id: 'item-1',
-          quantity: 100,
-          metadata: { dailyBurnRate: 4 },
-        },
-        {
-          id: 'item-2',
-          quantity: 50,
-          metadata: null, // no burn rate -> null
-        },
-      ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      listStockpiles: async (tenantId: string, filters: any) => {
+        seenArgs = { tenantId, filters };
+        return [
+          {
+            id: 'stk-1',
+            parcelId: 'parcel-1',
+            locationKind: 'warehouse',
+            quantityKg: 1200,
+            gradePct: 4.2,
+            processability: 0.8,
+            targetCustomerFit: 'smelter',
+            gradeSnapshotAt: '2026-05-01T00:00:00.000Z',
+          },
+          {
+            id: 'stk-2',
+            parcelId: 'parcel-2',
+            locationKind: 'site',
+            quantityKg: 540,
+            gradePct: null, // no grade snapshot yet
+            processability: null,
+            targetCustomerFit: null,
+            gradeSnapshotAt: null,
+          },
+        ];
+      },
     };
     const app = mount(
       { prefix: '/warehouse', router: warehouseRouter },
@@ -813,9 +830,25 @@ describe('GET /api/v1/warehouse/items — daysRemaining decoration', () => {
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { id: string; daysRemaining: number | null }[];
+      success: boolean;
+      data: {
+        id: string;
+        parcelId: string;
+        quantityKg: number;
+        gradePct: number | null;
+      }[];
     };
-    expect(body.data[0]?.daysRemaining).toBe(25); // 100 / 4
-    expect(body.data[1]?.daysRemaining).toBe(null);
+    expect(body.success).toBe(true);
+    expect(body.data).toHaveLength(2);
+    expect(body.data[0]?.id).toBe('stk-1');
+    expect(body.data[0]?.quantityKg).toBe(1200);
+    expect(body.data[0]?.gradePct).toBe(4.2);
+    expect(body.data[1]?.gradePct).toBe(null);
+    // The handler forwards the JWT tenant + the (empty) filter object.
+    expect(seenArgs.tenantId).toBe('tnt-test');
+    expect(seenArgs.filters).toMatchObject({
+      locationKind: undefined,
+      parcelId: undefined,
+    });
   });
 });

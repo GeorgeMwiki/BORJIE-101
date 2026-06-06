@@ -69,9 +69,7 @@ export default async function SiteCockpitPage({
         <SiteCockpitSurface siteId={siteId} />
       ) : (
         <div className="rounded-2xl border border-border bg-surface/40 px-6 py-12 text-center text-sm text-muted-foreground">
-          {isSw
-            ? 'Hakuna machimbo bado. Ongeza machimbo kwenye Onboarding ili kufungua dirisha hili.'
-            : 'No sites yet. Add a site on the Onboarding surface to open this cockpit.'}
+          {isSw ? S.siteCockpit.noSites.sw : S.siteCockpit.noSites.en}
         </div>
       )}
     </div>

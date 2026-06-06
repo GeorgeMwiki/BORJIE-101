@@ -16,16 +16,36 @@ const MAX_ROLE_LEN = 120;
 const PHONE_RE = /^\+?[0-9]{8,15}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+export interface ParseCsvOptions {
+  /**
+   * When true, structural-but-empty rows (a physical line that contained
+   * at least one delimiter, e.g. `,` → `['', '']`) are KEPT rather than
+   * dropped. A genuinely blank line (no content and no delimiter) is still
+   * skipped. Defaults to false (legacy "drop all wholly-empty rows").
+   *
+   * The bulk-staff path needs this so a CSV whose data rows are present but
+   * blank-valued surfaces as ALL_REJECTED (every row rejected) instead of
+   * being mistaken for a header-only EMPTY file.
+   */
+  readonly keepEmptyRows?: boolean;
+}
+
 /**
  * RFC-4180 parser — handles quoted fields with commas and doubled quotes.
- * Wholly-empty rows (trailing newlines) are skipped.
+ * Wholly-empty rows (trailing newlines) are skipped unless
+ * `keepEmptyRows` keeps the structural ones (see ParseCsvOptions).
  */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, options: ParseCsvOptions = {}): string[][] {
+  const keepEmpty = options.keepEmptyRows ?? false;
   const rows: string[][] = [];
   let row: string[] = [];
   let cur = '';
   let inQuotes = false;
   let i = 0;
+  // A row with >1 field necessarily contained a delimiter — a structural
+  // (intentional) row even when every field is blank.
+  const keepRow = (r: ReadonlyArray<string>): boolean =>
+    r.some((v) => v.trim().length > 0) || (keepEmpty && r.length > 1);
   while (i < text.length) {
     const c = text[i];
     if (inQuotes) {
@@ -57,7 +77,7 @@ export function parseCsv(text: string): string[][] {
     if (c === '\n' || c === '\r') {
       if (c === '\r' && text[i + 1] === '\n') i++;
       row.push(cur);
-      if (row.some((v) => v.trim().length > 0)) rows.push(row);
+      if (keepRow(row)) rows.push(row);
       row = [];
       cur = '';
       i++;
@@ -68,7 +88,7 @@ export function parseCsv(text: string): string[][] {
   }
   if (cur.length > 0 || row.length > 0) {
     row.push(cur);
-    if (row.some((v) => v.trim().length > 0)) rows.push(row);
+    if (keepRow(row)) rows.push(row);
   }
   return rows;
 }
@@ -114,7 +134,10 @@ export type CsvParseResult = CsvParseSuccess | CsvParseFailure;
  * proceed to insert — mirroring the BN / LitFin per-row contract.
  */
 export function parseStaffCsv(csvText: string): CsvParseResult {
-  const rows = parseCsv(csvText);
+  // Keep structural-but-empty data rows so a file that HAS data rows whose
+  // values are all blank surfaces as ALL_REJECTED (every row rejected),
+  // not EMPTY (which means header-only / no data rows at all).
+  const rows = parseCsv(csvText, { keepEmptyRows: true });
   if (rows.length < 2) {
     return {
       ok: false,

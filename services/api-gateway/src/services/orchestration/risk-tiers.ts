@@ -64,6 +64,19 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'cooperative.draft_settlement', tier: 'high' },
   { prefix: 'insurance.bind_policy', tier: 'high' },
   { prefix: 'mining.ui.bulk_action', tier: 'high' },
+  // Admin superpowers — four-eye / fleetwide bulk writes (stakes: HIGH).
+  { prefix: 'admin.superpowers.bulk_action', tier: 'high' },
+  { prefix: 'admin.superpowers.approve', tier: 'high' },
+  { prefix: 'admin.superpowers.reject', tier: 'high' },
+  // Site damage settlement + rehabilitation — financial / claim-state moves.
+  { prefix: 'site.damage_claim.settle', tier: 'high' },
+  { prefix: 'site.damage_claim.respond', tier: 'high' },
+  { prefix: 'site.rehabilitation.approve_plan', tier: 'high' },
+  // Org-team — human escalation + irreversible bulk staff ingest.
+  { prefix: 'staff.escalate_to_human', tier: 'high' },
+  { prefix: 'staff.bulk_ingest_csv', tier: 'high' },
+  // MD agentic sandbox — commit lands a staged mutation on the real table.
+  { prefix: 'sandbox.commit', tier: 'high' },
 
   // ── MEDIUM (preview) ─────────────────────────────────────────────
   { prefix: 'mining.production.', tier: 'medium' },
@@ -110,6 +123,20 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'insurance.get_quotes', tier: 'medium' },
   { prefix: 'documents.upload', tier: 'medium' },
   { prefix: 'ops.parties.create', tier: 'medium' },
+  // Owner cockpit dynamic tabs — routine layout/content writes.
+  { prefix: 'mining.ui.tabs.spawn', tier: 'medium' },
+  { prefix: 'mining.ui.tabs.close', tier: 'medium' },
+  { prefix: 'mining.ui.tabs.update', tier: 'medium' },
+  // Org-team — routine staff record / KPI / task writes.
+  { prefix: 'staff.create', tier: 'medium' },
+  { prefix: 'staff.assign_kpi', tier: 'medium' },
+  { prefix: 'staff.schedule_task', tier: 'medium' },
+  // MD agentic plan — propose + dispatch (runs persist pending; reversible).
+  { prefix: 'plan.propose', tier: 'medium' },
+  { prefix: 'plan.dispatch_subagents', tier: 'medium' },
+  // MD agentic sandbox — stage / reject a write (real table NEVER touched).
+  { prefix: 'sandbox.write', tier: 'medium' },
+  { prefix: 'sandbox.reject', tier: 'medium' },
 
   // ── LOW (autonomous read / navigate / display) ───────────────────
   { prefix: 'mining.ui.navigate', tier: 'low' },
@@ -179,6 +206,10 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'admin.audit.export', tier: 'high' },
   { prefix: 'buyer.notifications.mark_read', tier: 'low' },
   { prefix: 'mwikila.', tier: 'low' },
+  // Read-only review queues / aggregates (isWrite:false on the descriptor).
+  { prefix: 'admin.superpowers.list_pending', tier: 'low' },
+  { prefix: 'plan.aggregate_results', tier: 'low' },
+  { prefix: 'sandbox.list', tier: 'low' },
 ]);
 
 const DEFAULT_TIER: RiskTier = 'high';
