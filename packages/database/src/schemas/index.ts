@@ -1544,3 +1544,16 @@ export * from './courses.schema.js';
 export * from './ai-native-pricing.schema.js';
 export * from './ai-native-document-intelligence.schema.js';
 export * from './ai-native-legal-drafts.schema.js';
+
+// Mining ADVISOR wave — inventory + procurement domain tables.
+//   - inventory-management (0292) — `inventory_skus` (consumable/spare/PPE/fuel
+//     catalog with reorder thresholds) + `inventory_stock_movements`
+//     (append-only receipt/issue/adjust ledger). Backs routes/mining/
+//     inventory.hono.ts via composition/inventory/drizzle-inventory-store.ts.
+//   - procurement-coordination (0294) — vendor master + KYC docs, budgets,
+//     requisitions, approval chains/policies, purchase orders + PO sequences,
+//     and vendor invoices. Backs routes/mining/procurement-coordination.hono.ts
+//     via composition/procurement/drizzle-data-port.ts.
+// All FORCE RLS on app.current_tenant_id.
+export * from './inventory-management.schema.js';
+export * from './procurement-coordination.schema.js';

@@ -151,6 +151,24 @@ import { miningSicPingsRouter } from './sic-pings.hono';
 import { miningInternalMarketplaceRouter } from './internal/marketplace.hono';
 import { miningInternalModelsRouter } from './internal/models.hono';
 
+// Mining ADVISOR wave — twelve new junior-advisor read/compute surfaces, each
+// backed by its own @borjie/<advisor> package + (where stateful) a new
+// RLS-scoped domain table. All evidence-grounded, tenant-scoped via the
+// shared auth + database middleware. Mount paths avoid the existing `/fleet`
+// (telemetry) prefix — fleet-management lands at `/fleet-ops`.
+import { miningShiftPlannerRouter } from './shift-planner.hono';
+import { miningCapacityExpansionRouter } from './capacity-expansion.hono';
+import { miningCostEngineerRouter } from './cost-engineer.hono';
+import { miningFxTreasuryRouter } from './fx-treasury.hono';
+import { miningMarketIntelligenceRouter } from './market-intelligence.hono';
+import { miningGeologyAdvisorRouter } from './geology-advisor.hono';
+import { miningMinePlannerRouter } from './mine-planner.hono';
+import { miningCommodityIntelligenceRouter } from './commodity-intelligence.hono';
+import { miningMarketplaceAdvisorRouter } from './marketplace-advisor.hono';
+import { miningInventoryRouter } from './inventory.hono';
+import { miningFleetOpsRouter } from './fleet-ops.hono';
+import { miningProcurementCoordinationRouter } from './procurement-coordination.hono';
+
 // Use OpenAPIHono so the `app.openapi(routeDef, handler)` registrations
 // inside the migrated route files (sites, licences, cockpit, chat,
 // marketplace, bids) propagate into a shared `openAPIRegistry`. The
@@ -243,6 +261,21 @@ mining.route('/document-intelligence', miningDocumentIntelligenceRouter);
 
 // Photo Advisor — multimodal Brain vision turn.
 mining.route('/brain', miningBrainVisionRouter);
+
+// Mining ADVISOR wave mounts. `/fleet-ops` is distinct from `/fleet`
+// (telemetry) above; the others are net-new prefixes.
+mining.route('/shift-planner', miningShiftPlannerRouter);
+mining.route('/capacity-expansion', miningCapacityExpansionRouter);
+mining.route('/cost-engineer', miningCostEngineerRouter);
+mining.route('/fx-treasury', miningFxTreasuryRouter);
+mining.route('/market-intelligence', miningMarketIntelligenceRouter);
+mining.route('/geology-advisor', miningGeologyAdvisorRouter);
+mining.route('/mine-planner', miningMinePlannerRouter);
+mining.route('/commodity-intelligence', miningCommodityIntelligenceRouter);
+mining.route('/marketplace-advisor', miningMarketplaceAdvisorRouter);
+mining.route('/inventory', miningInventoryRouter);
+mining.route('/fleet-ops', miningFleetOpsRouter);
+mining.route('/procurement-analytics', miningProcurementCoordinationRouter);
 
 // OpenAPI 3.1 static spec + Swagger UI for the mining sub-API.
 // Mount BEFORE `/internal/*` so the docs surface is open even when

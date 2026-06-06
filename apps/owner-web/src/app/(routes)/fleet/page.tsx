@@ -1,21 +1,24 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { FleetMaintenanceSurface } from '@/components/fleet/FleetMaintenanceSurface';
+import { FleetOpsSurface } from '@/components/fleet/FleetOpsSurface';
+import { MinePlannerAdvisorPanel } from '@/components/fleet/MinePlannerAdvisorPanel';
 
 /**
- * O-W-09 — Assets & fleet. Wired to the live asset-maintenance feed
- * (GET /api/v1/mining/maintenance via useMaintenanceList). The surface
- * renders its own real loading / empty / error states.
- *
- * NOTE: a dedicated fleet-units register + match-factor computation are
- * separate, not-yet-built gateway endpoints
- * (/api/v1/mining/fleet/units, /api/v1/mining/fleet/match-factor). See
- * the gateway-wave list — we do not fabricate them.
+ * O-W-09 — Assets & fleet. Wired to two LIVE surfaces:
+ *   - FleetOpsSurface → REAL per-vehicle cost of ownership computed by
+ *     `@borjie/fleet-management` (GET /api/v1/mining/fleet-ops/tco) over
+ *     the tenant's assets + fuel logs + maintenance events.
+ *   - FleetMaintenanceSurface → asset-maintenance feed
+ *     (GET /api/v1/mining/maintenance).
+ * Each surface renders its own real loading / empty / error states.
  */
 export default function FleetPage() {
   return (
     <>
       <ScreenHeader slug="fleet" />
-      <div className="px-8 py-6">
+      <div className="space-y-6 px-8 py-6">
+        <FleetOpsSurface />
+        <MinePlannerAdvisorPanel />
         <FleetMaintenanceSurface />
       </div>
     </>

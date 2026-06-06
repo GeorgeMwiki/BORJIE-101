@@ -271,5 +271,42 @@
     "tonnage_required_invalid": "Tonnage required must be greater than 0.",
     "unit_price_invalid": "Max price per unit must be greater than 0.",
     "delivery_in_past": "Required-by date must be in the future."
+  },
+  "mineMatcher": {
+    "eyebrow": "MINE MATCHER",
+    "title": "Find the right supply",
+    "subtitle": "Rank live mineral-supply listings against what you need.",
+    "commodity": "Commodity",
+    "volumeTonnes": "Volume (tonnes)",
+    "minGrade": "Min grade",
+    "optional": "optional",
+    "fxRate": "FX rate (TZS per USD)",
+    "findMines": "Find supply",
+    "price": "Price",
+    "available": "Available",
+    "leadTime": "Lead time",
+    "days": "{{n}} days",
+    "error": "Could not load recommendations. Please try again.",
+    "emptyTitle": "No matching supply yet",
+    "emptyBody": "No active listings match this need. Try a larger volume, a lower grade floor, or a different commodity."
+  },
+  "commodity": {
+    "gold": "Gold",
+    "copper": "Copper",
+    "silver": "Silver",
+    "tin": "Tin",
+    "tanzanite": "Tanzanite",
+    "graphite": "Graphite",
+    "coal": "Coal",
+    "iron-ore": "Iron ore",
+    "nickel": "Nickel",
+    "cobalt": "Cobalt"
+  },
+  "factor": {
+    "volume-capacity": "Volume capacity",
+    "grade-fit": "Grade fit",
+    "price-fit": "Price fit",
+    "region-preference": "Region",
+    "compliance-posture": "Compliance"
   }
 }

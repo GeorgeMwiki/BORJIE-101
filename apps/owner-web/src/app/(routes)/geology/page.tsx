@@ -1,5 +1,6 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { GeologyPanel } from '@/components/owner-os/panels/GeologyPanel';
+import { GeologyAdvisorPanel } from '@/components/geology/GeologyAdvisorPanel';
 import { getOwnerSession } from '@/lib/session';
 
 /**
@@ -12,12 +13,13 @@ export default async function GeologyPage() {
   return (
     <>
       <ScreenHeader slug="geology" />
-      <div className="px-8 py-6">
+      <div className="space-y-6 px-8 py-6">
         <GeologyPanel
           tabId="route:geology"
           context={{}}
           locale={session.languagePreference}
         />
+        <GeologyAdvisorPanel />
       </div>
     </>
   );

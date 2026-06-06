@@ -4924,6 +4924,12 @@ importers:
       '@borjie/browser-perception':
         specifier: workspace:*
         version: link:../../packages/browser-perception
+      '@borjie/buyer-marketplace-advisor':
+        specifier: workspace:*
+        version: link:../../packages/buyer-marketplace-advisor
+      '@borjie/capacity-expansion-advisor':
+        specifier: workspace:*
+        version: link:../../packages/capacity-expansion-advisor
       '@borjie/central-intelligence':
         specifier: workspace:*
         version: link:../../packages/central-intelligence
@@ -4948,6 +4954,9 @@ importers:
       '@borjie/connectors':
         specifier: workspace:*
         version: link:../../packages/connectors
+      '@borjie/cost-engineer-advisor':
+        specifier: workspace:*
+        version: link:../../packages/cost-engineer-advisor
       '@borjie/cross-org-denial-recorder':
         specifier: workspace:*
         version: link:../../packages/cross-org-denial-recorder
@@ -4993,9 +5002,15 @@ importers:
       '@borjie/file-ingest':
         specifier: workspace:*
         version: link:../../packages/file-ingest
+      '@borjie/fleet-management':
+        specifier: workspace:*
+        version: link:../../packages/fleet-management
       '@borjie/forecasting':
         specifier: workspace:*
         version: link:../../packages/forecasting
+      '@borjie/fx-treasury-advisor':
+        specifier: workspace:*
+        version: link:../../packages/fx-treasury-advisor
       '@borjie/genui':
         specifier: workspace:*
         version: link:../../packages/genui
@@ -5005,12 +5020,18 @@ importers:
       '@borjie/geo-platform':
         specifier: workspace:*
         version: link:../../packages/geo-platform
+      '@borjie/geology-advisor':
+        specifier: workspace:*
+        version: link:../../packages/geology-advisor
       '@borjie/graph-privacy':
         specifier: workspace:*
         version: link:../../packages/graph-privacy
       '@borjie/graph-sync':
         specifier: workspace:*
         version: link:../../packages/graph-sync
+      '@borjie/inventory-management':
+        specifier: workspace:*
+        version: link:../../packages/inventory-management
       '@borjie/knowledge-graph':
         specifier: workspace:*
         version: link:../../packages/knowledge-graph
@@ -5020,6 +5041,9 @@ importers:
       '@borjie/llm-budget-governor':
         specifier: workspace:*
         version: link:../../packages/llm-budget-governor
+      '@borjie/market-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/market-intelligence
       '@borjie/marketing-brain':
         specifier: workspace:*
         version: link:../../packages/marketing-brain
@@ -5041,6 +5065,15 @@ importers:
       '@borjie/memory-v2':
         specifier: workspace:*
         version: link:../../packages/memory-v2
+      '@borjie/mine-planner-advisor':
+        specifier: workspace:*
+        version: link:../../packages/mine-planner-advisor
+      '@borjie/mining-commodity-intelligence':
+        specifier: workspace:*
+        version: link:../../packages/mining-commodity-intelligence
+      '@borjie/mining-shift-planner':
+        specifier: workspace:*
+        version: link:../../packages/mining-shift-planner
       '@borjie/module-orchestrator':
         specifier: workspace:*
         version: link:../../packages/module-orchestrator
@@ -5092,6 +5125,9 @@ importers:
       '@borjie/process-reward-model':
         specifier: workspace:*
         version: link:../../packages/process-reward-model
+      '@borjie/procurement-coordination':
+        specifier: workspace:*
+        version: link:../../packages/procurement-coordination
       '@borjie/progressive-intelligence':
         specifier: workspace:*
         version: link:../../packages/progressive-intelligence
@@ -10011,7 +10047,7 @@ packages:
     peerDependencies:
       react-hook-form: ^7.0.0
     dependencies:
-      react-hook-form: 7.75.0(react@18.2.0)
+      react-hook-form: 7.75.0(react@18.3.1)
     dev: false
 
   /@hookform/resolvers@5.2.2(react-hook-form@7.75.0):

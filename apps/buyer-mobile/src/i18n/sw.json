@@ -271,5 +271,42 @@
     "tonnage_required_invalid": "Tani zinazohitajika lazima ziwe zaidi ya 0.",
     "unit_price_invalid": "Bei ya juu lazima iwe zaidi ya 0.",
     "delivery_in_past": "Tarehe ya kufikisha lazima iwe ya baadaye."
+  },
+  "mineMatcher": {
+    "eyebrow": "KITAFUTA MIGODI",
+    "title": "Pata ugavi sahihi",
+    "subtitle": "Panga matangazo ya ugavi wa madini kulingana na unachohitaji.",
+    "commodity": "Madini",
+    "volumeTonnes": "Kiasi (tani)",
+    "minGrade": "Daraja la chini",
+    "optional": "hiari",
+    "fxRate": "Kiwango cha ubadilishaji (TZS kwa USD)",
+    "findMines": "Tafuta ugavi",
+    "price": "Bei",
+    "available": "Inapatikana",
+    "leadTime": "Muda wa kufikisha",
+    "days": "Siku {{n}}",
+    "error": "Imeshindikana kupata mapendekezo. Tafadhali jaribu tena.",
+    "emptyTitle": "Hakuna ugavi unaolingana bado",
+    "emptyBody": "Hakuna matangazo hai yanayolingana na hitaji hili. Jaribu kiasi kikubwa zaidi, daraja la chini, au madini tofauti."
+  },
+  "commodity": {
+    "gold": "Dhahabu",
+    "copper": "Shaba",
+    "silver": "Fedha",
+    "tin": "Bati",
+    "tanzanite": "Tanzanite",
+    "graphite": "Grafiti",
+    "coal": "Makaa ya mawe",
+    "iron-ore": "Madini ya chuma",
+    "nickel": "Nikeli",
+    "cobalt": "Kobalti"
+  },
+  "factor": {
+    "volume-capacity": "Uwezo wa kiasi",
+    "grade-fit": "Ulinganifu wa daraja",
+    "price-fit": "Ulinganifu wa bei",
+    "region-preference": "Mkoa",
+    "compliance-posture": "Uzingatiaji"
   }
 }
