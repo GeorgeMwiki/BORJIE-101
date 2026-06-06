@@ -14,6 +14,7 @@
     "clean": "rm -rf .next .turbo"
   },
   "dependencies": {
+    "@borjie/api-client": "workspace:*",
     "@borjie/api-sdk": "workspace:*",
     "@borjie/app-shell": "workspace:*",
     "@borjie/chat-ui": "workspace:*",

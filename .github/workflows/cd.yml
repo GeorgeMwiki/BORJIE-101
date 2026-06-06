@@ -101,12 +101,6 @@ jobs:
             build_args: |
               SERVICE_NAME=domain-services
               PACKAGE_NAME=@borjie/domain-services
-          - service: identity
-            context: .
-            dockerfile: docker/Dockerfile.service
-            build_args: |
-              SERVICE_NAME=identity
-              PACKAGE_NAME=@borjie/identity-service
           - service: notifications
             context: .
             dockerfile: docker/Dockerfile.service

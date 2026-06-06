@@ -496,9 +496,9 @@ import {
   createCrossOrgDenialRecorderBundle,
   type CrossOrgDenialRecorderBundle,
 } from './cross-org-denial-recorder-wiring.js';
-// Borjie ported-utilities wiring (Batch 1 — 5 utility namespaces, structure inherited from pre-fork lineage; evolved independently).
-// Bundles audit-hash-chain + memory-tool-wire-adapter + probe-runners +
-// property-voices-debate + conformal-calibration-online so consumers
+// Borjie ported-utilities wiring (Batch 1 — utility namespaces, structure inherited from pre-fork lineage; evolved independently).
+// Bundles memory-tool-wire-adapter + probe-runners +
+// conformal-calibration-online so consumers
 // can pull canonical pure-function surfaces via DI rather than reaching
 // for the raw packages from arbitrary callsites.
 import {
@@ -918,20 +918,16 @@ export interface ServiceRegistry {
   readonly crossOrgDenialRecorder: CrossOrgDenialRecorderBundle;
 
   /**
-   * Ported-utilities batch 1 — 5 utility namespaces exposed via DI (structure inherited from pre-fork lineage).
+   * Ported-utilities batch 1 — utility namespaces exposed via DI (structure inherited from pre-fork lineage).
    *
    * Always non-null in both degraded + live modes (every member is a
    * pure-function surface). Consumers reach for `portedUtilities.<pkg>.<fn>`
    * to avoid scattering raw package imports across the codebase. The
    * downstream consumers per package:
-   *   - `auditHashChain` — sovereign + tenant + decision audit
-   *     streams (cron verifier, sleep-pass governance audit)
    *   - `memoryToolWireAdapter` — Anthropic Memory Tool envelope for
    *     the BrainKernel ↔ topic-files memory boundary
    *   - `probeRunners` — sycophancy + defection probe schedulers (eval
    *     workers + CI gate)
-   *   - `propertyVoicesDebate` — three-voice debate preset for
-   *     contested decisions (pricing, eviction, deposit deductions)
    *   - `conformalCalibrationOnline` — adaptive α-update for the
    *     forecasting confidence interval calibrator
    */
