@@ -93,7 +93,9 @@ export function stripWrappingTransaction(content: string): string {
   let first = 0;
   let inBlockComment = false;
   while (first < lines.length) {
-    let text = lines[first];
+    // `first < lines.length` proves the index is in-bounds; the `?? ''`
+    // only satisfies noUncheckedIndexedAccess and never triggers at runtime.
+    let text = lines[first] ?? '';
     if (inBlockComment) {
       const close = text.indexOf('*/');
       if (close === -1) {
@@ -125,7 +127,7 @@ export function stripWrappingTransaction(content: string): string {
   if (
     first >= lines.length ||
     !/^(?:BEGIN(?:\s+WORK)?|START\s+TRANSACTION)\s*;?\s*$/i.test(
-      lines[first].trim(),
+      (lines[first] ?? '').trim(),
     )
   ) {
     return content; // not a BEGIN-wrapped migration — leave untouched
@@ -134,7 +136,7 @@ export function stripWrappingTransaction(content: string): string {
   // Last significant line: skip trailing blank / `--` comment lines.
   let last = lines.length - 1;
   while (last > first) {
-    const trimmed = lines[last].trim();
+    const trimmed = (lines[last] ?? '').trim();
     if (trimmed === '' || trimmed.startsWith('--')) {
       last -= 1;
       continue;
@@ -142,7 +144,9 @@ export function stripWrappingTransaction(content: string): string {
     break;
   }
   if (
-    !/^(?:COMMIT(?:\s+WORK)?|END)\s*;?\s*(?:--.*)?$/i.test(lines[last].trim())
+    !/^(?:COMMIT(?:\s+WORK)?|END)\s*;?\s*(?:--.*)?$/i.test(
+      (lines[last] ?? '').trim(),
+    )
   ) {
     return content; // no matching trailing COMMIT/END — leave untouched
   }

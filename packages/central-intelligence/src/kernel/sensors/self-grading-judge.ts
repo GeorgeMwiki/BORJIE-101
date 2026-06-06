@@ -43,13 +43,13 @@ export interface SelfGradingJudgeConfig {
 
 const DEFAULT_MODEL = getModelLatest('haiku');
 
-const SELF_GRADING_SYSTEM_PROMPT = `You are reviewing YOUR OWN previous answer for a property-management AI. Ask yourself: "Would I be comfortable shipping this to a regulator?"
+const SELF_GRADING_SYSTEM_PROMPT = `You are reviewing YOUR OWN previous answer for a mining-estate AI. Ask yourself: "Would I be comfortable shipping this to a regulator?"
 
 Return EXACTLY this JSON object:
 {"verdict": "ship" | "ship-with-reservations" | "kill", "score": NUMBER, "rationale": STRING, "suggestedRewrite": STRING}
 
 Verdict definitions:
-  - "ship": every claim is grounded, the tone matches a property-ops voice, and a regulator would have no questions. score ≥ 0.85.
+  - "ship": every claim is grounded, the tone matches a mining-ops voice, and a regulator would have no questions. score ≥ 0.85.
   - "ship-with-reservations": broadly correct but at least one hedge is missing, OR an uncited number snuck in. score 0.55 - 0.84.
   - "kill": at least one fabrication, off-topic claim, or unsupported certainty. ALSO use "kill" for any answer you would not ship to a regulator. score < 0.55.
 

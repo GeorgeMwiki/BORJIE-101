@@ -1,79 +1,117 @@
 'use client';
 
 /**
- * Legacy LPMS migration — migrated from
- * apps/admin-portal/src/pages/LegacyMigration.tsx.
+ * Legacy data migration — Migration Wizard client.
  *
- *   POST /api/v1/lpms/import         — preview / commit
- *   GET  /api/v1/lpms/preview-schema
+ * Wired to the live gateway migration router (services/api-gateway/
+ * src/routes/migration.router.ts, mounted at /api/v1/migration):
+ *
+ *   POST /migration/upload          — multipart file → stages a
+ *                                      MigrationRun, returns { runId,
+ *                                      bundle, warnings }
+ *   POST /migration/:runId/commit   — executes the staged run, returns
+ *                                      { ok, runId, counts, skipped }
+ *
+ * The old LPMS endpoints (/lpms/preview-schema, /lpms/import) were
+ * deleted in the mining hard-fork — there is no preview-schema endpoint
+ * and no JSON import mode. Upload now stages the run server-side and the
+ * returned bundle IS the preview; commit then applies it by runId.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { UploadCloud, Loader2, FileCheck2 } from 'lucide-react';
 import { api } from '@/lib/api';
 
-type Format = 'csv' | 'json' | 'xml';
+interface ExtractedBundle {
+  readonly properties: ReadonlyArray<unknown>;
+  readonly units: ReadonlyArray<unknown>;
+  readonly tenants: ReadonlyArray<unknown>;
+  readonly employees: ReadonlyArray<unknown>;
+  readonly departments: ReadonlyArray<unknown>;
+  readonly teams: ReadonlyArray<unknown>;
+}
 
-interface PreviewResult {
-  readonly format: Format;
-  readonly tenantId: string;
-  readonly counts: Record<string, number>;
-  readonly issues?: readonly string[];
+interface UploadResult {
+  readonly runId: string;
+  readonly bundle: ExtractedBundle;
+  readonly warnings?: readonly string[];
+}
+
+interface CommitResult {
+  readonly ok: boolean;
+  readonly runId: string;
+  readonly counts?: Record<string, number>;
+  readonly skipped?: Record<string, number>;
+}
+
+/** Count the rows in each bundle collection for the preview grid. */
+function bundleCounts(bundle: ExtractedBundle): Record<string, number> {
+  return {
+    properties: bundle.properties.length,
+    units: bundle.units.length,
+    tenants: bundle.tenants.length,
+    employees: bundle.employees.length,
+    departments: bundle.departments.length,
+    teams: bundle.teams.length,
+  };
 }
 
 export function LegacyMigrationClient() {
-  const [format, setFormat] = useState<Format>('csv');
-  const [content, setContent] = useState('');
-  const [schema, setSchema] = useState<unknown>(null);
-  const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [runId, setRunId] = useState<string | null>(null);
+  const [counts, setCounts] = useState<Record<string, number> | null>(null);
+  const [warnings, setWarnings] = useState<readonly string[]>([]);
+  const [committedCounts, setCommittedCounts] = useState<Record<
+    string,
+    number
+  > | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [committed, setCommitted] = useState(false);
   const [confirmingCommit, setConfirmingCommit] = useState(false);
 
-  useEffect(() => {
-    api.get<unknown>('/lpms/preview-schema').then((res) => {
-      if (res.success) setSchema(res.data);
-    });
-  }, []);
-
-  const handleFile = useCallback(async (file: File): Promise<void> => {
-    const text = await file.text();
-    setContent(text);
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === 'csv' || ext === 'json' || ext === 'xml') setFormat(ext);
+  const handleFile = useCallback((picked: File): void => {
+    setFile(picked);
+    // A fresh file invalidates any staged run.
+    setRunId(null);
+    setCounts(null);
+    setWarnings([]);
+    setCommitted(false);
+    setCommittedCounts(null);
+    setError(null);
   }, []);
 
   async function doPreview(): Promise<void> {
-    if (!content) return;
+    if (!file) return;
     setLoading(true);
     setError(null);
-    const res = await api.post<PreviewResult>('/lpms/import', {
-      format,
-      content,
-      commit: false,
-      bestEffort: true,
-    });
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.postForm<UploadResult>('/migration/upload', form);
     setLoading(false);
-    if (res.success && res.data) setPreview(res.data);
-    else setError(res.error ?? 'Preview failed');
+    if (res.success && res.data) {
+      setRunId(res.data.runId);
+      setCounts(bundleCounts(res.data.bundle));
+      setWarnings(res.data.warnings ?? []);
+    } else {
+      setError(res.error ?? 'Upload failed');
+    }
   }
 
   async function commit(): Promise<void> {
-    if (!content) return;
+    if (!runId) return;
     setConfirmingCommit(false);
     setCommitted(false);
     setLoading(true);
     setError(null);
-    const res = await api.post<PreviewResult>('/lpms/import', {
-      format,
-      content,
-      commit: true,
-    });
+    const res = await api.post<CommitResult>(
+      `/migration/${runId}/commit`,
+      {},
+    );
     setLoading(false);
-    if (res.success && res.data) {
-      setPreview(res.data);
+    if (res.success && res.data?.ok) {
       setCommitted(true);
+      setCommittedCounts(res.data.counts ?? null);
     } else {
       setError(res.error ?? 'Commit failed');
     }
@@ -84,7 +122,7 @@ export function LegacyMigrationClient() {
       <header className="flex items-center gap-3">
         <UploadCloud className="h-6 w-6 text-indigo-400" />
         <p className="text-sm text-neutral-400">
-          Upload a legacy LPMS export, preview the inferred records, and commit
+          Upload a legacy export, review the extracted records, and commit
           when satisfied.
         </p>
       </header>
@@ -104,6 +142,13 @@ export function LegacyMigrationClient() {
           className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300"
         >
           Import committed.
+          {committedCounts ? (
+            <span className="ml-2 text-emerald-200">
+              {Object.entries(committedCounts)
+                .map(([k, v]) => `${v} ${k}`)
+                .join(' · ')}
+            </span>
+          ) : null}
         </div>
       )}
 
@@ -115,38 +160,31 @@ export function LegacyMigrationClient() {
             accept=".csv,.json,.xml"
             onChange={(e) => {
               const f = e.target.files?.[0];
-              if (f) void handleFile(f);
+              if (f) handleFile(f);
             }}
             className="mt-1 w-full text-sm text-foreground"
-            data-testid="lpms-upload"
+            data-testid="migration-upload"
           />
         </label>
 
         <div className="flex items-center gap-3">
-          <label className="text-sm text-neutral-300">
-            Format:
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value as Format)}
-              className="ml-2 rounded border border-border bg-surface-sunken px-2 py-1 text-sm text-foreground"
-            >
-              <option value="csv">CSV</option>
-              <option value="json">JSON</option>
-              <option value="xml">XML</option>
-            </select>
-          </label>
           <span className="text-xs text-neutral-500">
-            {content
-              ? `${content.length.toLocaleString()} characters loaded`
+            {file
+              ? `${file.name} (${file.size.toLocaleString()} bytes)`
               : 'No file selected'}
           </span>
+          {runId ? (
+            <span className="text-xs text-neutral-500">
+              Run <code className="text-neutral-400">{runId}</code>
+            </span>
+          ) : null}
         </div>
 
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => void doPreview()}
-            disabled={!content || loading}
+            disabled={!file || loading}
             className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {loading ? (
@@ -157,7 +195,7 @@ export function LegacyMigrationClient() {
           <button
             type="button"
             onClick={() => setConfirmingCommit(true)}
-            disabled={!content || loading || !preview || confirmingCommit}
+            disabled={!runId || loading || confirmingCommit || committed}
             className="rounded border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-300 disabled:opacity-50"
           >
             Commit
@@ -167,10 +205,10 @@ export function LegacyMigrationClient() {
         {confirmingCommit && (
           <div
             role="alertdialog"
-            aria-labelledby="lpms-commit-confirm-title"
+            aria-labelledby="migration-commit-confirm-title"
             className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"
           >
-            <p id="lpms-commit-confirm-title" className="font-medium">
+            <p id="migration-commit-confirm-title" className="font-medium">
               Commit this import? This action cannot be undone.
             </p>
             <div className="mt-2 flex gap-2">
@@ -195,13 +233,13 @@ export function LegacyMigrationClient() {
         )}
       </section>
 
-      {preview && (
+      {counts && (
         <section className="rounded-xl border border-emerald-500/30 bg-surface p-5 space-y-2">
           <h3 className="flex items-center gap-2 font-display text-foreground">
-            <FileCheck2 className="h-4 w-4 text-emerald-400" /> Preview
+            <FileCheck2 className="h-4 w-4 text-emerald-400" /> Extracted records
           </h3>
           <ul className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
-            {Object.entries(preview.counts).map(([k, v]) => (
+            {Object.entries(counts).map(([k, v]) => (
               <li
                 key={k}
                 className="rounded bg-emerald-500/10 p-2 text-emerald-300"
@@ -210,28 +248,19 @@ export function LegacyMigrationClient() {
               </li>
             ))}
           </ul>
-          {preview.issues && preview.issues.length > 0 && (
+          {warnings.length > 0 && (
             <details className="text-xs text-neutral-400">
               <summary className="cursor-pointer text-amber-400">
-                {preview.issues.length} issue(s)
+                {warnings.length} warning(s)
               </summary>
               <ul className="ml-5 mt-2 list-disc">
-                {preview.issues.map((msg, idx) => (
+                {warnings.map((msg, idx) => (
                   <li key={idx}>{msg}</li>
                 ))}
               </ul>
             </details>
           )}
         </section>
-      )}
-
-      {schema !== null && (
-        <details className="platform-card text-sm text-neutral-300">
-          <summary className="cursor-pointer font-medium">Target schema</summary>
-          <pre className="mt-3 overflow-x-auto text-xs text-neutral-400">
-            {JSON.stringify(schema, null, 2)}
-          </pre>
-        </details>
       )}
     </div>
   );

@@ -319,3 +319,30 @@ export {
 // inputs provider have been removed. The mining-domain
 // PostgresBuyerRiskReportRepository lives under
 // `@borjie/domain-services/buyer`.
+
+// ---------------------------------------------------------------------------
+// Mining Buyer Financial-Profile Service (REAL, over the buyer repos).
+// Wires the legacy `/financial-profile` route surface to the mining
+// `BuyerFinancialProfileRepository` + `BuyerRiskReportRepository` via the
+// composition root. Distinctly-named (`Mining*`) so it coexists with the
+// legacy `FinancialProfileService` above. The `SubmitStatementInput` /
+// `RecordLitigationInput` aliases are intentionally NOT re-exported here —
+// those names are already owned by `./financial-profile-service.js` above,
+// and the mining shapes are reachable via `submitStatementSchema` /
+// `recordLitigationSchema` inference for callers that need them.
+export {
+  MiningFinancialProfileService,
+  createMiningFinancialProfileService,
+  MiningFinancialProfileError,
+  submitStatementSchema,
+  bankReferenceSchema,
+  recordLitigationSchema,
+  type MiningFinancialProfileErrorCode,
+  type MiningFinancialProfileServiceError,
+  type MiningFinancialProfileServiceDeps,
+  type ProfileLogger,
+  type BuyerProfileView,
+  type StatementSubmissionResult,
+  type LitigationRecordResult,
+  type BankReferenceInput,
+} from './mining-financial-profile-service.js';

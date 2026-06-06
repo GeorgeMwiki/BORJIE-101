@@ -1,21 +1,26 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { EstateOverview } from '@/components/estate/EstateOverview';
+import { getOwnerSession } from '@/lib/session';
 
 /**
- * O-W-19 — Multi-company group view. Live data path:
- * GET /api/v1/mining/internal/tenants?group=me. Empty state until the
- * group-rollup endpoint lands.
+ * O-W-19 — Multi-company group view. Wired to the live estate surface
+ * (GET /api/v1/estate/groups + /api/v1/estate/entities via
+ * useEstateGroups / useEstateEntities) — the owner-accessible holding /
+ * subsidiary structure. EstateOverview renders its own real loading /
+ * empty / error states (no fabricated data).
+ *
+ * NOTE: a per-tenant cash / production / compliance financial ROLLUP
+ * across the group is a separate, not-yet-built gateway endpoint (the
+ * original `internal/tenants?group=me` is SUPER_ADMIN-only and not
+ * owner-callable). See the gateway-wave list.
  */
-export default function GroupPage() {
+export default async function GroupPage() {
+  const session = await getOwnerSession();
   return (
     <>
       <ScreenHeader slug="group" />
       <div className="px-8 py-6">
-        <EmptyState
-          title="Group rollup not yet wired"
-          description="Per-tenant cash, production, and compliance rollups load from the live tenants API. Sign in to connect."
-          hint="GET /api/v1/mining/internal/tenants?group=me (pending)"
-        />
+        <EstateOverview locale={session.languagePreference} />
       </div>
     </>
   );

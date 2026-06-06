@@ -2,8 +2,8 @@
 
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
-import { apiRequest } from '@/lib/api-client';
-import type { GeneratedReport, ReportKind } from '@/lib/types/reports';
+import { apiRequest, LLM_REQUEST_TIMEOUT_MS } from '@/lib/api-client';
+import type { ReportKind } from '@/lib/types/reports';
 import {
   ReportAudioPayloadSchema,
   type ReportAudioPayload,
@@ -14,6 +14,52 @@ export interface GenerateReportInput {
   readonly rangeStart: string;
   readonly rangeEnd: string;
 }
+
+// ---------------------------------------------------------------------------
+// FE catalogue kind → gateway `/reports/generate` enum.
+//
+// The cockpit catalogue carries eight long-form kinds; the gateway accepts
+// the canonical seven-value `ReportKind` enum
+// (daily|weekly|monthly|investor|bank|board|audit). Map 1:1 where a value
+// exists; the two FE-only kinds fall back to their closest narrative window
+// (site-daily → daily, community-update → monthly). Never send an
+// unsupported value (the gateway rejects it 400).
+// ---------------------------------------------------------------------------
+
+type GatewayReportKind =
+  | 'daily'
+  | 'weekly'
+  | 'monthly'
+  | 'investor'
+  | 'bank'
+  | 'board'
+  | 'audit';
+
+const KIND_TO_GATEWAY: Readonly<Record<ReportKind, GatewayReportKind>> = {
+  'daily-owner-brief': 'daily',
+  'weekly-strategy-memo': 'weekly',
+  'monthly-business': 'monthly',
+  'site-daily': 'daily',
+  'investor-bank': 'investor',
+  'board-pack': 'board',
+  'audit-pack': 'audit',
+  'community-update': 'monthly',
+};
+
+/**
+ * 202 job ticket returned by `POST /api/v1/mining/reports/generate`. The
+ * render is handled out-of-band by the consolidation worker, so there is
+ * NO download URL on this response — the UI shows a "queued" state and the
+ * generated version surfaces later in `useGeneratedReports()`.
+ */
+const ReportJobTicketSchema = z.object({
+  jobId: z.string(),
+  kind: z.string(),
+  status: z.literal('queued'),
+  note: z.string().optional().default(''),
+});
+
+export type ReportJobTicket = z.infer<typeof ReportJobTicketSchema>;
 
 // ---------------------------------------------------------------------------
 // Generated report versions list.
@@ -59,13 +105,24 @@ export function useGeneratedReports(opts?: {
 
 export function useGenerateReport() {
   return useMutation({
-    // Live endpoint: POST /api/v1/mining/reports
+    // Live endpoint: POST /api/v1/mining/reports/generate — returns a 202
+    // job ticket {jobId,status:'queued'} (NO download url). The render is
+    // dispatched out-of-band by the consolidation worker; the generated
+    // version appears later via useGeneratedReports().
     // (services/api-gateway/src/routes/mining/reports.hono.ts).
-    mutationFn: (input: GenerateReportInput) =>
-      apiRequest<GeneratedReport>(
-        '/api/v1/mining/reports',
-        { method: 'POST', body: input },
-      ),
+    mutationFn: async (input: GenerateReportInput): Promise<ReportJobTicket> => {
+      const raw = await apiRequest<unknown>('/api/v1/mining/reports/generate', {
+        method: 'POST',
+        body: {
+          kind: KIND_TO_GATEWAY[input.kind],
+          asOf: `${input.rangeEnd}T00:00:00.000Z`,
+        },
+        // Queueing is fast, but the worker dispatch handshake can run a
+        // few seconds — use the long timeout to be safe.
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+      });
+      return ReportJobTicketSchema.parse(raw);
+    },
   });
 }
 

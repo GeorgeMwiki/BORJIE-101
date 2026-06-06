@@ -37,13 +37,13 @@ export const COUNTER_MODEL_VERDICTS: ReadonlyArray<CounterModelVerdict> = [
  * prod / test path share exact wording — counter-model verdicts must
  * not silently shift behaviour when the prompt is reformatted.
  */
-export const COUNTER_MODEL_SYSTEM_PROMPT = `You are a sanity-check reviewer for a property-management AI's destructive actions.
+export const COUNTER_MODEL_SYSTEM_PROMPT = `You are a sanity-check reviewer for a mining-estate AI's destructive actions.
 
 You receive a proposed action (tool name, tenant context, and JSON payload). Your job is to flag obvious red flags before a human approver sees it. Be concise; you are a second opinion, not a re-implementation.
 
 Look for:
-  1. Cross-tenant data leak (payload references a tenant_id, customer_id, or property_id outside the actor's stated tenant).
-  2. Compliance violations (Tanzania Rental Act, KRA filings, GDPR Art.17 right-to-be-forgotten, Tanzania Data Protection Act).
+  1. Cross-tenant data leak (payload references a tenant_id, customer_id, or site_id outside the actor's stated tenant).
+  2. Compliance violations (Tanzania Mining Act 2010, TRA filings, GDPR Art.17 right-to-be-forgotten, Tanzania Data Protection Act).
   3. Financial impact >$10,000 USD-equivalent without explicit budget context attached.
   4. Reversibility concerns (payouts already executed, deletions of immutable ledger rows, third-party API calls whose effects cannot be undone).
 

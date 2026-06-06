@@ -46,6 +46,7 @@ import {
   type ReasoningStep,
 } from '@borjie/reasoning-substrate';
 import type { EmbedderPort } from '@borjie/central-intelligence';
+import { createBrainLlmClient, BRAIN_LLM_MODELS } from '../services/brain/llm-call.js';
 
 // ---------------------------------------------------------------------------
 // Logger + inference contracts
@@ -96,6 +97,44 @@ function createDegradedInfer(): InferFn {
       text: trimmed.length > 0 ? `Considered: ${trimmed}` : '',
       confidence: 0.2,
     };
+  };
+}
+
+/**
+ * Build a REAL Anthropic-backed inference fn for the deep composer. Returns
+ * `undefined` when no `ANTHROPIC_API_KEY` is available so the caller falls
+ * back to {@link createDegradedInfer} — i.e. behaviour is unchanged when the
+ * key is absent, and genuinely model-backed (Sonnet) when present.
+ *
+ * Confidence is a completion-quality PROXY derived from the model's
+ * `stop_reason` (a clean `end_turn` ranks above a length-truncated answer) —
+ * never a fabricated constant. The deep composer is still gated by
+ * `BORJIE_COGNITIVE_COMPOSER_ENABLED`, so binding a real infer here only takes
+ * effect once that flag is enabled; it is inert (never invoked) while off.
+ */
+export function createAnthropicComposerInfer(opts: {
+  readonly apiKey?: string | undefined;
+}): InferFn | undefined {
+  const client = createBrainLlmClient({
+    apiKey: opts.apiKey,
+    model: BRAIN_LLM_MODELS.SONNET,
+  });
+  if (!client) return undefined;
+  return async (input) => {
+    const response = await client.sdk.messages.create({
+      model: client.model,
+      max_tokens: 1024,
+      temperature: 0.3,
+      ...(input.system ? { system: input.system } : {}),
+      messages: [{ role: 'user', content: input.prompt }],
+    });
+    const text = response.content
+      .filter((b) => b.type === 'text')
+      .map((b) => b.text ?? '')
+      .join('')
+      .trim();
+    const confidence = response.stop_reason === 'end_turn' ? 0.7 : 0.5;
+    return { text, confidence };
   };
 }
 

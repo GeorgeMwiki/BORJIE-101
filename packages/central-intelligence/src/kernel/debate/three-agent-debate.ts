@@ -254,13 +254,13 @@ export async function runThreeAgentDebate(
 // ─────────────────────────────────────────────────────────────────────
 
 const PROPOSER_SYSTEM =
-  'You are the Proposer in a three-agent property-management deliberation. ' +
+  'You are the Proposer in a three-agent mining-estate deliberation. ' +
   'Read the question and context, then produce a confident first-pass answer with ' +
   'concrete reasoning. Cite numbers from the context when present. Do NOT hedge ' +
   'beyond what the evidence actually requires. 4–8 sentences.';
 
 const SYNTHESIZER_SYSTEM =
-  'You are the Synthesizer in a three-agent property-management deliberation. ' +
+  'You are the Synthesizer in a three-agent mining-estate deliberation. ' +
   'Read the Proposer’s answer and the Critic’s analysis. Produce the final ' +
   'answer that integrates the critic’s strongest points without losing the ' +
   'proposer’s concrete recommendation. If the critic flagged a regulatory or ' +
@@ -271,7 +271,7 @@ function buildCriticSystem(
   rules: ReadonlyArray<ConstitutionRulePrompt>,
 ): string {
   const base =
-    'You are the Critic in a three-agent property-management deliberation. ' +
+    'You are the Critic in a three-agent mining-estate deliberation. ' +
     'Read the Proposer’s answer and identify weaknesses, missing context, and ' +
     'alternative interpretations the Proposer overlooked. Be specific, not vague.';
   if (rules.length === 0) return base;

@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/lib/api';
 import type { Tenant } from '@/lib/internal/types';
 
 interface Invoice {
@@ -21,7 +22,7 @@ export function TenantBillingTab({ tenant }: { readonly tenant: Tenant }): JSX.E
           <div>
             <p className="text-xs uppercase tracking-wider text-neutral-500">Annual run rate</p>
             <p className="text-3xl font-display text-foreground tabular-nums">
-              ${tenant.arrUsd.toLocaleString()}
+              {formatCurrency(tenant.arr, tenant.currency)}
             </p>
           </div>
           <p className="text-xs text-neutral-500">{tenant.plan} · billed monthly</p>

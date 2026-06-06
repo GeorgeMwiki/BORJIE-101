@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { simulateSellVsHold } from '@/lib/types/treasury';
 import { fmtTzsM } from '@/lib/format';
+import { useFxSeeds } from '@/lib/queries/fx';
 
 interface SellSimulatorProps {
   readonly initialGoldUsdOz: number;
@@ -19,6 +20,21 @@ export function SellSimulator({
   const [tzsUsd, setTzsUsd] = useState(initialTzsUsd);
   const [grammes, setGrammes] = useState(initialGrammes);
   const [holdDays, setHoldDays] = useState(14);
+
+  // Seed gold + FX from the LIVE rate feed once it loads, but never stomp a
+  // value the owner has already dragged. The `initial*` props remain the
+  // fallback so the simulator is usable before the feed responds.
+  const goldTouched = useRef(false);
+  const fxTouched = useRef(false);
+  const seeds = useFxSeeds();
+  useEffect(() => {
+    if (!goldTouched.current && seeds.goldUsdOz !== null) {
+      setGoldUsd(seeds.goldUsdOz);
+    }
+    if (!fxTouched.current && seeds.tzsUsd !== null) {
+      setTzsUsd(seeds.tzsUsd);
+    }
+  }, [seeds.goldUsdOz, seeds.tzsUsd]);
 
   const out = useMemo(
     () =>
@@ -52,7 +68,10 @@ export function SellSimulator({
           max={3000}
           step={10}
           value={goldUsd}
-          onChange={setGoldUsd}
+          onChange={(next) => {
+            goldTouched.current = true;
+            setGoldUsd(next);
+          }}
         />
         <Slider
           label={`TZS/USD · ${tzsUsd}`}
@@ -60,7 +79,10 @@ export function SellSimulator({
           max={2900}
           step={5}
           value={tzsUsd}
-          onChange={setTzsUsd}
+          onChange={(next) => {
+            fxTouched.current = true;
+            setTzsUsd(next);
+          }}
         />
         <Slider
           label={`Grammes available · ${grammes}`}

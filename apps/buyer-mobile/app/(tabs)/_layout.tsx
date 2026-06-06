@@ -1,7 +1,9 @@
-import { Tabs } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { Redirect, Tabs } from 'expo-router'
 import { Text } from 'react-native'
 import { useTranslation } from '@/hooks/useTranslation'
-import { tokens } from '@/ui-litfin'
+import { ensureBootstrapped, isAuthenticated, useSession } from '@/auth/session'
+import { LitFinSplash, tokens } from '@/ui-litfin'
 
 function TabIcon({ glyph, color }: { glyph: string; color: string }) {
   return <Text style={{ color, fontSize: 18, fontWeight: '700' }}>{glyph}</Text>
@@ -9,6 +11,31 @@ function TabIcon({ glyph, color }: { glyph: string; color: string }) {
 
 export default function TabsLayout() {
   const { t } = useTranslation()
+  // Auth guard at the group level so deep links into any tab cannot render
+  // with the GUEST_USER sentinel / empty token. `useSession()` keeps this
+  // reactive (e.g. logout redirects immediately); `ready` defers the
+  // redirect until the stored session has been loaded by bootstrap.
+  const user = useSession()
+  const [ready, setReady] = useState<boolean>(false)
+  useEffect(() => {
+    let cancelled = false
+    void ensureBootstrapped().finally(() => {
+      if (!cancelled) {
+        setReady(true)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+  void user
+
+  if (!ready) {
+    return <LitFinSplash wordmark="BORJIE" tagline="Soko la Madini. Mineral marketplace." showSpinner />
+  }
+  if (!isAuthenticated()) {
+    return <Redirect href="/auth/login" />
+  }
   return (
     <Tabs
       screenOptions={{

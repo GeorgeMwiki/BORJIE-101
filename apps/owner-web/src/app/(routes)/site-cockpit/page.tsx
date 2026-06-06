@@ -5,18 +5,27 @@ import { SiteCockpitSurface } from '@/components/site-cockpit/SiteCockpitSurface
 import { getOwnerSession } from '@/lib/session';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
+interface SiteCockpitPageProps {
+  readonly searchParams: Promise<{ readonly siteId?: string }>;
+}
+
 /**
  * O-W-06 — Site cockpit.
  *
  * Three tabs: Shift (latest shift card, blockers list, photo gallery),
  * Geology (composite score gauge + 30-day trend), Cost (unit-economics
- * table with all-in TZS/g and trend arrows). Site selection comes from
- * the top-bar SiteSelector via session.activeSiteId.
+ * table with all-in TZS/g and trend arrows). Site selection is driven by
+ * the `?siteId=` query param (from the SiteSelector / deep links) and
+ * falls back to the session's most-recent site when absent.
  */
-export default async function SiteCockpitPage() {
+export default async function SiteCockpitPage({
+  searchParams,
+}: SiteCockpitPageProps) {
   const session = await getOwnerSession();
   const isSw = session.languagePreference === 'sw';
-  const activeSite = session.sites.find((s) => s.id === session.activeSiteId);
+  const { siteId: siteIdParam } = await searchParams;
+  const siteId = siteIdParam?.trim() || session.activeSiteId;
+  const activeSite = session.sites.find((s) => s.id === siteId);
   return (
     <div className="space-y-8 px-8 py-8">
       <PageHero
@@ -56,7 +65,15 @@ export default async function SiteCockpitPage() {
           ) : null
         }
       />
-      <SiteCockpitSurface siteId={session.activeSiteId} />
+      {siteId ? (
+        <SiteCockpitSurface siteId={siteId} />
+      ) : (
+        <div className="rounded-2xl border border-border bg-surface/40 px-6 py-12 text-center text-sm text-muted-foreground">
+          {isSw
+            ? 'Hakuna machimbo bado. Ongeza machimbo kwenye Onboarding ili kufungua dirisha hili.'
+            : 'No sites yet. Add a site on the Onboarding surface to open this cockpit.'}
+        </div>
+      )}
     </div>
   );
 }

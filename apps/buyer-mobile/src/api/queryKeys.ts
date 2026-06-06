@@ -8,6 +8,8 @@ export const queryKeys = {
   documents: () => ['documents'] as const,
   document: (id: string) => ['document', id] as const,
   kycStatus: (id: string) => ['kyc-status', id] as const,
+  // Buyer wallet snapshot (balances + display-only FX).
+  wallet: () => ['wallet'] as const,
   // R11 — buyer-initiated RFB.
   rfbsMine: () => ['rfbs', 'mine'] as const,
   // Commercial chain L7 — buyer notifications.

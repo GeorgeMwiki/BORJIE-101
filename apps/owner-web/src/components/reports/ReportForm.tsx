@@ -27,9 +27,11 @@ type FormValues = z.infer<typeof schema>;
 
 /**
  * Report generation form. Owner picks a kind + date range, taps
- * generate, the mutation POSTs to /reports/generate (or falls back to
- * a mock 600ms-delayed generator) and surfaces the download URL in a
- * toast.
+ * generate, the mutation POSTs to /reports/generate which returns a 202
+ * job ticket (queued — the render is dispatched out-of-band by the
+ * consolidation worker). We surface a "queued" toast; the finished
+ * version appears in the generated-reports list, NOT as an immediate
+ * download URL.
  */
 export function ReportForm() {
   const today = new Date().toISOString().slice(0, 10);
@@ -50,11 +52,11 @@ export function ReportForm() {
   const kind = watch('kind') as ReportKind;
   const selected = REPORT_CATALOGUE.find((r) => r.kind === kind);
   const mutation = useGenerateReport();
-  const [toastUrl, setToastUrl] = useState<string | null>(null);
+  const [queuedJobId, setQueuedJobId] = useState<string | null>(null);
 
   const submit = (values: FormValues): void => {
     mutation.mutate(values, {
-      onSuccess: (data) => setToastUrl(data.url),
+      onSuccess: (ticket) => setQueuedJobId(ticket.jobId),
     });
   };
 
@@ -120,12 +122,10 @@ export function ReportForm() {
           Generate {selected?.title ?? 'report'}
         </button>
       </form>
-      {toastUrl ? (
+      {queuedJobId ? (
         <Toast
-          message="Report generated."
-          actionLabel="Download PDF"
-          onAction={() => window.open(toastUrl, '_blank')}
-          onDismiss={() => setToastUrl(null)}
+          message="Report queued. It will appear in your generated reports when the renderer finishes."
+          onDismiss={() => setQueuedJobId(null)}
         />
       ) : null}
     </article>

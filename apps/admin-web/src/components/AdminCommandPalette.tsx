@@ -9,30 +9,51 @@
  */
 
 import type { ReactElement } from 'react';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CommandPalette, type CommandItem } from '@borjie/design-system';
 import { openAdminBulkDrawer } from './superpowers';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
+// Every route below resolves to a real page in `app/`. The earlier
+// catalog shipped eight slugs that 404'd (intelligence-corpus,
+// compliance, audit-logs, feature-flags, an /internal/ai-costs that
+// lives at the top level, plus incidents/settings pages that were never
+// built). Corrected to the live slugs; entries with no real page were
+// dropped, and Sign out now calls the real auth flow instead of routing
+// to a dead /sign-out URL.
 const ADMIN_NAV_ROUTES: ReadonlyArray<{
   readonly route: string;
   readonly label: string;
 }> = [
   { route: '/internal', label: 'Internal home' },
   { route: '/internal/tenants', label: 'Tenants' },
-  { route: '/internal/intelligence-corpus', label: 'Intelligence corpus' },
+  { route: '/internal/corpus', label: 'Intelligence corpus' },
   { route: '/internal/prompts', label: 'Prompt registry' },
   { route: '/internal/models', label: 'Model registry' },
-  { route: '/internal/compliance', label: 'Compliance review' },
-  { route: '/internal/audit-logs', label: 'Audit logs' },
+  { route: '/internal/compliance-queue', label: 'Compliance review' },
+  { route: '/internal/audit-log', label: 'Audit logs' },
   { route: '/internal/killswitch', label: 'Kill switch' },
-  { route: '/internal/feature-flags', label: 'Feature flags' },
-  { route: '/internal/incidents', label: 'Incidents' },
-  { route: '/internal/ai-costs', label: 'AI costs' },
+  { route: '/internal/flags', label: 'Feature flags' },
+  { route: '/ai-costs', label: 'AI costs' },
 ];
 
 export function AdminCommandPalette(): ReactElement {
   const router = useRouter();
+
+  // Mirror SignOutButton's flow: revoke the Supabase session, then
+  // bounce to /sign-in and refresh so middleware re-runs. There is no
+  // /sign-out route, so navigating there (the previous behaviour) left
+  // the operator on a 404 still signed in.
+  const handleSignOut = useCallback(async () => {
+    try {
+      const supabase = createSupabaseBrowserClient();
+      await supabase.auth.signOut();
+    } finally {
+      router.replace('/sign-in');
+      router.refresh();
+    }
+  }, [router]);
 
   const items = useMemo<ReadonlyArray<CommandItem>>(() => {
     const out: CommandItem[] = [];
@@ -68,22 +89,20 @@ export function AdminCommandPalette(): ReactElement {
       onSelect: () => openAdminBulkDrawer(),
     });
 
-    out.push({
-      id: 'settings_general',
-      kind: 'settings',
-      label: 'Settings',
-      onSelect: () => router.push('/internal/settings'),
-    });
+    // Settings entry dropped: there is no /internal/settings page yet.
+    // Re-add here when the gateway-backed settings surface lands.
 
     out.push({
       id: 'signout',
       kind: 'signout',
       label: 'Sign out',
-      onSelect: () => router.push('/sign-out'),
+      onSelect: () => {
+        void handleSignOut();
+      },
     });
 
     return Object.freeze(out);
-  }, [router]);
+  }, [router, handleSignOut]);
 
   return (
     <CommandPalette

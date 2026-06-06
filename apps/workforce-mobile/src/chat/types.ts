@@ -1,34 +1,9 @@
 import { z } from 'zod'
 
-export type ChatRole = 'user' | 'assistant'
-
-export interface EvidenceChip {
-  id: string
-  label: string
-  url?: string
-}
-
-export interface ChatMessage {
-  id: string
-  role: ChatRole
-  content: string
-  evidence: ReadonlyArray<EvidenceChip>
-  createdAt: number
-  streaming: boolean
-}
-
-export interface ChatStreamEvent {
-  type: 'delta' | 'evidence' | 'done' | 'error'
-  delta?: string
-  evidence?: ReadonlyArray<EvidenceChip>
-  error?: string
-}
-
 // ───────────────────────────────────────────────────────────────────────
-// HomeChat surface — non-streaming, tool-call-rendering chat used by the
-// (tabs)/home.tsx pivot. Wire format mirrors POST /api/v1/brain/turn.
-// Distinct from the streaming SSE shapes above (ChatMessage / EvidenceChip)
-// which power the legacy Ask-Borjie surface.
+// HomeChat surface — SSE-streaming, tool-call-rendering chat used by the
+// home / ask tabs and the owner O-M-02 screen. Wire format mirrors
+// POST /api/v1/brain/turn (consumed via `streamBrainTurn`).
 // ───────────────────────────────────────────────────────────────────────
 
 export const ToolCallResultSchema = z.object({

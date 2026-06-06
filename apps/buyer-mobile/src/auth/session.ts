@@ -29,7 +29,12 @@ const GUEST_USER: BuyerUser = {
 type Listener = (user: BuyerUser | null) => void
 
 let currentUser: BuyerUser | null = null
-let bootstrapped = false
+// Cached single-flight bootstrap promise. Held so that the splash gate
+// (which `await`s it before checking `isAuthenticated()`) and any
+// `useSession()` subscriber share ONE in-flight `getSession()` call —
+// every awaiter resolves only after the stored Supabase session has been
+// loaded and projected.
+let bootstrapPromise: Promise<void> | null = null
 const listeners = new Set<Listener>()
 
 function emit(): void {
@@ -58,9 +63,14 @@ function projectSession(session: Session | null): BuyerUser | null {
   }
 }
 
-async function ensureBootstrapped(): Promise<void> {
-  if (bootstrapped) return
-  bootstrapped = true
+export function ensureBootstrapped(): Promise<void> {
+  if (bootstrapPromise === null) {
+    bootstrapPromise = runBootstrap()
+  }
+  return bootstrapPromise
+}
+
+async function runBootstrap(): Promise<void> {
   try {
     const supabase = getSupabaseClient()
     const { data } = await supabase.auth.getSession()
@@ -72,6 +82,10 @@ async function ensureBootstrapped(): Promise<void> {
         // Fire-and-forget push registration on cold-boot — keeps the
         // device token fresh in `device_push_tokens`. Never blocks app boot.
         void registerPushToken()
+        // Hydrate the real KYC status from the gateway so the trust pill
+        // reflects approval/rejection rather than the conservative
+        // 'pending' default. Fire-and-forget — never blocks app boot.
+        void refreshKycStatus()
       }
     }
     supabase.auth.onAuthStateChange((_event, session) => {
@@ -82,6 +96,7 @@ async function ensureBootstrapped(): Promise<void> {
         // Sign-in or token-refresh — push the latest device token so
         // any new user_id mapping is recorded server-side.
         void registerPushToken()
+        void refreshKycStatus()
       } else {
         void clearAuthToken()
       }
@@ -105,6 +120,54 @@ export function isAuthenticated(): boolean {
 export function setCurrentUser(user: BuyerUser): void {
   currentUser = user
   emit()
+}
+
+/**
+ * Map the gateway KYC record `stage` onto the buyer session `kycStatus`.
+ * The verify screen's `KycStage` carries a `reviewing` state which the
+ * session model folds into `submitted` (both render as "in review").
+ */
+function kycStatusFromStage(
+  stage: 'submitted' | 'reviewing' | 'approved' | 'rejected'
+): BuyerUser['kycStatus'] {
+  switch (stage) {
+    case 'approved':
+      return 'approved'
+    case 'rejected':
+      return 'rejected'
+    case 'submitted':
+    case 'reviewing':
+      return 'submitted'
+    default:
+      return 'pending'
+  }
+}
+
+/**
+ * Hydrate the real KYC status from the gateway into the session so the
+ * trust pill reflects approval/rejection rather than the conservative
+ * `'pending'` default. Best-effort: on 404 (no KYC record yet) or any
+ * error we keep the current status — we NEVER fabricate an approval.
+ * Uses a dynamic import to avoid any module-init import cycle through the
+ * api client.
+ */
+export async function refreshKycStatus(): Promise<void> {
+  const user = currentUser
+  if (!user?.id) {
+    return
+  }
+  try {
+    const { fetchKycStatus } = await import('@/api/buyers')
+    const record = await fetchKycStatus(`kyc-${user.id}`)
+    const nextStatus = kycStatusFromStage(record.stage)
+    // Guard against a stale write if the user changed mid-flight.
+    if (currentUser?.id === user.id && currentUser.kycStatus !== nextStatus) {
+      currentUser = { ...currentUser, kycStatus: nextStatus }
+      emit()
+    }
+  } catch {
+    // No record yet / endpoint unavailable — keep the conservative default.
+  }
 }
 
 export function setPreferredLang(lang: BuyerUser['preferredLang']): void {

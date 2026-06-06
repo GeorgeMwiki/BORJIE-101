@@ -29,7 +29,7 @@
  * arguments are mutated. Matches the global coding-style rule.
  */
 
-import { API_BASE, ApiError, apiRequest } from './api-client';
+import { API_BASE, ApiError, apiRequest, LLM_REQUEST_TIMEOUT_MS } from './api-client';
 import { createSupabaseBrowserClient } from './supabase/client';
 
 // ─── Wire shapes returned by brain.hono.ts ─────────────────────────────
@@ -337,9 +337,12 @@ export async function submitBrainTurn(
   const body: Record<string, unknown> = { userText: req.userText };
   if (req.threadId) body.threadId = req.threadId;
   if (req.forcePersonaId) body.forcePersonaId = req.forcePersonaId;
+  // The brain turn is a 10–60s LLM/orchestrator call — use the long
+  // timeout so the default 5s cap does not abort it as a false failure.
   const raw = await apiRequest<BrainTurnRawResponse>('/api/v1/brain/turn', {
     method: 'POST',
     body,
+    timeoutMs: LLM_REQUEST_TIMEOUT_MS,
     ...(init.signal ? { signal: init.signal } : {}),
   });
   return normaliseTurnResult(raw ?? {});

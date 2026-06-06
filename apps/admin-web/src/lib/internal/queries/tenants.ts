@@ -38,7 +38,9 @@ interface RawTenant {
   readonly createdAt?: string;
   readonly updatedAt?: string;
   readonly lastActiveAt?: string;
+  readonly arr?: number;
   readonly arrUsd?: number;
+  readonly primaryCurrency?: string;
 }
 
 function planFromTier(raw: string | undefined): TenantPlan {
@@ -63,7 +65,10 @@ function adaptTenant(raw: RawTenant): Tenant {
     country: raw.country ?? 'TZ',
     plan: planFromTier(raw.subscriptionTier ?? raw.plan),
     status: statusFromRaw(raw.status),
-    arrUsd: raw.arrUsd ?? 0,
+    // `arrUsd` kept as a legacy fallback for older payloads; the value is
+    // rendered in the tenant's own `currency`, never assumed to be USD.
+    arr: raw.arr ?? raw.arrUsd ?? 0,
+    currency: raw.primaryCurrency ?? 'TZS',
     lastActiveAt: raw.lastActiveAt ?? raw.updatedAt ?? raw.createdAt ?? new Date().toISOString(),
     createdAt: raw.createdAt ?? new Date().toISOString(),
   };

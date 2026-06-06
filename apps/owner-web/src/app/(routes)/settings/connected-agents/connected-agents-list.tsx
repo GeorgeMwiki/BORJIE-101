@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { Toast } from '@/components/shared/Toast';
 
 type AgentToken = {
   readonly id: string;
@@ -66,6 +67,8 @@ function formatRelative(input: string | null): string {
 export function ConnectedAgentsList() {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [revoking, setRevoking] = useState<string | null>(null);
+  // In-app toast for revoke failures (replaces window.alert).
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
@@ -142,13 +145,13 @@ export function ConnectedAgentsList() {
           '{detail}',
           detail,
         );
-        window.alert(`${swFail} / ${enFail}`);
+        setToastMsg(`${swFail} / ${enFail}`);
         setRevoking(null);
         return;
       }
       await load();
     } catch (err) {
-      window.alert(
+      setToastMsg(
         err instanceof Error
           ? err.message
           : bilingual(
@@ -210,6 +213,7 @@ export function ConnectedAgentsList() {
     );
   }
   return (
+    <>
     <ul className="space-y-3">
       {state.tokens.map((token) => (
         <li
@@ -265,5 +269,9 @@ export function ConnectedAgentsList() {
         </li>
       ))}
     </ul>
+    {toastMsg ? (
+      <Toast message={toastMsg} onDismiss={() => setToastMsg(null)} />
+    ) : null}
+    </>
   );
 }

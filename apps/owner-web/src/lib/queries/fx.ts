@@ -55,6 +55,35 @@ export function useFxLatest() {
   });
 }
 
+/**
+ * Live FX seed values for the finance / treasury simulators.
+ *
+ * Maps the latest rate rows onto the two numbers the sliders need:
+ *   - `goldUsdOz` — XAU/USD (prefers the PM fix, falls back to AM)
+ *   - `tzsUsd`    — TZS/USD spot
+ *
+ * Returns `null` for a field until a real rate has loaded so callers can
+ * fall back to their own seed rather than render a fabricated price.
+ * `ready` flips true once at least one rate row is present.
+ */
+export interface FxSeeds {
+  readonly goldUsdOz: number | null;
+  readonly tzsUsd: number | null;
+  readonly ready: boolean;
+}
+
+export function useFxSeeds(): FxSeeds {
+  const { data } = useFxLatest();
+  const rates = data?.rates ?? [];
+  const byPair = (pair: FxPair): number | null => {
+    const row = rates.find((r) => r.pair === pair);
+    return row && Number.isFinite(row.rate) ? row.rate : null;
+  };
+  const goldUsdOz = byPair('XAU_USD_PM') ?? byPair('XAU_USD_AM');
+  const tzsUsd = byPair('TZS_USD');
+  return { goldUsdOz, tzsUsd, ready: rates.length > 0 };
+}
+
 export function useFxHistory(pair: FxPair, limit = 60) {
   return useQuery({
     queryKey: fxKeys.history(pair, limit),

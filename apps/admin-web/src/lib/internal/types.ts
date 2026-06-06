@@ -18,7 +18,13 @@ export interface Tenant {
   readonly country: string;
   readonly plan: TenantPlan;
   readonly status: TenantStatus;
-  readonly arrUsd: number;
+  /** ARR amount in the tenant's `currency` (whole units, not minor). */
+  readonly arr: number;
+  /**
+   * ISO-4217 code for `arr`, from the tenant's `primaryCurrency`
+   * (multi-currency hard rule — never hard-code a currency at render).
+   */
+  readonly currency: string;
   readonly lastActiveAt: string;
   readonly createdAt: string;
 }

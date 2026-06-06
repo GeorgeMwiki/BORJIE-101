@@ -208,7 +208,11 @@ export function mountBidCounterRoute(bidsApp: Hono) {
       const auth = c.get('auth');
       const body = c.req.valid('json');
       const svc = negotiationService(c);
-      if (!svc)
+      // The negotiation delegate may be bound to the "pending mining-equivalent
+      // rewrite" stub, which only implements startNegotiation. Guard on the
+      // actual method so an incomplete binding degrades to an honest 503
+      // instead of crashing with `svc.submitCounter is not a function` (500).
+      if (!svc || typeof svc.submitCounter !== 'function')
         return c.json(
           {
             success: false,

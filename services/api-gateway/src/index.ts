@@ -651,7 +651,10 @@ import {
 // `discoverReasoningStructure` executors. Threaded into `wireCognitive` so
 // the TTC-routed deep composer is available (flag default OFF, fail-safe;
 // opt-in via env after a staging canary).
-import { buildCognitiveCompositionDeps } from './composition/cognitive-composition-deps-wiring';
+import {
+  buildCognitiveCompositionDeps,
+  createAnthropicComposerInfer,
+} from './composition/cognitive-composition-deps-wiring';
 import { resolveSkillEmbedder } from './composition/sovereign';
 import {
   createHeartbeatSupervisor,
@@ -1101,9 +1104,22 @@ const wiredCognitive: WiredCognitive = wireCognitive({
     error: (message, meta) => logger.error(meta ?? {}, message),
   },
   // LP-30 — turn the deep composer on. The embedder is shared with the kernel
-  // + skill retriever; the inference port falls back to a deterministic
-  // degraded stub when no Anthropic key is present so the pipeline still runs.
+  // + skill retriever; the inference port is now bound to a REAL Sonnet-backed
+  // infer when ANTHROPIC_API_KEY is present, and falls back to a deterministic
+  // degraded stub when it is absent so the pipeline still runs offline. (The
+  // composer itself remains gated by BORJIE_COGNITIVE_COMPOSER_ENABLED.)
+  //
+  // `createAnthropicComposerInfer` returns `undefined` when no key is present;
+  // under `exactOptionalPropertyTypes` we omit the optional `infer` key in
+  // that case (rather than passing `undefined`) so the builder applies its
+  // documented degraded-stub default.
   compositionDeps: buildCognitiveCompositionDeps({
+    ...(() => {
+      const infer = createAnthropicComposerInfer({
+        apiKey: process.env.ANTHROPIC_API_KEY,
+      });
+      return infer ? { infer } : {};
+    })(),
     embedder: resolveSkillEmbedder(),
     logger: {
       info: (meta, msg) => logger.info(meta, msg),

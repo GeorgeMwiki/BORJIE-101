@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, LLM_REQUEST_TIMEOUT_MS } from '@/lib/api-client';
 
 export type OnboardingStep =
   | 'kyb'
@@ -57,9 +57,12 @@ export function useAdvanceOnboarding() {
 export function useCompleteOnboarding() {
   return useMutation({
     mutationFn: (sessionId: string) =>
+      // Finalise + cockpit seed runs the brief composition server-side
+      // (10–60s) — use the long timeout so it is not aborted as a false
+      // failure by the 5s default.
       apiRequest<{ readonly sessionId: string; readonly briefId?: string }>(
         `/api/v1/mining/onboarding/complete`,
-        { method: 'POST', body: { sessionId } },
+        { method: 'POST', body: { sessionId }, timeoutMs: LLM_REQUEST_TIMEOUT_MS },
       ),
   });
 }

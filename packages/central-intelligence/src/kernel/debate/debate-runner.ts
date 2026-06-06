@@ -373,7 +373,7 @@ export async function runStakesAwareDebate(
 }
 
 const SINGLE_AGENT_SYSTEM =
-  'You are a property-management assistant. Answer the question using the context. ' +
+  'You are a mining-estate assistant. Answer the question using the context. ' +
   'Cite concrete numbers from the context when present. End with a single recommended action.';
 
 function buildSingleAgentPrompt(question: string, context: string): string {

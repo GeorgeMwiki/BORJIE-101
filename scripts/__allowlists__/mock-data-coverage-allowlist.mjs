@@ -24,20 +24,8 @@
  * Keys are paths RELATIVE to the repo root.
  */
 
-export const MOCK_DATA_ALLOWLIST = new Map([
-  // ─── Upstream-sandbox HTTP header constants ────────────────────────
-  [
-    'packages/market-intelligence/src/adapters/airbnb.ts',
-    'X-MOCK-MARKET-DATA HTTP header constant for Airbnb sandbox responses; not local data.',
-  ],
-  [
-    'packages/market-intelligence/src/adapters/zillow.ts',
-    'X-MOCK-MARKET-DATA HTTP header constant for Zillow sandbox responses; not local data.',
-  ],
-
-  // ─── Empty-array bootstrap sentinels ───────────────────────────────
-  [
-    'apps/customer-app/src/lib/payments-data.ts',
-    'MOCK_PAYMENTS export is an empty Payment[] sentinel; pending rename to PAYMENTS_BOOTSTRAP.',
-  ],
-]);
+// Empty: the three former entries (market-intelligence airbnb.ts / zillow.ts
+// real-estate adapters and the customer-app payments-data.ts sentinel) were
+// property-domain files removed in the property→mining migration. No
+// production file currently needs a mock-data exemption.
+export const MOCK_DATA_ALLOWLIST = new Map([]);

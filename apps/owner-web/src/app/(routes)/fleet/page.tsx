@@ -1,20 +1,22 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { FleetMaintenanceSurface } from '@/components/fleet/FleetMaintenanceSurface';
 
 /**
- * O-W-09 — Assets & fleet. Live data path:
- * GET /api/v1/mining/fleet/units + /fleet/match-factor.
+ * O-W-09 — Assets & fleet. Wired to the live asset-maintenance feed
+ * (GET /api/v1/mining/maintenance via useMaintenanceList). The surface
+ * renders its own real loading / empty / error states.
+ *
+ * NOTE: a dedicated fleet-units register + match-factor computation are
+ * separate, not-yet-built gateway endpoints
+ * (/api/v1/mining/fleet/units, /api/v1/mining/fleet/match-factor). See
+ * the gateway-wave list — we do not fabricate them.
  */
 export default function FleetPage() {
   return (
     <>
       <ScreenHeader slug="fleet" />
       <div className="px-8 py-6">
-        <EmptyState
-          title="Fleet surface not yet wired"
-          description="Match factor and predictive-maintenance health scores load from the live fleet API. Sign in to connect."
-          hint="GET /api/v1/mining/fleet/units (pending)"
-        />
+        <FleetMaintenanceSurface />
       </div>
     </>
   );

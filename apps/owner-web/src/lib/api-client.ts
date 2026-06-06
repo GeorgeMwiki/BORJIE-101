@@ -30,7 +30,19 @@ export const API_BASE = requirePublicBaseUrl(
   'http://localhost:3001',
 );
 
-const REQUEST_TIMEOUT_MS = 5_000;
+/**
+ * Default hard-abort for normal CRUD reads/writes. Kept tight so a wedged
+ * gateway surfaces an error quickly instead of hanging the cockpit.
+ */
+const DEFAULT_REQUEST_TIMEOUT_MS = 5_000;
+
+/**
+ * Long-running timeout for LLM / OCR / report-render paths. The brain turn,
+ * executive brief, report-generate, and onboarding-ingest endpoints run
+ * 10–60s server-side; the 5s default aborted them every time ("brain turn
+ * failed"). Callers on those paths pass `{ timeoutMs: LLM_REQUEST_TIMEOUT_MS }`.
+ */
+export const LLM_REQUEST_TIMEOUT_MS = 90_000;
 
 async function authHeaders(): Promise<Record<string, string>> {
   if (typeof window === 'undefined') return {};
@@ -60,14 +72,24 @@ interface RequestOptions {
   readonly body?: unknown;
   readonly signal?: AbortSignal;
   readonly headers?: Record<string, string>;
+  /**
+   * Per-call hard-abort override (ms). Defaults to
+   * `DEFAULT_REQUEST_TIMEOUT_MS`. LLM/OCR/report paths pass
+   * `LLM_REQUEST_TIMEOUT_MS` so a slow generation is not aborted as a
+   * false failure.
+   */
+  readonly timeoutMs?: number;
 }
 
-function withTimeout(externalSignal: AbortSignal | undefined): {
+function withTimeout(
+  externalSignal: AbortSignal | undefined,
+  timeoutMs: number,
+): {
   readonly signal: AbortSignal;
   readonly cancel: () => void;
 } {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   if (externalSignal) {
     if (externalSignal.aborted) controller.abort();
     else externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
@@ -87,7 +109,10 @@ export async function apiRequest<T>(
   options: RequestOptions = {},
 ): Promise<T> {
   const url = `${API_BASE.replace(/\/+$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
-  const { signal, cancel } = withTimeout(options.signal);
+  const { signal, cancel } = withTimeout(
+    options.signal,
+    options.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
+  );
   const auth = await authHeaders();
   const init: RequestInit = {
     method: options.method ?? 'GET',

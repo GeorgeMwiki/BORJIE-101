@@ -1,7 +1,6 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
-import { AbTestActions } from '@/components/internal/ab-tests/AbTestActions';
 
 const SCREEN = findScreen('ab-tests')!;
 
@@ -31,11 +30,12 @@ export default function AbTestsPage(): JSX.Element {
   return (
     <ScreenShell
       screen={SCREEN}
+      stub
       actions={
         <button
           type="button"
           disabled
-          title="Experiment creation lands once the A/B framework router is mounted (SCRUB-4: needs POST /internal/ab-tests)"
+          title="Experiment creation lands once the A/B framework router is mounted (needs POST /mining/internal/ab-tests)"
           className="rounded-md bg-signal-500/40 px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-50 cursor-not-allowed"
         >
           New experiment
@@ -70,7 +70,14 @@ export default function AbTestsPage(): JSX.Element {
                 </td>
                 <td className="px-4 py-3 text-right">
                   {row.status === 'Won' ? (
-                    <AbTestActions id={row.id} variant={row.variant} />
+                    <button
+                      type="button"
+                      disabled
+                      title="Pending gateway wiring — needs POST /mining/internal/ab-tests/:id/promote-winner"
+                      className="cursor-not-allowed text-xs text-neutral-500 opacity-60"
+                    >
+                      Promote winner
+                    </button>
                   ) : (
                     <span className="text-xs text-neutral-500">—</span>
                   )}

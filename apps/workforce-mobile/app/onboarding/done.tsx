@@ -4,7 +4,6 @@ import { router } from 'expo-router'
 import { Button } from '../../src/forms/Button'
 import { WizardShell } from '../../src/onboarding/WizardShell'
 import { useOnboardingDraft } from '../../src/onboarding/state'
-import { useAuth } from '../../src/auth/useAuth'
 import { workforcePersonaSpec } from '../../src/roles/persona'
 import { pickStrings } from '../../src/i18n'
 import type { Role } from '../../src/roles/types'
@@ -18,7 +17,6 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
  */
 export default function DoneStep(): JSX.Element {
   const { current, update, markStepComplete } = useOnboardingDraft()
-  const { setRole } = useAuth()
   const t = useMemo(() => pickStrings(current.lang), [current.lang])
   const copy = t.onboarding.done
 
@@ -34,8 +32,12 @@ export default function DoneStep(): JSX.Element {
       router.replace('/onboarding/role-detect')
       return
     }
+    // Mark the wizard complete and hand off to the tabs. Auth/session is
+    // ALREADY established by the real Supabase OTP step (phone.tsx →
+    // verifyOtp); we must NOT call setRole()/buildStubUser() here — the
+    // stub user carries an empty accessToken and would overwrite the live
+    // Supabase session, 401-ing every subsequent api-gateway call.
     markStepComplete('done')
-    setRole(current.role)
     router.replace('/(tabs)/home')
   }
 

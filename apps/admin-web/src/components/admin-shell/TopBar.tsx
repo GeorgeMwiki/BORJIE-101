@@ -1,7 +1,7 @@
 'use client';
 
-import { Bell, Search } from 'lucide-react';
-import { useState } from 'react';
+import { Search } from 'lucide-react';
+import { useCallback, useState } from 'react';
 import { ThemeToggle } from '@borjie/design-system';
 import { PortalSwitcher } from '@borjie/app-shell';
 import { EnvBadge } from './EnvBadge';
@@ -44,6 +44,19 @@ export interface TopBarProps {
 
 export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.Element {
   const [query, setQuery] = useState('');
+
+  // The admin chrome has no dedicated search route; the universal Cmd-K
+  // palette IS the search surface. Submitting the header field opens it
+  // by dispatching the same Cmd-K shortcut the palette already listens
+  // for (see CommandPalette `useGlobalShortcut`). Previously this form
+  // was a no-op (`preventDefault` + unused query).
+  const openCommandPalette = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }),
+    );
+  }, []);
+
   return (
     <header
       role="banner"
@@ -56,7 +69,10 @@ export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.
       <form
         role="search"
         className="relative flex-1 max-w-xl"
-        onSubmit={(e) => e.preventDefault()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          openCommandPalette();
+        }}
       >
         <label htmlFor="admin-search" className="sr-only">
           Search tenants, audit, cases
@@ -70,22 +86,10 @@ export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search tenants, audit, cases…"
+          placeholder="Search (press Enter for ⌘K)…"
           className="w-full rounded-md border border-border bg-surface-sunken pl-9 pr-3 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
         />
       </form>
-
-      <button
-        type="button"
-        aria-label="Notifications"
-        className="relative rounded-md border border-border bg-surface-sunken p-1.5 text-neutral-400 transition-colors hover:bg-surface hover:text-signal-500"
-      >
-        <Bell className="h-4 w-4" aria-hidden="true" />
-        <span
-          aria-hidden="true"
-          className="absolute -top-0.5 -right-0.5 inline-flex h-2 w-2 rounded-full bg-signal-500 ring-2 ring-background"
-        />
-      </button>
 
       <ThemeToggle locale="en" />
 

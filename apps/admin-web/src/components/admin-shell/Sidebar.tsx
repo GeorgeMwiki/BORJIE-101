@@ -7,10 +7,13 @@ import {
   Building2,
   ScrollText,
   Activity,
-  ShieldCheck,
   Sparkles,
   Briefcase,
-  Settings,
+  LayoutGrid,
+  BarChart3,
+  Radar,
+  Network,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { Logomark } from '@borjie/design-system';
@@ -33,15 +36,26 @@ interface NavItem {
   readonly labelSw: string;
 }
 
+// Every href below resolves to a real page in `app/` — no 404s. The
+// earlier rail pointed at five aspirational slugs (/health, /policies,
+// /brain, /cases, /settings) that were never built; they are repointed
+// to the screens that actually ship. `/policies` had no real
+// destination and was dropped rather than left dead.
 const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { href: '/dashboard', icon: Home, label: 'Cockpit', labelSw: 'Dashibodi' },
   { href: '/tenants', icon: Building2, label: 'Tenants', labelSw: 'Wapangaji' },
   { href: '/audit', icon: ScrollText, label: 'Audit', labelSw: 'Ukaguzi' },
-  { href: '/health', icon: Activity, label: 'Health', labelSw: 'Afya' },
-  { href: '/policies', icon: ShieldCheck, label: 'Policies', labelSw: 'Sera' },
-  { href: '/brain', icon: Sparkles, label: 'Brain', labelSw: 'Akili' },
-  { href: '/cases', icon: Briefcase, label: 'Cases', labelSw: 'Kesi' },
-  { href: '/settings', icon: Settings, label: 'Settings', labelSw: 'Mipangilio' },
+  { href: '/system-health', icon: Activity, label: 'Health', labelSw: 'Afya' },
+  { href: '/jarvis', icon: Sparkles, label: 'Brain', labelSw: 'Akili' },
+  { href: '/control-tower', icon: Briefcase, label: 'Control tower', labelSw: 'Mnara wa Udhibiti' },
+  { href: '/internal', icon: LayoutGrid, label: 'Console', labelSw: 'Konsoli' },
+  // Industry hero views — these four pages used to render their own
+  // StaffNav (AD-6 double-sidebar bug). With StaffNav removed they would
+  // otherwise be reachable only via Cmd-K, so the four links live here.
+  { href: '/industry', icon: BarChart3, label: 'Industry', labelSw: 'Sekta' },
+  { href: '/radar', icon: Radar, label: 'Radar', labelSw: 'Rada' },
+  { href: '/insights', icon: Network, label: 'Insights', labelSw: 'Maarifa' },
+  { href: '/forecasts', icon: TrendingUp, label: 'Forecasts', labelSw: 'Utabiri' },
 ];
 
 export interface SidebarProps {

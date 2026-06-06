@@ -1,3 +1,4 @@
+import { formatCurrency } from '@/lib/api';
 import type { Tenant } from '@/lib/internal/types';
 
 interface TenantOverviewTabProps {
@@ -17,9 +18,7 @@ export function TenantOverviewTab({ tenant }: TenantOverviewTabProps): JSX.Eleme
     { title: 'Open tickets', value: '1', hint: 'SLA: 6h remaining' },
     {
       title: 'ARR',
-      value: new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
-        tenant.arrUsd
-      ),
+      value: formatCurrency(tenant.arr, tenant.currency),
       hint: `${tenant.plan} plan`,
     },
   ];

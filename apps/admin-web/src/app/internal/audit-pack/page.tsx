@@ -1,7 +1,6 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
-import { MintPackForm } from '@/components/internal/audit-pack/MintPackForm';
 
 const SCREEN = findScreen('audit-pack')!;
 
@@ -21,8 +20,23 @@ const ISSUED: ReadonlyArray<Issued> = [
 
 export default function AuditPackPage(): JSX.Element {
   return (
-    <ScreenShell screen={SCREEN}>
-      <MintPackForm />
+    <ScreenShell screen={SCREEN} stub>
+      <div className="rounded-lg border border-border bg-surface p-6">
+        <h3 className="text-sm font-medium text-foreground mb-1">Mint regulator audit-pack</h3>
+        <p className="text-xs text-neutral-500 mb-4">
+          Pending gateway wiring — minting needs POST
+          /mining/internal/audit-pack/mint. The issuer form re-enables once
+          that route lands.
+        </p>
+        <button
+          type="button"
+          disabled
+          title="Pending gateway wiring — needs POST /mining/internal/audit-pack/mint"
+          className="cursor-not-allowed rounded-md border border-border bg-surface-sunken px-4 py-2 text-sm font-medium text-neutral-500 opacity-60"
+        >
+          Mint signed URL
+        </button>
+      </div>
 
       <div className="rounded-lg border border-border bg-surface overflow-x-auto">
         <table className="w-full text-sm">

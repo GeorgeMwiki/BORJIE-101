@@ -1,6 +1,4 @@
 import { ReactNode } from 'react';
-import { StaffNav } from '@/components/StaffNav';
-import { StaffIdentityStrip } from '@/components/StaffIdentityStrip';
 
 interface PageShellProps {
   readonly title: string;
@@ -9,13 +7,20 @@ interface PageShellProps {
 }
 
 /**
- * Shared server-component layout for HQ pages migrated from the
- * deprecated admin-portal. Wraps the page body with the same StaffNav
- * and identity strip used by /industry et al., keeping migrated pages
- * visually consistent with the rest of HQ.
+ * Shared header wrapper for HQ pages migrated from the deprecated
+ * admin-portal.
  *
- * The `children` slot can be a client component — composing a server
- * shell around a client island is the supported pattern.
+ * AD-6 fix: this wrapper used to render its own `<StaffNav />` plus a
+ * `flex min-h-screen` + `<main id="main-content">` + identity strip.
+ * Every page that uses it is already mounted inside `AdminShell` (left
+ * rail + sticky top bar with the persona chip + `<main>` content
+ * frame), so the old shell produced a DOUBLE sidebar, a duplicate
+ * identity strip, and a duplicate `main-content` id on ~20 pages. It
+ * now renders only the page header — matching the `PageHero` rhythm —
+ * and leaves all chrome to AdminShell.
+ *
+ * Kept `async` so the returned element type is identical for every
+ * caller (some render it from async server components).
  */
 export async function PageShell({
   title,
@@ -23,20 +28,14 @@ export async function PageShell({
   children,
 }: PageShellProps) {
   return (
-    <div className="flex min-h-screen">
-      <StaffNav />
-      <main id="main-content" tabIndex={-1} className="flex-1 p-10">
-        <header className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-display text-foreground mb-2">{title}</h1>
-            {subtitle ? (
-              <p className="text-sm text-neutral-400 max-w-xl">{subtitle}</p>
-            ) : null}
-          </div>
-          <StaffIdentityStrip />
-        </header>
-        {children}
-      </main>
+    <div>
+      <header className="mb-8 border-b border-border pb-6">
+        <h1 className="text-3xl font-display text-foreground mb-2">{title}</h1>
+        {subtitle ? (
+          <p className="text-sm text-neutral-400 max-w-xl">{subtitle}</p>
+        ) : null}
+      </header>
+      {children}
     </div>
   );
 }

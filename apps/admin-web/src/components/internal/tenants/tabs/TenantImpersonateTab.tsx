@@ -1,38 +1,20 @@
 'use client';
 
-import { useState } from 'react';
-import { ConfirmModal } from '../../ConfirmModal';
-import { Toast } from '../../Toast';
-import { useImpersonate } from '@/lib/internal/queries/tenants';
-
 interface TenantImpersonateTabProps {
   readonly tenantId: string;
   readonly tenantName: string;
 }
 
-export function TenantImpersonateTab({ tenantId, tenantName }: TenantImpersonateTabProps): JSX.Element {
-  const impersonate = useImpersonate();
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-
-  const handle = () => {
-    impersonate.mutate(tenantId, {
-      onSuccess: (res) => {
-        setConfirmOpen(false);
-        if (!res.ok) {
-          setToast(`Impersonation failed: ${res.message}`);
-          return;
-        }
-        if (typeof window !== 'undefined') {
-          window.sessionStorage.setItem(`impersonate_${tenantId}`, res.data.bearer);
-          window.open(res.data.portalUrl, '_blank', 'noopener,noreferrer');
-        }
-        setToast(`Opened impersonation session for ${tenantName}`);
-      },
-      onError: () => setToast('Impersonation request failed.'),
-    });
-  };
-
+/**
+ * Audited operator impersonation.
+ *
+ * AD-8: the gateway impersonation route is not wired yet — the
+ * `useImpersonate` hook 404s. Rather than let operators trigger a dead
+ * action (which would mint nothing and silently fail), the affordance is
+ * disabled with an explanatory notice. Re-enable the mutation flow once
+ * `POST /tenants/:id/impersonate` lands on the gateway.
+ */
+export function TenantImpersonateTab({ tenantName }: TenantImpersonateTabProps): JSX.Element {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-warning/40 bg-warning/5 p-6">
@@ -43,29 +25,16 @@ export function TenantImpersonateTab({ tenantId, tenantName }: TenantImpersonate
         </p>
         <button
           type="button"
-          onClick={() => setConfirmOpen(true)}
-          className="rounded-md border border-warning/40 bg-warning/10 px-4 py-2 text-xs font-medium text-warning hover:bg-warning/20"
+          disabled
+          title="Impersonation isn't available yet — the gateway route is not wired. Tracked for the gateway wave."
+          className="cursor-not-allowed rounded-md border border-border bg-surface-sunken px-4 py-2 text-xs font-medium text-neutral-500 opacity-60"
         >
           Start impersonation session
         </button>
+        <p className="mt-3 text-xs text-neutral-500">
+          Not yet available — pending gateway wiring.
+        </p>
       </div>
-
-      <ConfirmModal
-        open={confirmOpen}
-        tone="warn"
-        title="Confirm impersonation"
-        body={
-          <>
-            You are about to act as an operator inside <strong className="text-foreground">{tenantName}</strong>. Every
-            action you take will be logged against your operator identity and the tenant.
-          </>
-        }
-        confirmLabel="I understand — start session"
-        busy={impersonate.isPending}
-        onConfirm={handle}
-        onCancel={() => setConfirmOpen(false)}
-      />
-      <Toast message={toast} tone="info" onDismiss={() => setToast(null)} />
     </div>
   );
 }

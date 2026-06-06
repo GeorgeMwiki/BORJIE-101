@@ -238,6 +238,28 @@ export class InMemoryGovernanceStorage implements AIGovernanceStorageBackend {
     const predictionEvents = events.filter(e => e.operationType === AIOperationType.PREDICTION_GENERATED);
     const reviewEvents = events.filter(e => e.operationType === AIOperationType.REVIEW_SUBMITTED);
 
+    // Quality metrics computed from REAL recorded feedback in the period —
+    // never fabricated constants. When no feedback exists yet every rate is
+    // 0 (honest "no signal"); a dashboard must treat 0-total as insufficient
+    // data, not as a perfect score. Production should wire a Drizzle-backed
+    // AIGovernanceStorageBackend for richer cohort analytics.
+    const periodFeedback = Array.from(this.feedback.values())
+      .flat()
+      .filter(f => {
+        const t = new Date(f.submittedAt).getTime();
+        return t >= start.getTime() && t <= end.getTime();
+      });
+    const fbTotal = periodFeedback.length;
+    const incorrectCount = periodFeedback.filter(f => f.feedbackType === 'incorrect').length;
+    const inappropriateCount = periodFeedback.filter(f => f.feedbackType === 'inappropriate').length;
+    const helpfulCount = periodFeedback.filter(f => f.feedbackType === 'helpful').length;
+    const ratings = periodFeedback
+      .map(f => f.rating)
+      .filter((r): r is number => typeof r === 'number');
+    const avgRatingNormalized = ratings.length > 0
+      ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length / 5
+      : 0;
+
     return {
       period: { start: start.toISOString(), end: end.toISOString() },
       tenant: events[0]?.tenant ?? { tenantId, tenantName: '', environment: 'production' },
@@ -259,10 +281,10 @@ export class InMemoryGovernanceStorage implements AIGovernanceStorageBackend {
         avgQualityRating: 0,
       },
       qualityMetrics: {
-        overallAccuracy: 0.85,
-        userSatisfaction: 0.9,
-        falsePositiveRate: 0.05,
-        falseNegativeRate: 0.03,
+        overallAccuracy: fbTotal > 0 ? (fbTotal - incorrectCount - inappropriateCount) / fbTotal : 0,
+        userSatisfaction: ratings.length > 0 ? avgRatingNormalized : (fbTotal > 0 ? helpfulCount / fbTotal : 0),
+        falsePositiveRate: fbTotal > 0 ? inappropriateCount / fbTotal : 0,
+        falseNegativeRate: fbTotal > 0 ? incorrectCount / fbTotal : 0,
       },
     };
   }

@@ -1,13 +1,19 @@
 /**
- * Warehouse inventory router — Wave 8 (S7 gap closure)
+ * Ore-stockpile warehouse router — Borjie mining domain.
  *
- * Mounted at `/api/v1/warehouse`. Tenant-isolated via auth middleware.
+ * Mounted at `/api/v1/warehouse`. Tenant-isolated via auth middleware;
+ * the underlying repos bind `app.current_tenant_id` (RLS FORCE), so the
+ * router never double-filters by tenant.
  *
- *   GET    /items                         — list items (?category=, ?condition=)
- *   POST   /items                         — create item + opening-stock receipt
- *   GET    /items/:id                     — item detail
- *   POST   /items/:id/movements           — append a stock movement
- *   GET    /items/:id/movements           — movement history
+ *   GET    /stockpiles                         — list stockpiles (?locationKind=, ?parcelId=)
+ *   POST   /stockpiles                         — register an ore stockpile
+ *   GET    /stockpiles/:id                     — stockpile detail (+ latest grade)
+ *   POST   /stockpiles/:id/transfers           — record a custody hand-over
+ *   GET    /stockpiles/:id/transfers           — custody-event history (append-only)
+ *   POST   /stockpiles/:id/grade               — append an ore-grade snapshot
+ *
+ * Legacy `/items*` paths are aliased onto the stockpile handlers so older
+ * clients keep working through the property→mining cutover.
  *
  * Service is pulled from the composition root via `c.get('services').warehouse`.
  * When unwired (e.g. no DB), returns 503 with NOT_IMPLEMENTED so clients can
@@ -32,73 +38,83 @@ type WarehouseResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: WarehouseServiceError };
 
-interface WarehouseService {
-  listItems(tenantId: string, filters: unknown): Promise<unknown>;
-  createItem(tenantId: string, input: unknown, actor: string): Promise<WarehouseResult<unknown>>;
-  getItem(tenantId: string, id: string): Promise<WarehouseResult<unknown | null>>;
-  recordMovement(
+/**
+ * Structural contract the router needs from the mining warehouse service.
+ * Kept local so the route stays decoupled from the concrete service type
+ * in the composition root.
+ */
+interface MiningWarehouseService {
+  listStockpiles(tenantId: string, filters: unknown): Promise<unknown>;
+  createStockpile(
     tenantId: string,
     input: unknown,
-    actor: string
+    actor: string,
   ): Promise<WarehouseResult<unknown>>;
-  listMovements(tenantId: string, itemId: string): Promise<WarehouseResult<unknown>>;
+  getStockpile(
+    tenantId: string,
+    id: string,
+  ): Promise<WarehouseResult<unknown | null>>;
+  recordTransfer(
+    tenantId: string,
+    input: unknown,
+    actor: string,
+  ): Promise<WarehouseResult<unknown>>;
+  listCustodyEvents(
+    tenantId: string,
+    stockpileId: string,
+  ): Promise<WarehouseResult<unknown>>;
+  recordGrade(
+    tenantId: string,
+    input: unknown,
+    actor: string,
+  ): Promise<WarehouseResult<unknown>>;
 }
-const ConditionSchema = z.enum([
-  'new',
-  'functioning',
-  'broken',
-  'in_transit',
-  'decommissioned',
-  'reserved',
-]);
 
-const MovementTypeSchema = z.enum([
-  'receive',
-  'issue',
-  'transfer',
-  'adjust',
-  'install',
-  'uninstall',
-  'decommission',
-  'return',
-  'damage',
-  'repair',
-]);
+// ---------------------------------------------------------------------------
+// Zod request schemas (mining domain)
+// ---------------------------------------------------------------------------
 
-const CreateItemSchema = z.object({
-  sku: z.string().min(1).max(100),
-  name: z.string().min(1).max(200),
-  category: z.string().min(1).max(80),
-  description: z.string().max(2000).optional(),
-  unitOfMeasure: z.string().max(40).optional(),
-  quantity: z.number().int().nonnegative().optional(),
-  condition: ConditionSchema.optional(),
-  warehouseLocation: z.string().max(200).optional(),
-  costMinorUnits: z.number().int().nonnegative().optional(),
-  currency: z.string().length(3).optional(),
-  supplierName: z.string().max(200).optional(),
-  purchaseOrderRef: z.string().max(100).optional(),
-  notes: z.string().max(2000).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+const LocationKindSchema = z.enum(['site', 'warehouse', 'in_transit']);
+
+const CreateStockpileSchema = z.object({
+  parcelId: z.string().min(1).max(120),
+  siteId: z.string().max(120).nullable().optional(),
+  locationKind: LocationKindSchema.optional(),
+  locationRef: z.string().max(200).nullable().optional(),
+  quantityKg: z.number().nonnegative(),
+  custodianUserId: z.string().max(120).nullable().optional(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
 });
 
-const MovementSchema = z.object({
-  movementType: MovementTypeSchema,
-  quantityDelta: z.number().int(),
-  conditionTo: ConditionSchema.optional(),
-  destination: z.string().max(200).optional(),
-  relatedCaseId: z.string().max(100).optional(),
-  relatedUnitId: z.string().max(100).optional(),
-  reason: z.string().max(500).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+const TransferSchema = z.object({
+  toUserId: z.string().min(1).max(120),
+  toLocationKind: LocationKindSchema,
+  toLocationRef: z.string().max(200).nullable().optional(),
+  fingerprintEventId: z.string().max(200).nullable().optional(),
+  occurredAt: z.string().datetime().optional(),
+});
+
+const GradeSchema = z.object({
+  parcelId: z.string().min(1).max(120),
+  gradePct: z.number().min(0).max(100),
+  processability: z.number().min(0).max(1),
+  blendability: z.number().min(0).max(1),
+  targetCustomerFit: z
+    .enum(['trader', 'smelter', 'refinery', 'export_buyer', 'broker'])
+    .nullable()
+    .optional(),
+  assayEvidenceIds: z.array(z.string()).optional(),
+  dimensions: z.record(z.string(), z.unknown()).optional(),
+  snapshotByModel: z.string().max(120).nullable().optional(),
 });
 
 const app = new Hono();
 app.use('*', authMiddleware);
 
-function svc(c: AnyContext): WarehouseService | undefined {
+function svc(c: AnyContext): MiningWarehouseService | undefined {
   const services =
-    (c.get('services') as { warehouse?: WarehouseService } | undefined) ?? {};
+    (c.get('services') as { warehouse?: MiningWarehouseService } | undefined) ??
+    {};
   return services.warehouse;
 }
 
@@ -111,96 +127,54 @@ function notImplemented(c: AnyContext) {
         message: 'Warehouse service not wired into api-gateway context',
       },
     },
-    503
+    503,
   );
 }
 
-function mapErr(
-  c: AnyContext,
-  result: WarehouseResult<unknown>,
-  fallback = 400,
-) {
+function mapErr(c: AnyContext, result: WarehouseResult<unknown>, fallback = 400) {
   if (result.ok === true) {
-    // Defensive: caller is supposed to gate on `!result.ok` before
-    // invoking mapErr. If they don't, fall through with a generic 500
-    // rather than leaking an "ok: true" payload as an error response.
+    // Defensive: caller should gate on `!result.ok` before mapErr. If not,
+    // fall through with a generic 500 rather than leaking an ok payload.
     return c.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'unexpected ok result' } },
+      {
+        success: false,
+        error: { code: 'INTERNAL_ERROR', message: 'unexpected ok result' },
+      },
       500 as import('hono/utils/http-status').ContentfulStatusCode,
     );
   }
-  // Manual narrow — TS does not always propagate the union discriminator
-  // through `if (result.ok === true)` early-return when `WarehouseResult`
-  // is parameterised. The branch above guarantees ok is false here.
   const err = (result as { ok: false; error: WarehouseServiceError }).error;
   const status: import('hono/utils/http-status').ContentfulStatusCode =
     err.code === 'NOT_FOUND'
       ? 404
       : err.code === 'TENANT_MISMATCH'
         ? 403
-        : err.code === 'DUPLICATE_SKU'
-          ? 409
-          : err.code === 'INSUFFICIENT_STOCK'
-            ? 409
-            : err.code === 'INTERNAL_ERROR'
-              ? 500
-              : (fallback as import('hono/utils/http-status').ContentfulStatusCode);
+        : err.code === 'INTERNAL_ERROR'
+          ? 500
+          : (fallback as import('hono/utils/http-status').ContentfulStatusCode);
   return c.json(
     { success: false, error: { code: err.code, message: err.message } },
-    status
+    status,
   );
 }
 
-/**
- * Derive `daysRemaining` from `(currentQty, dailyBurnRate)` on the item row.
- * Burn rate is sourced from `metadata.dailyBurnRate` — set by the
- * analytics consolidation worker when enough movement history exists.
- * Missing burn rate yields `null` (UI renders "—").
- */
-function withDaysRemaining(item: unknown): unknown {
-  if (!item || typeof item !== 'object') return item;
-  const row = item as {
-    currentQty?: number | string;
-    quantity?: number | string;
-    metadata?: { dailyBurnRate?: number } | null;
-    [key: string]: unknown;
-  };
-  const qty = Number(row.currentQty ?? row.quantity ?? 0);
-  const burn = Number(row.metadata?.dailyBurnRate ?? 0);
-  const daysRemaining =
-    burn > 0 && Number.isFinite(qty) ? Math.floor(qty / burn) : null;
-  return { ...row, daysRemaining };
+// ---------------------------------------------------------------------------
+// Handlers — extracted so legacy `/items*` aliases reuse them verbatim.
+// ---------------------------------------------------------------------------
+
+async function listHandler(c: AnyContext) {
+  const auth = c.get('auth');
+  const s = svc(c);
+  if (!s) return notImplemented(c);
+  const rawKind = c.req.query('locationKind');
+  const parsedKind = rawKind ? LocationKindSchema.safeParse(rawKind) : undefined;
+  const locationKind = parsedKind?.success ? parsedKind.data : undefined;
+  const parcelId = c.req.query('parcelId') || undefined;
+  const rows = await s.listStockpiles(auth.tenantId, { locationKind, parcelId });
+  return c.json({ success: true, data: rows });
 }
 
-app.get('/items', async (c: AnyContext) => {
-  const auth = c.get('auth');
-  const s = svc(c);
-  if (!s) return notImplemented(c);
-  const category = c.req.query('category') || undefined;
-  const rawCondition = c.req.query('condition');
-  const conditionParsed = rawCondition
-    ? ConditionSchema.safeParse(rawCondition)
-    : undefined;
-  const condition = conditionParsed?.success ? conditionParsed.data : undefined;
-  const items = await s.listItems(auth.tenantId, { category, condition });
-  const decorated = Array.isArray(items)
-    ? items.map(withDaysRemaining)
-    : items;
-  return c.json({ success: true, data: decorated });
-});
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
-app.post('/items', zValidator('json', CreateItemSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
-  const auth = c.get('auth');
-  const body = c.req.valid('json');
-  const s = svc(c);
-  if (!s) return notImplemented(c);
-  const result = await s.createItem(auth.tenantId, body, auth.userId);
-  if (!result.ok) return mapErr(c, result);
-  return c.json({ success: true, data: result.value }, 201);
-}));
-
-app.get('/items/:id', async (c: AnyContext) => {
+async function getHandler(c: AnyContext) {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -208,36 +182,21 @@ app.get('/items/:id', async (c: AnyContext) => {
   if (!id) {
     return c.json(
       { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
-      400
+      400,
     );
   }
-  const result = await s.getItem(auth.tenantId, id);
+  const result = await s.getStockpile(auth.tenantId, id);
   if (!result.ok) return mapErr(c, result);
   if (!result.value) {
     return c.json(
-      { success: false, error: { code: 'NOT_FOUND', message: 'item not found' } },
-      404
+      { success: false, error: { code: 'NOT_FOUND', message: 'stockpile not found' } },
+      404,
     );
   }
   return c.json({ success: true, data: result.value });
-});
+}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
-app.post('/items/:id/movements', zValidator('json', MovementSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
-  const auth = c.get('auth');
-  const body = c.req.valid('json');
-  const s = svc(c);
-  if (!s) return notImplemented(c);
-  const result = await s.recordMovement(
-    auth.tenantId,
-    { ...body, warehouseItemId: c.req.param('id') },
-    auth.userId
-  );
-  if (!result.ok) return mapErr(c, result);
-  return c.json({ success: true, data: result.value }, 201);
-}));
-
-app.get('/items/:id/movements', async (c: AnyContext) => {
+async function historyHandler(c: AnyContext) {
   const auth = c.get('auth');
   const s = svc(c);
   if (!s) return notImplemented(c);
@@ -245,13 +204,87 @@ app.get('/items/:id/movements', async (c: AnyContext) => {
   if (!id) {
     return c.json(
       { success: false, error: { code: 'INVALID_PARAM', message: 'id required' } },
-      400
+      400,
     );
   }
-  const result = await s.listMovements(auth.tenantId, id);
+  const result = await s.listCustodyEvents(auth.tenantId, id);
   if (!result.ok) return mapErr(c, result);
   return c.json({ success: true, data: result.value });
-});
+}
+
+// ---------------------------------------------------------------------------
+// Routes — canonical mining paths
+// ---------------------------------------------------------------------------
+
+app.get('/stockpiles', listHandler);
+app.get('/items', listHandler); // legacy alias
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/stockpiles', zValidator('json', CreateStockpileSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+  const auth = c.get('auth');
+  const body = c.req.valid('json');
+  const s = svc(c);
+  if (!s) return notImplemented(c);
+  const result = await s.createStockpile(auth.tenantId, body, auth.userId);
+  if (!result.ok) return mapErr(c, result);
+  return c.json({ success: true, data: result.value }, 201);
+}));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/items', zValidator('json', CreateStockpileSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+  const auth = c.get('auth');
+  const body = c.req.valid('json');
+  const s = svc(c);
+  if (!s) return notImplemented(c);
+  const result = await s.createStockpile(auth.tenantId, body, auth.userId);
+  if (!result.ok) return mapErr(c, result);
+  return c.json({ success: true, data: result.value }, 201);
+}));
+
+app.get('/stockpiles/:id', getHandler);
+app.get('/items/:id', getHandler); // legacy alias
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/stockpiles/:id/transfers', zValidator('json', TransferSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+  const auth = c.get('auth');
+  const body = c.req.valid('json');
+  const s = svc(c);
+  if (!s) return notImplemented(c);
+  const result = await s.recordTransfer(
+    auth.tenantId,
+    { ...body, stockpileId: c.req.param('id') },
+    auth.userId,
+  );
+  if (!result.ok) return mapErr(c, result);
+  return c.json({ success: true, data: result.value }, 201);
+}));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/items/:id/movements', zValidator('json', TransferSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+  const auth = c.get('auth');
+  const body = c.req.valid('json');
+  const s = svc(c);
+  if (!s) return notImplemented(c);
+  const result = await s.recordTransfer(
+    auth.tenantId,
+    { ...body, stockpileId: c.req.param('id') },
+    auth.userId,
+  );
+  if (!result.ok) return mapErr(c, result);
+  return c.json({ success: true, data: result.value }, 201);
+}));
+
+app.get('/stockpiles/:id/transfers', historyHandler);
+app.get('/items/:id/movements', historyHandler); // legacy alias
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- zValidator output type does not propagate through withSecurityEvents wrapper.
+app.post('/stockpiles/:id/grade', zValidator('json', GradeSchema), withSecurityEvents({ action: 'warehouse.create', resource: 'warehouse', severity: 'info' }, async (c: any) => {
+  const auth = c.get('auth');
+  const body = c.req.valid('json');
+  const s = svc(c);
+  if (!s) return notImplemented(c);
+  const result = await s.recordGrade(auth.tenantId, body, auth.userId);
+  if (!result.ok) return mapErr(c, result);
+  return c.json({ success: true, data: result.value }, 201);
+}));
 
 export const warehouseRouter = app;
 export default app;

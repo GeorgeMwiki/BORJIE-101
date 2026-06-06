@@ -4,8 +4,8 @@ import { WarehouseClient } from './WarehouseClient';
 export default function WarehousePage() {
   return (
     <PageShell
-      title="Warehouse"
-      subtitle="Maintenance / hardware inventory across the platform — items and stock movements."
+      title="Ore Stockpiles"
+      subtitle="Ore-stockpile inventory across sites, warehouses, and in-transit lots — tonnage, grade, and chain of custody."
     >
       <WarehouseClient />
     </PageShell>

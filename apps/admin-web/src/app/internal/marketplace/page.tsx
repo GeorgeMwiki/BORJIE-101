@@ -1,7 +1,6 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
-import { ListingActions } from '@/components/internal/marketplace/ListingActions';
 
 const SCREEN = findScreen('marketplace')!;
 
@@ -29,7 +28,7 @@ function tone(status: Listing['status']) {
 
 export default function MarketplacePage(): JSX.Element {
   return (
-    <ScreenShell screen={SCREEN}>
+    <ScreenShell screen={SCREEN} stub>
       <div className="rounded-lg border border-border bg-surface overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-surface-sunken">
@@ -57,7 +56,14 @@ export default function MarketplacePage(): JSX.Element {
                   <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <ListingActions id={row.id} title={row.title} status={row.status} />
+                  <button
+                    type="button"
+                    disabled
+                    title="Pending gateway wiring — needs POST /mining/internal/marketplace/:id/hide|restore"
+                    className="cursor-not-allowed text-xs text-neutral-500 opacity-60"
+                  >
+                    {row.status === 'Hidden' ? 'Restore listing' : 'Hide listing'}
+                  </button>
                 </td>
               </tr>
             ))}

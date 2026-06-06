@@ -12,6 +12,7 @@ import { ComplianceCard } from './ComplianceCard';
 import { MarketplaceCard } from './MarketplaceCard';
 import { FxGoldCard } from './FxGoldCard';
 import { RefreshButton } from '@/components/shared/RefreshButton';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtTime } from '@/lib/format';
 
 /**
@@ -19,12 +20,31 @@ import { fmtTime } from '@/lib/format';
  *
  * Shows a stale-while-revalidate snapshot: last-updated timestamp,
  * refresh button, and a subtle pulse during background refetch. The
- * underlying useDailyBrief() falls back to the bundled mock so the
- * grid never blanks even when the gateway is unreachable.
+ * grid is LIVE-ONLY: on load it shows a skeleton, on failure an honest
+ * error state with retry (no fabricated data), and on success the cards.
  */
 export function CockpitGrid() {
   const query = useDailyBrief();
   const data = query.data;
+  // Honest error state — no more infinite skeleton when the brief fails.
+  if (query.isError && !data) {
+    return (
+      <EmptyState
+        title="Could not load your daily brief"
+        description={
+          (query.error as Error)?.message ??
+          'The cockpit brief failed to load. Please try again.'
+        }
+        hint="GET /api/v1/mining/cockpit/daily-brief"
+        action={
+          <RefreshButton
+            onClick={() => query.refetch()}
+            busy={query.isFetching}
+          />
+        }
+      />
+    );
+  }
   if (!data) {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">

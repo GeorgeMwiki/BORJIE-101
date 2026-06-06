@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { computeBreakEven } from '@/lib/types/finance';
 import { fmtTzs } from '@/lib/format';
+import { useFxSeeds } from '@/lib/queries/fx';
 
 interface BreakEvenSliderProps {
   readonly initialGoldUsdOz: number;
@@ -18,6 +19,22 @@ export function BreakEvenSlider({
   const [goldUsd, setGoldUsd] = useState(initialGoldUsdOz);
   const [tzsUsd, setTzsUsd] = useState(initialTzsUsd);
   const [unitCost, setUnitCost] = useState(initialUnitCostTzsPerG);
+
+  // Seed gold + FX from the LIVE rate feed once it loads, but never stomp a
+  // value the owner has already dragged. The `initial*` props remain the
+  // fallback so the slider is usable before the feed responds.
+  const goldTouched = useRef(false);
+  const fxTouched = useRef(false);
+  const seeds = useFxSeeds();
+  useEffect(() => {
+    if (!goldTouched.current && seeds.goldUsdOz !== null) {
+      setGoldUsd(seeds.goldUsdOz);
+    }
+    if (!fxTouched.current && seeds.tzsUsd !== null) {
+      setTzsUsd(seeds.tzsUsd);
+    }
+  }, [seeds.goldUsdOz, seeds.tzsUsd]);
+
   const out = computeBreakEven(goldUsd, tzsUsd, unitCost);
   const positive = out.netMarginTzsPerG > 0;
 
@@ -33,7 +50,10 @@ export function BreakEvenSlider({
           max={3000}
           step={10}
           value={goldUsd}
-          onChange={setGoldUsd}
+          onChange={(next) => {
+            goldTouched.current = true;
+            setGoldUsd(next);
+          }}
         />
         <SliderRow
           label={`TZS/USD · ${tzsUsd}`}
@@ -41,7 +61,10 @@ export function BreakEvenSlider({
           max={2900}
           step={5}
           value={tzsUsd}
-          onChange={setTzsUsd}
+          onChange={(next) => {
+            fxTouched.current = true;
+            setTzsUsd(next);
+          }}
         />
         <SliderRow
           label={`Unit all-in cost TZS/g · ${unitCost.toLocaleString()}`}

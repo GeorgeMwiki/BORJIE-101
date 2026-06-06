@@ -356,14 +356,16 @@ function buildHandlers(registry: ServiceRegistry): HandlerMap {
       const svc = registry.warehouse;
       if (!svc) return notImpl('warehouse service not configured');
       try {
+        // Mining-domain — the warehouse service now lists ore STOCKPILES
+        // (custody + tonnage + headline grade) rather than property
+        // inventory items. The legacy `lowStockOnly` reorder-point filter
+        // has no mining analogue; when requested we narrow to stockpiles
+        // with zero remaining tonnage (the closest "needs attention" proxy)
+        // so the tool stays useful without fabricating reorder semantics.
         const lowStockOnly = Boolean(input.lowStockOnly);
-        const items = await svc.listItems(context.tenantId);
+        const items = await svc.listStockpiles(context.tenantId);
         const filtered = lowStockOnly
-          ? items.filter((it: any) => {
-              const qty = Number(it.quantityOnHand ?? 0);
-              const reorder = Number(it.reorderPoint ?? 0);
-              return reorder > 0 && qty <= reorder;
-            })
+          ? items.filter((it) => Number(it.quantityKg ?? 0) <= 0)
           : items;
         return okResult({ items: filtered });
       } catch (err) {
@@ -469,7 +471,8 @@ function buildResolvers(registry: ServiceRegistry): ResourceResolvers {
     async warehouseInventory(context) {
       if (!registry.warehouse) return empty();
       try {
-        const items = await registry.warehouse.listItems(context.tenantId);
+        // Mining-domain — ore stockpiles replace property inventory items.
+        const items = await registry.warehouse.listStockpiles(context.tenantId);
         return { items };
       } catch {
         return empty();

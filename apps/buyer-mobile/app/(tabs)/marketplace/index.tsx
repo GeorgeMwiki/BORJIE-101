@@ -10,28 +10,11 @@ import { fetchListings, type ListingFilters } from '@/api/marketplace'
 import { queryKeys } from '@/api/queryKeys'
 import { ListingCard } from '@/marketplace/ListingCard'
 import { ListingFiltersBar } from '@/marketplace/ListingFilters'
-import { WalletBar, type WalletSnapshot } from '@/marketplace/WalletBar'
+import { WalletBar } from '@/marketplace/WalletBar'
 import type { WalletCurrency } from '@/marketplace/walletFormat'
+import { fetchWallet } from '@/api/wallet'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
-
-/**
- * Stub wallet snapshot used until the buyer-wallet endpoint ships.
- * Per Borjie hard rule we never hard-code real FX rates — these
- * values are explicit placeholder constants that the gateway will
- * replace once `/v1/mining/buyers/wallet` lands (G3 roadmap item:
- * full endpoint wiring is sibling-owned).
- */
-const WALLET_STUB: WalletSnapshot = {
-  tzs: 0,
-  usd: 0,
-  kes: 0,
-  fxRates: {
-    usdPerTzs: 0,
-    kesPerTzs: 0,
-    capturedAt: new Date(0).toISOString() // epoch — guaranteed stale UI cue
-  }
-}
 
 export default function MarketplaceIndex() {
   const router = useRouter()
@@ -46,19 +29,35 @@ export default function MarketplaceIndex() {
     queryFn: () => fetchListings(effectiveFilters)
   })
 
+  // Real wallet snapshot. If the gateway endpoint is missing / errors we
+  // HIDE the bar (see render below) rather than render fabricated zeros.
+  // One retry is enough; a hard failure should not spam the gateway.
+  const walletQuery = useQuery({
+    queryKey: queryKeys.wallet(),
+    queryFn: ({ signal }) => fetchWallet(signal),
+    retry: 1,
+    staleTime: 30_000
+  })
+
   const listings = query.data ?? []
   const isInitialLoad = query.isLoading && !query.data
+  // Show the bar only while the real wallet is loading or has loaded.
+  // On error (incl. 404 not-yet-shipped endpoint) render nothing — no
+  // fake balances.
+  const showWallet = walletQuery.isLoading || walletQuery.data !== undefined
 
   return (
     <Screen refreshing={query.isFetching && !isInitialLoad} onRefresh={() => query.refetch()}>
-      <WalletBar
-        snapshot={WALLET_STUB}
-        translate={t}
-        secondary={walletSecondary}
-        onSecondaryToggle={() =>
-          setWalletSecondary((prev) => (prev === 'USD' ? 'KES' : 'USD'))
-        }
-      />
+      {showWallet ? (
+        <WalletBar
+          snapshot={walletQuery.data ?? null}
+          translate={t}
+          secondary={walletSecondary}
+          onSecondaryToggle={() =>
+            setWalletSecondary((prev) => (prev === 'USD' ? 'KES' : 'USD'))
+          }
+        />
+      ) : null}
       <SectionHeader title={t('marketplace.title')} subtitle={t('marketplace.subtitle')} />
 
       <TextInput

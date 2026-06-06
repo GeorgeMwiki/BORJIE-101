@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiRequest, ApiError } from '@/lib/api-client';
+import { apiRequest, ApiError, LLM_REQUEST_TIMEOUT_MS } from '@/lib/api-client';
 
 /**
  * react-query bindings for `GET /api/v1/owner/brief` — the seven-slot
@@ -144,7 +144,12 @@ export function useOwnerBrief() {
   return useQuery<OwnerBriefEnvelope, ApiError>({
     queryKey: ownerBriefKeys.current(),
     queryFn: ({ signal }) =>
-      apiRequest<OwnerBriefEnvelope>('/api/v1/owner/brief', { signal }),
+      // On-demand seven-slot composition can run an LLM pass server-side —
+      // use the long timeout so it is not aborted by the 5s default.
+      apiRequest<OwnerBriefEnvelope>('/api/v1/owner/brief', {
+        signal,
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+      }),
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,
   });
@@ -161,6 +166,7 @@ export function useOwnerDailyBrief() {
     queryFn: ({ signal }) =>
       apiRequest<OwnerDailyBriefEnvelope>('/api/v1/owner/daily-brief', {
         signal,
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
       }),
     staleTime: 60_000,
     refetchInterval: 5 * 60_000,

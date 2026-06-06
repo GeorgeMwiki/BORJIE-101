@@ -81,6 +81,13 @@ import { DrizzleOreGradingWeightsRepository } from '@borjie/domain-services/ore-
 import { DrizzleSiteLiveMetricsSource } from '@borjie/domain-services/site-live-metrics';
 import { PostgresSiteSupervisorCoverageRepository } from '@borjie/domain-services/site-supervisor-coverage';
 import { DrizzleEquipmentMaintenanceTaxonomyRepository } from '@borjie/domain-services/equipment-maintenance-taxonomy';
+// Mining maintenance-taxonomy service (REAL, over
+// DrizzleEquipmentMaintenanceTaxonomyRepository). Reshapes the legacy
+// property category/problem surface onto the mining equipment-kind model.
+import {
+  createMiningMaintenanceTaxonomyService,
+  type MiningMaintenanceTaxonomyService,
+} from '@borjie/domain-services/maintenance-taxonomy';
 // Wave 26 Z3 — rich ApprovalWorkflowService + Postgres adapters for
 // move-out checklists and approval requests. Pairs with migration 0097.
 import { ApprovalWorkflowService } from '@borjie/domain-services/approvals';
@@ -103,7 +110,13 @@ import {
 import type {
   FinancialProfileService,
   RiskReportService,
+  MiningFinancialProfileService,
 } from '@borjie/domain-services/customer';
+// Mining-domain buyer financial-profile service (REAL, over the buyer
+// financial-profile + risk-report repos). Replaces the property-tenant
+// FinancialProfileService for the `/financial-profile` route. Value import
+// (the block above is type-only).
+import { createMiningFinancialProfileService } from '@borjie/domain-services/customer';
 // Mining hard-fork wave 6 — property-domain PostgresGamificationRepository
 // has been retired (`reward_policies` / `tenant_gamification_profile` /
 // `reward_events` tables dropped by migration 0003). The mining-domain
@@ -123,14 +136,13 @@ import {
 import { InMemoryEventBus, type EventBus } from '@borjie/domain-services';
 
 // Wave 8 — Warehouse inventory (S7), Maintenance taxonomy (S7), IoT (S3).
-// Mining-domain Wave 5 — DrizzleWarehouseRepository is replaced by
-// DrizzleOreWarehouseRepository (ore stockpiles, not property
-// inventory). The createWarehouseService factory + WarehouseService
-// type stay imported for slot-shape compatibility while the surrounding
-// service is migrated in a follow-up batch.
+// Mining-domain Wave 5 — the property-inventory DrizzleWarehouseRepository
+// + createWarehouseService are retired. The mining ore-stockpile warehouse
+// service (REAL, over DrizzleOreWarehouseRepository + DrizzleOreGradingRepository)
+// replaces them and backs the `/warehouse` route end-to-end.
 import {
-  createWarehouseService,
-  type WarehouseService,
+  createMiningWarehouseService,
+  type MiningWarehouseService,
 } from '@borjie/domain-services/warehouse';
 import {
   DrizzleOreWarehouseRepository,
@@ -263,6 +275,21 @@ import {
   createVoiceAgentWiring,
   type VoiceAgentWiring,
 } from './voice-agent-wiring.js';
+// AINATIVE — `/ai-native` (4 PhL capabilities: dynamicPricing,
+// docIntelligence, legalDrafter, voiceAgent). The wiring factory builds
+// the `services.aiNative` object the router reads. REAL Anthropic compute
+// + compliance-plugins miningLaw; in-memory persistence for the 3
+// archived-table capabilities, durable Drizzle for the voice agent.
+import { buildAiNativeServices } from './ai-native-wiring.js';
+// TASK-AGENTS — `/task-agents`. The executor runs any of the 15 shipped
+// task-agents under autonomy-policy + budget guardrails. The registry is
+// the canonical frozen agent map; the services bag is the live `services`
+// object (agents read keys defensively, executor handles missing keys as a
+// clean error outcome).
+import {
+  TaskAgentExecutor,
+  TASK_AGENT_REGISTRY,
+} from '@borjie/ai-copilot/task-agents';
 import {
   createBrainKernelWiring,
   type BrainKernelWiring as BrainKernelWiringSlot,
@@ -576,7 +603,10 @@ type ConditionalSurveyService = InstanceType<
 // follow-up batches reshape its consumers around the mining
 // `PostgresSiteFarRepository`.
 type PostgresFarRepository = never;
-type FarService = InstanceType<typeof FarNs.FarService>;
+// Mining FAR — the `far.service` slot now carries the REAL mining
+// `MiningFarService` (over `PostgresSiteFarRepository`). The legacy
+// property `FarNs.FarService` is no longer referenced by the slot.
+type FarService = InstanceType<typeof FarNs.MiningFarService>;
 
 type OrgAwarenessRegistry = {
   readonly miner: InstanceType<typeof OrgAwareness.ProcessMiner>;
@@ -622,7 +652,13 @@ export interface ServiceRegistry {
   // null-check it.
   readonly stationMasterCoverageRepo: null;
   readonly renewal: RenewalService | null;
-  readonly financialProfile: FinancialProfileService | null;
+  // Mining-domain — the `/financial-profile` route now binds to the REAL
+  // mining buyer financial-profile service. `riskReport` stays a legacy
+  // slot (route unmounted; the repo is surfaced via `buyerRiskReport`).
+  readonly financialProfile:
+    | FinancialProfileService
+    | MiningFinancialProfileService
+    | null;
   readonly riskReport: RiskReportService | null;
   readonly gamification: ReturnType<typeof createGamificationService> | null;
   readonly migration: MigrationService | null;
@@ -653,8 +689,8 @@ export interface ServiceRegistry {
    * the mining hard-fork; the mining-domain replacement is the
    * `equipmentMaintenanceTaxonomy` slot below. The slot stays as `null`
    * for back-compat with consumers that still null-check it. */
-  readonly warehouse: WarehouseService | null;
-  readonly maintenanceTaxonomy: null;
+  readonly warehouse: MiningWarehouseService | null;
+  readonly maintenanceTaxonomy: MiningMaintenanceTaxonomyService | null;
   readonly iot: IotService | null;
 
   /** Wave 9 enterprise polish — feature flags, GDPR, AI cost ledger. */
@@ -1051,13 +1087,15 @@ export interface ServiceRegistry {
     readonly repo: PostgresConditionalSurveyRepository | null;
   };
 
-  /** Wave 26 — Fitness-for-Assessment Review (FAR): asset components,
-   *  monitoring assignments, and condition-check events. Null in the
-   *  live registry today — the mining Field Asset Register replaces
-   *  this slot via `siteFar` below. */
+  /** Mining Field Asset Register (FAR) — site fixed assets + scheduled
+   *  inspection/maintenance cadence + the inspection event log. `service`
+   *  is the REAL mining `MiningFarService`; `repo` is the mining
+   *  `PostgresSiteFarRepository` (over `assets` + `maintenance_events`),
+   *  surfaced so the route's discoverability + repo-backed GETs resolve.
+   *  Both null in degraded mode. */
   readonly far: {
     readonly service: FarService | null;
-    readonly repo: PostgresFarRepository | null;
+    readonly repo: PostgresSiteFarRepository | null;
   };
 
   /**
@@ -1165,6 +1203,23 @@ export interface ServiceRegistry {
    *  null on all three). Production deployment of those adapters is
    *  a follow-up; the agent is operable in degraded mode today. */
   readonly voiceAgent: VoiceAgentWiring | null;
+
+  /** AI-native (Agent PhL) — the `services.aiNative` object the
+   *  `/ai-native` router reads. Carries `dynamicPricing` /
+   *  `docIntelligence` (+ repo) / `legalDrafter` (+ repo) / `voiceAgent`.
+   *  The 3 LLM-backed capabilities are present only when an Anthropic key
+   *  is configured (otherwise the route degrades to 503 per capability);
+   *  the voice agent always wires. Always a (possibly-partial) object —
+   *  never null — so the router can read members without a null-guard;
+   *  degraded mode supplies an empty object. */
+  readonly aiNative: ReturnType<typeof buildAiNativeServices>;
+
+  /** Task-agents — the executor that runs any of the 15 shipped
+   *  task-agents under autonomy + budget guardrails. Bound in the live
+   *  registry with the canonical `TASK_AGENT_REGISTRY` + the assembled
+   *  live services bag + the AI cost ledger. Null in degraded mode (the
+   *  `/task-agents` router returns a clean 503 then). */
+  readonly taskAgentExecutor: TaskAgentExecutor | null;
 
   /** Market-rate surveillance agent — Drizzle-backed snapshot
    *  persistence + stub MarketRatePort. `listActiveUnits` returns []
@@ -1718,6 +1773,14 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // unset). Each consumer router/scheduler tolerates the null slot.
     monthlyClose: null,
     voiceAgent: null,
+    // AI-native — degraded mode has no DB + (typically) no Anthropic key,
+    // so the wiring is an empty object: every capability is absent and the
+    // `/ai-native` router returns its per-capability 503. The slot is a
+    // (partial) object, never null, so the router reads members directly.
+    aiNative: {},
+    // Task-agents — null in degraded mode (no live services bag / ledger to
+    // bind the executor against); the `/task-agents` router returns 503.
+    taskAgentExecutor: null,
     marketSurveillance: null,
     predictiveInterventions: null,
     // K7 parity-litfin Gap H — wake-loop cron is null in degraded mode
@@ -1984,26 +2047,35 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     db,
   );
   const buyerRiskReportRepo = new PostgresBuyerRiskReportRepository(db);
-  const financialProfileService = null;
+  // Mining-domain — the `/financial-profile` route now binds to the REAL
+  // mining buyer financial-profile service over the two buyer repos above.
+  // `riskReportService` stays null (its route is unmounted; the repo is
+  // surfaced via the dedicated `buyerRiskReport` slot below).
+  const financialProfileService = createMiningFinancialProfileService({
+    financialProfileRepo: buyerFinancialProfileRepo,
+    riskReportRepo: buyerRiskReportRepo,
+    logger: createPinoLikeLogger('mining-financial-profile'),
+  });
   const riskReportService = null;
 
   // Mining-domain Wave 5 — ore-stockpile warehouse + ore-grading repos.
   // Replace the property-inventory `DrizzleWarehouseRepository` (which
   // persisted to warehouse_items / warehouse_movements, both removed by
-  // migration 0003). The legacy `WarehouseService` factory still expects
-  // a port that doesn't match the mining schema, so its slot stays null
-  // in the live registry until follow-up batches reshape the service.
+  // migration 0003). The mining warehouse service (REAL) is built over
+  // both repos and backs the `/warehouse` route end-to-end.
   const oreStockpileRepo = new DrizzleOreWarehouseRepository(db);
   const oreGradingRepo = new DrizzleOreGradingRepository(db);
-  const warehouseService = null as WarehouseService | null;
+  const warehouseService: MiningWarehouseService = createMiningWarehouseService({
+    stockpiles: oreStockpileRepo,
+    grading: oreGradingRepo,
+  });
 
   // Mining hard-fork wave 6 — property-domain `DrizzleMaintenanceTaxonomyRepository`
   // + `createMaintenanceTaxonomyService` are retired. The mining-domain
-  // replacement (DrizzleEquipmentMaintenanceTaxonomyRepository) is wired
-  // below; the legacy `maintenanceTaxonomy` slot stays null in the live
-  // registry. Downstream consumers that need the catalog migrate to
-  // `services.equipmentMaintenanceTaxonomy`.
-  const maintenanceTaxonomyService = null;
+  // replacement service is constructed below, AFTER its repo
+  // (`equipmentMaintenanceTaxonomyRepo`) lands, then bound to the
+  // `maintenanceTaxonomy` slot. Downstream consumers that need the raw
+  // catalog repo still reach `services.equipmentMaintenanceTaxonomy`.
 
   // Wave 8 — IoT (S3): sensor registry + observation ingest + anomaly store.
   // Service takes the drizzle client directly since all tables live under
@@ -2221,13 +2293,17 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   // PostgresFarRepository (asset_components / far_assignments /
   // condition_check_events, all removed by migration 0003).
   //
-  // The property-domain FarService class is structurally incompatible
-  // with the mining repo's interface so we leave it null in the live
-  // registry until follow-up batches rebuild the service surface on
-  // top of the mining repo.
+  // The `/far` route now binds to the REAL mining FAR service over this
+  // repo. The `far.repo` slot also carries the mining repo so the route's
+  // root discoverability check + the repo-backed GET handlers
+  // (`findAssetById` / `findDueScheduledMaintenance`) resolve against real
+  // data rather than the retired property repo.
   const siteFarRepo = new PostgresSiteFarRepository(db);
-  const farRepo = null as PostgresFarRepository | null;
-  const farService = null as FarService | null;
+  const farRepo = siteFarRepo;
+  const farService = FarNs.createMiningFarService({
+    repo: siteFarRepo,
+    logger: createPinoLikeLogger('mining-far'),
+  });
 
   // Mining hard-fork wave 6 — the seven mining-domain replacements for
   // the retired property-domain repositories. Each takes the shared
@@ -2243,6 +2319,12 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     new PostgresSiteSupervisorCoverageRepository(db);
   const equipmentMaintenanceTaxonomyRepo =
     new DrizzleEquipmentMaintenanceTaxonomyRepository(db);
+  // Mining maintenance-taxonomy service (REAL) — built over the repo just
+  // constructed. Backs the `/maintenance-taxonomy` route; once this slot
+  // is non-null the route's `if (!s) notImplemented` guard passes.
+  const maintenanceTaxonomyService = createMiningMaintenanceTaxonomyService(
+    equipmentMaintenanceTaxonomyRepo,
+  );
 
   // Wave 12 — Voice router. If neither ELEVENLABS_API_KEY nor OPENAI_API_KEY
   // is set, `voice` stays null and the HTTP router returns a clean 503
@@ -2303,6 +2385,51 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         logger.warn('recipient-resolver', { arg0: msg ?? '', obj })
         ,
     },
+  });
+
+  // Voice-agent wiring captured into a const (was an inline IIFE in the
+  // returned object) so BOTH the `voiceAgent` slot AND the `aiNative`
+  // wiring reuse the SAME agent instance — the voice capability the
+  // `/ai-native` route exposes is identical to the `/voice-agent` one
+  // (single brain-kernel, single VoiceTurnRepository).
+  const voiceAgentWiring = (() => {
+    const brainKernel = createBrainKernelWiring({
+      buildBudgetGuardedAnthropicClient: buildBudgetGuardedAnthropicClient as unknown as Parameters<
+        typeof createBrainKernelWiring
+      >[0]['buildBudgetGuardedAnthropicClient'],
+    });
+    return createVoiceAgentWiring({
+      db,
+      ...(brainKernel ? { kernelThink: brainKernel.think } : {}),
+    });
+  })();
+
+  // TASK-AGENTS — bind the executor against the canonical registry + the
+  // AI cost ledger + a curated bag of the real service instances that
+  // exist as locals at this point. `AgentServicesBag` is
+  // `Record<string, unknown>`; each agent reads its keys defensively and
+  // the executor materialises a clean error outcome for any agent whose
+  // helper deps are absent. Binding the executor turns on list/get/runs
+  // immediately + every agent whose deps are present; the remaining
+  // per-agent helper ports (notifications / exceptionInbox /
+  // upcomingInvoicesLookup / inspection + arrears lookups / …) are a
+  // documented follow-up wiring. The autonomy + budget guardrails still
+  // run on every execution.
+  const taskAgentServicesBag: Record<string, unknown> = {
+    arrearsService,
+    caseService,
+    renewalService,
+    migrationService,
+    occupancyTimelineService,
+    featureFlagsService,
+    gdprService,
+    aiCostLedger,
+    eventBus,
+  };
+  const taskAgentExecutor = new TaskAgentExecutor({
+    registry: TASK_AGENT_REGISTRY,
+    services: taskAgentServicesBag,
+    costLedger: aiCostLedger,
   });
 
   return {
@@ -2695,17 +2822,21 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // disciplined 13-step pipeline (cache → inviolable → tier →
     // memory → cohort → persona → sensor failover → normalize →
     // judge → drift → policy → confidence → provenance).
-    voiceAgent: (() => {
-      const brainKernel = createBrainKernelWiring({
-        buildBudgetGuardedAnthropicClient: buildBudgetGuardedAnthropicClient as unknown as Parameters<
-          typeof createBrainKernelWiring
-        >[0]['buildBudgetGuardedAnthropicClient'],
-      });
-      return createVoiceAgentWiring({
-        db,
-        ...(brainKernel ? { kernelThink: brainKernel.think } : {}),
-      });
-    })(),
+    voiceAgent: voiceAgentWiring,
+    // AINATIVE — `/ai-native` (4 PhL capabilities). REAL Anthropic compute
+    // for dynamicPricing / docIntelligence / legalDrafter (present only
+    // when an Anthropic key is configured via the budget-guarded client;
+    // otherwise the route degrades per-capability to 503) + the durable
+    // Drizzle voice agent reused from `voiceAgentWiring` above.
+    aiNative: buildAiNativeServices({
+      db,
+      buildAnthropicClient: buildBudgetGuardedAnthropicClient,
+      ledger: aiCostLedger,
+      voiceAgentWiring,
+    }),
+    // TASK-AGENTS — the bound executor (registry + curated services bag +
+    // cost ledger). Powers `/task-agents` list/get/run.
+    taskAgentExecutor,
     marketSurveillance: createMarketSurveillanceWiring({ db }),
     predictiveInterventions: createPredictiveInterventionsWiring({ db }),
     // K7 parity-litfin Gap H — wake-loop cron supervisor. Inert until

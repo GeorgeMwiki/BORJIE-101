@@ -10,19 +10,12 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { TenantStatusBadge } from './TenantStatusBadge';
 import { TenantActions } from './TenantActions';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
+import { formatCurrency } from '@/lib/api';
 import type { Tenant, TenantPlan, TenantStatus } from '@/lib/internal/types';
 
 const PLANS: ReadonlyArray<TenantPlan> = ['Starter', 'Growth', 'Enterprise'];
 const STATUSES: ReadonlyArray<TenantStatus> = ['Active', 'Trial', 'Past due', 'Suspended'];
 const PAGE_SIZE = 10;
-
-function formatArr(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value);
-}
 
 function formatRelative(iso: string, now: number = Date.now()): string {
   const diffMs = now - Date.parse(iso);
@@ -81,9 +74,13 @@ export function TenantDirectory(): JSX.Element {
         sortingFn: (a, b) => a.original.status.localeCompare(b.original.status),
       },
       {
-        accessorKey: 'arrUsd',
+        accessorKey: 'arr',
         header: 'ARR',
-        cell: (ctx) => <span className="tabular-nums">{formatArr(ctx.row.original.arrUsd)}</span>,
+        cell: (ctx) => (
+          <span className="tabular-nums">
+            {formatCurrency(ctx.row.original.arr, ctx.row.original.currency)}
+          </span>
+        ),
       },
       {
         accessorKey: 'lastActiveAt',

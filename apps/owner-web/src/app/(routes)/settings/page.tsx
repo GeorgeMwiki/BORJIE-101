@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { PlanBillingPanel } from '@/components/settings/PlanBillingPanel';
 
 /**
- * O-W-22 — Settings. Live data path: GET /api/v1/mining/internal/tenants/me
- * (users, plan, autonomy policy). Empty state shown until that wiring
- * lands; mock data has been removed.
+ * O-W-22 — Settings. Plan + billing is wired to the live current-tenant
+ * read (GET /api/v1/tenants/current via PlanBillingPanel). NOTE: the
+ * cockpit does NOT call `/mining/internal/tenants/me` — that surface is
+ * SUPER_ADMIN-only and not owner-callable.
  *
  * JA-7 — adds a Jurisdiction sub-page link so the owner can inspect
  * the country / regulators / currency / language / time zone that
@@ -56,11 +57,7 @@ export default function SettingsPage() {
             </p>
           </Link>
         </nav>
-        <EmptyState
-          title="Plan + autonomy not yet wired"
-          description="Users, plan, and autonomy policy load from the live tenant API."
-          hint="GET /api/v1/mining/internal/tenants/me (pending)"
-        />
+        <PlanBillingPanel />
       </div>
     </>
   );

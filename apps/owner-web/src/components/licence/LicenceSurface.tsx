@@ -1,6 +1,8 @@
 'use client';
 
 import { useLicenceCockpit } from '@/lib/queries/licence';
+import { ApiError } from '@/lib/api-client';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { CountdownCards } from './CountdownCards';
 import { DormancyCard } from './DormancyCard';
 import { PaymentHistory } from './PaymentHistory';
@@ -11,10 +13,35 @@ interface LicenceSurfaceProps {
 }
 
 export function LicenceSurface({ licenceId }: LicenceSurfaceProps) {
-  const { data, isLoading } = useLicenceCockpit(licenceId);
-  if (isLoading || !data) {
+  const { data, isLoading, isError, error } = useLicenceCockpit(licenceId);
+
+  if (isLoading) {
     return (
       <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
+    );
+  }
+  // Honest error states — no more infinite skeleton on a 404 / bad id.
+  if (isError) {
+    const notFound = error instanceof ApiError && error.status === 404;
+    return (
+      <EmptyState
+        title={notFound ? 'Licence not found' : 'Could not load this licence'}
+        description={
+          notFound
+            ? 'This licence does not exist for your account, or the link is stale. Open a licence from your licences list.'
+            : `The licence cockpit failed to load. ${
+                error instanceof Error ? error.message : 'Please try again.'
+              }`
+        }
+      />
+    );
+  }
+  if (!data) {
+    return (
+      <EmptyState
+        title="No licence data"
+        description="This licence has no renewal, dormancy, or payment data recorded yet."
+      />
     );
   }
   return (

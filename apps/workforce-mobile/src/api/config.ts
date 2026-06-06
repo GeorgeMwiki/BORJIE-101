@@ -1,11 +1,28 @@
 import Constants from 'expo-constants'
 
+// api-gateway dev port. The gateway listens on :3001 locally (NOT :4001 —
+// that was a stale fallback that silently pointed the app at a dead port).
+const DEV_GATEWAY_FALLBACK = 'http://localhost:3001'
+
+/**
+ * True only when we positively know this is a RELEASE React Native bundle
+ * (RN sets the `__DEV__` global to `false` in production builds). When
+ * `__DEV__` is absent (Node test runner, tooling) we do NOT treat it as a
+ * release build, so the dev fallback applies and tests/imports don't throw.
+ */
+function isReleaseBuild(): boolean {
+  const g = globalThis as unknown as { __DEV__?: boolean }
+  return g.__DEV__ === false
+}
+
 /**
  * Resolve API gateway URL with this precedence:
  *  1. EXPO_PUBLIC_API_GATEWAY_URL env var (highest — set in EAS / .env)
  *  2. expoConfig.extra.apiGatewayUrl from app.json (dev fallback)
- *  3. hard fallback to localhost:4001 (matches the api-gateway dev port)
+ *  3. dev-only hard fallback to localhost:3001 (the api-gateway dev port)
  *
+ * In a RELEASE build with no configured URL we throw loudly rather than
+ * silently fall back to localhost (which would 100% fail in production).
  * The URL never ends with a trailing slash so callers can safely concatenate.
  */
 function resolveBaseUrl(): string {
@@ -13,8 +30,17 @@ function resolveBaseUrl(): string {
   const fromConfig = Constants.expoConfig?.extra?.['apiGatewayUrl'] as
     | string
     | undefined
-  const raw = fromEnv ?? fromConfig ?? 'http://localhost:4001'
-  return raw.replace(/\/+$/u, '')
+  const configured = fromEnv ?? fromConfig
+  if (configured && configured.length > 0) {
+    return configured.replace(/\/+$/u, '')
+  }
+  if (isReleaseBuild()) {
+    throw new Error(
+      'EXPO_PUBLIC_API_GATEWAY_URL is not configured for this release build. ' +
+        'Set it in EAS env / app.json extra.apiGatewayUrl before shipping.'
+    )
+  }
+  return DEV_GATEWAY_FALLBACK
 }
 
 export const API_BASE_URL: string = resolveBaseUrl()

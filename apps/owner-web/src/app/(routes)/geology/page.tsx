@@ -1,19 +1,22 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { GeologyPanel } from '@/components/owner-os/panels/GeologyPanel';
+import { getOwnerSession } from '@/lib/session';
 
 /**
- * O-W-11 — Geology workbench. Live data path:
- * GET /api/v1/mining/geology/resource + /geology/qaqc.
+ * O-W-11 — Geology workbench. Wired to the live drill-holes surface
+ * (GET /api/v1/mining/drill-holes via useDrillHoles). The panel renders
+ * its own real loading / empty / error states (no fabricated data).
  */
-export default function GeologyPage() {
+export default async function GeologyPage() {
+  const session = await getOwnerSession();
   return (
     <>
       <ScreenHeader slug="geology" />
       <div className="px-8 py-6">
-        <EmptyState
-          title="Geology workbench not yet wired"
-          description="Resource snapshot and QA/QC load from the live geology API. Sign in to connect."
-          hint="GET /api/v1/mining/geology/resource (pending)"
+        <GeologyPanel
+          tabId="route:geology"
+          context={{}}
+          locale={session.languagePreference}
         />
       </div>
     </>

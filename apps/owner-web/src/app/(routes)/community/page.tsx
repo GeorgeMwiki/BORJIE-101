@@ -1,19 +1,22 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
-import { EmptyState } from '@/components/shared/EmptyState';
+import { CSRCommunityPanel } from '@/components/owner-os/panels/CSRCommunityPanel';
+import { getOwnerSession } from '@/lib/session';
 
 /**
- * O-W-16 — Community & CSR. Live data path:
- * GET /api/v1/mining/community/commitments + /community/grievances.
+ * O-W-16 — Community & CSR. Wired to the live CSR plans surface
+ * (GET /api/v1/mining/csr-plans via useCsrPlans). The panel renders its
+ * own real loading / empty / error states (no fabricated data).
  */
-export default function CommunityPage() {
+export default async function CommunityPage() {
+  const session = await getOwnerSession();
   return (
     <>
       <ScreenHeader slug="community" />
       <div className="px-8 py-6">
-        <EmptyState
-          title="Community surface not yet wired"
-          description="CSR commitments and grievances load from the live community API. Sign in to connect."
-          hint="GET /api/v1/mining/community/commitments (pending)"
+        <CSRCommunityPanel
+          tabId="route:community"
+          context={{}}
+          locale={session.languagePreference}
         />
       </div>
     </>

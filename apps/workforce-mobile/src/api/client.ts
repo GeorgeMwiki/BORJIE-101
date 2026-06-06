@@ -2,7 +2,6 @@ import {
   API_BASE_URL,
   FIELD_PREFIX,
   OWNER_PREFIX,
-  CHAT_PREFIX,
   MINING_PREFIX,
   DEFAULT_TIMEOUT_MS
 } from './config'
@@ -122,10 +121,6 @@ function ownerUrl(path: string): string {
   return `${API_BASE_URL}${OWNER_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
 }
 
-function chatUrl(path: string): string {
-  return `${API_BASE_URL}${CHAT_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
-}
-
 function miningUrl(path: string): string {
   return `${API_BASE_URL}${MINING_PREFIX}${path.startsWith('/') ? path : `/${path}`}`
 }
@@ -142,12 +137,6 @@ export const ownerApi = {
     request<T>(ownerUrl(path), { ...options, method: 'GET' }),
   post: <T,>(path: string, body: unknown, options?: RequestOptions): Promise<T> =>
     request<T>(ownerUrl(path), { ...options, method: 'POST', body })
-}
-
-export const chatApi = {
-  url: (path = ''): string => chatUrl(path),
-  post: <T,>(body: unknown, options?: RequestOptions): Promise<T> =>
-    request<T>(chatUrl(''), { ...options, method: 'POST', body })
 }
 
 /**

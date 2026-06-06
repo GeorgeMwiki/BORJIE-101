@@ -32,15 +32,22 @@ function getApiBase(): string {
     const trimmed = configured.replace(/\/$/, '');
     return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
   }
+  // Dev fallback aligned with lib/api-client.ts (the gateway runs on
+  // :3001 in local dev). These two clients previously disagreed (:4000
+  // here vs :3001 there), so migrated HQ pages silently hit a dead port.
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return 'http://localhost:4000/api/v1';
+    return 'http://localhost:3001/api/v1';
   }
   return '/api/v1';
 }
 
 async function request<T>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  // When true the caller owns the body (e.g. FormData) and we must NOT
+  // set a JSON Content-Type — the browser stamps the multipart boundary
+  // itself. Used by `postForm` for file uploads (migration wizard).
+  isFormData = false
 ): Promise<ApiResponse<T>> {
   // The platform session is held in an httpOnly cookie set by the
   // identity service (see middleware.ts + lib/session.ts). We send
@@ -54,7 +61,7 @@ async function request<T>(
       : null;
 
   const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
@@ -92,6 +99,8 @@ export const api = {
   get: <T>(endpoint: string) => request<T>(endpoint),
   post: <T>(endpoint: string, data: unknown) =>
     request<T>(endpoint, { method: 'POST', body: JSON.stringify(data) }),
+  postForm: <T>(endpoint: string, form: FormData) =>
+    request<T>(endpoint, { method: 'POST', body: form }, true),
   put: <T>(endpoint: string, data: unknown) =>
     request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data) }),
   patch: <T>(endpoint: string, data: unknown) =>
