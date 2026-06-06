@@ -686,28 +686,6 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/action-runtime:
-    dependencies:
-      '@borjie/approval-matrix-dsl':
-        specifier: workspace:*
-        version: link:../approval-matrix-dsl
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      '@vitest/coverage-v8':
-        specifier: ^4.1.7
-        version: 4.1.7(vitest@4.1.6)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/agent-orchestrator:
     dependencies:
       zod:
@@ -850,7 +828,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ai-reviewer:
     dependencies:
@@ -910,22 +888,6 @@ importers:
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/anomaly-detection:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/aop-compiler:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -1001,25 +963,6 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-
-  packages/approval-matrix-dsl:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      '@vitest/coverage-v8':
-        specifier: ^4.1.7
-        version: 4.1.7(vitest@4.1.6)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/assignment-registry:
     dependencies:
@@ -1103,7 +1046,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/belief-engine:
     devDependencies:
@@ -1198,25 +1141,6 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/borjie-maps:
-    dependencies:
-      react:
-        specifier: '>=18.0.0'
-        version: 18.3.1
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      '@types/react':
-        specifier: 18.3.28
-        version: 18.3.28
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/brain-llm-router:
     devDependencies:
       '@types/node':
@@ -1231,22 +1155,6 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@22.19.19)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/brain-self-awareness:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/browser-perception:
     dependencies:
@@ -1629,28 +1537,6 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
 
-  packages/conversation-threads:
-    dependencies:
-      '@borjie/persona-runtime':
-        specifier: workspace:*
-        version: link:../persona-runtime
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      '@vitest/coverage-v8':
-        specifier: ^4.1.7
-        version: 4.1.7(vitest@4.1.6)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/cost-engineer-advisor:
     dependencies:
       '@borjie/ai-copilot':
@@ -1681,28 +1567,6 @@ importers:
       '@types/node':
         specifier: ^25.8.0
         version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/customer-geo-routing:
-    dependencies:
-      '@borjie/audit-hash-chain':
-        specifier: workspace:*
-        version: link:../audit-hash-chain
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      tsup:
-        specifier: ^8.5.1
-        version: 8.5.1(postcss@8.5.14)(typescript@6.0.3)
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1992,29 +1856,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/document-composer:
-    dependencies:
-      '@borjie/audit-hash-chain':
-        specifier: workspace:*
-        version: link:../audit-hash-chain
-      '@borjie/ocsf-emitter':
-        specifier: workspace:*
-        version: link:../ocsf-emitter
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/document-quality-guarantor:
     dependencies:
@@ -2260,12 +2102,6 @@ importers:
         specifier: ^4.0.0
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/emotional-prosody:
-    devDependencies:
-      typescript:
-        specifier: ^5.3.0
-        version: 5.3.3
-
   packages/employee-perf-followup:
     dependencies:
       '@borjie/observability':
@@ -2320,7 +2156,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ephemeral-ui:
     dependencies:
@@ -2346,21 +2182,6 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/error-boundaries:
-    devDependencies:
-      '@types/react':
-        specifier: 18.3.28
-        version: 18.3.28
-      lucide-react:
-        specifier: '*'
-        version: 0.460.0(react@19.2.6)
-      react:
-        specifier: ^19.0.0
-        version: 19.2.6
-      typescript:
-        specifier: ^5.3.0
-        version: 5.3.3
 
   packages/ethics-framework:
     dependencies:
@@ -2401,7 +2222,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/extended-reasoning:
     dependencies:
@@ -2471,12 +2292,6 @@ importers:
       vitest:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/file-upload-validator:
-    devDependencies:
-      typescript:
-        specifier: ^5.3.0
-        version: 5.3.3
 
   packages/fleet-management:
     dependencies:
@@ -2651,7 +2466,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/geo-platform:
     dependencies:
@@ -3201,22 +3016,6 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/long-horizon-agent:
-    dependencies:
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/loop-quality-gates:
     dependencies:
       zod:
@@ -3549,7 +3348,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/module-spec-engine:
     dependencies:
@@ -3568,7 +3367,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/module-templates:
     dependencies:
@@ -3593,7 +3392,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mutation-authority:
     dependencies:
@@ -3747,16 +3546,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/on-device-router:
-    devDependencies:
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: 4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/open-coding-agent-patterns:
     dependencies:
@@ -3791,23 +3581,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/optimistic-concurrency:
-    dependencies:
-      '@borjie/audit-hash-chain':
-        specifier: workspace:*
-        version: link:../audit-hash-chain
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/org-graph:
     dependencies:
@@ -3826,7 +3600,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/org-scope:
     dependencies:
@@ -3879,18 +3653,6 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/payments-event-store:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/performance-toolkit:
     devDependencies:
       '@types/node':
@@ -3936,7 +3698,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/persona-voice:
     dependencies:
@@ -3982,25 +3744,6 @@ importers:
       tsup:
         specifier: ^8.0.1
         version: 8.5.1(postcss@8.5.14)(typescript@6.0.3)
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/presentation-engine:
-    dependencies:
-      '@borjie/report-engine':
-        specifier: workspace:*
-        version: link:../report-engine
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -4320,73 +4063,11 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/security-audit:
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/security-hardening:
     dependencies:
       '@simplewebauthn/server':
         specifier: ^11.0.0
         version: 11.0.0
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/self-codegen:
-    dependencies:
-      yaml:
-        specifier: ^2.6.0
-        version: 2.8.4
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      '@typescript-eslint/eslint-plugin':
-        specifier: ^8.59.3
-        version: 8.59.4(@typescript-eslint/parser@8.59.3)(eslint@10.4.0)(typescript@6.0.3)
-      '@typescript-eslint/parser':
-        specifier: ^8.59.3
-        version: 8.59.3(eslint@10.4.0)(typescript@6.0.3)
-      '@vitest/coverage-v8':
-        specifier: ^4.1.6
-        version: 4.1.7(vitest@4.1.6)
-      eslint:
-        specifier: ^10.4.0
-        version: 10.4.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/skill-conversation:
-    dependencies:
-      '@borjie/aop-compiler':
-        specifier: workspace:*
-        version: link:../aop-compiler
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -4578,25 +4259,6 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/swarm-coordination:
-    dependencies:
-      '@borjie/audit-hash-chain':
-        specifier: workspace:*
-        version: link:../audit-hash-chain
-      zod:
-        specifier: ^3.25.76
-        version: 3.25.76
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
   packages/tab-as-loop:
     dependencies:
       '@borjie/audit-hash-chain':
@@ -4662,18 +4324,6 @@ importers:
       '@borjie/observability':
         specifier: workspace:*
         version: link:../observability
-    devDependencies:
-      '@types/node':
-        specifier: ^25.8.0
-        version: 25.8.0
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
-      vitest:
-        specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
-
-  packages/timezone-detection:
     devDependencies:
       '@types/node':
         specifier: ^25.8.0
@@ -4805,12 +4455,6 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
-  packages/voice-capture:
-    devDependencies:
-      typescript:
-        specifier: ^5.3.0
-        version: 5.3.3
-
   packages/work-cycle:
     dependencies:
       '@borjie/audit-hash-chain':
@@ -4872,7 +4516,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/api-gateway:
     dependencies:
@@ -5448,7 +5092,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/domain-services:
     dependencies:
@@ -10826,7 +10470,7 @@ packages:
       glob: 13.0.6
       react-docgen-typescript: 2.4.0(typescript@6.0.3)
       typescript: 6.0.3
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
     dev: true
 
   /@jpwilliams/waitgroup@2.1.1:
@@ -16237,7 +15881,7 @@ packages:
       '@storybook/csf-plugin': 10.4.0(esbuild@0.27.7)(storybook@10.4.0)(vite@6.4.2)
       storybook: 10.4.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@testing-library/dom@10.4.1)(@types/react@18.3.28)(react-dom@18.3.1)(react@18.3.1)
       ts-dedent: 2.2.0
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
     transitivePeerDependencies:
       - esbuild
       - rollup
@@ -16265,7 +15909,7 @@ packages:
       esbuild: 0.27.7
       storybook: 10.4.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@testing-library/dom@10.4.1)(@types/react@18.3.28)(react-dom@18.3.1)(react@18.3.1)
       unplugin: 2.3.11
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
     dev: true
 
   /@storybook/global@5.0.0:
@@ -16331,7 +15975,7 @@ packages:
       resolve: 1.22.12
       storybook: 10.4.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)(@testing-library/dom@10.4.1)(@types/react@18.3.28)(react-dom@18.3.1)(react@18.3.1)
       tsconfig-paths: 4.2.0
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
@@ -19203,7 +18847,7 @@ packages:
       '@rolldown/pluginutils': 1.0.0-beta.27
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -19227,7 +18871,7 @@ packages:
       obug: 2.1.1
       std-env: 4.1.0
       tinyrainbow: 3.1.0
-      vitest: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+      vitest: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
     dev: true
 
   /@vitest/expect@2.1.9:
@@ -19291,7 +18935,7 @@ packages:
       '@vitest/spy': 4.1.6
       estree-walker: 3.0.3
       magic-string: 0.30.21
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
     dev: true
 
   /@vitest/pretty-format@2.1.9:
@@ -26457,17 +26101,6 @@ packages:
       react: 18.3.1
     dev: false
 
-  /lucide-react@0.460.0(react@19.2.6):
-    resolution: {integrity: sha512-BVtq/DykVeIvRTJvRAgCsOwaGL8Un3Bxh8MbDxMhEWlZay3T4IpEKDEpwt5KZ0KJMHzgm6jrltxlT5eXOWXDHg==}
-    peerDependencies:
-      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0-rc
-    peerDependenciesMeta:
-      react:
-        optional: true
-    dependencies:
-      react: 19.2.6
-    dev: true
-
   /luxon@3.7.2:
     resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
     engines: {node: '>=12'}
@@ -33007,7 +32640,7 @@ packages:
       fsevents: 2.3.3
     dev: true
 
-  /vite@6.4.2(@types/node@25.8.0)(yaml@2.8.4):
+  /vite@6.4.2(@types/node@25.8.0)(tsx@4.21.0):
     resolution: {integrity: sha512-2N/55r4JDJ4gdrCvGgINMy+HH3iRpNIz8K6SFwVsA+JbQScLiC+clmAxBgwiSPgcG9U15QmvqCGWzMbqda5zGQ==}
     engines: {node: ^18.0.0 || ^20.0.0 || >=22.0.0}
     hasBin: true
@@ -33054,7 +32687,7 @@ packages:
       postcss: 8.5.14
       rollup: 4.60.4
       tinyglobby: 0.2.16
-      yaml: 2.8.4
+      tsx: 4.21.0
     optionalDependencies:
       fsevents: 2.3.3
     dev: true
@@ -33247,7 +32880,7 @@ packages:
       tinyexec: 1.1.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - msw
@@ -33320,6 +32953,73 @@ packages:
       - msw
     dev: true
 
+  /vitest@4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2):
+    resolution: {integrity: sha512-6lvjbS3p9b4CrdCmguzbh2/4uoXhGE2q71R4OX5sqF9R1bo9Xd6fGrMAfvp5wnCzlBnFVdCOp6onuTQVbo8iUQ==}
+    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
+    hasBin: true
+    peerDependencies:
+      '@edge-runtime/vm': '*'
+      '@opentelemetry/api': ^1.9.0
+      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
+      '@vitest/browser-playwright': 4.1.6
+      '@vitest/browser-preview': 4.1.6
+      '@vitest/browser-webdriverio': 4.1.6
+      '@vitest/coverage-istanbul': 4.1.6
+      '@vitest/coverage-v8': 4.1.6
+      '@vitest/ui': 4.1.6
+      happy-dom: '*'
+      jsdom: '*'
+      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
+    peerDependenciesMeta:
+      '@edge-runtime/vm':
+        optional: true
+      '@opentelemetry/api':
+        optional: true
+      '@types/node':
+        optional: true
+      '@vitest/browser-playwright':
+        optional: true
+      '@vitest/browser-preview':
+        optional: true
+      '@vitest/browser-webdriverio':
+        optional: true
+      '@vitest/coverage-istanbul':
+        optional: true
+      '@vitest/coverage-v8':
+        optional: true
+      '@vitest/ui':
+        optional: true
+      happy-dom:
+        optional: true
+      jsdom:
+        optional: true
+    dependencies:
+      '@types/node': 25.8.0
+      '@vitest/coverage-v8': 4.1.7(vitest@4.1.6)
+      '@vitest/expect': 4.1.6
+      '@vitest/mocker': 4.1.6(vite@6.4.2)
+      '@vitest/pretty-format': 4.1.6
+      '@vitest/runner': 4.1.6
+      '@vitest/snapshot': 4.1.6
+      '@vitest/spy': 4.1.6
+      '@vitest/utils': 4.1.6
+      es-module-lexer: 2.1.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.4
+      std-env: 4.1.0
+      tinybench: 2.9.0
+      tinyexec: 1.1.2
+      tinyglobby: 0.2.16
+      tinyrainbow: 3.1.0
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
+      why-is-node-running: 2.3.0
+    transitivePeerDependencies:
+      - msw
+    dev: true
+
   /vitest@4.1.6(@types/node@25.8.0)(jsdom@24.1.3)(vite@6.4.2):
     resolution: {integrity: sha512-6lvjbS3p9b4CrdCmguzbh2/4uoXhGE2q71R4OX5sqF9R1bo9Xd6fGrMAfvp5wnCzlBnFVdCOp6onuTQVbo8iUQ==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -33381,7 +33081,7 @@ packages:
       tinyexec: 1.1.2
       tinyglobby: 0.2.16
       tinyrainbow: 3.1.0
-      vite: 6.4.2(@types/node@25.8.0)(yaml@2.8.4)
+      vite: 6.4.2(@types/node@25.8.0)(tsx@4.21.0)
       why-is-node-running: 2.3.0
     transitivePeerDependencies:
       - msw
@@ -33842,6 +33542,7 @@ packages:
     resolution: {integrity: sha512-ml/JPOj9fOQK8RNnWojA67GbZ0ApXAUlN2UQclwv2eVgTgn7O9gg9o7paZWKMp4g0H3nTLtS9LVzhkpOFIKzog==}
     engines: {node: '>= 14.6'}
     hasBin: true
+    dev: false
 
   /yargs-parser@18.1.3:
     resolution: {integrity: sha512-o50j0JeToy/4K6OZcaQmW6lyXXKhq7csREXcDwk2omFPJEwUNOVtJKvmDr9EI1fAJZUyZcRF7kxGBWmRXudrCQ==}
