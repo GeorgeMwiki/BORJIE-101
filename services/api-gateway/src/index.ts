@@ -208,11 +208,9 @@ import financialProfileRouter from './routes/financial-profile.router';
 import interactiveReportsRouter from './routes/interactive-reports.router';
 import lettersRouter from './routes/letters.router';
 import { marketplaceRouter } from './routes/marketplace.router';
-// Universal tenant marketplace — Section 4 of the questionnaire
-// (cross-org browsing surface). Distinct from the legacy org-side
-// `marketplaceRouter` above which manages listing publishing for
-// portfolio owners.
-import { universalMarketplaceRouter } from './routes/marketplace/index.js';
+// MS-3 — universalMarketplaceRouter import removed (dead property-residual
+// `/marketplace-universal` surface unmounted; cross-org browsing is served
+// by the mining marketplace + RFB routers).
 // Roadmap R11 — buyer-initiated Request for Bids. Buyers post
 // "I want N tonnes of X at TZS Y by D"; sellers in the geo radius
 // respond with counter-offers. Migration 0127.
@@ -479,6 +477,10 @@ import { ensureTenantIsolation } from './middleware/tenant-context.middleware';
 import { assertApiKeyConfig } from './middleware/api-key-registry';
 import { customerAppRouter } from './routes/bff/customer-app';
 import { ownerPortalRouter } from './routes/bff/owner-portal';
+// Endpoint wave — owner group/holdings rollup. Mounted at the specific
+// `/owner/group-rollup` prefix BEFORE the broad `/owner` BFF so the
+// specific path wins Hono trie resolution.
+import { ownerGroupRollupRouter } from './routes/owner/group-rollup.hono';
 import { estateManagerAppRouter } from './routes/bff/estate-manager-app';
 import { adminPortalRouter } from './routes/bff/admin-portal';
 // Wave-4 D6 — owner-portal MissingBackendNotice skeletons. Each router
@@ -726,13 +728,11 @@ import { ownerDraftsRouter } from './routes/owner/drafts.hono';
 // Wave-3-int2 — brain↔tab loop composition (Piece L → Piece B handlers).
 import {
   createDispatchRouterWiring,
-  createStubEstateHandlerDeps,
   createStubMiningHandlerDeps,
 } from './composition/dispatch-router-wiring';
 // Wave-3-int3 — REAL dispatch-handler deps (LedgerService money path,
 // hash-chained audit, cross-portal notifications, Drizzle mining repos).
 import {
-  createRealEstateHandlerDeps,
   createRealMiningHandlerDeps,
 } from './composition/dispatch-handler-deps-wiring';
 import { installJarvisCaptureHook } from './routes/jarvis-router-factory';
@@ -1174,13 +1174,10 @@ const dispatchHandlerLogger = {
   error: (meta: object, msg: string) => logger.error(meta, msg),
 };
 const dispatchRouterWiring = createDispatchRouterWiring({
-  estate: dispatchHandlerDb
-    ? createRealEstateHandlerDeps({
-        db: dispatchHandlerDb as never,
-        crossPortalBus: serviceRegistry.crossPortalBus,
-        logger: dispatchHandlerLogger,
-      })
-    : createStubEstateHandlerDeps(),
+  // Estate handler deps OMITTED — the two property-relic dispatch actions are
+  // gated off in module-templates/registry.ts + dispatch-router-wiring (estate
+  // is no longer forwarded to the registry). The wiring's `estate` field is
+  // optional, so we simply don't construct it.
   // Closes the historical gh-issue #34 work-item: 3 mining handlers
   // replace the pre-Borjie estate stubs (open_maintenance_case →
   // open_equipment_maintenance, schedule_renewal_negotiation →
@@ -1724,6 +1721,9 @@ api.route('/brain', brainDispatchRouter);
 // /buyers/kyc, plus /internal/* (admin-console SUPER_ADMIN surfaces).
 api.route('/mining', miningRouter);
 api.route('/customer', customerAppRouter);
+// Specific owner group/holdings rollup — MUST precede the broad `/owner`
+// BFF mount below so the more specific prefix wins.
+api.route('/owner/group-rollup', ownerGroupRollupRouter);
 api.route('/owner', ownerPortalRouter);
 api.route('/manager', estateManagerAppRouter);
 api.route('/admin', adminPortalRouter);
@@ -1803,7 +1803,9 @@ api.route('/buyer/notifications', buyerNotificationsRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);
-api.route('/marketplace-universal', universalMarketplaceRouter);
+// MS-3 — `/marketplace-universal` (universalMarketplaceRouter) unmounted:
+// dead property-residual surface; its in-memory seeded data port was
+// already killed. Use the mining marketplace + RFB surfaces instead.
 api.route('/marketing', marketingRouter);
 // Borjie locale-toggle re-translation — see routes/translate.hono.ts.
 // Mounted publicly (no auth) because the widget translates already-visible
@@ -2314,7 +2316,7 @@ const openApiRouter = createOpenApiRouter({
     { prefix: '/interactive-reports', app: interactiveReportsRouter, defaultTag: 'interactive-reports' },
     { prefix: '/letters', app: lettersRouter, defaultTag: 'letters' },
     { prefix: '/marketplace', app: marketplaceRouter, defaultTag: 'marketplace' },
-    { prefix: '/marketplace-universal', app: universalMarketplaceRouter, defaultTag: 'marketplace-universal' },
+    // MS-3 — `/marketplace-universal` registry entry removed (router unmounted).
     { prefix: '/migration', app: migrationRouter as unknown as Hono, defaultTag: 'migration' },
 // REMOVED (borjie hard-fork):     { prefix: '/negotiations', app: negotiationsRouter, defaultTag: 'negotiations' },
     { prefix: '/me/notification-preferences', app: notificationPreferencesRouter, defaultTag: 'notifications' },

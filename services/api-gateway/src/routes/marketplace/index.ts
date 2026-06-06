@@ -39,7 +39,12 @@ export type {
 } from './types.js';
 export {
   createSeededStore,
+  emptyInMemoryStore,
   inMemoryDataPort,
   listMembershipsForUser,
   type InMemoryStore,
 } from './in-memory-data-port.js';
+export {
+  drizzleMarketplaceDataPort,
+  type MarketplaceDb,
+} from './drizzle-data-port.js';

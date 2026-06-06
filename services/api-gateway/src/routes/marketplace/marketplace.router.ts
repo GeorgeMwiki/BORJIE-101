@@ -40,16 +40,20 @@
  *     manages listing publishing for portfolio owners).
  */
 
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth.js';
+import { databaseMiddleware } from '../../middleware/database.js';
 import {
-  createSeededStore,
+  emptyInMemoryStore,
   inMemoryDataPort,
-  listMembershipsForUser,
   type InMemoryStore,
 } from './in-memory-data-port.js';
+import {
+  drizzleMarketplaceDataPort,
+  type MarketplaceDb,
+} from './drizzle-data-port.js';
 import type { MarketplaceDataPort } from './types.js';
 
 // ────────────────────────────────────────────────────────────────────
@@ -91,7 +95,18 @@ const TendersQuerySchema = z.object({
 // ────────────────────────────────────────────────────────────────────
 
 export interface MarketplaceRouterDeps {
-  readonly dataPort: MarketplaceDataPort;
+  /**
+   * Static data port (tests + the legacy in-memory path). When omitted,
+   * the router resolves a real Drizzle-backed port from the per-request
+   * `c.get('db')` so production never serves a hand-authored fixture.
+   */
+  readonly dataPort?: MarketplaceDataPort;
+  /**
+   * Per-request resolver. Takes precedence over `dataPort`. Used by the
+   * default singleton to bind a Drizzle port to the request-scoped,
+   * RLS-pinned connection.
+   */
+  readonly resolveDataPort?: (c: Context) => MarketplaceDataPort;
   /** Exposed only so the membership widget can read multi-org tenancy. */
   readonly readMemberships: (userId: string) => ReadonlyArray<{
     readonly orgId: string;
@@ -104,18 +119,28 @@ export interface MarketplaceRouterDeps {
 
 export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
   const router = new Hono();
-  const { dataPort, readMemberships } = deps;
+  const { readMemberships } = deps;
+
+  // Resolve the data port for THIS request. A static `dataPort` (tests)
+  // wins for determinism; otherwise the per-request resolver binds a real
+  // Drizzle port. As a last resort we return an honest EMPTY port — never
+  // a fabricated-fixture port.
+  const getPort = (c: Context): MarketplaceDataPort => {
+    if (deps.dataPort) return deps.dataPort;
+    if (deps.resolveDataPort) return deps.resolveDataPort(c);
+    return inMemoryDataPort(emptyInMemoryStore());
+  };
 
   // ─── PUBLIC: orgs list ─────────────────────────────────────────
   router.get('/orgs', async (c) => {
-    const orgs = await dataPort.listOrgs();
+    const orgs = await getPort(c).listOrgs();
     return c.json({ success: true, data: orgs });
   });
 
   // ─── PUBLIC: org profile ───────────────────────────────────────
   router.get('/orgs/:orgId', async (c) => {
     const orgId = c.req.param('orgId');
-    const profile = await dataPort.findOrg(orgId);
+    const profile = await getPort(c).findOrg(orgId);
     if (!profile) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Org not found' } },
@@ -161,7 +186,8 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
     if (parsed.data.bedrooms !== undefined) (filters as { bedrooms?: number }).bedrooms = parsed.data.bedrooms;
     if (parsed.data.orgId !== undefined) (filters as { orgId?: string }).orgId = parsed.data.orgId;
     if (parsed.data.minPrice !== undefined) (filters as { minPrice?: number }).minPrice = parsed.data.minPrice;
-    if (parsed.data.maxPrice !== undefined) (filters as { maxPrice?: number }).maxPrice = parsed.data.maxPrice;    const page = await dataPort.searchListings(filters);
+    if (parsed.data.maxPrice !== undefined) (filters as { maxPrice?: number }).maxPrice = parsed.data.maxPrice;
+    const page = await getPort(c).searchListings(filters);
     return c.json({
       success: true,
       data: page.items,
@@ -171,7 +197,7 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
 
   // ─── PUBLIC: listing detail ────────────────────────────────────
   router.get('/listings/:listingId', async (c) => {
-    const listing = await dataPort.findListing(c.req.param('listingId'));
+    const listing = await getPort(c).findListing(c.req.param('listingId'));
     if (!listing) {
       return c.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Listing not found' } },
@@ -195,7 +221,7 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
         400,
       );
     }
-    const tenders = await dataPort.listTenders(parsed.data.orgId);
+    const tenders = await getPort(c).listTenders(parsed.data.orgId);
     return c.json({ success: true, data: tenders });
   });
 
@@ -247,6 +273,7 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
             400,
           );
         }
+        const dataPort = getPort(c);
         const listingId = c.req.param('listingId');
         const listing = await dataPort.findListing(listingId);
         if (!listing) {
@@ -311,6 +338,7 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
             400,
           );
         }
+        const dataPort = getPort(c);
         const listingId = c.req.param('listingId');
         const listing = await dataPort.findListing(listingId);
         if (!listing) {
@@ -374,7 +402,7 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
             400,
           );
         }
-        const result = await dataPort.redeemJoinCode({
+        const result = await getPort(c).redeemJoinCode({
           userId: auth.userId,
           code: parsed.data.orgCode,
         });
@@ -442,15 +470,43 @@ function codeErrorMessage(
 // ────────────────────────────────────────────────────────────────────
 // Default singleton — the composition root mounts this. Tests build
 // their own via `createMarketplaceRouter({ dataPort: ... })`.
+//
+// MS-3: the singleton is now backed by a REAL Drizzle port resolved from
+// the request-scoped, RLS-pinned `c.get('db')`. It NEVER serves a
+// fabricated fixture. When no DB is configured (mock mode), the resolver
+// degrades to an honest EMPTY in-memory store — still zero fake data.
+//
+// NOTE (integration): `/marketplace-universal` is a property-domain
+// residual with no live consumer in this monorepo. The recommended
+// disposition is to UNMOUNT it (see the agent report). This wiring exists
+// so that, while it remains mounted, it cannot emit fabricated data.
 // ────────────────────────────────────────────────────────────────────
 
-const defaultStore: InMemoryStore = createSeededStore();
-const defaultDataPort = inMemoryDataPort(defaultStore);
+function resolveSingletonPort(c: Context): MarketplaceDataPort {
+  const db = c.get('db') as MarketplaceDb | null | undefined;
+  if (db) return drizzleMarketplaceDataPort(db);
+  // No live DB on the context — honest empty, never the old fake seed.
+  return inMemoryDataPort(emptyInMemoryStore());
+}
 
-export const universalMarketplaceRouter = createMarketplaceRouter({
-  dataPort: defaultDataPort,
-  readMemberships: (userId) => listMembershipsForUser(defaultStore, userId),
-});
+// Build the singleton router, then prepend `databaseMiddleware` so the
+// request-scoped Drizzle client is available to `resolveSingletonPort`.
+const singletonRouter = new Hono();
+singletonRouter.use('*', databaseMiddleware);
+singletonRouter.route(
+  '/',
+  createMarketplaceRouter({
+    resolveDataPort: resolveSingletonPort,
+    // Memberships have no backing table on this surface — honest empty.
+    readMemberships: () => [],
+  }),
+);
 
-/** Re-exported for tests that want to assert against the singleton store. */
-export const __defaultStoreForTests = defaultStore;
+export const universalMarketplaceRouter = singletonRouter;
+
+/**
+ * Re-exported for tests. The default singleton no longer owns a seeded
+ * store (MS-3 killed the fake seed), so this is an EMPTY store kept only
+ * for backwards-compatible imports.
+ */
+export const __defaultStoreForTests: InMemoryStore = emptyInMemoryStore();

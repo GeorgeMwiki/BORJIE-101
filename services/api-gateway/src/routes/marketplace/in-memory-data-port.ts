@@ -270,6 +270,13 @@ const SEED_JOIN_CODES: ReadonlyArray<JoinCodeRow> = [
 /**
  * Spin up a fresh store. Each test gets its own — the seed data is the
  * same so assertions stay deterministic.
+ *
+ * ⚠️ TEST-FIXTURE ONLY (MS-3). This seed is NO LONGER wired to the
+ * runtime `/marketplace-universal` singleton — that path is now backed by
+ * the real Drizzle port (`drizzle-data-port.ts`) and serves zero
+ * fabricated data. `createSeededStore` survives purely so the existing
+ * router unit tests have a deterministic in-memory fixture. Do NOT mount
+ * a router built from this store on any live surface.
  */
 export function createSeededStore(): InMemoryStore {
   return {
@@ -277,6 +284,23 @@ export function createSeededStore(): InMemoryStore {
     listings: LISTINGS,
     tenders: TENDERS,
     joinCodes: SEED_JOIN_CODES.map((c) => ({ ...c })),
+    memberships: [],
+    inquiries: [],
+    applications: [],
+  };
+}
+
+/**
+ * An honest EMPTY store — the runtime fallback when no live database is
+ * configured. Carries no fabricated orgs / listings / tenders / codes, so
+ * a router built from it returns empty collections rather than fake data.
+ */
+export function emptyInMemoryStore(): InMemoryStore {
+  return {
+    orgs: [],
+    listings: [],
+    tenders: [],
+    joinCodes: [],
     memberships: [],
     inquiries: [],
     applications: [],

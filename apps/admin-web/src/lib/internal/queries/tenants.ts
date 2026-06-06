@@ -110,10 +110,17 @@ export function useSetTenantStatus() {
         const res = await apiClient.post<RawTenant>(`/tenants/${id}/suspend`, {});
         return adaptTenant(unwrap(res));
       }
-      // See gh-issue #25: non-suspension status transitions are not
-      // yet exposed by the gateway. Until they are, this surface
-      // throws so the UI can render a real error instead of a silent
-      // mock flip.
+      // AD-8: activate is the inverse of suspend. The gateway exposes
+      // `POST /tenants/:id/activate` (suspended/pending → active),
+      // admin-role-guarded + audited.
+      if (status === 'Active') {
+        const res = await apiClient.post<RawTenant>(`/tenants/${id}/activate`, {});
+        return adaptTenant(unwrap(res));
+      }
+      // Other transitions ('Past due' / 'Trial') are lifecycle states the
+      // gateway sets internally (billing webhooks / provisioning), not
+      // operator-driven. Surface a real error rather than a silent mock
+      // flip.
       throw new Error(
         `Tenant status transition '${status}' is not supported by the live gateway`,
       );

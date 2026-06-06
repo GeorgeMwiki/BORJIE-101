@@ -141,6 +141,16 @@ import { miningInternalSupportTicketsRouter } from './internal/support-tickets.h
 // Wave OWNER-OS DAILY-BRIEF rebuild — fleet overview for the admin cockpit.
 import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.hono';
 
+// Endpoint wave — royalty ledger projection (read), buyer wallet
+// (top-up / balance / escrow), fleet telemetry, SIC asset pings, and the
+// admin-console internal marketplace + models surfaces.
+import { miningRoyaltyRouter } from './royalty.hono';
+import { buyersWalletRouter } from './buyers-wallet.hono';
+import { miningFleetRouter } from './fleet.hono';
+import { miningSicPingsRouter } from './sic-pings.hono';
+import { miningInternalMarketplaceRouter } from './internal/marketplace.hono';
+import { miningInternalModelsRouter } from './internal/models.hono';
+
 // Use OpenAPIHono so the `app.openapi(routeDef, handler)` registrations
 // inside the migrated route files (sites, licences, cockpit, chat,
 // marketplace, bids) propagate into a shared `openAPIRegistry`. The
@@ -175,6 +185,10 @@ mining.route('/bids', miningBidsRouter);
 // /bid-messaging/reputation/:sellerTenantId.
 mining.route('/bid-messaging', miningBidMessagingRouter);
 mining.route('/buyers', miningBuyersKycRouter);
+// Buyer wallet — top-up / balance / escrow. Mounted AFTER the KYC router on
+// the same `/buyers` prefix; the two routers own disjoint sub-paths
+// (`/kyc/*` vs `/wallet/*`), so Hono trie resolution keeps both reachable.
+mining.route('/buyers', buyersWalletRouter);
 // /csr-plans — Corporate Social Responsibility commitments + delivered_pct
 // (migration 0082).
 mining.route('/csr-plans', miningCsrPlansRouter);
@@ -218,6 +232,12 @@ mining.route('/toolbox-talks', miningToolboxRouter);
 mining.route('/payslip', miningPayslipRouter);
 mining.route('/leave-requests', miningLeaveRequestsRouter);
 
+// Endpoint wave — royalty ledger projection (read), fleet telemetry, and
+// SIC asset-pings ingestion.
+mining.route('/royalties', miningRoyaltyRouter);
+mining.route('/fleet', miningFleetRouter);
+mining.route('/sic-pings', miningSicPingsRouter);
+
 // "Documents as alive entities" — corpus-scoped doc-intelligence.
 mining.route('/document-intelligence', miningDocumentIntelligenceRouter);
 
@@ -247,5 +267,8 @@ mining.route('/internal/support/tickets', miningInternalSupportTicketsRouter);
 // Wave OWNER-OS DAILY-BRIEF rebuild — admin fleet overview of today's
 // daily-brief sends + failures + top alerts across every tenant.
 mining.route('/internal/daily-brief-overview', adminDailyBriefOverviewRouter);
+// Endpoint wave — admin-console internal marketplace + models surfaces.
+mining.route('/internal/marketplace', miningInternalMarketplaceRouter);
+mining.route('/internal/models', miningInternalModelsRouter);
 
 export const miningRouter = mining;

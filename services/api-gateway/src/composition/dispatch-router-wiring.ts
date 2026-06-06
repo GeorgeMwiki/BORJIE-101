@@ -88,8 +88,14 @@ export interface DispatchRouterWiring {
 // ─── Deps ────────────────────────────────────────────────────────────────
 
 export interface DispatchRouterWiringDeps {
-  /** Estate handler ports. */
-  readonly estate: EstateHandlerDeps;
+  /**
+   * Estate handler ports. OPTIONAL and NO LONGER registered: the two ESTATE
+   * actions (`create_lease_application`, `post_receipt_draft`) are
+   * property-domain leftovers, gated off for the mining product (see
+   * `createModuleHandlerRegistry`). Kept as an optional field so the
+   * composition root need not change in lock-step.
+   */
+  readonly estate?: EstateHandlerDeps;
   /**
    * Mining handler ports (closes the historical gh-issue #34 work-item —
    * replaces the pre-Borjie estate stubs). Optional so early-wave
@@ -151,7 +157,11 @@ export function createDispatchRouterWiring(
   const handlerRegistry =
     deps.handlerRegistry ??
     createModuleHandlerRegistry({
-      estate: deps.estate,
+      // ESTATE deliberately NOT forwarded — the two property-domain leftover
+      // actions are gated off for the mining product. createModuleHandlerRegistry
+      // only registers estate when its deps are supplied, so omitting them here
+      // keeps `create_lease_application` / `post_receipt_draft` out of the
+      // registry entirely (the brain can never dispatch them → no failed proposals).
       ...(deps.mining ? { mining: deps.mining } : {}),
     });
 

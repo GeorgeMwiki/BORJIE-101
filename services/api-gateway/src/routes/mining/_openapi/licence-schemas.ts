@@ -47,6 +47,39 @@ export const LicenceSchema = z
   })
   .openapi('Licence');
 
+/**
+ * Per-licence COCKPIT projection (OW-5) — the shape the owner-web licence
+ * surface consumes from `GET /api/v1/mining/licences/{id}`
+ * (apps/owner-web/src/lib/types/licence.ts `LicenceCockpitData`). Computed
+ * REAL from `licences` + `licence_events` (+ ledger for payments), not the
+ * raw row.
+ */
+export const LicenceCockpitPaymentSchema = z
+  .object({
+    date: z.string(),
+    description: z.string(),
+    amountTzs: z.number(),
+    status: z.enum(['paid', 'overdue', 'due']),
+  })
+  .openapi('LicenceCockpitPayment');
+
+export const LicenceCockpitSchema = z
+  .object({
+    id: z.string(),
+    reference: z.string(),
+    mineral: z.enum(['gold', 'coltan', 'tanzanite']),
+    siteName: z.string(),
+    windowOpensAt: z.string(),
+    windowClosesAt: z.string(),
+    daysToWindow: z.number().int(),
+    dormancyScore: z.number(),
+    dormancyCitation: z.string(),
+    payments: z.array(LicenceCockpitPaymentSchema),
+    renewalPackCompletePct: z.number(),
+    renewalPackMissing: z.array(z.string()),
+  })
+  .openapi('LicenceCockpit');
+
 export const LicenceEventSchema = z
   .object({
     id: z.string().uuid(),

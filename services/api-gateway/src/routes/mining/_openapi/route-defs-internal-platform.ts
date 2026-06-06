@@ -162,3 +162,22 @@ export const internalTenantsSuspendRoute = createRoute({
   },
 });
 
+// AD-8 — the inverse of suspend. Flips a suspended (or pending) tenant
+// back to `active`. Admin-role guarded + audited, mirroring suspend.
+export const internalTenantsActivateRoute = createRoute({
+  method: 'post',
+  path: '/{id}/activate',
+  tags: tenantsTags,
+  summary: 'Activate a tenant (suspended/pending → active).',
+  security,
+  request: { params: InternalIdParamSchema },
+  responses: {
+    200: jsonContent(successEnvelope(TenantRowSchema), 'Activated tenant.'),
+    401: errorResponses[401],
+    403: errorResponses[403],
+    404: errorResponses[404],
+    409: errorResponses[409],
+    500: errorResponses[500],
+  },
+});
+

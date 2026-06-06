@@ -100,6 +100,7 @@ export {
   internalTenantsProvisionRoute,
   internalTenantsUpdateRoute,
   internalTenantsSuspendRoute,
+  internalTenantsActivateRoute,
 } from './route-defs-internal-platform';
 export {
   internalCorpusUploadRoute,

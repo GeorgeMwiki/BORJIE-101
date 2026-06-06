@@ -363,4 +363,32 @@ describe('createModuleHandlerRegistry', () => {
     }
     expect(registry.listRegistered().length).toBe(5);
   });
+
+  // ── ESTATE gated off (the production mining-gateway config) ──────────────
+  it('does NOT register ESTATE actions when estate deps are omitted (mining-only)', () => {
+    // This mirrors the live gateway composition, which no longer supplies
+    // estate deps — the two property-domain actions (create_lease_application,
+    // post_receipt_draft) must NOT enter the registry, so the brain can never
+    // dispatch them and flip a proposal to `failed`.
+    const registry = createModuleHandlerRegistry({ mining: mkMiningDeps() });
+
+    for (const action of ESTATE_ACTIONS) {
+      expect(registry.get('ESTATE', action)).toBeUndefined();
+    }
+    // Only the 3 real mining actions are registered.
+    for (const action of MINING_ACTIONS) {
+      expect(registry.get('MINING', action)).toBeDefined();
+    }
+    expect(
+      registry
+        .listRegistered()
+        .every((r) => r.moduleTemplateId !== 'ESTATE'),
+    ).toBe(true);
+    expect(registry.listRegistered().length).toBe(3);
+  });
+
+  it('registers nothing when neither estate nor mining deps are provided', () => {
+    const registry = createModuleHandlerRegistry({});
+    expect(registry.listRegistered().length).toBe(0);
+  });
 });

@@ -6,6 +6,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { successEnvelope, errorResponses, jsonContent } from './envelopes';
 import {
   LicenceSchema,
+  LicenceCockpitSchema,
   LicenceEventSchema,
   CreateLicenceSchema,
   RenewLicenceSchema,
@@ -34,11 +35,15 @@ export const licencesGetRoute = createRoute({
   method: 'get',
   path: '/{id}',
   tags,
-  summary: 'Fetch one licence by id.',
+  summary: 'Fetch the per-licence COCKPIT projection by id (OW-5).',
+  description:
+    'Returns the computed LicenceCockpitData projection (renewal window, ' +
+    'dormancy, payments from licence_events + ledger, renewal-pack progress) ' +
+    'the owner-web licence surface consumes — not the raw row.',
   security,
   request: { params: LicenceIdParamSchema },
   responses: {
-    200: jsonContent(successEnvelope(LicenceSchema), 'Licence row.'),
+    200: jsonContent(successEnvelope(LicenceCockpitSchema), 'Licence cockpit projection.'),
     401: errorResponses[401],
     404: errorResponses[404],
     500: errorResponses[500],

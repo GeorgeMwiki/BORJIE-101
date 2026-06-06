@@ -62,6 +62,12 @@ export * from './onboarding-state.schema.js';
 // the full security-model rationale.
 export * from './onboarding-signup.schema.js';
 
+// Mining onboarding-wizard run state (migration 0286 / FLOW-2). One row per
+// owner onboarding run: current_step + status + an append-only steps jsonb of
+// each advanced step's payload (incl. uploaded file refs) so a reload resumes.
+// FORCE RLS on the canonical app.current_tenant_id GUC.
+export * from './mining-onboarding-runs.schema.js';
+
 // Brain sleep-pass durability (migration 0276 / LP-21a). Two SYSTEM tables —
 // brain_sleep_runs + brain_sleep_emissions — replacing the in-memory Map in
 // services/sleep-pass-orchestrator. Cross-tenant brain-job rows written under
@@ -1291,6 +1297,7 @@ export * from './mining-escalations.schema.js';
 // Wave MISC-PRE-LAUNCH — mining_sic_pings (migration 0082). Consumed
 // by /api/v1/mining/cockpit (sovereign-intel-cockpit telemetry).
 export * from './mining-sic-pings.schema.js';
+export * from './mining-sic-ping-replies.schema.js';
 
 // Wave DOC-INTEL — document_intelligence_sessions + document_corpus_links
 // (migration 0083). Consumed by /api/v1/mining/document-intelligence.

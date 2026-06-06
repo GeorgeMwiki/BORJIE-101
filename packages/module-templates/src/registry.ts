@@ -9,6 +9,9 @@
  *
  * Currently registers:
  *   - ESTATE   — 2 actions (`create_lease_application`, `post_receipt_draft`)
+ *                GATED OFF: property-domain leftovers, only registered when
+ *                `deps.estate` is explicitly supplied (legacy/property tests);
+ *                the mining gateway no longer supplies them.
  *   - MINING   — 3 actions (`schedule_licence_renewal`,
  *                `open_equipment_maintenance`,
  *                `bulk_mark_licences_for_renewal`)
@@ -52,8 +55,17 @@ export interface ModuleHandlerRegistry extends AcceptHandlerRegistry {
 }
 
 export interface CreateModuleHandlerRegistryDeps {
-  /** Estate template injections. */
-  readonly estate: EstateHandlerDeps;
+  /**
+   * Estate template injections. OPTIONAL and gated OFF for the mining product:
+   * the two ESTATE actions (`create_lease_application`, `post_receipt_draft`)
+   * are property-domain leftovers with no mining-estate equivalent — a mining
+   * estate uses licences (not leases) and routes receipts through the real
+   * royalty/sales/ledger paths, all of which have their own real handlers.
+   * When `estate` is omitted the estate actions are NOT registered, so the
+   * brain can never dispatch a property action that would flip a proposal to
+   * `failed`. Provide it only for legacy/property tests.
+   */
+  readonly estate?: EstateHandlerDeps;
   /**
    * Mining template injections. Optional so callers that have not yet
    * wired mining ports (e.g. early-wave tests) still resolve.
@@ -75,11 +87,18 @@ export function createModuleHandlerRegistry(
 ): ModuleHandlerRegistry {
   const handlers = new Map<string, AcceptHandler>();
 
-  // ESTATE — 2 surviving actions.
-  const estateSet: BuildEstateHandlerSet = buildEstateHandlerSet(deps.estate);
-  for (const action of ESTATE_ACTIONS) {
-    const handler = estateSet[action];
-    handlers.set(key(ESTATE_MODULE_ID, action), handler);
+  // ESTATE — property-domain leftovers (create_lease_application,
+  // post_receipt_draft). GATED OFF for the mining product: registered ONLY
+  // when estate deps are explicitly supplied (legacy/property tests). The
+  // gateway composition no longer supplies them, so these actions never enter
+  // the registry and the brain can never dispatch a property action that would
+  // flip a proposal to `failed`.
+  if (deps.estate) {
+    const estateSet: BuildEstateHandlerSet = buildEstateHandlerSet(deps.estate);
+    for (const action of ESTATE_ACTIONS) {
+      const handler = estateSet[action];
+      handlers.set(key(ESTATE_MODULE_ID, action), handler);
+    }
   }
 
   // MINING — 3 actions (when wired).

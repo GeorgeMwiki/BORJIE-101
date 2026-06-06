@@ -58,6 +58,7 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { logger } from '../../utils/logger';
 import { classifyDocument, type DocumentKind } from './document-intelligence-classifier';
+import { buildExtractiveAnswer } from './doc-chat-answer';
 import {
   runFormExtraction,
   buildOcrExtractionInsert,
@@ -841,6 +842,35 @@ app.post('/sessions/:id/ask', async (c) => {
 
   const evidenceIds = links.map((l) => l.chunkId);
 
+  // Pull the linked chunk TEXTS (tenant-scoped) so we can produce a REAL,
+  // synchronous, cited answer right here — quoting the source, never
+  // fabricating. Capped to the already-capped evidence set.
+  const chunkRows =
+    evidenceIds.length > 0
+      ? await db
+          .select({
+            id: intelligenceCorpusChunks.id,
+            text: intelligenceCorpusChunks.text,
+          })
+          .from(intelligenceCorpusChunks)
+          .where(
+            and(
+              eq(intelligenceCorpusChunks.tenantId, tenantId),
+              inArray(intelligenceCorpusChunks.id, evidenceIds),
+            ),
+          )
+      : [];
+
+  // Build the extractive answer (deterministic, citation-first — mirrors the
+  // blessed doc-chat.router.ts fallback). Returns answer:null only when no
+  // passage overlaps the question, in which case the FE renders an honest
+  // "no evidence" state.
+  const extractive = buildExtractiveAnswer({
+    chunks: chunkRows.map((r) => ({ id: r.id, text: r.text })),
+    question: input.question,
+    language: input.language,
+  });
+
   // Touch lastMessageAt so the inbox sorts correctly.
   await db
     .update(documentIntelligenceSessions)
@@ -852,27 +882,38 @@ app.post('/sessions/:id/ask', async (c) => {
       ),
     );
 
-  logger.info('document-intelligence: ask dispatched', {
+  logger.info('document-intelligence: ask answered', {
     tenantId,
     sessionId: id,
     documentCount: documentIdList.length,
     evidenceCount: evidenceIds.length,
+    citedCount: extractive.citedEvidenceIds.length,
+    answerMode: extractive.mode,
     language: input.language,
   });
 
-  // The doc-chat orchestrator is wired through the existing doc-chat
-  // pipeline; this route returns the evidence envelope + the canonical
-  // dispatch shape so the chat-ui consumes it identically to the brain
-  // surface.
+  // SYNCHRONOUS cited answer: the written answer quotes the highest-overlap
+  // passage(s) verbatim and `evidenceIds` are the chunks it cites. No
+  // fabrication — answer is null only when nothing matched.
   return c.json(
     envelope({
       sessionId: id,
       question: input.question,
       language: input.language,
-      evidenceIds,
+      // Cited evidence first (the passages the answer quotes), then the rest
+      // of the retrieved set so the FE can still anchor them.
+      evidenceIds:
+        extractive.citedEvidenceIds.length > 0
+          ? [
+              ...extractive.citedEvidenceIds,
+              ...evidenceIds.filter(
+                (e) => !extractive.citedEvidenceIds.includes(e),
+              ),
+            ]
+          : evidenceIds,
       documentIds: documentIdList,
-      answer: null,
-      note: 'doc-chat orchestrator dispatch — answer streams via /chat SSE',
+      answer: extractive.answer,
+      answerMode: extractive.mode,
     }),
     200,
   );

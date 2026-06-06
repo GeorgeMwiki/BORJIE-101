@@ -9,6 +9,8 @@
  *   GET  /27mar-cliff-status      USD-cliff remediation rollup
  *   GET  /decisions               pending owner-decision queue (B-MgrDispatch)
  *   GET  /sic-pings               supervisor SIC ping queue (migration 0082)
+ *   POST /sic-pings               worker SIC-ping reply (WF-6, migration 0285)
+ *   POST /sic-pings/:id/reply     worker reply targeting a concrete ping
  *
  * Migrated to `@hono/zod-openapi` (issue #19). Route definitions live
  * in `./_openapi/route-defs.ts` so the static spec generator can
@@ -16,6 +18,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
+import type { Context } from 'hono';
 import { and, desc, eq, gte, sql } from 'drizzle-orm';
 import {
   licences,
@@ -28,6 +31,11 @@ import {
 } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import {
+  persistSicPingReply,
+  sicPingReplyBodySchema,
+  type SicReplyWriter,
+} from '../../services/sic-ping-reply';
 import {
   cockpitDailyBriefRoute,
   cockpitCashRunwayRoute,
@@ -294,6 +302,94 @@ app.get('/sic-pings', async (c) => {
     }
     throw err;
   }
+});
+
+// ---------------------------------------------------------------------------
+// POST /sic-pings  +  POST /sic-pings/:id/reply — worker SIC-ping reply (WF-6).
+//
+// Persists a worker's quick reply (loads done + blockers + when) to the
+// real `mining_sic_ping_replies` table (migration 0285). Until this
+// landed, the workforce-mobile SIC screen (W-M-05) could only
+// offline-queue replies — there was no reply column on `mining_sic_pings`
+// and no endpoint. A reply is a distinct append-only fact, so it gets its
+// own row rather than mutating the ping.
+//
+// Two mount shapes are served:
+//   * POST /sic-pings            — the offline-queue flush target. The
+//     workforce-mobile sync (`endpointFor('sic_ping')` → `sic-pings`,
+//     composed under the mining prefix) POSTs the stored payload verbatim:
+//       { pingId: 'ping-<epoch>', loads, blockers, repliedAtISO }
+//     `pingId` here is a CLIENT-generated ref, not a real ping id, so it is
+//     stored as `client_ping_ref` (no fabricated FK link).
+//   * POST /sic-pings/:id/reply  — targets a concrete `mining_sic_pings.id`
+//     (the `:id` is validated as a UUID and stored in the real `ping_id`
+//     FK column).
+//
+// RLS: databaseMiddleware binds app.current_tenant_id; the replies table is
+// FORCE-RLS. `replied_by_user_id` is the authenticated user.
+// ---------------------------------------------------------------------------
+
+async function handleSicPingReply(
+  c: Context,
+  opts: { readonly realPingId: string | null },
+) {
+  const auth = c.get('auth') as { tenantId?: string; userId?: string };
+  const db = c.get('db') as SicReplyWriter | null;
+  if (!db || !auth?.tenantId || !auth?.userId) {
+    return c.json(
+      { success: false as const, error: { code: 'SIC_REPLY_DB_UNAVAILABLE' } },
+      503,
+    );
+  }
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = sicPingReplyBodySchema.safeParse(raw);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'INVALID_BODY', issues: parsed.error.issues },
+      },
+      400,
+    );
+  }
+  const result = await persistSicPingReply(
+    db,
+    { tenantId: auth.tenantId, userId: auth.userId },
+    parsed.data,
+    opts,
+  );
+  if (result.ok) {
+    return c.json(
+      { success: true as const, data: { id: result.id } },
+      201,
+    );
+  }
+  return c.json(
+    {
+      success: false as const,
+      error: {
+        code: result.code,
+        ...(result.note ? { note: result.note } : {}),
+      },
+    },
+    result.status,
+  );
+}
+
+app.post('/sic-pings', async (c) => handleSicPingReply(c, { realPingId: null }));
+
+app.post('/sic-pings/:id/reply', async (c) => {
+  const id = c.req.param('id');
+  if (!/^[0-9a-f-]{36}$/i.test(id)) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'INVALID_PING_ID', message: 'ping id must be a UUID' },
+      },
+      400,
+    );
+  }
+  return handleSicPingReply(c, { realPingId: id });
 });
 
 export const miningCockpitRouter = app;

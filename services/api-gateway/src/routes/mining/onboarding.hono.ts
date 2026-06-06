@@ -63,6 +63,10 @@ import {
   type OnboardingTxClient,
   type OnboardingWriterCtx,
 } from '../../composition/onboarding/drizzle-row-writer';
+// FLOW-2 stepped orchestrator (start / advance / complete) — registered onto
+// this same router so the wizard's three verbs share the `/onboarding` mount.
+// Kept in a sibling file so this route stays under the 800-line budget.
+import { registerOnboardingFlowRoutes } from './onboarding-flow.hono';
 
 // ---------------------------------------------------------------------------
 // Canonical onboarding targets — LOGICAL schema per supported entity.
@@ -700,6 +704,11 @@ app.post('/commit', async (c) => {
     );
   }
 });
+
+// FLOW-2 — register the stepped orchestrator (start / advance / complete)
+// onto this same router so the wizard's three verbs share the `/onboarding`
+// mount. Implementation lives in onboarding-flow.hono.ts (800-line budget).
+registerOnboardingFlowRoutes(app);
 
 export const miningOnboardingRouter = app;
 
