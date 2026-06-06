@@ -23,6 +23,7 @@ import { sales, shiftReports } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 import { logger } from '../utils/logger';
+import type { ServiceRegistry } from '../composition/service-registry';
 
 const analyticsRouter = new Hono();
 analyticsRouter.use('*', authMiddleware);
@@ -30,6 +31,70 @@ analyticsRouter.use('*', databaseMiddleware);
 
 function dayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Render-ready chart specs for the mining summary, built from the live
+ * KPIs via the ported `@borjie/analytics` Vega-Lite v6 builders. Returns
+ * `null` if the analytics bundle is unavailable or a builder throws — the
+ * caller treats `charts` as optional so the numeric KPIs are never lost.
+ */
+function buildSummaryCharts(
+  c: any,
+  kpis: {
+    readonly productionTonnes: number;
+    readonly salesNetTzs: number;
+    readonly cashNetTzs90d: number;
+    readonly openIncidentsHighCount: number;
+    readonly licencesAtRiskCount: number;
+  },
+): unknown {
+  try {
+    const registry = c.get('services') as unknown as ServiceRegistry | undefined;
+    const analytics = registry?.portedDomain?.analytics;
+    if (!analytics) return null;
+    return {
+      tiles: [
+        analytics.kpiTile({
+          title: 'Production (30d)',
+          value: kpis.productionTonnes,
+          format: 'number',
+        }),
+        analytics.kpiTile({
+          title: 'Sales net (30d)',
+          value: kpis.salesNetTzs,
+          format: 'currency',
+        }),
+        analytics.kpiTile({
+          title: 'Open high incidents',
+          value: kpis.openIncidentsHighCount,
+          format: 'number',
+        }),
+        analytics.kpiTile({
+          title: 'Licences at risk',
+          value: kpis.licencesAtRiskCount,
+          format: 'number',
+        }),
+      ],
+      // Vega-Lite v6 bar of the headline revenue/production magnitudes so
+      // the dashboard can drop the spec straight into vega-embed.
+      revenueVsProduction: analytics.barChart({
+        title: 'Revenue vs production (last 30d / 90d)',
+        x: 'metric',
+        y: 'value',
+        data: [
+          { metric: 'Sales net (30d)', value: kpis.salesNetTzs },
+          { metric: 'Cash net (90d)', value: kpis.cashNetTzs90d },
+          { metric: 'Production tonnes (30d)', value: kpis.productionTonnes },
+        ],
+      }),
+    };
+  } catch (error) {
+    logger.warn('analytics summary chart-build failed (non-fatal)', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 analyticsRouter.get('/summary', async (c: any) => {
@@ -121,6 +186,20 @@ analyticsRouter.get('/summary', async (c: any) => {
     const openIncidentsHighCount = Number(incidentsHighRows.rows?.[0]?.incidents_count ?? 0);
     const licencesAtRiskCount = Number(licencesAtRiskRows.rows?.[0]?.licences_count ?? 0);
 
+    // Build render-ready chart specs from the live KPIs using the ported
+    // `@borjie/analytics` Vega-Lite v6 builders. This is the first live
+    // consumer of the analytics bundle — the owner dashboard can render
+    // the returned `charts` natively (KPI tiles + a Vega-Lite bar) instead
+    // of re-deriving spec shapes on the client. Best-effort: a builder
+    // throw degrades to `charts: null`, never failing the KPI payload.
+    const charts = buildSummaryCharts(c, {
+      productionTonnes,
+      salesNetTzs,
+      cashNetTzs90d,
+      openIncidentsHighCount,
+      licencesAtRiskCount,
+    });
+
     return c.json({
       success: true,
       data: {
@@ -136,6 +215,7 @@ analyticsRouter.get('/summary', async (c: any) => {
           shiftsToday,
           shifts30d,
         },
+        charts,
         meta: { source: 'live' },
       },
     });

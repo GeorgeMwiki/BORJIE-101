@@ -106,6 +106,20 @@ export interface PublicAuthDeps {
     allowed: boolean;
     retryAfterSec?: number;
   };
+  /**
+   * Credential-stuffing detector (security-hardening). Complements the
+   * per-IP `registerAttempt` throttle with a per-ACCOUNT failure signal
+   * that spans IPs — a botnet rotating IPs against one account is caught
+   * here even when no single IP trips the per-IP lockout. Optional: when
+   * unset (e.g. in tests) the route skips the check. Called AFTER the
+   * outcome is known with `{ ip, accountKey, success }`; returns a
+   * `flag` verdict the route consumes to block the next attempt.
+   */
+  recordCredentialAttempt?(input: {
+    ip: string;
+    accountKey: string;
+    success: boolean;
+  }): Promise<{ readonly flagged: boolean; readonly reason?: string }>;
   /** Structured logger — Pino-shaped. */
   logger: {
     info(meta: Record<string, unknown>, msg: string): void;
@@ -185,6 +199,46 @@ export function createPublicAuthRouter(deps: PublicAuthDeps): Hono {
       // users for a Supabase blip.
       if (result.reason !== 'provider_unavailable') {
         deps.registerAttempt({ ip, success: false });
+        // Per-account credential-stuffing signal (across IPs). A genuine
+        // bad password counts as a failure; if the detector flags the
+        // (ip|account) as a stuffing pattern we block this attempt with a
+        // 429 BEFORE leaking which specific credential field was wrong.
+        if (deps.recordCredentialAttempt) {
+          try {
+            const stuffing = await deps.recordCredentialAttempt({
+              ip,
+              accountKey: email,
+              success: false,
+            });
+            if (stuffing.flagged) {
+              void deps.recordAuditEvent({
+                event: 'auth.sign_in',
+                outcome: 'failure',
+                tenantId: null,
+                userId: null,
+                email,
+                reason: `credential_stuffing:${stuffing.reason ?? 'flagged'}`,
+                ip,
+              }).catch(() => undefined);
+              return c.json(
+                {
+                  success: false,
+                  error: {
+                    code: 'RATE_LIMITED',
+                    message: 'Too many failed sign-in attempts. Try again later.',
+                    retryAfter: 900,
+                  },
+                },
+                429,
+              );
+            }
+          } catch (err) {
+            deps.logger.warn(
+              { err: err instanceof Error ? err.message : String(err) },
+              'public-auth: credential-stuffing check threw — continuing fail-open',
+            );
+          }
+        }
       }
       void deps.recordAuditEvent({
         event: 'auth.sign_in',
@@ -224,6 +278,13 @@ export function createPublicAuthRouter(deps: PublicAuthDeps): Hono {
     // cookie, and return the same payload the marketing form will use
     // for navigation.
     deps.registerAttempt({ ip, success: true });
+    // Clear the per-account stuffing streak on a real success (fire-and-
+    // forget; never blocks the happy path).
+    if (deps.recordCredentialAttempt) {
+      void deps
+        .recordCredentialAttempt({ ip, accountKey: email, success: true })
+        .catch(() => undefined);
+    }
 
     let cookieValue: string;
     try {

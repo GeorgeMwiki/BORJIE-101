@@ -60,6 +60,23 @@ interface SupabaseTokenResponse {
   readonly code?: string;
 }
 
+/**
+ * Minimal shape of the security-hardening credential-stuffing detector.
+ * Structural — avoids a hard import so this wiring stays decoupled from
+ * the package's full surface; the registry passes its real instance.
+ */
+export interface CredentialStuffingDetectorLike {
+  recordAuthAttempt(input: {
+    ip: string;
+    accountKey: string;
+    success: boolean;
+    at: number;
+  }): Promise<
+    | { readonly verdict: 'ok' }
+    | { readonly verdict: 'flag'; readonly reason: string }
+  >;
+}
+
 export interface PublicAuthWiringInput {
   readonly db: DrizzleLikeClient | null;
   readonly logger: PinoLogger;
@@ -67,6 +84,14 @@ export interface PublicAuthWiringInput {
   readonly fetchImpl?: typeof fetch;
   /** Override the limiter in tests. */
   readonly limiter?: PublicAuthDeps['registerAttempt'];
+  /**
+   * Per-account credential-stuffing detector (security-hardening). When
+   * provided, the sign-in route records every failed/successful attempt
+   * and blocks (429) when the detector flags a stuffing pattern across
+   * IPs. Omitted in degraded/test contexts — the route then relies on
+   * the per-IP throttle alone.
+   */
+  readonly stuffingDetector?: CredentialStuffingDetectorLike;
 }
 
 function readSupabaseConfig(logger: PinoLogger): { url: string; anonKey: string } | null {
@@ -219,6 +244,30 @@ export function createPublicAuthDeps(input: PublicAuthWiringInput): PublicAuthDe
     },
 
     registerAttempt: input.limiter ?? createInMemorySignInLimiter(),
+
+    // Per-account credential-stuffing gate. Delegates to the security-
+    // hardening detector when wired; the route consumes `flagged` to
+    // block. When no detector is supplied this key is omitted so the
+    // route's `if (deps.recordCredentialAttempt)` guard skips it.
+    ...(input.stuffingDetector
+      ? {
+          recordCredentialAttempt: async (req: {
+            ip: string;
+            accountKey: string;
+            success: boolean;
+          }): Promise<{ readonly flagged: boolean; readonly reason?: string }> => {
+            const decision = await input.stuffingDetector!.recordAuthAttempt({
+              ip: req.ip,
+              accountKey: req.accountKey,
+              success: req.success,
+              at: Date.now(),
+            });
+            return decision.verdict === 'flag'
+              ? { flagged: true, reason: decision.reason }
+              : { flagged: false };
+          },
+        }
+      : {}),
 
     logger: {
       info: (meta, msg) => input.logger.info(meta, msg),

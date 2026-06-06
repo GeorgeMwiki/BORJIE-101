@@ -1630,7 +1630,15 @@ api.route('/buyers', createBuyersRouter(signupWiring.buyers));
 // router's `/sign-in` + `/sign-out` claim those subpaths before the
 // legacy authRouter (which would otherwise hit the JWT-verify
 // middleware via `/me`/`/refresh`/`/logout`).
-const publicAuthDeps = createPublicAuthDeps({ db: getDb(), logger });
+const publicAuthDeps = createPublicAuthDeps({
+  db: getDb(),
+  logger,
+  // Wire the security-hardening credential-stuffing detector (per-account
+  // failure signal across IPs) into the sign-in route. Always present on
+  // the ported-platform bundle in both live + degraded modes.
+  stuffingDetector:
+    serviceRegistry.portedPlatform.securityHardeningInstance.stuffingDetector,
+});
 api.route('/auth', createPublicAuthRouter(publicAuthDeps));
 api.route('/auth', authRouter);
 api.route('/auth/mfa', authMfaRouter);

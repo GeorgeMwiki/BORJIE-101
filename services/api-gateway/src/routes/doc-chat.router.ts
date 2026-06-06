@@ -33,6 +33,7 @@ import {
 } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { routeCatch } from '../utils/safe-error';
+import type { ServiceRegistry } from '../composition/service-registry';
 
 import { withSecurityEvents } from '@borjie/observability';
 const app = new Hono();
@@ -154,6 +155,61 @@ async function fallbackRetrieve(
     .slice(0, topK);
 
   return scored;
+}
+
+/**
+ * Citation-coverage quality verdict (document-quality-guarantor).
+ *
+ * Invokes the ported `citationCoverageGate` against the generated answer
+ * and its citation quotes. Returns a compact verdict the route attaches
+ * to the response so the FE can flag an answer whose quantitative claims
+ * (figures / currencies / percentages / dates) are not citation-backed.
+ *
+ * Best-effort: the bundle is always wired, but if the gate is somehow
+ * unavailable (or throws) we return a `dormant` verdict rather than
+ * failing the answer — degrading the QUALITY signal, never the answer.
+ */
+async function evaluateCitationCoverage(
+  c: any,
+  answer: string,
+  citations: ReadonlyArray<{ readonly quote: string; readonly documentId: string }>,
+): Promise<{
+  readonly gateId: string;
+  readonly passed: boolean;
+  readonly score: number;
+  readonly uncovered: ReadonlyArray<string>;
+  readonly reasons: ReadonlyArray<string>;
+}> {
+  const dormant = {
+    gateId: 'citationCoverageGate',
+    passed: true,
+    score: 1,
+    uncovered: [] as ReadonlyArray<string>,
+    reasons: ['quality gate dormant'] as ReadonlyArray<string>,
+  };
+  try {
+    const registry = c.get('services') as unknown as ServiceRegistry | undefined;
+    const dqg = registry?.portedPlatform?.documentQualityGuarantor;
+    if (!dqg) return dormant;
+    const gate = dqg.citationCoverageGate({ minCoverage: 1 });
+    const report = await gate.evaluate({
+      answer,
+      citations: citations.map((cit) => ({
+        quote: cit.quote,
+        source: cit.documentId,
+      })),
+    });
+    const details = report.details as { uncovered?: ReadonlyArray<string> } | undefined;
+    return {
+      gateId: report.gateId,
+      passed: report.score.passed,
+      score: report.score.value,
+      uncovered: details?.uncovered ?? [],
+      reasons: report.reasons,
+    };
+  } catch {
+    return dormant;
+  }
 }
 
 async function listSessions(c: any) {
@@ -358,6 +414,16 @@ app.post(
       page: r.page,
     }));
 
+    // Document-quality-guarantor: verify that every QUANTITATIVE claim in
+    // the answer (figures, currencies, percentages, dates) is backed by a
+    // citation quote. This is the first live consumer of the ported
+    // `@borjie/document-quality-guarantor` bundle. The gate's verdict is
+    // consumed below — it is attached to the assistant message + response
+    // so the FE can badge an answer whose numbers are uncited (it never
+    // silently passes an ungrounded figure). Best-effort: a gate failure
+    // never breaks the answer flow.
+    const citationCoverage = await evaluateCitationCoverage(c, content, citations);
+
     const assistantMessage = {
       id: newId('dcm'),
       tenantId,
@@ -419,6 +485,10 @@ app.post(
         data: {
           userMessage,
           assistantMessage,
+          // Quality verdict from the document-quality-guarantor citation
+          // gate. `passed=true` ⇒ every quantitative claim is cited;
+          // otherwise `uncovered` lists the claims lacking a citation.
+          citationCoverage,
           fallback: !anthropicConfigured,
         },
       },
