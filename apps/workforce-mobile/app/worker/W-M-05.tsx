@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react'
 import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
 import { Button } from '../../src/forms/Button'
 import { PreviewBanner } from '../../src/components/PreviewBanner'
+import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { enqueueWrite } from '../../src/sync/queue'
@@ -13,16 +14,33 @@ import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-05'
-const MISSING_ENDPOINT = 'GET /api/v1/mining/cockpit/sic-pings'
+// The list GET exists (mining/cockpit/sic-pings). There is NO reply POST
+// endpoint yet — replies stay offline-queued until the gateway lands
+// `POST /api/v1/mining/cockpit/sic-pings` (or a /reply sibling).
+const MISSING_REPLY_ENDPOINT = 'POST /api/v1/mining/cockpit/sic-pings (reply)'
 
 const COPY = {
-  loading: 'Inapakia pings... · Loading pings...',
+  loadingPings: 'Inapakia pings... · Loading pings...',
+  pingsError: 'Imeshindwa kupakia pings.',
   empty: 'Hakuna ping mpya. Endelea na kazi. · No new pings.',
   errorPrefix: 'Hitilafu: ',
-  missing: `Endpoint haijaundwa: ${MISSING_ENDPOINT}`,
+  replyNote: `Jibu litahifadhiwa offline (endpoint ya jibu haijaundwa: ${MISSING_REPLY_ENDPOINT}).`,
   replyOk: 'Jibu limetumwa kwenye seva.',
   replyQueued: 'Jibu limehifadhiwa offline.'
 } as const
+
+interface SicPingRow {
+  readonly id: string
+  readonly siteId: string | null
+  readonly status: string
+  readonly noteSw: string | null
+  readonly pingedAt: string
+}
+
+interface SicPingsResponse {
+  readonly success: true
+  readonly data: { readonly items: ReadonlyArray<SicPingRow> }
+}
 
 interface PingReplyPayload {
   readonly pingId: string
@@ -47,9 +65,18 @@ function PingsView(): JSX.Element {
   const [blockers, setBlockers] = useState<string>('')
   const [confirmation, setConfirmation] = useState<'idle' | 'ok' | 'queued'>('idle')
 
-  // Reply mutation always uses the offline queue because no online SIC ping
-  // endpoint exists yet — sync queue flush will route to the canonical
-  // `/api/v1/mining/sic-pings` once the route lands.
+  // Live list — the GET endpoint exists. Honest loading / error / empty.
+  const pings = useQuery<ReadonlyArray<SicPingRow>, ApiError>({
+    queryKey: ['sic-pings'],
+    queryFn: async () => {
+      const resp = await miningApi.get<SicPingsResponse>('/cockpit/sic-pings')
+      return resp.data.items
+    }
+  })
+
+  // Reply mutation uses the offline queue because no online SIC ping reply
+  // endpoint exists yet — the sync flush will route `sic_ping` to the
+  // canonical reply route once it lands.
   const mutation = useMutation<{ id: string }, ApiError, PingReplyPayload>({
     mutationFn: async (input) => {
       const queued = await enqueueWrite('sic_ping', input)
@@ -74,14 +101,34 @@ function PingsView(): JSX.Element {
     })
   }, [blockers, loads, mutation])
 
+  const items = pings.data ?? []
+
   return (
     <View>
-      <Section title="Pings zinazosubiri" hint="Endpoint ya orodha haijaundwa">
-        <PreviewBanner kind="env-missing" />
-        <Text style={styles.missing}>{COPY.missing}</Text>
-        <Text style={styles.muted}>{COPY.empty}</Text>
+      <Section title="Pings zinazosubiri">
+        {pings.isPending ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.muted}>{COPY.loadingPings}</Text>
+          </View>
+        ) : pings.isError ? (
+          <Text style={styles.errorText}>{COPY.pingsError}</Text>
+        ) : items.length === 0 ? (
+          <Text style={styles.muted}>{COPY.empty}</Text>
+        ) : (
+          items.map((ping) => (
+            <View key={ping.id} style={styles.ping}>
+              <Text style={styles.pingStatus}>{ping.status.toUpperCase()}</Text>
+              {ping.noteSw ? <Text style={styles.pingNote}>{ping.noteSw}</Text> : null}
+              <Text style={styles.pingMeta}>
+                {new Date(ping.pingedAt).toLocaleString('sw-TZ')}
+              </Text>
+            </View>
+          ))
+        )}
       </Section>
       <Section title="Tuma jibu la haraka" hint="Itahifadhiwa kwa sync ukirudi mtandaoni">
+        <Text style={styles.replyNote}>{COPY.replyNote}</Text>
         <Text style={styles.fieldLabel}>Mizigo iliyofanyika</Text>
         <TextInput
           value={loads}
@@ -105,7 +152,7 @@ function PingsView(): JSX.Element {
         {mutation.isPending ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.gold} />
-            <Text style={styles.muted}>{COPY.loading}</Text>
+            <Text style={styles.muted}>Inahifadhi...</Text>
           </View>
         ) : (
           <Button label="Tuma Jibu" onPress={onSend} disabled={loads.trim().length === 0} />
@@ -127,15 +174,14 @@ function PingsView(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  missing: {
-    color: colors.warn,
-    fontSize: fontSize.caption,
-    fontWeight: '700',
-    marginBottom: spacing.sm
-  },
   muted: {
     color: colors.textMuted,
     fontSize: fontSize.body
+  },
+  replyNote: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    marginBottom: spacing.sm
   },
   fieldLabel: {
     color: colors.text,
@@ -155,6 +201,26 @@ const styles = StyleSheet.create({
   },
   inputMulti: {
     minHeight: 64
+  },
+  ping: {
+    paddingVertical: spacing.sm,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1
+  },
+  pingStatus: {
+    color: colors.text,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  pingNote: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
+    marginTop: spacing.xs
+  },
+  pingMeta: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    marginTop: spacing.xs
   },
   loadingRow: {
     flexDirection: 'row',

@@ -66,7 +66,13 @@ export default function NotificationsScreen(): JSX.Element {
         markRead.mutate(row.id)
       }
       if (row.kind === 'rfb_fulfilled' && row.rfb_id) {
-        router.push(`/rfb/${row.rfb_id}/sign-delivery`)
+        // Carry the accepted/fulfilled response id through — it is the
+        // real settlement target. Without it the sign-delivery screen
+        // cannot resolve a responseId (the rfb_id is NOT a responseId).
+        const query = row.response_id
+          ? `?responseId=${encodeURIComponent(row.response_id)}`
+          : ''
+        router.push(`/rfb/${row.rfb_id}/sign-delivery${query}`)
       }
     },
     [markRead, router],

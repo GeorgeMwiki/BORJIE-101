@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
@@ -9,18 +9,23 @@ import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
+import { useLocation } from '../../src/location/useLocation'
+import { nearestFence } from '../../src/location/fence'
 import { enqueueWrite } from '../../src/sync/queue'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-12'
-const MISSING_HISTORY_ENDPOINT = 'GET /api/v1/mining/attendance'
 
 const COPY = {
   loading: 'Inatuma... · Submitting...',
-  emptyHistory: 'Historia ya zamu haitaonyeshwa hadi endpoint ya orodha iundwe.',
+  historyLoading: 'Inapakia historia... · Loading history...',
+  historyError: 'Imeshindwa kupakia historia ya zamu.',
+  emptyHistory: 'Hakuna kumbukumbu ya zamu bado.',
   errorPrefix: 'Hitilafu: ',
-  missing: `Endpoint haijaundwa: ${MISSING_HISTORY_ENDPOINT}`,
+  noFence:
+    'GPS au mipaka ya tovuti haijapatikana. Huwezi kuingia kazini bila kuthibitisha eneo.',
+  outsideFence: 'Uko nje ya mipaka ya tovuti. Sogea ndani ya eneo la kazi.',
   inOk: 'Umeingia kazini kwenye seva.',
   outOk: 'Umetoka kazini kwenye seva.',
   queued: 'Imehifadhiwa offline kwa sync.'
@@ -28,13 +33,24 @@ const COPY = {
 
 interface AttendanceRow {
   readonly id: string
+  readonly workDate: string
   readonly signedOffAt: string | null
   readonly hoursWorked: string | null
 }
 
-interface AttendanceResponse {
+interface CheckInResponse {
   readonly success: true
   readonly data: AttendanceRow
+}
+
+interface CheckOutResponse {
+  readonly success: true
+  readonly data: AttendanceRow
+}
+
+interface AttendanceListResponse {
+  readonly success: true
+  readonly data: ReadonlyArray<AttendanceRow>
 }
 
 interface CheckInPayload {
@@ -75,19 +91,32 @@ export default function Screen(): JSX.Element {
 function HoursLog(): JSX.Element {
   const { user } = useAuth()
   const { online } = useOnlineStatus()
+  const { capture } = useLocation()
   const [segments, setSegments] = useState<ReadonlyArray<LocalSegment>>([])
   const [openSegmentId, setOpenSegmentId] = useState<string | null>(null)
   const [notice, setNotice] = useState<'idle' | 'in-ok' | 'out-ok' | 'queued'>('idle')
+  const [locationError, setLocationError] = useState<'none' | 'no-fence' | 'outside'>(
+    'none'
+  )
+
+  const history = useQuery<ReadonlyArray<AttendanceRow>, ApiError>({
+    queryKey: ['attendance', 'history', user?.id ?? 'anon'],
+    enabled: Boolean(user),
+    queryFn: async () => {
+      const resp = await miningApi.get<AttendanceListResponse>('/attendance')
+      return resp.data
+    }
+  })
 
   const checkInMutation = useMutation<AttendanceRow, ApiError, CheckInPayload>({
     mutationFn: async (input) => {
-      const resp = await miningApi.post<AttendanceResponse>('/attendance/check-in', input)
+      const resp = await miningApi.post<CheckInResponse>('/attendance/check-in', input)
       return resp.data
     },
     onSuccess: (row) => {
       const local: LocalSegment = {
         id: row.id,
-        startedAtISO: new Date().toISOString(),
+        startedAtISO: row.signedOffAt ?? new Date().toISOString(),
         endedAtISO: null,
         attendanceId: row.id,
         hoursWorked: null
@@ -115,7 +144,7 @@ function HoursLog(): JSX.Element {
 
   const checkOutMutation = useMutation<AttendanceRow, ApiError, CheckOutPayload>({
     mutationFn: async (input) => {
-      const resp = await miningApi.post<AttendanceResponse>('/attendance/check-out', input)
+      const resp = await miningApi.post<CheckOutResponse>('/attendance/check-out', input)
       return resp.data
     },
     onSuccess: (row) => {
@@ -149,21 +178,39 @@ function HoursLog(): JSX.Element {
     }
   })
 
-  const clockIn = useCallback((): void => {
+  const clockIn = useCallback(async (): Promise<void> => {
     if (!user) return
+    setLocationError('none')
+    const coords = await capture()
+    if (!coords) {
+      setLocationError('no-fence')
+      return
+    }
+    // Resolve the real site from the configured fences — never the
+    // tenantId. When no fences are configured, nearestFence() returns
+    // null and we cannot determine a site to check into.
+    const fence = nearestFence(coords)
+    if (!fence) {
+      setLocationError('no-fence')
+      return
+    }
+    if (!fence.insideFence) {
+      setLocationError('outside')
+      return
+    }
     const today = new Date().toISOString().slice(0, 10)
     checkInMutation.mutate({
       employeeId: user.id,
-      siteId: user.tenantId,
+      siteId: fence.fence.siteId,
       workDate: today,
       shiftKind: 'day',
-      lat: 0,
-      lon: 0,
-      withinFence: true
+      lat: coords.latitude,
+      lon: coords.longitude,
+      withinFence: fence.insideFence
     })
-  }, [checkInMutation, user])
+  }, [capture, checkInMutation, user])
 
-  const clockOut = useCallback((): void => {
+  const clockOut = useCallback(async (): Promise<void> => {
     if (!openSegmentId) return
     const active = segments.find((s) => s.id === openSegmentId)
     if (!active || !active.attendanceId) {
@@ -179,14 +226,25 @@ function HoursLog(): JSX.Element {
       setNotice('queued')
       return
     }
+    setLocationError('none')
+    const coords = await capture()
+    if (!coords) {
+      setLocationError('no-fence')
+      return
+    }
+    const fence = nearestFence(coords)
     checkOutMutation.mutate({
       attendanceId: active.attendanceId,
-      lat: 0,
-      lon: 0,
-      withinFence: true
+      lat: coords.latitude,
+      lon: coords.longitude,
+      withinFence: fence ? fence.insideFence : false
     })
-  }, [checkOutMutation, openSegmentId, segments])
+  }, [capture, checkOutMutation, openSegmentId, segments])
 
+  const serverHistory = useMemo<ReadonlyArray<AttendanceRow>>(
+    () => history.data ?? [],
+    [history.data]
+  )
   const todayHours = useMemo<number>(() => sumHours(segments, isToday), [segments])
   const weekHours = useMemo<number>(() => sumHours(segments, isThisWeek), [segments])
 
@@ -207,7 +265,7 @@ function HoursLog(): JSX.Element {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Mwisho Saa"
-            onPress={clockOut}
+            onPress={() => void clockOut()}
             style={({ pressed }) => [styles.bigButton, styles.stop, pressed && styles.pressed]}
           >
             <Text style={styles.bigButtonLabel}>Mwisho Saa</Text>
@@ -217,7 +275,7 @@ function HoursLog(): JSX.Element {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Anza Saa"
-            onPress={clockIn}
+            onPress={() => void clockIn()}
             style={({ pressed }) => [styles.bigButton, styles.start, pressed && styles.pressed]}
           >
             <Text style={styles.bigButtonLabelDark}>Anza Saa</Text>
@@ -225,6 +283,12 @@ function HoursLog(): JSX.Element {
           </Pressable>
         )}
         {!online ? <PreviewBanner kind="offline" /> : null}
+        {locationError === 'no-fence' ? (
+          <Text style={styles.errorText}>{COPY.noFence}</Text>
+        ) : null}
+        {locationError === 'outside' ? (
+          <Text style={styles.errorText}>{COPY.outsideFence}</Text>
+        ) : null}
         {notice === 'in-ok' ? <Text style={styles.successText}>{COPY.inOk}</Text> : null}
         {notice === 'out-ok' ? <Text style={styles.successText}>{COPY.outOk}</Text> : null}
         {notice === 'queued' ? <Text style={styles.warnText}>{COPY.queued}</Text> : null}
@@ -245,15 +309,20 @@ function HoursLog(): JSX.Element {
         </View>
       </Section>
       <Section title="Kumbukumbu ya zamu">
-        <PreviewBanner kind="env-missing" />
-        <Text style={styles.missing}>{COPY.missing}</Text>
-        {segments.length === 0 ? (
+        {history.isPending ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.muted}>{COPY.historyLoading}</Text>
+          </View>
+        ) : history.isError ? (
+          <Text style={styles.errorText}>{COPY.historyError}</Text>
+        ) : serverHistory.length === 0 ? (
           <Text style={styles.muted}>{COPY.emptyHistory}</Text>
         ) : (
-          segments.map((segment) => (
-            <View key={segment.id} style={styles.segment}>
-              <Text style={styles.segmentPrimary}>{formatRange(segment)}</Text>
-              <Text style={styles.segmentSecondary}>{describeDuration(segment)}</Text>
+          serverHistory.map((row) => (
+            <View key={row.id} style={styles.segment}>
+              <Text style={styles.segmentPrimary}>{row.workDate}</Text>
+              <Text style={styles.segmentSecondary}>{describeRow(row)}</Text>
             </View>
           ))
         )}
@@ -291,21 +360,10 @@ function sumHours(
     }, 0)
 }
 
-function formatRange(segment: LocalSegment): string {
-  const start = new Date(segment.startedAtISO)
-  const end = segment.endedAtISO ? new Date(segment.endedAtISO) : null
-  return `${formatTime(start)} – ${end ? formatTime(end) : 'inaendelea'}`
-}
-
-function formatTime(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-function describeDuration(segment: LocalSegment): string {
-  if (segment.hoursWorked) return `${Number(segment.hoursWorked).toFixed(1)} hrs (seva)`
-  const end = segment.endedAtISO ? new Date(segment.endedAtISO).getTime() : Date.now()
-  const hours = (end - new Date(segment.startedAtISO).getTime()) / (60 * 60 * 1000)
-  return `${hours.toFixed(1)} hrs`
+function describeRow(row: AttendanceRow): string {
+  if (row.hoursWorked) return `${Number(row.hoursWorked).toFixed(1)} hrs (seva)`
+  if (row.signedOffAt) return 'Zamu wazi'
+  return '—'
 }
 
 const styles = StyleSheet.create({
@@ -389,12 +447,6 @@ const styles = StyleSheet.create({
   muted: {
     color: colors.textMuted,
     fontSize: fontSize.body
-  },
-  missing: {
-    color: colors.warn,
-    fontSize: fontSize.caption,
-    fontWeight: '700',
-    marginBottom: spacing.sm
   },
   successText: {
     color: colors.success,

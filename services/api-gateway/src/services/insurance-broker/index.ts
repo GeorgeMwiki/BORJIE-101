@@ -99,13 +99,23 @@ export function selectInsuranceBrokerProvider(
     case 'britam':
     case 'nic':
     case 'heritage':
-      // Note: Real broker adapters (britam/nic/heritage) not yet
-      // implemented. Current code returns mock provider to ensure
-      // demo + tests continue flowing. Production deployment will
-      // require wiring real provider adapters via env-gated selection.
-      return createMockBrokerProvider();
+      // Real broker adapters (britam/nic/heritage) are NOT yet implemented.
+      // Previously this silently returned the MOCK provider, which fabricated
+      // an "active" insurance policy (with a synthesized policy_no) into
+      // `insurance_policies` under a NAMED real provider — a dangerous fake
+      // that an owner would trust as genuine cover. Fail loud instead: a
+      // deployment that selects a real provider MUST have its adapter wired
+      // before binding policies; we never silently bind fake cover.
+      throw new Error(
+        `INSURANCE_PROVIDER_NOT_IMPLEMENTED: '${id}' has no real broker ` +
+          `adapter yet. Use BORJIE_INSURANCE_PROVIDER=mock for non-production, ` +
+          `or wire the real '${id}' adapter before selecting it.`,
+      );
     default:
-      return createMockBrokerProvider();
+      // Unknown value — fail loud rather than defaulting to a fake provider.
+      throw new Error(
+        `INSURANCE_PROVIDER_UNKNOWN: '${id}'. Valid values: mock, britam, nic, heritage.`,
+      );
   }
 }
 

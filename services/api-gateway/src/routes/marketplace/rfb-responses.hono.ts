@@ -81,10 +81,21 @@ rfbResponsesRouter.post(
     }
     const body = c.req.valid('json');
 
+    // Resolve the payout rail best-effort: when it is not wired
+    // (PAYOUT_NOT_WIRED — the TZS M-Pesa B2C rail is external-blocked) we pass
+    // null so the settlement still posts to the ledger and is left 'posted'
+    // for a background/owner-side payout, instead of 500ing the buyer.
+    const payoutPort = (() => {
+      try {
+        return resolveSettlementPayoutPort();
+      } catch {
+        return null;
+      }
+    })();
     const orchestrator = new SettlementOrchestrator({
       db,
       ledgerPort: resolveSettlementLedgerPort(),
-      payoutPort: resolveSettlementPayoutPort(),
+      payoutPort,
     });
 
     try {
@@ -205,10 +216,21 @@ rfbResponsesRouter.get(
       );
     }
     const q = c.req.valid('query');
+    // Resolve the payout rail best-effort: when it is not wired
+    // (PAYOUT_NOT_WIRED — the TZS M-Pesa B2C rail is external-blocked) we pass
+    // null so the settlement still posts to the ledger and is left 'posted'
+    // for a background/owner-side payout, instead of 500ing the buyer.
+    const payoutPort = (() => {
+      try {
+        return resolveSettlementPayoutPort();
+      } catch {
+        return null;
+      }
+    })();
     const orchestrator = new SettlementOrchestrator({
       db,
       ledgerPort: resolveSettlementLedgerPort(),
-      payoutPort: resolveSettlementPayoutPort(),
+      payoutPort,
     });
     try {
       const settlements = await orchestrator.listForTenant({

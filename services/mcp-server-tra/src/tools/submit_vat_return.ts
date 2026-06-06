@@ -94,15 +94,24 @@ export const submitVatReturnTool: TraTool<
   zodOutput: submitVatReturnOutputSchema,
   async execute(input: SubmitVatReturnInput): Promise<SubmitVatReturnOutput> {
     const suffix = deterministicSuffix(input.tenant_id, input.period);
+    // NOT a real filing. The TRA e-filing adapter is not wired, so we MUST NOT
+    // return a real-looking VAT reference / 'received' that the brain could
+    // surface to the owner as "VAT filed". The reference is an unmistakable
+    // STUB sentinel and the note states plainly that nothing was submitted.
+    // `_stub:true` remains the machine discriminator; consumers in
+    // money/compliance modes must skip `_stub` tools (see MS-6 kernel guard).
     return Object.freeze({
       _stub: true as const,
       source: 'tra.efiling' as const,
       tenantId: input.tenant_id,
       period: input.period,
-      referenceNo: `VAT-${input.period}-${suffix}`,
+      referenceNo: `STUB-NOT-FILED-${suffix}`,
       submittedAt: new Date(0).toISOString(),
-      status: 'received' as const,
-      note: 'stub: TRA e-filing adapter not yet wired — MVP3+',
+      status: 'processing' as const,
+      note:
+        'NOT FILED — TRA e-filing adapter is not connected. No VAT return was ' +
+        'submitted to TRA and STUB-NOT-FILED-* is not a real filing reference. ' +
+        'Do not present this as a completed filing.',
     });
   },
 });

@@ -37,7 +37,7 @@ import type {
   EntryDirection,
   LedgerEntryType,
 } from '@borjie/domain-models';
-import { Money } from '@borjie/domain-models';
+import { Money, CURRENCY_DECIMALS } from '@borjie/domain-models';
 import { sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 // `DatabaseClient` type derived via ReturnType to dodge the TS2709
@@ -456,6 +456,162 @@ export function createPayrollLedgerAdapter(
         'payroll_ledger_post_committed',
       );
       return { journalId: result.journalId };
+    },
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Estate accept-proposal ledger adapter (create_lease_application deposit)
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Estate `create_lease_application` deposit post: a balanced 2-leg journal
+ *   DR  cash_clearing     deposit
+ *   CR  tenant_deposits   deposit
+ * posted through the REAL `LedgerService` (CLAUDE.md hard rule — money goes
+ * through `LedgerService.post()`; this calls `postJournalEntry`). The
+ * dispatch-router handler injects this as its `ledger.post()` port.
+ *
+ * The handler hands a MAJOR-unit `amount` in the payload's `currencyCode`.
+ * We scale to integer minor units currency-aware (no hard-coded decimals —
+ * CLAUDE.md) via `CURRENCY_DECIMALS`, ensure the tenant's two clearing /
+ * deposit accounts exist, and post. Idempotency is keyed on the
+ * application id so a retried accept replays the original journal rather
+ * than double-posting a second deposit.
+ */
+export interface EstateLedgerPostInput {
+  readonly tenantId: string;
+  readonly amount: number;
+  readonly currencyCode: string;
+  readonly memo: string;
+  readonly debitAccount: string;
+  readonly creditAccount: string;
+  readonly correlation: {
+    readonly module_id: string;
+    readonly application_id: string;
+  };
+}
+
+/**
+ * Map the handler's logical account label onto a provisioned
+ * `LedgerAccountKey`. The estate deposit handler only ever uses
+ * `cash_clearing` / `tenant_deposits`; an unrecognised label fails LOUD
+ * rather than silently mis-routing real money.
+ */
+function estateAccountKey(label: string): LedgerAccountKey {
+  switch (label) {
+    case 'cash_clearing':
+      return 'cash_clearing';
+    case 'tenant_deposits':
+      return 'tenant_deposits';
+    default:
+      throw new Error(
+        `estate ledger adapter: unmapped account label '${label}' — ` +
+          `refusing to post real money to an unknown account`,
+      );
+  }
+}
+
+/** Currency-aware major→integer-minor scale (no hard-coded decimals). */
+function toMinorUnitsForCurrency(
+  amountMajor: number,
+  currency: CurrencyCode,
+): number {
+  if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
+    throw new Error(
+      `estate ledger adapter: amount must be a positive finite number (got ${String(amountMajor)})`,
+    );
+  }
+  const decimals = CURRENCY_DECIMALS[currency] ?? 2;
+  const factor = decimals === 0 ? 1 : Math.pow(10, decimals);
+  return Math.round(amountMajor * factor);
+}
+
+export function createEstateLedgerAdapter(
+  db: DatabaseClient,
+  ledger: LedgerService,
+): {
+  post(input: EstateLedgerPostInput): Promise<{ readonly id: string }>;
+} {
+  return {
+    async post(input: EstateLedgerPostInput): Promise<{ readonly id: string }> {
+      const tenantId = input.tenantId;
+      const currency = await resolveTenantCurrency(db, tenantId);
+
+      // The handler nominally carries its own currency code, but the
+      // durable money record posts in the TENANT'S primary currency
+      // (single source of truth). A mismatch is a hard fault — never
+      // silently post a deposit in the wrong currency.
+      if (input.currencyCode && input.currencyCode !== currency) {
+        throw new Error(
+          `estate ledger adapter: payload currency ${input.currencyCode} ≠ ` +
+            `tenant primary currency ${currency} — refusing cross-currency deposit post`,
+        );
+      }
+
+      const debitKey = estateAccountKey(input.debitAccount);
+      const creditKey = estateAccountKey(input.creditAccount);
+      const amountMinor = toMinorUnitsForCurrency(input.amount, currency);
+
+      const accounts = await ensureLedgerAccounts(db, {
+        tenantId,
+        currency,
+        keys: [debitKey, creditKey],
+        createdBy: 'estate-create-lease-application',
+      });
+
+      const meta = {
+        moduleId: input.correlation.module_id,
+        applicationId: input.correlation.application_id,
+      };
+
+      const lines = [
+        line(
+          accounts[debitKey],
+          'DEBIT',
+          'DEPOSIT_PAYMENT',
+          amountMinor,
+          currency,
+          input.memo,
+          meta,
+        ),
+        line(
+          accounts[creditKey],
+          'CREDIT',
+          'DEPOSIT_PAYMENT',
+          amountMinor,
+          currency,
+          input.memo,
+          meta,
+        ),
+      ];
+      assertBalanced(lines);
+
+      // Idempotency key bound to the application id (stable per accept).
+      const depositKey = `estate-deposit:${input.correlation.application_id}`;
+
+      const request: CreateJournalEntryRequest = {
+        tenantId: tenantId as TenantId,
+        effectiveDate: new Date(),
+        lines,
+        createdBy: 'estate-create-lease-application',
+      };
+
+      const result = await ledger.postJournalEntry(request, {
+        idempotencyKey: depositKey,
+      });
+
+      moduleLogger.info(
+        {
+          tenantId,
+          applicationId: input.correlation.application_id,
+          journalId: result.journalId,
+          amountMinor,
+          currency,
+        },
+        'estate_lease_deposit_ledger_post_committed',
+      );
+      return { id: result.journalId };
     },
   };
 }

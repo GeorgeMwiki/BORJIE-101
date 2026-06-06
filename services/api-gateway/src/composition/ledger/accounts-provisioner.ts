@@ -46,7 +46,9 @@ export type LedgerAccountKey =
   | 'wage_expense' // DR side of payroll
   | 'payroll_clearing' // CR — net wages owed to workers
   | 'platform_billing_receivable' // DR — SaaS subscription owed to Borjie
-  | 'platform_subscription_revenue'; // CR — Borjie SaaS subscription revenue
+  | 'platform_subscription_revenue' // CR — Borjie SaaS subscription revenue
+  | 'cash_clearing' // DR — funds received pending settlement (deposits/receipts)
+  | 'tenant_deposits'; // CR — refundable counterparty deposit liability
 
 interface AccountSpec {
   readonly key: LedgerAccountKey;
@@ -98,6 +100,20 @@ const ACCOUNT_SPECS: ReadonlyArray<AccountSpec> = [
     key: 'platform_subscription_revenue',
     type: 'PLATFORM_REVENUE',
     name: 'Platform Subscription Revenue',
+  },
+  {
+    // DR side of an estate deposit / receipt: cash received into a holding
+    // account pending allocation. PLATFORM_HOLDING is the closest fit
+    // (direction is carried by the journal line, not the account type).
+    key: 'cash_clearing',
+    type: 'PLATFORM_HOLDING',
+    name: 'Cash Clearing',
+  },
+  {
+    // CR side: refundable counterparty (tenant) deposit liability.
+    key: 'tenant_deposits',
+    type: 'CUSTOMER_DEPOSIT',
+    name: 'Tenant Deposits',
   },
 ];
 

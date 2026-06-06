@@ -729,6 +729,12 @@ import {
   createStubEstateHandlerDeps,
   createStubMiningHandlerDeps,
 } from './composition/dispatch-router-wiring';
+// Wave-3-int3 — REAL dispatch-handler deps (LedgerService money path,
+// hash-chained audit, cross-portal notifications, Drizzle mining repos).
+import {
+  createRealEstateHandlerDeps,
+  createRealMiningHandlerDeps,
+} from './composition/dispatch-handler-deps-wiring';
 import { installJarvisCaptureHook } from './routes/jarvis-router-factory';
 import { buildQueryOrganizationTool } from '@borjie/ai-copilot';
 import { createAmbientBrainMiddleware } from './middleware/ambient-brain.middleware';
@@ -1148,23 +1154,46 @@ const heartbeatSupervisor = createHeartbeatSupervisor(
 // we install on every Jarvis router so `/think` + `/stream` fire the
 // hook fire-and-forget after each turn.
 //
-// Stubbed ports today (createStubEstateHandlerDeps) — Wave-3-int3 will
-// swap in the Drizzle-backed CoreEntityRepository, LedgerService, and
-// Piece M work-assignments port.
+// Wave-3-int3 — REAL handler ports are now wired when a database is
+// present: the brain's accept_proposal path posts the lease deposit
+// through `LedgerService.post()` (CLAUDE.md money hard rule), writes real
+// `tasks` / `temporal_entities` / `maintenance_events` rows, appends to the
+// hash-chained `ai_audit_chain`, and fans notifications out on the cross-
+// portal bus. The estate lease-application + receipt stores have no
+// mining-domain table yet, so those specific ports fail loud
+// (NotYetWiredError) instead of fabricating a fake id.
+//
+// When DATABASE_URL is unset (DB-less dev/smoke), there is no money or
+// repo infrastructure, so the silent-success stubs are the correct
+// fallback and the gateway still boots.
 // ----------------------------------------------------------------------------
+const dispatchHandlerDb = getDb();
+const dispatchHandlerLogger = {
+  info: (meta: object, msg: string) => logger.info(meta, msg),
+  warn: (meta: object, msg: string) => logger.warn(meta, msg),
+  error: (meta: object, msg: string) => logger.error(meta, msg),
+};
 const dispatchRouterWiring = createDispatchRouterWiring({
-  estate: createStubEstateHandlerDeps(),
+  estate: dispatchHandlerDb
+    ? createRealEstateHandlerDeps({
+        db: dispatchHandlerDb as never,
+        crossPortalBus: serviceRegistry.crossPortalBus,
+        logger: dispatchHandlerLogger,
+      })
+    : createStubEstateHandlerDeps(),
   // Closes the historical gh-issue #34 work-item: 3 mining handlers
   // replace the pre-Borjie estate stubs (open_maintenance_case →
   // open_equipment_maintenance, schedule_renewal_negotiation →
   // schedule_licence_renewal, bulk_mark_for_renewal_prep →
   // bulk_mark_licences_for_renewal).
-  mining: createStubMiningHandlerDeps(),
-  logger: {
-    info: (meta, msg) => logger.info(meta, msg),
-    warn: (meta, msg) => logger.warn(meta, msg),
-    error: (meta, msg) => logger.error(meta, msg),
-  },
+  mining: dispatchHandlerDb
+    ? createRealMiningHandlerDeps({
+        db: dispatchHandlerDb as never,
+        crossPortalBus: serviceRegistry.crossPortalBus,
+        logger: dispatchHandlerLogger,
+      })
+    : createStubMiningHandlerDeps(),
+  logger: dispatchHandlerLogger,
 });
 installJarvisCaptureHook(async (input) => {
   await dispatchRouterWiring.postThinkCaptureHook(input);
@@ -1174,6 +1203,8 @@ logger.info(
     handlerRegistry: (dispatchRouterWiring.handlerRegistry as {
       listRegistered?: () => unknown;
     }).listRegistered?.(),
+    handlerPorts: dispatchHandlerDb ? 'real' : 'stub',
+    moneyPath: dispatchHandlerDb ? 'LedgerService.post()' : 'stub-noop',
   },
   'dispatch-router-wiring: live (brain↔tab loop wired)'
 );

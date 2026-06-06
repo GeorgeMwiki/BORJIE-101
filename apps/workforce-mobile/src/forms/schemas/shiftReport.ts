@@ -46,6 +46,11 @@ export interface ShiftReportPayload {
   equipmentNotes: string
   blockers: string
   photos: ReadonlyArray<{ uri: string; capturedAt: number; mimeType: string }>
-  voiceNote: { uri: string; durationMs: number; recordedAt: number } | null
+  voiceNote: {
+    uri: string
+    durationMs: number
+    recordedAt: number
+    mimeType: string
+  } | null
   submittedAt: number
 }

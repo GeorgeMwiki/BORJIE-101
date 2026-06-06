@@ -119,7 +119,10 @@ function ShiftReportForm(): JSX.Element {
           ? {
               uri: recorder.state.recording.uri,
               durationMs: recorder.state.recording.durationMs,
-              recordedAt: recorder.state.recording.recordedAt
+              recordedAt: recorder.state.recording.recordedAt,
+              // expo-av records m4a by default on iOS + Android; the sync
+              // flush uses this to upload the blob with the right type.
+              mimeType: 'audio/m4a'
             }
           : null,
         submittedAt: Date.now()

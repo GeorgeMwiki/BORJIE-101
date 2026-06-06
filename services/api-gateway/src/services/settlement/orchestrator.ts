@@ -58,13 +58,19 @@ function rowsOf(raw: unknown): ReadonlyArray<Record<string, unknown>> {
 export interface SettlementOrchestratorDeps {
   readonly db: DbExecutor;
   readonly ledgerPort: SettlementLedgerPort;
-  readonly payoutPort: SettlementPayoutPort;
+  /**
+   * Nullable: when no production payout rail is wired (TZS M-Pesa B2C lives in
+   * the external-blocked payments service), the settlement still posts to the
+   * ledger and is left `status='posted'` for a background/owner-side payout —
+   * we never 500 the buyer's sign-delivery just because money-out isn't live.
+   */
+  readonly payoutPort: SettlementPayoutPort | null;
 }
 
 export class SettlementOrchestrator {
   private readonly db: DbExecutor;
   private readonly ledgerPort: SettlementLedgerPort;
-  private readonly payoutPort: SettlementPayoutPort;
+  private readonly payoutPort: SettlementPayoutPort | null;
 
   constructor(deps: SettlementOrchestratorDeps) {
     this.db = deps.db;
@@ -217,29 +223,38 @@ export class SettlementOrchestrator {
     let payoutProvider: PayoutProvider | null = null;
     let payoutProviderRef: string | null = null;
     let finalStatus: SettlementStatus = 'posted';
-    try {
-      const payoutRes = await this.payoutPort.payout({
-        tenantId,
-        settlementId,
-        netTzs: math.netTzs,
-        sellerUserId: String(respRows.seller_id ?? ''),
-      });
-      payoutProvider = payoutRes.provider;
-      payoutProviderRef = payoutRes.providerRef;
-      finalStatus = 'paying_out';
-      await this.db.execute(sql`
-        UPDATE settlements
-           SET status = 'paying_out',
-               payout_provider = ${payoutProvider},
-               payout_provider_ref = ${payoutProviderRef}
-         WHERE id = ${settlementId}::uuid
-      `);
-    } catch (err) {
+    if (this.payoutPort) {
+      try {
+        const payoutRes = await this.payoutPort.payout({
+          tenantId,
+          settlementId,
+          netTzs: math.netTzs,
+          sellerUserId: String(respRows.seller_id ?? ''),
+        });
+        payoutProvider = payoutRes.provider;
+        payoutProviderRef = payoutRes.providerRef;
+        finalStatus = 'paying_out';
+        await this.db.execute(sql`
+          UPDATE settlements
+             SET status = 'paying_out',
+                 payout_provider = ${payoutProvider},
+                 payout_provider_ref = ${payoutProviderRef}
+           WHERE id = ${settlementId}::uuid
+        `);
+      } catch (err) {
+        moduleLogger.warn(
+          { err, tenantId, settlementId },
+          'settlement_payout_failed_will_retry',
+        );
+        // Status stays 'posted'; background payout retry picks it up.
+      }
+    } else {
+      // No payout rail wired — the ledger leg has already posted above; leave
+      // status='posted' for a background/owner-side payout. NOT an error.
       moduleLogger.warn(
-        { err, tenantId, settlementId },
-        'settlement_payout_failed_will_retry',
+        { tenantId, settlementId },
+        'settlement_payout_port_unwired_left_posted',
       );
-      // Status stays 'posted'; background payout retry picks it up.
     }
 
     // ---- step 7: cockpit event + buyer notification ------------------

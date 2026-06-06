@@ -1,16 +1,27 @@
 /**
  * Buyer-mobile — L8 sign-delivery screen.
  *
- * Buyer reviews the accepted RFB response, taps "Sign delivery" with a
- * deterministic checksum, and the api-gateway runs the settlement
- * orchestrator end-to-end (math → LedgerService.post() → M-Pesa B2C
- * payout). Result is shown in a success banner with the gross/royalty/
- * fee/net breakdown.
+ * Buyer reviews the accepted RFB response and signs delivery, which the
+ * api-gateway turns into a settlement (math → LedgerService.post() →
+ * M-Pesa B2C payout). Result shows the gross/royalty/fee/net breakdown.
+ *
+ * IMPORTANT (money path — see CLAUDE.md): signing requires (1) the real
+ * `responseId` of the fulfilled response and (2) a chain-of-custody step
+ * checksum. The buyer reaches this screen from the L7 `rfb_fulfilled`
+ * notification, which carries `response_id` — we use that as the real
+ * settlement target (the rfb_id is NOT a responseId).
+ *
+ * The gateway exposes no buyer-facing endpoint that returns the accepted
+ * response's chain-of-custody steps, so we CANNOT compute a genuine CoC
+ * step checksum on-device. Rather than submit a fabricated checksum
+ * (which would post a real ledger journal against unverifiable custody),
+ * we render an honest "cannot sign — missing chain-of-custody" state and
+ * block submission until that endpoint lands. No fake success on money.
  *
  * Bilingual sw/en throughout.
  */
 
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useMutation } from '@tanstack/react-query'
 import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native'
@@ -21,6 +32,12 @@ import { Card } from '@/components/Card'
 import { tokens } from '@/ui-litfin'
 import { apiFetch } from '@/api/client'
 import { rateSeller } from '@/api/bid-messaging'
+
+// The gateway endpoint that would return the accepted response + its
+// chain-of-custody steps (so the buyer can compute the CoC step checksum)
+// does not exist yet. Tracked here for the marketplace gateway wave.
+const MISSING_COC_ENDPOINT =
+  'GET /api/v1/marketplace/rfb-responses/:responseId/chain-of-custody'
 
 interface SignDeliveryResponse {
   readonly success: boolean
@@ -67,18 +84,6 @@ function formatTzs(amount: number, isSw: boolean): string {
     maximumFractionDigits: 0,
   })
   return `${fmt.format(amount)} TZS`
-}
-
-/**
- * Deterministic checksum stub — the real screen would compute this
- * from the parcel's CoC chain (sha256 over each step's audit hash).
- * For now we derive a value that's stable for the (rfbId, deviceTs)
- * pair so idempotent replays from the same buyer collapse.
- */
-function deriveChecksum(rfbId: string): string {
-  // Stable within the screen session — re-tapping "Sign" within the
-  // same mount uses the same checksum so the backend collapses replays.
-  return `coc-${rfbId}-${Date.now()}`
 }
 
 /**
@@ -157,28 +162,19 @@ function RateSellerCard({
 }
 
 export default function SignDeliveryScreen(): JSX.Element {
-  const params = useLocalSearchParams<{ id: string }>()
+  const params = useLocalSearchParams<{ id: string; responseId?: string }>()
   const rfbId = String(params.id ?? '')
+  // The real settlement target — carried from the L7 rfb_fulfilled
+  // notification's `response_id`. Empty when the screen was opened without
+  // it (e.g. a stale deep link).
+  const responseId = params.responseId ? String(params.responseId) : ''
   const router = useRouter()
   const { lang } = useTranslation()
   const isSw = lang === 'sw'
-  const [checksum] = useState<string>(() => deriveChecksum(rfbId))
 
   const mutation = useMutation({
-    mutationFn: (responseId: string) =>
-      signDelivery({ responseId, coCStepChecksum: checksum }),
+    mutationFn: (input: SignDeliveryInput) => signDelivery(input),
   })
-
-  // For now, the screen uses the rfbId as a stand-in for the responseId
-  // until the screen is wired to the accepted-response lookup. The real
-  // screen loads /api/v1/marketplace/rfb/:id and picks the accepted
-  // response id; for the L8 chain we surface the form + CTA.
-  const responseId = rfbId
-
-  const onSubmit = useCallback(() => {
-    if (!responseId) return
-    mutation.mutate(responseId)
-  }, [mutation, responseId])
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -205,14 +201,40 @@ export default function SignDeliveryScreen(): JSX.Element {
           </Text>
           <View style={styles.row}>
             <Text style={styles.label}>{isSw ? 'RFB ID' : 'RFB id'}</Text>
-            <Text style={styles.value}>{rfbId.slice(0, 8)}…</Text>
+            <Text style={styles.value}>
+              {rfbId ? `${rfbId.slice(0, 8)}…` : '—'}
+            </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>
-              {isSw ? 'Saini ya CoC' : 'CoC checksum'}
+            <Text style={styles.label}>{isSw ? 'Jibu (Response)' : 'Response id'}</Text>
+            <Text style={styles.valueMono}>
+              {responseId ? `${responseId.slice(0, 8)}…` : '—'}
             </Text>
-            <Text style={styles.valueMono}>{checksum.slice(-12)}</Text>
           </View>
+        </Card>
+
+        {/*
+          Money-path guard: we will not submit a fabricated CoC checksum.
+          Until the gateway exposes the accepted response's chain-of-custody
+          steps, signing is blocked with an honest explanation.
+        */}
+        <Card>
+          <Text style={styles.errorTitle}>
+            {isSw ? 'Huwezi kusaini bado' : 'Cannot sign yet'}
+          </Text>
+          <Text style={styles.errorBody}>
+            {responseId
+              ? isSw
+                ? 'Hatuwezi kuthibitisha mnyororo wa ulinzi (chain-of-custody) wa jibu hili kwa sasa, kwa hivyo hatutatuma malipo kwa saini isiyothibitishwa.'
+                : 'We cannot verify this response’s chain-of-custody right now, so we will not initiate payment with an unverified signature.'
+              : isSw
+                ? 'Hakuna kitambulisho cha jibu (response id). Fungua tena kutoka kwa arifa ya “RFB imekamilika”.'
+                : 'No response id was provided. Re-open from the “RFB fulfilled” notification.'}
+          </Text>
+          <Text style={styles.muted}>
+            {isSw ? 'Inasubiri endpoint: ' : 'Awaiting endpoint: '}
+            {MISSING_COC_ENDPOINT}
+          </Text>
         </Card>
 
         {mutation.isError ? (
@@ -293,40 +315,25 @@ export default function SignDeliveryScreen(): JSX.Element {
           <RateSellerCard settlementId={mutation.data.settlementId} isSw={isSw} />
         ) : null}
 
+        {/* Signing is disabled until the CoC checksum can be computed for real. */}
         <Pressable
-          onPress={onSubmit}
-          disabled={mutation.isPending || mutation.isSuccess}
-          style={({ pressed }) => [
-            styles.cta,
-            pressed && styles.ctaPressed,
-            (mutation.isPending || mutation.isSuccess) && styles.ctaDisabled,
-          ]}
+          disabled
+          accessibilityState={{ disabled: true }}
+          style={[styles.cta, styles.ctaDisabled]}
         >
           <Text style={styles.ctaText}>
-            {mutation.isPending
-              ? isSw
-                ? 'Inashughulikia…'
-                : 'Processing…'
-              : mutation.isSuccess
-                ? isSw
-                  ? 'Imefanyika'
-                  : 'Done'
-                : isSw
-                  ? 'Saini Uwasilishaji'
-                  : 'Sign Delivery'}
+            {isSw ? 'Saini Uwasilishaji' : 'Sign Delivery'}
           </Text>
         </Pressable>
 
-        {mutation.isSuccess ? (
-          <Pressable
-            onPress={() => router.push('/notifications')}
-            style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
-          >
-            <Text style={styles.secondaryText}>
-              {isSw ? 'Angalia arifa' : 'View notifications'}
-            </Text>
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() => router.push('/notifications')}
+          style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
+        >
+          <Text style={styles.secondaryText}>
+            {isSw ? 'Angalia arifa' : 'View notifications'}
+          </Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   )
