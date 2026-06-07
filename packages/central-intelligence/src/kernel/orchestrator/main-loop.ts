@@ -369,7 +369,35 @@ export async function thinkExtended(
   deps: OrchestratorDeps,
 ): Promise<OrchestratorResponseExtended> {
   const clock = deps.clock ?? Date.now;
-  const session = await deps.sessionStore.resumeOrCreate(req.threadId);
+  const loadedSession = await deps.sessionStore.resumeOrCreate(req.threadId);
+  // Seed THIS turn's inbound user message into the working transcript so the
+  // first `router.call` sees a non-empty `messages` payload. Without it a fresh
+  // thread builds `messages: []` (transcript empty + no pending injections) and
+  // the real Anthropic adapter rejects the call with 400 "messages: at least
+  // one message is required" — which the router fail-safe swallows into an empty
+  // answer. Since this main-loop is the default generation path, that broke the
+  // first message of every new conversation. Immutable (new session object),
+  // added EXACTLY ONCE per turn, and skipped when a resumed transcript already
+  // ends with this exact user turn (so an upstream caller that records the
+  // inbound turn into the store isn't duplicated). The seeded turn flows
+  // through `contextBudget.compactIfOver` + the messages build + `checkpoint`
+  // identically to any other transcript turn.
+  const lastTurn = loadedSession.transcript[loadedSession.transcript.length - 1];
+  const userTurnAlreadyPresent =
+    lastTurn?.role === 'user' && lastTurn.content === req.userMessage;
+  const session = userTurnAlreadyPresent
+    ? loadedSession
+    : {
+        ...loadedSession,
+        transcript: [
+          ...loadedSession.transcript,
+          {
+            role: 'user' as const,
+            content: req.userMessage,
+            timestamp: new Date(clock()).toISOString(),
+          },
+        ],
+      };
   let plan = await deps.planStore.load(req.threadId);
   let budget = Budget.of(req.budget ?? {}, clock);
   let lastText = '';

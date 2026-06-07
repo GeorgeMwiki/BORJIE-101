@@ -5,6 +5,7 @@ import {
   type OrchestratorDeps,
   type OrchestratorRequest,
   type LLMRouter,
+  type LLMRouterCall,
   type Dispatcher,
 } from '../main-loop.js';
 import { createHookChain, type Hook } from '../hook-chain.js';
@@ -13,7 +14,7 @@ import {
   createInMemoryPlanStore,
   type PlanGoal,
 } from '../plan.js';
-import { createInMemorySessionStore } from '../checkpoint.js';
+import { createInMemorySessionStore, type Session } from '../checkpoint.js';
 import {
   createContextBudget,
   createInMemoryToolSearch,
@@ -78,6 +79,27 @@ function recordingDispatcher(): Dispatcher & { calls: Decision[] } {
         };
       }
       return { kind: 'monitor_ack', watchId: 'w_1' };
+    },
+  };
+}
+
+// Unlike `fixedRouter` (which ignores its args) and `capturingRouter` (which
+// only records `lastSystem`), this fixture records the FULL `LLMRouterCall`
+// args of every call — so a test can assert what `messages` payload actually
+// reached the router. This is the fixture the empty-first-turn-messages bug
+// needed: with `fixedRouter` the empty `messages` array was never observed.
+function messageCapturingRouter(
+  decisions: Decision[] = [{ kind: 'final', text: 'answer' }],
+): LLMRouter & { calls: LLMRouterCall[] } {
+  const calls: LLMRouterCall[] = [];
+  let i = 0;
+  return {
+    calls,
+    async call(args: LLMRouterCall): Promise<Decision> {
+      calls.push(args);
+      const next = decisions[i] ?? ({ kind: 'final', text: 'answer' } as Decision);
+      i += 1;
+      return next;
     },
   };
 }
@@ -871,5 +893,83 @@ describe('main-loop memory recall + persist', () => {
     };
     await think(makeReq(), deps2);
     expect(router2.lastSystem).toContain('first answer text');
+  });
+});
+
+describe('main-loop — inbound user message reaches the first router.call', () => {
+  // Regression for the live-traffic bug: on a fresh thread the first
+  // router.call was built with an EMPTY `messages` array (req.userMessage was
+  // never folded into the transcript), so the real Anthropic adapter 400'd
+  // ("messages: at least one message is required") and the router fail-safe
+  // swallowed it into an empty answer. The orchestrator main-loop is the
+  // default generation path, so this broke the first message of every new
+  // conversation.
+  it('seeds req.userMessage into a NON-EMPTY first messages payload (fresh thread)', async () => {
+    const router = messageCapturingRouter();
+    const res = await thinkExtended(makeReq(), makeDeps(router, recordingDispatcher()));
+
+    expect(router.calls.length).toBeGreaterThan(0);
+    const firstMessages = router.calls[0]!.messages;
+    // Pre-fix: firstMessages.length === 0 (the bug). Post-fix: contains the user turn.
+    expect(firstMessages.length).toBeGreaterThan(0);
+    const userTurn = firstMessages.find((m) => m.role === 'user');
+    expect(userTurn).toBeDefined();
+    expect(userTurn!.content).toBe('Tell me about arrears.');
+    // And the turn must produce a real (non-empty) answer, not the swallowed ''.
+    expect(res.kind).toBe('answer');
+    if (res.kind === 'answer') expect(res.text.length).toBeGreaterThan(0);
+  });
+
+  it('does NOT duplicate the user turn when the resumed transcript already ends with it', async () => {
+    const router = messageCapturingRouter();
+    const seeded: Session = {
+      threadId: 'thread_test',
+      transcript: [
+        { role: 'user', content: 'Tell me about arrears.', timestamp: '2026-06-07T00:00:00.000Z' },
+      ],
+      latestCheckpoint: null,
+    };
+    const deps: OrchestratorDeps = {
+      ...makeDeps(router, recordingDispatcher()),
+      sessionStore: {
+        ...createInMemorySessionStore(),
+        resumeOrCreate: async () => seeded,
+      },
+    };
+
+    await thinkExtended(makeReq(), deps);
+
+    const userTurns = router.calls[0]!.messages.filter(
+      (m) => m.role === 'user' && m.content === 'Tell me about arrears.',
+    );
+    expect(userTurns.length).toBe(1);
+  });
+
+  it('appends the current user turn after PRIOR transcript turns on a resumed thread', async () => {
+    const router = messageCapturingRouter();
+    const seeded: Session = {
+      threadId: 'thread_test',
+      transcript: [
+        { role: 'user', content: 'Earlier question.', timestamp: '2026-06-07T00:00:00.000Z' },
+        { role: 'assistant', content: 'Earlier answer.', timestamp: '2026-06-07T00:00:01.000Z' },
+      ],
+      latestCheckpoint: null,
+    };
+    const deps: OrchestratorDeps = {
+      ...makeDeps(router, recordingDispatcher()),
+      sessionStore: {
+        ...createInMemorySessionStore(),
+        resumeOrCreate: async () => seeded,
+      },
+    };
+
+    await thinkExtended(makeReq(), deps);
+
+    const messages = router.calls[0]!.messages;
+    const last = messages[messages.length - 1]!;
+    expect(last.role).toBe('user');
+    expect(last.content).toBe('Tell me about arrears.');
+    // prior turns preserved, current user turn appended exactly once
+    expect(messages.filter((m) => m.content === 'Tell me about arrears.').length).toBe(1);
   });
 });
