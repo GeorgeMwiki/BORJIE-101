@@ -972,4 +972,42 @@ describe('main-loop — inbound user message reaches the first router.call', () 
     // prior turns preserved, current user turn appended exactly once
     expect(messages.filter((m) => m.content === 'Tell me about arrears.').length).toBe(1);
   });
+
+  it('strips a STALE trailing user turn so no user,user adjacency reaches the router (multi-turn leak guard)', async () => {
+    const router = messageCapturingRouter();
+    // Mirrors the in-memory SessionStore after a prior tool-using turn:
+    // checkpoint re-stored the seeded [priorUser] (assistant/tool turns are
+    // never written to the transcript), so resume hands back a transcript that
+    // ends in a STALE user turn from the PREVIOUS turn. Appending the new user
+    // turn naively would build a `user,user` adjacency the Anthropic API can't
+    // accept and that drops the prior turn's (now answered) context.
+    const seeded: Session = {
+      threadId: 'thread_test',
+      transcript: [
+        { role: 'user', content: 'Prior-turn question.', timestamp: '2026-06-07T00:00:00.000Z' },
+      ],
+      latestCheckpoint: null,
+    };
+    const deps: OrchestratorDeps = {
+      ...makeDeps(router, recordingDispatcher()),
+      sessionStore: {
+        ...createInMemorySessionStore(),
+        resumeOrCreate: async () => seeded,
+      },
+    };
+
+    await thinkExtended(makeReq(), deps);
+
+    const messages = router.calls[0]!.messages;
+    // No two consecutive user turns anywhere in the payload.
+    const adjacentUserPair = messages.some(
+      (m, i) => i > 0 && m.role === 'user' && messages[i - 1]!.role === 'user',
+    );
+    expect(adjacentUserPair).toBe(false);
+    // The stale prior-turn user message is gone; the current one is the tail.
+    expect(messages.some((m) => m.content === 'Prior-turn question.')).toBe(false);
+    const last = messages[messages.length - 1]!;
+    expect(last.role).toBe('user');
+    expect(last.content).toBe('Tell me about arrears.');
+  });
 });

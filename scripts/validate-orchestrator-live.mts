@@ -10,14 +10,17 @@
  * session store and memory tool — and drives it with a real mining-
  * compliance prompt at FULL main-loop fidelity.
  *
- * It makes two small, cost-bounded Anthropic calls (the second only
- * because the first surfaced a real bug):
- *   - PHASE A: production-equivalent path (fresh session). Reproduces the
- *     discovered bug — the loop sends an EMPTY `messages` array to the
- *     router on turn 1, so Anthropic 400s and the answer comes back empty.
- *     (~0 output tokens — the request is rejected before generation.)
- *   - PHASE B: same loop with the user turn present in the transcript.
- *     Proves the real LLM round-trip returns a real grounded `answer`.
+ * It makes three small, cost-bounded Anthropic calls:
+ *   - PHASE A: production-equivalent path (fresh session). Originally
+ *     reproduced the discovered bug — the loop sent an EMPTY `messages`
+ *     array to the router on turn 1, so Anthropic 400'd and the answer came
+ *     back empty. Post-fix it returns a real grounded answer.
+ *   - PHASE B: same loop with the user turn already present in the
+ *     transcript. Proves the real LLM round-trip returns a real `answer`.
+ *   - PHASE C: resumed thread whose transcript ends in a STALE user turn
+ *     (the post-checkpoint state of the default in-memory SessionStore).
+ *     Proves the fix strips the stale tail so no `user,user` adjacency
+ *     reaches the router, and the real round-trip still answers.
  *
  * Fidelity: FULL main-loop (`thinkExtended`), strictly higher than a bare
  * router-level call. The tool registry is intentionally empty so the model
@@ -252,11 +255,67 @@ async function main(): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  console.log('[B] ✅ seeded-transcript round-trip returned a real answer.');
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PHASE C — multi-turn leak guard on REAL traffic. After a prior turn the
+  // in-memory SessionStore (the default) hands back a transcript ending in a
+  // STALE user turn: assistant/tool turns are never written to the transcript
+  // (cross-turn history rides the memory note → system prompt), so checkpoint
+  // re-stores just the prior turn's seeded user turn. The fix must strip that
+  // stale tail before appending the CURRENT user turn — otherwise the router
+  // receives a `user,user` adjacency and Anthropic 400s. We drive the real
+  // LLM round-trip in exactly that resumed state and require a real answer.
+  // ═══════════════════════════════════════════════════════════════════════
+  console.log('\n──────── PHASE C: resumed thread w/ STALE trailing user turn ────────');
+  const STALE_PRIOR = 'What royalty rate applies to gold in Tanzania?';
+  const innerC = createInMemorySessionStore();
+  const staleTailStore: OrchestratorDeps['sessionStore'] = {
+    ...innerC,
+    async resumeOrCreate(threadId: string) {
+      const s = await innerC.resumeOrCreate(threadId);
+      // Transcript ends in a user turn from a PRIOR turn (≠ current PROMPT) —
+      // the exact post-checkpoint state that produced the user,user leak.
+      return {
+        ...s,
+        transcript: [
+          {
+            role: 'user' as const,
+            content: STALE_PRIOR,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      };
+    },
+  };
+  const depsC = makeDeps(staleTailStore);
+  const tC = Date.now();
+  const resC = await thinkExtended(baseReq, depsC);
+  const textC = resC.kind === 'answer' ? resC.text ?? '' : '';
+  console.log(`[C] kind=${resC.kind}  elapsed=${Date.now() - tC}ms  len=${textC.length}`);
+  if (resC.kind !== 'answer' || textC.trim().length === 0) {
+    console.error(
+      `\n❌ FAIL — Phase C expected a non-empty 'answer' on a resumed thread ` +
+        `with a stale trailing user turn, got kind='${resC.kind}' len=${textC.length}. ` +
+        'A user,user adjacency likely reached the router (see [router:warn]).',
+    );
+    process.exitCode = 1;
+    return;
+  }
+  console.log('\n──────── REAL MODEL OUTPUT (Phase C) ────────');
+  console.log(textC);
+  console.log('─────────────────────────────────────────────');
+  console.log(
+    '[C] ✅ resumed-thread round-trip returned a real answer — the stale ' +
+      'trailing user turn was stripped (no user,user adjacency 400).',
+  );
 
   console.log(
-    '✅ PASS — the orchestrator main-loop made a REAL Anthropic call ' +
-      '(model=claude-opus-4-8) and returned a real, non-empty grounded ' +
-      'answer (full-main-loop fidelity via thinkExtended).',
+    '\n✅ PASS — the orchestrator main-loop made REAL Anthropic calls ' +
+      '(model=claude-opus-4-8) across a fresh thread (A), a seeded transcript ' +
+      '(B), and a resumed thread with a stale trailing user turn (C), ' +
+      'returning real non-empty grounded answers each time ' +
+      '(full-main-loop fidelity via thinkExtended).',
   );
   if (bugReproduced) {
     console.log(

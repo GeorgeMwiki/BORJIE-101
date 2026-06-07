@@ -359,6 +359,22 @@ export async function think(
 }
 
 /**
+ * Length of `transcript` with any trailing run of `user` turns removed. The
+ * orchestrator never writes assistant/tool turns back into the transcript
+ * (cross-turn history rides the end-of-turn memory note → system prompt, not
+ * `messages`), so a trailing `user` turn is always a stale seed from a prior
+ * turn. Dropping the run lets the current turn's user message be appended
+ * without building an invalid `user,user` adjacency in `router.call`. Pure.
+ */
+function trailingNonUserLength(
+  transcript: ReadonlyArray<{ readonly role: string }>,
+): number {
+  let end = transcript.length;
+  while (end > 0 && transcript[end - 1]?.role === 'user') end -= 1;
+  return end;
+}
+
+/**
  * Extended entry point — returns the full eight-variant
  * `OrchestratorResponseExtended` shape. Used by Phase-E.6+ surfaces
  * that need to distinguish `ack-defer`, `stopped`, and `plan-preview`
@@ -371,33 +387,43 @@ export async function thinkExtended(
   const clock = deps.clock ?? Date.now;
   const loadedSession = await deps.sessionStore.resumeOrCreate(req.threadId);
   // Seed THIS turn's inbound user message into the working transcript so the
-  // first `router.call` sees a non-empty `messages` payload. Without it a fresh
-  // thread builds `messages: []` (transcript empty + no pending injections) and
-  // the real Anthropic adapter rejects the call with 400 "messages: at least
-  // one message is required" — which the router fail-safe swallows into an empty
-  // answer. Since this main-loop is the default generation path, that broke the
-  // first message of every new conversation. Immutable (new session object),
-  // added EXACTLY ONCE per turn, and skipped when a resumed transcript already
-  // ends with this exact user turn (so an upstream caller that records the
-  // inbound turn into the store isn't duplicated). The seeded turn flows
-  // through `contextBudget.compactIfOver` + the messages build + `checkpoint`
-  // identically to any other transcript turn.
-  const lastTurn = loadedSession.transcript[loadedSession.transcript.length - 1];
-  const userTurnAlreadyPresent =
-    lastTurn?.role === 'user' && lastTurn.content === req.userMessage;
-  const session = userTurnAlreadyPresent
-    ? loadedSession
-    : {
-        ...loadedSession,
-        transcript: [
-          ...loadedSession.transcript,
-          {
-            role: 'user' as const,
-            content: req.userMessage,
-            timestamp: new Date(clock()).toISOString(),
-          },
-        ],
-      };
+  // first `router.call` sees a non-empty, well-formed `messages` payload.
+  //
+  // Without it a fresh thread builds `messages: []` (transcript empty + no
+  // pending injections) and the real Anthropic adapter rejects the call with
+  // 400 "messages: at least one message is required" — which the router
+  // fail-safe swallows into an empty answer. As the default generation path,
+  // that broke the first message of every new conversation.
+  //
+  // The loop never writes assistant/tool turns back into `session.transcript`
+  // (mid-loop state rides `pendingContextInjections`; cross-turn history is
+  // carried by the end-of-turn memory note folded into the SYSTEM prompt, not
+  // `messages`). With the in-memory `SessionStore` (the default — `checkpoint`
+  // re-stores `session.transcript` and `resumeOrCreate` hands it back next
+  // turn) a resumed transcript can therefore only ever end in a *user* turn:
+  // a stale seed from a prior turn. Appending the new user turn after it would
+  // build an invalid `user,user` adjacency, so we strip any trailing run of
+  // user turns first. Immutable — `loadedSession` and its array are never
+  // mutated; the seeded turn then flows through `compactIfOver`, the messages
+  // build, and `checkpoint` like any other turn, covering streaming +
+  // non-streaming and every kernel entry point.
+  const priorTranscript = loadedSession.transcript;
+  const lastTurn = priorTranscript[priorTranscript.length - 1];
+  const session =
+    lastTurn?.role === 'user' && lastTurn.content === req.userMessage
+      ? // An upstream caller already recorded THIS exact user turn as the tail.
+        loadedSession
+      : {
+          ...loadedSession,
+          transcript: [
+            ...priorTranscript.slice(0, trailingNonUserLength(priorTranscript)),
+            {
+              role: 'user' as const,
+              content: req.userMessage,
+              timestamp: new Date(clock()).toISOString(),
+            },
+          ],
+        };
   let plan = await deps.planStore.load(req.threadId);
   let budget = Budget.of(req.budget ?? {}, clock);
   let lastText = '';
