@@ -327,3 +327,141 @@ describe('contract — never throws on hot path', () => {
     expect(typeof getModelLatest('eleven-tts')).toBe('string');
   });
 });
+
+describe('scheduleRefresh — smoke-validation adoption gate', () => {
+  // A port that answers the L2 *list* call with `listBody`, and the
+  // per-model *probe retrieve* call (URL ends with `/models/{id}`) with
+  // `probeStatus`. The two are told apart by the trailing id segment.
+  function gatedPort(opts: {
+    readonly newId: string;
+    readonly listBody: unknown;
+    readonly probeStatus: number;
+  }): DynamicRegistryFetchPort {
+    return async (url: string): Promise<DynamicRegistryFetchResult> => {
+      if (url.endsWith(`/models/${opts.newId}`)) {
+        return {
+          status: opts.probeStatus,
+          ok: opts.probeStatus >= 200 && opts.probeStatus < 300,
+          headers: {},
+          json: async () => ({ id: opts.newId }),
+          text: async () => '',
+        };
+      }
+      return okResult(opts.listBody);
+    };
+  }
+
+  function recordingLogger(): {
+    readonly log: ResolverLogger;
+    readonly calls: Array<{ level: string; msg: string }>;
+  } {
+    const calls: Array<{ level: string; msg: string }> = [];
+    const log: ResolverLogger = {
+      debug: (_c, m) => calls.push({ level: 'debug', msg: m }),
+      info: (_c, m) => calls.push({ level: 'info', msg: m }),
+      warn: (_c, m) => calls.push({ level: 'warn', msg: m }),
+      error: (_c, m) => calls.push({ level: 'error', msg: m }),
+    };
+    return { log, calls };
+  }
+
+  it('(a) adopts a NEW model that PASSES the probe', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk';
+    const newId = 'claude-opus-4-9'; // newer than baseline claude-opus-4-8
+    expect(newId).not.toBe(MODELS.opus);
+    setFetchPort(
+      gatedPort({
+        newId,
+        listBody: { data: [{ id: newId }, { id: MODELS.opus }] },
+        probeStatus: 200, // probe succeeds
+      }),
+    );
+    await scheduleRefresh('opus');
+    expect(cache.get('opus')).toBe(newId); // adopted
+  });
+
+  it('(b) does NOT adopt a NEW model that FAILS the probe (baseline held + warn)', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk';
+    const newId = 'claude-opus-4-9';
+    const { log, calls } = recordingLogger();
+    setLogger(log);
+    setFetchPort(
+      gatedPort({
+        newId,
+        listBody: { data: [{ id: newId }, { id: MODELS.opus }] },
+        probeStatus: 404, // model not actually callable
+      }),
+    );
+    await scheduleRefresh('opus');
+    // Baseline held — the unvalidated id was rejected.
+    expect(cache.get('opus')).toBe(MODELS.opus);
+    expect(cache.get('opus')).not.toBe(newId);
+    // A warn was logged naming the candidate + the held baseline.
+    expect(
+      calls.some(
+        (c) =>
+          c.level === 'warn' &&
+          c.msg.includes(newId) &&
+          c.msg.includes(MODELS.opus),
+      ),
+    ).toBe(true);
+  });
+
+  it('(c) a model EQUAL to baseline skips the probe (no retrieve call)', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk';
+    // L2 returns exactly the baseline id → already trusted → no probe.
+    const port = vi.fn(async () =>
+      okResult({ data: [{ id: MODELS.opus }] }),
+    );
+    setFetchPort(port as unknown as DynamicRegistryFetchPort);
+    await scheduleRefresh('opus');
+    expect(cache.get('opus')).toBe(MODELS.opus);
+    // Exactly ONE call (the L2 list). No second per-model probe call.
+    expect(port).toHaveBeenCalledTimes(1);
+    const urls = port.mock.calls.map((c) => c[0] as string);
+    expect(urls.some((u) => u.endsWith(`/models/${MODELS.opus}`))).toBe(false);
+  });
+
+  it('(c2) a NEW id equal to the already-cached L1 value skips the probe', async () => {
+    process.env.ANTHROPIC_API_KEY = 'sk';
+    const adopted = 'claude-opus-4-9';
+    // Pre-seed L1 with an already-trusted, previously-adopted id.
+    cache.set('opus', adopted);
+    const port = vi.fn(async () => okResult({ data: [{ id: adopted }] }));
+    setFetchPort(port as unknown as DynamicRegistryFetchPort);
+    await scheduleRefresh('opus');
+    expect(cache.get('opus')).toBe(adopted);
+    // Only the L2 list — no probe, since latest === current L1 value.
+    expect(port).toHaveBeenCalledTimes(1);
+  });
+
+  it('(d) no provider key ⇒ holds baseline (probe skipped)', async () => {
+    // No ANTHROPIC_API_KEY → fetchLatestForFamily short-circuits to null
+    // (there is no L2 to query and therefore no new id to probe). The
+    // resolver holds the baseline. (The probe-skip path itself is unit-
+    // tested in validate-model.test.ts: `no-provider-key` → skipped.)
+    const port = vi.fn();
+    setFetchPort(port as unknown as DynamicRegistryFetchPort);
+    await scheduleRefresh('opus');
+    expect(cache.get('opus')).toBe(MODELS.opus);
+    expect(port).not.toHaveBeenCalled();
+  });
+
+  it('(d2) a NEW id whose probe is SKIPPED (no key mid-flight) holds baseline', async () => {
+    // Force the new-id branch with a key present for L2, but make the
+    // probe return `skipped` by having the retrieve call rate-limit
+    // (429). The resolver must hold the baseline, never adopt.
+    process.env.ANTHROPIC_API_KEY = 'sk';
+    const newId = 'claude-opus-4-9';
+    setFetchPort(
+      gatedPort({
+        newId,
+        listBody: { data: [{ id: newId }] },
+        probeStatus: 429, // inconclusive → skipped → hold
+      }),
+    );
+    await scheduleRefresh('opus');
+    expect(cache.get('opus')).toBe(MODELS.opus);
+    expect(cache.get('opus')).not.toBe(newId);
+  });
+});

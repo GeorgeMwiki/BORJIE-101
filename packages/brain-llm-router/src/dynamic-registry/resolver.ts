@@ -38,6 +38,7 @@ import {
 import { cache } from './cache.js';
 import { fetchLatestForFamily } from './fetchers.js';
 import { getLogger } from './logger-port.js';
+import { validateModel } from './validate-model.js';
 
 /** Short TTL we use to re-cache the baseline when L2 fails. */
 const BASELINE_RECACHE_MS = 5 * 60 * 1000;
@@ -93,37 +94,23 @@ export function scheduleRefresh(family: ModelFamily): Promise<void> {
   const existing = inflight.get(family);
   if (existing !== undefined) return existing;
 
-  const log = getLogger();
   const promise = (async (): Promise<void> => {
     try {
       const latest = await fetchLatestForFamily(family);
       if (latest !== null) {
-        cache.set(family, latest);
-        log.info(
-          { family, source: 'L2', model: latest },
-          'model-resolver L2 refresh succeeded',
-        );
+        await adoptOrHold(family, latest);
       } else {
         // L2 returned nothing (no key / network / no matching id). Cache
         // the baseline for a short window so we don't retry on every
         // hot-path call, but still re-attempt soon (next refresh after
         // BASELINE_RECACHE_MS).
-        cache.set(family, MODELS[family], BASELINE_RECACHE_MS);
-        log.warn(
-          {
-            family,
-            source: 'L3-cached',
-            model: MODELS[family],
-            recacheMs: BASELINE_RECACHE_MS,
-          },
-          'model-resolver L2 returned no match — cached baseline',
-        );
+        holdBaseline(family, 'model-resolver L2 returned no match — cached baseline');
       }
     } catch (err) {
-      // fetchLatestForFamily is contract-bound to never throw; if it
-      // does (e.g. caller injected a broken port), still don't crash
-      // the warmer.
-      log.error(
+      // fetchLatestForFamily / validateModel are contract-bound to never
+      // throw; if one does (e.g. caller injected a broken port), still
+      // don't crash the warmer.
+      getLogger().error(
         {
           family,
           err: err instanceof Error ? err.message : String(err),
@@ -138,6 +125,78 @@ export function scheduleRefresh(family: ModelFamily): Promise<void> {
 
   inflight.set(family, promise);
   return promise;
+}
+
+/**
+ * Decide whether an L2-discovered `latest` id may be promoted into L1.
+ *
+ *   - `latest` equals the baseline OR the value already cached in L1 →
+ *     already trusted; adopt with the normal TTL, no probe needed.
+ *   - `latest` is a NEW id (differs from baseline AND from the current
+ *     L1 value) → run the bounded smoke probe first. Only a `pass`
+ *     verdict adopts it; `fail`/`skipped` hold the baseline (short TTL)
+ *     so the hot path never routes at an unvalidated model.
+ *
+ * The probe lives ENTIRELY here in the async refresh — the sync hot
+ * path (`getModelLatest`) never awaits it.
+ */
+async function adoptOrHold(
+  family: ModelFamily,
+  latest: string,
+): Promise<void> {
+  const log = getLogger();
+  const baseline = MODELS[family];
+  const currentL1 = cache.get(family);
+
+  if (latest === baseline || latest === currentL1) {
+    cache.set(family, latest);
+    log.info(
+      { family, source: 'L2', model: latest, probed: false },
+      'model-resolver L2 refresh succeeded (known id — no probe)',
+    );
+    return;
+  }
+
+  // NEW id never served before → smoke-validate before adopting.
+  const verdict = await validateModel(family, latest);
+  if (verdict.outcome === 'pass') {
+    cache.set(family, latest);
+    log.info(
+      { family, source: 'L2', model: latest, probed: true },
+      'model-resolver adopted new model after passing validation probe',
+    );
+    return;
+  }
+
+  // fail / skipped → do NOT adopt. Hold the baseline on a short TTL so
+  // the next refresh re-attempts (the model may become available, or a
+  // transient probe error clears).
+  cache.set(family, baseline, BASELINE_RECACHE_MS);
+  log.warn(
+    {
+      family,
+      candidate: latest,
+      baseline,
+      outcome: verdict.outcome,
+      reason: verdict.reason,
+      recacheMs: BASELINE_RECACHE_MS,
+    },
+    `model-resolver new model ${latest} failed validation probe — holding ${baseline}`,
+  );
+}
+
+/** Cache the baseline on the short retry TTL and warn. */
+function holdBaseline(family: ModelFamily, message: string): void {
+  cache.set(family, MODELS[family], BASELINE_RECACHE_MS);
+  getLogger().warn(
+    {
+      family,
+      source: 'L3-cached',
+      model: MODELS[family],
+      recacheMs: BASELINE_RECACHE_MS,
+    },
+    message,
+  );
 }
 
 /**

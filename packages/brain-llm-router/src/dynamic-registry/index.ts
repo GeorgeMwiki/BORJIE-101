@@ -34,4 +34,9 @@ export {
   FAMILY_PATTERNS,
   extractIds,
 } from './fetchers.js';
+export {
+  validateModel,
+  type ValidateOutcome,
+  type ValidateResult,
+} from './validate-model.js';
 export { compareModelIds, pickNewest } from './version-compare.js';
