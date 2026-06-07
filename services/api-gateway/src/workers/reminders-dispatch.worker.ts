@@ -64,6 +64,48 @@ function computeNextRetryAt(from: Date, attempt: number): Date {
   return new Date(from.getTime() + delayMs);
 }
 
+// Quiet-hours: SMS is the one intrusive channel here (it buzzes a phone), so
+// only SMS is gated — email/Slack still deliver immediately. When the owner's
+// LOCAL time falls in the quiet window the row is DEFERRED (re-queued, not
+// failed, and WITHOUT consuming a retry attempt) and re-checked shortly after.
+const DEFAULT_TIMEZONE = 'Africa/Dar_es_Salaam';
+const QUIET_RECHECK_MS = 30 * 60_000; // 30m — re-evaluate until outside the window
+
+/** Hour-of-day (0–23) at `instant` in the given IANA time zone. Pure. */
+function hourInZone(instant: Date, timeZone: string): number {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: 'numeric',
+      hour12: false,
+    }).formatToParts(instant);
+    const raw = parts.find((p) => p.type === 'hour')?.value ?? '0';
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) ? n % 24 : 0; // some engines render midnight as 24
+  } catch {
+    // Unknown/invalid time zone → treat as 0 so we never crash the dispatch.
+    return 0;
+  }
+}
+
+/**
+ * True when `instant` is inside the quiet window `[startHour, endHour)` in
+ * `timeZone`. Supports midnight-wrapping windows (e.g. 21→7). An empty window
+ * (start === end) is treated as "no quiet hours". Pure.
+ */
+export function isWithinQuietHours(
+  instant: Date,
+  timeZone: string,
+  startHour: number,
+  endHour: number,
+): boolean {
+  if (startHour === endHour) return false;
+  const h = hourInZone(instant, timeZone);
+  return startHour < endHour
+    ? h >= startHour && h < endHour
+    : h >= startHour || h < endHour;
+}
+
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
@@ -102,6 +144,16 @@ export interface RemindersDispatchOptions {
    *  when present the Slack channel can DM the owner directly instead
    *  of posting to the tenant-wide webhook. */
   readonly slackHandleForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
+  /**
+   * Quiet-hours window in 24h LOCAL time (the owner's tz). When set, an SMS
+   * reminder whose owner-local time falls inside `[startHour, endHour)` is
+   * deferred (re-queued, no attempt consumed) instead of buzzing the phone.
+   * Wired from QUIET_HOURS_START / QUIET_HOURS_END. Omit to disable.
+   */
+  readonly quietHours?: { readonly startHour: number; readonly endHour: number };
+  /** Resolver from owner_id → IANA time zone (owner_contact_prefs.timezone).
+   *  Falls back to Africa/Dar_es_Salaam when absent. Drives quiet-hours. */
+  readonly timezoneForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
 }
 
 export interface RemindersDispatchHandle {
@@ -117,6 +169,9 @@ export interface DispatchTickResult {
   /** Rows that hit a retryable failure and were re-queued with backoff
    *  (not yet delivered, not terminally failed). */
   readonly retried: number;
+  /** SMS rows deferred because the owner is in quiet hours (re-queued for
+   *  later, no delivery attempt made, no retry attempt consumed). */
+  readonly deferred: number;
 }
 
 function asRows(res: unknown): readonly Record<string, unknown>[] {
@@ -310,9 +365,51 @@ export function createRemindersDispatchWorker(
     return 'failed';
   }
 
+  // Defer an SMS that lands in the owner's quiet hours: re-queue for a later
+  // re-check WITHOUT marking it failed and WITHOUT consuming a retry attempt
+  // (a deferral is not a failure). It will deliver once outside the window.
+  async function markDeferred(r: PendingReminder, until: Date): Promise<void> {
+    try {
+      await options.db.execute(sql`
+        UPDATE reminders
+           SET status = 'scheduled',
+               trigger_at = ${until}
+         WHERE id = ${r.id}
+           AND tenant_id = ${r.tenantId}
+      `);
+    } catch (err) {
+      options.logger.warn(
+        { worker: 'reminders-dispatch', reminderId: r.id, err: err instanceof Error ? err.message : String(err) },
+        'reminders-dispatch: markDeferred failed',
+      );
+    }
+  }
+
+  // Quiet-hours gate for the SMS channel. Returns true (and re-queues the row)
+  // when the owner's local time is inside the configured window.
+  async function deferredForQuietHours(r: PendingReminder): Promise<boolean> {
+    if (!options.quietHours) return false;
+    const tz =
+      (options.timezoneForOwner
+        ? await options.timezoneForOwner(r.tenantId, r.ownerId).catch(() => null)
+        : null) ?? DEFAULT_TIMEZONE;
+    if (
+      !isWithinQuietHours(
+        now(),
+        tz,
+        options.quietHours.startHour,
+        options.quietHours.endHour,
+      )
+    ) {
+      return false;
+    }
+    await markDeferred(r, new Date(now().getTime() + QUIET_RECHECK_MS));
+    return true;
+  }
+
   async function dispatchOne(
     r: PendingReminder,
-  ): Promise<{ outcome: 'sent' | 'failed' | 'retried' }> {
+  ): Promise<{ outcome: 'sent' | 'failed' | 'retried' | 'deferred' }> {
     if (r.channel === 'email') {
       // Owner-identity resolver (preferred) → owner_contact_prefs →
       // users.email. The legacy BORJIE_OWNER_FALLBACK_EMAIL is retained
@@ -361,6 +458,10 @@ export function createRemindersDispatchWorker(
     }
 
     if (r.channel === 'sms') {
+      // Quiet-hours: defer the SMS rather than buzz the owner's phone at night.
+      if (await deferredForQuietHours(r)) {
+        return { outcome: 'deferred' };
+      }
       const phone = options.phoneForOwner
         ? await options.phoneForOwner(r.tenantId, r.ownerId).catch(() => null)
         : null;
@@ -462,21 +563,23 @@ export function createRemindersDispatchWorker(
       let sent = 0;
       let failed = 0;
       let retried = 0;
+      let deferred = 0;
       for (const r of claimed) {
         const { outcome } = await dispatchOne(r);
         if (outcome === 'sent') sent += 1;
         else if (outcome === 'retried') retried += 1;
+        else if (outcome === 'deferred') deferred += 1;
         else failed += 1;
       }
       if (claimed.length > 0) {
         options.logger.info(
-          { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed, retried },
+          { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed, retried, deferred },
           'reminders-dispatch: tick done',
         );
       }
       // G6 — heartbeat on the success path.
       workerHeartbeat('reminders-dispatch');
-      return { claimed: claimed.length, sent, failed, retried };
+      return { claimed: claimed.length, sent, failed, retried, deferred };
     } catch (err) {
       workerHeartbeatFailure('reminders-dispatch', err);
       throw err;

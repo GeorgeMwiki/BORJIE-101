@@ -2740,7 +2740,7 @@ const remindersDispatchWorker = serviceRegistry.db
       intervalMs: Number(process.env.BORJIE_REMINDERS_INTERVAL_MS ?? 30_000) || 30_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_REMINDERS_WORKER_DISABLED !== 'true',
     })
-  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0 }; } };
+  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 }; } };
 
 // Wave CLOSED-LOOP - 6h tick. For each outcome_predictions row whose
 // horizon has elapsed and has no reconciliation yet, resolve the
