@@ -189,7 +189,7 @@ export const kgCommunitySummaries = pgTable(
     communityId: text('community_id').notNull(),
     /** Markdown summary returned by the LLM. */
     summaryMd: text('summary_md').notNull(),
-    /** Model id used (e.g. 'claude-opus-4-7'). */
+    /** Model id used (e.g. 'claude-opus-4-8'). */
     modelId: text('model_id').notNull(),
     /** Tokens spent generating this summary. */
     tokenCount: integer('token_count').notNull().default(0),

@@ -179,7 +179,7 @@ export async function runClaudeJunior<TSchema extends ZodSchema>(
   const response = await args.claude.complete({
     systemPrompt: args.systemPrompt,
     userPrompt: args.userPrompt,
-    model: args.model ?? 'claude-haiku-4-5-20251001',
+    model: args.model ?? 'claude-haiku-4-5',
     maxTokens: args.maxTokens ?? 1500,
     temperature: args.temperature ?? 0,
   });
@@ -228,7 +228,7 @@ export function lazyClaudeClient(): ClaudeClient {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: model ?? 'claude-haiku-4-5-20251001',
+            model: model ?? 'claude-haiku-4-5',
             max_tokens: maxTokens ?? 1500,
             temperature: temperature ?? 0,
             system: systemPrompt,

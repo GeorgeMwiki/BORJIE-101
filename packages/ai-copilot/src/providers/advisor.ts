@@ -98,7 +98,7 @@ export class AdvisorExecutor {
     const executorModel =
       this.cfg.executorModel ?? ANTHROPIC_MODELS.SONNET_4_6;
     const advisorModel =
-      this.cfg.advisorModel ?? ANTHROPIC_MODELS.OPUS_4_6;
+      this.cfg.advisorModel ?? ANTHROPIC_MODELS.OPUS_4_8;
     const threshold =
       ctx.advisorThreshold ?? this.cfg.defaultThreshold ?? 0.7;
 

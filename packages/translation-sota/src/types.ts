@@ -25,7 +25,7 @@
 export type LanguageCode = 'sw' | 'en';
 
 /** Stable provider identifiers. Matches the SQL CHECK constraint. */
-export type ProviderId = 'claude-opus-4-7' | 'gemini-2-5-pro' | 'nllb-200';
+export type ProviderId = 'claude-opus-4-8' | 'gemini-2-5-pro' | 'nllb-200';
 
 /** Glossary entry domain. Matches the SQL CHECK constraint. */
 export type GlossaryDomain =

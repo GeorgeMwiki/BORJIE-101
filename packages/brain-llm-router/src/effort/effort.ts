@@ -26,7 +26,7 @@ export const DEFAULT_EFFORT: ReasoningEffort = 'standard';
 const CANONICAL_MODEL_BY_EFFORT: Readonly<Record<ReasoningEffort, ModelTier>> = Object.freeze({
   fast: 'anthropic/claude-haiku-4-5',
   standard: 'anthropic/claude-sonnet-4-6',
-  deep: 'anthropic/claude-opus-4-7',
+  deep: 'anthropic/claude-opus-4-8',
 });
 
 const ENV_BY_EFFORT: Readonly<Record<ReasoningEffort, string>> = Object.freeze({

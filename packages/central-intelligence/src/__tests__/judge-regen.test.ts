@@ -187,7 +187,7 @@ describe('Wave-K Anthropic judge — new return shape', () => {
         async create() {
           return {
             id: 'm_1',
-            model: 'claude-haiku-4-5-20251001',
+            model: 'claude-haiku-4-5',
             stop_reason: 'end_turn',
             content: [
               {

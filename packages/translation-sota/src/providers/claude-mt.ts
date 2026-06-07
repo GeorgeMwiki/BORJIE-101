@@ -59,7 +59,7 @@ export interface ClaudeMtDeps {
   readonly healthProbe?: () => Promise<boolean>;
 }
 
-export const CLAUDE_PROVIDER_ID: ProviderId = 'claude-opus-4-7';
+export const CLAUDE_PROVIDER_ID: ProviderId = 'claude-opus-4-8';
 
 /**
  * Build the glossary-conditioned system prompt. The translator MUST

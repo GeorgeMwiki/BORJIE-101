@@ -138,7 +138,7 @@ describe('MultiLLMRouter.pick', () => {
     const oa = stubProvider('openai', () => okResp('gpt-4o'));
     const router = createMultiLLMRouter({
       providers: {
-        anthropic: makeRegistration(ant, { analysis: 'claude-sonnet-4-6', conversation: 'claude-haiku-4-5-20251001' }),
+        anthropic: makeRegistration(ant, { analysis: 'claude-sonnet-4-6', conversation: 'claude-haiku-4-5' }),
         openai: makeRegistration(oa, { analysis: 'gpt-4o', conversation: 'gpt-4o-mini' }),
       },
       ledger,
@@ -151,11 +151,11 @@ describe('MultiLLMRouter.pick', () => {
   it('routes conversation to openai by default', () => {
     const { repo } = makeRepo();
     const ledger = createCostLedger({ repo });
-    const ant = stubProvider('anthropic', () => okResp('claude-haiku-4-5-20251001'));
+    const ant = stubProvider('anthropic', () => okResp('claude-haiku-4-5'));
     const oa = stubProvider('openai', () => okResp('gpt-4o-mini'));
     const router = createMultiLLMRouter({
       providers: {
-        anthropic: makeRegistration(ant, { conversation: 'claude-haiku-4-5-20251001' }),
+        anthropic: makeRegistration(ant, { conversation: 'claude-haiku-4-5' }),
         openai: makeRegistration(oa, { conversation: 'gpt-4o-mini' }),
       },
       ledger,
@@ -241,7 +241,7 @@ describe('MultiLLMRouter.complete', () => {
     const oa = stubProvider('openai', () => okResp('gpt-4o-mini', 10, 5));
     const router = createMultiLLMRouter({
       providers: {
-        anthropic: makeRegistration(ant, { conversation: 'claude-haiku-4-5-20251001' }),
+        anthropic: makeRegistration(ant, { conversation: 'claude-haiku-4-5' }),
         openai: makeRegistration(oa, { conversation: 'gpt-4o-mini' }),
       },
       ledger,

@@ -141,8 +141,8 @@ describe('Phase D D7 — tenant-tier-aware pick() (Anthropic leg)', () => {
     const ledger = createCostLedger({ repo });
     const ant = stubProvider(
       'anthropic',
-      ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
-      () => okResp('claude-opus-4-7'),
+      ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+      () => okResp('claude-opus-4-8'),
     );
     const router = createMultiLLMRouter({
       providers: {
@@ -155,7 +155,7 @@ describe('Phase D D7 — tenant-tier-aware pick() (Anthropic leg)', () => {
     });
     const pick = router.pick({ taskType: 'analysis', tenantTier: 'enterprise' });
     expect(pick?.providerId).toBe('anthropic');
-    expect(pick?.modelId).toBe('claude-opus-4-7');
+    expect(pick?.modelId).toBe('claude-opus-4-8');
   });
 
   it('growth/standard tier picks Sonnet 4.6', () => {
@@ -163,14 +163,14 @@ describe('Phase D D7 — tenant-tier-aware pick() (Anthropic leg)', () => {
     const ledger = createCostLedger({ repo });
     const ant = stubProvider(
       'anthropic',
-      ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+      ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
       () => okResp('claude-sonnet-4-6'),
     );
     const router = createMultiLLMRouter({
       providers: {
         anthropic: {
           provider: ant,
-          preferredModels: { analysis: 'claude-opus-4-7' },
+          preferredModels: { analysis: 'claude-opus-4-8' },
         },
       },
       ledger,
@@ -184,20 +184,20 @@ describe('Phase D D7 — tenant-tier-aware pick() (Anthropic leg)', () => {
     const ledger = createCostLedger({ repo });
     const ant = stubProvider(
       'anthropic',
-      ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
-      () => okResp('claude-haiku-4-5-20251001'),
+      ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'],
+      () => okResp('claude-haiku-4-5'),
     );
     const router = createMultiLLMRouter({
       providers: {
         anthropic: {
           provider: ant,
-          preferredModels: { analysis: 'claude-opus-4-7' },
+          preferredModels: { analysis: 'claude-opus-4-8' },
         },
       },
       ledger,
     });
     const pick = router.pick({ taskType: 'analysis', tenantTier: 'free' });
-    expect(pick?.modelId).toBe('claude-haiku-4-5-20251001');
+    expect(pick?.modelId).toBe('claude-haiku-4-5');
   });
 
   it('falls back to task-bound preferred model when tier-pick is unsupported', () => {

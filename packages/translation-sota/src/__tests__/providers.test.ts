@@ -56,7 +56,7 @@ describe('providers', () => {
     const provider = createClaudeProvider({
       config: {
         apiKey: 'test-key',
-        model: 'claude-opus-4-7',
+        model: 'claude-opus-4-8',
         endpoint: 'https://example.invalid/v1/messages',
       },
       fetcher: async (req) => {
@@ -80,7 +80,7 @@ describe('providers', () => {
     expect(calls).toBe(1);
     expect(capturedHeaders).not.toBeNull();
     expect(capturedHeaders?.['x-api-key']).toBe('test-key');
-    expect(capturedBody).toContain('claude-opus-4-7');
+    expect(capturedBody).toContain('claude-opus-4-8');
     expect(result.targetText).toBe('Hello.');
   });
 });

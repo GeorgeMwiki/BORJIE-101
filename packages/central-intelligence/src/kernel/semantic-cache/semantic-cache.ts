@@ -119,13 +119,13 @@ export const SONNET_4_6_RATE: ModelCostRate = Object.freeze({
 });
 
 export const OPUS_4_6_RATE: ModelCostRate = Object.freeze({
-  modelId: 'claude-opus-4-6',
-  promptUsdPer1k: 0.015,
-  completionUsdPer1k: 0.075,
+  modelId: 'claude-opus-4-8',
+  promptUsdPer1k: 0.005,
+  completionUsdPer1k: 0.025,
 });
 
 export const HAIKU_4_5_RATE: ModelCostRate = Object.freeze({
-  modelId: 'claude-haiku-4-5-20251001',
+  modelId: 'claude-haiku-4-5',
   promptUsdPer1k: 0.0008,
   completionUsdPer1k: 0.004,
 });

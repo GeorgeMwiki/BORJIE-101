@@ -48,7 +48,7 @@ export interface TranslateOutput {
   readonly sourceLang: Locale;
   readonly targetLang: Locale;
   readonly cacheHit: boolean;
-  readonly provider: 'cache' | 'passthrough' | 'claude-opus-4-7' | 'gemini-2-5-pro' | 'nllb-200';
+  readonly provider: 'cache' | 'passthrough' | 'claude-opus-4-8' | 'gemini-2-5-pro' | 'nllb-200';
   readonly latencyMs: number;
 }
 

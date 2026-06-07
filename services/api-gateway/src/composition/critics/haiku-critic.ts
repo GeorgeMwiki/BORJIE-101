@@ -20,7 +20,7 @@
  *
  * Design constraints (per `.planning/central-command/00-architecture.md`
  * §"Progressive intelligence cadence" — nightly tier):
- *   - Cheapest model: `claude-haiku-4-5-20251001`.
+ *   - Cheapest model: `claude-haiku-4-5`.
  *   - Cost-bounded: max 500 output tokens per cluster; clusters with
  *     >50 traces are sampled down to 50 random traces before the
  *     prompt is composed.
@@ -108,7 +108,7 @@ export interface AnthropicMessagesLike {
 export interface HaikuCriticDeps {
   /** Anthropic SDK client. Required. */
   readonly anthropicClient: AnthropicMessagesLike;
-  /** Override model id (tests). Default `claude-haiku-4-5-20251001`. */
+  /** Override model id (tests). Default `claude-haiku-4-5`. */
   readonly modelId?: string;
   /** Hard cap on output tokens per call. Default 500. */
   readonly maxTokens?: number;

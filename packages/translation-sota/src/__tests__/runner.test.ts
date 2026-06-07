@@ -41,7 +41,7 @@ function silentLogger() {
  * returns the result, tagged with the given id + latency.
  */
 function fakeProvider(opts: {
-  readonly id: 'claude-opus-4-7' | 'gemini-2-5-pro' | 'nllb-200';
+  readonly id: 'claude-opus-4-8' | 'gemini-2-5-pro' | 'nllb-200';
   readonly mapper: (
     req: ProviderTranslateRequest,
   ) => string;
@@ -75,7 +75,7 @@ describe('translation runner', () => {
     const runner = createTranslationRunner({
       providers: [
         fakeProvider({
-          id: 'claude-opus-4-7',
+          id: 'claude-opus-4-8',
           mapper: (req) =>
             // Provider preserves every placeholder verbatim and
             // translates the surrounding Swahili to English.
@@ -97,7 +97,7 @@ describe('translation runner', () => {
       sourceText: 'Ndugu, parseli imefika kwa PML.',
     });
 
-    expect(result.provider).toBe('claude-opus-4-7');
+    expect(result.provider).toBe('claude-opus-4-8');
     expect(result.terminologyAdherence).toBe(1);
     expect(result.demotions).toHaveLength(0);
     expect(result.targetText.toLowerCase()).toContain('parcel');
@@ -111,7 +111,7 @@ describe('translation runner', () => {
     const runner = createTranslationRunner({
       providers: [
         fakeProvider({
-          id: 'claude-opus-4-7',
+          id: 'claude-opus-4-8',
           mapper: () => 'irrelevant',
           throws: true,
         }),
@@ -149,7 +149,7 @@ describe('translation runner', () => {
     const runner = createTranslationRunner({
       providers: [
         fakeProvider({
-          id: 'claude-opus-4-7',
+          id: 'claude-opus-4-8',
           // Strip out ALL placeholders entirely — guaranteed adherence
           // violation.
           mapper: (req) => req.sourceText.replace(/<<G:\d{4}>>/g, ''),
@@ -185,7 +185,7 @@ describe('translation runner', () => {
     const runner = createTranslationRunner({
       providers: [
         fakeProvider({
-          id: 'claude-opus-4-7',
+          id: 'claude-opus-4-8',
           // Provider preserves placeholders and translates surrounding
           // SW tokens; once the runner unlocks them we get a sentence
           // whose tokens match the reference.

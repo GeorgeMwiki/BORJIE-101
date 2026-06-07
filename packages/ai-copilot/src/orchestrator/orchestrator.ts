@@ -915,7 +915,7 @@ interface FinalPersonaResult {
 function modelForTier(tier: Persona['modelTier']): string {
   switch (tier) {
     case 'advanced':
-      return ANTHROPIC_MODELS.OPUS_4_6;
+      return ANTHROPIC_MODELS.OPUS_4_8;
     case 'standard':
       return ANTHROPIC_MODELS.SONNET_4_6;
     case 'basic':

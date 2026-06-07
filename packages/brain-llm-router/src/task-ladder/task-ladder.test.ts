@@ -21,7 +21,7 @@ import {
 
 describe('TASK_LADDER defaults', () => {
   it('plan ladder leads with Opus', () => {
-    expect(TASK_LADDER.plan[0]).toBe('anthropic/claude-opus-4-7');
+    expect(TASK_LADDER.plan[0]).toBe('anthropic/claude-opus-4-8');
   });
 
   it('tool-use ladder leads with Sonnet (SWE-bench Pareto frontier)', () => {
@@ -67,15 +67,15 @@ describe('TASK_LADDER defaults', () => {
 describe('resolveLadder', () => {
   it('returns default ladder when no override', () => {
     const ladder = resolveLadder('plan', 'tnt_default');
-    expect(ladder[0]).toBe('anthropic/claude-opus-4-7');
+    expect(ladder[0]).toBe('anthropic/claude-opus-4-8');
   });
 
   it('uses tenant override when present', () => {
     const overrides: TenantLadderMap = {
-      tnt_vip: { plan: ['anthropic/claude-opus-4-7', 'openai/gpt-5-pro'] },
+      tnt_vip: { plan: ['anthropic/claude-opus-4-8', 'openai/gpt-5-pro'] },
     };
     const ladder = resolveLadder('plan', 'tnt_vip', overrides);
-    expect(ladder).toEqual(['anthropic/claude-opus-4-7', 'openai/gpt-5-pro']);
+    expect(ladder).toEqual(['anthropic/claude-opus-4-8', 'openai/gpt-5-pro']);
   });
 
   it('falls back to default when tenant override exists but task missing', () => {
@@ -107,7 +107,7 @@ describe('resolveLadder', () => {
 
 describe('selectAtDepth', () => {
   it('returns the model at the requested depth', () => {
-    expect(selectAtDepth('plan', 'tnt_x', 0)).toBe('anthropic/claude-opus-4-7');
+    expect(selectAtDepth('plan', 'tnt_x', 0)).toBe('anthropic/claude-opus-4-8');
     expect(selectAtDepth('plan', 'tnt_x', 1)).toBe('anthropic/claude-sonnet-4-6@bedrock');
     expect(selectAtDepth('plan', 'tnt_x', 2)).toBe('openai/gpt-5-pro');
   });

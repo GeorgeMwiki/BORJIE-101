@@ -14,9 +14,9 @@ interface ModelRow {
 }
 
 const MODELS: ReadonlyArray<ModelRow> = [
-  { id: 'm_master', junior: 'Master Brain', model: 'claude-sonnet-4-5', provider: 'Anthropic', p50ms: 820, monthCostUsd: 482.10 },
-  { id: 'm_geo', junior: 'Geology', model: 'claude-sonnet-4-5', provider: 'Anthropic', p50ms: 910, monthCostUsd: 244.55 },
-  { id: 'm_comp', junior: 'Compliance', model: 'claude-opus-4-7', provider: 'Anthropic', p50ms: 1740, monthCostUsd: 612.80 },
+  { id: 'm_master', junior: 'Master Brain', model: 'claude-sonnet-4-6', provider: 'Anthropic', p50ms: 820, monthCostUsd: 482.10 },
+  { id: 'm_geo', junior: 'Geology', model: 'claude-sonnet-4-6', provider: 'Anthropic', p50ms: 910, monthCostUsd: 244.55 },
+  { id: 'm_comp', junior: 'Compliance', model: 'claude-opus-4-8', provider: 'Anthropic', p50ms: 1740, monthCostUsd: 612.80 },
   { id: 'm_sales', junior: 'Sales', model: 'claude-haiku-4-5', provider: 'Anthropic', p50ms: 280, monthCostUsd: 98.40 },
   { id: 'm_voice', junior: 'Voice transcribe', model: 'whisper-large-v3', provider: 'OpenAI', p50ms: 410, monthCostUsd: 36.20 },
   { id: 'm_embed', junior: 'Embeddings', model: 'embed-multilingual-v3', provider: 'Cohere', p50ms: 120, monthCostUsd: 28.10 },

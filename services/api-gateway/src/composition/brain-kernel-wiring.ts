@@ -819,7 +819,7 @@ function resolveEmbedder(
  * this wiring does not pick up a hard import on the ai-copilot provider
  * model catalogue just to name one model.
  */
-const DEFAULT_ORCHESTRATOR_MODEL = 'claude-sonnet-4-6';
+const DEFAULT_ORCHESTRATOR_MODEL = 'claude-opus-4-8';
 
 /**
  * Item-5 — assemble the `composeSovereign({ orchestrator })` block.

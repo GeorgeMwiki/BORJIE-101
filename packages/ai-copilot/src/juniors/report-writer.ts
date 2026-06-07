@@ -102,7 +102,7 @@ export function createReportWriter(deps: JuniorDeps) {
         schema: ReportWriterOutput,
         systemPrompt: REPORT_WRITER_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated) + `\nPRE-ASSIGNED document_id: ${documentId}`,
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-sonnet-4-6',
         maxTokens: 4000,
       });
 

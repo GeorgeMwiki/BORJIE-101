@@ -251,7 +251,7 @@ describe('CostLedger.currentMonthSpend', () => {
     await ledger.recordUsage({
       tenantId: 'tenant_a',
       provider: 'anthropic',
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-haiku-4-5',
       inputTokens: 5,
       outputTokens: 5,
       costUsdMicro: 100,
@@ -261,7 +261,7 @@ describe('CostLedger.currentMonthSpend', () => {
       cost: 500,
       calls: 1,
     });
-    expect(summary.byModel['claude-haiku-4-5-20251001']).toEqual({
+    expect(summary.byModel['claude-haiku-4-5']).toEqual({
       cost: 100,
       calls: 1,
     });

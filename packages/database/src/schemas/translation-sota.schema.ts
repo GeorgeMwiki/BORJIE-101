@@ -55,7 +55,7 @@ export const translationRuns = pgTable(
     targetLang: text('target_lang').notNull(),
     sourceText: text('source_text').notNull(),
     targetText: text('target_text').notNull(),
-    /** Provider used: claude-opus-4-7 | gemini-2-5-pro | nllb-200. */
+    /** Provider used: claude-opus-4-8 | gemini-2-5-pro | nllb-200. */
     provider: text('provider').notNull(),
     /** GlossaryEntry refs the lock substituted in this run. */
     glossaryTermsUsed: jsonb('glossary_terms_used').notNull().default([]),

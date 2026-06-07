@@ -122,7 +122,7 @@ export function createAuditorAgent(deps: JuniorDeps) {
         schema: AuditorOutputSchema,
         systemPrompt: AUDITOR_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated),
-        model: 'claude-haiku-4-5-20251001',
+        model: 'claude-haiku-4-5',
         maxTokens: 1500,
       });
 

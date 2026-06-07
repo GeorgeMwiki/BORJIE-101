@@ -40,9 +40,9 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const BRAIN_LLM_MODELS = {
-  HAIKU: 'claude-haiku-4-5-20251001',
+  HAIKU: 'claude-haiku-4-5',
   SONNET: 'claude-sonnet-4-6',
-  OPUS: 'claude-opus-4-6',
+  OPUS: 'claude-opus-4-8',
 } as const;
 
 export type BrainLlmModelId =

@@ -41,7 +41,7 @@ function makeProvider(
   let i = 0;
   return {
     providerId: 'mock',
-    supportedModels: ['claude-sonnet-4-6', 'claude-opus-4-6'],
+    supportedModels: ['claude-sonnet-4-6', 'claude-opus-4-8'],
     supportsModel: () => true,
     getModelInfo: () => null,
     healthCheck: async () => true,

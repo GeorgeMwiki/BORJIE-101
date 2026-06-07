@@ -73,7 +73,7 @@ describe('drizzle translation cache', () => {
 
     await cache.set(key, {
       targetText: 'Karibu',
-      provider: 'claude-opus-4-7',
+      provider: 'claude-opus-4-8',
       glossaryVersion: 'v1',
     });
     expect(insertCalls).toHaveLength(1);
@@ -97,7 +97,7 @@ describe('drizzle translation cache', () => {
 
     await cache.set(key, {
       targetText: 'Karibu',
-      provider: 'claude-opus-4-7',
+      provider: 'claude-opus-4-8',
       glossaryVersion: 'v1',
     });
     await cache.get(key);

@@ -352,7 +352,7 @@ function resolveBrainClient(): { client: BrainLLMClient; model: string } | null 
     const model =
       process.env.BORJIE_COURSE_ANTHROPIC_MODEL?.trim() ||
       process.env.CLAUDE_MODEL_DEFAULT?.trim() ||
-      'claude-3-5-sonnet-latest';
+      'claude-sonnet-4-6';
     return { client: new AnthropicAdapter({ apiKey: anthropicKey }), model };
   }
   const openaiKey = process.env.OPENAI_API_KEY?.trim();

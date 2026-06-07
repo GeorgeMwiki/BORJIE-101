@@ -12,7 +12,7 @@
  *
  * Operator override per family via env var (uppercased + dashes → `_`):
  *
- *     BORJIE_MODEL_BASELINE_OPUS=claude-opus-4-7
+ *     BORJIE_MODEL_BASELINE_OPUS=claude-opus-4-8
  *     BORJIE_MODEL_BASELINE_GPT_5_MINI=gpt-5.4-mini
  *
  * The override is read at module-load time. Restart the process to
@@ -59,12 +59,12 @@ export type ModelFamily = (typeof MODEL_FAMILIES)[number];
  */
 export const MODELS: Readonly<Record<ModelFamily, string>> = Object.freeze({
   opus:
-    process.env.BORJIE_MODEL_BASELINE_OPUS ?? 'claude-opus-4-7',
+    process.env.BORJIE_MODEL_BASELINE_OPUS ?? 'claude-opus-4-8',
   sonnet:
     process.env.BORJIE_MODEL_BASELINE_SONNET ?? 'claude-sonnet-4-6',
   haiku:
     process.env.BORJIE_MODEL_BASELINE_HAIKU ??
-    'claude-haiku-4-5-20251001',
+    'claude-haiku-4-5',
   'gpt-5':
     process.env.BORJIE_MODEL_BASELINE_GPT_5 ?? 'gpt-5.4',
   'gpt-5-mini':

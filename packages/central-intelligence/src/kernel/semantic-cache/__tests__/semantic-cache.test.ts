@@ -347,8 +347,8 @@ describe('createSemanticCache — lookup + store', () => {
   it('cost rate registry returns model-specific rates', () => {
     const registry = createCostRateRegistry();
     expect(registry.rateFor('claude-sonnet-4-6').promptUsdPer1k).toBe(0.003);
-    expect(registry.rateFor('claude-opus-4-6').promptUsdPer1k).toBe(0.015);
-    expect(registry.rateFor('claude-haiku-4-5-20251001').promptUsdPer1k).toBe(
+    expect(registry.rateFor('claude-opus-4-8').promptUsdPer1k).toBe(0.005);
+    expect(registry.rateFor('claude-haiku-4-5').promptUsdPer1k).toBe(
       0.0008,
     );
     // Unknown id → falls back to Sonnet (the Borjie default).

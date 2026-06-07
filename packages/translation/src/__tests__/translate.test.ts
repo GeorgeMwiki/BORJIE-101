@@ -25,7 +25,7 @@ function makeFakeRunner(targetText: string) {
         targetLang: 'sw' as const,
         sourceText: '',
         targetText,
-        provider: 'claude-opus-4-7' as const,
+        provider: 'claude-opus-4-8' as const,
         register: { level: 'neutral' as const, honorific: undefined },
         glossaryTermsUsed: [],
         codeSwitchSegments: [],

@@ -52,7 +52,7 @@ export function buildMultiLLMRouter(opts: BuildRouterOptions): MultiLLMRouter {
       }),
       preferredModels: {
         analysis: ANTHROPIC_MODELS.SONNET_4_6,
-        reasoning: ANTHROPIC_MODELS.OPUS_4_6,
+        reasoning: ANTHROPIC_MODELS.OPUS_4_8,
         tool_use: ANTHROPIC_MODELS.SONNET_4_6,
         conversation: ANTHROPIC_MODELS.HAIKU_4_5,
         summarization: ANTHROPIC_MODELS.HAIKU_4_5,
@@ -60,7 +60,7 @@ export function buildMultiLLMRouter(opts: BuildRouterOptions): MultiLLMRouter {
         bulk_extraction: ANTHROPIC_MODELS.HAIKU_4_5,
       },
       pricing: {
-        [ANTHROPIC_MODELS.OPUS_4_6]: { promptPer1k: 0.015, completionPer1k: 0.075 },
+        [ANTHROPIC_MODELS.OPUS_4_8]: { promptPer1k: 0.005, completionPer1k: 0.025 },
         [ANTHROPIC_MODELS.SONNET_4_6]: {
           promptPer1k: 0.003,
           completionPer1k: 0.015,

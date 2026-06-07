@@ -8,7 +8,7 @@
  *   description:    one-line summary, shown in picker
  *   argument-hint:  cosmetic placeholder
  *   allowed-tools:  Read, Edit          # subset enforced on invoke
- *   model:          claude-opus-4-7     # routing hint
+ *   model:          claude-opus-4-8     # routing hint
  *   ---
  *
  *   <prompt body with $ARGUMENTS placeholder>

@@ -55,9 +55,9 @@ const validPayload: TestShape = {
 
 describe('ModelTier', () => {
   it('pins 2026 Claude model IDs', () => {
-    expect(ModelTier.HAIKU).toBe('claude-haiku-4-5-20251001');
+    expect(ModelTier.HAIKU).toBe('claude-haiku-4-5');
     expect(ModelTier.SONNET).toBe('claude-sonnet-4-6');
-    expect(ModelTier.OPUS).toBe('claude-opus-4-6');
+    expect(ModelTier.OPUS).toBe('claude-opus-4-8');
   });
 
   it('is frozen-style — three canonical tiers only', () => {

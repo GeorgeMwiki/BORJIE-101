@@ -46,7 +46,7 @@ import type pino from 'pino';
 // via ReturnType sidesteps it (mirrors composition/db-client.ts).
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 
-const CLAUDE_MODEL = 'claude-sonnet-4-5-20250929';
+const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const CLAUDE_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 
 export interface TranslationWiringInput {

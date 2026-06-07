@@ -20,8 +20,7 @@ export function normaliseModel(model: ModelTier): string {
 
 export const MODEL_PRICING: Readonly<Record<string, ModelPricing>> = Object.freeze({
   // ── Anthropic Claude family ─────────────────────────────────────────
-  'claude-opus-4-7': { inputPerMillion: 15, outputPerMillion: 75 },
-  'claude-opus-4-6': { inputPerMillion: 15, outputPerMillion: 75 },
+  'claude-opus-4-8': { inputPerMillion: 5, outputPerMillion: 25 },
   'claude-sonnet-4-6': { inputPerMillion: 3, outputPerMillion: 15 },
   'claude-haiku-4-5': { inputPerMillion: 1, outputPerMillion: 5 },
   // ── OpenAI GPT family (research §6) ─────────────────────────────────

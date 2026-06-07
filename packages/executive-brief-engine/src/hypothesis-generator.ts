@@ -22,7 +22,7 @@ import type { SensorSignal } from './sensors.js';
 //
 // Implementation in `services/api-gateway/src/composition/` should wrap
 // `packages/central-intelligence/src/kernel/sensors/anthropic-sensor.ts`
-// with model="claude-3-5-haiku-20241022", temperature=0.4.
+// with model="claude-haiku-4-5", temperature=0.4.
 // ─────────────────────────────────────────────────────────────────────
 
 export interface HaikuLlmPort {

@@ -23,7 +23,7 @@ import type { ModelTier, TaskKind } from '../types.js';
 /** Default ladder. Tenant overrides supersede per-task. */
 export const TASK_LADDER: Readonly<Record<TaskKind, readonly ModelTier[]>> = Object.freeze({
   plan: Object.freeze([
-    'anthropic/claude-opus-4-7',
+    'anthropic/claude-opus-4-8',
     'anthropic/claude-sonnet-4-6@bedrock',
     'openai/gpt-5-pro',
   ]),
@@ -54,7 +54,7 @@ export const TASK_LADDER: Readonly<Record<TaskKind, readonly ModelTier[]>> = Obj
   ]),
   codegen: Object.freeze([
     'anthropic/claude-sonnet-4-6',
-    'anthropic/claude-opus-4-7',
+    'anthropic/claude-opus-4-8',
     'openai/gpt-5',
   ]),
 });

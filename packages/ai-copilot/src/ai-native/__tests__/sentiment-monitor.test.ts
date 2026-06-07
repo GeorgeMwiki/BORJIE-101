@@ -59,7 +59,7 @@ describe('sentiment-monitor', () => {
             confidence: 0.9,
             explanation: 'Very negative tone about rent hike.',
           }),
-          modelVersion: 'claude-3-sonnet',
+          modelVersion: 'claude-sonnet-4-6',
           inputTokens: 100,
           outputTokens: 50,
         };
@@ -78,7 +78,7 @@ describe('sentiment-monitor', () => {
 
     expect(out.sentimentScore).toBeCloseTo(-0.8);
     expect(out.languageCode).toBe('fr');
-    expect(out.modelVersion).toBe('claude-3-sonnet');
+    expect(out.modelVersion).toBe('claude-sonnet-4-6');
     expect(out.promptHash).toMatch(/^[a-f0-9]{64}$/);
     expect(repo.signals).toHaveLength(1);
   });

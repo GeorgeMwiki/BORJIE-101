@@ -91,7 +91,7 @@ describe('validateMediaAttachments', () => {
 
 describe('anthropicModelSupportsVision', () => {
   it('returns true for Opus 4.6, Sonnet 4.6, and Haiku 4.5', () => {
-    expect(anthropicModelSupportsVision(ANTHROPIC_MODELS.OPUS_4_6)).toBe(true);
+    expect(anthropicModelSupportsVision(ANTHROPIC_MODELS.OPUS_4_8)).toBe(true);
     expect(anthropicModelSupportsVision(ANTHROPIC_MODELS.SONNET_4_6)).toBe(
       true,
     );

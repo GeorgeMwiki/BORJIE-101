@@ -332,9 +332,8 @@ export class AIGovernanceService {
     // Brain turns run through that tier.
     this.costPerToken = {
       // Anthropic
-      'claude-opus-4-6': { prompt: 0.015, completion: 0.075 },
+      'claude-opus-4-8': { prompt: 0.005, completion: 0.025 },
       'claude-sonnet-4-6': { prompt: 0.003, completion: 0.015 },
-      'claude-haiku-4-5-20251001': { prompt: 0.0008, completion: 0.004 },
       'claude-haiku-4-5': { prompt: 0.0008, completion: 0.004 },
       // OpenAI (legacy copilot path)
       'gpt-4-turbo-preview': { prompt: 0.01, completion: 0.03 },

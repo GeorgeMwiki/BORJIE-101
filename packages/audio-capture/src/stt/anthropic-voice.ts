@@ -1,5 +1,5 @@
 /**
- * Anthropic Voice (Claude 4.7 voice) STT adapter.
+ * Anthropic Voice (Claude 4.8 voice) STT adapter.
  *
  * Anthropic's preview Voice API exposes audio transcription as part of the
  * messages endpoint with a multimodal audio input. We POST audio + a system
@@ -50,7 +50,7 @@ export function createAnthropicVoiceAdapter(
   options: AnthropicVoiceAdapterOptions = {},
 ): STTPort {
   const apiKey = options.apiKey ?? readEnv('ANTHROPIC_API_KEY');
-  const model = options.model ?? 'claude-opus-4-7-voice';
+  const model = options.model ?? 'claude-opus-4-8-voice';
   const endpoint = options.endpoint ?? 'https://api.anthropic.com/v1/messages';
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
 

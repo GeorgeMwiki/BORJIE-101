@@ -158,7 +158,7 @@ export async function synthesizeJuniorInput<TSchema extends ZodSchema>(
       const response = await args.claude.complete({
         systemPrompt: SYSTEM_PROMPT,
         userPrompt: buildSynthesizerUserPrompt(args.context, args.schema, priorError),
-        model: args.model ?? 'claude-haiku-4-5-20251001',
+        model: args.model ?? 'claude-haiku-4-5',
         maxTokens: args.maxTokens ?? 1200,
         temperature: 0,
       });

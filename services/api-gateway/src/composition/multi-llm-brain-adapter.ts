@@ -138,7 +138,7 @@ export function wireMultiLLMBrain(opts: WireMultiLLMBrainOpts = {}): BrainPort |
   const synthesizer: SynthesizerProposerRegistration = {
     id: 'anthropic-opus',
     provider: new AnthropicProvider({ apiKey: anthropicKey }),
-    model: ANTHROPIC_MODELS.OPUS_4_6,
+    model: ANTHROPIC_MODELS.OPUS_4_8,
   };
 
   const synth = createMultiLLMSynthesizer({

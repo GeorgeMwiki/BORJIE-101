@@ -281,7 +281,7 @@ export function createMultiLLMSynthesizerWiring(
   const synthesizer: SynthesizerProposerRegistration = {
     id: 'anthropic-opus',
     provider: synthesizerProvider,
-    model: ANTHROPIC_MODELS.OPUS_4_6,
+    model: ANTHROPIC_MODELS.OPUS_4_8,
   };
 
   const inner = createMultiLLMSynthesizer({

@@ -137,7 +137,7 @@ export async function runFallback(
   });
 }
 
-/** Extract model family from id ("anthropic/claude-opus-4-7" -> "anthropic"). */
+/** Extract model family from id ("anthropic/claude-opus-4-8" -> "anthropic"). */
 function modelFamily(model: ModelTier): string {
   const slash = model.indexOf('/');
   return slash === -1 ? model : model.slice(0, slash);

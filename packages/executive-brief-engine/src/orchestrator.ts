@@ -196,7 +196,7 @@ export async function generateBrief(
   await safeRecordCost(deps.costBudget, {
     tenantId: args.tenantId,
     costMicros: hypothesisResult.costMicros,
-    model: 'claude-3-5-haiku',
+    model: 'claude-haiku-4-5',
     correlationId: `brief:${args.persona.id}`,
   });
 
@@ -245,7 +245,7 @@ export async function generateBrief(
   await safeRecordCost(deps.costBudget, {
     tenantId: args.tenantId,
     costMicros: debateResult.totalCostMicros,
-    model: 'claude-3-5-sonnet',
+    model: 'claude-sonnet-4-6',
     correlationId: `brief:${args.persona.id}`,
   });
 

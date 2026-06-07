@@ -350,7 +350,7 @@ export function createTranslationRunner(deps: TranslationRunnerDeps) {
 
 function pickBudget(providerId: ProviderId): number {
   switch (providerId) {
-    case 'claude-opus-4-7':
+    case 'claude-opus-4-8':
       return TRANSLATION_CONSTANTS.TIER1_LATENCY_BUDGET_MS;
     case 'gemini-2-5-pro':
       return TRANSLATION_CONSTANTS.TIER2_LATENCY_BUDGET_MS;

@@ -142,7 +142,7 @@ export type LlmAuthorPort = (input: {
 }) => Promise<{
   /** The LLM's emitted JSON object. */
   readonly spec: unknown;
-  /** The model id used (e.g. `claude-opus-4-7`). Surfaced into the
+  /** The model id used (e.g. `claude-opus-4-8`). Surfaced into the
    *  audit payload so a future replay knows which model authored. */
   readonly modelId: string;
 }>;

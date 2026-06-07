@@ -94,7 +94,7 @@ export interface BrainOnceResult {
 export async function callBrainOnce(input: BrainOnceInput): Promise<BrainOnceResult> {
   const p = providers();
   const anthropicModel =
-    process.env.BORJIE_OWNER_ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-5-20250929';
+    process.env.BORJIE_OWNER_ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-6';
   const openaiModel =
     process.env.BORJIE_OWNER_OPENAI_MODEL?.trim() || 'gpt-4o-2024-11-20';
   const deepseekModel =

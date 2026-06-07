@@ -99,7 +99,7 @@ export interface CreateLlmCounterGeneratorOptions {
   readonly heuristic: AiCounterGenerator;
   readonly logger?: NegotiationLogger | undefined;
   readonly modelOverride?: string | undefined;
-  /** Defaults to `claude-haiku-4-5-20251001` — cheap, latency-tight. */
+  /** Defaults to `claude-haiku-4-5` — cheap, latency-tight. */
   readonly defaultModel?: string;
 }
 
@@ -139,7 +139,7 @@ export function createLlmCounterGenerator(
     options.modelOverride
     ?? options.defaultModel
     ?? client?.model
-    ?? 'claude-haiku-4-5-20251001';
+    ?? 'claude-haiku-4-5';
 
   return async (req: AiCounterRequest): Promise<AiCounterResult> => {
     if (!client) {

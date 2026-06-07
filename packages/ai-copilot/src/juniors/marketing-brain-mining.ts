@@ -127,7 +127,7 @@ export function createMarketingBrainMiningAgent(deps: JuniorDeps) {
         schema: MarketingBrainMiningOutput,
         systemPrompt: MARKETING_BRAIN_MINING_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated),
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-sonnet-4-6',
         maxTokens: 3000,
       });
 

@@ -224,7 +224,7 @@ export function createMasterBrainAgent(deps: JuniorDeps) {
         schema: MasterBrainOutputSchema,
         systemPrompt: MASTER_BRAIN_SYSTEM_PROMPT,
         userPrompt: buildMasterBrainUserPrompt(validated),
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'claude-opus-4-8',
         maxTokens: 2000,
       });
 

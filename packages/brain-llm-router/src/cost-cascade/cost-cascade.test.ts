@@ -56,10 +56,10 @@ describe('pricing', () => {
     expect(p.outputPerMillion).toBe(15);
   });
 
-  it('getPricing returns Opus $15/$75', () => {
-    const p = getPricing('anthropic/claude-opus-4-7');
-    expect(p.inputPerMillion).toBe(15);
-    expect(p.outputPerMillion).toBe(75);
+  it('getPricing returns Opus $5/$25', () => {
+    const p = getPricing('anthropic/claude-opus-4-8');
+    expect(p.inputPerMillion).toBe(5);
+    expect(p.outputPerMillion).toBe(25);
   });
 
   it('computeCost matches expected USD for 1M input + 1M output on Haiku', () => {
@@ -77,7 +77,7 @@ describe('runCascade', () => {
   const cascade: CascadeStep[] = [
     { model: 'anthropic/claude-haiku-4-5', client: client('anthropic', 'haiku-answer') },
     { model: 'anthropic/claude-sonnet-4-6', client: client('anthropic', 'sonnet-answer') },
-    { model: 'anthropic/claude-opus-4-7', client: client('anthropic', 'opus-answer') },
+    { model: 'anthropic/claude-opus-4-8', client: client('anthropic', 'opus-answer') },
   ];
 
   it('returns Haiku immediately when score crosses threshold', async () => {
@@ -112,7 +112,7 @@ describe('runCascade', () => {
         return calls < 3 ? 0.5 : 0.95;
       },
     });
-    expect(res.modelUsed).toBe('anthropic/claude-opus-4-7');
+    expect(res.modelUsed).toBe('anthropic/claude-opus-4-8');
     expect(res.steps).toBe(3);
   });
 
@@ -133,10 +133,10 @@ describe('runCascade', () => {
       totalCascadeCost += res.totalCostUsd;
       runs += 1;
     }
-    // 100 all-Opus calls: 100 * (100 tokens in @ $15/M + 100 tokens out @ $75/M)
-    // = 100 * (1.5e-3 + 7.5e-3) = 0.9 USD.
+    // 100 all-Opus calls: 100 * (100 tokens in @ $5/M + 100 tokens out @ $25/M)
+    // = 100 * (5e-4 + 2.5e-3) = 0.3 USD.
     // Cascade should be materially cheaper given >40% Haiku hits.
-    expect(totalCascadeCost).toBeLessThan(0.9);
+    expect(totalCascadeCost).toBeLessThan(0.3);
   });
 
   it('records onStep telemetry for each cascade step', async () => {

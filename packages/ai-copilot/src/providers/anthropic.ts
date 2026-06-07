@@ -47,9 +47,9 @@ export interface AnthropicProviderConfig {
  * Anthropic model identifiers (2026 Messages API).
  */
 export const ANTHROPIC_MODELS = {
-  OPUS_4_6: 'claude-opus-4-6',
+  OPUS_4_8: 'claude-opus-4-8',
   SONNET_4_6: 'claude-sonnet-4-6',
-  HAIKU_4_5: 'claude-haiku-4-5-20251001',
+  HAIKU_4_5: 'claude-haiku-4-5',
 } as const;
 
 export type AnthropicModelId =
@@ -60,7 +60,7 @@ const DEFAULT_API_VERSION = '2023-06-01';
 export class AnthropicProvider implements AIProvider {
   readonly providerId = 'anthropic';
   readonly supportedModels: string[] = [
-    ANTHROPIC_MODELS.OPUS_4_6,
+    ANTHROPIC_MODELS.OPUS_4_8,
     ANTHROPIC_MODELS.SONNET_4_6,
     ANTHROPIC_MODELS.HAIKU_4_5,
   ];
@@ -80,16 +80,16 @@ export class AnthropicProvider implements AIProvider {
     this.config = config;
     this.modelInfoMap = new Map([
       [
-        ANTHROPIC_MODELS.OPUS_4_6,
+        ANTHROPIC_MODELS.OPUS_4_8,
         {
-          id: ANTHROPIC_MODELS.OPUS_4_6,
-          displayName: 'Claude Opus 4.6',
+          id: ANTHROPIC_MODELS.OPUS_4_8,
+          displayName: 'Claude Opus 4.8',
           contextWindow: 1_000_000,
-          maxOutputTokens: 64_000,
+          maxOutputTokens: 128_000,
           supportsJson: true,
           supportsVision: true,
-          costPer1kPromptTokens: 0.015,
-          costPer1kCompletionTokens: 0.075,
+          costPer1kPromptTokens: 0.005,
+          costPer1kCompletionTokens: 0.025,
           tier: 'advanced',
         },
       ],
@@ -519,7 +519,7 @@ export function buildToolResultMessage(
 
 /** Models in the Anthropic catalog that accept image input blocks. */
 const ANTHROPIC_VISION_MODELS: ReadonlySet<string> = new Set<string>([
-  ANTHROPIC_MODELS.OPUS_4_6,
+  ANTHROPIC_MODELS.OPUS_4_8,
   ANTHROPIC_MODELS.SONNET_4_6,
   ANTHROPIC_MODELS.HAIKU_4_5,
 ]);

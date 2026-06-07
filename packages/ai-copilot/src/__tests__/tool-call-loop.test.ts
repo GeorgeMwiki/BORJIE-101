@@ -34,7 +34,7 @@ import { registerDefaultSkills } from '../skills/index.js';
 
 class ScriptedAnthropicLikeProvider implements AIProvider {
   readonly providerId = 'scripted-anthropic';
-  readonly supportedModels = ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001'];
+  readonly supportedModels = ['claude-sonnet-4-6', 'claude-opus-4-8', 'claude-haiku-4-5'];
   private callIdx = 0;
 
   constructor(private readonly responses: AICompletionResponse[]) {}

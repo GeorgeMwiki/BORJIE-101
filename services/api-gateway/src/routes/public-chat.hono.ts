@@ -14,7 +14,7 @@
  * do not share. Marketing sells; Home teaches.
  *
  * Provider ladder (every entry tried regardless of error class):
- *   1. Anthropic claude-sonnet-4-5     — latest Anthropic flagship
+ *   1. Anthropic claude-sonnet-4-6     — latest Anthropic flagship
  *   2. OpenAI gpt-4o-2024-11-20         — latest stable OpenAI
  *   3. DeepSeek deepseek-chat (V3.x)    — OpenAI-compatible API
  *

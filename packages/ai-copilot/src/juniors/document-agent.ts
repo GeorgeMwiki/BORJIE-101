@@ -180,7 +180,7 @@ export function createDocumentAgent(deps: DocumentAgentDeps) {
           userPrompt: buildDocumentAgentUserPrompt(documentText),
           maxTokens: 1024,
           temperature: 0,
-          model: 'claude-haiku-4-5-20251001',
+          model: 'claude-haiku-4-5',
         });
         raw = response.content;
       } catch (error) {
