@@ -51,9 +51,14 @@ export interface AnthropicRouterConfig {
    * the real per-tool schemas from the BrainTool registry.
    */
   readonly inputSchemaFor?: (toolName: string) => Record<string, unknown>;
-  /** Optional logger (Pino-style). No console.* per the hard rules. */
+  /**
+   * Optional logger (Pino-style). No console.* per the hard rules. `error`
+   * is optional for backwards-compat; when absent the router falls back to
+   * `warn` so a swallowed LLM failure is never fully silent.
+   */
   readonly logger?: {
     warn(msg: string, meta?: Record<string, unknown>): void;
+    error?(msg: string, meta?: Record<string, unknown>): void;
   };
 }
 
@@ -95,12 +100,28 @@ export function createAnthropicRouter(
             ? { tools: toAnthropicTools(args.tools, config.inputSchemaFor) }
             : {}),
         } as Parameters<AnthropicMessagesClient['messages']['create']>[0]);
-        return responseToDecision(response, nextCallId);
+        const decision = responseToDecision(response, nextCallId);
+        // Surface a no-content response. A `final` with empty text means the
+        // model returned neither a tool_use nor any text — an anomaly the
+        // caller renders as a silent empty answer (exactly how the empty
+        // `messages` bug stayed hidden). Logged, not thrown.
+        if (decision.kind === 'final' && decision.text.trim() === '') {
+          config.logger?.warn(
+            'anthropic-router produced an empty answer (no tool_use, no text)',
+          );
+        }
+        return decision;
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'anthropic router error';
-        config.logger?.warn('anthropic-router call failed', { reason: message });
-        // Closed shape — never throw out of the port.
+        // A thrown SDK error means the LLM call FAILED and the user would
+        // otherwise get a silently-swallowed empty answer — log at error
+        // level (fallback to warn) so it is always visible. Still returns a
+        // closed shape: the port contract is to never throw.
+        (config.logger?.error ?? config.logger?.warn)?.(
+          'anthropic-router call failed',
+          { reason: message },
+        );
         return { kind: 'final', text: '' };
       }
     },

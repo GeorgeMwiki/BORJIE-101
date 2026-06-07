@@ -685,11 +685,16 @@ export async function thinkExtended(
       if (postCompactTerminal) return sealAndReturn(postCompactTerminal);
     }
 
-    // Fold any pending additional-context injections from previous
-    // iterations into the next router.call payload.
+    // Build the next router.call payload in natural conversation order: the
+    // transcript (prior history + THIS turn's user question) first, then this
+    // turn's pending additional-context injections (tool results from the
+    // fold-back + mid-turn system/hook context). This keeps the ReAct shape —
+    // question, then the evidence gathered for it, with the latest tool result
+    // last so the model responds to it — rather than surfacing tool results
+    // ahead of the question that prompted them.
     const messages = [
-      ...pendingContextInjections.map((m) => ({ role: m.role, content: m.content })),
       ...compaction.turns.map((t) => ({ role: t.role, content: t.content })),
+      ...pendingContextInjections.map((m) => ({ role: m.role, content: m.content })),
     ];
     pendingContextInjections.length = 0;
 
