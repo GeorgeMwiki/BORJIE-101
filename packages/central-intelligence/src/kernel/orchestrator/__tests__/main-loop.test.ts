@@ -679,3 +679,197 @@ describe('main-loop think()', () => {
     expect(stopCount).toBe(1);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Item-1 — persona / grounding / locale parity in the assembled system
+// prompt. We capture the `system` string the router receives so we can
+// assert the orchestrator now emits the threaded persona prompt,
+// grounding fragment, EVIDENCE_RULES, and the single-language directive.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Router that captures the system prompt of the FIRST call, then ends. */
+function capturingRouter(): LLMRouter & { lastSystem: string } {
+  const captured: LLMRouter & { lastSystem: string } = {
+    lastSystem: '',
+    async call(args): Promise<Decision> {
+      captured.lastSystem = args.system;
+      return { kind: 'respond_to_owner', text: 'done' };
+    },
+  };
+  return captured;
+}
+
+describe('main-loop assembleSystem — persona / grounding / locale parity', () => {
+  it('emits the threaded persona prompt, EVIDENCE_RULES, grounding, and the locale directive', async () => {
+    const dispatcher = recordingDispatcher();
+    const router = capturingRouter();
+    const deps = makeDeps(router, dispatcher);
+    const req: OrchestratorRequest = {
+      ...makeReq(),
+      personaSystemPrompt: '[IDENTITY] Borjie Estate Brain [END IDENTITY]',
+      groundingFragment:
+        'Grounding facts:\n  - [fact_arr_01] arrears: TZS 0 (source: ledger)',
+      groundingCitationIds: ['fact_arr_01'],
+      languageDirective:
+        '# LANGUAGE (REQUIRED)\nRespond in English ONLY.',
+      evidenceRequired: true,
+    };
+    await think(req, deps);
+    const sys = router.lastSystem;
+    expect(sys).toContain('Borjie Estate Brain');
+    expect(sys).toContain('# EVIDENCE REQUIRED');
+    expect(sys).toContain('fact_arr_01');
+    expect(sys).toContain('# LANGUAGE (REQUIRED)');
+    // The locale directive is the TERMINAL block (cannot be displaced).
+    expect(sys.trimEnd().endsWith('Respond in English ONLY.')).toBe(true);
+  });
+
+  it('omits EVIDENCE_RULES when evidenceRequired is false', async () => {
+    const dispatcher = recordingDispatcher();
+    const router = capturingRouter();
+    const deps = makeDeps(router, dispatcher);
+    const req: OrchestratorRequest = {
+      ...makeReq(),
+      evidenceRequired: false,
+    };
+    await think(req, deps);
+    expect(router.lastSystem).not.toContain('# EVIDENCE REQUIRED');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Item-2 — citation propagation. A grounded turn (grounding ids threaded
+// by the kernel, or evidence ids returned by a tool) must surface ≥1
+// citation so the Auditor's empty-evidence-chain rejection never trips.
+// ─────────────────────────────────────────────────────────────────────
+
+describe('main-loop citation propagation', () => {
+  it('surfaces grounding citation ids on a grounded answer', async () => {
+    const dispatcher = recordingDispatcher();
+    const router = fixedRouter([
+      { kind: 'respond_to_owner', text: 'arrears are zero' },
+    ]);
+    const deps = makeDeps(router, dispatcher);
+    const req: OrchestratorRequest = {
+      ...makeReq(),
+      groundingCitationIds: ['fact_arr_01', 'fact_arr_02'],
+    };
+    const out = await think(req, deps);
+    expect(out.kind).toBe('answer');
+    if (out.kind === 'answer') {
+      expect(out.citations.length).toBeGreaterThanOrEqual(1);
+      const ids = out.citations.map((c) => c.id);
+      expect(ids).toContain('fact_arr_01');
+      expect(ids).toContain('fact_arr_02');
+    }
+  });
+
+  it('harvests evidence ids from a tool result into the answer citations', async () => {
+    // Dispatcher that returns an evidence_id in the tool output.
+    const dispatcher: Dispatcher & { calls: Decision[] } = {
+      calls: [],
+      async dispatch(decision: Decision): Promise<DispatchResult> {
+        dispatcher.calls.push(decision);
+        if (decision.kind === 'tool_call') {
+          return {
+            kind: 'tool_ok',
+            callId: decision.call.callId,
+            output: { evidence_ids: ['corpus_chunk_42'], value: 7 },
+            latencyMs: 1,
+            tokensIn: 1,
+            tokensOut: 1,
+            usdCost: 0,
+          };
+        }
+        return {
+          kind: 'response',
+          text: decision.kind === 'respond_to_owner' ? decision.text : '',
+          tokensIn: 1,
+          tokensOut: 1,
+          usdCost: 0,
+        };
+      },
+    };
+    const router = fixedRouter([
+      {
+        kind: 'tool_call',
+        call: { toolName: 'arrears.lookup', input: {}, callId: 'c1' },
+      },
+      { kind: 'respond_to_owner', text: 'looked up' },
+    ]);
+    const deps = makeDeps(router, dispatcher);
+    const out = await think(makeReq(), deps);
+    expect(out.kind).toBe('answer');
+    if (out.kind === 'answer') {
+      const ids = out.citations.map((c) => c.id);
+      expect(ids).toContain('corpus_chunk_42');
+    }
+  });
+
+  it('captures evidence ids the model echoes on respond_to_owner', async () => {
+    const dispatcher = recordingDispatcher();
+    const router = fixedRouter([
+      {
+        kind: 'respond_to_owner',
+        text: 'cited',
+        citations: ['evidence_xyz'],
+      },
+    ]);
+    const deps = makeDeps(router, dispatcher);
+    const out = await think(makeReq(), deps);
+    if (out.kind === 'answer') {
+      expect(out.citations.map((c) => c.id)).toContain('evidence_xyz');
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Item-4 — memory recall CONTENT reaches the system prompt + an
+// end-of-turn note persists for the next turn to recall.
+// ─────────────────────────────────────────────────────────────────────
+
+describe('main-loop memory recall + persist', () => {
+  it('folds recalled /memories content into the system prompt', async () => {
+    const dispatcher = recordingDispatcher();
+    const router = capturingRouter();
+    const memoryTool = createInMemoryMemoryTool();
+    // Seed a prior note for this thread's scope (tenant t_1).
+    await memoryTool.write('t_1', 'scratch.md', 'prior plan: chase arrears');
+    const deps: OrchestratorDeps = {
+      ...makeDeps(router, dispatcher),
+      memoryTool,
+    };
+    await think(makeReq(), deps);
+    expect(router.lastSystem).toContain('WORKING MEMORY');
+    expect(router.lastSystem).toContain('prior plan: chase arrears');
+  });
+
+  it('persists an end-of-turn note that the next turn recalls', async () => {
+    const memoryTool = createInMemoryMemoryTool();
+    const deps1: OrchestratorDeps = {
+      ...makeDeps(
+        fixedRouter([{ kind: 'respond_to_owner', text: 'first answer text' }]),
+        recordingDispatcher(),
+      ),
+      memoryTool,
+    };
+    const out1 = await think(makeReq(), deps1);
+    expect(out1.kind).toBe('answer');
+
+    // The note must now be persisted under the thread's scope.
+    const view = await memoryTool.view('t_1', 'turn-notes.md');
+    expect(view.kind).toBe('file');
+    if (view.kind === 'file') {
+      expect(view.entry.content).toContain('first answer text');
+    }
+
+    // And the NEXT turn must surface it back into the system prompt.
+    const router2 = capturingRouter();
+    const deps2: OrchestratorDeps = {
+      ...makeDeps(router2, recordingDispatcher()),
+      memoryTool,
+    };
+    await think(makeReq(), deps2);
+    expect(router2.lastSystem).toContain('first answer text');
+  });
+});

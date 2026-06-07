@@ -26,6 +26,19 @@ export {
   type Dispatcher,
 } from './main-loop.js';
 
+// Item-5 — production router + dispatcher adapters. The composition root
+// (api-gateway brain-kernel-wiring) constructs these with a real
+// Anthropic client + the kernel's BrainToolRegistry, then threads them
+// into `composeSovereign({ orchestrator: { router, dispatcher, ... } })`.
+export {
+  createAnthropicRouter,
+  type AnthropicRouterConfig,
+} from './anthropic-router.js';
+export {
+  createToolDispatcher,
+  type ToolDispatcherConfig,
+} from './tool-dispatcher.js';
+
 // Decision ADT + dispatch result.
 export {
   isBackgroundSpawn,

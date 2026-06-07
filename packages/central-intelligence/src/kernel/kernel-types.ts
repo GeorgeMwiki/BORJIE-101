@@ -184,6 +184,18 @@ export interface ThoughtRequest {
    * action ⇒ tier-policy gate is a no-op.
    */
   readonly action?: string;
+  /**
+   * Optional active locale for the turn. CLAUDE.md mandates an ABSOLUTE
+   * single-language render: `en` is the default and `sw` (Swahili) is
+   * the explicit toggle — zero EN/SW mixing anywhere. When omitted the
+   * kernel treats the turn as `en`. The orchestrator path renders a
+   * terminal single-language directive from this field so the
+   * alternative generation path obeys the same mandate as the persona
+   * path. The legacy pipeline continues to enforce language at the
+   * message-preamble layer (the gateway prepends a single-language
+   * preamble), so this field is additive and back-compatible.
+   */
+  readonly language?: 'en' | 'sw';
 }
 
 // ─────────────────────────────────────────────────────────────────────

@@ -176,7 +176,6 @@ import { scrubCotForPersist } from './cot-reservoir/pii-scrub-cot.js';
 // per-instance `useByDefault` flag on `BrainKernelDeps.orchestrator`).
 import {
   think as orchestratorThink,
-  type OrchestratorDeps,
   type OrchestratorRequest,
   type OrchestratorResponse,
 } from './orchestrator/main-loop.js';
@@ -649,11 +648,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
           return ksHalt.decision;
         }
         try {
-          const result = await runViaOrchestrator(
-            req,
-            deps.orchestrator.deps,
-            clock,
-          );
+          const result = await runViaOrchestrator(req, deps, clock);
           if (outerTrace) {
             outerTrace.addBranch({
               id: 'orchestrator',
@@ -1937,7 +1932,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
           yield { kind: 'done', decision: ksHalt.decision };
           return;
         }
-        yield* streamViaOrchestrator(req, deps.orchestrator.deps, clock);
+        yield* streamViaOrchestrator(req, deps, clock);
         return;
       }
 
@@ -2661,6 +2656,31 @@ function renderGroundingFragment(facts: ReadonlyArray<GroundingFact>): string {
   ].join('\n');
 }
 
+/**
+ * Item-1 — render the ABSOLUTE single-language directive for the
+ * orchestrator system prompt. CLAUDE.md mandate: `en` default, `sw`
+ * toggle, ZERO mixing. The directive is a terminal instruction so it
+ * cannot be displaced by recalled memory / tool output. The directive
+ * copy itself is written in the target language so the model is anchored
+ * by example, never mixing the two.
+ */
+function renderOrchestratorLanguageDirective(language: 'en' | 'sw'): string {
+  if (language === 'sw') {
+    return [
+      '# LUGHA (LAZIMA)',
+      'Jibu kwa Kiswahili PEKEE. Usichanganye Kiingereza na Kiswahili',
+      'popote — si katika salamu, si katika majibu, si katika makosa.',
+      'Maneno yote yawe ya Kiswahili.',
+    ].join('\n');
+  }
+  return [
+    '# LANGUAGE (REQUIRED)',
+    'Respond in English ONLY. Never mix Swahili and English anywhere —',
+    'not in greetings, answers, errors, or tool summaries. Every word of',
+    'your reply must be English.',
+  ].join('\n');
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Memory hierarchy helpers — read at step 4, write at step 13.
 // Every entry point is wrapped: a failing memory port must NOT break
@@ -3308,33 +3328,46 @@ function inferReflexionOutcome(
 /**
  * Resolve the orchestrator-routing feature flag.
  *
+ * "FULL POWERS" (Item-5): once the orchestrator dep is wired, the
+ * main-loop is the DEFAULT-ON live generation path. Two levers can
+ * disable it for an incident rollback without a redeploy.
+ *
  * Order of precedence (highest wins):
  *   1. `deps.orchestrator.useByDefault` — per-instance override the
- *      composition root supplies (e.g. canary lever).
- *   2. `process.env.KERNEL_USE_ORCHESTRATOR` — ops env-var lever.
- *      Treats the literal string `'false'` as "disable"; everything
- *      else (including unset) means "enable when wired".
- *   3. Default: TRUE when the orchestrator dep is wired.
+ *      composition root supplies (e.g. a test pinning a specific path).
+ *      Wins over env.
+ *   2. `process.env.KERNEL_USE_ORCHESTRATOR === 'false'` — hard kill
+ *      lever for instant incident rollback. Forces OFF.
+ *   3. `process.env.BORJIE_ORCHESTRATOR_MAINLOOP` — soft disable lever.
+ *      `'0'` / `'false'` / `'off'` force OFF; any other value — INCLUDING
+ *      UNSET — leaves the orchestrator ON.
+ *   4. Default: TRUE (orchestrator main-loop is the live default).
  *
  * When the orchestrator dep is absent, the flag is irrelevant — the
  * legacy path runs unconditionally.
  */
 function resolveOrchestratorRoutingEnabled(deps: BrainKernelDeps): boolean {
   if (!deps.orchestrator) return false;
+  // 1. Per-instance override wins over every env signal.
   if (typeof deps.orchestrator.useByDefault === 'boolean') {
     return deps.orchestrator.useByDefault;
   }
-  // Defence-in-depth — env may be missing in test contexts. We avoid
-  // reading process.env when running in environments that lack a
-  // global `process` (e.g. some bundlers); the typed access protects
-  // against that.
-  const envFlag =
-    typeof process !== 'undefined' &&
-    process.env &&
-    typeof process.env.KERNEL_USE_ORCHESTRATOR === 'string'
-      ? process.env.KERNEL_USE_ORCHESTRATOR
-      : undefined;
-  if (envFlag === 'false') return false;
+  // Defence-in-depth — env may be missing in test contexts / bundlers
+  // that lack a global `process`; the typed access protects against that.
+  const env =
+    typeof process !== 'undefined' && process.env ? process.env : undefined;
+  // 2. Hard kill lever — forces OFF regardless of the default. This is the
+  //    instant production rollback: `KERNEL_USE_ORCHESTRATOR=false`.
+  if (env && env.KERNEL_USE_ORCHESTRATOR === 'false') return false;
+  // 3. DEFAULT ON ("full powers"): once the orchestrator dep is wired, the
+  //    main-loop is the live generation path. `BORJIE_ORCHESTRATOR_MAINLOOP`
+  //    in {0,false,off} disables it (a softer per-flag lever); any other
+  //    value — including UNSET — leaves it ON.
+  const flag =
+    env && typeof env.BORJIE_ORCHESTRATOR_MAINLOOP === 'string'
+      ? env.BORJIE_ORCHESTRATOR_MAINLOOP.trim().toLowerCase()
+      : '';
+  if (flag === '0' || flag === 'false' || flag === 'off') return false;
   return true;
 }
 
@@ -3346,28 +3379,86 @@ function resolveOrchestratorRoutingEnabled(deps: BrainKernelDeps): boolean {
  * stay accessible to PostToolUse hooks via the orchestrator-side
  * `HookContext.scope` / `tier` shape.
  */
-function toOrchestratorRequest(req: ThoughtRequest): OrchestratorRequest {
-  const base: {
-    threadId: string;
-    userMessage: string;
-    scope: ThoughtRequest['scope'];
-    tier: ThoughtRequest['tier'];
-    persona: string;
-    grantedScopes?: ReadonlyArray<string>;
-  } = {
+/**
+ * Item-1 — build the persona SYSTEM PROMPT for the orchestrator path so
+ * it equals the legacy persona path's quality. Mirrors the legacy
+ * pipeline's identity resolution (selectPersona → branding override →
+ * identity preamble) and renders it through the SAME `assembleSystemPrompt`
+ * assembler (so the IP-protection + security-boundary terminal layers
+ * ship on the orchestrator path too). Grounding + locale are appended by
+ * the orchestrator's own `assembleSystem` from the dedicated request
+ * fields, so they are intentionally NOT folded here.
+ */
+async function buildPersonaSystemPromptForOrchestrator(
+  req: ThoughtRequest,
+  deps: BrainKernelDeps,
+): Promise<string> {
+  const baseSurfacePersona = selectPersona(req);
+  const branding = deps.brandingResolver
+    ? await deps.brandingResolver
+        .resolve({
+          tenantId: req.scope.kind === 'tenant' ? req.scope.tenantId : null,
+          surface: req.surface,
+        })
+        .catch(() => null)
+    : null;
+  const persona = applyBrandingOverride(baseSurfacePersona, branding);
+  const identity = renderIdentityPreamble({ persona, scope: req.scope });
+  return assembleSystemPrompt({ identity });
+}
+
+/**
+ * Convert a legacy `ThoughtRequest` into the orchestrator's
+ * `OrchestratorRequest`. Item-1 — this now threads the resolved persona
+ * SYSTEM PROMPT, the grounding-facts fragment + their citation ids, the
+ * single-language locale directive, and the evidence-required flag so the
+ * orchestrator's system prompt obeys the SAME hard rules (persona
+ * quality, evidence-required, bilingual single-language) the persona path
+ * does. The richer fields stay accessible to PostToolUse hooks via the
+ * orchestrator-side `HookContext.scope` / `tier` shape.
+ */
+async function toOrchestratorRequest(
+  req: ThoughtRequest,
+  deps: BrainKernelDeps,
+): Promise<OrchestratorRequest> {
+  // Resolve grounding facts the SAME way the legacy pipeline does so the
+  // orchestrator can cite the identical tenant-internal evidence set.
+  const groundingFacts: ReadonlyArray<GroundingFact> = deps.groundingFacts
+    ? await deps.groundingFacts
+        .fetch({ userMessage: req.userMessage, tier: req.tier, limit: 6 })
+        .catch(() => [])
+    : [];
+  const personaSystemPrompt = await buildPersonaSystemPromptForOrchestrator(
+    req,
+    deps,
+  );
+  // CLAUDE.md: default `en`; only an explicit `sw` toggles. Evidence is
+  // required on every tenant-scoped surface; the public marketing surface
+  // has no tenant grounding so we relax it there.
+  const language: 'en' | 'sw' = req.language === 'sw' ? 'sw' : 'en';
+  const evidenceRequired = req.surface !== 'marketing';
+
+  const base: OrchestratorRequest = {
     threadId: req.threadId,
     userMessage: req.userMessage,
     scope: req.scope,
     tier: req.tier,
-    // The legacy pipeline derives the persona from `selectPersona(req)`
-    // off the surface; the orchestrator only needs a textual persona
-    // name for the system-prompt assembly. We pass the personaId
-    // straight from the scope so an agency-rebranded id flows through.
+    // Agency-rebranded id flows through as the textual persona name; the
+    // full rendered prompt rides on `personaSystemPrompt`.
     persona: req.scope.personaId,
+    personaSystemPrompt,
+    languageDirective: renderOrchestratorLanguageDirective(language),
+    evidenceRequired,
+    ...(groundingFacts.length > 0
+      ? {
+          groundingFragment: renderGroundingFragment(groundingFacts),
+          groundingCitationIds: groundingFacts.map((f) => f.id),
+        }
+      : {}),
+    ...(req.grantedScopes && req.grantedScopes.length > 0
+      ? { grantedScopes: req.grantedScopes }
+      : {}),
   };
-  if (req.grantedScopes && req.grantedScopes.length > 0) {
-    base.grantedScopes = req.grantedScopes;
-  }
   return base;
 }
 
@@ -3390,15 +3481,48 @@ function toOrchestratorRequest(req: ThoughtRequest): OrchestratorRequest {
  */
 async function runViaOrchestrator(
   req: ThoughtRequest,
-  deps: OrchestratorDeps,
+  kernelDeps: BrainKernelDeps,
   clock: () => Date,
 ): Promise<BrainDecision> {
   const startedAt = clock().getTime();
   const thoughtId = randomUUID();
-  const orchestratorReq = toOrchestratorRequest(req);
+  // The orchestrator wire is guaranteed present at every call site (the
+  // delegation gate checks `deps.orchestrator` before invoking), but we
+  // narrow defensively so a future caller can't slip an unwired deps in.
+  const orchestratorDeps = kernelDeps.orchestrator?.deps;
+  if (!orchestratorDeps) {
+    return makeRefusal({
+      thoughtId,
+      req,
+      reason: 'orchestrator-not-wired',
+      gate: 'policy',
+      startedAt,
+      clockNow: clock(),
+    });
+  }
+  // Item-1 — resolve the parity-threaded orchestrator request (persona
+  // prompt + grounding + locale + evidence flag). Resolution failures
+  // must never crash the turn — collapse to a refusal so the caller
+  // still sees a closed shape.
+  let orchestratorReq: OrchestratorRequest;
+  try {
+    orchestratorReq = await toOrchestratorRequest(req, kernelDeps);
+  } catch (err) {
+    return makeRefusal({
+      thoughtId,
+      req,
+      reason:
+        err instanceof Error
+          ? `orchestrator-request-build: ${err.message}`
+          : 'orchestrator-request-build',
+      gate: 'policy',
+      startedAt,
+      clockNow: clock(),
+    });
+  }
   let response: OrchestratorResponse;
   try {
-    response = await orchestratorThink(orchestratorReq, deps);
+    response = await orchestratorThink(orchestratorReq, orchestratorDeps);
   } catch (err) {
     // The orchestrator should never throw uncaught — but if it does
     // (e.g. an upstream port adapter is buggy) we collapse to a refusal
@@ -3614,7 +3738,7 @@ function orchestratorResponseTextFor(response: OrchestratorResponse): string {
  */
 async function* streamViaOrchestrator(
   req: ThoughtRequest,
-  deps: OrchestratorDeps,
+  deps: BrainKernelDeps,
   clock: () => Date,
 ): AsyncIterable<KernelStreamEvent> {
   // Pre-sensor persona — emit `turn_start` immediately so the streaming

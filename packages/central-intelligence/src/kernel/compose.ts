@@ -88,6 +88,7 @@ import {
   createInMemoryToolSearch,
   type ContextBudget,
   type ToolSearch,
+  type ToolDescriptor,
 } from './orchestrator/context-budget.js';
 import {
   createInMemoryMemoryTool,
@@ -388,6 +389,15 @@ export interface ComposeSovereignConfig {
     readonly contextBudget?: ContextBudget;
     readonly toolSearch?: ToolSearch;
     readonly memoryTool?: MemoryTool;
+    /**
+     * Item-3 — when supplied (and `toolSearch` is NOT explicitly
+     * overridden), the kernel's REAL `BrainToolRegistry` is projected
+     * into the orchestrator `toolSearch` so the main loop actually has
+     * tools to search over (replaces the empty in-memory default). The
+     * composition root passes the same registry the kernel uses; tests
+     * pass a small fixture registry. Ignored when `toolSearch` is set.
+     */
+    readonly toolRegistry?: BrainToolRegistry;
   };
 }
 
@@ -521,7 +531,18 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   // delegates the whole turn to the main loop (unless useByDefault is
   // explicitly false).
   if (config.orchestrator) {
-    const orchestratorDeps = buildOrchestratorDeps(config.orchestrator);
+    // Item-3 — default the orchestrator's tool projection to the SAME
+    // `toolRegistry` the kernel uses, unless the caller pinned an explicit
+    // `toolSearch` or a different `toolRegistry` on the orchestrator block.
+    // This guarantees the main loop searches over the real tool catalog
+    // rather than the empty in-memory default.
+    const orchestratorConfig: OrchestratorConfig =
+      config.orchestrator.toolSearch || config.orchestrator.toolRegistry
+        ? config.orchestrator
+        : config.toolRegistry
+          ? { ...config.orchestrator, toolRegistry: config.toolRegistry }
+          : config.orchestrator;
+    const orchestratorDeps = buildOrchestratorDeps(orchestratorConfig);
     const orchestratorWire: {
       deps: OrchestratorDeps;
       useByDefault?: boolean;
@@ -573,8 +594,16 @@ function buildOrchestratorDeps(cfg: OrchestratorConfig): OrchestratorDeps {
     cfg.sessionStore ?? createInMemorySessionStore();
   const contextBudget: ContextBudget =
     cfg.contextBudget ?? createContextBudget();
+  // Item-3 — tool-search resolution order:
+  //   1. explicit `toolSearch` override (tests / custom rankers) wins;
+  //   2. else project the kernel's real `toolRegistry` into a keyword
+  //      ranker so the loop actually has tools to search over;
+  //   3. else the empty in-memory default (no tools).
   const toolSearch: ToolSearch =
-    cfg.toolSearch ?? createInMemoryToolSearch([]);
+    cfg.toolSearch ??
+    (cfg.toolRegistry
+      ? createInMemoryToolSearch(projectRegistryToDescriptors(cfg.toolRegistry))
+      : createInMemoryToolSearch([]));
   const memoryTool: MemoryTool =
     cfg.memoryTool ?? createInMemoryMemoryTool();
 
@@ -588,6 +617,36 @@ function buildOrchestratorDeps(cfg: OrchestratorConfig): OrchestratorDeps {
     contextBudget,
     dispatcher: cfg.dispatcher,
   };
+}
+
+/**
+ * Item-3 — project a `BrainToolRegistry` into the orchestrator's
+ * `ToolDescriptor[]` shape so `createInMemoryToolSearch` can rank them
+ * against the loop's current goal. Each spec's `name` + `description`
+ * become the searchable corpus; keywords are derived from the
+ * dot-segmented + word-tokenised name (e.g. `arrears.lookup` →
+ * ['arrears', 'lookup']) so a goal mentioning "arrears" retrieves it.
+ *
+ * Pure + deterministic; the registry is never mutated.
+ */
+function projectRegistryToDescriptors(
+  registry: BrainToolRegistry,
+): ReadonlyArray<ToolDescriptor> {
+  return registry.list().map((spec) => {
+    const keywords = Array.from(
+      new Set(
+        spec.name
+          .split(/[.\-_/\s]+/)
+          .map((w) => w.trim().toLowerCase())
+          .filter((w) => w.length > 0),
+      ),
+    );
+    return {
+      name: spec.name,
+      description: spec.description,
+      keywords,
+    };
+  });
 }
 
 /**

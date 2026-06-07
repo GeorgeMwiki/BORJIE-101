@@ -85,6 +85,7 @@ import {
   createInMemoryDecisionTraceStore,
   createNullEmbedder,
   createOpenAiEmbedder,
+  orchestrator,
   registerSeedBrainTools,
   type ApprovalGate,
   type BrainToolRegistry,
@@ -107,6 +108,12 @@ import {
   MINING_TOOL_NAMES,
   registerMiningGovernmentTools,
 } from './mining-government-tools-pending.js';
+// Durable orchestrator memory — the Drizzle-backed MemoryTool (agent_memory,
+// migration 0302, FORCE RLS). When the kernel runs the orchestrator main-loop,
+// recall()/persist key off the SAME persisted backend the mwikila.memory.*
+// persona tools use, so the brain's working notebook survives restarts. Falls
+// back to the bounded in-memory tool only when no db handle is present.
+import { createDrizzleMemoryTool } from './memory/drizzle-memory-tool.js';
 
 /**
  * Default on-disk path for the mining intelligence corpus (Docs/, GIS
@@ -569,6 +576,66 @@ export function createBrainKernelWiring(
   // fallback) so the kernel branch is uniform.
   const embedder = resolveEmbedder(envSource, deps.logger);
 
+  // Item-5 — build the production orchestrator bindings (9-hook chain
+  // deps) BEFORE composeSovereign so the orchestrator block can be
+  // threaded into the kernel. Constructed only when the caller passed
+  // `deps.orchestratorBindings`; otherwise the orchestrator stays unwired
+  // and the kernel runs the legacy persona path exactly as before.
+  let orchestratorBindings: OrchestratorBindings | null = null;
+  if (deps.orchestratorBindings) {
+    try {
+      const approvalGate =
+        deps.orchestratorBindings.approvalGate ??
+        createApprovalGate({ store: createInMemoryApprovalStore() });
+      const bindingsArgs: Parameters<typeof buildOrchestratorBindings>[0] = {
+        db: deps.orchestratorBindings.db,
+        approvalGate,
+        toolRegistry,
+        tenantId: deps.orchestratorBindings.tenantId ?? '_platform',
+        env: envSource,
+        ...(deps.logger ? { logger: deps.logger } : {}),
+        ...(deps.orchestratorBindings.globalDenylist
+          ? { globalDenylist: deps.orchestratorBindings.globalDenylist }
+          : {}),
+        ...(deps.orchestratorBindings.proposer
+          ? { proposer: deps.orchestratorBindings.proposer }
+          : {}),
+      };
+      orchestratorBindings = buildOrchestratorBindings(bindingsArgs);
+    } catch (err) {
+      if (deps.logger?.warn) {
+        deps.logger.warn(
+          {
+            wiring: 'brain-kernel',
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'brain-kernel: orchestrator hook-chain bindings failed; continuing without',
+        );
+      }
+    }
+  }
+
+  // Item-5 — assemble the orchestrator block (router + dispatcher +
+  // memory tool + the 9 production hook ports) ONLY when the bindings
+  // built. The REAL Anthropic router wraps the same budget-guarded `.sdk`
+  // the sensors use; the REAL dispatcher executes the kernel's tool
+  // registry. `useByDefault` is left UNSET here so the kernel's
+  // `resolveOrchestratorRoutingEnabled` keeps the main loop DEFAULT-OFF
+  // (gated behind `BORJIE_ORCHESTRATOR_MAINLOOP`) — the live persona path
+  // is unchanged until a monitored canary flips the env flag.
+  const orchestratorBlock = orchestratorBindings
+    ? buildOrchestratorComposeBlock({
+        anthropicMessagesClient,
+        toolRegistry,
+        bindings: orchestratorBindings,
+        envSource,
+        // Raw Drizzle handle for the durable MemoryTool (agent_memory).
+        // Same db the hook chain binds; null in degraded/test boots.
+        db: deps.orchestratorBindings?.db ?? null,
+        ...(deps.logger ? { logger: deps.logger } : {}),
+      })
+    : null;
+
   let kernel: BrainKernel;
   try {
     const composeArgs: Parameters<typeof composeSovereign>[0] = {
@@ -581,6 +648,18 @@ export function createBrainKernelWiring(
       toolRegistry,
       embedder,
     };
+    if (orchestratorBlock) {
+      // readonly on ComposeSovereignConfig — cast through a mutable view
+      // to thread the orchestrator wire while keeping the public surface
+      // immutable (same pattern as `synthesizer` below).
+      (
+        composeArgs as {
+          orchestrator?: NonNullable<
+            Parameters<typeof composeSovereign>[0]['orchestrator']
+          >;
+        }
+      ).orchestrator = orchestratorBlock;
+    }
     if (deps.synthesizer) {
       // readonly on ComposeSovereignConfig — re-cast through a
       // mutable view to preserve the immutable type on the public
@@ -612,79 +691,30 @@ export function createBrainKernelWiring(
     return null;
   }
 
-  // Phase F.3 — build the production-grade orchestrator hook-chain
-  // bindings. We construct the chain even when the caller did not pass
-  // `deps.orchestratorBindings` so the wiring still surfaces a
-  // structurally-complete (real-port-bound) chain for diagnostic /
-  // future-wiring use. The kernel's `composeSovereign({...})` call
-  // above does NOT yet thread the chain in — the LLM router +
-  // dispatcher adapters ship as a separate PR. When the caller skips
-  // the bindings block, we surface `null` so the audit script doesn't
-  // mis-classify the absence as a no-op chain.
-  //
-  // GAP 2 — STAYED STAGED (precise flag): the full main-loop threading
-  // (`composeSovereign({ orchestrator: { router, dispatcher, ...hooks } })`)
-  // CANNOT be wired here yet. `composeSovereign`'s `orchestrator` block
-  // REQUIRES a concrete `router: LLMRouter` + `dispatcher: Dispatcher`
-  // and THROWS when they are absent (see
-  // `packages/central-intelligence/src/kernel/compose.ts` Phase E.5.1).
-  // `buildOrchestratorBindings(...)` returns the 9-hook chain + deps,
-  // NOT a router/dispatcher — so passing it into `composeSovereign`
-  // here would crash kernel construction and take the voice agent down
-  // with it. We therefore keep the hook chain on the WIRING SLOT only.
-  //
-  // The LIVE GAP-2 fix (route the MAIN chat /brain/turn through the
-  // 14-step kernel) is shipped as a PRE-FLIGHT in
-  // `services/api-gateway/src/routes/brain.hono.ts::kernelPreflight`,
-  // which calls `getSovereignBrain(...).kernel.think(...)` (the SAME
-  // entry the Jarvis routers use) before the persona path so the
-  // inviolable / policy / drift rails fire on the main chat. Answer
-  // GENERATION inside the orchestrator main-loop remains staged on the
-  // router/dispatcher PR above.
-  let orchestratorBindings: OrchestratorBindings | null = null;
-  if (deps.orchestratorBindings) {
-    try {
-      const approvalGate =
-        deps.orchestratorBindings.approvalGate ??
-        createApprovalGate({ store: createInMemoryApprovalStore() });
-      const bindingsArgs: Parameters<typeof buildOrchestratorBindings>[0] = {
-        db: deps.orchestratorBindings.db,
-        approvalGate,
-        toolRegistry,
-        tenantId: deps.orchestratorBindings.tenantId ?? '_platform',
-        env: envSource,
-        ...(deps.logger ? { logger: deps.logger } : {}),
-        ...(deps.orchestratorBindings.globalDenylist
-          ? { globalDenylist: deps.orchestratorBindings.globalDenylist }
-          : {}),
-        ...(deps.orchestratorBindings.proposer
-          ? { proposer: deps.orchestratorBindings.proposer }
-          : {}),
-      };
-      orchestratorBindings = buildOrchestratorBindings(bindingsArgs);
-      if (deps.logger?.info) {
-        deps.logger.info(
-          {
-            wiring: 'brain-kernel',
-            hooks: orchestratorBindings.hookChain
-              .list()
-              .map((h) => `${h.name}:${h.stage}`),
-            dbBacked: deps.orchestratorBindings.db !== null,
-          },
-          'brain-kernel: production orchestrator hook chain bound (9 ports)',
-        );
-      }
-    } catch (err) {
-      if (deps.logger?.warn) {
-        deps.logger.warn(
-          {
-            wiring: 'brain-kernel',
-            error: err instanceof Error ? err.message : String(err),
-          },
-          'brain-kernel: orchestrator hook-chain bindings failed; continuing without',
-        );
-      }
-    }
+  // Item-5 — the orchestrator main-loop is now fully threaded into the
+  // kernel via `composeSovereign({ orchestrator: orchestratorBlock })`
+  // above (router + dispatcher + memory tool + the 9 production hook
+  // ports). The bindings + block were built BEFORE composeSovereign so
+  // the kernel constructs with the wire in place. The main loop stays
+  // DEFAULT-OFF (UNSET `useByDefault` → kernel reads
+  // `BORJIE_ORCHESTRATOR_MAINLOOP`, default off) so the live `/brain/turn`
+  // generation is unchanged: the persona path + the kernel pre-flight in
+  // `routes/brain.hono.ts::kernelPreflight` remain the live default until
+  // a monitored canary flips the env flag.
+  if (orchestratorBindings && deps.logger?.info) {
+    deps.logger.info(
+      {
+        wiring: 'brain-kernel',
+        hooks: orchestratorBindings.hookChain
+          .list()
+          .map((h) => `${h.name}:${h.stage}`),
+        dbBacked: deps.orchestratorBindings?.db != null,
+        mainLoopThreaded: orchestratorBlock !== null,
+        mainLoopDefaultOn: false,
+        canaryEnvFlag: 'BORJIE_ORCHESTRATOR_MAINLOOP',
+      },
+      'brain-kernel: orchestrator main-loop threaded (9 ports + router/dispatcher); DEFAULT-OFF canary',
+    );
   }
 
   if (deps.logger?.info) {
@@ -781,4 +811,112 @@ function resolveEmbedder(
     }
     return createNullEmbedder();
   }
+}
+
+/**
+ * Default Anthropic model id for the orchestrator router. Operators can
+ * override via `BORJIE_ORCHESTRATOR_MODEL`. Kept as a string constant so
+ * this wiring does not pick up a hard import on the ai-copilot provider
+ * model catalogue just to name one model.
+ */
+const DEFAULT_ORCHESTRATOR_MODEL = 'claude-sonnet-4-6';
+
+/**
+ * Item-5 — assemble the `composeSovereign({ orchestrator })` block.
+ *
+ * Wires the REAL Anthropic router (over the same budget-guarded `.sdk`
+ * the sensors use), the REAL tool dispatcher (over the kernel's tool
+ * registry), an end-of-turn-persisting memory tool, and the 9 production
+ * hook ports from `buildOrchestratorBindings(...)`. The block's
+ * `useByDefault` is intentionally LEFT UNSET so the kernel's
+ * `resolveOrchestratorRoutingEnabled` keeps the main loop DEFAULT-OFF
+ * (gated behind `BORJIE_ORCHESTRATOR_MAINLOOP`).
+ *
+ * Memory adapter note: the bounded in-memory `/memories` tool is wired
+ * here (it IS a real bounded adapter). A Drizzle-backed adapter that
+ * survives process restarts is a follow-up — the orchestrator path is
+ * default-OFF, so this is non-blocking for production.
+ */
+function buildOrchestratorComposeBlock(args: {
+  readonly anthropicMessagesClient: KernelAnthropicSdkLike;
+  readonly toolRegistry: BrainToolRegistry;
+  readonly bindings: OrchestratorBindings;
+  readonly envSource: Readonly<Record<string, string | undefined>>;
+  readonly db: unknown | null;
+  readonly logger?: BrainKernelWiringDeps['logger'];
+}): NonNullable<Parameters<typeof composeSovereign>[0]['orchestrator']> {
+  const model =
+    args.envSource['BORJIE_ORCHESTRATOR_MODEL']?.trim() ||
+    DEFAULT_ORCHESTRATOR_MODEL;
+
+  // The duck-typed `.sdk` matches the orchestrator router's expected
+  // `AnthropicMessagesClient` shape (same shape the sensors consume).
+  const router = orchestrator.createAnthropicRouter(
+    args.anthropicMessagesClient as unknown as Parameters<
+      typeof orchestrator.createAnthropicRouter
+    >[0],
+    {
+      model,
+      ...(args.logger?.warn
+        ? {
+            logger: {
+              warn: (msg: string, meta?: Record<string, unknown>): void => {
+                args.logger?.warn?.({ wiring: 'orchestrator-router', ...meta }, msg);
+              },
+            },
+          }
+        : {}),
+    },
+  );
+
+  const dispatcher = orchestrator.createToolDispatcher({
+    registry: args.toolRegistry,
+    ...(args.logger?.warn
+      ? {
+          logger: {
+            warn: (msg: string, meta?: Record<string, unknown>): void => {
+              args.logger?.warn?.({ wiring: 'orchestrator-dispatcher', ...meta }, msg);
+            },
+          },
+        }
+      : {}),
+  });
+
+  // Durable working-memory when a db handle is present: the orchestrator
+  // main-loop's recall()/persist bind to the agent_memory table (FORCE RLS,
+  // migration 0302) — the SAME backend the mwikila.memory.* persona tools use,
+  // so the brain's notebook survives restarts. Honest fallback to the bounded
+  // in-memory tool only when no db is wired (degraded boot / tests).
+  const memoryTool = args.db
+    ? createDrizzleMemoryTool(args.db)
+    : orchestrator.createInMemoryMemoryTool();
+
+  const { deps: hookDeps } = args.bindings;
+  return {
+    router,
+    dispatcher,
+    memoryTool,
+    // Item-3 — project the SAME tool registry into the loop's toolSearch.
+    toolRegistry: args.toolRegistry,
+    // The 9 production hook ports (PreToolUse / PostToolUse / Stop).
+    piiScrubber: hookDeps.piiScrubber,
+    toolScopes: hookDeps.toolScopes,
+    approvalPolicy: hookDeps.approvalPolicy,
+    toolDenylist: {
+      dynamic: hookDeps.toolDenylist,
+      ...(hookDeps.globalDenylist
+        ? { globalDenylist: hookDeps.globalDenylist }
+        : {}),
+    },
+    rateLimit: {
+      counter: hookDeps.rateLimitCounter,
+      maxCallsPerWindow: hookDeps.rateLimitConfig.maxCallsPerWindow,
+      windowMs: hookDeps.rateLimitConfig.windowMs,
+    },
+    costCircuit: hookDeps.costCircuit,
+    sandboxResolver: hookDeps.sandboxResolver,
+    auditSink: hookDeps.auditSink,
+    ledgerSeal: hookDeps.ledgerSeal,
+    // `useByDefault` UNSET → kernel keeps the main loop DEFAULT-OFF.
+  };
 }

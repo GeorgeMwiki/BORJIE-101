@@ -263,6 +263,10 @@ describe('kernel ↔ orchestrator wire-up — think()', () => {
       sensors: [noopSensor()],
       orchestrator: {
         deps: makeOrchestratorDeps({ router, dispatcher }),
+        // Item-5: the main-loop is DEFAULT-OFF in production; these
+        // tests exercise the orchestrator path via the explicit
+        // per-instance canary lever (`useByDefault: true`).
+        useByDefault: true,
       },
     });
     const decision = await kernel.think(makeRequest());
@@ -351,6 +355,8 @@ describe('kernel ↔ orchestrator wire-up — think()', () => {
           dispatcher,
           extraHooks: [trackerPre, trackerPost, trackerStop],
         }),
+        // Item-5: opt into the DEFAULT-OFF main-loop for this test.
+        useByDefault: true,
       },
     });
     await kernel.think(makeRequest());
@@ -387,6 +393,10 @@ describe('kernel ↔ orchestrator wire-up — think()', () => {
       sensors: [noopSensor()],
       orchestrator: {
         deps: makeOrchestratorDeps({ router, dispatcher }),
+        // Item-5: the main-loop is DEFAULT-OFF in production; these
+        // tests exercise the orchestrator path via the explicit
+        // per-instance canary lever (`useByDefault: true`).
+        useByDefault: true,
       },
     });
     // The kernel is constructed with the orchestrator wired — the
@@ -412,6 +422,10 @@ describe('kernel ↔ orchestrator wire-up — think()', () => {
       sensors: [noopSensor()],
       orchestrator: {
         deps: makeOrchestratorDeps({ router, dispatcher }),
+        // Item-5: the main-loop is DEFAULT-OFF in production; these
+        // tests exercise the orchestrator path via the explicit
+        // per-instance canary lever (`useByDefault: true`).
+        useByDefault: true,
       },
     });
     // Use a tiny budget so the loop runs out of turns quickly. We can't
@@ -442,6 +456,10 @@ describe('kernel ↔ orchestrator wire-up — thinkStream()', () => {
       sensors: [noopSensor()],
       orchestrator: {
         deps: makeOrchestratorDeps({ router, dispatcher }),
+        // Item-5: the main-loop is DEFAULT-OFF in production; these
+        // tests exercise the orchestrator path via the explicit
+        // per-instance canary lever (`useByDefault: true`).
+        useByDefault: true,
       },
     });
     const events: KernelStreamEvent[] = [];
@@ -500,6 +518,103 @@ describe('kernel ↔ orchestrator wire-up — feature flag', () => {
     expect(decision.kind).toBe('answer');
     if (decision.kind === 'answer') {
       expect(decision.text).toBe('legacy path response');
+    }
+  });
+
+  // Item-5 "FULL POWERS" — fully wired (router + dispatcher + hooks) with
+  // NO levers set, the orchestrator main-loop IS the live default. Flipping
+  // the dep on now routes `/brain/turn` generation through the main-loop.
+  it('runs the orchestrator path when fully wired and no levers are set (DEFAULT-ON)', async () => {
+    const prevCanary = process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+    const prevKill = process.env.KERNEL_USE_ORCHESTRATOR;
+    delete process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+    delete process.env.KERNEL_USE_ORCHESTRATOR;
+    try {
+      const dispatcher = recordingDispatcher();
+      const router = fixedRouter([
+        { kind: 'respond_to_owner', text: 'orchestrator default-on' },
+      ]);
+      const kernel = createBrainKernel({
+        sensors: [noopSensor()],
+        orchestrator: {
+          // Fully wired, no `useByDefault` — relies on the DEFAULT-ON resolver.
+          deps: makeOrchestratorDeps({ router, dispatcher }),
+        },
+      });
+      const decision = await kernel.think(makeRequest());
+      expect(decision.kind).toBe('answer');
+      if (decision.kind === 'answer') {
+        expect(decision.text).toBe('orchestrator default-on');
+        expect(decision.provenance.sensorId).toBe('orchestrator');
+      }
+    } finally {
+      if (prevCanary === undefined) delete process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+      else process.env.BORJIE_ORCHESTRATOR_MAINLOOP = prevCanary;
+      if (prevKill === undefined) delete process.env.KERNEL_USE_ORCHESTRATOR;
+      else process.env.KERNEL_USE_ORCHESTRATOR = prevKill;
+    }
+  });
+
+  // Item-5 SAFETY — the soft-disable lever reverts to the legacy persona
+  // path WITHOUT a redeploy. `BORJIE_ORCHESTRATOR_MAINLOOP=0` (and the
+  // harder `KERNEL_USE_ORCHESTRATOR=false`) are the instant rollback.
+  it('reverts to the legacy path when BORJIE_ORCHESTRATOR_MAINLOOP=0 (soft disable)', async () => {
+    const prevCanary = process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+    const prevKill = process.env.KERNEL_USE_ORCHESTRATOR;
+    process.env.BORJIE_ORCHESTRATOR_MAINLOOP = '0';
+    delete process.env.KERNEL_USE_ORCHESTRATOR;
+    try {
+      const dispatcher = recordingDispatcher();
+      const router = fixedRouter([
+        { kind: 'respond_to_owner', text: 'orchestrator text' },
+      ]);
+      const kernel = createBrainKernel({
+        sensors: [noopSensor()],
+        orchestrator: {
+          deps: makeOrchestratorDeps({ router, dispatcher }),
+        },
+      });
+      const decision = await kernel.think(makeRequest());
+      // Legacy persona path ran, NOT the orchestrator.
+      expect(decision.kind).toBe('answer');
+      if (decision.kind === 'answer') {
+        expect(decision.text).toBe('legacy path response');
+      }
+      expect(dispatcher.calls.length).toBe(0);
+    } finally {
+      if (prevCanary === undefined) delete process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+      else process.env.BORJIE_ORCHESTRATOR_MAINLOOP = prevCanary;
+      if (prevKill === undefined) delete process.env.KERNEL_USE_ORCHESTRATOR;
+      else process.env.KERNEL_USE_ORCHESTRATOR = prevKill;
+    }
+  });
+
+  // Item-5 — the canary env flag enables the orchestrator path without a
+  // per-instance `useByDefault` override (the ops lever).
+  it('enables the orchestrator path when BORJIE_ORCHESTRATOR_MAINLOOP=1', async () => {
+    const prevCanary = process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+    process.env.BORJIE_ORCHESTRATOR_MAINLOOP = '1';
+    try {
+      const dispatcher = recordingDispatcher();
+      const router = fixedRouter([
+        { kind: 'respond_to_owner', text: 'orchestrator answered' },
+      ]);
+      const kernel = createBrainKernel({
+        sensors: [noopSensor()],
+        orchestrator: {
+          deps: makeOrchestratorDeps({ router, dispatcher }),
+        },
+      });
+      const decision = await kernel.think(makeRequest());
+      expect(decision.kind).toBe('answer');
+      if (decision.kind === 'answer') {
+        expect(decision.text).toBe('orchestrator answered');
+        expect(decision.provenance.sensorId).toBe('orchestrator');
+      }
+      expect(dispatcher.calls.length).toBe(1);
+    } finally {
+      if (prevCanary === undefined) delete process.env.BORJIE_ORCHESTRATOR_MAINLOOP;
+      else process.env.BORJIE_ORCHESTRATOR_MAINLOOP = prevCanary;
     }
   });
 });
