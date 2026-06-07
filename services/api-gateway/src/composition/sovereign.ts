@@ -153,6 +153,23 @@ import { buildOrchestratorBindings } from './orchestrator-bindings.js';
 // mwikila.memory.* persona tools use, so the main-loop's notebook survives
 // restarts. Only wired when the DB is up.
 import { createDrizzleMemoryTool } from './memory/drizzle-memory-tool.js';
+// FULL-POWERS parity — the proven persona tool catalog (40+ mwikila.* /
+// memory / data-analysis / org-admin / damage-settlement / jurisdiction
+// tools) + the per-scope persona gate (loopback http client + Pino audit
+// sink + kill-switch + role→persona-slug resolution). Bridged onto the
+// orchestrator's kernel `BrainToolRegistry` so the main-loop discovers
+// (toolSearch) and executes (dispatcher, 9-hook chain) the SAME catalog the
+// persona path uses — closing the degraded-catalog gap.
+import {
+  buildPersonaToolHandlers,
+  type PersonaToolGate,
+} from './brain-tools/index.js';
+import { createLoopbackHttpClient } from './brain-tools/loopback-http-client.js';
+import { createPinoAuditSink } from './brain-tools/audit-sink.js';
+import {
+  registerPersonaToolsOnRegistry,
+  type BridgeSovereignRole,
+} from './brain-tools/persona-kernel-bridge.js';
 
 // ---------------------------------------------------------------------------
 // Anthropic SDK loader — optional. We only require the SDK when the
@@ -650,6 +667,7 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
       mutable,
       anthropic,
       db,
+      scope,
     });
   }
 
@@ -677,11 +695,14 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
 // ---------------------------------------------------------------------------
 
 /**
- * Placeholder seed-tool deps — mirrors `brain-kernel-wiring.ts`. Each
- * executor surfaces a structured "not yet wired" error so the brain-tool
- * registry boots end-to-end (the deterministic registry layer still
- * enforces the input/output schema). Concrete Drizzle adapters land via a
- * follow-up; the orchestrator's hook chain + dispatcher are fully real.
+ * Placeholder seed-tool deps — mirrors `brain-kernel-wiring.ts`. The three
+ * read-side executors (`lookupTenantArrears`, `checkComplianceCertificate`,
+ * `getMarketRateBand`) surface a structured "not yet wired" error so the
+ * brain-tool registry boots end-to-end; the two PURE PM tools registered by
+ * `registerSeedBrainTools` (`computeKraMri`, `triageMaintenanceTicket`) are
+ * real deterministic functions. The FULL persona catalog is bridged on top of
+ * these (see `buildPersonaCatalogForScope`), so the orchestrator's live
+ * capability is the persona catalog, not these seeds.
  */
 function buildOrchestratorSeedToolDeps(): SeedBrainToolDeps {
   const notWired = async (_input: unknown): Promise<never> => {
@@ -696,10 +717,122 @@ function buildOrchestratorSeedToolDeps(): SeedBrainToolDeps {
   };
 }
 
+/**
+ * Read the kill-switch open state from env, fail-CLOSED on any ambiguity.
+ * Mirrors the CLAUDE.md hard rule ("Kill-switch fail-closed. Never catch +
+ * ignore its errors."): `KILLSWITCH_STATE=HALT` (or `OPEN`) opens the switch;
+ * any read fault is treated as OPEN so the catalog returns empty. The persona
+ * path resolves this from the service-registry's kill-switch port; the
+ * sovereign composition root has no registry handle, so it reads the same env
+ * lever the kernel's `createEnvKillswitchPort` reads.
+ */
+function resolveKillSwitchOpenFromEnv(
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  try {
+    const raw = env.KILLSWITCH_STATE?.trim().toUpperCase();
+    return raw === 'HALT' || raw === 'OPEN';
+  } catch {
+    // Fail closed — any read fault means we must assume the switch is open.
+    return true;
+  }
+}
+
+/**
+ * Map the composition root's `SovereignScope.role` (SovereignRole) to the
+ * RBAC role the persona-gate's `resolvePersonaSlug` consumes. Returns the
+ * literal RBAC tokens the index.ts gate switches on so the SAME slug
+ * resolution applies on the orchestrator path.
+ */
+function rbacRoleForSovereignRole(
+  role: SovereignRole | undefined,
+): string {
+  switch (role) {
+    case 'owner':
+      return 'OWNER';
+    case 'org-admin':
+    case 'sovereign':
+      return 'PLATFORM_ADMIN';
+    case 'manager':
+      return 'MANAGER';
+    case 'tenant':
+    default:
+      // Brain-chat default surface — matches the index.ts persona-gate
+      // fallback (T1 owner strategist).
+      return 'OWNER';
+  }
+}
+
+/**
+ * Build the per-scope persona gate (kill-switch + loopback http client + Pino
+ * audit sink + role→persona-slug resolution) EXACTLY as `index.ts` does, then
+ * the FULL persona tool-handler catalog bound to the durable Drizzle
+ * MemoryTool. The gate's `resolvePersonaSlug` keys off the scope's role (a
+ * cached-brain constant) rather than per-call actor metadata, so the
+ * orchestrator dispatches the right per-persona ceiling.
+ *
+ * The loopback client requires `JWT_SECRET` (≥32 chars) to mint a per-call
+ * service token; absent it, handlers fall back to their defensive non-claiming
+ * branches (never a fabricated row) — identical to the persona path's degraded
+ * behaviour.
+ */
+function buildPersonaCatalogForScope(args: {
+  readonly db: NonNullable<ReturnType<typeof getDb>>;
+  readonly scope: SovereignScope;
+}): ReturnType<typeof buildPersonaToolHandlers> {
+  const env = process.env;
+  const jwtSecret = env.JWT_SECRET ?? '';
+  const gatewayPort = Number(env.PORT ?? '4001') || 4001;
+  const personaLoopbackClient =
+    jwtSecret.length >= 32
+      ? createLoopbackHttpClient({
+          origin: `http://127.0.0.1:${gatewayPort}`,
+          apiPrefix: '/api/v1',
+          jwtSecret,
+          logger: {
+            warn: (ctx, msg): void =>
+              logger.warn(ctx as Record<string, unknown>, msg),
+          },
+        })
+      : undefined;
+  if (!personaLoopbackClient) {
+    logger.warn(
+      { jwtSecretLen: jwtSecret.length },
+      'sovereign-orchestrator: persona-tool loopback HTTP client unbound — JWT_SECRET missing or <32 chars; handlers will use defensive fallbacks',
+    );
+  }
+
+  const rbacRole = rbacRoleForSovereignRole(args.scope.role);
+  const gate: PersonaToolGate = {
+    killSwitchOpen: resolveKillSwitchOpenFromEnv(env),
+    // The persona slug is fixed by the cached brain's scope role (not by
+    // per-call actor metadata, which the orchestrator dispatcher does not
+    // thread into the kernel `BrainToolSpec.executor`). This is the SAME
+    // role-derived slug the index.ts gate resolves from `actor.role`.
+    resolvePersonaSlug(): string {
+      if (rbacRole === 'OWNER') return 'T1_owner_strategist';
+      if (rbacRole === 'PLATFORM_ADMIN') return 'T2_admin_strategist';
+      if (rbacRole === 'MANAGER') return 'T3_module_manager';
+      return 'T1_owner_strategist';
+    },
+    auditSink: createPinoAuditSink(logger),
+    ...(personaLoopbackClient && { httpClient: personaLoopbackClient }),
+  };
+
+  return buildPersonaToolHandlers(gate, {
+    onDuplicate: (toolId) =>
+      logger.warn({ toolId }, 'sovereign-orchestrator: duplicate persona descriptor ignored'),
+    // Durable brain memory — the SAME Drizzle backend (agent_memory) the
+    // kernel scratchpad + the persona path's mwikila.memory.* tools use.
+    memoryTool: createDrizzleMemoryTool(args.db),
+  });
+}
+
 function maybeWireOrchestratorBlock(args: {
   readonly mutable: Record<string, unknown>;
   readonly anthropic: NonNullable<AnthropicMessagesClient>;
   readonly db: NonNullable<ReturnType<typeof getDb>>;
+  readonly scope: SovereignScope;
 }): void {
   try {
     // (b) BRAIN tool registry — the catalog the main-loop searches +
@@ -709,10 +842,40 @@ function maybeWireOrchestratorBlock(args: {
     const toolRegistry: BrainToolRegistry = createBrainToolRegistry();
     registerSeedBrainTools(toolRegistry, buildOrchestratorSeedToolDeps());
 
+    // FULL-POWERS parity — bridge the proven persona catalog onto the SAME
+    // registry so the orchestrator's toolSearch + dispatcher + 9-hook chain
+    // see the complete mwikila.* / memory / data-analysis / org-admin /
+    // damage-settlement / jurisdiction tool set. Registration is per-tool
+    // defensive (a name collision is logged + skipped). The persona handlers
+    // are REAL (the loopback client makes mwikila.* actions actually execute).
+    const personaHandlers = buildPersonaCatalogForScope({
+      db: args.db,
+      scope: args.scope,
+    });
+    const bridgeRole = args.scope.role as BridgeSovereignRole | undefined;
+    const personaRegistered = registerPersonaToolsOnRegistry({
+      registry: toolRegistry,
+      handlers: personaHandlers,
+      scope: {
+        tenantId: args.scope.tenantId,
+        userId: args.scope.userId,
+        ...(bridgeRole ? { role: bridgeRole } : {}),
+      },
+      // Stable per-brain thread id for tool provenance. The orchestrator's
+      // per-turn thread id is not threaded into the kernel BrainToolSpec
+      // executor, so we use a scope-stable id; WRITE-tool provenance still
+      // carries tenant + actor for the "via Mr. Mwikila" pill.
+      threadId: `sovereign-orchestrator:${args.scope.tenantId ?? '__platform__'}:${args.scope.userId ?? '__nouser__'}`,
+      logger: {
+        warn: (meta, msg) => logger.warn(meta, msg),
+      },
+    });
+
     // (d) 9 production hook ports — PII scrub / permission / four-eye /
     // denylist / rate-limit / cost-circuit / sandbox-divert / audit /
-    // ledger-seal. The platform scope ('_platform') matches the kernel's
-    // per-deployment identity; per-turn tenant scope rides on `req.scope`.
+    // ledger-seal. The hook chain is scoped to THIS brain's tenant (the cache
+    // key already isolates per tenant); platform-tier brains fall back to the
+    // '_platform' sentinel. Per-turn tenant scope also rides on `req.scope`.
     const approvalGate = createApprovalGate({
       store: createInMemoryApprovalStore(),
     });
@@ -720,7 +883,7 @@ function maybeWireOrchestratorBlock(args: {
       db: args.db,
       approvalGate,
       toolRegistry,
-      tenantId: '_platform',
+      tenantId: args.scope.tenantId ?? '_platform',
       env: process.env,
       logger: {
         info: (meta: object, msg: string) =>
@@ -762,8 +925,14 @@ function maybeWireOrchestratorBlock(args: {
         hardKillFlag: 'KERNEL_USE_ORCHESTRATOR=false',
         softDisableFlag: 'BORJIE_ORCHESTRATOR_MAINLOOP=0|false|off',
         hooks: bindings.hookChain.list().map((h) => `${h.name}:${h.stage}`),
+        // FULL-POWERS parity proof — the orchestrator's live catalog size.
+        // Seed PM tools (5) + the bridged persona catalog. A non-trivial
+        // count is the at-boot signal that the orchestrator is no longer
+        // running the degraded 5-tool seed catalog.
+        personaToolsRegistered: personaRegistered,
+        totalToolsRegistered: toolRegistry.list().length,
       },
-      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks); DEFAULT-ON',
+      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks + FULL persona catalog); DEFAULT-ON',
     );
   } catch (err) {
     // Fail-safe — never break kernel boot. Leaving `mutable.orchestrator`
