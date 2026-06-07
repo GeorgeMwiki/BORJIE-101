@@ -34,6 +34,14 @@ import { withSecurityEvents } from '@borjie/observability';
 // via observation-recorder's immediate shift, so the next user query
 // is already smarter. Fire-and-forget; never blocks the response.
 import { recordObservation } from '@borjie/learning-amplification';
+// Conformal calibration (online ACI) — a turn 👍/👎 is also a COVERAGE
+// observation for the `chat_turn_confidence` prediction type the chat path
+// reads at emit time: UP ⇒ the answer's confidence was justified ⇒ interval
+// covered; DOWN ⇒ disputed ⇒ not covered. Folding that bit through the loop
+// MOVES the calibrated alpha, so the next chat turn's confidence is re-graded
+// from real user signal. Fire-and-forget + fail-soft (its OWN try/catch inside
+// the feed): a calibration write must never break the thumbs feedback write.
+import { feedTurnThumbsToConformal } from '../composition/conformal/feedback-conformal-feed';
 // Legacy feedback shape — long-form bug/feature/etc submissions captured
 // from staff/tenant surveys. Persists to `feedback_submissions`.
 const legacyFeedbackSchema = z.object({
@@ -175,6 +183,25 @@ app.post('/', zValidator('json', submitFeedbackSchema), withSecurityEvents({ act
           ? { evidence: { userText: body.correctionText } }
           : {}),
       }).catch(() => {
+        /* never bubble */
+      });
+      // Conformal coverage feed — auto-learn the `chat_turn_confidence` alpha
+      // from this thumbs signal. Fire-and-forget: the feed binds the tenant GUC
+      // itself (the `/feedback` db handle is unpinned) and swallows every failure
+      // behind its Pino warn sink, so a calibration write can never break the
+      // thumbs feedback write above. Returns immediately; the loop advances out
+      // of band.
+      void feedTurnThumbsToConformal(
+        db,
+        {
+          tenantId: auth.tenantId,
+          turnId: body.turnId,
+          signal,
+          threadId: body.threadId,
+          userId: auth.userId,
+        },
+        { warn: () => { /* swallow; never bubble into the response */ } },
+      ).catch(() => {
         /* never bubble */
       });
       return c.json(
