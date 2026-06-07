@@ -63,6 +63,19 @@ import {
 import { scrubMessage } from '../utils/safe-error';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
 import { withSecurityEvents } from '@borjie/observability';
+// Stage 2 — orchestrator main-loop as the DEFAULT-ON live generator for
+// the main brain chat surface. When ON, `kernel.think()` runs the rails +
+// answer generation in ONE call, so the route routes generation through
+// the helper below and does NOT also run `kernelPreflight` (no double
+// LLM). When OFF (`KERNEL_USE_ORCHESTRATOR=false` hard-kill /
+// `BORJIE_ORCHESTRATOR_MAINLOOP=0|false|off` soft-disable), the persona
+// path + `kernelPreflight` run UNCHANGED (byte-identical fallback).
+import {
+  resolveBrainOrchestratorRoutingEnabled,
+  generateBrainTurnViaOrchestrator,
+  type OrchestratorTurnPayload,
+  type OrchestratorTurnContext,
+} from '../composition/brain-orchestrator-turn.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -1009,6 +1022,276 @@ async function auditAndEnforceJson(args: {
   };
 }
 
+// ─── Stage 2 — orchestrator-routed turn (DEFAULT-ON live generator) ──
+//
+// When `resolveBrainOrchestratorRoutingEnabled()` is ON, generation flows
+// through `sov.kernel.think()` (the orchestrator main-loop), which runs the
+// inviolable/policy/drift rails AND the answer in ONE call — so the route
+// does NOT also run `kernelPreflight` (that would double the LLM spend).
+// The flag-OFF persona path (`handleTurnJson` / `handleTurnSse` +
+// `kernelPreflight`) stays byte-identical.
+
+/** Map the viewer's portal to the kernel surface tier. */
+function orchestratorSurfaceForViewer(
+  viewer: TurnGateContext['viewer'],
+): 'owner-portal' | 'admin-portal' | 'tenant-app' {
+  if (viewer.isAdmin) return 'admin-portal';
+  if (viewer.isManagement) return 'owner-portal';
+  return 'tenant-app';
+}
+
+/** Build the orchestrator turn context from the gate context. */
+function orchestratorTurnContext(ctx: TurnGateContext, teamId?: string): OrchestratorTurnContext {
+  return {
+    tenantId: ctx.tenant.tenantId,
+    userId: ctx.viewer.userId,
+    roles: ctx.viewer.roles,
+    ...(teamId !== undefined ? { teamId } : {}),
+  };
+}
+
+/**
+ * Acquire the live SovereignBrain for this turn's tenant/viewer scope.
+ * Dynamic import keeps the sovereign composition root out of this module's
+ * eval graph (same rationale as `kernelPreflight`).
+ */
+async function getSovForTurn(ctx: TurnGateContext) {
+  const role = kernelRoleForViewer(ctx.viewer);
+  const { getSovereignBrain } = await import('../composition/sovereign.js');
+  return getSovereignBrain({
+    tenantId: ctx.tenant.tenantId,
+    userId: ctx.viewer.userId,
+    role,
+  });
+}
+
+async function handleTurnJsonViaOrchestrator(
+  c: any,
+  body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
+  ctx: TurnGateContext,
+): Promise<Response> {
+  const brain = registry().for(ctx.tenant.tenantId);
+  try {
+    const sov = await getSovForTurn(ctx);
+    const payload: OrchestratorTurnPayload = await generateBrainTurnViaOrchestrator({
+      brain,
+      sov,
+      ctx: orchestratorTurnContext(ctx, body.teamId),
+      userText: body.userText,
+      ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
+      ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+      surface: orchestratorSurfaceForViewer(ctx.viewer),
+      language: pickRecallLang(c.req.header('accept-language') ?? null),
+      logger: {
+        info: (meta, msg) => logger.info(meta, msg),
+        warn: (meta, msg) => logger.warn(meta, msg),
+      },
+    });
+    // The kernel already fired the inviolable/policy/drift rails inside
+    // think(); a refusal surfaces as the SAME 403 KERNEL_REFUSED shape the
+    // persona-path preflight emits.
+    if (payload.refused) {
+      return c.json(
+        {
+          error: 'kernel_refused',
+          code: 'KERNEL_REFUSED',
+          gate: payload.refusalGate,
+          responseText: payload.responseText,
+        },
+        403,
+      );
+    }
+    // Evidence-required HARD enforcement runs on the kernel's output text,
+    // exactly as on the persona path (Auditor rejects empty chains).
+    const enforced = await auditAndEnforceJson({
+      c,
+      ctx,
+      threadId: payload.threadId,
+      personaId: payload.finalPersonaId,
+      responseText: payload.responseText,
+      tokensUsed: payload.tokensUsed,
+    });
+    return c.json(
+      {
+        threadId: payload.threadId,
+        finalPersonaId: payload.finalPersonaId,
+        responseText: enforced.responseText,
+        handoffs: payload.handoffs,
+        toolCalls: payload.toolCalls,
+        advisorConsulted: payload.advisorConsulted,
+        proposedAction: payload.proposedAction,
+        tokensUsed: payload.tokensUsed,
+        audit: enforced.audit,
+      },
+      enforced.status,
+    );
+  } catch (err) {
+    return handleError(c, err);
+  }
+}
+
+async function handleTurnSseViaOrchestrator(
+  c: any,
+  body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
+  ctx: TurnGateContext,
+): Promise<Response> {
+  const brain = registry().for(ctx.tenant.tenantId);
+  return streamSSE(c, async (stream) => {
+    const acceptedAt = new Date().toISOString();
+    try {
+      await stream.writeSSE({
+        event: 'turn.accepted',
+        data: JSON.stringify({
+          at: acceptedAt,
+          tenantId: ctx.tenant.tenantId,
+          threadId: body.threadId ?? null,
+        }),
+      });
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'failed to send turn.accepted frame',
+      );
+      return;
+    }
+    // Ack-fast pre-paint — identical to the persona path so the mobile
+    // chat surface paints a bubble in <100 ms.
+    try {
+      const ack = buildAckFastFrame(c.req.header('accept-language') ?? null);
+      await stream.writeSSE({
+        event: 'ack',
+        data: JSON.stringify({ text: ack.text, lang: ack.lang }),
+      });
+    } catch (err) {
+      logger.warn(
+        { err: err instanceof Error ? err.message : String(err) },
+        'failed to send ack frame',
+      );
+    }
+    let payload: OrchestratorTurnPayload;
+    try {
+      const sov = await getSovForTurn(ctx);
+      payload = await generateBrainTurnViaOrchestrator({
+        brain,
+        sov,
+        ctx: orchestratorTurnContext(ctx, body.teamId),
+        userText: body.userText,
+        ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
+        ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+        surface: orchestratorSurfaceForViewer(ctx.viewer),
+        language: pickRecallLang(c.req.header('accept-language') ?? null),
+        logger: {
+          info: (meta, msg) => logger.info(meta, msg),
+          warn: (meta, msg) => logger.warn(meta, msg),
+        },
+      });
+    } catch (err) {
+      logger.error(
+        {
+          tenantId: ctx.tenant.tenantId,
+          threadId: body.threadId ?? null,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain /turn orchestrator stream failed',
+      );
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          message: scrubMessage(err, 'orchestrator_failed'),
+          code: 'INTERNAL',
+          retryable: false,
+        }),
+      });
+      return;
+    }
+    // A kernel refusal surfaces as the SAME error+done frame pair the
+    // persona-path preflight emits.
+    if (payload.refused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          message: payload.responseText,
+          code: 'KERNEL_REFUSED',
+          gate: payload.refusalGate,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ threadId: payload.threadId, refused: true }),
+      });
+      return;
+    }
+    // Stream the answer text in the SAME `message_chunk` envelope the
+    // persona path emits (chunked at 80 chars), then a `done` frame, then
+    // the warn-only auditor frame (SSE cannot un-send tokens).
+    try {
+      const text = payload.responseText ?? '';
+      const chunkSize = 80;
+      for (let i = 0; i < text.length; i += chunkSize) {
+        await stream.writeSSE({
+          event: 'message_chunk',
+          data: JSON.stringify({ text: text.slice(i, i + chunkSize), done: false }),
+        });
+      }
+      if (payload.proposedAction) {
+        await stream.writeSSE({
+          event: 'message_chunk',
+          data: JSON.stringify({
+            text: '',
+            done: false,
+            proposedAction: {
+              risk: payload.proposedAction.riskLevel,
+              description: `${payload.proposedAction.verb} ${payload.proposedAction.object}`,
+              reviewRequired: payload.proposedAction.reviewRequired,
+              executionHeld:
+                payload.proposedAction.executionHeld ?? payload.proposedAction.reviewRequired,
+            },
+          }),
+        });
+      }
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({
+          threadId: payload.threadId,
+          tokensUsed: payload.tokensUsed,
+          totalMs: payload.timeMs,
+          finalPersonaId: payload.finalPersonaId,
+          advisorConsulted: payload.advisorConsulted,
+          cacheReadTokens: null,
+        }),
+      });
+      await emitAuditorFrame(
+        stream,
+        { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
+        {
+          threadId: payload.threadId,
+          personaId: payload.finalPersonaId,
+          responseText: payload.responseText,
+          tokensUsed: payload.tokensUsed,
+        },
+      );
+    } catch (err) {
+      logger.error(
+        {
+          tenantId: ctx.tenant.tenantId,
+          threadId: payload.threadId,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain /turn orchestrator frame emit failed',
+      );
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          message: scrubMessage(err, 'stream_failed'),
+          code: 'INTERNAL',
+          retryable: false,
+        }),
+      });
+    }
+  });
+}
+
 async function handleTurnJson(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
@@ -1401,41 +1684,55 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
 
   const wantsSse = clientWantsSse(c.req.header('accept'));
 
-  // GAP 2 — 14-step kernel PRE-FLIGHT. Route the turn through the same
-  // `kernel.think` entry the Jarvis routers use BEFORE the persona path
-  // so the inviolable / policy / drift rails fire on the MAIN chat too.
-  // A hard refusal short-circuits the turn (JSON 403 / SSE refusal
-  // frame); an infra fault fails open to the persona path. We pre-flight
-  // the ORIGINAL user text (before the memory preamble is prepended) so
-  // the rails see exactly what the user asked.
-  const preflight = await kernelPreflight(c, gate.ctx, body.userText);
-  if (preflight.refused) {
-    if (wantsSse) {
-      return streamSSE(c, async (stream) => {
-        await stream.writeSSE({
-          event: 'error',
-          data: JSON.stringify({
-            message: preflight.message,
-            code: 'KERNEL_REFUSED',
-            gate: preflight.gate,
-            retryable: false,
-          }),
+  // Stage 2 — orchestrator main-loop routing decision (DEFAULT-ON). When
+  // ON, `kernel.think()` runs the inviolable/policy/drift rails AND the
+  // answer generation in ONE call, so we MUST NOT also run the separate
+  // `kernelPreflight` below (that would double the LLM spend). When OFF
+  // (`KERNEL_USE_ORCHESTRATOR=false` hard-kill / `BORJIE_ORCHESTRATOR_
+  // MAINLOOP=0|false|off` soft-disable) the persona path + the preflight
+  // gate run UNCHANGED — byte-identical to the prior production behaviour.
+  const orchestratorOn = resolveBrainOrchestratorRoutingEnabled();
+
+  // GAP 2 — 14-step kernel PRE-FLIGHT (persona-path safety half ONLY).
+  // Route the turn through the same `kernel.think` entry the Jarvis routers
+  // use BEFORE the persona path so the inviolable / policy / drift rails
+  // fire on the MAIN chat too. A hard refusal short-circuits the turn
+  // (JSON 403 / SSE refusal frame); an infra fault fails open to the
+  // persona path. We pre-flight the ORIGINAL user text (before the memory
+  // preamble is prepended) so the rails see exactly what the user asked.
+  // SKIPPED when the orchestrator is ON: the kernel runs these same rails
+  // inside `think()` during generation, so a second pre-flight think()
+  // would be a redundant LLM call.
+  if (!orchestratorOn) {
+    const preflight = await kernelPreflight(c, gate.ctx, body.userText);
+    if (preflight.refused) {
+      if (wantsSse) {
+        return streamSSE(c, async (stream) => {
+          await stream.writeSSE({
+            event: 'error',
+            data: JSON.stringify({
+              message: preflight.message,
+              code: 'KERNEL_REFUSED',
+              gate: preflight.gate,
+              retryable: false,
+            }),
+          });
+          await stream.writeSSE({
+            event: 'done',
+            data: JSON.stringify({ threadId: body.threadId ?? null, refused: true }),
+          });
         });
-        await stream.writeSSE({
-          event: 'done',
-          data: JSON.stringify({ threadId: body.threadId ?? null, refused: true }),
-        });
-      });
+      }
+      return c.json(
+        {
+          error: 'kernel_refused',
+          code: 'KERNEL_REFUSED',
+          gate: preflight.gate,
+          responseText: preflight.message,
+        },
+        403,
+      );
     }
-    return c.json(
-      {
-        error: 'kernel_refused',
-        code: 'KERNEL_REFUSED',
-        gate: preflight.gate,
-        responseText: preflight.message,
-      },
-      403,
-    );
   }
 
   // Persistent-memory RECALL — load the user's OPEN/active support cases
@@ -1510,7 +1807,12 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
         c.header('Idempotent-Replayed', 'true');
         return c.json(cached.body, cached.status as 200);
       }
-      const response = await handleTurnJson(c, body, gate.ctx);
+      // Stage 2 — route generation through the orchestrator main-loop when
+      // ON; the proven persona path (`handleTurnJson`) runs UNCHANGED when
+      // OFF. Idempotency caching wraps whichever handler runs.
+      const response = orchestratorOn
+        ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx)
+        : await handleTurnJson(c, body, gate.ctx);
       // Cache only successful 2xx — error responses must be retryable.
       if (response.status >= 200 && response.status < 300) {
         try {
@@ -1538,9 +1840,13 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
       }
       return response;
     }
-    return handleTurnJson(c, body, gate.ctx);
+    return orchestratorOn
+      ? handleTurnJsonViaOrchestrator(c, body, gate.ctx)
+      : handleTurnJson(c, body, gate.ctx);
   }
-  return handleTurnSse(c, body, gate.ctx);
+  return orchestratorOn
+    ? handleTurnSseViaOrchestrator(c, body, gate.ctx)
+    : handleTurnSse(c, body, gate.ctx);
 }));
 
 brainRouter.get('/threads', async (c) => {

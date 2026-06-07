@@ -836,8 +836,17 @@ const DEFAULT_ORCHESTRATOR_MODEL = 'claude-sonnet-4-6';
  * here (it IS a real bounded adapter). A Drizzle-backed adapter that
  * survives process restarts is a follow-up — the orchestrator path is
  * default-OFF, so this is non-blocking for production.
+ *
+ * EXPORTED (Stage 1) so the sovereign composition root (`sovereign.ts
+ * build()`) can reuse the EXACT same orchestrator-block construction —
+ * the router/dispatcher/memory-tool/9-hook-port assembly — to wire the
+ * main-loop onto the LIVE `getSovereignBrain` kernel without replicating
+ * it. The live path leaves `useByDefault` UNSET, so the kernel's
+ * `resolveOrchestratorRoutingEnabled` controls routing (DEFAULT-ON with
+ * the `KERNEL_USE_ORCHESTRATOR=false` hard-kill + `BORJIE_ORCHESTRATOR_
+ * MAINLOOP=0/false/off` soft-disable levers).
  */
-function buildOrchestratorComposeBlock(args: {
+export function buildOrchestratorComposeBlock(args: {
   readonly anthropicMessagesClient: KernelAnthropicSdkLike;
   readonly toolRegistry: BrainToolRegistry;
   readonly bindings: OrchestratorBindings;

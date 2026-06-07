@@ -48,6 +48,15 @@ import { expandGraphEvidence } from './graph-rag-expand';
 import type { KgDbExec } from '../../composition/knowledge-graph/postgres-kg-store';
 import { applyChatConformalConfidence } from '../../composition/conformal/chat-conformal-confidence';
 import { createLogger } from '../../utils/logger';
+// Stage 3 — orchestrator main-loop as the DEFAULT-ON live generator for
+// the mining chat surface. When ON, generation flows through
+// `sov.kernel.think()` (rails + answer in ONE call) instead of the
+// Master-Brain junior-dispatch fan-out. The existing
+// `applyChatConformalConfidence` wire + the `message_chunk` SSE contract
+// are preserved. When OFF (`KERNEL_USE_ORCHESTRATOR=false` hard-kill /
+// `BORJIE_ORCHESTRATOR_MAINLOOP=0|false|off` soft-disable) the
+// `createDefaultMasterBrainAgent().processInput` path runs UNCHANGED.
+import { resolveBrainOrchestratorRoutingEnabled } from '../../composition/brain-orchestrator-turn';
 
 const orchestratorLogger = createLogger('chat-orchestrator-conformal');
 
@@ -179,6 +188,20 @@ export async function* runChatOrchestrator(
     corpusChunks = [];
   }
   const retrievedContext = tokeniseRetrievedContext(corpusChunks);
+
+  // ── Stage 3 — orchestrator main-loop (DEFAULT-ON live generator) ──
+  // When ON, generate via `sov.kernel.think()` — the disciplined kernel
+  // runs the inviolable/policy/drift rails AND the answer in ONE call —
+  // instead of the Master-Brain junior fan-out. The conformal-confidence
+  // calibration + the `message_chunk` SSE contract are preserved. When OFF
+  // the Master-Brain path below runs UNCHANGED (byte-identical fallback).
+  if (resolveBrainOrchestratorRoutingEnabled()) {
+    yield* runChatViaOrchestrator(input, {
+      lensSelection,
+      corpusChunks,
+    });
+    return;
+  }
 
   // ── Master Brain ─────────────────────────────────────────────────
   let brainOut;
@@ -343,6 +366,108 @@ export async function* runChatOrchestrator(
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Stage 3 — orchestrator main-loop generation for the mining chat surface.
+//
+// When the orchestrator is the live generator, the disciplined kernel
+// `think()` call runs the inviolable/policy/drift rails AND produces the
+// answer in ONE pass. We thread the SAME PII-tokenised corpus grounding +
+// the active locale + the persona-lens directive so the answer is grounded
+// and single-language (CLAUDE.md). The emitted confidence is wrapped by
+// the EXACT same `applyChatConformalConfidence` calibration the
+// Master-Brain path uses, and the answer ships on the SAME `message_chunk`
+// SSE frame.
+//
+// HONEST DELTA vs the Master-Brain path (documented, never faked):
+//   - NO `junior_call` frames: the orchestrator executes tools internally
+//     via its own dispatcher + 9-hook chain (audited there), so there is
+//     no per-junior `running`/`done` fan-out to stream. Clients that
+//     render junior chips simply see none on this path.
+//   - evidence_ids are the UNION of the grounded corpus chunk ids + the
+//     kernel decision's own citation ids (the Auditor-valid set). The
+//     Master-Brain path additionally merged per-junior evidence; with no
+//     juniors that contribution is naturally empty.
+//   - a kernel `refusal` surfaces as an `error` frame (source
+//     'master-brain') + `done`, mirroring how the Master-Brain path
+//     surfaces a brain-level failure to the client.
+// ─────────────────────────────────────────────────────────────────────
+
+async function* runChatViaOrchestrator(
+  input: OrchestratorInput,
+  ctx: {
+    readonly lensSelection: ReturnType<typeof classifyLenses>;
+    readonly corpusChunks: ReadonlyArray<CorpusEvidence>;
+  },
+): AsyncGenerator<ChatSseEvent, void, unknown> {
+  // Resolve the live SovereignBrain for this tenant. Dynamic import keeps
+  // the sovereign composition root out of this module's eval graph (mirrors
+  // the brain.hono.ts pattern). On any construction fault we surface a
+  // single error frame + done — never a half-stream.
+  let decision;
+  try {
+    const { getSovereignBrain } = await import('../../composition/sovereign.js');
+    const sov = await getSovereignBrain({
+      tenantId: input.tenantId,
+      userId: input.userId,
+    });
+    decision = await sov.kernel.think({
+      threadId: input.sessionId ?? `mining-chat:${input.tenantId}:${input.userId}`,
+      userMessage: input.message,
+      scope: {
+        kind: 'tenant',
+        tenantId: input.tenantId,
+        actorUserId: input.userId,
+        // The chat surface does not carry the viewer's role set; an empty
+        // roles array keeps grounding conservative (the rails still fire).
+        roles: [],
+        personaId: 'mr-mwikila-head',
+      },
+      tier: 'tenant',
+      stakes: 'medium',
+      surface: 'owner-portal',
+      // CLAUDE.md bilingual single-language — thread the active locale so
+      // the orchestrator's terminal directive renders single-language.
+      language: input.language === 'sw' ? 'sw' : 'en',
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    yield { type: 'error', source: 'master-brain', message };
+    yield { type: 'done' };
+    return;
+  }
+
+  // A hard refusal surfaces as a brain-level error (mirrors the
+  // Master-Brain path's error+done on a brain failure).
+  if (decision.kind === 'refusal') {
+    yield { type: 'error', source: 'master-brain', message: decision.reason };
+    yield { type: 'done' };
+    return;
+  }
+
+  // Merge evidence: grounded corpus chunk ids ∪ the kernel decision's own
+  // citation ids — the Auditor-valid union.
+  const merged = mergeOrchestratorEvidence(decision.citations, ctx.corpusChunks);
+
+  // Conformal-confidence calibration (LIVE) — apply the SAME wrap the
+  // Master-Brain path applies, to the kernel decision's overall confidence.
+  const calibrated = await applyChatConformalConfidence({
+    db: input.db,
+    tenantId: input.tenantId,
+    rawConfidence: decision.confidence.overall,
+    logger: {
+      warn: (obj, msg) => orchestratorLogger.warn(obj, msg ?? 'chat conformal'),
+    },
+  });
+
+  yield {
+    type: 'message_chunk',
+    text: decision.text,
+    evidence_ids: merged,
+    confidence: calibrated.confidence,
+  };
+  yield { type: 'done' };
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────
 
@@ -394,6 +519,26 @@ function mergeAllEvidence(
   const seen = new Set<string>(fromBrain);
   for (const r of fromJuniors) {
     for (const id of r.evidence_ids) seen.add(id);
+  }
+  for (const c of fromCorpus) {
+    if (c.id) seen.add(c.id);
+  }
+  return Array.from(seen);
+}
+
+/**
+ * Stage 3 — merge the orchestrator decision's own citation ids with the
+ * grounded corpus chunk ids, de-duplicated. Both carry real ids the
+ * Auditor verifies against (corpus chunk ids + kernel-emitted citation
+ * ids), so the union stays Auditor-valid.
+ */
+function mergeOrchestratorEvidence(
+  citations: ReadonlyArray<{ readonly id: string }>,
+  fromCorpus: ReadonlyArray<CorpusEvidence>,
+): ReadonlyArray<string> {
+  const seen = new Set<string>();
+  for (const cit of citations) {
+    if (cit.id) seen.add(cit.id);
   }
   for (const c of fromCorpus) {
     if (c.id) seen.add(c.id);

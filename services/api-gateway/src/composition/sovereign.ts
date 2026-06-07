@@ -39,17 +39,23 @@
 import {
   agency as agencyKernel,
   composeSovereign,
+  createApprovalGate,
+  createBrainToolRegistry,
   createDpCohortSource,
+  createInMemoryApprovalStore,
   createNullEmbedder,
   createOpenAiEmbedder,
   createSkillRetriever,
+  registerSeedBrainTools,
   tools as kernelTools,
   type AgencyKernelPort,
+  type BrainToolRegistry,
   type EmbedderPort,
   type FeedbackMemoryPort,
   type MemoryHierarchy,
   type PersonaBrandingOverride,
   type PersonaBrandingResolver,
+  type SeedBrainToolDeps,
   type SkillRetriever,
   type SovereignBrain,
   type Sensor,
@@ -131,6 +137,22 @@ import {
 // mode); the executor treats `counterModel: null` as "skip the second-
 // LLM sanity check and fall through to the legacy approval flow".
 import { createProductionCounterModel } from './critics/counter-model-wiring.js';
+// Stage 1 — orchestrator main-loop wire onto the LIVE kernel. Reuses the
+// EXACT proven construction from `brain-kernel-wiring.ts`
+// (`buildOrchestratorComposeBlock` = router + dispatcher + memory tool +
+// 9 production hook ports) and the 9-hook production bindings
+// (`buildOrchestratorBindings`). The block's `useByDefault` stays UNSET so
+// the kernel's `resolveOrchestratorRoutingEnabled` (DEFAULT-ON) governs
+// routing, with `KERNEL_USE_ORCHESTRATOR=false` (hard-kill) +
+// `BORJIE_ORCHESTRATOR_MAINLOOP=0/false/off` (soft-disable) as the instant
+// reverts to the proven persona / master-brain stack.
+import { buildOrchestratorComposeBlock } from './brain-kernel-wiring.js';
+import { buildOrchestratorBindings } from './orchestrator-bindings.js';
+// Durable orchestrator working-memory — the Drizzle-backed MemoryTool
+// (agent_memory, migration 0302, FORCE RLS). Same persisted backend the
+// mwikila.memory.* persona tools use, so the main-loop's notebook survives
+// restarts. Only wired when the DB is up.
+import { createDrizzleMemoryTool } from './memory/drizzle-memory-tool.js';
 
 // ---------------------------------------------------------------------------
 // Anthropic SDK loader — optional. We only require the SDK when the
@@ -610,7 +632,147 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     'lp30: semantic-cache + intent-verifier ports wired into kernel deps',
   );
 
+  // Stage 1 — orchestrator main-loop wire onto the LIVE kernel. Build the
+  // router + dispatcher + durable memory tool + the 9 production hook
+  // ports and set `mutable.orchestrator` BEFORE composeSovereign so the
+  // kernel constructs with the wire in place. `useByDefault` is LEFT UNSET
+  // so the kernel's `resolveOrchestratorRoutingEnabled` controls routing
+  // (DEFAULT-ON; `KERNEL_USE_ORCHESTRATOR=false` hard-kill +
+  // `BORJIE_ORCHESTRATOR_MAINLOOP=0/false/off` soft-disable revert to the
+  // proven persona / master-brain stack). Only wired when BOTH the
+  // (sensor-wrapped) Anthropic client AND the DB are present — the router
+  // needs the `.messages.create` SDK shape, and the durable memory tool +
+  // the DB-backed hook ports (denylist / cost-circuit / audit / ledger-
+  // seal) need a live Drizzle handle. When either is absent the kernel
+  // keeps the legacy persona pipeline exactly as before.
+  if (anthropic && db) {
+    maybeWireOrchestratorBlock({
+      mutable,
+      anthropic,
+      db,
+    });
+  }
+
   return composeSovereign(mutable as Parameters<typeof composeSovereign>[0]);
+}
+
+// ---------------------------------------------------------------------------
+// Stage 1 — orchestrator main-loop block builder (LIVE kernel).
+//
+// Mirrors how `brain-kernel-wiring.ts::createBrainKernelWiring` constructs
+// the orchestrator wire, but for the production `getSovereignBrain` path:
+//
+//   (a) `KernelAnthropicSdkLike` — the sensor-wrapped `anthropic` client
+//       already exposes `.messages.create` (circuit-breaker + OTel +
+//       cost-ledger), so the router inherits all three for free.
+//   (b) a BRAIN tool registry built via `createBrainToolRegistry` +
+//       `registerSeedBrainTools` (NOT the agency executor registry) — this
+//       is the catalog the main-loop searches + dispatches over.
+//   (c) `createDrizzleMemoryTool(db)` — durable working memory.
+//   (d) the 9 production hook ports via `buildOrchestratorBindings`.
+//
+// Fail-safe: any construction fault logs a warning and leaves
+// `mutable.orchestrator` UNSET so the kernel falls back to the legacy
+// persona pipeline. The orchestrator wire must never break kernel boot.
+// ---------------------------------------------------------------------------
+
+/**
+ * Placeholder seed-tool deps — mirrors `brain-kernel-wiring.ts`. Each
+ * executor surfaces a structured "not yet wired" error so the brain-tool
+ * registry boots end-to-end (the deterministic registry layer still
+ * enforces the input/output schema). Concrete Drizzle adapters land via a
+ * follow-up; the orchestrator's hook chain + dispatcher are fully real.
+ */
+function buildOrchestratorSeedToolDeps(): SeedBrainToolDeps {
+  const notWired = async (_input: unknown): Promise<never> => {
+    throw new Error(
+      'sovereign-orchestrator: seed tool executor is not yet wired to a domain adapter',
+    );
+  };
+  return {
+    lookupTenantArrears: notWired as never,
+    checkComplianceCertificate: notWired as never,
+    getMarketRateBand: notWired as never,
+  };
+}
+
+function maybeWireOrchestratorBlock(args: {
+  readonly mutable: Record<string, unknown>;
+  readonly anthropic: NonNullable<AnthropicMessagesClient>;
+  readonly db: NonNullable<ReturnType<typeof getDb>>;
+}): void {
+  try {
+    // (b) BRAIN tool registry — the catalog the main-loop searches +
+    // dispatches over. Seeded with the PM tools (placeholder executors)
+    // exactly as brain-kernel-wiring builds it; the deterministic registry
+    // layer enforces every tool's Zod schema regardless of executor state.
+    const toolRegistry: BrainToolRegistry = createBrainToolRegistry();
+    registerSeedBrainTools(toolRegistry, buildOrchestratorSeedToolDeps());
+
+    // (d) 9 production hook ports — PII scrub / permission / four-eye /
+    // denylist / rate-limit / cost-circuit / sandbox-divert / audit /
+    // ledger-seal. The platform scope ('_platform') matches the kernel's
+    // per-deployment identity; per-turn tenant scope rides on `req.scope`.
+    const approvalGate = createApprovalGate({
+      store: createInMemoryApprovalStore(),
+    });
+    const bindings = buildOrchestratorBindings({
+      db: args.db,
+      approvalGate,
+      toolRegistry,
+      tenantId: '_platform',
+      env: process.env,
+      logger: {
+        info: (meta: object, msg: string) =>
+          logger.info(meta as Record<string, unknown>, msg),
+        warn: (meta: object, msg: string) =>
+          logger.warn(meta as Record<string, unknown>, msg),
+      },
+    });
+
+    // (a)+(c) Assemble the block: REAL Anthropic router over the sensor-
+    // wrapped `.messages.create` client, REAL dispatcher over the brain
+    // tool registry, durable Drizzle memory tool, + the 9 hook ports.
+    // `useByDefault` is UNSET inside the builder so the kernel's resolver
+    // governs routing (DEFAULT-ON with the env reverts).
+    args.mutable.orchestrator = buildOrchestratorComposeBlock({
+      // The sensor-wrapped client structurally satisfies `KernelAnthropicSdkLike`
+      // (`.messages.create`); cast at the boundary to the builder's narrow shape.
+      anthropicMessagesClient:
+        args.anthropic as unknown as Parameters<
+          typeof buildOrchestratorComposeBlock
+        >[0]['anthropicMessagesClient'],
+      toolRegistry,
+      bindings,
+      envSource: process.env,
+      db: args.db,
+      logger: {
+        info: (meta: object, msg: string) =>
+          logger.info(meta as Record<string, unknown>, msg),
+        warn: (meta: object, msg: string) =>
+          logger.warn(meta as Record<string, unknown>, msg),
+      },
+    });
+
+    logger.info(
+      {
+        wiring: 'sovereign-orchestrator',
+        mainLoopThreaded: true,
+        defaultOn: true,
+        hardKillFlag: 'KERNEL_USE_ORCHESTRATOR=false',
+        softDisableFlag: 'BORJIE_ORCHESTRATOR_MAINLOOP=0|false|off',
+        hooks: bindings.hookChain.list().map((h) => `${h.name}:${h.stage}`),
+      },
+      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks); DEFAULT-ON',
+    );
+  } catch (err) {
+    // Fail-safe — never break kernel boot. Leaving `mutable.orchestrator`
+    // unset keeps the kernel on the proven legacy persona pipeline.
+    logger.warn(
+      { value: err instanceof Error ? err.message : err },
+      'sovereign-orchestrator: orchestrator-block construction failed; kernel keeps the legacy persona pipeline',
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
