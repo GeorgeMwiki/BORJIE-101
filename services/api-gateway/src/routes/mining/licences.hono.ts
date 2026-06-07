@@ -24,6 +24,7 @@ import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
+import { recordActivationEvent } from '../../services/activation-events/record-activation-event';
 import { UserRole } from '../../types/user-role';
 import {
   buildLicenceCockpit,
@@ -214,6 +215,15 @@ app.openapi(
           updatedAt: now,
         })
         .returning();
+
+      // Activation funnel (fail-soft — never breaks licence creation).
+      void recordActivationEvent({
+        db,
+        tenantId,
+        eventType: 'licence_created',
+        props: { licenceId: row.id, kind: row.kind, mineral: row.mineral },
+      });
+
       return c.json({ success: true as const, data: row }, 201);
     },
   ),

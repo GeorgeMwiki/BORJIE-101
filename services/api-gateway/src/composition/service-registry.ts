@@ -284,6 +284,11 @@ import {
   createVoiceAgentWiring,
   type VoiceAgentWiring,
 } from './voice-agent-wiring.js';
+// FINAL NEEDS-DESIGN wave — env-gated speech-to-text. Builds a real OpenAI
+// Whisper adapter when STT_API_KEY / OPENAI_API_KEY is set, else a null port
+// so the voice agent degrades gracefully (VOICE_NOT_CONFIGURED) — never a
+// fabricated transcript.
+import { createSttProvider } from './voice/stt-provider-factory.js';
 // AINATIVE — `/ai-native` (4 PhL capabilities: dynamicPricing,
 // docIntelligence, legalDrafter, voiceAgent). The wiring factory builds
 // the `services.aiNative` object the router reads. REAL Anthropic compute
@@ -2425,9 +2430,20 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
         typeof createBrainKernelWiring
       >[0]['buildBudgetGuardedAnthropicClient'],
     });
+    // Env-gated STT. `'null-port'` mode keeps the voice agent's graceful
+    // VOICE_NOT_CONFIGURED path when no key is set (port stays null, same as
+    // before); a configured key flips it onto real Whisper transcription.
+    const sttPort = createSttProvider({
+      unconfiguredMode: 'null-port',
+      logger: {
+        warn: (meta: object, msg: string) =>
+          logger.warn('stt-provider', { arg0: msg, meta }),
+      },
+    }).port;
     return createVoiceAgentWiring({
       db,
       ...(brainKernel ? { kernelThink: brainKernel.think } : {}),
+      ...(sttPort ? { stt: sttPort } : {}),
     });
   })();
 

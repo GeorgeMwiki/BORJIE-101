@@ -355,6 +355,35 @@ function buildTenantWriter(args: {
             )
           `,
         );
+        // Activation funnel — record the signup milestone. FAIL-SOFT: an
+        // analytics write must NEVER break signup, so it has its own
+        // try/catch and the tenant/owner write is already committed above.
+        // Inserted via the same signup-mode elevated client; tenant_id is
+        // the row we just created. (Append-only event log, mig 0300.)
+        try {
+          await args.db.execute(
+            sql`
+              INSERT INTO activation_events (tenant_id, event_type, actor_id, props)
+              VALUES (
+                ${input.tenantId},
+                'signup_completed',
+                ${input.ownerUserId},
+                ${JSON.stringify({
+                  accountKind: input.accountKind,
+                  country: input.country,
+                })}::jsonb
+              )
+            `,
+          );
+        } catch (evtErr) {
+          args.logger.warn(
+            {
+              err: evtErr instanceof Error ? evtErr.message : String(evtErr),
+              tenantId: input.tenantId,
+            },
+            'signup-wiring: activation event write failed (non-fatal)',
+          );
+        }
         return {
           tenantId: input.tenantId,
           ownerUserId: input.ownerUserId,

@@ -30,6 +30,11 @@ import type { ResourceResolvers } from '@borjie/mcp-server';
 import type { AgentCertificationService } from '@borjie/ai-copilot/agent-certification';
 
 import type { ServiceRegistry } from './service-registry.js';
+// FINAL NEEDS-DESIGN wave — durable per-server/per-tool MCP cost ledger
+// (mcp_cost_ledger, migration 0301). Replaces the restart-volatile in-memory
+// counter; captures the server_name / tool_name / free-vs-paid detail the
+// generic ai_cost_entries adapter collapses away.
+import { createPersistentMcpCostLedger } from './mcp/persistent-mcp-cost-ledger.js';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -514,7 +519,24 @@ export function buildMcpServer(
 
   const handlers = buildHandlers(registry);
   const resourceResolvers = buildResolvers(registry);
-  const costLedger = adaptCostLedger(registry);
+  // Tee the MCP cost stream: the durable per-server/per-tool ledger is the
+  // granular source of truth (survives restart; powers aggregateByServer /
+  // aggregateByTool), while the generic AI cost ledger still receives a
+  // best-effort write so any platform-wide AI-spend rollup that reads
+  // `provider='mcp-server'` keeps its number. Both record paths are fail-soft
+  // internally — neither can break an MCP tool call. Snapshot reads from the
+  // richer persistent ledger (free/paid split + per-tool breakdown).
+  const persistentCostLedger = createPersistentMcpCostLedger(registry.db);
+  const genericCostLedger = adaptCostLedger(registry);
+  const costLedger: CostLedgerPort = {
+    async record(entry: McpCostEntry): Promise<void> {
+      await persistentCostLedger.record(entry);
+      await genericCostLedger.record(entry);
+    },
+    snapshot(tenantId: string): Promise<McpCostSnapshot> {
+      return persistentCostLedger.snapshot(tenantId);
+    },
+  };
 
   return createBorjieMcpServer({
     auth,

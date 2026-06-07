@@ -1,0 +1,22 @@
+{
+  "name": "@borjie/bias-bench",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Group-fairness + LLM-bias eval harness for Borjie — drives @borjie/bias-handling's 5 LLM bias suites (BBQ, StereoSet, CrowS-Pairs, HONEST, RealToxicityPrompts) and the AIF360-style group-fairness metrics as an in-tree CI gate. Runner-only; ships deterministic baseline brains so CI runs without a live key, and accepts a real brain via --model.",
+  "type": "module",
+  "scripts": {
+    "bench": "tsx run.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@borjie/bias-handling": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsx": "^4.20.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

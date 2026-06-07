@@ -149,11 +149,39 @@ import { MD_AGENTIC_TOOLS } from './md-agentic-tools';
 // the training context (T1 owner / T2 admin / T3 manager). No DB write, no
 // audit entry — returns a directive the surface applies.
 import { SET_CHAT_MODE_TOOLS } from './set-chat-mode-tools';
+// FINAL NEEDS-DESIGN wave — data-analysis brain tool (site-performance
+// analytics over real domain rows; resolves the tenant db from the tool
+// context at call time) + memory brain tools (mwikila.memory.set/get/list/
+// delete over the durable `agent_memory` backend, migration 0302). The memory
+// tools are factory-built so this module stays pure: the composition root
+// injects the Drizzle `MemoryTool` adapter via `options.memoryTool`, and an
+// in-memory fallback keeps the catalog complete for tests + catalog audits.
+import { DATA_ANALYSIS_TOOLS } from './data-analysis-tools';
+import { buildMemoryTools } from './memory-tools';
+import { orchestrator } from '@borjie/central-intelligence';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
   z.ZodTypeAny,
   z.ZodTypeAny
 >;
+
+/** The durable MemoryTool backend the mwikila.memory.* tools drive. */
+type MemoryToolBackend = orchestrator.MemoryTool;
+
+/**
+ * Build the `mwikila.memory.*` descriptors bound to a concrete MemoryTool.
+ * Production injects the Drizzle-backed adapter (`createDrizzleMemoryTool(
+ * getDb())`); when omitted we fall back to the in-memory tool so the catalog
+ * stays complete for tests + catalog audits — the descriptor shapes (id,
+ * persona, schema, isWrite) are backend-independent.
+ */
+function memoryToolDescriptors(
+  memoryTool: MemoryToolBackend | undefined,
+): ReadonlyArray<AnyPersonaToolDescriptor> {
+  return buildMemoryTools(
+    memoryTool ?? orchestrator.createInMemoryMemoryTool(),
+  );
+}
 
 export interface BuildPersonaToolHandlersOptions {
   /**
@@ -164,6 +192,12 @@ export interface BuildPersonaToolHandlersOptions {
   readonly onDuplicate?: (toolId: string) => void;
   /** Optional `now()` injection for deterministic audit timestamps. */
   readonly now?: () => string;
+  /**
+   * Durable MemoryTool backend for the `mwikila.memory.*` persona tools.
+   * Production passes `createDrizzleMemoryTool(getDb())`; omitted in tests /
+   * degraded boot, where an in-memory fallback keeps the tools live.
+   */
+  readonly memoryTool?: MemoryToolBackend;
 }
 
 /**
@@ -212,6 +246,8 @@ export function buildPersonaToolHandlers(
       ORG_ADMIN_TOOLS,
       MD_AGENTIC_TOOLS,
       SET_CHAT_MODE_TOOLS,
+      DATA_ANALYSIS_TOOLS,
+      memoryToolDescriptors(options?.memoryTool),
     ],
     options?.onDuplicate,
   );
@@ -238,7 +274,9 @@ export function buildPersonaToolHandlers(
  * audits that need access to the persona metadata before the orchestrator
  * adapter wraps them.
  */
-export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescriptor> {
+export function listPersonaToolDescriptors(
+  memoryTool?: MemoryToolBackend,
+): ReadonlyArray<AnyPersonaToolDescriptor> {
   return mergeDescriptors(
     [
       SHARED_TOOLS,
@@ -276,6 +314,8 @@ export function listPersonaToolDescriptors(): ReadonlyArray<AnyPersonaToolDescri
       ORG_ADMIN_TOOLS,
       MD_AGENTIC_TOOLS,
       SET_CHAT_MODE_TOOLS,
+      DATA_ANALYSIS_TOOLS,
+      memoryToolDescriptors(memoryTool),
     ],
     undefined,
   );
@@ -439,3 +479,6 @@ export {
   sandboxCommitTool,
   sandboxRejectTool,
 } from './md-agentic-tools';
+// FINAL NEEDS-DESIGN wave — re-exports for tests + audit walker.
+export { DATA_ANALYSIS_TOOLS, analyticsSitePerformanceTool } from './data-analysis-tools';
+export { buildMemoryTools } from './memory-tools';

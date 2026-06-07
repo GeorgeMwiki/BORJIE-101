@@ -1,5 +1,6 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { EstateOverview } from '@/components/estate/EstateOverview';
+import { EstateGraphPanel } from '@/components/estate/EstateGraphPanel';
 import { getOwnerSession } from '@/lib/session';
 
 /**
@@ -19,8 +20,9 @@ export default async function GroupPage() {
   return (
     <>
       <ScreenHeader slug="group" />
-      <div className="px-8 py-6">
+      <div className="space-y-6 px-8 py-6">
         <EstateOverview locale={session.languagePreference} />
+        <EstateGraphPanel locale={session.languagePreference} />
       </div>
     </>
   );

@@ -38,6 +38,10 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { logger } from '../../utils/logger';
 import { postRoyaltyPayment } from '../../services/royalty/royalty-ledger';
+import {
+  recordActivationEvent,
+  type ActivationEventDb,
+} from '../../services/activation-events/record-activation-event';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -388,6 +392,21 @@ app.post('/:id/sign', async (c) => {
     journalId: post.journalId,
     amountMinorUnits: post.amountMinorUnits,
     currency: post.currency,
+  });
+
+  // Activation funnel (fail-soft — never breaks the royalty filing). Money
+  // facts stay as minor-units + ISO-4217 currency code inside props.
+  void recordActivationEvent({
+    db: db as unknown as ActivationEventDb,
+    tenantId,
+    eventType: 'first_royalty_paid',
+    actorId: userId,
+    props: {
+      draftId: id,
+      journalId: post.journalId,
+      amountMinorUnits: post.amountMinorUnits,
+      currency: post.currency,
+    },
   });
 
   return c.json(

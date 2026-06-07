@@ -6,10 +6,10 @@
   "description": "SOTA interactive graph + chart visualisation primitives for Borjie. Wraps Cytoscape.js, react-flow, vis-network, sigma.js, D3 7 and Apache ECharts behind a single typed surface that integrates with @borjie/genui's AdaptiveRenderer so the Jarvis brain can drop a graph block inline in chat. Mining-domain wrappers (Mr. Mwikila persona) render licence relationship graphs, supply-chain Sankeys, worker-shift Gantts, royalty flow Sankeys, and mineral price time-series with forecast intervals.",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
-  "types": "./src/index.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js",
       "default": "./dist/index.js"

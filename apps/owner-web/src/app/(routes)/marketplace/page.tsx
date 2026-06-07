@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { MarketplaceBoard } from '@/components/marketplace/MarketplaceBoard';
+import { RecommendationsPanel } from '@/components/recommendations/RecommendationsPanel';
 import { getOwnerSession } from '@/lib/session';
 
 /**
@@ -39,6 +40,10 @@ export default async function MarketplacePage() {
         }
       />
       <MarketplaceBoard locale={session.languagePreference} />
+      {/* Smart Matches — the REAL @borjie/recommendations engine ranks
+          buyers↔mines / workers↔sites / suppliers↔mines over the tenant's
+          live listings + reputation, server-side, with evidence rows. */}
+      <RecommendationsPanel />
     </div>
   );
 }

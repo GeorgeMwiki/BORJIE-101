@@ -168,6 +168,17 @@ import { miningMarketplaceAdvisorRouter } from './marketplace-advisor.hono';
 import { miningInventoryRouter } from './inventory.hono';
 import { miningFleetOpsRouter } from './fleet-ops.hono';
 import { miningProcurementCoordinationRouter } from './procurement-coordination.hono';
+// FINAL NEEDS-DESIGN wave — knowledge-graph (GraphRAG ingest/stats/neighbors),
+// conformal calibration (prediction/observation/state), progressive-intelligence
+// (live coaching), recommendations (next-best-action), and three internal-admin
+// analytics surfaces (funnel/cohorts, A/B experiments, audit-pack minting).
+import { miningKnowledgeGraphRouter } from './knowledge-graph.hono';
+import { miningConformalRouter } from './conformal-calibration.hono';
+import { miningProgressiveRouter } from './progressive-intelligence.hono';
+import { miningRecommendationsRouter } from './recommendations.hono';
+import { miningInternalAnalyticsRouter } from './internal/analytics.hono';
+import { miningInternalAbTestsRouter } from './internal/ab-tests.hono';
+import { miningInternalAuditPackRouter } from './internal/audit-pack.hono';
 
 // Use OpenAPIHono so the `app.openapi(routeDef, handler)` registrations
 // inside the migrated route files (sites, licences, cockpit, chat,
@@ -277,6 +288,16 @@ mining.route('/inventory', miningInventoryRouter);
 mining.route('/fleet-ops', miningFleetOpsRouter);
 mining.route('/procurement-analytics', miningProcurementCoordinationRouter);
 
+// FINAL NEEDS-DESIGN wave mounts. `/knowledge-graph` (POST /ingest, GET /stats,
+// GET /neighbors/:id) drives the GraphRAG store that chat-orchestrator expands
+// against; `/conformal` (POST /predictions, POST /observations, GET /state) runs
+// the online-ACI coverage-feedback loop; `/progressive` (POST /coach) surfaces
+// live coaching; `/recommendations` returns next-best-action with evidence.
+mining.route('/knowledge-graph', miningKnowledgeGraphRouter);
+mining.route('/conformal', miningConformalRouter);
+mining.route('/progressive', miningProgressiveRouter);
+mining.route('/recommendations', miningRecommendationsRouter);
+
 // OpenAPI 3.1 static spec + Swagger UI for the mining sub-API.
 // Mount BEFORE `/internal/*` so the docs surface is open even when
 // internal tenant routes are gated to SUPER_ADMIN.
@@ -303,5 +324,12 @@ mining.route('/internal/daily-brief-overview', adminDailyBriefOverviewRouter);
 // Endpoint wave — admin-console internal marketplace + models surfaces.
 mining.route('/internal/marketplace', miningInternalMarketplaceRouter);
 mining.route('/internal/models', miningInternalModelsRouter);
+// FINAL NEEDS-DESIGN wave — internal-admin analytics. `/internal/analytics`
+// (funnel + cohorts over real activation_events), `/internal/ab-tests`
+// (ab_experiments CRUD + promote-winner), `/internal/audit-pack` (regulator
+// bundle list + mint). SUPER_ADMIN/ADMIN-gated cross-tenant HQ surfaces.
+mining.route('/internal/analytics', miningInternalAnalyticsRouter);
+mining.route('/internal/ab-tests', miningInternalAbTestsRouter);
+mining.route('/internal/audit-pack', miningInternalAuditPackRouter);
 
 export const miningRouter = mining;

@@ -44,6 +44,8 @@ import {
   searchCorpusTopK,
   type CorpusEvidence,
 } from './chat-corpus-evidence';
+import { expandGraphEvidence } from './graph-rag-expand';
+import type { KgDbExec } from '../../composition/knowledge-graph/postgres-kg-store';
 
 // ─────────────────────────────────────────────────────────────────────
 // Persona lenses are classified INTERNALLY — the owner never picks a mode.
@@ -139,20 +141,35 @@ export async function* runChatOrchestrator(
   // tenant GUC — without holding a pooled connection across the LLM work
   // below. Best-effort: any failure degrades to the un-grounded path
   // (identical to an empty retrieval).
+  // GraphRAG (Issue: @borjie/knowledge-graph wiring): inside the SAME per-tenant
+  // transaction (so RLS scopes every read), after the vector top-K we expand a
+  // 1–2 hop neighbourhood around the retrieved chunks in the tenant's knowledge
+  // graph (kg_nodes/kg_edges) and ADD the connected corpus chunks as extra
+  // evidence. The expansion reuses the corpus's OWN precomputed embeddings
+  // (graph nodes copied them at ingest time — no new embedder here). If the
+  // tenant has no graph, the expansion returns [] and this path is identical to
+  // vector-only — no fabrication.
   let corpusChunks: ReadonlyArray<CorpusEvidence> = [];
   try {
     const queryEmbedding = await embedQueryViaOpenAI(input.message);
     corpusChunks = await withTenantContext(
       input.db as Parameters<typeof withTenantContext>[0],
       input.tenantId,
-      (tx) =>
-        searchCorpusTopK({
+      async (tx) => {
+        const vectorHits = await searchCorpusTopK({
           db: tx,
           tenantId: input.tenantId,
           message: input.message,
           k: CORPUS_TOPK_DEFAULT,
           embedding: queryEmbedding,
-        }),
+        });
+        const graphHits = await expandGraphEvidence({
+          db: tx as unknown as KgDbExec,
+          tenantId: input.tenantId,
+          seedChunks: vectorHits,
+        });
+        return mergeCorpusEvidence(vectorHits, graphHits);
+      },
     );
   } catch {
     corpusChunks = [];
@@ -320,6 +337,27 @@ function tokeniseRetrievedContext(
   for (const chunk of chunks) {
     if (!chunk.id || chunk.text.length === 0) continue;
     out.push({ id: chunk.id, text: tokeniser.tokenise(chunk.text) });
+  }
+  return out;
+}
+
+/**
+ * Merge the vector top-K with the GraphRAG-expanded chunks, de-duplicated by
+ * chunk id and preserving vector-first relevance order. The graph hops APPEND
+ * only chunks not already retrieved, so the brain/juniors see a strictly richer
+ * (never smaller) grounded evidence set. Every entry carries a real
+ * `intelligence_corpus_chunks.id` — the union stays Auditor-valid.
+ */
+function mergeCorpusEvidence(
+  vectorHits: ReadonlyArray<CorpusEvidence>,
+  graphHits: ReadonlyArray<CorpusEvidence>,
+): ReadonlyArray<CorpusEvidence> {
+  const seen = new Set<string>();
+  const out: CorpusEvidence[] = [];
+  for (const c of [...vectorHits, ...graphHits]) {
+    if (!c.id || seen.has(c.id)) continue;
+    seen.add(c.id);
+    out.push(c);
   }
   return out;
 }

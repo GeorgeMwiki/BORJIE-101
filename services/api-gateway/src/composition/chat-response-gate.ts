@@ -30,6 +30,7 @@
 
 import { MiningJuniors, type ClaudeClient } from '@borjie/ai-copilot';
 import { createLogger } from '../utils/logger';
+import { screenResponseEthics, type EthicsGateVerdict } from './ethics-gate';
 
 const { createAuditorAgent } = MiningJuniors;
 type AuditorAgent = ReturnType<typeof createAuditorAgent>;
@@ -153,8 +154,18 @@ export interface ChatResponseGateVerdict {
   readonly auditLogId: string;
   readonly evidenceWarning: 'no_evidence_cited' | null;
   readonly latencyMs: number;
-  /** True if the gate raised a violation (evidence chain empty). */
+  /**
+   * True if the gate raised a violation — empty evidence chain OR a
+   * high/critical ethics-framework dark-pattern detection.
+   */
   readonly violation: boolean;
+  /**
+   * Ethics-framework verdict for this response (dark-pattern scan +
+   * transparency principle flags). A `block` recommendation escalates
+   * the overall `verdict` to `reject` so HARD-mode enforcement
+   * withholds the response (fail-closed).
+   */
+  readonly ethics: EthicsGateVerdict;
 }
 
 /**
@@ -208,15 +219,28 @@ export async function auditChatResponse(
     });
   }
 
+  // Ethics-framework screen — composes the dark-pattern detector +
+  // transparency principles over the AI's actual response copy. Pure +
+  // best-effort; a high/critical dark pattern recommends a BLOCK which
+  // we fold into the verdict below (fail-closed).
+  const ethics = screenResponseEthics({ responseText: input.responseText });
+
   const latencyMs = Date.now() - startedAt;
-  const violation = evidenceIds.length === 0;
-  const verdict: ChatResponseGateVerdict['verdict'] = verdictOutput
+  const evidenceEmpty = evidenceIds.length === 0;
+  const evidenceWarning = evidenceEmpty ? ('no_evidence_cited' as const) : null;
+
+  // Base verdict from the evidence-chain auditor (Stage-1).
+  const auditorVerdict: ChatResponseGateVerdict['verdict'] = verdictOutput
     ? verdictOutput.verdict
     : 'approve';
+  // Ethics escalation: a `block` recommendation forces a reject so the
+  // existing HARD-mode enforcement withholds the manipulative answer.
+  const verdict: ChatResponseGateVerdict['verdict'] =
+    ethics.recommendation === 'block' ? 'reject' : auditorVerdict;
+  const violation = evidenceEmpty || ethics.violation;
   const auditLogId = verdictOutput
     ? verdictOutput.audit_log_id
     : `audit_${startedAt}_${recommendationId}`;
-  const evidenceWarning = violation ? ('no_evidence_cited' as const) : null;
 
   // Pino structured log — canonical observable signal. Required fields
   // per the wiring spec: session_id (thread id) + tenant_id +
@@ -231,8 +255,13 @@ export async function auditChatResponse(
     latency_ms: latencyMs,
     tokens_used: input.tokensUsed ?? null,
     audit_log_id: auditLogId,
+    ethics_recommendation: ethics.recommendation,
+    ethics_dark_patterns: ethics.darkPatterns.map((d) => d.type),
+    ethics_max_severity: ethics.maxSeverity,
   };
-  if (violation) {
+  if (ethics.violation) {
+    logger.warn('chat response gate: ethics dark-pattern violation', logPayload);
+  } else if (evidenceEmpty) {
     logger.warn('chat response auditor: no_evidence_cited', logPayload);
   } else {
     logger.info('chat response auditor: approved', logPayload);
@@ -246,6 +275,7 @@ export async function auditChatResponse(
     evidenceWarning,
     latencyMs,
     violation,
+    ethics,
   };
 }
 

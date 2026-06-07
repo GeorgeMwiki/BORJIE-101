@@ -30,6 +30,25 @@ export interface ConfidenceInput {
   readonly days_since_evidence: number;
   /** Number of claim sentences that ended up uncited after rewrite. */
   readonly uncited_claims_after_rewrite: number;
+  /**
+   * Live calibrated alpha (rejection rate, [0..1]) from the online conformal
+   * coverage-feedback loop (`@borjie/conformal-calibration-online`). OPTIONAL —
+   * when omitted the static `thresholds` are used unchanged (cold-start /
+   * conformal-off behaviour is identical to before).
+   *
+   * When supplied, the alpha SHIFTS the high/medium/low thresholds relative to
+   * the package's baseline alpha (`CONFORMAL_BASELINE_ALPHA`). The interval's
+   * target coverage is `1 - alpha`:
+   *   - alpha ABOVE baseline → the model was OVER-covering (intervals too wide /
+   *     too cautious) → RELAX (lower) thresholds so well-grounded outputs clear
+   *     a higher tier.
+   *   - alpha BELOW baseline → the model was UNDER-covering (intervals too
+   *     narrow) → TIGHTEN (raise) thresholds so the brain demands more evidence
+   *     before claiming a tier.
+   * The shift is bounded by `CONFORMAL_MAX_THRESHOLD_SHIFT` and the resulting
+   * thresholds are clamped to [0,1] and re-ordered (high ≥ medium ≥ low).
+   */
+  readonly calibrated_alpha?: number;
 }
 
 export interface ConfidenceWeights {
@@ -61,6 +80,65 @@ export const DEFAULT_THRESHOLDS: ConfidenceThresholds = Object.freeze({
 /** Recency curve: linear decay to 0 over 90 days. */
 export const RECENCY_WINDOW_DAYS = 90;
 
+/**
+ * Baseline alpha the conformal package initialises to
+ * (`DEFAULT_INITIAL_ALPHA` in `@borjie/conformal-calibration-online`). The live
+ * calibrated alpha is compared against THIS to decide whether the model is over-
+ * or under-covering. Mirrored locally so cognitive-engine never imports the
+ * conformal package (keeps this module dependency-free).
+ */
+export const CONFORMAL_BASELINE_ALPHA = 0.1;
+
+/**
+ * Sensitivity: each unit of (alpha − baseline) moves the thresholds by this
+ * much, before clamping. With a [0.01, 0.5] alpha range the raw shift spans
+ * roughly [-0.08, +0.4] before the cap below.
+ */
+export const CONFORMAL_THRESHOLD_GAIN = 1.0;
+
+/**
+ * Hard cap on how far the calibrated alpha may move any threshold, so a wildly
+ * drifting loop can never collapse the tiers entirely.
+ */
+export const CONFORMAL_MAX_THRESHOLD_SHIFT = 0.15;
+
+/**
+ * Derive conformal-adjusted thresholds from a base set + a live calibrated
+ * alpha. Pure. When `calibratedAlpha` is undefined the base thresholds are
+ * returned untouched.
+ *
+ * Direction: a HIGHER alpha than baseline means the model was over-covering
+ * (too cautious) → we LOWER the thresholds (more outputs clear a tier). A LOWER
+ * alpha means under-covering → we RAISE the thresholds (stricter). Hence the
+ * shift is subtracted: `shift = clamp(gain * (alpha - baseline), ±cap)` and
+ * each threshold becomes `base - shift`. Results are clamped to [0,1] and
+ * re-ordered so the high ≥ medium ≥ low invariant always holds.
+ */
+export function conformalAdjustedThresholds(
+  base: ConfidenceThresholds,
+  calibratedAlpha: number | undefined,
+): ConfidenceThresholds {
+  if (
+    calibratedAlpha === undefined ||
+    Number.isNaN(calibratedAlpha)
+  ) {
+    return base;
+  }
+  const alpha = clamp01(calibratedAlpha);
+  const rawShift = CONFORMAL_THRESHOLD_GAIN * (alpha - CONFORMAL_BASELINE_ALPHA);
+  const shift = Math.max(
+    -CONFORMAL_MAX_THRESHOLD_SHIFT,
+    Math.min(CONFORMAL_MAX_THRESHOLD_SHIFT, rawShift),
+  );
+  const high = clamp01(base.high - shift);
+  const medium = clamp01(base.medium - shift);
+  const low = clamp01(base.low - shift);
+  // Preserve the high ≥ medium ≥ low ordering after clamping.
+  const orderedMedium = Math.min(medium, high);
+  const orderedLow = Math.min(low, orderedMedium);
+  return { high, medium: orderedMedium, low: orderedLow };
+}
+
 export interface ConfidenceResult {
   readonly score: number;
   readonly label: ConfidenceLabel;
@@ -70,6 +148,14 @@ export interface ConfidenceResult {
     readonly corpus: number;
     readonly recency: number;
   };
+  /**
+   * The thresholds actually used to classify this turn — equal to the base
+   * `thresholds` unless `input.calibrated_alpha` shifted them. Exposed so the
+   * audit trail / admin dashboards can show the conformal loop's live effect.
+   */
+  readonly effectiveThresholds: ConfidenceThresholds;
+  /** Echo of the calibrated alpha applied (undefined when none was supplied). */
+  readonly calibratedAlpha?: number;
 }
 
 export function calibrateConfidence(
@@ -90,12 +176,28 @@ export function calibrateConfidence(
     weights.w_corpus * corpus +
     weights.w_recency * recency;
 
-  const label = classify(score, input.uncited_claims_after_rewrite, thresholds);
+  // The live conformal alpha (when supplied) shifts the thresholds BEFORE
+  // classification — this is where the calibrated alpha changes the confidence
+  // OUTPUT, not just the audit metadata.
+  const effectiveThresholds = conformalAdjustedThresholds(
+    thresholds,
+    input.calibrated_alpha,
+  );
+
+  const label = classify(
+    score,
+    input.uncited_claims_after_rewrite,
+    effectiveThresholds,
+  );
 
   return {
     score,
     label,
     components: { source, agreement, corpus, recency },
+    effectiveThresholds,
+    ...(input.calibrated_alpha !== undefined
+      ? { calibratedAlpha: input.calibrated_alpha }
+      : {}),
   };
 }
 

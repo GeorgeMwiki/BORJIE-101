@@ -16,6 +16,7 @@ import { sales, oreParcels } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { recordActivationEvent } from '../../services/activation-events/record-activation-event';
 import { salesListRoute, salesCreateRoute } from './_openapi/route-defs';
 
 const app = new OpenAPIHono();
@@ -93,6 +94,15 @@ app.openapi(
         .where(
           and(eq(oreParcels.id, input.parcelId), eq(oreParcels.tenantId, tenantId)),
         );
+
+      // Activation funnel (fail-soft — never breaks the sale write).
+      void recordActivationEvent({
+        db,
+        tenantId,
+        eventType: 'first_sale_recorded',
+        props: { saleId: row.id, parcelId: input.parcelId, route: input.route },
+      });
+
       return c.json({ success: true as const, data: row }, 201);
     },
   ),

@@ -136,6 +136,14 @@ export interface VoiceAgentWiringDeps {
    * polite degraded stub that emits `VOICE_BRAIN_NOT_CONFIGURED`.
    */
   readonly kernelThink?: KernelThinkFn | null;
+  /**
+   * Optional speech-to-text port. Production passes the env-gated provider
+   * from `createSttProvider(...)`: a real OpenAI Whisper adapter when
+   * `STT_API_KEY` / `OPENAI_API_KEY` is set, or `null` when unconfigured (the
+   * agent then returns its graceful `VOICE_NOT_CONFIGURED` result). Never a
+   * fabricated transcript.
+   */
+  readonly stt?: VoiceAgentNs.VoiceSttPort | null;
 }
 
 export interface VoiceAgentWiring {
@@ -441,7 +449,7 @@ export function createVoiceAgentWiring(
   const agent = VoiceAgentNs.createVoiceAgent({
     brain,
     repo,
-    stt: null,
+    stt: deps.stt ?? null,
     tts: null,
     // resolveCustomer intentionally omitted — agent tolerates undefined and
     // resolves customerId to null for the turn (best-effort contract).

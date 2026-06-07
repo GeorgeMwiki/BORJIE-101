@@ -1567,3 +1567,31 @@ export * from './procurement-coordination.schema.js';
 // All FORCE RLS on app.current_tenant_id. Backed by the api-gateway composition
 // root's stage/drizzle-stage-advisor-db.ts → routes/stage/index.ts.
 export * from './stage-advisor.schema.js';
+
+// FINAL NEEDS-DESIGN wave — knowledge-graph, conformal calibration, admin
+// analytics, MCP cost persistence, agent memory.
+//   - knowledge-graph (0298) — `kg_nodes` (entity/corpus_chunk nodes, reuses the
+//     existing pgvector corpus embedding) + `kg_edges` (typed relationships).
+//     Backs GraphRAG 1–2 hop neighborhood expansion in chat-orchestrator via
+//     composition/knowledge-graph/{postgres-kg-store,ingest}.ts.
+//   - conformal-calibration (0299) — `conformal_predictions` (interval +
+//     alpha_at_emit) + `conformal_observations` (covered bool) +
+//     `conformal_calibration_state` (persisted online-ACI alpha). Backs the
+//     prediction→outcome coverage-feedback loop via composition/conformal/*.
+//   - admin-analytics (0300) — `ab_experiments` (platform/HQ, route-gated) +
+//     `activation_events` (tenant-scoped product funnel) + `audit_packs`
+//     (regulator bundles). Backs routes/mining/internal/{analytics,ab-tests,
+//     audit-pack}.hono.ts + services/activation-events/record-activation-event.
+//   - mcp-cost-persistence (0301) — `mcp_cost_ledger` (per-tenant/server/tool
+//     token+usd spend). Backs composition/mcp/persistent-mcp-cost-ledger.ts
+//     (replaces the restart-volatile in-memory MCP cost counter).
+//   - agent-memory (0302) — `agent_memory` (jsonb working-notebook, UNIQUE
+//     tenant+agent+key upsert). Backs composition/memory/drizzle-memory-tool.ts
+//     (Anthropic memory_20250818 tool + mwikila.memory.* persona tools).
+// All tenant-scoped tables FORCE RLS on app.current_tenant_id (ab_experiments is
+// platform/HQ — route-gated, no RLS policy).
+export * from './knowledge-graph.schema.js';
+export * from './conformal-calibration.schema.js';
+export * from './admin-analytics.schema.js';
+export * from './mcp-cost-ledger.schema.js';
+export * from './agent-memory.schema.js';

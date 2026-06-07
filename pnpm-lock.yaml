@@ -464,6 +464,9 @@ importers:
       '@borjie/genui':
         specifier: workspace:*
         version: link:../../packages/genui
+      '@borjie/graph-viz':
+        specifier: workspace:*
+        version: link:../../packages/graph-viz
       '@borjie/observability':
         specifier: workspace:^
         version: link:../../packages/observability
@@ -4604,6 +4607,9 @@ importers:
       '@borjie/cross-org-denial-recorder':
         specifier: workspace:*
         version: link:../../packages/cross-org-denial-recorder
+      '@borjie/data-analysis':
+        specifier: workspace:*
+        version: link:../../packages/data-analysis
       '@borjie/data-onboarding':
         specifier: workspace:*
         version: link:../../packages/data-onboarding
@@ -4631,6 +4637,9 @@ importers:
       '@borjie/enterprise-hardening':
         specifier: workspace:*
         version: link:../../packages/enterprise-hardening
+      '@borjie/ethics-framework':
+        specifier: workspace:*
+        version: link:../../packages/ethics-framework
       '@borjie/executive-brief-engine':
         specifier: workspace:*
         version: link:../../packages/executive-brief-engine
@@ -4676,6 +4685,12 @@ importers:
       '@borjie/inventory-management':
         specifier: workspace:*
         version: link:../../packages/inventory-management
+      '@borjie/jurisdiction-profile-tz':
+        specifier: workspace:*
+        version: link:../../packages/jurisdiction-profile-tz
+      '@borjie/jurisdiction-profiles':
+        specifier: workspace:*
+        version: link:../../packages/jurisdiction-profiles
       '@borjie/knowledge-graph':
         specifier: workspace:*
         version: link:../../packages/knowledge-graph
@@ -4781,6 +4796,9 @@ importers:
       '@borjie/reasoning-substrate':
         specifier: workspace:*
         version: link:../../packages/reasoning-substrate
+      '@borjie/recommendations':
+        specifier: workspace:*
+        version: link:../../packages/recommendations
       '@borjie/role-aware-advisor':
         specifier: workspace:*
         version: link:../../packages/role-aware-advisor

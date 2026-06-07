@@ -58,6 +58,10 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { logger } from '../../utils/logger';
 import {
+  recordActivationEvent,
+  type ActivationEventDb,
+} from '../../services/activation-events/record-activation-event';
+import {
   createDrizzleOnboardingWriters,
   isSupportedOnboardingTable,
   type OnboardingTxClient,
@@ -673,6 +677,22 @@ app.post('/commit', async (c) => {
       },
       'onboarding commit persisted',
     );
+
+    // Activation funnel (fail-soft — never breaks the onboarding commit).
+    // `db` here only exposes execute/transaction in this handler's local
+    // cast; the request-scoped client also carries `insert`, so we hand the
+    // raw context client to the helper (which guards for a missing insert).
+    void recordActivationEvent({
+      db: c.get('db') as unknown as ActivationEventDb,
+      tenantId,
+      eventType: 'onboarding_completed',
+      actorId: userId,
+      props: {
+        sessionId,
+        entityType: entity,
+        rowsInserted: result.rows_inserted,
+      },
+    });
 
     return c.json(
       {

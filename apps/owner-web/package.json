@@ -21,6 +21,7 @@
     "@borjie/design-system": "workspace:*",
     "@borjie/dynamic-sections": "workspace:*",
     "@borjie/genui": "workspace:*",
+    "@borjie/graph-viz": "workspace:*",
     "@borjie/observability": "workspace:^",
     "@borjie/owner-os-tabs": "workspace:*",
     "@borjie/performance-toolkit": "workspace:*",

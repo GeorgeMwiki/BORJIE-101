@@ -326,6 +326,46 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0299_conformal_calibration.sql",
+      "down": "down/0299_down_conformal_calibration.sql",
+      "reverses": "CREATE TABLE conformal_predictions + conformal_observations + conformal_calibration_state + alpha/target/window CHECK constraints + (tenant,prediction_id) and (tenant,prediction_type) UNIQUE constraints + indexes + FORCE RLS tenant-isolation policies on app.current_tenant_id + revoke anon (online ACI coverage-feedback loop for @borjie/conformal-calibration-online; persists predictions+observations+rolling alpha state). DATA LOSS: discards every persisted prediction, observation, and the learned alpha (resets to cold-start default 0.1)",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0300_admin_analytics.sql",
+      "down": "down/0300_down_admin_analytics.sql",
+      "reverses": "CREATE TABLE ab_experiments (platform/HQ, route-gated, anon REVOKE) + activation_events (tenant-scoped product funnel) + audit_packs (regulator bundles) + indexes + FORCE RLS tenant-isolation policies on app.current_tenant_id for activation_events + audit_packs (internal-admin analytics screens: real funnel/cohorts, A/B experiments, audit-pack minting). DATA LOSS: discards every recorded activation event, A/B experiment, and minted audit pack",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0301_mcp_cost_persistence.sql",
+      "down": "down/0301_down_mcp_cost_persistence.sql",
+      "reverses": "CREATE TABLE mcp_cost_ledger + non-negative CHECK constraints + composite indexes + FORCE RLS tenant-isolation policy on app.current_tenant_id + revoke anon (per-tenant/server/tool MCP token+usd spend; replaces the restart-volatile in-memory MCP cost counter). DATA LOSS: discards all persisted MCP cost-ledger rows",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0302_agent_memory.sql",
+      "down": "down/0302_down_agent_memory.sql",
+      "reverses": "CREATE TABLE agent_memory + UNIQUE(tenant_id,agent_id,mem_key) upsert constraint + index + FORCE RLS tenant-isolation policy on app.current_tenant_id + revoke anon + _platform sentinel tenant seed (persisted brain working-notebook for the Anthropic memory_20250818 tool + mwikila.memory.* persona tools; replaces the restart-volatile in-memory memory tool). DATA LOSS: discards every persisted agent-memory entry",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

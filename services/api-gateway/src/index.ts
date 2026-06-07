@@ -713,6 +713,16 @@ import {
   type WriteToolIdSet,
 } from './composition/brain-tools/outcome-predictor';
 import { listPersonaToolDescriptors } from './composition/brain-tools';
+// FINAL NEEDS-DESIGN wave — durable brain memory. The Drizzle MemoryTool
+// adapter (agent_memory, migration 0302) backs the mwikila.memory.* persona
+// tools so "remember X" / "what do you remember about Y" persist across
+// sessions, devices, and restarts (FORCE RLS scopes each tenant's notebook).
+import { createDrizzleMemoryTool } from './composition/memory/drizzle-memory-tool';
+// FINAL NEEDS-DESIGN wave — jurisdiction registry. Eager-loads the TZ launch
+// profile + regulators + compliance frameworks (pure, no I/O) so the deploy
+// log proves the profile is live and the data-analysis brain tool's
+// getJurisdictionContext('tz') resolves to a real row from first call.
+import { initJurisdictionRegistry } from './composition/jurisdiction-registry';
 // Wave CLOSED-LOOP - calibration monitor (tracker + alerter + brain
 // tool). Lets the owner / brain self-check prediction accuracy.
 import {
@@ -1406,9 +1416,17 @@ try {
       auditSink: personaAuditSink,
       ...(personaLoopbackClient && { httpClient: personaLoopbackClient }),
     };
+    // Eager-load the jurisdiction registry (TZ launch profile) so its first
+    // consumer — the data-analysis brain tool's getJurisdictionContext('tz') —
+    // resolves immediately and the deploy log records the live profile ids.
+    initJurisdictionRegistry();
     const personaHandlers = buildPersonaToolHandlers(personaGate, {
       onDuplicate: (toolId) =>
         logger.warn({ toolId }, 'brain-tools: duplicate descriptor ignored'),
+      // Durable brain memory — the same Drizzle backend (agent_memory) used by
+      // the kernel scratchpad; binds the mwikila.memory.* tools to persisted
+      // storage instead of the volatile in-memory fallback.
+      memoryTool: createDrizzleMemoryTool(getDb()),
     });
     appendBrainExtraSkills(personaHandlers);
     logger.info(
