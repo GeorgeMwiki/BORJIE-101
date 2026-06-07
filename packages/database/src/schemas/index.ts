@@ -1595,3 +1595,11 @@ export * from './conformal-calibration.schema.js';
 export * from './admin-analytics.schema.js';
 export * from './mcp-cost-ledger.schema.js';
 export * from './agent-memory.schema.js';
+
+// device_push_tokens (migration 0139) — typed Drizzle handle on the
+// EXISTING push-notification token registry (no new table). Backs the
+// `app_push` channel fan-out: resolve a user's active `expo_push_token`
+// rows + hand each to the Expo push provider (services/api-gateway/src/
+// services/notification-dispatch/push-provider.ts). tenant_id is uuid
+// (pre-dates the text-tenant convention); FORCE RLS per migration 0139.
+export * from './device-push-tokens.schema.js';

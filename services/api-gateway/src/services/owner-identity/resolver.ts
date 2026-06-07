@@ -236,3 +236,19 @@ export function makeSlackHandleForOwner(
     return resolved.slackHandle;
   };
 }
+
+/** Resolver returning the owner's IANA time zone (drives reminder quiet-hours).
+ *  Always non-null in practice — resolveOwnerContact falls back to the default
+ *  tz — but typed nullable to match the worker's resolver port. */
+export function makeTimezoneForOwner(
+  db: OwnerIdentityResolverDb,
+): (tenantId: string, ownerId: string) => Promise<string | null> {
+  const cache = new Map<string, string | null>();
+  return async (tenantId, ownerId) => {
+    const key = `${tenantId}:${ownerId}`;
+    if (cache.has(key)) return cache.get(key) ?? null;
+    const resolved = await resolveOwnerContact(db, { tenantId, ownerId });
+    cache.set(key, resolved.timezone);
+    return resolved.timezone;
+  };
+}

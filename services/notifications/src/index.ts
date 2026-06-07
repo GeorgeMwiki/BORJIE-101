@@ -157,6 +157,19 @@ export {
 } from './services/in-app-notification.service.js';
 
 // ============================================================================
+// In-App Notification — cross-pod fan-out (Redis pub/sub)
+// ============================================================================
+export {
+  InMemoryNotificationPubSub,
+  RedisNotificationPubSub,
+  createRedisPubSub,
+  inAppChannel,
+  type NotificationPubSub,
+  type NotificationEnvelope,
+  type DisposableNotificationPubSub,
+} from './services/notification-pubsub.js';
+
+// ============================================================================
 // Template Management Service
 // ============================================================================
 export {
