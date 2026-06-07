@@ -50,6 +50,7 @@ import {
   workerHeartbeatFailure,
 } from './worker-heartbeat';
 import { withWorkerTenantContext } from './with-tenant-context.js';
+import { feedReconciliationToConformal } from '../composition/conformal/reconciliation-conformal-feed.js';
 
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_BATCH = 50;
@@ -610,6 +611,46 @@ export function createOutcomeReconciliationWorker(
       auditHashId,
     });
     if (!inserted) return 'errored';
+
+    // Online-ACI coverage feed: a finalized matched/divergent reconciliation is
+    // a REAL coverage observation (matched = the observed value fell inside the
+    // prediction's tolerance → covered; divergent → not). Fold it through the
+    // conformal loop so the calibrated alpha LEARNS from this outcome — the same
+    // alpha the live chat path consumes to shift its confidence tiers. Run it in
+    // a tenant-pinned tx so RLS FORCE sees the GUC on the conformal_* writes
+    // (the store uses the Drizzle query builder, unlike this worker's raw SQL).
+    // Fully fail-soft: a calibration write must never fail the reconciliation it
+    // follows (the row is already durably committed above).
+    if (status === 'matched' || status === 'divergent') {
+      try {
+        await withWorkerTenantContext(options.db, p.tenantId, (tx) =>
+          feedReconciliationToConformal(
+            tx,
+            {
+              tenantId: p.tenantId,
+              predictionId: p.id,
+              actionKind: p.actionKind,
+              status,
+              predictedValueTzs: p.predictedValueTzs,
+              observedValueTzs: observation.observedValueTzs,
+              driftScore: drift,
+              reconciledAtIso: now().toISOString(),
+            },
+            options.logger,
+          ),
+        );
+      } catch (err) {
+        options.logger.warn(
+          {
+            worker: 'outcome-reconciliation',
+            predictionId: p.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'outcome-reconciliation: conformal feed failed (reconciliation already committed)',
+        );
+      }
+    }
+
     return status;
   }
 

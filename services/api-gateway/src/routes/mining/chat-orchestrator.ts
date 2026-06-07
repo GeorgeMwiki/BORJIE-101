@@ -46,6 +46,10 @@ import {
 } from './chat-corpus-evidence';
 import { expandGraphEvidence } from './graph-rag-expand';
 import type { KgDbExec } from '../../composition/knowledge-graph/postgres-kg-store';
+import { applyChatConformalConfidence } from '../../composition/conformal/chat-conformal-confidence';
+import { createLogger } from '../../utils/logger';
+
+const orchestratorLogger = createLogger('chat-orchestrator-conformal');
 
 // ─────────────────────────────────────────────────────────────────────
 // Persona lenses are classified INTERNALLY — the owner never picks a mode.
@@ -309,11 +313,31 @@ export async function* runChatOrchestrator(
   // plus the brain's + each junior's own evidence — the union the Auditor
   // verifies against.
   const merged = mergeAllEvidence(brainOut.evidence_ids, results, corpusChunks);
+
+  // ── Conformal confidence calibration (LIVE) ──────────────────────
+  // Re-grade the brain's emitted confidence against the tenant's online-ACI
+  // calibrated alpha BEFORE it ships. This is where the conformal
+  // coverage-feedback loop changes the brain's live confidence OUTPUT: when the
+  // loop has learned that the brain was over/under-covering, the SAME emitted
+  // float yields a different `message_chunk.confidence`. Cold-start / loop-off
+  // degrades to the raw float snapped to the unshifted tiers (never fabricated,
+  // never throws). The prediction type is `chat_turn_confidence`; the outcome
+  // side that MOVES this alpha is the live reconciliation feed (see
+  // composition/conformal/reconciliation-conformal-feed.ts).
+  const calibrated = await applyChatConformalConfidence({
+    db: input.db,
+    tenantId: input.tenantId,
+    rawConfidence: brainOut.confidence,
+    logger: {
+      warn: (obj, msg) => orchestratorLogger.warn(obj, msg ?? 'chat conformal'),
+    },
+  });
+
   yield {
     type: 'message_chunk',
     text: brainOut.one_line_answer,
     evidence_ids: merged,
-    confidence: brainOut.confidence,
+    confidence: calibrated.confidence,
   };
   yield { type: 'done' };
 }
