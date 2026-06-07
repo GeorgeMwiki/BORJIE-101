@@ -73,8 +73,10 @@ BEGIN
     SELECT 1 FROM information_schema.columns
      WHERE table_name = 'tenants' AND column_name = 'slug'
   ) THEN
-    INSERT INTO tenants (id, name, slug)
-    VALUES ('_platform', 'Platform (system scope)', '_platform')
+    -- `primary_email` is NOT NULL with no default on the production tenants
+    -- table, so the sentinel row must supply a (non-routable) system address.
+    INSERT INTO tenants (id, name, slug, primary_email)
+    VALUES ('_platform', 'Platform (system scope)', '_platform', 'platform@borjie.internal')
     ON CONFLICT (id) DO NOTHING;
   END IF;
 END $$;
