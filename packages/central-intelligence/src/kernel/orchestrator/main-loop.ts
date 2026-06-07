@@ -374,6 +374,32 @@ function trailingNonUserLength(
   return end;
 }
 
+/** Max chars of a tool result folded back into the loop (context hygiene). */
+const MAX_TOOL_RESULT_CHARS = 4000;
+
+/**
+ * Render a tool's output as a compact `toolName -> body` string for the ReAct
+ * fold-back. Strings pass through; objects are JSON-encoded (falling back to
+ * `String()` on a circular/unencodable value); the body is length-bounded so a
+ * large result can't blow the context window. Pure.
+ */
+function formatToolResultForModel(toolName: string, output: unknown): string {
+  let body: string;
+  if (typeof output === 'string') {
+    body = output;
+  } else {
+    try {
+      body = JSON.stringify(output) ?? String(output);
+    } catch {
+      body = String(output);
+    }
+  }
+  if (body.length > MAX_TOOL_RESULT_CHARS) {
+    body = `${body.slice(0, MAX_TOOL_RESULT_CHARS)}…[truncated]`;
+  }
+  return `${toolName} → ${body}`;
+}
+
 /**
  * Extended entry point — returns the full eight-variant
  * `OrchestratorResponseExtended` shape. Used by Phase-E.6+ surfaces
@@ -401,12 +427,15 @@ export async function thinkExtended(
   // `messages`). With the in-memory `SessionStore` (the default — `checkpoint`
   // re-stores `session.transcript` and `resumeOrCreate` hands it back next
   // turn) a resumed transcript can therefore only ever end in a *user* turn:
-  // a stale seed from a prior turn. Appending the new user turn after it would
-  // build an invalid `user,user` adjacency, so we strip any trailing run of
-  // user turns first. Immutable — `loadedSession` and its array are never
-  // mutated; the seeded turn then flows through `compactIfOver`, the messages
-  // build, and `checkpoint` like any other turn, covering streaming +
-  // non-streaming and every kernel entry point.
+  // a stale question from a prior turn whose answer is no longer in the
+  // transcript. Re-sending it ahead of the current question would make the
+  // model answer — or conflate — the WRONG question, so we strip any trailing
+  // run of user turns before appending this one. (Consecutive user turns are
+  // accepted by the API — the loop's own tool-result folding emits them — so
+  // this is semantic hygiene, not a 400 guard.) Immutable — `loadedSession`
+  // and its array are never mutated; the seeded turn then flows through
+  // `compactIfOver`, the messages build, and `checkpoint` like any other turn,
+  // covering streaming + non-streaming and every kernel entry point.
   const priorTranscript = loadedSession.transcript;
   const lastTurn = priorTranscript[priorTranscript.length - 1];
   const session =
@@ -1024,6 +1053,24 @@ export async function thinkExtended(
     // can cite tool-grounded facts, not just the kernel's grounding set.
     if (result.kind === 'tool_ok') {
       citations.harvestFromOutput(result.output);
+      // ReAct fold-back — surface the tool RESULT to the next router.call so
+      // the model can actually reason over what its informational tools
+      // returned (previously only the evidence ids were harvested and the
+      // result content was dropped, so the agent was blind to its own tool
+      // outputs). The 'tool' role is rendered as a `[tool result]` turn by
+      // the Anthropic adapter; cleared after the next build like any other
+      // pending injection, so it never accumulates.
+      pendingContextInjections.push({
+        role: 'tool',
+        content: formatToolResultForModel(decisionToolName(toRun), result.output),
+      });
+    } else if (result.kind === 'tool_error') {
+      // Surface the failure too, so the model can adjust or recover instead
+      // of silently re-issuing the same failing call.
+      pendingContextInjections.push({
+        role: 'tool',
+        content: `${decisionToolName(toRun)} failed: ${result.message}`,
+      });
     }
 
     // Item-2 — capture any evidence ids the model echoed on a respond /

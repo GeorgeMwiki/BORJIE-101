@@ -926,6 +926,12 @@ export function buildOrchestratorComposeBlock(args: {
     sandboxResolver: hookDeps.sandboxResolver,
     auditSink: hookDeps.auditSink,
     ledgerSeal: hookDeps.ledgerSeal,
-    // `useByDefault` UNSET → kernel keeps the main loop DEFAULT-OFF.
+    // `useByDefault` is intentionally UNSET. `resolveOrchestratorRoutingEnabled`
+    // (kernel.ts) treats a wired orchestrator with no explicit flag as
+    // DEFAULT-ON (the "full powers" live generation path), while leaving the
+    // env rollback levers functional: `KERNEL_USE_ORCHESTRATOR=false` (hard
+    // kill) and `BORJIE_ORCHESTRATOR_MAINLOOP` in {0,false,off} (soft disable).
+    // Setting a boolean here would WIN over env and silently disable those
+    // incident-rollback levers — so we deliberately leave it unset.
   };
 }

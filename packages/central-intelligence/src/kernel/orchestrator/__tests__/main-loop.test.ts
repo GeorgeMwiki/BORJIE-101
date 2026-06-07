@@ -1011,3 +1011,79 @@ describe('main-loop — inbound user message reaches the first router.call', () 
     expect(last.content).toBe('Tell me about arrears.');
   });
 });
+
+describe('main-loop — tool results fold back into the loop (ReAct)', () => {
+  // Regression for a half-loop: a successful tool_ok only had its evidence ids
+  // harvested (citations.harvestFromOutput) — the result CONTENT was never put
+  // back into the next router.call, so the model could not reason over what its
+  // informational tools returned. `toAnthropicMessages` already maps role:'tool'
+  // to a `[tool result]` turn; nothing produced one.
+  function toolThenAnswerRouter(answer: string) {
+    return messageCapturingRouter([
+      { kind: 'tool_call', call: { toolName: 'arrears.lookup', input: {}, callId: 'c1' } },
+      { kind: 'final', text: answer },
+    ]);
+  }
+
+  it('feeds a tool_ok result into the NEXT router.call so the model can reason over it', async () => {
+    const router = toolThenAnswerRouter('Arrears are 3 months per the lookup.');
+    const dispatcher: Dispatcher = {
+      async dispatch(decision: Decision): Promise<DispatchResult> {
+        if (decision.kind === 'tool_call') {
+          return {
+            kind: 'tool_ok',
+            callId: decision.call.callId,
+            output: { arrearsMonths: 3, marker: 'TOOL_RESULT_MARKER_42' },
+            latencyMs: 1,
+            tokensIn: 1,
+            tokensOut: 1,
+            usdCost: 0,
+          };
+        }
+        return {
+          kind: 'response',
+          text: decision.kind === 'final' ? decision.text : '',
+          tokensIn: 1,
+          tokensOut: 1,
+          usdCost: 0,
+        };
+      },
+    };
+
+    const res = await thinkExtended(makeReq(), makeDeps(router, dispatcher));
+
+    expect(router.calls.length).toBeGreaterThanOrEqual(2);
+    const secondCallText = router.calls[1]!.messages.map((m) => m.content).join('\n');
+    expect(secondCallText).toContain('TOOL_RESULT_MARKER_42');
+    expect(res.kind).toBe('answer');
+  });
+
+  it('feeds a tool_error message back so the model can recover', async () => {
+    const router = toolThenAnswerRouter('Could not look that up; here is general guidance.');
+    const dispatcher: Dispatcher = {
+      async dispatch(decision: Decision): Promise<DispatchResult> {
+        if (decision.kind === 'tool_call') {
+          return {
+            kind: 'tool_error',
+            callId: decision.call.callId,
+            message: 'TOOL_ERR_MARKER_99: upstream timeout',
+            latencyMs: 1,
+          };
+        }
+        return {
+          kind: 'response',
+          text: decision.kind === 'final' ? decision.text : '',
+          tokensIn: 1,
+          tokensOut: 1,
+          usdCost: 0,
+        };
+      },
+    };
+
+    await thinkExtended(makeReq(), makeDeps(router, dispatcher));
+
+    expect(router.calls.length).toBeGreaterThanOrEqual(2);
+    const secondCallText = router.calls[1]!.messages.map((m) => m.content).join('\n');
+    expect(secondCallText).toContain('TOOL_ERR_MARKER_99');
+  });
+});

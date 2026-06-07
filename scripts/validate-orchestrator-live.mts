@@ -10,7 +10,7 @@
  * session store and memory tool — and drives it with a real mining-
  * compliance prompt at FULL main-loop fidelity.
  *
- * It makes three small, cost-bounded Anthropic calls:
+ * It makes four small, cost-bounded Anthropic calls:
  *   - PHASE A: production-equivalent path (fresh session). Originally
  *     reproduced the discovered bug — the loop sent an EMPTY `messages`
  *     array to the router on turn 1, so Anthropic 400'd and the answer came
@@ -21,6 +21,10 @@
  *     (the post-checkpoint state of the default in-memory SessionStore).
  *     Proves the fix strips the stale tail so no `user,user` adjacency
  *     reaches the router, and the real round-trip still answers.
+ *   - PHASE D: full agentic ReAct loop with a real tool whose result is a
+ *     FICTIONAL value. Proves the loop emits a tool_call, folds the tool
+ *     result back into the next router.call, and the model's answer echoes
+ *     the tool-provided value — the agent can reason over its tool outputs.
  *
  * Fidelity: FULL main-loop (`thinkExtended`), strictly higher than a bare
  * router-level call. The tool registry is intentionally empty so the model
@@ -310,11 +314,93 @@ async function main(): Promise<void> {
       'trailing user turn was stripped (no user,user adjacency 400).',
   );
 
+  // ═══════════════════════════════════════════════════════════════════════
+  // PHASE D — agentic ReAct loop on REAL traffic. The model is given a tool
+  // whose result it cannot know a priori (a deliberately FICTIONAL rate). It
+  // must (1) emit a tool_call, (2) the dispatcher returns the distinctive
+  // value, (3) the fold-back surfaces it into the next router.call, (4) the
+  // final answer echoes the value — proving the loop reasons over tool
+  // outputs end-to-end (and that the real API accepts the consecutive
+  // user-role turns the tool-result folding produces).
+  // ═══════════════════════════════════════════════════════════════════════
+  console.log('\n──────── PHASE D: agentic ReAct tool loop (real traffic) ────────');
+  const MAGIC_RATE = '4.27'; // fictional — the model can only know it via the tool
+  const TOOL_NAME = 'get_official_gold_royalty_rate';
+  const toolSearchD = createInMemoryToolSearch([
+    {
+      name: TOOL_NAME,
+      description:
+        'Returns the CURRENT official gold royalty rate for Tanzania from the ' +
+        'Mining Commission register. The only authoritative source — do not ' +
+        'answer from prior knowledge.',
+      keywords: ['royalty', 'rate', 'gold', 'tanzania'],
+    },
+  ]);
+  const dispatcherD = createToolDispatcher({
+    registry: {
+      async runTool(name: string) {
+        if (name === TOOL_NAME) {
+          return {
+            kind: 'ok' as const,
+            output: {
+              jurisdiction: 'Tanzania',
+              mineral: 'gold',
+              officialRoyaltyRate: `${MAGIC_RATE}%`,
+              source: 'Mining Commission register (validation fixture)',
+            },
+          };
+        }
+        return { kind: 'not-found' as const, name };
+      },
+    } as unknown as Parameters<typeof createToolDispatcher>[0]['registry'],
+  });
+  const depsD: OrchestratorDeps = {
+    ...makeDeps(createInMemorySessionStore()),
+    toolSearch: toolSearchD,
+    dispatcher: dispatcherD,
+  };
+  const reqD: OrchestratorRequest = {
+    ...baseReq,
+    threadId: `validate-orch-live-D-${Date.now()}`,
+    // Natural question (NOT a sticky "you must call the tool" imperative — that
+    // is replayed every iteration and would make the model re-call forever).
+    // Once the folded tool result is in context, answering is the natural next
+    // step, so the loop terminates with a grounded answer.
+    userMessage:
+      'What is the current official gold royalty rate for gold in Tanzania? ' +
+      'Use the available tool to look it up, then state the exact rate in one sentence.',
+    budget: { maxTurns: 6, maxToolCalls: 4 },
+  };
+  const tD = Date.now();
+  const resD = await thinkExtended(reqD, depsD);
+  const textD = resD.kind === 'answer' ? resD.text ?? '' : '';
+  console.log(
+    `[D] kind=${resD.kind}  turnsUsed=${resD.kind === 'answer' ? resD.turnsUsed : '-'}  elapsed=${Date.now() - tD}ms`,
+  );
+  console.log('\n──────── REAL MODEL OUTPUT (Phase D) ────────');
+  console.log(textD);
+  console.log('─────────────────────────────────────────────');
+  if (resD.kind !== 'answer' || !textD.includes(MAGIC_RATE)) {
+    console.error(
+      `\n❌ FAIL — Phase D expected the answer to echo the tool-provided rate ` +
+        `'${MAGIC_RATE}%' (proving the ReAct fold-back surfaced the tool result), ` +
+        `got kind='${resD.kind}' len=${textD.length}. Either the fold-back is ` +
+        'missing (model blind to its tool output) or the tool was not called.',
+    );
+    process.exitCode = 1;
+    return;
+  }
+  console.log(
+    `[D] ✅ the answer echoes the tool-provided rate '${MAGIC_RATE}%' — the ` +
+      'agentic loop called the tool, the fold-back surfaced the result, and ' +
+      'the model reasoned over it (consecutive user turns accepted by the API).',
+  );
+
   console.log(
     '\n✅ PASS — the orchestrator main-loop made REAL Anthropic calls ' +
       '(model=claude-opus-4-8) across a fresh thread (A), a seeded transcript ' +
-      '(B), and a resumed thread with a stale trailing user turn (C), ' +
-      'returning real non-empty grounded answers each time ' +
+      '(B), a resumed thread with a stale trailing user turn (C), and a full ' +
+      'agentic ReAct tool loop (D), returning real grounded answers each time ' +
       '(full-main-loop fidelity via thinkExtended).',
   );
   if (bugReproduced) {
