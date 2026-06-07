@@ -50,6 +50,20 @@ import {
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_BATCH = 25;
 
+// Retry policy — mirrors the notification-dispatch worker so both delivery
+// paths back off identically. A RETRYABLE failure re-queues the row (status
+// back to 'scheduled', trigger_at = now + backoff) and bumps attempt_count;
+// the existing `trigger_at <= now()` claim doubles as the retry schedule.
+// Attempt 5 (or any non-retryable failure) is terminal → 'failed'.
+const MAX_ATTEMPTS = 5;
+const BASE_BACKOFF_MS = 30_000; // 30s; doubles per attempt: 30s,60s,120s,240s
+
+/** Exponential backoff: BASE * 2^(attempt-1) from `from`. Pure. */
+function computeNextRetryAt(from: Date, attempt: number): Date {
+  const delayMs = BASE_BACKOFF_MS * Math.pow(2, Math.max(0, attempt - 1));
+  return new Date(from.getTime() + delayMs);
+}
+
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
@@ -63,6 +77,8 @@ interface PendingReminder {
   readonly channel: 'email' | 'sms' | 'slack';
   readonly payload: Record<string, unknown>;
   readonly idempotencyKey: string;
+  /** Delivery attempts so far (0 on a fresh row). Drives the retry cap. */
+  readonly attemptCount: number;
 }
 
 export interface RemindersDispatchOptions {
@@ -98,6 +114,9 @@ export interface DispatchTickResult {
   readonly claimed: number;
   readonly sent: number;
   readonly failed: number;
+  /** Rows that hit a retryable failure and were re-queued with backoff
+   *  (not yet delivered, not terminally failed). */
+  readonly retried: number;
 }
 
 function asRows(res: unknown): readonly Record<string, unknown>[] {
@@ -124,7 +143,24 @@ function rowToReminder(r: Record<string, unknown>): PendingReminder | null {
     r.payload && typeof r.payload === 'object'
       ? (r.payload as Record<string, unknown>)
       : {};
-  return { id, tenantId, ownerId, title, body, channel: channelRaw, payload, idempotencyKey };
+  const attemptCountRaw = r.attempt_count;
+  const attemptCount =
+    typeof attemptCountRaw === 'number'
+      ? attemptCountRaw
+      : typeof attemptCountRaw === 'string'
+        ? Number.parseInt(attemptCountRaw, 10) || 0
+        : 0;
+  return {
+    id,
+    tenantId,
+    ownerId,
+    title,
+    body,
+    channel: channelRaw,
+    payload,
+    idempotencyKey,
+    attemptCount,
+  };
 }
 
 export function createRemindersDispatchWorker(
@@ -164,7 +200,7 @@ export function createRemindersDispatchWorker(
             LIMIT ${DEFAULT_BATCH}
             FOR UPDATE SKIP LOCKED
          )
-         RETURNING id, tenant_id, owner_id, title, body, channel, payload, idempotency_key
+         RETURNING id, tenant_id, owner_id, title, body, channel, payload, idempotency_key, attempt_count
       `);
       const out: PendingReminder[] = [];
       for (const row of asRows(res)) {
@@ -228,7 +264,55 @@ export function createRemindersDispatchWorker(
     }
   }
 
-  async function dispatchOne(r: PendingReminder): Promise<{ sent: boolean }> {
+  // Re-queue a row after a RETRYABLE failure: status back to 'scheduled' with
+  // trigger_at pushed out by the backoff so the existing claim re-picks it
+  // when due. dispatched_at stays NULL (not delivered yet); the same
+  // idempotency_key is reused so the provider de-dupes if a prior attempt
+  // actually landed before the error (e.g. a post-send timeout).
+  async function markRetry(
+    r: PendingReminder,
+    nextAttempt: number,
+    errorMessage: string,
+  ): Promise<void> {
+    const retryAt = computeNextRetryAt(now(), nextAttempt);
+    try {
+      await options.db.execute(sql`
+        UPDATE reminders
+           SET status = 'scheduled',
+               trigger_at = ${retryAt},
+               attempt_count = ${nextAttempt},
+               dispatch_error = ${errorMessage.slice(0, 4000)}
+         WHERE id = ${r.id}
+           AND tenant_id = ${r.tenantId}
+      `);
+    } catch (err) {
+      options.logger.warn(
+        { worker: 'reminders-dispatch', reminderId: r.id, err: err instanceof Error ? err.message : String(err) },
+        'reminders-dispatch: markRetry failed',
+      );
+    }
+  }
+
+  // Decide between retry and terminal failure. A retryable error re-queues
+  // with backoff until the attempt cap; anything else (non-retryable, or the
+  // cap reached) lands terminally in 'failed'.
+  async function handleFailure(
+    r: PendingReminder,
+    retryable: boolean,
+    errorMessage: string,
+  ): Promise<'retried' | 'failed'> {
+    const nextAttempt = r.attemptCount + 1;
+    if (retryable && nextAttempt < MAX_ATTEMPTS) {
+      await markRetry(r, nextAttempt, errorMessage);
+      return 'retried';
+    }
+    await markFailed(r, errorMessage);
+    return 'failed';
+  }
+
+  async function dispatchOne(
+    r: PendingReminder,
+  ): Promise<{ outcome: 'sent' | 'failed' | 'retried' }> {
     if (r.channel === 'email') {
       // Owner-identity resolver (preferred) → owner_contact_prefs →
       // users.email. The legacy BORJIE_OWNER_FALLBACK_EMAIL is retained
@@ -239,8 +323,9 @@ export function createRemindersDispatchWorker(
           (process.env.BORJIE_OWNER_FALLBACK_EMAIL?.trim() ?? null)
         : process.env.BORJIE_OWNER_FALLBACK_EMAIL?.trim() ?? null;
       if (!addr) {
+        // No address on file — retrying cannot fix this. Terminal.
         await markFailed(r, 'no_email_address_for_owner');
-        return { sent: false };
+        return { outcome: 'failed' };
       }
       try {
         const result = await options.emailProvider.send({
@@ -253,13 +338,25 @@ export function createRemindersDispatchWorker(
         });
         if (result.status === 'sent') {
           await markSent(r);
-          return { sent: true };
+          return { outcome: 'sent' };
         }
-        await markFailed(r, `${result.errorCode}: ${result.errorMessage}`);
-        return { sent: false };
+        // Provider-reported failure — honour its retryable classification.
+        return {
+          outcome: await handleFailure(
+            r,
+            result.retryable,
+            `${result.errorCode}: ${result.errorMessage}`,
+          ),
+        };
       } catch (err) {
-        await markFailed(r, err instanceof Error ? err.message : String(err));
-        return { sent: false };
+        // A thrown error is a transport fault (network / timeout) — retryable.
+        return {
+          outcome: await handleFailure(
+            r,
+            true,
+            err instanceof Error ? err.message : String(err),
+          ),
+        };
       }
     }
 
@@ -268,8 +365,9 @@ export function createRemindersDispatchWorker(
         ? await options.phoneForOwner(r.tenantId, r.ownerId).catch(() => null)
         : null;
       if (!phone) {
+        // No phone on file — terminal, retrying cannot help.
         await markFailed(r, 'no_phone_number_for_owner');
-        return { sent: false };
+        return { outcome: 'failed' };
       }
       try {
         const result = await options.smsProvider.send({
@@ -283,13 +381,23 @@ export function createRemindersDispatchWorker(
         });
         if (result.status === 'sent') {
           await markSent(r);
-          return { sent: true };
+          return { outcome: 'sent' };
         }
-        await markFailed(r, `${result.errorCode}: ${result.errorMessage}`);
-        return { sent: false };
+        return {
+          outcome: await handleFailure(
+            r,
+            result.retryable,
+            `${result.errorCode}: ${result.errorMessage}`,
+          ),
+        };
       } catch (err) {
-        await markFailed(r, err instanceof Error ? err.message : String(err));
-        return { sent: false };
+        return {
+          outcome: await handleFailure(
+            r,
+            true,
+            err instanceof Error ? err.message : String(err),
+          ),
+        };
       }
     }
 
@@ -299,8 +407,9 @@ export function createRemindersDispatchWorker(
       process.env.SLACK_WEBHOOK_URL?.trim() ??
       null;
     if (!webhook) {
+      // No webhook configured — terminal until an operator wires one.
       await markFailed(r, 'slack_webhook_not_configured');
-      return { sent: false };
+      return { outcome: 'failed' };
     }
     // Per-owner Slack handle resolved from owner_contact_prefs. When
     // present we prepend a mention so the owner is paged directly in
@@ -322,14 +431,27 @@ export function createRemindersDispatchWorker(
       });
       if (!res.ok) {
         const text = await res.text().catch(() => '');
-        await markFailed(r, `slack_${res.status}: ${text.slice(0, 200)}`);
-        return { sent: false };
+        // 5xx / 429 are transient (Slack throttling or outage) → retry;
+        // 4xx (bad webhook, payload) are terminal.
+        const retryable = res.status >= 500 || res.status === 429;
+        return {
+          outcome: await handleFailure(
+            r,
+            retryable,
+            `slack_${res.status}: ${text.slice(0, 200)}`,
+          ),
+        };
       }
       await markSent(r);
-      return { sent: true };
+      return { outcome: 'sent' };
     } catch (err) {
-      await markFailed(r, err instanceof Error ? err.message : String(err));
-      return { sent: false };
+      return {
+        outcome: await handleFailure(
+          r,
+          true,
+          err instanceof Error ? err.message : String(err),
+        ),
+      };
     }
   }
 
@@ -339,20 +461,22 @@ export function createRemindersDispatchWorker(
       const claimed = await claim();
       let sent = 0;
       let failed = 0;
+      let retried = 0;
       for (const r of claimed) {
-        const res = await dispatchOne(r);
-        if (res.sent) sent += 1;
+        const { outcome } = await dispatchOne(r);
+        if (outcome === 'sent') sent += 1;
+        else if (outcome === 'retried') retried += 1;
         else failed += 1;
       }
       if (claimed.length > 0) {
         options.logger.info(
-          { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed },
+          { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed, retried },
           'reminders-dispatch: tick done',
         );
       }
       // G6 — heartbeat on the success path.
       workerHeartbeat('reminders-dispatch');
-      return { claimed: claimed.length, sent, failed };
+      return { claimed: claimed.length, sent, failed, retried };
     } catch (err) {
       workerHeartbeatFailure('reminders-dispatch', err);
       throw err;

@@ -27,6 +27,7 @@ import {
   timestamp,
   jsonb,
   uuid,
+  integer,
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -72,6 +73,14 @@ export const reminders = pgTable(
       .defaultNow(),
     dispatchedAt: timestamp('dispatched_at', { withTimezone: true }),
     dispatchError: text('dispatch_error'),
+    /**
+     * Delivery attempts so far. The dispatch worker bumps this on each
+     * RETRYABLE failure and re-queues (status→'scheduled', trigger_at→now+
+     * backoff) until it reaches the cap, then lands the row in a terminal
+     * 'failed'. Non-retryable failures (e.g. no address on file) are terminal
+     * immediately. See migration 0303 + reminders-dispatch.worker.ts.
+     */
+    attemptCount: integer('attempt_count').notNull().default(0),
     /**
      * Chat-as-OS bidirectional parity: which path produced this row
      * (chat | form | agent_apply | api | legacy | unknown). See

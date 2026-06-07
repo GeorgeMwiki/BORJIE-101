@@ -136,6 +136,133 @@ describe('reminders-dispatch worker', () => {
       enabled: true,
     });
     const res = await w.tickOnce();
-    expect(res).toEqual({ claimed: 0, sent: 0, failed: 0 });
+    expect(res).toEqual({ claimed: 0, sent: 0, failed: 0, retried: 0 });
+  });
+
+  it('RETRIES a retryable provider failure (re-queues with backoff, bumps attempt_count)', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-retry',
+        tenant_id: 't-1',
+        owner_id: 'u-1',
+        title: 'Rent due',
+        body: 'Rent is due in 3 days',
+        channel: 'email',
+        payload: {},
+        idempotency_key: 'idem-retry',
+        attempt_count: 0,
+      },
+    ]);
+    const flakyEmail = {
+      name: 'flaky',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'failed' as const,
+        provider: 'flaky',
+        errorCode: 'rate_limited',
+        errorMessage: '429 too many requests',
+        retryable: true,
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: flakyEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.claimed).toBe(1);
+    expect(res.sent).toBe(0);
+    expect(res.failed).toBe(0);
+    expect(res.retried).toBe(1);
+    // The row was re-queued (status back to 'scheduled' with a future
+    // trigger_at), NOT marked terminally failed.
+    const requeue = db.calls.find((c) => c.sql.includes("SET status = 'scheduled'"));
+    expect(requeue).toBeDefined();
+    // The re-queue bumps attempt_count and pushes trigger_at out (backoff).
+    expect(requeue!.sql).toContain('attempt_count');
+    expect(requeue!.sql).toContain('trigger_at');
+    expect(db.calls.some((c) => c.sql.includes("status = 'failed'"))).toBe(false);
+  });
+
+  it('does NOT retry a non-retryable provider failure (terminal)', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-perm',
+        tenant_id: 't-1',
+        owner_id: 'u-1',
+        title: 'Rent due',
+        body: 'Rent is due',
+        channel: 'email',
+        payload: {},
+        idempotency_key: 'idem-perm',
+        attempt_count: 0,
+      },
+    ]);
+    const hardFailEmail = {
+      name: 'hard',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'failed' as const,
+        provider: 'hard',
+        errorCode: 'invalid_recipient',
+        errorMessage: 'bad address',
+        retryable: false,
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: hardFailEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.failed).toBe(1);
+    expect(res.retried).toBe(0);
+    expect(db.calls.some((c) => c.sql.includes("status = 'failed'"))).toBe(true);
+  });
+
+  it('stops retrying at the attempt cap (terminal failed on the last attempt)', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-capped',
+        tenant_id: 't-1',
+        owner_id: 'u-1',
+        title: 'Rent due',
+        body: 'Rent is due',
+        channel: 'email',
+        payload: {},
+        idempotency_key: 'idem-capped',
+        attempt_count: 4, // nextAttempt = 5 === MAX_ATTEMPTS → terminal
+      },
+    ]);
+    const flakyEmail = {
+      name: 'flaky',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'failed' as const,
+        provider: 'flaky',
+        errorCode: 'rate_limited',
+        errorMessage: '429',
+        retryable: true,
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: flakyEmail,
+      smsProvider: stubSmsProvider,
+      emailForOwner: async () => 'owner@example.com',
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.failed).toBe(1);
+    expect(res.retried).toBe(0);
+    expect(db.calls.some((c) => c.sql.includes("status = 'failed'"))).toBe(true);
+    expect(db.calls.some((c) => c.sql.includes("SET status = 'scheduled'"))).toBe(false);
   });
 });
