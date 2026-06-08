@@ -516,3 +516,27 @@ awareness (the resident Current Situational Model from the Mind research), compl
 provenance, total-recall memory, retrieval-of-anything (GraphRAG + semantic + org-graph).
 Maximal capture + retention + retrieval + awareness; NO accidental loss, ever. Deliberate,
 gated, grounded organ-deletion (INV-E) is SEPARATE from never losing DATA. Same both repos.
+
+---
+
+## INV-H (amplified) · The Visual OS discipline + the blackboard as shared-state spine — owner directive
+The main chat (INV-H) adopts the VISUAL OS discipline (from Visual_OS_Engineering_Spec.docx):
+  - DEFAULT TO THE RICHEST OUTPUT — visual/interactive/file inline; PROSE IS THE FALLBACK, not
+    the default. The MD produces visuals/widgets/files, it does not describe them.
+  - 7-layer pipeline: intent-classify (5 dims) -> skill/module load -> VISUAL ROUTING decision
+    tree (a sub-layer of the modality-arbiter: SVG flowchart/structural/illustrative, HTML
+    chart/mockup/interactive, React+API app, file) -> SVG/HTML ENGINEERING RIGOR (viewBox,
+    CSS-vars + auto light/dark, arrow markers, collision/L-bend routing, clickability) ->
+    COMPOSITION (interleave prose+visual, scale complexity, promise==deliver, multiple focused
+    diagrams) -> memory/continuity.
+  - RECURSIVE FEEDBACK LOOP: clickable node -> follow-up turn -> re-render (= bidirectional
+    shared state); artifacts can spawn sub-agents (our juniors, not Claude-in-Claude).
+THE BLACKBOARD (packages/blackboard-sota: slots/handoff/control/posts/regions + blackboard-intel
++ packages/chat-ui/blackboard) is the SHARED-STATE SPINE that unifies: (a) the Face "two views
+of one state" (chat + surfaces render the slots), (b) the Mind resident Current Situational Model
+(the persistent situational state), (c) multi-agent/juniors coordination (handoff/control/posts).
+ADAPTATION: the spec's Claude.ai primitives (/mnt/skills, visualize:read_me, present_files,
+window.storage, sendPrompt, Anthropic-API-in-artifacts, userMemories/conversation_search) map to
+our SELF-HOSTED stack (portal-genui/GenUIWidgetRenderer, document-studio/media-engine,
+owner-tabs-store/blackboard, genui host-actions, our juniors, memory-v2). Keystone: wire the
+blackboard as the one shared-state spine + adopt the Visual OS render discipline in genui. Both repos.
