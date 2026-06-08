@@ -59,6 +59,14 @@ spec:
             app.kubernetes.io/component: wake-loop-cron
         spec:
           restartPolicy: Never
+          # Kernel-level sandbox for agent-executed code. This CronJob runs
+          # the kernel wake-cycle (LLM-driven tool calls) so it belongs on the
+          # hardened (gVisor) runtime alongside api-gateway. Uncomment AFTER a
+          # `runsc` node pool labelled sandbox.gke.io/runtime=gvisor exists —
+          # a pod referencing an un-provisioned RuntimeClass stays Pending.
+          # The Helm-chart path (.Values.runtimeClass) is the templated,
+          # per-environment source of truth; this raw manifest mirrors it.
+          # runtimeClassName: gvisor
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

@@ -34,6 +34,9 @@ spec:
       annotations:
         {{- include "borjie.podAnnotations" . | nindent 8 }}
     spec:
+      # Kernel-level sandbox (gVisor/kata) for agent-executed code. Rendered
+      # only when .Values.runtimeClass is set; otherwise the default runtime.
+      {{- include "borjie.runtimeClassName" . | nindent 6 }}
       automountServiceAccountToken: false
       imagePullSecrets:
         - name: {{ .Values.image.pullSecret }}

@@ -67,4 +67,28 @@ spec:
       ports:
         - { protocol: UDP, port: 53 }
         - { protocol: TCP, port: 53 }
+    {{- if .Values.egressAllowlist.enabled }}
+    # External SaaS egress (443) — api-gateway is the ONLY workload that calls
+    # the LLM provider + money/messaging providers. Default-deny means this is
+    # the explicit allowlist; without it the gateway has NO route off-cluster.
+    # IMDS / RFC1918 are excepted so a compromised pod still cannot reach the
+    # cloud metadata endpoint (SSRF / credential theft). Pin per-environment
+    # via .Values.egressAllowlist.destinations; layer FQDN policy on top.
+    - to:
+        {{- range .Values.egressAllowlist.destinations }}
+        # {{ .name }}
+        {{- range .cidrs }}
+        - ipBlock:
+            cidr: {{ . }}
+            {{- if eq . "0.0.0.0/0" }}
+            except:
+              {{- range $.Values.egressAllowlist.blockedExcepts }}
+              - {{ . }}
+              {{- end }}
+            {{- end }}
+        {{- end }}
+        {{- end }}
+      ports:
+        - { protocol: TCP, port: 443 }
+    {{- end }}
 {{- end }}

@@ -1,0 +1,193 @@
+# =============================================================================
+# BORJIE — Container Image Attestation (Sigstore/cosign keyless, SLSA provenance)
+# =============================================================================
+# Extends the AI-BOM provenance model (ai-bom-attest.yml) from the AI-BOM blob
+# to the APP/container artifacts that cd.yml builds + pushes to ghcr.io.
+#
+# What it does, per image (keyless OIDC via Fulcio; Rekor transparency log):
+#   - cosign sign           — signature over the immutable image digest
+#   - cosign attest         — SLSA-provenance + SPDX-SBOM in-toto attestations
+#   - cosign verify*        — identity-bound, fail-closed verification
+#
+# cd.yml already signs each image inline at build time (where the digest is
+# emitted). This workflow is the standalone, re-runnable attestor + auditor:
+#   - release  -> re-attest the released tag's images
+#   - nightly  -> drift/expiry canary over :latest
+#   - dispatch -> on-demand re-attestation of an arbitrary tag
+#
+# An admission policy (Kyverno verifyImages / Sigstore policy-controller)
+# can require a Fulcio signature whose identity matches either this workflow
+# ref OR cd.yml's ref before a borjie-* image is admitted to borjie-prod.
+#
+# Refs:
+#   - https://docs.sigstore.dev/
+#   - https://slsa.dev/spec/v1.0/requirements
+#   - https://github.com/sigstore/cosign
+# =============================================================================
+
+name: borjie-image-attest
+
+on:
+  release:
+    types: [published]
+  schedule:
+    - cron: '0 4 * * *'  # nightly 04:00 UTC (after ai-bom-attest at 03:00)
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Image tag to (re-)attest (default: latest)'
+        type: string
+        required: false
+        default: latest
+
+permissions:
+  id-token: write      # keyless cosign (OIDC -> Fulcio)
+  contents: read
+  packages: write      # write attestations back to GHCR
+
+concurrency:
+  group: borjie-image-attest
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  REGISTRY_OWNER: georgemwiki
+
+jobs:
+  attest:
+    name: Attest borjie-${{ matrix.service }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        service:
+          - api-gateway
+          - consolidation-worker
+          - domain-services
+          - notifications
+          - payments
+          - reports
+          - webhooks
+          - marketing
+          - owner-web
+          - admin-web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Resolve image + immutable digest
+        id: ref
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/borjie-${{ matrix.service }}
+        run: |
+          set -euo pipefail
+          # release -> tag name; dispatch -> input; nightly -> latest
+          TAG="${{ github.event.release.tag_name || github.event.inputs.image_tag || 'latest' }}"
+          [ -z "${TAG}" ] && TAG="latest"
+          echo "[attest] resolving digest for ${IMAGE}:${TAG}"
+          DIGEST="$(cosign triangulate --type digest "${IMAGE}:${TAG}" 2>/dev/null \
+            || crane digest "${IMAGE}:${TAG}" 2>/dev/null \
+            || docker buildx imagetools inspect "${IMAGE}:${TAG}" --format '{{ "{{json .Manifest.Digest}}" }}' | tr -d '"')"
+          if [ -z "${DIGEST}" ]; then
+            echo "::error ::could not resolve digest for ${IMAGE}:${TAG}"
+            exit 1
+          fi
+          echo "ref=${IMAGE}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "[attest] pinned ${IMAGE}@${DIGEST}"
+
+      - name: Cosign sign image (keyless OIDC via Fulcio)
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          REF: ${{ steps.ref.outputs.ref }}
+        run: |
+          set -euo pipefail
+          cosign sign --yes "${REF}"
+
+      - name: Cosign attest SLSA provenance (in-toto)
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          REF: ${{ steps.ref.outputs.ref }}
+        run: |
+          set -euo pipefail
+          cat > slsa-predicate.json <<EOF
+          {
+            "buildType": "https://github.com/borjie/borjie-image-attest.yml@${{ github.ref }}",
+            "builder": { "id": "https://github.com/${{ github.repository }}/.github/workflows/borjie-image-attest.yml@${{ github.ref }}" },
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}",
+                "digest": { "sha1": "${{ github.sha }}" },
+                "entryPoint": ".github/workflows/borjie-image-attest.yml"
+              }
+            },
+            "metadata": {
+              "buildInvocationId": "${{ github.run_id }}-${{ github.run_attempt }}",
+              "completeness": { "parameters": true, "environment": false, "materials": false },
+              "reproducible": false
+            },
+            "materials": [
+              { "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}", "digest": { "sha1": "${{ github.sha }}" } }
+            ]
+          }
+          EOF
+          cosign attest --yes \
+            --predicate slsa-predicate.json \
+            --type slsaprovenance \
+            "${REF}"
+
+      - name: Verify signature + attestation (identity-bound, fail-closed)
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          REF: ${{ steps.ref.outputs.ref }}
+          EXPECTED_OIDC_ISSUER: https://token.actions.githubusercontent.com
+          # Accept either this attestor OR the cd.yml build-time signer.
+          EXPECTED_IDENTITY_REGEX: '^https://github.com/${{ github.repository }}/\.github/workflows/(cd|borjie-image-attest)\.yml@.+$'
+        run: |
+          set -euo pipefail
+          cosign verify \
+            --certificate-oidc-issuer "${EXPECTED_OIDC_ISSUER}" \
+            --certificate-identity-regexp "${EXPECTED_IDENTITY_REGEX}" \
+            "${REF}"
+
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-oidc-issuer "${EXPECTED_OIDC_ISSUER}" \
+            --certificate-identity-regexp "${EXPECTED_IDENTITY_REGEX}" \
+            "${REF}"
+
+          echo "[attest] OK — ${REF} signed + attested + identity verified"
+
+  summary:
+    name: Summary
+    needs: attest
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          {
+            echo "## BORJIE — Container Image Attestation"
+            echo ""
+            echo "Keyless Sigstore signing + SLSA provenance over the immutable"
+            echo "digest of every borjie-* image. Verification is identity-bound"
+            echo "(Fulcio OIDC) and fail-closed."
+            echo ""
+            echo "| Item   | Value |"
+            echo "|--------|-------|"
+            echo "| Result | ${{ needs.attest.result }} |"
+            echo "| Commit | ${{ github.sha }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

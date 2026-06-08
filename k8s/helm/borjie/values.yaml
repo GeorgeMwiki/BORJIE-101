@@ -317,6 +317,70 @@ linkerd:
   # + retries between frontend pods and api-gateway.
   inject: enabled
 
+# ── Runtime isolation (kernel-level sandbox) ─────────────────────────
+# RuntimeClass binds agent-code-executing workloads (api-gateway, the
+# wake-loop / consolidation CronJobs) onto a hardened container runtime so
+# a kernel exploit in LLM-generated code cannot escape to the host. This
+# is the KERNEL-level layer that sits UNDER the existing V8 `isolated-vm`
+# isolates (packages/central-intelligence/src/kernel/sandbox/) — defence
+# in depth, never a replacement.
+#
+#   ""       — default. NO RuntimeClass field is rendered, so every cluster
+#              (k3d/dev/CI without runsc) deploys unchanged.
+#   "gvisor" — userspace application-kernel (runsc). Set in the hardened /
+#              prod values AFTER provisioning a gVisor node pool labelled
+#              `sandbox.gke.io/runtime: gvisor` (GKE Sandbox, or a
+#              containerd-shim-runsc-v1 DaemonSet). Pods that reference an
+#              un-provisioned RuntimeClass stay Pending — a safe, deliberate
+#              fail, so enablement is gated per-environment.
+#   "kata"   — microVM, separate guest kernel (needs bare-metal / nested-virt).
+#
+# Only agent-code-executing workloads pick this up; payments-ledger,
+# postgres, redis and the frontends are deliberately EXCLUDED.
+runtimeClass: ""
+
+# ── Egress allowlist (default-deny + pinned external destinations) ───
+# api-gateway is the only workload that calls external SaaS (the LLM
+# provider + money/messaging providers). With networkPolicy.enabled the
+# namespace is default-deny; this allowlist is the explicit set of
+# external destinations the egress NetworkPolicy re-opens on 443 (DNS is
+# always allowed separately). CIDRs default to the published provider
+# ranges; pin tighter per-environment. FQDN-aware enforcement
+# (Cilium FQDN policy / Istio ServiceEntry) can layer on top.
+egressAllowlist:
+  enabled: true
+  # Published / documented provider egress ranges. Keep DNS + the
+  # IMDS/RFC1918 excepts (handled in the policy template) intact.
+  destinations:
+    # Supabase — Postgres + Auth (api.<project>.supabase.co / *.supabase.co).
+    - name: supabase
+      cidrs: ["0.0.0.0/0"]   # TODO(pin): resolve *.supabase.co → AWS region CIDRs.
+    # Anthropic — the LLM provider (api.anthropic.com).
+    - name: anthropic-llm
+      cidrs: ["0.0.0.0/0"]   # TODO(pin): Cloudflare-fronted; prefer FQDN policy.
+    # M-Pesa Daraja (Safaricom).
+    - name: mpesa-daraja
+      cidrs: ["196.201.214.0/24", "196.201.213.0/24"]
+    # WhatsApp Cloud API (graph.facebook.com — Meta).
+    - name: whatsapp-cloud
+      cidrs: ["157.240.0.0/16", "31.13.24.0/21", "31.13.64.0/18"]
+    # Stripe (api.stripe.com — published egress ranges).
+    - name: stripe
+      cidrs: ["54.187.174.0/24", "54.187.205.0/24", "54.187.216.0/24"]
+    # eMudhra — digital-signature / e-KYC endpoints.
+    - name: emudhra
+      cidrs: ["0.0.0.0/0"]   # TODO(pin): confirm eMudhra published CIDRs.
+  # CIDRs NEVER reachable even inside an allow rule (SSRF / IMDS theft).
+  blockedExcepts:
+    - 169.254.169.254/32     # AWS / Azure / GCP IMDS
+    - 169.254.170.2/32       # AWS Fargate task IAM
+    - 169.254.169.123/32     # Azure managed identity token
+    - 100.100.100.200/32     # Alibaba Cloud IMDS
+    - 169.254.0.0/16         # IPv4 link-local
+    - 10.0.0.0/8
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+
 # ── Pod security ─────────────────────────────────────────────────────
 podSecurity:
   runAsNonRoot: true
