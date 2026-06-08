@@ -111,8 +111,14 @@ describe('feedback router POST /', () => {
     expect(body.data.turnId).toBe('turn_abc');
     expect(body.data.signal).toBe('down');
     expect(body.data.accepted).toBe(true);
-    expect(captures).toHaveLength(1);
-    const values = captures[0]!.values as Record<string, unknown>;
+    // The turn-thumbs path also fires the fail-soft Learning Amplification
+    // (LitFin port), which writes its own learning-signal rows — so assert on
+    // the feedback_submissions insert specifically rather than the total count.
+    const feedbackInsert = captures.find(
+      (c) => (c.values as Record<string, unknown>).type === 'turn-thumbs',
+    );
+    expect(feedbackInsert).toBeDefined();
+    const values = feedbackInsert!.values as Record<string, unknown>;
     expect(values.type).toBe('turn-thumbs');
     expect(values.rating).toBe(1); // thumbs-down maps to rating 1
     const ctx = values.context as Record<string, unknown>;

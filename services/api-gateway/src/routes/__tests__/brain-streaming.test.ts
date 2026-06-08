@@ -35,6 +35,10 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ||
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgres://test:test@localhost:5432/test';
 process.env.BORJIE_SKIP_DOTENV = 'true';
+// These tests mock the persona path (createBrain); force it so the route does
+// not take the default orchestrator path (real getSovereignBrain), which 500s
+// on the fake test DB. Mirrors brain-orchestrator-turn.test.ts.
+process.env.KERNEL_USE_ORCHESTRATOR = 'false';
 process.env.NODE_ENV = process.env.NODE_ENV || 'test';
 
 // ---------------------------------------------------------------------------
