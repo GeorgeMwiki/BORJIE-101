@@ -638,3 +638,24 @@ synthesizes ANY output form for ANY need. Infinite AND safe, by two mechanisms:
 Infinite output != unsafe: every primitive passes the conformance gate; composition is bounded
 only by the trusted vocabulary + the rails, never by a hardcoded catalog. Binds the Face / Visual-OS /
 Construction / orchestration build waves. Same both repos.
+
+---
+
+## Orchestration keystones (from THE_ORCHESTRATION_ARCHITECTURE; SOTA, both repos)
+- ONE SPINE, FIVE ROLES: the blackboard-sota CRDT slot spine is the orchestration META-SUBSTRATE —
+  every topology (pipeline/orchestrator-worker/hierarchical/blackboard/swarm/Magentic/graph) runs ON
+  the slots; a flow can MORPH topology mid-task without leaving the spine (INV-C). The blackboard wave
+  delivers Face two-views + Mind situational model + multi-agent coordination + orchestration at once.
+- TOPOLOGY ARBITER: promote the modality-arbiter to also pick the SWARM topology per task via an
+  O(|V|+|E|) DAG read (parallelism-width/critical-path-depth/coupling-density), using the on-device
+  router; Magentic dual-ledger (Task + Progress, replan-on-stall, stall->replan->RE-ROUTE toward
+  hierarchical) as the veteran-kernel template.
+- DISCIPLINE NOT FRAMEWORK: we own a kernel; the win is eval + observability + durable failure-recovery
+  (checkpoint each coordination round to the slot store; resume-from-progress; rainbow-deploy), NOT
+  adopting LangGraph/CrewAI. Effort-scale agent spawning (don't 15x tokens for a fact lookup).
+- IP-MOAT BY CONSTRUCTION (INV-H/D): the topology arbiter, both ledgers, handoff traces, and
+  volunteer-selection stay SERVER-SIDE; clients see status+outputs only. A2A/ACP ONLY at the external
+  trust boundary (regulator/buyer agents) — internal juniors are NEVER A2A-exposed (that leaks topology).
+- RUNTIME AGENT HIRING (bounded): a competence gap -> meta-rail composes a junior (self-extension.ts),
+  registers it as a blackboard knowledge-source, uses it, LRU-evicts idle ones — uncapped nodes (INV-G)
+  without unbounded cost.
