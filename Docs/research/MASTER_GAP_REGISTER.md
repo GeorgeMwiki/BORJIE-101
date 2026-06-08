@@ -308,3 +308,26 @@ These are mostly disjoint and remove every "the system is structurally blocked /
 ## Eval-harness note (the definition of "done", from `agi-domain-brain-layer-sota.md` §4.5)
 
 A domain-AGI claim is earned only when all eight hold simultaneously: depth across full breadth · target autonomy per task-class · novel within-domain generalization · long reliable horizons · grounded multi-step competence · calibrated metacognition that ACTS · robust+abstaining behavior · no continual-learning regression. Wire the eight-axis harness as a standing regression suite (Wave D tail) — it is what closes the loop on every wave above.
+
+---
+
+## UI / Modality Invariant (owner directive, 2026-06-08) — binds the wiring pass
+
+The MD's surfaces are **infinitely dynamic** and **proposal-gated**. Hard rules for
+every modality-arbiter / genui / tab-spawn wiring:
+
+1. **Infinite UI, not a catalog.** No fixed "forecast tab / media tab / document tab"
+   kinds. portal-genui *synthesizes* whatever UI the need calls for; forecast/media/
+   document are ARTIFACTS that flow into a dynamically-composed surface.
+2. **Change only upon reasoned need.** The AI evaluates (tau + evidence + goal) whether
+   a UI change is warranted; a plain chat turn proposes no UI change.
+3. **User approval gates the mutation.** A proposed UI change never self-applies — it
+   surfaces as a proposal (ambient notice + Open/Undo) and mutates only on approval.
+   This is the body-change meta-rail applied to the UI surface. Default = propose-and-
+   approve; auto-spawn only for a flow the user explicitly set to auto, always reversible.
+4. **Chat-customizable.** The proposal is a starting point; the user chats to refine and
+   genui re-synthesizes from the amended spec.
+
+Wiring tests MUST prove: (a) no UI change without approval, (b) low-need turn proposes
+nothing, (c) chat refinement re-synthesizes, (d) auto-flow spawns ambiently but reversibly,
+(e) a routed money/licence action still hits the policy-gate.
