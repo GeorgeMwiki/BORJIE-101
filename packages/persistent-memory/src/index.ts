@@ -149,6 +149,22 @@ export {
 } from './summarisation/memgpt-summariser.js';
 
 // ---------------------------------------------------------------------------
+// Consolidation (MEM-05) — the REAL consolidator. A drop-in over the
+// consolidation-worker's `ConsolidatorPort` shape: brain-backed durable-fact
+// extraction with a frequency+recency deterministic fallback (replaces the
+// "1 fact per N raw turns" stub).
+// ---------------------------------------------------------------------------
+export {
+  createBrainConsolidator,
+  type ConsolidatorPort,
+  type ConsolidateArgs,
+  type ConsolidatedFact,
+  type ReservoirEntry,
+  type ConsolidationBrainPort,
+  type BrainConsolidatorConfig,
+} from './consolidation/consolidator.js';
+
+// ---------------------------------------------------------------------------
 // Storage — reference in-memory implementations
 // ---------------------------------------------------------------------------
 export { createInMemorySessionMemoryRepository } from './storage/session-memory-repository.js';

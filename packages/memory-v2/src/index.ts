@@ -33,7 +33,27 @@ export { createInMemoryTopicFileStore } from './topic-files/index.js';
 // Cohort cache
 export { createInMemoryCohortCacheStore } from './cohort-cache/index.js';
 
+// MEM-01 — durable Drizzle stores + the shared store logger contract.
+export {
+  createDrizzleEpisodicStore,
+  createDrizzleNarrativeStore,
+  createDrizzleProceduralStore,
+  createDrizzleReflectiveStore,
+  createDrizzleTopicFileStore,
+  createDrizzleCohortCacheStore,
+} from './index-stores.js';
+export {
+  type DrizzleStoreLogger,
+  NOOP_STORE_LOGGER,
+} from './drizzle-logger.js';
+
 import {
+  createDrizzleCohortCacheStore,
+  createDrizzleEpisodicStore,
+  createDrizzleNarrativeStore,
+  createDrizzleProceduralStore,
+  createDrizzleReflectiveStore,
+  createDrizzleTopicFileStore,
   createInMemoryCohortCacheStore,
   createInMemoryEpisodicStore,
   createInMemoryNarrativeStore,
@@ -41,6 +61,8 @@ import {
   createInMemoryReflectiveStore,
   createInMemoryTopicFileStore,
 } from './index-stores.js';
+import type { DrizzleStoreLogger } from './drizzle-logger.js';
+import type { DatabaseClient } from '@borjie/database';
 import type { MemoryV2, MemoryV2Options, MemoryV2Stores } from './types.js';
 
 /**
@@ -73,4 +95,43 @@ export function createInMemoryMemoryV2(
     cohort: overrides.cohort ?? createInMemoryCohortCacheStore(),
   };
   return createMemoryV2({ stores, ...opts });
+}
+
+/**
+ * MEM-01 — build a fully **durable** MemoryV2 backed by the Drizzle stores
+ * (migration 0312). Use this at the composition root when a live DB handle is
+ * present so the six-layer substrate survives a process restart. Each store
+ * implements the identical port as its in-memory counterpart, so swapping
+ * `createInMemoryMemoryV2` → `createDrizzleMemoryV2` requires no other change.
+ *
+ * Caller may override individual stores (e.g. keep `cohort` in-memory while the
+ * other five persist) and may inject a Pino-backed structural logger for
+ * non-fatal store diagnostics.
+ */
+export function createDrizzleMemoryV2(
+  db: DatabaseClient,
+  options: {
+    readonly overrides?: Partial<MemoryV2Stores>;
+    readonly logger?: DrizzleStoreLogger;
+  } & Pick<MemoryV2Options, 'embedder' | 'brain'> = {},
+): MemoryV2 {
+  const overrides = options.overrides ?? {};
+  const logger = options.logger;
+  const stores: MemoryV2Stores = {
+    episodic: overrides.episodic ?? createDrizzleEpisodicStore(db, logger),
+    narrative: overrides.narrative ?? createDrizzleNarrativeStore(db, logger),
+    procedural: overrides.procedural ?? createDrizzleProceduralStore(db, logger),
+    reflective: overrides.reflective ?? createDrizzleReflectiveStore(db, logger),
+    topics: overrides.topics ?? createDrizzleTopicFileStore(db, logger),
+    cohort: overrides.cohort ?? createDrizzleCohortCacheStore(db, logger),
+  };
+  const composeOpts: {
+    -readonly [K in keyof Pick<MemoryV2Options, 'embedder' | 'brain'>]: Pick<
+      MemoryV2Options,
+      'embedder' | 'brain'
+    >[K];
+  } = {};
+  if (options.embedder !== undefined) composeOpts.embedder = options.embedder;
+  if (options.brain !== undefined) composeOpts.brain = options.brain;
+  return createMemoryV2({ stores, ...composeOpts });
 }

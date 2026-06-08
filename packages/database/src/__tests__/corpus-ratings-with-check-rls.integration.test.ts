@@ -179,13 +179,15 @@ describe.skipIf(!HAS_PG)(
     ): Promise<T> {
       const app = postgres(pg.appUrl, { max: 1 });
       try {
-        return await app.begin(async (tx) => {
+        // postgres.js types `begin` as `UnwrapPromiseArray<T>`; our body
+        // resolves a single `T`, so re-assert the caller-facing contract.
+        return (await app.begin(async (tx) => {
           await tx.unsafe(
             `SELECT set_config('app.current_tenant_id', '${tenantId}', true);
              SELECT set_config('app.is_service_role', '${isService}', true);`,
           );
           return body(tx);
-        });
+        })) as T;
       } finally {
         await app.end({ timeout: 5 });
       }
@@ -270,7 +272,7 @@ describe.skipIf(!HAS_PG)(
         const corpus = await admin.unsafe(
           `SELECT count(*)::int AS n FROM intelligence_corpus_chunks WHERE tenant_id IS NULL`,
         );
-        expect((corpus[0] as { n: number }).n).toBe(1);
+        expect((corpus[0] as unknown as { n: number }).n).toBe(1);
       } finally {
         await admin.end({ timeout: 5 });
       }
@@ -283,7 +285,7 @@ describe.skipIf(!HAS_PG)(
         ),
       );
       // The one service-role-written global row is readable by the tenant.
-      expect((rows[0] as { n: number }).n).toBe(1);
+      expect((rows[0] as unknown as { n: number }).n).toBe(1);
     });
   },
 );

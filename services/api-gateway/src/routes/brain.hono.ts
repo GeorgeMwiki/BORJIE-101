@@ -47,6 +47,7 @@ import {
 // into the turn (see `withCognitiveEnrichment`).
 import {
   enrichBrainTurnWithCognitive,
+  observeBrainTurnMemory,
   type WiredCognitive,
 } from '../composition/cognitive-wiring.js';
 // LP-15 / LP-30 — privacy router consulted BEFORE the orchestrator (the
@@ -666,6 +667,79 @@ async function withCognitiveEnrichment<
     );
     return body;
   }
+}
+
+// ─── MEM-02 — per-turn cognitive WRITER (observe) ─────────────────────
+//
+// The enrichment hook above only READS memory. This hook closes the WRITE
+// side: after a JSON turn produces an answer, it observes the exchange as one
+// memory cell so the store ACCRUES turn over turn (with the Drizzle cell repo
+// selected at the composition root, the cell is durable across a restart).
+//
+// Runs on the JSON path only (SSE deltas aren't a single cacheable body) and
+// is fully fail-safe: it clones the response (never consumes the original),
+// only fires on a 2xx, and `observeBrainTurnMemory` swallows every error so a
+// memory-write fault can NEVER affect the response the user already received.
+
+/**
+ * Run a JSON turn handler, then best-effort observe the exchange into
+ * cognitive memory. Returns the handler's ORIGINAL response untouched.
+ */
+async function withTurnMemoryObserve(
+  c: any,
+  ctx: TurnGateContext,
+  userText: string,
+  response: Response,
+): Promise<Response> {
+  try {
+    if (response.status < 200 || response.status >= 300) return response;
+    const wired = c.get('cognitive') as WiredCognitive | undefined;
+    if (!wired || !wired.isLive) return response;
+
+    // Clone so the original body stream is never consumed.
+    const cloned = response.clone();
+    let responseText = '';
+    try {
+      const parsed = (await cloned.json()) as { responseText?: unknown };
+      responseText =
+        typeof parsed.responseText === 'string' ? parsed.responseText : '';
+    } catch {
+      return response; // non-JSON / unparseable body — skip silently.
+    }
+    if (responseText.length === 0) return response;
+
+    const cellId = await observeBrainTurnMemory({
+      wired,
+      tenantId: ctx.tenant.tenantId,
+      userText,
+      responseText,
+      specialisation: 'mr-mwikila',
+      logger: {
+        debug: (message, meta) => logger.debug(meta ?? {}, message),
+        info: (message, meta) => logger.info(meta ?? {}, message),
+        warn: (message, meta) => logger.warn(meta ?? {}, message),
+        error: (message, meta) => logger.error(meta ?? {}, message),
+      },
+    });
+    if (cellId !== null) {
+      logger.info(
+        {
+          wiring: 'cognitive-observe',
+          tenantId: ctx.tenant.tenantId,
+          userId: ctx.viewer.userId,
+          cellId,
+        },
+        'brain /turn: observed turn into cognitive memory',
+      );
+    }
+  } catch (err) {
+    // Never let the writer break the turn — the user already has the answer.
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: cognitive observe failed (continuing)',
+    );
+  }
+  return response;
 }
 
 // ─── LP-15 / LP-30 — privacy-router consult on the MAIN brain turn ────
@@ -1838,11 +1912,14 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
           );
         }
       }
-      return response;
+      // MEM-02 — observe the exchange into cognitive memory (fail-safe).
+      return withTurnMemoryObserve(c, gate.ctx, body.userText, response);
     }
-    return orchestratorOn
-      ? handleTurnJsonViaOrchestrator(c, body, gate.ctx)
-      : handleTurnJson(c, body, gate.ctx);
+    const jsonResponse = orchestratorOn
+      ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx)
+      : await handleTurnJson(c, body, gate.ctx);
+    // MEM-02 — observe the exchange into cognitive memory (fail-safe).
+    return withTurnMemoryObserve(c, gate.ctx, body.userText, jsonResponse);
   }
   return orchestratorOn
     ? handleTurnSseViaOrchestrator(c, body, gate.ctx)

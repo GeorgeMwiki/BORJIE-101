@@ -336,6 +336,13 @@ export * from './cognitive-engine.schema.js';
 export * from './cognitive-memory.schema.js';
 
 // ---------------------------------------------------------------------------
+// MEM-01 — six-layer memory-v2 durable stores (episodic, narrative,
+// procedural, reflective, topic, cohort). Seven tables backing migration
+// 0312_memory_v2_durable_stores.sql so `@borjie/memory-v2` survives a
+// process restart. Companion: packages/memory-v2/src/*/store-drizzle.ts.
+export * from './memory-v2.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave 18V — Junior Architecture (27 juniors as MD-class within scope)
 // ---------------------------------------------------------------------------
 // Two tables backing migration 0025_junior_architecture.sql:

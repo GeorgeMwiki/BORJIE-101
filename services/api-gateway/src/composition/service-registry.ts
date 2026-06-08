@@ -468,10 +468,12 @@ import {
 // existing single-layer `ConversationMemory` (which the streaming kernel
 // still consumes). MemoryV2 surfaces the richer cognitive substrate that
 // future sleep-pass orchestrators + reflection jobs will read/write.
-// In-memory variant ships in degraded mode + as the live-mode default until
-// pgvector-backed adapters land.
+// MEM-01 — the in-memory variant ships in degraded mode; LIVE mode now selects
+// the Drizzle-backed stores (`createDrizzleMemoryV2`, migration 0312) when a DB
+// handle is present so the substrate SURVIVES a process restart.
 import {
   createInMemoryMemoryV2,
+  createDrizzleMemoryV2,
   type MemoryV2,
 } from '@borjie/memory-v2';
 // PO-port wave-5 wiring #2 — per-tenant LLM budget cap + auto-downgrade
@@ -1548,6 +1550,45 @@ function buildGraphQueryService(): GraphQueryService | null {
 }
 
 /**
+ * MEM-01 — select the durable six-layer memory-v2 substrate.
+ *
+ * When a live DB handle is present, every layer is backed by the Drizzle
+ * stores (migration 0312) so episodes / arcs / skills / notes / topic shards /
+ * cohort cache SURVIVE a process restart. Without a DB handle (no-DATABASE_URL
+ * boot / tests) we fall back to the ephemeral in-memory substrate so the
+ * gateway still boots. Each Drizzle store implements the identical port as its
+ * in-memory counterpart, so no downstream consumer changes. Construction
+ * failures degrade to the in-memory substrate (the slot is always non-null).
+ */
+function buildMemoryV2(db: DatabaseClient | null): MemoryV2 {
+  if (db === null) {
+    logger.warn(
+      'service-registry: no db handle; memory-v2 is in-memory (volatile across restarts)',
+    );
+    return createInMemoryMemoryV2();
+  }
+  try {
+    const v2 = createDrizzleMemoryV2(db, {
+      // Adapt the structural store logger (message, meta) to the Pino
+      // (meta, message) call order so redaction works correctly.
+      logger: {
+        warn: (message, meta) => logger.warn(meta ?? {}, message),
+      },
+    });
+    logger.info(
+      'service-registry: memory-v2 backed by Drizzle (durable across restarts)',
+    );
+    return v2;
+  } catch (err) {
+    logger.warn(
+      'service-registry: memory-v2 Drizzle construction failed — falling back to in-memory',
+      { value: err instanceof Error ? err.message : String(err) },
+    );
+    return createInMemoryMemoryV2();
+  }
+}
+
+/**
  * Wave WS-4 — build the platform-billing service for the LIVE registry.
  *
  * Non-null ONLY when a payment provider is configured (STRIPE_SECRET_KEY).
@@ -2607,12 +2648,15 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // NEO4J_URI is unset; the graph router degrades to 503 so live-mode
     // gateways without a Neo4j upstream still boot cleanly.
     graph: { queryService: buildGraphQueryService() },
-    // PO-port wave-5 wiring #1 — six-layer cognitive memory v2. Live mode
-    // also runs in-memory until pgvector / Drizzle store adapters land
-    // (follow-up). The slot is always non-null so downstream consumers
-    // (sleep-pass orchestrator, reflection workers) can read shapes
-    // without null-checks.
-    memoryV2: createInMemoryMemoryV2(),
+    // PO-port wave-5 wiring #1 / MEM-01 — six-layer cognitive memory v2. LIVE
+    // mode now backs every layer with the Drizzle stores (migration 0312) when
+    // a DB handle is present so episodes / arcs / skills / notes / topic shards
+    // / cohort cache SURVIVE a process restart; the in-memory variant is the
+    // no-DB fallback. The slot is always non-null so downstream consumers
+    // (sleep-pass orchestrator, reflection workers) read shapes without
+    // null-checks. Each Drizzle store implements the identical port, so no
+    // consumer changes.
+    memoryV2: buildMemoryV2(db),
     // PO-port wave-5 wiring #3 — OCSF emitter (secondary SIEM-egress
     // sink). Live mode picks up `OCSF_LOG_PATH` for the file-line sink;
     // syslog / HTTP forwarders land as follow-up sink adapters.

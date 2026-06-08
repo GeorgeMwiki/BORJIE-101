@@ -734,6 +734,102 @@ export async function enrichBrainTurnWithCognitive(
 }
 
 // ---------------------------------------------------------------------------
+// MEM-02 — the live `observe()` WRITER.
+//
+// Before this, the brain turn only RECALLED from cognitive memory; nothing
+// ever wrote a cell on the live `/turn` path, so the store stayed empty and
+// recall always returned nothing (`grep .observe( in gateway = Prometheus
+// only`). This closes the write side: after a turn produces an answer, the
+// exchange is observed as a single `pattern` cell so memory ACCRUES turn over
+// turn. With the Drizzle cell repository selected at the composition root
+// (db present) the cell is durable across a process restart.
+//
+// Fail-safe by construction: it short-circuits when the bundle is degraded
+// (`cognitiveMemory === null`) or the texts are empty, and it try/catches so a
+// write fault NEVER blocks or fails the turn (the user already has their
+// answer by the time this runs).
+// ---------------------------------------------------------------------------
+
+export interface ObserveTurnArgs {
+  readonly wired: WiredCognitive;
+  readonly tenantId: string;
+  /** The user's message for the turn (already privacy-processed). */
+  readonly userText: string;
+  /** The assistant's answer text. */
+  readonly responseText: string;
+  /** The specialisation that produced the answer (default 'mr-mwikila'). */
+  readonly specialisation?: string;
+  /** Turn id for the observe audit row + cell provenance. */
+  readonly turnId?: string;
+  /** Optional logger; defaults to a silent logger. */
+  readonly logger?: CognitiveLogger;
+}
+
+/** Hard cap on the observed content length — keep cells compact + cheap. */
+const OBSERVE_MAX_CHARS = 1200;
+
+function buildObservedContent(userText: string, responseText: string): string {
+  const u = userText.trim();
+  const a = responseText.trim();
+  const block = [`User asked: ${u}`, `Assistant answered: ${a}`].join('\n');
+  return block.length > OBSERVE_MAX_CHARS
+    ? `${block.slice(0, OBSERVE_MAX_CHARS - 1)}…`
+    : block;
+}
+
+/**
+ * Observe one memory cell from a completed turn. Returns the new cell id, or
+ * `null` when nothing was written (degraded bundle, empty texts, or a
+ * swallowed write error). NEVER throws.
+ */
+export async function observeBrainTurnMemory(
+  args: ObserveTurnArgs,
+): Promise<string | null> {
+  const logger = args.logger ?? createSilentLogger();
+  const cm = args.wired.cognitiveMemory;
+  if (cm === null) return null;
+  const userText = args.userText.trim();
+  const responseText = args.responseText.trim();
+  if (userText.length === 0 || responseText.length === 0) return null;
+  if (args.tenantId.length === 0) return null;
+
+  try {
+    const cell = await cm.observe(
+      {
+        content_text: buildObservedContent(userText, responseText),
+        kind: 'pattern',
+        initial_confidence: 0.5,
+        content_structured: {
+          source: 'brain.turn',
+          user_chars: userText.length,
+          answer_chars: responseText.length,
+        },
+      },
+      {
+        tenant_id: args.tenantId,
+        scope_id: 'tenant_root',
+        specialisation: args.specialisation ?? 'mr-mwikila',
+        turn_id: args.turnId ?? '',
+      },
+    );
+    return cell.id;
+  } catch (err) {
+    if (err instanceof CognitiveMemoryError) {
+      logger.warn('cognitive-wiring: observe returned typed error', {
+        code: err.code,
+        message: err.message,
+      });
+    } else {
+      logger.warn(
+        'cognitive-wiring: observe failed; turn memory not written (non-fatal)',
+        { error: err instanceof Error ? err.message : String(err) },
+      );
+    }
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Internal helpers — silent fallbacks + try-wrappers around the package
 // operations. Each catches and logs so the brain turn never fails
 // because enrichment failed.
@@ -957,6 +1053,8 @@ export const __testables = Object.freeze({
   safeComposeDeep,
   clampTopK,
   createSilentLogger,
+  buildObservedContent,
+  OBSERVE_MAX_CHARS,
   DEFAULT_TOP_K,
   EMPTY_RESULT,
   COMPOSER_DEFAULT_STAKES,

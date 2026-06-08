@@ -10,23 +10,15 @@
  * Run: pnpm tsx services/consolidation-worker/src/tasks/borjie-corpus-cli-direct.ts
  */
 
-import { join } from 'node:path';
 import postgres from 'postgres';
 import { ingestCorpus } from './borjie-corpus-ingest.js';
 import {
   createOpenAIEmbedder,
   createStubEmbedder,
 } from './borjie-corpus-adapters.js';
+import { resolveCorpusRoots } from './corpus-roots.js';
 
-const DOCS_ROOT =
-  process.env.BORJIE_DOCS_ROOT ??
-  '/Users/georgesmackbookair/Desktop/CLAUDE_CURSOR_CODEX PROJECTS/Claude Projects/Boji project/Docs';
-
-const corpusRoots = [
-  join(DOCS_ROOT, 'primary_sources'),
-  join(DOCS_ROOT, 'research'),
-  join(DOCS_ROOT, 'research', 'minerals'),
-];
+const corpusRoots = resolveCorpusRoots();
 
 const logger = {
   info: (msg: string, ctx?: unknown) =>
@@ -59,9 +51,11 @@ async function run(): Promise<number> {
 
   const sql = postgres(dbUrl, { max: 4, prepare: false });
 
-  // Raw upsert. The 0003 migration shipped only a non-unique index on
-  // (source_file, section), so ON CONFLICT can't target it; emulate the
-  // upsert with DELETE-then-INSERT inside a transaction.
+  // Raw upsert keyed on migration 0311's EXPRESSION unique index
+  // (COALESCE(tenant_id,''), source_file, COALESCE(section,'')). Writes
+  // GLOBAL rows (tenant_id = NULL); a re-run overwrites the matching row's
+  // content + embedding in place. The ON CONFLICT target expression must
+  // mirror the index expression verbatim for Postgres to match it.
   const sink = {
     async upsert(row: {
       id: string;
@@ -72,27 +66,31 @@ async function run(): Promise<number> {
       ingestedAt: string;
     }): Promise<void> {
       const vec = `[${row.embedding.join(',')}]`;
-      await sql.begin(async (tx) => {
-        await tx`
-          DELETE FROM intelligence_corpus_chunks
-          WHERE source_file = ${row.sourceFile}
-            AND section IS NOT DISTINCT FROM ${row.sectionHeading}
-        `;
-        await tx`
-          INSERT INTO intelligence_corpus_chunks
-            (id, tenant_id, source_file, section, text, embedding, ingested_at)
-          VALUES
-            (${row.id}, NULL, ${row.sourceFile}, ${row.sectionHeading},
-             ${row.content}, ${vec}::vector(1024), ${new Date(row.ingestedAt)})
-        `;
-      });
+      await sql`
+        INSERT INTO intelligence_corpus_chunks
+          (id, tenant_id, source_file, section, text, embedding, ingested_at)
+        VALUES
+          (${row.id}, NULL, ${row.sourceFile}, ${row.sectionHeading},
+           ${row.content}, ${vec}::vector(1024), ${new Date(row.ingestedAt)})
+        ON CONFLICT (COALESCE(tenant_id, ''), source_file, COALESCE(section, ''))
+        DO UPDATE SET
+          text        = EXCLUDED.text,
+          embedding   = EXCLUDED.embedding,
+          ingested_at = EXCLUDED.ingested_at
+      `;
     },
   };
 
   logger.info('roots', { corpusRoots });
 
   try {
-    const report = await ingestCorpus({ corpusRoots, sink, embedder, logger });
+    const report = await ingestCorpus({
+      corpusRoots,
+      sink,
+      embedder,
+      logger,
+      failOnZeroFiles: true,
+    });
     process.stdout.write(`[REPORT] ${JSON.stringify(report, null, 2)}\n`);
     await sql.end({ timeout: 5 });
     return report.errors.length === 0 ? 0 : 1;

@@ -54,6 +54,11 @@ import type {
   TraceEntry,
 } from './stages/types.js';
 import { logger } from './logger.js';
+// The message-first `(message, meta)` logger singleton, re-aliased so it
+// stays reachable inside `main()` where `logger` is shadowed by the
+// pino-style `(obj, msg)` `consoleLogger`. Used by the corpus-ingest cron,
+// whose pipeline uses the message-first shape.
+import { logger as ingestLogger } from './logger.js';
 import {
   runOcrExtractionPollWithGatewayAdapters,
   type OcrExtractionDb,
@@ -63,6 +68,12 @@ import {
   runLedgerAttestorCron,
   type AttestorDbLike,
 } from './tasks/ledger-attestor-cron.js';
+import {
+  buildCorpusIngestCronDeps,
+  runCorpusIngestTick,
+  resolveCorpusIngestIntervalMs,
+  type CorpusIngestDb,
+} from './tasks/corpus-ingest-cron.js';
 
 // Async per-upload OCR + full-text extraction poll cadence. Documents that
 // flip to `ingestion_status='ready'` are picked up here; default every 30s,
@@ -785,6 +796,56 @@ export async function main(options: MainOptions = {}): Promise<void> {
   // Fire once on boot so a fresh deploy has an immediate signed checkpoint.
   void runAttestorTick();
 
+  // ───────────────────────────────────────────────────────────────────
+  // Corpus-ingest cron (KI-03). The first-boot global-corpus ingest had
+  // NO scheduler — a fresh deploy started with an empty
+  // `intelligence_corpus_chunks` and stayed that way until someone ran
+  // the CLI by hand. Schedule it here so the brain grounds itself
+  // automatically: fire ONCE on boot, then on a slow (default daily)
+  // cadence. The ingest is idempotent (upsert on the 0311 unique key), so
+  // re-running is safe; a tick never throws (a dead corpus path logs ERROR
+  // and is absorbed), and ticks never overlap.
+  const corpusIngestIntervalMs = resolveCorpusIngestIntervalMs();
+  // The corpus-ingest pipeline uses the message-first `(message, meta)`
+  // logger shape (the same `../logger.js` singleton the CLI uses), which
+  // differs from this composition root's pino-style `(obj, msg)`
+  // `consoleLogger`. Pass the message-first singleton directly so the
+  // shapes line up without a cast.
+  const corpusIngestDeps = buildCorpusIngestCronDeps({
+    // The worker's `db` is the narrow `execute`-only client; the real
+    // runtime client (api-gateway `getDb()`) also exposes `insert`, which
+    // the Drizzle corpus sink uses. Cast to the sink's required shape.
+    db: db as unknown as CorpusIngestDb,
+    logger: ingestLogger,
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+  let corpusIngestTickInFlight = false;
+  const runCorpusIngest = async (): Promise<void> => {
+    if (corpusIngestTickInFlight) return; // never overlap ticks
+    corpusIngestTickInFlight = true;
+    try {
+      await runCorpusIngestTick(corpusIngestDeps);
+    } catch (err) {
+      logger.warn(
+        { reason: asMessage(err) },
+        'consolidation-worker: corpus-ingest tick failed',
+      );
+    } finally {
+      corpusIngestTickInFlight = false;
+    }
+  };
+  const corpusIngestHandle = setInterval(
+    () => void runCorpusIngest(),
+    corpusIngestIntervalMs,
+  );
+  corpusIngestHandle.unref();
+  logger.info(
+    { corpusIngestIntervalMs },
+    'consolidation-worker: corpus-ingest cron started',
+  );
+  // Fire once on boot so a fresh deploy ingests the global corpus immediately.
+  void runCorpusIngest();
+
   // SIGTERM-safe shutdown.
   let shuttingDown = false;
   const shutdown = (signal: NodeJS.Signals) => {
@@ -795,6 +856,7 @@ export async function main(options: MainOptions = {}): Promise<void> {
     clearInterval(ocrPollHandle);
     clearInterval(orchestratorHandle);
     clearInterval(attestorHandle);
+    clearInterval(corpusIngestHandle);
     // Give in-flight tick room to finish (the loop's safeTick is
     // already guarded; we just want to flush pending logs before exit).
     setTimeout(() => process.exit(0), 50).unref();

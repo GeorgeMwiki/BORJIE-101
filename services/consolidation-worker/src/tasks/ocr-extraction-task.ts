@@ -565,8 +565,10 @@ async function runAuditAppend(
 // Idempotency: chunk identity is deterministic on (documentId, chunkIndex),
 // so re-running an extraction overwrites the SAME rows (ON CONFLICT DO
 // UPDATE) and re-inserts the SAME links (ON CONFLICT DO NOTHING) — never a
-// duplicate. The natural `(source_file, section)` UNIQUE on the corpus table
-// and `(document_id, chunk_id)` UNIQUE on the link table back this.
+// duplicate. The corpus upsert keys on migration 0311's EXPRESSION UNIQUE
+// index `(COALESCE(tenant_id,''), source_file, COALESCE(section,''))` (tenant
+// is part of the key, so cross-tenant collisions are impossible), and the
+// link table's `(document_id, chunk_id)` UNIQUE backs the link upsert.
 // ─────────────────────────────────────────────────────────────────────
 
 /** Max chunks indexed per document — bounds embed cost on huge scans. */
@@ -577,8 +579,8 @@ const CORPUS_CHUNK_MIN_CHARS = 64;
 
 /**
  * The `source_file` value used for a document's private chunks. Stable per
- * document so the `(source_file, section)` upsert key is idempotent and the
- * chunks are easy to attribute back to their upload.
+ * document so the `(tenant_id, source_file, section)` upsert key is
+ * idempotent and the chunks are easy to attribute back to their upload.
  */
 function corpusSourceFile(documentId: string): string {
   return `doc:${documentId}`;
@@ -744,10 +746,15 @@ async function runUpsertCorpusChunk(
   const sql = await sqlTag();
   const vectorLiteral = `[${v.embedding.join(',')}]`;
   const metadata = JSON.stringify({ document_upload_id: v.documentId, source: 'ocr-extraction' });
-  // ON CONFLICT on the natural (source_file, section) identity so a re-run
-  // overwrites content + embedding in place (idempotent). tenant_id is set
-  // to the document's tenant — NEVER NULL (that is reserved for the global
-  // ground-truth corpus, per the Borjie hard rule).
+  // ON CONFLICT on the natural identity keyed by migration 0311's
+  // EXPRESSION unique index — (COALESCE(tenant_id,''), source_file,
+  // COALESCE(section,'')). The tenant is PART of the key (KI-13), so two
+  // tenants' same-named files never collide and a tenant row never clobbers
+  // the global (tenant_id IS NULL) corpus. The conflict target expression
+  // must mirror the index expression verbatim for Postgres to match it.
+  // tenant_id is fixed by the conflict key, so it is NOT in the SET clause.
+  // tenant_id is the document's tenant — NEVER NULL (NULL is reserved for the
+  // global ground-truth corpus, per the Borjie hard rule).
   await db.execute(sql`
     INSERT INTO intelligence_corpus_chunks
       (id, tenant_id, source_file, section, text, embedding, language,
@@ -763,10 +770,9 @@ async function runUpsertCorpusChunk(
       ${metadata}::jsonb,
       ${v.ingestedAt.toISOString()}::timestamptz
     )
-    ON CONFLICT (source_file, section) DO UPDATE
+    ON CONFLICT (COALESCE(tenant_id, ''), source_file, COALESCE(section, '')) DO UPDATE
       SET text = EXCLUDED.text,
           embedding = EXCLUDED.embedding,
-          tenant_id = EXCLUDED.tenant_id,
           language = EXCLUDED.language,
           metadata = EXCLUDED.metadata,
           ingested_at = EXCLUDED.ingested_at

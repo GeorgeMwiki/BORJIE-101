@@ -36,6 +36,7 @@ import type { CompositionDeps, WireProbeFn } from '@borjie/cognitive-composition
 import {
   wireCognitive,
   enrichBrainTurnWithCognitive,
+  observeBrainTurnMemory,
   createCognitiveContextMiddleware,
   __testables,
   type WiredCognitive,
@@ -622,5 +623,107 @@ describe('graceful degradation', () => {
     });
     expect(result.enrichedSystemPrompt).toBe('');
     expect(result.citations.length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// MEM-02 — the live observe() WRITER. Before this, the brain turn only
+// recalled; nothing wrote a cell so the store stayed empty. These tests prove
+// the writer accrues memory AND that a subsequent recall reads it back —
+// closing the read/write loop.
+// ---------------------------------------------------------------------------
+
+describe('observeBrainTurnMemory (MEM-02 — the live writer)', () => {
+  it('writes a cell on a completed turn and recall reads it back', async () => {
+    const wired = wireCognitive({ db: null, logger: silentLogger() });
+    const cellId = await observeBrainTurnMemory({
+      wired,
+      tenantId: TEST_TENANT,
+      userText: 'What is the royalty rate for gold in Tanzania?',
+      responseText: 'The gold royalty rate is 6% of gross value.',
+      specialisation: 'mr-mwikila',
+      turnId: 'turn-1',
+    });
+    expect(cellId).not.toBeNull();
+    expect(typeof cellId).toBe('string');
+
+    // The recall side now finds the just-observed cell — the read/write loop
+    // is closed (it returned empty before the writer existed).
+    const cm = wired.cognitiveMemory;
+    expect(cm).not.toBeNull();
+    const recalled = await cm!.recall({
+      tenant_id: TEST_TENANT,
+      scope_id: 'tenant_root',
+      intent: 'gold royalty rate Tanzania',
+      limit: 5,
+    });
+    expect(recalled.length).toBeGreaterThan(0);
+    expect(recalled.some((r) => r.cell.id === cellId)).toBe(true);
+  });
+
+  it('returns null when the cognitive-memory slot is degraded', async () => {
+    const degraded: WiredCognitive = Object.freeze({
+      cognitiveMemory: null,
+      persistent: null,
+      composition: null,
+      isLive: false,
+    });
+    const cellId = await observeBrainTurnMemory({
+      wired: degraded,
+      tenantId: TEST_TENANT,
+      userText: 'hello',
+      responseText: 'hi',
+    });
+    expect(cellId).toBeNull();
+  });
+
+  it('returns null (no write) on empty user or answer text', async () => {
+    const wired = wireCognitive({ db: null, logger: silentLogger() });
+    expect(
+      await observeBrainTurnMemory({
+        wired,
+        tenantId: TEST_TENANT,
+        userText: '   ',
+        responseText: 'an answer',
+      }),
+    ).toBeNull();
+    expect(
+      await observeBrainTurnMemory({
+        wired,
+        tenantId: TEST_TENANT,
+        userText: 'a question',
+        responseText: '',
+      }),
+    ).toBeNull();
+  });
+
+  it('never throws when observe fails — returns null', async () => {
+    const base = wireCognitive({ db: null, logger: silentLogger() });
+    const sabotaged: WiredCognitive = Object.freeze({
+      ...base,
+      cognitiveMemory:
+        base.cognitiveMemory === null
+          ? null
+          : Object.freeze({
+              ...base.cognitiveMemory,
+              observe: async (): Promise<never> => {
+                throw new Error('synthetic observe failure');
+              },
+            }),
+    });
+    const cellId = await observeBrainTurnMemory({
+      wired: sabotaged,
+      tenantId: TEST_TENANT,
+      userText: 'q',
+      responseText: 'a',
+    });
+    expect(cellId).toBeNull();
+  });
+
+  it('caps the observed content length (buildObservedContent)', () => {
+    const long = 'x'.repeat(5000);
+    const content = __testables.buildObservedContent('user q', long);
+    expect(content.length).toBeLessThanOrEqual(__testables.OBSERVE_MAX_CHARS);
+    expect(content.startsWith('User asked: user q')).toBe(true);
   });
 });

@@ -267,12 +267,19 @@ async function annSearch(
     const tenantSql = tenantId
       ? sql`(tenant_id IS NULL OR tenant_id = ${tenantId})`
       : sql`tenant_id IS NULL`;
+    // KI-07: the column is `text` (drizzle/0003:955) — the previous
+    // `SELECT ... chunk_text` referenced a non-existent column, so this
+    // query threw and the catch silently degraded EVERY semantic lookup to
+    // the ILIKE keyword fallback. KI-08: the embedding indexes use
+    // `vector_cosine_ops` (drizzle/0003 ivfflat + 0012 hnsw), so the
+    // distance operator MUST be `<=>` (cosine) — `<->` (L2) would not use
+    // the cosine index (seq scan) and would rank by the wrong metric.
     const queryText = sql`
-      SELECT id, source_file, section, chunk_text, url
+      SELECT id, source_file, section, text, url
         FROM intelligence_corpus_chunks
        WHERE ${tenantSql}
          AND embedding IS NOT NULL
-       ORDER BY embedding <-> ${vecLiteral}::vector
+       ORDER BY embedding <=> ${vecLiteral}::vector
        LIMIT ${limit}
     `;
     const raw: unknown = await db.execute!(queryText);
@@ -281,7 +288,7 @@ async function annSearch(
       : (((raw as { rows?: ReadonlyArray<Record<string, unknown>> })?.rows) ?? []);
     return rows.map((row) => ({
       id: String(row.id ?? ''),
-      text: String(row.chunk_text ?? row.text ?? ''),
+      text: String(row.text ?? ''),
       sourceFile: String(row.source_file ?? ''),
       url: typeof row.url === 'string' ? row.url : null,
     }));

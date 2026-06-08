@@ -11,7 +11,6 @@
  *   pnpm tsx services/consolidation-worker/src/tasks/borjie-corpus-cli.ts
  */
 
-import { join } from 'node:path';
 import {
   createDrizzleCorpusSink,
   createLogSink,
@@ -26,17 +25,8 @@ import {
   type IngestReport,
   type WorkerLogger,
 } from './borjie-corpus-ingest.js';
+import { resolveCorpusRoots } from './corpus-roots.js';
 import { logger as pinoLogger } from '../logger.js';
-
-const DEFAULT_DOCS_ROOT =
-  process.env.BORJIE_DOCS_ROOT ??
-  '/Users/georgesmackbookair/Desktop/CLAUDE_CURSOR_CODEX PROJECTS/Claude Projects/Boji project/Docs';
-
-const DEFAULT_CORPUS_ROOTS = [
-  join(DEFAULT_DOCS_ROOT, 'primary_sources'),
-  join(DEFAULT_DOCS_ROOT, 'research'),
-  join(DEFAULT_DOCS_ROOT, 'research', 'minerals'),
-];
 
 export interface CliOptions {
   readonly corpusRoots?: ReadonlyArray<string>;
@@ -47,12 +37,15 @@ export interface CliOptions {
 
 export async function main(opts: CliOptions = {}): Promise<IngestReport> {
   const logger: WorkerLogger = opts.logger ?? pinoLogger;
-  const corpusRoots = opts.corpusRoots ?? DEFAULT_CORPUS_ROOTS;
+  const corpusRoots = opts.corpusRoots ?? resolveCorpusRoots();
   const embedder = opts.embedder ?? resolveEmbedder(logger);
   const sink = opts.db
     ? createDrizzleCorpusSink(opts.db)
     : await resolveSink(logger);
-  return ingestCorpus({ corpusRoots, sink, embedder, logger });
+  // FAIL LOUD on a dead corpus path (KI-01): a zero-file scan throws an
+  // EmptyCorpusError so the CLI's catch handler exits non-zero instead of
+  // silently reporting `filesScanned:0` + exit-0.
+  return ingestCorpus({ corpusRoots, sink, embedder, logger, failOnZeroFiles: true });
 }
 
 function resolveEmbedder(logger: WorkerLogger): Embedder {
