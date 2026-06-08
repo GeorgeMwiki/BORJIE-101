@@ -389,3 +389,28 @@ INVISIBILITY: all of this is backend. The user ONLY chats with the persona (Mr. 
 as if a real veteran MD is behind a laptop thinking/responding/doing. No blockers within
 the mandate; expert on everything in the mandate; super-intelligent but STRUCTURED.
 Same kernel for BossNyumba (real-estate-deep). Rails: money/licence/deletion stay HITL.
+
+---
+
+## INV-D (sharpened) · THINK *and* ACT — the kernel is not handicapped
+The cognitive kernel is perceive -> orient -> organize -> create -> EXECUTE-to-closure -> learn.
+EXECUTE is REAL AGENCY: the MD actually DOES (files-prep, assigns, sends, settles, builds
+organs, runs loops, generates), gated by the rails (money/licence/deletion stay HITL) and the
+autonomy posture (autonomous where reversible + granted; gated otherwise) — but NEVER
+artificially handicapped. A kernel that thinks but cannot act is a failure. Within the
+mandate + rails, the MD can do anything and everything.
+
+## INV-E · Organ lifecycle + deletion governance (grounded, gated, archive-first, compliance-safe)
+Self-built organs flow draft -> shadow -> canary -> live -> deprecated -> archived. DELETION
+is on the inviolable HITL rail — NEVER autonomous. The MD may only PROPOSE retiring an organ
+after GROUNDED, evidence-cited reasoning passing the applicable tests:
+  - truly a DUPLICATE of a live organ (semantic + functional), OR
+  - genuinely NOT-CAPTURED / unreferenced anywhere AND superseded, OR
+  - an OLD VERSION fully replaced by a newer live one, OR
+  - provably will NEVER be useful again, OR
+  - cheaply + deterministically REGENERABLE on demand (delete saves more than it risks).
+DEFAULT = ARCHIVE/DEPRECATE (reversible), NOT hard DELETE. Hard delete requires ALL of:
+explicit human approval + NO statutory-retention / legal-hold obligation (royalty, licence,
+audit-chain, financial, KYC records have retention) + an audit-chain entry + a restorable or
+regenerable path. NEVER auto-touch anything with audit/financial/licence/royalty/legal
+significance. Failure mode prevented: "compliance issues fast." Same governance both repos.
