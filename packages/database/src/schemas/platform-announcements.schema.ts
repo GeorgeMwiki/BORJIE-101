@@ -8,7 +8,10 @@
  * rollback path flips `status='retracted'` and (asynchronously) sends a
  * retraction follow-up via the existing notification-dispatch.
  *
- * Migration 0139. Companion adapter is
+ * Migrations: 0303b CREATEs the table (back-filled — the original CREATE was
+ * lost during the property→mining migration; the long-standing "0139" citation
+ * here was wrong — 0139 is device_push_tokens); 0304 adds `fanned_out_at`.
+ * Companion adapter is
  * `packages/database/src/services/platform/announcement.service.ts`.
  */
 import {
