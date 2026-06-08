@@ -659,3 +659,21 @@ Construction / orchestration build waves. Same both repos.
 - RUNTIME AGENT HIRING (bounded): a competence gap -> meta-rail composes a junior (self-extension.ts),
   registers it as a blackboard knowledge-source, uses it, LRU-evicts idle ones — uncapped nodes (INV-G)
   without unbounded cost.
+
+---
+
+## TEST = PAYING mandate (standing quality bar, owner directive)
+EVERY test user is a real PAYING user. Therefore, both repos:
+- NO stubs/mocks/placeholders/degraded-fallbacks in any USER-FACING path — replace with REAL
+  implementations (real document renderers Carbone/Typst/Puppeteer, real media providers where
+  keyed, real durable execution, real corpus ingestion). A stub in a user path is a BUG to fix.
+- FLAG-DEFAULT-OFF is a transient ROLLOUT state, NOT the destination. Every capability we build
+  must reach "flag ON + verified working END-TO-END for a real user." We never ship a dark feature.
+- EVERY user-facing FLOW works end-to-end for a real paying user (onboarding, chat, forecast,
+  document, payment, marketplace, workforce) — no blocked flows, no test-only shortcuts.
+- EXTERNAL integrations (M-Pesa Daraja B2C/C2B, WhatsApp, KMS, TSFM/media provider keys, Redis,
+  TRA/Tume-ya-Madini) are WIRED + ready. Where a real account/key is required it is an EXPLICIT
+  founder-provisioning item with an HONEST user-facing state ("needs M-Pesa credentials"),
+  NEVER a silent fake-success or silent degrade.
+- The DRIVE_TO_ZERO debt register MUST list every stub/mock/degraded-fallback as a must-fix, and
+  every shipped capability must end at flag-ON-and-verified, not flag-OFF.
