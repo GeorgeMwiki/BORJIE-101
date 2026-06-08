@@ -97,6 +97,22 @@ export {
   type LlmTieBreakPort,
 } from './modality-arbiter-types.js';
 
+// K-7 (honesty unblock) — the REAL confidence / evidence / conformal-
+// abstention scorer over a finished answer. The orchestrator main-loop
+// attaches the verdict on `answer.honesty` (always) and rewrites the
+// surfaced text to an honest abstention/hedge when `honestConfidence` is
+// on (default-OFF). The internal audit reasons must NEVER reach a client
+// frame (INV-H/INV-D) — only the hedge/abstention status.
+export {
+  scoreHonestConfidence,
+  DEFAULT_HONEST_ABSTAIN_FLOOR,
+  DEFAULT_HONEST_HEDGE_FLOOR,
+  type HonestVerdict,
+  type HonestStatus,
+  type HonestConfidenceInput,
+  type HonestFloors,
+} from './honest-confidence.js';
+
 // Budget primitives.
 export {
   Budget,

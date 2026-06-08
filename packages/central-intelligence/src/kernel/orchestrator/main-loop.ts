@@ -74,6 +74,16 @@ import type {
   ModalityArbiter,
   ModalityVerdict,
 } from './modality-arbiter-types.js';
+// K-7 (the honesty unblock) — the REAL confidence/gate/conformal-abstention
+// scorer. Computed over the finished answer so the response carries the
+// TRUE confidence instead of the hard-stamped `confidence = 1`. Default-OFF
+// at the surface (the verdict is ATTACHED for telemetry always; only the
+// answer TEXT is rewritten when `deps.honestConfidence` is on).
+import {
+  scoreHonestConfidence,
+  type HonestVerdict,
+  type HonestFloors,
+} from './honest-confidence.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public request / response shapes
@@ -159,6 +169,16 @@ export type OrchestratorResponse =
       readonly turnsUsed: number;
       readonly citations: ReadonlyArray<Citation>;
       readonly artifacts: ReadonlyArray<Artifact>;
+      /**
+       * K-7 (honesty unblock). The REAL confidence/gate/abstention verdict
+       * computed over THIS answer. Always attached (telemetry); the answer
+       * `text` is only rewritten to a hedge/abstention when
+       * `OrchestratorDeps.honestConfidence` is on. OPTIONAL + readonly so
+       * every existing pattern-match on this union (kernel.ts translator,
+       * the streaming bridge) compiles unchanged. The CALLER must surface
+       * only `honesty.status` — never the audit reasons (INV-H/INV-D).
+       */
+      readonly honesty?: HonestVerdict;
     }
   | {
       readonly kind: 'ask-approval';
@@ -320,6 +340,24 @@ export interface OrchestratorDeps {
    * relax a rail; money/licence/deletion stay dual-control HITL.
    */
   readonly modalityArbiter?: ModalityArbiter;
+  /**
+   * K-7 (the honesty unblock). When `true`, the loop REWRITES a finished
+   * answer's surfaced TEXT to an honest abstention/hedge when the real
+   * confidence/evidence/conformal scorer says the answer is ungrounded or
+   * under-calibrated. Default-OFF / absent → the answer text is surfaced
+   * EXACTLY as today (byte-identical), but the honest verdict is STILL
+   * attached on `answer.honesty` for telemetry, so production flips this
+   * one flag (`BORJIE_HONEST_CONFIDENCE`, resolved at the composition
+   * root) to switch the surfaced persona from overconfident-by-construction
+   * to honestly-calibrated. The verdict's audit reasons are NEVER surfaced
+   * to a client frame (INV-H/INV-D) — only the hedge/abstention status.
+   */
+  readonly honestConfidence?: boolean;
+  /**
+   * K-7 — optional override of the conformal / hedge / abstain floors. When
+   * omitted the honest scorer uses its conservative defaults.
+   */
+  readonly honestFloors?: HonestFloors;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -362,6 +400,81 @@ export function narrowToLegacyResponse(
     default:
       return response;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// K-7 (honesty unblock) — finalize an answer with the REAL confidence /
+// evidence / conformal-abstention signal. This is the structural fix for
+// the kernel translator's hard-stamp (`confidence = 1` / `gates = pass`):
+// the verdict is ALWAYS attached on `answer.honesty` (telemetry, and so a
+// downstream surface can read the TRUE confidence), and when
+// `deps.honestConfidence` is on the answer TEXT is rewritten to an honest
+// abstention / hedge so the persona stops asserting things it cannot
+// ground. Default-OFF preserves byte-identical surfaced text.
+//
+// NO LEAK (INV-H/INV-D): the rewritten text is a plain, single-language
+// caveat — it never embeds the gate reasoning, the conformal α, or the
+// confidence vector. Those live only on `honesty.auditReasons` (audit
+// plane), which the kernel translator already discards.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Honest hedge / abstention copy. English-only (EN/SW purity: the locale
+ *  layer above re-renders; we never mix languages in one string). */
+const HONEST_ABSTAIN_TEXT =
+  "I'm not confident enough to answer that reliably — I don't have grounded " +
+  'evidence to stand behind a specific answer here, so I would rather not guess. ' +
+  'Let me gather the underlying records first.';
+
+const HONEST_HEDGE_PREFIX =
+  'I want to flag that I am not fully certain about this — please treat it as a ' +
+  'best read rather than a confirmed answer:\n\n';
+
+function finalizeAnswer(
+  raw: {
+    readonly text: string;
+    readonly turnsUsed: number;
+    readonly citations: ReadonlyArray<Citation>;
+    readonly artifacts: ReadonlyArray<Artifact>;
+  },
+  req: OrchestratorRequest,
+  deps: OrchestratorDeps,
+): Extract<OrchestratorResponse, { kind: 'answer' }> {
+  const honesty = scoreHonestConfidence(
+    {
+      outputText: raw.text,
+      citations: raw.citations,
+      // Only thread the flag when the caller set it — `exactOptionalProperty
+      // Types` forbids an explicit `undefined`. Absent → the scorer's
+      // evidence-required default (true).
+      ...(req.evidenceRequired !== undefined
+        ? { evidenceRequired: req.evidenceRequired }
+        : {}),
+    },
+    deps.honestFloors ?? {},
+  );
+
+  // Default-OFF: attach the verdict for telemetry but surface text as-is.
+  if (!deps.honestConfidence) {
+    return { kind: 'answer', ...raw, honesty };
+  }
+
+  // Surfaced honest mode: rewrite the text to match the honest status.
+  let text = raw.text;
+  if (honesty.status === 'abstain') {
+    text = HONEST_ABSTAIN_TEXT;
+  } else if (honesty.status === 'hedge') {
+    text = `${HONEST_HEDGE_PREFIX}${raw.text}`;
+  }
+
+  if (honesty.status !== 'answer') {
+    deps.logger?.info?.('honest-confidence: downgraded surfaced answer', {
+      threadId: req.threadId,
+      status: honesty.status,
+      overall: honesty.confidence.overall,
+    });
+  }
+
+  return { kind: 'answer', ...raw, text, honesty };
 }
 
 /**
@@ -1167,13 +1280,18 @@ export async function thinkExtended(
       // LP-07 — `outcome` + `learning` stages for a clean answer.
       await stages.outcome('answer', stepIndex);
       await stages.learning('success');
-      return {
-        kind: 'answer',
-        text: toRun.text,
-        turnsUsed: budget.snapshot().usage.turns,
-        citations: citations.snapshot(),
-        artifacts: [],
-      };
+      // K-7 — finalize with the REAL confidence/evidence/conformal signal
+      // (default-OFF surface: text unchanged, verdict attached for telemetry).
+      return finalizeAnswer(
+        {
+          text: toRun.text,
+          turnsUsed: budget.snapshot().usage.turns,
+          citations: citations.snapshot(),
+          artifacts: [],
+        },
+        req,
+        deps,
+      );
     }
     if (toRun.kind === 'schedule_wake') {
       return {
@@ -1228,13 +1346,17 @@ export async function thinkExtended(
   // LP-07 — loop completed without an explicit respond/final decision.
   await stages.outcome('answer', stepIndex);
   await stages.learning(lastText.length > 0 ? 'success' : 'partial');
-  return {
-    kind: 'answer',
-    text: lastText,
-    turnsUsed: snapshot.usage.turns,
-    citations: citations.snapshot(),
-    artifacts: [],
-  };
+  // K-7 — finalize with the REAL confidence/evidence/conformal signal.
+  return finalizeAnswer(
+    {
+      text: lastText,
+      turnsUsed: snapshot.usage.turns,
+      citations: citations.snapshot(),
+      artifacts: [],
+    },
+    req,
+    deps,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────

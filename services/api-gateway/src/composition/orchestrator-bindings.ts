@@ -59,6 +59,8 @@ import {
   decideAutonomy,
   composeWithRail,
   type DecideAutonomyInput,
+  type RailOutcome,
+  type MetaRailOutcome,
 } from '@borjie/autonomy-governance';
 
 /**
@@ -86,8 +88,11 @@ export interface SovereignLedgerServiceLike {
 }
 import {
   orchestrator,
+  checkBodyChangeInviolable,
   type ApprovalGate,
   type BrainToolRegistry,
+  type BodyChangeDescriptor,
+  type BodyChangeKind,
 } from '@borjie/central-intelligence';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1087,23 +1092,182 @@ export function buildAutonomyDecider(): AutonomyDeciderPort {
   };
 }
 
+type ArbiterBodyChangeRequest = orchestrator.BodyChangeRequest;
+type ArbiterBodyChangeVerdict = orchestrator.BodyChangeVerdict;
+
 /**
- * Body-change syscall adapter (EA-04 meta-rail). A real
- * `@borjie/mutation-authority` `authorizeBodyChange` is not wired at this
- * seam yet; until it is, capability-growth is DENIED (fail-closed) so the
- * arbiter never persists a new skill/tab/workflow without explicit
- * human-gated authorization. This is the safe default: the arbiter falls
- * back to `chat` rather than growing the body unsupervised.
+ * Map the arbiter's three body-change kinds onto the kernel meta-rail's
+ * `BodyChangeKind` lattice. `register_skill` / `register_workflow` GROW a
+ * capability (`capability-add`); `spawn_tab` adds a surface (`ui-add`).
+ * Both are L1/L2 governed self-redesign — never an L3 self-model edit, so
+ * they are reversible DATA patches by construction.
  */
-export function buildBodyChangePort(): BodyChangePort {
+function mapBodyChangeKind(kind: ArbiterBodyChangeRequest['kind']): BodyChangeKind {
+  switch (kind) {
+    case 'spawn_tab':
+      return 'ui-add';
+    case 'register_skill':
+    case 'register_workflow':
+    default:
+      return 'capability-add';
+  }
+}
+
+/**
+ * Sovereign / money / licence / deletion target detector. A body-change
+ * whose subject or reason names one of these is NEVER reversible
+ * construction — it is a HIGH-risk policy-prefix action that must stay
+ * dual-control HITL forever (CLAUDE.md inviolable floor). We force the
+ * rail outcome to `four_eyes` so `composeWithRail` can only ever escalate,
+ * never authorize. Broad + conservative on purpose (fail-closed).
+ */
+const SOVEREIGN_TARGET_PATTERNS: ReadonlyArray<RegExp> = [
+  /\bsovereign\b/i,
+  /\bkill[- ]?switch\b/i,
+  /\bfour[- ]?eye/i,
+  /\bpolicy[- ]?rollout\b/i,
+  /\bmoney\b/i,
+  /\bpayment/i,
+  /\bpayout/i,
+  /\bdisburse/i,
+  /\bledger\b/i,
+  /\broyalty\b/i,
+  /\bfx\b/i,
+  /\btreasur/i,
+  /\blicen[cs]e/i,
+  /\bpermit\b/i,
+  /\bdelet/i,
+  /\bdestroy\b/i,
+  /\bpurge\b/i,
+  /\bremov/i,
+  /\brls\b/i,
+  /\baudit[- ]?chain\b/i,
+];
+
+function namesSovereignTarget(req: ArbiterBodyChangeRequest): boolean {
+  const haystacks = [req.subjectId ?? '', req.reason ?? ''];
+  for (const h of haystacks) {
+    if (typeof h !== 'string') return true; // malformed → fail-closed
+    for (const re of SOVEREIGN_TARGET_PATTERNS) {
+      if (re.test(h)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Body-change syscall adapter (K-1 / EA-04 meta-rail) — the single highest-
+ * leverage weld. This was a fail-closed DENY-STUB, which made every
+ * capability-growth path silently fall back to `chat`. It now composes the
+ * REAL gated decision:
+ *
+ *   composeWithRail(
+ *     railOutcome,                          // sovereign/money/licence ⇒ four_eyes
+ *     decideAutonomy({ reversible, low, granted-mandate }),
+ *     checkBodyChangeInviolable(descriptor) // forbid ⇒ four_eyes (binding)
+ *   )
+ *
+ * A REVERSIBLE construction (register_skill / register_workflow / spawn_tab)
+ * that the meta-rail allows and the rail does not gate → composed decision
+ * `auto` → AUTHORIZED. Anything the meta-rail forbids, or whose subject/
+ * reason names a money / licence / deletion / sovereign target, composes to
+ * `gate` / `four_eyes` → NOT authorized (HITL). The composition is monotone-
+ * most-cautious, so this can ONLY add gating — it can never relax a rail.
+ *
+ * Default-OFF (`BORJIE_BODY_CHANGE` unset / falsey): the original deny-stub
+ * is returned UNCHANGED, so this lands inert (today's behaviour). Flipping
+ * the flag to a truthy value grants the construction mandate and turns on
+ * the real gated authorizer. The flag IS the grant of the reversible-
+ * construction mandate; money/licence/deletion/sovereign stay HITL
+ * regardless (the rail forces `four_eyes`).
+ */
+export function buildBodyChangePort(
+  args: {
+    readonly env?: Readonly<Record<string, string | undefined>>;
+    readonly logger?: BindingsLogger;
+  } = {},
+): BodyChangePort {
+  const env = args.env ?? process.env;
+  const logger = args.logger;
+  const flag = (env.BORJIE_BODY_CHANGE ?? '').trim().toLowerCase();
+  const enabled = flag === '1' || flag === 'true' || flag === 'on' || flag === 'yes';
+
+  // Default-OFF — the original deny-stub, byte-identical to before.
+  if (!enabled) {
+    return {
+      async authorizeBodyChange(req) {
+        return {
+          authorized: false,
+          reason:
+            `body-change syscall disabled (BORJIE_BODY_CHANGE off; ${req.kind}); ` +
+            'capability growth requires explicit human-gated authorization',
+        };
+      },
+    };
+  }
+
   return {
-    async authorizeBodyChange(req) {
-      return {
-        authorized: false,
-        reason:
-          `body-change syscall not wired at this seam (${req.kind}); ` +
-          'capability growth requires explicit human-gated authorization',
+    async authorizeBodyChange(
+      req: ArbiterBodyChangeRequest,
+    ): Promise<ArbiterBodyChangeVerdict> {
+      // ── 1. the deterministic, fail-closed meta-rail over a structured
+      // descriptor (never over free-form intent). A `forbid` is binding.
+      const descriptor: BodyChangeDescriptor = {
+        kind: mapBodyChangeKind(req.kind),
+        targetNodeId: req.subjectId || `body-change:${req.kind}`,
+        summary: req.reason,
       };
+      const metaRailVerdict = checkBodyChangeInviolable(descriptor);
+      const metaRail: MetaRailOutcome =
+        metaRailVerdict.status === 'forbid' ? 'forbid' : 'allow';
+
+      // ── 2. the collapsed rail outcome. A sovereign / money / licence /
+      // deletion target is HIGH-risk-prefix HITL forever → `four_eyes`.
+      // Everything else is a reversible construction the rail does not gate.
+      const railOutcome: RailOutcome = namesSovereignTarget(req)
+        ? 'four_eyes'
+        : 'allow';
+
+      // ── 3. the continuous controller for a REVERSIBLE construction. The
+      // flag-grant gives a `collaborator` mandate (L2: broad auto for
+      // reversible/low-consequence; gate the irreversible tail). Reversible
+      // + low-consequence + high calibrated confidence ⇒ the controller
+      // proposes `auto`; the rail / meta-rail above can only escalate it.
+      const controllerInput: DecideAutonomyInput = {
+        calibratedConfidence: 0.95,
+        consequenceTier: 'low',
+        reversibility: 'reversible',
+        mandate: 'collaborator',
+      };
+      const controller = decideAutonomy(controllerInput);
+
+      // ── 4. compose — most-cautious of rail, controller, meta-rail.
+      const composed = composeWithRail(railOutcome, controller, metaRail);
+
+      const authorized = composed.decision === 'auto';
+      const reason = authorized
+        ? `body-change authorized (${req.kind}; reversible construction, ` +
+          `meta-rail allow, rail allow) → auto`
+        : `body-change gated (${req.kind}; decision='${composed.decision}', ` +
+          `metaRail='${metaRail}'${
+            metaRailVerdict.reason ? ` [${metaRailVerdict.reason}]` : ''
+          }, rail='${railOutcome}') → HITL`;
+
+      // Audit breadcrumb. NEVER surfaced to a client frame — the arbiter
+      // only reads `authorized`.
+      logger?.info?.(
+        {
+          kind: req.kind,
+          tenantId: req.tenantId,
+          decision: composed.decision,
+          metaRail,
+          railOutcome,
+          authorized,
+        },
+        'body-change: meta-rail authorization',
+      );
+
+      return { authorized, reason };
     },
   };
 }
