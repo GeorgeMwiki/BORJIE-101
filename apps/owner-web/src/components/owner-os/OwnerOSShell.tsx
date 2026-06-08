@@ -61,7 +61,6 @@ import {
   spawnPayloadToTab,
   type TabProposalPayload,
   type TabTagErrorPayload,
-  type GenuiTabProposalPayload,
 } from '@/lib/tab-sse-parser';
 import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import { apiRequest } from '@/lib/api-client';
@@ -116,6 +115,7 @@ export function OwnerOSShell({
     activeTabId,
     activeTab,
     open,
+    openBackground,
     spawnOrAugment,
     close,
     focus,
@@ -134,11 +134,16 @@ export function OwnerOSShell({
   const [proposals, setProposals] = useState<ReadonlyArray<TabProposalPayload>>(
     [],
   );
-  // Portal-genui proposals (carry a full MD-authored PortalTab). Kept
-  // separate from registry proposals: accepting one persists the tab then
-  // opens a dynamic `genui` tab rendered by GenUITabHost.
-  const [genuiProposals, setGenuiProposals] = useState<
-    ReadonlyArray<GenuiTabProposalPayload>
+  // Truly chat-first: genui tabs spawn in the BACKGROUND from what the owner
+  // explored in chat (persist + land in the strip without stealing focus from
+  // the conversation). We keep a short "recently opened from chat" notice list
+  // with Open + Undo so the spawn is transparent without gating the chat.
+  const [spawnedNotices, setSpawnedNotices] = useState<
+    ReadonlyArray<{
+      readonly proposalId: string;
+      readonly title: string;
+      readonly tabId: string;
+    }>
   >([]);
   const [tabErrors, setTabErrors] = useState<
     ReadonlyArray<{ readonly key: string; readonly payload: TabTagErrorPayload }>
@@ -280,13 +285,41 @@ export function OwnerOSShell({
             );
           },
           onGenuiProposal: (p) => {
-            // MD authored a full dynamic tab — preview it as a chip showing
-            // its real shape (sections · fields). Accept persists + opens it.
-            setGenuiProposals((prev) =>
-              prev.some((x) => x.proposalId === p.proposalId)
-                ? prev
-                : [...prev, p].slice(-4),
-            );
+            // TRULY CHAT-FIRST: the MD authored a full dynamic tab from what
+            // the owner explored in chat. Spawn it in the BACKGROUND (persist
+            // + land in the strip with a pulse, never stealing focus from the
+            // conversation), then drop a transparent "opened from chat" notice
+            // with Undo. The owner keeps talking; they find the tab when they
+            // leave chat.
+            const label =
+              p.title.length > 28 ? `${p.title.slice(0, 25)}…` : p.title;
+            void (async () => {
+              let portalTabId = p.tabId;
+              try {
+                const saved = await apiRequest<{ id: string; tabKey: string }>(
+                  '/api/v1/portal-genui/tabs',
+                  { method: 'POST', body: { tab: p.tab } },
+                );
+                portalTabId = saved?.id ?? p.tabId;
+              } catch {
+                // Persist failed (offline / key conflict) — still surface the
+                // tab so chat-first never loses what the owner explored.
+              }
+              openBackground({
+                id: portalTabId,
+                kind: 'genui',
+                title: label,
+                context: { portalTabId },
+              });
+              setSpawnedNotices((prev) =>
+                prev.some((x) => x.proposalId === p.proposalId)
+                  ? prev
+                  : [
+                      ...prev,
+                      { proposalId: p.proposalId, title: label, tabId: portalTabId },
+                    ].slice(-4),
+              );
+            })();
           },
           onError: (p) => {
             // A tab tag didn't apply (unknown type / validation). Surface
@@ -297,7 +330,14 @@ export function OwnerOSShell({
           },
         },
       }),
-    [languagePreference, spawnOrAugment, patchState, rename, close],
+    [
+      languagePreference,
+      spawnOrAugment,
+      patchState,
+      rename,
+      close,
+      openBackground,
+    ],
   );
 
   // Accept a brain proposal → route through the same registry path as a
@@ -323,46 +363,23 @@ export function OwnerOSShell({
     setProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
   }, []);
 
-  // Accept a portal-genui proposal: PERSIST the generated tab server-side
-  // (the gateway re-validates + re-scopes the tenant), then OPEN a dynamic
-  // `genui` tab keyed by the persisted id. GenUITabHost fetches it by id.
-  // The chip drops optimistically and re-surfaces on failure so the owner
-  // can retry — we never silently swallow a generated tab.
-  const acceptGenuiProposal = useCallback(
-    async (proposal: GenuiTabProposalPayload) => {
-      setGenuiProposals((prev) =>
-        prev.filter((x) => x.proposalId !== proposal.proposalId),
+  // A background-spawned genui tab notice → focus it (the store clears its
+  // pulse on focus). Undo closes the tab + drops the notice. Dismiss just
+  // drops the notice (tab stays — the owner can still find it in the strip).
+  const openSpawned = useCallback((tabId: string) => focus(tabId), [focus]);
+  const undoSpawned = useCallback(
+    (notice: { readonly proposalId: string; readonly tabId: string }) => {
+      close(notice.tabId);
+      setSpawnedNotices((prev) =>
+        prev.filter((n) => n.proposalId !== notice.proposalId),
       );
-      try {
-        const saved = await apiRequest<{ id: string; tabKey: string }>(
-          '/api/v1/portal-genui/tabs',
-          { method: 'POST', body: { tab: proposal.tab } },
-        );
-        const portalTabId = saved?.id ?? proposal.tabId;
-        const label =
-          proposal.title.length > 28
-            ? `${proposal.title.slice(0, 25)}…`
-            : proposal.title;
-        open({
-          id: portalTabId,
-          kind: 'genui',
-          title: label,
-          context: { portalTabId },
-        });
-      } catch {
-        // Re-surface so the owner can retry — generation is never lost.
-        setGenuiProposals((prev) =>
-          prev.some((x) => x.proposalId === proposal.proposalId)
-            ? prev
-            : [...prev, proposal].slice(-4),
-        );
-      }
     },
-    [open],
+    [close],
   );
-
-  const dismissGenuiProposal = useCallback((proposalId: string) => {
-    setGenuiProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
+  const dismissNotice = useCallback((proposalId: string) => {
+    setSpawnedNotices((prev) =>
+      prev.filter((n) => n.proposalId !== proposalId),
+    );
   }, []);
 
   const dismissTabError = useCallback((key: string) => {
@@ -688,7 +705,7 @@ export function OwnerOSShell({
       ) : null}
 
       {proposals.length > 0 ||
-      genuiProposals.length > 0 ||
+      spawnedNotices.length > 0 ||
       tabErrors.length > 0 ? (
         <div
           data-testid="owner-os-proposal-tray"
@@ -745,68 +762,55 @@ export function OwnerOSShell({
               </div>
             );
           })}
-          {genuiProposals.map((p) => {
-            const isGeneric = p.generationSource !== 'llm';
-            return (
-              <div
-                key={p.proposalId}
-                data-testid={`owner-os-genui-proposal-${p.proposalId}`}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2"
-              >
-                <Sparkles
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 shrink-0 text-warning"
-                />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-warning">
-                    <span className="truncate">{p.title}</span>
-                    {isGeneric ? (
-                      <span className="shrink-0 rounded-full border border-border bg-surface px-1.5 text-tiny font-medium text-neutral-400">
-                        {languagePreference === 'sw'
-                          ? 'Kiolezo cha jumla'
-                          : 'Generic template'}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="truncate text-tiny text-neutral-400">
-                    {p.reason}
-                  </span>
-                  <span className="text-tiny text-neutral-500">
-                    {languagePreference === 'sw'
-                      ? `Sehemu ${p.summary.sectionCount} · sehemu za kujaza ${p.summary.fieldCount}`
-                      : `${p.summary.sectionCount} section${
-                          p.summary.sectionCount === 1 ? '' : 's'
-                        } · ${p.summary.fieldCount} field${
-                          p.summary.fieldCount === 1 ? '' : 's'
-                        }`}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void acceptGenuiProposal(p);
-                  }}
-                  data-testid={`owner-os-genui-accept-${p.proposalId}`}
-                  className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
-                >
-                  <Check aria-hidden="true" className="h-3 w-3" />
-                  {languagePreference === 'sw' ? 'Tengeneza' : 'Create'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => dismissGenuiProposal(p.proposalId)}
-                  aria-label={
-                    languagePreference === 'sw'
-                      ? 'Ondoa pendekezo'
-                      : 'Dismiss proposal'
-                  }
-                  className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
-                >
-                  <X aria-hidden="true" className="h-3 w-3" />
-                </button>
+          {spawnedNotices.map((n) => (
+            <div
+              key={n.proposalId}
+              data-testid={`owner-os-genui-spawned-${n.proposalId}`}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-3 py-2"
+            >
+              <Sparkles
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 text-success"
+              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-semibold text-success">
+                  {languagePreference === 'sw'
+                    ? `Nimekufungulia "${n.title}" kutoka kwenye gumzo`
+                    : `Opened "${n.title}" from your chat`}
+                </span>
+                <span className="truncate text-tiny text-neutral-400">
+                  {languagePreference === 'sw'
+                    ? 'Kipo kwenye mstari wa vichupo — endelea kuongea.'
+                    : "It's in your tab strip — keep chatting."}
+                </span>
               </div>
-            );
-          })}
+              <button
+                type="button"
+                onClick={() => openSpawned(n.tabId)}
+                data-testid={`owner-os-genui-open-${n.proposalId}`}
+                className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
+              >
+                <Check aria-hidden="true" className="h-3 w-3" />
+                {languagePreference === 'sw' ? 'Fungua' : 'Open'}
+              </button>
+              <button
+                type="button"
+                onClick={() => undoSpawned(n)}
+                data-testid={`owner-os-genui-undo-${n.proposalId}`}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny font-medium text-neutral-400 hover:text-foreground"
+              >
+                {languagePreference === 'sw' ? 'Tendua' : 'Undo'}
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissNotice(n.proposalId)}
+                aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
+              >
+                <X aria-hidden="true" className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
           {tabErrors.map(({ key, payload }) => {
             const reason =
               languagePreference === 'sw' ? payload.reasonSw : payload.reasonEn;

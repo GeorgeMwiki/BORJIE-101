@@ -221,6 +221,7 @@ export function deterministicTabId(
 type Action =
   | { type: 'hydrate'; state: OwnerTabsState }
   | { type: 'open'; tab: OwnerTab }
+  | { type: 'open-background'; tab: OwnerTab }
   | {
       type: 'spawn-or-augment';
       tab: OwnerTab;
@@ -244,6 +245,33 @@ function reducer(state: OwnerTabsState, action: Action): OwnerTabsState {
         tabs,
         activeTabId: action.tab.id,
         updatedAt: new Date().toISOString(),
+      };
+    }
+    case 'open-background': {
+      // Truly chat-first: the brain spawns a tab from what the owner explored
+      // in chat WITHOUT yanking them out of the conversation. It lands in the
+      // strip with a "+1" pulse; the owner finds it when they leave chat.
+      const now = new Date().toISOString();
+      const existing = state.tabs.find((t) => t.id === action.tab.id);
+      if (existing) {
+        const tabs = state.tabs.map((t) =>
+          t.id === action.tab.id
+            ? {
+                ...t,
+                ...action.tab,
+                pendingUpdates:
+                  state.activeTabId === t.id
+                    ? 0
+                    : (t.pendingUpdates ?? 0) + 1,
+              }
+            : t,
+        );
+        return { tabs, activeTabId: state.activeTabId, updatedAt: now };
+      }
+      return {
+        tabs: [...state.tabs, { ...action.tab, pendingUpdates: 1 }],
+        activeTabId: state.activeTabId, // keep focus on chat — background spawn
+        updatedAt: now,
       };
     }
     case 'spawn-or-augment': {
@@ -386,6 +414,9 @@ export interface UseOwnerTabsApi {
   readonly activeTabId: string | null;
   readonly activeTab: OwnerTab | null;
   open(tab: OwnerTab): void;
+  /** Add a tab in the background (e.g. brain-spawned from chat) WITHOUT
+   * stealing focus; it lands in the strip with a "+1" pulse. */
+  openBackground(tab: OwnerTab): void;
   /**
    * Idempotent spawn — returns the existing tab id when one matches the
    * (kind, scoping-context) fingerprint, else opens a fresh tab. The
@@ -477,6 +508,10 @@ export function useOwnerTabs(): UseOwnerTabsApi {
     (tab: OwnerTab) => dispatch({ type: 'open', tab }),
     [],
   );
+  const openBackground = useCallback(
+    (tab: OwnerTab) => dispatch({ type: 'open-background', tab }),
+    [],
+  );
   const close = useCallback(
     (tabId: string) => dispatch({ type: 'close', tabId }),
     [],
@@ -527,6 +562,7 @@ export function useOwnerTabs(): UseOwnerTabsApi {
     activeTabId: state.activeTabId,
     activeTab,
     open,
+    openBackground,
     spawnOrAugment,
     acknowledgeAugmentation,
     close,
