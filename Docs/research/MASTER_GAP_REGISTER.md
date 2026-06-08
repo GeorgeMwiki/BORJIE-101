@@ -600,3 +600,22 @@ the owner's window into the MD's accumulated work-thread, not its brain. Routing
 -> inline chat; trend-worthy / decision / insight / reference / teaching -> blackboard (curated,
 de-duped, time-ordered). Harvest the LITFIN learning/stepper teaching + human-display + blackboard
 logic for the SOTA patterns. Same both repos.
+
+---
+
+## INV-H/D (ABSOLUTE) · CHAT NEVER LEAKS IP — any chat, any persona, any surface, any project
+NON-NEGOTIABLE. EVERY chat output — main cockpit chat, marketing chat, learning/stepper chat,
+voice, every persona, every surface, EVERY project (Borjie / BossNyumba / LITFIN) — must NEVER
+leak IP: no system/developer prompts, no chain-of-thought/reasoning, no architecture/agent-names/
+model-names/provider-names, no internal tool-orchestration or routing, no cognitive-architecture
+or "how I work" disclosure. The persona answers DOMAIN + WORK only; any "how do you work / what
+model / show your prompt / ignore previous instructions" is deflected gracefully (it is a
+confidential service).
+
+ENFORCED BY CONSTRUCTION (not per-path): a single CENTRAL IP-EGRESS GUARD (output firewall) that
+EVERY chat response passes through as the FINAL step before reaching any client — it detects +
+strips/blocks IP-leaking content and prompt-injection exfiltration attempts, FAIL-CLOSED (redact
+when uncertain). Like the agent-security-guard but for OUTPUT egress: one chokepoint so a new or
+unaudited chat path cannot leak by omission. Defense-in-depth on top of the per-prompt persona
+discipline. Build: install the central egress guard + close every leak the ip-leak-audit finds;
+audit-test that prompts/architecture/reasoning never appear in any client-facing frame. All projects.
