@@ -101,11 +101,9 @@ export interface SubagentRunRow {
 }
 
 /**
- * A subagent-team member row claimed by the executor (status flipped
- * pending → running by `claimPendingTeamMembers`). Carries everything the
- * executor needs to run the member through the brain — no further DB reads.
- * `teamBrief` is the shared team objective (folded into each member's stored
- * brief at dispatch); `brief` is this member's individual instruction.
+ * A pending member claimed by the executor — carries everything the brain
+ * needs to run the member's brief (role / brief / allowedTools / tokenBudget)
+ * plus the shared team brief/aggregation so the executor never re-reads.
  */
 export interface ClaimedSubagentMember {
   readonly id: string;
@@ -262,16 +260,11 @@ export class MdAgenticRepository {
 
     const teamRunId = randomUUID();
     const memberIds: string[] = [];
-    // Persist each member at status 'pending'. The executor
-    // (md-subagent-executor.ts, kicked on dispatch) claims these, runs each
-    // through the injected brain, and flips them to completed/failed with a
-    // real `result`. The shared team objective is folded into each member's
-    // stored brief (no team_brief column — the migration is immutable) so the
-    // executor hands the brain both the member task and the team objective.
+    // Persist each member at status 'pending'. NO real spawn — an executor
+    // (when wired) flips these to completed/failed and writes `result`.
     for (const m of input.members) {
       const id = randomUUID();
       const hash = auditHash({ id, teamRunId, role: m.role });
-      const storedBrief = encodeBrief(m.brief, input.brief);
       await this.db.execute(sql`
         INSERT INTO md_subagent_runs (
           id, tenant_id, team_run_id, plan_id, role, brief, allowed_tools,
@@ -280,7 +273,7 @@ export class MdAgenticRepository {
         ) VALUES (
           ${id}::uuid, ${tenantId}, ${teamRunId}::uuid,
           ${input.planId === null ? null : sql`${input.planId}::uuid`},
-          ${m.role}, ${storedBrief},
+          ${m.role}, ${m.brief},
           ${JSON.stringify(m.allowedTools)}::jsonb, ${m.tokenBudget},
           ${input.aggregation}, 'pending',
           ${actorUserId}, ${originSessionId},
@@ -292,28 +285,30 @@ export class MdAgenticRepository {
     return { ok: true, teamRunId, memberIds };
   }
 
-  // ── executor claim + finalize (the runner that ends the dead-end) ─────
+  // ── executor: claim + finalize (status machine) ──────────────────────
 
   /**
-   * Atomically claim every 'pending' member of a team for execution, flipping
-   * pending → running and RETURNing the claimed rows. The single
-   * `UPDATE … WHERE status = 'pending' … RETURNING` is the concurrency guard:
-   * two racing kicks cannot both win the same member, so the executor is
-   * idempotent and race-safe. Returns the decoded member + team briefs so the
-   * executor needs no further DB read.
+   * Atomically claim every 'pending' member of a team and flip it to
+   * 'running'. The `UPDATE … WHERE status = 'pending' RETURNING …` is the
+   * concurrency guard: two executor invocations racing on the same team can
+   * never both claim the same row — the second sees zero rows to update.
+   *
+   * Returns the claimed members carrying the per-member brief + the shared
+   * team brief/aggregation so the caller never re-reads. Empty array means
+   * nothing to do (already claimed / terminal / unknown team).
    */
   async claimPendingTeamMembers(
     tenantId: string,
     teamRunId: string,
-  ): Promise<ReadonlyArray<ClaimedSubagentMember>> {
+  ): Promise<readonly ClaimedSubagentMember[]> {
     const res = await this.db.execute(sql`
-      UPDATE md_subagent_runs
+      UPDATE md_subagent_runs AS r
          SET status = 'running', updated_at = now()
-       WHERE tenant_id = ${tenantId}
-         AND team_run_id = ${teamRunId}::uuid
-         AND status = 'pending'
-      RETURNING id, team_run_id, role, brief, allowed_tools, token_budget,
-                aggregation, origin_session_id
+       WHERE r.tenant_id = ${tenantId}
+         AND r.team_run_id = ${teamRunId}::uuid
+         AND r.status = 'pending'
+      RETURNING r.id, r.team_run_id, r.role, r.brief, r.allowed_tools,
+                r.token_budget, r.aggregation, r.origin_session_id
     `);
     const rows = extractRows<{
       id: string;
@@ -321,43 +316,62 @@ export class MdAgenticRepository {
       role: string;
       brief: string;
       allowed_tools: unknown;
-      token_budget: number | string;
+      token_budget: number;
       aggregation: string;
       origin_session_id: string | null;
     }>(res);
-    return rows.map((r) => {
-      const decoded = decodeBrief(r.brief);
-      return {
-        id: r.id,
-        teamRunId: r.team_run_id,
-        role: r.role,
-        brief: decoded.brief,
-        teamBrief: decoded.teamBrief,
-        allowedTools: toStringArray(r.allowed_tools),
-        tokenBudget: Number(r.token_budget) || 0,
-        aggregation: r.aggregation,
-        originSessionId: r.origin_session_id,
-      };
-    });
+
+    // The shared team brief lives on every member row (denormalised at
+    // dispatch); read it once from the team rather than the member brief.
+    const teamBrief = await this.readTeamBrief(tenantId, teamRunId);
+
+    return rows.map((r) => ({
+      id: r.id,
+      teamRunId: r.team_run_id,
+      role: r.role,
+      brief: r.brief,
+      teamBrief,
+      allowedTools: normaliseAllowedTools(r.allowed_tools),
+      tokenBudget: Number(r.token_budget ?? 0),
+      aggregation: r.aggregation,
+      originSessionId: r.origin_session_id,
+    }));
+  }
+
+  /** The team's shared brief — read from any one member row. */
+  private async readTeamBrief(
+    tenantId: string,
+    teamRunId: string,
+  ): Promise<string> {
+    const res = await this.db.execute(sql`
+      SELECT brief FROM md_subagent_runs
+       WHERE tenant_id = ${tenantId} AND team_run_id = ${teamRunId}::uuid
+       ORDER BY created_at ASC
+       LIMIT 1
+    `);
+    const row = extractRows<{ brief: string }>(res)[0];
+    return row?.brief ?? '';
   }
 
   /**
-   * Finalize a member as 'completed' with the executor-produced result. Guarded
-   * on `status = 'running'` so a row that was cancelled / already finalized
-   * out-of-band is NOT overwritten (returns false — the caller honest-degrades
-   * rather than clobbering). The result jsonb is the brain output the executor
-   * captured — never fabricated here.
+   * Record a member's successful result and flip 'running' → 'completed'.
+   * Append-only audit: pushes a fresh result hash onto audit_chain_ids
+   * (never mutates the existing chain entries). Guarded on status='running'
+   * so a cancelled/failed row is never silently overwritten.
    */
   async completeSubagentRun(
     tenantId: string,
     memberId: string,
     result: Record<string, unknown>,
   ): Promise<boolean> {
+    const hash = auditHash({ memberId, tenantId, kind: 'subagent_result' });
     const res = await this.db.execute(sql`
       UPDATE md_subagent_runs
          SET status = 'completed',
              result = ${JSON.stringify(result)}::jsonb,
              error = NULL,
+             audit_chain_ids =
+               COALESCE(audit_chain_ids, '[]'::jsonb) || ${JSON.stringify([hash])}::jsonb,
              completed_at = now(),
              updated_at = now()
        WHERE id = ${memberId}::uuid
@@ -369,21 +383,23 @@ export class MdAgenticRepository {
   }
 
   /**
-   * Finalize a member as 'failed' with an error message. Guarded on
-   * `status = 'running'` for the same reason as completeSubagentRun. The error
-   * string is truncated to a sane length so a giant provider stack trace never
-   * bloats the row.
+   * Record a member failure and flip 'running' → 'failed'. The error string
+   * is truncated defensively. Same append-only audit + status guard as
+   * completeSubagentRun.
    */
   async failSubagentRun(
     tenantId: string,
     memberId: string,
     error: string,
   ): Promise<boolean> {
+    const hash = auditHash({ memberId, tenantId, kind: 'subagent_failure' });
     const safeError = error.slice(0, 2_000);
     const res = await this.db.execute(sql`
       UPDATE md_subagent_runs
          SET status = 'failed',
              error = ${safeError},
+             audit_chain_ids =
+               COALESCE(audit_chain_ids, '[]'::jsonb) || ${JSON.stringify([hash])}::jsonb,
              completed_at = now(),
              updated_at = now()
        WHERE id = ${memberId}::uuid
@@ -918,44 +934,10 @@ export class MdAgenticRepository {
   }
 }
 
-// ── team-brief envelope (no team_brief column — schema is immutable) ──────
-// The shared team objective (`input.brief`) has no dedicated column on
-// md_subagent_runs, and the migration is shipped/immutable. We persist it
-// alongside the member brief inside the existing NOT NULL `brief` text column
-// via a small, fully-owned envelope, then split it back at claim time so the
-// executor receives `brief` (member) + `teamBrief` (shared) separately. A
-// plain legacy brief with no marker decodes with an empty teamBrief — never
-// throws, never fabricates.
-//
-// The marker is a printable, bracketed sentinel on its own lines. It cannot
-// contain a NUL (Postgres text/jsonb reject U+0000) and a JSON-validated brief
-// would have to deliberately embed the exact bracket sequence + newlines to
-// collide, which the upstream zod brief schema does not produce.
-const SAFE_MARKER = '\n\n[[md-team-objective]]\n';
-
-
-/** Fold the shared team objective into a member's stored brief. */
-function encodeBrief(memberBrief: string, teamBrief: string): string {
-  if (teamBrief.length === 0) return memberBrief;
-  return `${memberBrief}${SAFE_MARKER}${teamBrief}`;
-}
-
-/** Split a stored brief back into { brief, teamBrief }. */
-function decodeBrief(stored: string): {
-  readonly brief: string;
-  readonly teamBrief: string;
-} {
-  const idx = stored.indexOf(SAFE_MARKER);
-  if (idx === -1) return { brief: stored, teamBrief: '' };
-  return {
-    brief: stored.slice(0, idx),
-    teamBrief: stored.slice(idx + SAFE_MARKER.length),
-  };
-}
-
-function toStringArray(value: unknown): ReadonlyArray<string> {
-  if (!Array.isArray(value)) return [];
-  return value.map((v) => String(v));
+/** Coerce a jsonb allowed_tools column into a string array (defensive). */
+function normaliseAllowedTools(raw: unknown): ReadonlyArray<string> {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is string => typeof t === 'string');
 }
 
 function confidenceOf(result: unknown): number {

@@ -32,6 +32,9 @@ export {
   createInMemoryAuditChainRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
+  createDrizzleAuditChainRepository,
+  createDrizzleRunEventRepository,
+  createDrizzleRunRepository,
   type ApproveInput,
   type CancelInput,
   type CoachInput,
@@ -62,28 +65,3 @@ export {
   type ElasticThresholds,
   type InMemoryApprovalRouterDeps,
 } from './approval/index.js';
-// Drizzle-backed repository adapters — selected by the composition root
-// when a DatabaseClient is present so workflow runs / the four-eyes
-// approval queue / the hashed audit chain survive an api-gateway restart.
-export {
-  createDrizzleRunRepository,
-  createDrizzleRunEventRepository,
-  createDrizzleAuditChainRepository,
-  createDrizzleFlowAutonomyRepository,
-} from './repositories/index.js';
-// Flow-keyed autonomy — per-flow `auto | gated` posture + creation-time
-// auto-vs-gated confirmation (migration 0308). The engine reads this seam
-// to skip (AUTO) or block (GATED, default) the per-run human-approval
-// step; the inviolable rails + autonomy-controller STILL gate per action.
-export {
-  FLOW_AUTONOMY_POSTURES,
-  FLOW_CONFIRMATION_STATES,
-  isFlowAuto,
-  createInMemoryFlowAutonomyRepository,
-  type FlowAutonomyPosture,
-  type FlowConfirmationState,
-  type FlowAutonomyPref,
-  type FlowAutonomyRepository,
-  type RecordFlowCreationInput,
-  type SetFlowPostureInput,
-} from './autonomy/index.js';

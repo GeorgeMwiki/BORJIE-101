@@ -56,11 +56,7 @@ function QueueView(): JSX.Element {
   const review = useMutation<
     void,
     ApiError,
-    {
-      readonly openingId: string
-      readonly userId: string
-      readonly decision: CandidateDecision
-    }
+    { readonly openingId: string; readonly userId: string; readonly decision: CandidateDecision }
   >({
     mutationFn: (input) => reviewCandidate(input),
     onSuccess: () => {

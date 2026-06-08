@@ -102,7 +102,7 @@ describe('createClaudeMutator', () => {
 
   it('system prompt names the role and domain', () => {
     expect(MUTATOR_SYSTEM_PROMPT).toMatch(/prompt engineer/i);
-    expect(MUTATOR_SYSTEM_PROMPT).toMatch(/property/i);
+    expect(MUTATOR_SYSTEM_PROMPT).toMatch(/mining/i);
     expect(MUTATOR_SYSTEM_PROMPT).toMatch(/<candidate>/);
   });
 

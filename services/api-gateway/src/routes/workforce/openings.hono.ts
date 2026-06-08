@@ -10,8 +10,7 @@
  *      with `opening_id` set. The existing invitation activation flow
  *      (workforce/invites.hono.ts -> /activate) takes over.
  *   3. Manager opens the onboarding queue + reviews each activated
- *      candidate. GET /:id/candidates lists the pending candidates;
- *      POST /:id/candidates/:userId/review with
+ *      candidate. POST /:id/candidates/:userId/review with
  *      `decision = approve | reject` -> flips users.workforce_status
  *      AND decrements the opening's count_needed.
  *   4. When count_needed reaches 0, the opening auto-flips to 'filled'
@@ -28,13 +27,14 @@
 
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   users,
   workforceOpenings,
   workforceInvitations,
 } from '@borjie/database';
+import { isNotNull } from 'drizzle-orm';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
@@ -340,8 +340,8 @@ export function createWorkforceOpeningsRouter(): Hono {
   // from this opening (workforce_invitations.status = 'activated',
   // opening_id = :id) AND whose user row is still awaiting manager review
   // (users.workforce_status = 'pending'). RLS FORCE auto-scopes both
-  // tables to the caller's tenant, so the explicit tenant filter here is
-  // belt-and-braces alongside the opening lookup.
+  // tables to the caller's tenant, so no explicit tenant filter is needed
+  // beyond the opening lookup.
   app.get('/:id/candidates', async (c: any) => {
     const auth = c.get('auth');
     if (!auth || !canReviewCandidates(auth.role)) {
@@ -401,7 +401,10 @@ export function createWorkforceOpeningsRouter(): Hono {
           activatedAt: workforceInvitations.activatedAt,
         })
         .from(workforceInvitations)
-        .innerJoin(users, eq(users.id, workforceInvitations.activatedUserId))
+        .innerJoin(
+          users,
+          eq(users.id, workforceInvitations.activatedUserId),
+        )
         .where(
           and(
             eq(workforceInvitations.tenantId, auth.tenantId),

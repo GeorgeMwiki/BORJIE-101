@@ -3,24 +3,6 @@
  * analysis. Sits between Lab/Assay (head grade) and Sales (concentrate
  * pricing).
  *
- * DEEPENED (per CAPABILITY_SPEC_WAVE3 "Conversion Engine"): the agent no
- * longer trusts the LLM for the load-bearing numbers. A pure deterministic
- * engine (`metallurgy-knowledge.ts`) grounds:
- *   - flowsheet recommendation by mineral family + scale (gravity /
- *     flotation / CIL / heap / tank leach / DMS / magnetic / SX-EW),
- *   - head-grade vs cut-off verdict (per-mineral grade unit, not gold-only),
- *   - the metallurgical-recovery KPI diagnosis vs the per-family envelope,
- *   - throughput diagnosis (Bond third law + ISO-14224 availability).
- * The LLM port supplies reasoning/copy; the agent OVERWRITES every
- * deterministic field with the engine's truth and MERGES the engine's
- * evidence_ids into the audit chain so the Auditor can trace each verdict.
- *
- * Grounded in:
- *   - Docs/research/mining-estate-operating-model.md §3.3 (processing /
- *     beneficiation, recovery as the yield KPI, TZ in-country value-add),
- *   - Docs/research/mining-machinery-advisory.md §3.5 / §2 (gravity-ahead-
- *     of-CIL, CIL = leach + adsorb, mill ~95% availability, MTBF/MTTR).
- *
  * Writes via typed `db.insert(metallurgyRecommendations)` (migration 0011).
  */
 
@@ -36,26 +18,32 @@ import {
   type JuniorDeps,
 } from './_shared.js';
 import {
+  MINERAL_PROFILES,
   assessHeadGrade,
   diagnoseRecovery,
   diagnoseThroughput,
   getMineralProfile,
-  HeadGradeVerdict,
-  MINERAL_FAMILIES,
-  RecoveryVerdict,
-  SEPARATION_ROUTES,
   type HeadGradeAssessment,
   type MineralFamilyId,
   type RecoveryDiagnosis,
-  type SeparationRoute,
   type ThroughputDiagnosis,
 } from './metallurgy-knowledge.js';
 
-// ─────────────────────────────────────────────────────────────────────
-// Vocabulary
-// ─────────────────────────────────────────────────────────────────────
-
-export const MineralFamily = z.enum(MINERAL_FAMILIES);
+export const MineralFamily = z.enum([
+  'gold',
+  'copper',
+  'lead_zinc',
+  'nickel',
+  'cobalt',
+  'tin',
+  'lithium',
+  'rare_earth',
+  'graphite',
+  'iron_ore',
+  'gemstone',
+  'diamond',
+  'uranium',
+]);
 
 export const FlowsheetStep = z.enum([
   'crushing',
@@ -75,14 +63,14 @@ export const FlowsheetStep = z.enum([
   'merrill_crowe',
   'cip',
   'cil',
-  'heap_leach',
-  'tank_leach',
-  'hand_sort',
 ]);
-export type FlowsheetStep = z.infer<typeof FlowsheetStep>;
 
-/** Plant telemetry for a throughput diagnosis (all optional at the boundary). */
-export const PlantTelemetrySchema = z.object({
+/**
+ * Optional plant-throughput telemetry. When supplied, the deterministic
+ * diagnosis layer computes power-limited capacity (Bond third law) and the
+ * mechanical-availability haircut without any LLM call.
+ */
+export const PlantThroughputSchema = z.object({
   installed_mill_kw: z.number().positive(),
   feed_f80_um: z.number().positive(),
   product_p80_um: z.number().positive(),
@@ -90,25 +78,29 @@ export const PlantTelemetrySchema = z.object({
   mtbf_h: z.number().positive().optional(),
   mttr_h: z.number().nonnegative().optional(),
 });
-export type PlantTelemetry = z.infer<typeof PlantTelemetrySchema>;
+export type PlantThroughput = z.infer<typeof PlantThroughputSchema>;
 
 export const MetallurgyInputSchema = z.object({
   tenantId: z.string().min(1),
   siteId: z.string().min(1),
   mineral_family: MineralFamily,
   head_grade_g_per_t_or_pct: z.number().nonnegative(),
-  /** Price-derived cut-off from the mine-planner; overrides the dossier floor. */
-  effective_cutoff: z.number().positive().optional(),
   ore_mineralogy_notes: z.string().optional(),
   budget_constrained: z.boolean().default(true),
   artisanal_scale: z.boolean().default(true),
   has_water_source_within_60m: z.boolean().default(false),
   current_flowsheet: z.array(FlowsheetStep).default([]),
   recovery_observed_pct: z.number().min(0).max(100).optional(),
-  /** Optional plant telemetry — when present a throughput diagnosis is run. */
-  plant: PlantTelemetrySchema.optional(),
+  /** Price-derived cut-off from the mine-planner; overrides the dossier floor. */
+  effective_cutoff_grade: z.number().nonnegative().optional(),
+  /** Plant telemetry for throughput-vs-nameplate diagnosis. */
+  plant: PlantThroughputSchema.optional(),
 });
 export type MetallurgyInput = z.infer<typeof MetallurgyInputSchema>;
+
+/** Verdicts the deterministic layer echoes into the audited output. */
+export const HeadGradeVerdictEnum = z.enum(['below_cutoff', 'marginal', 'economic', 'high_grade']);
+export const RecoveryVerdictEnum = z.enum(['no_baseline', 'below_envelope', 'in_envelope', 'at_best_practice']);
 
 export const MetallurgyOutput = AuditedOutputBase.extend({
   recommended_flowsheet: z.array(FlowsheetStep).min(1),
@@ -119,187 +111,61 @@ export const MetallurgyOutput = AuditedOutputBase.extend({
   cyanide_required: z.boolean(),
   cyanide_management_notes: z.string().nullable(),
   by_product_recovery_opportunities: z.array(z.string()),
-  // Deterministic diagnosis fields — the agent OWNS these, not the LLM.
-  head_grade_verdict: HeadGradeVerdict,
-  recovery_verdict: RecoveryVerdict,
-  recovery_envelope_pct: z.object({ low: z.number(), high: z.number() }),
+  /**
+   * Deterministic diagnosis block — the agent OVERWRITES these from the
+   * knowledge base after the LLM returns, so the head-grade / recovery /
+   * throughput verdicts are reproducible and Auditor-traceable, never
+   * hallucinated. Defaulted so the LLM need not emit them.
+   */
+  head_grade_verdict: HeadGradeVerdictEnum.default('marginal'),
+  recovery_verdict: RecoveryVerdictEnum.default('no_baseline'),
+  recovery_envelope_pct: z.object({ low: z.number(), high: z.number() }).default({ low: 0, high: 0 }),
   throughput_diagnosis: z
     .object({
-      specific_energy_kwh_per_t: z.number(),
-      power_limited_tph: z.number(),
-      availability: z.number(),
-      effective_nameplate_tph: z.number(),
+      power_limited_tph: z.number().nonnegative(),
+      availability: z.number().min(0).max(1),
+      effective_nameplate_tph: z.number().nonnegative(),
       utilisation_vs_nameplate: z.number().nullable(),
-      verdict: z.enum(['no_baseline', 'underperforming', 'at_nameplate']),
       bottleneck: z.string(),
-      evidence_id: z.string(),
     })
-    .nullable(),
+    .nullable()
+    .default(null),
 });
 export type MetallurgyOutput = z.infer<typeof MetallurgyOutput>;
 
-// ─────────────────────────────────────────────────────────────────────
-// Deterministic flowsheet recommender (pure)
-// ─────────────────────────────────────────────────────────────────────
-
 /**
- * Map an abstract separation route (knowledge layer) to the concrete
- * FlowsheetStep vocabulary the rest of Borjie speaks.
+ * Pure deterministic diagnosis — flowsheet-route ladder + head-grade vs
+ * cut-off + recovery KPI + throughput, with no LLM and no DB. Callers
+ * (and the Auditor) can run this independently of the Claude port.
  */
-const ROUTE_TO_STEP: Readonly<Record<SeparationRoute, FlowsheetStep>> = {
-  gravity: 'gravity',
-  flotation: 'flotation',
-  cil: 'cil',
-  cip: 'cip',
-  heap_leach: 'heap_leach',
-  tank_leach: 'tank_leach',
-  magnetic_separation: 'magnetic_separation',
-  electrostatic: 'electrostatic',
-  dms: 'dms',
-  solvent_extraction: 'solvent_extraction',
-};
-
-/**
- * Build a deterministic, audit-traceable flowsheet from the per-mineral
- * preferred routes. Always front-loads comminution (crush→mill) except
- * for gem/diamond families where high-energy crushing fractures value
- * crystals (dossier machinery-advisory §3.5 / op-model §3.3), and always
- * appends a value-addition tail for gold (borax direct-smelt, mercury-free)
- * per the ASM hard rule.
- */
-export function recommendFlowsheet(
-  family: MineralFamilyId,
-  opts: { readonly hasWaterWithin60m: boolean } = { hasWaterWithin60m: false },
-): ReadonlyArray<FlowsheetStep> {
-  const profile = getMineralProfile(family);
-  const crystalFragile = family === 'diamond' || family === 'gemstone';
-
-  const head: ReadonlyArray<FlowsheetStep> = crystalFragile
-    ? ['crushing']
-    : ['crushing', 'milling'];
-
-  const routeSteps = profile.preferredRoutes
-    .map((r) => ROUTE_TO_STEP[r])
-    // Refuse on-site cyanidation near water (hard rule); CIL/CIP are the
-    // cyanide-bearing routes for gold.
-    .filter((step) =>
-      opts.hasWaterWithin60m ? step !== 'cil' && step !== 'cip' : true,
-    );
-
-  const tail: ReadonlyArray<FlowsheetStep> =
-    family === 'gold'
-      ? ['borax_smelt']
-      : crystalFragile
-        ? ['hand_sort']
-        : [];
-
-  const seen = new Set<FlowsheetStep>();
-  const ordered: FlowsheetStep[] = [];
-  for (const step of [...head, ...routeSteps, ...tail]) {
-    if (!seen.has(step)) {
-      seen.add(step);
-      ordered.push(step);
-    }
-  }
-  // Guarantee a non-empty flowsheet for the schema (min(1)).
-  return ordered.length > 0 ? ordered : ['gravity'];
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// Pure aggregate diagnosis (no IO, no LLM) — the deterministic spine
-// ─────────────────────────────────────────────────────────────────────
-
-export interface MetallurgyDiagnosis {
-  readonly mineral_family: MineralFamilyId;
-  readonly grade_unit: HeadGradeAssessment['grade_unit'];
-  readonly head_grade: HeadGradeAssessment;
-  readonly recovery: RecoveryDiagnosis;
-  readonly throughput: ThroughputDiagnosis | null;
-  readonly preferred_routes: ReadonlyArray<SeparationRoute>;
-  readonly recommended_flowsheet: ReadonlyArray<FlowsheetStep>;
-  readonly cyanide_relevant: boolean;
-  readonly norm: boolean;
-  readonly evidence_ids: ReadonlyArray<string>;
-}
-
-/**
- * Aggregate the per-mineral head-grade, recovery and throughput
- * diagnoses plus the recommended flowsheet into one deterministic,
- * audit-ready object. Pure: depends only on the validated input and the
- * knowledge base. evidence_ids are deduplicated and always non-empty
- * (every profile carries a real evidence_id), so the Auditor's
- * empty-chain rejection can never be tripped by this layer.
- */
-export function runMetallurgyDiagnosis(input: MetallurgyInput): MetallurgyDiagnosis {
-  const family = input.mineral_family;
-  const profile = getMineralProfile(family);
-
-  const headGrade = assessHeadGrade(
-    family,
-    input.head_grade_g_per_t_or_pct,
-    input.effective_cutoff,
-  );
-  const recovery = diagnoseRecovery(family, input.recovery_observed_pct ?? null);
-  const throughput = input.plant
-    ? diagnoseThroughput({
-        family,
-        installed_mill_kw: input.plant.installed_mill_kw,
-        feed_f80_um: input.plant.feed_f80_um,
-        product_p80_um: input.plant.product_p80_um,
-        ...(input.plant.observed_tph !== undefined
-          ? { observed_tph: input.plant.observed_tph }
-          : {}),
-        ...(input.plant.mtbf_h !== undefined ? { mtbf_h: input.plant.mtbf_h } : {}),
-        ...(input.plant.mttr_h !== undefined ? { mttr_h: input.plant.mttr_h } : {}),
-      })
-    : null;
-  const recommendedFlowsheet = recommendFlowsheet(family, {
-    hasWaterWithin60m: input.has_water_source_within_60m,
-  });
-
-  const evidenceIds = dedupe([
-    profile.evidenceId,
-    headGrade.evidence_id,
-    recovery.evidence_id,
-    ...(throughput ? [throughput.evidence_id] : []),
-  ]);
-
-  return {
-    mineral_family: family,
-    grade_unit: headGrade.grade_unit,
-    head_grade: headGrade,
-    recovery,
-    throughput,
-    preferred_routes: profile.preferredRoutes,
-    recommended_flowsheet: recommendedFlowsheet,
-    cyanide_relevant: profile.cyanideRelevant,
-    norm: profile.norm,
-    evidence_ids: evidenceIds,
-  };
-}
-
-function dedupe(xs: ReadonlyArray<string>): ReadonlyArray<string> {
-  return [...new Set(xs.filter((x) => x.length > 0))];
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// Prompt
-// ─────────────────────────────────────────────────────────────────────
+export const MetallurgyDiagnosis = z.object({
+  mineral_family: MineralFamily,
+  grade_unit: z.string(),
+  preferred_routes: z.array(z.string()).min(1),
+  head_grade: z.custom<HeadGradeAssessment>(),
+  recovery: z.custom<RecoveryDiagnosis>(),
+  throughput: z.custom<ThroughputDiagnosis>().nullable(),
+  norm_flag: z.boolean(),
+  cyanide_relevant: z.boolean(),
+  evidence_ids: z.array(z.string()).min(1),
+});
+export type MetallurgyDiagnosis = z.infer<typeof MetallurgyDiagnosis>;
 
 export const METALLURGY_SYSTEM_PROMPT = buildUniversalPrompt({
   juniorName: 'Metallurgy Agent',
   mandate:
-    'Recommend an appropriate processing flowsheet by mineral family and scale; estimate recovery, capex band, opex/tonne; surface mercury-free alternatives. ' +
-    'A deterministic engine has ALREADY computed the head-grade verdict, recovery-KPI diagnosis, throughput diagnosis and the per-mineral preferred flowsheet — DO NOT contradict those numbers; explain and contextualise them.',
-  tools: 'consult_mineral_dossier, simulate_recovery, capex_opex_estimate, by_product_check.',
+    'Recommend an appropriate processing flowsheet PER MINERAL FAMILY and scale (gravity / flotation / CIL / CIP / heap / tank leach / DMS / magnetic / electrostatic / SX), estimate recovery, capex band and opex/tonne, diagnose recovery-and-throughput vs the per-mineral best-practice envelope, judge head grade vs cut-off, and surface mercury-free alternatives. You are NOT gold-only — every family carries its own grade unit, recovery envelope and Bond Work Index.',
+  tools:
+    'consult_mineral_dossier(family), simulate_recovery(family, route), assess_head_grade(grade, cutoff), diagnose_throughput(installed_kw, f80, p80, mtbf, mttr), capex_opex_estimate, by_product_check.',
   evidence:
-    'Cite the per-mineral file used (research/minerals/0X) for every flowsheet decision and recovery estimate; the deterministic engine already attaches per-mineral evidence_ids.',
+    'Cite the per-mineral file used (research/minerals/0X) for every flowsheet decision, recovery estimate and cut-off judgement. The DETERMINISTIC ENVELOPE supplied in the user prompt is the ground truth — keep expected_recovery_pct inside it and recommend from preferred_routes unless mineralogy justifies otherwise (state why).',
   outputSchema:
     '{ "recommended_flowsheet": FlowsheetStep[], "expected_recovery_pct": number, ' +
     '"capex_band_tzs": {low,mid,high}, "opex_per_tonne_tzs": number, "mercury_free_alternatives": string[], ' +
     '"cyanide_required": boolean, "cyanide_management_notes": string|null, ' +
-    '"by_product_recovery_opportunities": string[], "head_grade_verdict": string, "recovery_verdict": string, ' +
-    '"recovery_envelope_pct": {low,high}, "throughput_diagnosis": object|null, ' +
+    '"by_product_recovery_opportunities": string[], "head_grade_verdict": "below_cutoff"|"marginal"|"economic"|"high_grade", ' +
+    '"recovery_verdict": "no_baseline"|"below_envelope"|"in_envelope"|"at_best_practice", ' +
+    '"recovery_envelope_pct": {low,high}, "throughput_diagnosis": {...}|null, ' +
     '"confidence": number, "rationale": string, "evidence_ids": string[], "citations": string[] }',
   confidenceFloor: 0.75,
   autonomyDomain: 'design advisory; never instructs commissioning without metallurgist sign-off',
@@ -308,77 +174,78 @@ export const METALLURGY_SYSTEM_PROMPT = buildUniversalPrompt({
     'If has_water_source_within_60m, refuse on-site cyanidation; route to compliance-agent.',
     'Always include cyanide_management_notes with ICMC alignment when cyanide_required.',
     'For diamond, recommend DMS bulk sample over assay.',
-    'Per-mineral parameter awareness: never apply a gold flowsheet/recovery envelope to a non-gold family.',
+    'Never propose cyanidation for a non-cyanide-relevant family (only gold among the supported families).',
+    'For NORM families (uranium, rare_earth/monazite): refuse to advise commercial extraction without IAEA-equivalent radiation-protection licensing; route to compliance-agent.',
+    'Keep expected_recovery_pct within the supplied per-mineral envelope; if proposing a route off the preferred list, justify it from mineralogy.',
+    'For gemstone/diamond, never recommend high-energy comminution that fractures crystals.',
   ],
 });
 
+/**
+ * Run the pure deterministic diagnosis (no LLM, no DB). Exposed on the
+ * agent as `diagnose(...)` and reused to ground the LLM prompt + to
+ * overwrite the LLM's diagnosis fields with reproducible verdicts.
+ */
+export function runMetallurgyDiagnosis(input: MetallurgyInput): MetallurgyDiagnosis {
+  const family = input.mineral_family as MineralFamilyId;
+  const profile = getMineralProfile(family);
+  const headGrade = assessHeadGrade(family, input.head_grade_g_per_t_or_pct, input.effective_cutoff_grade);
+  const recovery = diagnoseRecovery(family, input.recovery_observed_pct ?? null);
+  const throughput = input.plant ? diagnoseThroughput({ family, ...input.plant }) : null;
+  const evidenceIds = dedupe([
+    profile.evidenceId,
+    headGrade.evidence_id,
+    recovery.evidence_id,
+    ...(throughput ? [throughput.evidence_id] : []),
+  ]);
+  return {
+    mineral_family: family,
+    grade_unit: profile.gradeUnit,
+    preferred_routes: [...profile.preferredRoutes],
+    head_grade: headGrade,
+    recovery,
+    throughput,
+    norm_flag: profile.norm,
+    cyanide_relevant: profile.cyanideRelevant,
+    evidence_ids: evidenceIds,
+  };
+}
+
 function buildUserPrompt(input: MetallurgyInput, diagnosis: MetallurgyDiagnosis): string {
+  const profile = MINERAL_PROFILES[input.mineral_family as MineralFamilyId];
   return [
     `TENANT: ${input.tenantId}  SITE: ${input.siteId}  FAMILY: ${input.mineral_family}`,
-    `HEAD_GRADE: ${input.head_grade_g_per_t_or_pct} ${diagnosis.grade_unit}  ARTISANAL: ${input.artisanal_scale}  BUDGET_CONSTRAINED: ${input.budget_constrained}`,
+    `HEAD_GRADE: ${input.head_grade_g_per_t_or_pct} ${profile.gradeUnit}  ARTISANAL: ${input.artisanal_scale}  BUDGET_CONSTRAINED: ${input.budget_constrained}`,
     `WATER_WITHIN_60M: ${input.has_water_source_within_60m}`,
     `CURRENT_FLOWSHEET: ${JSON.stringify(input.current_flowsheet)}`,
     input.recovery_observed_pct !== undefined ? `OBSERVED_RECOVERY_PCT: ${input.recovery_observed_pct}` : '',
     input.ore_mineralogy_notes ? `MINERALOGY: ${input.ore_mineralogy_notes}` : '',
-    `DETERMINISTIC_DIAGNOSIS (authoritative — do not contradict):`,
-    JSON.stringify(
-      {
-        head_grade_verdict: diagnosis.head_grade.verdict,
-        recovery_verdict: diagnosis.recovery.verdict,
-        recovery_envelope_pct: {
-          low: diagnosis.recovery.envelope_low_pct,
-          high: diagnosis.recovery.envelope_high_pct,
-        },
-        recommended_flowsheet: diagnosis.recommended_flowsheet,
-        preferred_routes: diagnosis.preferred_routes,
-        cyanide_relevant: diagnosis.cyanide_relevant,
-        norm: diagnosis.norm,
-        throughput: diagnosis.throughput,
-      },
-      null,
-      2,
-    ).slice(0, 4_000),
+    ``,
+    `DETERMINISTIC ENVELOPE (ground truth — do not contradict):`,
+    `  preferred_routes: ${profile.preferredRoutes.join(' > ')}`,
+    `  recovery_envelope_pct: ${profile.recoveryLowPct}-${profile.recoveryHighPct}`,
+    `  cut_off_band (${profile.gradeUnit}): floor=${diagnosis.head_grade.cutoff_floor} typical=${diagnosis.head_grade.cutoff_typical}`,
+    `  head_grade_verdict: ${diagnosis.head_grade.verdict}  recovery_verdict: ${diagnosis.recovery.verdict}`,
+    `  cyanide_relevant: ${profile.cyanideRelevant}  NORM: ${profile.norm}`,
+    `  route_note: ${profile.note}`,
+    diagnosis.throughput
+      ? `  throughput: power_limited=${diagnosis.throughput.power_limited_tph}tph effective_nameplate=${diagnosis.throughput.effective_nameplate_tph}tph bottleneck="${diagnosis.throughput.bottleneck}"`
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Deterministic override — overwrite LLM echo, merge audit evidence
-// ─────────────────────────────────────────────────────────────────────
-
-/**
- * Take the LLM's free-form output and overwrite every load-bearing
- * deterministic field with the engine's truth. The LLM keeps authorship
- * of copy (rationale, capex/opex estimates, management notes), but never
- * of the head-grade/recovery/throughput verdicts or the per-mineral
- * recovery envelope. evidence_ids from the deterministic engine are
- * merged in (deduped) so the audit chain traces every overwritten field.
- */
-function applyDeterministicOverride(
-  llm: MetallurgyOutput,
-  diagnosis: MetallurgyDiagnosis,
-): MetallurgyOutput {
-  return {
-    ...llm,
-    head_grade_verdict: diagnosis.head_grade.verdict,
-    recovery_verdict: diagnosis.recovery.verdict,
-    recovery_envelope_pct: {
-      low: diagnosis.recovery.envelope_low_pct,
-      high: diagnosis.recovery.envelope_high_pct,
-    },
-    throughput_diagnosis: diagnosis.throughput,
-    evidence_ids: [...new Set([...llm.evidence_ids, ...diagnosis.evidence_ids])],
-  };
+function dedupe(values: ReadonlyArray<string>): string[] {
+  return [...new Set(values)];
 }
-
-// ─────────────────────────────────────────────────────────────────────
-// Factory
-// ─────────────────────────────────────────────────────────────────────
 
 export function createMetallurgyAgent(deps: JuniorDeps) {
   return {
-    /** Synchronous, pure per-mineral diagnosis — no Claude call needed. */
+    /**
+     * Pure, reproducible diagnosis — no LLM, no DB. Safe to call for
+     * KPI sensors (recovery / throughput) and cut-off checks.
+     */
     diagnose(input: MetallurgyInput): MetallurgyDiagnosis {
       return runMetallurgyDiagnosis(MetallurgyInputSchema.parse(input));
     },
@@ -386,8 +253,7 @@ export function createMetallurgyAgent(deps: JuniorDeps) {
     async processInput(input: MetallurgyInput): Promise<MetallurgyOutput> {
       const validated = MetallurgyInputSchema.parse(input);
       const diagnosis = runMetallurgyDiagnosis(validated);
-
-      const llmOutput = await runClaudeJunior({
+      const llm = await runClaudeJunior({
         claude: deps.claude,
         logger: deps.logger,
         juniorName: 'metallurgy-agent',
@@ -397,7 +263,28 @@ export function createMetallurgyAgent(deps: JuniorDeps) {
         maxTokens: 2500,
       });
 
-      const output = applyDeterministicOverride(llmOutput, diagnosis);
+      // Deterministic verdicts OVERRIDE the LLM's self-reported diagnosis
+      // (reproducible, Auditor-traceable) and the deterministic
+      // evidence_ids are appended so the chain is never empty.
+      const output: MetallurgyOutput = {
+        ...llm,
+        head_grade_verdict: diagnosis.head_grade.verdict,
+        recovery_verdict: diagnosis.recovery.verdict,
+        recovery_envelope_pct: {
+          low: diagnosis.recovery.envelope_low_pct,
+          high: diagnosis.recovery.envelope_high_pct,
+        },
+        throughput_diagnosis: diagnosis.throughput
+          ? {
+              power_limited_tph: diagnosis.throughput.power_limited_tph,
+              availability: diagnosis.throughput.availability,
+              effective_nameplate_tph: diagnosis.throughput.effective_nameplate_tph,
+              utilisation_vs_nameplate: diagnosis.throughput.utilisation_vs_nameplate,
+              bottleneck: diagnosis.throughput.bottleneck,
+            }
+          : null,
+        evidence_ids: dedupe([...llm.evidence_ids, ...diagnosis.evidence_ids]),
+      };
 
       if (deps.db) {
         try {
@@ -435,16 +322,12 @@ export function createDefaultMetallurgyAgent(): MetallurgyAgent {
     return cached;
   };
   return {
+    // diagnose is pure — no deps to resolve.
     diagnose(input) {
-      // Pure path needs no resolved db/claude; build a throwaway agent.
-      return createMetallurgyAgent(defaultJuniorDeps()).diagnose(input);
+      return runMetallurgyDiagnosis(MetallurgyInputSchema.parse(input));
     },
     async processInput(input) {
       return (await get()).processInput(input);
     },
   };
 }
-
-// Re-export the deterministic vocabulary so downstream callers (and the
-// Wire phase) can reach the per-mineral route set from the agent module.
-export { MINERAL_FAMILIES, SEPARATION_ROUTES };

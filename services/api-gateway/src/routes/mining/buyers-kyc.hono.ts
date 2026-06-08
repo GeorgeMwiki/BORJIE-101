@@ -344,32 +344,29 @@ app.get('/kyc/me', async (c: any) => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /profile — buyer-side: update the calling user's buyers row.
+// PATCH /profile — update the calling user's buyer profile.
 //
-// Backs the buyer-mobile Profile → Save action (apps/buyer-mobile/app/
-// (tabs)/profile/index.tsx via api/buyers.ts updateProfile). Resolves the
-// caller's KYC'd buyers row via buyers.linked_user_id and patches the
-// editable fields:
-//   companyName → buyers.name
-//   phone       → buyers.contact_phone
-//   preferredLang (sw|en) → attributes.preferredLang (no dedicated column)
-// Returns the `BuyerUser` envelope the mobile session store hydrates from.
-// Tenant-scoped via auth.tenantId + RLS. Immutable attribute merge.
+// Backs the buyer-mobile Profile Save flow (apps/buyer-mobile/src/api/
+// buyers.ts → updateProfile). Resolves the buyers row via
+// linked_user_id (NOT an explicit id — the FE only knows the actor) and
+// patches the editable fields: display name (companyName), contact phone,
+// and preferred language (persisted into attributes.preferredLang so the
+// language toggle survives across sessions). Returns a BuyerUser-shaped
+// envelope the FE merges into the session.
+//
+// Tenant-scoped via auth.tenantId predicate + RLS. Immutable update:
+// attributes are rebuilt, never mutated in place.
 // ---------------------------------------------------------------------------
 
-const ProfileUpdateSchema = z
+const ProfilePatchSchema = z
   .object({
     companyName: z.string().min(1).max(200).optional(),
-    phone: z.string().min(1).max(40).optional(),
+    phone: z.string().max(40).optional(),
     preferredLang: z.enum(['sw', 'en']).optional(),
   })
-  .refine(
-    (v) =>
-      v.companyName !== undefined ||
-      v.phone !== undefined ||
-      v.preferredLang !== undefined,
-    { message: 'At least one field must be provided' },
-  );
+  .refine((v) => Object.keys(v).length > 0, {
+    message: 'At least one field must be provided',
+  });
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 app.patch('/profile', async (c: any) => {
@@ -400,7 +397,7 @@ app.patch('/profile', async (c: any) => {
   }
 
   const body = (await c.req.json().catch(() => null)) as unknown;
-  const parsed = ProfileUpdateSchema.safeParse(body);
+  const parsed = ProfilePatchSchema.safeParse(body);
   if (!parsed.success) {
     return c.json(
       {
@@ -441,53 +438,43 @@ app.patch('/profile', async (c: any) => {
 
   const priorAttributes =
     (existing.attributes as Record<string, unknown>) ?? {};
-  // Build a NEW attributes object — never mutate the prior one.
   const nextAttributes =
     parsed.data.preferredLang !== undefined
       ? { ...priorAttributes, preferredLang: parsed.data.preferredLang }
       : priorAttributes;
 
-  const updateValues: Record<string, unknown> = {
-    attributes: nextAttributes,
-    updatedAt: new Date(),
-  };
-  if (parsed.data.companyName !== undefined) {
-    updateValues.name = parsed.data.companyName;
-  }
-  if (parsed.data.phone !== undefined) {
-    updateValues.contactPhone = parsed.data.phone;
-  }
-
-  const [row] = await db
+  const [updated] = await db
     .update(buyers)
-    .set(updateValues)
+    .set({
+      name: parsed.data.companyName ?? existing.name,
+      contactPhone:
+        parsed.data.phone !== undefined
+          ? parsed.data.phone
+          : existing.contactPhone,
+      attributes: nextAttributes,
+    })
     .where(
-      and(
-        eq(buyers.id, existing.id),
-        eq(buyers.tenantId, auth.tenantId),
-      ),
+      and(eq(buyers.id, existing.id), eq(buyers.tenantId, auth.tenantId)),
     )
     .returning();
 
-  const updated = row ?? existing;
-  const attrs = (updated.attributes as Record<string, unknown>) ?? {};
-  const kycStatusMap: Record<string, string> = {
-    pending: 'pending',
-    in_review: 'submitted',
-    verified: 'approved',
-    rejected: 'rejected',
-  };
+  const row = updated ?? existing;
+  const rowAttributes = (row.attributes as Record<string, unknown>) ?? {};
+  const preferredLang =
+    rowAttributes.preferredLang === 'en' || rowAttributes.preferredLang === 'sw'
+      ? rowAttributes.preferredLang
+      : 'en';
   return c.json(
     {
       success: true as const,
       data: {
-        id: updated.id,
+        id: row.id,
         role: 'buyer' as const,
-        companyName: updated.name,
-        countryCode: updated.country,
-        preferredLang: attrs.preferredLang === 'en' ? 'en' : 'sw',
-        kycStatus: kycStatusMap[String(updated.kycStatus)] ?? 'pending',
-        phone: updated.contactPhone ?? '',
+        companyName: row.name,
+        countryCode: row.country,
+        preferredLang,
+        kycStatus: row.kycStatus,
+        phone: row.contactPhone ?? '',
       },
     },
     200,

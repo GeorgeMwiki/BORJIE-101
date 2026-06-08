@@ -206,7 +206,7 @@ export async function runConsolidationCycle(
 // Fact extraction (Haiku judge)
 // ─────────────────────────────────────────────────────────────────────
 
-export const FACT_EXTRACTION_SYSTEM_PROMPT = `You are a memory consolidation judge for a property-management AI brain. Read these N user/agent turns. Return a JSON array of {key, value, confidence, evidence} facts about the user's preferences, ongoing situations, or property-specific knowledge. Only include facts a brain should remember next week. Use lower_snake_case keys (e.g. "preferred_communication_channel", "pending_arrears_case_a12"). Confidence is a number in [0,1] where 1.0 means stated explicitly and 0.4 means a soft signal. Evidence is the shortest verbatim quote from the turns that justifies the fact. Return ONLY the JSON array. No markdown. No commentary. If no durable facts can be extracted, return [].`;
+export const FACT_EXTRACTION_SYSTEM_PROMPT = `You are a memory consolidation judge for a mining-estate AI brain. Read these N user/agent turns. Return a JSON array of {key, value, confidence, evidence} facts about the user's preferences, ongoing situations, or mining-estate-specific knowledge. Only include facts a brain should remember next week. Use lower_snake_case keys (e.g. "preferred_communication_channel", "pending_royalty_arrears_case_a12"). Confidence is a number in [0,1] where 1.0 means stated explicitly and 0.4 means a soft signal. Evidence is the shortest verbatim quote from the turns that justifies the fact. Return ONLY the JSON array. No markdown. No commentary. If no durable facts can be extracted, return [].`;
 
 const factSchema = z.object({
   key: z.string().min(1).max(120),
@@ -398,7 +398,7 @@ const STOPWORDS = new Set([
 // Reflective digest (Haiku judge)
 // ─────────────────────────────────────────────────────────────────────
 
-export const REFLECTIVE_DIGEST_SYSTEM_PROMPT = `You summarize a week of conversation between a property-management AI brain and one user. Read the N turns provided and return a single JSON object: {summary (string, <=400 chars), top_topics (array of {topic: string, count: number}), sentiment_avg (number in [-1, 1]), action_items (array of strings)}. The summary should be a tight third-person paragraph capturing the dominant themes. top_topics should be at most 5 entries ordered by frequency. sentiment_avg averages the user's affect across the week (-1 negative, 0 neutral, 1 positive); use null only if undeterminable. action_items are concrete next steps the brain or the user committed to. Return ONLY the JSON object. No markdown. No commentary.`;
+export const REFLECTIVE_DIGEST_SYSTEM_PROMPT = `You summarize a week of conversation between a mining-estate AI brain and one user. Read the N turns provided and return a single JSON object: {summary (string, <=400 chars), top_topics (array of {topic: string, count: number}), sentiment_avg (number in [-1, 1]), action_items (array of strings)}. The summary should be a tight third-person paragraph capturing the dominant themes. top_topics should be at most 5 entries ordered by frequency. sentiment_avg averages the user's affect across the week (-1 negative, 0 neutral, 1 positive); use null only if undeterminable. action_items are concrete next steps the brain or the user committed to. Return ONLY the JSON object. No markdown. No commentary.`;
 
 const digestSchema = z.object({
   summary: z.string().min(1).max(2000),

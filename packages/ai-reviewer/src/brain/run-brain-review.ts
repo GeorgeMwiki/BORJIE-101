@@ -18,7 +18,7 @@ import {
 } from '../types.js';
 
 export const REVIEWER_SYSTEM_PROMPT =
-  'You are a property-management workflow reviewer. ' +
+  'You are a mining-estate workflow reviewer. ' +
   'Return STRICTLY structured JSON matching the schema: ' +
   '{verdict, confidence (0..1), reasons[], suggestedFixes[]}. ' +
   'Verdicts: approve | reject_with_changes | reject_final | escalate. ' +

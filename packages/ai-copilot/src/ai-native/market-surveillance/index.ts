@@ -1,15 +1,16 @@
 /**
  * Market-rate surveillance.
  *
- * For every active unit, daily: query comparable listings (via abstract
- * `MarketRatePort` — no hardcoded site), feed through LLM to extract
- * rent/sqft/amenities, compute a 30-day rolling percentile band. Write to
- * `market_rate_snapshots`. When our rent deviates beyond thresholds, emit
- * `MarketRateDriftDetected` for the advisor persona.
+ * For every active unit (mining licence / offtake parcel), daily: query
+ * comparable offtake listings (via abstract `MarketRatePort` — no hardcoded
+ * site), feed through LLM to extract price/grade/commodity, compute a 30-day
+ * rolling percentile band. Write to `market_rate_snapshots`. When our offered
+ * price deviates beyond thresholds, emit `MarketRateDriftDetected` for the
+ * advisor persona.
  *
- * WHY AI-NATIVE: continuous market-intelligence across an entire portfolio;
- * a human operator cannot track thousands of units vs thousands of
- * comparable listings every day.
+ * WHY AI-NATIVE: continuous market-intelligence across an entire mining
+ * estate; a human operator cannot track thousands of parcels vs thousands of
+ * comparable offtake listings every day.
  *
  * External scrapers / APIs are stubbed behind env vars; first-class
  * deliverable is the orchestration + pipeline + schema.
@@ -53,9 +54,10 @@ export interface ComparableListing {
 }
 
 /**
- * Port — abstract data provider of comparable listings. Concrete adapters
- * (Zillow, Airbnb, local classified sites, estate-agent APIs) implement
- * this. Every adapter is gated by its own env var.
+ * Port — abstract data provider of comparable offtake listings. Concrete
+ * adapters (LME / metal-exchange feeds, mineral-buyer marketplaces, local
+ * trading-desk APIs) implement this. Every adapter is gated by its own env
+ * var.
  *
  * Follow-up adapter (#33): wire a concrete adapter per jurisdiction via
  * `resolvePlugin(tenantCountry)` from `@borjie/compliance-plugins`.
@@ -131,15 +133,15 @@ export interface MarketSurveillanceDeps {
 // Prompts
 // ---------------------------------------------------------------------------
 
-const EXTRACTION_SYSTEM_PROMPT = `You are a real-estate listing extractor. Read a raw listing description in any
+const EXTRACTION_SYSTEM_PROMPT = `You are a mineral offtake listing extractor. Read a raw listing description in any
 language and return ONLY JSON matching:
 {
-  "monthlyRentMinor": number (in minor units of the currency, e.g. cents) or null,
+  "monthlyRentMinor": number (offered price per unit in minor units of the currency, e.g. cents) or null,
   "currencyCode": string (ISO-4217) or null,
   "bedrooms": number or null,
   "bathrooms": number or null,
   "sqft": number or null,
-  "amenities": string[] (lowercase, e.g. "parking","wifi","pool")
+  "amenities": string[] (lowercase commodity tags, e.g. "gold","tanzanite","graded")
 }
 Return null for fields you cannot extract with high confidence.`;
 

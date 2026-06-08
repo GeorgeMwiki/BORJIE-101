@@ -249,8 +249,8 @@ function reducer(state: OwnerTabsState, action: Action): OwnerTabsState {
     }
     case 'open-background': {
       // Truly chat-first: the brain spawns a tab from what the owner explored
-      // in chat WITHOUT yanking them out of the conversation. It lands in the
-      // strip with a "+1" pulse; the owner finds it when they leave chat.
+      // in chat WITHOUT yanking them out of the conversation. The tab lands in
+      // the strip with a "+1" pulse; the owner finds it when they leave chat.
       const now = new Date().toISOString();
       const existing = state.tabs.find((t) => t.id === action.tab.id);
       if (existing) {

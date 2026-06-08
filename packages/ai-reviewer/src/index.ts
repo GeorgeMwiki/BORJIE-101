@@ -1,7 +1,7 @@
 /**
  * `@borjie/ai-reviewer` — public surface.
  *
- * Veteran-expert AI reviewer for property-management workflows. Composes
+ * Veteran-expert AI reviewer for mining-estate workflows. Composes
  * 10 per-kind policies (pre-checks + red-lines + brain prompts) with a
  * brain port for nuanced cases and a coaching layer for work-in-progress
  * hints.

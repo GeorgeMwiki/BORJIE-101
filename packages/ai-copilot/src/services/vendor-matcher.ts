@@ -181,7 +181,7 @@ export class VendorMatcherService {
     return [
       {
         id: 'vendor-001',
-        name: 'Premium Property Services',
+        name: 'Premium Mining-Site Services',
         specialties: ['PLUMBING', 'ELECTRICAL', 'HVAC', 'GENERAL_MAINTENANCE'] as VendorSpecialty[],
         serviceArea: ['Nairobi', 'Kiambu'],
         ratings: { overall: 4.8, quality: 4.9, reliability: 4.7, communication: 4.8, value: 4.5 },
@@ -424,7 +424,7 @@ export async function matchVendorsDeterministic(
         schema: NarrationSchema,
         model: deps.narrationModel ?? ModelTier.SONNET,
         systemPrompt:
-          'You narrate vendor matching decisions for a property manager. ' +
+          'You narrate vendor matching decisions for a mining-estate manager. ' +
           'The ranking is already determined — your job is to explain WHY ' +
           'and flag risks. Never contradict the ranking.',
       });

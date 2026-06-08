@@ -1,25 +1,19 @@
 /**
  * FX / Treasury Agent — live FX, sell-vs-stockpile simulator, BoT gold
  * window, 27-March-2026 USD cliff tracker (AGENT_PROMPT_LIBRARY §16,
- * §26) DEEPENED with a deterministic treasury-covenant engine and a
- * board-bounded hedging stance grounded in the commercial book
- * (`Docs/research/mining-estate-operating-model.md` §7.2 / §5.4):
- *   - DSCR ≥ ~1.5x, LLCR 1.7–2.0x, PLCR > 2.0x lender-coverage covenants,
- *   - reserve-tail ratio ≥ 30 % (mine outlives the loan),
- *   - DSRA sizing + shortfall, Equator Principles / IFC PS E&S gate,
- *   - hedge book that covers committed debt service / capex against price
- *     falls while preserving upside — operational, never speculative.
+ * §26) PLUS the deterministic project-finance covenant engine
+ * (commercial-book §7.2): DSCR / LLCR / PLCR, reserve-tail, DSRA, and a
+ * board-policy-bounded hedging stance (§5.4).
  *
- * AUTHORITY MODEL: in `covenants` mode the assessment + hedge stance are
- * computed by the pure `assessCovenants` / `recommendHedgeStance` engines
- * and those deterministic blocks OVERWRITE whatever the LLM echoed — the
- * model narrates, the engine decides the ratios and the stance.
+ * The `covenants` mode runs `assessCovenants` + `recommendHedgeStance`
+ * locally (no LLM); the LLM narrates the breach playbook around the
+ * deterministic numbers.
  *
- * MONEY MATH NOTE: this junior only ADVISES. No covenant computation,
- * DSRA top-up, hedge, or debt-service payment here moves money. Any DSRA
- * funding, hedge margin, or debt-service payment must route through
- * `LedgerService.post()` (double-entry, SoD: proposer != approver !=
- * recorder) — never a direct write.
+ * MONEY MATH NOTE: this junior only ADVISES. No DSRA top-up, hedge, or
+ * debt-service payment moves money here. Any such money movement must
+ * route through `LedgerService.post()` (double-entry, SoD: proposer (this
+ * agent) != approver (four-eye) != recorder (ledger)) — never a direct
+ * write.
  *
  * Schema gap: `fx_snapshots`, `sell_vs_stockpile_advice` raw SQL.
  */
@@ -55,8 +49,15 @@ export const FxTreasuryMode = z.enum([
 ]);
 
 // ─────────────────────────────────────────────────────────────────────
-// Covenant + hedging term-sheet inputs (drive the deterministic engines)
+// Covenant + hedging inputs (deterministic project-finance engine, §7.2/§5.4)
 // ─────────────────────────────────────────────────────────────────────
+
+export const CovenantThresholdsSchema = z.object({
+  dscr_min: z.number().positive(),
+  llcr_min: z.number().positive(),
+  plcr_min: z.number().positive(),
+  reserve_tail_min_pct: z.number().min(0).max(100),
+});
 
 export const CovenantInputsSchema = z.object({
   cfads_period: z.number(),
@@ -70,17 +71,11 @@ export const CovenantInputsSchema = z.object({
   dsra_required_months: z.number().nonnegative().optional(),
   period_months: z.number().positive().optional(),
   equator_principles_cleared: z.boolean().optional(),
-  /** Currency the facility is denominated in — rendered via formatCurrency, never hard-coded. */
+  /** Currency the cash amounts are denominated in (rendered via formatCurrency by callers). */
   currency_code: z.string().min(1),
+  thresholds: CovenantThresholdsSchema.optional(),
 });
-export type CovenantInputsBlock = z.infer<typeof CovenantInputsSchema>;
-
-export const CovenantThresholdsSchema = z.object({
-  dscr_min: z.number().positive(),
-  llcr_min: z.number().positive(),
-  plcr_min: z.number().positive(),
-  reserve_tail_min_pct: z.number().nonnegative(),
-});
+export type CovenantInputsInput = z.infer<typeof CovenantInputsSchema>;
 
 export const HedgingInputsSchema = z.object({
   committed_outflow: z.number().nonnegative(),
@@ -90,7 +85,7 @@ export const HedgingInputsSchema = z.object({
   current_dscr: z.number(),
   dscr_min: z.number().positive().optional(),
 });
-export type HedgingInputsBlock = z.infer<typeof HedgingInputsSchema>;
+export type HedgingInputsInput = z.infer<typeof HedgingInputsSchema>;
 
 export const FxTreasuryInputSchema = z.object({
   tenantId: z.string().min(1),
@@ -103,18 +98,12 @@ export const FxTreasuryInputSchema = z.object({
   lbma_or_lme_price_usd: z.number().positive().optional(),
   cost_of_carry_pct_per_month: z.number().nonnegative().default(0.015),
   days_horizon: z.number().int().positive().default(30),
-  /** Lender-coverage facility inputs (covenants mode). */
+  /** Required for mode='covenants' — drives the deterministic DSCR/LLCR/PLCR/reserve-tail/DSRA assessment. */
   covenant_inputs: CovenantInputsSchema.optional(),
-  /** Optional per-facility covenant thresholds (defaults to dossier §7.2). */
-  covenant_thresholds: CovenantThresholdsSchema.optional(),
-  /** Hedge-book exposure inputs (covenants mode). */
+  /** Optional hedging book state — drives the board-bounded hedge stance. */
   hedging_inputs: HedgingInputsSchema.optional(),
 });
 export type FxTreasuryInput = z.infer<typeof FxTreasuryInputSchema>;
-
-// ─────────────────────────────────────────────────────────────────────
-// Deterministic covenant + hedge blocks carried on the output
-// ─────────────────────────────────────────────────────────────────────
 
 const RatioResultSchema = z.object({
   value: z.number(),
@@ -122,35 +111,6 @@ const RatioResultSchema = z.object({
   status: z.enum(['pass', 'breach']),
   headroom: z.number(),
 });
-
-export const CovenantAssessmentSchema = z.object({
-  currency_code: z.string().min(1),
-  dscr: RatioResultSchema,
-  llcr: RatioResultSchema,
-  plcr: RatioResultSchema,
-  reserve_tail: RatioResultSchema,
-  dsra: z.object({
-    balance: z.number(),
-    required: z.number(),
-    shortfall: z.number(),
-    status: z.enum(['pass', 'breach']),
-  }),
-  es_gate_cleared: z.boolean(),
-  any_breach: z.boolean(),
-  breaches: z.array(z.string()),
-});
-export type CovenantAssessmentBlock = z.infer<typeof CovenantAssessmentSchema>;
-
-export const HedgingRecommendationSchema = z.object({
-  target_hedge_ratio: z.number(),
-  current_hedge_ratio: z.number(),
-  recommended_incremental_notional: z.number(),
-  stance: z.enum(['increase_cover', 'hold', 'reduce_cover', 'no_action']),
-  board_cap_respected: z.boolean(),
-  instruments_suggested: z.array(z.string()),
-  rationale: z.string(),
-});
-export type HedgingRecommendationBlock = z.infer<typeof HedgingRecommendationSchema>;
 
 export const FxTreasuryOutput = AuditedOutputBase.extend({
   mode: FxTreasuryMode,
@@ -162,26 +122,57 @@ export const FxTreasuryOutput = AuditedOutputBase.extend({
   usd_contracts_to_convert: z.array(z.object({ contract_id: z.string(), days_to_cliff: z.number().int() })).default([]),
   cliff_date: z.literal('2026-03-27'),
   days_to_cliff: z.number().int(),
-  /** Deterministic lender-coverage assessment — null outside covenants mode. */
-  covenant_assessment: CovenantAssessmentSchema.nullable().default(null),
-  /** Deterministic board-bounded hedge stance — null outside covenants mode. */
-  hedging_recommendation: HedgingRecommendationSchema.nullable().default(null),
+  /**
+   * DETERMINISTIC covenant assessment (mode='covenants'), present only
+   * when `covenant_inputs` was supplied. Computed by `assessCovenants` —
+   * NOT the LLM.
+   */
+  covenant_assessment: z
+    .object({
+      currency_code: z.string(),
+      dscr: RatioResultSchema,
+      llcr: RatioResultSchema,
+      plcr: RatioResultSchema,
+      reserve_tail: RatioResultSchema,
+      dsra: z.object({
+        balance: z.number(),
+        required: z.number(),
+        shortfall: z.number(),
+        status: z.enum(['pass', 'breach']),
+      }),
+      es_gate_cleared: z.boolean(),
+      any_breach: z.boolean(),
+      breaches: z.array(z.string()),
+    })
+    .nullable()
+    .default(null),
+  /** DETERMINISTIC board-bounded hedge stance, present only when `hedging_inputs` supplied. */
+  hedging_recommendation: z
+    .object({
+      target_hedge_ratio: z.number(),
+      current_hedge_ratio: z.number(),
+      recommended_incremental_notional: z.number(),
+      stance: z.enum(['increase_cover', 'hold', 'reduce_cover', 'no_action']),
+      board_cap_respected: z.boolean(),
+      instruments_suggested: z.array(z.string()),
+      rationale: z.string(),
+    })
+    .nullable()
+    .default(null),
 });
 export type FxTreasuryOutput = z.infer<typeof FxTreasuryOutput>;
 
 export const FX_TREASURY_SYSTEM_PROMPT = buildUniversalPrompt({
   juniorName: 'FX / Treasury Agent',
   mandate:
-    'Live FX, sell-vs-stockpile (BoT 24h-cash vs export 30+ day), 20 % set-aside ratio tracking, the 27-March-2026 ' +
-    'USD-cliff playbook for legacy contracts, and lender-coverage covenant monitoring (DSCR/LLCR/PLCR, reserve-tail, ' +
-    'DSRA) with a board-bounded hedging stance. In covenants mode the deterministic engine is authoritative — narrate ' +
-    'it, do not invent ratios.',
+    'Live FX, sell-vs-stockpile (BoT 24h-cash vs export 30+ day), 20 % set-aside ratio tracking, and the 27-March-2026 USD-cliff playbook for legacy contracts. ' +
+    'For mode="covenants": surface the lender-coverage picture (DSCR ≥ 1.5x, LLCR 1.7–2.0x, PLCR > 2.0x, reserve-tail ≥ 30 %), DSRA adequacy and the Equator-Principles gate — the ratios are pre-computed; author the breach-remediation playbook and a board-bounded hedging stance (operational hedges only, never speculation).',
   tools:
     'fetch_rate, fetch_mineral_price, audit_usd_contracts, draft_tzs_addendum, sell_vs_stockpile, nsr, set_aside_status, ' +
-    'assess_covenants, recommend_hedge_stance.',
+    'assess_covenants (deterministic DSCR/LLCR/PLCR/reserve-tail/DSRA), recommend_hedge_stance (board-bounded).',
   evidence:
-    'Cite GN 198/2025 for every USD-related refusal. Cite BoT mid-rate timestamp for every TZS-USD conversion. Cite the ' +
-    'facility agreement clause backing each covenant threshold and the board hedging-policy reference for the hedge cap.',
+    'Cite GN 198/2025 for every USD-related refusal. Cite BoT mid-rate timestamp for every TZS-USD conversion. ' +
+    'For covenants, cite the lender facility agreement clause and the CFADS/NPV source feeding each ratio.',
   outputSchema:
     '{ "mode": FxTreasuryMode, "bot_route_nsr_tzs"?: number, "export_route_nsr_tzs"?: number, ' +
     '"recommendation": "sell_bot"|"sell_export"|"stockpile"|"hold_pending_evidence", ' +
@@ -190,19 +181,60 @@ export const FX_TREASURY_SYSTEM_PROMPT = buildUniversalPrompt({
     '"covenant_assessment": {...}|null, "hedging_recommendation": {...}|null, ' +
     '"confidence": number, "rationale": string, "evidence_ids": string[], "citations": string[] }',
   confidenceFloor: 0.75,
-  autonomyDomain:
-    'advisory + advisory writes; never executes a sale, funds a DSRA, places a hedge, or moves money; any money event routes via LedgerService.post()',
+  autonomyDomain: 'advisory + advisory writes; never executes a sale or moves money; DSRA top-ups / hedge margin / debt service all post via LedgerService.post() (proposer != approver != recorder)',
   hardRules: [
     'Never advise non-TZS pricing for a domestic transaction (GN 198/2025).',
     'Never advise sale that violates 20 % set-aside (export permit will be denied).',
-    'Never advise speculative FX or commodity trading — operational hedges only (cover committed debt service / capex, preserve upside).',
+    'Never advise speculative FX trading at SME scale — operational hedges only; never exceed the board-approved hedge ratio.',
     'BoT route economics: 4 % royalty / 0 % inspection / 0 % VAT / 24h TZS settlement.',
-    'Surface every covenant breach (DSCR < 1.5x, reserve-tail < 30 %, DSRA shortfall) proactively — do not bury it.',
-    'Hedge ratio must respect the board-approved policy cap; never recommend cover above it.',
+    'On any covenant breach (DSCR/LLCR/PLCR/reserve-tail/DSRA), escalate — never silently continue debt drawdown or distributions.',
+    'Never move money — DSRA funding, hedge settlement and debt service route through LedgerService.post() only (double-entry, SoD).',
   ],
 });
 
-function buildUserPrompt(input: FxTreasuryInput): string {
+/** Deterministic covenant assessment block (or null when no inputs). */
+function buildCovenantAssessment(
+  input: FxTreasuryInput,
+): FxTreasuryOutput['covenant_assessment'] {
+  if (!input.covenant_inputs) return null;
+  const { currency_code, thresholds, ...rest } = input.covenant_inputs;
+  const effective: CovenantThresholds = thresholds ?? DEFAULT_COVENANT_THRESHOLDS;
+  const a = assessCovenants(rest as CovenantInputs, effective);
+  return {
+    currency_code,
+    dscr: { ...a.dscr },
+    llcr: { ...a.llcr },
+    plcr: { ...a.plcr },
+    reserve_tail: { ...a.reserve_tail },
+    dsra: { ...a.dsra },
+    es_gate_cleared: a.es_gate_cleared,
+    any_breach: a.any_breach,
+    breaches: [...a.breaches],
+  };
+}
+
+/** Deterministic board-bounded hedge stance (or null when no inputs). */
+function buildHedgingRecommendation(
+  input: FxTreasuryInput,
+): FxTreasuryOutput['hedging_recommendation'] {
+  if (!input.hedging_inputs) return null;
+  const h = recommendHedgeStance(input.hedging_inputs as HedgingInputs);
+  return {
+    target_hedge_ratio: h.target_hedge_ratio,
+    current_hedge_ratio: h.current_hedge_ratio,
+    recommended_incremental_notional: h.recommended_incremental_notional,
+    stance: h.stance,
+    board_cap_respected: h.board_cap_respected,
+    instruments_suggested: [...h.instruments_suggested],
+    rationale: h.rationale,
+  };
+}
+
+function buildUserPrompt(
+  input: FxTreasuryInput,
+  covenants: FxTreasuryOutput['covenant_assessment'],
+  hedging: FxTreasuryOutput['hedging_recommendation'],
+): string {
   const today = new Date(isoToday());
   const cliff = new Date('2026-03-27');
   const daysToCliff = Math.floor((cliff.getTime() - today.getTime()) / 86_400_000);
@@ -215,101 +247,40 @@ function buildUserPrompt(input: FxTreasuryInput): string {
     input.grade_g_per_t_or_pct !== undefined ? `GRADE: ${input.grade_g_per_t_or_pct}` : '',
     input.lbma_or_lme_price_usd !== undefined ? `LBMA/LME: ${input.lbma_or_lme_price_usd} USD` : '',
     `COST_OF_CARRY: ${(input.cost_of_carry_pct_per_month * 100).toFixed(2)} %/month  HORIZON_DAYS: ${input.days_horizon}`,
-    input.covenant_inputs
-      ? `COVENANT_INPUTS (${input.covenant_inputs.currency_code}):\n${JSON.stringify(input.covenant_inputs, null, 2).slice(0, 2_500)}`
+    covenants
+      ? `DETERMINISTIC_COVENANT_ASSESSMENT (pre-computed — echo verbatim in "covenant_assessment"):\n${JSON.stringify(covenants, null, 2).slice(0, 2_500)}`
       : '',
-    input.hedging_inputs ? `HEDGING_INPUTS:\n${JSON.stringify(input.hedging_inputs, null, 2).slice(0, 1_500)}` : '',
+    hedging
+      ? `DETERMINISTIC_HEDGE_STANCE (pre-computed — echo verbatim in "hedging_recommendation"):\n${JSON.stringify(hedging, null, 2).slice(0, 1_500)}`
+      : '',
   ]
     .filter(Boolean)
     .join('\n');
-}
-
-/** Run the pure covenant engine and shape the authoritative block (currency-agnostic). */
-function computeCovenantBlock(
-  inputs: CovenantInputsBlock,
-  thresholds: CovenantThresholds | undefined,
-): CovenantAssessmentBlock {
-  const engineInputs: CovenantInputs = {
-    cfads_period: inputs.cfads_period,
-    debt_service_period: inputs.debt_service_period,
-    npv_cfads_loan_life: inputs.npv_cfads_loan_life,
-    npv_cfads_project_life: inputs.npv_cfads_project_life,
-    debt_outstanding: inputs.debt_outstanding,
-    reserves_at_final_repayment: inputs.reserves_at_final_repayment,
-    total_reserves: inputs.total_reserves,
-    dsra_balance: inputs.dsra_balance,
-    ...(inputs.dsra_required_months !== undefined
-      ? { dsra_required_months: inputs.dsra_required_months }
-      : {}),
-    ...(inputs.period_months !== undefined ? { period_months: inputs.period_months } : {}),
-    ...(inputs.equator_principles_cleared !== undefined
-      ? { equator_principles_cleared: inputs.equator_principles_cleared }
-      : {}),
-  };
-  const a = assessCovenants(engineInputs, thresholds ?? DEFAULT_COVENANT_THRESHOLDS);
-  return {
-    currency_code: inputs.currency_code,
-    dscr: { ...a.dscr },
-    llcr: { ...a.llcr },
-    plcr: { ...a.plcr },
-    reserve_tail: { ...a.reserve_tail },
-    dsra: { ...a.dsra },
-    es_gate_cleared: a.es_gate_cleared,
-    any_breach: a.any_breach,
-    breaches: [...a.breaches],
-  };
-}
-
-/** Run the pure hedge-stance engine and shape the authoritative block. */
-function computeHedgeBlock(inputs: HedgingInputsBlock): HedgingRecommendationBlock {
-  const engineInputs: HedgingInputs = {
-    committed_outflow: inputs.committed_outflow,
-    exposed_revenue: inputs.exposed_revenue,
-    already_hedged_notional: inputs.already_hedged_notional,
-    board_max_hedge_ratio: inputs.board_max_hedge_ratio,
-    current_dscr: inputs.current_dscr,
-    ...(inputs.dscr_min !== undefined ? { dscr_min: inputs.dscr_min } : {}),
-  };
-  const h = recommendHedgeStance(engineInputs);
-  return {
-    target_hedge_ratio: h.target_hedge_ratio,
-    current_hedge_ratio: h.current_hedge_ratio,
-    recommended_incremental_notional: h.recommended_incremental_notional,
-    stance: h.stance,
-    board_cap_respected: h.board_cap_respected,
-    instruments_suggested: [...h.instruments_suggested],
-    rationale: h.rationale,
-  };
 }
 
 export function createFxTreasuryAgent(deps: JuniorDeps) {
   return {
     async processInput(input: FxTreasuryInput): Promise<FxTreasuryOutput> {
       const validated = FxTreasuryInputSchema.parse(input);
-      const llm = await runClaudeJunior({
+      // Deterministic project-finance math is computed locally — it is
+      // the source of truth; the LLM only narrates the playbook.
+      const covenants = buildCovenantAssessment(validated);
+      const hedging = buildHedgingRecommendation(validated);
+      const llmOutput = await runClaudeJunior({
         claude: deps.claude,
         logger: deps.logger,
         juniorName: 'fx-treasury-agent',
         schema: FxTreasuryOutput,
         systemPrompt: FX_TREASURY_SYSTEM_PROMPT,
-        userPrompt: buildUserPrompt(validated),
+        userPrompt: buildUserPrompt(validated, covenants, hedging),
         maxTokens: 2500,
       });
-
-      // Deterministic authority: in covenants mode the engines, not the
-      // LLM, own the ratios and the hedge stance.
-      const isCovenants = validated.mode === 'covenants';
-      const covenantAssessment =
-        isCovenants && validated.covenant_inputs
-          ? computeCovenantBlock(validated.covenant_inputs, validated.covenant_thresholds)
-          : null;
-      const hedgingRecommendation =
-        isCovenants && validated.hedging_inputs ? computeHedgeBlock(validated.hedging_inputs) : null;
-
+      // Overwrite the echoed blocks with the authoritative deterministic
+      // computation — never trust the LLM for covenant / hedge money math.
       const output: FxTreasuryOutput = {
-        ...llm,
-        covenant_assessment: covenantAssessment,
-        hedging_recommendation: hedgingRecommendation,
+        ...llmOutput,
+        covenant_assessment: covenants,
+        hedging_recommendation: hedging,
       };
 
       if (deps.db) {

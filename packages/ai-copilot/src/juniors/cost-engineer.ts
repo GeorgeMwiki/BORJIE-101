@@ -1,25 +1,23 @@
 /**
- * Cost Engineer Agent — two capabilities behind one junior:
+ * Cost Engineer Agent — TWO capabilities:
  *
- *   1. Mining unit economics — P&L, unit economics, break-even
- *      sensitivity, cash runway (AGENT_PROMPT_LIBRARY §15) via
- *      `processInput`.
- *   2. Quantity Surveying (QS) — `processQs` runs the deterministic RICS
- *      NRM1/NRM2 + post-contract money-machine engine (`qs-engine.ts`):
- *      NRM1 elemental cost plan, NRM2 first-principles rate build-up, IPC
- *      gross→net valuation, variation valuation, retention release,
- *      final-account reconciliation and Earned Value Management
- *      (CPI/SPI/EAC). Grounded in
- *      `Docs/research/construction-built-environment.md` §2, §5, §8.
+ *   1. Mining unit economics — P&L, unit economics, break-even sensitivity
+ *      (AGENT_PROMPT_LIBRARY §15). `processInput`.
  *
- * The QS numbers are AUTHORITATIVE and DETERMINISTIC — the LLM port only
- * narrates; it never invents a valuation. The agent OVERWRITES the
- * model's echoed identity + computed fields with the engine truth. Money
- * values carry an explicit `currency_code`; the junior never hard-codes
- * TZS/USD. Every certified IPC / variation / final-account settlement is
- * a money event that MUST flow through `LedgerService.post()` — this
- * junior produces the valuation and flags `posts_to_ledger`; the ledger
- * records it (never a direct write here).
+ *   2. Quantity-Surveying — a real QS junior for the estate's construction
+ *      programme (mine camps/plants/civils + buildings) grounded in
+ *      `Docs/research/construction-built-environment.md` §2/§5/§8:
+ *      NRM2 first-principles rate build-up + NRM1 elemental cost plan,
+ *      the §5 post-contract money machine (IPC valuation, variations,
+ *      retention, final account), and §8.1 Earned Value Management.
+ *      `processQs`. Deterministic math lives in `qs-engine.ts`; the LLM
+ *      port narrates over verified numbers and never invents them.
+ *
+ * Money-path discipline: this junior PRODUCES IPC / variation / retention /
+ * final-account valuations; it NEVER posts. Every certified money event
+ * flows through `LedgerService.post()` (CLAUDE.md hard rule). All amounts
+ * are currency-agnostic numbers carried with an explicit `currency_code`
+ * (never hard-code TZS/USD); rendering uses `formatCurrency`.
  *
  * Writes via typed `db.insert(unitEconomicsSnapshots)` (migration 0011).
  */
@@ -36,19 +34,14 @@ import {
   type JuniorDeps,
 } from './_shared.js';
 import {
-  buildUnitRate,
   buildCostPlan,
+  buildUnitRate,
+  computeEvm,
+  reconcileFinalAccount,
+  retentionReleaseSchedule,
   valuateIpc,
   valuateVariation,
-  retentionReleaseSchedule,
-  reconcileFinalAccount,
-  computeEvm,
   type BoqLine,
-  type CostPlanInput as QsCostPlanInput,
-  type IpcInput as QsIpcInput,
-  type VariationInput as QsVariationInput,
-  type FinalAccountInput as QsFinalAccountInput,
-  type EvmInput as QsEvmInput,
 } from './qs-engine.js';
 
 export const CostBucket = z.object({
@@ -131,16 +124,11 @@ function buildUserPrompt(input: CostEngineerInput): string {
   ].join('\n');
 }
 
-// ═════════════════════════════════════════════════════════════════════
-// Quantity-Surveying capability (RIBA Stages 0-7 construction programme)
-//
-// `processQs` is a distinct entry point: it runs the deterministic
-// `qs-engine.ts` math, then asks the LLM only for narration + the audit
-// envelope, and OVERWRITES every deterministic field with the engine
-// truth. Grounded in construction-built-environment.md §2/§5/§8.
-// ═════════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────────
+// QS capability — schemas (construction dossier §2/§5/§8)
+// ─────────────────────────────────────────────────────────────────────
 
-export const RibaStage = z.enum([
+const RibaStage = z.enum([
   'stage_0_strategic_definition',
   'stage_1_preparation_briefing',
   'stage_2_concept_design',
@@ -150,202 +138,206 @@ export const RibaStage = z.enum([
   'stage_6_handover',
   'stage_7_use',
 ]);
-export type RibaStage = z.infer<typeof RibaStage>;
 
-export const QsTask = z.enum(['cost_plan', 'ipc_valuation', 'variation', 'final_account', 'evm']);
-export type QsTask = z.infer<typeof QsTask>;
-
-/** A measured BOQ line — either a pre-built `rate` or a first-principles `rate_buildup`. */
-const RateBuildupSchema = z.object({
-  labour_all_in_rate: z.number().nonnegative(),
-  labour_hours_per_unit: z.number().nonnegative(),
-  material_cost_per_unit: z.number().nonnegative(),
-  plant_cost_per_unit: z.number().nonnegative(),
-  waste_fraction: z.number().min(0),
-  ohp_fraction: z.number().min(0),
-});
-
-const MeasuredLineSchema = z
-  .object({
-    code: z.string().min(1),
-    description: z.string().min(1),
-    quantity: z.number().nonnegative(),
-    unit: z.string().min(1),
-    rate: z.number().nonnegative().optional(),
-    rate_buildup: RateBuildupSchema.optional(),
-  })
-  .refine((l) => l.rate !== undefined || l.rate_buildup !== undefined, {
-    message: 'each measured line needs a rate or a rate_buildup',
-  });
-
-const CostPlanPayload = z.object({
-  measured_works: z.array(MeasuredLineSchema).min(1),
-  preliminaries: z.number().nonnegative(),
-  fees_fraction: z.number().min(0),
-  risk_fraction: z.number().min(0),
-  inflation_fraction: z.number().min(0),
-});
-
-const IpcPayload = z.object({
-  work_done_to_date: z.number().nonnegative(),
-  materials_on_site: z.number().nonnegative(),
-  variations_to_date: z.number(),
-  retention_fraction: z.number().min(0).max(1),
-  retention_limit_fraction: z.number().min(0).max(1),
-  contract_sum: z.number().nonnegative(),
-  previously_certified: z.number(),
-});
-
-const VariationPayload = z.object({
-  quantity: z.number(),
+const QsBoqLine = z.object({
+  code: z.string().min(1),
+  description: z.string().min(1),
+  quantity: z.number().nonnegative(),
+  unit: z.string().min(1),
+  /** Optional explicit rate; when absent, `rate_buildup` is required. */
   rate: z.number().nonnegative().optional(),
+  /** NRM2 §2.2 first-principles build-up — used when `rate` is absent. */
+  rate_buildup: z
+    .object({
+      labour_all_in_rate: z.number().nonnegative(),
+      labour_hours_per_unit: z.number().nonnegative(),
+      material_cost_per_unit: z.number().nonnegative(),
+      plant_cost_per_unit: z.number().nonnegative(),
+      waste_fraction: z.number().min(0).max(1),
+      ohp_fraction: z.number().min(0).max(1),
+    })
+    .optional(),
+});
+
+const QsVariation = z.object({
+  ref: z.string().min(1),
+  quantity: z.number().nonnegative(),
+  rate: z.number().optional(),
+  basis: z.enum(['boq_rate', 'pro_rata', 'fair_rate', 'dayworks']),
   dayworks: z
     .object({
       labour: z.number().nonnegative(),
       plant: z.number().nonnegative(),
       materials: z.number().nonnegative(),
-      percentage_addition: z.number().min(0),
+      percentage_addition: z.number().min(0).max(2),
     })
     .optional(),
-  basis: z.enum(['boq_rate', 'pro_rata', 'fair_rate', 'dayworks']),
 });
 
-const FinalAccountPayload = z.object({
-  original_contract_sum: z.number().nonnegative(),
-  remeasured_adjustment: z.number(),
-  total_variations: z.number(),
-  settled_claims: z.number(),
-  fluctuations: z.number(),
-  total_certified_to_date: z.number(),
-});
+export const QsTaskSchema = z.enum(['cost_plan', 'ipc_valuation', 'variation', 'final_account', 'evm']);
 
-const EvmPayload = z.object({
-  planned_value: z.number().nonnegative(),
-  earned_value: z.number().nonnegative(),
-  actual_cost: z.number().nonnegative(),
-  budget_at_completion: z.number().nonnegative(),
-});
-
-export const QsInputSchema = z.object({
+export const CostEngineerQsInputSchema = z.object({
   tenantId: z.string().min(1),
   projectId: z.string().min(1),
-  currency_code: z.string().min(3).max(3),
+  /** ISO 4217 code — multi-currency by construction; never hard-coded. */
+  currency_code: z.string().length(3),
   riba_stage: RibaStage,
-  task: QsTask,
-  cost_plan: CostPlanPayload.optional(),
-  ipc: IpcPayload.optional(),
-  variation: VariationPayload.optional(),
-  final_account: FinalAccountPayload.optional(),
-  evm: EvmPayload.optional(),
+  task: QsTaskSchema,
+  cost_plan: z
+    .object({
+      measured_works: z.array(QsBoqLine).min(1),
+      preliminaries: z.number().nonnegative(),
+      fees_fraction: z.number().min(0).max(1),
+      risk_fraction: z.number().min(0).max(1),
+      inflation_fraction: z.number().min(0).max(1),
+    })
+    .optional(),
+  ipc: z
+    .object({
+      work_done_to_date: z.number().nonnegative(),
+      materials_on_site: z.number().nonnegative(),
+      variations_to_date: z.number(),
+      retention_fraction: z.number().min(0).max(1),
+      retention_limit_fraction: z.number().min(0).max(1),
+      contract_sum: z.number().positive(),
+      previously_certified: z.number().nonnegative(),
+    })
+    .optional(),
+  variations: z.array(QsVariation).optional(),
+  final_account: z
+    .object({
+      original_contract_sum: z.number().positive(),
+      remeasured_adjustment: z.number(),
+      total_variations: z.number(),
+      settled_claims: z.number().nonnegative(),
+      fluctuations: z.number(),
+      total_certified_to_date: z.number().nonnegative(),
+    })
+    .optional(),
+  evm: z
+    .object({
+      planned_value: z.number().nonnegative(),
+      earned_value: z.number().nonnegative(),
+      actual_cost: z.number().nonnegative(),
+      budget_at_completion: z.number().positive(),
+    })
+    .optional(),
 });
-export type QsInput = z.infer<typeof QsInputSchema>;
+export type CostEngineerQsInput = z.infer<typeof CostEngineerQsInputSchema>;
 
-export const QsOutput = AuditedOutputBase.extend({
+export const CostEngineerQsOutput = AuditedOutputBase.extend({
   project_id: z.string(),
-  currency_code: z.string(),
+  currency_code: z.string().length(3),
+  task: QsTaskSchema,
   riba_stage: RibaStage,
-  task: QsTask,
-  /** Authoritative deterministic engine output for the requested task. */
+  /** Deterministic figures computed by qs-engine — the source of truth. */
   computed: z.record(z.string(), z.unknown()),
-  /** True for money events (IPC / variation / final account) — routes via LedgerService.post(). */
+  /** True when a money event is implied (IPC/variation/final account). */
   posts_to_ledger: z.boolean(),
+  /** Human-readable QS commentary from the LLM port over `computed`. */
   qs_commentary: z.string().min(1),
-  /** Stage-gate discipline warning (dossier §1) when a money event is run on an early-stage design. */
-  stage_gate_warning: z.string().nullable().default(null),
+  stage_gate_warning: z.string().nullable(),
 });
-export type QsOutput = z.infer<typeof QsOutput>;
+export type CostEngineerQsOutput = z.infer<typeof CostEngineerQsOutput>;
 
-/** Money events that MUST route through LedgerService.post(). */
-const LEDGER_TASKS: ReadonlySet<QsTask> = new Set<QsTask>(['ipc_valuation', 'variation', 'final_account']);
+// ─────────────────────────────────────────────────────────────────────
+// QS capability — prompt (LLM port narrates over verified numbers)
+// ─────────────────────────────────────────────────────────────────────
 
-/** RIBA stages too early to be valuing/certifying construction money. */
-const PRE_CONSTRUCTION_STAGES: ReadonlySet<RibaStage> = new Set<RibaStage>([
-  'stage_0_strategic_definition',
-  'stage_1_preparation_briefing',
-  'stage_2_concept_design',
-  'stage_3_spatial_coordination',
-]);
-
-export const QS_SYSTEM_PROMPT = buildUniversalPrompt({
+export const COST_ENGINEER_QS_SYSTEM_PROMPT = buildUniversalPrompt({
   juniorName: 'Cost Engineer Agent (Quantity Surveyor)',
   mandate:
-    'Act as a chartered Quantity Surveyor for the estate construction programme. The deterministic engine has ALREADY computed ' +
-    'the NRM1 cost plan / NRM2 rate build-up / IPC valuation / variation / final account / EVM — narrate the COMPUTED figures, ' +
-    'NEVER recompute or invent them. Flag stage-gate discipline (no Stage-4/5 money on a Stage-2 design) and the money path.',
+    'Act as a RICS-grade Quantity Surveyor for the estate construction programme. The numbers are ALREADY computed ' +
+    'deterministically (NRM1 cost plan, NRM2 rate build-up, §5 IPC/variation/retention/final account, §8.1 EVM) — ' +
+    'NEVER recompute or alter them. Narrate the COMPUTED figures, flag the most material drivers and risks, and call ' +
+    'out RIBA stage-gate discipline (never let cost run ahead of the gate).',
   tools:
-    'cost_plan(NRM1), rate_buildup(NRM2), interim_payment_certificate, value_variation, retention_release, final_account, earned_value(CPI/SPI/EAC).',
+    'build_unit_rate(NRM2), build_cost_plan(NRM1), valuate_ipc(§5), valuate_variation(§5), reconcile_final_account(§5), compute_evm(§8.1).',
   evidence:
-    'Cite the BOQ item codes, the contract form (FIDIC Red/Yellow/Silver, NEC4 A-F) and the valuation source documents. ' +
-    'Cite construction-built-environment.md §2/§5/§8 for the measurement and valuation rules applied.',
+    'Cite the construction dossier section grounding the figure (NRM1/NRM2 §2, IPC/variation/retention/final-account §5, EVM §8.1) ' +
+    'and the input line keys (BOQ codes, variation refs) feeding the computation.',
   outputSchema:
-    '{ "project_id": string, "currency_code": string, "riba_stage": RibaStage, "task": QsTask, "computed": {...}, ' +
+    '{ "project_id": string, "currency_code": string, "task": string, "riba_stage": string, "computed": object, ' +
     '"posts_to_ledger": boolean, "qs_commentary": string, "stage_gate_warning": string|null, ' +
     '"confidence": number, "rationale": string, "evidence_ids": string[], "citations": string[] }',
   confidenceFloor: 0.75,
   autonomyDomain:
-    'computational + advisory; never moves money — every certified IPC/variation/final-account posts via LedgerService.post()',
+    'computational + advisory; PRODUCES valuations only — NEVER posts money (LedgerService.post() owns the money path).',
   hardRules: [
-    'Never recompute or override the COMPUTED QS figures — they are the verified source of truth.',
-    'Price preliminaries separately from unit rates (NRM2) — never smear prelims into rates.',
-    'A Class-5 / RIBA Stage 0-2 estimate is never a commitment; warn when a money event runs on an early-stage design.',
-    'Never let a certified IPC/variation/final-account bypass LedgerService.post() — produce the valuation, the ledger records it.',
-    'Never report a domestic transaction in USD (GN 198/2025) — carry the explicit currency_code.',
+    'Never recompute or override the deterministic figures in COMPUTED — they are the verified source of truth.',
+    'Never smear preliminaries into measured unit rates (NRM2 §2.2 — prelims priced separately).',
+    'Read CPI and SPI together — under budget (CPI>1) can still be behind schedule (SPI<1).',
+    'Never let cost/procurement run ahead of the RIBA gate; flag stage_4/5 spend on a stage_2 design.',
+    'Derive contingency from risk allowance, never arbitrary padding.',
+    'Echo the currency_code; never assume or hard-code TZS/USD.',
   ],
 });
 
-/** Map a measured-line payload to a `qs-engine` BoqLine, building the rate from first principles when needed. */
-function toBoqLine(line: z.infer<typeof MeasuredLineSchema>): BoqLine {
-  const rate = line.rate ?? buildUnitRate(line.rate_buildup!).unit_rate;
-  return { code: line.code, description: line.description, quantity: line.quantity, unit: line.unit, rate };
-}
-
-/**
- * Pure dispatch to the deterministic QS engine. Throws a typed
- * `"<task> payload required"` error when the matching payload is absent.
- */
-export function runQsTask(input: QsInput): Record<string, unknown> {
+function computeQs(input: CostEngineerQsInput): { computed: Record<string, unknown>; posts: boolean } {
   switch (input.task) {
     case 'cost_plan': {
-      if (!input.cost_plan) throw new Error('cost_plan payload required');
-      const engineInput: QsCostPlanInput = {
-        measured_works: input.cost_plan.measured_works.map(toBoqLine),
-        preliminaries: input.cost_plan.preliminaries,
-        fees_fraction: input.cost_plan.fees_fraction,
-        risk_fraction: input.cost_plan.risk_fraction,
-        inflation_fraction: input.cost_plan.inflation_fraction,
+      if (!input.cost_plan) throw new Error('cost-engineer.qs: cost_plan payload required for task=cost_plan');
+      const measured_works: BoqLine[] = input.cost_plan.measured_works.map((l) => ({
+        code: l.code,
+        description: l.description,
+        quantity: l.quantity,
+        unit: l.unit,
+        rate: l.rate ?? buildUnitRate(requireBuildup(l)).unit_rate,
+      }));
+      return {
+        computed: { cost_plan: buildCostPlan({ ...input.cost_plan, measured_works }) },
+        posts: false,
       };
-      return { cost_plan: buildCostPlan(engineInput) };
     }
     case 'ipc_valuation': {
-      if (!input.ipc) throw new Error('ipc_valuation payload required');
-      const ipc = valuateIpc(input.ipc as QsIpcInput);
-      return { ipc, retention_release: retentionReleaseSchedule(ipc.retention_held) };
+      if (!input.ipc) throw new Error('cost-engineer.qs: ipc payload required for task=ipc_valuation');
+      const ipc = valuateIpc(input.ipc);
+      return {
+        computed: { ipc, retention_release: retentionReleaseSchedule(ipc.retention_held) },
+        posts: true,
+      };
     }
     case 'variation': {
-      if (!input.variation) throw new Error('variation payload required');
-      return { variation: valuateVariation(input.variation as QsVariationInput) };
+      if (!input.variations?.length) throw new Error('cost-engineer.qs: variations[] required for task=variation');
+      const valued = input.variations.map((v) => ({
+        ref: v.ref,
+        ...valuateVariation({ quantity: v.quantity, rate: v.rate, basis: v.basis, dayworks: v.dayworks }),
+      }));
+      return {
+        computed: { variations: valued, total: round2Sum(valued.map((v) => v.value)) },
+        posts: true,
+      };
     }
     case 'final_account': {
-      if (!input.final_account) throw new Error('final_account payload required');
-      return { final_account: reconcileFinalAccount(input.final_account as QsFinalAccountInput) };
+      if (!input.final_account) throw new Error('cost-engineer.qs: final_account payload required for task=final_account');
+      return { computed: { final_account: reconcileFinalAccount(input.final_account) }, posts: true };
     }
     case 'evm': {
-      if (!input.evm) throw new Error('evm payload required');
-      return { evm: computeEvm(input.evm as QsEvmInput) };
+      if (!input.evm) throw new Error('cost-engineer.qs: evm payload required for task=evm');
+      return { computed: { evm: computeEvm(input.evm) }, posts: false };
     }
-    default: {
-      const exhaustive: never = input.task;
-      throw new Error(`unknown QS task: ${String(exhaustive)}`);
-    }
+    default:
+      throw new Error(`cost-engineer.qs: unknown task ${String(input.task)}`);
   }
 }
 
-function buildQsUserPrompt(input: QsInput, computed: Record<string, unknown>): string {
+function requireBuildup(line: z.infer<typeof QsBoqLine>) {
+  if (!line.rate_buildup) {
+    throw new Error(`cost-engineer.qs: BOQ line ${line.code} needs either an explicit rate or a rate_buildup`);
+  }
+  return line.rate_buildup;
+}
+
+function round2Sum(values: ReadonlyArray<number>): number {
+  return Math.round((values.reduce((s, v) => s + v, 0) + Number.EPSILON) * 100) / 100;
+}
+
+function buildQsUserPrompt(input: CostEngineerQsInput, computed: Record<string, unknown>): string {
   return [
     `TENANT: ${input.tenantId}  PROJECT: ${input.projectId}  CURRENCY: ${input.currency_code}`,
-    `RIBA_STAGE: ${input.riba_stage}  QS_TASK: ${input.task}`,
-    `COMPUTED (verified deterministic engine output — narrate, do not alter):`,
-    JSON.stringify(computed, null, 2).slice(0, 4_000),
+    `RIBA_STAGE: ${input.riba_stage}  TASK: ${input.task}`,
+    `COMPUTED (verified, do not alter):`,
+    JSON.stringify(computed, null, 2).slice(0, 6_000),
   ].join('\n');
 }
 
@@ -387,43 +379,35 @@ export function createCostEngineerAgent(deps: JuniorDeps) {
     },
 
     /**
-     * Quantity-Surveying entry point. Runs the deterministic `qs-engine`
-     * for the requested task, then asks the LLM only for narration; the
-     * deterministic engine output + identity + ledger flag OVERWRITE the
-     * model echo. The LLM can never fabricate a valuation.
+     * Quantity-Surveying capability. Computes the construction figure
+     * deterministically (qs-engine), then asks the LLM port to narrate
+     * over the VERIFIED numbers. `posts_to_ledger` is forced from the
+     * deterministic task type so the LLM cannot mis-flag a money event.
      */
-    async processQs(input: QsInput): Promise<QsOutput> {
-      const validated = QsInputSchema.parse(input);
-      // Deterministic engine FIRST — also surfaces a typed "<task> payload
-      // required" error before any LLM cost is incurred.
-      const computed = runQsTask(validated);
+    async processQs(input: CostEngineerQsInput): Promise<CostEngineerQsOutput> {
+      const validated = CostEngineerQsInputSchema.parse(input);
+      const { computed, posts } = computeQs(validated);
 
       const narrated = await runClaudeJunior({
         claude: deps.claude,
         logger: deps.logger,
         juniorName: 'cost-engineer-qs',
-        schema: QsOutput,
-        systemPrompt: QS_SYSTEM_PROMPT,
+        schema: CostEngineerQsOutput,
+        systemPrompt: COST_ENGINEER_QS_SYSTEM_PROMPT,
         userPrompt: buildQsUserPrompt(validated, computed),
-        maxTokens: 2000,
+        maxTokens: 2500,
       });
 
-      const posts_to_ledger = LEDGER_TASKS.has(validated.task);
-      const stage_gate_warning =
-        posts_to_ledger && PRE_CONSTRUCTION_STAGES.has(validated.riba_stage)
-          ? `Stage-gate breach: a ${validated.task} money event is being run at ${validated.riba_stage} — certify only on construction-ready (Stage 4+) information.`
-          : null;
-
-      // Deterministic authority overwrites every model-echoed field.
-      const output: QsOutput = {
+      // Deterministic fields override the LLM — numbers + money-flag are
+      // authoritative from qs-engine, never from the model.
+      const output: CostEngineerQsOutput = {
         ...narrated,
         project_id: validated.projectId,
         currency_code: validated.currency_code,
-        riba_stage: validated.riba_stage,
         task: validated.task,
+        riba_stage: validated.riba_stage,
         computed,
-        posts_to_ledger,
-        stage_gate_warning,
+        posts_to_ledger: posts,
       };
 
       if (deps.db) {

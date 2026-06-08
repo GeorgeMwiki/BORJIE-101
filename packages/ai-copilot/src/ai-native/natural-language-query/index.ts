@@ -1,12 +1,12 @@
 /**
- * Natural-language portfolio query.
+ * Natural-language estate query.
  *
- * Owner asks: "Which properties returned less than 5% yield last quarter AND
- * have at least one arrears case open?" Parse via LLM → build a typed AST
+ * Owner asks: "Which mining sites returned less than 5% yield last quarter AND
+ * have at least one royalty arrears case open?" Parse via LLM → build a typed AST
  * → compile to Drizzle query against tenant-scoped data → stream result
  * rows + a natural-language summary.
  *
- * WHY AI-NATIVE: the owner doesn't have to learn SQL or our dashboards.
+ * WHY AI-NATIVE: the estate owner doesn't have to learn SQL or our dashboards.
  * Any question; structured answer.
  */
 
@@ -254,7 +254,7 @@ export interface NLQueryResult {
   readonly confidence: number | null;
 }
 
-const PARSE_SYSTEM_PROMPT = `You compile an operator question into a STRICT JSON AST for a property-management
+const PARSE_SYSTEM_PROMPT = `You compile an operator question into a STRICT JSON AST for a mining-estate
 database. Allowed entities: properties, units, leases, tenants, invoices, payments, cases, arrears.
 Return ONLY JSON:
 {

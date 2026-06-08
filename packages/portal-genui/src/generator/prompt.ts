@@ -30,7 +30,7 @@ function renderWidgetCatalog(): string {
   }).join('\n');
 }
 
-const STATIC_PROMPT_HEAD = `You design a tab for a multi-tenant property-management portal.
+const STATIC_PROMPT_HEAD = `You design a tab for a multi-tenant mining-estate portal.
 
 Output STRICT JSON with the shape (Zod schema: PortalTab):
 

@@ -89,7 +89,7 @@ export interface OnboardingData {
     specialNeeds?: string[];
   };
 
-  // Property context
+  // Mining estate context
   propertyContext?: {
     type: 'apartment' | 'house' | 'studio' | 'villa';
     location: string;
@@ -416,7 +416,7 @@ Return the updated complete profile in the same JSON format.`,
       messages: [
         {
           role: 'system',
-          content: `You are a communication personalization AI for a property management platform.
+          content: `You are a communication personalization AI for a mining-estate operations platform.
 Generate messages adapted to the tenant's preferences and communication style.
 Return a JSON object with:
 - message: The adapted message text
