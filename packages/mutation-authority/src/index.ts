@@ -123,3 +123,30 @@ export {
   appendMutationAudit,
   type MutationAuditEvent,
 } from './audit/audit-chain-link.js';
+
+// ---------------------------------------------------------------------------
+// Body-change syscall — the ONE chokepoint for all self-change. Composes
+// the meta-rail (checkBodyChangeInviolable) + the continuous controller
+// (decideAutonomy) + the monotone combine (composeWithRail) behind a
+// single fail-closed gate. The audited variant emits a hash-chained
+// decision record for every outcome.
+// ---------------------------------------------------------------------------
+
+export {
+  authorizeBodyChange,
+  type BodyChangeRequest,
+  type BodyChangeVerdict,
+  type BodyChangeSyscallPorts,
+  type MetaRailPort,
+  type AutonomyControllerPort,
+  type ComposeWithRailPort,
+  type BodyChangeAutonomyDecision,
+  type BodyChangeRailOutcome,
+  type BodyChangeMetaRailOutcome,
+} from './body-change/body-change-syscall.js';
+
+export {
+  runAuditedBodyChange,
+  type AuditedBodyChangeArgs,
+  type AuditedBodyChangeOutcome,
+} from './body-change/audited-body-change.js';

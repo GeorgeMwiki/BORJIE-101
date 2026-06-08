@@ -68,6 +68,23 @@ export {
   type ServiceTokenStore,
 } from './auth/index.js';
 
+// Mount registry + progressive disclosure (mount-everything subsystem)
+export {
+  createMountRegistry,
+  createProgressiveDisclosure,
+  disclosurePath,
+  splitDisclosurePath,
+  type MountRegistry,
+  type MountableServer,
+  type MountedServer,
+  type MountProject,
+  type MountKind,
+  type ProgressiveDisclosure,
+  type DisclosurePathEntry,
+  type DisclosedToolSpec,
+  type OrganSummary,
+} from './mount-registry/index.js';
+
 // Domain servers
 export {
   createPropertyMCPServer,

@@ -232,3 +232,383 @@ function containsCrossTenantReference(msg: string, scope: ScopeContext): boolean
     /\bbelonging to tenant\b/i.test(msg)
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// META-RAIL — the one organ the surgeon cannot operate on.
+//
+// `checkBodyChangeInviolable` is a NET-NEW, deterministic, no-LLM,
+// FAIL-CLOSED gate that governs the MD's self-modification ("body
+// change") path. It is the safety keystone of the MD-as-Body
+// architecture (Docs/research/MD_AS_BODY_ARCHITECTURE.md §governance,
+// §selfRedesign L3): a body-change is FORBIDDEN by construction if it
+//
+//   1. edits / disables / routes-around a RAIL (policy-gate, inviolable,
+//      four-eye, kill-switch, RLS, the money path / LedgerService),
+//   2. SHORTENS or ALTERS the hash-chained, append-only audit /
+//      provenance path,
+//   3. RAISES its own mandate/autonomy ceiling or LOWERS a confidence
+//      floor,
+//   4. proceeds on an INTEGRITY FAILURE (missing/invalid registration
+//      hash, broken chain link, unsigned proposal).
+//
+// This is ADDITIVE. It NEVER touches `checkInviolable` above and only
+// ADDS prohibitions. It is threaded into `composeWithRail` as one more
+// monotone-most-cautious input, so a forbidden body-change can never be
+// auto and rail-gate-always-wins extends to self-modification for free
+// (lexicographic corrigibility — Provably Corrigible Agents).
+//
+// Fail-closed contract: ANY malformed / missing descriptor field, ANY
+// thrown error in evaluation, ANY ambiguity resolves to `forbid`.
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Which kind of body-change is being attempted. Mirrors the three
+ * governed self-redesign layers (L1 move/reorder, L2 add surface /
+ * capability, L3 governed self-modification / sub-MD composition).
+ */
+export type BodyChangeKind =
+  | 'ui-move'
+  | 'ui-add'
+  | 'capability-add'
+  | 'prompt-edit'
+  | 'tool-def-edit'
+  | 'sub-md-compose'
+  | 'self-model-edit'
+  | 'code-patch';
+
+/**
+ * The categories the meta-rail forbids. Each maps to a clause of the
+ * meta-rail spec.
+ */
+export type BodyChangeForbiddenCategory =
+  | 'rail-edit'
+  | 'audit-shorten'
+  | 'ceiling-raise'
+  | 'confidence-floor-lower'
+  | 'integrity-failure'
+  | 'malformed-descriptor';
+
+/**
+ * A structured, inspectable description of a proposed body-change. The
+ * meta-rail reasons over THIS artifact (the externally-grounded
+ * self-model), never over model weights or free-form intent — see the
+ * Anthropic-introspection caveat in the capstone spec.
+ */
+export interface BodyChangeDescriptor {
+  /** The kind of organ-level change attempted. */
+  readonly kind: BodyChangeKind;
+  /** Stable id of the body node (surface / capability / sub-md / file). */
+  readonly targetNodeId: string;
+  /**
+   * Body nodes this change would WRITE to. The meta-rail forbids any
+   * write that touches a rail node (see RAIL_NODE_PATTERNS).
+   */
+  readonly touchesNodes?: ReadonlyArray<string>;
+  /**
+   * TRUE when the change edits, disables, weakens, or routes around any
+   * rail (policy-gate / inviolable / four-eye / kill-switch / RLS /
+   * money path). Caller-asserted; the meta-rail ALSO derives this from
+   * `touchesNodes` + `summary` so a caller cannot hide a rail-edit by
+   * leaving the flag false.
+   */
+  readonly editsRail?: boolean;
+  /**
+   * TRUE when the change would shorten / rewrite / delete / disable any
+   * portion of the hash-chained, append-only audit or provenance path.
+   */
+  readonly altersAuditChain?: boolean;
+  /**
+   * The mandate/autonomy ceiling BEFORE and AFTER the change, on the
+   * `auto < gate < four_eyes` lattice (or the L1..L5 ladder rank). A
+   * change that RAISES the ceiling (after is less cautious than before)
+   * is forbidden unless it is an explicit human-gated promotion — which
+   * does not flow through this self-change syscall.
+   */
+  readonly ceilingBefore?: BodyChangeCeiling;
+  readonly ceilingAfter?: BodyChangeCeiling;
+  /**
+   * Confidence floor BEFORE and AFTER. Lowering a floor (after < before)
+   * is forbidden — it would let a less-sure action auto.
+   */
+  readonly confidenceFloorBefore?: number;
+  readonly confidenceFloorAfter?: number;
+  /**
+   * Cryptographic registration-integrity inputs. The change is forbidden
+   * unless the recomputed hash matches `expectedIntegrityHash` AND the
+   * prior chain link is present. Caller injects the recomputed hash; the
+   * meta-rail does NOT trust a single self-reported boolean.
+   */
+  readonly expectedIntegrityHash?: string;
+  readonly computedIntegrityHash?: string;
+  /** TRUE when the prior audit-chain link is present + verified. */
+  readonly priorChainLinkVerified?: boolean;
+  /** Free-form human/LLM summary; scanned for rail/audit edit phrasing. */
+  readonly summary?: string;
+}
+
+/**
+ * The autonomy ceiling lattice the meta-rail compares. Ordered most- to
+ * least-cautious so a higher RANK = MORE autonomy (a RAISE is dangerous).
+ */
+export type BodyChangeCeiling =
+  | 'four_eyes'
+  | 'gate'
+  | 'auto'
+  | 'observer'
+  | 'approver'
+  | 'consultant'
+  | 'collaborator'
+  | 'operator';
+
+export interface BodyChangeInviolableVerdict {
+  readonly status: 'allow' | 'forbid';
+  readonly category?: BodyChangeForbiddenCategory;
+  readonly reason?: string;
+}
+
+/**
+ * Autonomy rank: HIGHER = MORE autonomous (less cautious). A body-change
+ * that moves a ceiling to a higher rank is a forbidden "ceiling raise".
+ * Unknown values rank as the MOST autonomous (Infinity) on the BEFORE
+ * side and the LEAST autonomous (-Infinity) on the AFTER side, so an
+ * unrecognised ceiling can never be used to sneak a raise past the gate
+ * (fail-closed in both directions).
+ */
+const CEILING_AUTONOMY_RANK: Readonly<Record<BodyChangeCeiling, number>> =
+  Object.freeze({
+    four_eyes: 0,
+    observer: 0,
+    gate: 1,
+    approver: 1,
+    consultant: 1,
+    auto: 2,
+    collaborator: 2,
+    operator: 3,
+  });
+
+function ceilingRankBefore(c: BodyChangeCeiling | undefined): number {
+  if (c === undefined) return Number.POSITIVE_INFINITY;
+  const rank = CEILING_AUTONOMY_RANK[c];
+  return rank === undefined ? Number.POSITIVE_INFINITY : rank;
+}
+
+function ceilingRankAfter(c: BodyChangeCeiling | undefined): number {
+  if (c === undefined) return Number.NEGATIVE_INFINITY;
+  const rank = CEILING_AUTONOMY_RANK[c];
+  return rank === undefined ? Number.NEGATIVE_INFINITY : rank;
+}
+
+/**
+ * Node-id / path patterns that name a RAIL organ. A body-change that
+ * writes to any of these is a rail-edit and is forbidden — the meta-rail
+ * never lets the surgeon operate on the nerve that keeps the body
+ * correctable. Conservative + broad on purpose (fail-closed).
+ */
+const RAIL_NODE_PATTERNS: ReadonlyArray<RegExp> = [
+  /\binviolable\b/i,
+  /\bpolicy[- ]?gate\b/i,
+  /\bfour[- ]?eye\b/i,
+  /\bkill[- ]?switch\b/i,
+  /\bkillswitch\b/i,
+  /\bcompose[- ]?with[- ]?rail\b/i,
+  /\bdecide[- ]?autonomy\b/i,
+  /\bledger[- ]?service\b/i,
+  /\bledgerservice\b/i,
+  /\bmoney[- ]?path\b/i,
+  /\bdouble[- ]?entry\b/i,
+  /\brls\b/i,
+  /\brow[- ]?level[- ]?security\b/i,
+  /\baudit[- ]?hash[- ]?chain\b/i,
+  /\baudit[- ]?chain\b/i,
+  /\bsovereign[- ]?action[- ]?ledger\b/i,
+  /\bmutation[- ]?authority\b/i,
+  /\bself[- ]?extension\b/i,
+  /\bcheck[- ]?body[- ]?change[- ]?inviolable\b/i,
+  /\bmeta[- ]?rail\b/i,
+];
+
+/**
+ * Phrases in a free-form summary that betray a rail-edit / audit-shorten
+ * intent even when the structured flags are left false. The meta-rail
+ * derives the prohibition from BOTH the structure AND the text so a
+ * caller cannot bypass it by lying with the booleans.
+ */
+const RAIL_EDIT_PHRASES: ReadonlyArray<RegExp> = [
+  /\b(disable|bypass|remove|delete|weaken|relax|skip|turn[- ]?off|route[- ]?around|short[- ]?circuit)\b.{0,40}\b(rail|policy[- ]?gate|inviolable|four[- ]?eye|kill[- ]?switch|killswitch|rls|guard|gate|check)/i,
+  /\b(raise|increase|lift|widen)\b.{0,30}\b(autonomy|ceiling|cap|limit|mandate)/i,
+  /\b(grant|give)\b.{0,20}\b(myself|itself|self)\b.{0,30}\b(more|higher|broader)\b/i,
+];
+
+const AUDIT_SHORTEN_PHRASES: ReadonlyArray<RegExp> = [
+  /\b(shorten|truncate|trim|prune|skip|omit|drop|delete|rewrite|alter|tamper|edit|disable)\b.{0,40}\b(audit|provenance|hash[- ]?chain|chain|ledger|trail|log)/i,
+  /\b(make|mark)\b.{0,20}\b(audit|chain|ledger)\b.{0,20}\b(mutable|editable|append[- ]?optional)/i,
+];
+
+function touchesRailNode(descriptor: BodyChangeDescriptor): boolean {
+  const candidates: string[] = [descriptor.targetNodeId];
+  if (descriptor.touchesNodes) candidates.push(...descriptor.touchesNodes);
+  for (const node of candidates) {
+    if (typeof node !== 'string') return true; // malformed → fail-closed
+    for (const re of RAIL_NODE_PATTERNS) {
+      if (re.test(node)) return true;
+    }
+  }
+  return false;
+}
+
+function summaryAsserts(
+  summary: string | undefined,
+  patterns: ReadonlyArray<RegExp>,
+): boolean {
+  if (!summary) return false;
+  for (const re of patterns) {
+    if (re.test(summary)) return true;
+  }
+  return false;
+}
+
+/**
+ * The meta-rail. DETERMINISTIC, no-LLM, FAIL-CLOSED. Returns `forbid`
+ * for any body-change that edits a rail, shortens/alters the audit
+ * chain, raises an autonomy ceiling, lowers a confidence floor, or
+ * proceeds on an integrity failure. Returns `allow` ONLY when EVERY
+ * clause passes and the descriptor is well-formed.
+ *
+ * ADDITIVE: this only adds prohibitions. It is the single deterministic
+ * input the body-change syscall feeds into `composeWithRail` alongside
+ * `decideAutonomy` — a `forbid` here forces the most-cautious decision
+ * by construction.
+ */
+export function checkBodyChangeInviolable(
+  descriptor: BodyChangeDescriptor,
+): BodyChangeInviolableVerdict {
+  // Fail-closed shell: any throw or any malformed core field forbids.
+  try {
+    if (
+      !descriptor ||
+      typeof descriptor.kind !== 'string' ||
+      typeof descriptor.targetNodeId !== 'string' ||
+      descriptor.targetNodeId.length === 0
+    ) {
+      return {
+        status: 'forbid',
+        category: 'malformed-descriptor',
+        reason: 'body-change descriptor is missing required fields (kind / targetNodeId)',
+      };
+    }
+
+    // ── Clause 1 — rail-edit. Forbid if the caller flags it, OR the
+    // change writes to a rail node, OR the summary betrays rail-edit
+    // intent. Derive from BOTH structure + text so a false flag cannot
+    // hide a rail-edit.
+    if (
+      descriptor.editsRail === true ||
+      touchesRailNode(descriptor) ||
+      summaryAsserts(descriptor.summary, RAIL_EDIT_PHRASES)
+    ) {
+      return {
+        status: 'forbid',
+        category: 'rail-edit',
+        reason: 'body-change would edit, disable, weaken, or route around a rail (policy-gate / inviolable / four-eye / kill-switch / RLS / money path)',
+      };
+    }
+
+    // ── Clause 2 — audit-chain shortening / alteration.
+    if (
+      descriptor.altersAuditChain === true ||
+      summaryAsserts(descriptor.summary, AUDIT_SHORTEN_PHRASES)
+    ) {
+      return {
+        status: 'forbid',
+        category: 'audit-shorten',
+        reason: 'body-change would shorten or alter the hash-chained, append-only audit / provenance path',
+      };
+    }
+
+    // ── Clause 3 — autonomy/mandate ceiling raise. A change is forbidden
+    // when the after-ceiling is MORE autonomous (higher rank) than the
+    // before-ceiling. Unknown / partial pairs fail-closed via the rank
+    // helpers (before→+Inf, after→-Inf only when BOTH absent; a present
+    // unknown forbids).
+    if (
+      descriptor.ceilingBefore !== undefined ||
+      descriptor.ceilingAfter !== undefined
+    ) {
+      const before = ceilingRankBefore(descriptor.ceilingBefore);
+      const after = ceilingRankAfter(descriptor.ceilingAfter);
+      // A present-but-unknown ceiling string ranks defensively; if the
+      // declared after-ceiling is unrecognised we treat it as a raise.
+      const afterDeclaredUnknown =
+        descriptor.ceilingAfter !== undefined &&
+        CEILING_AUTONOMY_RANK[descriptor.ceilingAfter] === undefined;
+      if (afterDeclaredUnknown || after > before) {
+        return {
+          status: 'forbid',
+          category: 'ceiling-raise',
+          reason: 'body-change would raise its own mandate / autonomy ceiling',
+        };
+      }
+    }
+
+    // ── Clause 4 — confidence-floor lowering. A change that lowers a
+    // confidence floor would let a less-sure action auto.
+    const floorBefore = descriptor.confidenceFloorBefore;
+    const floorAfter = descriptor.confidenceFloorAfter;
+    if (floorBefore !== undefined || floorAfter !== undefined) {
+      const beforeValid = typeof floorBefore === 'number' && Number.isFinite(floorBefore);
+      const afterValid = typeof floorAfter === 'number' && Number.isFinite(floorAfter);
+      // Any malformed floor pair fails-closed.
+      if (!beforeValid || !afterValid) {
+        return {
+          status: 'forbid',
+          category: 'malformed-descriptor',
+          reason: 'confidence-floor change is malformed (non-finite floor)',
+        };
+      }
+      if (floorAfter < floorBefore) {
+        return {
+          status: 'forbid',
+          category: 'confidence-floor-lower',
+          reason: 'body-change would lower a confidence floor',
+        };
+      }
+    }
+
+    // ── Clause 5 — registration / chain integrity. When an integrity
+    // hash is asserted it MUST be present, well-formed, AND match the
+    // recomputed hash; the prior chain link MUST be verified. A partial
+    // assertion (one side present) fails-closed.
+    const hasExpected =
+      descriptor.expectedIntegrityHash !== undefined ||
+      descriptor.computedIntegrityHash !== undefined ||
+      descriptor.priorChainLinkVerified !== undefined;
+    if (hasExpected) {
+      const expected = descriptor.expectedIntegrityHash;
+      const computed = descriptor.computedIntegrityHash;
+      if (
+        typeof expected !== 'string' ||
+        typeof computed !== 'string' ||
+        expected.length === 0 ||
+        computed.length === 0 ||
+        expected !== computed ||
+        descriptor.priorChainLinkVerified !== true
+      ) {
+        return {
+          status: 'forbid',
+          category: 'integrity-failure',
+          reason: 'body-change failed cryptographic registration-integrity check (hash mismatch / missing / unverified prior chain link)',
+        };
+      }
+    }
+
+    return { status: 'allow' };
+  } catch {
+    // Any unexpected error fails closed — the meta-rail NEVER proceeds
+    // on an evaluation failure.
+    return {
+      status: 'forbid',
+      category: 'integrity-failure',
+      reason: 'meta-rail evaluation failed; fail-closed',
+    };
+  }
+}

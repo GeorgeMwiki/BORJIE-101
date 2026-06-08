@@ -36,6 +36,7 @@
     "@borjie/learning-signal-emitter": "workspace:*",
     "@borjie/memory-port-extensions": "workspace:*",
     "@borjie/owner-os-tabs": "workspace:*",
+    "@borjie/system-graph": "workspace:*",
     "zod": "^3.25.76"
   },
   "optionalDependencies": {

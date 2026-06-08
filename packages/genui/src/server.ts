@@ -66,6 +66,21 @@ export {
   type ArtifactValidationFailure,
   type ValidateAndRenderResult,
 } from './validate-artifact';
+
+// SandboxedSurface — pure (no-React) schema + helpers for the MCP-Apps
+// escape-hatch lane. The React host (`SandboxedSurfaceFrame`) is NOT
+// exported here (it pulls DOM); server/persistence code validates with these.
+export {
+  SandboxedSurfaceSchema,
+  SANDBOX_ALLOWED_TOKENS,
+  SANDBOXED_SURFACE_SCHEMA_VERSION,
+  computeSandboxAttr,
+  isMessageOriginAllowed,
+  parseSandboxedSurface,
+  safeParseSandboxedSurface,
+  type SandboxedSurface,
+  type SandboxAllowedToken,
+} from './sandboxed-surface';
 export { PART_SCHEMAS, type PartKind } from './schemas';
 export type { AgUiUiPart } from './types';
 

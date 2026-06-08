@@ -233,7 +233,13 @@ export type PortalTabWidgetKind = (typeof PORTAL_TAB_WIDGET_KINDS)[number];
 
 export const PortalTabWidgetKindSchema = z.enum(PORTAL_TAB_WIDGET_KINDS);
 
-export const PortalTabWidgetSchema = z
+/**
+ * The plain object half of the widget schema (no `genui_part` refinement).
+ * Extracted so the incremental-patch layer can `.omit()`/`.partial()` it for
+ * `update-widget` ops — a `ZodEffects` (the refined schema below) does not
+ * expose `.omit`. The refinement is re-applied by `PortalTabWidgetSchema`.
+ */
+export const PortalTabWidgetObjectSchema = z
   .object({
     key: z.string().min(1).max(120),
     kind: PortalTabWidgetKindSchema,
@@ -256,8 +262,10 @@ export const PortalTabWidgetSchema = z
      */
     genuiKind: PortalDashboardKindSchema.optional(),
   })
-  .strict()
-  .superRefine((widget, ctx) => {
+  .strict();
+
+export const PortalTabWidgetSchema = PortalTabWidgetObjectSchema.superRefine(
+  (widget, ctx) => {
     if (widget.kind === 'genui_part' && !widget.genuiKind) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -266,7 +274,8 @@ export const PortalTabWidgetSchema = z
         path: ['genuiKind'],
       });
     }
-  });
+  },
+);
 
 export type PortalTabWidget = z.infer<typeof PortalTabWidgetSchema>;
 
@@ -343,6 +352,8 @@ export const PortalTabAuditEntrySchema = z
     note: z.string().max(500).optional(),
   })
   .strict();
+
+export type PortalTabAuditEntry = z.infer<typeof PortalTabAuditEntrySchema>;
 
 export const PortalTabAuditSchema = z
   .object({

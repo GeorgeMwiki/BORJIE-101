@@ -49,6 +49,14 @@ export {
 } from './awareness-scopes.js';
 export { checkInviolable, type InviolableVerdict } from './inviolable.js';
 export {
+  checkBodyChangeInviolable,
+  type BodyChangeDescriptor,
+  type BodyChangeInviolableVerdict,
+  type BodyChangeKind,
+  type BodyChangeCeiling,
+  type BodyChangeForbiddenCategory,
+} from './inviolable.js';
+export {
   NOT_YET_WIRED_REASON,
   NotYetWiredError,
   isNotYetWired,
@@ -76,13 +84,17 @@ export {
 export {
   checkSelfAwareness,
   renderModuleInventoryBlock,
+  renderSelfAwarenessBlock,
   describeCapabilities,
+  describeSelf,
   groupByCategory,
   BRAIN_MODULES,
   type SelfAwarenessInput,
   type SelfAwarenessOutput,
   type BrainModule,
   type BrainModuleCategory,
+  type BodySchemaReader,
+  type BodySchemaSnapshot,
 } from './self-awareness.js';
 export {
   inferMindState,

@@ -11,7 +11,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { composeWithRail, type RailOutcome } from '../compose-with-rail.js';
+import {
+  composeWithRail,
+  type RailOutcome,
+  type MetaRailOutcome,
+} from '../compose-with-rail.js';
 import { decideAutonomy } from '../decide-autonomy.js';
 import type {
   AutonomyDecision,
@@ -168,5 +172,103 @@ describe('composeWithRail — integration with the real decideAutonomy', () => {
     const composed = composeWithRail('allow', controller);
     expect(composed.decision).toBe('gate');
     expect(composed.railDominated).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// META-RAIL composition — the third monotone input. A meta-rail `forbid`
+// forces `four_eyes` and can NEVER be downgraded; an `allow` (or the
+// default) is a no-op so the original rail-gate proof is intact.
+// ═══════════════════════════════════════════════════════════════════════
+
+const META_OUTCOMES: ReadonlyArray<MetaRailOutcome> = ['allow', 'forbid'];
+
+describe('composeWithRail — META-RAIL is one more monotone input', () => {
+  it('defaults metaRail to allow (backward compatible 2-arg call)', () => {
+    const out = composeWithRail('allow', controllerStub('auto'));
+    expect(out.metaRailOutcome).toBe('allow');
+    expect(out.metaRailForbade).toBe(false);
+    expect(out.decision).toBe('auto');
+  });
+
+  it('explicit metaRail=allow is identical to the default', () => {
+    const a = composeWithRail('allow', controllerStub('auto'));
+    const b = composeWithRail('allow', controllerStub('auto'), 'allow');
+    expect(b.decision).toBe(a.decision);
+    expect(b.metaRailForbade).toBe(false);
+  });
+
+  it('exhaustive: final is the MAX over rail × controller × meta-rail', () => {
+    for (const rail of RAIL_OUTCOMES) {
+      for (const controllerDecision of CONTROLLER_DECISIONS) {
+        for (const meta of META_OUTCOMES) {
+          const out = composeWithRail(
+            rail,
+            controllerStub(controllerDecision),
+            meta,
+          );
+          const metaFloor = meta === 'forbid' ? RANK.four_eyes : RANK.auto;
+          const expected = Math.max(
+            RANK[railFloor(rail)],
+            RANK[controllerDecision],
+            metaFloor,
+          );
+          expect(RANK[out.decision]).toBe(expected);
+          // Monotone: never weaker than ANY single input.
+          expect(RANK[out.decision]).toBeGreaterThanOrEqual(RANK[railFloor(rail)]);
+          expect(RANK[out.decision]).toBeGreaterThanOrEqual(RANK[controllerDecision]);
+          expect(RANK[out.decision]).toBeGreaterThanOrEqual(metaFloor);
+        }
+      }
+    }
+  });
+
+  it('a meta-rail FORBID forces four_eyes regardless of rail/controller', () => {
+    for (const rail of RAIL_OUTCOMES) {
+      for (const controllerDecision of CONTROLLER_DECISIONS) {
+        const out = composeWithRail(rail, controllerStub(controllerDecision), 'forbid');
+        expect(out.decision).toBe('four_eyes');
+        expect(out.metaRailForbade).toBe(true);
+      }
+    }
+  });
+
+  it('a meta-rail forbid can NEVER be downgraded to auto even with the safest inputs', () => {
+    const out = composeWithRail('allow', controllerStub('auto'), 'forbid');
+    expect(out.decision).toBe('four_eyes');
+    expect(out.metaRailForbade).toBe(true);
+    expect(out.gatedBy).toBe('situation');
+  });
+
+  it('the original rail-gate invariant still holds WITH the meta-rail allowed', () => {
+    // Adding the meta-rail (allow) does not relax rail-gate.
+    const out = composeWithRail('four_eyes', controllerStub('auto'), 'allow');
+    expect(out.decision).toBe('four_eyes');
+    expect(out.railDominated).toBe(true);
+  });
+
+  it('meta-rail forbid attribution wins gatedBy when it sets the decision', () => {
+    const out = composeWithRail('allow', controllerStub('auto'), 'forbid');
+    expect(out.gatedBy).toBe('situation');
+  });
+
+  it('reasons surface the meta-rail outcome', () => {
+    const forbidOut = composeWithRail('allow', controllerStub('auto'), 'forbid');
+    expect(forbidOut.reasons.join('\n')).toContain("meta-rail: outcome='forbid'");
+    const allowOut = composeWithRail('allow', controllerStub('auto'), 'allow');
+    expect(allowOut.reasons.join('\n')).toContain("meta-rail: outcome='allow'");
+  });
+
+  it('integration: a real controller "auto" is forced to four_eyes by a meta-rail forbid', () => {
+    const controller = decideAutonomy({
+      calibratedConfidence: 1,
+      consequenceTier: 'trivial',
+      reversibility: 'reversible',
+      mandate: 'operator',
+    });
+    expect(controller.decision).toBe('auto');
+    const composed = composeWithRail('allow', controller, 'forbid');
+    expect(composed.decision).toBe('four_eyes');
+    expect(composed.metaRailForbade).toBe(true);
   });
 });

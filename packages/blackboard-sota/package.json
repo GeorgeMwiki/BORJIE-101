@@ -24,6 +24,7 @@
   "dependencies": {
     "@borjie/audit-hash-chain": "workspace:*",
     "@borjie/observability": "workspace:*",
+    "@borjie/realtime-adapter": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

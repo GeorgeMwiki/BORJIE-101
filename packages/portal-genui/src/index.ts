@@ -39,5 +39,8 @@ export * from './generator/index.js';
 // Persistence
 export * from './persistence/index.js';
 
+// Incremental A2UI-style patch ops (the MD edits a live surface)
+export * from './patch/index.js';
+
 // Engine facade
 export * from './engine.js';

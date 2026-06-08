@@ -102,6 +102,16 @@ export {
 } from './manifest.js';
 
 export {
+  MOUNT_SERVICE_ID,
+  buildMountServiceDescriptor,
+  listMountToolCatalog,
+  describeMountTools,
+  type MountServiceDescriptor,
+  type MountToolCatalogEntry,
+  type MountToolFullSpec,
+} from './mount-manifest.js';
+
+export {
   isJsonRpcRequest,
   parseJsonRpcLine,
   buildSuccess,

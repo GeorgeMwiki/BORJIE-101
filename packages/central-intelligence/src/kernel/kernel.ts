@@ -88,7 +88,10 @@ import {
   renderPersonaPrelude,
   type SituatedAddressArgs,
 } from './persona.js';
-import { renderModuleInventoryBlock } from './self-awareness.js';
+import {
+  renderSelfAwarenessBlock,
+  type BodySchemaReader,
+} from './self-awareness.js';
 import { scoreConfidence } from './confidence.js';
 import { normalize } from './normalizer.js';
 import { type BrainCache, thoughtCacheKey, createBrainCache } from './brain-cache.js';
@@ -256,6 +259,18 @@ export interface BrainKernelDeps {
     ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>
   >;
   readonly recentTurnCounter?: (threadId: string) => Promise<number>;
+  /**
+   * Optional reader for the MD's LIVE, DERIVED body schema (the
+   * `@borjie/system-graph` organ-map summary). When wired, the kernel
+   * renders the live "[BRAIN SELF-AWARENESS]" block from the actual route
+   * table / screen registries / package exports / DB schemas / MCP tools
+   * / capability registry instead of the static `BRAIN_MODULES` list,
+   * killing the hand-written-inventory drift. When absent (tests,
+   * bootstrap before first derivation) the static block is used.
+   *
+   * See Docs/research/MD_AS_BODY_ARCHITECTURE.md §bodyModel.
+   */
+  readonly bodySchemaReader?: BodySchemaReader;
   readonly judge?: (text: string) => Promise<{
     readonly score: number;
     readonly reasonText?: string;
@@ -1106,7 +1121,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       const personaPrelude = renderPersonaPrelude(
         buildSituatedAddressArgs(req, clock),
       );
-      const moduleInventory = renderModuleInventoryBlock();
+      const moduleInventory = renderSelfAwarenessBlock(deps.bodySchemaReader);
 
       // ToM accumulator — observe + render with cross-turn profile if
       // wired. Falls back to per-turn directive when the accumulator is
@@ -2118,7 +2133,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       const personaPrelude = renderPersonaPrelude(
         buildSituatedAddressArgs(req, clock),
       );
-      const moduleInventory = renderModuleInventoryBlock();
+      const moduleInventory = renderSelfAwarenessBlock(deps.bodySchemaReader);
 
       const mindState = inferMindState(req.userMessage);
       const affectiveProfile = observeAffective(

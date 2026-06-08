@@ -17,6 +17,7 @@ export {
 export {
   composeWithRail,
   type RailOutcome,
+  type MetaRailOutcome,
   type ComposedAutonomyOutput,
 } from './compose-with-rail.js';
 

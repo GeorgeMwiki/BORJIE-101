@@ -233,6 +233,7 @@ export {
   calibratedConfidenceFromConformal,
   calibratedCoverageCeiling,
   type RailOutcome,
+  type MetaRailOutcome,
   type ComposedAutonomyOutput,
   type ConformalCoverageView,
   type AutonomyDecision,

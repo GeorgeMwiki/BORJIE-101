@@ -38,6 +38,11 @@
       "import": "./dist/domain-servers/index.js",
       "default": "./dist/domain-servers/index.js"
     },
+    "./mount-registry": {
+      "types": "./dist/mount-registry/index.d.ts",
+      "import": "./dist/mount-registry/index.js",
+      "default": "./dist/mount-registry/index.js"
+    },
     "./auth": {
       "types": "./dist/auth/index.d.ts",
       "import": "./dist/auth/index.js",

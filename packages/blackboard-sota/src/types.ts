@@ -260,6 +260,195 @@ export interface SummariesRepository {
 }
 
 // ---------------------------------------------------------------------------
+// Cross-surface state bus — CRDT-backed named slots + handoff
+//
+// MD-as-Body capstone (Docs/research/MD_AS_BODY_ARCHITECTURE.md, lane:
+// "cross-surface state bus"). Promotes the blackboard from progress-only
+// to the ONE place a decision/doc/task lives: a named slot the MD posts
+// to in chat, and which the owner-web tab, workforce-mobile, and
+// buyer-mobile all SUBSCRIBE to and project — not copied, lives once.
+// The merge is a CRDT so concurrent edits across surfaces/devices never
+// stomp each other. Additive: existing region/post/summary consumers are
+// untouched.
+// ---------------------------------------------------------------------------
+
+/**
+ * What kind of object a slot holds. Drives how a subscribing surface
+ * chooses to render it (a tab, a card, a banner, a checklist). The bus
+ * stays render-agnostic — this is only a hint for the projector.
+ */
+export const SLOT_KINDS = [
+  'decision',
+  'document',
+  'task',
+  'draft',
+  'dataset',
+  'note',
+] as const;
+export type SlotKind = (typeof SLOT_KINDS)[number];
+
+/**
+ * The surfaces a slot can live on / be handed off to. Maps onto the
+ * four Borjie product surfaces plus the chat front door.
+ */
+export const SLOT_SURFACES = [
+  'chat',
+  'owner-web',
+  'workforce-mobile',
+  'buyer-mobile',
+  'admin-web',
+] as const;
+export type SlotSurface = (typeof SLOT_SURFACES)[number];
+
+/**
+ * A Lamport-style logical actor id. Every surface/device that can
+ * mutate a slot carries a stable `actorId` (e.g. `owner-web:sess-42`,
+ * `brain:md`, `workforce-mobile:device-7`). Used both as the
+ * version-vector key and as the deterministic LWW tie-breaker.
+ */
+export type ActorId = string;
+
+/**
+ * A version vector: per-actor monotonic counters. The CRDT merge takes
+ * the element-wise max — this is what makes the merge commutative,
+ * associative, and idempotent (a join over the lattice of vectors).
+ */
+export type VersionVector = Readonly<Record<ActorId, number>>;
+
+/**
+ * A single CRDT named slot. The state is a Last-Writer-Wins register
+ * (Shapiro et al. LWW-Register) carrying an arbitrary JSON value, with
+ * a version vector tracking causal history so a stale write can be
+ * detected and so merge is order-independent.
+ *
+ * Ordering of two competing writes (the `dominates` relation):
+ *   1. higher Lamport `clock` wins;
+ *   2. on a clock tie, higher `wallClockMs` wins;
+ *   3. on a wall-clock tie, lexicographically greater `actorId` wins.
+ * (3) guarantees a TOTAL order so the merge is deterministic across
+ * every replica — never a coin-flip.
+ */
+export interface Slot {
+  readonly tenantId: string;
+  /** Stable name, e.g. 'incident:KAH-088:decision'. */
+  readonly slotId: string;
+  readonly slotKind: SlotKind;
+  /** The winning value. `null` means the slot was tombstoned (deleted). */
+  readonly value: Readonly<Record<string, unknown>> | null;
+  /** The actor whose write currently holds the register. */
+  readonly writerId: ActorId;
+  /** Lamport clock of the winning write. */
+  readonly clock: number;
+  /** Wall-clock ms of the winning write (LWW tie-break #2). */
+  readonly wallClockMs: number;
+  /** True iff the slot is tombstoned. */
+  readonly deleted: boolean;
+  /** Causal history across all actors that have written this slot. */
+  readonly version: VersionVector;
+}
+
+/** Input to write (set) a slot value from a given surface/device. */
+export interface SlotWriteInput {
+  readonly tenantId: string;
+  readonly slotId: string;
+  readonly slotKind: SlotKind;
+  readonly value: Readonly<Record<string, unknown>>;
+  /** The surface/device performing the write. */
+  readonly actorId: ActorId;
+  /** Which surface the writer is on (provenance + handoff source). */
+  readonly surface: SlotSurface;
+}
+
+/** Input to tombstone (delete) a slot. */
+export interface SlotDeleteInput {
+  readonly tenantId: string;
+  readonly slotId: string;
+  readonly actorId: ActorId;
+  readonly surface: SlotSurface;
+}
+
+/**
+ * The wire shape broadcast on the state-bus channel for a slot delta.
+ * Subscribers feed it straight into the CRDT merge — the merge is the
+ * conflict resolver, so out-of-order / duplicate deliveries are safe
+ * (the realtime layer is at-least-once).
+ */
+export interface SlotDelta {
+  readonly tenantId: string;
+  readonly slot: Slot;
+  /** The surface that originated this delta (for loop-suppression). */
+  readonly originSurface: SlotSurface;
+}
+
+/**
+ * A surface/device handoff request — "move this live object from where
+ * it is now onto the surface the human is looking at". The Apple
+ * Handoff / Google Continue-On primitive: it does NOT copy the slot, it
+ * RE-PROJECTS the same single CRDT slot onto another surface, recording
+ * a provenance breadcrumb so the audit trail shows the continuity.
+ */
+export interface HandoffRequest {
+  readonly tenantId: string;
+  readonly slotId: string;
+  readonly fromSurface: SlotSurface;
+  readonly toSurface: SlotSurface;
+  /** The actor initiating the handoff (usually the MD or the user). */
+  readonly actorId: ActorId;
+  /** Optional target device hint within the surface (e.g. 'device-7'). */
+  readonly toDevice?: string;
+}
+
+/**
+ * The result of a handoff: the live slot re-projected onto the target
+ * surface. The slot value is unchanged (same object, lives once); only
+ * the projection's `surface`/`device` framing differs.
+ */
+export interface HandoffProjection {
+  readonly tenantId: string;
+  readonly slotId: string;
+  readonly toSurface: SlotSurface;
+  readonly toDevice: string | null;
+  /** The live slot as it stands at handoff time. */
+  readonly slot: Slot;
+  /** Chain of surfaces this slot has been projected onto, oldest first. */
+  readonly provenance: ReadonlyArray<SlotSurface>;
+  readonly handedOffAt: Date;
+}
+
+/**
+ * Storage seam for slots. The in-memory adapter ships with the package;
+ * production wires Drizzle. `merge` is the load-bearing op — it MUST be
+ * the CRDT join, never a blind overwrite, so concurrent cross-surface
+ * writes converge.
+ */
+export interface SlotsRepository {
+  /** Read the current slot, or null if it has never been written. */
+  get(tenantId: string, slotId: string): Promise<Slot | null>;
+  /**
+   * Merge an incoming slot into storage via the CRDT join and return
+   * the converged result. Idempotent: merging the same delta twice is
+   * a no-op.
+   */
+  merge(incoming: Slot): Promise<Slot>;
+  /** List every slot for a tenant (optionally filtered by kind). */
+  list(
+    tenantId: string,
+    filter?: { readonly slotKind?: SlotKind },
+  ): Promise<ReadonlyArray<Slot>>;
+  /** Per-slot projection provenance (surfaces it has been handed to). */
+  recordProjection(
+    tenantId: string,
+    slotId: string,
+    surface: SlotSurface,
+  ): Promise<ReadonlyArray<SlotSurface>>;
+  /** Read the projection provenance for a slot. */
+  projectionsOf(
+    tenantId: string,
+    slotId: string,
+  ): Promise<ReadonlyArray<SlotSurface>>;
+}
+
+// ---------------------------------------------------------------------------
 // Spec constants
 // ---------------------------------------------------------------------------
 
