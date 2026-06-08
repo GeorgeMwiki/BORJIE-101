@@ -29,6 +29,7 @@
     "@borjie/agent-orchestrator": "workspace:*",
     "@borjie/agent-platform": "workspace:*",
     "@borjie/agent-runtime": "workspace:*",
+    "@borjie/agent-security-guard": "workspace:*",
     "@borjie/agentic-os": "workspace:*",
     "@borjie/ai-copilot": "workspace:*",
     "@borjie/ai-reviewer": "workspace:*",

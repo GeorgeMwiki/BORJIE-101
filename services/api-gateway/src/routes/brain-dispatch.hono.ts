@@ -74,11 +74,72 @@ import {
   createBrainLlmClient,
   BRAIN_LLM_MODELS,
 } from '../services/brain/llm-call';
+// SEC-4 / INV-H — IP-egress output firewall. The sub-MD chain returns
+// Anthropic-generated free text (proposal.summary / steps[].description /
+// steps[].expectedImpact / artifact.skillName) in the `c.json` body. Internal
+// cognition / secrets / cross-tenant leakage in a sub-MD chain output must NOT
+// reach the client raw, so every LLM-derived string in the response is passed
+// through the FAIL-CLOSED guard before the body is built. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   name: 'brain-dispatch',
 });
+
+/** Fail-closed placeholder when the deep guard wrapper itself throws. */
+const DISPATCH_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard one text span (final guard, persists block rows). FAIL-CLOSED: the
+ * filter returns a redacted placeholder on any internal fault, and this
+ * wrapper try/catches so a construction fault also fails closed to
+ * `[redacted]` rather than leaking the raw model text.
+ */
+function guardDispatchText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'brain-dispatch: egress guard threw — failing closed (redacting span)',
+    );
+    return DISPATCH_EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Recursively guard EVERY string value in an arbitrary JSON-shaped value,
+ * preserving structure (objects/arrays rebuilt immutably with guarded leaves).
+ * Used over the sub-MD result + plan payload so any LLM-derived free text
+ * (proposal.summary / step.description / step.expectedImpact / artifact text /
+ * rationale / summary) is filtered without risking a JSON-shape break — values
+ * are guarded in place, keys are left untouched. Pure (immutability): returns a
+ * NEW value, never mutates the input.
+ */
+function deepGuard<T>(value: T, tenantId: string): T {
+  if (typeof value === 'string') {
+    return guardDispatchText(value, tenantId) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => deepGuard(v, tenantId)) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = deepGuard(v, tenantId);
+    }
+    return out as unknown as T;
+  }
+  // number / boolean / null / undefined — not a leak vector, pass through.
+  return value;
+}
 
 // ── role gate ──────────────────────────────────────────────────────────────
 // Tier-gate (task spec): owner / admin only. Mirrors org-admin.hono.ts and
@@ -419,6 +480,20 @@ app.post(
       const skipped = subMdResults.filter((r) => r.status === 'skipped').length;
       const failed = subMdResults.filter((r) => r.status === 'failed').length;
 
+      // SEC-4 — recursively guard the LLM-derived free text before it egresses.
+      // The VP rationale/summary/gaps and the sub-MD chain results
+      // (proposal.summary / step.description / step.expectedImpact / artifact)
+      // are all model-generated, so they pass the FAIL-CLOSED filter. Static
+      // copy (vp, ids, counts, registry constants, bilingual notices) is left
+      // unguarded — it is deterministic and never carries cognition/secrets.
+      const guardedSubMdResults = deepGuard(subMdResults, auth.tenantId);
+      const guardedRationale = guardDispatchText(plan.rationale, auth.tenantId);
+      const guardedGaps = deepGuard(plan.gaps, auth.tenantId);
+      const guardedSummary =
+        plan.summary !== undefined
+          ? guardDispatchText(plan.summary, auth.tenantId)
+          : undefined;
+
       return c.json(
         {
           success: true,
@@ -428,12 +503,12 @@ app.post(
             plan: {
               vpName: plan.vpName,
               intentKind: plan.intentKind,
-              rationale: plan.rationale,
+              rationale: guardedRationale,
               spawnCount: plan.spawns.length,
-              ...(plan.summary ? { summary: plan.summary } : {}),
+              ...(guardedSummary !== undefined ? { summary: guardedSummary } : {}),
             },
-            gaps: plan.gaps,
-            subMdResults,
+            gaps: guardedGaps,
+            subMdResults: guardedSubMdResults,
             summary: {
               spawns: plan.spawns.length,
               completed,

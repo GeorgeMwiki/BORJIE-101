@@ -85,6 +85,12 @@ import {
   resolveStreamChunkChars,
   deferPostResponseWork,
 } from './brain-stream-helpers.js';
+// SEC-4 — IP-egress output firewall. MANDATORY, FAIL-CLOSED last hop before
+// any agent text reaches the client / a tool / persistence. Strips internal
+// cognition / prompts / architecture / secrets / canary tokens / cross-tenant
+// ids (NOT the tenant's own business data). DEFAULT-ON; kill-switch
+// `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -303,9 +309,112 @@ function clientWantsSse(accept: string | undefined): boolean {
   return false;
 }
 
-interface PublicSseFrame {
+export interface PublicSseFrame {
   readonly event: string;
   readonly data: Record<string, unknown>;
+}
+
+// ─── SEC-4 — IP-egress guards (FAIL-CLOSED last hop) ──────────────────
+//
+// Every user-visible text span emitted by the brain — final answer chunks,
+// streaming partials, error messages, and tool-call args — passes one of
+// these guards before it leaves the gateway. The guards strip internal
+// cognition / prompts / architecture / secrets / canary tokens / cross-tenant
+// ids. They do NOT redact the tenant's OWN business data out of their OWN
+// answer (that is legitimate and handled on ingress by the privacy router).
+//
+// FAIL-CLOSED: the underlying `getEgressFilter()` returns a redacted
+// placeholder on any filter throw, so a guard NEVER returns the raw text on a
+// fault. These wrappers are additionally try/caught so a construction fault
+// also fails closed to `[redacted]` rather than raw passthrough.
+
+const EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard a STREAMING partial text chunk (fast path, no block persistence).
+ * Returns safe-to-emit text. Fail-closed to `[redacted]` on any fault.
+ *
+ * Exported for the egress-filter route test (proves the emit-path strip +
+ * fail-closed property against a real / injected filter).
+ */
+export function guardStreamText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardStream(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: egress stream-guard threw — failing closed',
+    );
+    return EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Guard a FINAL / complete text span (full strip + best-effort block
+ * persistence). Use for the final answer text, error `message` fields, and
+ * tool-call `args`. Fail-closed to `[redacted]` on any fault.
+ */
+export function guardFinalText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: egress final-guard threw — failing closed',
+    );
+    return EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Deep-guard the `args` object of a tool_call frame. Tool args are a classic
+ * leak vector (a tool name + serialized args can carry a prompt/secret). We
+ * JSON-serialize, run the FULL filter, and re-parse; if the cleaned text is no
+ * longer valid JSON (a redaction broke the shape) we drop the args entirely
+ * rather than risk emitting raw. Fail-closed: any fault drops args to null.
+ */
+export function guardToolArgs(args: unknown, tenantId: string): unknown {
+  if (args === null || args === undefined) return args ?? null;
+  try {
+    const serialized = JSON.stringify(args);
+    const cleaned = guardFinalText(serialized, tenantId);
+    if (cleaned === serialized) return args; // nothing stripped — pass intact
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // A redaction broke the JSON shape — drop args rather than emit raw.
+      return { redacted: true };
+    }
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: egress tool-arg guard threw — dropping args (fail-closed)',
+    );
+    return { redacted: true };
+  }
+}
+
+/**
+ * Guard a projected SSE frame in place. Returns a NEW frame (immutability)
+ * with its user-visible text fields filtered:
+ *   - message_chunk.text  — partial answer chunk (stream guard)
+ *   - error.message       — error text (final guard; classic leak vector)
+ *   - tool_call.args      — tool args (deep final guard)
+ * Other fields pass through unchanged.
+ */
+export function guardPublicFrame(frame: PublicSseFrame, tenantId: string): PublicSseFrame {
+  if (frame.event === 'message_chunk' && typeof frame.data.text === 'string') {
+    return { event: frame.event, data: { ...frame.data, text: guardStreamText(frame.data.text, tenantId) } };
+  }
+  if (frame.event === 'error' && typeof frame.data.message === 'string') {
+    return { event: frame.event, data: { ...frame.data, message: guardFinalText(frame.data.message, tenantId) } };
+  }
+  if (frame.event === 'tool_call' && 'args' in frame.data) {
+    return { event: frame.event, data: { ...frame.data, args: guardToolArgs(frame.data.args, tenantId) } };
+  }
+  return frame;
 }
 
 function projectStreamEvent(evt: StreamTurnEvent, threadId: string): PublicSseFrame | null {
@@ -1113,8 +1222,18 @@ async function auditAndEnforceJson(args: {
       'brain /turn: ungrounded response WITHHELD in HARD mode (evidence-required)',
     );
   }
+  // SEC-4 — IP-egress guard on the FINAL JSON answer text (the LAST hop
+  // before it reaches the client / is cached / is persisted). Strips internal
+  // cognition / prompts / architecture / secrets / canary / cross-tenant ids;
+  // does NOT redact the tenant's own business data. FAIL-CLOSED inside the
+  // guard. Runs AFTER the evidence-enforcement substitution so a withheld
+  // placeholder (already safe) also passes through unchanged.
+  const safeResponseText = guardFinalText(
+    decision.responseText,
+    args.ctx.tenant.tenantId,
+  );
   return {
-    responseText: decision.responseText,
+    responseText: safeResponseText,
     status: decision.status,
     audit: {
       verdict: verdict.verdict,
@@ -1200,7 +1319,8 @@ async function handleTurnJsonViaOrchestrator(
           error: 'kernel_refused',
           code: 'KERNEL_REFUSED',
           gate: payload.refusalGate,
-          responseText: payload.responseText,
+          // SEC-4 — guard the refusal text before egress (defense-in-depth).
+          responseText: guardFinalText(payload.responseText, ctx.tenant.tenantId),
         },
         403,
       );
@@ -1301,7 +1421,8 @@ async function handleTurnSseViaOrchestrator(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'orchestrator_failed'),
+          // SEC-4 — error messages are a classic leak vector; guard it.
+          message: guardFinalText(scrubMessage(err, 'orchestrator_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1314,7 +1435,7 @@ async function handleTurnSseViaOrchestrator(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: payload.responseText,
+          message: guardFinalText(payload.responseText, ctx.tenant.tenantId),
           code: 'KERNEL_REFUSED',
           gate: payload.refusalGate,
           retryable: false,
@@ -1332,7 +1453,9 @@ async function handleTurnSseViaOrchestrator(
     // (smaller, env-tunable) stream chunk size so the first visible paint
     // lands sooner than the legacy 80-char chunks.
     try {
-      const text = payload.responseText ?? '';
+      // SEC-4 — guard the FULL answer text ONCE (final guard, persists blocks)
+      // before chunking so a leak that straddles two chunks is still caught.
+      const text = guardFinalText(payload.responseText ?? '', ctx.tenant.tenantId);
       for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
         await stream.writeSSE({
           event: 'message_chunk',
@@ -1388,7 +1511,8 @@ async function handleTurnSseViaOrchestrator(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'stream_failed'),
+          // SEC-4 — guard the error message before egress.
+          message: guardFinalText(scrubMessage(err, 'stream_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1549,6 +1673,7 @@ async function emitAuditorFrame(
 async function emitStartedTurnFrames(
   stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
   turn: StartedTurnPayload,
+  tenantId: string,
 ): Promise<void> {
   for (const tc of turn.toolCalls) {
     await stream.writeSSE({
@@ -1562,13 +1687,16 @@ async function emitStartedTurnFrames(
       data: JSON.stringify({
         tool: `handoff:${h.from}->${h.to}`,
         status: 'ok',
-        args: { objective: h.objective },
+        // SEC-4 — tool args are a leak vector; guard the handoff objective.
+        args: { objective: guardFinalText(h.objective, tenantId) },
       }),
     });
   }
   // STREAMING FIRST-TOKEN: chunk at the (smaller, env-tunable) stream chunk
   // size so the first visible paint lands sooner than legacy 80-char chunks.
-  const text = turn.responseText ?? '';
+  // SEC-4 — guard the FULL answer text ONCE (final guard, persists blocks)
+  // before chunking so a leak split across two chunks is still caught.
+  const text = guardFinalText(turn.responseText ?? '', tenantId);
   for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
     await stream.writeSSE({
       event: 'message_chunk',
@@ -1667,7 +1795,8 @@ async function handleTurnSse(
           await stream.writeSSE({
             event: 'error',
             data: JSON.stringify({
-              message: startRes.error.message,
+              // SEC-4 — error messages are a classic leak vector; guard it.
+              message: guardFinalText(startRes.error.message, ctx.tenant.tenantId),
               code: startRes.error.code,
               retryable: startRes.error.retryable,
             }),
@@ -1694,7 +1823,8 @@ async function handleTurnSse(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'orchestrator_failed'),
+          // SEC-4 — guard the error message before egress.
+          message: guardFinalText(scrubMessage(err, 'orchestrator_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1703,7 +1833,7 @@ async function handleTurnSse(
     }
     try {
       if (bootstrap.type === 'started') {
-        await emitStartedTurnFrames(stream, bootstrap.turn);
+        await emitStartedTurnFrames(stream, bootstrap.turn, ctx.tenant.tenantId);
         await emitAuditorFrame(
           stream,
           { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
@@ -1731,8 +1861,11 @@ async function handleTurnSse(
       let lastPersonaId: string | null = null;
       let lastTokens = 0;
       for await (const evt of gen) {
-        const frame = projectStreamEvent(evt, bootstrap.threadId);
-        if (!frame) continue;
+        const rawFrame = projectStreamEvent(evt, bootstrap.threadId);
+        if (!rawFrame) continue;
+        // SEC-4 — IP-egress guard on every user-visible frame (message_chunk
+        // text, error message, tool_call args) BEFORE it leaves the gateway.
+        const frame = guardPublicFrame(rawFrame, ctx.tenant.tenantId);
         if (frame.event === 'message_chunk') {
           const data = frame.data as { text?: unknown };
           if (typeof data.text === 'string') accumulatedText += data.text;
@@ -1769,7 +1902,8 @@ async function handleTurnSse(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'stream_failed'),
+          // SEC-4 — guard the error message before egress.
+          message: guardFinalText(scrubMessage(err, 'stream_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),

@@ -86,11 +86,46 @@ import {
 } from '../services/action-executor/index.js';
 import { decideAutoAuthorization } from '../services/auto-authorize-gate/index.js';
 import { openGptRealtimeUpstream } from './brain-voice-openai.js';
+// SEC-4 / INV-H — IP-egress output firewall. The model speaks AS Mr. Mwikila;
+// the AGENT transcript text is the spoken answer rendered to the owner's
+// browser. A prompt-injection / canary / secret / cross-tenant leak in the
+// spoken+transcribed output must NOT reach the client raw. We cannot filter the
+// audio, but the agent TEXT transcript can and must be guarded. User-speaker
+// transcripts (the owner's own words echoed back) are left as-is. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   name: 'brain-voice',
 });
+
+/** Fail-closed placeholder when the transcript guard wrapper itself throws. */
+const VOICE_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard an AGENT transcript span before it egresses to the client socket.
+ * FAIL-CLOSED: the filter returns a redacted placeholder on any internal fault,
+ * and this wrapper try/catches so a construction fault also fails closed to
+ * `[redacted]` rather than emitting the raw spoken answer text. Empty /
+ * non-string spans pass through unchanged.
+ */
+function guardAgentTranscript(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'brain-voice: agent-transcript egress guard threw — failing closed',
+    );
+    return VOICE_EGRESS_FAIL_CLOSED;
+  }
+}
 
 // ───────────────────────────────────────────────────────────────────────────
 // Locale + persona
@@ -1225,7 +1260,17 @@ export class VoiceSession {
       onAudio: (base64, sampleRate, isFinal) =>
         this.deps.emit({ kind: 'audio', base64, sampleRate, isFinal }),
       onTranscript: (text, isFinal, speaker) =>
-        this.deps.emit({ kind: 'transcript', text, isFinal, speaker }),
+        // SEC-4 — guard the AGENT transcript (the spoken answer) before egress;
+        // leave USER-speaker transcripts (the owner's own words) untouched.
+        this.deps.emit({
+          kind: 'transcript',
+          text:
+            speaker === 'agent'
+              ? guardAgentTranscript(text, principal.tenantId)
+              : text,
+          isFinal,
+          speaker,
+        }),
       onToolCall: (call) => {
         void this.onToolCall(principal, call);
       },

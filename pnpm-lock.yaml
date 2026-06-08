@@ -4674,6 +4674,9 @@ importers:
       '@borjie/agent-runtime':
         specifier: workspace:*
         version: link:../../packages/agent-runtime
+      '@borjie/agent-security-guard':
+        specifier: workspace:*
+        version: link:../../packages/agent-security-guard
       '@borjie/agentic-os':
         specifier: workspace:*
         version: link:../../packages/agentic-os

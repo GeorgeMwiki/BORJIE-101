@@ -109,6 +109,11 @@ import {
   type MemorySnapshot,
 } from '../services/advisor-memory/index.js';
 import { getDb } from '../composition/db-client.js';
+// SEC-4 — IP-egress output firewall. The teaching stream's user-visible prose
+// passes the FAIL-CLOSED guard before egress so internal cognition / prompts /
+// architecture / secrets / canary / cross-tenant ids never leak. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
 // EA-05 — persist each <board_add> element into a durable CRDT slot so the
 // teaching board (the OUTPUT-LEVEL trend-of-thought) survives a reload and
 // re-projects cross-surface. Keyed by `board:<element.id>` so a same-id
@@ -934,7 +939,28 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // 0 and micro mode applies — but the seam is in place so a slow
     // 3G client batched by the controller will get coarse chunks
     // without any further server-side change).
-    const chunks = chunkText(clean);
+    // SEC-4 — IP-egress guard on the FULL user-visible prose ONCE (final
+    // guard) before chunking so a leak split across two chunks is still
+    // caught. Strips internal cognition / prompts / architecture / secrets /
+    // canary / cross-tenant ids; does NOT redact the owner's own business
+    // data. FAIL-CLOSED inside the guard (a thrown filter yields a redacted
+    // placeholder, never the raw prose). Falls back to the original text only
+    // when the guard's own wrapper short-circuits an empty string.
+    let safeClean = clean;
+    try {
+      safeClean = getEgressFilter().guardFinal(clean, tenantId).text;
+    } catch (err) {
+      logger.error(
+        {
+          wiring: 'egress-filter',
+          tenantId,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain-teach: egress guard threw — failing closed (redacting body)',
+      );
+      safeClean = '[redacted]';
+    }
+    const chunks = chunkText(safeClean);
     const lastChunkParam = c.req.query('lastChunk');
     const initialAck =
       lastChunkParam !== undefined && /^\d+$/.test(lastChunkParam)
