@@ -2,10 +2,12 @@
  * /api/v1/brain/voice/stream — SOTA realtime-voice BACKEND.
  *
  * A gateway WebSocket that bridges the owner's microphone to a DUPLEX
- * realtime model (Gemini Live BidiGenerateContent, primary) sitting in front
- * of the REAL Borjie brain. The model speaks as Mr. Mwikila — the mining-
- * estate owner strategist — and is action-capable: the brain's tool catalog
- * is registered as the realtime session's function-calling tools.
+ * realtime model sitting in front of the REAL Borjie brain. The upstream is
+ * provider-selectable via `VOICE_PROVIDER`: Gemini Live BidiGenerateContent
+ * (default) or OpenAI Realtime gpt-realtime speech-to-speech with server-side
+ * VAD (routes/brain-voice-openai.ts). The model speaks as Mr. Mwikila — the
+ * mining-estate owner strategist — and is action-capable: the brain's tool
+ * catalog is registered as the realtime session's function-calling tools.
  *
  * ┌────────────┐  PCM frames   ┌──────────────┐  PCM/text   ┌─────────────┐
  * │  owner mic │ ────────────▶ │  this bridge │ ──────────▶ │ Gemini Live │
@@ -21,8 +23,9 @@
  *   • Supabase JWT auth (HS256 secret OR ES256 JWKS) — fail-closed.
  *   • Tenant binding from `app_metadata.tenant_id` (never client-mutable).
  *   • Locale-driven (sw/en) Mr. Mwikila mining-owner system instruction
- *     sourced from `@borjie/persona-runtime` (NOT the retired property
- *     persona in services/voice-agent/src/personas/mr-mwikila.ts).
+ *     sourced from `@borjie/persona-runtime`. (The retired property-domain
+ *     persona at services/voice-agent/src/personas/mr-mwikila.ts has been
+ *     DELETED — it violated the mining-only rule.)
  *   • Brain tool catalog → realtime function-calling declarations.
  *   • Full duplex bridge: client audio ⇄ Gemini Live audio, transcripts,
  *     and a function-call channel.
@@ -82,6 +85,7 @@ import {
   type DispatchResult,
 } from '../services/action-executor/index.js';
 import { decideAutoAuthorization } from '../services/auto-authorize-gate/index.js';
+import { openGptRealtimeUpstream } from './brain-voice-openai.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -103,8 +107,8 @@ export function normalizeLocale(raw: string | null | undefined): VoiceLocale {
  * Resolve the canonical mining OWNER persona from persona-runtime. We use the
  * tier-1 owner strategist (`T1_owner_strategist`) — Mr. Mwikila's "face" for
  * the owner cockpit. This is the REAL mining persona; the property-domain
- * relic at services/voice-agent/src/personas/mr-mwikila.ts is intentionally
- * NOT used.
+ * relic formerly at services/voice-agent/src/personas/mr-mwikila.ts has been
+ * deleted (it violated the mining-only rule).
  */
 function ownerPersonaSpec() {
   const spec = BUILT_IN_PERSONAS.find((p) => p.slug === 'T1_owner_strategist');
@@ -207,8 +211,9 @@ export type BridgeOutboundEvent =
 
 /**
  * The minimal duplex upstream the bridge drives. Implemented by
- * `GeminiLiveUpstream` below; an `OpenAIRealtimeUpstream` could slot in behind
- * the same interface (gpt-realtime-2 path).
+ * `openGeminiUpstream` (default) AND `openGptRealtimeUpstream` (OpenAI Realtime,
+ * routes/brain-voice-openai.ts) behind this same interface; `VOICE_PROVIDER`
+ * selects which one `openVoiceUpstream` opens.
  */
 export interface DuplexUpstream {
   readonly sessionId: string;
@@ -444,6 +449,47 @@ export function openGeminiUpstream(args: OpenGeminiUpstreamArgs): DuplexUpstream
       }
     },
   };
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// Provider selection — Gemini Live (default) vs OpenAI Realtime (gpt-realtime).
+//
+// `VOICE_PROVIDER` chooses the upstream. It DEFAULTS to `gemini` so nothing
+// breaks when OPENAI_API_KEY is absent — the OpenAI path is opt-in. The value
+// is read here the same localized way `verifyOptions()` reads the optional
+// SUPABASE_JWKS_URL: a small reader co-located with the upstream openers (the
+// strict `brainEnv()` loader is for brain/auth/db keys and must not be widened
+// with optional provider knobs). Both openers share the SAME `DuplexUpstream`
+// contract + `OpenGeminiUpstreamArgs` shape, so the selector is a pure switch.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Realtime voice provider. `gemini` (default) or `openai` (gpt-realtime). */
+export type VoiceProvider = 'gemini' | 'openai';
+
+/**
+ * Resolve the configured voice provider. Reads `VOICE_PROVIDER`, normalising
+ * case + whitespace; anything other than an explicit `openai` falls back to the
+ * `gemini` default (fail-safe: an unset / typo'd value keeps the working
+ * provider rather than breaking the channel). Pure-ish + injectable for tests.
+ */
+export function resolveVoiceProvider(raw?: string | null): VoiceProvider {
+  const value = (raw ?? process.env.VOICE_PROVIDER ?? '').trim().toLowerCase();
+  return value === 'openai' ? 'openai' : 'gemini';
+}
+
+/**
+ * Open the realtime upstream for the configured provider. Single seam the
+ * session bridge calls; both branches return a `DuplexUpstream` driven
+ * identically by the bridge (audio ⇄ audio, transcripts, fail-closed
+ * tool-calls, barge-in). The OpenAI opener is harvested from the proven
+ * gpt-realtime event map (see routes/brain-voice-openai.ts).
+ */
+export function openVoiceUpstream(args: OpenGeminiUpstreamArgs): DuplexUpstream {
+  const provider = resolveVoiceProvider();
+  logger.info({ provider, tenantId: args.tenantId, locale: args.locale }, 'brain-voice: opening realtime upstream');
+  return provider === 'openai'
+    ? openGptRealtimeUpstream(args)
+    : openGeminiUpstream(args);
 }
 
 /** Build the Gemini Live `setup` frame (persona + tools + audio config). */
@@ -1147,7 +1193,9 @@ export class VoiceSession {
   private async openUpstream(): Promise<void> {
     const principal = this.principal!;
     const tenantId = principal.tenantId;
-    const opener = this.deps.openUpstream ?? openGeminiUpstream;
+    // Provider-selectable (VOICE_PROVIDER): gemini (default) | openai. Tests
+    // still override via deps.openUpstream; production picks per config.
+    const opener = this.deps.openUpstream ?? openVoiceUpstream;
     try {
       this.upstream = opener({
         systemInstruction: buildVoiceSystemInstruction(this.locale),
@@ -1350,9 +1398,12 @@ export const BRAIN_VOICE_RUNTIME_FLAGS = Object.freeze({
     'attachBrainVoiceWebSocket the endpoint is LIVE; without it (e.g. `ws` unavailable) ' +
     'attach NO-OPs and the endpoint stays INACTIVE.',
   providerKey:
-    'PROVIDER KEY: set GEMINI_API_KEY (primary, native-audio duplex) or wire the ' +
-    'gpt-realtime-2 path with OPENAI_API_KEY. Without a key, sessions emit ' +
-    '`provider_unavailable`.',
+    'PROVIDER KEY: VOICE_PROVIDER selects the upstream — `gemini` (DEFAULT, ' +
+    'native-audio duplex; needs GEMINI_API_KEY) or `openai` (gpt-realtime ' +
+    'speech-to-speech, server-VAD; needs OPENAI_API_KEY, optional ' +
+    'OPENAI_VOICE_MODEL / OPENAI_TRANSCRIPTION_MODEL). Default stays gemini so ' +
+    'an absent OPENAI_API_KEY breaks nothing. Without the selected provider\'s ' +
+    'key, sessions emit `provider_unavailable`.',
   audioCodec:
     'AUDIO CODEC: client must stream 16 kHz mono PCM little-endian (audio/pcm); ' +
     'Gemini returns 24 kHz PCM. Opus transcode + sample-rate negotiation are not ' +

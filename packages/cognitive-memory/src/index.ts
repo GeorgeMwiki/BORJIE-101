@@ -98,6 +98,10 @@ export {
   createInMemoryCellRepository,
   cosineSimilarity,
 } from './storage/cell-repository.js';
+export {
+  createDrizzleCellRepository,
+  type DrizzleCellRepositoryLogger,
+} from './storage/drizzle-cell-repository.js';
 export { createInMemoryReinforcementRepository } from './storage/reinforcement-repository.js';
 export { createInMemoryPlatformCellRepository } from './storage/platform-cell-repository.js';
 
