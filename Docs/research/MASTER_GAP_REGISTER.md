@@ -494,3 +494,25 @@ Only the MARKETING surfaces use a simple chat. Bar: ChatGPT-Canvas + Claude-Arti
 Cursor/Devin agent-progress + generative-UI workspace + voice persona, fused into the cockpit.
 All inline UI honours INV-B (lenses) + the UI invariant (reasoned-need, proposal-gated,
 reversible, chat-refinable). Same both repos.
+
+---
+
+## INV-I · SOTA analytical intelligence — the MD is a world-class data scientist (owner directive)
+Data analysis, visualization, and forecasting are ALL SOTA. The MD answers any analytical
+question about the estate with rigour: descriptive -> diagnostic (WHY) -> predictive
+(calibrated forecast-engine) -> prescriptive (what to do), + causal inference, cohort/
+segmentation, anomaly detection, statistical guardrails against spurious findings, and
+AUTOMATED insight generation (surfaces insights unprompted via the standing-drives / Motivational
+Subsystem). Visualizations are beautiful AND correct: right-chart-for-the-question, perceptually
+sound, interactive, rendered INLINE in chat (INV-H) as live lenses (INV-B). Same both repos.
+
+## INV-J · Lossless total capture + total recall + complete observability (owner directive)
+The system NEVER loses a conversation thread or a piece of data at any moment. Every
+interaction, document, transaction, signal/sensor reading, decision, and event is captured
+DURABLY (event-sourced, no-drop-on-crash via the transactional outbox + durable execution),
+RETAINED (per compliance; archive-first INV-E; protected per data-protection/PII/KMS), and
+RETRIEVABLE. The MD ALWAYS KNOWS everything it can possibly know — complete situational
+awareness (the resident Current Situational Model from the Mind research), complete lineage/
+provenance, total-recall memory, retrieval-of-anything (GraphRAG + semantic + org-graph).
+Maximal capture + retention + retrieval + awareness; NO accidental loss, ever. Deliberate,
+gated, grounded organ-deletion (INV-E) is SEPARATE from never losing DATA. Same both repos.
