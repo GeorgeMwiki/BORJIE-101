@@ -73,6 +73,23 @@ export interface ConstitutionalCritic {
   score(reflection: ClusterReflection): Promise<CriticVerdict>;
 }
 
+/**
+ * Thrown when a CONFIGURED Claude critic call fails. The loud replacement
+ * for the old silent heuristic fallback: a wired LLM critic that errors must
+ * not masquerade as a real constitutional verdict. (The no-client heuristic
+ * mode is a legitimate by-design path and does NOT throw.) The reflect-stage
+ * caller catches this and records NO verdict rather than a fake one.
+ */
+export class ConstitutionalCriticError extends Error {
+  constructor(message: string, options?: { readonly cause?: unknown }) {
+    super(message);
+    this.name = 'ConstitutionalCriticError';
+    if (options?.cause !== undefined) {
+      (this as { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
+
 export interface AnthropicClientLike {
   messages: {
     create(args: {
@@ -303,11 +320,19 @@ async function scoreWithClaude(
       modelId: resp.model ?? args.modelId,
     };
   } catch (error) {
-    logger.warn('constitutional-critic: Claude call failed; falling back to heuristic', { value: error instanceof Error ? error.message : String(error) });
-    return {
-      scores: scoreHeuristic(args.reflection, args.rules),
-      modelId: args.modelId,
-    };
+    // A CONFIGURED Claude critic that fails is a BUG, not a pass. Silently
+    // substituting the heuristic would pretend a real constitutional check
+    // ran. Log + throw so the failure is visible; the reflect-stage caller
+    // records NO verdict rather than a fabricated one.
+    logger.error('constitutional-critic: Claude call failed', {
+      value: error instanceof Error ? error.message : String(error),
+    });
+    throw new ConstitutionalCriticError(
+      `constitutional-critic Claude call failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { cause: error },
+    );
   }
 }
 

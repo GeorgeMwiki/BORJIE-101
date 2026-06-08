@@ -22,6 +22,7 @@ import {
   clamp01,
   clampBipolar,
 } from '../shared.js';
+import { logger } from '../../logger.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -171,6 +172,17 @@ export function createSentimentMonitor(
     const observedAt = now().toISOString();
 
     if (!deps.llm) {
+      // Degraded (no LLM port wired). Fail toward ZERO signal + null
+      // confidence + an explicit degraded marker — never a fabricated
+      // sentiment — AND make the degradation observable, not just a silent
+      // DB marker, so the degradation rate is monitorable.
+      logger.warn('sentiment-monitor degraded: no LLM port — emitting zero-signal flagged row', {
+        degraded: true,
+        subsystem: 'ai-native.sentiment-monitor',
+        reason: 'llm_port_unavailable',
+        tenantId: input.tenantId,
+        sourceType: input.sourceType,
+      });
       return {
         id: newId('ains'),
         tenantId: input.tenantId,
@@ -235,6 +247,16 @@ export function createSentimentMonitor(
     } catch (err) {
       // LLM failed — fall back to degraded, still persist so the audit
       // trail shows the attempt. The next retry can upsert a cleaner row.
+      // Fail toward ZERO signal + null confidence + degraded+error markers
+      // (never a fabricated sentiment) AND log at error level so a live LLM
+      // outage is an observable SLI, not just a quiet DB row.
+      logger.error('sentiment-monitor degraded: LLM classify failed — emitting zero-signal flagged row', {
+        degraded: true,
+        subsystem: 'ai-native.sentiment-monitor',
+        reason: err instanceof Error ? err.message : String(err),
+        tenantId: input.tenantId,
+        sourceType: input.sourceType,
+      });
       return {
         id: newId('ains'),
         tenantId: input.tenantId,

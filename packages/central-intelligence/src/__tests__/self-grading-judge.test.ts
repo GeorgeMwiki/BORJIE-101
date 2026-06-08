@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createSelfGradingJudge,
+  SelfGradeError,
   __test as selfGradingTest,
 } from '../kernel/sensors/self-grading-judge.js';
 import type { AnthropicMessagesClient } from '../kernel/sensors/anthropic-sensor.js';
@@ -88,11 +89,15 @@ describe('self-grading judge', () => {
     expect(r.suggestedRewrite.length).toBeGreaterThan(0);
   });
 
-  it('defaults to ship + score 1 on upstream errors', async () => {
+  it('throws on upstream errors (no fake ship/score-1 fallback)', async () => {
     const grade = createSelfGradingJudge(throwingClient());
-    const r = await grade('some draft');
-    expect(r.verdict).toBe('ship');
-    expect(r.score).toBe(1);
+    // A dead self-grade judge must not auto-"ship" an unverified draft.
+    await expect(grade('some draft')).rejects.toBeInstanceOf(SelfGradeError);
+  });
+
+  it('throws on an unparseable response (no fake ship)', async () => {
+    const grade = createSelfGradingJudge(stubClient('not json at all'));
+    await expect(grade('some draft')).rejects.toBeInstanceOf(SelfGradeError);
   });
 
   it('defaults to ship when verdict string is unknown', async () => {
@@ -107,10 +112,10 @@ describe('self-grading judge', () => {
     expect(r.verdict).toBe('ship');
   });
 
-  it('parser is exported and tolerates malformed JSON', () => {
-    const r = selfGradingTest.parseSelfGrade('not json at all');
-    expect(r.verdict).toBe('ship');
-    expect(r.score).toBe(1);
+  it('parser is exported and throws on malformed JSON (no fake ship)', () => {
+    expect(() => selfGradingTest.parseSelfGrade('not json at all')).toThrow(
+      SelfGradeError,
+    );
   });
 
   it('system prompt frames the model as the author of the draft', () => {
