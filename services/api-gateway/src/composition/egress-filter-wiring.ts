@@ -101,20 +101,73 @@ const EGRESS_CHANNEL: AgentChannel = 'chat';
 const CANARY_PLACEHOLDER = '[CANARY_REDACTED]';
 
 /**
- * Secret / cognition canary markers stripped on egress. These are tokens the
- * agent must NEVER surface — they signal a system-prompt / secret leak. The
- * default set covers the canonical Borjie persona-prompt canary and common
- * secret prefixes; operators can extend it with a comma-separated
+ * CASE-SENSITIVE secret / cognition canary markers stripped on egress. These
+ * are tokens the agent must NEVER surface — they signal a system-prompt /
+ * secret leak. The default set covers the canonical Borjie persona-prompt
+ * canary and common secret-VALUE prefixes. These stay case-sensitive on
+ * purpose: a real key value carries its exact case (`sk-ant-…`, `sk-proj-…`,
+ * `ghp_…`, `xoxb-…`), so a lowercased decoy is not a leak — only the literal
+ * prefix is. Operators can extend it with a comma-separated
  * `BORJIE_EGRESS_CANARY_TOKENS`.
  */
 const DEFAULT_CANARY_TOKENS: ReadonlyArray<string> = Object.freeze([
   'BORJIE_CANARY',
-  'sk-ant-',
-  'sk-proj-',
-  'sk-live-',
-  'SUPABASE_JWT_SECRET',
-  'ANTHROPIC_API_KEY',
+  // Secret-VALUE prefixes — case-sensitive (a real key carries exact case).
+  'sk-ant-', // Anthropic
+  'sk-proj-', // OpenAI project key
+  'sk-live-', // Stripe live
+  'ghp_', // GitHub personal-access token
+  'xoxb-', // Slack bot token
 ]);
+
+/**
+ * CASE-INSENSITIVE markers stripped on egress: ENV-VAR NAMES (whose mere
+ * presence in a client answer signals a config/secret leak) and DB-URL
+ * schemes. Matched case-insensitively because the leak risk is the same
+ * whether the model echoes `ANTHROPIC_API_KEY`, `anthropic_api_key`, or
+ * `Postgres://…` — a case-sensitive `includes` would let a lowercased echo
+ * evade the strip. Operators can extend it with a comma-separated
+ * `BORJIE_EGRESS_CANARY_MARKERS_CI`.
+ *
+ * NOTE: these are NAMES / schemes, never the matching SECRET VALUES (those
+ * are the case-sensitive prefixes above). Stripping a name has no
+ * false-positive cost in a mining answer — owners never legitimately ask
+ * about `SUPABASE_SERVICE_ROLE_KEY` by name.
+ */
+const DEFAULT_CASE_INSENSITIVE_MARKERS: ReadonlyArray<string> = Object.freeze([
+  // Env-var NAMES — never legitimate in a client-bound answer.
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_JWT_SECRET',
+  'OPENAI_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'ANTHROPIC_API_KEY',
+  // DB connection-URL schemes — a connection string is always a leak.
+  'postgres://',
+  'postgresql://',
+]);
+
+/**
+ * JWT-SHAPE detector — a 3-segment dot-separated base64url string whose first
+ * segment starts `eyJ` (the base64 of `{"`, i.e. a JOSE header `{"alg"…`).
+ *
+ * WHY NOT a bare `'eyJ'` substring canary: `eyJ` is the base64 of `{"`, so it
+ * false-positives on ANY legitimately base64-encoded JSON an answer might
+ * carry (artifact specs, data blobs, evidence payloads). A bare prefix is NOT
+ * a leak. But a full 3-segment `eyJ…`.`…`.`…` token is ALWAYS a JWT, and a raw
+ * JWT in an answer is always a credential leak — so we detect the SHAPE and
+ * redact the whole matched token, leaving single-segment base64 JSON intact.
+ *
+ * ReDoS-safe: each of the three segments is a bounded, non-overlapping
+ * character class (`[A-Za-z0-9_-]`) with a fixed lower bound and an explicit
+ * upper bound — no nested quantifiers, no catastrophic backtracking. The
+ * upper bounds are generous (JWT segments are well under 4096 base64url chars
+ * in practice) but finite, so the engine cannot blow up on adversarial input.
+ */
+const JWT_SHAPE_RE =
+  /eyJ[A-Za-z0-9_-]{8,4096}\.[A-Za-z0-9_-]{8,4096}\.[A-Za-z0-9_-]{8,4096}/g;
+
+/** Placeholder substituted for a redacted JWT-shaped token. */
+const JWT_PLACEHOLDER = '[JWT_REDACTED]';
 
 function resolveEnabled(
   env: Readonly<Record<string, string | undefined>>,
@@ -145,6 +198,20 @@ function resolveCanaryTokens(
     .map((t) => t.trim())
     .filter((t) => t.length > 0);
   return Object.freeze([...DEFAULT_CANARY_TOKENS, ...extra]);
+}
+
+function resolveCaseInsensitiveMarkers(
+  env: Readonly<Record<string, string | undefined>>,
+): ReadonlyArray<string> {
+  const raw = env.BORJIE_EGRESS_CANARY_MARKERS_CI?.trim();
+  if (!raw) return DEFAULT_CASE_INSENSITIVE_MARKERS;
+  // Lower-case operator extras so the case-insensitive compare is a simple
+  // lowercased-haystack `includes` (the defaults are compared lowered too).
+  const extra = raw
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0);
+  return Object.freeze([...DEFAULT_CASE_INSENSITIVE_MARKERS, ...extra]);
 }
 
 // ---------------------------------------------------------------------------
@@ -234,7 +301,10 @@ export interface EgressFilter {
 interface EgressFilterConfig {
   readonly enabled: boolean;
   readonly allowedImageDomains: ReadonlyArray<string>;
+  /** Case-sensitive secret-VALUE prefixes + persona canary. */
   readonly canaryTokens: ReadonlyArray<string>;
+  /** Case-INSENSITIVE env-var names + DB-url schemes (compared lowercased). */
+  readonly caseInsensitiveMarkers: ReadonlyArray<string>;
   readonly repo: OutputFilterBlockRepository;
   readonly logger: PinoLikeLogger;
 }
@@ -244,12 +314,25 @@ interface PreFilterResult {
   readonly reasons: ReadonlyArray<string>;
 }
 
+/** Escape a literal string for safe use inside a `RegExp` source. */
+function escapeRegExp(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Pre-filter layer that runs BEFORE the package OutputFilter. Strips the
- * canary/secret-marker class the package filter does not cover:
+ * canary/secret-marker + JWT-shape classes the package filter does not cover:
  *
- *   - canary/secret-marker: configured tokens that signal a system-prompt /
- *     secret leak (persona canary, API-key prefixes, env var names).
+ *   - canary/secret-marker (CASE-SENSITIVE): secret-VALUE prefixes + the
+ *     persona canary. A real key carries its exact case, so a lowercased decoy
+ *     is not a leak; only the literal prefix is.
+ *   - env-var name / DB-url marker (CASE-INSENSITIVE): env-var NAMES and DB
+ *     connection-URL schemes. Matched case-insensitively because a lowercased
+ *     echo (`anthropic_api_key`, `Postgres://…`) is the same leak as the
+ *     upper-cased name; a case-sensitive `includes` would let it evade.
+ *   - JWT-shape: a full 3-segment `eyJ…`.`…`.`…` token (a real JWT is always a
+ *     credential leak). A bare `eyJ` prefix is deliberately NOT matched — it
+ *     is the base64 of `{"` and false-positives on legitimate base64 JSON.
  *
  * Cross-tenant id leakage is NOT handled here. It is delegated to the package
  * filter's `forbiddenTenantIds` mechanism (scoped to GENUINE other-tenant ids
@@ -267,14 +350,49 @@ function preFilter(
   const reasons: string[] = [];
   let text = input;
 
-  // Canary / secret-marker strip — case-sensitive substring (tokens are
-  // exact markers, not free text).
+  // 1. Canary / secret-VALUE-prefix strip — CASE-SENSITIVE substring (tokens
+  //    are exact markers carrying their real case, not free text).
   for (const token of config.canaryTokens) {
     if (token.length === 0) continue;
     if (text.includes(token)) {
       reasons.push('canary-token');
       text = text.split(token).join(CANARY_PLACEHOLDER);
     }
+  }
+
+  // 2. Env-var-name / DB-url-scheme strip — CASE-INSENSITIVE. Test against a
+  //    lowercased haystack, then redact every occurrence with a case-
+  //    insensitive global regex built from the (escaped) marker so the leak
+  //    cannot evade by lower-casing the env-var name.
+  if (config.caseInsensitiveMarkers.length > 0) {
+    const haystack = text.toLowerCase();
+    for (const marker of config.caseInsensitiveMarkers) {
+      if (marker.length === 0) continue;
+      // Compare lowered-vs-lowered so a marker authored in ANY case (the
+      // UPPER_SNAKE defaults or a mixed-case operator extra) matches a
+      // lowercased echo in the text. The redaction regex is `gi`, so the
+      // replacement is case-insensitive regardless of the marker's own case.
+      const loweredMarker = marker.toLowerCase();
+      if (haystack.includes(loweredMarker)) {
+        reasons.push('canary-token');
+        text = text.replace(
+          new RegExp(escapeRegExp(marker), 'gi'),
+          CANARY_PLACEHOLDER,
+        );
+      }
+    }
+  }
+
+  // 3. JWT-shape strip — redact a full 3-segment `eyJ…`.`…`.`…` token (always
+  //    a credential leak). A bare `eyJ`-prefixed single-segment base64 JSON
+  //    blob (no dots) does NOT match and survives intact — see JWT_SHAPE_RE.
+  //    `.replace` with a global regex scans from index 0 and resets lastIndex
+  //    afterward, so it is stateless across calls (no shared `.test()` dance):
+  //    a missed-then-matched sequence cannot corrupt a later call.
+  const jwtRedacted = text.replace(JWT_SHAPE_RE, JWT_PLACEHOLDER);
+  if (jwtRedacted !== text) {
+    reasons.push('jwt-shape');
+    text = jwtRedacted;
   }
 
   return { text, reasons: Object.freeze(reasons) };
@@ -329,8 +447,9 @@ function runGuard(
       filter = buildTenantFilter(tenantId, config);
       filterCache.set(tenantId, filter);
     }
-    // 1. Pre-filter — cross-tenant UUIDs + canary/secret markers (the classes
-    //    the package filter cannot detect without a tenant directory).
+    // 1. Pre-filter — canary/secret-value prefixes (case-sensitive), env-var
+    //    names + DB-url schemes (case-insensitive), and JWT-shape tokens (the
+    //    classes the package filter does not cover).
     const pre = preFilter(input, tenantId, config);
     // 2. Package filter — system-prompt-leak / code-exec / js-injection /
     //    markdown-image-exfil, on the pre-filtered text.
@@ -439,6 +558,7 @@ export function getEgressFilter(
     enabled,
     allowedImageDomains: resolveAllowedImageDomains(process.env),
     canaryTokens: resolveCanaryTokens(process.env),
+    caseInsensitiveMarkers: resolveCaseInsensitiveMarkers(process.env),
     repo: createInMemoryOutputFilterRepo(),
     logger,
   };

@@ -80,6 +80,80 @@ describe('egress-filter-wiring (SEC-4 IP-egress firewall)', () => {
     expect(result.reasons).toContain('canary-token');
   });
 
+  it('strips ENV-VAR NAME markers CASE-INSENSITIVELY (a lowercased echo cannot evade)', () => {
+    // FAKE planted env-var NAMES (not values) — the leak is the model echoing
+    // a config key name. A lowercased `anthropic_api_key` must NOT evade the
+    // case-sensitive `includes` (the bug this closes).
+    const filter = getEgressFilter(silentLogger());
+    const leak =
+      'My config has SUPABASE_SERVICE_ROLE_KEY set, plus anthropic_api_key and Openai_Api_Key.';
+    const result = filter.guardFinal(leak, TENANT);
+    expect(result.blocked).toBe(true);
+    expect(result.text).not.toMatch(/supabase_service_role_key/i);
+    expect(result.text).not.toMatch(/anthropic_api_key/i);
+    expect(result.text).not.toMatch(/openai_api_key/i);
+    expect(result.text).toContain('[CANARY_REDACTED]');
+    expect(result.reasons).toContain('canary-token');
+  });
+
+  it('strips DB connection-URL schemes (postgres:// / postgresql://) case-insensitively', () => {
+    const filter = getEgressFilter(silentLogger());
+    // FAKE planted DSN — a connection string is always a leak.
+    const leak =
+      'Connect with Postgres://user:pw@db.example/app or postgresql://x@y/z.';
+    const result = filter.guardFinal(leak, TENANT);
+    expect(result.blocked).toBe(true);
+    expect(result.text).not.toMatch(/postgres:\/\//i);
+    expect(result.text).not.toMatch(/postgresql:\/\//i);
+    expect(result.reasons).toContain('canary-token');
+  });
+
+  it('keeps secret-VALUE prefixes CASE-SENSITIVE (ghp_ / xoxb- planted tokens)', () => {
+    const filter = getEgressFilter(silentLogger());
+    // FAKE planted tokens (gitleaks-safe — not real). The exact-case prefix
+    // is the leak; a lowercased decoy of a value prefix is intentionally not.
+    const leak = 'Tokens: ghp_FAKE0000token and xoxb-000-FAKE-slack.';
+    const result = filter.guardFinal(leak, TENANT);
+    expect(result.blocked).toBe(true);
+    expect(result.text).not.toContain('ghp_FAKE0000token');
+    expect(result.text).not.toContain('xoxb-000-FAKE-slack');
+    expect(result.text).toContain('[CANARY_REDACTED]');
+  });
+
+  it('JWT-SHAPE: redacts a full 3-segment eyJ JWT but leaves a single-segment eyJ base64 JSON blob INTACT', () => {
+    const filter = getEgressFilter(silentLogger());
+    // FAKE 3-segment JWT (header.payload.signature, all base64url) — a raw JWT
+    // in an answer is always a credential leak.
+    const fakeJwt =
+      'eyJhbGciOiJIUzI1NiI.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dBjftJeZ4CVPmB92K27uhbUJU1';
+    // A LEGITIMATE single-segment base64 JSON blob (NO dots) that happens to
+    // start `eyJ` — e.g. an artifact spec / data blob an answer may carry. It
+    // MUST survive: a bare `eyJ` prefix is the base64 of `{"`, not a leak.
+    const legitBlob = 'eyJzcGVjIjoidGFibGUiLCJyb3dzIjpbMSwyLDNdfQ';
+    const text =
+      `Here is your data blob: ${legitBlob}. (Diagnostic token was ${fakeJwt}.)`;
+    const result = filter.guardFinal(text, TENANT);
+    expect(result.blocked).toBe(true);
+    // The full JWT is gone, replaced by the JWT placeholder.
+    expect(result.text).not.toContain(fakeJwt);
+    expect(result.text).toContain('[JWT_REDACTED]');
+    expect(result.reasons).toContain('jwt-shape');
+    // NO FALSE POSITIVE: the single-segment base64 JSON blob survives intact.
+    expect(result.text).toContain(legitBlob);
+  });
+
+  it('JWT-SHAPE: a bare eyJ base64 blob with no dots does NOT trip the filter at all', () => {
+    const filter = getEgressFilter(silentLogger());
+    // Pure clean answer carrying a single-segment base64 JSON value — must be
+    // unblocked and unchanged (proving the regex needs all 3 dot-segments).
+    const legitBlob = 'eyJjaGFydCI6ImJhciIsInNlcmllcyI6WzEwLDIwLDMwXX0';
+    const clean = `Your inline chart payload is ${legitBlob} — render it as-is.`;
+    const result = filter.guardFinal(clean, TENANT);
+    expect(result.blocked).toBe(false);
+    expect(result.text).toBe(clean);
+    expect(result.reasons).toEqual([]);
+  });
+
   it('strips a GENUINE cross-tenant id (from the directory) but leaves the OWN tenant id intact', () => {
     // Register the tenants directory so the cross-tenant rule has a scope.
     // Only GENUINE other-tenant ids are forbidden — NOT arbitrary UUID shapes.
