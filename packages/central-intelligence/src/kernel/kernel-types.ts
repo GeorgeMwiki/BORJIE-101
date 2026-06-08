@@ -196,6 +196,17 @@ export interface ThoughtRequest {
    * preamble), so this field is additive and back-compatible.
    */
   readonly language?: 'en' | 'sw';
+  /**
+   * Advisory model-tier preference for this turn, set by the kernel's
+   * fast-path / model-tiering policy (`./model-tiering.ts`) when
+   * `BORJIE_MODEL_TIERING` is enabled. `'cheap'` ⇒ a Haiku-class model is
+   * preferred for a trivial/fast turn; `'standard'` ⇒ the main model;
+   * `'deep'` ⇒ an Opus-class model for the heaviest reasoning. ADVISORY:
+   * the sensor selector / composition root may honour it to downshift cost
+   * on the fast lane, but the kernel never DEPENDS on it — when absent (the
+   * default) the existing model choice is used unchanged.
+   */
+  readonly preferModelTier?: 'cheap' | 'standard' | 'deep';
 }
 
 // ─────────────────────────────────────────────────────────────────────

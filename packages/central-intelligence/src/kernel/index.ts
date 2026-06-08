@@ -836,6 +836,33 @@ export {
 } from './semantic-cache-port.js';
 
 /**
+ * Latency wins — orchestrator-path semantic-cache lighting + fast-path
+ * tiered routing + model tiering. Behaviour changes (fast-path / model
+ * tiering) are env-flag gated, defaulting to CURRENT behaviour.
+ */
+export {
+  buildOrchestratorScope,
+  readOrchestratorSemanticCache,
+  writeOrchestratorSemanticCache,
+  isEvidenceBackedAnswer,
+  markCacheHit,
+  resolveTurnLocale,
+  type OrchestratorCacheReadResult,
+} from './orchestrator-fast-cache.js';
+export {
+  decideFastPath,
+  resolveFastPathEnabled,
+  type FastPathDecision,
+} from './fast-path-router.js';
+export {
+  selectModelTier,
+  resolveModelIdForTier,
+  resolveModelTieringEnabled,
+  type ModelTier,
+  type ModelTierDecision,
+} from './model-tiering.js';
+
+/**
  * LP-05 / LP-17 — learning-loop port. The live call path that turns each
  * turn's `learning` stage event into a real `emitSignal({ action, outcome,
  * sinks })`, fanning out to the reflexion store (memory-v2) and the

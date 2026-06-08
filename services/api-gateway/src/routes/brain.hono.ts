@@ -77,6 +77,14 @@ import {
   type OrchestratorTurnPayload,
   type OrchestratorTurnContext,
 } from '../composition/brain-orchestrator-turn.js';
+// Latency wins — streaming first-token (smaller SSE chunks for a sooner
+// first paint) + async-offload (defer non-critical post-response work off
+// the critical path).
+import {
+  chunkTextToSse,
+  resolveStreamChunkChars,
+  deferPostResponseWork,
+} from './brain-stream-helpers.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -684,6 +692,14 @@ async function withCognitiveEnrichment<
 /**
  * Run a JSON turn handler, then best-effort observe the exchange into
  * cognitive memory. Returns the handler's ORIGINAL response untouched.
+ *
+ * ASYNC-OFFLOAD (latency win): the memory-observe WRITE (which may embed +
+ * persist) is moved OFF the critical path via `deferPostResponseWork` — the
+ * response is returned to the client immediately and the observe runs on a
+ * microtask after the turn returns. The work STILL RUNS (fire-and-forget,
+ * not dropped) and every error is swallowed so a deferred fault can never
+ * affect the reply the user already received. Only the cheap clone+parse of
+ * the response text happens inline (needed before the body stream is sent).
  */
 async function withTurnMemoryObserve(
   c: any,
@@ -696,7 +712,8 @@ async function withTurnMemoryObserve(
     const wired = c.get('cognitive') as WiredCognitive | undefined;
     if (!wired || !wired.isLive) return response;
 
-    // Clone so the original body stream is never consumed.
+    // Clone so the original body stream is never consumed. The parse is
+    // cheap; the WRITE below is what we defer.
     const cloned = response.clone();
     let responseText = '';
     try {
@@ -708,30 +725,43 @@ async function withTurnMemoryObserve(
     }
     if (responseText.length === 0) return response;
 
-    const cellId = await observeBrainTurnMemory({
-      wired,
-      tenantId: ctx.tenant.tenantId,
-      userText,
-      responseText,
-      specialisation: 'mr-mwikila',
-      logger: {
-        debug: (message, meta) => logger.debug(meta ?? {}, message),
-        info: (message, meta) => logger.info(meta ?? {}, message),
-        warn: (message, meta) => logger.warn(meta ?? {}, message),
-        error: (message, meta) => logger.error(meta ?? {}, message),
-      },
-    });
-    if (cellId !== null) {
-      logger.info(
-        {
-          wiring: 'cognitive-observe',
+    // Defer the observe write off the critical path. The user gets their
+    // answer now; the memory cell is written immediately after on a
+    // microtask. Errors are swallowed (best-effort side-channel).
+    deferPostResponseWork(
+      async () => {
+        const cellId = await observeBrainTurnMemory({
+          wired,
           tenantId: ctx.tenant.tenantId,
-          userId: ctx.viewer.userId,
-          cellId,
-        },
-        'brain /turn: observed turn into cognitive memory',
-      );
-    }
+          userText,
+          responseText,
+          specialisation: 'mr-mwikila',
+          logger: {
+            debug: (message, meta) => logger.debug(meta ?? {}, message),
+            info: (message, meta) => logger.info(meta ?? {}, message),
+            warn: (message, meta) => logger.warn(meta ?? {}, message),
+            error: (message, meta) => logger.error(meta ?? {}, message),
+          },
+        });
+        if (cellId !== null) {
+          logger.info(
+            {
+              wiring: 'cognitive-observe',
+              tenantId: ctx.tenant.tenantId,
+              userId: ctx.viewer.userId,
+              cellId,
+              deferred: true,
+            },
+            'brain /turn: observed turn into cognitive memory (deferred)',
+          );
+        }
+      },
+      (err) =>
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'brain /turn: deferred cognitive observe failed (continuing)',
+        ),
+    );
   } catch (err) {
     // Never let the writer break the turn — the user already has the answer.
     logger.warn(
@@ -1297,15 +1327,16 @@ async function handleTurnSseViaOrchestrator(
       return;
     }
     // Stream the answer text in the SAME `message_chunk` envelope the
-    // persona path emits (chunked at 80 chars), then a `done` frame, then
-    // the warn-only auditor frame (SSE cannot un-send tokens).
+    // persona path emits, then a `done` frame, then the warn-only auditor
+    // frame (SSE cannot un-send tokens). STREAMING FIRST-TOKEN: chunk at the
+    // (smaller, env-tunable) stream chunk size so the first visible paint
+    // lands sooner than the legacy 80-char chunks.
     try {
       const text = payload.responseText ?? '';
-      const chunkSize = 80;
-      for (let i = 0; i < text.length; i += chunkSize) {
+      for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
         await stream.writeSSE({
           event: 'message_chunk',
-          data: JSON.stringify({ text: text.slice(i, i + chunkSize), done: false }),
+          data: JSON.stringify({ text: piece, done: false }),
         });
       }
       if (payload.proposedAction) {
@@ -1535,12 +1566,13 @@ async function emitStartedTurnFrames(
       }),
     });
   }
+  // STREAMING FIRST-TOKEN: chunk at the (smaller, env-tunable) stream chunk
+  // size so the first visible paint lands sooner than legacy 80-char chunks.
   const text = turn.responseText ?? '';
-  const chunkSize = 80;
-  for (let i = 0; i < text.length; i += chunkSize) {
+  for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
     await stream.writeSSE({
       event: 'message_chunk',
-      data: JSON.stringify({ text: text.slice(i, i + chunkSize), done: false }),
+      data: JSON.stringify({ text: piece, done: false }),
     });
   }
   if (turn.proposedAction) {

@@ -63,15 +63,31 @@ export interface SemanticCacheScope {
   readonly surface: string;
   /** Persona identifier (typed loosely so the cache stays decoupled). */
   readonly personaId: string;
+  /**
+   * Active render locale (`en` default, `sw` Swahili toggle). PART of the
+   * scope key so the EN/SW ABSOLUTE rule (CLAUDE.md) holds at the cache
+   * boundary: an `en` turn can NEVER replay a cached `sw` answer (and vice
+   * versa). Omitted on legacy callers ⇒ treated as `en` by {@link scopeKey}.
+   */
+  readonly locale?: string;
 }
 
 /**
  * Stable string key for a scope. Used internally to partition the
  * embedding store into per-scope sub-maps.
+ *
+ * The key carries tenant + surface + persona + locale. tenant is FIRST so a
+ * malformed surface/persona can never collapse two tenants into one bucket;
+ * locale is LAST and defaults to `en` so a cached Swahili answer is never
+ * returned to an English turn.
  */
 export function scopeKey(scope: SemanticCacheScope): string {
   const tenantPart = scope.tenantId ?? '__platform__';
-  return `${tenantPart}|${scope.surface}|${scope.personaId}`;
+  const localePart =
+    typeof scope.locale === 'string' && scope.locale.length > 0
+      ? scope.locale
+      : 'en';
+  return `${tenantPart}|${scope.surface}|${scope.personaId}|${localePart}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────

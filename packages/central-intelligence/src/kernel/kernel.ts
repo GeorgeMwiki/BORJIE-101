@@ -107,6 +107,23 @@ import {
   semanticCacheRead,
   semanticCacheWrite,
 } from './semantic-cache-port.js';
+// Latency wins — light the (previously dark) semantic cache on the live
+// orchestrator path + fast-path tiered routing + model tiering. All three
+// are pure/fail-safe helpers; the model-tiering + fast-path BEHAVIOUR
+// changes are gated by env flags defaulting to CURRENT behaviour.
+import {
+  buildOrchestratorScope,
+  readOrchestratorSemanticCache,
+  writeOrchestratorSemanticCache,
+} from './orchestrator-fast-cache.js';
+import {
+  decideFastPath,
+  resolveFastPathEnabled,
+} from './fast-path-router.js';
+import {
+  selectModelTier,
+  resolveModelTieringEnabled,
+} from './model-tiering.js';
 import { type SensorRouter, createSensorRouter } from './sensor-failover.js';
 import type { CotReservoir } from './cot-reservoir.js';
 import { buildCohortMixin, type CohortSource } from './cohort-signal.js';
@@ -662,8 +679,97 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
           }
           return ksHalt.decision;
         }
+
+        // ── Latency win 1: SEMANTIC CACHE on the LIVE orchestrator path ──
+        //
+        // The semantic cache used to fire ONLY on the legacy fallback
+        // pipeline (steps 1b + 13) — but the orchestrator is the live
+        // default, so the cache was BUILT BUT DARK on every real turn. We
+        // read it HERE, after the killswitch (so a HALT still denies first)
+        // and before the expensive orchestrator round-trip. On an embedding
+        // hit above threshold we return the cached, evidence-backed
+        // `BrainDecision` INSTANTLY (citations preserved, `cacheHit: true`
+        // stamped). Scoped per (tenantId, surface, personaId, locale) so a
+        // tenant never gets another tenant's entry and `en` never replays
+        // `sw`. NEVER throws — any fault falls through to the orchestrator.
+        const orchSemanticEnabled = deps.semanticCacheEnabled !== false;
+        const orchSemanticScope = buildOrchestratorScope(req);
+        let orchMissEmbedding: ReadonlyArray<number> | null = null;
+        if (deps.semanticCache && orchSemanticEnabled) {
+          const orchSemRead = await readOrchestratorSemanticCache({
+            cache: deps.semanticCache,
+            enabled: orchSemanticEnabled,
+            req,
+            scope: orchSemanticScope,
+            answeringModelId: deps.sensors[0]?.modelId ?? 'orchestrator',
+          });
+          if (orchSemRead.hit !== null) {
+            if (outerTrace && !outerTrace.isFinalised()) {
+              outerTrace.addBranch({
+                id: 'semantic-cache',
+                label: 'Semantic cache hit (orchestrator path)',
+                rationale: `sim=${(orchSemRead.similarity ?? 0).toFixed(3)}`,
+              });
+              outerTrace.choose(
+                'semantic-cache',
+                `instant replay sim=${(orchSemRead.similarity ?? 0).toFixed(3)}`,
+              );
+              outerTrace.finalize({
+                outcome: 'executed',
+                output: { kind: orchSemRead.hit.kind, cacheHit: true },
+              });
+            }
+            return orchSemRead.hit;
+          }
+          orchMissEmbedding = orchSemRead.missEmbedding;
+        }
+
+        // ── Latency wins 2 + 5: fast-path tiered routing + model tiering ──
+        //
+        // A cheap deterministic gate classifies trivial/simple turns and
+        // (when `BORJIE_FASTPATH` is on) records that the turn could take a
+        // lightweight lane on the cheapest capable model tier (when
+        // `BORJIE_MODEL_TIERING` is on). Both default OFF ⇒ no behaviour
+        // change; the decision is surfaced on the trace + threaded to the
+        // orchestrator via `req.preferModelTier` (advisory; honoured by the
+        // composition-root sensor selector when wired). The kernel's hard
+        // gates still run on the fast lane — only the deliberation depth +
+        // model tier change.
+        const fastPathEnabled = resolveFastPathEnabled();
+        const fastPathDecision = decideFastPath(req);
+        const effectiveRoute =
+          fastPathEnabled ? fastPathDecision.route : 'full';
+        const modelTieringEnabled = resolveModelTieringEnabled();
+        const tierDecision = selectModelTier({ route: effectiveRoute, req });
+        const orchReq: ThoughtRequest =
+          modelTieringEnabled
+            ? ({ ...req, preferModelTier: tierDecision.tier } as ThoughtRequest)
+            : req;
+        if (outerTrace) {
+          outerTrace.addBranch({
+            id: 'fast-path',
+            label: 'Fast-path tiered routing',
+            rationale: `route=${effectiveRoute} (${fastPathDecision.reason}) tier=${tierDecision.tier} fastEnabled=${fastPathEnabled} tierEnabled=${modelTieringEnabled}`,
+          });
+        }
+
         try {
-          const result = await runViaOrchestrator(req, deps, clock);
+          const result = await runViaOrchestrator(orchReq, deps, clock);
+          // Latency win 1 (write side): best-effort write-through of fresh,
+          // evidence-backed answers so the NEXT near-identical turn replays
+          // instantly. Fire-and-forget — never blocks the reply. Refusals /
+          // softened / evidence-empty answers are NOT cached.
+          if (deps.semanticCache && orchSemanticEnabled) {
+            void writeOrchestratorSemanticCache({
+              cache: deps.semanticCache,
+              enabled: orchSemanticEnabled,
+              req,
+              scope: orchSemanticScope,
+              decision: result,
+              missEmbedding: orchMissEmbedding,
+              cacheId: randomUUID(),
+            });
+          }
           if (outerTrace) {
             outerTrace.addBranch({
               id: 'orchestrator',
@@ -848,6 +954,9 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         tenantId: memTenantIdEarly,
         surface: req.surface,
         personaId: req.scope.personaId,
+        // EN/SW absolute (CLAUDE.md): locale is part of the scope so an
+        // `en` turn can never replay a cached `sw` answer. Default `en`.
+        locale: req.language === 'sw' ? 'sw' : 'en',
       });
       let semanticMissEmbedding: ReadonlyArray<number> | null = null;
       if (deps.semanticCache && semanticCacheEnabled) {
