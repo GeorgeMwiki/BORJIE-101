@@ -9,6 +9,7 @@ import {
   useAdvisorFeedback,
   type AdvisorEvidence,
 } from '@/lib/queries/role-advisor';
+import { roleAdvisorPanelStrings as STR } from '@/i18n/strings/role-advisor-panel';
 
 /**
  * RoleAdvisorPanel — the owner cockpit surface for the universal
@@ -31,36 +32,6 @@ import {
  */
 
 type Locale = 'sw' | 'en';
-
-const STR = {
-  title: { en: 'Ask the advisor', sw: 'Uliza mshauri' },
-  subtitle: {
-    en: 'Role-aware answers grounded in your own evidence.',
-    sw: 'Majibu kulingana na jukumu lako, yenye ushahidi wako.',
-  },
-  placeholder: {
-    en: 'Ask anything about your estate…',
-    sw: 'Uliza chochote kuhusu shamba lako…',
-  },
-  send: { en: 'Ask', sw: 'Uliza' },
-  thinking: { en: 'Thinking…', sw: 'Inafikiri…' },
-  startersTitle: { en: 'Try one of these', sw: 'Jaribu mojawapo' },
-  answerTitle: { en: 'Answer', sw: 'Jibu' },
-  evidenceTitle: { en: 'Evidence', sw: 'Ushahidi' },
-  noEvidence: {
-    en: 'No supporting evidence was available for this answer.',
-    sw: 'Hakuna ushahidi uliopatikana kwa jibu hili.',
-  },
-  redacted: { en: 'fields redacted', sw: 'sehemu zimefichwa' },
-  denied: { en: 'records withheld by access policy', sw: 'rekodi zimezuiwa na sera' },
-  error: {
-    en: 'Could not get an answer. Please try again.',
-    sw: 'Imeshindikana kupata jibu. Tafadhali jaribu tena.',
-  },
-  helpful: { en: 'Helpful', sw: 'Imesaidia' },
-  notHelpful: { en: 'Not helpful', sw: 'Haikusaidia' },
-  thanks: { en: 'Thanks for the feedback.', sw: 'Asante kwa maoni.' },
-} as const;
 
 function pick(entry: { en: string; sw: string }, locale: Locale): string {
   return locale === 'sw' ? entry.sw : entry.en;

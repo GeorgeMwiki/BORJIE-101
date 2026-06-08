@@ -18,6 +18,7 @@ import {
   capitalMovementsToRoyaltyFlows,
   nameLookupFromGraph,
 } from '@/lib/estate-graph';
+import { estateGraphPanelStrings as COPY } from '@/i18n/strings/estate-graph-panel';
 
 /**
  * Estate graph panel — renders the holding/subsidiary structure as an
@@ -36,32 +37,6 @@ import {
 interface EstateGraphPanelProps {
   readonly locale: 'sw' | 'en';
 }
-
-const COPY = {
-  orgTitle: { en: 'Group structure graph', sw: 'Grafu ya muundo wa kundi' },
-  orgSubtitle: {
-    en: 'Holding & subsidiary ownership — directed by stake',
-    sw: 'Umiliki wa kampuni mama na tanzu — kwa hisa',
-  },
-  flowTitle: { en: 'Capital movement flows', sw: 'Mitiririko ya mtaji' },
-  flowSubtitle: {
-    en: 'Inter-entity capital movements (Sankey)',
-    sw: 'Mitiririko ya mtaji kati ya kampuni (Sankey)',
-  },
-  loading: { en: 'Loading group graph…', sw: 'Inapakia grafu ya kundi…' },
-  loadError: {
-    en: 'Group graph unavailable. Try again shortly.',
-    sw: 'Grafu ya kundi haipatikani. Jaribu tena baadaye.',
-  },
-  noEntities: {
-    en: 'No estate entities to graph yet.',
-    sw: 'Hakuna kampuni za kuonyesha kwenye grafu bado.',
-  },
-  noFlows: {
-    en: 'No inter-entity capital movements recorded yet.',
-    sw: 'Hakuna mitiririko ya mtaji kati ya kampuni bado.',
-  },
-} as const;
 
 function flattenTree(
   nodes: ReadonlyArray<EstateEntityTreeNode>,
@@ -116,8 +91,8 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
         directed: e.directed,
       })),
       ariaLabel: isSw
-        ? `Grafu ya muundo wa kundi, kampuni ${orgGraph.nodes.length}`
-        : `Group structure graph, ${orgGraph.nodes.length} entities`,
+        ? `${COPY.orgGraphAria.prefix.sw}${orgGraph.nodes.length}${COPY.orgGraphAria.suffix.sw}`
+        : `${COPY.orgGraphAria.prefix.en}${orgGraph.nodes.length}${COPY.orgGraphAria.suffix.en}`,
     }),
     [orgGraph, isSw],
   );
@@ -179,8 +154,8 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
               themeName="brand-dark"
               ariaLabel={
                 isSw
-                  ? `Sankey ya mitiririko ya mtaji, mitiririko ${royaltyFlows.length}`
-                  : `Capital movement Sankey, ${royaltyFlows.length} flows`
+                  ? `${COPY.flowSankeyAria.prefix.sw}${royaltyFlows.length}${COPY.flowSankeyAria.suffix.sw}`
+                  : `${COPY.flowSankeyAria.prefix.en}${royaltyFlows.length}${COPY.flowSankeyAria.suffix.en}`
               }
               testId="estate-capital-flow-sankey"
             />

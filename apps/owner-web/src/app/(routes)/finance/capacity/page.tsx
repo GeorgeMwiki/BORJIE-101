@@ -1,6 +1,7 @@
 import { TrendingUp } from 'lucide-react';
 import { CapacityExpansionPanel } from '@/components/finance/CapacityExpansionPanel';
 import { getOwnerSession } from '@/lib/session';
+import { financeCapacityStrings as M } from '@/i18n/strings/finance-capacity';
 
 /**
  * Finance → Capacity Expansion.
@@ -24,20 +25,16 @@ export default async function CapacityExpansionPage() {
       <header className="border-b border-border pb-6">
         <div className="flex flex-wrap items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
           <TrendingUp className="h-3.5 w-3.5" />
-          <span>{isSw ? 'Upanuzi wa uwezo' : 'Capacity expansion'}</span>
+          <span>{isSw ? M.eyebrow.sw : M.eyebrow.en}</span>
         </div>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          {isSw ? 'Pima upanuzi kifedha' : 'Weigh expansion financially'}
+          {isSw ? M.heading.sw : M.heading.en}
         </h1>
         <p className="mt-1 text-sm italic text-neutral-500">
-          {isSw
-            ? 'NPV, IRR na marejesho — kwa kila hali ya upanuzi.'
-            : 'NPV, IRR and payback — for every expansion scenario.'}
+          {isSw ? M.subheading.sw : M.subheading.en}
         </p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-neutral-300">
-          {isSw
-            ? 'Tengeneza hali za upanuzi (shimo jipya, eneo jipya, au kuboresha usindikaji), kisha mshauri huzipanga kwa NPV na hutoa mapendekezo yenye ushahidi ili kuongoza mtaji wako.'
-            : 'Model expansion scenarios (new shaft, new site, or a processing upgrade), and the advisor ranks them by NPV and returns evidence-cited recommendations to guide your capital.'}
+          {isSw ? M.body.sw : M.body.en}
         </p>
       </header>
 

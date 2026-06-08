@@ -10,6 +10,7 @@ import {
   useDismissStageNudge,
   type StageNudge,
 } from '@/lib/queries/stage-advisor';
+import { stageAdvisorPanelStrings as STR } from '@/i18n/strings/stage-advisor-panel';
 
 /**
  * StageAdvisorPanel — the owner cockpit surface for the stage-aware
@@ -29,35 +30,6 @@ import {
  */
 
 type Locale = 'sw' | 'en';
-
-const STR = {
-  title: { en: 'Stage advisor', sw: 'Mshauri wa hatua' },
-  subtitle: {
-    en: 'Where your estate is in its lifecycle — and what to do next.',
-    sw: 'Hatua ya shamba lako katika mzunguko — na la kufanya baadaye.',
-  },
-  unavailable: {
-    en: 'Stage advisor is not available right now.',
-    sw: 'Mshauri wa hatua haupatikani kwa sasa.',
-  },
-  loading: { en: 'Loading…', sw: 'Inapakia…' },
-  confidence: { en: 'confidence', sw: 'uhakika' },
-  noStage: {
-    en: 'Not enough activity yet to classify your stage.',
-    sw: 'Bado hakuna shughuli za kutosha kubaini hatua yako.',
-  },
-  evidenceTitle: { en: 'Why this stage', sw: 'Kwa nini hatua hii' },
-  focusTitle: { en: 'Focus areas', sw: 'Maeneo ya kuzingatia' },
-  playbookTitle: { en: 'Onboarding playbook', sw: 'Mwongozo wa kuanza' },
-  tasksDone: { en: 'tasks done', sw: 'kazi zimekamilika' },
-  nextTitle: { en: 'Next steps', sw: 'Hatua zinazofuata' },
-  nudgesTitle: { en: 'Proactive nudges', sw: 'Vidokezo vya haraka' },
-  noNudges: {
-    en: 'No nudges right now — you are on track.',
-    sw: 'Hakuna vidokezo kwa sasa — uko sawa.',
-  },
-  dismiss: { en: 'Dismiss', sw: 'Ondoa' },
-} as const;
 
 function pick(entry: { en: string; sw: string }, locale: Locale): string {
   return locale === 'sw' ? entry.sw : entry.en;

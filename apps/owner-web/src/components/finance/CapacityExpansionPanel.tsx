@@ -19,6 +19,7 @@ import {
   type ExpansionScenarioInput,
   type ScenarioOutcome,
 } from '@/lib/queries/capacity-expansion';
+import { capacityExpansionPanelStrings as M } from '@/i18n/strings/capacity-expansion-panel';
 
 interface CapacityExpansionPanelProps {
   readonly locale?: 'sw' | 'en';
@@ -173,14 +174,18 @@ export function CapacityExpansionPanel({
     return moneyFmt.format(n);
   }
   function fmtPct(ratio: number | null): string {
-    return ratio === null ? (isSw ? 'haipo' : 'n/a') : `${(ratio * 100).toFixed(1)}%`;
+    return ratio === null
+      ? isSw
+        ? M.pctNa.sw
+        : M.pctNa.en
+      : `${(ratio * 100).toFixed(1)}%`;
   }
   function fmtPayback(years: number | null): string {
     return years === null
       ? isSw
-        ? 'zaidi ya muda'
-        : 'beyond horizon'
-      : `${years.toFixed(1)} ${isSw ? 'mwaka' : 'yr'}`;
+        ? M.paybackBeyond.sw
+        : M.paybackBeyond.en
+      : `${years.toFixed(1)} ${isSw ? M.yearAbbr.sw : M.yearAbbr.en}`;
   }
 
   return (
@@ -189,11 +194,11 @@ export function CapacityExpansionPanel({
       <div className="rounded-2xl border border-border bg-surface/40 p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Coins className="h-4 w-4 text-signal-500" />
-          {isSw ? 'Vigezo vya uchambuzi' : 'Analysis parameters'}
+          {isSw ? M.analysisParams.sw : M.analysisParams.en}
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? 'Sarafu' : 'Currency'}
+            {isSw ? M.currency.sw : M.currency.en}
             <select
               value={currency}
               onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
@@ -207,7 +212,7 @@ export function CapacityExpansionPanel({
             </select>
           </label>
           <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? 'Kiwango cha punguzo (%)' : 'Discount rate (%)'}
+            {isSw ? M.discountRate.sw : M.discountRate.en}
             <input
               type="number"
               min={0}
@@ -234,7 +239,7 @@ export function CapacityExpansionPanel({
           >
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
-                {isSw ? 'Hali' : 'Scenario'} {i + 1}
+                {isSw ? M.scenario.sw : M.scenario.en} {i + 1}
               </h3>
               <button
                 type="button"
@@ -243,22 +248,22 @@ export function CapacityExpansionPanel({
                 className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-destructive disabled:opacity-40"
               >
                 <Trash2 className="h-3.5 w-3.5" />
-                {isSw ? 'Ondoa' : 'Remove'}
+                {isSw ? M.remove.sw : M.remove.en}
               </button>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? 'Jina' : 'Label'}
+                {isSw ? M.label.sw : M.label.en}
                 <input
                   type="text"
                   value={d.label}
-                  placeholder={isSw ? 'mf. Shimo jipya A' : 'e.g. New shaft A'}
+                  placeholder={isSw ? M.labelPlaceholder.sw : M.labelPlaceholder.en}
                   onChange={(e) => updateDraft(d.id, { label: e.target.value })}
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? 'Aina' : 'Kind'}
+                {isSw ? M.kind.sw : M.kind.en}
                 <select
                   value={d.kind}
                   onChange={(e) =>
@@ -274,7 +279,7 @@ export function CapacityExpansionPanel({
                 </select>
               </label>
               <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? `Mtaji wa awali (${currency})` : `Upfront capex (${currency})`}
+                {isSw ? M.upfrontCapex.sw(currency) : M.upfrontCapex.en(currency)}
                 <input
                   type="number"
                   min={0}
@@ -286,9 +291,7 @@ export function CapacityExpansionPanel({
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-neutral-400 sm:col-span-2">
-                {isSw
-                  ? 'Mtiririko wa fedha kwa mwaka (tenga kwa koma)'
-                  : 'Annual incremental cashflows (comma-separated)'}
+                {isSw ? M.cashflows.sw : M.cashflows.en}
                 <input
                   type="text"
                   value={d.cashflows}
@@ -300,7 +303,7 @@ export function CapacityExpansionPanel({
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? 'Tani kwa mwaka' : 'Tonnes / year'}
+                {isSw ? M.tonnesPerYear.sw : M.tonnesPerYear.en}
                 <input
                   type="number"
                   min={0}
@@ -322,7 +325,7 @@ export function CapacityExpansionPanel({
             className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
           >
             <Plus className="h-3.5 w-3.5" />
-            {isSw ? 'Ongeza hali' : 'Add scenario'}
+            {isSw ? M.addScenario.sw : M.addScenario.en}
           </button>
           <button
             type="button"
@@ -335,13 +338,11 @@ export function CapacityExpansionPanel({
             ) : (
               <BarChart3 className="h-3.5 w-3.5" />
             )}
-            {isSw ? 'Chambua' : 'Analyze'}
+            {isSw ? M.analyze.sw : M.analyze.en}
           </button>
           {!canAnalyze ? (
             <span className="text-xs text-neutral-500">
-              {isSw
-                ? 'Jaza mtaji na angalau mtiririko mmoja wa fedha.'
-                : 'Enter capex and at least one cashflow.'}
+              {isSw ? M.enterCapexHint.sw : M.enterCapexHint.en}
             </span>
           ) : null}
         </div>
@@ -349,7 +350,7 @@ export function CapacityExpansionPanel({
 
       {analyze.isError ? (
         <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-xs text-destructive">
-          {isSw ? 'Uchambuzi umeshindwa.' : 'Analysis failed.'}
+          {isSw ? M.analysisFailed.sw : M.analysisFailed.en}
         </div>
       ) : null}
 
@@ -359,7 +360,7 @@ export function CapacityExpansionPanel({
           <header className="flex items-center justify-between border-b border-border px-5 py-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <TrendingUp className="h-4 w-4 text-signal-500" />
-              {isSw ? 'Matokeo (yamepangwa kwa NPV)' : 'Outcomes (ranked by NPV)'}
+              {isSw ? M.outcomesRanked.sw : M.outcomesRanked.en}
             </h2>
             <span className="font-mono text-xs text-neutral-400">
               {currency} · {(analysis.discountRate * 100).toFixed(1)}%
@@ -370,15 +371,15 @@ export function CapacityExpansionPanel({
               <thead>
                 <tr className="border-b border-border text-left text-neutral-500">
                   <th className="px-5 py-3 font-medium">
-                    {isSw ? 'Hali' : 'Scenario'}
+                    {isSw ? M.scenario.sw : M.scenario.en}
                   </th>
                   <th className="px-3 py-3 font-medium">NPV</th>
                   <th className="px-3 py-3 font-medium">IRR</th>
                   <th className="px-3 py-3 font-medium">
-                    {isSw ? 'Marejesho' : 'Payback'}
+                    {isSw ? M.payback.sw : M.payback.en}
                   </th>
                   <th className="px-3 py-3 font-medium">
-                    {isSw ? 'Tani' : 'Tonnes'}
+                    {isSw ? M.tonnes.sw : M.tonnes.en}
                   </th>
                   <th className="px-5 py-3 font-medium">CapEx</th>
                 </tr>
@@ -436,7 +437,7 @@ export function CapacityExpansionPanel({
               ) : (
                 <Lightbulb className="h-3.5 w-3.5 text-signal-500" />
               )}
-              {isSw ? 'Pata mapendekezo' : 'Get recommendations'}
+              {isSw ? M.getRecommendations.sw : M.getRecommendations.en}
             </button>
           </div>
         </div>
@@ -448,19 +449,15 @@ export function CapacityExpansionPanel({
           <header className="border-b border-border px-5 py-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Lightbulb className="h-4 w-4 text-signal-500" />
-              {isSw ? 'Mapendekezo' : 'Recommendations'}
+              {isSw ? M.recommendations.sw : M.recommendations.en}
             </h2>
             <p className="mt-0.5 text-xs text-neutral-400">
-              {isSw
-                ? 'Kila pendekezo lina ushahidi kutoka hali husika.'
-                : 'Each recommendation cites the scenario it derives from.'}
+              {isSw ? M.recommendationsSubtitle.sw : M.recommendationsSubtitle.en}
             </p>
           </header>
           {recommend.data.recommendations.length === 0 ? (
             <div className="px-5 py-6 text-xs text-neutral-500">
-              {isSw
-                ? 'Hakuna hali iliyovuka kiwango cha sera (NPV ≥ 0, marejesho ≤ miaka 5).'
-                : 'No scenario cleared the policy floor (NPV >= 0, payback <= 5 yrs).'}
+              {isSw ? M.noScenarioCleared.sw : M.noScenarioCleared.en}
             </div>
           ) : (
             <ul className="divide-y divide-border/60">

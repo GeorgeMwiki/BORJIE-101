@@ -13,6 +13,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { shiftPlannerPanelStrings as M } from '@/i18n/strings/shift-planner-panel';
 import {
   useShiftPlan,
   useShiftRoster,
@@ -30,14 +31,7 @@ interface ShiftPlannerPanelProps {
 const SHIFT_KINDS: ReadonlyArray<ShiftKind> = ['morning', 'afternoon', 'night'];
 
 function shiftKindLabel(kind: ShiftKind, isSw: boolean): string {
-  if (isSw) {
-    return kind === 'morning'
-      ? 'Asubuhi'
-      : kind === 'afternoon'
-        ? 'Mchana'
-        : 'Usiku';
-  }
-  return kind.charAt(0).toUpperCase() + kind.slice(1);
+  return isSw ? M.shiftKind[kind].sw : M.shiftKind[kind].en;
 }
 
 /**
@@ -113,27 +107,27 @@ export function ShiftPlannerPanel({
   const metrics = useMemo<readonly MetricTile[]>(
     () => [
       {
-        label: isSw ? 'Wafanyakazi hai' : 'Active workers',
+        label: isSw ? M.metrics.activeWorkersLabel.sw : M.metrics.activeWorkersLabel.en,
         value: String(roster.data?.counts.workers ?? 0),
-        sub: isSw ? 'Wenye hadhi hai' : 'With active status',
+        sub: isSw ? M.metrics.activeWorkersSub.sw : M.metrics.activeWorkersSub.en,
         icon: Users,
       },
       {
-        label: isSw ? 'Mitambo inayofanya kazi' : 'Operational equipment',
+        label: isSw ? M.metrics.equipmentLabel.sw : M.metrics.equipmentLabel.en,
         value: String(roster.data?.counts.equipment ?? 0),
-        sub: isSw ? 'Imepangwa kwa aina' : 'Mapped by planner kind',
+        sub: isSw ? M.metrics.equipmentSub.sw : M.metrics.equipmentSub.en,
         icon: Truck,
       },
       {
-        label: isSw ? 'Maeneo' : 'Sites',
+        label: isSw ? M.metrics.sitesLabel.sw : M.metrics.sitesLabel.en,
         value: String(roster.data?.counts.sites ?? 0),
-        sub: isSw ? 'Yenye leseni hai' : 'Across the estate',
+        sub: isSw ? M.metrics.sitesSub.sw : M.metrics.sitesSub.en,
         icon: HardHat,
       },
       {
-        label: isSw ? 'Vyeti vya wafanyakazi' : 'Cert coverage',
+        label: isSw ? M.metrics.certLabel.sw : M.metrics.certLabel.en,
         value: `${certCoverage}%`,
-        sub: isSw ? 'Wenye angalau cheti 1' : 'Workers with >=1 cert',
+        sub: isSw ? M.metrics.certSub.sw : M.metrics.certSub.en,
         icon: ShieldCheck,
         tone: certCoverage >= 50 ? ('success' as const) : ('warning' as const),
       },
@@ -170,7 +164,7 @@ export function ShiftPlannerPanel({
         <div className="rounded-2xl border border-border bg-surface/30 px-5 py-4">
           <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
             <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-            {isSw ? 'Maelezo ya data' : 'Data provenance notes'}
+            {isSw ? M.provenance.title.sw : M.provenance.title.en}
           </h3>
           <ul className="mt-2 space-y-1 text-xs text-neutral-500">
             {(roster.data?.flags ?? []).map((flag, i) => (
@@ -186,18 +180,18 @@ export function ShiftPlannerPanel({
       <div className="rounded-2xl border border-border bg-surface/40 p-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <CalendarClock className="h-4 w-4 text-signal-500" />
-          {isSw ? 'Panga zamu' : 'Plan a shift'}
+          {isSw ? M.controls.title.sw : M.controls.title.en}
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? 'Eneo' : 'Site'}
+            {isSw ? M.controls.site.sw : M.controls.site.en}
             <select
               value={siteId}
               onChange={(e) => setSiteId(e.target.value)}
               className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             >
               <option value="">
-                {isSw ? '— Chagua eneo —' : '— Select site —'}
+                {isSw ? M.controls.selectSite.sw : M.controls.selectSite.en}
               </option>
               {sites.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -208,7 +202,7 @@ export function ShiftPlannerPanel({
           </label>
 
           <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? 'Aina ya zamu' : 'Shift kind'}
+            {isSw ? M.controls.shiftKind.sw : M.controls.shiftKind.en}
             <select
               value={shiftKind}
               onChange={(e) => setShiftKind(e.target.value as ShiftKind)}
@@ -223,7 +217,7 @@ export function ShiftPlannerPanel({
           </label>
 
           <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? 'Muda (saa)' : 'Duration (hrs)'}
+            {isSw ? M.controls.duration.sw : M.controls.duration.en}
             <input
               type="number"
               min={1}
@@ -239,7 +233,7 @@ export function ShiftPlannerPanel({
           </label>
 
           <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? 'Joto la nje (°C)' : 'Ambient (°C)'}
+            {isSw ? M.controls.ambient.sw : M.controls.ambient.en}
             <input
               type="number"
               min={0}
@@ -265,13 +259,11 @@ export function ShiftPlannerPanel({
             ) : (
               <CalendarClock className="h-3.5 w-3.5" />
             )}
-            {isSw ? 'Endesha mpango' : 'Run plan'}
+            {isSw ? M.controls.runPlan.sw : M.controls.runPlan.en}
           </button>
           {!canPlan ? (
             <span className="text-xs text-neutral-500">
-              {isSw
-                ? 'Chagua eneo lenye wafanyakazi na mitambo.'
-                : 'Pick a site with workers and equipment.'}
+              {isSw ? M.controls.pickSiteHint.sw : M.controls.pickSiteHint.en}
             </span>
           ) : null}
         </div>
@@ -279,17 +271,13 @@ export function ShiftPlannerPanel({
 
       {roster.isError ? (
         <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-xs text-destructive">
-          {isSw
-            ? 'Imeshindwa kupakia ratiba ya wafanyakazi.'
-            : 'Failed to load the live roster.'}
+          {isSw ? M.errors.rosterLoad.sw : M.errors.rosterLoad.en}
         </div>
       ) : null}
 
       {plan.isError ? (
         <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-xs text-destructive">
-          {isSw
-            ? 'Mpango haukuwezekana kwa vikwazo vilivyopo (uchovu / OSHA / mzigo).'
-            : 'Plan was unsatisfiable under current constraints (fatigue / OSHA / load).'}
+          {isSw ? M.errors.planUnsat.sw : M.errors.planUnsat.en}
         </div>
       ) : null}
 
@@ -301,7 +289,7 @@ export function ShiftPlannerPanel({
             <header className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <CheckCircle2 className="h-4 w-4 text-success" />
-                {isSw ? 'Migao' : 'Assignments'}
+                {isSw ? M.assignments.title.sw : M.assignments.title.en}
               </h2>
               <span className="font-mono text-xs text-neutral-400">
                 {result.plan.assignments.length}
@@ -309,7 +297,7 @@ export function ShiftPlannerPanel({
             </header>
             {result.plan.assignments.length === 0 ? (
               <div className="px-5 py-6 text-xs text-neutral-500">
-                {isSw ? 'Hakuna migao.' : 'No assignments produced.'}
+                {isSw ? M.assignments.none.sw : M.assignments.none.en}
               </div>
             ) : (
               <ul className="divide-y divide-border/60">
@@ -323,8 +311,10 @@ export function ShiftPlannerPanel({
                         {a.taskId}
                       </div>
                       <div className="mt-0.5 text-neutral-500">
-                        {isSw ? 'Mfanyakazi' : 'Worker'}: {a.workerId} ·{' '}
-                        {isSw ? 'Mtambo' : 'Equip'}: {a.equipmentId} ·{' '}
+                        {isSw ? M.assignments.worker.sw : M.assignments.worker.en}:{' '}
+                        {a.workerId} ·{' '}
+                        {isSw ? M.assignments.equip.sw : M.assignments.equip.en}:{' '}
+                        {a.equipmentId} ·{' '}
                         <span className="capitalize">{a.zone}</span>
                       </div>
                     </div>
@@ -335,7 +325,7 @@ export function ShiftPlannerPanel({
                           : 'border-success/40 bg-success/10 text-success'
                       }`}
                     >
-                      {isSw ? 'uchovu' : 'fatigue'}{' '}
+                      {isSw ? M.assignments.fatigue.sw : M.assignments.fatigue.en}{' '}
                       {a.fatigueAtAssignment.toFixed(2)}
                     </span>
                   </li>
@@ -347,7 +337,7 @@ export function ShiftPlannerPanel({
               <div className="border-t border-border px-5 py-4">
                 <h3 className="flex items-center gap-2 text-xs font-semibold text-warning">
                   <XCircle className="h-3.5 w-3.5" />
-                  {isSw ? 'Kazi zisizo na mtu' : 'Unfilled tasks'}
+                  {isSw ? M.assignments.unfilled.sw : M.assignments.unfilled.en}
                 </h3>
                 <ul className="mt-2 space-y-1 text-xs text-neutral-500">
                   {result.plan.unassignedTasks.map((t) => (
@@ -366,7 +356,7 @@ export function ShiftPlannerPanel({
               <div className="border-t border-border px-5 py-4">
                 <h3 className="flex items-center gap-2 text-xs font-semibold text-info">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  {isSw ? 'Tahadhari za mzunguko' : 'Rotation alerts'}
+                  {isSw ? M.assignments.rotationAlerts.sw : M.assignments.rotationAlerts.en}
                 </h3>
                 <ul className="mt-2 space-y-1 text-xs text-neutral-500">
                   {result.plan.rotationAlerts.map((r, i) => (
@@ -382,7 +372,7 @@ export function ShiftPlannerPanel({
             <header className="flex items-center justify-between border-b border-border px-5 py-4">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <ShieldCheck className="h-4 w-4 text-signal-500" />
-                {isSw ? 'Ufuasi wa OSHA-TZ' : 'OSHA-TZ compliance'}
+                {isSw ? M.compliance.title.sw : M.compliance.title.en}
               </h2>
               <span
                 className={`rounded-full border px-2 py-0.5 text-badge font-medium ${
@@ -393,11 +383,11 @@ export function ShiftPlannerPanel({
               >
                 {result.compliance.pass
                   ? isSw
-                    ? 'Imepita'
-                    : 'PASS'
+                    ? M.compliance.pass.sw
+                    : M.compliance.pass.en
                   : isSw
-                    ? 'Imeshindwa'
-                    : 'FAIL'}
+                    ? M.compliance.fail.sw
+                    : M.compliance.fail.en}
               </span>
             </header>
             <ul className="divide-y divide-border/60">
@@ -424,7 +414,7 @@ export function ShiftPlannerPanel({
             {result.compliance.blockingFailures.length > 0 ? (
               <div className="border-t border-border px-5 py-4">
                 <h3 className="text-xs font-semibold text-destructive">
-                  {isSw ? 'Vizuizi vya idhini' : 'Blocking failures'}
+                  {isSw ? M.compliance.blocking.sw : M.compliance.blocking.en}
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-neutral-500">
                   {result.compliance.blockingFailures.map((f, i) => (

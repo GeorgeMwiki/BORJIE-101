@@ -29,46 +29,11 @@ import {
   type TreasuryRecommendation,
   CURRENCY_CODES,
 } from '@/lib/queries/treasury-advisor';
+import { treasuryAdvisorPanelStrings as T } from '@/i18n/strings/treasury-advisor-panel';
 
 interface TreasuryAdvisorPanelProps {
   readonly locale: 'sw' | 'en';
 }
-
-const T = {
-  title: { en: 'Treasury advisor', sw: 'Mshauri wa hazina' },
-  subtitle: {
-    en: 'Project cash runway and FX exposure from your balances and scheduled flows, then get evidence-backed treasury advice.',
-    sw: 'Kadiria mtiririko wa fedha na hatari ya sarafu kutoka salio na malipo yaliyopangwa, kisha pata ushauri wa hazina wenye ushahidi.',
-  },
-  base: { en: 'Base currency', sw: 'Sarafu ya msingi' },
-  horizon: { en: 'Horizon (days)', sw: 'Muda (siku)' },
-  balances: { en: 'Cash balances', sw: 'Salio la fedha' },
-  cashflows: { en: 'Scheduled cashflows', sw: 'Mitiririko iliyopangwa' },
-  addBalance: { en: '+ Add balance', sw: '+ Ongeza salio' },
-  addFlow: { en: '+ Add cashflow', sw: '+ Ongeza mtiririko' },
-  remove: { en: 'Remove', sw: 'Ondoa' },
-  compute: { en: 'Project runway', sw: 'Kadiria mtiririko' },
-  computing: { en: 'Projecting…', sw: 'Inakadiria…' },
-  recommend: { en: 'Get recommendations', sw: 'Pata mapendekezo' },
-  recommending: { en: 'Deriving…', sw: 'Inatoa…' },
-  startingBalance: { en: 'Starting balance', sw: 'Salio la kuanzia' },
-  minBalance: { en: 'Minimum balance', sw: 'Salio la chini kabisa' },
-  zeroCrossing: { en: 'Cash-out date', sw: 'Tarehe ya kuisha fedha' },
-  neverInHorizon: { en: 'None within horizon', sw: 'Hakuna ndani ya muda' },
-  exposure: { en: 'FX exposure (net, base)', sw: 'Hatari ya sarafu (halisi, msingi)' },
-  recommendations: { en: 'Recommendations', sw: 'Mapendekezo' },
-  evidence: { en: 'Evidence', sw: 'Ushahidi' },
-  noRecs: {
-    en: 'No treasury risks flagged against the current policy.',
-    sw: 'Hakuna hatari za hazina zilizoonyeshwa dhidi ya sera ya sasa.',
-  },
-  persisted: { en: 'Snapshot saved', sw: 'Picha imehifadhiwa' },
-  error: { en: 'Could not project. Check inputs and retry.', sw: 'Imeshindwa kukadiria. Angalia taarifa na ujaribu tena.' },
-  direction: { en: 'Dir', sw: 'Mwelekeo' },
-  due: { en: 'Due', sw: 'Tarehe' },
-  amount: { en: 'Amount', sw: 'Kiasi' },
-  category: { en: 'Category', sw: 'Aina' },
-} as const;
 
 const CATEGORIES: ReadonlyArray<CashflowCategory> = [
   'payroll',

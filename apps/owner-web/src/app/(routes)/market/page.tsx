@@ -1,5 +1,6 @@
 import { getOwnerSession } from '@/lib/session';
 import { MarketIntelligencePanel } from '@/components/market/MarketIntelligencePanel';
+import { marketPageStrings as M } from '@/i18n/strings/market-page';
 
 /**
  * Market intelligence — owner market surface.
@@ -21,12 +22,10 @@ export default async function MarketPage() {
     <div className="space-y-8 px-8 py-8">
       <header>
         <h1 className="text-xl font-semibold text-foreground">
-          {isSw ? 'Akili ya soko' : 'Market intelligence'}
+          {isSw ? M.title.sw : M.title.en}
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-neutral-400">
-          {isSw
-            ? 'Bei ya bidhaa moja kwa moja, ishara za nunua/uza/shikilia, utabiri wa mahitaji na vikwazo vya soko — vyote vikiwa na ushahidi.'
-            : 'Live commodity prices, buy/sell/hold signals, demand forecasts and market disruptions — all evidence-backed.'}
+          {isSw ? M.subtitle.sw : M.subtitle.en}
         </p>
       </header>
       <MarketIntelligencePanel locale={session.languagePreference} />
