@@ -16,10 +16,26 @@
  *     reservations → soften; ship → pass through).
  *
  * Pure adapter; provider-agnostic; the kernel never touches the SDK.
+ *
+ * Fail-LOUD contract: a failed self-grade LLM call THROWS `SelfGradeError`.
+ * It must never default to a fabricated `ship` / 1.0 — auto-shipping an
+ * unverified high-stakes draft on a dead judge is the exact silent fallback
+ * we forbid. The caller surfaces the failure instead.
  */
 
 import { getModelLatest } from '@borjie/brain-llm-router/dynamic-registry';
 import type { AnthropicMessagesClient } from './anthropic-sensor.js';
+
+/** Thrown when the self-grade LLM call fails — replaces the fake `ship`/1.0. */
+export class SelfGradeError extends Error {
+  constructor(message: string, options?: { readonly cause?: unknown }) {
+    super(message);
+    this.name = 'SelfGradeError';
+    if (options?.cause !== undefined) {
+      (this as { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
 
 export type SelfGradeVerdict =
   | 'ship'
@@ -64,43 +80,41 @@ function clamp01(x: number): number {
 }
 
 function parseSelfGrade(body: string): SelfGradeResult {
+  // An unparseable self-grade is a judge failure, NOT a clean ship: defaulting
+  // to ship/1.0 would auto-pass an unverified draft. Throw instead (the outer
+  // catch re-throws it as SelfGradeError). A valid JSON object with an
+  // unrecognised verdict label still carries a real score, so that softer case
+  // normalises to 'ship' rather than throwing.
   const match = body.match(/\{[\s\S]*\}/);
   if (!match) {
-    return {
-      verdict: 'ship',
-      score: 1,
-      rationale: '',
-      suggestedRewrite: '',
-    };
+    throw new SelfGradeError('self-grading-judge returned no parseable JSON verdict');
   }
+  let obj: {
+    verdict?: unknown;
+    score?: unknown;
+    rationale?: unknown;
+    suggestedRewrite?: unknown;
+  };
   try {
-    const obj = JSON.parse(match[0]) as {
-      verdict?: unknown;
-      score?: unknown;
-      rationale?: unknown;
-      suggestedRewrite?: unknown;
-    };
-    const verdictRaw = typeof obj.verdict === 'string' ? obj.verdict : 'ship';
-    const verdict: SelfGradeVerdict =
-      verdictRaw === 'kill' || verdictRaw === 'ship-with-reservations'
-        ? verdictRaw
-        : 'ship';
-    const scoreN = Number(obj.score);
-    return {
-      verdict,
-      score: clamp01(Number.isFinite(scoreN) ? scoreN : 1),
-      rationale: typeof obj.rationale === 'string' ? obj.rationale : '',
-      suggestedRewrite:
-        typeof obj.suggestedRewrite === 'string' ? obj.suggestedRewrite : '',
-    };
-  } catch {
-    return {
-      verdict: 'ship',
-      score: 1,
-      rationale: '',
-      suggestedRewrite: '',
-    };
+    obj = JSON.parse(match[0]);
+  } catch (err) {
+    throw new SelfGradeError('self-grading-judge returned malformed JSON verdict', {
+      cause: err,
+    });
   }
+  const verdictRaw = typeof obj.verdict === 'string' ? obj.verdict : 'ship';
+  const verdict: SelfGradeVerdict =
+    verdictRaw === 'kill' || verdictRaw === 'ship-with-reservations'
+      ? verdictRaw
+      : 'ship';
+  const scoreN = Number(obj.score);
+  return {
+    verdict,
+    score: clamp01(Number.isFinite(scoreN) ? scoreN : 1),
+    rationale: typeof obj.rationale === 'string' ? obj.rationale : '',
+    suggestedRewrite:
+      typeof obj.suggestedRewrite === 'string' ? obj.suggestedRewrite : '',
+  };
 }
 
 export function createSelfGradingJudge(
@@ -136,16 +150,15 @@ export function createSelfGradingJudge(
         if (block.type === 'text' && typeof block.text === 'string') body += block.text;
       }
       return parseSelfGrade(body);
-    } catch {
-      // A self-grade failure must not break the main turn; fall back to
-      // a neutral "ship" so the kernel does not regen on a transient
-      // judge error.
-      return {
-        verdict: 'ship',
-        score: 1,
-        rationale: '',
-        suggestedRewrite: '',
-      };
+    } catch (err) {
+      // A self-grade LLM failure is a BUG, not a clean "ship". Auto-shipping
+      // an unverified draft on a dead judge is the silent fallback we forbid;
+      // throw so the failure surfaces instead.
+      if (err instanceof SelfGradeError) throw err;
+      throw new SelfGradeError(
+        `self-grading-judge call failed: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      );
     }
   };
 }

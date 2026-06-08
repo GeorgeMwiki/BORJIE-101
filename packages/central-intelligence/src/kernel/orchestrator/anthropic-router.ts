@@ -12,7 +12,7 @@
  *     (the FIRST tool_use block wins; the loop dispatches one tool per
  *     tick, then re-enters with the result folded into the transcript)
  *   - text-only blocks            → `{ kind: 'respond_to_owner', text }`
- *   - empty / unparseable content → `{ kind: 'final', text: '' }`
+ *   - empty / unparseable content → THROWS `AnthropicRouterError`
  *
  * Provider-agnostic at the port boundary: the adapter accepts the same
  * duck-typed `AnthropicMessagesClient` the kernel sensors already use,
@@ -20,9 +20,15 @@
  * unchanged. No `@anthropic-ai/sdk` import — the package compiles in a
  * workspace that has not installed the SDK.
  *
- * Fail-safe: any thrown error from the client is caught and collapsed to
- * a `final` decision carrying the error text, so the main loop always
- * sees a closed shape (it never throws out of `router.call`).
+ * Fail-LOUD (NOT fail-safe): a thrown error from the client (network,
+ * auth, rate-limit, overload) AND an empty / unparseable response are
+ * BOTH surfaced by throwing `AnthropicRouterError`. The router never
+ * fabricates an empty `final` answer — a failed or content-less LLM call
+ * MUST reach the owner as a visible error, never as a silently-blank
+ * reply (the exact failure mode that let the empty-`messages` bug hide).
+ * The gateway turn handlers already `catch` a thrown `think()` and map it
+ * to a clean error response / SSE `error` frame, so a real LLM outage
+ * surfaces loudly instead of degrading into a fake empty answer.
  *
  * @module kernel/orchestrator/anthropic-router
  */
@@ -54,12 +60,32 @@ export interface AnthropicRouterConfig {
   /**
    * Optional logger (Pino-style). No console.* per the hard rules. `error`
    * is optional for backwards-compat; when absent the router falls back to
-   * `warn` so a swallowed LLM failure is never fully silent.
+   * `warn`. The router logs the failure for operators AND throws, so the
+   * fault is visible in both the logs and the caller's error path.
    */
   readonly logger?: {
     warn(msg: string, meta?: Record<string, unknown>): void;
     error?(msg: string, meta?: Record<string, unknown>): void;
   };
+}
+
+/**
+ * Thrown when the underlying LLM call fails or yields no usable content.
+ * Carries the originating cause (the SDK error, when there was one) so the
+ * gateway turn handler can log a precise reason while still mapping it to a
+ * clean owner-facing error. This is the loud signal that replaces the old
+ * silently-swallowed empty `final` decision.
+ */
+export class AnthropicRouterError extends Error {
+  constructor(message: string, options?: { readonly cause?: unknown }) {
+    super(message);
+    this.name = 'AnthropicRouterError';
+    if (options?.cause !== undefined) {
+      // Preserve the underlying SDK error without assuming an ES2022 lib
+      // for the standard Error `cause` option.
+      (this as { cause?: unknown }).cause = options.cause;
+    }
+  }
 }
 
 const DEFAULT_MAX_TOKENS = 1024;
@@ -87,8 +113,11 @@ export function createAnthropicRouter(
 
   return {
     async call(args: LLMRouterCall): Promise<Decision> {
+      let response: Awaited<
+        ReturnType<AnthropicMessagesClient['messages']['create']>
+      >;
       try {
-        const response = await client.messages.create({
+        response = await client.messages.create({
           model: config.model,
           max_tokens: maxTokens,
           system: args.system,
@@ -100,30 +129,36 @@ export function createAnthropicRouter(
             ? { tools: toAnthropicTools(args.tools, config.inputSchemaFor) }
             : {}),
         } as Parameters<AnthropicMessagesClient['messages']['create']>[0]);
-        const decision = responseToDecision(response, nextCallId);
-        // Surface a no-content response. A `final` with empty text means the
-        // model returned neither a tool_use nor any text — an anomaly the
-        // caller renders as a silent empty answer (exactly how the empty
-        // `messages` bug stayed hidden). Logged, not thrown.
-        if (decision.kind === 'final' && decision.text.trim() === '') {
-          config.logger?.warn(
-            'anthropic-router produced an empty answer (no tool_use, no text)',
-          );
-        }
-        return decision;
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'anthropic router error';
-        // A thrown SDK error means the LLM call FAILED and the user would
-        // otherwise get a silently-swallowed empty answer — log at error
-        // level (fallback to warn) so it is always visible. Still returns a
-        // closed shape: the port contract is to never throw.
+        // A thrown SDK error means the LLM call FAILED. We log at error level
+        // (fallback to warn) so it is visible in the logs AND re-throw so the
+        // turn fails loudly — the owner gets a real error, never a silently
+        // fabricated empty answer. The gateway turn handlers catch this.
         (config.logger?.error ?? config.logger?.warn)?.(
           'anthropic-router call failed',
           { reason: message },
         );
-        return { kind: 'final', text: '' };
+        throw new AnthropicRouterError(
+          `anthropic-router LLM call failed: ${message}`,
+          { cause: err },
+        );
       }
+      const decision = responseToDecision(response, nextCallId);
+      // A `final` with empty text means the model returned neither a tool_use
+      // nor any text — a content-less response that would otherwise render as
+      // a silent empty answer (exactly how the empty-`messages` bug hid). That
+      // is a fault, not an answer: log it and throw so the turn fails loudly.
+      if (decision.kind === 'final' && decision.text.trim() === '') {
+        (config.logger?.error ?? config.logger?.warn)?.(
+          'anthropic-router produced an empty answer (no tool_use, no text)',
+        );
+        throw new AnthropicRouterError(
+          'anthropic-router produced an empty answer (no tool_use, no text)',
+        );
+      }
+      return decision;
     },
   };
 }
@@ -178,8 +213,10 @@ function toAnthropicTools(
 /**
  * Parse an Anthropic message response into a `Decision`. The first
  * `tool_use` block (if any) becomes a `tool_call`; otherwise the
- * concatenated text becomes `respond_to_owner`. Empty content collapses
- * to a graceful `final`.
+ * concatenated text becomes `respond_to_owner`. Empty content returns the
+ * empty-`final` SENTINEL — an internal "no usable content" marker that the
+ * `call` method translates into a thrown `AnthropicRouterError`. The router
+ * never emits this `final` to the loop; a content-less response is a fault.
  */
 function responseToDecision(
   response: {

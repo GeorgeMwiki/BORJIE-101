@@ -8,6 +8,7 @@ import {
   composeSovereign,
   createDpCohortSource,
   createAnthropicJudge,
+  JudgeError,
   type DpAggregator,
   type DpAggregateOutcome,
   type GroundingFactsProvider,
@@ -208,7 +209,7 @@ describe('Anthropic Haiku judge', () => {
     expect(out.score).toBeCloseTo(0.78, 5);
   });
 
-  it('returns 1.0 (neutral) on a malformed model response', async () => {
+  it('throws on a malformed model response (no fake-perfect score)', async () => {
     const stubClient: AnthropicMessagesClient = {
       messages: {
         async create() {
@@ -222,11 +223,12 @@ describe('Anthropic Haiku judge', () => {
       },
     };
     const judge = createAnthropicJudge(stubClient);
-    const out = await judge('Some draft.');
-    expect(out.score).toBe(1);
+    // An unparseable verdict is a judge failure — it must not default to the
+    // perfect 1.0 that would silently lift confidence (kernel takes min(...)).
+    await expect(judge('Some draft.')).rejects.toBeInstanceOf(JudgeError);
   });
 
-  it('returns 1.0 when the client throws (fail-open)', async () => {
+  it('throws when the client throws (fail-loud, not fail-open)', async () => {
     const stubClient: AnthropicMessagesClient = {
       messages: {
         async create() {
@@ -235,7 +237,7 @@ describe('Anthropic Haiku judge', () => {
       },
     };
     const judge = createAnthropicJudge(stubClient);
-    const out = await judge('Some draft.');
-    expect(out.score).toBe(1);
+    // A dead judge must surface as a loud error, never a fabricated 1.0.
+    await expect(judge('Some draft.')).rejects.toBeInstanceOf(JudgeError);
   });
 });

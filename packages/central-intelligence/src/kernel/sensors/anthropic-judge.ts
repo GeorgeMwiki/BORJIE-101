@@ -13,10 +13,33 @@
  * stakes-driven floor (mirrors LITFIN `brain-kernel.ts:1190-1240`).
  *
  * Pure adapter; the kernel itself stays provider-agnostic.
+ *
+ * Fail-LOUD contract: a failed judge LLM call — or a response with no
+ * parseable numeric score — THROWS `JudgeError`. It must NEVER fabricate a
+ * neutral score: the kernel folds the judge into `min(...confidence)`, so a
+ * fake 1.0 would silently INFLATE confidence on a dead judge and ship an
+ * unverified high-stakes answer. The first judge call in the kernel is
+ * unguarded, so the throw surfaces the turn as a loud error (the gateway
+ * route maps it to a clean error response). An empty draft still scores 0 —
+ * that is a real verdict, not a failure.
  */
 
 import { getModelLatest } from '@borjie/brain-llm-router/dynamic-registry';
 import type { AnthropicMessagesClient } from './anthropic-sensor.js';
+
+/**
+ * Thrown when the judge LLM call fails or returns no parseable verdict.
+ * The loud replacement for the old fabricated neutral-1.0 score.
+ */
+export class JudgeError extends Error {
+  constructor(message: string, options?: { readonly cause?: unknown }) {
+    super(message);
+    this.name = 'JudgeError';
+    if (options?.cause !== undefined) {
+      (this as { cause?: unknown }).cause = options.cause;
+    }
+  }
+}
 
 export interface AnthropicJudgeConfig {
   readonly modelId?: string;
@@ -121,11 +144,16 @@ export function createAnthropicJudge(
         ...(parsed.weakestAxis ? { weakestAxis: parsed.weakestAxis } : {}),
       };
       return verdict;
-    } catch {
-      // A judge failure must not break the main turn; fall back to
-      // the neutral 1.0 (kernel uses min(...components), so 1.0 means
-      // "judge did not constrain confidence").
-      return { score: 1, reasonText: '', suggestedFix: '' };
+    } catch (err) {
+      // A judge LLM failure (or an unparseable verdict) is a BUG, not a
+      // pass. Faking the neutral 1.0 would silently lift confidence on a
+      // dead judge (the kernel takes min(...components)) and ship an
+      // unverified high-stakes answer. Throw so the turn fails loudly.
+      if (err instanceof JudgeError) throw err;
+      throw new JudgeError(
+        `anthropic-judge call failed: ${err instanceof Error ? err.message : String(err)}`,
+        { cause: err },
+      );
     }
   };
 }
@@ -139,31 +167,42 @@ interface ParsedJudgeBody {
 }
 
 function parseJudgeResponse(body: string): ParsedJudgeBody {
+  // Lenient EXTRACTION (the model may wrap JSON in prose) is fine — but a
+  // genuinely unparseable verdict, or one with no numeric score, is a judge
+  // failure and THROWS. It must never default to a fabricated perfect score.
   const match = body.match(/\{[\s\S]*\}/);
-  if (!match) return { score: 1, reasonText: '', suggestedFix: '' };
-  try {
-    const obj = JSON.parse(match[0]) as {
-      score?: unknown;
-      reasonText?: unknown;
-      reasons?: unknown;
-      suggestedFix?: unknown;
-      rubric?: unknown;
-    };
-    const s = Number(obj.score);
-    const reasonText = readReasonText(obj.reasonText, obj.reasons);
-    const suggestedFix = typeof obj.suggestedFix === 'string' ? obj.suggestedFix : '';
-    const rubric = parseRubric(obj.rubric);
-    const weakestAxis = rubric ? findWeakestAxis(rubric) : undefined;
-    return {
-      score: Number.isFinite(s) ? s : 1,
-      reasonText,
-      suggestedFix,
-      ...(rubric ? { rubric } : {}),
-      ...(weakestAxis ? { weakestAxis } : {}),
-    };
-  } catch {
-    return { score: 1, reasonText: '', suggestedFix: '' };
+  if (!match) {
+    throw new JudgeError('anthropic-judge returned no parseable JSON verdict');
   }
+  let obj: {
+    score?: unknown;
+    reasonText?: unknown;
+    reasons?: unknown;
+    suggestedFix?: unknown;
+    rubric?: unknown;
+  };
+  try {
+    obj = JSON.parse(match[0]);
+  } catch (err) {
+    throw new JudgeError('anthropic-judge returned malformed JSON verdict', {
+      cause: err,
+    });
+  }
+  const s = Number(obj.score);
+  if (!Number.isFinite(s)) {
+    throw new JudgeError('anthropic-judge verdict carried no numeric score');
+  }
+  const reasonText = readReasonText(obj.reasonText, obj.reasons);
+  const suggestedFix = typeof obj.suggestedFix === 'string' ? obj.suggestedFix : '';
+  const rubric = parseRubric(obj.rubric);
+  const weakestAxis = rubric ? findWeakestAxis(rubric) : undefined;
+  return {
+    score: s,
+    reasonText,
+    suggestedFix,
+    ...(rubric ? { rubric } : {}),
+    ...(weakestAxis ? { weakestAxis } : {}),
+  };
 }
 
 /**

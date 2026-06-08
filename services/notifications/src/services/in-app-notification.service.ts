@@ -21,10 +21,20 @@
  *
  * WebSocket connection bookkeeping remains in-process (a socket is
  * pinned to the pod that accepted it) and lives in the separate
- * `ConnectionRegistry` adapter. Cross-pod fanout via Redis pub/sub is
- * a follow-up.
+ * `ConnectionRegistry` adapter.
+ *
+ * Cross-pod fan-out (the H7 follow-up) is now wired via an OPTIONAL
+ * `NotificationPubSub` port (`./notification-pubsub.ts`). When a port is
+ * injected, `create()` publishes the notification envelope to the
+ * per-tenant channel after pushing locally, and `start()` subscribes so
+ * THIS pod re-pushes envelopes from OTHER pods to its own clients. The
+ * origin pod is identified by a per-instance `podId` (generated with
+ * `crypto.randomUUID()` in the factory) and skips its own envelopes to
+ * avoid double delivery. When NO port is injected (e.g. `REDIS_URL`
+ * unset) the behaviour is byte-for-byte the legacy single-pod path.
  */
 
+import { randomUUID } from 'node:crypto';
 import { v4 as uuidv4 } from 'uuid';
 import type { TenantId, NotificationTemplateId, SupportedLocale } from '../types/index.js';
 import { resolveTemplate } from '../templates/index.js';
@@ -37,6 +47,9 @@ import {
   createInAppNotificationStore,
   createConnectionRegistry,
 } from '../storage/factory.js';
+import type { NotificationPubSub } from './notification-pubsub.js';
+import { createRedisPubSub } from './notification-pubsub.js';
+import { createFanoutCoordinator } from './notification-fanout.js';
 
 const logger = createLogger('in-app-notification-service');
 
@@ -134,6 +147,13 @@ export interface WebSocketConnection {
 export interface InAppNotificationServiceDeps {
   store?: InAppNotificationStore;
   connections?: ConnectionRegistry;
+  /**
+   * Optional cross-pod fan-out transport. When omitted (the default,
+   * e.g. `REDIS_URL` unset) the service runs the legacy single-pod path
+   * with ZERO behavioural change. When provided, notifications created
+   * on any pod reach WebSocket clients connected to every pod.
+   */
+  pubsub?: NotificationPubSub;
 }
 
 export interface InAppNotificationService {
@@ -195,6 +215,15 @@ export interface InAppNotificationService {
   listAnnouncementsForTenant(
     tenantId: TenantId
   ): Promise<InAppNotification[]>;
+  /**
+   * Begin consuming cross-pod fan-out. No-op (resolves immediately) when
+   * no `pubsub` port was injected. Idempotent — safe to call once at pod
+   * boot. The composition root awaits this after constructing the
+   * service so envelopes from other pods reach this pod's WS clients.
+   */
+  start(): Promise<void>;
+  /** Stable per-instance pod id used to suppress origin-pod re-delivery. */
+  readonly podId: string;
 }
 
 export function createInAppNotificationService(
@@ -203,6 +232,26 @@ export function createInAppNotificationService(
   const store: InAppNotificationStore = deps.store ?? createInAppNotificationStore();
   const connections: ConnectionRegistry =
     deps.connections ?? createConnectionRegistry();
+  const pubsub: NotificationPubSub | undefined = deps.pubsub;
+  // Stable per-instance identity. Generated inside the factory (NOT at
+  // module load) with crypto.randomUUID so two instances in the same
+  // process — or the same pod restarted — never collide, and so the
+  // banned Math.random/Date.now module-level calls are avoided.
+  const podId: string = randomUUID();
+  // Cross-pod fan-out is delegated to a small coordinator (see
+  // `./notification-fanout.ts`). It is fed a local-push callback that
+  // forwards to `pushToUser` (declared below — function hoisting makes
+  // the forward reference safe; the callback only fires asynchronously
+  // on a received envelope). When no `pubsub` port is wired every method
+  // is a no-op, preserving the legacy single-pod behaviour.
+  const fanout = createFanoutCoordinator<InAppNotification>({
+    pubsub,
+    podId,
+    logger,
+    pushLocal: (tenantId, userId, notification) =>
+      pushToUser(tenantId as TenantId, userId, notification),
+  });
+  const { publishEnvelope, ensureSubscribed, start } = fanout;
 
   async function create(
     input: CreateInAppNotificationInput
@@ -231,8 +280,18 @@ export function createInAppNotificationService(
 
     await store.insert(notification);
 
-    // Push to active WebSocket connections (per-pod only)
+    // 1) Push to WebSocket connections owned by THIS pod (legacy path,
+    //    unchanged). 2) Then fan out to OTHER pods so a client connected
+    //    elsewhere also gets it in real time. The publish is a no-op when
+    //    no pubsub port is wired, preserving the single-pod behaviour.
     pushToUser(input.tenantId, input.userId, notification);
+    if (pubsub) {
+      // Ensure this pod also hears its own tenant channel (harmless: the
+      // origin guard drops self-envelopes) so future cross-pod traffic
+      // for this tenant is delivered even if no local client existed yet.
+      void ensureSubscribed(String(input.tenantId));
+      await publishEnvelope(String(input.tenantId), input.userId, notification);
+    }
 
     logger.info('In-app notification created', {
       id,
@@ -523,6 +582,10 @@ export function createInAppNotificationService(
 
   function registerConnection(connection: WebSocketConnection): void {
     connections.register(connection);
+    // A client just landed on THIS pod for this tenant — make sure we
+    // are subscribed to that tenant's fan-out channel so notifications
+    // created on other pods reach this client. No-op without a port.
+    void ensureSubscribed(String(connection.tenantId));
     logger.debug('WebSocket connection registered', {
       connectionId: connection.connectionId,
       userId: connection.userId,
@@ -656,15 +719,49 @@ export function createInAppNotificationService(
     getUnreadCount,
     createAnnouncement,
     listAnnouncementsForTenant,
+    start,
+    podId,
   };
 }
 
 /**
- * Default service singleton. Existing callers (the index re-export
- * + the cleanup setInterval below) keep working unchanged.
+ * Build the optional cross-pod pub/sub for the default singleton.
+ *
+ * Mirrors the storage factory's `REDIS_URL` gate: when the env var is
+ * unset (single-pod / local dev) this returns `undefined` and the
+ * service runs the legacy in-process path with ZERO behavioural change.
+ * When set, it adapts the already-present `ioredis` dependency via
+ * `createRedisPubSub`. Tests never reach this branch — they inject an
+ * in-memory port directly through `createInAppNotificationService`.
+ *
+ * The returned disposable is intentionally not closed here; the process
+ * owns these connections for its lifetime and Node tears them down on
+ * exit. A composition root that needs graceful shutdown should build the
+ * service itself (see this file's header) and call `close()`.
  */
+function buildDefaultPubSub(): NotificationPubSub | undefined {
+  const redisUrl = process.env['REDIS_URL'];
+  if (!redisUrl || process.env['NODE_ENV'] === 'test') return undefined;
+  const { pubsub } = createRedisPubSub(redisUrl);
+  return pubsub;
+}
+
+/**
+ * Default service singleton. Existing callers (the index re-export
+ * + the cleanup setInterval below) keep working unchanged. Cross-pod
+ * fan-out activates automatically when `REDIS_URL` is configured.
+ */
+const defaultPubSub = buildDefaultPubSub();
 export const inAppNotificationService: InAppNotificationService =
-  createInAppNotificationService();
+  createInAppNotificationService(
+    defaultPubSub ? { pubsub: defaultPubSub } : {}
+  );
+
+// Begin consuming cross-pod fan-out. No-op when no port is wired
+// (REDIS_URL unset), so the single-pod path is untouched.
+if (defaultPubSub) {
+  void inAppNotificationService.start();
+}
 
 // ============================================================================
 // Cleanup Job (run periodically)

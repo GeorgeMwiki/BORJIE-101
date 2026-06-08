@@ -279,6 +279,7 @@ export {
 } from './sensors/anthropic-sensor.js';
 export {
   createAnthropicJudge,
+  JudgeError,
   type AnthropicJudgeConfig,
   type JudgeVerdict,
 } from './sensors/anthropic-judge.js';

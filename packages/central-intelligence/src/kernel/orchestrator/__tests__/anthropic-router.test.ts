@@ -2,11 +2,16 @@
  * Item-5 — Anthropic LLM router adapter tests.
  *
  * Proves the adapter maps Anthropic content blocks onto the closed
- * `Decision` ADT and never throws out of the `LLMRouter` port.
+ * `Decision` ADT and — per the no-silent-fallback rule — fails LOUD: a
+ * failed LLM call or a content-less response throws `AnthropicRouterError`
+ * instead of fabricating a silent empty answer.
  */
 
 import { describe, it, expect } from 'vitest';
-import { createAnthropicRouter } from '../anthropic-router.js';
+import {
+  createAnthropicRouter,
+  AnthropicRouterError,
+} from '../anthropic-router.js';
 import type { AnthropicMessagesClient } from '../../sensors/anthropic-sensor.js';
 import type { LLMRouterCall } from '../main-loop.js';
 
@@ -132,7 +137,8 @@ describe('createAnthropicRouter', () => {
     expect(msgs[2]).toEqual({ role: 'assistant', content: 'prior' });
   });
 
-  it('never throws — a client error collapses to a final decision', async () => {
+  it('throws AnthropicRouterError when the client call fails (no silent empty answer)', async () => {
+    const errors: Array<{ msg: string; meta?: Record<string, unknown> }> = [];
     const client: AnthropicMessagesClient = {
       messages: {
         async create() {
@@ -140,15 +146,56 @@ describe('createAnthropicRouter', () => {
         },
       },
     };
-    const router = createAnthropicRouter(client, { model: 'm' });
-    const decision = await router.call(makeCall());
-    expect(decision.kind).toBe('final');
+    const router = createAnthropicRouter(client, {
+      model: 'm',
+      logger: {
+        warn: () => {},
+        error: (msg, meta) => errors.push({ msg, meta }),
+      },
+    });
+    await expect(router.call(makeCall())).rejects.toBeInstanceOf(
+      AnthropicRouterError,
+    );
+    await expect(router.call(makeCall())).rejects.toThrow(/rate limited/);
+    // The failure is also logged for operators, not just thrown.
+    expect(errors.some((e) => e.meta?.reason === 'rate limited')).toBe(true);
   });
 
-  it('collapses an empty-content response to a final decision', async () => {
+  it('preserves the originating SDK error as `cause`', async () => {
+    const root = new Error('overloaded_error');
+    const client: AnthropicMessagesClient = {
+      messages: {
+        async create() {
+          throw root;
+        },
+      },
+    };
+    const router = createAnthropicRouter(client, { model: 'm' });
+    await router.call(makeCall()).then(
+      () => {
+        throw new Error('expected the router to throw');
+      },
+      (err: unknown) => {
+        expect(err).toBeInstanceOf(AnthropicRouterError);
+        expect((err as { cause?: unknown }).cause).toBe(root);
+      },
+    );
+  });
+
+  it('throws AnthropicRouterError on an empty-content response (content-less = fault)', async () => {
     const client = fakeClient({ content: [] });
     const router = createAnthropicRouter(client, { model: 'm' });
-    const decision = await router.call(makeCall());
-    expect(decision.kind).toBe('final');
+    await expect(router.call(makeCall())).rejects.toBeInstanceOf(
+      AnthropicRouterError,
+    );
+    await expect(router.call(makeCall())).rejects.toThrow(/empty answer/);
+  });
+
+  it('throws AnthropicRouterError on a whitespace-only text response', async () => {
+    const client = fakeClient({ content: [{ type: 'text', text: '   \n  ' }] });
+    const router = createAnthropicRouter(client, { model: 'm' });
+    await expect(router.call(makeCall())).rejects.toBeInstanceOf(
+      AnthropicRouterError,
+    );
   });
 });

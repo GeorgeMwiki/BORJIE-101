@@ -22,6 +22,7 @@
  */
 
 import { getModelLatest } from '@borjie/brain-llm-router/dynamic-registry';
+import { logger } from '../logger.js';
 
 export interface GoldenCase {
   readonly id: string;
@@ -111,8 +112,24 @@ export function createHaikuEvaluator(
         }
         const parsed = parseEvaluatorResponse(body);
         if (parsed) return parsed;
+        // Unparseable evaluator response. The bounded heuristic [0.5±0.1] is a
+        // deliberate neutral floor (a real evaluator dominates it), but the
+        // fallback rate must be observable so GEPA eval quality is monitorable.
+        logger.warn('haiku-evaluator: unparseable response — falling back to bounded heuristic', {
+          degraded: true,
+          subsystem: 'prompt-compile.haiku-evaluator',
+          reason: 'unparseable_response',
+        });
         return heuristicScore(args);
       } catch (error) {
+        // LLM eval failed — neutral center (NOT a fabricated high score that
+        // would let GEPA "optimise" toward a dead evaluator). Observable so the
+        // eval-degradation rate during a compile run is a monitorable SLI.
+        logger.warn('haiku-evaluator: LLM eval failed — defaulting to neutral center', {
+          degraded: true,
+          subsystem: 'prompt-compile.haiku-evaluator',
+          reason: asMessage(error),
+        });
         return {
           score: HEURISTIC_CENTER,
           reasoning: `evaluator error: ${asMessage(error)} — defaulting to center`,

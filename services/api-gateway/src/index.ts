@@ -592,6 +592,15 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 // geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave NOTIFICATION-DISPATCH-WIRE — turn on the already-built notification
+// rails: the dispatch drain worker (delivers notification_dispatch_log
+// pending rows via email/SMS/push with retry+backoff+DLQ), its push
+// provider seam, and the announcement fan-out worker (expands operator
+// broadcasts into per-recipient dispatch-log rows the drain then sends).
+import { createNotificationDispatcher } from './services/notification-dispatch/dispatcher-worker';
+import { resolvePushProviderFromEnv } from './services/notification-dispatch/push-provider';
+import { createAnnouncementFanoutWorker } from './workers/announcement-fanout.worker';
+import { createAnnouncementRecipientResolver } from './workers/announcement-recipient-resolver';
 // Wave CLOSED-LOOP - 6h reconciliation worker. Walks outcome_predictions
 // whose horizon has elapsed, resolves the entity's current state, computes
 // drift, writes outcome_observations + outcome_reconciliations, and
@@ -637,6 +646,7 @@ import {
   makeEmailForOwner,
   makePhoneForOwner,
   makeSlackHandleForOwner,
+  makeTimezoneForOwner,
 } from './services/owner-identity/resolver';
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
@@ -2713,6 +2723,23 @@ const executiveBriefActionRunner = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, executed: 0, failed: 0, skipped: 0 }; } };
 
+// Wave NOTIFICATION-DISPATCH-WIRE — parse the optional reminder
+// quiet-hours window from env. QUIET_HOURS_START / QUIET_HOURS_END are
+// local hours (0-23; a leading "HH" of an "HH:MM" string is accepted).
+// Returns undefined unless BOTH bounds are valid, leaving quiet-hours
+// off by default. This file is the bootstrap, so reading process.env
+// here is allowed.
+function parseQuietHoursEnv(): { startHour: number; endHour: number } | undefined {
+  const h = (v: string | undefined): number | null => {
+    if (!v) return null;
+    const n = Number.parseInt(v.split(':')[0] ?? '', 10);
+    return Number.isInteger(n) && n >= 0 && n <= 23 ? n : null;
+  };
+  const start = h(process.env.QUIET_HOURS_START);
+  const end = h(process.env.QUIET_HOURS_END);
+  return start === null || end === null ? undefined : { startHour: start, endHour: end };
+}
+
 // Wave OWNER-OS — reminders dispatch worker. Polls the `reminders`
 // table every 30s and ships rows by email (SendGrid/SES via env), SMS
 // (Africa's Talking / Twilio composite), or Slack webhook. Disabled
@@ -2737,10 +2764,46 @@ const remindersDispatchWorker = serviceRegistry.db
       slackHandleForOwner: makeSlackHandleForOwner(
         serviceRegistry.db as unknown as Parameters<typeof makeSlackHandleForOwner>[0],
       ),
+      // Wave NOTIFICATION-DISPATCH-WIRE — per-owner IANA tz feeds the
+      // reminder quiet-hours window. The window itself is opt-in via
+      // QUIET_HOURS_START / QUIET_HOURS_END (local hours, 0-23); absent
+      // env leaves quiet-hours disabled (every reminder ships on time).
+      timezoneForOwner: makeTimezoneForOwner(
+        serviceRegistry.db as unknown as Parameters<typeof makeTimezoneForOwner>[0],
+      ),
+      ...(parseQuietHoursEnv() ? { quietHours: parseQuietHoursEnv()! } : {}),
       intervalMs: Number(process.env.BORJIE_REMINDERS_INTERVAL_MS ?? 30_000) || 30_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_REMINDERS_WORKER_DISABLED !== 'true',
     })
-  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0 }; } };
+  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 }; } };
+
+// Notification-dispatch drain — delivers notification_dispatch_log
+// (pending) rows via email/SMS/push with retry+backoff+DLQ. The
+// announcement fan-out + push rails enqueue rows that THIS worker sends.
+// Safe alongside any other drainer (FOR UPDATE SKIP LOCKED).
+const notificationDispatchAbort = new AbortController();
+const notificationDispatcher = serviceRegistry.db
+  ? createNotificationDispatcher({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      emailProvider: createEmailProviderFromEnv(),
+      smsProvider: resolveSmsProviderFromEnv(),
+      pushProvider: resolvePushProviderFromEnv(),
+    })
+  : null;
+// Broadcast fan-out — expands operator announcements into per-recipient
+// notification_dispatch_log rows (the drain worker above then sends them).
+const announcementFanoutWorker = serviceRegistry.db
+  ? createAnnouncementFanoutWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      resolveRecipients: createAnnouncementRecipientResolver(
+        serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      ),
+      intervalMs: Number(process.env.BORJIE_ANNOUNCEMENT_FANOUT_INTERVAL_MS ?? 60_000) || 60_000,
+      enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_ANNOUNCEMENT_FANOUT_DISABLED !== 'true',
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, enqueued: 0, skippedNoRecipients: 0 }; } };
 
 // Wave CLOSED-LOOP - 6h tick. For each outcome_predictions row whose
 // horizon has elapsed and has no reconciliation yet, resolve the
@@ -2975,6 +3038,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: reminders-dispatch stop failed');
   }
+  try { announcementFanoutWorker.stop(); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: announcement-fanout stop failed'); }
+  try { notificationDispatchAbort.abort(); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: notification-dispatch abort failed'); }
   try {
     outcomeReconciliationWorker.stop();
     logger.info('shutdown: outcome-reconciliation worker stopped');
@@ -3232,6 +3297,16 @@ if (require.main === module) {
   // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
   // Email default; SMS / Slack land when the operator wires the keys.
   remindersDispatchWorker.start();
+  // Wave NOTIFICATION-DISPATCH-WIRE — start the broadcast fan-out (enqueues
+  // per-recipient dispatch-log rows) and the dispatch drain (sends them via
+  // email/SMS/push). The drain runs as a long-lived runForever loop bounded
+  // by an AbortController that graceful-shutdown trips.
+  announcementFanoutWorker.start();
+  if (notificationDispatcher && process.env.NODE_ENV !== 'test' && process.env.BORJIE_NOTIFICATION_DISPATCH_DISABLED !== 'true') {
+    void notificationDispatcher
+      .runForever({ signal: notificationDispatchAbort.signal })
+      .catch((err) => logger.error({ worker: 'notification-dispatch', err: err instanceof Error ? err.message : String(err) }, 'notification-dispatch: runForever exited'));
+  }
   // Wave CLOSED-LOOP - outcome reconciliation worker. Every 6h walks
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.

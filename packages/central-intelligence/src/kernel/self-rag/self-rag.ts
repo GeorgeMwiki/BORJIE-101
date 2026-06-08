@@ -25,6 +25,8 @@
  * USE=..." form; both shapes are accepted.
  */
 
+import { logger } from '../../logger.js';
+
 export type SelfRagToken = 'high' | 'partial' | 'low' | 'unknown';
 
 export interface SelfRagVerdict {
@@ -216,6 +218,15 @@ export async function runSelfRag(
     const isHighStakes = input.stakes === 'high' || input.stakes === 'critical';
     const errMsg = err instanceof Error ? err.message : String(err);
     if (!isDevOrTest && isHighStakes) {
+      // Fail-CLOSED on the grounding gate — and make it loud: a blocked
+      // high-stakes turn from a dead judge is an error-level SLI.
+      logger.error('self-rag judge unavailable on a high-stakes turn — failing CLOSED (turn blocked)', {
+        degraded: true,
+        subsystem: 'self-rag.judge',
+        stakes: input.stakes,
+        failMode: 'closed',
+        reason: errMsg,
+      });
       return {
         isRel: 'unknown',
         isSup: 'unknown',
@@ -225,6 +236,15 @@ export async function runSelfRag(
         blockedReason: 'judge_unavailable',
       };
     }
+    // Fail-open is permitted only for low/medium stakes (or dev/test); still
+    // observable so the degradation rate is monitorable.
+    logger.warn('self-rag judge unavailable — failing open (low/medium stakes or dev/test)', {
+      degraded: true,
+      subsystem: 'self-rag.judge',
+      stakes: input.stakes,
+      failMode: 'open',
+      reason: errMsg,
+    });
     return {
       isRel: 'unknown',
       isSup: 'unknown',
@@ -359,7 +379,18 @@ async function materialiseHybridContext(
       bundle.repo as unknown as Parameters<typeof buildRetrievedContext>[4],
       bundle.topN ? { topN: bundle.topN } : undefined,
     );
-  } catch {
+  } catch (err) {
+    // Fail-soft (the judge still runs ungrounded), but NEVER silent: a
+    // degraded grounding retrieval is an observable SLI, not a no-op. The
+    // self-RAG judge below is the real grounding gate (fail-closed on
+    // high-stakes), so this only reduces evidence — but ops must see the rate.
+    logger.warn('self-rag hybrid-retrieval degraded; judge runs without retrieved context', {
+      degraded: true,
+      subsystem: 'self-rag.hybrid-retrieval',
+      tenantId: bundle.tenantId,
+      sessionId: bundle.sessionId,
+      reason: err instanceof Error ? err.message : String(err),
+    });
     return [];
   }
 }

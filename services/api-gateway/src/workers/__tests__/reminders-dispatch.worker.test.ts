@@ -15,7 +15,10 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { createRemindersDispatchWorker } from '../reminders-dispatch.worker.js';
+import {
+  createRemindersDispatchWorker,
+  isWithinQuietHours,
+} from '../reminders-dispatch.worker.js';
 
 function makeStubDb(initialRows: ReadonlyArray<Record<string, unknown>>) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
@@ -136,7 +139,7 @@ describe('reminders-dispatch worker', () => {
       enabled: true,
     });
     const res = await w.tickOnce();
-    expect(res).toEqual({ claimed: 0, sent: 0, failed: 0, retried: 0 });
+    expect(res).toEqual({ claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 });
   });
 
   it('RETRIES a retryable provider failure (re-queues with backoff, bumps attempt_count)', async () => {
@@ -264,5 +267,85 @@ describe('reminders-dispatch worker', () => {
     expect(res.retried).toBe(0);
     expect(db.calls.some((c) => c.sql.includes("status = 'failed'"))).toBe(true);
     expect(db.calls.some((c) => c.sql.includes("SET status = 'scheduled'"))).toBe(false);
+  });
+});
+
+describe('reminders-dispatch — quiet hours (SMS only)', () => {
+  // Africa/Dar_es_Salaam is UTC+3 with no DST, so these are stable.
+  const at = (iso: string) => new Date(iso);
+
+  it('isWithinQuietHours handles same-day, midnight-wrapping, and empty windows', () => {
+    // 22:00Z → 01:00 in Dar → inside a 21→7 wrapping window.
+    expect(isWithinQuietHours(at('2024-01-01T22:00:00Z'), 'Africa/Dar_es_Salaam', 21, 7)).toBe(true);
+    // 09:00Z → 12:00 in Dar → outside 21→7.
+    expect(isWithinQuietHours(at('2024-01-01T09:00:00Z'), 'Africa/Dar_es_Salaam', 21, 7)).toBe(false);
+    // Same-day window 9→17: 12:00 in Dar is inside.
+    expect(isWithinQuietHours(at('2024-01-01T09:00:00Z'), 'Africa/Dar_es_Salaam', 9, 17)).toBe(true);
+    // Empty window (start === end) → never quiet.
+    expect(isWithinQuietHours(at('2024-01-01T22:00:00Z'), 'Africa/Dar_es_Salaam', 0, 0)).toBe(false);
+  });
+
+  function smsRow(id: string) {
+    return {
+      id,
+      tenant_id: 't-1',
+      owner_id: 'u-1',
+      title: 'Rent due',
+      body: 'Rent is due',
+      channel: 'sms',
+      payload: {},
+      idempotency_key: `idem-${id}`,
+      attempt_count: 0,
+    };
+  }
+
+  const okSms = () => ({
+    name: 'sms',
+    configured: true,
+    send: vi.fn(async () => ({ status: 'sent' as const, provider: 'sms', providerRef: 'x' })),
+  });
+
+  it('DEFERS an SMS in the owner quiet window (re-queues, does not send)', async () => {
+    const db = makeStubDb([smsRow('q1')]);
+    const smsSpy = okSms();
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: smsSpy,
+      phoneForOwner: async () => '+255700000000',
+      timezoneForOwner: async () => 'Africa/Dar_es_Salaam',
+      quietHours: { startHour: 21, endHour: 7 },
+      now: () => at('2024-01-01T22:00:00Z'), // 01:00 in Dar → quiet
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.deferred).toBe(1);
+    expect(res.sent).toBe(0);
+    expect(res.failed).toBe(0);
+    expect(smsSpy.send).not.toHaveBeenCalled(); // deferred BEFORE sending
+    // Re-queued (status='scheduled' + new trigger_at), not failed, no attempt consumed.
+    expect(db.calls.some((c) => c.sql.includes("SET status = 'scheduled'"))).toBe(true);
+    expect(db.calls.some((c) => c.sql.includes("status = 'failed'"))).toBe(false);
+  });
+
+  it('SENDS an SMS outside quiet hours (no deferral)', async () => {
+    const db = makeStubDb([smsRow('q2')]);
+    const smsSpy = okSms();
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: smsSpy,
+      phoneForOwner: async () => '+255700000000',
+      timezoneForOwner: async () => 'Africa/Dar_es_Salaam',
+      quietHours: { startHour: 21, endHour: 7 },
+      now: () => at('2024-01-01T09:00:00Z'), // 12:00 in Dar → awake
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.deferred).toBe(0);
+    expect(res.sent).toBe(1);
+    expect(smsSpy.send).toHaveBeenCalledOnce();
   });
 });

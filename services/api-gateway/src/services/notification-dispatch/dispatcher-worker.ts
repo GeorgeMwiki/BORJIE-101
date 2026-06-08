@@ -39,6 +39,7 @@
 import { sql } from 'drizzle-orm';
 import type { EmailProvider, EmailProviderResult } from './email-provider';
 import type { SmsProvider, SmsProviderResult } from './sms-provider';
+import type { PushProvider, PushProviderResult } from './push-providers/types';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,6 +57,10 @@ export type DispatcherDeps = {
   readonly logger: Logger;
   readonly emailProvider: EmailProvider;
   readonly smsProvider: SmsProvider;
+  /** Optional push rail (the `app_push` channel). When absent, app_push rows
+   *  fail non-retryably with `push_not_configured` (so they dead-letter rather
+   *  than spin). Resolve via resolvePushProviderFromEnv() in composition. */
+  readonly pushProvider?: PushProvider;
   /** Override clock for deterministic tests. */
   readonly now?: () => Date;
 };
@@ -106,7 +111,7 @@ const DEFAULT_BATCH_SIZE = 25;
 const DEFAULT_IDLE_SLEEP_MS = 1_000;
 const MAX_ATTEMPTS = 5;
 const BASE_BACKOFF_MS = 30_000; // 30s; doubles per attempt
-const KNOWN_CHANNELS = new Set(['email', 'sms', 'whatsapp']);
+const KNOWN_CHANNELS = new Set(['email', 'sms', 'whatsapp', 'app_push']);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -239,7 +244,10 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
 
   async function markSent(
     row: PendingRow,
-    result: Extract<EmailProviderResult | SmsProviderResult, { status: 'sent' }>,
+    result: Extract<
+      EmailProviderResult | SmsProviderResult | PushProviderResult,
+      { status: 'sent' }
+    >,
   ): Promise<void> {
     const nowTs = now();
     try {
@@ -273,7 +281,7 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
   async function markFailed(
     row: PendingRow,
     failure: Extract<
-      EmailProviderResult | SmsProviderResult,
+      EmailProviderResult | SmsProviderResult | PushProviderResult,
       { status: 'failed' }
     >,
   ): Promise<void> {
@@ -371,6 +379,37 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
         return { sent: false, failed: true, skipped: false };
       }
 
+      if (row.channel === 'app_push') {
+        if (!deps.pushProvider) {
+          // No push rail wired — non-retryable so the row dead-letters
+          // instead of spinning forever waiting for a provider.
+          await markFailed(row, {
+            status: 'failed',
+            provider: 'none',
+            errorCode: 'push_not_configured',
+            errorMessage: 'no push provider configured',
+            retryable: false,
+          });
+          return { sent: false, failed: true, skipped: false };
+        }
+        // The push TOKEN rides recipient_address (the producer resolves a
+        // user's device_push_tokens into one row per token, like email/sms).
+        const result = await deps.pushProvider.send({
+          tenantId: row.tenantId,
+          pushToken: row.recipientAddress,
+          templateKey: row.templateKey,
+          locale: row.locale,
+          payload: row.payload,
+          idempotencyKey: row.idempotencyKey,
+        });
+        if (result.status === 'sent') {
+          await markSent(row, result);
+          return { sent: true, failed: false, skipped: false };
+        }
+        await markFailed(row, result);
+        return { sent: false, failed: true, skipped: false };
+      }
+
       // sms or whatsapp
       const channel = row.channel as 'sms' | 'whatsapp';
       const result = await deps.smsProvider.send({
@@ -399,7 +438,9 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
         provider:
           row.channel === 'email'
             ? deps.emailProvider.name
-            : deps.smsProvider.name,
+            : row.channel === 'app_push'
+              ? (deps.pushProvider?.name ?? 'push')
+              : deps.smsProvider.name,
       });
       return { sent: false, failed: true, skipped: false };
     }

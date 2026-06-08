@@ -17,6 +17,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   createConstitutionalCritic,
+  ConstitutionalCriticError,
   BORJIE_CONSTITUTION,
   type AnthropicClientLike,
 } from '../constitutional-critic.js';
@@ -110,7 +111,7 @@ describe('constitutional-critic — Claude path', () => {
     expect(v.overall).toBe(1);
   });
 
-  it('Claude SDK throw → falls back to heuristic', async () => {
+  it('Claude SDK throw → propagates (no silent heuristic fallback)', async () => {
     const client: AnthropicClientLike = {
       messages: {
         async create() {
@@ -119,9 +120,12 @@ describe('constitutional-critic — Claude path', () => {
       },
     };
     const critic = createConstitutionalCritic({ anthropicClient: client });
-    const v = await critic.score(reflection('licence suspension discussed'));
-    // Heuristic should fire (licence suspension keyword)
-    expect(v.scores.some((s) => s.score < 1)).toBe(true);
+    // A CONFIGURED critic whose Claude call fails must NOT fake a verdict by
+    // silently substituting the heuristic — it throws so the caller records
+    // no verdict rather than a fabricated one.
+    await expect(
+      critic.score(reflection('licence suspension discussed')),
+    ).rejects.toBeInstanceOf(ConstitutionalCriticError);
   });
 
   it('passThreshold gates verdict.passed', async () => {

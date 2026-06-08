@@ -8,7 +8,10 @@
  * rollback path flips `status='retracted'` and (asynchronously) sends a
  * retraction follow-up via the existing notification-dispatch.
  *
- * Migration 0139. Companion adapter is
+ * Migrations: 0303b CREATEs the table (back-filled — the original CREATE was
+ * lost during the property→mining migration; the long-standing "0139" citation
+ * here was wrong — 0139 is device_push_tokens); 0304 adds `fanned_out_at`.
+ * Companion adapter is
  * `packages/database/src/services/platform/announcement.service.ts`.
  */
 import {
@@ -48,6 +51,17 @@ export const platformAnnouncements = pgTable(
     createdBy: text('created_by').notNull(),
     retractedAt: timestamp('retracted_at', { withTimezone: true }),
     retractedReason: text('retracted_reason'),
+    /**
+     * Broadcast email/SMS fan-out marker (migration 0304). NULL until the
+     * announcement-fanout worker
+     * (services/api-gateway/src/workers/announcement-fanout.worker.ts)
+     * claims the row and enqueues one `notification_dispatch_log` pending
+     * row per (recipient, channel). The worker stamps this in the SAME
+     * UPDATE that claims the row (WHERE fanned_out_at IS NULL ... RETURNING),
+     * so a second tick / replica can never re-expand the same announcement.
+     * Banner-only announcements are never claimed (nothing to email/SMS).
+     */
+    fannedOutAt: timestamp('fanned_out_at', { withTimezone: true }),
   },
   (t) => ({
     scopeIdx: index('idx_platform_announcements_scope').on(t.scope),
