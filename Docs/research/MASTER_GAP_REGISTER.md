@@ -577,3 +577,26 @@ output + evidence — it must NEVER leak chain-of-thought, prompts, internal too
 mechanics to the client (no reasoning in the stream, logs the user can read, or API responses).
 Borjie-internal admin-web MAY see more for ops/debug (gated, audited); the OWNER never sees
 internals. Same both repos. Audit the brain SSE/response path for any internal-reasoning leak.
+
+---
+
+## INV-H/D (hardened) · NEVER an IP leak; the system never explains its own mechanics — ALL projects
+HARD CROSS-PROJECT RULE (Borjie + BossNyumba + LITFIN): the system must NEVER leak IP and NEVER
+explain its own internal mechanics in an IP-revealing way. No chain-of-thought, no prompts, no
+"here is how I work / my architecture / my agents / my routing", no internal-logic disclosure —
+in any response, render, log, SSE frame, error message, or "explain yourself" path. The persona
+answers about the DOMAIN and the WORK only; if asked how it works internally, it deflects
+gracefully (it is a service, the internals are confidential). We are selling a SERVICE; the
+cognitive architecture is the moat. AUDIT every client-facing path on every project for
+system-self-explanation / IP leakage and close them.
+
+## INV-L · SOTA render-routing decision + the blackboard as a thought-trend history
+The DECISION of what to render INLINE in chat (ephemeral, conversational) vs what to surface on
+the BLACKBOARD (persistent, reference, teaching) must be SOTA + intelligent, so the blackboard
+accumulates a CLEAR, REVIEWABLE HISTORY AND TREND OF THOUGHT for the owner. CRITICAL (with the IP
+rule): that trend is OUTPUT-LEVEL — the curated thread of DECISIONS, INSIGHTS, work-products, and
+teaching steps over time — NEVER the internal chain-of-thought/cognition (IP). The blackboard is
+the owner's window into the MD's accumulated work-thread, not its brain. Routing: ephemeral answer
+-> inline chat; trend-worthy / decision / insight / reference / teaching -> blackboard (curated,
+de-duped, time-ordered). Harvest the LITFIN learning/stepper teaching + human-display + blackboard
+logic for the SOTA patterns. Same both repos.
