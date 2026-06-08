@@ -473,3 +473,24 @@ competent human assistant, not a bot):
 The MD NEVER executes a sensitive action without explicit permission. Reversible + granted
 actions run autonomously (INV-F default DO); sensitive actions run prepare-then-ask. The owner
 can always take the wheel for the final click — the MD did the labor either way. Same both repos.
+
+---
+
+## INV-H · Chat-first but NOT simple — the main conversational surface is SOTA — owner directive
+CHAT-FIRST: conversation with the persona (Mr. Mwikila) is the primary surface. But the MAIN
+product chat (owner-web cockpit, workforce/buyer mobile) is NOT a bare text box — it is a RICH,
+SOTA conversational WORKSPACE:
+  - the MD's WORK is visible (thinking/planning/doing surfaced with reasoning + evidence, like
+    watching a colleague work — transparency = trust);
+  - GENERATIVE UI renders INLINE (forecast = live chart, document = editable preview, lens =
+    interactive roll-up/drill-down) — live UI, not links;
+  - surfaces SPAWN from chat (ambient "you left chat, here are the tabs") — chat is the front
+    door to the whole OS (chat-first navigation);
+  - MULTIMODAL (voice realtime, vision/upload, text) — one natural conversation;
+  - AGENTIC affordances inline (approve / refine / take-the-wheel; drill to evidence; the
+    prepare->ask->execute-or-handoff pattern lives in chat);
+  - PERSONA + MEMORY (remembers, personalizes, surfaces proactively — a person, not a prompt).
+Only the MARKETING surfaces use a simple chat. Bar: ChatGPT-Canvas + Claude-Artifacts +
+Cursor/Devin agent-progress + generative-UI workspace + voice persona, fused into the cockpit.
+All inline UI honours INV-B (lenses) + the UI invariant (reasoned-need, proposal-gated,
+reversible, chat-refinable). Same both repos.
