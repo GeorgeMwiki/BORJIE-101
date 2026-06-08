@@ -27,3 +27,8 @@ export {
   type AdjustCeilingArgs,
   type SeedBudgetArgs,
 } from './admin-overrides.js';
+
+// Platform-billing domain core (Claude-Code model): tier catalog +
+// cost-weighted metering + 5h rolling-session window + honest 3-state
+// limit computation. Pure domain — NO Stripe / UI / HTTP / live money.
+export * from './billing/index.js';
