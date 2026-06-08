@@ -138,10 +138,12 @@ import {
   createInMemoryCellRepository,
   createDrizzleCellRepository,
   createInMemoryReinforcementRepository,
+  createDrizzleReinforcementRepository,
   // Embedding service
   createEmbeddingService,
   // Audit
   createInMemoryAuditChain,
+  createDrizzleAuditChain,
   // Constants
   EMBEDDING_DIM,
   // Types
@@ -376,8 +378,31 @@ function buildCognitiveMemoryBundle(
         'cognitive-wiring: no db handle; cognitive-memory cells are in-memory (volatile across restarts)',
       );
     }
-    const reinforcements = createInMemoryReinforcementRepository();
-    const audit = createInMemoryAuditChain();
+    // Reinforcement trail — same Drizzle/in-memory guard as the cell store.
+    // The Drizzle repo persists one row per reinforce call to
+    // `cognitive_memory_reinforcements` (migration 0029); it implements the
+    // identical `ReinforcementRepository` port, so no other slot changes.
+    const reinforcements: ReinforcementRepository =
+      deps.db !== null
+        ? createDrizzleReinforcementRepository(
+            deps.db as Parameters<
+              typeof createDrizzleReinforcementRepository
+            >[0],
+            { warn: (message, meta) => deps.logger.warn(message, meta) },
+          )
+        : createInMemoryReinforcementRepository();
+    // Audit chain — hash-chained, append-only. The Drizzle variant persists
+    // every memory mutation to `cognitive_memory_audit_chain`, preserving the
+    // exact chain semantics (prevHash + chainIndex + sha256 rowHash from
+    // `@borjie/audit-hash-chain`); the in-memory variant is the volatile
+    // fallback for no-DB boots.
+    const audit: MemoryAuditChain =
+      deps.db !== null
+        ? createDrizzleAuditChain(
+            deps.db as Parameters<typeof createDrizzleAuditChain>[0],
+            { logger: { warn: (message, meta) => deps.logger.warn(message, meta) } },
+          )
+        : createInMemoryAuditChain();
     const upstream = deps.upstreamEmbedder ?? createFixedVectorEmbedder();
     const embedder = createEmbeddingService({ upstream });
     const recall = createRecall({ cells, embedder });

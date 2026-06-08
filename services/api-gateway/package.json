@@ -129,6 +129,7 @@
     "@borjie/strategic-reports": "workspace:*",
     "@borjie/supabase-client": "workspace:*",
     "@borjie/user-context-store": "workspace:*",
+    "@borjie/workforce-orchestrator": "workspace:*",
     "@borjie/workflow-engine": "workspace:*",
     "@hono/node-server": "^1.11.0",
     "@hono/swagger-ui": "^0.5.1",

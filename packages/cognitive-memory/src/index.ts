@@ -103,6 +103,10 @@ export {
   type DrizzleCellRepositoryLogger,
 } from './storage/drizzle-cell-repository.js';
 export { createInMemoryReinforcementRepository } from './storage/reinforcement-repository.js';
+export {
+  createDrizzleReinforcementRepository,
+  type DrizzleReinforcementRepositoryLogger,
+} from './storage/drizzle-reinforcement-repository.js';
 export { createInMemoryPlatformCellRepository } from './storage/platform-cell-repository.js';
 
 // ---------------------------------------------------------------------------
@@ -129,6 +133,11 @@ export {
   createInMemoryAuditChain,
   appendMemoryAudit,
 } from './audit/audit-chain-link.js';
+export {
+  createDrizzleAuditChain,
+  type DrizzleAuditChainLogger,
+  type DrizzleAuditChainOptions,
+} from './audit/drizzle-audit-chain.js';
 
 // ---------------------------------------------------------------------------
 // Boundary tagger — Chinese-wall filter for person-layer / tenant-layer

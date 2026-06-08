@@ -20,6 +20,8 @@
     "@borjie/database": "workspace:*",
     "@borjie/notifications": "workspace:*",
     "@borjie/user-followup": "workspace:*",
+    "@borjie/employee-perf-followup": "workspace:*",
+    "@borjie/proactive-intel": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

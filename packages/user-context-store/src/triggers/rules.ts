@@ -22,6 +22,11 @@ import type {
   Trigger,
   AdminProfile,
 } from '../types.js';
+import {
+  noiDownIsMaterial,
+  parseMeasuredDropPct,
+  resolveNoiThreshold,
+} from './noi-threshold.js';
 
 export interface RuleEvalArgs {
   readonly userId: string;
@@ -459,19 +464,40 @@ const ownerRules: ReadonlyArray<TriggerRule> = [
     applicableRoles: ['owner'],
     evaluate(args) {
       if (!isOwner(args.profile)) return null;
-      // Without prior-period NOI on the dossier, infer "down" from
-      // properties with NOI < typical (heuristic placeholder).
+      // The upstream `finance.noi_down` intent signal asserts a downturn
+      // was observed; it is the gate. The MATERIALITY BAR it must clear
+      // is no longer a hardcoded "typical" — it is resolved per-owner:
+      //   1. tenant-configured `preferences.noiMaterialDropPct`, else
+      //   2. derived from the owner's OWN per-property NOI cohort, else
+      //   3. a documented conservative fallback (the 10% convention this
+      //      rule was named for). See `noi-threshold.ts` for the math.
       const total = args.profile.totalPortfolioNoi ?? 0;
       if (total === 0) return null;
       const intent = args.signals.intentSignals.find(
         (i) => i.kind === 'finance.noi_down',
       );
       if (!intent) return null;
+
+      const threshold = resolveNoiThreshold(args.profile);
+      const measuredDropPct = parseMeasuredDropPct(intent.evidence);
+      if (!noiDownIsMaterial({ threshold, measuredDropPct })) return null;
+
+      const barPct = threshold.dropPct.toFixed(1);
+      const measuredText =
+        measuredDropPct !== undefined
+          ? `NOI fell ${measuredDropPct.toFixed(1)}%`
+          : 'Portfolio NOI is down';
+      const barText =
+        threshold.source === 'configured'
+          ? `your configured ${barPct}% materiality bar`
+          : threshold.source === 'cohort'
+            ? `the ${barPct}% bar derived from your portfolio's own NOI spread`
+            : `the ${barPct}% conservative default (no portfolio baseline yet)`;
       return makeTrigger(
         args,
         { kind: 'owner.noi_down_10pct', urgency: 4 },
         {
-          summary: 'Portfolio NOI is materially down vs prior period.',
+          summary: `${measuredText} vs prior period — past ${barText}.`,
           suggestedAction: 'Review expense drivers and rent collection.',
           suggestedPromptForChat: 'Why is my NOI down this period, and how can I close the gap?',
           triggeringEvidence: [{ kind: 'signal', id: 'noi_down' }],

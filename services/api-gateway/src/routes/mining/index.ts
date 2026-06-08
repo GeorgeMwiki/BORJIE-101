@@ -99,6 +99,11 @@ import { miningDraftsRouter } from './draft.hono';
 import { miningEscalationsRouter } from './escalations.hono';
 import { miningApprovalsRouter } from './approvals.hono';
 import { miningTasksSuggestRouter } from './tasks-suggest.hono';
+// Assignment-plan preview — wraps the pure-compute
+// `@borjie/workforce-orchestrator` planAssignment() (risk-tier + HITL gate
+// + follow-up cadence). Complements `tasks-suggest` (WHO) by answering WHAT
+// dispatch plan a chosen task gets; no new tables, no migrations.
+import { miningAssignmentPlannerRouter } from './assignment-planner.hono';
 
 // B-WorkerTasks — manager-assigned worker tasks (list / complete /
 // block / reassign). Coexists with miningTasksSuggestRouter under
@@ -252,6 +257,9 @@ mining.route('/approvals', miningApprovalsRouter);
 // `/:id/suggest-assignee` priority. Both nest at `/tasks/*`.
 mining.route('/tasks', miningTasksSuggestRouter);
 mining.route('/tasks', miningTasksRouter);
+// Assignment-plan preview (pure orchestrator compute). Distinct prefix so
+// it never collides with `/tasks` (suggest WHO) — this answers WHAT plan.
+mining.route('/assignment-planner', miningAssignmentPlannerRouter);
 
 // Worker safety pulse — toolbox-talks.
 mining.route('/toolbox-talks', miningToolboxRouter);

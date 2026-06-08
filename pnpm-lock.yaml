@@ -4863,6 +4863,9 @@ importers:
       '@borjie/workflow-engine':
         specifier: workspace:*
         version: link:../../packages/workflow-engine
+      '@borjie/workforce-orchestrator':
+        specifier: workspace:*
+        version: link:../../packages/workforce-orchestrator
       '@hono/node-server':
         specifier: 1.19.13
         version: 1.19.13(hono@4.12.18)
@@ -5518,9 +5521,15 @@ importers:
       '@borjie/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@borjie/employee-perf-followup':
+        specifier: workspace:*
+        version: link:../../packages/employee-perf-followup
       '@borjie/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@borjie/proactive-intel':
+        specifier: workspace:*
+        version: link:../../packages/proactive-intel
       '@borjie/user-context-store':
         specifier: workspace:*
         version: link:../../packages/user-context-store

@@ -185,3 +185,60 @@ export const platformMemoryCells = pgTable(
 
 export type PlatformMemoryCellRow = typeof platformMemoryCells.$inferSelect;
 export type PlatformMemoryCellInsert = typeof platformMemoryCells.$inferInsert;
+
+// ============================================================================
+// cognitive_memory_audit_chain — hash-chained, append-only audit log
+//
+// One row per memory mutation (observe / reinforce / cite / contradict /
+// promote / decay). The chain is tamper-evident per tenant: each row stores
+// its zero-based `chainIndex`, the previous row's `rowHash` (or the genesis
+// sentinel for the first row), and its own `rowHash` =
+// sha256/hmac(canonicalJson({ prev, payload, secretId? })) computed by
+// `@borjie/audit-hash-chain`. APPEND-ONLY — never update or delete a row;
+// doing so breaks `verifyChain`. Tenant-scoped, RLS (canonical
+// `app.tenant_id` GUC policy, migration 0003 pattern).
+//
+// Durable counterpart to `createInMemoryAuditChain` in
+// `@borjie/cognitive-memory`; selected at the composition root when a live
+// Drizzle handle is available so the chain survives a process restart.
+// ============================================================================
+
+export const cognitiveMemoryAuditChain = pgTable(
+  'cognitive_memory_audit_chain',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: text('tenant_id').notNull(),
+    /** Zero-based, contiguous position within this tenant's chain. */
+    chainIndex: integer('chain_index').notNull(),
+    /** Preceding row's `rowHash`, or 'GENESIS' for the first row. */
+    prevHash: text('prev_hash').notNull(),
+    /** sha256/hmac of canonicalJson({ prev, payload, secretId? }). */
+    rowHash: text('row_hash').notNull(),
+    /**
+     * memory.observe | memory.reinforce | memory.cite | memory.contradict |
+     * memory.promote | memory.decay.
+     */
+    eventKind: text('event_kind').notNull(),
+    cellId: text('cell_id').notNull(),
+    specialisation: text('specialisation').notNull(),
+    turnId: text('turn_id').notNull(),
+    /** ISO 8601 wall-clock for the underlying event. */
+    occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull(),
+    /** Opaque extra payload fields folded into the row hash. */
+    extra: jsonb('extra'),
+    /** HMAC secret id used at sealing time (rotation aware). */
+    secretId: text('secret_id'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    tenantChainIdx: index('idx_cmac_tenant_chain').on(t.tenantId, t.chainIndex),
+    cellIdx: index('idx_cmac_cell').on(t.cellId, t.occurredAt),
+  }),
+);
+
+export type CognitiveMemoryAuditChainRow =
+  typeof cognitiveMemoryAuditChain.$inferSelect;
+export type CognitiveMemoryAuditChainInsert =
+  typeof cognitiveMemoryAuditChain.$inferInsert;
