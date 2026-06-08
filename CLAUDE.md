@@ -172,6 +172,7 @@ reintroduced.
 | `borjie-semgrep.yml`              | Semgrep curated + Borjie custom rules                        |
 | `borjie-security.yml`             | Dependency audit + secret scan                              |
 | `ai-bom-attest.yml`               | AI Bill of Materials generate + Sigstore-sign (release/nightly)|
+| `borjie-client-secret-scan.yml`   | Asserts web client bundles ship ZERO secrets / prompt-IP / source-maps|
 
 ### Brain evals / red-team / probes
 

@@ -51,6 +51,14 @@ const SECURITY_HEADERS = [
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
+  // IP-shield (client-inspection hardening 2026-06-09): never emit browser
+  // source-maps in production builds. Source-maps would re-expose original
+  // module names, comments, and any inlined constant — handing an inspector a
+  // de-minified view of the client. Defense-in-depth: it is the Next default,
+  // but the audit flagged the missing explicit setting; pinning it here makes
+  // the posture provable and `borjie-client-secret-scan.yml` asserts no `.map`
+  // ever ships in `.next/static`.
+  productionBrowserSourceMaps: false,
   transpilePackages: [
     '@borjie/design-system',
     '@borjie/chat-ui',
