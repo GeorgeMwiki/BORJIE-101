@@ -117,6 +117,15 @@ const ALLOWLIST = [
     tracked_in: 'Docs/DEP_HYGIENE.md (vitest transitive dedupe)',
     next_review: '2026-Q3',
   },
+  {
+    package: 'turbo-stream',
+    severity: ['high'],
+    fix: '>=3.0.0',
+    reason:
+      'GHSA-rxv8-25v2-qmq8: React Router DoS via reflected user input in single-fetch. turbo-stream@2.4.1 is a deep transitive dependency of expo-router → @remix-run/node → @remix-run/server-runtime@2.17.5, pulled ONLY by the Expo apps (buyer-mobile, workforce-mobile). Those are React Native / Expo apps that never run a React Router web server, so the single-fetch DoS surface does not exist in our code. Forcing turbo-stream >=3.0.0 is a major bump incompatible with @remix-run/server-runtime 2.x and would break the mobile builds; the real fix lands when expo-router / @remix-run upgrade their turbo-stream pin.',
+    tracked_in: 'Docs/DEP_HYGIENE.md (expo-router @remix-run turbo-stream)',
+    next_review: '2026-Q3',
+  },
 ];
 
 function isAllowlisted(advisory) {
