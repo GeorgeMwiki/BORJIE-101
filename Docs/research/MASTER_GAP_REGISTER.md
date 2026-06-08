@@ -559,3 +559,21 @@ Drive EVERYTHING to zero: 0 TODOs, nothing deferred, no tech debt, no bugs, no u
 (NOT_YET_WIRED), no missing UI, no missing logic, no incomplete logic, no skipped/failing tests,
 no type-suppressions hiding holes. FULL CLEAN, full-speed, both repos. Every wave lands green +
 verified + committed; nothing left as a spec; the only permanent gates are the inviolable rails.
+
+---
+
+## INV-H / INV-D (sharpened) · Background cognition is IP — show STATUS + OUTPUTS, never internals (owner directive)
+The MD's actual thinking and work — reasoning, chain-of-thought, tool-calls, agent swarms,
+internal orchestration, prompts, the cognitive architecture — happen in the BACKGROUND and are
+NEVER exposed to the user. This is core IP (the moat). The user sees ONLY:
+  (1) high-level STATUS — "thinking…", "analyzing…", "preparing your royalty payment…",
+      in-progress, ETA/progress — a polished professional "I'm on it", NOT an internal monologue;
+  (2) the OUTPUTS (results / artifacts / proposals) + their EVIDENCE/citations (the SOURCES that
+      ground the result, for trust — NOT the internal reasoning process).
+This RE-SCOPES the Face research's "visible work / agentic transparency" to STATUS-LEVEL progress
+only. Trust = polished status + grounded outputs + evidence; NOT exposed cognition.
+ENGINEERING CONSEQUENCE (hard): the response/SSE pipeline must carry only status frames + final
+output + evidence — it must NEVER leak chain-of-thought, prompts, internal tool-calls, or swarm
+mechanics to the client (no reasoning in the stream, logs the user can read, or API responses).
+Borjie-internal admin-web MAY see more for ops/debug (gated, audited); the OWNER never sees
+internals. Same both repos. Audit the brain SSE/response path for any internal-reasoning leak.
