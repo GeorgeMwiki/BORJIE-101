@@ -11,6 +11,7 @@
  * tested elsewhere with red-team / sycophancy / calibration suites.
  */
 
+import { applyConversationFeel, type Locale } from '@borjie/conversation-feel';
 import type {
   ResponseDraft,
   ResponseStyle,
@@ -94,15 +95,30 @@ function verbositySuffix(level: number): string {
  * Style a draft per the user's voice profile. The function is pure
  * and synchronous — the caller decides whether to render the styled
  * text to chat-ui, email body, or WhatsApp message.
+ *
+ * The model-generated `draft.body` passes through the conversation-feel
+ * output stage (`applyConversationFeel`) BEFORE it is composed into the
+ * persona envelope. That pass is fail-open (a throwing guard returns the
+ * body unchanged — a guard can never break or drop a reply) and locale-pure
+ * (rules run for `locale` only; the other language is never injected). The
+ * persona preamble / tail scaffolds are deliberately left untouched.
+ *
+ * @param locale active reply language; defaults to Borjie's `en`. Pass `sw`
+ *               when the user has toggled to Swahili so the guards stay
+ *               locale-pure.
  */
 export function styleResponse(
   profile: VoiceProfile,
   draft: ResponseDraft,
+  locale: Locale = 'en',
 ): ResponseStyle {
+  // Final, fail-open, locale-pure conversation-feel pass on the substance.
+  const cleanedBody = applyConversationFeel(draft.body, locale).text;
+
   const lines: string[] = [];
   lines.push(preamble(profile.mode));
   lines.push('');
-  lines.push(draft.body);
+  lines.push(cleanedBody);
 
   if (profile.mode === 'learn') {
     lines.push(clarifierBlock(draft.clarifier_questions));

@@ -97,7 +97,7 @@ importers:
         version: 8.59.3(eslint@10.4.0)(typescript@6.0.3)
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   apps/admin-web:
     dependencies:
@@ -254,7 +254,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   apps/buyer-mobile:
     dependencies:
@@ -366,7 +366,7 @@ importers:
         version: 5.3.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   apps/marketing:
     dependencies:
@@ -439,7 +439,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   apps/owner-web:
     dependencies:
@@ -569,7 +569,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   apps/workforce-mobile:
     dependencies:
@@ -687,7 +687,7 @@ importers:
         version: 5.3.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/agent-orchestrator:
     dependencies:
@@ -703,7 +703,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/agent-platform:
     dependencies:
@@ -719,7 +719,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/agent-runtime:
     dependencies:
@@ -735,7 +735,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/agent-security-guard:
     dependencies:
@@ -754,7 +754,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/agentic-os:
     devDependencies:
@@ -766,7 +766,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ai-copilot:
     dependencies:
@@ -847,7 +847,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ambient-listener:
     dependencies:
@@ -863,7 +863,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/analytics:
     dependencies:
@@ -888,7 +888,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/anomaly-detection:
     devDependencies:
@@ -900,7 +900,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/api-client:
     dependencies:
@@ -928,7 +928,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/api-sdk:
     devDependencies:
@@ -946,7 +946,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/app-shell:
     dependencies:
@@ -981,7 +981,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/audio-capture:
     devDependencies:
@@ -993,7 +993,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/audit-hash-chain:
     devDependencies:
@@ -1005,7 +1005,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/authz-policy:
     dependencies:
@@ -1024,7 +1024,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/autonomy-governance:
     dependencies:
@@ -1061,7 +1061,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/bias-handling:
     devDependencies:
@@ -1073,7 +1073,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/blackboard-intel:
     dependencies:
@@ -1092,7 +1092,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/blackboard-sota:
     dependencies:
@@ -1114,7 +1114,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/borjie-cli:
     dependencies:
@@ -1142,7 +1142,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/brain-llm-router:
     devDependencies:
@@ -1204,7 +1204,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/calibration-monitor:
     dependencies:
@@ -1220,7 +1220,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/capability-catalogue:
     dependencies:
@@ -1239,7 +1239,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/capacity-expansion-advisor:
     dependencies:
@@ -1264,7 +1264,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/causal-inference:
     dependencies:
@@ -1283,7 +1283,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/central-intelligence:
     dependencies:
@@ -1348,7 +1348,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/chat-ui:
     dependencies:
@@ -1416,7 +1416,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/cognitive-engine:
     dependencies:
@@ -1441,7 +1441,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/cognitive-memory:
     dependencies:
@@ -1466,7 +1466,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/compliance-pack:
     dependencies:
@@ -1482,7 +1482,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/compliance-plugins:
     dependencies:
@@ -1498,7 +1498,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/config:
     dependencies:
@@ -1517,7 +1517,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/conformal-calibration-online:
     devDependencies:
@@ -1529,7 +1529,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/connectors:
     devDependencies:
@@ -1541,10 +1541,26 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+
+  packages/conversation-feel:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/cost-engineer-advisor:
     dependencies:
@@ -1569,7 +1585,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/cross-org-denial-recorder:
     devDependencies:
@@ -1581,7 +1597,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/data-analysis:
     devDependencies:
@@ -1593,7 +1609,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/data-onboarding:
     dependencies:
@@ -1615,7 +1631,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/data-protection:
     dependencies:
@@ -1637,7 +1653,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/database:
     dependencies:
@@ -1686,7 +1702,7 @@ importers:
         version: 14.0.0
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/design-system:
     dependencies:
@@ -1783,7 +1799,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/dispatch-router:
     dependencies:
@@ -1833,7 +1849,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/document-analysis:
     dependencies:
@@ -1884,7 +1900,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/document-reconciliation:
     devDependencies:
@@ -1896,7 +1912,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/document-studio:
     dependencies:
@@ -1915,7 +1931,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/document-templates:
     dependencies:
@@ -1949,7 +1965,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/domain-models:
     dependencies:
@@ -1974,7 +1990,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/dp-federation:
     devDependencies:
@@ -1986,7 +2002,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/dynamic-recipe-authoring:
     dependencies:
@@ -2008,7 +2024,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/dynamic-sections:
     dependencies:
@@ -2097,7 +2113,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/email-templates:
     devDependencies:
@@ -2109,7 +2125,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.0.0
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/employee-perf-followup:
     dependencies:
@@ -2128,7 +2144,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/enterprise-hardening:
     dependencies:
@@ -2190,7 +2206,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ethics-framework:
     dependencies:
@@ -2206,7 +2222,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/executive-brief-engine:
     dependencies:
@@ -2247,7 +2263,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/fairness-eval:
     dependencies:
@@ -2263,7 +2279,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/feature-flags-adapter:
     devDependencies:
@@ -2275,7 +2291,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/file-ingest:
     dependencies:
@@ -2300,7 +2316,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/fleet-management:
     dependencies:
@@ -2319,7 +2335,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/forecasting:
     dependencies:
@@ -2350,7 +2366,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/forecasting-engine:
     dependencies:
@@ -2366,7 +2382,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/fx-treasury-advisor:
     dependencies:
@@ -2391,7 +2407,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/genui:
     dependencies:
@@ -2456,7 +2472,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/geo-parcels:
     dependencies:
@@ -2500,7 +2516,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/geology-advisor:
     dependencies:
@@ -2525,7 +2541,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/graph-database:
     dependencies:
@@ -2556,7 +2572,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/graph-privacy:
     dependencies:
@@ -2578,7 +2594,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/graph-rag-router:
     dependencies:
@@ -2600,7 +2616,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/graph-sync:
     dependencies:
@@ -2631,7 +2647,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/graph-viz:
     dependencies:
@@ -2735,7 +2751,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/intel-self-improve:
     dependencies:
@@ -2763,7 +2779,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/internal-software-generator:
     dependencies:
@@ -2782,7 +2798,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/inventory-management:
     dependencies:
@@ -2798,7 +2814,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/jurisdiction-profile-tz:
     dependencies:
@@ -2817,7 +2833,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/jurisdiction-profiles:
     dependencies:
@@ -2839,7 +2855,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/knowledge-graph:
     dependencies:
@@ -2855,7 +2871,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/language-pack-en:
     dependencies:
@@ -2871,7 +2887,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/language-pack-sw:
     dependencies:
@@ -2887,7 +2903,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/language-packs:
     dependencies:
@@ -2903,7 +2919,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/language-self-improve:
     dependencies:
@@ -2919,7 +2935,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/language-sota:
     dependencies:
@@ -2938,7 +2954,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/learning-amplification:
     dependencies:
@@ -2957,7 +2973,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/learning-signal-emitter:
     devDependencies:
@@ -2969,7 +2985,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ledger-attestor:
     dependencies:
@@ -2985,7 +3001,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/legibility:
     dependencies:
@@ -3007,7 +3023,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/llm-budget-governor:
     dependencies:
@@ -3023,7 +3039,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/loop-quality-gates:
     dependencies:
@@ -3039,7 +3055,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/loop-runner:
     dependencies:
@@ -3058,7 +3074,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/market-intelligence:
     dependencies:
@@ -3101,7 +3117,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/marketing-brain:
     dependencies:
@@ -3120,7 +3136,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mcp:
     dependencies:
@@ -3136,7 +3152,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mcp-cost-persistence:
     devDependencies:
@@ -3148,7 +3164,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mcp-server:
     dependencies:
@@ -3167,7 +3183,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/media-generation:
     dependencies:
@@ -3195,7 +3211,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/memory-port-extensions:
     dependencies:
@@ -3211,7 +3227,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/memory-tool-wire-adapter:
     devDependencies:
@@ -3223,7 +3239,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/memory-v2:
     dependencies:
@@ -3239,7 +3255,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/meta-learning-conductor:
     devDependencies:
@@ -3251,7 +3267,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mine-planner-advisor:
     dependencies:
@@ -3279,7 +3295,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mining-commodity-intelligence:
     dependencies:
@@ -3304,7 +3320,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/mining-shift-planner:
     dependencies:
@@ -3332,7 +3348,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/module-orchestrator:
     dependencies:
@@ -3423,7 +3439,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/notifications:
     dependencies:
@@ -3451,7 +3467,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/observability:
     dependencies:
@@ -3536,7 +3552,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/omnidata:
     dependencies:
@@ -3571,7 +3587,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/openclaw-operating-model:
     dependencies:
@@ -3631,7 +3647,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/outcomes:
     dependencies:
@@ -3647,7 +3663,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/owner-os-tabs:
     dependencies:
@@ -3660,7 +3676,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/performance-toolkit:
     devDependencies:
@@ -3672,7 +3688,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/persistent-memory:
     dependencies:
@@ -3688,7 +3704,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/persona-runtime:
     dependencies:
@@ -3711,6 +3727,9 @@ importers:
 
   packages/persona-voice:
     dependencies:
+      '@borjie/conversation-feel':
+        specifier: workspace:*
+        version: link:../conversation-feel
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -3723,7 +3742,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/portal-genui:
     dependencies:
@@ -3739,7 +3758,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/post-training-rlvr:
     dependencies:
@@ -3758,7 +3777,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/privacy-router:
     dependencies:
@@ -3780,7 +3799,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/proactive-intel:
     dependencies:
@@ -3796,7 +3815,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/probe-runners:
     devDependencies:
@@ -3808,7 +3827,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/process-reward-model:
     dependencies:
@@ -3830,7 +3849,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/procurement-coordination:
     dependencies:
@@ -3846,7 +3865,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/progressive-intelligence:
     dependencies:
@@ -3862,7 +3881,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/realtime-adapter:
     dependencies:
@@ -3881,7 +3900,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/realtime-rooms:
     dependencies:
@@ -3928,7 +3947,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/recommendations:
     dependencies:
@@ -3975,7 +3994,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/report-engine:
     dependencies:
@@ -3991,7 +4010,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/research-tools:
     dependencies:
@@ -4022,7 +4041,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/role-aware-advisor:
     dependencies:
@@ -4038,7 +4057,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/sae-probe:
     dependencies:
@@ -4054,7 +4073,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/scientific-discovery:
     dependencies:
@@ -4070,7 +4089,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/security-hardening:
     dependencies:
@@ -4086,7 +4105,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/skill-library:
     dependencies:
@@ -4102,7 +4121,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/spatial-engine:
     dependencies:
@@ -4133,7 +4152,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/spotlight:
     dependencies:
@@ -4155,7 +4174,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/stage-advisor:
     dependencies:
@@ -4171,7 +4190,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/storage-adapter:
     dependencies:
@@ -4190,7 +4209,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/strategic-layer:
     dependencies:
@@ -4209,7 +4228,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/strategic-reports:
     dependencies:
@@ -4225,7 +4244,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/supabase-client:
     dependencies:
@@ -4247,7 +4266,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/swahili-linguistics:
     dependencies:
@@ -4266,7 +4285,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/tab-as-loop:
     dependencies:
@@ -4288,7 +4307,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/tab-need-detector:
     dependencies:
@@ -4326,7 +4345,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/tenant-isolation-guard:
     dependencies:
@@ -4342,7 +4361,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/translation:
     dependencies:
@@ -4361,7 +4380,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/translation-sota:
     dependencies:
@@ -4380,7 +4399,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/user-context-store:
     dependencies:
@@ -4396,7 +4415,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/user-followup:
     dependencies:
@@ -4412,7 +4431,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/ussd-engine:
     devDependencies:
@@ -4424,7 +4443,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/vertical-profile-mining-tz:
     dependencies:
@@ -4443,7 +4462,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/vertical-profiles:
     dependencies:
@@ -4462,7 +4481,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/work-cycle:
     dependencies:
@@ -4487,7 +4506,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/workflow-engine:
     dependencies:
@@ -4506,7 +4525,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/workforce-orchestrator:
     dependencies:
@@ -4805,6 +4824,9 @@ importers:
       '@borjie/recommendations':
         specifier: workspace:*
         version: link:../../packages/recommendations
+      '@borjie/research-orchestrator':
+        specifier: workspace:*
+        version: link:../research-orchestrator
       '@borjie/role-aware-advisor':
         specifier: workspace:*
         version: link:../../packages/role-aware-advisor
@@ -4986,7 +5008,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/brain-evolution-worker:
     dependencies:
@@ -5014,7 +5036,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/capability-measurement-worker:
     dependencies:
@@ -5036,7 +5058,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/consolidation-worker:
     dependencies:
@@ -5070,7 +5092,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/doc-evolution-worker:
     dependencies:
@@ -5159,7 +5181,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/edge-inference:
     devDependencies:
@@ -5171,7 +5193,7 @@ importers:
         version: 5.4.5
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
       wrangler:
         specifier: ^3.66.0
         version: 3.114.17(@cloudflare/workers-types@4.20260529.1)
@@ -5214,7 +5236,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/junior-evolution-worker:
     dependencies:
@@ -5242,7 +5264,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/mcp-server-borjie:
     dependencies:
@@ -5258,7 +5280,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/mcp-server-process-intel:
     dependencies:
@@ -5277,7 +5299,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/mcp-server-tra:
     dependencies:
@@ -5305,7 +5327,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/notifications:
     dependencies:
@@ -5360,7 +5382,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/outbox-processor:
     dependencies:
@@ -5379,7 +5401,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/outcomes-metering:
     dependencies:
@@ -5419,7 +5441,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/payments-ledger:
     dependencies:
@@ -5520,7 +5542,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/reports:
     dependencies:
@@ -5566,7 +5588,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/research-orchestrator:
     dependencies:
@@ -5615,7 +5637,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/sleep-pass-orchestrator:
     dependencies:
@@ -5640,7 +5662,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/ui-evolution-worker:
     dependencies:
@@ -5686,7 +5708,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/voice-agent:
     dependencies:
@@ -5726,7 +5748,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/wave-resilience-manager:
     dependencies:
@@ -5745,7 +5767,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   services/webhooks:
     dependencies:
@@ -5767,7 +5789,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.6
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
 packages:
 

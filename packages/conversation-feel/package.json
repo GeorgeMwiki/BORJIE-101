@@ -1,9 +1,9 @@
 {
-  "name": "@borjie/persona-voice",
+  "name": "@borjie/conversation-feel",
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
-  "description": "Persona voice styling for Mr. Mwikila (Wave M2). Same factual content, two voices — GUIDE (Mr. Mwikila does, the user approves) and LEARN (Mr. Mwikila teaches, the user does). BALANCED is the default. Per-tenant + per-user; toggle is a single click.",
+  "description": "Runtime per-turn conversation guards for Mr. Mwikila. Strips chatbot-feel filler, enforces honesty/brevity/position/continuity, and exposes a fail-open, locale-pure final pass (applyConversationFeel) for outgoing replies.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@borjie/conversation-feel": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

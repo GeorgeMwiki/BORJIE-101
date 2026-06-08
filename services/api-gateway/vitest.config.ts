@@ -69,6 +69,15 @@ export default defineConfig({
         find: /^@borjie\/payments-ledger-service$/,
         replacement: path.resolve(__dirname, '../payments-ledger/src/index.ts'),
       },
+      // Deep research — route the research-orchestrator barrel through
+      // source so the research router + composition exercise the current
+      // mode handlers + repo factories without a `pnpm --filter
+      // @borjie/research-orchestrator build` round-trip. The `$` anchor
+      // preserves any subpath imports.
+      {
+        find: /^@borjie\/research-orchestrator$/,
+        replacement: path.resolve(__dirname, '../research-orchestrator/src/index.ts'),
+      },
     ],
   },
   test: {

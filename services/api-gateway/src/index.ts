@@ -174,6 +174,7 @@ import {
   type ClientSocketLike,
 } from './routes/brain-voice.hono';
 import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-wiring';
+import { buildResearchWiring } from './composition/research/research-wiring';
 import { scheduleProactive } from './composition/proactive/proactive-wiring';
 import { createCalendarRouter } from './routes/owner/calendar.hono';
 import { createCalendarChannelFromEnv } from './services/notification-dispatch/calendar-providers/index';
@@ -1608,6 +1609,15 @@ const portalGenuiWiring = buildPortalGenuiWiring();
 (serviceRegistry as { portalGenUIEngine?: unknown }).portalGenUIEngine =
   portalGenuiWiring.engine;
 api.route('/portal-genui', portalGenuiWiring.router);
+// Deep research: make the research-orchestrator engine reachable on demand.
+// The engine was built + DB-backed but no gateway route ever constructed its
+// ModeRunDeps, so users could not trigger research. Construct the engine +
+// mount its router beside portal-genui; the engine is exposed on the live
+// serviceRegistry the service-context middleware already closed over.
+const researchWiring = buildResearchWiring();
+(serviceRegistry as { researchEngine?: unknown }).researchEngine =
+  researchWiring.engine;
+api.route('/research', researchWiring.router);
 // Owner calendar integration — build the calendar channel (null without a
 // CALENDAR_TOKEN_KEY) + mount the OAuth/connect router (503s when unconfigured).
 const calendarChannel = serviceRegistry.db
