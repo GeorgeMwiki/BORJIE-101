@@ -19,7 +19,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte } from 'drizzle-orm';
 import { implicitFeedbackSignals } from '../schemas/implicit-feedback-signals.schema.js';
 import type { DatabaseClient } from '../client.js';
 import { logger } from '../logger.js';

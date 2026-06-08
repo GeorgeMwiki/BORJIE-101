@@ -100,6 +100,7 @@
     "@borjie/probe-runners": "workspace:*",
     "@borjie/reasoning-substrate": "workspace:*",
     "@borjie/research-orchestrator": "workspace:*",
+    "@borjie/research-tools": "workspace:*",
     "@borjie/ussd-engine": "workspace:*",
     "@borjie/cross-org-denial-recorder": "workspace:*",
     "@borjie/observability": "workspace:*",

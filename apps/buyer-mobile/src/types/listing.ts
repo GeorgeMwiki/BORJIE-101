@@ -74,6 +74,13 @@ export interface Bid {
   readonly placedAt: string
   readonly thread: readonly BidMessage[]
   /**
+   * RFB-response thread key for the WS-2 bid chat. Present when this bid
+   * has a live buyer↔seller thread (loaded via api/bid-messaging.ts
+   * fetchThread/sendThreadMessage). Null for marketplace bids that carry
+   * no chat thread.
+   */
+  readonly threadResponseId?: string | null
+  /**
    * Chat-as-OS bidirectional parity. When `via === 'chat'` the buyer
    * sees a small "via Mr. Mwikila" pill next to the bid in the My
    * Bids list; tapping it opens the chat session at the originating

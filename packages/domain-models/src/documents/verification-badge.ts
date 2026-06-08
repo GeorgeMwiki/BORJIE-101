@@ -149,7 +149,7 @@ export function revokeBadge(
 export function renewBadge(
   badge: VerificationBadge,
   newExpiresAt: ISOTimestamp | null,
-  updatedBy: UserId
+  _updatedBy: UserId
 ): VerificationBadge {
   const now = new Date().toISOString();
   return {

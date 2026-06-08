@@ -15,9 +15,8 @@ import {
   LedgerEntryType,
   LedgerEntryTypeSchema,
   TenantScopedEntity,
-  createId
 } from '../common/types';
-import { CurrencyCodeSchema, CurrencyCode } from '../common/enums';
+import { CurrencyCode } from '../common/enums';
 import { Money, MoneySchema } from '../common/money';
 
 /**
@@ -129,7 +128,7 @@ export function validateJournalBalance(lines: JournalEntryLine[]): boolean {
   }
   
   // Check balance for each currency
-  for (const [currency, totals] of byCurrency) {
+  for (const [, totals] of byCurrency) {
     if (totals.debits !== totals.credits) {
       return false;
     }

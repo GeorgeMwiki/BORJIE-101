@@ -17,7 +17,6 @@ import {
   buildStubScreeningPort,
 } from '../_shared.js';
 import type { ExtendedCountryProfile } from '../types.js';
-import { buildRegexIdValidator } from '../types.js';
 
 const brazilCore: CountryPlugin = {
   countryCode: 'BR',

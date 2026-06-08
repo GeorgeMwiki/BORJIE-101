@@ -87,8 +87,17 @@ export async function placeBid(input: PlaceBidInput): Promise<Bid> {
   return response.data
 }
 
+/**
+ * List the calling buyer's own bids. Hits the buyer-side projection
+ * `GET /api/v1/mining/bids/mine` — NOT the bare `GET /bids`, which is the
+ * SELLER view (requires a `listing_id` query and returns bids on a
+ * listing the seller owns). The gateway resolves the buyer from the JWT
+ * via buyers.linked_user_id; nothing buyer-scoped is sent client-side.
+ */
 export async function fetchBids(): Promise<readonly Bid[]> {
-  const response = await apiFetch<{ readonly data: readonly Bid[] }>(`${MINING_PREFIX}/bids`)
+  const response = await apiFetch<{ readonly data: readonly Bid[] }>(
+    `${MINING_PREFIX}/bids/mine`
+  )
   return response.data
 }
 

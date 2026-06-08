@@ -10,12 +10,16 @@
  *
  * Decisions encoded here:
  *
- *   - In-memory repositories are used by default. Production should swap
- *     in Drizzle-backed adapters once the matching migrations land
- *     (`workflow_runs`, `workflow_run_events`, `workflow_audit_chain`,
- *     `assignments`, `assignment_events`). The seams are clean: every
- *     repository is a Port that already has both an in-memory and a
- *     future-Drizzle adapter contract.
+ *   - Repositories are Drizzle-backed when a DatabaseClient is present
+ *     (production), and in-memory otherwise (tests / DATABASE_URL unset).
+ *     The Drizzle adapters persist to `workflow_runs`,
+ *     `workflow_run_events`, and `workflow_audit_chain` (migration 0307)
+ *     so workflow runs, the four-eyes approval queue, and the
+ *     append-only hashed audit chain survive an api-gateway restart
+ *     (closes the SOC 2 CC7.2 gap in the execution audit, EX-10). The
+ *     assignment-registry repositories remain in-memory pending their
+ *     own migration. The seams are clean: every repository is a Port
+ *     with both an in-memory and a Drizzle adapter behind one contract.
  *
  *   - The brain port behind `@borjie/ai-reviewer` defaults to a
  *     deterministic "escalate" responder. This is the SAFE default:
@@ -63,16 +67,23 @@ import {
   createAuditHashChain,
   createCommitter,
   createDefinitionRegistry,
+  createDrizzleAuditChainRepository,
+  createDrizzleRunEventRepository,
+  createDrizzleRunRepository,
   createInMemoryApprovalRouter,
   createInMemoryAuditChainRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
   createWorkflowEngine,
   type AIReviewerPort,
+  type AuditChainRepository,
   type ChangeApplier,
   type WorkflowEngine,
   type WorkflowKind,
+  type WorkflowRunEventRepository,
+  type WorkflowRunRepository,
 } from '@borjie/workflow-engine';
+import { getDb } from './db-client.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Module-local singleton — required so the engine's per-run mutex map
@@ -233,11 +244,27 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
     committer.register(applier);
   }
 
-  // ── Repositories: in-memory defaults. Production swaps in Drizzle
-  //   adapters via `createWorkflowEngine({ runRepository: drizzleRepo, ... })`.
-  const runRepository = createInMemoryRunRepository();
-  const eventRepository = createInMemoryRunEventRepository();
-  const auditChainRepository = createInMemoryAuditChainRepository();
+  // ── Repositories: Drizzle-backed when a DatabaseClient is present
+  //   (production), in-memory otherwise (tests / DATABASE_URL unset).
+  //   The Drizzle adapters persist runs / the four-eyes approval queue /
+  //   the hashed audit chain to `workflow_runs` / `workflow_run_events`
+  //   / `workflow_audit_chain` (migration 0307), so workflow state +
+  //   the append-only audit chain survive an api-gateway restart
+  //   (closes the SOC 2 CC7.2 gap in EX-10). Every Drizzle query runs
+  //   inside an RLS tenant-context transaction.
+  const db = getDb();
+  let runRepository: WorkflowRunRepository;
+  let eventRepository: WorkflowRunEventRepository;
+  let auditChainRepository: AuditChainRepository;
+  if (db) {
+    runRepository = createDrizzleRunRepository(db);
+    eventRepository = createDrizzleRunEventRepository(db);
+    auditChainRepository = createDrizzleAuditChainRepository(db);
+  } else {
+    runRepository = createInMemoryRunRepository();
+    eventRepository = createInMemoryRunEventRepository();
+    auditChainRepository = createInMemoryAuditChainRepository();
+  }
   const auditChain = createAuditHashChain(auditChainRepository);
 
   const definitionRegistry = createDefinitionRegistry();

@@ -62,3 +62,11 @@ export {
   type ElasticThresholds,
   type InMemoryApprovalRouterDeps,
 } from './approval/index.js';
+// Drizzle-backed repository adapters — selected by the composition root
+// when a DatabaseClient is present so workflow runs / the four-eyes
+// approval queue / the hashed audit chain survive an api-gateway restart.
+export {
+  createDrizzleRunRepository,
+  createDrizzleRunEventRepository,
+  createDrizzleAuditChainRepository,
+} from './repositories/index.js';

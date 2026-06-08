@@ -105,6 +105,10 @@ import {
   type OrchestratorBindings,
 } from './orchestrator-bindings.js';
 import {
+  createSubMdSpawnHandler,
+  type SpawnParentContext,
+} from './sub-md-spawn-handler.js';
+import {
   MINING_TOOL_NAMES,
   registerMiningGovernmentTools,
 } from './mining-government-tools-pending.js';
@@ -878,8 +882,72 @@ export function buildOrchestratorComposeBlock(args: {
     },
   );
 
+  // Durable working-memory when a db handle is present: the orchestrator
+  // main-loop's recall()/persist bind to the agent_memory table (FORCE RLS,
+  // migration 0302) — the SAME backend the mwikila.memory.* persona tools use,
+  // so the brain's notebook survives restarts. Honest fallback to the bounded
+  // in-memory tool only when no db is wired (degraded boot / tests).
+  //
+  // Built BEFORE the dispatcher because the sub-MD spawnHandler folds each
+  // child's result back into the PARENT working notebook via this SAME tool —
+  // the parent's next loop tick recalls it and reasons over the child's work.
+  const memoryTool = args.db
+    ? createDrizzleMemoryTool(args.db)
+    : orchestrator.createInMemoryMemoryTool();
+
+  // Wave-23 EX-5 unblock — REAL mid-turn sub-MD spawn. When the brain emits a
+  // `spawn_sub_md` Decision, this handler runs + executes the child sub-MD as
+  // a real child orchestrator turn (the brain port) inheriting the parent's
+  // permission-mode + risk-tier ceiling, then folds the child's result back
+  // into the parent turn via the shared memory tool. Replaces the prior no-op
+  // breadcrumb ack that let any spawn-dependent answer complete WITHOUT the
+  // sub-agent's work (borjie-execution-architecture-audit.md EX-5).
+  //
+  // The root parent context is a platform-scoped fallback; the dispatcher
+  // hands the handler the LIVE parent `HookContext` per dispatch, so the child
+  // always inherits the CURRENT parent thread/scope/tier.
+  const rootParentContext: SpawnParentContext = {
+    threadId: '_kernel_orchestrator_root',
+    scope: {
+      kind: 'platform',
+      actorUserId: 'kernel-orchestrator',
+      roles: [],
+      personaId: 'industry-observer',
+    },
+    tier: 'industry',
+  };
+  const spawnHandler = createSubMdSpawnHandler(
+    {
+      toolRegistry: args.toolRegistry,
+      // Fresh router per child turn (own callId counter) over the SAME
+      // budget-guarded Anthropic client + model the parent loop uses.
+      buildRouter: (): ReturnType<typeof orchestrator.createAnthropicRouter> =>
+        orchestrator.createAnthropicRouter(
+          args.anthropicMessagesClient as unknown as Parameters<
+            typeof orchestrator.createAnthropicRouter
+          >[0],
+          { model },
+        ),
+      // Reuse the production 9-hook chain so the child's tool calls hit the
+      // same PII-scrub / denylist / four-eye / rate-limit / cost-circuit /
+      // sandbox-divert / audit / ledger-seal rails the parent uses.
+      hookChain: args.bindings.hookChain,
+      memoryTool,
+      ...(args.logger
+        ? {
+            logger: {
+              ...(args.logger.info ? { info: args.logger.info } : {}),
+              ...(args.logger.warn ? { warn: args.logger.warn } : {}),
+            },
+          }
+        : {}),
+    },
+    rootParentContext,
+  );
+
   const dispatcher = orchestrator.createToolDispatcher({
     registry: args.toolRegistry,
+    spawnHandler,
     ...(args.logger?.warn
       ? {
           logger: {
@@ -890,15 +958,6 @@ export function buildOrchestratorComposeBlock(args: {
         }
       : {}),
   });
-
-  // Durable working-memory when a db handle is present: the orchestrator
-  // main-loop's recall()/persist bind to the agent_memory table (FORCE RLS,
-  // migration 0302) — the SAME backend the mwikila.memory.* persona tools use,
-  // so the brain's notebook survives restarts. Honest fallback to the bounded
-  // in-memory tool only when no db is wired (degraded boot / tests).
-  const memoryTool = args.db
-    ? createDrizzleMemoryTool(args.db)
-    : orchestrator.createInMemoryMemoryTool();
 
   const { deps: hookDeps } = args.bindings;
   return {

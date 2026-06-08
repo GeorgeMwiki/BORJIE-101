@@ -30,7 +30,7 @@ export interface ProfileUpdate {
 
 export async function updateProfile(input: ProfileUpdate): Promise<BuyerUser> {
   const response = await apiFetch<{ readonly data: BuyerUser }>(`${MINING_PREFIX}/buyers/profile`, {
-    method: 'POST',
+    method: 'PATCH',
     body: input
   })
   return response.data

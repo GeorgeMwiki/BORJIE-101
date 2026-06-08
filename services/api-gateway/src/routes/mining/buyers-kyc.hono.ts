@@ -343,4 +343,155 @@ app.get('/kyc/me', async (c: any) => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// PATCH /profile — buyer-side: update the calling user's buyers row.
+//
+// Backs the buyer-mobile Profile → Save action (apps/buyer-mobile/app/
+// (tabs)/profile/index.tsx via api/buyers.ts updateProfile). Resolves the
+// caller's KYC'd buyers row via buyers.linked_user_id and patches the
+// editable fields:
+//   companyName → buyers.name
+//   phone       → buyers.contact_phone
+//   preferredLang (sw|en) → attributes.preferredLang (no dedicated column)
+// Returns the `BuyerUser` envelope the mobile session store hydrates from.
+// Tenant-scoped via auth.tenantId + RLS. Immutable attribute merge.
+// ---------------------------------------------------------------------------
+
+const ProfileUpdateSchema = z
+  .object({
+    companyName: z.string().min(1).max(200).optional(),
+    phone: z.string().min(1).max(40).optional(),
+    preferredLang: z.enum(['sw', 'en']).optional(),
+  })
+  .refine(
+    (v) =>
+      v.companyName !== undefined ||
+      v.phone !== undefined ||
+      v.preferredLang !== undefined,
+    { message: 'At least one field must be provided' },
+  );
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.patch('/profile', async (c: any) => {
+  const auth = c.get('auth') as
+    | { tenantId?: string; userId?: string }
+    | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'DATABASE_UNAVAILABLE',
+          message: 'Database not configured',
+        },
+      },
+      503,
+    );
+  }
+
+  const body = (await c.req.json().catch(() => null)) as unknown;
+  const parsed = ProfileUpdateSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: parsed.error.issues
+            .map((i) => `${i.path.join('.')}: ${i.message}`)
+            .join('; '),
+        },
+      },
+      400,
+    );
+  }
+
+  const [existing] = await db
+    .select()
+    .from(buyers)
+    .where(
+      and(
+        eq(buyers.tenantId, auth.tenantId),
+        eq(buyers.linkedUserId, auth.userId),
+      ),
+    )
+    .limit(1);
+  if (!existing) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'NO_KYC_ON_FILE',
+          message: 'Submit KYC at /api/v1/mining/buyers/kyc first',
+        },
+      },
+      404,
+    );
+  }
+
+  const priorAttributes =
+    (existing.attributes as Record<string, unknown>) ?? {};
+  // Build a NEW attributes object — never mutate the prior one.
+  const nextAttributes =
+    parsed.data.preferredLang !== undefined
+      ? { ...priorAttributes, preferredLang: parsed.data.preferredLang }
+      : priorAttributes;
+
+  const updateValues: Record<string, unknown> = {
+    attributes: nextAttributes,
+    updatedAt: new Date(),
+  };
+  if (parsed.data.companyName !== undefined) {
+    updateValues.name = parsed.data.companyName;
+  }
+  if (parsed.data.phone !== undefined) {
+    updateValues.contactPhone = parsed.data.phone;
+  }
+
+  const [row] = await db
+    .update(buyers)
+    .set(updateValues)
+    .where(
+      and(
+        eq(buyers.id, existing.id),
+        eq(buyers.tenantId, auth.tenantId),
+      ),
+    )
+    .returning();
+
+  const updated = row ?? existing;
+  const attrs = (updated.attributes as Record<string, unknown>) ?? {};
+  const kycStatusMap: Record<string, string> = {
+    pending: 'pending',
+    in_review: 'submitted',
+    verified: 'approved',
+    rejected: 'rejected',
+  };
+  return c.json(
+    {
+      success: true as const,
+      data: {
+        id: updated.id,
+        role: 'buyer' as const,
+        companyName: updated.name,
+        countryCode: updated.country,
+        preferredLang: attrs.preferredLang === 'en' ? 'en' : 'sw',
+        kycStatus: kycStatusMap[String(updated.kycStatus)] ?? 'pending',
+        phone: updated.contactPhone ?? '',
+      },
+    },
+    200,
+  );
+});
+
 export const miningBuyersKycRouter = app;

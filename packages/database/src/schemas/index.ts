@@ -1053,6 +1053,14 @@ export * from './owner-contact-prefs.schema.js';
 // state change.
 export * from './four-eye-requests.schema.js';
 
+// Workflow-engine durable repos (migration 0307). Persist the
+// @borjie/workflow-engine run aggregate, append-only transition log, and
+// hashed per-tenant audit chain so /workflow runs, the four-eyes approval
+// queue, and the audit chain survive an api-gateway restart (SOC 2 CC7.2).
+export * from './workflow-runs.schema.js';
+export * from './workflow-run-events.schema.js';
+export * from './workflow-audit-chain.schema.js';
+
 // Wave WORKFORCE-CERT-EXPIRY (migration 0102). Per-employee mining
 // certifications + dedup ledger for the cert-expiry reminder cron.
 export * from './workforce-certifications.schema.js';

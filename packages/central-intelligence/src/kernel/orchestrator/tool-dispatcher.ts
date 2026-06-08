@@ -47,9 +47,17 @@ export interface ToolDispatcherConfig {
    * decision invokes it; when omitted, the dispatcher returns a
    * structured `spawn_ack` breadcrumb (the Phase-E placeholder behaviour)
    * so the parent loop's fire-and-forget contract still holds.
+   *
+   * The handler receives the spawn payload AND the live parent
+   * `HookContext` (current thread/scope/tier/grantedScopes) so a real
+   * handler can run the child sub-MD inside the parent's scope and fold
+   * the child's result back into the parent turn (see
+   * `composition/sub-md-spawn-handler.ts`). The `ctx` arg is optional so
+   * existing handlers (and the tests) that ignore it still type-check.
    */
   readonly spawnHandler?: (
     spawn: SubMdSpawn,
+    ctx?: HookContext,
   ) => Promise<{ readonly handoffToken: string }>;
   /** Optional logger (Pino-style). No console.* per the hard rules. */
   readonly logger?: {
@@ -145,12 +153,16 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
 
   async function dispatchSpawn(
     decision: Extract<Decision, { kind: 'spawn_sub_md' }>,
+    ctx: HookContext,
   ): Promise<DispatchResult> {
     const { spawn } = decision;
     const background = Boolean(spawn.background ?? spawn.fireAndForget);
     if (config.spawnHandler) {
       try {
-        const { handoffToken } = await config.spawnHandler(spawn);
+        // Pass the LIVE parent context so a real handler can run the child
+        // sub-MD inside the parent's current thread/scope and fold the
+        // child's result back into the parent turn before completion.
+        const { handoffToken } = await config.spawnHandler(spawn, ctx);
         return {
           kind: 'spawn_ack',
           subMdId: spawn.subMdId,
@@ -176,7 +188,7 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
   return {
     async dispatch(
       decision: Decision,
-      _ctx: HookContext,
+      ctx: HookContext,
     ): Promise<DispatchResult> {
       switch (decision.kind) {
         case 'tool_call':
@@ -198,7 +210,7 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
         case 'monitor':
           return { kind: 'monitor_ack', watchId: decision.watch.watchId };
         case 'spawn_sub_md':
-          return dispatchSpawn(decision);
+          return dispatchSpawn(decision, ctx);
         default:
           // Fail closed over the closed Decision union. Every current
           // variant is handled above; a new one surfaces as a tool_error.

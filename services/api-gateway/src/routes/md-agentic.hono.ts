@@ -44,6 +44,7 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
+import pino from 'pino';
 import { withSecurityEvents } from '@borjie/observability';
 
 import { authMiddleware } from '../middleware/hono-auth';
@@ -55,6 +56,12 @@ import {
   type MdRepoFailure,
 } from '../composition/md-agentic-repository';
 import { SANDBOX_TARGET_TABLES } from '../composition/md-sandbox-payload';
+import { runSubagentTeam } from '../composition/md-subagent-executor';
+import { resolveSubagentBrain } from '../composition/md-subagent-brain-resolver';
+
+// Pino only (CLAUDE.md: no console in services). Module-level, mirrors
+// brain.hono.ts. Used by the subagent-team executor kick.
+const logger = pino({ name: 'md-agentic' });
 
 // ── role gate ────────────────────────────────────────────────────────────
 // Tier-gate (task spec): owner / admin only. Mirrors the persona allowlist on
@@ -207,6 +214,61 @@ function sessionIdOf(prov: Provenance): string | null {
   return prov.sessionId ?? null;
 }
 
+// ── subagent-team executor kick ───────────────────────────────────────────
+// The runner that ends the dead-end: it claims pending members and runs each
+// through the INJECTED brain port (resolved per-tenant off c.get('services')).
+// When no brain is wired (no ANTHROPIC_API_KEY) the resolver returns null and
+// we honest-degrade — members stay 'pending' and aggregate reports
+// 'unavailable'. Output is NEVER fabricated.
+
+/**
+ * Run the team's pending members to terminal state. Idempotent + race-safe
+ * (the repository claim is the concurrency guard), so it is safe to call on
+ * dispatch AND again on aggregate — a second call simply claims zero members.
+ * Returns false when no brain is wired (caller honest-degrades).
+ */
+async function kickSubagentExecutor(
+  repo: MdAgenticRepository,
+  services: unknown,
+  tenantId: string,
+  teamRunId: string,
+): Promise<boolean> {
+  const brain = resolveSubagentBrain(services, tenantId);
+  if (!brain) {
+    logger.info(
+      { tenantId, teamRunId },
+      'md-agentic: no brain wired — subagent executor honest-degrades',
+    );
+    return false;
+  }
+  await runSubagentTeam({ repo, brain, tenantId, teamRunId, logger });
+  return true;
+}
+
+/**
+ * Fire the executor without blocking the HTTP response. Errors are logged, never
+ * thrown — a kick failure must not turn a successful 201 dispatch into a 500.
+ * The aggregate read path re-kicks (idempotent), so a dropped background kick
+ * is self-healing.
+ */
+function kickSubagentExecutorDetached(
+  repo: MdAgenticRepository,
+  services: unknown,
+  tenantId: string,
+  teamRunId: string,
+): void {
+  void kickSubagentExecutor(repo, services, tenantId, teamRunId).catch((err) => {
+    logger.error(
+      {
+        tenantId,
+        teamRunId,
+        error: err instanceof Error ? err.message : String(err),
+      },
+      'md-agentic: detached subagent executor kick failed',
+    );
+  });
+}
+
 const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
@@ -316,12 +378,29 @@ app.post(
           prov,
         );
         if (!result.ok) return failure(c, result);
+
+        // Kick the executor in the background so the 201 returns immediately.
+        // The runner claims the just-persisted 'pending' members and runs each
+        // through the injected brain; the aggregate read path re-kicks
+        // (idempotent) so a dropped kick is self-healing. honest-degrade: when
+        // no brain is wired the runner is a no-op and members stay 'pending'.
+        const services = c.get('services');
+        const executorWired = resolveSubagentBrain(services, auth.tenantId) !== null;
+        if (executorWired) {
+          kickSubagentExecutorDetached(
+            repo,
+            services,
+            auth.tenantId,
+            result.teamRunId,
+          );
+        }
+
         return c.json(
           {
             success: true,
             data: {
               teamRunId: result.teamRunId,
-              status: 'pending',
+              status: executorWired ? 'running' : 'pending',
               aggregation: body.aggregation ?? 'merge_all',
               memberCount: members.length,
               memberIds: result.memberIds,
@@ -329,10 +408,14 @@ app.post(
                 (s: number, m: { tokenBudget: number }) => s + m.tokenBudget,
                 0,
               ),
-              message:
-                `Team dispatched (${members.length} members). Runs persisted ` +
-                "at status 'pending'; results aggregate once an executor " +
-                'completes them.',
+              executorWired,
+              message: executorWired
+                ? `Team dispatched (${members.length} members). The executor ` +
+                  'is running each member through the brain; poll ' +
+                  `/subagents/${result.teamRunId}/aggregate for results.`
+                : `Team dispatched (${members.length} members). Runs persisted ` +
+                  "at status 'pending'; no executor brain is wired so results " +
+                  'aggregate as unavailable until one is configured.',
             },
           },
           201,
@@ -369,6 +452,31 @@ app.get(
 
       try {
         const repo = new MdAgenticRepository(db);
+
+        // Self-healing read: kick the executor (idempotent) before reading so a
+        // dropped dispatch-time kick still completes the team. When a brain is
+        // wired this awaits the run so the aggregate reflects fresh results;
+        // when none is wired it is a no-op and the read honest-degrades to
+        // 'unavailable'. A kick error must not fail the read — log + continue.
+        try {
+          await kickSubagentExecutor(
+            repo,
+            c.get('services'),
+            auth.tenantId,
+            teamRunId,
+          );
+        } catch (kickErr) {
+          logger.error(
+            {
+              tenantId: auth.tenantId,
+              teamRunId,
+              error:
+                kickErr instanceof Error ? kickErr.message : String(kickErr),
+            },
+            'md-agentic: aggregate-time executor kick failed; reading as-is',
+          );
+        }
+
         const result = await repo.aggregateSubagentResults(
           auth.tenantId,
           teamRunId,

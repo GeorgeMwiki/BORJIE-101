@@ -4,7 +4,6 @@
  */
 
 import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
-import type { Money } from '../common/money';
 
 export type PaymentPlanId = Brand<string, 'PaymentPlanId'>;
 

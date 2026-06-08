@@ -13,7 +13,8 @@ import { MessageBubble } from '@/components/MessageBubble'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useDebouncedSubmit } from '@/hooks/useDebouncedSubmit'
-import { fetchBid, sendBidMessage, updateBidStatus } from '@/api/marketplace'
+import { fetchBid, updateBidStatus } from '@/api/marketplace'
+import { fetchThread, sendThreadMessage } from '@/api/bid-messaging'
 import { queryKeys } from '@/api/queryKeys'
 import { formatKg, formatTzs } from '@/components/formatters'
 import { colors } from '@/theme/colors'
@@ -40,11 +41,27 @@ export default function BidDetail() {
     queryFn: () => fetchBid(bidId)
   })
 
+  const responseId = query.data?.threadResponseId ?? null
+
+  // WS-2 bid chat — the live buyer↔seller thread is keyed by the RFB
+  // response id, not the bid id. Only fetched once the bid resolves and
+  // carries a thread.
+  const threadQuery = useQuery({
+    queryKey: queryKeys.thread(responseId ?? bidId),
+    queryFn: () => fetchThread(responseId as string),
+    enabled: responseId !== null
+  })
+
   const messageMutation = useMutation({
-    mutationFn: sendBidMessage,
+    mutationFn: (input: { responseId: string; body: string }) =>
+      sendThreadMessage(input),
     onSuccess: async () => {
       setDraft('')
-      await queryClient.invalidateQueries({ queryKey: queryKeys.bid(bidId) })
+      if (responseId !== null) {
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.thread(responseId)
+        })
+      }
     },
     onError: () => toast.show(t('bids.bid_failed'), 'error')
   })
@@ -100,10 +117,10 @@ export default function BidDetail() {
 
   function handleSendRaw(): void {
     const text = draft.trim()
-    if (!text) {
+    if (!text || responseId === null) {
       return
     }
-    messageMutation.mutate({ bidId, body: text })
+    messageMutation.mutate({ responseId, body: text })
   }
   // G4 — robustness 2026-05-29: belt-and-braces double-tap guard.
   // The mutation's `isPending` already gates the button while in
@@ -132,7 +149,7 @@ export default function BidDetail() {
 
       <Card>
         <Text style={styles.cardTitle}>{t('bids.thread')}</Text>
-        {bid.thread.map((msg) => (
+        {(threadQuery.data?.messages ?? bid.thread).map((msg) => (
           <MessageBubble
             key={msg.id}
             from={msg.from}
@@ -140,21 +157,23 @@ export default function BidDetail() {
             authorLabel={msg.from === 'buyer' ? t('profile.title') : 'Seller'}
           />
         ))}
-        <View style={styles.composer}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t('bids.message_placeholder')}
-            placeholderTextColor={colors.inkMuted}
-            multiline
-            style={styles.input}
-          />
-          <PrimaryButton
-            label={t('bids.send_message')}
-            onPress={handleSend}
-            disabled={messageMutation.isPending || draft.trim().length === 0}
-          />
-        </View>
+        {responseId !== null ? (
+          <View style={styles.composer}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t('bids.message_placeholder')}
+              placeholderTextColor={colors.inkMuted}
+              multiline
+              style={styles.input}
+            />
+            <PrimaryButton
+              label={t('bids.send_message')}
+              onPress={handleSend}
+              disabled={messageMutation.isPending || draft.trim().length === 0}
+            />
+          </View>
+        ) : null}
       </Card>
 
       <View style={styles.actionStack}>

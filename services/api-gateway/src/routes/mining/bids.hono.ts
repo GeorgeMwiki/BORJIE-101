@@ -65,6 +65,47 @@ async function findLinkedBuyer(
   return existing ?? null;
 }
 
+/**
+ * Project a `marketplace_bids` row (+ joined listing summary) into the
+ * `Bid` envelope the buyer-mobile bid-detail screen consumes
+ * (apps/buyer-mobile/src/types/listing.ts). Per-kg price + quantity are
+ * not first-class columns — they live in `attributes` when the buyer
+ * supplied them at bid time; we fall back to the canonical total
+ * (`bidPriceTzs`) and 0 quantity so the contract never returns NaN.
+ * `threadResponseId` (also in attributes) tells the screen which
+ * bid-messaging thread to load; null when the bid has no chat thread.
+ */
+function toBidEnvelope(row: {
+  bid: Record<string, unknown>;
+  listingTitle: unknown;
+  listingCategory: unknown;
+}) {
+  const bid = row.bid;
+  const attributes = (bid.attributes as Record<string, unknown>) ?? {};
+  const offerPerKg = Number(attributes.offerTzsPerKg);
+  const quantityKg = Number(attributes.quantityKg);
+  const totalPrice = Number(bid.bidPriceTzs ?? 0);
+  const threadResponseId = attributes.threadResponseId;
+  const placedAt =
+    bid.createdAt instanceof Date
+      ? bid.createdAt.toISOString()
+      : String(bid.createdAt ?? new Date().toISOString());
+  return {
+    id: String(bid.id ?? ''),
+    listingId: String(bid.listingId ?? ''),
+    listingTitle: String(row.listingTitle ?? ''),
+    mineral: String(row.listingCategory ?? ''),
+    offerTzsPerKg: Number.isFinite(offerPerKg) ? offerPerKg : totalPrice,
+    quantityKg: Number.isFinite(quantityKg) ? quantityKg : 0,
+    status: String(bid.status ?? 'pending'),
+    placedAt,
+    thread: [] as const,
+    threadResponseId:
+      typeof threadResponseId === 'string' ? threadResponseId : null,
+    provenance: bid.provenance ?? null,
+  };
+}
+
 app.openapi(
   bidsPlaceRoute,
   withSecurityEvents(
@@ -381,6 +422,106 @@ app.get('/mine', async (c: any) => {
     .orderBy(desc(marketplaceBids.createdAt))
     .limit(200);
   return c.json({ success: true as const, data: rows }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// GET /:id — buyer-side: resolve a single bid the calling buyer placed.
+//
+// Backs the buyer-mobile bid-detail screen (apps/buyer-mobile/app/bids/
+// [id].tsx via api/marketplace.ts fetchBid). Scoped to the caller's
+// tenant AND their KYC'd buyers row so a buyer can never read another
+// buyer's bid. Joins the listing for the title + mineral category and
+// projects the raw marketplace_bids row into the `Bid` envelope the
+// screen expects (offerTzsPerKg / quantityKg / placedAt / thread /
+// threadResponseId). The live chat thread is loaded separately by the
+// screen via /bid-messaging when `threadResponseId` is present; the
+// `thread` array here is always empty (marketplace bids carry no inline
+// messages) and exists only to satisfy the envelope contract.
+//
+// Declared BEFORE the static /mine + /incoming routes already resolve
+// ahead of it in Hono's trie (static beats param), and AFTER the bare
+// `GET /` seller-list route so it never shadows it.
+// ---------------------------------------------------------------------------
+
+app.get('/:id', async (c: any) => {
+  const auth = c.get('auth') as
+    | { tenantId?: string; userId?: string }
+    | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'DATABASE_UNAVAILABLE',
+          message: 'Database not configured',
+        },
+      },
+      503,
+    );
+  }
+
+  const bidId = c.req.param('id');
+  if (!bidId || !/^[0-9a-f-]{36}$/i.test(bidId)) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'INVALID_BID_ID', message: 'bid id must be a UUID' },
+      },
+      400,
+    );
+  }
+
+  const buyer = await findLinkedBuyer(db, auth.tenantId, auth.userId);
+  if (!buyer) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'NOT_FOUND', message: 'Bid not found' },
+      },
+      404,
+    );
+  }
+
+  const [row] = await db
+    .select({
+      bid: marketplaceBids,
+      listingTitle: marketplaceListings.title,
+      listingCategory: marketplaceListings.category,
+    })
+    .from(marketplaceBids)
+    .innerJoin(
+      marketplaceListings,
+      eq(marketplaceListings.id, marketplaceBids.listingId),
+    )
+    .where(
+      and(
+        eq(marketplaceBids.id, bidId),
+        eq(marketplaceBids.tenantId, auth.tenantId),
+        eq(marketplaceBids.buyerId, buyer.id),
+      ),
+    )
+    .limit(1);
+  if (!row) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'NOT_FOUND', message: 'Bid not found' },
+      },
+      404,
+    );
+  }
+
+  return c.json({ success: true as const, data: toBidEnvelope(row) }, 200);
 });
 
 // ---------------------------------------------------------------------------

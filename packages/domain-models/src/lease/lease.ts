@@ -6,7 +6,7 @@
  * performance bond securing the agreement.
  */
 
-import type { Brand, TenantId, UserId, EntityMetadata, ISOTimestamp } from '../common/types';
+import type { TenantId, UserId, EntityMetadata, ISOTimestamp } from '../common/types';
 import { Money } from '../common/money';
 import type { CustomerId, LeaseId } from '../payments/payment-intent';
 import type { MiningSiteId } from '../property/property';

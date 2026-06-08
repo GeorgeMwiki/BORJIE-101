@@ -7,9 +7,7 @@
  */
 
 import type {
-  TenantId,
   OrganizationId,
-  UserId,
   EntityMetadata,
   SoftDeletable,
   TenantScoped,
