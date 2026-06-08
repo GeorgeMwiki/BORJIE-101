@@ -28,7 +28,7 @@
  *     `rowToLedgerEntry`.
  */
 
-import { and, asc, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import {
   Money,
   type AccountId,
@@ -44,7 +44,7 @@ import {
   type UnitId,
 } from '@borjie/domain-models';
 import { pgTable, text, timestamp, integer, bigint, jsonb } from 'drizzle-orm/pg-core';
-import { type DatabaseClient } from '@borjie/database';
+import { type DatabaseClient, eventOutbox } from '@borjie/database';
 
 // Local Drizzle table declaration for the legacy payments-ledger
 // `ledger_entries` table. The canonical schema was archived in
@@ -458,6 +458,41 @@ export class DrizzleLedgerRepository implements ILedgerRepository {
             idempotencyKey: post.idempotencyKey,
             journalId: post.journalId,
           });
+        }
+
+        // 6 — RSS-01: co-commit the producer's domain events to
+        // `event_outbox` in the SAME tx, so emission is at-least-once and
+        // crash-safe. This is purely ADDITIVE and runs AFTER every
+        // financial write (balances + entries + idempotency) — the money
+        // math above is byte-for-byte untouched — but still INSIDE the
+        // atomic boundary, so an outbox-insert failure rolls the WHOLE tx
+        // back (money included) and a commit makes both durable together.
+        // The RLS GUC `app.current_tenant_id` is already bound (C1 above),
+        // so these rows land under `event_outbox`'s FORCE-RLS tenant
+        // predicate with no extra plumbing. Sequence number is assigned
+        // race-free inside the INSERT (correlated subquery). `id` is the
+        // stable consumer-idempotency message_id; `onConflictDoNothing()`
+        // on the PK makes a re-emit of the same row a no-op.
+        if (post.outboxRows && post.outboxRows.length > 0) {
+          const outboxValues = post.outboxRows.map((r, idx) => ({
+            id: r.id,
+            tenantId: r.tenantId,
+            eventType: r.eventType,
+            aggregateType: r.aggregateType,
+            aggregateId: r.aggregateId,
+            payload: r.payload,
+            metadata: r.metadata,
+            // Sequence number assigned race-free inside the INSERT. Drizzle
+            // accepts a `SQL` expression for a column even though the
+            // inferred-insert type narrows it to `number`, so widen this
+            // one field via `satisfies`.
+            sequenceNumber: sql<number>`(SELECT COALESCE(MAX(${eventOutbox.sequenceNumber}), 0) FROM ${eventOutbox}) + ${idx + 1}`,
+          })) satisfies Array<
+            Omit<typeof eventOutbox.$inferInsert, 'sequenceNumber'> & {
+              sequenceNumber: SQL<number>;
+            }
+          >;
+          await txDb.insert(eventOutbox).values(outboxValues).onConflictDoNothing();
         }
 
         return inserted.map(rowToLedgerEntry);
