@@ -619,3 +619,22 @@ when uncertain). Like the agent-security-guard but for OUTPUT egress: one chokep
 unaudited chat path cannot leak by omission. Defense-in-depth on top of the per-prompt persona
 discipline. Build: install the central egress guard + close every leak the ip-leak-audit finds;
 audit-test that prompts/architecture/reasoning never appear in any client-facing frame. All projects.
+
+---
+
+## INV-C (output) · Full-power output wired to INFINITE possibilities (owner directive)
+The OUTPUT layer is INFINITE — NO fixed catalog of tabs/widgets/charts/docs/media/actions. The MD
+synthesizes ANY output form for ANY need. Infinite AND safe, by two mechanisms:
+  - INFINITE BY COMPOSITION: the generative-UI / Visual OS composes UNBOUNDED UIs/artifacts/
+    documents/media/analyses from a vetted primitive vocabulary. Each primitive is zod-typed (the
+    per-primitive SECURITY BOUNDARY), but the COMPOSITION space is unbounded (alphabet -> infinite
+    sentences). NEVER a hardcoded list of allowed outputs as a CAPABILITY cap.
+  - SELF-EXTENDING: a missing output primitive/form is CREATED by the MD through the body-change
+    meta-rail (INV-C) + the CONFORMANCE GATE (K-6), which stamps every new primitive with the
+    invariants (EN/SW purity, NO-IP-LEAK, a11y, dark-mode, reversibility, INV-K design tokens)
+    BEFORE it can render. The alphabet grows; every new letter is vetted.
+  - DEFAULT TO RICHEST (INV-H Visual OS) + UNCAPPED (INV-G): rich output is the default, prose the
+    fallback; no ceiling on output type/count/size.
+Infinite output != unsafe: every primitive passes the conformance gate; composition is bounded
+only by the trusted vocabulary + the rails, never by a hardcoded catalog. Binds the Face / Visual-OS /
+Construction / orchestration build waves. Same both repos.
