@@ -11,6 +11,13 @@ const VALID = {
   cyanide_required: false,
   cyanide_management_notes: null,
   by_product_recovery_opportunities: [],
+  // Deterministic fields the LLM echoes (the agent overwrites these with
+  // the per-mineral engine's truth before returning — values here are
+  // intentionally placeholders).
+  head_grade_verdict: 'economic',
+  recovery_verdict: 'no_baseline',
+  recovery_envelope_pct: { low: 0, high: 0 },
+  throughput_diagnosis: null,
   confidence: 0.78,
   rationale: 'ASM gold gravity + borax',
   evidence_ids: ['mineral_dossier_au'],
