@@ -540,3 +540,22 @@ window.storage, sendPrompt, Anthropic-API-in-artifacts, userMemories/conversatio
 our SELF-HOSTED stack (portal-genui/GenUIWidgetRenderer, document-studio/media-engine,
 owner-tabs-store/blackboard, genui host-actions, our juniors, memory-v2). Keystone: wire the
 blackboard as the one shared-state spine + adopt the Visual OS render discipline in genui. Both repos.
+
+---
+
+## INV-K · One unified design system to Chrome-level — same styling all the way to artifacts (owner directive)
+EVERY render in the product — chat, tabs, lenses, the generated ARTIFACTS (SVG diagrams, HTML
+widgets, charts, mockups, interactive apps), documents, media — follows ONE Borjie design system
+(the design-system package tokens + components), polished to "Chrome level" so the product FEELS
+LIKE ONE PLATFORM end-to-end. NO render looks foreign / generic / Claude.ai-default. The Visual OS
+render discipline (INV-H) binds to OUR design tokens (typography/color light+dark/spacing/radius/
+motion), consistent from the conversation to the deepest artifact and into document/media output.
+BossNyumba uses its own brand within the SAME system. Amplify usage, design-style, flow, and
+intelligence to SOTA. NO render is an exception; theming flows through portal-genui/GenUIWidgetRenderer,
+document-studio, and media-engine alike.
+
+## DRIVE-TO-ZERO mandate (standing execution discipline)
+Drive EVERYTHING to zero: 0 TODOs, nothing deferred, no tech debt, no bugs, no unwired stubs
+(NOT_YET_WIRED), no missing UI, no missing logic, no incomplete logic, no skipped/failing tests,
+no type-suppressions hiding holes. FULL CLEAN, full-speed, both repos. Every wave lands green +
+verified + committed; nothing left as a spec; the only permanent gates are the inviolable rails.
