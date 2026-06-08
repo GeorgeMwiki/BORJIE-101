@@ -76,11 +76,27 @@ const nextConfig = {
       preventFullImport: true,
     },
   },
-  webpack: (config) => {
+  webpack: (config, { isServer, webpack }) => {
     config.resolve.extensionAlias = {
       ...(config.resolve.extensionAlias || {}),
       '.js': ['.js', '.ts', '.tsx', '.jsx'],
     };
+    if (!isServer) {
+      // Browser-safety: small client utils (e.g. formatCurrency) imported from
+      // @borjie/api-client transitively pull in @borjie/compliance-plugins,
+      // whose registry imports `node:crypto`. The crypto call lives inside a
+      // server-side function (createHash) that the client path never invokes,
+      // so stub the module on the client. Rewrite the `node:` URI scheme to the
+      // bare specifier (resolve.fallback doesn't cover `node:` schemes) and
+      // stub it to an empty module.
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/^node:crypto$/, 'crypto'),
+      );
+      config.resolve.fallback = {
+        ...(config.resolve.fallback || {}),
+        crypto: false,
+      };
+    }
     return config;
   },
   async headers() {
