@@ -1,48 +1,26 @@
 /**
- * modules schema barrel — Piece B dynamic module spawning.
+ * modules schema barrel.
  *
- * Exports the per-tenant `modules` table, the versioned `module_specs`,
- * the platform `module_templates`, the `routing_rules` dispatch matrix,
- * and the `module_accept_handlers` executor registry.
+ * Only `routing_rules` survives here — it is a live, applied table
+ * (packages/database/drizzle/0013_routing_rules.sql) used by the dispatch
+ * matrix.
  *
- * All five tables FORCE ROW LEVEL SECURITY per the canonical RLS
- * pattern (see migrations 0216-0220).
+ * The Piece B module-spawning tables (`modules`, `module_specs`,
+ * `module_templates`, `module_accept_handlers`) were removed in the
+ * borjie-db-drift lane (2026-06-08): they had ZERO runtime Drizzle I/O (no
+ * .insert/.from/.update/.delete anywhere; `ModulesStorePort` has no concrete
+ * Drizzle-backed implementation, `createModulesRouter` is never mounted, and
+ * the orchestrator is "purely deterministic, no DB"). Their CREATE DDL existed
+ * ONLY in packages/database/.archive/migrations/ (0219-0223), never in the
+ * applied src/migrations chain — so keeping the Drizzle defs manufactured false
+ * schema drift. The module-orchestrator package keeps its own independent
+ * MODULE_LIFECYCLE_STATES + port interfaces; nothing imported these DB types.
+ * Reinstate via a forward migration + schema def when Piece B is actually
+ * wired against Drizzle.
  */
-
-export {
-  modules,
-  MODULE_LIFECYCLE_STATES,
-  type ModuleRow,
-  type ModuleInsert,
-  type ModuleLifecycleState,
-} from './modules.schema.js';
-
-export {
-  moduleSpecs,
-  MODULE_SPEC_COMPILE_STATUSES,
-  type ModuleSpecRow,
-  type ModuleSpecInsert,
-  type ModuleSpecCompileStatus,
-} from './module-specs.schema.js';
-
-export {
-  moduleTemplates,
-  MODULE_TEMPLATE_SLUGS,
-  type ModuleTemplateRow,
-  type ModuleTemplateInsert,
-  type ModuleTemplateSlug,
-} from './module-templates.schema.js';
 
 export {
   routingRules,
   type RoutingRuleRow,
   type RoutingRuleInsert,
 } from './routing-rules.schema.js';
-
-export {
-  moduleAcceptHandlers,
-  MODULE_ACCEPT_HANDLER_RISK_TIERS,
-  type ModuleAcceptHandlerRow,
-  type ModuleAcceptHandlerInsert,
-  type ModuleAcceptHandlerRiskTier,
-} from './module-accept-handlers.schema.js';

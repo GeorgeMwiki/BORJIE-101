@@ -265,7 +265,9 @@ export * from './sub-md-slo.schema.js';
 // admin console (`apps/admin-web`).
 export * from './admin-internals.schema.js';
 
-// Polymorphic core-entity + dynamic modules (sub-package barrels).
+// Polymorphic core-entity (Piece A) + the routing_rules dispatch matrix
+// (the Piece B module-spawning tables were removed as false drift; see
+// ./modules/index.js).
 export * from './core-entity/index.js';
 export * from './modules/index.js';
 

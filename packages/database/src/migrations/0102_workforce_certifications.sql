@@ -1,4 +1,21 @@
 -- =============================================================================
+-- KNOWN PREFIX COLLISION (grandfathered, do NOT renumber).
+--
+-- This file shares the bare numeric prefix `0102` with
+-- `0102_geology_capture.sql`. That is a forward-only discipline break: the
+-- canonical pattern for a follow-on migration is a letter suffix (e.g.
+-- `0102b_*.sql`), not a second bare `0102`. Both files were authored and
+-- applied to live databases before the collision was caught, and Borjie
+-- migrations are immutable, so neither can be renumbered.
+--
+-- Apply order is deterministic under the runner's lexical filename sort
+-- (see packages/database/src/run-migrations.ts):
+--   `0102_geology_capture.sql` < `0102_workforce_certifications.sql`
+--   ('g' < 'w'). This file therefore applies SECOND. The two migrations
+--   touch disjoint tables, so the fixed order is correct regardless. This
+--   collision is grandfathered in scripts/check-migration-prefix-unique.mjs;
+--   new duplicates still fail CI.
+-- =============================================================================
 -- Migration 0102 — Workforce Certifications + Cert-Expiry Reminder Dedup
 --
 -- Companion to:

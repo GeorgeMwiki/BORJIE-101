@@ -1,4 +1,20 @@
 -- =============================================================================
+-- KNOWN PREFIX COLLISION (grandfathered, do NOT renumber).
+--
+-- This file shares the bare numeric prefix `0102` with
+-- `0102_workforce_certifications.sql`. That is a forward-only discipline
+-- break: the canonical pattern for a follow-on migration is a letter suffix
+-- (e.g. `0102b_*.sql`), not a second bare `0102`. Both files were authored
+-- and applied to live databases before the collision was caught, and Borjie
+-- migrations are immutable, so neither can be renumbered.
+--
+-- Apply order is deterministic under the runner's lexical filename sort
+-- (see packages/database/src/run-migrations.ts):
+--   `0102_geology_capture.sql` < `0102_workforce_certifications.sql`
+--   ('g' < 'w'). The two migrations touch disjoint tables, so the fixed
+--   order is correct regardless. This collision is grandfathered in
+--   scripts/check-migration-prefix-unique.mjs; new duplicates still fail CI.
+-- =============================================================================
 -- Migration 0102 - Geology drill-hole capture pipeline (mining-domain backend).
 --
 -- Adds the strict drill-hole / interval / assay lifecycle used by the

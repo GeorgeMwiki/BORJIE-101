@@ -74,11 +74,12 @@ export const userStatusEnum = pgEnum('user_status', [
   'deactivated',
 ]);
 
-export const sessionStatusEnum = pgEnum('session_status', [
-  'active',
-  'expired',
-  'revoked',
-]);
+// NOTE: the `sessions` Drizzle table + `session_status` enum were removed
+// (borjie-db-drift lane, 2026-06-08): auth is stateless Supabase-JWT, so the
+// app never reads/writes a server-side session row. The table had ZERO runtime
+// Drizzle I/O and no applied CREATE migration (only .archive/0001_initial.sql)
+// — keeping the schema def manufactured false drift. Server-side session state
+// belongs to Supabase, not this table.
 
 export const auditEventTypeEnum = pgEnum('audit_event_type', [
   'user.created',
@@ -537,41 +538,9 @@ export const userRoles = pgTable(
   })
 );
 
-// ============================================================================
-// Sessions Table
-// ============================================================================
-
-export const sessions = pgTable(
-  'sessions',
-  {
-    id: text('id').primaryKey(),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-    
-    // Session info
-    status: sessionStatusEnum('status').notNull().default('active'),
-    ipAddress: text('ip_address').notNull(),
-    userAgent: text('user_agent'),
-    deviceInfo: jsonb('device_info').default({}),
-    
-    // Security
-    mfaVerified: boolean('mfa_verified').notNull().default(false),
-    
-    // Timestamps
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
-    lastActivityAt: timestamp('last_activity_at', { withTimezone: true }).notNull().defaultNow(),
-    revokedAt: timestamp('revoked_at', { withTimezone: true }),
-    revokedReason: text('revoked_reason'),
-    revokedBy: text('revoked_by'),
-  },
-  (table) => ({
-    tenantIdx: index('sessions_tenant_idx').on(table.tenantId),
-    userIdx: index('sessions_user_idx').on(table.userId),
-    statusIdx: index('sessions_status_idx').on(table.status),
-    expiresAtIdx: index('sessions_expires_at_idx').on(table.expiresAt),
-  })
-);
+// Sessions table removed (borjie-db-drift lane) — auth is stateless
+// Supabase-JWT; no server-side session row is ever read/written. See the
+// note next to auditEventTypeEnum above.
 
 // ============================================================================
 // Audit Events Table (append-only)
@@ -628,7 +597,6 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   organizations: many(organizations),
   users: many(users),
   roles: many(roles),
-  sessions: many(sessions),
 }));
 
 export const organizationsRelations = relations(organizations, ({ one, many }) => ({
@@ -655,7 +623,6 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [organizations.id],
   }),
   userRoles: many(userRoles),
-  sessions: many(sessions),
 }));
 
 export const rolesRelations = relations(roles, ({ one, many }) => ({
@@ -681,13 +648,4 @@ export const userRolesRelations = relations(userRoles, ({ one }) => ({
   }),
 }));
 
-export const sessionsRelations = relations(sessions, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [sessions.tenantId],
-    references: [tenants.id],
-  }),
-  user: one(users, {
-    fields: [sessions.userId],
-    references: [users.id],
-  }),
-}));
+// sessionsRelations removed with the sessions table (borjie-db-drift lane).

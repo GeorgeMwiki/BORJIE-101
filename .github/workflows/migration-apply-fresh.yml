@@ -16,7 +16,10 @@ on:
   pull_request:
     paths:
       - 'packages/database/src/migrations/**'
+      - 'packages/database/src/schemas/**'
+      - 'packages/database/drizzle/**'
       - 'scripts/migration-apply-check.mjs'
+      - 'scripts/check-schema-migration-coverage.mjs'
       - '.github/workflows/migration-apply-fresh.yml'
   push:
     branches:
@@ -46,6 +49,19 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '20'
+
+      # Schema-to-migration drift gate. Pure static check (no DB needed), run
+      # BEFORE the Postgres install so drift fails fast. Asserts every Drizzle
+      # `pgTable('NAME', ...)` under packages/database/src/schemas/** has a
+      # matching `CREATE TABLE [IF NOT EXISTS] NAME` somewhere under
+      # packages/database/drizzle/** OR packages/database/src/migrations/**.
+      # This is the gate that was missing when `core_entity`'s CREATE lived only
+      # in an archived migration and was invisible on a fresh apply.
+      - name: Schema → migration coverage (drift gate)
+        run: |
+          mkdir -p .audit
+          node scripts/check-schema-migration-coverage.mjs \
+            --report=.audit/schema-migration-coverage.json
 
       # Runner-installed Postgres 17 with BOTH PostGIS and pgvector. The previous
       # `pgvector/pgvector:pg16` service container shipped pgvector but NOT
