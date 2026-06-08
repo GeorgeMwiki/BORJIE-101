@@ -696,3 +696,19 @@ default AND destination of every built power is ON.
   EstateMind heartbeat, modality-arbiter + modality-capabilities, fast-path + model-tiering,
   honest-confidence (K-7), body-change meta-rail (K-1), the blackboard spine, and the
   transaction-pool RLS (after the leak proof). Keep the flag name only as the kill-switch.
+
+---
+
+## Platform billing = Claude-Code-style (owner directive) — distinct from tenant estate money
+TWO SEPARATE money systems, NEVER conflated:
+  (1) TENANT ESTATE MONEY — royalty/ledger/M-Pesa/offtake = the mining business operations, through
+      LedgerService.post (the immutable double-entry money path). Already built.
+  (2) BORJIE PLATFORM REVENUE — how Borjie charges the owner for using Mr. Mwikila. Modeled on CLAUDE
+      CODE / Anthropic: subscription TIERS (Starter/Pro/Max-equivalent), each with USAGE RATE-LIMITS
+      (per-period brain-turns / agent-compute / token budgets, like Claude Code's 5-hour + weekly
+      caps), METERED per org; billed via Stripe (Borjie's revenue rail). Hitting a limit surfaces an
+      HONEST "limit reached — upgrade or wait" (TEST=PAYING: never a silent degrade or fake). Overage/
+      upgrade flow. Per-ORG billing (the org/tenant is billed; seats/roles within). FULL POWERS DEFAULT
+      ON within the tier's usage budget — the limit is the usage cap, not a feature gate.
+Substrate seeds: tenant_llm_budgets + tenant_llm_budget_caps (migration 0272) = metering; the Redis
+token-bucket rate-limiter (RSS-08) = enforcement. Same billing model both repos (Borjie + BN).
