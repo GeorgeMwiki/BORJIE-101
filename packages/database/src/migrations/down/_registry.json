@@ -376,6 +376,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0313_media_rls_canonical_fixup.sql",
+      "down": "down/0313_down_media_rls_canonical_fixup.sql",
+      "reverses": "Restores the pre-0313 (defective) RLS state on media_artifacts + media_safety_scans + media_engagement_events: drops the canonical `<table>_tenant_isolation` + `<table>_service_role_bypass` policies, removes FORCE (back to ENABLE-only), and recreates the original `tenant_isolation` policy bound to the non-canonical `app.tenant_id` GUC as 0020 shipped it. WARNING: reopens the media tenant-isolation gap (no FORCE + policy on a GUC the gateway never sets). Policy-only — no data loss. Dev/staging rollback only; never run in production.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
