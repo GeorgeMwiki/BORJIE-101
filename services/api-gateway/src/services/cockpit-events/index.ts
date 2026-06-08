@@ -1,6 +1,7 @@
 export {
   publishCockpitEvent,
   subscribeCockpitEvents,
+  initCockpitBus,
   __resetCockpitBusForTests,
 } from './bus.js';
 export type {

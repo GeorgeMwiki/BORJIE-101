@@ -27,6 +27,17 @@
  *
  * No buffering: if the client disconnects mid-publish the event is
  * dropped on the floor (consumers are read-only views).
+ *
+ * Cross-replica fan-out (CAP RSS-05):
+ *   `subscribeCockpitEvents` is replica-aware. When the cockpit bus has
+ *   been wired to a Redis-backed `CrossPortalBus` at boot
+ *   (`initCockpitBus`, gated on `REDIS_URL`), the first subscriber for a
+ *   tenant on THIS replica opens a ref-counted Redis subscription whose
+ *   handler re-emits cross-replica events onto the local bus — so an
+ *   event published on ANY replica reaches this client. With `REDIS_URL`
+ *   unset the bus stays in-process (today's single-replica behaviour)
+ *   and this route is unchanged. No route-level wiring is required: the
+ *   bridge lives behind the unchanged `subscribeCockpitEvents` API.
  */
 
 import { Hono } from 'hono';

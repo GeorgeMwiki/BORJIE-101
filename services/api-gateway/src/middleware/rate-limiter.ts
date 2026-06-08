@@ -14,6 +14,13 @@ import type { Context } from 'hono';
 import { randomUUID } from 'node:crypto';
 import type { UserRole } from '../types/user-role';
 import type { AuthContext } from './hono-auth';
+import { createLogger } from '../utils/logger';
+import {
+  RedisTokenBucket,
+  createRedisTokenBucket,
+  type EvalCapableRedis,
+  type TokenBucketDecision,
+} from './redis-token-bucket';
 
 // ============================================================================
 // Types
@@ -245,6 +252,181 @@ class TokenBucketRateLimiter {
 const rateLimiter = new TokenBucketRateLimiter();
 
 // ============================================================================
+// RSS-08 — distributed token bucket (cross-replica cap)
+// ============================================================================
+
+/**
+ * GATE: presence of `process.env.REDIS_URL`.
+ *
+ * When `REDIS_URL` is set, `perUserRateLimit` / `customRateLimit` charge a
+ * shared Redis token bucket so the cap is exact cluster-wide. When it is
+ * UNSET (local dev / tests) — or when the Redis call throws at request time —
+ * they fall back to the existing in-process `TokenBucketRateLimiter`, i.e. the
+ * exact behaviour that ships today. This module reads `REDIS_URL` ONCE here at
+ * load time (the established `per-tenant-rate-budget.ts` / `cross-portal-bus.ts`
+ * pattern), never per request.
+ */
+
+const rlLogger = createLogger('rate-limiter');
+
+let sharedTokenBucket: RedisTokenBucket | null = null;
+let bucketInitDone = false;
+// One-shot degrade marker so a sustained Redis outage logs once, not per
+// request — mirrors the signal posture in `rate-limit-redis.middleware.ts`.
+let loggedBucketDegrade = false;
+
+/**
+ * Optional Sentry capture hook so on-call pages light up when the distributed
+ * bucket falls back to in-process. Wired from the composition root via
+ * `initRedisTokenBucket`; no-op until then.
+ */
+let bucketSentryCapture:
+  | ((err: unknown, ctx?: Record<string, unknown>) => void)
+  | null = null;
+
+export interface InitRedisTokenBucketOptions {
+  /**
+   * Pre-constructed eval-capable redis client. When omitted, this function
+   * lazily constructs an ioredis client from `process.env.REDIS_URL` (only if
+   * that env var is set). Injecting a client keeps tests hermetic and lets the
+   * composition root share ONE client.
+   */
+  readonly redis?: EvalCapableRedis | null;
+  /** Sentry capture for fallback events. Mirrors rate-limit-redis.middleware. */
+  readonly sentryCapture?: (err: unknown, ctx?: Record<string, unknown>) => void;
+}
+
+/**
+ * Bootstrap wiring for the distributed limiter. Call ONCE from the composition
+ * root / bootstrap. Idempotent — repeated calls after the first are ignored so
+ * a double-wire never opens a second redis connection.
+ *
+ * Returns the active bucket (or `null` when `REDIS_URL` is unset and no client
+ * was injected — i.e. the in-process fallback is in force).
+ */
+export function initRedisTokenBucket(
+  options: InitRedisTokenBucketOptions = {},
+): RedisTokenBucket | null {
+  if (bucketInitDone) return sharedTokenBucket;
+  bucketInitDone = true;
+
+  if (options.sentryCapture) bucketSentryCapture = options.sentryCapture;
+
+  // Explicit injected client (composition root / tests) wins.
+  if (options.redis) {
+    sharedTokenBucket = createRedisTokenBucket(options.redis);
+    rlLogger.info('rate-limiter: distributed token bucket wired (injected redis)');
+    return sharedTokenBucket;
+  }
+
+  // GATE: no REDIS_URL → stay on the in-process limiter (today's behaviour).
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    rlLogger.info('rate-limiter: REDIS_URL unset — using in-process token bucket (dev mode)');
+    return null;
+  }
+
+  try {
+    // Lazy-require ioredis — the ESM/CJS export shape varies across bundlers;
+    // mirror the constructor resolution used in index.ts / cross-portal-bus.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ioredisMod = require('ioredis');
+    const RedisCtor = ioredisMod?.default ?? ioredisMod?.Redis ?? ioredisMod;
+    const client = new RedisCtor(redisUrl, {
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+      lazyConnect: false,
+    });
+    client.on?.('error', (err: Error) => {
+      rlLogger.warn(
+        { err: err.message },
+        'rate-limiter: redis client error (token bucket will fall back to in-process)',
+      );
+    });
+    sharedTokenBucket = createRedisTokenBucket(client as EvalCapableRedis);
+    rlLogger.info('rate-limiter: distributed token bucket wired (REDIS_URL)');
+    return sharedTokenBucket;
+  } catch (err) {
+    rlLogger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'rate-limiter: failed to construct redis token bucket — using in-process limiter',
+    );
+    sharedTokenBucket = null;
+    return null;
+  }
+}
+
+/**
+ * Lazily resolve the shared bucket on first use even if `initRedisTokenBucket`
+ * was never called explicitly — so a route mounted before bootstrap still gets
+ * the gated behaviour. Reads `REDIS_URL` exactly once via `initRedisTokenBucket`.
+ */
+function resolveTokenBucket(): RedisTokenBucket | null {
+  if (!bucketInitDone) initRedisTokenBucket();
+  return sharedTokenBucket;
+}
+
+/** Emit the one-shot degrade signal (Pino warn + optional Sentry). */
+function signalBucketDegrade(err: unknown): void {
+  if (!loggedBucketDegrade) {
+    loggedBucketDegrade = true;
+    rlLogger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'rate-limiter: redis token bucket unavailable — falling back to in-process limiter',
+    );
+  }
+  try {
+    bucketSentryCapture?.(err, { scope: 'rate-limiter-token-bucket' });
+  } catch {
+    // Sentry hook bugs must never break the request pipeline.
+  }
+}
+
+/**
+ * Charge one token for `key` under `config`, using the distributed Redis bucket
+ * when wired and falling back to the in-process limiter on absence OR failure.
+ * The returned shape matches `RateLimitResult` so callers are agnostic to which
+ * backend served the decision.
+ */
+async function chargeToken(
+  key: string,
+  config: RateLimitConfig,
+): Promise<RateLimitResult> {
+  const bucket = resolveTokenBucket();
+  if (bucket) {
+    try {
+      const capacity = config.maxRequests + (config.burstSize ?? 0);
+      const refillRatePerSec = config.maxRequests / config.windowSizeSeconds;
+      const decision: TokenBucketDecision = await bucket.consume(key, {
+        capacity,
+        refillRatePerSec,
+      });
+      return {
+        allowed: decision.allowed,
+        remaining: decision.remaining,
+        reset: Math.ceil(Date.now() + config.windowSizeSeconds * 1000),
+        // exactOptionalPropertyTypes: omit the optional key entirely when
+        // allowed rather than assigning `undefined`.
+        ...(decision.allowed ? {} : { retryAfter: decision.retryAfter }),
+      };
+    } catch (err) {
+      signalBucketDegrade(err);
+      // fall through to in-process limiter
+    }
+  }
+  // In-process fallback (REDIS_URL unset, or Redis blip) — today's behaviour.
+  return rateLimiter.check(key, config);
+}
+
+/** Test-only — reset the distributed-bucket wiring between tests. */
+export function __resetRedisTokenBucketForTests(): void {
+  sharedTokenBucket = null;
+  bucketInitDone = false;
+  loggedBucketDegrade = false;
+  bucketSentryCapture = null;
+}
+
+// ============================================================================
 // Utility Functions
 // ============================================================================
 
@@ -390,8 +572,10 @@ export const rateLimitMiddleware = createMiddleware(async (c, next) => {
 /**
  * Per-user rate-limit factory — windowMs + max, scoped to the
  * authenticated `userId` (falls back to IP for anonymous callers).
- * Wraps the same token-bucket store so values cohabit with the other
- * limiters.
+ * Delegates to `customRateLimit`, so when `REDIS_URL` is set the cap is
+ * enforced across all replicas via the shared Redis token bucket (RSS-08);
+ * otherwise it uses the in-process token-bucket store, cohabiting with the
+ * other limiters.
  *
  * Used by the declared-facts router to cap producer churn at 30 calls
  * per minute per user (A2b-3 wire #5).
@@ -413,14 +597,19 @@ export const perUserRateLimit = (opts: {
 };
 
 /**
- * Custom rate limiter for specific endpoints
+ * Custom rate limiter for specific endpoints.
+ *
+ * RSS-08: charges the shared Redis token bucket when `REDIS_URL` is set so the
+ * cap is exact across all replicas; falls back to the in-process limiter when
+ * unset or when Redis is unreachable. `perUserRateLimit` delegates here, so it
+ * inherits the same distributed behaviour for free.
  */
 export const customRateLimit = (config: RateLimitConfig) => {
   return createMiddleware(async (c, next) => {
     const key = generateKey(c, config);
 
-    const result = rateLimiter.check(key, config);
-    
+    const result = await chargeToken(key, config);
+
     c.header('X-RateLimit-Limit', String(config.maxRequests));
     c.header('X-RateLimit-Remaining', String(result.remaining));
     c.header('X-RateLimit-Reset', String(result.reset));

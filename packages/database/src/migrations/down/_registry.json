@@ -386,6 +386,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0315_rls_tenant_id_indexes.sql",
+      "down": "down/0315_down_rls_tenant_id_indexes.sql",
+      "reverses": "Drops the `idx_<table>_tenant_id` btree access-path indexes added on the hot tenant-scoped tables (ledger_entries, marketplace_bids/listings, bid_negotiations/messages, request_for_bids(+responses), offtake_queue, buyer_kyc_records, procurement_kyc_documents, buyer_notifications, notifications_outbox, notification_dispatch_log, threads, intelligence_corpus_chunks, agent_memory, ai_audit_chain) that make the RLS tenant predicate resolve via index scan on the DATABASE_POOL_MODE=transaction SET-LOCAL hot path. Index-only — no data loss and no change to row visibility (drop only reverts to a sequential scan). Dev/staging rollback only.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

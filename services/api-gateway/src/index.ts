@@ -654,6 +654,52 @@ import { createEmailProviderFromEnv } from './services/notification-dispatch/ema
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
 import { getDb } from './composition/db-client';
+// Scale-P0 lane wiring — each init fn reads its OWN env flag ONCE here at
+// bootstrap and DEFAULTS to today's behaviour (merging is a runtime no-op
+// until the operator flips the flag). These four are the ONLY new gateway
+// bootstrap wires this integration pass adds; the lanes themselves never
+// touch index.ts.
+//   - initDbClient()         flag DATABASE_POOL_MODE  (default 'session' = today)
+//   - initClusterLock() +    flag CRON_LEADER_ELECTION (default off = run-on-every-replica)
+//     withClusterLeader() / releaseLeadership()
+//   - initRedisTokenBucket() gate REDIS_URL           (unset = in-process limiter = today)
+//   - initCockpitBus()       gate REDIS_URL (via CrossPortalBus; in-memory = today)
+import { initDbClient } from './composition/db-client';
+import {
+  initClusterLock,
+  withClusterLeader,
+  releaseLeadership,
+  lockIdFor,
+} from './composition/cluster-lock';
+import { initRedisTokenBucket } from './middleware/rate-limiter';
+import { initCockpitBus } from './services/cockpit-events';
+
+// Stable cron names wrapped with withClusterLeader(...) at their .start()
+// sites below. Single source of truth so gracefulShutdown releases exactly
+// the locks the boot sequence acquired (lock-id = lockIdFor(name)). Keep in
+// sync with the wrapped .start() calls in the listen block.
+const CLUSTER_LEADER_CRON_NAMES = [
+  'heartbeat',
+  'background-supervisor',
+  'intelligence-history',
+  'cases-sla',
+  'learning-amplification',
+  'geofence-watcher',
+  'lease-expiry',
+  'executive-brief',
+  'daily-brief',
+  'ica-cert-expiry',
+  'compliance-deadline-scan',
+  'entity-indexer',
+  'fx-feed',
+  'executive-brief-action-runner',
+  'reminders-dispatch',
+  'announcement-fanout',
+  'outcome-reconciliation',
+  'mwikila-autonomous',
+  'proactive-scheduler',
+  'decision-retrospective',
+] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
   wireCognitive,
@@ -1051,6 +1097,26 @@ assertApiKeyConfig();
 // set, real Postgres-backed services are constructed and pure-DB
 // endpoints start returning real rows.
 // ----------------------------------------------------------------------------
+// Scale-P0 db-client lane — read DATABASE_POOL_MODE ONCE and eagerly
+// materialise the single shared primary + readonly clients so the one
+// bounded pool is the factory of record before the first request. With no
+// env set, poolMode resolves to 'session' (today's exact reserve()-pin +
+// prepared-statements-on behaviour) and this is a pure no-op beyond logging.
+// Idempotent + fail-soft: a degraded (no DATABASE_URL) boot still returns
+// null handles and the gateway 503s pure-DB endpoints exactly as before.
+try {
+  const dbInit = initDbClient();
+  logger.info(
+    { poolMode: dbInit.poolMode, hasPrimary: dbInit.db !== null },
+    'db-client: bootstrap init complete',
+  );
+} catch (err) {
+  logger.warn(
+    { err: err instanceof Error ? err.message : String(err) },
+    'db-client: initDbClient failed at bootstrap (continuing — getDb() lazy path still applies)',
+  );
+}
+
 let serviceRegistry: ServiceRegistry;
 try {
   serviceRegistry = buildServices({ db: getDb() });
@@ -1068,6 +1134,60 @@ try {
   );
   serviceRegistry = buildServices({ db: null });
 }
+
+// ----------------------------------------------------------------------------
+// Scale-P0 redis-rate-limiter lane (RSS-08) — wire the distributed token
+// bucket ONCE at bootstrap. GATE: REDIS_URL. When unset, initRedisTokenBucket
+// returns null and perUserRateLimit / customRateLimit keep the in-process
+// limiter — today's exact behaviour. When set, the per-route token bucket is
+// enforced cluster-wide via the shared Lua script. Idempotent: a double-wire
+// is ignored. We pass the Sentry capture hook so on-call pages light up if the
+// bucket degrades back to in-process (mirrors the rate-limit-redis pattern).
+try {
+  initRedisTokenBucket({
+    sentryCapture: (err, ctx) => {
+      try {
+        // Lazy require — sentry init happens later in this boot sequence, so a
+        // top-of-file import would resolve before the DSN is wired.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const obs = require('@borjie/observability') as {
+          getSentry?: () => {
+            captureException: (err: unknown, ctx?: unknown) => void;
+          };
+        };
+        obs.getSentry?.().captureException(err, ctx);
+      } catch {
+        // Sentry hook bugs must never break the request pipeline.
+      }
+    },
+  });
+} catch (err) {
+  logger.warn(
+    { err: err instanceof Error ? err.message : String(err) },
+    'rate-limiter: initRedisTokenBucket failed (in-process limiter remains in force)',
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Scale-P0 redis-sse-bus lane (RSS-05) — back the cockpit SSE bus with the
+// composition-root CrossPortalBus singleton ONCE at boot. GATE: REDIS_URL is
+// mediated by the CrossPortalBus itself (it selects the ioredis pub/sub
+// backend only when REDIS_URL is set, in-memory otherwise). With REDIS_URL
+// unset the bus is in-memory and nothing changes vs. today — the local
+// EventEmitter remains the sole path. `serviceRegistry.crossPortalBus` is a
+// Promise (the Redis impl lazy-imports ioredis), so we await it fire-and-forget
+// and wire on resolve; a failure leaves the local-only path intact.
+void serviceRegistry.crossPortalBus
+  .then((bus) => {
+    initCockpitBus(bus);
+    logger.info('cockpit-bus: wired to cross-portal bus (cross-replica SSE fan-out gated on REDIS_URL)');
+  })
+  .catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'cockpit-bus: initCockpitBus skipped (cross-portal bus unavailable — local EventEmitter remains the sole path)',
+    );
+  });
 
 // ----------------------------------------------------------------------------
 // LIVE money path — wire the settlement + payroll ledger ports to the REAL
@@ -3102,6 +3222,27 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: sovereign-ledger verify cron stop failed');
   }
 
+  // Scale-P0 cron-leader-election lane (RSS-06) — release every per-cron
+  // advisory lock so another replica can be promoted promptly. No-op (and
+  // resolves instantly) when CRON_LEADER_ELECTION is unset/"off" — there is
+  // no held connection in pass-through mode. The dedicated session ending on
+  // process exit would release the locks anyway; explicit unlock is cleaner.
+  try {
+    await Promise.all(
+      CLUSTER_LEADER_CRON_NAMES.map((name) =>
+        releaseLeadership(lockIdFor(name)).catch((err: unknown) => {
+          logger.warn(
+            { cron: name, err: err instanceof Error ? err.message : String(err) },
+            'shutdown: releaseLeadership failed (session close will release)',
+          );
+        }),
+      ),
+    );
+    logger.info('shutdown: cluster leadership released');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: cluster leadership release failed');
+  }
+
   // Step 4 — close the HTTP server. Wrapped in a promise so we can
   // await the drain completion.
   await new Promise<void>((resolveDrain) => {
@@ -3246,26 +3387,35 @@ if (require.main === module) {
     );
   }
 
+  // Scale-P0 cron-leader-election lane (RSS-06) — initialise the cluster
+  // lock ONCE before any cron starts. GATE: CRON_LEADER_ELECTION. Unset /
+  // "off" (DEFAULT) → withClusterLeader is a PASS-THROUGH and every cron
+  // runs on every replica exactly as today. "on" → leader-only: the wrapped
+  // crons start only on the replica that wins the per-lock-id advisory lock
+  // (held on the dedicated session connection from DATABASE_SESSION_URL,
+  // falling back to DATABASE_URL). Reads its env ONCE here, never per tick.
+  initClusterLock();
+
   // Wave 12 — start heartbeat + background scheduler after the server
   // is listening. Both are gated by DATABASE_URL internally; degraded
   // mode skips the supervisors gracefully.
-  heartbeatSupervisor.start();
-  backgroundSupervisor.start();
-  intelligenceHistorySupervisor.start();
+  withClusterLeader(heartbeatSupervisor, lockIdFor('heartbeat')).start();
+  withClusterLeader(backgroundSupervisor, lockIdFor('background-supervisor')).start();
+  withClusterLeader(intelligenceHistorySupervisor, lockIdFor('intelligence-history')).start();
   // Wave 26 — start the Cases SLA supervisor alongside the other
   // background workers. Skipped in tests + when disabled by env.
-  casesSlaSupervisor.start();
+  withClusterLeader(casesSlaSupervisor, lockIdFor('cases-sla')).start();
   // Learning Amplification (LitFin port) — nightly Bayesian roll-up of
   // learning_observations. Interval overridable via
   // BORJIE_LEARNING_AMPLIFY_INTERVAL_MS (min 60s).
-  learningAmplificationCron.start();
+  withClusterLeader(learningAmplificationCron, lockIdFor('learning-amplification')).start();
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
-  geofenceWatcher.start();
+  withClusterLeader(geofenceWatcher, lockIdFor('geofence-watcher')).start();
   // Wave 15 — start the lease-expiry alert cron. Ticks daily, scans
   // for leases at 60/30/7/1-day expiry windows, idempotent via
   // notification_dispatch_log.idempotency_key.
-  leaseExpiryCron.start();
+  withClusterLeader(leaseExpiryCron, lockIdFor('lease-expiry')).start();
   // H2 deferral closure — idempotency_keys sweeper. Hourly DELETE of
   // rows past expires_at. Module-scoped `idempotencySweeperStop` is
   // set here so the gracefulShutdown handler above can stop it.
@@ -3283,40 +3433,42 @@ if (require.main === module) {
   // Piece C — executive brief cron. Daily / weekly / monthly subscriptions
   // get briefs generated at their local_time + cadence. ON_DEMAND
   // subscriptions are never auto-fired.
-  executiveBriefCron.start();
+  withClusterLeader(executiveBriefCron, lockIdFor('executive-brief')).start();
   // Wave OWNER-OS DAILY-BRIEF rebuild — start the per-tenant daily-brief
   // cron. Ticks every 5 min, fires per tenant when their local
   // `daily_brief_cadence` matches the wall clock; idempotent via
   // UNIQUE constraint on the dispatch ledger.
-  dailyBriefCron.start();
+  withClusterLeader(dailyBriefCron, lockIdFor('daily-brief')).start();
   // Wave WORKFORCE-CERT-EXPIRY — 6h cron that scans
   // workforce_certifications for any active cert expiring within 30d
   // and auto-creates reminders at 30d / 14d / 3d (idempotent via
   // UNIQUE(tenant_id, cert_id, days_before)).
-  icaCertExpiryCron.start();
+  withClusterLeader(icaCertExpiryCron, lockIdFor('ica-cert-expiry')).start();
   // Roadmap R6 — hourly compliance-deadline scanner. Pushes
   // `compliance.deadline_approaching` events for filings whose
   // due_at lands inside the 7-day horizon.
-  complianceDeadlineScan.start();
+  withClusterLeader(complianceDeadlineScan, lockIdFor('compliance-deadline-scan')).start();
   // Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
   // references every entity in the system so the brain can resolve any
   // natural-language phrase and traverse the graph in one hop.
-  entityIndexerWorker.start();
+  withClusterLeader(entityIndexerWorker, lockIdFor('entity-indexer')).start();
   // Live FX feed — pulls BoT TZS/USD + LBMA gold AM/PM fix every 5 min
-  // and writes rows into both fx_rates + external_benchmarks.
-  fxFeedCron.start();
+  // and writes rows into both fx_rates + external_benchmarks. Leader-only
+  // is especially important here: every replica hitting BoT/LBMA risks an
+  // upstream rate-limit / ban (RSS-06 fx-feed sibling note).
+  withClusterLeader(fxFeedCron, lockIdFor('fx-feed')).start();
   // Piece E (issue #41) — drain the approved-actions queue every 10s,
   // dispatch to the junior executor, audit each dispatch.
-  executiveBriefActionRunner.start();
+  withClusterLeader(executiveBriefActionRunner, lockIdFor('executive-brief-action-runner')).start();
   // Wave OWNER-OS — reminders dispatch worker. Polls the `reminders`
   // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
   // Email default; SMS / Slack land when the operator wires the keys.
-  remindersDispatchWorker.start();
+  withClusterLeader(remindersDispatchWorker, lockIdFor('reminders-dispatch')).start();
   // Wave NOTIFICATION-DISPATCH-WIRE — start the broadcast fan-out (enqueues
   // per-recipient dispatch-log rows) and the dispatch drain (sends them via
   // email/SMS/push). The drain runs as a long-lived runForever loop bounded
   // by an AbortController that graceful-shutdown trips.
-  announcementFanoutWorker.start();
+  withClusterLeader(announcementFanoutWorker, lockIdFor('announcement-fanout')).start();
   if (notificationDispatcher && process.env.NODE_ENV !== 'test' && process.env.BORJIE_NOTIFICATION_DISPATCH_DISABLED !== 'true') {
     void notificationDispatcher
       .runForever({ signal: notificationDispatchAbort.signal })
@@ -3325,20 +3477,20 @@ if (require.main === module) {
   // Wave CLOSED-LOOP - outcome reconciliation worker. Every 6h walks
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.
-  outcomeReconciliationWorker.start();
+  withClusterLeader(outcomeReconciliationWorker, lockIdFor('outcome-reconciliation')).start();
   // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Every
   // 15 min by default, walks every active tenant, runs all 5 handlers
   // through the runtime (kill-switch + inviolable rails enforced) so
   // the inbox fills on a cadence rather than only on inbound route
   // calls. Inert in test mode + when BORJIE_MWIKILA_WORKER_DISABLED=true.
-  mwikilaAutonomousWorker.start();
-  proactiveScheduler.start();
+  withClusterLeader(mwikilaAutonomousWorker, lockIdFor('mwikila-autonomous')).start();
+  withClusterLeader(proactiveScheduler, lockIdFor('proactive-scheduler')).start();
   // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
   // committed decision whose prediction horizon has passed, joins
   // outcome_reconciliations + outcome_observations, grades the
   // decision (good / bad / neutral / undetermined), and writes the
   // hash-chained retrospective entry via the decision recorder.
-  decisionRetrospectiveWorker.start();
+  withClusterLeader(decisionRetrospectiveWorker, lockIdFor('decision-retrospective')).start();
   // K7 parity-litfin Gap H — wake-loop cron. Until this start() call the
   // supervisor was inert: the brain only woke when an out-of-band k8s
   // CronJob fired. In-process start arms an advisory-lock-guarded interval

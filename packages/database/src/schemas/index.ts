@@ -62,6 +62,14 @@ export * from './onboarding-state.schema.js';
 // the full security-model rationale.
 export * from './onboarding-signup.schema.js';
 
+// Onboarding-session durable store (RSS-09). One tenant-scoped table
+// (onboarding_sessions) backing the move-in OnboardingRepository in
+// routes/onboarding.ts, replacing the in-memory Map triple so onboarding
+// state survives a restart and is shared across replicas. Migration
+// 0314_onboarding_session_store.sql; FORCE RLS on the canonical
+// app.current_tenant_id GUC + service-role bypass.
+export * from './onboarding-sessions.schema.js';
+
 // Mining onboarding-wizard run state (migration 0286 / FLOW-2). One row per
 // owner onboarding run: current_step + status + an append-only steps jsonb of
 // each advanced step's payload (incl. uploaded file refs) so a reload resumes.

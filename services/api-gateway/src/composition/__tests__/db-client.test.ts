@@ -17,16 +17,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // cannot close over outer `const` bindings. Use `vi.hoisted` to declare
 // the spies up-front, then reference them from both the factory and the
 // test bodies.
-const { createDatabaseClientMock, createReadonlyDatabaseClientMock } = vi.hoisted(
-  () => ({
-    createDatabaseClientMock: vi.fn(),
-    createReadonlyDatabaseClientMock: vi.fn(),
-  }),
-);
+const {
+  createDatabaseClientMock,
+  createReadonlyDatabaseClientMock,
+  getSharedDatabaseClientMock,
+} = vi.hoisted(() => ({
+  createDatabaseClientMock: vi.fn(),
+  createReadonlyDatabaseClientMock: vi.fn(),
+  getSharedDatabaseClientMock: vi.fn(),
+}));
 
 vi.mock('@borjie/database', () => ({
   createDatabaseClient: createDatabaseClientMock,
   createReadonlyDatabaseClient: createReadonlyDatabaseClientMock,
+  // RSS-04 — getDb() now routes the primary through the single bounded
+  // shared pool factory. Delegate to the primary mock so this test's
+  // call-count + identity assertions on createDatabaseClient still hold.
+  getSharedDatabaseClient: getSharedDatabaseClientMock,
+  readPoolMode: () => 'session',
 }));
 
 // Import AFTER the mock has been registered.
@@ -42,12 +50,18 @@ beforeEach(() => {
   __resetDbClientForTests();
   createDatabaseClientMock.mockReset();
   createReadonlyDatabaseClientMock.mockReset();
+  getSharedDatabaseClientMock.mockReset();
   // Default: factories return tagged sentinel objects so each call
   // produces a unique reference. Tests assert identity below.
   createDatabaseClientMock.mockImplementation((url: string) => ({
     __kind: 'primary',
     url,
   }));
+  // getDb() calls getSharedDatabaseClient(url); route it through the same
+  // primary factory so the historical createDatabaseClient assertions hold.
+  getSharedDatabaseClientMock.mockImplementation((url: string) =>
+    createDatabaseClientMock(url),
+  );
   createReadonlyDatabaseClientMock.mockImplementation((url: string) => ({
     __kind: 'readonly',
     url,
