@@ -414,3 +414,21 @@ explicit human approval + NO statutory-retention / legal-hold obligation (royalt
 audit-chain, financial, KYC records have retention) + an audit-chain entry + a restorable or
 regenerable path. NEVER auto-touch anything with audit/financial/licence/royalty/legal
 significance. Failure mode prevented: "compliance issues fast." Same governance both repos.
+
+---
+
+## INV-F · Actual-work SERVICE, not advisory product (the HANDS) — owner directive
+Borjie/BN is a SERVICE that DOES THE ACTUAL WORK end-to-end — not a product the user
+operates, not an advisor that only proposes/drafts. Mr. Mwikila is an autonomous OPERATOR
+that EXECUTES real-world operations to CONFIRMED completion: files (a human signs only the
+irreversible step), pays, dispatches, orders, settles, sends, reconciles — through real-world
+ACTUATORS: payment rails (M-Pesa/bank/mobile-money), messaging (WhatsApp/SMS), e-gov /
+regulatory e-filing, procurement/suppliers, logistics, accounting, assay-lab/refiner/buyer,
+e-signature. Advisory (forecast/recommendation) is ONE mode among many; the DEFAULT is DO,
+not suggest. Every external action: idempotent + reversible-or-compensable (saga/compensation),
+driven to confirmed completion via the closed-loop fabric, within the rails (money/licence/
+deletion HITL on the irreversible step) + the autonomy posture (autonomous where granted +
+reversible; gated otherwise). The measure of success is WORK DONE, not advice given. We charge
+for the service (outcomes/work), not seats. Same service model for BossNyumba.
+GAP (honest): the engines built so far produce artifacts/advice; the ACTUATOR + action-
+execution layer that performs real-world work end-to-end is the gap that makes us a service.
