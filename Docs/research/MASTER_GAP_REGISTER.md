@@ -712,3 +712,25 @@ TWO SEPARATE money systems, NEVER conflated:
       ON within the tier's usage budget — the limit is the usage cap, not a feature gate.
 Substrate seeds: tenant_llm_budgets + tenant_llm_budget_caps (migration 0272) = metering; the Redis
 token-bucket rate-limiter (RSS-08) = enforcement. Same billing model both repos (Borjie + BN).
+
+---
+
+## Unhackable posture — full defense-in-depth, all layers (owner directive)
+The product is engineered to the UNHACKABLE bar via comprehensive DEFENSE-IN-DEPTH + ASSUME-BREACH
++ CONTINUOUS RED-TEAM, both repos. No single shield — every layer assumes the one above it failed.
+- CLIENT INSPECTION RESISTANCE: ZERO secrets/keys/prompts/IP/business-logic in the client bundle;
+  frontend is presentation-only, all sensitive logic + secrets server-side; NO prod source-maps
+  exposing internals; inspecting the app reveals nothing sensitive.
+- JAILBREAK / PROMPT-INJECTION RESISTANCE: the brain cannot be jailbroken to reveal prompts/system-
+  instructions/IP or bypass a rail — INPUT guard (injection detection) + agent-security-guard +
+  the IP-EGRESS guard (output firewall, INV-H/D) + Session->Governor->Executor separation (chat
+  emits intents only, never reaches the executor). Adversarial prompts deflected, not obeyed.
+- SECRETS: KMS/env/bootstrap only; NEVER in client/response/log/error/chat-stream; rotated, least-priv.
+- DEFENSE-IN-DEPTH STACK: WAF/CORS-allowlist/rate-limit -> Supabase-JWT+revocation -> zod input
+  validation -> RLS FORCE + WITH CHECK + KMS field-encryption + PII -> agent-guard + isolated-vm
+  sandbox -> egress guard. OWASP Top-10 + OWASP LLM Top-10 fully covered.
+- ASSUME-BREACH + CONTINUOUS RED-TEAM: the CodeQL/Semgrep/red-team/defection/sycophancy probes are
+  CI gates; ADD jailbreak/injection/secret-exfil/client-inspection probes so we STAY unhackable.
+HONEST: "unhackable" = the SOTA posture engineered to that bar (no client-inspectable secret, no
+jailbreak path, no IP/secret leak), verified + continuously red-teamed — not a claim of literal
+invincibility, which is the discipline that KEEPS it unhackable.
