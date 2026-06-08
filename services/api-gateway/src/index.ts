@@ -1050,6 +1050,74 @@ app.use(
   })()
 );
 
+// SEC-G3 — wire the shared (Redis) token-revocation store at boot so a
+// logout / refresh-rotation / role-change on ANY HPA replica revokes the
+// token cluster-wide (the in-process Map only catches same-replica
+// revocations). GATE: REDIS_URL. When unset (local dev / tests) the
+// token-blocklist façade stays on its in-process Map = today's behaviour.
+// The Redis adapter degrades to the local Map on a Redis error and flips a
+// health flag (see redis-token-blocklist.ts) rather than failing open.
+(() => {
+  if (!process.env.REDIS_URL) {
+    logger.info(
+      'token-blocklist: REDIS_URL unset — using in-process revocation map (dev mode)',
+    );
+    return;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ioredisMod = require('ioredis');
+    const RedisCtor = ioredisMod?.default ?? ioredisMod?.Redis ?? ioredisMod;
+    const client = new RedisCtor(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+      lazyConnect: false,
+    });
+    client.on?.('error', (err: Error) => {
+      logger.warn(
+        { err: err.message },
+        'token-blocklist: redis client error (revocation will fall back to in-process map)',
+      );
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const blkMod = require('./middleware/redis-token-blocklist') as {
+      RedisTokenBlocklist: new (opts: {
+        redis: unknown;
+        logger?: { warn: (meta: unknown, msg: string) => void };
+        sentryCapture?: (err: unknown, ctx?: Record<string, unknown>) => void;
+      }) => unknown;
+    };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const facadeMod = require('./middleware/token-blocklist') as {
+      wireRedisRevocationStore: (store: unknown) => void;
+    };
+    const store = new blkMod.RedisTokenBlocklist({
+      redis: client,
+      logger: { warn: (meta, msg) => logger.warn(meta as object, msg) },
+      sentryCapture: (err, ctx) => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const obs = require('@borjie/observability') as {
+            getSentry?: () => {
+              captureException: (err: unknown, ctx?: unknown) => void;
+            };
+          };
+          obs.getSentry?.().captureException(err, ctx);
+        } catch {
+          // Sentry hook bugs must never break the auth pipeline.
+        }
+      },
+    });
+    facadeMod.wireRedisRevocationStore(store);
+    logger.info('token-blocklist: wired Redis-backed cross-replica revocation store');
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'token-blocklist: failed to initialize Redis store — using in-process map',
+    );
+  }
+})();
+
 // Health check — both /health (legacy) and /healthz (k8s-style) are served.
 // Returns `{ status, version, service, timestamp, upstreams }` per the
 // shared contract in @borjie/observability. Deep probes live at

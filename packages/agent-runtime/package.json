@@ -47,6 +47,11 @@
       "types": "./dist/permissions/index.d.ts",
       "import": "./dist/permissions/index.js",
       "default": "./dist/permissions/index.js"
+    },
+    "./security-guard": {
+      "types": "./dist/security-guard/index.d.ts",
+      "import": "./dist/security-guard/index.js",
+      "default": "./dist/security-guard/index.js"
     }
   },
   "scripts": {
@@ -58,6 +63,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@borjie/agent-security-guard": "workspace:*",
     "@borjie/enterprise-hardening": "workspace:*"
   },
   "devDependencies": {

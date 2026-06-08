@@ -10,10 +10,14 @@
 
 export * from './types.js';
 export * from './classify/auto-tagger.js';
+export * from './pii/detector.js';
+export * from './pii/redactor.js';
 export * from './encrypt/aead-cipher.js';
 export * from './encrypt/key-manager.js';
+export * from './encrypt/kms-key-manager.js';
 export * from './encrypt/envelope.js';
 export * from './encrypt/rotation.js';
+export * from './residency/index.js';
 export * from './retention/retention-runner.js';
 export * from './rtbf/cascade-planner.js';
 export * from './rtbf/rtbf-orchestrator.js';

@@ -19,6 +19,7 @@ import { SkillsRegistry } from './skills/index.js';
 import { MCPHost } from './mcp/index.js';
 import { MemoryStore } from './memory/index.js';
 import { PermissionEngine } from './permissions/index.js';
+import type { AgentSecurityGuard } from './security-guard/index.js';
 import type {
   AgentSession,
   BrainPort,
@@ -70,7 +71,22 @@ export { SkillsRegistry } from './skills/index.js';
 export { MCPHost, normaliseMCPConfig } from './mcp/index.js';
 export { MemoryStore, getMemoryDir, encodeProjectPath } from './memory/index.js';
 export { PermissionEngine, matchesRule, globToRegExp } from './permissions/index.js';
+export type {
+  GuardedToolContext,
+  GuardedPermissionDecision,
+} from './permissions/index.js';
 export { parseFrontmatter, asStringList } from './frontmatter.js';
+
+// SEC-G1 — agent-security-guard activation surface.
+export {
+  createAgentSecurityGuard,
+  type AgentSecurityGuard,
+  type GuardToolCall,
+  type GuardToolSpec,
+  type GuardDecision,
+  type GuardScanResult,
+  type CreateAgentSecurityGuardOptions,
+} from './security-guard/index.js';
 
 export interface AgentRuntimeOptions {
   readonly projectPath: string;
@@ -83,6 +99,14 @@ export interface AgentRuntimeOptions {
     readonly mode?: PermissionMode;
     readonly autoLoad?: boolean;
   };
+  /**
+   * SEC-G1 — optional agent-security-guard. When provided, the permission
+   * engine's `checkToolCall` enforces the guard's authority-tier / recursion
+   * / confirmation matrix in addition to the rule list (taking the stricter
+   * decision). Absent (the default) the runtime behaves exactly as before.
+   * Build one with `createAgentSecurityGuard({ tools, ... })`.
+   */
+  readonly securityGuard?: AgentSecurityGuard;
 }
 
 export interface AgentRuntime {
@@ -136,6 +160,7 @@ export async function createAgentRuntime(
       ? { enterpriseScopePath: opts.enterpriseScopePath }
       : {}),
     ...(opts.permissions?.mode !== undefined ? { defaultMode: opts.permissions.mode } : {}),
+    ...(opts.securityGuard !== undefined ? { securityGuard: opts.securityGuard } : {}),
     ...(logger !== undefined ? { logger } : {}),
   });
   if (opts.permissions?.autoLoad !== false) {

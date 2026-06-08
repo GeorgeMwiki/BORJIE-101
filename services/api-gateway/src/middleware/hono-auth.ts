@@ -24,6 +24,23 @@ const SUPABASE_JWKS = SUPABASE_JWKS_URL
   ? createRemoteJWKSet(new URL(SUPABASE_JWKS_URL))
   : null;
 
+// SEC-G2 — derive the canonical issuer once. A signature-valid Supabase JWT
+// from a DIFFERENT project (or with `aud != authenticated`) must be rejected
+// even though its EC key chains to a valid kid; binding `iss`/`aud` closes
+// that cross-project acceptance hole. The issuer is `<SUPABASE_URL>/auth/v1`
+// per the Supabase JWT spec. When SUPABASE_URL is unset the issuer is empty
+// and the check is skipped (no behaviour change), but ES256 verification
+// already cannot proceed without the JWKS URL anyway.
+const SUPABASE_ISSUER = SUPABASE_BASE_URL
+  ? `${SUPABASE_BASE_URL.replace(/\/+$/, '')}/auth/v1`
+  : '';
+const SUPABASE_AUDIENCE = 'authenticated';
+// Flag (default ON when an issuer is derivable). Set BORJIE_JWT_ISS_AUD=off
+// for incident rollback to the pre-G2 signature-only acceptance.
+const ISS_AUD_ENFORCED =
+  SUPABASE_ISSUER.length > 0 &&
+  (process.env.BORJIE_JWT_ISS_AUD ?? 'on').toLowerCase() !== 'off';
+
 // Public-session cookie fallback — `/api/v1/auth/sign-in` issues a
 // `borjie-session` HttpOnly cookie that wraps the Supabase
 // access_token. When the browser hits a JWT-protected route without
@@ -158,15 +175,43 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       if (!SUPABASE_JWKS) {
         throw new Error('SUPABASE_URL not set — cannot verify ES256 tokens');
       }
-      const { payload } = await jwtVerify(token, SUPABASE_JWKS, {
-        algorithms: ['ES256', 'RS256'],
-      });
+      // SEC-G2: bind `iss` + `aud` so a signature-valid token minted for a
+      // DIFFERENT Supabase project / audience cannot pass. jose throws
+      // `JWTClaimValidationFailed` on mismatch → caught below → 401
+      // INVALID_TOKEN (no new branch needed). Skipped only when the flag is
+      // off or no issuer is derivable (pre-G2 behaviour).
+      const { payload } = await jwtVerify(
+        token,
+        SUPABASE_JWKS,
+        ISS_AUD_ENFORCED
+          ? {
+              algorithms: ['ES256', 'RS256'],
+              issuer: SUPABASE_ISSUER,
+              audience: SUPABASE_AUDIENCE,
+            }
+          : { algorithms: ['ES256', 'RS256'] },
+      );
       const sp = payload as JoseJWTPayload & {
         app_metadata?: { tenant_id?: string; mining_role?: string };
+        user_metadata?: { tenant_id?: string };
       };
+      // SEC-G2: tenant_id is trusted ONLY from server-managed `app_metadata`.
+      // `user_metadata` is user-writable, so a token carrying a tenant_id only
+      // in `user_metadata` must be rejected — never silently flow downstream
+      // as `tenantId: ''` (which would mis-scope the RLS GUC) nor be promoted
+      // from the user-controlled field.
+      const appTenantId = sp.app_metadata?.tenant_id;
+      const userTenantId = sp.user_metadata?.tenant_id;
+      if (
+        (appTenantId === undefined || appTenantId.length === 0) &&
+        typeof userTenantId === 'string' &&
+        userTenantId.length > 0
+      ) {
+        throw new Error('tenant_id must come from app_metadata, not user_metadata');
+      }
       decoded = {
         userId: String(sp.sub ?? ''),
-        tenantId: sp.app_metadata?.tenant_id ?? '',
+        tenantId: appTenantId ?? '',
         role: mapSupabaseRolesToUserRole(
           sp.app_metadata?.mining_role ? [sp.app_metadata.mining_role] : [],
         ),
@@ -189,7 +234,11 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       decoded = coerceVerifiedJwtPayload(verified);
     }
 
-    if (decoded.jti && tokenBlocklist.isRevoked(decoded.jti)) {
+    // SEC-G3: cross-replica revocation check. `isRevokedAsync` consults the
+    // shared Redis store when wired (a logout on ANY replica revokes here),
+    // falling back to the local Map otherwise. The middleware is already
+    // async so this is a non-breaking await.
+    if (decoded.jti && (await tokenBlocklist.isRevokedAsync(decoded.jti))) {
       return c.json(
         {
           success: false,
