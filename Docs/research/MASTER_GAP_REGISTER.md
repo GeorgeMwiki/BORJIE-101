@@ -453,3 +453,23 @@ arbitrary hardcoded capability caps. The cap is the MANDATE + the RAILS, never a
 BUILD DISCIPLINE: any hardcoded magic-number that limits CAPABILITY (not safety) is a bug —
 replace with dynamic/reasoned governance. Keep anti-wedge SAFETY timeouts; dynamicize
 capability LIMITS. Audit the codebase for such caps during convergence. Same both repos.
+
+---
+
+## INV-F (sharpened) · Sensitive actions = prepare -> review -> permission -> execute-OR-handoff
+For any SENSITIVE / irreversible action (payment, disbursement, procurement/ordering, licence
+or regulatory FILING, deletion, contract/e-signature — i.e. anything on the money / licence /
+four-eye / sovereign rail), the MD follows the human-as-signature pattern (feels like a
+competent human assistant, not a bot):
+  1. PREPARE — fully autonomous: gather, compute, draft the filing/payment/order, validate vs
+     rules, assemble the COMPLETE ready-to-execute package + evidence.
+  2. REVIEW + PERMISSION — surface the prepared package and EXPLICITLY ask: "prepared and
+     ready; shall I execute it, or will you?" The UI mutation/proposal is gated (INV-B/UI rail).
+  3. EXECUTE *or* HANDOFF — owner's choice:
+       (a) "you do it" -> MD executes via the actuator, captures receipt, reconciles, closes
+           the loop, confirms done; OR
+       (b) "I'll do it" -> MD hands over the prepared package AND still TRACKS it to confirmed
+           closure (watches for the receipt, reconciles, closes).
+The MD NEVER executes a sensitive action without explicit permission. Reversible + granted
+actions run autonomously (INV-F default DO); sensitive actions run prepare-then-ask. The owner
+can always take the wheel for the final click — the MD did the labor either way. Same both repos.
