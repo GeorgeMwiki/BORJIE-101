@@ -71,10 +71,13 @@ const NAV_GROUPS: ReadonlyArray<NavGroup> = [
   {
     heading: 'Data & compliance',
     items: [
+      // INV-A / FIRE-3: '/warehouse' (ore-stockpile tonnage / grade / custody /
+      // custodian IDs) was REMOVED — that is tenant operational business data
+      // and crosses the control-plane wall. Ore stockpiles live on owner-web
+      // (the owner data plane), never in this Borjie-internal console.
       { href: '/data-privacy', label: 'Data privacy' },
       { href: '/integrations', label: 'API integrations' },
       { href: '/legacy-migration', label: 'Legacy LPMS migration' },
-      { href: '/warehouse', label: 'Warehouse' },
     ],
   },
 ];

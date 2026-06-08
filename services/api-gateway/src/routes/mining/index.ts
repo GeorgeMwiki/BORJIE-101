@@ -143,6 +143,13 @@ import { miningInternalComplianceQueueRouter } from './internal/compliance-queue
 import { miningInternalFeatureFlagsRouter } from './internal/feature-flags.hono';
 import { miningInternalJuniorsRouter } from './internal/juniors.hono';
 import { miningInternalSupportTicketsRouter } from './internal/support-tickets.hono';
+// INV-A / FIRE-1 — platform operator break-glass surface (deny-by-default
+// access request + grant-status list; surfaces NO tenant business data).
+import { miningInternalBreakGlassRouter } from './internal/break-glass.hono';
+// INV-A / FIRE-2 — decision-trace replay: metadata-only by default, full
+// decision CONTENT behind break-glass. Replaces the admin-web service-role
+// Supabase client that bypassed RLS for any ?tenant=.
+import { miningInternalDecisionTraceRouter } from './internal/decision-trace.hono';
 // Wave OWNER-OS DAILY-BRIEF rebuild — fleet overview for the admin cockpit.
 import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.hono';
 
@@ -326,6 +333,10 @@ mining.route('/internal/compliance-queue', miningInternalComplianceQueueRouter);
 mining.route('/internal/feature-flags', miningInternalFeatureFlagsRouter);
 mining.route('/internal/juniors', miningInternalJuniorsRouter);
 mining.route('/internal/support/tickets', miningInternalSupportTicketsRouter);
+// INV-A / FIRE-1 — operator break-glass request + grant-status surface.
+mining.route('/internal/break-glass', miningInternalBreakGlassRouter);
+// INV-A / FIRE-2 — decision-trace replay (metadata default, content gated).
+mining.route('/internal/decision-trace', miningInternalDecisionTraceRouter);
 // Wave OWNER-OS DAILY-BRIEF rebuild — admin fleet overview of today's
 // daily-brief sends + failures + top alerts across every tenant.
 mining.route('/internal/daily-brief-overview', adminDailyBriefOverviewRouter);

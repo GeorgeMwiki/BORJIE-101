@@ -6,7 +6,14 @@
  *
  *   POST /api/v1/gdpr/delete-request           — lodge a deletion request
  *   GET  /api/v1/gdpr/delete-request/:id       — poll for status
- *   POST /api/v1/gdpr/delete-request/:id/execute — super-admin execution
+ *   POST /api/v1/gdpr/delete-request/:id/execute?tenant=… — break-glass exec
+ *
+ * INV-A / FIRE-5: RTBF EXECUTION deletes a tenant's PII from this internal
+ * console. It is now bound to the break-glass spine — a platform operator must
+ * have an active, tenant-consented, time-boxed grant (scope `rtbf_execution`)
+ * for the TARGET tenant before the gateway will execute. The execution is
+ * hash-chain audited and surfaced on the tenant's owner-web Trust Center. The
+ * operator files the request here; the gateway enforces the gate.
  */
 
 import { useCallback, useState } from 'react';
@@ -25,11 +32,13 @@ interface DeleteRequestRecord {
 export function DataPrivacyClient() {
   const [customerId, setCustomerId] = useState('');
   const [notes, setNotes] = useState('');
+  const [targetTenantId, setTargetTenantId] = useState('');
   const [record, setRecord] = useState<DeleteRequestRecord | null>(null);
   const [lookupId, setLookupId] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [requestingGrant, setRequestingGrant] = useState(false);
 
   const submit = useCallback(async () => {
     setLoading(true);
@@ -65,22 +74,53 @@ export function DataPrivacyClient() {
     }
   }, [lookupId]);
 
+  const requestBreakGlass = useCallback(async () => {
+    if (!targetTenantId) {
+      setError('A target tenant id is required to request break-glass.');
+      return;
+    }
+    setRequestingGrant(true);
+    setError(null);
+    setMessage(null);
+    const res = await api.post('/mining/internal/break-glass/requests', {
+      tenantId: targetTenantId,
+      justificationCode: 'rtbf_execution',
+      reason: `RTBF execution${record ? ` for request ${record.id}` : ''}`,
+      scopes: ['rtbf_execution'],
+    });
+    setRequestingGrant(false);
+    if (res.success) {
+      setMessage(
+        'Break-glass request filed. The tenant must consent on their Trust Center before execution will run. Retry execution once consented.',
+      );
+    } else {
+      setError(res.error ?? 'Failed to file break-glass request');
+    }
+  }, [targetTenantId, record]);
+
   const execute = useCallback(async () => {
     if (!record) return;
+    if (!targetTenantId) {
+      setError('A target tenant id is required to execute (break-glass scope).');
+      return;
+    }
     setLoading(true);
     setError(null);
     const res = await api.post<DeleteRequestRecord>(
-      `/gdpr/delete-request/${encodeURIComponent(record.id)}/execute`,
+      `/gdpr/delete-request/${encodeURIComponent(record.id)}/execute?tenant=${encodeURIComponent(targetTenantId)}`,
       {},
     );
     setLoading(false);
     if (res.success && res.data) {
       setRecord(res.data);
-      setMessage('Deletion executed.');
+      setMessage('Deletion executed under break-glass (audited + tenant-visible).');
     } else {
-      setError(res.error ?? 'Failed to execute deletion');
+      setError(
+        res.error ??
+          'Failed to execute deletion — an active tenant-consented break-glass grant is required.',
+      );
     }
-  }, [record]);
+  }, [record, targetTenantId]);
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -117,6 +157,17 @@ export function DataPrivacyClient() {
             placeholder="cust_…"
             className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
             data-testid="gdpr-customer-id"
+          />
+        </label>
+        <label className="block text-sm">
+          <span className="text-neutral-300">Target tenant id</span>
+          <input
+            type="text"
+            value={targetTenantId}
+            onChange={(e) => setTargetTenantId(e.target.value)}
+            placeholder="tenant_… (required for break-glass execution)"
+            className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
+            data-testid="gdpr-target-tenant"
           />
         </label>
         <label className="block text-sm">
@@ -174,13 +225,24 @@ export function DataPrivacyClient() {
           {record.executedAt && <p>Executed: {record.executedAt}</p>}
           {record.notes && <p>Notes: {record.notes}</p>}
           {record.status !== 'executed' && (
-            <button
-              type="button"
-              onClick={() => void execute()}
-              className="mt-2 rounded bg-rose-700 px-4 py-2 text-sm font-medium text-white"
-            >
-              Execute deletion
-            </button>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void requestBreakGlass()}
+                disabled={!targetTenantId || requestingGrant}
+                className="rounded border border-amber-700 px-4 py-2 text-sm font-medium text-amber-300 disabled:opacity-50"
+              >
+                {requestingGrant ? 'Filing…' : 'Request break-glass'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void execute()}
+                disabled={!targetTenantId}
+                className="rounded bg-rose-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                Execute deletion (break-glass)
+              </button>
+            </div>
           )}
         </section>
       )}

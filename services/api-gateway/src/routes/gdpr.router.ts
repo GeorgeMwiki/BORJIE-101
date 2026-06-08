@@ -15,6 +15,10 @@ import { z } from 'zod';
 import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
 import { routeCatch } from '../utils/safe-error';
+import {
+  recordBreakGlassAccess,
+  requireBreakGlass,
+} from '../middleware/break-glass';
 
 import { withSecurityEvents } from '@borjie/observability';
 const DeleteRequestSchema = z.object({
@@ -128,17 +132,35 @@ app.get('/delete-requests', async (c: any) => {
 app.post(
   '/delete-request/:id/execute',
   requireRole(UserRole.SUPER_ADMIN),
+  // INV-A / FIRE-5: RTBF EXECUTION deletes tenant PII from the Borjie-internal
+  // console. A platform operator may only run it under an active, tenant-
+  // consented, time-boxed break-glass grant (scope `rtbf_execution`); the
+  // execution is hash-chain audited and surfaced on the tenant's owner-web
+  // Trust Center. A tenant's OWN admin running their own erasure is the data
+  // plane and is unaffected (the gate applies to platform principals only).
+  requireBreakGlass('rtbf_execution'),
   withSecurityEvents({ action: 'gdpr.create', resource: 'gdpr', severity: 'info' }, async (c: any) => {
     const auth = c.get('auth');
     const s = svc(c);
     if (!s) return notImplemented(c);
     const db = tx(c);
+    // The deletion targets the break-glass grant's tenant (a platform operator
+    // acts cross-tenant under consent) — NEVER the operator's own tenant
+    // context. The middleware guarantees a consented grant for this tenant.
+    const targetTenantId =
+      (c.get('breakGlassTenantId') as string | undefined) ?? auth.tenantId;
     try {
       const result = await s.executeDeletion(
-        auth.tenantId,
+        targetTenantId,
         c.req.param('id'),
         auth.userId,
       );
+
+      await recordBreakGlassAccess(c, {
+        route: 'gdpr/delete-request/:id/execute',
+        scope: 'rtbf_execution',
+        rowCount: result.statements.length,
+      });
 
       // Run the pseudonymization statements inside a single transaction
       // so a partial failure leaves no half-pseudonymized customer.

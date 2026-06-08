@@ -21,14 +21,30 @@
  * SUPER_ADMIN-only — this is fleet metadata, not tenant-scoped data.
  * The handler bypasses the per-tenant RLS scope (mirrors
  * tenants.hono.ts) so the aggregate sees every row.
+ *
+ * INV-A / FIRE-4 — METADATA vs CONTENT split. `topAlerts[].summary` is the
+ * free-text body of a tenant's alert — tenant BUSINESS DATA, not platform
+ * metadata. The DEFAULT overview REDACTS those summaries (counts, severities,
+ * tenant ids, SLAs stay — control-plane-safe). The free-text alert bodies for
+ * ONE tenant are served only at `GET /content?tenant=…`, gated by
+ * `requireBreakGlass('daily_brief_content')` (deny-by-default until the tenant
+ * consents to a time-boxed grant; every read hash-chain audited + tenant-
+ * visible).
  */
 
 import { Hono } from 'hono';
 import { sql } from 'drizzle-orm';
+import { withServiceRoleContext } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
-import { databaseMiddleware } from '../../../middleware/database';
+import { databaseMiddlewareNoPin } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  recordBreakGlassAccess,
+  requireBreakGlass,
+} from '../../../middleware/break-glass';
 import { createLogger } from '../../../utils/logger';
+
+const REDACTED_ALERT = '[redacted — request break-glass to view content]';
 
 const moduleLogger = createLogger('admin-daily-brief-overview');
 
@@ -65,8 +81,9 @@ export function createAdminDailyBriefOverviewRouter(): Hono {
 
   app.use('*', authMiddleware);
   app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
-  app.use('*', databaseMiddleware);
+  app.use('*', databaseMiddlewareNoPin);
 
+  // GET / — metadata-only fleet overview. Alert summaries REDACTED.
   app.get('/', async (c: any) => {
     const db = c.get('db');
     if (!db) {
@@ -82,7 +99,11 @@ export function createAdminDailyBriefOverviewRouter(): Hono {
       );
     }
     try {
-      const overview = await composeOverview(db);
+      const overview = await withServiceRoleContext(db, (tx) =>
+        composeOverview(tx as unknown as { execute(q: unknown): Promise<unknown> }, {
+          withAlertContent: false,
+        }),
+      );
       return c.json({ success: true, data: overview }, 200);
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
@@ -100,12 +121,72 @@ export function createAdminDailyBriefOverviewRouter(): Hono {
     }
   });
 
+  // GET /content?tenant=… — alert free-text bodies for ONE tenant. Break-glass
+  // gated + single-tenant scoped.
+  const contentApp = new Hono();
+  contentApp.use('*', authMiddleware);
+  contentApp.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
+  contentApp.use('*', databaseMiddlewareNoPin);
+  contentApp.use('*', requireBreakGlass('daily_brief_content'));
+
+  contentApp.get('/content', async (c: any) => {
+    const db = c.get('db');
+    if (!db) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'DAILY_BRIEF_OVERVIEW_UNAVAILABLE',
+            message: 'database is not configured on this gateway',
+          },
+        },
+        503,
+      );
+    }
+    const tenantId = c.get('breakGlassTenantId') as string;
+    try {
+      const overview = await withServiceRoleContext(db, (tx) =>
+        composeOverview(tx as unknown as { execute(q: unknown): Promise<unknown> }, {
+          withAlertContent: true,
+          tenantId,
+        }),
+      );
+      await recordBreakGlassAccess(c, {
+        route: 'internal/daily-brief-overview/content',
+        scope: 'daily_brief_content',
+        rowCount: overview.topAlerts.length,
+      });
+      return c.json({ success: true, data: overview }, 200);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      moduleLogger.error('admin daily-brief content failed', {
+        evt: 'admin_daily_brief_content_failed',
+        reason,
+      });
+      return c.json(
+        {
+          success: false,
+          error: { code: 'DAILY_BRIEF_OVERVIEW_FAILED', message: reason },
+        },
+        500,
+      );
+    }
+  });
+
+  app.route('/', contentApp);
+
   return app;
 }
 
-async function composeOverview(db: {
-  execute(q: unknown): Promise<unknown>;
-}): Promise<AdminDailyBriefOverview> {
+interface ComposeOptions {
+  readonly withAlertContent: boolean;
+  readonly tenantId?: string;
+}
+
+async function composeOverview(
+  db: { execute(q: unknown): Promise<unknown> },
+  opts: ComposeOptions,
+): Promise<AdminDailyBriefOverview> {
   const date = todayInTz('Africa/Dar_es_Salaam');
 
   // 1) Dispatch counters for today across every tenant.
@@ -192,8 +273,14 @@ async function composeOverview(db: {
   });
 
   // 4) Top alerts — pull the top 3 alert-level decisions across every
-  // tenant snapshot for today. The brief.decisions.items array holds
-  // alert-level lines; we cap at 3 for the admin overview card.
+  // tenant snapshot for today (or ONE tenant under break-glass). The
+  // brief.decisions.items array holds alert-level lines; we cap at 3 for the
+  // admin overview card. INV-A: when scoped to a single tenant we filter the
+  // snapshot CTE to that tenant; the free-text `summary` is REDACTED unless
+  // `withAlertContent` (i.e. a consented break-glass grant) is set.
+  const tenantFilter = opts.tenantId
+    ? sql`AND s.tenant_id = ${opts.tenantId}::uuid`
+    : sql``;
   const alertRows = rowsOf(
     await db.execute(sql`
       WITH today_snaps AS (
@@ -201,6 +288,7 @@ async function composeOverview(db: {
           FROM owner_brief_snapshots s
           JOIN tenants t ON t.id::uuid = s.tenant_id
          WHERE s.snapshot_date = ${date}::date
+         ${tenantFilter}
          ORDER BY s.generated_at DESC
       )
       SELECT tenant_id::text AS tenant_id,
@@ -225,7 +313,11 @@ async function composeOverview(db: {
       tenantName: String(row.tenant_name ?? '—'),
       severity: String(row.severity ?? 'high'),
       kind: String(row.kind ?? 'incident'),
-      summary: String(row.summary ?? ''),
+      // INV-A / FIRE-4: free-text alert body is tenant business data —
+      // REDACTED unless serving under a consented break-glass grant.
+      summary: opts.withAlertContent
+        ? String(row.summary ?? '')
+        : REDACTED_ALERT,
     };
   });
 

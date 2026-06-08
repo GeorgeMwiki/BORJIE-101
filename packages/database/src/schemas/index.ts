@@ -131,6 +131,9 @@ export * from './ai-audit-chain.schema.js';
 export * from './ai-semantic-memory.schema.js';
 export * from './training.schema.js';
 
+// INV-A break-glass operator-access spine (FIRE-1)
+export * from './operator-access.schema.js';
+
 // Intelligence + autonomy
 export * from './ai-intelligence-feedback.schema.js';
 export * from './progressive-context.schema.js';
@@ -349,6 +352,14 @@ export * from './cognitive-memory.schema.js';
 // 0312_memory_v2_durable_stores.sql so `@borjie/memory-v2` survives a
 // process restart. Companion: packages/memory-v2/src/*/store-drizzle.ts.
 export * from './memory-v2.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 1 EstateMind — situational model durable store (organ #2). One table
+// (situational_model_entities) backing migration 0317_situational_model.sql so
+// the resident mind's standing situational state survives a process restart.
+// Companion: packages/central-intelligence/src/kernel/situational-model/* +
+// the Drizzle adapter in services/api-gateway/.../estate-mind-wiring.ts.
+export * from './situational-model.schema.js';
 
 // ---------------------------------------------------------------------------
 // Wave 18V — Junior Architecture (27 juniors as MD-class within scope)

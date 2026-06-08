@@ -528,6 +528,35 @@ export {
 export * as worldModel from './world-model/index.js';
 
 /**
+ * Situational model (Wave 1, organ #2) — the standing, decaying, per-tenant
+ * situational-state buffer the resident `EstateMind` Slow Loop WRITES every
+ * tick and the per-request `think(req)` Fast Loop READS. Each estate entity
+ * (licence / counterparty / site / arrears / equipment / cash) carries an
+ * ACT-R activation field so "what is salient now" is a COMPUTED quantity.
+ * Additive + read-only for the Fast Loop; default behaviour is unchanged until
+ * the resident loop is enabled (flag BORJIE_ESTATE_MIND).
+ */
+export * as situationalModel from './situational-model/index.js';
+
+/**
+ * Motivational subsystem (Wave 1) — the standing estate DRIVES (cash-runway,
+ * licence-currency, safety, offtake-coverage, royalty-currency,
+ * equipment-health). Each drive evaluates its satisfaction over the
+ * situational model; an UNSATISFIED drive generates a goal with NO incoming
+ * trigger — the organ behind "loops the user has no idea about." Pure.
+ */
+export * as motivation from './motivation/index.js';
+
+/**
+ * EstateMind (Wave 1, organ #1) — the resident per-tenant Slow Loop:
+ * PERCEIVE → ORIENT → evaluate drives → emit goals → surface as PROPOSALS
+ * through the EXISTING gated proactive sink. Holds state between ticks (the
+ * situational model IS the state). It NEVER executes a sovereign/money/licence
+ * action (those stay HITL). Behind flag BORJIE_ESTATE_MIND (default OFF).
+ */
+export * as estateMind from './estate-mind/index.js';
+
+/**
  * Introspection layer — the brain's "self-knowledge" pattern.
  * Decision-trace replay (drift / regression / fairness sweeps) plus
  * per-persona capability cards (Anthropic-style model cards). Closes

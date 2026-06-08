@@ -91,6 +91,9 @@ import { ownerThreadsRouter } from './routes/owner/messaging/threads.hono';
 // Persists the brain's `<chat_handoff />` SSE tag, fires notifications
 // to the recipient, and bubbles the reply back to the source chat.
 import { ownerHandoffRouter } from './routes/owner/handoff.hono';
+// INV-A / FIRE-1 — tenant-visible break-glass Trust Center (consent / deny /
+// revoke + the hash-chained access-transparency log for this tenant).
+import { ownerBreakGlassRouter } from './routes/owner/break-glass.hono';
 // Roadmap R2 — owner saved-search alerts. New CRUD surface under
 // /owner/saved-searches; companion worker lives in
 // services/api-gateway/src/workers/saved-search-worker.ts.
@@ -176,6 +179,15 @@ import {
 import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-wiring';
 import { buildResearchWiring } from './composition/research/research-wiring';
 import { scheduleProactive } from './composition/proactive/proactive-wiring';
+// Wave 1 EstateMind — the resident per-tenant Slow Loop heartbeat. init reads
+// flag BORJIE_ESTATE_MIND ONCE (default OFF = today's behaviour); the supervisor
+// is leader-gated at its .start() site below. Additive: nothing on the
+// per-request think(req) path changes.
+import {
+  initEstateMind,
+  createEstateMindSupervisor,
+} from './composition/estate-mind-wiring';
+import { createPinoLikeLogger } from './utils/pino-shim';
 import { createCalendarRouter } from './routes/owner/calendar.hono';
 import { createCalendarChannelFromEnv } from './services/notification-dispatch/calendar-providers/index';
 // REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
@@ -700,6 +712,7 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'mwikila-autonomous',
   'proactive-scheduler',
   'decision-retrospective',
+  'estate-mind',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -1923,6 +1936,8 @@ api.route('/owner/threads', ownerThreadsRouter);
 // Wave KNOWLEDGE-HANDOFF — POST /owner/handoff (create),
 // GET /owner/handoff/inbox, POST /owner/handoff/:id/resolve.
 api.route('/owner/handoff', ownerHandoffRouter);
+// INV-A / FIRE-1 — tenant-visible break-glass Trust Center.
+api.route('/owner/break-glass', ownerBreakGlassRouter);
 // Roadmap R2 — owner saved-search alerts.
 api.route('/owner/saved-searches', savedSearchesRouter);
 // Mr. Mwikila autonomous-MD inbox + delegation surface.
@@ -3151,6 +3166,19 @@ const proactiveScheduler = scheduleProactive({
   logger,
 });
 
+// Wave 1 EstateMind — the resident per-tenant Slow Loop. PERCEIVE → ORIENT →
+// evaluate standing drives → emit self-formulated goals as PROPOSALS through
+// the EXISTING gated proactive sink (it NEVER executes money/licence actions —
+// those stay HITL). Default-OFF (BORJIE_ESTATE_MIND); leader-gated at .start().
+const estateMindConfig = initEstateMind();
+const estateMindSupervisor = createEstateMindSupervisor({
+  db: (serviceRegistry.db as unknown as
+    | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+    | null) ?? null,
+  logger: createPinoLikeLogger('estate-mind'),
+  config: estateMindConfig,
+});
+
 // Graceful shutdown — documented and tested step-by-step:
 //  1. Flip a "shutting down" flag so the /health probe returns 503.
 //  2. Tell the HTTP server to stop accepting NEW connections.
@@ -3287,6 +3315,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
   try {
     mwikilaAutonomousWorker.stop();
     proactiveScheduler.stop();
+    estateMindSupervisor.stop();
     logger.info('shutdown: mwikila autonomous worker stopped');
   } catch (err) {
     logger.warn(
@@ -3588,6 +3617,10 @@ if (require.main === module) {
   // calls. Inert in test mode + when BORJIE_MWIKILA_WORKER_DISABLED=true.
   withClusterLeader(mwikilaAutonomousWorker, lockIdFor('mwikila-autonomous')).start();
   withClusterLeader(proactiveScheduler, lockIdFor('proactive-scheduler')).start();
+  // Wave 1 EstateMind — resident Slow Loop heartbeat. Only the elected leader
+  // ticks (one resident mind per cluster); `.start()` is a no-op unless
+  // BORJIE_ESTATE_MIND=on, so this is inert by default.
+  withClusterLeader(estateMindSupervisor, lockIdFor('estate-mind')).start();
   // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
   // committed decision whose prediction horizon has passed, joins
   // outcome_reconciliations + outcome_observations, grades the
