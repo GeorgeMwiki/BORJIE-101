@@ -432,3 +432,24 @@ reversible; gated otherwise). The measure of success is WORK DONE, not advice gi
 for the service (outcomes/work), not seats. Same service model for BossNyumba.
 GAP (honest): the engines built so far produce artifacts/advice; the ACTUATOR + action-
 execution layer that performs real-world work end-to-end is the gap that makes us a service.
+
+---
+
+## INV-G · Uncapped + dynamic capability; only dynamic governance, never arbitrary caps — owner directive
+Because the system is LLM-driven + dynamic, CAPABILITY is UNCAPPED:
+  - DURATION/horizon: uncapped via DURABLE EXECUTION (Temporal/DBOS-class). Long real-world
+    operations (months-long ladders, multi-week shipments, 60-day renewals, 24/7 loops) are
+    first-class: persisted, survive restart, resume mid-flight, run as long as the real
+    process takes. NO "must finish in X" cap.
+  - SIZE/scale: uncapped + dynamic. Entities/tabs/surfaces/connections/organs/operations/
+    employees/customers all unbounded (schema synthesis + INV-C). 5 or 5,000 — structure scales.
+  - REASONING/output: NOT capped by the LLM context window. Big work DECOMPOSES into junior
+    swarms + streaming + memory, never one oversized call. The window is an implementation
+    detail the kernel routes around, never a capability ceiling.
+The ONLY bounds are DYNAMIC GOVERNANCE — cost/budget guards, external-actuator rate-limits,
+the rails (HITL on irreversible), anti-wedge safety timeouts. These are REASONED + owner/
+brain-configurable per context, exist so infinite capability runs SAFELY, and are NEVER
+arbitrary hardcoded capability caps. The cap is the MANDATE + the RAILS, never a magic number.
+BUILD DISCIPLINE: any hardcoded magic-number that limits CAPABILITY (not safety) is a bug —
+replace with dynamic/reasoned governance. Keep anti-wedge SAFETY timeouts; dynamicize
+capability LIMITS. Audit the codebase for such caps during convergence. Same both repos.
