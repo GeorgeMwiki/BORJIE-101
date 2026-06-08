@@ -59,6 +59,33 @@ export interface ToolDispatcherConfig {
     spawn: SubMdSpawn,
     ctx?: HookContext,
   ) => Promise<{ readonly handoffToken: string }>;
+  /**
+   * Modality arbiter (COG-07/AUT-14) — optional learned-skill handler.
+   * When wired, a `run_skill` decision invokes it; when omitted the
+   * dispatcher returns a structured `skill_ack` breadcrumb (same
+   * fall-closed pattern as `spawnHandler`) so the loop continues.
+   */
+  readonly skillHandler?: (
+    args: {
+      readonly skillId: string;
+      readonly params: Readonly<Record<string, unknown>>;
+    },
+    ctx?: HookContext,
+  ) => Promise<{ readonly output?: unknown }>;
+  /**
+   * Modality arbiter — optional higher-order modality handler
+   * (tab/document/media/workflow/loop). When wired, a `run_modality`
+   * decision invokes it; when omitted the dispatcher returns a
+   * `modality_ack` breadcrumb. Money/licence actions never reach here as a
+   * modality — they remain `tool_call`/`spawn_sub_md` gated by the rails.
+   */
+  readonly modalityHandler?: (
+    args: {
+      readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+      readonly payload: Readonly<Record<string, unknown>>;
+    },
+    ctx?: HookContext,
+  ) => Promise<{ readonly output?: unknown }>;
   /** Optional logger (Pino-style). No console.* per the hard rules. */
   readonly logger?: {
     warn(msg: string, meta?: Record<string, unknown>): void;
@@ -185,6 +212,50 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
     };
   }
 
+  async function dispatchSkill(
+    decision: Extract<Decision, { kind: 'run_skill' }>,
+    ctx: HookContext,
+  ): Promise<DispatchResult> {
+    if (config.skillHandler) {
+      try {
+        const { output } = await config.skillHandler(
+          { skillId: decision.skillId, params: decision.params },
+          ctx,
+        );
+        return { kind: 'skill_ack', skillId: decision.skillId, output };
+      } catch (err) {
+        config.logger?.warn('tool-dispatcher skillHandler threw', {
+          skillId: decision.skillId,
+          reason: err instanceof Error ? err.message : 'skill error',
+        });
+        // Fall through to the breadcrumb ack so the parent loop continues.
+      }
+    }
+    return { kind: 'skill_ack', skillId: decision.skillId };
+  }
+
+  async function dispatchModality(
+    decision: Extract<Decision, { kind: 'run_modality' }>,
+    ctx: HookContext,
+  ): Promise<DispatchResult> {
+    if (config.modalityHandler) {
+      try {
+        const { output } = await config.modalityHandler(
+          { modality: decision.modality, payload: decision.payload },
+          ctx,
+        );
+        return { kind: 'modality_ack', modality: decision.modality, output };
+      } catch (err) {
+        config.logger?.warn('tool-dispatcher modalityHandler threw', {
+          modality: decision.modality,
+          reason: err instanceof Error ? err.message : 'modality error',
+        });
+        // Fall through to the breadcrumb ack so the parent loop continues.
+      }
+    }
+    return { kind: 'modality_ack', modality: decision.modality };
+  }
+
   return {
     async dispatch(
       decision: Decision,
@@ -211,6 +282,10 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
           return { kind: 'monitor_ack', watchId: decision.watch.watchId };
         case 'spawn_sub_md':
           return dispatchSpawn(decision, ctx);
+        case 'run_skill':
+          return dispatchSkill(decision, ctx);
+        case 'run_modality':
+          return dispatchModality(decision, ctx);
         default:
           // Fail closed over the closed Decision union. Every current
           // variant is handled above; a new one surfaces as a tool_error.

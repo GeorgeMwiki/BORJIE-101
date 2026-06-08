@@ -53,6 +53,50 @@ export {
   type SubMdIsolation,
 } from './decision.js';
 
+// COG-07/AUT-14 — the modality arbiter (the 7-way output head). The
+// composition root (api-gateway brain-kernel-wiring) constructs it with the
+// kernel's embedder + Drizzle-backed skill/flow/recipe retrievers + the
+// rail-composed autonomy decider + body-change syscall + loop-runner
+// adapter, threads it onto `OrchestratorDeps.modalityArbiter`, and gates the
+// whole thing behind `BORJIE_MODALITY_ARBITER` (default-OFF = chat-only).
+export {
+  createModalityArbiter,
+  liftToModalityDecision,
+  DEFAULT_MODALITY_TAU,
+  DEFAULT_MODALITY_TOP_K,
+} from './modality-arbiter.js';
+export {
+  MODALITIES,
+  LOOP_KINDS,
+  isModality,
+  type Modality,
+  type LoopKind,
+  type ModalityArbiter,
+  type ModalityArbiterDeps,
+  type ModalityArbiterInput,
+  type ModalityVerdict,
+  type ArbiterTier,
+  type ArbiterEmbedderPort,
+  type AutonomyDecision,
+  type AutonomyDeciderInput,
+  type AutonomyDeciderOutput,
+  type AutonomyDeciderPort,
+  type ConsequenceTier as ModalityConsequenceTier,
+  type Reversibility as ModalityReversibility,
+  type SkillRetrieverPort as ModalitySkillRetrieverPort,
+  type RetrievedSkill,
+  type FlowRetrieverPort,
+  type RetrievedFlow,
+  type ModalityDescriptor,
+  type FlowPosture,
+  type FlowPosturePort,
+  type BodyChangeRequest,
+  type BodyChangeVerdict,
+  type BodyChangePort,
+  type LoopRunnerPort,
+  type LlmTieBreakPort,
+} from './modality-arbiter-types.js';
+
 // Budget primitives.
 export {
   Budget,

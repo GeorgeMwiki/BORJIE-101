@@ -103,6 +103,14 @@ import {
 import {
   buildOrchestratorBindings,
   type OrchestratorBindings,
+  // COG-07/AUT-14 — modality arbiter port builders (default-OFF rollout).
+  buildSkillRetriever,
+  buildFlowRetriever,
+  buildModalityDescriptors,
+  buildFlowPosturePort,
+  buildAutonomyDecider,
+  buildBodyChangePort,
+  createLoopRunnerAdapter,
 } from './orchestrator-bindings.js';
 import {
   createSubMdSpawnHandler,
@@ -394,6 +402,22 @@ function resolveUncertaintyPolicyMode(
   const raw = env['BORJIE_UNCERTAINTY_POLICY'];
   if (!raw) return 'off';
   return raw.trim().toLowerCase() === 'on' ? 'on' : 'off';
+}
+
+/**
+ * COG-07/AUT-14 — resolve whether the modality arbiter is enabled from
+ * `BORJIE_MODALITY_ARBITER`. DEFAULT-OFF: only an explicit
+ * `on`/`1`/`true`/`enabled` turns it on, so an unset / typo'd value keeps
+ * today's chat/action-only behaviour (the safe default). Mirrors the
+ * `BORJIE_ORCHESTRATOR_MAINLOOP` canary lever.
+ */
+function resolveModalityArbiterEnabled(
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  const raw = env['BORJIE_MODALITY_ARBITER'];
+  if (!raw) return false;
+  const v = raw.trim().toLowerCase();
+  return v === 'on' || v === '1' || v === 'true' || v === 'enabled';
 }
 
 /**
@@ -945,9 +969,90 @@ export function buildOrchestratorComposeBlock(args: {
     rootParentContext,
   );
 
+  // ───────────────────────────────────────────────────────────────────
+  // COG-07/AUT-14 — the modality arbiter (the 7-way output head).
+  //
+  // Default-OFF behind `BORJIE_MODALITY_ARBITER` (mirrors
+  // `BORJIE_ORCHESTRATOR_MAINLOOP`). When the flag is OFF the arbiter is
+  // NOT constructed → zero added latency and today's chat/action-only
+  // behaviour. When ON, it is constructed from the SAME `resolveEmbedder`
+  // the kernel already uses + Drizzle-backed skill/flow/posture retrievers
+  // (RLS via the canonical GUC) + the rail-composed autonomy decider
+  // (composeWithRail(decideAutonomy(...))) + the EA-04 body-change syscall
+  // + the loop-runner adapter. Its skill/modality HANDLERS are bound onto
+  // the dispatcher below so a lifted `run_skill`/`run_modality` Decision has
+  // a real runtime path. The arbiter can ROUTE to an action but the action
+  // still hits the policy-gate + 9-hook chain — NO rail is bypassed; money/
+  // licence/deletion stay dual-control HITL.
+  const modalityArbiterEnabled = resolveModalityArbiterEnabled(args.envSource);
+  // Resolve the SAME text-embedder the kernel uses (OPENAI_EMBEDDING_API_KEY
+  // → OPENAI_API_KEY → null embedder) so Tier-1 nearest-neighbour shares the
+  // kernel's embedding space. Only constructed when the arbiter is enabled.
+  const arbiterEmbedder = modalityArbiterEnabled
+    ? resolveEmbedder(args.envSource, args.logger)
+    : undefined;
+  const modalityArbiter = modalityArbiterEnabled && arbiterEmbedder
+    ? orchestrator.createModalityArbiter({
+        embedder: arbiterEmbedder,
+        skillRetriever: buildSkillRetriever(args.db),
+        flowRetriever: buildFlowRetriever(args.db),
+        recipeDescriptors: buildModalityDescriptors(),
+        autonomyDecider: buildAutonomyDecider(),
+        flowPosturePort: buildFlowPosturePort(args.db),
+        bodyChangePort: buildBodyChangePort(),
+        loopRunner: createLoopRunnerAdapter(args.db, args.toolRegistry),
+        ...(args.logger?.warn
+          ? {
+              logger: {
+                warn: (msg: string, meta?: Record<string, unknown>): void => {
+                  args.logger?.warn?.({ wiring: 'modality-arbiter', ...meta }, msg);
+                },
+              },
+            }
+          : {}),
+      })
+    : undefined;
+
+  if (modalityArbiter) {
+    args.logger?.info?.(
+      { wiring: 'modality-arbiter', canaryEnvFlag: 'BORJIE_MODALITY_ARBITER' },
+      'brain-kernel: modality arbiter constructed (7-way output head); handlers bound to dispatcher; DEFAULT-OFF canary',
+    );
+  }
+
+  // The loop-runner adapter (reused by the modality handler's loop branch).
+  const loopRunner = createLoopRunnerAdapter(args.db, args.toolRegistry);
+
   const dispatcher = orchestrator.createToolDispatcher({
     registry: args.toolRegistry,
     spawnHandler,
+    // COG-07/AUT-14 — modality handlers. Only bound when the arbiter is
+    // enabled (default-OFF leaves these undefined → the dispatcher falls
+    // closed to a structured ack breadcrumb, exactly as before).
+    ...(modalityArbiterEnabled
+      ? {
+          modalityHandler: async (a: {
+            readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+            readonly payload: Readonly<Record<string, unknown>>;
+          }): Promise<{ readonly output?: unknown }> => {
+            // A standing/recurring loop routes to the (now-reachable)
+            // loop-runner; bounded modalities ack a breadcrumb until their
+            // render/compose dispatchers are bound at this seam.
+            if (a.modality === 'loop' || a.modality === 'workflow') {
+              const flowId = String(a.payload.flowId ?? 'adhoc');
+              const loopKind = String(a.payload.loopKind ?? 'reactive');
+              const { loopRunId } = await loopRunner.runLoop({
+                flowId,
+                loopKind: loopKind as Parameters<typeof loopRunner.runLoop>[0]['loopKind'],
+                tenantId: null,
+                payload: a.payload,
+              });
+              return { output: { modality: a.modality, loopRunId } };
+            }
+            return { output: { modality: a.modality, acked: true } };
+          },
+        }
+      : {}),
     ...(args.logger?.warn
       ? {
           logger: {

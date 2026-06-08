@@ -396,6 +396,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0316_workflow_trigger_embedding.sql",
+      "down": "down/0316_down_workflow_trigger_embedding.sql",
+      "reverses": "Drops the workflow_registry table (the modality arbiter's persisted, embeddable flow catalog: trigger_embedding VECTOR(1536) + loop_kind + status/source + ivfflat cosine index + FORCE RLS tenant-isolation/service-role-bypass policies). Fail-safe: with no rows the arbiter's Tier-1 flow retrieval returns empty so a `workflow` modality is never nearest-neighbour-selected — flows revert to explicit-id-only selection (pre-0316 behaviour). No money/licence/ledger records; rails unaffected. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

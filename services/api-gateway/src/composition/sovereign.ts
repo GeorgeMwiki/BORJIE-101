@@ -898,6 +898,14 @@ function maybeWireOrchestratorBlock(args: {
     // tool registry, durable Drizzle memory tool, + the 9 hook ports.
     // `useByDefault` is UNSET inside the builder so the kernel's resolver
     // governs routing (DEFAULT-ON with the env reverts).
+    //
+    // COG-07/AUT-14 — `buildOrchestratorComposeBlock` ALSO constructs the
+    // modality arbiter (the 7-way output head) + binds its skill/modality
+    // dispatcher handlers when `BORJIE_MODALITY_ARBITER` is on (read from the
+    // `envSource` below). DEFAULT-OFF: the arbiter is not constructed and this
+    // sovereign path behaves byte-identically to today (chat/action only). The
+    // arbiter can route to an action but it still hits the policy-gate + 9-hook
+    // chain — money/licence/deletion stay dual-control HITL; no rail bypassed.
     args.mutable.orchestrator = buildOrchestratorComposeBlock({
       // The sensor-wrapped client structurally satisfies `KernelAnthropicSdkLike`
       // (`.messages.create`); cast at the boundary to the builder's narrow shape.

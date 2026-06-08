@@ -1635,3 +1635,12 @@ export * from './agent-memory.schema.js';
 // services/notification-dispatch/push-provider.ts). tenant_id is uuid
 // (pre-dates the text-tenant convention); FORCE RLS per migration 0139.
 export * from './device-push-tokens.schema.js';
+
+// workflow_registry (migration 0316) — the persisted, embeddable flow
+// catalog the modality arbiter (COG-07/AUT-14) retrieves over. Adds
+// `trigger_embedding VECTOR(1536)` so a turn intent can nearest-neighbour a
+// flow's trigger description; `loop_kind` distinguishes a bounded workflow
+// (workflow-engine) from a standing loop (@borjie/loop-runner). tenant_id
+// NULL ⇒ global flow; FORCE RLS on app.current_tenant_id + service-role
+// bypass per migration 0316.
+export * from './workflow-registry.schema.js';

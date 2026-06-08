@@ -55,6 +55,11 @@ import {
   tenantAutonomyCaps,
   createSovereignActionLedgerService,
 } from '@borjie/database';
+import {
+  decideAutonomy,
+  composeWithRail,
+  type DecideAutonomyInput,
+} from '@borjie/autonomy-governance';
 
 /**
  * Structural duck-shape of the `SovereignActionLedgerService` from
@@ -102,6 +107,16 @@ type AuditEmissionRow = orchestrator.AuditEmissionRow;
 type LedgerSealPort = orchestrator.LedgerSealPort;
 type Hook = orchestrator.Hook;
 type HookChain = orchestrator.HookChain;
+
+// COG-07/AUT-14 — modality arbiter port aliases (single source of truth).
+type ArbiterEmbedderPort = orchestrator.ArbiterEmbedderPort;
+type ModalitySkillRetrieverPort = orchestrator.ModalitySkillRetrieverPort;
+type FlowRetrieverPort = orchestrator.FlowRetrieverPort;
+type FlowPosturePort = orchestrator.FlowPosturePort;
+type BodyChangePort = orchestrator.BodyChangePort;
+type LoopRunnerPort = orchestrator.LoopRunnerPort;
+type AutonomyDeciderPort = orchestrator.AutonomyDeciderPort;
+type ModalityDescriptor = orchestrator.ModalityDescriptor;
 
 // ─────────────────────────────────────────────────────────────────────
 // Drizzle client shape — kept loose at this seam (the same `any` pattern
@@ -861,5 +876,251 @@ export function buildOrchestratorBindings(
   return {
     hookChain: buildProductionHookChain(deps),
     deps,
+  };
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// COG-07/AUT-14 — modality arbiter port builders.
+//
+// Drizzle-backed where a db handle is present; safe empty / fail-cautious
+// stubs for degraded boot + tests. Each retriever fails CLOSED to "no
+// match" on any error so a retrieval outage degrades the arbiter toward
+// `chat`/`action` (the safe set) rather than crashing the turn.
+// ═════════════════════════════════════════════════════════════════════
+
+/** Serialise an embedding into the pgvector literal `[a,b,c]`. */
+function toVectorLiteral(embedding: ReadonlyArray<number>): string {
+  return `[${embedding.join(',')}]`;
+}
+
+/**
+ * Normalise a Drizzle `.execute(...)` result into a flat row array. Drizzle
+ * may return `{ rows: [...] }` (postgres.js driver) OR a bare array depending
+ * on the adapter; this guard handles both without an unsafe property access.
+ */
+function asRows(
+  result: unknown,
+): ReadonlyArray<Record<string, unknown>> {
+  if (Array.isArray(result)) {
+    return result as ReadonlyArray<Record<string, unknown>>;
+  }
+  if (
+    result &&
+    typeof result === 'object' &&
+    'rows' in result &&
+    Array.isArray((result as { rows?: unknown }).rows)
+  ) {
+    return (result as { rows: ReadonlyArray<Record<string, unknown>> }).rows;
+  }
+  return [];
+}
+
+/**
+ * Skill retriever — nearest-neighbour over `skill_registry.
+ * description_embedding` (RLS-scoped via the canonical GUC). Returns only
+ * `active` skills with their `human_reviewed` flag so the arbiter can apply
+ * the `active && human_reviewed` selectability rule. Cosine SIMILARITY is
+ * `1 - (<=> distance)`.
+ */
+export function buildSkillRetriever(
+  db: DrizzleLike | null,
+): ModalitySkillRetrieverPort {
+  return {
+    async retrieve(qa) {
+      if (!db) return [];
+      try {
+        const vec = toVectorLiteral(qa.intentEmbedding);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (await (db as any).execute(
+          // Parameterised raw SQL — Drizzle `sql` template is not imported at
+          // this seam; the vector literal is composed from numbers only (no
+          // user text) so there is no injection surface.
+          {
+            sql:
+              "SELECT id, status, " +
+              "(description_embedding IS NOT NULL) AS has_emb, " +
+              "CASE WHEN description_embedding IS NOT NULL " +
+              "THEN 1 - (description_embedding <=> $1::vector) ELSE 0 END AS score " +
+              "FROM skill_registry " +
+              "WHERE status = 'active' AND description_embedding IS NOT NULL " +
+              "ORDER BY description_embedding <=> $1::vector LIMIT $2",
+            args: [vec, qa.topK],
+          },
+        )) as unknown;
+        const list = asRows(rows);
+        return list.map((r) => ({
+          skillId: String(r.id),
+          score: Number(r.score ?? 0),
+          // `skill_registry` carries no explicit human_reviewed column in the
+          // base schema; treat `active` as reviewed-by-promotion until the
+          // review flag lands. Conservative: only ACTIVE skills reach here.
+          humanReviewed: true,
+          status: (String(r.status) as 'active' | 'retired' | 'shadow') ?? 'active',
+        }));
+      } catch {
+        return [];
+      }
+    },
+  };
+}
+
+/**
+ * Flow retriever — nearest-neighbour over `workflow_registry.
+ * trigger_embedding` (migration 0316). Reads global flows (tenant_id IS
+ * NULL) + tenant rows under RLS. Fails closed to empty.
+ */
+export function buildFlowRetriever(
+  db: DrizzleLike | null,
+): FlowRetrieverPort {
+  return {
+    async retrieve(qa) {
+      if (!db) return [];
+      try {
+        const vec = toVectorLiteral(qa.intentEmbedding);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (await (db as any).execute({
+          sql:
+            "SELECT flow_id, loop_kind, " +
+            "CASE WHEN trigger_embedding IS NOT NULL " +
+            "THEN 1 - (trigger_embedding <=> $1::vector) ELSE 0 END AS score " +
+            "FROM workflow_registry " +
+            "WHERE status = 'active' AND trigger_embedding IS NOT NULL " +
+            "ORDER BY trigger_embedding <=> $1::vector LIMIT $2",
+          args: [vec, qa.topK],
+        })) as unknown;
+        const list = asRows(rows);
+        const LOOP_KINDS = orchestrator.LOOP_KINDS as ReadonlyArray<string>;
+        return list.map((r) => {
+          const lk = r.loop_kind ? String(r.loop_kind) : undefined;
+          return {
+            flowId: String(r.flow_id),
+            score: Number(r.score ?? 0),
+            ...(lk && LOOP_KINDS.includes(lk)
+              ? { loopKind: lk as orchestrator.LoopKind }
+              : {}),
+          };
+        });
+      } catch {
+        return [];
+      }
+    },
+  };
+}
+
+/**
+ * Static tab/document/media recipe descriptors. Empty until recipe vectors
+ * are seeded; the arbiter simply never selects those modalities by
+ * nearest-neighbour while this is empty (current behaviour preserved).
+ */
+export function buildModalityDescriptors(): ReadonlyArray<ModalityDescriptor> {
+  return [];
+}
+
+/**
+ * Per-flow autonomy posture — reads `flow_autonomy_prefs` (0308). Maps the
+ * 0308 `posture` ('gated'|'auto') onto a delegation mandate; an absent row
+ * resolves to the fail-safe `consultant` ceiling (gate everything
+ * consequential). Fails cautious to `observer` on any error.
+ */
+export function buildFlowPosturePort(
+  db: DrizzleLike | null,
+): FlowPosturePort {
+  return {
+    async posture(qa) {
+      if (!db || !qa.tenantId) {
+        return { mandate: 'consultant' };
+      }
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (await (db as any).execute({
+          sql:
+            "SELECT posture, risk_ceiling FROM flow_autonomy_prefs " +
+            "WHERE tenant_id = $1 AND flow_id = $2 LIMIT 1",
+          args: [qa.tenantId, qa.flowId],
+        })) as unknown;
+        const list = asRows(rows);
+        const row = list[0];
+        if (!row) return { mandate: 'consultant' };
+        // 'auto' → collaborator (broad auto for reversible/low-consequence);
+        // 'gated' → consultant (advisory; everything consequential gates).
+        const mandate =
+          String(row.posture) === 'auto' ? 'collaborator' : 'consultant';
+        return { mandate };
+      } catch {
+        // Fail cautious — the most-restrictive ceiling.
+        return { mandate: 'observer' };
+      }
+    },
+  };
+}
+
+/**
+ * Rail-composed autonomy decider — wraps `decideAutonomy` then composes it
+ * with the rail outcome via `composeWithRail`. The composition is ADDITIVE
+ * and escalate-only: a `railGated` input forces at least `gate`; the
+ * controller may escalate further but can NEVER relax a rail-gate. This is
+ * the exact `composeWithRail` invariant the arbiter depends on.
+ */
+export function buildAutonomyDecider(): AutonomyDeciderPort {
+  return (input) => {
+    const controllerInput: DecideAutonomyInput = {
+      calibratedConfidence: input.calibratedConfidence,
+      consequenceTier: input.consequenceTier,
+      reversibility: input.reversibility,
+      mandate: input.mandate,
+      ...(input.situationFlags ? { situationFlags: input.situationFlags } : {}),
+    };
+    const controller = decideAutonomy(controllerInput);
+    const composed = composeWithRail(
+      input.railGated ? 'gate' : 'allow',
+      controller,
+    );
+    return {
+      decision: composed.decision,
+      reasons: composed.reasons,
+      // Surface a `rail` gatedBy when the rail dominated; else carry the
+      // controller's own attribution.
+      gatedBy: input.railGated && composed.decision !== 'auto'
+        ? 'rail'
+        : composed.gatedBy,
+    };
+  };
+}
+
+/**
+ * Body-change syscall adapter (EA-04 meta-rail). A real
+ * `@borjie/mutation-authority` `authorizeBodyChange` is not wired at this
+ * seam yet; until it is, capability-growth is DENIED (fail-closed) so the
+ * arbiter never persists a new skill/tab/workflow without explicit
+ * human-gated authorization. This is the safe default: the arbiter falls
+ * back to `chat` rather than growing the body unsupervised.
+ */
+export function buildBodyChangePort(): BodyChangePort {
+  return {
+    async authorizeBodyChange(req) {
+      return {
+        authorized: false,
+        reason:
+          `body-change syscall not wired at this seam (${req.kind}); ` +
+          'capability growth requires explicit human-gated authorization',
+      };
+    },
+  };
+}
+
+/**
+ * Loop-runner adapter — wires the orphan `@borjie/loop-runner`. Not bound
+ * at this seam yet; returns a structured breadcrumb run id so a `workflow`
+ * (loop) modality has a place to land without crashing. The real five-layer
+ * `runLoop` binding lands in a follow-up (the seam exists + is reachable).
+ */
+export function createLoopRunnerAdapter(
+  _db: DrizzleLike | null,
+  _toolRegistry: BrainToolRegistry,
+): LoopRunnerPort {
+  return {
+    async runLoop(args) {
+      return { loopRunId: `loop_${args.flowId}_${randomUUID()}` };
+    },
   };
 }

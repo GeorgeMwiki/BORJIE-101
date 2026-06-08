@@ -67,6 +67,13 @@ import {
   createTurnStageEmitter,
   type StageEventBus,
 } from './stage-event-bus.js';
+// COG-07/AUT-14 — the modality arbiter (the 7-way output head). Optional
+// dep; when absent the loop behaves EXACTLY as today (chat/action only).
+import { liftToModalityDecision } from './modality-arbiter.js';
+import type {
+  ModalityArbiter,
+  ModalityVerdict,
+} from './modality-arbiter-types.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public request / response shapes
@@ -299,6 +306,20 @@ export interface OrchestratorDeps {
    * learning signal-emitter here.
    */
   readonly stageBus?: StageEventBus;
+  /**
+   * COG-07/AUT-14 — the modality arbiter (the 7-way output head). When
+   * wired, after the router emits a Decision the arbiter post-classifies
+   * the turn into one of the seven CLOSED output modalities and the loop
+   * LIFTS the Decision to `run_skill` / `run_modality` when a higher-order
+   * modality wins. The lifted Decision still flows through the SAME
+   * permission-mode + 9-hook + risk-tier gates below — NO rail is bypassed.
+   *
+   * Default-OFF: when this dep is ABSENT (the composition root constructs
+   * it only when `BORJIE_MODALITY_ARBITER` is on), the loop behaves
+   * BYTE-IDENTICALLY to today — chat/action only. The arbiter can never
+   * relax a rail; money/licence/deletion stay dual-control HITL.
+   */
+  readonly modalityArbiter?: ModalityArbiter;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -718,6 +739,48 @@ export async function thinkExtended(
       tools,
       messages,
     });
+
+    // ───────────────────────────────────────────────────────────────────
+    // COG-07/AUT-14 — modality arbiter (the 7-way output head). Inserted
+    // AFTER `router.call` (reuses the model's computed intent, no second
+    // expensive LLM pass) and BEFORE the permission-mode + 9-hook gates so
+    // any LIFTED Decision still flows through the SAME rails — NO rail is
+    // bypassed. Default-OFF: when `deps.modalityArbiter` is absent (the
+    // composition root only constructs it under `BORJIE_MODALITY_ARBITER`)
+    // this block is skipped entirely and the loop runs as today.
+    if (deps.modalityArbiter) {
+      // The arbiter classifies + (when wired) ESCALATES autonomy. A `gate`
+      // verdict on a NEW capability turns the lifted decision into an
+      // ask-owner via the four-eye hook below (we re-use the existing
+      // permission/hook path; the arbiter never auto-runs a gated action).
+      const verdict: ModalityVerdict = await deps.modalityArbiter.classify({
+        intentText: req.userMessage,
+        decision,
+        tenantId: req.scope.kind === 'tenant' ? req.scope.tenantId : null,
+        // The orchestrator request does not carry a per-turn calibrated
+        // confidence; pass a conservative mid-band so the rail-composed
+        // decider gates anything consequential unless the flow posture and
+        // calibration upstream already earned auto. The decider clamps/
+        // treats this as fail-cautious.
+        calibratedConfidence: 0.5,
+        ...(req.languageDirective
+          ? { languageDirective: req.languageDirective }
+          : {}),
+      });
+      // Only lift for the higher-order modalities; chat/action keep the
+      // router's existing Decision (the default fast path, zero added
+      // latency for the 80% case).
+      if (verdict.modality !== 'chat' && verdict.modality !== 'action') {
+        decision = liftToModalityDecision(decision, verdict);
+      }
+      deps.logger?.info?.('modality-arbiter: classified', {
+        threadId: req.threadId,
+        modality: verdict.modality,
+        tier: verdict.tier,
+        autonomy: verdict.autonomy?.decision,
+        gatedBy: verdict.autonomy?.gatedBy ?? null,
+      });
+    }
 
     // Permission-mode pre-check for tool_call decisions. Plan mode
     // short-circuits BEFORE the hook chain runs so destructive tools
