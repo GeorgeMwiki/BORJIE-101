@@ -109,6 +109,12 @@ import {
   type MemorySnapshot,
 } from '../services/advisor-memory/index.js';
 import { getDb } from '../composition/db-client.js';
+// EA-05 — persist each <board_add> element into a durable CRDT slot so the
+// teaching board (the OUTPUT-LEVEL trend-of-thought) survives a reload and
+// re-projects cross-surface. Keyed by `board:<element.id>` so a same-id
+// re-emit updates the slot in place (idempotent-append parity with the FE
+// smartboard reducer). Best-effort: never blocks or breaks the turn.
+import { getSlotStore } from '../composition/blackboard-slots-wiring.js';
 import type { ScopeContext } from '@borjie/central-intelligence';
 // Auto-authorized safety gate — validate the LLM's <auto_authorized> tag
 // against the real policy gate + inviolable rules before presenting it as
@@ -966,12 +972,45 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // Blackboard elements — emit each as its own SSE event so the FE
     // blackboard store can append them. Document-order is preserved so
     // the owner sees the lesson build in the order Mr. Mwikila chose.
+    //
+    // EA-05 — ALSO persist each element into a durable CRDT slot keyed by
+    // `board:<element.id>`. The board becomes durable + cross-surface: the
+    // OUTPUT-LEVEL trend-of-thought survives a reload and re-projects onto
+    // owner-web / mobile via the realtime `state-bus`. The slot id-keying
+    // makes a same-id re-emit an in-place update (idempotent-append, parity
+    // with the FE smartboard reducer) — NO duplicate slot. Best-effort: the
+    // persist is fire-after-emit and its failure NEVER breaks the SSE stream,
+    // the local teaching board, replay, or PDF export.
+    const boardSlotStore = getSlotStore(logger);
     for (const element of boardResult.elements) {
       if (abort.signal.aborted) break;
       await stream.writeSSE({
         event: 'board_element',
         data: JSON.stringify({ element, at: new Date().toISOString() }),
       });
+      try {
+        await boardSlotStore.set({
+          tenantId,
+          slotId: `board:${element.id}`,
+          slotKind: 'note',
+          value: {
+            kind: 'board-element',
+            element: element as unknown as Record<string, unknown>,
+            ...(sessionId ? { sessionId } : {}),
+          },
+          actorId: `chat:${userId}`,
+          surface: 'chat',
+        });
+      } catch (err) {
+        logger.warn(
+          {
+            tenantId,
+            elementId: element.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'brain-teach: board slot persist failed (board still rendered locally)',
+        );
+      }
     }
 
     // Inline metrics — emit each as its own SSE event so the renderer

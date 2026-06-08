@@ -37,6 +37,8 @@
     "@borjie/audio-capture": "workspace:*",
     "@borjie/audit-hash-chain": "workspace:*",
     "@borjie/authz-policy": "workspace:*",
+    "@borjie/blackboard-sota": "workspace:*",
+    "@borjie/realtime-adapter": "workspace:*",
     "@borjie/autonomy-governance": "workspace:*",
     "@borjie/brain-llm-router": "workspace:*",
     "@borjie/channel-gateway": "workspace:*",

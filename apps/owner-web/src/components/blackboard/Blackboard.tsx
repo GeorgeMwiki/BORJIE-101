@@ -29,6 +29,10 @@ import {
   startReplay,
   useBlackboardStore,
 } from './use-blackboard-store';
+// EA-05 — hydrate the board from persisted CRDT slots on load + converge live
+// over the cross-surface state-bus. Idempotent (the store dedupes by element
+// id) and degrade-safe; the local SSE-fed board is unaffected if it no-ops.
+import { useSlot } from './use-slot';
 import type { BoardElementEnvelope } from './types';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
@@ -42,6 +46,9 @@ export interface BlackboardProps {
 
 export function Blackboard({ languagePreference, tradingName }: BlackboardProps): ReactElement {
   const state = useBlackboardStore();
+  // Hydrate persisted slots on mount + subscribe to the cross-surface
+  // state-bus. No render dependency on its return — it feeds the shared store.
+  useSlot();
   const scrollRef = useRef<HTMLDivElement>(null);
   // When in replay mode, only show the prefix the walker has revealed.
   const [replayCursor, setReplayCursor] = useState<number>(state.elements.length);

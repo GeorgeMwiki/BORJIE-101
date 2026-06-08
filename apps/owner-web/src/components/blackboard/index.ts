@@ -20,3 +20,6 @@ export {
 } from './use-blackboard-store';
 export type { BoardElement, BoardElementEnvelope, BoardElementType } from './types';
 export { boardElementSchema } from './types';
+// EA-05 — cross-surface CRDT state-bus subscriber (hydrate-on-load + live
+// converge). Mounted inside Blackboard; exported for direct use + tests.
+export { useSlot, type UseSlotState, type UseSlotOptions } from './use-slot';

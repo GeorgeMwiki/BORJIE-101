@@ -182,6 +182,17 @@ export { createInMemoryPostsRepository } from './repositories/in-memory-posts-re
 export { createInMemoryCrossReferencesRepository } from './repositories/in-memory-cross-references-repository.js';
 export { createInMemorySummariesRepository } from './repositories/in-memory-summaries-repository.js';
 export { createInMemorySlotsRepository } from './repositories/in-memory-slots-repository.js';
+// Durable CRDT-slot backing (EA-05). The SQL adapter persists the slot
+// lattice via the CRDT merge so a slot survives a process restart + is shared
+// across replicas. It speaks a narrow `SlotsDbPort` (rows, not SQL) so the
+// substrate stays free of a `@borjie/database` dependency; the gateway
+// composition root satisfies the port over the `blackboard_slots` table
+// (migration 0319).
+export {
+  createSqlSlotsRepository,
+  type SlotsDbPort,
+  type SlotRow,
+} from './repositories/sql-slots-repository.js';
 
 // ---------------------------------------------------------------------------
 // Cross-surface state bus — CRDT named slots + surface/device handoff

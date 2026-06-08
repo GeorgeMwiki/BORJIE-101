@@ -158,6 +158,10 @@ import { brainRouter } from './routes/brain.hono';
 // chain. Sibling mount under /brain so Hono composes it next to the
 // existing /turn route without touching the kernel.
 import { brainTeachRouter } from './routes/brain-teach.hono';
+// EA-05 — cross-surface CRDT state-bus front door. set/read/list/handoff over
+// the durable blackboard slot store; the slot lives once + re-projects onto
+// every surface via the realtime `state-bus` topic.
+import { blackboardRouter } from './routes/blackboard.hono';
 // Gap 6 — VP department-head dispatch. /api/v1/brain/dispatch resolves one
 // of the five VPs by name via the central-intelligence registry, orchestrates
 // a free-form owner/admin instruction into a line-worker plan, and runs each
@@ -1938,6 +1942,9 @@ api.route('/owner/threads', ownerThreadsRouter);
 api.route('/owner/handoff', ownerHandoffRouter);
 // INV-A / FIRE-1 — tenant-visible break-glass Trust Center.
 api.route('/owner/break-glass', ownerBreakGlassRouter);
+// EA-05 — cross-surface CRDT state-bus. Tenant-scoped slot set/read/list +
+// surface handoff; the slot lives once + re-projects onto every surface.
+api.route('/blackboard', blackboardRouter);
 // Roadmap R2 — owner saved-search alerts.
 api.route('/owner/saved-searches', savedSearchesRouter);
 // Mr. Mwikila autonomous-MD inbox + delegation surface.

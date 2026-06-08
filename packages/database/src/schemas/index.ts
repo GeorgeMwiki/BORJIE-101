@@ -1040,6 +1040,20 @@ export * from './intel-self-improve.schema.js';
 export * from './blackboard-sota.schema.js';
 
 // ---------------------------------------------------------------------------
+// EA-05 — Blackboard cross-surface CRDT slots (migration 0319)
+// ---------------------------------------------------------------------------
+// One tenant-scoped table backing migration 0319_blackboard_slots.sql:
+//   blackboard_slots — one row per (tenant_id, slot_id). A CRDT
+//                      Last-Writer-Wins register (value jsonb) paired with a
+//                      version-vector (version jsonb) so the merge is a
+//                      lattice-join. The cross-surface state-bus spine: a
+//                      decision/doc/task lives ONCE here + re-projects onto
+//                      chat + owner-web + workforce-mobile + buyer-mobile.
+// Backs the durable createSqlSlotsRepository(...) adapter in
+// @borjie/blackboard-sota (the in-memory adapter ships with the package).
+export * from './blackboard-slots.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave OWNER-OS — owner reminders + dynamic tabs (migration 0089)
 // ---------------------------------------------------------------------------
 //   reminders   — owner-scheduled events. trigger_at + channel + payload;
