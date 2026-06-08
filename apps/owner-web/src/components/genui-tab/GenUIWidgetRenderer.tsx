@@ -51,22 +51,22 @@ export function GenUIWidgetRenderer({
 
   return (
     <div
-      className={`col-span-12 flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/60 p-4 ${spanToColClass(widget.span)}`}
+      className={`col-span-12 flex flex-col gap-2 rounded-lg border border-border bg-surface/60 p-4 ${spanToColClass(widget.span)}`}
       data-testid={`genui-widget-${widget.key}`}
       data-widget-kind={widget.kind}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col">
-          <span className="text-sm font-semibold text-slate-800">{title}</span>
+          <span className="text-sm font-semibold text-foreground">{title}</span>
           {subtitle ? (
-            <span className="text-xs text-slate-500">{subtitle}</span>
+            <span className="text-xs text-neutral-400">{subtitle}</span>
           ) : null}
         </div>
-        <span className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
+        <span className="shrink-0 rounded-full border border-border bg-surface px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-neutral-400">
           {kindLabel}
         </span>
       </div>
-      <p className="text-xs leading-relaxed text-slate-500">
+      <p className="text-xs leading-relaxed text-neutral-400">
         {toSafeText(meta.description)}
       </p>
     </div>

@@ -69,7 +69,10 @@ export type OwnerTabKind =
   | 'licences'
   | 'sites'
   | 'safety'
-  | 'reports';
+  | 'reports'
+  // MD-authored dynamic tab rendered by GenUITabHost. Its `id` is the
+  // persisted portal_tabs row id; `context.portalTabId` mirrors it.
+  | 'genui';
 
 export interface OwnerTab {
   /** Stable id. Deterministic by (kind, context) for dedup; literal for built-ins. */

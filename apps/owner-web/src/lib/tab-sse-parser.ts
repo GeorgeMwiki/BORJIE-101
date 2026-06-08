@@ -85,6 +85,49 @@ export const tabProposalPayloadSchema = z.object({
 });
 export type TabProposalPayload = z.infer<typeof tabProposalPayloadSchema>;
 
+/**
+ * The portal-genui proposal family. Shares the `tab_proposal` SSE event
+ * name with the static-registry proposal above but is discriminated by
+ * `source: 'portal-genui'` and carries a FULL generated `PortalTab` (the
+ * MD-authored dynamic tab). This is the payload `buildGenuiTabProposal`
+ * emits on the brain-teach stream. The `tab` is left loose here (record)
+ * — `GenUITabHost` re-validates it with `safeParsePortalTab` before
+ * rendering, so a server/client shape drift degrades to an empty state
+ * rather than a crash.
+ */
+const genuiSectionSummarySchema = z.object({
+  key: z.string(),
+  title: z.string(),
+  fieldCount: z.number().int().nonnegative(),
+  widgetCount: z.number().int().nonnegative(),
+  fieldLabels: z.array(z.string()).default([]),
+});
+
+export const genuiTabProposalPayloadSchema = z.object({
+  tagKind: z.literal('tab_proposal'),
+  source: z.literal('portal-genui'),
+  proposalId: z.string().min(1).max(200),
+  tabId: z.string().min(1).max(200),
+  tabKey: z.string().min(1).max(160),
+  title: z.string().min(1).max(160),
+  description: z.string().max(600).default(''),
+  domain: z.string().min(1).max(40),
+  icon: z.string().max(80).default(''),
+  reason: z.string().min(1).max(600),
+  confidence: z.number().min(0).max(1),
+  generationSource: z.enum(['llm', 'fallback', 'cache']),
+  summary: z.object({
+    sectionCount: z.number().int().nonnegative(),
+    fieldCount: z.number().int().nonnegative(),
+    widgetCount: z.number().int().nonnegative(),
+    sections: z.array(genuiSectionSummarySchema).default([]),
+  }),
+  tab: z.record(z.string(), z.unknown()),
+});
+export type GenuiTabProposalPayload = z.infer<
+  typeof genuiTabProposalPayloadSchema
+>;
+
 export const tabTagErrorPayloadSchema = z.object({
   tagKind: z.enum(['tab_spawn', 'tab_update', 'tab_remove', 'tab_proposal']),
   tabType: z.string().min(1).max(40).optional(),
@@ -101,6 +144,8 @@ export interface TabSseHandlers {
   onUpdate?(payload: TabUpdatePayload): void;
   onRemove?(payload: TabRemovePayload): void;
   onProposal?(payload: TabProposalPayload): void;
+  /** A portal-genui proposal carrying a full generated PortalTab. */
+  onGenuiProposal?(payload: GenuiTabProposalPayload): void;
   onError?(payload: TabTagErrorPayload): void;
 }
 
@@ -164,6 +209,20 @@ export function handleTabSseFrame(args: {
       return true;
     }
     case 'tab_proposal': {
+      // Two proposal families ride this event. The portal-genui family is
+      // discriminated by `source:'portal-genui'` and carries a full
+      // generated PortalTab → route to onGenuiProposal. Everything else is
+      // a static-registry proposal (tabType + evidenceIds) → onProposal.
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        (payload as { source?: unknown }).source === 'portal-genui'
+      ) {
+        const parsedGenui = genuiTabProposalPayloadSchema.safeParse(payload);
+        if (!parsedGenui.success) return false;
+        args.handlers.onGenuiProposal?.(parsedGenui.data);
+        return true;
+      }
       const parsed = tabProposalPayloadSchema.safeParse(payload);
       if (!parsed.success) return false;
       args.handlers.onProposal?.(parsed.data);
