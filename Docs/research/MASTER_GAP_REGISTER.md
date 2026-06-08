@@ -734,3 +734,41 @@ The product is engineered to the UNHACKABLE bar via comprehensive DEFENSE-IN-DEP
 HONEST: "unhackable" = the SOTA posture engineered to that bar (no client-inspectable secret, no
 jailbreak path, no IP/secret leak), verified + continuously red-teamed — not a claim of literal
 invincibility, which is the discipline that KEEPS it unhackable.
+
+## CORRECTION (2026-06-09) — billing "blockers" already wired; artifact-engine architecture landed
+VERIFIED-IN-CODE correction to the platform-billing audit (it read stale package headers):
+- BUG-HI-3 (in-memory budget store resets spend to zero on deploy) is ALREADY CLOSED.
+  `wireBudgetStore(...)` IS invoked in the composition root at
+  services/api-gateway/src/composition/service-registry.ts:1682 and :2584 — LIVE mode
+  binds createPostgresBudgetStore({ db }) -> tenant_llm_budgets (durable); DEGRADED mode
+  (db null) falls back to in-memory with a single operator warning (honest-degrade).
+- RSS-08 (process-local rate-limiter, cap = max x replicas) is ALREADY ADDRESSED for the
+  request limiter. The real gateway limiter is services/api-gateway/src/middleware/rate-limiter.ts —
+  a TokenBucketRateLimiter that wires a DISTRIBUTED Redis token bucket when REDIS_URL is set
+  (logs "distributed token bucket wired"), with an explicit in-process dev fallback. The
+  process-local Map in packages/enterprise-hardening/src/resilience/rate-limiter.ts is a
+  separate lower-level primitive (dynamic-model-registry), NOT the request limiter.
+=> Neither is a launch blocker. The REAL remaining platform-billing build (all NON-blocking,
+   per THE_PLATFORM_BILLING_ARCHITECTURE.md): (1) subscription TIER defs (Free/Pro/Max/Enterprise)
+   + tier->budget map materialized in code; (2) the 5h-rolling-session window (only daily/monthly
+   period_kind exists today); (3) the honest limit-hit UX surface (approaching/reached/overage +
+   reset-time, never silent degrade — TEST=PAYING); (4) Stripe-for-Borjie charge path (Meter +
+   pricing-plan = base+included+overage + per-org subscription/overage); (5) usage-metering ->
+   Stripe usage-event reporting; (6) separate overage credit pool + user-controlled cap.
+   Hard rule preserved: a platform overage is a Stripe invoice line, NEVER a ledger journal entry;
+   estate funds never pay the platform bill.
+
+## ARTIFACT ENGINE ARCHITECTURE — landed (THE_ARTIFACT_ENGINE_ARCHITECTURE.md, 2026-06-09)
+2026 frontier standardized exactly INV-C: A2A / MCP (ui:// resources) / AG-UI (SSE agent-user
+transport) / A2UI+json-render+MCP-Apps (agent DESCRIBES UI as a declarative spec, not code) — the
+load-bearing safety property IS Borjie's invariant (declarative description + trusted client catalog
+= no injection). BUILD: the unified two-stage ARTIFACT ARBITER — stage A picks FORM (catalog entry +
+diagram topology) by intent x data-shape (Draco/Mackinlay-grounded); stage B picks SURFACE x
+SPECTRUM-BUCKET (Controlled/Declarative/Open) by consequence x persistence x INV-L. Flip the
+fail-closed default from prose to richest-form-that-faithfully-encodes (prose the explicit exception).
+SCALE-POLICY as a first-class spec field: every data-bound primitive declares { source,
+estimatedCardinality, scalePolicy }; the LLM emits a SOURCE DESCRIPTOR + render hint, NEVER >N rows;
+the renderer auto-selects by cardinality bucket (<=8 inline -> <=10k virtualized DOM -> <=200k canvas
+-> >200k WebGL+GPU+semantic-zoom-LOD+server-aggregation). One spec, any scale, any surface. We have
+all three generative-UI primitives (genui catalog=Declarative, sandboxed-surface=Open,
+confirmation_card=Controlled); the gap is the arbiter that picks + the scale-policy field.
