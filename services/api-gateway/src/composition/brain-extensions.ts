@@ -23,8 +23,32 @@ import {
   buildPersonaToolHandlers,
   type PersonaToolGate,
 } from './brain-tools';
+import type { ModalityCapabilities } from './modality-capability';
 
 let extraSkills: readonly ToolHandler[] = [];
+
+// ─────────────────────────────────────────────────────────────────────
+// Modality capabilities (forecast / media / document engines + executor).
+//
+// Boot constructs them once behind `BORJIE_MODALITY_CAPABILITIES` and
+// publishes them here; brain-kernel-wiring reads the executor to bind the
+// arbiter's `run_modality` (document/media/forecast) path, and the artifact
+// route reads the engines. Null until set (default-OFF + degraded boot).
+// ─────────────────────────────────────────────────────────────────────
+
+let modalityCapabilities: ModalityCapabilities | null = null;
+
+/** Publish the constructed modality capabilities. Idempotent. */
+export function setBrainModalityCapabilities(
+  caps: ModalityCapabilities,
+): void {
+  modalityCapabilities = caps;
+}
+
+/** Read the modality capabilities (null when never set / flag off). */
+export function getBrainModalityCapabilities(): ModalityCapabilities | null {
+  return modalityCapabilities;
+}
 
 /**
  * Set the extra skills injected into every Brain created by the

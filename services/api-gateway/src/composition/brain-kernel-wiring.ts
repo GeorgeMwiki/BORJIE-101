@@ -120,6 +120,17 @@ import {
   MINING_TOOL_NAMES,
   registerMiningGovernmentTools,
 } from './mining-government-tools-pending.js';
+// Modality capabilities — the arbiter routes a `run_modality`
+// document/media/forecast Decision through this executor, which generates the
+// real artifact and emits a PROPOSAL (never a direct UI mutation). Read off the
+// boot-time singleton (constructed behind BORJIE_MODALITY_CAPABILITIES).
+import { getBrainModalityCapabilities } from './brain-extensions.js';
+import { createDrizzleModalityProposalSink } from './modality-capability/proposal-sink.js';
+import {
+  createModalityExecutorBoundToSink,
+  type ModalityExecutor,
+} from './modality-capability/index.js';
+import { publishCockpitEvent } from '../services/cockpit-events/index.js';
 // Durable orchestrator memory — the Drizzle-backed MemoryTool (agent_memory,
 // migration 0302, FORCE RLS). When the kernel runs the orchestrator main-loop,
 // recall()/persist key off the SAME persisted backend the mwikila.memory.*
@@ -1023,6 +1034,15 @@ export function buildOrchestratorComposeBlock(args: {
   // The loop-runner adapter (reused by the modality handler's loop branch).
   const loopRunner = createLoopRunnerAdapter(args.db, args.toolRegistry);
 
+  // Modality executor — the arbiter → engine → PROPOSAL binding. Read off the
+  // boot-time singleton (constructed behind BORJIE_MODALITY_CAPABILITIES). When
+  // null (flag off / degraded boot) document/media/forecast modalities keep
+  // their breadcrumb-ack behaviour. The executor itself never mutates a UI; it
+  // emits a proposal through the per-request sink we build from the live
+  // HookContext scope below.
+  const modalityCaps = getBrainModalityCapabilities();
+  const modalityExecutor: ModalityExecutor | null = modalityCaps?.executor ?? null;
+
   const dispatcher = orchestrator.createToolDispatcher({
     registry: args.toolRegistry,
     spawnHandler,
@@ -1031,13 +1051,15 @@ export function buildOrchestratorComposeBlock(args: {
     // closed to a structured ack breadcrumb, exactly as before).
     ...(modalityArbiterEnabled
       ? {
-          modalityHandler: async (a: {
-            readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
-            readonly payload: Readonly<Record<string, unknown>>;
-          }): Promise<{ readonly output?: unknown }> => {
+          modalityHandler: async (
+            a: {
+              readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+              readonly payload: Readonly<Record<string, unknown>>;
+            },
+            ctx?: orchestrator.HookContext,
+          ): Promise<{ readonly output?: unknown }> => {
             // A standing/recurring loop routes to the (now-reachable)
-            // loop-runner; bounded modalities ack a breadcrumb until their
-            // render/compose dispatchers are bound at this seam.
+            // loop-runner.
             if (a.modality === 'loop' || a.modality === 'workflow') {
               const flowId = String(a.payload.flowId ?? 'adhoc');
               const loopKind = String(a.payload.loopKind ?? 'reactive');
@@ -1048,6 +1070,48 @@ export function buildOrchestratorComposeBlock(args: {
                 payload: a.payload,
               });
               return { output: { modality: a.modality, loopRunId } };
+            }
+            // document / media / forecast → run the engine + emit a PROPOSAL
+            // (never a direct UI mutation). The proposal is routed through the
+            // EXISTING portal-genui `tab_proposal` channel; the owner approves
+            // before any surface mutates (the UI invariant).
+            if (
+              modalityExecutor &&
+              args.db &&
+              (a.modality === 'document' || a.modality === 'media')
+            ) {
+              const scope = ctx?.scope;
+              const tenantId = scope?.kind === 'tenant' ? scope.tenantId : null;
+              const userId = scope?.actorUserId ?? null;
+              if (tenantId && userId) {
+                // Per-request sink bound to the live scope — the proposal
+                // lands in THIS tenant's inbox + cockpit tray.
+                const sink = createDrizzleModalityProposalSink({
+                  db: args.db as unknown as { execute(q: unknown): Promise<unknown> },
+                  logger: {
+                    info: (meta: object, msg: string): void =>
+                      args.logger?.info?.({ wiring: 'modality-proposal-sink', ...meta }, msg),
+                    warn: (meta: object, msg: string): void =>
+                      args.logger?.warn?.({ wiring: 'modality-proposal-sink', ...meta }, msg),
+                  },
+                  tenantId,
+                  userId,
+                  language: 'en',
+                  publish: publishCockpitEvent,
+                });
+                // Rebuild the executor bound to THIS sink (the executor is
+                // pure; only the sink is per-request).
+                const result = await createModalityExecutorBoundToSink(
+                  modalityCaps,
+                  sink,
+                ).execute({
+                  modality: a.modality,
+                  payload: a.payload,
+                  tenantId,
+                  userId,
+                });
+                return { output: { modality: a.modality, ...(result ?? { proposed: false }) } };
+              }
             }
             return { output: { modality: a.modality, acked: true } };
           },

@@ -4758,6 +4758,9 @@ importers:
       '@borjie/document-quality-guarantor':
         specifier: workspace:*
         version: link:../../packages/document-quality-guarantor
+      '@borjie/document-studio':
+        specifier: workspace:*
+        version: link:../../packages/document-studio
       '@borjie/domain-models':
         specifier: workspace:*
         version: link:../../packages/domain-models
@@ -4791,6 +4794,9 @@ importers:
       '@borjie/fleet-management':
         specifier: workspace:*
         version: link:../../packages/fleet-management
+      '@borjie/forecast-engine':
+        specifier: workspace:*
+        version: link:../../packages/forecast-engine
       '@borjie/forecasting':
         specifier: workspace:*
         version: link:../../packages/forecasting
@@ -4851,6 +4857,9 @@ importers:
       '@borjie/mcp-server-borjie':
         specifier: workspace:*
         version: link:../mcp-server-borjie
+      '@borjie/media-engine':
+        specifier: workspace:*
+        version: link:../../packages/media-engine
       '@borjie/memory-tool-wire-adapter':
         specifier: workspace:*
         version: link:../../packages/memory-tool-wire-adapter

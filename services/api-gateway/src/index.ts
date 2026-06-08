@@ -250,6 +250,7 @@ import { ownerPayrollRouter } from './routes/owner/payroll.hono';
 // stub so /types is always live; /:id/render returns 404 until the
 // real Playwright + DB-backed service is bound (issue #33).
 import { createArtifactsRouter } from './routes/artifacts.hono';
+import { createModalityArtifactsRouter } from './routes/modality-artifacts.hono';
 import { createNotWiredArtifactRenderService } from './composition/artifact-render-wiring';
 import { createMigrationRouter } from './routes/migration.router';
 // REMOVED (borjie hard-fork): import { negotiationsRouter } from './routes/negotiations.router';
@@ -732,6 +733,7 @@ import { createLearningAmplificationCron } from './workers/learning-amplificatio
 import {
   setBrainExtraSkills,
   appendBrainExtraSkills,
+  setBrainModalityCapabilities,
 } from './composition/brain-extensions';
 // Wave UNWIRED-LOGIC-SWEEP-2 — persona-aware brain tool catalog wiring.
 // Surfaces the 50+ persona-aware brain tools (owner, manager, worker,
@@ -792,6 +794,10 @@ import { buildDocumentDrafterTools } from './services/document-drafter/brain-too
 import { createDrizzleRevisionsPersistence } from './services/document-drafter/revisions-persistence';
 import { buildFreeFormDrafterTool } from './services/document-drafter/free-form-brain-tool';
 import { buildMediaGenerationTools } from './services/media-generation/brain-tools';
+import {
+  buildModalityCapabilities,
+  type ModalityCapabilities,
+} from './composition/modality-capability';
 import { ownerDraftsRouter } from './routes/owner/drafts.hono';
 // Wave-3-int2 — brain↔tab loop composition (Piece L → Piece B handlers).
 import {
@@ -1474,6 +1480,29 @@ try {
   });
   const mediaTools = buildMediaGenerationTools();
 
+  // Modality capabilities (forecast / media-video+gif / document) — behind
+  // BORJIE_MODALITY_CAPABILITIES (default OFF). When ON, the engines are
+  // constructed once and exposed as rail-gated, evidence-stamped capability
+  // brain-tools registered ALONGSIDE the existing image/chart/diagram tools.
+  // The brain-tools path returns the artifact directly (the chat renderer
+  // inlines it); the arbiter→engine→PROPOSAL path (brain-kernel-wiring) binds
+  // its own per-request proposal sink, so the tool-path sink is a no-op here.
+  const modalityCapabilities: ModalityCapabilities = buildModalityCapabilities({
+    envSource: process.env,
+    proposalSink: {
+      async emit(): Promise<{ readonly surfacedProposalId: string }> {
+        return { surfacedProposalId: 'tool-path-no-proposal' };
+      },
+    },
+    fetch: ((url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) =>
+      fetch(url, init as RequestInit) as unknown) as never,
+    logger,
+  });
+  const capabilityTools = modalityCapabilities.capabilityTools;
+  if (modalityCapabilities.enabled) {
+    setBrainModalityCapabilities(modalityCapabilities);
+  }
+
   // Build the WRITE-tool set from the persona descriptor catalog plus
   // every tool registered here that mutates state (draft_*, free-form
   // draft, media generation). We use it to know which extras to wrap
@@ -1489,6 +1518,7 @@ try {
   for (const t of draftTools) personaWriteIds.add(t.name);
   personaWriteIds.add(freeFormTool.name);
   for (const t of mediaTools) personaWriteIds.add(t.name);
+  for (const t of capabilityTools) personaWriteIds.add(t.name);
   const writeIds: WriteToolIdSet = personaWriteIds;
 
   // Wave CLOSED-LOOP - bind the calibration tracker and surface its
@@ -1507,6 +1537,7 @@ try {
     ...draftTools,
     freeFormTool,
     ...mediaTools,
+    ...capabilityTools,
     calibrationScoreTool,
   ];
   const wrappedSkills = wrapWritesWithOutcomePrediction(rawSkills, writeIds, {
@@ -2096,6 +2127,10 @@ api.route(
     },
   }),
 );
+// Modality artifacts — fetch the artifact (forecast JSON / document archive
+// refs / media descriptor) behind a surfaced modality PROPOSAL so owner-web's
+// GenUITabHost renders it on Open. Read-only; never mutates a tab.
+api.route('/modality-artifacts', createModalityArtifactsRouter());
 // Routers built via factory — inject real services from the composition root
 // where available. For services that aren't yet wired, the factory gracefully
 // returns a 503/501 to the client rather than a synchronous throw — a pilot
