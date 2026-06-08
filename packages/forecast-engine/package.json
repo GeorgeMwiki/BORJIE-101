@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/forecast-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Provider-abstraction forecasting engine: a classical accuracy floor (SeasonalNaive / ETS-Theta / Croston-TSB), a swappable TS-foundation-model provider port + registry, a split-conformal / CQR calibration wrapper, a horizon/regime portfolio router that rejects any model failing to beat the floor, MinT-lite hierarchical reconciliation, a prediction-APPEND port, and typed mining-estate + real-estate forecast targets. Every forecast carries >=1 evidence_id and APPENDS to (never replaces) rule-based decisions.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/conformal-calibration-online": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}
