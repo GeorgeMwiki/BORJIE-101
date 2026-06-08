@@ -677,3 +677,22 @@ EVERY test user is a real PAYING user. Therefore, both repos:
   NEVER a silent fake-success or silent degrade.
 - The DRIVE_TO_ZERO debt register MUST list every stub/mock/degraded-fallback as a must-fix, and
   every shipped capability must end at flag-ON-and-verified, not flag-OFF.
+
+---
+
+## FULL POWERS DEFAULT ON (owner directive) — supersedes flag-default-OFF
+Every capability/power is DEFAULT ON for EVERY user, both repos. Flags are KILL-SWITCHES (default
+ON; flipped OFF only for emergency/rollback), NEVER off-by-default gates. No dark features — the
+default AND destination of every built power is ON.
+- PROCESS (verified-then-ON, not unverified-on): build -> VERIFY it works end-to-end + is safe for
+  a real user -> DEFAULT ON. Verification is a gate BEFORE the flip, not a permanent off-state. The
+  most blast-radius powers (DATABASE_POOL_MODE transaction RLS) get their leak-proof + route audit
+  FIRST, then flip on — but they flip on.
+- The sovereign RAILS are NOT "powers turned off": money/licence/deletion stay HITL (prepare->ask->
+  execute, the human signs the irreversible step) — the fiduciary rail (INV-F), not a disabled
+  capability. Full powers ON + the owner still signs the cheque. Kill-switch + the inviolable rails
+  are the ONLY permanent gates.
+- IMMEDIATE flag-activation pass: verify + flip to DEFAULT ON every shipped/landing capability —
+  EstateMind heartbeat, modality-arbiter + modality-capabilities, fast-path + model-tiering,
+  honest-confidence (K-7), body-change meta-rail (K-1), the blackboard spine, and the
+  transaction-pool RLS (after the leak proof). Keep the flag name only as the kill-switch.
