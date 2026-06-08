@@ -73,6 +73,20 @@ export interface BrainConfig {
    * the shared event bus + bottleneck store).
    */
   extraSkills?: ReadonlyArray<import('./orchestrator/tool-dispatcher.js').ToolHandler>;
+  /**
+   * INPUT CONTAINMENT (BP-1). Optional indirect-prompt-injection scanner the
+   * orchestrator runs over every tool/junior result BEFORE re-ingestion.
+   * Production composition injects
+   * `@borjie/agent-security-guard`'s `createIndirectInjectionDetector()`.
+   * Injected as a structural port so this package keeps no hard dependency.
+   */
+  indirectScanner?: import('./orchestrator/orchestrator.js').OrchestratorConfig['indirectScanner'];
+  /**
+   * INPUT CONTAINMENT audit sink (BP-5). Optional fire-and-forget callback
+   * invoked when {@link indirectScanner} neutralises an injected span. Wired
+   * to the hash-chained agent-security-guard repositories in composition.
+   */
+  onIndirectInjection?: import('./orchestrator/orchestrator.js').OrchestratorConfig['onIndirectInjection'];
 }
 
 export interface Brain {
@@ -133,6 +147,8 @@ export function createBrain(cfg: BrainConfig): Brain {
     executorProvider: executor,
     advisorProvider: advisor,
     ...(cfg.defaultTokenBudget !== undefined ? { defaultTokenBudget: cfg.defaultTokenBudget } : {}),
+    ...(cfg.indirectScanner !== undefined ? { indirectScanner: cfg.indirectScanner } : {}),
+    ...(cfg.onIndirectInjection !== undefined ? { onIndirectInjection: cfg.onIndirectInjection } : {}),
   });
 
   return { orchestrator, personas, threads, tools, governance, reviewService, executor };

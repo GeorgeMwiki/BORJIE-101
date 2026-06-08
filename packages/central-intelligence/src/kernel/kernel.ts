@@ -98,6 +98,7 @@ import { type BrainCache, thoughtCacheKey, createBrainCache } from './brain-cach
 // LP-06 / LP-09 — deterministic megaprompt assembly + always-on
 // IP-protection / security-boundary terminal layers.
 import { assembleSystemPrompt } from './prompt-layers.js';
+import { spotlight } from './prompt-spotlight.js';
 // LP-04 — pre-exec intent verification port (post-LLM, pre-dispatch).
 import { type IntentVerifierPort, verifyToolCalls } from './intent-verification.js';
 // LP-03 — semantic-cache read-through / write-through underlay port.
@@ -2771,7 +2772,10 @@ function collectToolNumbers(_r: SensorCallResult): ReadonlyArray<number> {
 function renderGroundingFragment(facts: ReadonlyArray<GroundingFact>): string {
   if (facts.length === 0) return '';
   const lines = facts.map((f) => {
-    const value = formatGroundingValue(f);
+    // BP-3 — spotlight the fact VALUE (tenant-internal / corpus-derived,
+    // hence untrusted) so an injected instruction smuggled into a chunk is
+    // treated as data, never obeyed. The label + id are trusted metadata.
+    const value = spotlight(formatGroundingValue(f), f.id);
     return `  - [${f.id}] ${f.label}: ${value} (source: ${f.source}, as-of ${f.asOf})`;
   });
   return [

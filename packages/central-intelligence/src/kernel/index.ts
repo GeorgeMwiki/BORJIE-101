@@ -833,6 +833,17 @@ export {
 } from './prompt-layers.js';
 
 /**
+ * BP-3 — structural prompt spotlighting (datamarking). Fences untrusted
+ * retrieved / grounding / tool content in a fixed sentinel the
+ * SECURITY_BOUNDARY_LAYER names so the model treats it as data-only.
+ */
+export {
+  spotlight,
+  UNTRUSTED_OPEN,
+  UNTRUSTED_CLOSE,
+} from './prompt-spotlight.js';
+
+/**
  * LP-04 — intent verification port (post-LLM / pre-exec tool-call gate).
  * The composition root binds the port to `@borjie/autonomy-governance`.
  */

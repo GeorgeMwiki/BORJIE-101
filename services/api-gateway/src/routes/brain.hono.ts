@@ -91,6 +91,15 @@ import {
 // ids (NOT the tenant's own business data). DEFAULT-ON; kill-switch
 // `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (GAP-1) — ingress prompt-injection / jailbreak guard run
+// on the user turn BEFORE the orchestrator. CRITICAL refuses (single-language
+// copy, never executes); HIGH / jailbreak tightens the rail (evidence-required
+// / HITL); lower severities pass the redacted text. DEFAULT-ON; kill-switch
+// `BORJIE_INPUT_CONTAINMENT`. See `composition/input-guard-wiring.ts`.
+import {
+  getInputGuard,
+  getReingestionGuard,
+} from '../composition/input-guard-wiring.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -142,6 +151,15 @@ function registry() {
     };
     if (graphToolkit !== undefined) {
       (brainConfig as unknown as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
+    }
+    // BP-1 + BP-5 — inject the indirect-injection scanner + hash-chained audit
+    // sink so the orchestrator neutralises poisoned tool/junior results before
+    // re-ingestion. Null (kill-switch OFF) leaves the orchestrator's scan
+    // step inert — it still spotlights tool results structurally.
+    const reingestion = getReingestionGuard();
+    if (reingestion) {
+      brainConfig.indirectScanner = reingestion.indirectScanner;
+      brainConfig.onIndirectInjection = reingestion.onIndirectInjection;
     }
     return createBrain(brainConfig);
   });
@@ -933,6 +951,17 @@ export interface BrainTurnPrivacyDecision {
 const PRIVACY_REFUSAL_TEXTS = Object.freeze({
   en: 'I can’t process that request — it contains restricted data that must stay on-premises, and the local model is unavailable right now.',
   sw: 'Siwezi kushughulikia ombi hilo — lina taarifa zilizozuiliwa ambazo lazima zibaki ndani ya mfumo, na modeli ya ndani haipatikani kwa sasa.',
+} as const);
+
+/**
+ * Single-language input-containment refusal copy. Returned when the ingress
+ * input-guard flags a CRITICAL prompt-injection / jailbreak attempt. EN
+ * default; SW when locale toggles. No mixing (CLAUDE.md absolute-separation
+ * mandate). Deliberately generic — it never echoes the attack or leaks why.
+ */
+const INPUT_GUARD_REFUSAL_TEXTS = Object.freeze({
+  en: 'I can’t help with that request. Let me know what you’d like to do with your estate and I’ll get started.',
+  sw: 'Siwezi kusaidia na ombi hilo. Niambie unachotaka kufanya kuhusu shamba lako nami nitaanza.',
 } as const);
 
 /**
@@ -1924,6 +1953,59 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
 
   const wantsSse = clientWantsSse(c.req.header('accept'));
 
+  // INPUT CONTAINMENT (GAP-1) — ingress prompt-injection / jailbreak guard.
+  // Runs on the user's OWN turn text (exactly what the user sent, before the
+  // memory/cognitive preamble) BEFORE the orchestrator. CRITICAL → refuse
+  // with single-language copy (never executes; HITL intact). HIGH /
+  // jailbreak → tighten the rail by forcing the kernel pre-flight (inviolable
+  // / policy / drift rails) to run even on the orchestrator path. Lower
+  // severities → run on the detector-redacted text (offending spans
+  // stripped). DEFAULT-ON; fails OPEN-but-logged (a guard bug never drops a
+  // legitimate owner turn — the kernel pre-flight + evidence gate + egress
+  // filter remain in force).
+  const inputGuard = await getInputGuard().guard({
+    text: body.userText,
+    tenantId: gate.ctx.tenant.tenantId,
+    userId: gate.ctx.viewer.userId ?? null,
+  });
+  if (inputGuard.action === 'refuse') {
+    const guardLang: StrictWithholdLang = pickRecallLang(
+      c.req.header('accept-language') ?? null,
+    );
+    const guardMessage = INPUT_GUARD_REFUSAL_TEXTS[guardLang];
+    if (wantsSse) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            message: guardMessage,
+            code: 'INPUT_GUARD_REFUSED',
+            retryable: false,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ threadId: body.threadId ?? null, refused: true }),
+        });
+      });
+    }
+    return c.json(
+      {
+        error: 'input_guard_refused',
+        code: 'INPUT_GUARD_REFUSED',
+        responseText: guardMessage,
+      },
+      403,
+    );
+  }
+  // Run the turn on the (possibly redacted) text — offending spans stripped.
+  if (inputGuard.text !== body.userText) {
+    body = { ...body, userText: inputGuard.text };
+  }
+  // When the guard saw a HIGH-confidence jailbreak / injection, force the
+  // kernel pre-flight (the safety rail) to run even on the orchestrator path.
+  const inputGuardTightenRail = inputGuard.raiseRail;
+
   // Stage 2 — orchestrator main-loop routing decision (DEFAULT-ON). When
   // ON, `kernel.think()` runs the inviolable/policy/drift rails AND the
   // answer generation in ONE call, so we MUST NOT also run the separate
@@ -1942,8 +2024,12 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // preamble is prepended) so the rails see exactly what the user asked.
   // SKIPPED when the orchestrator is ON: the kernel runs these same rails
   // inside `think()` during generation, so a second pre-flight think()
-  // would be a redundant LLM call.
-  if (!orchestratorOn) {
+  // would be a redundant LLM call. EXCEPTION: when the ingress input-guard
+  // tightened the rail (HIGH-confidence jailbreak / injection) we force the
+  // pre-flight to run even on the orchestrator path so the inviolable /
+  // policy / drift rails fire on the attack turn — the rail tightens under
+  // attack, it never weakens.
+  if (!orchestratorOn || inputGuardTightenRail) {
     const preflight = await kernelPreflight(c, gate.ctx, body.userText);
     if (preflight.refused) {
       if (wantsSse) {

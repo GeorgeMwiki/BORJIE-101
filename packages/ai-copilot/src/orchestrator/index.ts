@@ -6,3 +6,4 @@
 export * from './intent-router.js';
 export * from './tool-dispatcher.js';
 export * from './orchestrator.js';
+export * from './untrusted-content.js';
