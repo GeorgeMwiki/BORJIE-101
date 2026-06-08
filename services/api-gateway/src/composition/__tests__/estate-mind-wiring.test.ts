@@ -58,16 +58,33 @@ function fakeDb(handler: (text: string) => unknown) {
   };
 }
 
-describe('estate-mind-wiring — FLAG-OFF is byte-identical to today', () => {
-  it('init defaults to DISABLED when BORJIE_ESTATE_MIND is unset', () => {
+describe('estate-mind-wiring — FULL-POWERS kill-switch (default-on, explicit-off disables)', () => {
+  it('init defaults to ENABLED when BORJIE_ESTATE_MIND is unset (FULL-POWERS kill-switch)', () => {
     const prev = process.env.BORJIE_ESTATE_MIND;
     delete process.env.BORJIE_ESTATE_MIND;
     try {
       const cfg = initEstateMind();
-      expect(cfg.enabled).toBe(false); // byte-identical-to-today default
+      expect(cfg.enabled).toBe(true); // FULL-POWERS: armed by default
       expect(typeof cfg.intervalMs).toBe('number');
     } finally {
       if (prev !== undefined) process.env.BORJIE_ESTATE_MIND = prev;
+    }
+  });
+
+  it('init is DISABLED only on an explicit off/0/false/no kill-switch value', () => {
+    const prev = process.env.BORJIE_ESTATE_MIND;
+    try {
+      for (const off of ['off', '0', 'false', 'no', 'OFF', ' Off ']) {
+        process.env.BORJIE_ESTATE_MIND = off;
+        expect(initEstateMind().enabled).toBe(false);
+      }
+      for (const on of ['on', '1', 'true', 'yes', '']) {
+        process.env.BORJIE_ESTATE_MIND = on;
+        expect(initEstateMind().enabled).toBe(true);
+      }
+    } finally {
+      if (prev !== undefined) process.env.BORJIE_ESTATE_MIND = prev;
+      else delete process.env.BORJIE_ESTATE_MIND;
     }
   });
 

@@ -25,10 +25,12 @@
  *      ensures only the elected leader ticks. The interval is env-tunable and
  *      CLAMPED as a SAFETY bound on tick frequency, not a capability cap.
  *
- * REVERSIBILITY (hard requirement): behaviour is gated behind env
- * `BORJIE_ESTATE_MIND`. Default (unset / 'off') → `start()` is a no-op and the
- * resident loop NEVER runs — today's behaviour is byte-identical. Flipping the
- * flag to 'on' arms the leader-gated heartbeat. The flag is read ONCE inside
+ * REVERSIBILITY (hard requirement): behaviour is a default-ON KILL-SWITCH on env
+ * `BORJIE_ESTATE_MIND` (FULL-POWERS). Default (unset / any value except an
+ * explicit off/0/false/no) → the leader-gated heartbeat is ARMED; the resident
+ * Slow Loop is propose-only (gated proactive sink, never a sovereign action) and
+ * HITL-forever, so flipping it on adds no sovereign-action risk. Set
+ * `BORJIE_ESTATE_MIND=off` to disable. The flag is read ONCE inside
  * `initEstateMind` at bootstrap (never per-tick), mirroring `initClusterLock`.
  *
  * No `console.*` (Pino shim only). No `process.env` read outside `initEstateMind`.
@@ -344,7 +346,8 @@ export function createTabEventLogProposalSink(
 // ---------------------------------------------------------------------------
 
 export interface EstateMindConfig {
-  /** Resolved from BORJIE_ESTATE_MIND once at bootstrap. Default false. */
+  /** Resolved from BORJIE_ESTATE_MIND once at bootstrap. Default TRUE
+   * (FULL-POWERS kill-switch); only an explicit off/0/false/no disables. */
   readonly enabled: boolean;
   /** Tick cadence (ms), clamped to [1m, 6h]. SAFETY bound, not a cap. */
   readonly intervalMs: number;
@@ -359,7 +362,9 @@ export function initEstateMind(
 ): EstateMindConfig {
   const enabled =
     overrides?.enabled ??
-    process.env.BORJIE_ESTATE_MIND?.trim().toLowerCase() === 'on';
+    !['off', '0', 'false', 'no'].includes(
+      (process.env.BORJIE_ESTATE_MIND ?? 'on').trim().toLowerCase(),
+    );
   const intervalMs = clampInterval(
     overrides?.intervalMs ??
       parsePositiveIntOr(process.env.BORJIE_ESTATE_MIND_INTERVAL_MS, DEFAULT_INTERVAL_MS),
@@ -416,8 +421,9 @@ async function defaultListActiveTenantIds(
  * wraps it with `withClusterLeader(...)` (only the elected leader ticks) at its
  * `.start()` site — NO index.ts edit beyond that one wrapped call.
  *
- * `start()` is a NO-OP when the flag is off or the db is null, so merging this
- * module changes nothing until the operator flips `BORJIE_ESTATE_MIND=on`.
+ * `start()` is a NO-OP when the flag is explicitly off or the db is null. Under
+ * FULL-POWERS the flag defaults ON, so the resident loop is armed by default
+ * (leader-gated, propose-only, HITL); set `BORJIE_ESTATE_MIND=off` to disable.
  */
 export function createEstateMindSupervisor(
   deps: EstateMindSupervisorDeps,
