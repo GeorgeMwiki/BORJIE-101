@@ -10,6 +10,7 @@ import {
   handleTabSseFrame,
   isTabSseEvent,
   spawnPayloadToTab,
+  type GenuiTabProposalPayload,
   type TabProposalPayload,
   type TabSpawnPayload,
   type TabUpdatePayload,
@@ -101,6 +102,93 @@ describe('handleTabSseFrame', () => {
     expect(ok).toBe(true);
     const arg = onProposal.mock.calls[0]?.[0] as TabProposalPayload;
     expect(arg.evidenceIds).toHaveLength(3);
+  });
+
+  // ── portal-genui proposal family (shares the tab_proposal event) ──
+  const genuiFrame = (overrides: Record<string, unknown> = {}): string =>
+    JSON.stringify({
+      payload: {
+        tagKind: 'tab_proposal',
+        source: 'portal-genui',
+        proposalId: 'genui:t1:u1:tab_abc',
+        tabId: 'tab_abc',
+        tabKey: 'staff.payroll',
+        title: 'Staff Payroll',
+        description: 'Track monthly payroll',
+        domain: 'hr',
+        icon: 'users',
+        reason: 'I drafted a new "Staff Payroll" tab. Review it before saving.',
+        confidence: 0.82,
+        generationSource: 'llm',
+        summary: {
+          sectionCount: 2,
+          fieldCount: 6,
+          widgetCount: 1,
+          sections: [
+            {
+              key: 's1',
+              title: 'Employees',
+              fieldCount: 6,
+              widgetCount: 1,
+              fieldLabels: ['Name', 'Salary'],
+            },
+          ],
+        },
+        tab: { id: 'tab_abc', tabKey: 'staff.payroll', sections: [] },
+        ...overrides,
+      },
+    });
+
+  it('routes a portal-genui proposal to onGenuiProposal, not onProposal', () => {
+    const onGenuiProposal = vi.fn();
+    const onProposal = vi.fn();
+    const ok = handleTabSseFrame({
+      eventName: 'tab_proposal',
+      rawData: genuiFrame(),
+      handlers: { onGenuiProposal, onProposal },
+    });
+    expect(ok).toBe(true);
+    expect(onProposal).not.toHaveBeenCalled();
+    expect(onGenuiProposal).toHaveBeenCalledTimes(1);
+    const arg = onGenuiProposal.mock.calls[0]?.[0] as GenuiTabProposalPayload;
+    expect(arg.source).toBe('portal-genui');
+    expect(arg.tabId).toBe('tab_abc');
+    expect(arg.summary.fieldCount).toBe(6);
+  });
+
+  it('rejects a malformed portal-genui proposal (missing summary)', () => {
+    const onGenuiProposal = vi.fn();
+    const ok = handleTabSseFrame({
+      eventName: 'tab_proposal',
+      rawData: genuiFrame({ summary: undefined }),
+      handlers: { onGenuiProposal },
+    });
+    expect(ok).toBe(false);
+    expect(onGenuiProposal).not.toHaveBeenCalled();
+  });
+
+  it('still routes a static proposal to onProposal when both handlers exist', () => {
+    const onGenuiProposal = vi.fn();
+    const onProposal = vi.fn();
+    const data = JSON.stringify({
+      payload: {
+        tagKind: 'tab_proposal',
+        proposalId: 'brain:t1:u1:1234:finance',
+        tabType: 'finance',
+        title: 'Pin Royalty Tracker',
+        reasonEn: 'You drilled in 3 times this week',
+        evidenceIds: ['obs-1'],
+        config: {},
+      },
+    });
+    const ok = handleTabSseFrame({
+      eventName: 'tab_proposal',
+      rawData: data,
+      handlers: { onGenuiProposal, onProposal },
+    });
+    expect(ok).toBe(true);
+    expect(onGenuiProposal).not.toHaveBeenCalled();
+    expect(onProposal).toHaveBeenCalledTimes(1);
   });
 
   it('rejects malformed JSON without throwing', () => {

@@ -82,7 +82,9 @@ describe('FloatingAskBorjie', () => {
     });
     // The canned welcome card is gone.
     expect(screen.queryByTestId('borjie-intro')).toBeNull();
-  });
+    // Multi-step async SSE streaming + chained waitFor blocks; the 5s default
+    // is too tight under loaded CI runners (passes in ~0.2s locally).
+  }, 20_000);
 
   it('sends a message and renders streamed assistant text', async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
@@ -130,7 +132,9 @@ describe('FloatingAskBorjie', () => {
       const chips = screen.getAllByTestId('borjie-evidence-chip');
       expect(chips.some((c) => c.textContent === 'ev_1')).toBe(true);
     });
-  });
+    // Heaviest test (two streamed turns + evidence chips); 5s default is too
+    // tight under loaded CI runners (passes in ~0.2s locally).
+  }, 20_000);
 
   it('closes the panel when ESC is pressed', async () => {
     render(<FloatingAskBorjie variant="public" />);

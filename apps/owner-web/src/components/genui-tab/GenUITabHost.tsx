@@ -71,9 +71,9 @@ function SectionView({
       data-testid={`genui-section-${section.key}`}
     >
       <header className="flex flex-col gap-0.5">
-        <h3 className="text-base font-semibold text-slate-800">{title}</h3>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
         {description ? (
-          <p className="text-sm text-slate-500">{description}</p>
+          <p className="text-sm text-neutral-400">{description}</p>
         ) : null}
       </header>
 
@@ -114,15 +114,15 @@ function TabBody({
       data-tab-key={tab.tabKey}
       data-tab-domain={tab.domain}
     >
-      <header className="flex flex-col gap-1 border-b border-slate-200 pb-4">
+      <header className="flex flex-col gap-1 border-b border-border pb-4">
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-slate-500">
+          <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-neutral-400">
             {toSafeText(tab.domain)}
           </span>
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
         </div>
         {description ? (
-          <p className="text-sm text-slate-500">{description}</p>
+          <p className="text-sm text-neutral-400">{description}</p>
         ) : null}
       </header>
 
@@ -131,7 +131,7 @@ function TabBody({
           <SectionView key={section.key} section={section} />
         ))
       ) : (
-        <p className="text-sm text-slate-500">{S.genUITabHost.empty[locale]}</p>
+        <p className="text-sm text-neutral-400">{S.genUITabHost.empty[locale]}</p>
       )}
     </div>
   );
@@ -142,7 +142,7 @@ function TabBody({
 function StatusNote({ children }: { readonly children: string }): ReactElement {
   return (
     <div
-      className="flex min-h-[120px] items-center justify-center px-4 py-8 text-sm text-slate-500"
+      className="flex min-h-[120px] items-center justify-center px-4 py-8 text-sm text-neutral-400"
       data-testid="genui-tab-host-status"
     >
       {children}

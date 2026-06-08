@@ -1448,6 +1448,12 @@ importers:
       '@borjie/audit-hash-chain':
         specifier: workspace:*
         version: link:../audit-hash-chain
+      '@borjie/database':
+        specifier: workspace:*
+        version: link:../database
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.9)
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -1539,6 +1545,22 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+
+  packages/conversation-feel:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
   packages/cost-engineer-advisor:
     dependencies:
@@ -3705,6 +3727,9 @@ importers:
 
   packages/persona-voice:
     dependencies:
+      '@borjie/conversation-feel':
+        specifier: workspace:*
+        version: link:../conversation-feel
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -4799,6 +4824,9 @@ importers:
       '@borjie/recommendations':
         specifier: workspace:*
         version: link:../../packages/recommendations
+      '@borjie/research-orchestrator':
+        specifier: workspace:*
+        version: link:../research-orchestrator
       '@borjie/role-aware-advisor':
         specifier: workspace:*
         version: link:../../packages/role-aware-advisor
@@ -5490,9 +5518,18 @@ importers:
       '@borjie/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@borjie/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@borjie/user-context-store':
         specifier: workspace:*
         version: link:../../packages/user-context-store
+      '@borjie/user-followup':
+        specifier: workspace:*
+        version: link:../../packages/user-followup
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^25.8.0

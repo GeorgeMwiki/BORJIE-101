@@ -26,7 +26,7 @@ interface GenUIFieldRendererProps {
 }
 
 const BASE_INPUT_CLASS =
-  'w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-500 focus:outline-none focus:ring-1 focus:ring-slate-500 disabled:cursor-not-allowed disabled:bg-slate-50';
+  'w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus:border-warning focus:outline-none focus:ring-1 focus:ring-warning/40 disabled:cursor-not-allowed disabled:opacity-60';
 
 function spanToColClass(span: number | undefined): string {
   // PortalTabField.span is a 1-12 grid hint; map to a coarse responsive
@@ -79,7 +79,7 @@ function renderControl(field: PortalTabField): ReactElement {
         <input
           id={id}
           type="checkbox"
-          className="h-4 w-4 rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+          className="h-4 w-4 rounded border-border text-warning focus:ring-warning/40"
           disabled={disabled}
         />
       );
@@ -146,7 +146,7 @@ function renderControl(field: PortalTabField): ReactElement {
         <input
           id={id}
           type="color"
-          className="h-9 w-16 rounded-md border border-slate-300 bg-white"
+          className="h-9 w-16 rounded-md border border-border bg-surface"
           disabled={disabled}
         />
       );
@@ -158,7 +158,7 @@ function renderControl(field: PortalTabField): ReactElement {
         <input
           id={id}
           type="file"
-          className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700"
+          className="block w-full text-sm text-neutral-400 file:mr-3 file:rounded-md file:border file:border-border file:bg-surface file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
           disabled={disabled}
           {...(field.accept && field.accept.length > 0
             ? { accept: field.accept.join(',') }
@@ -207,13 +207,15 @@ export function GenUIFieldRenderer({
     >
       <label
         htmlFor={`genui-field-${field.key}`}
-        className="text-sm font-medium text-slate-700"
+        className="text-sm font-medium text-foreground"
       >
         {label}
-        {field.required ? <span className="ml-0.5 text-rose-500">*</span> : null}
+        {field.required ? (
+          <span className="ml-0.5 text-destructive">*</span>
+        ) : null}
       </label>
       {renderControl(field)}
-      {help ? <p className="text-xs text-slate-500">{help}</p> : null}
+      {help ? <p className="text-xs text-neutral-400">{help}</p> : null}
     </div>
   );
 }

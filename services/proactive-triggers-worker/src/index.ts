@@ -26,6 +26,23 @@ export { runHourlySweep };
 export { iterateTenants } from './schedule/tenant-iteration.js';
 export { InMemoryIdempotencyCache };
 export { createLogSink };
+// Real notification delivery — the default sink + its building blocks.
+export {
+  createNotificationSink,
+  type CreateNotificationSinkArgs,
+  type NotificationRecipient,
+  type RecipientResolver,
+} from './sinks/notification-sink.js';
+export {
+  createEmailChannelDispatcher,
+  type EmailDispatcherDeps,
+  type LicenceExpiryFacts,
+} from './sinks/email-dispatcher.js';
+export {
+  selectSink,
+  type SelectSinkArgs,
+  type NotificationWiring,
+} from './sinks/select-sink.js';
 export type {
   ActiveUser,
   IdempotencyCache,

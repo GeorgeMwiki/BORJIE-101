@@ -136,6 +136,7 @@ import {
   createObserve,
   // Storage
   createInMemoryCellRepository,
+  createDrizzleCellRepository,
   createInMemoryReinforcementRepository,
   // Embedding service
   createEmbeddingService,
@@ -255,9 +256,11 @@ export interface PersistentMemoryBundle {
  * fixed-vector embedder (useful for tests and degraded-mode boot).
  */
 export interface WireCognitiveDeps {
-  /** Drizzle client. Currently unused (in-memory adapters only); held
-   *  for the follow-up Drizzle adapter wave. Pass `null` in degraded
-   *  mode. */
+  /** Drizzle client. When non-null, the cognitive-memory cell store is
+   *  backed by the durable `cognitive_memory_cells` table (migration
+   *  0029) via {@link createDrizzleCellRepository} so memory survives a
+   *  process restart. Pass `null` in degraded / no-DB mode to fall back
+   *  to the ephemeral in-memory cell repository (tests, local smoke). */
   readonly db: unknown | null;
   readonly logger: CognitiveLogger;
   /** Optional upstream embedder (e.g. OpenAI). When omitted, a
@@ -349,7 +352,30 @@ function buildCognitiveMemoryBundle(
   deps: WireCognitiveDeps,
 ): CognitiveMemoryBundle | null {
   try {
-    const cells = createInMemoryCellRepository();
+    // Persistence selection — when the composition root supplies a live
+    // Drizzle handle we back the cell store with `cognitive_memory_cells`
+    // (migration 0029) so cognitive memory SURVIVES a process restart.
+    // Without a DB handle (unit tests / no-DATABASE_URL boot) we fall back
+    // to the ephemeral in-memory repo so the gateway still boots. The
+    // Drizzle repo implements the identical `CellRepository` port, so no
+    // other slot in this bundle changes.
+    const cells: CellRepository =
+      deps.db !== null
+        ? createDrizzleCellRepository(
+            deps.db as Parameters<typeof createDrizzleCellRepository>[0],
+            {
+            warn: (message, meta) => deps.logger.warn(message, meta),
+          })
+        : createInMemoryCellRepository();
+    if (deps.db !== null) {
+      deps.logger.info(
+        'cognitive-wiring: cognitive-memory cells backed by Drizzle (durable)',
+      );
+    } else {
+      deps.logger.warn(
+        'cognitive-wiring: no db handle; cognitive-memory cells are in-memory (volatile across restarts)',
+      );
+    }
     const reinforcements = createInMemoryReinforcementRepository();
     const audit = createInMemoryAuditChain();
     const upstream = deps.upstreamEmbedder ?? createFixedVectorEmbedder();
