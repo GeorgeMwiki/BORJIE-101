@@ -362,3 +362,30 @@ nothing, (c) chat refinement re-synthesizes, (d) auto-flow spawns ambiently but 
   only limit is the mandate + the inviolable rails (money/licence/deletion stay HITL).
 
 These bind the org-brain architecture + every wiring pass + their tests.
+
+---
+
+## INV-D · The MD Cognitive Kernel (owner directive, 2026-06-08) — the deep logic that governs ALL dynamism
+
+The MD runs a CONTINUOUS, STRUCTURED cognitive cycle in the BACKEND, modelled on a veteran
+domain-MD's mind, GENERAL across any situation (never hardcoded per scenario). It is the
+meta-controller; self-construction, the closed-loop fabric, the lenses, and tool-synthesis
+all hang off it.
+
+  PERCEIVE   — always-on senses over the whole estate (ledger/calendar/corpus/regs/
+               production/market/people); IDENTIFY loops/needs/risks/opportunities the
+               user has NOT asked about, before anyone asks.
+  ORIENT     — recognise the situation-TYPE via expert schemas + playbooks (recognition-
+               primed), like a veteran; not a blank-slate think every turn.
+  ORGANIZE   — decompose into loops/tasks/decisions; rank by consequence x reversibility;
+               decide autonomous-vs-gated; delegate to junior agents/swarms.
+  CREATE     — if a tool/flow/organ/surface is missing, make or compose one (INV-C),
+               within the bodyChange meta-rail + approval.
+  EXECUTE-TO-CLOSURE — drive each loop through every stage to CONFIRMED closure (the
+               operational fabric); retry/escalate/follow-through; never stop at "proposes".
+  LEARN+REPEAT — reflect, update mental models + memory, continue perpetually.
+
+INVISIBILITY: all of this is backend. The user ONLY chats with the persona (Mr. Mwikila)
+as if a real veteran MD is behind a laptop thinking/responding/doing. No blockers within
+the mandate; expert on everything in the mandate; super-intelligent but STRUCTURED.
+Same kernel for BossNyumba (real-estate-deep). Rails: money/licence/deletion stay HITL.
