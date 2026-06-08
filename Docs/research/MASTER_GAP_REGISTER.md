@@ -772,3 +772,25 @@ the renderer auto-selects by cardinality bucket (<=8 inline -> <=10k virtualized
 -> >200k WebGL+GPU+semantic-zoom-LOD+server-aggregation). One spec, any scale, any surface. We have
 all three generative-UI primitives (genui catalog=Declarative, sandboxed-surface=Open,
 confirmation_card=Controlled); the gap is the arbiter that picks + the scale-policy field.
+
+## INFRA HARDENING — shipped + follow-ups (2026-06-09, committed)
+SHIPPED (unhackable infra layer): gVisor/Kata RuntimeClass now bindable (conditional Helm value,
+default-off fail-safe, bound onto agent-executing api-gateway only) — closes the inert-RuntimeClass
+gap structurally; egress allowlist on api-gateway (IMDS+RFC1918 excepted, SSRF/metadata-theft blocked);
+cosign sign+attest(SLSA)+identity-bound verify on the pushed image DIGEST in cd.yml + new
+borjie-image-attest.yml (keyless Fulcio, nightly drift canary). helm lint clean.
+AUDIT FINDING: our infra was FAR more mature than the unhackable audit implied — default-deny egress
++ DNS + HTTPS-with-IMDS-block + full pod hardening (runAsNonRoot/readOnlyRootFS/drop-ALL/seccomp/
+automountSAToken:false) + build-time provenance+SBOM on all 11 images + AI-BOM cosign were ALREADY present.
+INFRA FOLLOW-UPS (not blockers; operational/next-overlay-lane):
+- [med] Egress FQDN/CIDR pinning for supabase/anthropic/emudhra (today 0.0.0.0/0:443 with IMDS/RFC1918
+  except, TODO-marked) — needs Cilium FQDN policy or Istio ServiceEntry before prod.
+- [med] Service-to-service mTLS/SPIFFE — Linkerd is scaffolded but DISABLED + the deployed infra/k8s
+  tree has no mesh; wire Linkerd inject (or Istio STRICT PeerAuthentication) into the overlays.
+- [high-half] Cluster-side admission policy (Kyverno verifyImages / Sigstore policy-controller
+  ClusterImagePolicy) requiring the cd.yml/borjie-image-attest.yml Fulcio identity before any borjie-*
+  image is admitted — the CI signing half is done; this is the enforcement half.
+- [op] Provision a gVisor (runsc) node pool + flip prod values runtimeClass=gvisor + uncomment the two
+  cron runtimeClassName lines — the kernel-isolation layer is shipped-but-inactive until then.
+- [low] Template/enforce the namespace default-deny baseline alongside the Helm chart (coupled by
+  deploy convention today).
