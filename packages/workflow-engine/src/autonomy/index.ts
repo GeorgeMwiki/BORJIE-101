@@ -15,3 +15,4 @@ export {
   type SetFlowPostureInput,
 } from './flow-autonomy-port.js';
 export { createInMemoryFlowAutonomyRepository } from './in-memory-flow-autonomy-repository.js';
+export { createDrizzleFlowAutonomyRepository } from '../repositories/drizzle-flow-autonomy-repository.js';

@@ -65,3 +65,16 @@ export {
   type ElasticThresholds,
   type InMemoryApprovalRouterDeps,
 } from './approval/index.js';
+export {
+  FLOW_AUTONOMY_POSTURES,
+  FLOW_CONFIRMATION_STATES,
+  isFlowAuto,
+  createInMemoryFlowAutonomyRepository,
+  createDrizzleFlowAutonomyRepository,
+  type FlowAutonomyPosture,
+  type FlowConfirmationState,
+  type FlowAutonomyPref,
+  type FlowAutonomyRepository,
+  type RecordFlowCreationInput,
+  type SetFlowPostureInput,
+} from './autonomy/index.js';

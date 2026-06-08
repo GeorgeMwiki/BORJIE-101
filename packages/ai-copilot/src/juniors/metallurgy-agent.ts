@@ -191,7 +191,19 @@ export function runMetallurgyDiagnosis(input: MetallurgyInput): MetallurgyDiagno
   const profile = getMineralProfile(family);
   const headGrade = assessHeadGrade(family, input.head_grade_g_per_t_or_pct, input.effective_cutoff_grade);
   const recovery = diagnoseRecovery(family, input.recovery_observed_pct ?? null);
-  const throughput = input.plant ? diagnoseThroughput({ family, ...input.plant }) : null;
+  const throughput = input.plant
+    ? diagnoseThroughput({
+        family,
+        installed_mill_kw: input.plant.installed_mill_kw,
+        feed_f80_um: input.plant.feed_f80_um,
+        product_p80_um: input.plant.product_p80_um,
+        ...(input.plant.observed_tph !== undefined
+          ? { observed_tph: input.plant.observed_tph }
+          : {}),
+        ...(input.plant.mtbf_h !== undefined ? { mtbf_h: input.plant.mtbf_h } : {}),
+        ...(input.plant.mttr_h !== undefined ? { mttr_h: input.plant.mttr_h } : {}),
+      })
+    : null;
   const evidenceIds = dedupe([
     profile.evidenceId,
     headGrade.evidence_id,

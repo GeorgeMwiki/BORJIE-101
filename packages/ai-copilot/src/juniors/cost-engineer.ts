@@ -301,7 +301,12 @@ function computeQs(input: CostEngineerQsInput): { computed: Record<string, unkno
       if (!input.variations?.length) throw new Error('cost-engineer.qs: variations[] required for task=variation');
       const valued = input.variations.map((v) => ({
         ref: v.ref,
-        ...valuateVariation({ quantity: v.quantity, rate: v.rate, basis: v.basis, dayworks: v.dayworks }),
+        ...valuateVariation({
+          quantity: v.quantity,
+          basis: v.basis,
+          ...(v.rate !== undefined ? { rate: v.rate } : {}),
+          ...(v.dayworks !== undefined ? { dayworks: v.dayworks } : {}),
+        }),
       }));
       return {
         computed: { variations: valued, total: round2Sum(valued.map((v) => v.value)) },

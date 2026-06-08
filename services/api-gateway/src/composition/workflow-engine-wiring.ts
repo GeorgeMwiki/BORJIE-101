@@ -73,10 +73,13 @@ import {
   createInMemoryAuditChainRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
+  createDrizzleFlowAutonomyRepository,
+  createInMemoryFlowAutonomyRepository,
   createWorkflowEngine,
   type AIReviewerPort,
   type AuditChainRepository,
   type ChangeApplier,
+  type FlowAutonomyRepository,
   type WorkflowEngine,
   type WorkflowKind,
   type WorkflowRunEventRepository,
@@ -92,10 +95,12 @@ import { logger } from '../utils/logger.js';
 
 let cachedEngine: WorkflowEngine | null = null;
 let cachedRegistry: AssignmentRegistry | null = null;
+let cachedFlowAutonomy: FlowAutonomyRepository | null = null;
 
 export interface WorkflowEngineBundle {
   readonly engine: WorkflowEngine;
   readonly assignmentRegistry: AssignmentRegistry;
+  readonly flowAutonomy: FlowAutonomyRepository;
 }
 
 interface WorkflowRepositories {
@@ -151,14 +156,53 @@ function buildWorkflowRepositories(): WorkflowRepositories {
 }
 
 /**
+ * Select the flow-autonomy persistence layer. Drizzle-backed (durable,
+ * migration 0308: `flow_autonomy_prefs`) when a DB client is available; the
+ * in-memory adapter otherwise. NEVER throws — a construction failure on the
+ * Drizzle path degrades to in-memory so the gateway boots cleanly even when the
+ * DB is offline. Mirrors `buildWorkflowRepositories()` exactly.
+ */
+function buildFlowAutonomyRepository(): FlowAutonomyRepository {
+  let db: ReturnType<typeof getDb> = null;
+  try {
+    db = getDb();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `workflow-engine-wiring: getDb() failed (${message}); using in-memory flow-autonomy repository`,
+    );
+    db = null;
+  }
+
+  if (!db) {
+    return createInMemoryFlowAutonomyRepository();
+  }
+
+  try {
+    return createDrizzleFlowAutonomyRepository(db);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `workflow-engine-wiring: Drizzle flow-autonomy wiring failed (${message}); ` +
+        'falling back to in-memory flow-autonomy repository',
+    );
+    return createInMemoryFlowAutonomyRepository();
+  }
+}
+
+/**
  * Returns the composed engine. Builds it on first call and caches the
  * result for the life of the process. Construction is synchronous and
  * never throws — fall-back impls are wired in-place when real deps
  * fail to construct.
  */
 export function getWorkflowEngine(): WorkflowEngineBundle {
-  if (cachedEngine && cachedRegistry) {
-    return { engine: cachedEngine, assignmentRegistry: cachedRegistry };
+  if (cachedEngine && cachedRegistry && cachedFlowAutonomy) {
+    return {
+      engine: cachedEngine,
+      assignmentRegistry: cachedRegistry,
+      flowAutonomy: cachedFlowAutonomy,
+    };
   }
 
   // ── Assignment registry: provides the ScopeGuard the engine needs.
@@ -321,9 +365,15 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
     auditChain,
   });
 
+  // ── Flow-autonomy repository: Drizzle-backed (migration 0308) when a DB is
+  //   reachable, in-memory otherwise. Same selection pattern as the workflow
+  //   repositories above; backs the `/workflow/flow-autonomy` router.
+  const flowAutonomy = buildFlowAutonomyRepository();
+
   cachedEngine = engine;
   cachedRegistry = assignmentRegistry;
-  return { engine, assignmentRegistry };
+  cachedFlowAutonomy = flowAutonomy;
+  return { engine, assignmentRegistry, flowAutonomy };
 }
 
 /**
@@ -334,4 +384,5 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
 export function resetWorkflowEngineForTests(): void {
   cachedEngine = null;
   cachedRegistry = null;
+  cachedFlowAutonomy = null;
 }
