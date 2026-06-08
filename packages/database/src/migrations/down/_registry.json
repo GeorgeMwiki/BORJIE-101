@@ -366,6 +366,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0310_corpus_ratings_with_check.sql",
+      "down": "down/0310_down_corpus_ratings_with_check.sql",
+      "reverses": "Restores the original single permissive `tenant_or_global` (read+write, no WITH CHECK) policy on intelligence_corpus_chunks + ratings. WARNING: reopens the cross-tenant data-poisoning hole (a tenant session can write tenant_id=NULL global rows). Policy-only — no data loss. Down for dev/staging rollback only; never run in production.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
