@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/api-client';
-import { getOwnerSession } from '@/lib/session';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 /**
  * Recommendations query hooks — Mr. Mwikila's matching engine off the live
@@ -60,8 +60,13 @@ export function useSessionUserId() {
   return useQuery({
     queryKey: recommendationKeys.session,
     queryFn: async (): Promise<string | null> => {
-      const session = await getOwnerSession();
-      return session.userId ?? null;
+      // Client-safe session source: the browser Supabase client. The server
+      // getOwnerSession() uses next/headers and breaks the build when pulled
+      // into this 'use client' module (a Client Component cannot import
+      // server-only code). user.id === the server session's userId.
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase.auth.getUser();
+      return data.user?.id ?? null;
     },
     staleTime: 5 * 60_000,
   });
