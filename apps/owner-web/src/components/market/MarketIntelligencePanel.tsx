@@ -19,6 +19,7 @@
 
 import { useState } from 'react';
 import { formatCurrency } from '@borjie/api-client';
+import { marketIntelligencePanelStrings as T } from '@/i18n/strings/market-intelligence-panel';
 import {
   useCommodityForecast,
   useCommodityPrice,
@@ -35,38 +36,6 @@ import {
 interface MarketIntelligencePanelProps {
   readonly locale: 'sw' | 'en';
 }
-
-const T = {
-  title: { en: 'Market intelligence', sw: 'Akili ya soko' },
-  subtitle: {
-    en: 'Live commodity price, buy/sell/hold signal, 90-day demand forecast and active disruptions.',
-    sw: 'Bei ya bidhaa moja kwa moja, ishara ya nunua/uza/shikilia, utabiri wa mahitaji wa siku 90 na vikwazo vilivyopo.',
-  },
-  commodity: { en: 'Commodity', sw: 'Bidhaa' },
-  latestPrice: { en: 'Latest price', sw: 'Bei ya hivi karibuni' },
-  source: { en: 'Source', sw: 'Chanzo' },
-  asOf: { en: 'As of', sw: 'Hadi' },
-  signal: { en: 'Signal', sw: 'Ishara' },
-  confidence: { en: 'confidence', sw: 'uhakika' },
-  reasoning: { en: 'Reasoning', sw: 'Sababu' },
-  forecast: { en: '90-day forecast band', sw: 'Bendi ya utabiri wa siku 90' },
-  forecastConfidence: { en: 'Band coverage', sw: 'Ufunikaji wa bendi' },
-  drivers: { en: 'Drivers', sw: 'Vichocheo' },
-  disruptions: { en: 'Active disruptions', sw: 'Vikwazo vilivyopo' },
-  noDisruptions: { en: 'No active disruptions.', sw: 'Hakuna vikwazo vilivyopo.' },
-  feedUnavailable: {
-    en: 'No live price feed for this commodity yet. Gold is fed from the LBMA fix; copper and tanzanite feeds are not wired.',
-    sw: 'Hakuna chanzo cha bei moja kwa moja kwa bidhaa hii bado. Dhahabu inatoka LBMA; shaba na tanzanite hazijaunganishwa.',
-  },
-  insufficientHistory: {
-    en: 'Not enough price history yet to forecast — the feed appends fixes over time.',
-    sw: 'Hakuna historia ya kutosha ya bei kutabiri bado — chanzo huongeza bei kadri muda unavyokwenda.',
-  },
-  loading: { en: 'Loading…', sw: 'Inapakia…' },
-  error: { en: 'Could not load.', sw: 'Imeshindwa kupakia.' },
-  now: { en: 'now', sw: 'sasa' },
-  day90: { en: 'day 90', sw: 'siku 90' },
-} as const;
 
 const ACTION_TONE: Record<SellSignal['action'], string> = {
   buy: 'border-success/40 bg-success-subtle/20 text-success',
