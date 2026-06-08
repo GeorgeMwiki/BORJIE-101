@@ -31,6 +31,16 @@ import {
   isHighRiskLiteralOnly,
   type ScopeContext,
 } from '@borjie/central-intelligence';
+import {
+  decideAutonomy,
+  composeWithRail,
+  type RailOutcome,
+  type AutonomyDecision,
+  type AutonomyConsequenceTier,
+  type AutonomyReversibility,
+  type AutonomySituationFlags,
+} from '@borjie/autonomy-governance';
+import { requiresConfirmation, isSafeVerb } from '../action-executor/registry.js';
 
 /**
  * The four HIGH-risk policy prefixes the project boundary calls out
@@ -51,10 +61,83 @@ const HIGH_RISK_ACTION_PREFIXES: ReadonlyArray<string> = Object.freeze([
 ]);
 
 export interface AutoAuthorizeDecision {
-  /** TRUE only when every gate passed and no HIGH-risk prefix matched. */
+  /**
+   * TRUE only when every rail passed, no HIGH-risk prefix matched, AND
+   * the additive continuous-autonomy controller landed on `auto`. The
+   * controller can only ESCALATE — it can flip a rail-allowed action to
+   * needs-confirmation, never the reverse. Consumers keep their existing
+   * `if (decision.authorized)` branch unchanged.
+   */
   readonly authorized: boolean;
   /** Machine-readable reason — surfaced on the downgraded suggestion frame. */
   readonly reason: string;
+  /**
+   * Additive continuous-autonomy verdict (ORCHESTRATION_FRONTIER_ADDENDUM
+   * §confidence×consequence×reversibility). `auto` ⇒ authorized; `gate`
+   * ⇒ single confirmation; `four_eyes` ⇒ dual-control. Optional so
+   * legacy assertions on `{ authorized, reason }` keep passing.
+   */
+  readonly autonomyDecision?: AutonomyDecision;
+  /** Ordered, audit-grade reasons from the controller + composition. */
+  readonly autonomyReasons?: ReadonlyArray<string>;
+  /** What forced the most-severe escalation (telemetry). */
+  readonly autonomyGatedBy?:
+    | null
+    | 'consequence'
+    | 'confidence'
+    | 'mandate'
+    | 'situation';
+}
+
+/**
+ * Optional autonomy context the caller can supply to sharpen the
+ * continuous decision. Every field is optional and fails CAUTIOUS when
+ * absent (low calibrated confidence + approver mandate), so omitting it
+ * can only make the gate MORE conservative, never less.
+ */
+export interface AutoAuthorizeAutonomyContext {
+  /**
+   * Conformally-CALIBRATED confidence in (0..1). Derive it from
+   * `@borjie/conformal-calibration-online` via
+   * `calibratedConfidenceFromConformal` before passing it here.
+   */
+  readonly calibratedConfidence?: number;
+  /** Override the verb-derived consequence tier. */
+  readonly consequenceTier?: AutonomyConsequenceTier;
+  /** Override the verb-derived reversibility. */
+  readonly reversibility?: AutonomyReversibility;
+  /** Standing delegation posture for this task-class. Defaults cautious. */
+  readonly mandate?:
+    | 'observer'
+    | 'approver'
+    | 'consultant'
+    | 'collaborator'
+    | 'operator';
+  /** Live re-gating signals (novel counterparty, regime-shift, …). */
+  readonly situationFlags?: AutonomySituationFlags;
+}
+
+/**
+ * Derive a conservative (consequence, reversibility) pair from the action
+ * verb using the executor registry's existing classification. The
+ * HIGH-risk-literal surface (money / licence / deletion) has already
+ * returned `four_eyes` before this is reached, so this only classifies
+ * the residual confirm-required vs auto-safe space.
+ */
+function classifyVerb(action: string): {
+  readonly consequenceTier: AutonomyConsequenceTier;
+  readonly reversibility: AutonomyReversibility;
+} {
+  if (requiresConfirmation(action)) {
+    // Confirm-required, non-money verbs: meaningful, not trivially undone.
+    return { consequenceTier: 'moderate', reversibility: 'costly' };
+  }
+  if (isSafeVerb(action)) {
+    // Auto-safe registry verbs (reminders): low + reversible.
+    return { consequenceTier: 'low', reversibility: 'reversible' };
+  }
+  // Unknown verb — fail cautious: treat as a moderate irreversible mutation.
+  return { consequenceTier: 'moderate', reversibility: 'irreversible' };
 }
 
 /** Normalise the model action token for prefix / substring matching. */
@@ -103,6 +186,7 @@ export function decideAutoAuthorization(
   action: string,
   rationale: string,
   scope: ScopeContext,
+  autonomyContext?: AutoAuthorizeAutonomyContext,
 ): AutoAuthorizeDecision {
   const trimmedAction = action.trim();
   if (!trimmedAction) {
@@ -113,10 +197,17 @@ export function decideAutoAuthorization(
   //    kill_switch / four_eye / policy_rollout (+ money/lease/rotation)
   //    can never be auto-authorized; they must be confirmed.
   if (matchesHighRiskPrefix(trimmedAction)) {
+    // Rail-gate: HIGH-risk literal surface = dual-control HITL forever.
+    // The controller can only reinforce this — it never relaxes it.
     return {
       authorized: false,
       reason:
         'high-risk action requires explicit confirmation (literal-only policy surface)',
+      autonomyDecision: 'four_eyes',
+      autonomyReasons: Object.freeze([
+        "rail: HIGH-risk literal-only surface → four_eyes (dual-control, non-relaxable)",
+      ]),
+      autonomyGatedBy: 'consequence',
     };
   }
 
@@ -173,6 +264,63 @@ export function decideAutoAuthorization(
     return { authorized: false, reason: 'policy gate error (fail-closed)' };
   }
 
-  // All gates passed and no HIGH-risk prefix matched → safe to auto-approve.
-  return { authorized: true, reason: 'authorized' };
+  // ── 4) ADDITIVE continuous-autonomy overlay ──────────────────────────
+  // Every rail passed, so the collapsed rail outcome is `allow`. The
+  // controller now runs ALONGSIDE the rails and may ESCALATE a
+  // rail-allowed action into a gate / four_eyes when calibrated
+  // confidence, the consequence×reversibility surface, the mandate
+  // ceiling, or a live situation flag warrants more caution. It can
+  // NEVER relax a rail decision (`composeWithRail` enforces this — the
+  // result is the more-cautious of rail and controller). FAIL CAUTIOUS:
+  // a thrown controller error downgrades to needs-confirmation.
+  try {
+    const railOutcome: RailOutcome = 'allow';
+    const verbClass = classifyVerb(trimmedAction);
+    const controller = decideAutonomy({
+      // Default confidence clears only the LOW-consequence auto floor
+      // (0.7) — high enough that an already-rail-vetted, registry-auto-
+      // safe, reversible verb stays auto, but BELOW the moderate floor
+      // (0.85) so confirm-required / unknown verbs gate on confidence.
+      // A real caller should pass a conformally-calibrated value.
+      calibratedConfidence: autonomyContext?.calibratedConfidence ?? 0.8,
+      consequenceTier:
+        autonomyContext?.consequenceTier ?? verbClass.consequenceTier,
+      reversibility:
+        autonomyContext?.reversibility ?? verbClass.reversibility,
+      // Default mandate is `operator`: reaching this point means every
+      // rail passed AND the executor registry vetted the verb. The
+      // consequence×reversibility surface + situation flags still gate
+      // the irreversible / high-consequence tail regardless of mandate.
+      mandate: autonomyContext?.mandate ?? 'operator',
+      ...(autonomyContext?.situationFlags
+        ? { situationFlags: autonomyContext.situationFlags }
+        : {}),
+    });
+    const composed = composeWithRail(railOutcome, controller);
+
+    return {
+      // `authorized` stays binary for existing consumers: only a fully
+      // auto composed decision authorizes; gate / four_eyes downgrade to
+      // a needs-confirmation suggestion exactly as a rail denial does.
+      authorized: composed.decision === 'auto',
+      reason:
+        composed.decision === 'auto'
+          ? 'authorized'
+          : `autonomy-controller:${composed.decision} (gatedBy=${composed.gatedBy ?? 'none'})`,
+      autonomyDecision: composed.decision,
+      autonomyReasons: composed.reasons,
+      autonomyGatedBy: composed.gatedBy,
+    };
+  } catch {
+    // Fail cautious — a controller error must NOT authorize.
+    return {
+      authorized: false,
+      reason: 'autonomy controller error (fail-closed)',
+      autonomyDecision: 'gate',
+      autonomyReasons: Object.freeze([
+        'autonomy controller threw — failing closed to gate',
+      ]),
+      autonomyGatedBy: 'situation',
+    };
+  }
 }

@@ -26,7 +26,7 @@
  * engine's typed records.
  *
  * Companion to:
- *   - packages/database/src/migrations/0307_workflow_engine_runs.sql
+ *   - packages/database/src/migrations/0307_workflow_engine_durable_repos.sql
  *   - packages/workflow-engine/src/runs/drizzle-repos.ts
  */
 

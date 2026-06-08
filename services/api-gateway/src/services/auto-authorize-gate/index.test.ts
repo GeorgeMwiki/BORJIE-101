@@ -156,3 +156,127 @@ describe('decideAutoAuthorization — FAIL-CLOSED on thrown gate errors (d)', ()
     expect(decision.reason).toBe('policy gate error (fail-closed)');
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// Additive continuous-autonomy overlay (frontier layer).
+//
+// The overlay runs ALONGSIDE the rails at the success point and may only
+// ESCALATE. The kernel is still mocked default-safe (every rail passes),
+// so these exercise the controller composition directly.
+// ─────────────────────────────────────────────────────────────────────
+
+describe('decideAutoAuthorization — additive autonomy overlay (e)', () => {
+  it('a benign auto-safe verb authorizes with autonomyDecision=auto', () => {
+    const decision = decideAutoAuthorization(
+      'snooze_reminder',
+      'low-stakes reminder snooze',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(true);
+    expect(decision.autonomyDecision).toBe('auto');
+    expect(decision.autonomyReasons?.length ?? 0).toBeGreaterThan(0);
+  });
+
+  it('the controller ESCALATES a rail-allowed unknown verb to a gate', () => {
+    // Unknown verb classifies as moderate/irreversible → controller gates
+    // even though every rail passed. authorized flips to false.
+    const decision = decideAutoAuthorization(
+      'frobnicate_widget',
+      'some rationale',
+      tenantScope,
+    );
+    expect(decision.authorized).toBe(false);
+    expect(decision.autonomyDecision).not.toBe('auto');
+    expect(decision.reason).toContain('autonomy-controller:');
+  });
+
+  it('a low calibrated confidence escalates an otherwise-auto verb to gate', () => {
+    const decision = decideAutoAuthorization(
+      'snooze_reminder',
+      'snooze',
+      tenantScope,
+      { calibratedConfidence: 0.1 },
+    );
+    expect(decision.authorized).toBe(false);
+    expect(decision.autonomyDecision).toBe('gate');
+    expect(decision.autonomyGatedBy).toBe('confidence');
+  });
+
+  it('a situation flag escalates an otherwise-auto verb to four_eyes', () => {
+    const decision = decideAutoAuthorization(
+      'snooze_reminder',
+      'snooze',
+      tenantScope,
+      { situationFlags: { defectionProbeHit: true } },
+    );
+    expect(decision.authorized).toBe(false);
+    expect(decision.autonomyDecision).toBe('four_eyes');
+    expect(decision.autonomyGatedBy).toBe('situation');
+  });
+
+  it('a high-confidence caller-supplied operator posture keeps a safe verb auto', () => {
+    const decision = decideAutoAuthorization(
+      'snooze_reminder',
+      'snooze',
+      tenantScope,
+      {
+        calibratedConfidence: 0.99,
+        mandate: 'operator',
+        consequenceTier: 'low',
+        reversibility: 'reversible',
+      },
+    );
+    expect(decision.authorized).toBe(true);
+    expect(decision.autonomyDecision).toBe('auto');
+  });
+});
+
+describe('decideAutoAuthorization — INVARIANT: rail-gate always wins (f)', () => {
+  it('HIGH-risk prefix → four_eyes overlay, never auto, before the kernel', () => {
+    const decision = decideAutoAuthorization(
+      'sovereign:transfer',
+      // A maximally-confident operator context cannot relax the rail.
+      'fully confident, do it',
+      tenantScope,
+      {
+        calibratedConfidence: 1,
+        mandate: 'operator',
+        consequenceTier: 'trivial',
+        reversibility: 'reversible',
+      },
+    );
+    expect(decision.authorized).toBe(false);
+    expect(decision.autonomyDecision).toBe('four_eyes');
+    // Rail short-circuits before the kernel even runs.
+    expect(mockedRunPolicyGate).not.toHaveBeenCalled();
+  });
+
+  it('an inviolable block denies regardless of a permissive autonomy context', () => {
+    mockedCheckInviolable.mockReturnValue({
+      status: 'block',
+      category: 'cross-tenant',
+    });
+    const decision = decideAutoAuthorization('snooze_reminder', 'tidy', tenantScope, {
+      calibratedConfidence: 1,
+      mandate: 'operator',
+    });
+    expect(decision.authorized).toBe(false);
+    expect(decision.reason).toBe('inviolable:cross-tenant');
+  });
+
+  it('a policy-gate block denies regardless of a permissive autonomy context', () => {
+    mockedRunPolicyGate.mockReturnValue({
+      verdict: { status: 'block', reason: 'cost-ceiling' },
+      redactedText: '',
+      mutations: [],
+    });
+    const decision = decideAutoAuthorization('snooze_reminder', 'snooze', tenantScope, {
+      calibratedConfidence: 1,
+      mandate: 'operator',
+      consequenceTier: 'trivial',
+      reversibility: 'reversible',
+    });
+    expect(decision.authorized).toBe(false);
+    expect(decision.reason).toBe('policy-gate:cost-ceiling');
+  });
+});

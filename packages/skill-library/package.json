@@ -37,6 +37,11 @@
       "types": "./dist/builtin-skills/index.d.ts",
       "import": "./dist/builtin-skills/index.js",
       "default": "./dist/builtin-skills/index.js"
+    },
+    "./skill-capture": {
+      "types": "./dist/skill-capture/index.d.ts",
+      "import": "./dist/skill-capture/index.js",
+      "default": "./dist/skill-capture/index.js"
     }
   },
   "scripts": {

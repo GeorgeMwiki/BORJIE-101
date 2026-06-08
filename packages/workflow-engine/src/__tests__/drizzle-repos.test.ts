@@ -104,7 +104,14 @@ function extractLeaves(
           const ch = chunk as Record<string, unknown>;
           if (typeof ch.name === 'string') {
             pendingName = ch.name;
-          } else if ('value' in ch && pendingName) {
+          } else if (
+            'value' in ch &&
+            pendingName &&
+            // A drizzle Param value is a scalar; a StringChunk's `value`
+            // is an array (e.g. [" = "]) — skip those so the operator
+            // chunk between a Column and its Param is not mistaken for it.
+            !Array.isArray(ch.value)
+          ) {
             out.push({ name: pendingName, value: ch.value });
             pendingName = null;
           } else {
@@ -177,6 +184,7 @@ function makeQueryBuilder(store: FakeStore) {
       let table: unknown = null;
       let leaves: Array<{ name: string; value: unknown }> = [];
       let limitN: number | null = null;
+      let orderDesc = false;
       const chain = {
         from(t: unknown) {
           table = t;
@@ -186,7 +194,18 @@ function makeQueryBuilder(store: FakeStore) {
           leaves = extractLeaves(condition);
           return chain;
         },
-        orderBy() {
+        orderBy(...args: unknown[]) {
+          // Rows are stored in insertion order = recordedAt order for
+          // sequential appends. A bare Column arg has `.name` (ASC); a
+          // desc(col) wrapper does not — detect it and reverse so that
+          // `orderBy(desc(recordedAt)).limit(1)` returns the LATEST row
+          // (latestHashForTenant's intent), not the first-inserted one.
+          orderDesc = args.some(
+            (a) =>
+              a !== null &&
+              typeof a === 'object' &&
+              typeof (a as { name?: unknown }).name !== 'string',
+          );
           return chain;
         },
         limit(n: number) {
@@ -199,6 +218,7 @@ function makeQueryBuilder(store: FakeStore) {
         ) {
           try {
             let rows = bucket(table).filter((r) => matchesRow(r, leaves));
+            if (orderDesc) rows = [...rows].reverse();
             if (limitN !== null) rows = rows.slice(0, limitN);
             return Promise.resolve(resolve(rows.map((r) => ({ ...r }))));
           } catch (e) {
@@ -335,7 +355,9 @@ describe('Drizzle workflow repos — engine lifecycle', () => {
       userId: 'worker',
       scope: 'parcel',
       scopeRefs: ['p2'],
-      capabilities: ['parcel_edit'],
+      // parcel_edit_v1 requires the metadata_edit capability (built-in.ts:30);
+      // the prior 'parcel_edit' grant never matched -> scope_denied at startRun.
+      capabilities: ['metadata_edit'],
     });
 
     const run = await first.engine.startRun({

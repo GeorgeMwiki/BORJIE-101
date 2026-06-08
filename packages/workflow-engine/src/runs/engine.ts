@@ -45,6 +45,10 @@ import type { ApprovalRouterPort } from '../approval/index.js';
 import type { Committer } from '../commit/index.js';
 import type { DefinitionRegistry } from '../definitions/index.js';
 import type { AuditHashChain } from '../audit/index.js';
+import {
+  isFlowAuto,
+  type FlowAutonomyRepository,
+} from '../autonomy/flow-autonomy-port.js';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Public surface
@@ -110,6 +114,19 @@ export interface WorkflowEngineDeps {
   readonly eventRepository: WorkflowRunEventRepository;
   readonly auditChainRepository: AuditChainRepository;
   readonly auditChain: AuditHashChain;
+  /**
+   * Optional flow-keyed autonomy seam (migration 0308 / `flow_autonomy_prefs`).
+   * When wired, the engine records a creation-time auto-vs-gated confirmation
+   * on `startRun` and reads the flow posture to decide whether the per-run
+   * human-approval step is SKIPPED (posture='auto') or BLOCKS (the default).
+   *
+   * ADDITIVE ONLY: an AUTO posture widens the autonomy POLICY, never a rail.
+   * A definition that hard-requires human approval
+   * (`definition.humanApprovalRequired`) is NEVER auto-skipped regardless of
+   * posture — rail-gate always wins. When this dep is absent the engine
+   * behaves exactly as before (fully gated by the approval router).
+   */
+  readonly flowAutonomy?: FlowAutonomyRepository;
   readonly idGen?: IdGen;
   readonly now?: () => Date;
 }
@@ -278,6 +295,17 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps): WorkflowEngine {
         scope: input.scope,
         scopeRef: input.scopeRef,
       });
+      // Flow CREATION records a one-time pending auto-vs-gated confirmation,
+      // keyed on the flow identity (the definitionId). Idempotent: a second
+      // run of the same flow never resets an already-answered confirmation.
+      // Default posture is GATED (the fail-safe USER-GATED invariant).
+      if (deps.flowAutonomy) {
+        await deps.flowAutonomy.recordFlowCreation({
+          tenantId: run.tenantId,
+          flowId: def.id,
+          createdBy: input.initiatedByUserId,
+        });
+      }
       return run;
     },
 
@@ -498,6 +526,27 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps): WorkflowEngine {
   // Internal helpers
   // ─────────────────────────────────────────────────────────────────────
 
+  /**
+   * Resolve whether this run's flow is AUTO-eligible to skip the per-run
+   * human approval.
+   *
+   *   - flowAutonomy dep ABSENT  → returns true. The engine then behaves
+   *     EXACTLY as before (the router/definition alone decide), so wiring
+   *     this seam is purely additive: an unwired engine never changes.
+   *   - flowAutonomy dep PRESENT → returns true ONLY when the flow's
+   *     posture is 'auto' AND its creation-time confirmation is 'confirmed'
+   *     (see isFlowAuto). A missing row resolves to GATED — the fail-safe
+   *     default. This can only ADD gating.
+   */
+  async function resolveFlowAuto(
+    run: WorkflowRun,
+    definition: WorkflowDefinition,
+  ): Promise<boolean> {
+    if (!deps.flowAutonomy) return true;
+    const pref = await deps.flowAutonomy.get(run.tenantId, definition.id);
+    return isFlowAuto(pref);
+  }
+
   async function routeAfterReview(
     run: WorkflowRun,
     definition: WorkflowDefinition,
@@ -508,7 +557,20 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps): WorkflowEngine {
       run,
       definition,
     });
-    if (!route.humanApprovalRequired && definition.autoCommitOnApproval) {
+    // Flow-keyed autonomy (migration 0308): when the per-flow posture is
+    // AUTO (confirmed), the per-run human-approval step is skipped — the
+    // workflow-engine executes without per-run approval. This ONLY applies
+    // when the rail/router does NOT itself demand human approval; if the
+    // router says humanApprovalRequired (definition hard-requires approval,
+    // an elastic threshold tripped, etc.) the flow is GATED regardless of
+    // posture — rail-gate ALWAYS wins. The autonomy-controller + inviolable
+    // rails still apply per action downstream of the engine. This layer can
+    // only ADD gating (a GATED flow blocks even if the router would skip);
+    // it never removes a rail.
+    const flowAuto = await resolveFlowAuto(run, definition);
+    const railAllowsSkip =
+      !route.humanApprovalRequired && definition.autoCommitOnApproval;
+    if (railAllowsSkip && flowAuto) {
       // Synthesize a system approval and commit.
       const decision: ApprovalDecision = Object.freeze({
         id: idGen.next('ad'),
@@ -525,6 +587,7 @@ export function createWorkflowEngine(deps: WorkflowEngineDeps): WorkflowEngine {
       await writeEvent(auto, 'approved', null, {
         rationale: route.rationale,
         source: 'auto',
+        flowAutonomyPosture: 'auto',
       });
       return commitRun(auto, definition);
     }

@@ -15,3 +15,5 @@
 export { createDrizzleRunRepository } from './drizzle-run-repository.js';
 export { createDrizzleRunEventRepository } from './drizzle-run-event-repository.js';
 export { createDrizzleAuditChainRepository } from './drizzle-audit-chain-repository.js';
+// Flow-keyed autonomy posture (migration 0308 / flow_autonomy_prefs).
+export { createDrizzleFlowAutonomyRepository } from './drizzle-flow-autonomy-repository.js';

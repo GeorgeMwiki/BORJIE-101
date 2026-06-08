@@ -1061,6 +1061,13 @@ export * from './workflow-runs.schema.js';
 export * from './workflow-run-events.schema.js';
 export * from './workflow-audit-chain.schema.js';
 
+// Flow-keyed autonomy preferences (migration 0308). Per-flow sticky
+// `auto | gated` posture + creation-time auto-vs-gated confirmation,
+// the per-flow upgrade over the single global tenant_autonomy_caps
+// switch. AUTO lets the workflow-engine skip the per-run approval step;
+// the inviolable rails + autonomy-controller STILL gate per action.
+export * from './flow-autonomy-prefs.schema.js';
+
 // Wave WORKFORCE-CERT-EXPIRY (migration 0102). Per-employee mining
 // certifications + dedup ledger for the cert-expiry reminder cron.
 export * from './workforce-certifications.schema.js';

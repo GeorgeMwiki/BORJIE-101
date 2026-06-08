@@ -68,16 +68,19 @@ import {
   createCommitter,
   createDefinitionRegistry,
   createDrizzleAuditChainRepository,
+  createDrizzleFlowAutonomyRepository,
   createDrizzleRunEventRepository,
   createDrizzleRunRepository,
   createInMemoryApprovalRouter,
   createInMemoryAuditChainRepository,
+  createInMemoryFlowAutonomyRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
   createWorkflowEngine,
   type AIReviewerPort,
   type AuditChainRepository,
   type ChangeApplier,
+  type FlowAutonomyRepository,
   type WorkflowEngine,
   type WorkflowKind,
   type WorkflowRunEventRepository,
@@ -92,10 +95,18 @@ import { getDb } from './db-client.js';
 
 let cachedEngine: WorkflowEngine | null = null;
 let cachedRegistry: AssignmentRegistry | null = null;
+let cachedFlowAutonomy: FlowAutonomyRepository | null = null;
 
 export interface WorkflowEngineBundle {
   readonly engine: WorkflowEngine;
   readonly assignmentRegistry: AssignmentRegistry;
+  /**
+   * Flow-keyed autonomy repository (migration 0308). The `/workflow/
+   * flow-autonomy` route reads/writes the per-flow `auto | gated` posture
+   * + creation-time confirmation through this seam; the engine reads the
+   * same repository to skip / block the per-run human-approval step.
+   */
+  readonly flowAutonomy: FlowAutonomyRepository;
 }
 
 /**
@@ -105,8 +116,12 @@ export interface WorkflowEngineBundle {
  * fail to construct.
  */
 export function getWorkflowEngine(): WorkflowEngineBundle {
-  if (cachedEngine && cachedRegistry) {
-    return { engine: cachedEngine, assignmentRegistry: cachedRegistry };
+  if (cachedEngine && cachedRegistry && cachedFlowAutonomy) {
+    return {
+      engine: cachedEngine,
+      assignmentRegistry: cachedRegistry,
+      flowAutonomy: cachedFlowAutonomy,
+    };
   }
 
   // ── Assignment registry: provides the ScopeGuard the engine needs.
@@ -256,14 +271,22 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
   let runRepository: WorkflowRunRepository;
   let eventRepository: WorkflowRunEventRepository;
   let auditChainRepository: AuditChainRepository;
+  // Flow-keyed autonomy posture store (migration 0308). Drizzle-backed in
+  // production so a flow's `auto | gated` posture survives a restart;
+  // in-memory otherwise. The engine reads this seam to skip (AUTO) / block
+  // (GATED, default) the per-run human-approval step; the inviolable rails
+  // + autonomy-controller STILL gate per action.
+  let flowAutonomy: FlowAutonomyRepository;
   if (db) {
     runRepository = createDrizzleRunRepository(db);
     eventRepository = createDrizzleRunEventRepository(db);
     auditChainRepository = createDrizzleAuditChainRepository(db);
+    flowAutonomy = createDrizzleFlowAutonomyRepository(db);
   } else {
     runRepository = createInMemoryRunRepository();
     eventRepository = createInMemoryRunEventRepository();
     auditChainRepository = createInMemoryAuditChainRepository();
+    flowAutonomy = createInMemoryFlowAutonomyRepository();
   }
   const auditChain = createAuditHashChain(auditChainRepository);
 
@@ -279,11 +302,13 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
     eventRepository,
     auditChainRepository,
     auditChain,
+    flowAutonomy,
   });
 
   cachedEngine = engine;
   cachedRegistry = assignmentRegistry;
-  return { engine, assignmentRegistry };
+  cachedFlowAutonomy = flowAutonomy;
+  return { engine, assignmentRegistry, flowAutonomy };
 }
 
 /**
@@ -294,4 +319,5 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
 export function resetWorkflowEngineForTests(): void {
   cachedEngine = null;
   cachedRegistry = null;
+  cachedFlowAutonomy = null;
 }

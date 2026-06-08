@@ -135,6 +135,29 @@ export {
 } from './auditor-agent.js';
 
 // ─────────────────────────────────────────────────────────────────────
+// Counterfactual self-check gate — pre-act "what if I'm wrong?" critique
+// that ESCALATES high+irreversible actions even in an auto flow. Feeds
+// the autonomy-controller a `counterfactualRisk` signal (ADDITIVE — can
+// only add gating, never remove a rail gate). Pairs with the Auditor.
+// ─────────────────────────────────────────────────────────────────────
+
+export {
+  createCounterfactualSelfCheck,
+  createDefaultCounterfactualSelfCheck,
+  deterministicFloor,
+  computeRiskScore,
+  maxGateDecision,
+  CounterfactualCheckInput,
+  CounterfactualRiskSignal,
+  CounterfactualRiskBand,
+  CounterfactualGateDecision,
+  Reversibility,
+  DownsideSeverity,
+  COUNTERFACTUAL_SELF_CHECK_SYSTEM_PROMPT,
+  type CounterfactualSelfCheck,
+} from './counterfactual-self-check.js';
+
+// ─────────────────────────────────────────────────────────────────────
 // Tenure & compliance
 // ─────────────────────────────────────────────────────────────────────
 

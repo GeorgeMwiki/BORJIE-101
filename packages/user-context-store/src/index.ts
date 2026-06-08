@@ -63,3 +63,41 @@ export {
   nullAuditSink,
   type WormAuditStore,
 } from './audit/index.js';
+
+// ───────────────────────────────────────────────────────────────────────
+// Situational awareness — the per-tenant six-facet standing brief
+// { happened, doing, toDo, couldMatterLater, blindSpots, caveats }.
+// Read FIRST each turn (re-orientation ritual). ADDITIVE + READ-ONLY:
+// synthesized from injected memory/audit/workflow ports; never writes
+// source state, the audit chain, or the money path; INFORMS, never gates.
+// ───────────────────────────────────────────────────────────────────────
+export { buildStandingBrief } from './situation/standing-brief.js';
+export type { BuildBriefContext } from './situation/standing-brief.js';
+export { briefForBrainContext } from './situation/brain-context.js';
+export type { BrainContextProjection } from './situation/brain-context.js';
+export { salience, DEFAULT_HALF_LIFE_HOURS } from './situation/salience.js';
+export type { SalienceInput, SalienceContext } from './situation/salience.js';
+export type {
+  StandingBrief,
+  BriefItem,
+  FutureItem,
+  BlindSpot,
+  Caveat,
+  BriefEvidence,
+} from './situation/brief-types.js';
+export {
+  standingBriefSchema,
+  briefItemSchema,
+  futureItemSchema,
+  blindSpotSchema,
+  caveatSchema,
+  briefEvidenceSchema,
+} from './situation/brief-types.js';
+export type {
+  BriefSources,
+  HappenedRecord,
+  DoingRecord,
+  ToDoRecord,
+  FutureRecord,
+  BlindSpotRecord,
+} from './situation/brief-ports.js';

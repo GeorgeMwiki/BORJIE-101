@@ -17,6 +17,7 @@
  *   import { McpToolRegistry } from '@borjie/skill-library/mcp-tool-search';
  *   import { VoyagerSkillLibrary, BUILTIN_SKILLS } from '@borjie/skill-library/voyager-library';
  *   import { BUILTIN_SKILLS } from '@borjie/skill-library/builtin-skills';
+ *   import { captureSkillOnCompletion } from '@borjie/skill-library/skill-capture';
  */
 
 export * from './subagent-spawn/index.js';
@@ -27,3 +28,7 @@ export * from './voyager-library/index.js';
 // skill helpers) override nothing — no symbol collisions exist after
 // the dispatch-maintenance rename to `rankVendorCandidates`.
 export * from './builtin-skills/index.js';
+// skill-capture — the Voyager solve→verify→describe→embed→store→compose
+// loop + the single completion-detection hook. No symbol collisions with
+// the modules above (distinct Capture* / CompletedTask* surface).
+export * from './skill-capture/index.js';

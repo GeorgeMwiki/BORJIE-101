@@ -17,6 +17,7 @@ import {
   createDefinitionRegistry,
   createInMemoryApprovalRouter,
   createInMemoryAuditChainRepository,
+  createInMemoryFlowAutonomyRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
   createRecordingApplier,
@@ -25,6 +26,7 @@ import {
   type ApprovalRouterPort,
   type ChangeApplier,
   type ElasticThresholds,
+  type FlowAutonomyRepository,
   type ReviewDecision,
   type ReviewVerdict,
   type WorkflowEngine,
@@ -38,6 +40,8 @@ export interface Harness {
   readonly appliers: ReadonlyArray<ReturnType<typeof createRecordingApplier>>;
   readonly router: ApprovalRouterPort;
   readonly thresholds: { value: ElasticThresholds | null };
+  /** Present only when the harness is built with flow-keyed autonomy wired. */
+  readonly flowAutonomy: FlowAutonomyRepository | null;
   readonly grantUser: (args: {
     userId: string;
     tenantId: string;
@@ -45,6 +49,17 @@ export interface Harness {
     scopeRefs: string[];
     capabilities: Capability[];
   }) => Promise<void>;
+}
+
+export interface HarnessOptions {
+  /**
+   * When true the engine is wired with an in-memory flow-keyed autonomy
+   * repository, so flows are GATED by default and only run AUTO once their
+   * posture is explicitly confirmed via `harness.flowAutonomy.setPosture`.
+   * When false/omitted the engine behaves exactly as before (no flow seam),
+   * proving the seam is purely additive.
+   */
+  readonly withFlowAutonomy?: boolean;
 }
 
 export interface ReplayableReviewer extends AIReviewerPort {
@@ -55,7 +70,7 @@ export interface ReplayableReviewer extends AIReviewerPort {
   setCoachHint(hint: string): void;
 }
 
-export function createTestHarness(): Harness {
+export function createTestHarness(options: HarnessOptions = {}): Harness {
   const assignmentRepo = createInMemoryAssignmentRepository();
   const eventRepo = createInMemoryAssignmentEventRepository();
   const registry = createAssignmentRegistry({
@@ -125,6 +140,10 @@ export function createTestHarness(): Harness {
     readThresholds: async () => thresholds.value,
   });
 
+  const flowAutonomy: FlowAutonomyRepository | null = options.withFlowAutonomy
+    ? createInMemoryFlowAutonomyRepository()
+    : null;
+
   const engine = createWorkflowEngine({
     scopeGuard: registry.scope,
     aiReviewer: reviewer,
@@ -135,6 +154,7 @@ export function createTestHarness(): Harness {
     eventRepository: runEvents,
     auditChainRepository: auditRepo,
     auditChain,
+    ...(flowAutonomy ? { flowAutonomy } : {}),
   });
 
   async function grantUser(args: {
@@ -156,5 +176,14 @@ export function createTestHarness(): Harness {
     });
   }
 
-  return { engine, registry, reviewer, appliers, router, thresholds, grantUser };
+  return {
+    engine,
+    registry,
+    reviewer,
+    appliers,
+    router,
+    thresholds,
+    flowAutonomy,
+    grantUser,
+  };
 }

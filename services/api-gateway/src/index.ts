@@ -341,6 +341,7 @@ import { stageRouter } from './routes/stage/index.js';
 // `ai-reviewer` + `assignment-registry` ScopeGuard). See wiring-gap
 // audit chain 8.
 import workflowRouter from './routes/workflow/index.js';
+import flowAutonomyRouter from './routes/workflow/flow-autonomy.js';
 import agentCertificationsRouter from './routes/agent-certifications.router';
 // REMOVED (borjie hard-fork): import classroomRouter from './routes/classroom.router';
 import trainingRouter from './routes/training.router';
@@ -2054,6 +2055,10 @@ api.route('/stage', stageRouter);
 // runs survive process restarts and so the new engine is the single
 // source of truth.
 api.route('/workflow', workflowRouter);
+// Flow-keyed autonomy posture + creation-time auto-vs-gated confirmation
+// (migration 0308). Mounted as a sibling segment so the literal
+// `/workflow/flow-autonomy` paths never collide with `/workflow/runs/:id`.
+api.route('/workflow/flow-autonomy', flowAutonomyRouter);
 api.route('/agent-certifications', agentCertificationsRouter);
 // REMOVED (borjie hard-fork): api.route('/classroom', classroomRouter);
 api.route('/training', trainingRouter);
