@@ -331,3 +331,34 @@ every modality-arbiter / genui / tab-spawn wiring:
 Wiring tests MUST prove: (a) no UI change without approval, (b) low-need turn proposes
 nothing, (c) chat refinement re-synthesizes, (d) auto-flow spawns ambiently but reversibly,
 (e) a routed money/licence action still hits the policy-gate.
+
+---
+
+## Org-Brain Invariants (owner directives, 2026-06-08) — bind all org-brain wiring
+
+### INV-A · Admin/Owner control-plane vs data-plane boundary (HARD data-protection wall)
+- admin-web (port 3020) = BORJIE-INTERNAL control plane ONLY: platform ops + metadata
+  (tenants-as-accounts, billing, system health, global brain config, corpus, evals,
+  kill-switches, announcements). It must NEVER read tenant business data (ledger,
+  documents, PII, operational rows). Borjie staff support access is BREAK-GLASS ONLY:
+  explicit + consented + time-boxed + audited (hash-chained) + ideally tenant-visible.
+- owner-web (port 3010) = the OWNER's data plane + the owner's OWN admin (their org,
+  employees, settings). Owner-admin features live HERE, NEVER in admin-web.
+- admin-web service-role / RLS-bypass usage MUST be scoped to platform tables; it may
+  not freely select tenant-scoped business rows. AUDIT this.
+
+### INV-B · Surfaces are semantic LENSES over the org-graph, intelligently categorized
+- A surface (HR/compliance/finance/…) is a lens, not a fixed table. The brain composes
+  it by querying the org-graph and CATEGORIZES it by the org's shape + the user's need
+  (region/operation/type). Roll-up = full visibility across everything; drill-down = one
+  part in its own scope. Categories AUTO-EXPAND/CONTRACT as the org grows/shrinks
+  (5 ops -> 10 ops -> 10 sub-views). Gated unless the user set the flow to auto.
+
+### INV-C · Infinite, self-extending nervous system (no cap on nodes/connections)
+- No fixed catalog of nodes or connection types. To execute the mandate the brain forms
+  and reforms ARBITRARY nodes + edges as context demands. If a needed tool is MISSING,
+  the brain CREATES it or COMPOSES several existing tools to meet the need — within the
+  bodyChange meta-rail + user approval. Capability is unbounded + self-extending; the
+  only limit is the mandate + the inviolable rails (money/licence/deletion stay HITL).
+
+These bind the org-brain architecture + every wiring pass + their tests.
