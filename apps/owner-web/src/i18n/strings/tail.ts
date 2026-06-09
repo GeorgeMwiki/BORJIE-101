@@ -357,5 +357,7 @@ export const tailStrings = {
     'O-W-29': { sw: 'Mitiririko ya Mtaji', en: 'Capital flows' },
     'O-W-30': { sw: 'Urithi', en: 'Succession' },
     'O-W-31': { sw: 'Daftari la Mali', en: 'Asset register' },
+    'O-W-32': { sw: 'Taarifa ya Asubuhi', en: 'Head briefing' },
+    'O-W-33': { sw: 'Mipango ya Wakala', en: 'Agentic plans & sandbox' },
   },
 } as const;

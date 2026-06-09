@@ -167,6 +167,46 @@ export const INTERNAL_SCREENS: ReadonlyArray<InternalScreen> = [
       'Capability powers, LLM routing (core + fallbacks + ensemble + per-use-case), model catalog, and the suggest-only recommender.',
     group: 'ops',
   },
+  {
+    id: 'I-W-22',
+    slug: 'proposals',
+    title: 'Proposals approval queue',
+    intent:
+      'Human-in-the-loop queue for brain↔tab module-update proposals: review pending_hitl rows and approve / decline (four-eye + approver-tier enforced upstream).',
+    group: 'quality',
+  },
+  {
+    id: 'I-W-23',
+    slug: 'junior-ai-factory',
+    title: 'Junior-AI factory',
+    intent:
+      'Provisioned tenant-scoped junior AIs: review each junior’s domain / mandate / lifecycle and suspend or revoke (team-lead gate enforced upstream).',
+    group: 'intelligence',
+  },
+  {
+    id: 'I-W-24',
+    slug: 'task-agents',
+    title: 'Task-agents registry',
+    intent:
+      'Uniform registry of narrow-scope task agents with guardrails; manual-trigger a run (validated against each agent’s schema) and review recent runs.',
+    group: 'ops',
+  },
+  {
+    id: 'I-W-25',
+    slug: 'persona-registry',
+    title: 'Persona registry',
+    intent:
+      'SUPER_ADMIN view of every brain persona (platform + tenant): opening statement, tone, taboos; refresh from DB and remove personas.',
+    group: 'intelligence',
+  },
+  {
+    id: 'I-W-26',
+    slug: 'workflow-engine',
+    title: 'Workflow engine & flow autonomy',
+    intent:
+      'Read-first view of the persistent four-eyes workflow engine: your open runs plus each flow’s auto|gated posture and the pending auto-vs-gated confirmation queue.',
+    group: 'ops',
+  },
 ];
 
 export interface ScreenGroupDescriptor {

@@ -237,6 +237,8 @@ export const en = {
     masterBrain: 'Master Brain',
     lmbm: 'LMBM',
     ask: 'Ask Borjie',
+    headBriefing: 'Head briefing',
+    agentic: 'Agentic plans',
     training: 'Training',
     portfolioMap: 'Portfolio map',
     sites: 'Sites',

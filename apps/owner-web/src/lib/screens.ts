@@ -362,6 +362,27 @@ export const OWNER_SCREENS: ReadonlyArray<OwnerScreen> = [
     persona: 'Family-Office Chief of Staff',
     group: 'estate',
   },
+  // Wave 9 — thin surfaces over already-mounted gateway routes.
+  {
+    id: 'O-W-32',
+    slug: 'head-briefing',
+    title: 'Head briefing',
+    titleSw: S.screens['O-W-32'].sw,
+    intent:
+      'First-login head screen: overnight autonomous activity, pending approvals, escalations, KPI deltas, recommendations, and anomalies as one curated document.',
+    persona: 'Master Brain + Report Writer',
+    group: 'overview',
+  },
+  {
+    id: 'O-W-33',
+    slug: 'agentic',
+    title: 'Agentic plans & sandbox',
+    titleSw: S.screens['O-W-33'].sw,
+    intent:
+      'MD-agentic review queue: staged sandbox writes the brain proposed, with a four-eye commit (applies atomically) and reject. Read-first; commit is the high-stakes path.',
+    persona: 'Master Brain',
+    group: 'overview',
+  },
 ];
 
 export function getScreenBySlug(slug: string): OwnerScreen | undefined {
