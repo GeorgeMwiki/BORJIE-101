@@ -270,6 +270,7 @@ describe('dispatchMicroAction / confirmAction', () => {
     expect(result).toEqual({
       executed: false,
       authorized: false,
+      deferToBrain: false,
       reason: 'network unreachable',
     });
   });

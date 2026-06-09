@@ -312,6 +312,9 @@ export const en = {
       // turn. These compose the structured follow-up the owner's tap sends.
       fulfill: 'Please go ahead with: {action}.',
       fulfillDetail: 'Please go ahead with: {action}. Details — {detail}.',
+      // GENERATIVE TAB PROMOTION — a dynamic, brain-authored tab type the static
+      // registry does not know defers to the brain to build + open it.
+      promoteTab: 'Please build and open the full {label} tab.',
     },
   },
 

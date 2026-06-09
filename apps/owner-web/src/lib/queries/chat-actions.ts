@@ -80,7 +80,7 @@ async function postAction(
     // graceful unauthorized/undecided result so the chat can fall back
     // to the text suggestion instead of crashing the bubble.
     const reason = error instanceof Error ? error.message : 'request failed';
-    return { executed: false, authorized: false, reason };
+    return { executed: false, authorized: false, deferToBrain: false, reason };
   }
 }
 

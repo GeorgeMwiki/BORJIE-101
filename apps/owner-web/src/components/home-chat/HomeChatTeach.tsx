@@ -1233,11 +1233,18 @@ function TeachBubble({
                   locale={languagePreference}
                   sessionId={message.id}
                   onAction={(event) => {
-                    // Tab promotion → forward through onSpawnTab so the
-                    // owner-os shell handles dedup + augment.
+                    // Tab promotion. A STATIC registry tabType routes through
+                    // onSpawnTab (dedup + augment in the owner-os shell). A
+                    // DYNAMIC, brain-AUTHORED tabType is NOT in the static enum,
+                    // so ownerOsSpawnBatchSchema.safeParse fails — rather than
+                    // dropping the click (dead button), we DEFER it to the brain
+                    // to GENERATE the dynamic tab: it builds the portal-genui tab
+                    // via its tools and emits a genui proposal on the SSE stream,
+                    // which the shell persists + opens in the background. This is
+                    // the self-evolving path — any tab the brain invents promotes
+                    // by construction, never gated on a static registry entry.
                     if (
                       event.action === 'spawn_tab' &&
-                      onSpawnTab &&
                       event.payload &&
                       typeof event.payload === 'object'
                     ) {
@@ -1250,16 +1257,23 @@ function TeachBubble({
                           {
                             type: p.tabType,
                             context: p.context ?? {},
-                            reason:
-                              languagePreference === 'sw'
-                                ? 'Inline tab promotion'
-                                : 'Inline tab promotion',
+                            reason: 'Inline tab promotion',
                           },
                         ],
                       });
-                      if (parsed.success) {
+                      if (parsed.success && onSpawnTab) {
                         const first = parsed.data.tabs[0];
                         if (first) onSpawnTab(first);
+                        return;
+                      }
+                      // Dynamic (non-static) tabType → defer to the brain.
+                      if (typeof p.tabType === 'string' && p.tabType.length > 0) {
+                        const ctx = p.context ?? {};
+                        const label =
+                          (typeof ctx['title'] === 'string' && ctx['title']) ||
+                          (typeof ctx['label'] === 'string' && ctx['label']) ||
+                          p.tabType.replace(/[._:-]+/g, ' ').trim();
+                        onSuggestion(t('teach.microAction.promoteTab', { label }));
                       }
                       return;
                     }

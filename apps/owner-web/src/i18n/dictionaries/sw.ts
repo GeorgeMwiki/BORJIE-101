@@ -280,7 +280,8 @@ export const sw = {
       "needsConfirmation": "Inahitaji uthibitisho wako — {reason}",
       "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako.",
       "fulfill": "Tafadhali endelea na: {action}.",
-      "fulfillDetail": "Tafadhali endelea na: {action}. Maelezo — {detail}."
+      "fulfillDetail": "Tafadhali endelea na: {action}. Maelezo — {detail}.",
+      "promoteTab": "Tafadhali tengeneza na ufungue tab kamili ya: {label}."
     }
   },
   "portal": {
