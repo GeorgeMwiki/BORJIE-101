@@ -59,6 +59,23 @@ export {
   type RecommendationPublisher,
   type RecommendationComposer,
 } from './schedule/intel-tick.js';
+// Scientific-discovery trigger — `@borjie/scientific-discovery` wired in
+// behind the default-OFF BORJIE_SCIENTIFIC_DISCOVERY_ENABLED flag.
+export {
+  runDiscoveryTrigger,
+  isDiscoveryEnabled,
+  DISCOVERY_ENABLED_ENV,
+  type DiscoveryTriggerWiring,
+  type RunDiscoveryTriggerArgs,
+  type DiscoveryTriggerResult,
+  type RecurrenceOracle,
+  type DataRefProvider,
+} from './discovery/discovery-trigger.js';
+export { mapAnomalyKindToDiscoveryArea } from './discovery/area-map.js';
+export {
+  cardToRecommendation,
+  type CardToRecommendationInput,
+} from './discovery/card-to-recommendation.js';
 // Real notification delivery — the default sink + its building blocks.
 export {
   createNotificationSink,

@@ -77,6 +77,8 @@ def run_refutation(
     max_rows: int,
     bootstrap_samples: int,
     dowhy_simulations: int,
+    allow_local_paths: bool = False,
+    max_bytes: int | None = None,
 ) -> RefuteResponse:
     """Top-level entry point.
 
@@ -85,8 +87,16 @@ def run_refutation(
         max_rows: Hard cap on DataFrame size (DoS guard).
         bootstrap_samples: Sample budget for `bootstrap_refuter`.
         dowhy_simulations: Simulation budget for placebo + dummy refuters.
+        allow_local_paths: SEC-2 — pass-through to the data loader; local
+            file schemes are rejected in prod.
+        max_bytes: SEC-2 — pass-through inline-payload byte cap.
     """
-    df = load_dataframe(req.dataRef, max_rows=max_rows)
+    df = load_dataframe(
+        req.dataRef,
+        max_rows=max_rows,
+        allow_local_paths=allow_local_paths,
+        max_bytes=max_bytes,
+    )
     _validate_columns_present(df, req)
 
     method_name = _METHOD_BY_ESTIMATOR.get(req.estimator, "backdoor.linear_regression")

@@ -5686,6 +5686,9 @@ importers:
       '@borjie/proactive-intel':
         specifier: workspace:*
         version: link:../../packages/proactive-intel
+      '@borjie/scientific-discovery':
+        specifier: workspace:*
+        version: link:../../packages/scientific-discovery
       '@borjie/user-context-store':
         specifier: workspace:*
         version: link:../../packages/user-context-store

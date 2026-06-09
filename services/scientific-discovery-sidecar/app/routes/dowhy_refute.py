@@ -4,13 +4,20 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.models.schemas import RefuteRequest, RefuteResponse
+from app.security import require_bearer_token
 from app.services.data_loader import DataRefError
 from app.services.dowhy_engine import DoWhyEngineError, run_refutation
 
-router = APIRouter(prefix="/dowhy", tags=["dowhy"])
+# SEC-1 — the bearer guard runs as a router-level dependency so an
+# unauthenticated caller is rejected before the request body is parsed.
+router = APIRouter(
+    prefix="/dowhy",
+    tags=["dowhy"],
+    dependencies=[Depends(require_bearer_token)],
+)
 logger = logging.getLogger(__name__)
 
 
@@ -24,6 +31,8 @@ async def dowhy_refute(req: RefuteRequest, request: Request) -> RefuteResponse:
             max_rows=settings.max_payload_rows,
             bootstrap_samples=settings.bootstrap_samples,
             dowhy_simulations=settings.dowhy_simulations,
+            allow_local_paths=settings.allow_local_paths,
+            max_bytes=settings.max_payload_bytes,
         )
     except DataRefError as exc:
         # 400 — caller-fixable.

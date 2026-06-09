@@ -147,6 +147,13 @@ jobs:
             build_args: |
               APP_NAME=admin-web
               APP_PATH=apps/admin-web
+          # CD-1 — scientific-discovery Python sidecar (DoWhy + Tigramite).
+          # Self-contained Dockerfile with its own build context; the cosign
+          # sign + SLSA attest + identity-bound verify steps below key off
+          # matrix.service, so it is signed/attested automatically.
+          - service: scientific-discovery-sidecar
+            context: services/scientific-discovery-sidecar
+            dockerfile: services/scientific-discovery-sidecar/Dockerfile
     steps:
       - uses: actions/checkout@v6
 

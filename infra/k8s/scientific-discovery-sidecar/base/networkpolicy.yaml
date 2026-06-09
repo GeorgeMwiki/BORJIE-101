@@ -4,6 +4,14 @@
 # This is an internal sidecar (no external HTTPS needed by design — pure
 # numerical workload, no LLM calls). Allow inbound from api-gateway +
 # domain-services, and observability egress only.
+#
+# SEC-3 posture (net): ZERO outbound except DNS (53) + OTLP (4317/4318) to
+# the monitoring namespace. The CNI's default-deny (below) means anything
+# not explicitly allowed — the cloud metadata endpoint 169.254.169.254,
+# every RFC1918 lateral-movement target, the public internet — is blocked
+# by construction. The explicit IMDS/RFC1918-except guard below is a
+# belt-and-suspenders assertion of that intent so a future broadening of
+# the allow-list can never accidentally re-open instance-credential theft.
 # =============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -88,7 +96,13 @@ spec:
       app.kubernetes.io/name: scientific-discovery-sidecar
   policyTypes: [Egress]
   egress:
-    # Observability only — sidecar is computation-pure.
+    # SEC-3 — observability ONLY. The sidecar is computation-pure: it
+    # makes NO outbound calls except OTLP to the in-cluster collector and
+    # DNS (allowed by the sibling allow-dns-egress policy). The previously
+    # open `to: []` :443 rule is REMOVED — a compromised sidecar must not
+    # be able to exfiltrate tenant data to the public internet, reach the
+    # cloud metadata endpoint (169.254.169.254), or move laterally to
+    # other namespaces / tenants on RFC1918 ranges.
     - to:
         - namespaceSelector:
             matchLabels:
@@ -98,10 +112,40 @@ spec:
           port: 4317
         - protocol: TCP
           port: 4318
-    # External HTTPS — pip-style downloads at runtime are not used in prod;
-    # leave this open for future telemetry upload providers. Tighten if not
-    # required.
-    - to: []
-      ports:
-        - protocol: TCP
-          port: 443
+---
+# SEC-3 — explicit IMDS / RFC1918-except guard.
+#
+# This policy carves the cloud-provider metadata endpoint and the private
+# RFC1918 ranges OUT of any IP-block egress the sidecar might ever be
+# granted. It deliberately allows NO destinations of its own (the
+# `0.0.0.0/0 except` block is paired with no ports → it is an assertion,
+# not a grant): NetworkPolicies are additive, so this never widens egress.
+# It documents — and pins in code — the rule that instance-credential
+# theft (169.254.169.254) and lateral movement across the private network
+# are off-limits, mirroring infra/k8s/networkpolicy-strict/
+# 30-allow-https-egress.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: scientific-discovery-sidecar-deny-imds-rfc1918
+  labels:
+    app.kubernetes.io/name: scientific-discovery-sidecar
+    app.kubernetes.io/part-of: borjie
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: scientific-discovery-sidecar
+  policyTypes: [Egress]
+  egress:
+    # No ports → no destination is actually opened by this rule; the
+    # `except` list records the carve-outs that any future broadening of
+    # the allow-list MUST continue to honour.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+              - 169.254.0.0/16
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16

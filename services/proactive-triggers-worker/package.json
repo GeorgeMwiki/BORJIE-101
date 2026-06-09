@@ -22,6 +22,7 @@
     "@borjie/user-followup": "workspace:*",
     "@borjie/employee-perf-followup": "workspace:*",
     "@borjie/proactive-intel": "workspace:*",
+    "@borjie/scientific-discovery": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {

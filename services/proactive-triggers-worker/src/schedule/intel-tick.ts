@@ -39,7 +39,14 @@ import {
   type TickRunResult,
 } from '@borjie/proactive-intel';
 import { iterateTenants } from './tenant-iteration.js';
+import {
+  runDiscoveryTrigger,
+  type DiscoveryTriggerWiring,
+} from '../discovery/discovery-trigger.js';
 import type { TenantDirectory, WorkerLogger } from '../types.js';
+
+/** Cadence tier the (heavy, opt-in) scientific-discovery round rides. */
+const DISCOVERY_CADENCE_TIER = 'cold';
 
 /**
  * Host-supplied source of pre-fetched tick inputs. The host fans out
@@ -96,6 +103,14 @@ export interface IntelTickWiring {
    * HOT cadence on the short loop).
    */
   readonly cadenceTiers?: ReadonlyArray<string>;
+  /**
+   * Optional scientific-discovery wiring. When supplied AND the
+   * `BORJIE_SCIENTIFIC_DISCOVERY_ENABLED` flag is on, a recurring COLD
+   * anomaly seeds a Co-Scientist round whose top discovery card is
+   * published through `publisher`. When omitted, the discovery trigger
+   * never runs. Fail-safe-to-skip — see `runDiscoveryTrigger`.
+   */
+  readonly discovery?: DiscoveryTriggerWiring;
 }
 
 export interface RunIntelTickDeps {
@@ -218,6 +233,19 @@ async function runForTenant(args: {
       for (const rec of recommendations) {
         await wiring.publisher.publish(tenantId, rec);
         published += 1;
+      }
+
+      // Heavy, opt-in scientific-discovery round rides the COLD cadence
+      // only — never the hot/warm path. Fail-safe-to-skip; never throws.
+      if (wiring.discovery && cadence.tier === DISCOVERY_CADENCE_TIER) {
+        const result = await runDiscoveryTrigger({
+          tenantId,
+          anomalies: tick.anomalies,
+          wiring: wiring.discovery,
+          nowIso: new Date(tick.nowMs).toISOString(),
+          ...(logger ? { logger } : {}),
+        });
+        published += result.published;
       }
     } catch (error) {
       errored = true;

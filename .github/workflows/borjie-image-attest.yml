@@ -73,6 +73,9 @@ jobs:
           - marketing
           - owner-web
           - admin-web
+          # CD-1 — re-attest the scientific-discovery Python sidecar image
+          # on release / nightly drift canary (built + signed in cd.yml).
+          - scientific-discovery-sidecar
     steps:
       - name: Checkout
         uses: actions/checkout@v4
