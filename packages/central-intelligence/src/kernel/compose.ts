@@ -332,6 +332,20 @@ export interface ComposeSovereignConfig {
    */
   readonly synthesizer?: MultiLLMSynthesizerPort;
   /**
+   * Optional internal-debate port. When wired AND a turn is high/critical
+   * stakes AND `shouldDebate(req)` returns true, the kernel replaces the
+   * single sensor call at step 7 with an N-voice debate (advocate → critic
+   * → devil's-advocate → synthesiser) and uses the synthesis as the answer.
+   * Default OFF (no port wired) so existing single-shot callers are
+   * unchanged. The api-gateway composition root constructs the port via
+   * `buildDebateKernelPort(...)` in
+   * `services/api-gateway/src/composition/debate-kernel-port-wiring.ts`
+   * (Wave-3 dark-organ closure); the binding is fail-safe (a slow/failed
+   * debate returns an empty outcome and the kernel falls back to the
+   * single-shot sensor path).
+   */
+  readonly debate?: import('./kernel.js').BrainKernelDeps['debate'];
+  /**
    * Phase E.5.1 — orchestrator wire-up.
    *
    * When supplied, the kernel's `think()` / `thinkStream()` calls
@@ -502,6 +516,10 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   }
   if (config.embedder)          (kernelDeps as any).embedder = config.embedder;
   if (config.synthesizer)       (kernelDeps as any).synthesizer = config.synthesizer;
+  // Wave-3 — forward the internal-debate port the gateway constructs so the
+  // stakes-gated multi-voice debate detour actually reaches the kernel hot
+  // path. Without this the bound `mutable.debate` would be silently dropped.
+  if (config.debate)            (kernelDeps as any).debate = config.debate;
   // C5 — Progressive Intelligence.
   if (config.skillRetriever)    (kernelDeps as any).skillRetriever = config.skillRetriever;
   if (config.reflexionRetriever) (kernelDeps as any).reflexionRetriever = config.reflexionRetriever;

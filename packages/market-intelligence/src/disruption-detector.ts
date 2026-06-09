@@ -3,14 +3,19 @@
  * weather / geopolitics disruptions for a tenant.
  *
  * Reads from a `DisruptionSignalSourcePort` (caller wires real feeds
- * in production) and emits validated alerts to an `AlertSinkPort`.
- * `@borjie/proactive-intel` and `@borjie/anomaly-detection` would
- * normally compose the alert envelopes — we keep the wiring point
- * behind a Port so unit tests stay deterministic.
+ * in production) and emits validated alerts to an `AlertSinkPort`. This
+ * engine runs deterministic pure-TS p50-trend rules behind those Ports.
  *
- * LATER(wire): @borjie/proactive-intel.compose for chat-first delivery
- * + @borjie/anomaly-detection detectors for statistical triggers.
- * See KI-DEBT-001.
+ * Wave-3 closure (Docs/research/MASTER_WIRING_CLOSURE_PLAN.md): the
+ * `@borjie/anomaly-detection` statistical detectors are now LIVE — but as
+ * a reachable brain tool (`mwikila.anomaly.detect`, wired at
+ * `services/api-gateway/src/composition/brain-tools/anomaly-detection-tools.ts`),
+ * NOT inline here. That keeps this engine's `DisruptionSignalSourcePort`
+ * contract (pre-shaped feed envelopes) intact while making the raw
+ * detectors callable from the brain on demand. A future enhancement may
+ * feed detector verdicts into a `DisruptionSignalSourcePort` adapter for
+ * the proactive tick. Chat-first delivery still routes through
+ * `@borjie/proactive-intel.compose`. See KI-DEBT-001.
  */
 
 import {

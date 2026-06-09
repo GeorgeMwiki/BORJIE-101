@@ -38,6 +38,8 @@ import {
   createIndexMaintenancePass,
   createMetricsRollupPass,
   createModelRegistryWarmPass,
+  createReflexionConsolidationPass,
+  createInMemoryReflexionRunner,
 } from './passes/index.js';
 import {
   createOrchestrator,
@@ -118,7 +120,7 @@ export async function buildStandaloneOrchestrator(
     );
   }
 
-  const passes: ReadonlyArray<SleepPass> = [
+  const passes: SleepPass[] = [
     createDeadLetterReplayPass(createInMemoryDeadLetterAdapter()),
     createCacheWarmUpPass(createInMemoryCacheAdapter(), []),
     createDataQualityCheckPass(createInMemoryDataQualityAdapter()),
@@ -132,6 +134,20 @@ export async function buildStandaloneOrchestrator(
     // `@borjie/brain-llm-router/dynamic-registry`.
     createModelRegistryWarmPass({ warmAllFamilies: async () => {} }),
   ];
+
+  // Wave-3 DARK-ORGAN closure — the nightly reflexion-consolidation pass
+  // (kernel `runNightlySleep`). Registered ONLY when the env flag is set
+  // (default OFF — this is compute-heavy 4-pass consolidation). In
+  // standalone mode the runner is the deterministic in-memory double; the
+  // api-gateway composition root wires the real `runNightlySleep` + its
+  // Drizzle-backed reflexion adapters over reflexion_buffer /
+  // reflexion_guidelines (same "real adapters live in api-gateway" pattern
+  // as the other passes above). NEVER touches the live session-end writer.
+  if (process.env.BORJIE_REFLEXION_SLEEP_ENABLED === '1') {
+    passes.push(
+      createReflexionConsolidationPass(createInMemoryReflexionRunner([])),
+    );
+  }
 
   // Durable run + emission store: Drizzle-backed when a DB is reachable, else
   // in-memory. Resolved once and shared across every tick.

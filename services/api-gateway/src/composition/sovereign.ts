@@ -102,6 +102,14 @@ import {
   buildSemanticCachePort,
   buildIntentVerifierPort,
 } from './lp30-kernel-ports-wiring.js';
+// Wave-3 DARK-ORGAN closure (Docs/research/MASTER_WIRING_CLOSURE_PLAN.md) —
+// the kernel's normal-turn multi-voice debate detour. The kernel ALREADY
+// consumes `deps.debate` at high/critical stakes, but no composition root
+// ever populated it, so the detour never fired. This binds a real
+// stakes-gated DebatePort (N voices × R rounds over the same Anthropic
+// sensor) behind `BORJIE_KERNEL_DEBATE_ENABLED` (default OFF) + a wall-clock
+// budget so a slow debate can never stall a turn (fail-safe → single-shot).
+import { buildDebateKernelPort } from './debate-kernel-port-wiring.js';
 // See gh-issue #29: `@borjie/market-intelligence` was a property-vertical
 // package (Zillow / Airbnb rental comps). Mining equivalents (LME spot
 // prices, Argus DRC tin index, etc.) will live under a new
@@ -648,6 +656,24 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     },
     'lp30: semantic-cache + intent-verifier ports wired into kernel deps',
   );
+
+  // Wave-3 — bind the kernel debate port onto the MAIN kernel deps. The
+  // kernel reads `deps.debate` at step 7 and (only at high/critical stakes
+  // AND when `shouldDebate(req)` returns true) replaces the single sensor
+  // call with an N-voice debate. Only wired when a real Anthropic sensor is
+  // present — a debate needs a live model. Default OFF via
+  // `BORJIE_KERNEL_DEBATE_ENABLED`; the wall-clock budget + empty-outcome
+  // fail-safe mean a slow debate falls back to the single-shot sensor and
+  // never stalls a turn. Propose-only: debate shapes the answer text, never
+  // actuates the sovereign rail.
+  if (anthropic) {
+    const debate = buildDebateKernelPort({ anthropic, logger: lp30Logger });
+    mutable.debate = debate.port;
+    logger.info(
+      { wiring: 'kernel-debate', debateEnabled: debate.enabled },
+      'kernel-debate: stakes-gated multi-voice debate port wired into kernel deps',
+    );
+  }
 
   // Stage 1 — orchestrator main-loop wire onto the LIVE kernel. Build the
   // router + dispatcher + durable memory tool + the 9 production hook

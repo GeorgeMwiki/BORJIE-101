@@ -4692,6 +4692,9 @@ importers:
       '@borjie/analytics':
         specifier: workspace:*
         version: link:../../packages/analytics
+      '@borjie/anomaly-detection':
+        specifier: workspace:*
+        version: link:../../packages/anomaly-detection
       '@borjie/assignment-registry':
         specifier: workspace:*
         version: link:../../packages/assignment-registry
@@ -4707,6 +4710,9 @@ importers:
       '@borjie/autonomy-governance':
         specifier: workspace:*
         version: link:../../packages/autonomy-governance
+      '@borjie/belief-engine':
+        specifier: workspace:*
+        version: link:../../packages/belief-engine
       '@borjie/blackboard-sota':
         specifier: workspace:*
         version: link:../../packages/blackboard-sota
@@ -4725,6 +4731,9 @@ importers:
       '@borjie/capacity-expansion-advisor':
         specifier: workspace:*
         version: link:../../packages/capacity-expansion-advisor
+      '@borjie/causal-inference':
+        specifier: workspace:*
+        version: link:../../packages/causal-inference
       '@borjie/central-intelligence':
         specifier: workspace:*
         version: link:../../packages/central-intelligence

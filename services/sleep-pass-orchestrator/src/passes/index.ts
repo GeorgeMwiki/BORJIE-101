@@ -18,3 +18,13 @@ export {
   createModelRegistryWarmPass,
   type ModelRegistryWarmer,
 } from './model-registry-warm.js';
+// Wave-3 DARK-ORGAN closure — nightly reflexion consolidation
+// (runNightlySleep). Registered only when BORJIE_REFLEXION_SLEEP_ENABLED=1;
+// the composition root wires the runner port to the real kernel passes.
+export {
+  createReflexionConsolidationPass,
+  createInMemoryReflexionRunner,
+  type ReflexionConsolidationRunner,
+  type ReflexionTenantConsolidation,
+  type InMemoryReflexionSeed,
+} from './reflexion-consolidation.js';

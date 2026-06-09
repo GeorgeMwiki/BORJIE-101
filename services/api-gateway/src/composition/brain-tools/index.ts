@@ -165,6 +165,17 @@ import { SET_CHAT_MODE_TOOLS } from './set-chat-mode-tools';
 // in-memory fallback keeps the catalog complete for tests + catalog audits.
 import { DATA_ANALYSIS_TOOLS } from './data-analysis-tools';
 import { buildMemoryTools } from './memory-tools';
+// Wave-3 DARK-ORGAN closure (Docs/research/MASTER_WIRING_CLOSURE_PLAN.md) —
+// three analytics organs that shipped complete but were never reachable from
+// the brain. Each runs behind its own env flag + a wall-clock budget guard
+// (organ-budget-guard.ts) so a slow detector / estimator / query can NEVER
+// stall a turn; each is READ-only / propose-only (no sovereign rail):
+//   - anomaly.detect → @borjie/anomaly-detection statistical detectors
+//   - causal.infer   → @borjie/causal-inference treatment-effect estimators
+//   - belief.query   → @borjie/belief-engine durable world-model (read side)
+import { ANOMALY_DETECTION_TOOLS } from './anomaly-detection-tools';
+import { CAUSAL_INFERENCE_TOOLS } from './causal-inference-tools';
+import { BELIEF_ENGINE_TOOLS } from './belief-engine-tools';
 import { orchestrator } from '@borjie/central-intelligence';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
@@ -255,6 +266,9 @@ export function buildPersonaToolHandlers(
       MD_AGENTIC_TOOLS,
       SET_CHAT_MODE_TOOLS,
       DATA_ANALYSIS_TOOLS,
+      ANOMALY_DETECTION_TOOLS,
+      CAUSAL_INFERENCE_TOOLS,
+      BELIEF_ENGINE_TOOLS,
       memoryToolDescriptors(options?.memoryTool),
     ],
     options?.onDuplicate,
@@ -324,6 +338,9 @@ export function listPersonaToolDescriptors(
       MD_AGENTIC_TOOLS,
       SET_CHAT_MODE_TOOLS,
       DATA_ANALYSIS_TOOLS,
+      ANOMALY_DETECTION_TOOLS,
+      CAUSAL_INFERENCE_TOOLS,
+      BELIEF_ENGINE_TOOLS,
       memoryToolDescriptors(memoryTool),
     ],
     undefined,
@@ -495,3 +512,7 @@ export {
 // FINAL NEEDS-DESIGN wave — re-exports for tests + audit walker.
 export { DATA_ANALYSIS_TOOLS, analyticsSitePerformanceTool } from './data-analysis-tools';
 export { buildMemoryTools } from './memory-tools';
+// Wave-3 DARK-ORGAN closure — re-exports for tests + audit walker.
+export { ANOMALY_DETECTION_TOOLS, anomalyDetectTool } from './anomaly-detection-tools';
+export { CAUSAL_INFERENCE_TOOLS, causalInferTool } from './causal-inference-tools';
+export { BELIEF_ENGINE_TOOLS, beliefQueryTool } from './belief-engine-tools';
