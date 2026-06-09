@@ -103,7 +103,8 @@ import {
 import {
   buildOrchestratorBindings,
   type OrchestratorBindings,
-  // COG-07/AUT-14 — modality arbiter port builders (default-OFF rollout).
+  // COG-07/AUT-14 — modality arbiter port builders (DEFAULT-ON kill-switch
+  // behind BORJIE_MODALITY_ARBITER; only off/0/false/no disables).
   buildSkillRetriever,
   buildFlowRetriever,
   buildModalityDescriptors,
@@ -417,18 +418,20 @@ function resolveUncertaintyPolicyMode(
 
 /**
  * COG-07/AUT-14 — resolve whether the modality arbiter is enabled from
- * `BORJIE_MODALITY_ARBITER`. DEFAULT-OFF: only an explicit
- * `on`/`1`/`true`/`enabled` turns it on, so an unset / typo'd value keeps
- * today's chat/action-only behaviour (the safe default). Mirrors the
- * `BORJIE_ORCHESTRATOR_MAINLOOP` canary lever.
+ * `BORJIE_MODALITY_ARBITER`. DEFAULT-ON kill-switch (Wave 1 conductor):
+ * only an explicit `off`/`0`/`false`/`no` disables it; an unset / typo'd
+ * value ARMS the 7-way output head. This is safe because the arbiter only
+ * ROUTES (and emits PROPOSALS through the existing portal-genui
+ * `tab_proposal` channel — never a direct UI mutation); every routed
+ * action still hits the policy-gate + 9-hook chain, and a null embedder
+ * (line ~1002) degrades the arbiter to undefined → today's chat/action
+ * behaviour with zero added risk. Mirrors `initEstateMind`'s kill-switch.
  */
-function resolveModalityArbiterEnabled(
+export function resolveModalityArbiterEnabled(
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
-  const raw = env['BORJIE_MODALITY_ARBITER'];
-  if (!raw) return false;
-  const v = raw.trim().toLowerCase();
-  return v === 'on' || v === '1' || v === 'true' || v === 'enabled';
+  const raw = (env['BORJIE_MODALITY_ARBITER'] ?? 'on').trim().toLowerCase();
+  return !['off', '0', 'false', 'no'].includes(raw);
 }
 
 /**
@@ -983,10 +986,10 @@ export function buildOrchestratorComposeBlock(args: {
   // ───────────────────────────────────────────────────────────────────
   // COG-07/AUT-14 — the modality arbiter (the 7-way output head).
   //
-  // Default-OFF behind `BORJIE_MODALITY_ARBITER` (mirrors
-  // `BORJIE_ORCHESTRATOR_MAINLOOP`). When the flag is OFF the arbiter is
-  // NOT constructed → zero added latency and today's chat/action-only
-  // behaviour. When ON, it is constructed from the SAME `resolveEmbedder`
+  // DEFAULT-ON kill-switch behind `BORJIE_MODALITY_ARBITER` (Wave 1
+  // conductor). Only an explicit off/0/false/no disables it. When OFF the
+  // arbiter is NOT constructed → zero added latency and today's chat/action
+  // -only behaviour. When ON, it is constructed from the SAME `resolveEmbedder`
   // the kernel already uses + Drizzle-backed skill/flow/posture retrievers
   // (RLS via the canonical GUC) + the rail-composed autonomy decider
   // (composeWithRail(decideAutonomy(...))) + the EA-04 body-change syscall
@@ -1026,8 +1029,8 @@ export function buildOrchestratorComposeBlock(args: {
 
   if (modalityArbiter) {
     args.logger?.info?.(
-      { wiring: 'modality-arbiter', canaryEnvFlag: 'BORJIE_MODALITY_ARBITER' },
-      'brain-kernel: modality arbiter constructed (7-way output head); handlers bound to dispatcher; DEFAULT-OFF canary',
+      { wiring: 'modality-arbiter', killSwitchEnvFlag: 'BORJIE_MODALITY_ARBITER' },
+      'brain-kernel: modality arbiter constructed (7-way output head); handlers bound to dispatcher; DEFAULT-ON kill-switch',
     );
   }
 

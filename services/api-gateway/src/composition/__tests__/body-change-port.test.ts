@@ -5,13 +5,16 @@
  * REAL gated authorizer that composes `decideAutonomy` + the rail verdict +
  * `checkBodyChangeInviolable` (the kernel meta-rail):
  *
- *   - default-OFF (`BORJIE_BODY_CHANGE` unset) → the deny-stub is UNCHANGED
- *     (capability growth denied, fail-closed) — this lands inert;
- *   - flag ON → a REVERSIBLE construction (register_skill / register_workflow
+ *   - DEFAULT-ON kill-switch (Wave 1 conductor, OK-7): an unset
+ *     `BORJIE_BODY_CHANGE` ARMS the real authorizer; only an explicit
+ *     off/0/false/no selects the deny-stub;
+ *   - enabled → a REVERSIBLE construction (register_skill / register_workflow
  *     / spawn_tab) is AUTHORIZED;
- *   - flag ON → a money / licence / deletion / sovereign target is DENIED
- *     (forced to HITL by the rail) — the meta-rail can only ever escalate,
- *     never relax a sovereign rail.
+ *   - enabled → a money / licence / deletion / sovereign target is DENIED
+ *     (forced to FOUR-EYES / HITL by the rail) — the meta-rail can only ever
+ *     escalate, never relax a sovereign rail;
+ *   - FAIL-SAFE — an authorizer fault returns {authorized:false} (HITL),
+ *     never throws into a paying turn.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -21,8 +24,9 @@ import type { orchestrator } from '@borjie/central-intelligence';
 
 type BodyChangeRequest = orchestrator.BodyChangeRequest;
 
-const ON = { BORJIE_BODY_CHANGE: '1' } as const;
-const OFF = {} as const;
+// DEFAULT-ON: an unset flag (empty env) arms the authorizer.
+const ON = {} as const;
+const OFF = { BORJIE_BODY_CHANGE: 'off' } as const;
 
 function req(over: Partial<BodyChangeRequest> = {}): BodyChangeRequest {
   return {
@@ -35,14 +39,14 @@ function req(over: Partial<BodyChangeRequest> = {}): BodyChangeRequest {
 }
 
 describe('buildBodyChangePort — K-1 meta-rail authorizer', () => {
-  it('default-OFF: the deny-stub is unchanged (capability growth denied)', async () => {
+  it('explicit OFF: the deny-stub is selected (capability growth denied)', async () => {
     const port = buildBodyChangePort({ env: OFF });
     const verdict = await port.authorizeBodyChange(req());
     expect(verdict.authorized).toBe(false);
     expect(verdict.reason).toMatch(/disabled|human-gated/i);
   });
 
-  it('flag ON: a reversible register_skill is authorized when granted', async () => {
+  it('DEFAULT-ON: an unset flag arms the authorizer (reversible authorized)', async () => {
     const port = buildBodyChangePort({ env: ON });
     const verdict = await port.authorizeBodyChange(req());
     expect(verdict.authorized).toBe(true);
@@ -121,16 +125,33 @@ describe('buildBodyChangePort — K-1 meta-rail authorizer', () => {
     expect(verdict.authorized).toBe(false);
   });
 
-  it('flag truthiness: "true"/"on"/"yes" enable, anything else stays the stub', async () => {
-    for (const val of ['true', 'on', 'yes', 'TRUE']) {
+  it('kill-switch: only off/0/false/no disable; everything else arms', async () => {
+    // Enabled: explicit on-values AND unrecognized values (default-ON).
+    for (const val of ['true', 'on', 'yes', 'TRUE', '1', '', 'maybe', 'enabled']) {
       const port = buildBodyChangePort({ env: { BORJIE_BODY_CHANGE: val } });
       const verdict = await port.authorizeBodyChange(req());
       expect(verdict.authorized).toBe(true);
     }
-    for (const val of ['0', 'false', 'off', '', 'maybe']) {
+    // Disabled: only the explicit kill values select the deny-stub.
+    for (const val of ['0', 'false', 'off', 'no', 'OFF']) {
       const port = buildBodyChangePort({ env: { BORJIE_BODY_CHANGE: val } });
       const verdict = await port.authorizeBodyChange(req());
       expect(verdict.authorized).toBe(false);
     }
+  });
+
+  it('FAIL-SAFE: an authorizer fault returns HITL (never throws into a turn)', async () => {
+    // Inject a fault via the audit logger (called inside the try). The
+    // fail-closed envelope must DENY rather than propagate the throw into a
+    // paying /ask turn.
+    const throwingLogger = {
+      info: () => {
+        throw new Error('audit sink exploded');
+      },
+    };
+    const port = buildBodyChangePort({ env: ON, logger: throwingLogger });
+    const verdict = await port.authorizeBodyChange(req());
+    expect(verdict.authorized).toBe(false);
+    expect(verdict.reason).toMatch(/fault|HITL/i);
   });
 });

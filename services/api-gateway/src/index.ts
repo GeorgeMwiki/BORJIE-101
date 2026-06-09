@@ -184,13 +184,28 @@ import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-
 import { buildResearchWiring } from './composition/research/research-wiring';
 import { scheduleProactive } from './composition/proactive/proactive-wiring';
 // Wave 1 EstateMind — the resident per-tenant Slow Loop heartbeat. init reads
-// flag BORJIE_ESTATE_MIND ONCE (default OFF = today's behaviour); the supervisor
-// is leader-gated at its .start() site below. Additive: nothing on the
-// per-request think(req) path changes.
+// flag BORJIE_ESTATE_MIND ONCE (DEFAULT-ON dual-sink — only off/0/false/no
+// disables); the supervisor is leader-gated at its .start() site below.
+// Additive: nothing on the per-request think(req) path changes.
 import {
   initEstateMind,
   createEstateMindSupervisor,
 } from './composition/estate-mind-wiring';
+// Wave 1 OK-3 — blackboard control-shell scheduler. The Hayes-Roth 1985
+// metalevel scheduler: on every slot convergence it maps the region + its
+// candidate KnowledgeSources (the distinct slot writers) through the control
+// shell and proposes the single KS to act next — PROPOSE-ONLY, audit-plane
+// only (it never invokes the KS, never reaches a client). DEFAULT-ON
+// kill-switch (BORJIE_CONTROL_SHELL); the cross-replica `start(tenantId)` is
+// leader-gated below. Convergence is wired via registerSlotConvergedListener.
+import {
+  createControlShellWiring,
+  createTabEventLogActivationSink,
+  createControlShellConnectSupervisor,
+  createActiveTenantSource,
+  type ActiveTenantSource,
+} from './composition/control-shell-wiring';
+import { registerSlotConvergedListener } from './composition/blackboard-slots-wiring';
 import { createPinoLikeLogger } from './utils/pino-shim';
 import { createCalendarRouter } from './routes/owner/calendar.hono';
 import { createCalendarChannelFromEnv } from './services/notification-dispatch/calendar-providers/index';
@@ -722,6 +737,7 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'proactive-scheduler',
   'decision-retrospective',
   'estate-mind',
+  'control-shell',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -3186,8 +3202,10 @@ const proactiveScheduler = scheduleProactive({
 
 // Wave 1 EstateMind — the resident per-tenant Slow Loop. PERCEIVE → ORIENT →
 // evaluate standing drives → emit self-formulated goals as PROPOSALS through
-// the EXISTING gated proactive sink (it NEVER executes money/licence actions —
-// those stay HITL). Default-OFF (BORJIE_ESTATE_MIND); leader-gated at .start().
+// the DUAL sink: the EXISTING gated proactive_nudge AND an ADDITIVE
+// OrchestratorRequest proposal into the arbiter-fronted spine (it NEVER
+// executes money/licence actions — those stay HITL). DEFAULT-ON kill-switch
+// (BORJIE_ESTATE_MIND; only off/0/false/no disables); leader-gated at .start().
 const estateMindConfig = initEstateMind();
 const estateMindSupervisor = createEstateMindSupervisor({
   db: (serviceRegistry.db as unknown as
@@ -3195,6 +3213,52 @@ const estateMindSupervisor = createEstateMindSupervisor({
     | null) ?? null,
   logger: createPinoLikeLogger('estate-mind'),
   config: estateMindConfig,
+});
+
+// Wave 1 OK-3 — blackboard control-shell scheduler. Construct the wiring
+// (DEFAULT-ON via BORJIE_CONTROL_SHELL; INERT when explicitly disabled), then
+// REGISTER its delta trigger with the slot store so a slot convergence (a
+// local route `set`/`remove` OR a merged remote delta) fires onSlotConverged →
+// pickNext → the audit-plane sink. The candidate source defaults to the REAL
+// slot-writer source over the durable slot repository (the distinct actors that
+// have posted to the tenant's blackboard). PROPOSE-ONLY: it never invokes the
+// KS, never reaches a client; a fault never breaks the slot path or a turn.
+const controlShellWiring = createControlShellWiring({
+  // No measurement source wired yet → the shell falls back to competence 0.5
+  // internally (spec §3.2). This is honest: capability measurement is a
+  // separate seam; the scheduler is fully functional without it.
+  measurementSource: null,
+  // Real audit-plane sink: Pino + a propose-only tab_event_log row (best-effort,
+  // RLS-bound, degrade-safe). Never returned to a client; never calls the KS.
+  activationSink: createTabEventLogActivationSink(
+    (serviceRegistry.db as unknown as
+      | { execute(q: unknown): Promise<unknown> }
+      | null) ?? null,
+    createPinoLikeLogger('control-shell-sink'),
+  ),
+  logger: createPinoLikeLogger('control-shell'),
+});
+// Wire the convergence trigger: every converged slot fans out to this handler.
+// Fail-safe — onSlotConverged never throws, so a control-shell fault can never
+// break the slot/state-bus path. No-op when the wiring is INERT (kill-switch
+// off) because INERT_WIRING.onSlotConverged resolves null.
+const controlShellUnsubscribe = controlShellWiring.enabled
+  ? registerSlotConvergedListener((slot) => {
+      void controlShellWiring.onSlotConverged(slot);
+    })
+  : () => {};
+// Cross-replica half — the elected leader connects each active tenant's
+// state-bus so a convergence on ANOTHER replica also fires the handler here.
+// Active-tenant discovery is degrade-safe (returns [] on any fault / no db).
+const controlShellTenantSource: ActiveTenantSource = createActiveTenantSource(
+  (serviceRegistry.db as unknown as
+    | { execute(q: unknown): Promise<unknown> }
+    | null) ?? null,
+);
+const controlShellConnectSupervisor = createControlShellConnectSupervisor({
+  wiring: controlShellWiring,
+  tenantSource: controlShellTenantSource,
+  logger: createPinoLikeLogger('control-shell-connect'),
 });
 
 // Graceful shutdown — documented and tested step-by-step:
@@ -3334,6 +3398,11 @@ async function gracefulShutdown(signal: string): Promise<void> {
     mwikilaAutonomousWorker.stop();
     proactiveScheduler.stop();
     estateMindSupervisor.stop();
+    // OK-3 — stop the control-shell connect supervisor (tears down realtime
+    // subscriptions) and drop its convergence listener so no late delta fires
+    // during drain. Best-effort; never blocks shutdown.
+    controlShellConnectSupervisor.stop();
+    controlShellUnsubscribe();
     logger.info('shutdown: mwikila autonomous worker stopped');
   } catch (err) {
     logger.warn(
@@ -3639,6 +3708,13 @@ if (require.main === module) {
   // ticks (one resident mind per cluster); `.start()` is a no-op unless
   // BORJIE_ESTATE_MIND=on, so this is inert by default.
   withClusterLeader(estateMindSupervisor, lockIdFor('estate-mind')).start();
+  // Wave 1 OK-3 — blackboard control-shell scheduler. The LOCAL convergence
+  // path (registerSlotConvergedListener above) already fires on every replica
+  // for local slot writes. This leader-gated start() adds the CROSS-REPLICA
+  // half: the elected leader connects each active tenant's `state-bus` so a
+  // convergence on another replica/surface also schedules. INERT when the
+  // kill-switch (BORJIE_CONTROL_SHELL) is off; propose-only + audit-plane only.
+  withClusterLeader(controlShellConnectSupervisor, lockIdFor('control-shell')).start();
   // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
   // committed decision whose prediction horizon has passed, joins
   // outcome_reconciliations + outcome_observations, grades the

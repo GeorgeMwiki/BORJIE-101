@@ -44,6 +44,7 @@ import {
   type HandoffService,
   type SlotsRepository,
   type SlotSurface,
+  type Slot,
 } from '@borjie/blackboard-sota';
 import {
   createInMemoryRealtime,
@@ -246,7 +247,57 @@ export function resolveRealtimePort(logger: PinoLikeLogger): RealtimePort {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Process-singleton SlotStore + HandoffService.
+// 3. Slot-convergence listener registry.
+//
+// `SlotStore`'s `onConverged` is a CONSTRUCTION-TIME dep — the store fires it
+// for BOTH a local write (`set`/`remove` from a route) AND a remote delta
+// merged in via `connect(tenantId)`. The store is a process singleton built
+// once below; the control-shell wiring is built later and must subscribe to
+// this convergence signal. We therefore wire the store's `onConverged` ONCE to
+// fan out to a mutable listener set so a late subscriber (the control shell)
+// still receives every convergence. Each listener is invoked fail-safe — a
+// throwing listener can NEVER break the slot/state-bus path or another
+// listener (doctrine: a control-shell fault never breaks the turn).
+// ---------------------------------------------------------------------------
+
+export type SlotConvergedListener = (slot: Slot) => void;
+
+const convergedListeners = new Set<SlotConvergedListener>();
+
+/**
+ * Subscribe to slot-convergence events (local write OR remote delta). Returns
+ * an unsubscribe function. The slot store invokes every listener fail-safe.
+ */
+export function registerSlotConvergedListener(
+  listener: SlotConvergedListener,
+): () => void {
+  convergedListeners.add(listener);
+  return () => {
+    convergedListeners.delete(listener);
+  };
+}
+
+/** Fan a converged slot out to every registered listener (fail-safe). */
+function fanoutConverged(slot: Slot, logger: PinoLikeLogger): void {
+  for (const listener of convergedListeners) {
+    try {
+      listener(slot);
+    } catch (err) {
+      logger.warn(
+        { slotId: slot.slotId, tenantId: slot.tenantId, err: errMsg(err) },
+        'blackboard-slots: a converged-listener threw — slot path unaffected',
+      );
+    }
+  }
+}
+
+/** Test seam — drop every registered convergence listener. */
+export function __clearSlotConvergedListenersForTests(): void {
+  convergedListeners.clear();
+}
+
+// ---------------------------------------------------------------------------
+// 4. Process-singleton SlotStore + HandoffService.
 // ---------------------------------------------------------------------------
 
 interface SlotServices {
@@ -277,6 +328,10 @@ export function getSlotServices(
     repository,
     realtime,
     surface: GATEWAY_SURFACE,
+    // Fan every convergence (local write OR merged remote delta) out to the
+    // registered listeners (e.g. the control-shell delta trigger). Fail-safe:
+    // a listener fault is swallowed here, never breaking the slot path.
+    onConverged: (slot) => fanoutConverged(slot, logger),
   });
   const handoff = createHandoffService({ repository, realtime });
   cached = { store, handoff, repository };

@@ -41,6 +41,7 @@ import {
   situationalModel as situationalModelKernel,
   motivation as motivationKernel,
   estateMind as estateMindKernel,
+  orchestrator,
 } from '@borjie/central-intelligence';
 import {
   withServiceRoleContext,
@@ -79,6 +80,7 @@ type SituationEntityKey = situationalModelKernel.SituationEntityKey;
 type ProposalSink = estateMindKernel.ProposalSink;
 type EstateProposal = estateMindKernel.EstateProposal;
 type PerceptionSource = estateMindKernel.PerceptionSource;
+type OrchestratorRequest = orchestrator.OrchestratorRequest;
 
 const DEFAULT_INTERVAL_MS = 15 * 60 * 1000; // 15 min — estate horizons
 const MIN_INTERVAL_MS = 60 * 1000; // 1 min floor (SAFETY bound)
@@ -342,6 +344,119 @@ export function createTabEventLogProposalSink(
 }
 
 // ---------------------------------------------------------------------------
+// 2b. OrchestratorRequest bridge — the dual sink (Wave 1 conductor, OK-4)
+// ---------------------------------------------------------------------------
+
+/**
+ * The arbiter-fronted spine entry the EstateMind bridge emits a PROPOSAL
+ * into. It is PROPOSAL-NOT-ACTUATION: the implementation records the mapped
+ * `OrchestratorRequest` to the audit plane (or a gated proactive sink); it
+ * MUST NOT call `orchestrator.think()` or execute any tool. The EstateMind
+ * has NO executor handle, so money / licence / deletion stay HITL forever.
+ */
+export interface OrchestratorProposalSink {
+  /** Record a proposal request. Returns true when accepted. Never actuates. */
+  proposeRequest(request: OrchestratorRequest): Promise<boolean>;
+}
+
+/**
+ * Map an `EstateProposal` → an `OrchestratorRequest` (main-loop shape). The
+ * request is a PROPOSAL — `userMessage` carries the title + rationale, and
+ * `groundingCitationIds` carry the evidence entity ids so the Auditor
+ * evidence rail is satisfied. The persona/tier are the resident-MD defaults;
+ * the scope is the tenant scope (no actor user — this is a system-initiated
+ * note, not a user turn). Pure function.
+ */
+export function estateProposalToOrchestratorRequest(
+  proposal: EstateProposal,
+): OrchestratorRequest {
+  return {
+    threadId: `estate-mind:${proposal.tenantId}:${proposal.id}`,
+    userMessage: `${proposal.title}\n\n${proposal.rationale}`,
+    scope: {
+      kind: 'tenant',
+      tenantId: proposal.tenantId,
+      actorUserId: 'mwikila',
+      roles: ['owner'],
+      personaId: 'mr-mwikila-head',
+    },
+    tier: 'tenant',
+    persona: 'mr-mwikila-head',
+    groundingCitationIds: proposal.evidenceEntityIds,
+    // Evidence-required hard rule — a proposal cites ≥1 evidence id.
+    evidenceRequired: true,
+  };
+}
+
+/**
+ * Audit-plane-only default `OrchestratorProposalSink`. It writes the mapped
+ * request to the Pino audit log as a PROPOSAL marker and returns true. It
+ * NEVER calls `think()` and NEVER executes a tool — the EstateMind stays
+ * proposal-only / HITL. The composition root may inject a richer sink (e.g.
+ * the gated proactive `ingestSignal` entry) that ALSO does not actuate.
+ */
+export function createAuditOrchestratorProposalSink(
+  logger: PinoLikeLogger = createPinoLikeLogger('estate-mind-spine'),
+): OrchestratorProposalSink {
+  return {
+    async proposeRequest(request: OrchestratorRequest): Promise<boolean> {
+      logger.info(
+        {
+          threadId: request.threadId,
+          tier: request.tier,
+          persona: request.persona,
+          citationCount: request.groundingCitationIds?.length ?? 0,
+          actuation: 'none',
+        },
+        'estate-mind: OrchestratorRequest proposed to spine (proposal-not-actuation, HITL)',
+      );
+      return true;
+    },
+  };
+}
+
+/**
+ * Compose a DUAL `ProposalSink` (OK-4). On `propose(proposal)` it:
+ *   (1) keeps the EXISTING proactive_nudge write (rails intact); AND
+ *   (2) ADDITIONALLY emits a mapped `OrchestratorRequest` into the
+ *       arbiter-fronted spine as a PROPOSAL-not-actuation.
+ *
+ * HARD RULES:
+ *   - The spine emission is wrapped in try/catch so a spine fault still
+ *     lets the proactive_nudge succeed (never break the tick).
+ *   - The bridge is PROPOSAL-only/HITL — the spine sink must not actuate.
+ *   - The proactive_nudge result is the authoritative return (the nudge is
+ *     the user-visible surface; the spine emission is additive telemetry).
+ */
+export function composeDualSink(
+  base: ProposalSink,
+  spine: OrchestratorProposalSink,
+  logger: PinoLikeLogger = createPinoLikeLogger('estate-mind-dual-sink'),
+): ProposalSink {
+  return {
+    async propose(proposal: EstateProposal): Promise<boolean> {
+      // (1) The existing gated proactive_nudge write (rails intact). Its
+      // result is authoritative for surfacing.
+      const surfaced = await base.propose(proposal);
+
+      // (2) ADDITIVE — emit the OrchestratorRequest proposal into the spine.
+      // A spine fault is swallowed so it can never break the tick.
+      try {
+        const request = estateProposalToOrchestratorRequest(proposal);
+        await spine.proposeRequest(request);
+      } catch (err) {
+        logger.warn(
+          { tenantId: proposal.tenantId, proposalId: proposal.id, err: errMsg(err) },
+          'estate-mind-dual-sink: spine emission failed — nudge unaffected',
+        );
+      }
+
+      return surfaced;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // 3. The leader-elected heartbeat supervisor
 // ---------------------------------------------------------------------------
 
@@ -394,8 +509,15 @@ export interface EstateMindSupervisorDeps {
   readonly perception?: PerceptionSource | null;
   /** Override active-tenant discovery (tests). */
   readonly listActiveTenantIds?: () => Promise<ReadonlyArray<string>>;
-  /** Override the proposal sink (tests). */
+  /** Override the proposal sink (tests). When set, the dual sink is bypassed. */
   readonly proposalSink?: ProposalSink | null;
+  /**
+   * OK-4 — the arbiter-fronted spine sink the DUAL sink ALSO emits a mapped
+   * `OrchestratorRequest` proposal into (proposal-not-actuation, HITL). When
+   * omitted, defaults to the audit-plane recorder. Ignored if `proposalSink`
+   * is supplied directly.
+   */
+  readonly spineSink?: OrchestratorProposalSink | null;
   /** Per-tenant drive thresholds (tenant-tunable risk appetite). */
   readonly thresholds?: motivationKernel.DriveThresholds;
 }
@@ -448,9 +570,20 @@ export function createEstateMindSupervisor(
   const motivation = motivationKernel.createMotivationEngine(
     deps.thresholds ? { thresholds: deps.thresholds } : {},
   );
+  // The proposal sink is the DUAL sink (OK-4): the existing gated
+  // proactive_nudge write AND an ADDITIVE OrchestratorRequest proposal into
+  // the arbiter-fronted spine (proposal-not-actuation, HITL). The spine sink
+  // defaults to the audit-plane recorder; the composition root may override
+  // `deps.proposalSink` (or `deps.spineSink`) with a richer gated entry.
   const proposalSink =
     deps.proposalSink ??
-    (deps.db ? createTabEventLogProposalSink(deps.db, logger) : null);
+    (deps.db
+      ? composeDualSink(
+          createTabEventLogProposalSink(deps.db, logger),
+          deps.spineSink ?? createAuditOrchestratorProposalSink(logger),
+          logger,
+        )
+      : null);
   const mind =
     situationalModel &&
     estateMindKernel.createEstateMind({
