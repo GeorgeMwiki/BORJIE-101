@@ -47,4 +47,12 @@ export type {
   ConfigDrivenLadder,
 } from './resolver.js';
 
+export { applyConfigRouting, canonicalToFamily } from './seam-adapter.js';
+export type {
+  LiveProviderEntry,
+  SeamProviderFamily,
+  ApplyConfigRoutingArgs,
+  AppliedConfigRouting,
+} from './seam-adapter.js';
+
 export { InMemoryRoutingConfigAdapter } from './in-memory-adapter.js';

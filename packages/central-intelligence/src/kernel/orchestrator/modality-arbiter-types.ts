@@ -2,7 +2,7 @@
  * Modality arbiter — types (COG-07 / AUT-14, the Wave-B keystone).
  *
  * The arbiter classifies a consequential brain turn into exactly ONE of
- * seven CLOSED output modalities, then routes. The seven are a `const`
+ * eight CLOSED output modalities, then routes. The eight are a `const`
  * union; an unrecognised classifier output FAILS CLOSED to `chat` (the
  * always-safe, zero-side-effect modality) and records a telemetry reason.
  *
@@ -21,19 +21,27 @@
 import type { Decision } from './decision.js';
 
 // ─────────────────────────────────────────────────────────────────────
-// The seven modalities — the CLOSED output set.
+// The eight modalities — the CLOSED output set.
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * The seven output modalities, in registry order. `loop` is a sub-kind of
+ * The eight output modalities, in registry order. `loop` is a sub-kind of
  * `workflow` carried on `ModalityVerdict.loopKind`; it is NOT a separate
- * top-level modality so the closed-set arithmetic stays at seven.
+ * top-level modality so the closed-set arithmetic stays at eight.
+ *
+ * `forecast` is a generative ARTIFACT modality (calibrated, advisory
+ * time-series) — it joins `document` / `media` as an engine-backed output
+ * the modality executor routes to the forecast engine, then surfaces as a
+ * proposal through the existing portal-genui `tab_proposal` channel. Like
+ * the other artifact modalities it is staged/low-consequence and never
+ * mutates a surface without owner approval.
  */
 export const MODALITIES = [
   'chat',
   'tab',
   'document',
   'media',
+  'forecast',
   'action',
   'skill',
   'workflow',
@@ -41,7 +49,7 @@ export const MODALITIES = [
 
 export type Modality = (typeof MODALITIES)[number];
 
-/** Type guard — true iff `value` is one of the seven closed modalities. */
+/** Type guard — true iff `value` is one of the eight closed modalities. */
 export function isModality(value: unknown): value is Modality {
   return (
     typeof value === 'string' &&
@@ -173,9 +181,9 @@ export interface FlowRetrieverPort {
   }): Promise<ReadonlyArray<RetrievedFlow>>;
 }
 
-/** A static descriptor vector for a tab / document / media recipe. */
+/** A static descriptor vector for a tab / document / media / forecast recipe. */
 export interface ModalityDescriptor {
-  readonly modality: 'tab' | 'document' | 'media';
+  readonly modality: 'tab' | 'document' | 'media' | 'forecast';
   readonly recipeId: string;
   readonly embedding: ReadonlyArray<number>;
 }

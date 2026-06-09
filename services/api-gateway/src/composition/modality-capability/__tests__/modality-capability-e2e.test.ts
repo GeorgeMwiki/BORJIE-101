@@ -59,11 +59,38 @@ function buildExecutor(sink: ModalityProposalSink) {
 const TENANT = 't_e2e';
 const USER = 'u_e2e';
 
-describe('(g) default-off — capability flag', () => {
-  it('flag absent → capabilities disabled, no tools, no executor', () => {
-    expect(resolveModalityCapabilitiesEnabled({})).toBe(false);
+describe('(g) DEFAULT-ON kill-switch — capability flag', () => {
+  it('flag absent → capabilities ARMED by default (3 tools register + executor constructs)', () => {
+    // Wave-B activation: the flag is now a DEFAULT-ON kill-switch mirroring
+    // resolveModalityArbiterEnabled. An unset value arms the engines so the
+    // MD can forecast / make media / draft a document out of the box.
+    expect(resolveModalityCapabilitiesEnabled({})).toBe(true);
     const caps = buildModalityCapabilities({
       envSource: {},
+      proposalSink: recordingSink(),
+    });
+    expect(caps.enabled).toBe(true);
+    expect(caps.capabilityTools.length).toBeGreaterThan(0);
+    expect(caps.executor).not.toBeNull();
+    expect(caps.forecastEngine).not.toBeNull();
+    // The 3 generative tool families register: forecast + media + document.
+    const names = caps.capabilityTools.map((t) => t.name).sort();
+    expect(names).toEqual([
+      'mining.document.generate',
+      'mining.forecast.run',
+      'mining.media.generate_gif',
+      'mining.media.generate_video',
+    ]);
+  });
+
+  it('only an EXPLICIT off/0/false/no disables (kill-switch)', () => {
+    for (const off of ['off', '0', 'false', 'no', 'OFF', 'False']) {
+      expect(
+        resolveModalityCapabilitiesEnabled({ BORJIE_MODALITY_CAPABILITIES: off }),
+      ).toBe(false);
+    }
+    const caps = buildModalityCapabilities({
+      envSource: { BORJIE_MODALITY_CAPABILITIES: 'off' },
       proposalSink: recordingSink(),
     });
     expect(caps.enabled).toBe(false);

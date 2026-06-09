@@ -108,6 +108,10 @@ import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { UserRole } from '../../types/user-role';
+// LANE B5 — invalidate the live routing-config cache after a successful write
+// so an admin change converges on the NEXT brain turn (not just after the TTL).
+// No-op-safe when the boot warmer was not wired in this deployment.
+import { invalidateIfInitialised } from '../../composition/llm-routing-config-wiring';
 
 const moduleLogger = createLogger('admin-control-plane');
 
@@ -666,6 +670,13 @@ app.put(
         );
       }
 
+      // LANE B5 — converge the live brain routing on the NEXT turn. Drop the
+      // warmer cache so the new core/fallback/ensemble config is re-read from
+      // the DB immediately instead of waiting out the TTL. No-op-safe when the
+      // boot warmer was not wired (the resolver then stays on the static
+      // ladder, which is the correct fail-safe).
+      const routingCacheInvalidated = invalidateIfInitialised();
+
       const ensembleCost = ensembleDoc?.enabled
         ? ensembleCostProjection(ensembleDoc.members)
         : null;
@@ -692,6 +703,7 @@ app.put(
         scope: input.scope,
         coreModel: input.coreModel,
         ensembleEnabled: Boolean(ensembleDoc?.enabled),
+        routingCacheInvalidated,
         journalId,
       });
 

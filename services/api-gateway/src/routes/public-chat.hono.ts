@@ -43,6 +43,17 @@ import type {
   BrainLLMResponse,
   ContentBlock,
 } from '@borjie/brain-llm-router';
+// LANE B5 — route the live marketing-chat turn through the admin control-plane
+// config at the universal-client seam. The marketing surface is anonymous (no
+// tenant row), so the resolver reads the GLOBAL scope. `applyConfigRouting`
+// reorders + re-ids the live providers to the admin's core + ordered fallbacks
+// when a global config exists, and fail-safes to the live order otherwise.
+// IP-EGRESS: model ids never leave the server (the SSE stream emits text only).
+import {
+  applyConfigRouting,
+  type LiveProviderEntry,
+  type SeamProviderFamily,
+} from '@borjie/brain-llm-router';
 import {
   extractSpawnTabs,
   extractAutoAuthorized,
@@ -1942,8 +1953,9 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       readonly model: string;
       readonly client: BrainLLMClient;
       readonly providerName: 'anthropic' | 'openai' | 'deepseek';
+      readonly family: SeamProviderFamily;
     }
-    const ladder: LadderEntry[] = [];
+    const baseLadder: LadderEntry[] = [];
     // Latest flagship models per provider (2026-05). Override per env:
     //   BORJIE_CHAT_ANTHROPIC_MODEL, BORJIE_CHAT_OPENAI_MODEL,
     //   BORJIE_CHAT_DEEPSEEK_MODEL.
@@ -1959,26 +1971,53 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       process.env.BORJIE_CHAT_DEEPSEEK_MODEL?.trim() || 'deepseek-chat';
 
     if (anthropic) {
-      ladder.push({
+      baseLadder.push({
         model: anthropicModel,
         client: anthropic,
         providerName: 'anthropic',
+        family: 'anthropic',
       });
     }
     if (openai) {
-      ladder.push({
+      baseLadder.push({
         model: openaiModel,
         client: openai,
         providerName: 'openai',
+        family: 'openai',
       });
     }
     if (deepseek) {
-      ladder.push({
+      baseLadder.push({
         model: deepseekModel,
         client: deepseek,
         providerName: 'deepseek',
+        family: 'deepseek',
       });
     }
+
+    // LANE B5 — apply the admin control-plane routing config. The marketing
+    // surface is anonymous so we resolve the GLOBAL scope (synthetic 'public'
+    // tenant → resolver's global fallback) with the marketing use-case. When a
+    // global admin config exists, the live providers are reordered to the
+    // admin's core + ordered fallbacks and bound to the admin's chosen raw
+    // model id per provider family; otherwise the live order stands. Model ids
+    // stay server-side (IP-egress invariant — SSE emits text only).
+    const liveLadder: ReadonlyArray<LiveProviderEntry<LadderEntry>> =
+      baseLadder.map((e) => ({
+        model: e.model,
+        providerFamily: e.family,
+        entry: e,
+      }));
+    const applied = applyConfigRouting({
+      task: 'chat',
+      tenantId: 'public',
+      useCase: 'casual_chat',
+      live: liveLadder,
+    });
+    const ladder: LadderEntry[] = applied.ladder.map((x) => ({
+      ...x.entry,
+      model: x.model,
+    }));
 
     interface Attempt {
       readonly provider: string;
@@ -2056,9 +2095,10 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
           message: guardPublicText(`All ${ladder.length} provider(s) failed`),
           // SEC-4 — provider SDK error strings can echo a key / url / prompt;
           // guard each attempt's error text before it egresses.
-          attempts: attempts.map((a) =>
-            a.error ? { ...a, error: guardPublicText(a.error) } : a,
-          ),
+          attempts: attempts.map((a) => ({
+            latencyMs: a.latencyMs,
+            ...(a.error ? { error: guardPublicText(a.error) } : {}),
+          })),
           retryable: true,
         }),
       });
@@ -2082,9 +2122,10 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
           message: guardPublicText('Model returned no text content.'),
           retryable: true,
           // SEC-4 — guard each attempt's raw provider error before egress.
-          attempts: attempts.map((a) =>
-            a.error ? { ...a, error: guardPublicText(a.error) } : a,
-          ),
+          attempts: attempts.map((a) => ({
+            latencyMs: a.latencyMs,
+            ...(a.error ? { error: guardPublicText(a.error) } : {}),
+          })),
         }),
       });
       await stream.writeSSE({
@@ -2157,12 +2198,17 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       });
     }
 
+    // Provider/model identity + fallback depth are IP — log them server-side
+    // only; the anonymous public client never learns which model/provider
+    // served it (IP-egress invariant on the most-exposed surface).
+    logger.info(
+      { winningProvider, depth, latencyMs: Date.now() - startedAt },
+      'public-chat: turn resolved',
+    );
     await stream.writeSSE({
       event: 'done',
       data: JSON.stringify({
         at: new Date().toISOString(),
-        provider: winningProvider,
-        depth,
         latencyMs: Date.now() - startedAt,
         attempts: attempts.length,
         actions_count: actions.length,

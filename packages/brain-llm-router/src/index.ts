@@ -359,6 +359,8 @@ export {
   isRoutingConfigEnabled,
   resolveConfigDrivenLadder,
   resolveEnsembleConfig,
+  applyConfigRouting,
+  canonicalToFamily,
   InMemoryRoutingConfigAdapter,
 } from './routing-config/index.js';
 export type {
@@ -373,6 +375,10 @@ export type {
   ResolveLadderArgs,
   ConfigDrivenLadder,
   RoutingConfigSchemaResult,
+  LiveProviderEntry,
+  SeamProviderFamily,
+  ApplyConfigRoutingArgs,
+  AppliedConfigRouting,
 } from './routing-config/index.js';
 
 // All-at-once ENSEMBLE orchestrator (F2). Cost-aware + fail-safe.

@@ -26,6 +26,16 @@ import type {
   BrainLLMResponse,
   ContentBlock,
 } from '@borjie/brain-llm-router';
+// LANE B5 — route the live one-shot brain turn through the admin-set
+// control-plane config at the universal-client seam. `applyConfigRouting`
+// reorders + re-ids the live provider entries to the admin's core + ordered
+// fallbacks + per-use-case routing when an admin config exists, and fail-safes
+// to the live order otherwise. IP-EGRESS: model ids never leave the server.
+import {
+  applyConfigRouting,
+  type LiveProviderEntry,
+  type SeamProviderFamily,
+} from '@borjie/brain-llm-router';
 import { createLogger } from '../../utils/logger';
 
 const moduleLogger = createLogger('owner-brain-call');
@@ -79,6 +89,15 @@ export interface BrainOnceInput {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly maxTokens?: number;
+  /**
+   * Tenant id for control-plane config scope resolution. When supplied, the
+   * admin-set core model + ordered fallbacks (+ per-use-case routing) for this
+   * tenant (or the global default) steer which provider answers first. Omit to
+   * keep the default Anthropic → OpenAI → DeepSeek order (today's behaviour).
+   */
+  readonly tenantId?: string;
+  /** Per-use-case routing key (intent / surface) for the config resolver. */
+  readonly useCase?: string;
 }
 
 export interface BrainOnceResult {
@@ -100,21 +119,48 @@ export async function callBrainOnce(input: BrainOnceInput): Promise<BrainOnceRes
   const deepseekModel =
     process.env.BORJIE_OWNER_DEEPSEEK_MODEL?.trim() || 'deepseek-chat';
 
-  type LadderEntry = { name: string; model: string; client: BrainLLMClient };
+  type LadderEntry = {
+    name: string;
+    model: string;
+    client: BrainLLMClient;
+    family: SeamProviderFamily;
+  };
   const candidates: ReadonlyArray<LadderEntry | null> = [
-    p.anthropic ? { name: 'anthropic', model: anthropicModel, client: p.anthropic as BrainLLMClient } : null,
-    p.openai ? { name: 'openai', model: openaiModel, client: p.openai as BrainLLMClient } : null,
-    p.deepseek ? { name: 'deepseek', model: deepseekModel, client: p.deepseek as BrainLLMClient } : null,
+    p.anthropic ? { name: 'anthropic', model: anthropicModel, client: p.anthropic as BrainLLMClient, family: 'anthropic' } : null,
+    p.openai ? { name: 'openai', model: openaiModel, client: p.openai as BrainLLMClient, family: 'openai' } : null,
+    p.deepseek ? { name: 'deepseek', model: deepseekModel, client: p.deepseek as BrainLLMClient, family: 'deepseek' } : null,
   ];
-  const ladder: ReadonlyArray<LadderEntry> = candidates.filter(
+  const baseLadder: ReadonlyArray<LadderEntry> = candidates.filter(
     (x): x is LadderEntry => x !== null,
   );
 
-  if (ladder.length === 0) {
+  if (baseLadder.length === 0) {
     throw new Error(
       'no brain provider configured (set ANTHROPIC_API_KEY, OPENAI_API_KEY, or DEEPSEEK_API_KEY)',
     );
   }
+
+  // LANE B5 — apply the admin control-plane routing config at the seam. When a
+  // tenant is supplied AND an admin config exists, this reorders the live
+  // providers to the admin's core + ordered fallbacks and binds the admin's
+  // chosen raw model id per provider family (+ per-use-case override). Fail-
+  // safe: with no tenant, no config, or the kill-switch off, the live order is
+  // returned unchanged. Model ids stay server-side (IP-egress invariant).
+  const live: ReadonlyArray<LiveProviderEntry<LadderEntry>> = baseLadder.map(
+    (e) => ({ model: e.model, providerFamily: e.family, entry: e }),
+  );
+  const applied = applyConfigRouting({
+    task: 'chat',
+    tenantId: input.tenantId ?? 'global',
+    ...(input.useCase !== undefined ? { useCase: input.useCase } : {}),
+    live,
+  });
+  // The seam returns the original LadderEntry plus the (possibly-overridden)
+  // raw model id to send — re-bind the id onto the entry for the loop below.
+  const ladder: ReadonlyArray<LadderEntry> = applied.ladder.map((x) => ({
+    ...x.entry,
+    model: x.model,
+  }));
 
   const maxTokens = input.maxTokens ?? 600;
   const messages = [

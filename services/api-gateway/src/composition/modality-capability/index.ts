@@ -7,9 +7,10 @@
  * to. Keys, budgets, and fetch are injected here (bootstrap seam) — no engine
  * reads env of its own.
  *
- * Behind `BORJIE_MODALITY_CAPABILITIES` (default OFF = today's behaviour: the
- * existing image/chart/diagram/infographic tools stay; no forecast/video/gif/
- * document capability tools and no arbiter→engine routing). When ON, the
+ * Behind `BORJIE_MODALITY_CAPABILITIES` (DEFAULT-ON kill-switch — only an
+ * explicit off/0/false/no reverts to today's behaviour: the existing image/
+ * chart/diagram/infographic tools stay; no forecast/video/gif/document
+ * capability tools and no arbiter→engine routing). When ON (the default), the
  * capability tools are returned for the composition root to register alongside
  * the existing media tools, and the executor is returned for the arbiter
  * binding. The proposal channel is the EXISTING portal-genui `tab_proposal`
@@ -49,14 +50,24 @@ export type {
 export { buildModalityProposal } from './modality-proposal.js';
 export { refineModalityProposal } from './modality-refine.js';
 
-/** Resolve the capability flag — default OFF (today's behaviour). */
+/**
+ * Resolve the capability flag — DEFAULT-ON kill-switch (Wave-B activation,
+ * mirrors `resolveModalityArbiterEnabled` in brain-kernel-wiring.ts). Only an
+ * explicit `off`/`0`/`false`/`no` disables it; an unset / typo'd value ARMS
+ * the three generative engines (forecast / media / document) so the executor
+ * singleton constructs and the capability brain-tools register by default.
+ *
+ * This is safe because the engines default to zero-keys mode (classical-floor
+ * forecasts, stub media bytes, stub document renderers) so the gateway boots
+ * without provider keys; the FORCED gates (locale-purity, citation-coverage,
+ * WORM seal) and the proposal-only UI invariant (portal-genui `tab_proposal`)
+ * run regardless. No surface mutates without owner approval.
+ */
 export function resolveModalityCapabilitiesEnabled(
   env: Readonly<Record<string, string | undefined>>,
 ): boolean {
-  const raw = env['BORJIE_MODALITY_CAPABILITIES'];
-  if (!raw) return false;
-  const v = raw.trim().toLowerCase();
-  return v === 'on' || v === '1' || v === 'true' || v === 'enabled';
+  const raw = (env['BORJIE_MODALITY_CAPABILITIES'] ?? 'on').trim().toLowerCase();
+  return !['off', '0', 'false', 'no'].includes(raw);
 }
 
 export interface ModalityCapabilitiesDeps {

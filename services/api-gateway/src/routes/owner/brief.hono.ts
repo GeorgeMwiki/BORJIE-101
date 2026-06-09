@@ -432,15 +432,18 @@ export async function composeOwnerBrief(
   // Best-effort advisor slice — Wave OWNER-OS. If the brain ladder is
   // unwired or every provider errors we surface `advisor: null` and the
   // FE simply hides the sticky note chip. Never blocks the brief.
-  const advisor = await composeAdvisorSlice({
-    dailyBrief,
-    decisions,
-    cashRunway,
-    productionVsTarget,
-    cliffStatus,
-    openHighIncidents,
-    licenceHealth,
-  }).catch((err) => {
+  const advisor = await composeAdvisorSlice(
+    {
+      dailyBrief,
+      decisions,
+      cashRunway,
+      productionVsTarget,
+      cliffStatus,
+      openHighIncidents,
+      licenceHealth,
+    },
+    tenantId,
+  ).catch((err) => {
     moduleLogger.warn('advisor slice failed', {
       tenantId,
       reason: messageOf(err),
@@ -474,7 +477,7 @@ async function composeAdvisorSlice(slots: {
   readonly cliffStatus: z.infer<typeof CliffStatusSlotSchema>;
   readonly openHighIncidents: z.infer<typeof OpenHighIncidentsSlotSchema>;
   readonly licenceHealth: z.infer<typeof LicenceHealthSlotSchema>;
-}): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
+}, tenantId: string): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
   // Lazy import so the brain-call helper isn't required when this file
   // is bundled for the cron worker (which sets no API keys).
   const { callBrainOnce } = await import('./brain-call.js');
@@ -495,7 +498,14 @@ async function composeAdvisorSlice(slots: {
   const userPrompt = `Today's owner brief slots (JSON):\n${summary}`;
   let result: { text: string; provider: string; latencyMs: number };
   try {
-    result = await callBrainOnce({ systemPrompt, userPrompt, maxTokens: 280 });
+    result = await callBrainOnce({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 280,
+      // LANE B5 — admin control-plane routing for this tenant's advisor slice.
+      tenantId,
+      useCase: 'casual_chat',
+    });
   } catch {
     return null;
   }

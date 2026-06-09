@@ -74,14 +74,22 @@ export interface ToolDispatcherConfig {
   ) => Promise<{ readonly output?: unknown }>;
   /**
    * Modality arbiter — optional higher-order modality handler
-   * (tab/document/media/workflow/loop). When wired, a `run_modality`
+   * (tab/document/media/forecast/workflow/loop). When wired, a `run_modality`
    * decision invokes it; when omitted the dispatcher returns a
-   * `modality_ack` breadcrumb. Money/licence actions never reach here as a
-   * modality — they remain `tool_call`/`spawn_sub_md` gated by the rails.
+   * `modality_ack` breadcrumb. `forecast` is a generative ARTIFACT modality
+   * routed to the forecast engine + surfaced as a proposal. Money/licence
+   * actions never reach here as a modality — they remain
+   * `tool_call`/`spawn_sub_md` gated by the rails.
    */
   readonly modalityHandler?: (
     args: {
-      readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+      readonly modality:
+        | 'tab'
+        | 'document'
+        | 'media'
+        | 'forecast'
+        | 'workflow'
+        | 'loop';
       readonly payload: Readonly<Record<string, unknown>>;
     },
     ctx?: HookContext,

@@ -532,6 +532,10 @@ app.post('/:id/explain', async (c: any) => {
       systemPrompt,
       userPrompt,
       maxTokens: 600,
+      // LANE B5 — let the admin control-plane config steer which model answers
+      // this document explanation for this tenant (or the global default).
+      tenantId: auth.tenantId,
+      useCase: 'document_summary',
     });
     return c.json(
       ok({
@@ -602,6 +606,9 @@ app.post('/:id/qa', async (c: any) => {
       systemPrompt,
       userPrompt,
       maxTokens: 700,
+      // LANE B5 — admin control-plane routing for this tenant's doc Q&A turn.
+      tenantId: auth.tenantId,
+      useCase: 'contract_extraction',
     });
     return c.json(
       ok({

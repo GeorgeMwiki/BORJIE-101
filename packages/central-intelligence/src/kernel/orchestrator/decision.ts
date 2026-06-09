@@ -179,9 +179,17 @@ export type Decision =
   | {
       // Modality arbiter (COG-07/AUT-14) — route to a higher-order output
       // modality. `loop` is the standing/recurring sub-kind of `workflow`
-      // that routes to the loop-runner.
+      // that routes to the loop-runner. `forecast` is a generative ARTIFACT
+      // modality (calibrated advisory time-series) routed to the forecast
+      // engine — it joins `document`/`media` as a proposal-only output.
       readonly kind: 'run_modality';
-      readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+      readonly modality:
+        | 'tab'
+        | 'document'
+        | 'media'
+        | 'forecast'
+        | 'workflow'
+        | 'loop';
       readonly payload: Readonly<Record<string, unknown>>;
     };
 
@@ -244,9 +252,15 @@ export type DispatchResult =
     }
   | {
       // Modality arbiter — a higher-order modality ack (tab/doc/media/
-      // workflow/loop). When a real modalityHandler is wired the dispatcher
-      // returns its output; absent one it returns this breadcrumb.
+      // forecast/workflow/loop). When a real modalityHandler is wired the
+      // dispatcher returns its output; absent one it returns this breadcrumb.
       readonly kind: 'modality_ack';
-      readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+      readonly modality:
+        | 'tab'
+        | 'document'
+        | 'media'
+        | 'forecast'
+        | 'workflow'
+        | 'loop';
       readonly output?: unknown;
     };

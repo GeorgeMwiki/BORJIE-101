@@ -80,7 +80,9 @@ function staticConsequence(modality: Modality): {
     case 'tab':
     case 'document':
     case 'media':
-      // Drafts are staged (draft tab / WORM-sealed artifact / C2PA draft).
+    case 'forecast':
+      // Drafts are staged (draft tab / WORM-sealed artifact / C2PA draft /
+      // calibrated advisory forecast). Low consequence, proposal-only.
       return { reversibility: 'staged', consequenceTier: 'low' };
     case 'skill':
     case 'workflow':
@@ -422,7 +424,7 @@ export function createModalityArbiter(
  * Lift a router-emitted `Decision` into the modality the arbiter chose.
  *
  * Only `skill` and the higher-order modalities (`tab`/`document`/`media`/
- * `workflow`) lift; `chat` and `action` are no-ops (the existing
+ * `forecast`/`workflow`) lift; `chat` and `action` are no-ops (the existing
  * `respond_to_owner` / `tool_call` / `spawn_sub_md` paths run unchanged —
  * the default fast path with zero added latency). The lifted Decision
  * still flows through the SAME permission-mode + 9-hook + risk-tier gates;
@@ -455,6 +457,7 @@ export function liftToModalityDecision(
     case 'tab':
     case 'document':
     case 'media':
+    case 'forecast':
     case 'workflow':
       return {
         kind: 'run_modality',

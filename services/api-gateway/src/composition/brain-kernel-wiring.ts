@@ -1056,7 +1056,13 @@ export function buildOrchestratorComposeBlock(args: {
       ? {
           modalityHandler: async (
             a: {
-              readonly modality: 'tab' | 'document' | 'media' | 'workflow' | 'loop';
+              readonly modality:
+                | 'tab'
+                | 'document'
+                | 'media'
+                | 'forecast'
+                | 'workflow'
+                | 'loop';
               readonly payload: Readonly<Record<string, unknown>>;
             },
             ctx?: orchestrator.HookContext,
@@ -1081,7 +1087,9 @@ export function buildOrchestratorComposeBlock(args: {
             if (
               modalityExecutor &&
               args.db &&
-              (a.modality === 'document' || a.modality === 'media')
+              (a.modality === 'document' ||
+                a.modality === 'media' ||
+                a.modality === 'forecast')
             ) {
               const scope = ctx?.scope;
               const tenantId = scope?.kind === 'tenant' ? scope.tenantId : null;

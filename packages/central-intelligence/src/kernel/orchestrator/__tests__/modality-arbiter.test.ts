@@ -309,4 +309,47 @@ describe('liftToModalityDecision — lift only the higher-order modalities', () 
       expect(lifted.payload).toMatchObject({ flowId: 'f_watch', loopKind: 'reactive' });
     }
   });
+
+  it('lifts a forecast verdict to a run_modality Decision with modality=forecast', () => {
+    const lifted = liftToModalityDecision(TOOL_CALL, {
+      modality: 'forecast',
+      recipeId: 'r_price_forecast',
+      score: 0.92,
+      tier: 'tier1',
+      reason: 'forecast',
+    });
+    expect(lifted.kind).toBe('run_modality');
+    if (lifted.kind === 'run_modality') {
+      expect(lifted.modality).toBe('forecast');
+      expect(lifted.payload).toMatchObject({ recipeId: 'r_price_forecast' });
+    }
+  });
+});
+
+describe('modality-arbiter — forecast modality routes end-to-end', () => {
+  it('routes a forecast-recipe intent through the arbiter to a forecast verdict', async () => {
+    // A forecast recipe descriptor whose vector matches the intent embedding
+    // (cos=1) clears tau → Tier-1 selects the forecast modality. Proves the
+    // forecast member is part of the closed routing set, not just the executor.
+    const arb = createModalityArbiter({
+      embedder: fixedEmbedder([1, 0, 0]),
+      recipeDescriptors: [
+        { modality: 'forecast', recipeId: 'r_price_forecast', embedding: [1, 0, 0] },
+      ],
+    });
+    const verdict = await arb.classify(
+      baseInput(TOOL_CALL, { intentText: 'forecast the copper price for next quarter' }),
+    );
+    expect(verdict.modality).toBe('forecast');
+    expect(verdict.recipeId).toBe('r_price_forecast');
+    expect(verdict.score).toBeGreaterThanOrEqual(DEFAULT_MODALITY_TAU);
+
+    // And the lift turns that verdict into the run_modality forecast Decision
+    // the tool-dispatcher's modalityHandler routes to the forecast engine.
+    const lifted = liftToModalityDecision(TOOL_CALL, verdict);
+    expect(lifted.kind).toBe('run_modality');
+    if (lifted.kind === 'run_modality') {
+      expect(lifted.modality).toBe('forecast');
+    }
+  });
 });
