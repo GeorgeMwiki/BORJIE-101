@@ -315,6 +315,12 @@ import {
   createHqToolPortBindings,
   type HqToolPortBindings,
 } from './hq-tool-port-bindings.js';
+import { createConsolidationWorkerAdapter } from './hq-tool-registry.js';
+import {
+  runConsolidationForActiveTenants,
+  discoverEpisodicScopesForTenant,
+  type AnthropicLikeClient as ConsolidationAnthropicLike,
+} from './consolidation-runner.js';
 import {
   createMarketSurveillanceWiring,
   type MarketSurveillanceWiring,
@@ -344,6 +350,7 @@ import {
   createParityCapabilityDashboard,
   type ParityCapabilityDashboardService,
 } from './parity-capability-dashboard.factory.js';
+import { createParityJudgeRunner } from './parity-judge-runner-wiring.js';
 // Central Command Phase A C6 / Phase B B2 — cross-portal Redis pubsub bus.
 // Async factory: returns `Promise<CrossPortalBus>` because the Redis-backed
 // implementation lazy-imports `ioredis`. The registry holds the promise so
@@ -2719,8 +2726,59 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // through the real adapter when bound (and through the existing
       // deterministic placeholder refusal otherwise — see
       // NOT_YET_WIRED_REASON in @borjie/central-intelligence).
+      // Wave-6 closure — thread the real in-process consolidation worker
+      // into the HQ registry so `platform.run_consolidation_tick` STOPS
+      // surfacing the `notYetWiredConsolidationRunner` refusal (which
+      // THREW `NotYetWiredError` on the live brain path). The adapter
+      // delegates to `runConsolidationForActiveTenants`, which is itself
+      // resilient: when no Anthropic key is configured it returns a
+      // zeroed summary rather than throwing — so the live tick degrades
+      // to an honest no-op report instead of crashing. The `rollbackSnapshot`
+      // path is intentionally left unsupported by the in-process runner
+      // (it throws a clear "snapshot-capable worker" error which B1 maps
+      // to executor-failed) — that is acceptable, not a live-crash.
+      const consolidationWorker = createConsolidationWorkerAdapter({
+        runner: {
+          runForActiveTenants: (args) => {
+            const targetTenantId: string | null = args.tenantId;
+            const anthropic: ConsolidationAnthropicLike | null =
+              buildBudgetGuardedAnthropicClient
+                ? // Adapt the budget-guarded client's `.sdk.messages.create`
+                  // surface onto the runner's flat `.messages.create` port.
+                  (() => {
+                    const guarded = buildBudgetGuardedAnthropicClient(
+                      targetTenantId ?? '_platform',
+                      'consolidation-tick',
+                    );
+                    return {
+                      messages: {
+                        create: (req) => guarded.sdk.messages.create(req as never),
+                      },
+                    } as ConsolidationAnthropicLike;
+                  })()
+                : null;
+            return runConsolidationForActiveTenants(db, anthropic, {
+              ...(targetTenantId
+                ? {
+                    // Tenant-scoped tick: restrict the active-scope
+                    // discovery to (tenant, user) pairs that belong to
+                    // this tenant. Null-tenant ticks fall through to the
+                    // runner's default cross-tenant episodic discovery.
+                    discoverScopes: () =>
+                      discoverEpisodicScopesForTenant(db, targetTenantId, 14),
+                  }
+                : {}),
+            });
+          },
+        },
+        logger: {
+          warn: (obj, msg) =>
+            logger.warn('consolidation-worker-adapter', { arg0: msg ?? '', obj }),
+        },
+      });
       const hqPortBindings: HqToolPortBindings = createHqToolPortBindings({
         db,
+        consolidationWorker,
         callerResolver: {
           // Placeholder resolver — real per-request principal binding
           // lives in the BFF router; the central-intelligence registry
@@ -2966,8 +3024,22 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     }),
     // Wave-K parity-litfin Gap C — capability dashboard wired against the
     // kernel-substrate tables (`kernel_provenance`, `kernel_cot_reservoir`).
-    // Reads only; rejudge is a tier-3 stub that returns a queued verdict.
-    parityCapabilityDashboard: createParityCapabilityDashboard({ db }),
+    // Wave-6 closure: `rejudge` now threads a REAL budget-guarded judge
+    // runner that scores the run's reasoning and persists the new
+    // `judge_score` to `kernel_provenance`. When no Anthropic key is
+    // configured the runner is null and `rejudge` returns an honest
+    // `unavailable` outcome rather than a fake `queued: true` no-op.
+    parityCapabilityDashboard: createParityCapabilityDashboard({
+      db,
+      judgeRunner: createParityJudgeRunner({
+        // The budget-guarded client is structurally `{ defaultModel, sdk }`
+        // — matching the wiring's `BudgetGuardedAnthropicLike`.
+        buildBudgetGuardedAnthropicClient:
+          buildBudgetGuardedAnthropicClient as unknown as Parameters<
+            typeof createParityJudgeRunner
+          >[0]['buildBudgetGuardedAnthropicClient'],
+      }),
+    }),
     // Central Command Phase A C6 / Phase B B2 — cross-portal bus. When
     // `REDIS_URL` is set the factory wires the Redis pubsub backend (two
     // ioredis connections — publisher + subscriber, per ioredis convention).

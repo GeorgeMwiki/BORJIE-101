@@ -567,6 +567,11 @@ import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 // Admin-side bulk-action surface — distinct whitelist + 4-eye approval
 // for HIGH-impact verbs (suspend tenant, regulator-pack export, etc).
 import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
+// JC-7 admin jurisdiction override — four-eye PROPOSE -> APPROVE flow
+// (a tenant cannot self-change jurisdiction; only Borjie internal admin
+// can, via a DIFFERENT second admin). Auth-guarded factory built from the
+// composition-root Drizzle adapters (migration 0322 jurisdiction_proposals).
+import { createMountedAdminTenantJurisdictionRouter } from './composition/jurisdiction-override-wiring';
 // Damage-settlement (migration 0279) — contractor / site damage claims +
 // mine-rehabilitation action-plan approval. Backs the site.damage_claim.* /
 // site.rehabilitation.approve_plan brain tools. Ported from the BN dispute /
@@ -2491,6 +2496,21 @@ api.route('/owner/pinned-items', ownerPinnedItemsRouter);
 api.route('/owner/superpowers', ownerSuperpowersRouter);
 // Admin counterpart — only the bulk-action verb-set differs.
 api.route('/admin/superpowers', adminSuperpowersRouter);
+// JC-7 admin jurisdiction override (four-eye). Mounted at the api root —
+// the router's own paths are absolute (/admin/tenants/:id/jurisdiction…).
+// Auth-guarded inside the factory (authMiddleware + requireRole +
+// admin-context pin). Backed by jurisdiction_proposals (migration 0322).
+api.route(
+  '/',
+  createMountedAdminTenantJurisdictionRouter({
+    db: getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+    logger: {
+      info: (message, meta) => logger.info({ ...(meta ?? {}) }, message),
+      warn: (message, meta) => logger.warn({ ...(meta ?? {}) }, message),
+      error: (message, meta) => logger.error({ ...(meta ?? {}) }, message),
+    },
+  }),
+);
 // Damage-settlement (migration 0279) — POST / (file), GET /open, GET /:id,
 // POST /:id/respond, POST /:id/settle, POST /rehabilitation-plans/:planId/
 // action-plans/:actionPlanId/approve. Wraps the site.damage_claim.* /

@@ -265,8 +265,19 @@ parityCapabilityDashboardRouter.post(
     if (!parsed.success) return badRequest(c, parsed.error.message);
     try {
       const verdict = await dashboard.rejudge(auth.tenantId, thoughtId, {
-        draftOverride: parsed.data.draft,
+        ...(parsed.data.draft !== undefined
+          ? { draftOverride: parsed.data.draft }
+          : {}),
       });
+
+      // Honest degraded path: when no judge-runner is wired (or the run
+      // cannot be re-judged), the service returns `accepted: false`. Do
+      // NOT report a fake success — surface 503 unavailable so the UI
+      // does not show "queued" for a no-op.
+      if (verdict.accepted === false) {
+        return unavailable(c, verdict.reason);
+      }
+
       // Best-effort audit-trail emission. The recorder shape mirrors
       // audit-trail.router.ts:152 — degraded gateways without an auditTrail
       // service slot simply skip the emission so the rejudge still returns.
@@ -291,6 +302,8 @@ parityCapabilityDashboardRouter.post(
               attachments: {
                 requestedBy: auth.userId ?? null,
                 draftOverride: parsed.data.draft ? true : false,
+                judgeScore: verdict.score ?? null,
+                persisted: verdict.persisted ?? false,
               },
             },
           });

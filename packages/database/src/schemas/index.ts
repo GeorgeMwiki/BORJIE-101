@@ -1059,6 +1059,19 @@ export * from './blackboard-sota.schema.js';
 export * from './blackboard-slots.schema.js';
 
 // ---------------------------------------------------------------------------
+// Wave-6 closure — jurisdiction_proposals (migration 0322)
+// ---------------------------------------------------------------------------
+//   jurisdiction_proposals — one row per JC-7 four-eye jurisdiction-change
+//                            proposal (pending -> approved | rejected). A
+//                            tenant CANNOT self-change jurisdiction; only
+//                            Borjie internal admin can, via a PROPOSE ->
+//                            APPROVE flow where the approver MUST be a
+//                            DIFFERENT admin (four-eye). Backs the Drizzle
+//                            JurisdictionProposalStore adapter for the
+//                            admin/tenants/:id/jurisdiction route.
+export * from './jurisdiction-proposals.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave OWNER-OS — owner reminders + dynamic tabs (migration 0089)
 // ---------------------------------------------------------------------------
 //   reminders   — owner-scheduled events. trigger_at + channel + payload;

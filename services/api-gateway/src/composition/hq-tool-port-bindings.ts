@@ -54,6 +54,7 @@ import {
   createHqToolRegistry,
   type HqToolRegistryWiring,
   type HqCallerResolver,
+  type PlatformConsolidationWorkerLike,
 } from './hq-tool-registry.js';
 import {
   createTemporalDispatcherFromEnv,
@@ -79,6 +80,17 @@ export interface HqToolPortBindingsDeps {
   readonly callerResolver: HqCallerResolver;
   /** Cross-portal publisher for killswitch + announcement fan-out. */
   readonly publishCrossPortalEvent?: unknown;
+  /**
+   * Optional consolidation worker for `platform.run_consolidation_tick`.
+   * When supplied, the HQ registry binds it so the brain's
+   * `platform.run_consolidation_tick` tool runs the real in-process
+   * memory-consolidation cycle. When omitted, the registry falls back to
+   * its `notYetWiredConsolidationRunner` refusal stub (which THROWS
+   * `NotYetWiredError`) — so live wiring must pass this to stop the live
+   * tick crashing. The adapter is built in the composition root from
+   * `createConsolidationWorkerAdapter` + `runConsolidationForActiveTenants`.
+   */
+  readonly consolidationWorker?: PlatformConsolidationWorkerLike;
   /** Optional structured logger. */
   readonly logger?: HqToolPortBindingsLogger;
   /** Override the env source for tests. */
@@ -147,6 +159,9 @@ export function createHqToolPortBindings(
   const hqToolRegistry = createHqToolRegistry({
     callerResolver: deps.callerResolver,
     db: (deps.db ?? null) as never,
+    ...(deps.consolidationWorker
+      ? { consolidationWorker: deps.consolidationWorker }
+      : {}),
     ...(deps.publishCrossPortalEvent
       ? { publishCrossPortalEvent: deps.publishCrossPortalEvent as never }
       : {}),

@@ -8,9 +8,10 @@
  * The Piece B module-spawning tables (`modules`, `module_specs`,
  * `module_templates`, `module_accept_handlers`) were removed in the
  * borjie-db-drift lane (2026-06-08): they had ZERO runtime Drizzle I/O (no
- * .insert/.from/.update/.delete anywhere; `ModulesStorePort` has no concrete
- * Drizzle-backed implementation, `createModulesRouter` is never mounted, and
- * the orchestrator is "purely deterministic, no DB"). Their CREATE DDL existed
+ * .insert/.from/.update/.delete anywhere; `ModulesStorePort` had no concrete
+ * Drizzle-backed implementation, and the unmounted `createModulesRouter` route
+ * was deleted in closure Wave 6 as dead orphan code — the
+ * orchestrator is "purely deterministic, no DB"). Their CREATE DDL existed
  * ONLY in packages/database/.archive/migrations/ (0219-0223), never in the
  * applied src/migrations chain — so keeping the Drizzle defs manufactured false
  * schema drift. The module-orchestrator package keeps its own independent

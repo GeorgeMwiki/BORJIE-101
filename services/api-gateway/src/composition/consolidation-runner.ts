@@ -221,6 +221,40 @@ async function discoverFromEpisodic(
   }
 }
 
+/**
+ * Tenant-scoped active-scope discovery — distinct (tenantId, userId)
+ * pairs for ONE tenant from episodic memory. Used by the HQ
+ * `platform.run_consolidation_tick` tool when an operator targets a
+ * single tenant rather than the whole platform. Mirrors
+ * {@link discoverFromEpisodic} but binds the `tenant_id` filter.
+ */
+export async function discoverEpisodicScopesForTenant(
+  db: DrizzleLikeClient | null | undefined,
+  tenantId: string,
+  windowDays: number,
+): Promise<ReadonlyArray<ActiveScope>> {
+  if (!db) return [];
+  try {
+    const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
+    const rows = (await db.execute(
+      sql`select distinct tenant_id, user_id
+          from kernel_memory_episodic
+          where tenant_id = ${tenantId}
+            and captured_at >= ${cutoff}`,
+    )) as unknown as ReadonlyArray<{ tenant_id: string | null; user_id: string }>;
+
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .filter((r) => typeof r.user_id === 'string' && r.user_id.length > 0)
+      .map((r) => ({ tenantId: r.tenant_id ?? tenantId, userId: r.user_id }));
+  } catch (error) {
+    logger.warn('consolidation-runner: tenant-scoped episodic discovery failed', {
+      error,
+    });
+    return [];
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Anthropic judge port — Haiku one-shot.
 // ---------------------------------------------------------------------------

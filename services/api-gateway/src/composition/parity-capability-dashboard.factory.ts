@@ -82,10 +82,47 @@ export interface ListRunsResult {
 
 export interface RejudgeVerdict {
   readonly accepted: true;
-  readonly queued: true;
+  /**
+   * True only when the rejudge ran asynchronously (no synchronous judge
+   * verdict available this turn). When a real judge ran inline this is
+   * `false` and `score`/`reason` carry the live verdict.
+   */
+  readonly queued: boolean;
   readonly thoughtId: string;
   readonly requestedAt: string;
+  /** Real judge score in [0,1] when a judge ran inline; null otherwise. */
+  readonly score?: number | null;
+  /** Judge rationale when a judge ran inline. */
+  readonly reason?: string | null;
+  /** True when the new verdict was persisted to kernel_provenance. */
+  readonly persisted?: boolean;
 }
+
+/**
+ * Port: re-score an existing run's reasoning. Injected from the
+ * composition root (built over the budget-guarded LLM judge-loop). When
+ * absent, `rejudge` returns an honest `unavailable` outcome rather than a
+ * fake `queued:true` no-op.
+ */
+export interface JudgeRunnerPort {
+  judge(input: {
+    readonly thoughtText: string;
+    readonly draftOverride?: string;
+    readonly modelId: string;
+    readonly stakes: 'low' | 'medium' | 'high' | 'critical';
+  }): Promise<{ readonly score: number; readonly reason: string }>;
+}
+
+/** Surfaced when no judge-runner is wired in the target environment. */
+export interface RejudgeUnavailable {
+  readonly accepted: false;
+  readonly unavailable: true;
+  readonly thoughtId: string;
+  readonly reason: string;
+  readonly requestedAt: string;
+}
+
+export type RejudgeResult = RejudgeVerdict | RejudgeUnavailable;
 
 export interface GetRollupOptions {
   readonly capabilities: ReadonlyArray<string>;
@@ -117,13 +154,20 @@ export interface ParityCapabilityDashboardService {
     tenantId: string,
     thoughtId: string,
     options: RejudgeOptions,
-  ): Promise<RejudgeVerdict>;
+  ): Promise<RejudgeResult>;
 }
 
 export interface CreateParityCapabilityDashboardInput {
   readonly db: AnyDb;
   /** Optional clock injection for deterministic tests. */
   readonly now?: () => Date;
+  /**
+   * Real judge-runner. When supplied, `rejudge` loads the run, scores its
+   * reasoning, persists the new `judge_score` to `kernel_provenance`, and
+   * returns a real verdict. When omitted, `rejudge` returns an honest
+   * `unavailable` outcome (NOT a fake `queued:true`).
+   */
+  readonly judgeRunner?: JudgeRunnerPort | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -201,6 +245,7 @@ export function createParityCapabilityDashboard(
 ): ParityCapabilityDashboardService {
   const { db } = input;
   const now = input.now ?? (() => new Date());
+  const judgeRunner = input.judgeRunner ?? null;
 
   async function getRollup(
     tenantId: string,
@@ -411,19 +456,107 @@ export function createParityCapabilityDashboard(
   }
 
   async function rejudge(
-    _tenantId: string,
+    tenantId: string,
     thoughtId: string,
-    _options: RejudgeOptions,
-  ): Promise<RejudgeVerdict> {
-    // Follow-up tier-3 (#33): wire to a real judge-runner worker. Today we accept
-    // the rejudge request, record nothing (the kernel-eval worker isn't
-    // mounted in api-gateway yet), and surface "queued" so the UI can
-    // show optimistic feedback without silently dropping the intent.
+    options: RejudgeOptions,
+  ): Promise<RejudgeResult> {
+    const requestedAt = now().toISOString();
+
+    // No judge-runner bound → be HONEST. Do NOT report a fake `queued`
+    // success for a no-op: return `unavailable` so the UI shows the
+    // accurate state.
+    if (!judgeRunner) {
+      return {
+        accepted: false,
+        unavailable: true,
+        thoughtId,
+        reason: 'rejudge worker not configured in this environment',
+        requestedAt,
+      };
+    }
+
+    // 1. Load the run so we have the reasoning text + model + stakes.
+    const run = await getRun(tenantId, thoughtId);
+    if (!run) {
+      return {
+        accepted: false,
+        unavailable: true,
+        thoughtId,
+        reason: 'run not found for tenant',
+        requestedAt,
+      };
+    }
+
+    // The only raw text the run carries is the chain-of-thought reasoning
+    // (`thought_text`); prompt/response are stored as hashes only. The
+    // judge scores the reasoning quality, optionally against a draft
+    // override the operator supplied.
+    const thoughtText = run.cotThoughtText ?? '';
+    if (thoughtText.trim().length === 0 && !options.draftOverride) {
+      return {
+        accepted: false,
+        unavailable: true,
+        thoughtId,
+        reason: 'run has no reasoning text to re-judge',
+        requestedAt,
+      };
+    }
+
+    // 2. Invoke the real judge.
+    let verdict: { score: number; reason: string };
+    try {
+      verdict = await judgeRunner.judge({
+        thoughtText,
+        ...(options.draftOverride !== undefined
+          ? { draftOverride: options.draftOverride }
+          : {}),
+        modelId: run.modelId,
+        stakes: run.stakes,
+      });
+    } catch (err) {
+      return {
+        accepted: false,
+        unavailable: true,
+        thoughtId,
+        reason: `judge invocation failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        requestedAt,
+      };
+    }
+
+    // Clamp the score to the persisted [0,1] range.
+    const score = Math.max(0, Math.min(1, verdict.score));
+
+    // 3. Persist the new verdict to the existing `kernel_provenance.
+    //    judge_score` column (no new schema needed). Best-effort: a
+    //    persistence failure still returns the live verdict but flags
+    //    `persisted: false` so the caller knows it was not durably saved.
+    let persisted = false;
+    try {
+      const safeTenant = tenantId.replace(/'/g, "''");
+      const safeId = thoughtId.replace(/'/g, "''");
+      await db.execute(
+        sql.raw(
+          `UPDATE kernel_provenance
+              SET judge_score = ${score}
+            WHERE tenant_id = '${safeTenant}'
+              AND thought_id = '${safeId}'`,
+        ),
+      );
+      persisted = true;
+    } catch {
+      persisted = false;
+    }
+
     return {
       accepted: true,
-      queued: true,
+      queued: false,
       thoughtId,
-      requestedAt: now().toISOString(),
+      requestedAt,
+      score,
+      reason: verdict.reason,
+      persisted,
     };
   }
 

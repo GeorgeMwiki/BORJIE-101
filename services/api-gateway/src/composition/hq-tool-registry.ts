@@ -58,7 +58,7 @@ import {
 // copy stays in lockstep with B1's exports.
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 
-interface PlatformConsolidationWorkerLike {
+export interface PlatformConsolidationWorkerLike {
   runOnce(args: {
     readonly tenantId: string | null;
     readonly dryRun: boolean;
@@ -372,6 +372,16 @@ export function createHqToolRegistry(
   // placeholder stub.
   const mergedHqDeps = {
     ...hqDeps,
+    // Wave-6 closure — when a consolidation worker is supplied directly
+    // (composition root, or a test), bind it as the live `consolidation`
+    // port regardless of whether the rest of the bundle came from
+    // `hqDeps`, B1's Drizzle services, or the placeholder stub. This is
+    // what stops `platform.run_consolidation_tick` reaching the throwing
+    // `notYetWiredConsolidationRunner`. The worker is adapted into the
+    // `runTick` port shape via B1's `createConsolidationRunnerService`.
+    ...(deps.consolidationWorker
+      ? { consolidation: createConsolidationRunnerService(deps.consolidationWorker) }
+      : {}),
     ...(deps.licenceSuspensionDispatcher
       ? { licenceSuspensionDispatcher: deps.licenceSuspensionDispatcher }
       : {}),

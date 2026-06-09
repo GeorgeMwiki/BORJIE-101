@@ -266,14 +266,94 @@ describe('createParityCapabilityDashboard', () => {
     expect(out!.judgeSuggestedFix).toBeNull();
   });
 
-  it('rejudge returns a queued verdict without touching the DB (tier-3 stub)', async () => {
+  it('rejudge returns UNAVAILABLE (honest) when no judge-runner is wired', async () => {
+    // Wave-6 closure: the old stub returned a fake `queued:true` no-op.
+    // With no judge-runner bound the service must now be HONEST and
+    // return `accepted:false / unavailable:true` so the UI does not show
+    // a false "queued" success.
     const execute = vi.fn();
     const svc = createParityCapabilityDashboard({ db: { execute }, now });
     const verdict = await svc.rejudge('tenant-x', 't_42', {});
-    expect(verdict.accepted).toBe(true);
-    expect(verdict.queued).toBe(true);
+    expect(verdict.accepted).toBe(false);
+    if (verdict.accepted !== false) throw new Error('expected unavailable');
+    expect(verdict.unavailable).toBe(true);
     expect(verdict.thoughtId).toBe('t_42');
     expect(verdict.requestedAt).toBe(FIXED_NOW.toISOString());
+    // No DB write happened (nothing to persist).
     expect(execute).not.toHaveBeenCalled();
+  });
+
+  it('rejudge invokes the injected judge-runner, persists the score, returns a real verdict', async () => {
+    // 1st execute() = getRun JOIN (returns the run row with CoT text).
+    // 2nd execute() = the UPDATE kernel_provenance SET judge_score.
+    const queue: QueuedResult[] = [
+      {
+        rows: [
+          {
+            thought_id: 't_77',
+            thread_id: 'th_77',
+            stakes: 'high',
+            judge_score: '0.40',
+            sensor_id: 'royalty.filing-q3',
+            model_id: 'claude-sonnet-4-6',
+            produced_at: new Date('2026-06-01T09:00:00Z'),
+            input_hash: 'ih_77',
+            output_hash: 'oh_77',
+            thought_text: 'The royalty filing reasoning under evaluation.',
+            cot_prompt_hash: 'ph_77',
+            cot_response_hash: 'rh_77',
+          },
+        ],
+      },
+      { rows: [] }, // UPDATE result
+    ];
+    const { db, calls } = createStubDb(queue);
+
+    const judge = vi.fn(async (input: {
+      thoughtText: string;
+      draftOverride?: string;
+      modelId: string;
+      stakes: string;
+    }) => {
+      expect(input.thoughtText).toContain('royalty filing reasoning');
+      expect(input.modelId).toBe('claude-sonnet-4-6');
+      expect(input.stakes).toBe('high');
+      return { score: 0.86, reason: 'evidence-grounded and decision-useful' };
+    });
+
+    const svc = createParityCapabilityDashboard({
+      db,
+      now,
+      judgeRunner: { judge },
+    });
+
+    const verdict = await svc.rejudge('tenant-x', 't_77', {});
+    expect(judge).toHaveBeenCalledTimes(1);
+    expect(verdict.accepted).toBe(true);
+    if (verdict.accepted !== true) throw new Error('expected verdict');
+    expect(verdict.queued).toBe(false);
+    expect(verdict.score).toBeCloseTo(0.86);
+    expect(verdict.reason).toBe('evidence-grounded and decision-useful');
+    expect(verdict.persisted).toBe(true);
+    // The persistence UPDATE actually ran against kernel_provenance.
+    const persistedCall = calls.find((c) =>
+      /UPDATE\s+kernel_provenance/i.test(c),
+    );
+    expect(persistedCall).toBeDefined();
+    expect(persistedCall).toMatch(/judge_score\s*=\s*0\.86/);
+  });
+
+  it('rejudge degrades to UNAVAILABLE when the run is not found', async () => {
+    const queue: QueuedResult[] = [{ rows: [] }]; // getRun → no row
+    const { db } = createStubDb(queue);
+    const judge = vi.fn(async () => ({ score: 1, reason: 'x' }));
+    const svc = createParityCapabilityDashboard({
+      db,
+      now,
+      judgeRunner: { judge },
+    });
+    const verdict = await svc.rejudge('tenant-x', 'missing', {});
+    expect(verdict.accepted).toBe(false);
+    expect(judge).not.toHaveBeenCalled();
   });
 });
