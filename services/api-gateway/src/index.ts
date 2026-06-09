@@ -67,6 +67,14 @@ import { createPublicAuthRouter } from './routes/auth/public-auth.hono';
 import { createPublicAuthDeps } from './composition/public-auth-wiring';
 import { tenantsRouter } from './routes/tenants.hono';
 import { usersRouter } from './routes/users.hono';
+// Dark-router wave — self-service GDPR Art.15/17/20 + TZ-PDPA s.27/28
+// surface (data-export + erasure of the CALLER's own account). Auth-scoped
+// to the caller; cannot read or erase anyone else's data.
+import { createUsersMeRouter } from './routes/users-me.router';
+// Dark-router wave — declared-facts producer (the only user-facing path
+// that writes into the kernel's semantic memory). Real db-backed service,
+// auth + tenant + user scoped, per-user rate-limited.
+import memoryDeclareRouter from './routes/memory-declare.router';
 import { notificationsRouter } from './routes/notifications';
 import { onboardingRouter } from './routes/onboarding';
 import { onboardingFlowRouter } from './routes/onboarding.router';
@@ -192,6 +200,12 @@ import {
   createEstateMindSupervisor,
   createMdCommitmentReconciliation,
 } from './composition/estate-mind-wiring';
+// B8 — EstateMind PERCEPTION source over the live estate tables (the missing
+// sensor that populates the situational model so proactive proposals emit).
+import { createEstateMindPerceptionFromDb } from './composition/estate-mind-perception';
+// B5 — control-plane LLM-routing config reader. Installs the routing-config
+// reader once at boot so admin-tuned LLM config is honored by the resolver.
+import { initLlmRoutingConfig } from './composition/llm-routing-config-wiring';
 // MD DEFERRAL / FOLLOW-THROUGH bundle — built once in the brain-tools wiring
 // block (repo + reconcile engine + WaitFor event subscriber) and referenced at
 // the EstateMind supervisor site so the reconcile sweep is injected into the
@@ -257,6 +271,9 @@ import { rfbRouter } from './routes/marketplace/rfb.hono';
 // Commercial chain L7 — buyer fulfilment notification queue.
 // Migration 0132. RLS-scoped to the buyer's tenant on read.
 import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
+// B6 — buyer-persona superpowers (bulk-action / undo-last / pinned-items /
+// search). Mirrors the owner superpowers wiring, persona-guarded to 'buyer'.
+import { buyerSuperpowersRouter } from './routes/buyer/superpowers.hono';
 // Commercial chain L8 — settlement orchestrator entry point.
 // Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
 import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
@@ -874,6 +891,10 @@ import {
   elevenLabsProbe,
   gepgProbe,
 } from './health/deep-health';
+// Dark-router wave — public, recon-safe dependency roll-up for uptime
+// probes / load balancers / status pages. Returns ONLY { overall, timestamp }
+// (the DA1-audited safe surface); the full per-dependency detail stays gated.
+import { createHealthDependenciesPublicHandler } from './routes/health-dependencies.router';
 import { validateEnv } from './config/validate-env';
 import { securityEventsMiddleware } from '@borjie/observability';
 // SOTA perf middleware — Brotli compression + Cache-Control presets.
@@ -1207,6 +1228,10 @@ const healthHandler = async (
 };
 app.get('/health', healthHandler);
 app.get('/healthz', healthHandler);
+// Public dependency roll-up — recon-safe `{ overall, timestamp }` only.
+// Lets external uptime probes / load balancers / status pages render a
+// degraded-mode indicator without learning the integration topology.
+app.get('/healthz/dependencies', createHealthDependenciesPublicHandler());
 
 // API v1 - Hono routes
 // FIXED C-1 production startup guard: refuses to boot if API keys aren't configured.
@@ -1258,6 +1283,22 @@ try {
     'service-registry: initialization failed, falling back to degraded mode'
   );
   serviceRegistry = buildServices({ db: null });
+}
+
+// B5 — control-plane LLM-routing config reader. Install the routing-config
+// reader ONCE at boot over the platform service-role db so admin-tuned LLM
+// config is honored by the router's resolver. The reader fail-safes to the
+// static ladder until the first warm lands; when db is null we skip (the
+// resolver simply keeps the static ladder — today's exact behaviour).
+{
+  const platformDb = serviceRegistry.db;
+  if (platformDb) {
+    initLlmRoutingConfig({ db: platformDb, logger });
+  } else {
+    logger.warn(
+      'llm-routing-config: skipped (no platform db — static routing ladder retained)'
+    );
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -1969,7 +2010,14 @@ api.route('/auth', createPublicAuthRouter(publicAuthDeps));
 api.route('/auth', authRouter);
 api.route('/auth/mfa', authMfaRouter);
 api.route('/tenants', tenantsRouter);
+// Self-service GDPR/PDPA surface. Mounted BEFORE `/users` so the more
+// specific `/users/me/*` prefix resolves to this router; `usersRouter`
+// defines no `/me` route, so the two never collide.
+api.route('/users/me', createUsersMeRouter());
 api.route('/users', usersRouter);
+// Declared-facts producer — POST/GET/DELETE /memory/declare. Real
+// semantic-memory store, auth + tenant + user scoped, per-user rate-limited.
+api.route('/memory', memoryDeclareRouter);
 api.route('/notifications', notificationsRouter);
 // Phase F.5 tenant-signup flow mounts FIRST so specific paths
 // (/signup, /first-site, /first-workforce-import, /first-md-chat,
@@ -2139,6 +2187,8 @@ api.route('/marketplace', marketplaceRouter);
 api.route('/marketplace/rfb', rfbRouter);
 // Commercial chain L7 — buyer's at-rest notification queue.
 api.route('/buyer/notifications', buyerNotificationsRouter);
+// B6 — buyer-persona superpowers (bulk-action / undo / pinned / search).
+api.route('/buyer/superpowers', buyerSuperpowersRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);
@@ -3258,6 +3308,18 @@ const estateMindSupervisor = createEstateMindSupervisor({
     | null) ?? null,
   logger: createPinoLikeLogger('estate-mind'),
   config: estateMindConfig,
+  // B8 — PERCEPTION source over the live estate tables. Without it the
+  // situational model stays empty, every standing drive reports SATISFIED, and
+  // the loop emits ZERO proactive nudges. The factory binds the kernel's
+  // PerceptionSource port to the real `withServiceRoleContext` over the
+  // platform db (read-only, tenant-scoped, degrade-safe); a null db yields a
+  // no-op source so the supervisor stays a safe no-op without it.
+  perception: createEstateMindPerceptionFromDb(
+    (serviceRegistry.db as unknown as
+      | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+      | null) ?? null,
+    createPinoLikeLogger('estate-mind-perception'),
+  ),
   // DEFERRAL / FOLLOW-THROUGH — inject the durable md_commitments RECONCILE
   // sweep into the resident Slow Loop. The bundle was built in the brain-tools
   // wiring block above; null leaves the tick exactly as before (purely

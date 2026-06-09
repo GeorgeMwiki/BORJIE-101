@@ -157,6 +157,10 @@ import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.h
 // (top-up / balance / escrow), fleet telemetry, SIC asset pings, and the
 // admin-console internal marketplace + models surfaces.
 import { miningRoyaltyRouter } from './royalty.hono';
+// B2 — statements BFF proxy. Thin authenticated pass-through to the
+// standalone payments-ledger service's statement-generation surface; the
+// downstream service re-verifies the JWT and binds tenant scope.
+import { miningStatementsRouter } from './statements.hono';
 import { buyersWalletRouter } from './buyers-wallet.hono';
 import { miningFleetRouter } from './fleet.hono';
 import { miningSicPingsRouter } from './sic-pings.hono';
@@ -279,6 +283,9 @@ mining.route('/leave-requests', miningLeaveRequestsRouter);
 // Endpoint wave — royalty ledger projection (read), fleet telemetry, and
 // SIC asset-pings ingestion.
 mining.route('/royalties', miningRoyaltyRouter);
+// B2 — statements proxy: GET /statements (+ /:id) forwards to the
+// payments-ledger service; tenant scope enforced end-to-end downstream.
+mining.route('/statements', miningStatementsRouter);
 mining.route('/fleet', miningFleetRouter);
 mining.route('/sic-pings', miningSicPingsRouter);
 
