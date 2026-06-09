@@ -278,7 +278,9 @@ export const sw = {
       "reminderSetIn": "Kikumbusho kimewekwa — {title} baada ya siku {days}",
       "reminderSnoozed": "Kikumbusho kimeahirishwa siku {days}",
       "needsConfirmation": "Inahitaji uthibitisho wako — {reason}",
-      "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako."
+      "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako.",
+      "fulfill": "Tafadhali endelea na: {action}.",
+      "fulfillDetail": "Tafadhali endelea na: {action}. Maelezo — {detail}."
     }
   },
   "portal": {

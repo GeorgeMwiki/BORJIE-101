@@ -47,11 +47,15 @@ import { type ScopeContext } from '@borjie/central-intelligence';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
-import { decideAutoAuthorization } from '../../services/auto-authorize-gate/index.js';
+import {
+  decideAutoAuthorization,
+  screenGenerativeVerb,
+} from '../../services/auto-authorize-gate/index.js';
 import { appendAutoAuthorizedAudit } from '../../services/auto-authorize-gate/audit.js';
 import {
   dispatchAction,
   requiresConfirmation,
+  isKnownVerb,
   type ExecContext,
   type ExecResult,
 } from '../../services/action-executor/index.js';
@@ -133,6 +137,16 @@ type ActionResponseBody =
         readonly executed: false;
         readonly authorized: boolean;
         readonly reason: string;
+        /**
+         * GENERATIVE FULFILLMENT (self-evolving org). `true` when the verb is
+         * NOT in the deterministic registry but cleared the HARD rails — the
+         * caller routes it to the brain's agentic turn to fulfill (the brain
+         * that emitted the dynamic action also fulfills it). The verb/params
+         * are echoed so the caller can build a structured fulfillment turn.
+         */
+        readonly deferToBrain?: boolean;
+        readonly verb?: string;
+        readonly params?: Record<string, unknown>;
       };
     };
 
@@ -169,6 +183,49 @@ async function gateExecuteAudit(args: {
     return {
       success: true,
       data: { executed: false, authorized: false, reason: 'confirmation_required' },
+    };
+  }
+
+  // 0b) GENERATIVE FULFILLMENT (self-evolving org). Mr. Mwikila creates tabs +
+  //    action verbs DYNAMICALLY, so the deterministic registry can never
+  //    enumerate every verb a generated tab might emit. A verb the registry
+  //    does NOT know is a brain-GENERATED action: rather than dead-ending it as
+  //    an unknown/denied verb ("dead button"), we screen the HARD rails
+  //    (high-risk / inviolable / policy) and, if they clear, DEFER it to the
+  //    brain's agentic turn to FULFILL — the brain that emitted the action also
+  //    fulfills it, and its per-tool gates enforce the money / sovereign rails.
+  //    A HARD-rail hit still denies (a brain-invented `sovereign:*` verb never
+  //    defers). Confirm-required known verbs were already handled above; this
+  //    branch is ONLY for verbs absent from the registry.
+  if (!isKnownVerb(verb)) {
+    const screen = screenGenerativeVerb(verb, rationale, buildScope(auth));
+    if (!screen.allowed) {
+      moduleLogger.info('chat-actions: generative verb hard-denied', {
+        verb,
+        source,
+        tenantId: auth.tenantId,
+        reason: screen.reason,
+      });
+      return {
+        success: true,
+        data: { executed: false, authorized: false, reason: screen.reason },
+      };
+    }
+    moduleLogger.info('chat-actions: deferring generative verb to the brain', {
+      verb,
+      source,
+      tenantId: auth.tenantId,
+    });
+    return {
+      success: true,
+      data: {
+        executed: false,
+        authorized: true,
+        reason: 'defer_to_brain',
+        deferToBrain: true,
+        verb,
+        params,
+      },
     };
   }
 

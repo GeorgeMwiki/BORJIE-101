@@ -21,7 +21,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { ScopeContext } from '@borjie/central-intelligence';
-import { decideAutoAuthorization } from './index.js';
+import { decideAutoAuthorization, screenGenerativeVerb } from './index.js';
 import {
   checkInviolable,
   runPolicyGate,
@@ -278,5 +278,61 @@ describe('decideAutoAuthorization — INVARIANT: rail-gate always wins (f)', () 
     });
     expect(decision.authorized).toBe(false);
     expect(decision.reason).toBe('policy-gate:cost-ceiling');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Generative-fulfillment screen (self-evolving org).
+//
+// A brain-GENERATED verb the deterministic registry never enumerated must be
+// able to DEFER to the brain's agentic turn — but ONLY after the HARD rails
+// clear. screenGenerativeVerb permits the defer for the soft autonomy-overlay
+// denial of an unknown verb, and NEVER for a HIGH-risk / inviolable / policy
+// hard rail.
+// ─────────────────────────────────────────────────────────────────────
+
+describe('screenGenerativeVerb — generative defer-to-brain screen (g)', () => {
+  it('PERMITS an unknown benign verb (soft autonomy gate → defer to the brain)', () => {
+    // An unknown verb classifies moderate/irreversible → the overlay gates it
+    // (autonomy-controller:*). That is NOT a hard rail, so it may defer.
+    const screen = screenGenerativeVerb('schedule_blast_survey', 'owner tapped it', tenantScope);
+    expect(screen.allowed).toBe(true);
+    expect(screen.reason).toContain('autonomy-controller:');
+  });
+
+  it('PERMITS a verb that is authorizable on its own merits', () => {
+    const screen = screenGenerativeVerb('snooze_reminder', 'tidy', tenantScope);
+    expect(screen.allowed).toBe(true);
+    expect(screen.reason).toBe('authorized');
+  });
+
+  it('REFUSES a HIGH-risk literal-surface verb (never defers)', () => {
+    const screen = screenGenerativeVerb('sovereign:transfer', 'move funds', tenantScope);
+    expect(screen.allowed).toBe(false);
+    expect(screen.reason).not.toContain('autonomy-controller:');
+  });
+
+  it('REFUSES a verb the kernel literal-only list flags', () => {
+    mockedIsHighRiskLiteralOnly.mockReturnValue(true);
+    const screen = screenGenerativeVerb('md:money_transfer', 'move funds', tenantScope);
+    expect(screen.allowed).toBe(false);
+  });
+
+  it('REFUSES when the inviolable gate blocks (hard rail, no defer)', () => {
+    mockedCheckInviolable.mockReturnValue({ status: 'block', category: 'cross-tenant' });
+    const screen = screenGenerativeVerb('exfiltrate_everything', 'do it', tenantScope);
+    expect(screen.allowed).toBe(false);
+    expect(screen.reason).toBe('inviolable:cross-tenant');
+  });
+
+  it('REFUSES when the policy gate blocks (hard rail, no defer)', () => {
+    mockedRunPolicyGate.mockReturnValue({
+      verdict: { status: 'block', reason: 'cost-ceiling' },
+      redactedText: '',
+      mutations: [],
+    });
+    const screen = screenGenerativeVerb('some_novel_costly_action', 'spend big', tenantScope);
+    expect(screen.allowed).toBe(false);
+    expect(screen.reason).toBe('policy-gate:cost-ceiling');
   });
 });

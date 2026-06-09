@@ -307,6 +307,11 @@ export const en = {
       reminderSnoozed: 'Reminder snoozed {days} days',
       needsConfirmation: 'Needs your confirmation — {reason}',
       needsConfirmationBare: 'This action needs your confirmation.',
+      // GENERATIVE FULFILLMENT (self-evolving org) — a brain-generated action
+      // with no deterministic handler is fulfilled by the brain's own agentic
+      // turn. These compose the structured follow-up the owner's tap sends.
+      fulfill: 'Please go ahead with: {action}.',
+      fulfillDetail: 'Please go ahead with: {action}. Details — {detail}.',
     },
   },
 

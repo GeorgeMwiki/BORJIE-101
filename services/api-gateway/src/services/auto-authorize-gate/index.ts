@@ -337,3 +337,42 @@ export function decideAutoAuthorization(
     };
   }
 }
+
+/**
+ * GENERATIVE-FULFILLMENT screen (self-evolving org). Mr. Mwikila creates tabs +
+ * action verbs DYNAMICALLY, so the deterministic action-executor registry can
+ * never enumerate every verb a generated tab might emit. A verb the registry
+ * does NOT know is a brain-GENERATED action: rather than dead-ending it ("dead
+ * button"), the action bridge DEFERS it to the brain's own agentic turn to
+ * FULFILL — the brain that emitted the action also fulfills it, and its
+ * per-tool inviolable / policy / kill-switch gates enforce the money / sovereign
+ * rails on every concrete step it then takes.
+ *
+ * This screen decides whether a verb MAY defer to the brain. It runs the FULL
+ * gate and permits the defer ONLY when the sole denial is the soft autonomy
+ * overlay gating an unknown verb (`autonomy-controller:*`). A HARD rail — the
+ * HIGH-risk literal surface (sovereign / kill_switch / four_eye / policy_rollout
+ * / money / licence-suspension / deletion), an inviolable refusal, a policy-gate
+ * block, or any gate error — NEVER defers; it stays denied, exactly as for a
+ * known verb. FAIL-SAFE by construction: anything that is not the explicit
+ * soft-gate denial is treated as a HARD denial (no defer). A verb that is
+ * authorizable on its own merits returns `allowed:true` directly.
+ *
+ * Pure + deterministic (delegates to `decideAutoAuthorization`); no I/O.
+ */
+export function screenGenerativeVerb(
+  action: string,
+  rationale: string,
+  scope: ScopeContext,
+): { readonly allowed: boolean; readonly reason: string } {
+  const decision = decideAutoAuthorization(action, rationale, scope);
+  if (decision.authorized) {
+    return { allowed: true, reason: 'authorized' };
+  }
+  // Denied — defer to the brain ONLY for the soft autonomy-overlay denial (an
+  // unknown verb gated for lack of a deterministic classification). Every HARD
+  // rail (high-risk / inviolable / policy-gate / gate-error reason string)
+  // stays denied. Fail-safe: non-soft-gate ⇒ hard denial ⇒ no defer.
+  const softGated = decision.reason.startsWith('autonomy-controller:');
+  return { allowed: softGated, reason: decision.reason };
+}

@@ -15,6 +15,9 @@ import {
 import { PersonaGreeting } from './PersonaGreeting';
 import { ToolCallSidebar } from './ToolCallSidebar';
 import { BorjieDynamicHints } from './BorjieDynamicHints';
+import { hintActionSuggestion } from './hint-action-suggestion';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 /**
  * HomeChat — chat-first surface that becomes the owner's `/` (home).
@@ -133,6 +136,21 @@ export function HomeChat({
     [send],
   );
 
+  // Locale-bound translator for the proactive-hint follow-up copy.
+  const t = useMemo(() => makeT(dictionaries[languagePreference]), [languagePreference]);
+
+  // Wave SUPERPOWERS (UI-2) — bridge a ProactiveHint CTA emit into a real
+  // follow-up turn so the idle Cmd-K / handoff / simpler-explanation hint is
+  // never a dead click on THIS mount (mirrors the HomeChatTeach mount via the
+  // shared hint-action map). An unmapped action is dropped (no junk turn).
+  const handleHintAction = useCallback(
+    (_hintId: string, action: string) => {
+      const text = hintActionSuggestion(action, t);
+      if (text) onSuggestion(text);
+    },
+    [onSuggestion, t],
+  );
+
   const onReset = useCallback(() => {
     reset();
     if (typeof window === 'undefined') return;
@@ -243,7 +261,10 @@ export function HomeChat({
             onSubmit={(content) => void send(content)}
           />
         </section>
-        <BorjieDynamicHints language={languagePreference} />
+        <BorjieDynamicHints
+          language={languagePreference}
+          onHintAction={handleHintAction}
+        />
       </div>
       <div className="hidden lg:flex">
         <ToolCallSidebar

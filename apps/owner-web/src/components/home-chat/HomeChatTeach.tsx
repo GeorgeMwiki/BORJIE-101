@@ -55,7 +55,8 @@ import {
   mapInlineActionToDispatch,
   type RawInlineActionEvent,
 } from './inline-action-map';
-import { buildMicroActionSummary } from './micro-action-summary';
+import { buildMicroActionSummary, buildFulfillmentTurn } from './micro-action-summary';
+import { hintActionSuggestion } from './hint-action-suggestion';
 import {
   dispatchMicroAction,
   confirmAction,
@@ -840,6 +841,15 @@ export function HomeChatTeach({
         appendNote(t('teach.microAction.executed', { summary }));
         return;
       }
+      // GENERATIVE FULFILLMENT (self-evolving org) — a brain-GENERATED action
+      // verb with no deterministic handler. The bridge cleared the HARD rails
+      // and deferred it to the brain: send a STRUCTURED fulfillment turn
+      // (action phrase + params) so the brain that emitted the action fulfills
+      // it agentically. NOT a dead "needs confirmation" note.
+      if (result.deferToBrain) {
+        onSuggestion(buildFulfillmentTurn({ t, verb, params }));
+        return;
+      }
       if (!result.authorized && result.reason) {
         appendNote(
           t('teach.microAction.needsConfirmation', { reason: result.reason }),
@@ -900,13 +910,9 @@ export function HomeChatTeach({
   // canonical Theory-of-Mind emits map to a localised owner message.
   const handleHintAction = useCallback(
     (_hintId: string, action: string) => {
-      const keyByAction: Record<string, string> = {
-        'borjie:handoff:human': 'teach.hintHandoff',
-        'borjie:explain:simpler': 'teach.hintSimpler',
-        'borjie:teach:cmdk': 'teach.hintCmdk',
-      };
-      const key = keyByAction[action];
-      if (key) onSuggestion(t(key));
+      // Shared hint-action map (single source of truth across both mounts).
+      const text = hintActionSuggestion(action, t);
+      if (text) onSuggestion(text);
     },
     [onSuggestion, t],
   );

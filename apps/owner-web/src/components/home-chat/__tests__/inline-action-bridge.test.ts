@@ -20,7 +20,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { makeT } from '@/i18n/resolve';
 import { dictionaries } from '@/i18n/dictionaries';
 import { mapInlineActionToDispatch } from '../inline-action-map';
-import { buildMicroActionSummary } from '../micro-action-summary';
+import {
+  buildMicroActionSummary,
+  buildFulfillmentTurn,
+} from '../micro-action-summary';
 
 const tEn = makeT(dictionaries.en);
 const tSw = makeT(dictionaries.sw);
@@ -150,6 +153,53 @@ describe('buildMicroActionSummary', () => {
   });
 });
 
+// ── buildFulfillmentTurn (generative defer-to-brain) ────────────────
+
+describe('buildFulfillmentTurn', () => {
+  it('prefers a human label from the payload + appends scalar params', () => {
+    const turn = buildFulfillmentTurn({
+      t: tEn,
+      verb: 'draft_preview.send',
+      params: { title: 'NEMC site-visit request', draftId: 'd-1', revisionNo: 3 },
+    });
+    // Uses the title as the action phrase; draftId/revisionNo become details.
+    expect(turn).toContain('NEMC site-visit request');
+    expect(turn).toContain('draftId: d-1');
+    expect(turn).toContain('revisionNo: 3');
+    expect(turn.startsWith('Please go ahead with:')).toBe(true);
+  });
+
+  it('humanises a bare verb token when no label is present', () => {
+    const turn = buildFulfillmentTurn({
+      t: tEn,
+      verb: 'workflow_step_action',
+      params: {},
+    });
+    expect(turn).toBe('Please go ahead with: workflow step action.');
+  });
+
+  it('drops nested objects from the detail list (legible instruction)', () => {
+    const turn = buildFulfillmentTurn({
+      t: tEn,
+      verb: 'compare_choose',
+      params: { optionId: 'opt-2', forwarded: { nested: true } },
+    });
+    expect(turn).toContain('optionId: opt-2');
+    expect(turn).not.toContain('forwarded');
+    expect(turn).not.toContain('nested');
+  });
+
+  it('renders the Swahili fulfillment turn with zero English leakage', () => {
+    const turn = buildFulfillmentTurn({
+      t: tSw,
+      verb: 'start_quest',
+      params: { title: 'NEMC' },
+    });
+    expect(turn).toContain('Tafadhali endelea na');
+    expect(turn).not.toMatch(/Please|Details/);
+  });
+});
+
 // ── dispatchMicroAction / confirmAction ─────────────────────────────
 
 vi.mock('@/lib/api-client', () => ({
@@ -203,10 +253,15 @@ describe('dispatchMicroAction / confirmAction', () => {
     );
   });
 
-  it('defaults authorized to false when the wire omits it', async () => {
+  it('defaults authorized + deferToBrain to false when the wire omits them', async () => {
     mockApiRequest.mockResolvedValueOnce({ executed: false, reason: 'unknown verb' });
     const result = await dispatchMicroAction({ verb: 'mystery', params: {} });
-    expect(result).toEqual({ executed: false, authorized: false, reason: 'unknown verb' });
+    expect(result).toEqual({
+      executed: false,
+      authorized: false,
+      deferToBrain: false,
+      reason: 'unknown verb',
+    });
   });
 
   it('degrades to a graceful unauthorized result on a network/parse failure', async () => {
