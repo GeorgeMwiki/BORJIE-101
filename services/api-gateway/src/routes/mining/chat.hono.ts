@@ -89,6 +89,17 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
   const db = c.get('db');
   const input = c.req.valid('json');
   return streamSSE(c, async (stream) => {
+    // SSE RESILIENCE (mfr-3) — the orchestrator does real, side-effecting work
+    // per yielded event (OpenAI embedding, tenant-scoped corpus read, then
+    // either Master-Brain junior fan-out with multiple Claude calls + junior DB
+    // writes, OR a full sov.kernel.think() pass). Hono's streamSSE swallows
+    // write errors, so without an explicit disconnect hook the for-await loop
+    // would keep pulling events (and spending) after the client is gone. Wire
+    // the same AbortController pattern brain-teach uses: onAbort flips the
+    // signal, and we return early at the top of the drain loop so the async
+    // generator unwinds and stops further model/DB work.
+    const abort = new AbortController();
+    stream.onAbort(() => abort.abort());
     try {
       // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the user
       // message BEFORE the orchestrator. CRITICAL prompt-injection / jailbreak →
@@ -117,14 +128,30 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
         });
         return;
       }
-      for await (const evt of runChatOrchestrator({
-        tenantId,
-        userId,
-        language: input.language,
-        message: ingress.text,
-        sessionId: input.sessionId ?? null,
-        db,
-      })) {
+      // mfr-3 — thread the disconnect signal into the orchestrator so the
+      // upstream generator can cancel in-flight model/junior work, not just
+      // stop being drained here. The gateway-side `abort.signal.aborted`
+      // early-return below remains the guaranteed floor; this passes the
+      // signal as the orchestrator's optional second `options` arg, which
+      // forwards it to `sov.kernel.think()/thinkStream()` and the
+      // Master-Brain junior calls. See needsAttention for the downstream
+      // `runChatOrchestrator` + kernel signatures that must accept + forward
+      // it to the provider stream call (`client.messages.stream({ signal })`).
+      for await (const evt of runChatOrchestrator(
+        {
+          tenantId,
+          userId,
+          language: input.language,
+          message: ingress.text,
+          sessionId: input.sessionId ?? null,
+          db,
+        },
+        { signal: abort.signal },
+      )) {
+        // SSE RESILIENCE (mfr-3) — client disconnected: stop pulling further
+        // events from the generator so its async-generator cleanup runs and no
+        // additional model/DB work is performed for a connection no one reads.
+        if (abort.signal.aborted) return;
         switch (evt.type) {
           case 'turn_accepted':
             // The orchestrator classifies the persona lens(es) from the

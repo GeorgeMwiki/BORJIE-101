@@ -116,6 +116,7 @@ import {
 } from './four-eye-approval.js';
 import { createBriefingComposer } from './briefing.js';
 import { createNudgeRouter, createInMemoryNudgeDedupe, type NudgeDedupeStore } from './proactive-nudge.js';
+import type { PendingProposalReader } from './estate-mind/estate-mind.js';
 import {
   ANTHROPIC_SENSOR_PRESETS,
   type AnthropicMessagesClient,
@@ -165,7 +166,22 @@ export interface ComposeSovereignConfig {
   readonly cohortSource?: CohortSource;
   readonly groundingFacts?: GroundingFactsProvider;
   readonly approvalStore?: ApprovalStore;
+  /**
+   * Durable nudge-dedupe SEAM. When omitted, compose binds an in-memory
+   * default lost on pod restart (the volatile-dedupe defect). The gateway
+   * composition root injects a DB-backed `NudgeDedupeStore`
+   * (`createDrizzleNudgeDedupe(db)` over `proactive_nudge_sent`) so dedupe
+   * survives restarts. The router routes every emit through it.
+   */
   readonly nudgeDedupe?: NudgeDedupeStore;
+  /**
+   * Durable READ-port for the EstateMind slow loop's surfaced proposals.
+   * When wired, the kernel pulls up to N pending proposals mid-turn and
+   * mixes them into a `[proactive_context]` prompt section — so the MD is
+   * aware of its own proactive insights during a turn. Fail-safe in the
+   * kernel.
+   */
+  readonly pendingProposalReader?: PendingProposalReader;
   /** LP-03 — read-through semantic response cache. Fail-safe: a miss or a
    * null embedder falls through to the normal LLM path. */
   readonly semanticCache?: SemanticCachePort;
@@ -533,6 +549,9 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   if (config.intentVerificationEnabled !== undefined) (kernelDeps as any).intentVerificationEnabled = config.intentVerificationEnabled;
   // C4 — Sensorium / Brain Skin.
   if (config.behaviorSignalSource) (kernelDeps as any).behaviorSignalSource = config.behaviorSignalSource;
+  // Close-the-loop — forward the EstateMind pending-proposal reader so the
+  // kernel surfaces the slow loop's own proactive insights mid-turn (step 5c).
+  if (config.pendingProposalReader) (kernelDeps as any).pendingProposalReader = config.pendingProposalReader;
   // Cognitive-load + affective accumulators are always wired so the
   // kernel can render cross-turn directives. Callers that pass their
   // own instance (e.g. tests asserting cross-call state) win;

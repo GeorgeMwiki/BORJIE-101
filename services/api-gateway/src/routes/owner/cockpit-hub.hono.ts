@@ -76,51 +76,170 @@ interface DbExecutor {
   execute(query: unknown): Promise<unknown>;
 }
 
+function rowsOf(result: unknown): Record<string, unknown>[] {
+  if (Array.isArray(result)) return result as Record<string, unknown>[];
+  const wrapped = result as { rows?: Record<string, unknown>[] };
+  return wrapped?.rows ?? [];
+}
+
+/**
+ * owner-cockpithub-1: the original query hit a non-existent `decisions`
+ * table shape (`summary` / `raised_at` / status `pending`|`in_review`).
+ * The owner's real "decisions that need your call" queue is the Mr.
+ * Mwikila open-actions inbox (`mwikila_actions_inbox`): rows still
+ * `proposed` (awaiting the owner's tap) or `owner_approved` (approved but
+ * not yet executed) are exactly the items the cockpit promises. Tier maps
+ * to severity (T3/sovereign > T2 high > T1 medium > T0 low) so the panel
+ * keeps a severity badge without inventing a column.
+ */
 async function selectDecisions(
   db: DbExecutor,
   tenantId: string,
 ): Promise<ReadonlyArray<DecisionSummary>> {
   try {
-    const rows = (await db.execute(sql`
-      SELECT
-        id,
-        summary,
-        severity,
-        raised_at
-      FROM decisions
-      WHERE tenant_id = ${tenantId}
-        AND status IN ('pending', 'in_review')
-      ORDER BY raised_at DESC
-      LIMIT 5
-    `)) as unknown as Record<string, unknown>[];
+    const rows = rowsOf(
+      await db.execute(sql`
+        SELECT id, summary, delegation_tier, proposed_at
+          FROM mwikila_actions_inbox
+         WHERE tenant_id = ${tenantId}
+           AND status IN ('proposed', 'owner_approved')
+         ORDER BY proposed_at DESC
+         LIMIT 5
+      `),
+    );
     return rows.map((r) => ({
       id: String(r.id),
       summary: String(r.summary ?? ''),
-      severity: (r.severity ?? 'low') as DecisionSummary['severity'],
-      raisedAt: String(r.raised_at ?? new Date(0).toISOString()),
+      severity: tierToSeverity(String(r.delegation_tier ?? 'T0')),
+      raisedAt: String(r.proposed_at ?? new Date(0).toISOString()),
     }));
   } catch {
     return [];
   }
 }
 
+function tierToSeverity(tier: string): DecisionSummary['severity'] {
+  switch (tier) {
+    case 'T3':
+      return 'sovereign';
+    case 'T2':
+      return 'high';
+    case 'T1':
+      return 'medium';
+    default:
+      return 'low';
+  }
+}
+
+/**
+ * owner-cockpithub-1: clean column rename onto the REAL `reminders` table
+ * (owner-reminders.schema.ts) — `title`→text, `trigger_at`→dueAt — with
+ * the lifecycle filter `status='scheduled'` (there is no `completed_at`
+ * column) and only future triggers so the panel shows upcoming reminders.
+ */
 async function selectReminders(
   db: DbExecutor,
   tenantId: string,
 ): Promise<ReadonlyArray<Reminder>> {
   try {
-    const rows = (await db.execute(sql`
-      SELECT id, text, due_at
-        FROM reminders
-       WHERE tenant_id = ${tenantId}
-         AND completed_at IS NULL
-       ORDER BY due_at ASC
-       LIMIT 5
-    `)) as unknown as Record<string, unknown>[];
+    const rows = rowsOf(
+      await db.execute(sql`
+        SELECT id, title, trigger_at
+          FROM reminders
+         WHERE tenant_id = ${tenantId}
+           AND status = 'scheduled'
+           AND trigger_at > now()
+         ORDER BY trigger_at ASC
+         LIMIT 5
+      `),
+    );
     return rows.map((r) => ({
       id: String(r.id),
-      text: String(r.text ?? ''),
-      dueAt: String(r.due_at ?? new Date(0).toISOString()),
+      text: String(r.title ?? ''),
+      dueAt: String(r.trigger_at ?? new Date(0).toISOString()),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * owner-cockpithub-2: real opportunities feed. The owner's top
+ * opportunities by expected value are the active marketplace listings the
+ * tenant has posted (off-take / sell-side), ordered by their TZS asking
+ * price. Purely a read; degrades to [] on any error.
+ */
+async function selectOpportunities(
+  db: DbExecutor,
+  tenantId: string,
+): Promise<ReadonlyArray<Opportunity>> {
+  try {
+    const rows = rowsOf(
+      await db.execute(sql`
+        SELECT id, category, title, price_tzs
+          FROM marketplace_listings
+         WHERE tenant_id = ${tenantId}
+           AND status = 'active'
+         ORDER BY price_tzs DESC NULLS LAST
+         LIMIT 5
+      `),
+    );
+    return rows.map((r) => ({
+      id: String(r.id),
+      kind: String(r.category ?? 'listing'),
+      summary: String(r.title ?? ''),
+      expectedValueTzs: Number(r.price_tzs ?? 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * owner-cockpithub-2: real risks feed — the union of open high/critical
+ * incidents and licences expiring within 60 days. Both are read-only and
+ * already governed by the same RLS GUC the cockpit binds. Capped to 5.
+ */
+async function selectRisks(
+  db: DbExecutor,
+  tenantId: string,
+): Promise<ReadonlyArray<Risk>> {
+  try {
+    const rows = rowsOf(
+      await db.execute(sql`
+        SELECT id, kind, summary, severity FROM (
+          SELECT id::text AS id,
+                 'incident' AS kind,
+                 COALESCE(description, kind, 'Open incident') AS summary,
+                 CASE WHEN severity IN ('critical', 'high') THEN severity
+                      ELSE 'high' END AS severity,
+                 occurred_at AS sort_at
+            FROM incidents
+           WHERE tenant_id = ${tenantId}
+             AND status = 'open'
+             AND severity IN ('critical', 'high')
+          UNION ALL
+          SELECT id::text AS id,
+                 'licence' AS kind,
+                 ('Licence ' || COALESCE(number, kind) ||
+                  ' expires ' || COALESCE(expiry_date::text, 'soon')) AS summary,
+                 'medium' AS severity,
+                 (expiry_date::timestamptz) AS sort_at
+            FROM licences
+           WHERE tenant_id = ${tenantId}
+             AND status = 'active'
+             AND expiry_date IS NOT NULL
+             AND expiry_date <= (now() + interval '60 days')::date
+        ) risks
+        ORDER BY sort_at ASC NULLS LAST
+        LIMIT 5
+      `),
+    );
+    return rows.map((r) => ({
+      id: String(r.id),
+      kind: String(r.kind ?? 'risk'),
+      summary: String(r.summary ?? ''),
+      severity: (r.severity ?? 'medium') as Risk['severity'],
     }));
   } catch {
     return [];
@@ -131,7 +250,13 @@ export const cockpitHubRouter = new Hono();
 cockpitHubRouter.use('*', authMiddleware);
 cockpitHubRouter.use('*', databaseMiddleware);
 
-cockpitHubRouter.get('/hub', async (c) => {
+// owner-cockpithub-3: the router is mounted at `/owner/cockpit`, so the
+// canonical URL is `/owner/cockpit/hub`. Register the same handler on the
+// bare mount path `/` too, so a client that calls `/owner/cockpit`
+// (without the trailing `/hub`) also resolves instead of 404-ing. The
+// top-level `/owner/hub` compatibility alias (if any FE still uses it)
+// must be added at the index.ts mount layer — see needsAttention.
+const cockpitHubHandler = async (c: any) => {
   const auth = c.get('auth');
   const db = c.get('db') as DbExecutor | null;
   if (!db) {
@@ -146,19 +271,15 @@ cockpitHubRouter.get('/hub', async (c) => {
       503,
     );
   }
-  // Fire the four DB-backed panels in parallel; the brief is composed
-  // synchronously from current-cash + open-incidents counts.
-  const [decisions, reminders] = await Promise.all([
+  // Fire the four DB-backed panels in parallel. Each selector degrades to
+  // [] on its own failure (try/catch inside), so one slow/failed source
+  // never blanks the whole screen.
+  const [decisions, reminders, opportunities, risks] = await Promise.all([
     selectDecisions(db, auth.tenantId),
     selectReminders(db, auth.tenantId),
+    selectOpportunities(db, auth.tenantId),
+    selectRisks(db, auth.tenantId),
   ]);
-
-  // The opportunity + risk scanners shipped behind brain tools rather
-  // than HTTP endpoints; until the unwired-sweep gives us a HTTP shim
-  // we return empty arrays. The mobile UI already handles the
-  // empty-array case.
-  const opportunities: ReadonlyArray<Opportunity> = [];
-  const risks: ReadonlyArray<Risk> = [];
 
   const generatedAt = new Date().toISOString();
   const response: CockpitHubResponse = {
@@ -180,4 +301,7 @@ cockpitHubRouter.get('/hub', async (c) => {
     generatedAt,
   };
   return c.json(response);
-});
+};
+
+cockpitHubRouter.get('/hub', cockpitHubHandler);
+cockpitHubRouter.get('/', cockpitHubHandler);

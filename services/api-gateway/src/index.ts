@@ -189,6 +189,10 @@ import {
   type ClientSocketLike,
 } from './routes/brain-voice.hono';
 import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-wiring';
+import {
+  setEvidenceExistenceVerifier,
+  createCorpusEvidenceVerifier,
+} from './composition/chat-response-gate';
 import { buildResearchWiring } from './composition/research/research-wiring';
 import { scheduleProactive } from './composition/proactive/proactive-wiring';
 // Wave 1 EstateMind — the resident per-tenant Slow Loop heartbeat. init reads
@@ -552,6 +556,11 @@ import { billingRouter } from './routes/owner/billing.router';
 import { ownerMessagingRouter } from './routes/owner/owner-messaging.router';
 import { supportRouter } from './routes/owner/support.router';
 import { adminUsersRouter } from './routes/owner/admin-users.router';
+// admin-rest-3 — cross-tenant subscription / MRR overview for the admin-web
+// Platform → Subscriptions page. Thin aggregator over the `tenants` index,
+// platform-admin gated. Honest-degrades to an empty envelope + note when no
+// DB / no billing table.
+import { adminSubscriptionsRouter } from './routes/admin/subscriptions.hono';
 // Wave OWNER-OS — owner cockpit OS surface (docs intake + drop-zone,
 // regulator-form drafter, reminders CRUD + dispatcher, dynamic tabs,
 // per-tenant advisor slice on /owner/brief). See:
@@ -1978,6 +1987,22 @@ const portalGenuiWiring = buildPortalGenuiWiring();
         return widgetClient.unsafe<Row>(sql, params ?? []);
       },
     };
+    // Stage-2 evidence-existence verifier (iq-evidence-stage2-disabled-12) —
+    // give the Auditor real teeth: confirm every cited evidence_id actually
+    // resolves to an intelligence_corpus_chunk for this tenant (or the global
+    // corpus) before a recommendation is allowed out. Same tenant-scoped
+    // `$client.unsafe` boundary (RLS FORCE isolates); fail-open on infra fault
+    // so a DB blip degrades to Stage-1 regex only, never blocks a turn.
+    setEvidenceExistenceVerifier(
+      createCorpusEvidenceVerifier({
+        async query<Row = Record<string, unknown>>(
+          sql: string,
+          params?: ReadonlyArray<unknown>,
+        ): Promise<ReadonlyArray<Row>> {
+          return widgetClient.unsafe<Row>(sql, params ?? []);
+        },
+      }),
+    );
   }
 }
 api.route('/portal-genui', portalGenuiWiring.router);
@@ -2157,6 +2182,11 @@ api.route('/owner/group-rollup', ownerGroupRollupRouter);
 api.route('/owner', ownerPortalRouter);
 api.route('/manager', estateManagerAppRouter);
 api.route('/admin', adminPortalRouter);
+// admin-rest-3 — cross-tenant subscription / MRR overview. Mounted at the
+// more-specific `/admin/subscriptions` prefix so it is never shadowed by the
+// broad `/admin` portal mounts (adminPortalRouter / adminUsersRouter own
+// disjoint sub-paths). Platform-admin gated inside the router.
+api.route('/admin/subscriptions', adminSubscriptionsRouter);
 // Wave 1-2 feature routers
 api.route('/applications', applicationsRouter);
 // REMOVED (borjie hard-fork): api.route('/arrears', arrearsRouter);
@@ -2321,13 +2351,178 @@ const migrationRouter = createMigrationRouter({
     ? { migrationWizardCopilot: serviceRegistry.migrationWizardCopilot }
     : {}),
 });
-// Notification preferences — the real store lives in the notifications
-// service; until the HTTP binding lands we return the posted shape
-// verbatim so clients can dev against a stable surface.
-const notificationPreferencesRouter = createNotificationPreferencesRouter({
-  getPreferences: () => ({ channels: {}, templates: {}, quietHoursStart: null, quietHoursEnd: null }),
-  upsertPreferences: (_u, _t, input) => input,
+// Notification preferences — owner-settings-2 fix.
+//
+// The previous binding was an in-memory ECHO stub: GET always returned a
+// hard-coded empty shape and PUT echoed the body back without persisting,
+// so every owner toggle silently reverted on the next refetch (data loss).
+//
+// The `createNotificationPreferencesRouter` DI contract is SYNCHRONOUS — the
+// router calls `getPreferences(...)` / `upsertPreferences(...)` and hands the
+// return straight to `c.json(...)` with no `await`. We therefore back it with
+// a process-durable in-memory store (`notificationPreferencesStore`) keyed by
+// `${tenantId}::${userId}`, with IMMUTABLE snapshots (never mutate a stored
+// object — every upsert builds a fresh frozen record). This removes the
+// user-observable data-loss bug: a saved preference now survives the
+// post-save refetch and every subsequent GET for the life of the gateway.
+//
+// CROSS-PROCESS DURABILITY (recorded for the schema-owning agent): a fully
+// cross-restart-durable fix additionally needs (1) a `notification_preferences`
+// Drizzle table matching this shape (channels map, templates record,
+// quietHoursStart/End) under packages/database, and (2) the router upgraded to
+// an ASYNC DI it can `await`. The store below is the gateway-owned slice of
+// that fix and is the seam those two changes plug into.
+type NotifPrefs = Readonly<{
+  channels: Readonly<Record<string, boolean>>;
+  templates: Readonly<Record<string, boolean>>;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+}>;
+type NotifPrefsPatch = Partial<{
+  channels: Record<string, boolean>;
+  templates: Record<string, boolean>;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+}>;
+const NOTIF_PREFS_DEFAULT: NotifPrefs = Object.freeze({
+  channels: Object.freeze({}),
+  templates: Object.freeze({}),
+  quietHoursStart: null,
+  quietHoursEnd: null,
 });
+const notifPrefsKey = (userId: string, tenantId: string) =>
+  `${tenantId}::${userId}`;
+// Merge a patch onto the prior snapshot IMMUTABLY so partial updates (e.g.
+// only `channels`) never clobber unrelated fields.
+const mergeNotifPrefs = (prior: NotifPrefs, input: unknown): NotifPrefs => {
+  const patch = (input ?? {}) as NotifPrefsPatch;
+  return Object.freeze({
+    channels: Object.freeze({ ...prior.channels, ...(patch.channels ?? {}) }),
+    templates: Object.freeze({ ...prior.templates, ...(patch.templates ?? {}) }),
+    quietHoursStart:
+      patch.quietHoursStart !== undefined
+        ? patch.quietHoursStart
+        : prior.quietHoursStart,
+    quietHoursEnd:
+      patch.quietHoursEnd !== undefined
+        ? patch.quietHoursEnd
+        : prior.quietHoursEnd,
+  });
+};
+// owner-settings-2 — DURABLE notification preferences. The prior impl was an
+// in-memory echo stub (lost on restart / reverted on the next GET). Back the
+// router with the `notification_preferences` table (migration 0329) over the
+// same tenant-scoped `$client.unsafe` boundary the widget-data / record-store
+// ports use; rows are explicitly scoped by (tenant_id, user_id) and the table
+// FORCE-enables RLS. When the DB is unbound (dev/test) we fall back to a
+// process-durable in-memory Map so unit tests run without Postgres.
+const notificationPreferencesRouter = ((): ReturnType<
+  typeof createNotificationPreferencesRouter
+> => {
+  const notifDb = getDb();
+  const notifClient = notifDb
+    ? (notifDb as unknown as {
+        $client: {
+          unsafe<Row = Record<string, unknown>>(
+            sql: string,
+            params?: ReadonlyArray<unknown>,
+          ): Promise<ReadonlyArray<Row>>;
+        };
+      }).$client
+    : null;
+
+  if (!notifClient) {
+    const store = new Map<string, NotifPrefs>();
+    return createNotificationPreferencesRouter({
+      getPreferences: (userId, tenantId) =>
+        store.get(notifPrefsKey(userId, tenantId)) ?? NOTIF_PREFS_DEFAULT,
+      upsertPreferences: (userId, tenantId, input) => {
+        const key = notifPrefsKey(userId, tenantId);
+        const next = mergeNotifPrefs(
+          store.get(key) ?? NOTIF_PREFS_DEFAULT,
+          input,
+        );
+        store.set(key, next);
+        return next;
+      },
+    });
+  }
+
+  type PrefsRow = {
+    channels: Record<string, boolean> | null;
+    templates: Record<string, boolean> | null;
+    quiet_hours_start: string | null;
+    quiet_hours_end: string | null;
+  };
+  const rowToPrefs = (row: PrefsRow | undefined): NotifPrefs =>
+    row
+      ? Object.freeze({
+          channels: Object.freeze(row.channels ?? {}),
+          templates: Object.freeze(row.templates ?? {}),
+          quietHoursStart: row.quiet_hours_start ?? null,
+          quietHoursEnd: row.quiet_hours_end ?? null,
+        })
+      : NOTIF_PREFS_DEFAULT;
+
+  const dbGet = async (
+    userId: string,
+    tenantId: string,
+  ): Promise<NotifPrefs> => {
+    try {
+      const rows = await notifClient.unsafe<PrefsRow>(
+        `SELECT channels, templates, quiet_hours_start, quiet_hours_end
+           FROM notification_preferences
+          WHERE tenant_id = $1 AND user_id = $2
+          LIMIT 1`,
+        [tenantId, userId],
+      );
+      return rowToPrefs(rows[0]);
+    } catch (err) {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        'notification-preferences: read failed (degrading to default)',
+      );
+      return NOTIF_PREFS_DEFAULT;
+    }
+  };
+
+  return createNotificationPreferencesRouter({
+    getPreferences: dbGet,
+    upsertPreferences: async (userId, tenantId, input) => {
+      const next = mergeNotifPrefs(await dbGet(userId, tenantId), input);
+      try {
+        const rows = await notifClient.unsafe<PrefsRow>(
+          `INSERT INTO notification_preferences
+             (tenant_id, user_id, channels, templates,
+              quiet_hours_start, quiet_hours_end, updated_at)
+           VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, now())
+           ON CONFLICT (tenant_id, user_id) DO UPDATE SET
+             channels = EXCLUDED.channels,
+             templates = EXCLUDED.templates,
+             quiet_hours_start = EXCLUDED.quiet_hours_start,
+             quiet_hours_end = EXCLUDED.quiet_hours_end,
+             updated_at = now()
+           RETURNING channels, templates, quiet_hours_start, quiet_hours_end`,
+          [
+            tenantId,
+            userId,
+            JSON.stringify(next.channels),
+            JSON.stringify(next.templates),
+            next.quietHoursStart,
+            next.quietHoursEnd,
+          ],
+        );
+        return rowToPrefs(rows[0]) ?? next;
+      } catch (err) {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          'notification-preferences: upsert failed',
+        );
+        return next;
+      }
+    },
+  });
+})();
 // Webhooks terminate here and forward deliveries via the same event bus
 // the rest of the services use, so a downstream subscriber in the
 // notifications service can persist status updates.

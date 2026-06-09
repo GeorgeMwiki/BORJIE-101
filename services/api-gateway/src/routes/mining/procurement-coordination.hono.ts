@@ -40,6 +40,7 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { createDrizzleProcurementDataPort } from '../../composition/procurement/drizzle-data-port';
+import { postBudgetEncumbrance } from '../../composition/ledger/post-sale-proceeds';
 
 const moduleLogger = createLogger('mining-procurement-coordination');
 
@@ -296,20 +297,49 @@ miningProcurementCoordinationRouter.post('/requisitions', async (c) => {
       400,
     );
   }
+  const tenantId = auth.tenantId;
   try {
-    const { platform } = buildPlatform(db);
-    const requisition = await platform.requisitions.createRequisition({
-      tenantId: auth.tenantId,
-      requestedBy: parsed.data.requestedBy,
-      ...(parsed.data.department !== undefined ? { department: parsed.data.department } : {}),
-      ...(parsed.data.propertyId !== undefined ? { propertyId: parsed.data.propertyId } : {}),
-      items: parsed.data.items,
-      justification: parsed.data.justification,
-      urgency: parsed.data.urgency,
-      ...(parsed.data.budgetId !== undefined ? { budgetId: parsed.data.budgetId } : {}),
-      ...(parsed.data.category !== undefined ? { category: parsed.data.category } : {}),
+    // Atomic money path (CLAUDE.md): create the requisition AND post its budget
+    // encumbrance through the REAL ledger inside ONE db.transaction so the
+    // requisition row and the balanced DR procurement_reserve / CR
+    // budget_available journal commit-or-roll-back together. A failed ledger
+    // post no longer leaves an un-encumbered requisition (and a failed
+    // requisition write never posts a stray journal). The platform is built on
+    // the tx-bound client so every data-port write also runs inside the tx.
+    const { requisition, encumbrance } = await (
+      db as {
+        transaction: <T>(cb: (tx: unknown) => Promise<T>) => Promise<T>;
+      }
+    ).transaction(async (tx) => {
+      const { platform } = buildPlatform(tx);
+      const req = await platform.requisitions.createRequisition({
+        tenantId,
+        requestedBy: parsed.data.requestedBy,
+        ...(parsed.data.department !== undefined ? { department: parsed.data.department } : {}),
+        ...(parsed.data.propertyId !== undefined ? { propertyId: parsed.data.propertyId } : {}),
+        items: parsed.data.items,
+        justification: parsed.data.justification,
+        urgency: parsed.data.urgency,
+        ...(parsed.data.budgetId !== undefined ? { budgetId: parsed.data.budgetId } : {}),
+        ...(parsed.data.category !== undefined ? { category: parsed.data.category } : {}),
+      });
+
+      const enc = await encumberRequisitionBudget(
+        tx,
+        tenantId,
+        req as { id?: string; estimatedTotal?: number; currency?: string },
+      );
+      return { requisition: req, encumbrance: enc };
     });
-    return c.json({ success: true as const, data: requisition }, 201);
+
+    return c.json(
+      {
+        success: true as const,
+        data: requisition,
+        meta: encumbrance,
+      },
+      201,
+    );
   } catch (err) {
     moduleLogger.error(
       { err, tenantId: auth.tenantId },
@@ -321,5 +351,56 @@ miningProcurementCoordinationRouter.post('/requisitions', async (c) => {
     );
   }
 });
+
+/**
+ * Post a single budget encumbrance through the ledger for a created
+ * requisition, using the requisition's package-computed `estimatedTotal` +
+ * `currency` (single-currency by construction). Runs on the SAME tx as the
+ * requisition write (caller wraps both in one db.transaction), so:
+ *   - the NON-committable skip cases (no id / no valid currency / non-positive
+ *     amount) are NOT failures — they return a structured `budgetEncumbered:
+ *     false` meta and the requisition still commits with no journal; while
+ *   - a genuine LEDGER-POST failure THROWS, rolling back the whole tx (the
+ *     requisition AND any partial journal), so a created requisition is never
+ *     left silently un-encumbered. The fault is logged before it propagates.
+ */
+async function encumberRequisitionBudget(
+  db: unknown,
+  tenantId: string,
+  requisition: { id?: string; estimatedTotal?: number; currency?: string },
+): Promise<{ budgetEncumbered: boolean; reason?: string; journalId?: string }> {
+  const requisitionId = requisition?.id;
+  if (!requisitionId) {
+    return { budgetEncumbered: false, reason: 'requisition has no id' };
+  }
+  const currency = (requisition.currency || '').toUpperCase();
+  const amountMajor = Number(requisition.estimatedTotal ?? 0);
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    return { budgetEncumbered: false, reason: 'requisition has no valid currency' };
+  }
+  if (!(amountMajor > 0)) {
+    return { budgetEncumbered: false, reason: 'non-positive committed amount' };
+  }
+  try {
+    const post = await postBudgetEncumbrance({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      db: db as any,
+      tenantId,
+      requisitionId,
+      amountMajor,
+      currency,
+    });
+    return { budgetEncumbered: true, journalId: post.journalId };
+  } catch (err) {
+    // Inside the outer tx: a ledger failure must roll back the requisition too,
+    // so re-throw (after logging) instead of swallowing it into a "deferred"
+    // half-state. The route's catch maps it to the honest 500 envelope.
+    moduleLogger.error(
+      { err, tenantId, requisitionId },
+      'procurement_budget_encumbrance_failed',
+    );
+    throw err;
+  }
+}
 
 export default miningProcurementCoordinationRouter;

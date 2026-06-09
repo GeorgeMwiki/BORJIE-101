@@ -132,26 +132,35 @@ export type AnthropicSystemField = string | ReadonlyArray<AnthropicSystemBlock>;
 
 export interface AnthropicMessagesClient {
   messages: {
-    create(args: {
-      model: string;
-      max_tokens: number;
-      system?: AnthropicSystemField;
-      messages: ReadonlyArray<AnthropicRequestMessage>;
-      thinking?: { type: 'enabled'; budget_tokens: number };
-      // any other passthrough fields are ignored
-    }): Promise<AnthropicMessageResponse>;
+    create(
+      args: {
+        model: string;
+        max_tokens: number;
+        system?: AnthropicSystemField;
+        messages: ReadonlyArray<AnthropicRequestMessage>;
+        thinking?: { type: 'enabled'; budget_tokens: number };
+        // any other passthrough fields are ignored
+      },
+      // The real SDK accepts a second RequestOptions arg carrying `signal`
+      // for cancellation. Typed as the minimal duck shape; adapters that
+      // ignore it (or call without it) behave exactly as before.
+      options?: { signal?: AbortSignal },
+    ): Promise<AnthropicMessageResponse>;
     /**
      * Optional streaming entry. The SDK's `messages.stream` returns an
      * async-iterable of MessageStreamEvent. We type it as the minimal
      * duck shape so this package compiles without the SDK installed.
      */
-    stream?(args: {
-      model: string;
-      max_tokens: number;
-      system?: AnthropicSystemField;
-      messages: ReadonlyArray<AnthropicRequestMessage>;
-      thinking?: { type: 'enabled'; budget_tokens: number };
-    }): AsyncIterable<AnthropicStreamEvent>;
+    stream?(
+      args: {
+        model: string;
+        max_tokens: number;
+        system?: AnthropicSystemField;
+        messages: ReadonlyArray<AnthropicRequestMessage>;
+        thinking?: { type: 'enabled'; budget_tokens: number };
+      },
+      options?: { signal?: AbortSignal },
+    ): AsyncIterable<AnthropicStreamEvent>;
   };
 }
 
@@ -231,15 +240,18 @@ export function createAnthropicSensor(
       // BRAIN §5 — block-array system with a cache breakpoint at the end of
       // the stable persona + corpus prefix; falls back to the plain string.
       const systemField = buildAnthropicSystemField(args);
-      const response = await client.messages.create({
-        model: config.modelId,
-        max_tokens: maxTokens,
-        ...(systemField !== undefined ? { system: systemField } : {}),
-        messages,
-        ...(useThinking
-          ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
-          : {}),
-      });
+      const response = await client.messages.create(
+        {
+          model: config.modelId,
+          max_tokens: maxTokens,
+          ...(systemField !== undefined ? { system: systemField } : {}),
+          messages,
+          ...(useThinking
+            ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
+            : {}),
+        },
+        args.signal ? { signal: args.signal } : undefined,
+      );
 
       let text = '';
       let thought: string | null = null;
@@ -340,15 +352,18 @@ export function createAnthropicSensor(
       // BRAIN §5 — same stable-prefix cache breakpoint on the streaming path
       // so an SSE turn and a buffered turn share the cacheable prefix.
       const systemField = buildAnthropicSystemField(args);
-      const stream = client.messages.stream({
-        model: config.modelId,
-        max_tokens: maxTokens,
-        ...(systemField !== undefined ? { system: systemField } : {}),
-        messages,
-        ...(useThinking
-          ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
-          : {}),
-      });
+      const stream = client.messages.stream(
+        {
+          model: config.modelId,
+          max_tokens: maxTokens,
+          ...(systemField !== undefined ? { system: systemField } : {}),
+          messages,
+          ...(useThinking
+            ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
+            : {}),
+        },
+        args.signal ? { signal: args.signal } : undefined,
+      );
 
       // The Anthropic SDK delivers tool_use input as a stream of partial
       // JSON deltas tied to a content_block index. Buffer them per

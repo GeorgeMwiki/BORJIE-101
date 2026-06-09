@@ -44,9 +44,59 @@ export interface EstateMind {
   tick(tenantId: string): Promise<EstateMindTickResult>;
   /** Run a heartbeat across many tenants; isolates per-tenant failures. */
   cycle(tenantIds: ReadonlyArray<string>): Promise<EstateMindCycleResult>;
+  /**
+   * Read the most-recent OPEN proposals the slow loop has surfaced for a
+   * tenant, newest first. This is the seam that closes the loop between
+   * the slow cognitive cycle (PROPOSE → proactive_nudge rows) and the
+   * conversational fast loop: the kernel calls this mid-turn (step 5c)
+   * so the MD is AWARE of its own proactive insights and can naturally
+   * weave them into an answer ("by the way, I noticed…") instead of only
+   * pushing them through the separate nudge channel.
+   *
+   * FAIL-SAFE: never throws — a reader fault resolves to `[]` so a turn
+   * is never broken by the side-channel. When no reader is wired the
+   * loop simply has no pending proposals to surface.
+   */
+  pendingProposals(
+    tenantId: string,
+    limit?: number,
+  ): Promise<ReadonlyArray<EstateProposal>>;
 }
 
-export function createEstateMind(deps: EstateMindDeps): EstateMind {
+/**
+ * Durable read-port for the slow loop's surfaced proposals.
+ *
+ * The slow loop EMITS proposals through {@link ProposalSink} (which
+ * persists `proactive_nudge` rows). This port is its READ counterpart:
+ * the composition root implements it over the SAME durable store so a
+ * fast-loop turn can pull the tenant's pending proposals back out. Kept
+ * separate from the sink so a restart resumes from the persisted rows
+ * rather than volatile in-process state.
+ *
+ * FAIL-SAFE CONTRACT: `read` MUST NOT throw — a store fault resolves to
+ * `[]`. The implementation is budget-bounded by the caller; it should be
+ * cheap per call (it runs on the fast path).
+ */
+export interface PendingProposalReader {
+  read(input: {
+    readonly tenantId: string;
+    readonly limit: number;
+  }): Promise<ReadonlyArray<EstateProposal>>;
+}
+
+const DEFAULT_PENDING_PROPOSAL_LIMIT = 3;
+
+export function createEstateMind(
+  deps: EstateMindDeps,
+  /**
+   * Optional READ-port for the slow loop's surfaced proposals. When
+   * supplied, `pendingProposals(...)` returns the tenant's open
+   * proposals from the durable store so a fast-loop turn can become
+   * aware of the MD's own proactive insights. When omitted, the method
+   * resolves to `[]` (the loop only emits; it never reads back).
+   */
+  pendingReader?: PendingProposalReader | null,
+): EstateMind {
   const now = deps.now ?? (() => Date.now());
   const pruneIdleMs = deps.pruneIdleMs ?? DEFAULT_PRUNE_IDLE_MS;
   const logger = deps.logger ?? NOOP_LOGGER;
@@ -216,7 +266,48 @@ export function createEstateMind(deps: EstateMindDeps): EstateMind {
     });
   }
 
-  return { tick, cycle };
+  async function pendingProposals(
+    tenantId: string,
+    limit: number = DEFAULT_PENDING_PROPOSAL_LIMIT,
+  ): Promise<ReadonlyArray<EstateProposal>> {
+    if (!tenantId || !pendingReader) return [];
+    const safeLimit =
+      Number.isFinite(limit) && limit > 0
+        ? Math.floor(limit)
+        : DEFAULT_PENDING_PROPOSAL_LIMIT;
+    try {
+      const rows = await pendingReader.read({ tenantId, limit: safeLimit });
+      return rows.slice(0, safeLimit);
+    } catch (err) {
+      // FAIL-SAFE — the fast-loop turn is never broken by the side-channel.
+      logger.warn('estate-mind: pendingProposals read failed', {
+        tenantId,
+        error: errMsg(err),
+      });
+      return [];
+    }
+  }
+
+  return { tick, cycle, pendingProposals };
+}
+
+/**
+ * In-memory {@link PendingProposalReader} for tests / dev. Backed by the
+ * same proposals the loop emits, keyed by tenant; newest-first. Pairs
+ * with an in-memory proposal sink in a single-process dev harness.
+ */
+export function createInMemoryPendingProposalReader(
+  source: ReadonlyArray<EstateProposal> | (() => ReadonlyArray<EstateProposal>),
+): PendingProposalReader {
+  return {
+    async read({ tenantId, limit }) {
+      const all = typeof source === 'function' ? source() : source;
+      return all
+        .filter((p) => p.tenantId === tenantId)
+        .sort((a, b) => b.proposedAtMs - a.proposedAtMs)
+        .slice(0, Math.max(0, limit));
+    },
+  };
 }
 
 function toProposal(goal: MotivatedGoal, nowMs: number): EstateProposal {

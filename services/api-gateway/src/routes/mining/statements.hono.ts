@@ -32,6 +32,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 
 import { authMiddleware } from '../../middleware/hono-auth';
+import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 
 const moduleLogger = createLogger('mining-statements-proxy');
@@ -60,14 +61,22 @@ const StatementIdSchema = z.string().uuid();
 
 export const miningStatementsRouter = new Hono();
 miningStatementsRouter.use('*', authMiddleware);
+// Bind `app.current_tenant_id` (RLS GUC) so this proxy still establishes a
+// gateway-side tenant boundary even though it forwards to a downstream service.
+miningStatementsRouter.use('*', databaseMiddleware);
 
 /**
  * Forward a GET to the payments-ledger service, relaying the caller's
- * Authorization header. Returns the downstream JSON verbatim. Comprehensive
+ * Authorization header AND the gateway-verified tenant id as `X-Tenant-Id`.
+ * The downstream service asserts its JWT-derived tenant matches this header,
+ * so a cross-tenant read is impossible even if a mis-configured downstream
+ * skipped JWT verification — the tenant scope is gateway-verified, never taken
+ * from client input. Returns the downstream JSON verbatim. Comprehensive
  * try/catch — a downstream outage degrades to a bilingual 502, never a leak.
  */
 async function forwardGet(
   authHeader: string,
+  tenantId: string,
   path: string,
   search: string,
 ): Promise<{ status: number; body: unknown }> {
@@ -76,6 +85,7 @@ async function forwardGet(
     method: 'GET',
     headers: {
       Authorization: authHeader,
+      'X-Tenant-Id': tenantId,
       Accept: 'application/json',
     },
   });
@@ -109,7 +119,8 @@ miningStatementsRouter.get('/', async (c) => {
     );
   }
   const authHeader = c.req.header('Authorization');
-  if (!authHeader) {
+  const auth = c.get('auth') as { tenantId?: string } | undefined;
+  if (!authHeader || !auth?.tenantId) {
     return c.json(
       {
         success: false,
@@ -150,6 +161,7 @@ miningStatementsRouter.get('/', async (c) => {
   try {
     const { status, body } = await forwardGet(
       authHeader,
+      auth.tenantId,
       '/api/v1/statements',
       search.toString(),
     );
@@ -193,7 +205,8 @@ miningStatementsRouter.get('/:id', async (c) => {
     );
   }
   const authHeader = c.req.header('Authorization');
-  if (!authHeader) {
+  const auth = c.get('auth') as { tenantId?: string } | undefined;
+  if (!authHeader || !auth?.tenantId) {
     return c.json(
       {
         success: false,
@@ -224,6 +237,7 @@ miningStatementsRouter.get('/:id', async (c) => {
   try {
     const { status, body } = await forwardGet(
       authHeader,
+      auth.tenantId,
       `/api/v1/statements/${encodeURIComponent(idParsed.data)}`,
       '',
     );

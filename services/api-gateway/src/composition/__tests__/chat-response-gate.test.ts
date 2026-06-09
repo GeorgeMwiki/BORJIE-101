@@ -10,10 +10,11 @@
  *     surface (evidenceCount + auditLogId).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   auditChatResponse,
   extractEvidenceIds,
+  setEvidenceExistenceVerifier,
 } from '../chat-response-gate';
 
 const BASE_INPUT = {
@@ -103,5 +104,60 @@ describe('auditChatResponse', () => {
     const out = await auditChatResponse({ ...BASE_INPUT, responseText: '' });
     expect(out.violation).toBe(true);
     expect(out.evidenceCount).toBe(0);
+  });
+});
+
+describe('auditChatResponse — Stage-2 evidence-existence verification', () => {
+  afterEach(() => {
+    // Reset the module-level verifier so other suites see Stage-1-only.
+    setEvidenceExistenceVerifier(null);
+  });
+
+  it('rejects a response that cites a non-existent (fabricated) evidence_id', async () => {
+    setEvidenceExistenceVerifier({
+      // The cited id does not exist → report it as missing.
+      async findMissingEvidenceIds({ evidenceIds }) {
+        return evidenceIds; // none exist
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'The grade is high [evidence:made_up_999].',
+    });
+    expect(out.verdict).toBe('reject');
+    expect(out.violation).toBe(true);
+    expect(out.evidenceWarning).toBe('evidence_invalid');
+    expect(out.invalidEvidenceIds).toContain('made_up_999');
+  });
+
+  it('approves when every cited evidence_id resolves to a real chunk', async () => {
+    setEvidenceExistenceVerifier({
+      async findMissingEvidenceIds() {
+        return []; // all exist
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'Backed by [evidence:lmbm_42].',
+    });
+    expect(out.verdict).toBe('approve');
+    expect(out.violation).toBe(false);
+    expect(out.invalidEvidenceIds).toEqual([]);
+  });
+
+  it('fails open (Stage-1 only) when the verifier throws', async () => {
+    setEvidenceExistenceVerifier({
+      async findMissingEvidenceIds() {
+        throw new Error('db down');
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'Backed by [evidence:lmbm_42].',
+    });
+    // A verifier fault must not block the turn — Stage-1 (evidence present)
+    // still approves.
+    expect(out.verdict).toBe('approve');
+    expect(out.invalidEvidenceIds).toEqual([]);
   });
 });

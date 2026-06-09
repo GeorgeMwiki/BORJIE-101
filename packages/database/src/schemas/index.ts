@@ -1109,6 +1109,11 @@ export * from './owner-brief.schema.js';
 // crutch used by the reminders worker.
 export * from './owner-contact-prefs.schema.js';
 
+// Audit-fix (owner-settings-2, migration 0329). Durable per-user
+// notification channel/template toggles + quiet-hours for the
+// /me/notification-preferences surface — replaces the in-memory echo stub.
+export * from './notification-preferences.schema.js';
+
 // Wave FOUR-EYE-APPROVAL (migration 0099). Two-person sign-off on
 // high-stakes owner actions (payment > 5M TZS, regulator filing,
 // contract signature). Hash-chained into ai_audit_chain on every

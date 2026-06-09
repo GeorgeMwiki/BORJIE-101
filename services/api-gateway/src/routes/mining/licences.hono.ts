@@ -25,6 +25,7 @@ import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { recordActivationEvent } from '../../services/activation-events/record-activation-event';
+import { postLicenceFeePayment } from '../../composition/ledger/post-sale-proceeds';
 import { UserRole } from '../../types/user-role';
 import {
   buildLicenceCockpit,
@@ -238,12 +239,96 @@ app.openapi(
       const db = c.get('db');
       const { id } = c.req.valid('param');
       const input = c.req.valid('json');
-      const [updated] = await db
-        .update(licences)
-        .set({ expiryDate: input.newExpiryDate, status: 'active', updatedAt: new Date() })
-        .where(and(eq(licences.id, id), eq(licences.tenantId, tenantId)))
-        .returning();
-      if (!updated) {
+
+      // A positive renewal fee is real cash leaving the estate to the
+      // regulator, so it MUST hit the ledger (CLAUDE.md money-path rule). Wrap
+      // the licence update + renewal-event insert + fee ledger post in ONE
+      // transaction so the three writes commit (or roll back) together — a
+      // failed ledger post never leaves a "paid" event with no journal.
+      const feePaid =
+        typeof input.feePaidTzs === 'number' &&
+        Number.isFinite(input.feePaidTzs) &&
+        input.feePaidTzs > 0
+          ? input.feePaidTzs
+          : 0;
+
+      let txResult:
+        | {
+            updated: Record<string, unknown>;
+            event: Record<string, unknown>;
+            journalId: string | null;
+          }
+        | { notFound: true };
+      try {
+        txResult = await db.transaction(async (tx: typeof db) => {
+          const [updated] = await tx
+            .update(licences)
+            .set({
+              expiryDate: input.newExpiryDate,
+              status: 'active',
+              updatedAt: new Date(),
+            })
+            .where(and(eq(licences.id, id), eq(licences.tenantId, tenantId)))
+            .returning();
+          if (!updated) return { notFound: true as const };
+
+          let journalId: string | null = null;
+          if (feePaid > 0) {
+            const post = await postLicenceFeePayment({
+              db: tx,
+              tenantId,
+              licenceId: id,
+              feePaidTzs: feePaid,
+              newExpiryDate: String(input.newExpiryDate),
+            });
+            journalId = post.journalId;
+          }
+
+          const [event] = await tx
+            .insert(licenceEvents)
+            .values({
+              id: randomUUID(),
+              tenantId,
+              licenceId: id,
+              kind: 'renewal_due',
+              summary: input.summary ?? `Renewed until ${input.newExpiryDate}`,
+              dueDate: input.newExpiryDate,
+              status: 'completed',
+              payload: {
+                feePaidTzs: input.feePaidTzs ?? null,
+                referenceNo: input.referenceNo ?? null,
+                ledgerJournalId: journalId,
+              },
+              evidenceIds: input.evidenceIds ?? [],
+              createdAt: new Date(),
+              closedAt: new Date(),
+            })
+            .returning();
+
+          return { updated, event, journalId };
+        });
+      } catch (err) {
+        c.get('logger')?.error?.(
+          { err, licenceId: id },
+          'licence renewal / fee ledger post failed',
+        );
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'RENEW_FAILED',
+              message:
+                'Could not renew the licence. No money moved. Imeshindikana kuhuisha leseni.',
+            },
+          },
+          // 500 (not 502) to match the OpenAPI contract for this route
+          // (licencesRenewRoute declares {201,400,401,404,500}) and stay
+          // consistent with sales.hono.ts's money-path failure envelope.
+          500,
+        );
+      }
+
+      if ('notFound' in txResult) {
         return c.json(
           {
             success: false as const,
@@ -252,25 +337,7 @@ app.openapi(
           404,
         );
       }
-      const [event] = await db
-        .insert(licenceEvents)
-        .values({
-          id: randomUUID(),
-          tenantId,
-          licenceId: id,
-          kind: 'renewal_due',
-          summary: input.summary ?? `Renewed until ${input.newExpiryDate}`,
-          dueDate: input.newExpiryDate,
-          status: 'completed',
-          payload: {
-            feePaidTzs: input.feePaidTzs ?? null,
-            referenceNo: input.referenceNo ?? null,
-          },
-          evidenceIds: input.evidenceIds ?? [],
-          createdAt: new Date(),
-          closedAt: new Date(),
-        })
-        .returning();
+      const { updated, event } = txResult;
 
       // RT-1: pulse the owner cockpit "Compliance" tile within 200 ms.
       setImmediate(() => {
@@ -280,7 +347,7 @@ app.openapi(
             tenantId,
             emittedAt: new Date().toISOString(),
             licenceId: id,
-            licenceKind: updated.kind,
+            licenceKind: String(updated.kind ?? ''),
             renewedThrough: String(input.newExpiryDate),
             renewedBy: userId,
           });
@@ -290,7 +357,14 @@ app.openapi(
       });
 
       return c.json(
-        { success: true as const, data: { licence: updated, event } },
+        {
+          success: true as const,
+          // The runtime rows ARE the LicenceSchema / LicenceEventSchema shapes
+          // (Drizzle `.returning()` rows); the tx wrapper widens their static
+          // type to Record<string,unknown>, so we assert the response shape.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          data: { licence: updated as any, event: event as any },
+        },
         201,
       );
     },

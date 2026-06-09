@@ -113,6 +113,24 @@ import { miningTasksRouter } from './tasks.hono';
 // Worker safety — pre-shift toolbox talks (list / schedule / ack).
 import { miningToolboxRouter } from './toolbox.hono';
 
+// Generic offline-sync acknowledgement sink (wm-toolbox-ack-404). POST
+// /toolbox-acks dispatches on payload.kind: task_complete → mining_tasks done,
+// talk_ack → toolbox-talks acknowledge. Idempotent. Backs the workforce-mobile
+// offline write queue's `toolbox_ack` entity (endpointFor → 'toolbox-acks').
+import { miningToolboxAcksRouter } from './toolbox-acks.hono';
+
+// Buyer sale-document list + biometric sign (buyer-mobile-1). GET /, GET /:id,
+// POST /:id/sign backed by offtake_agreements, buyer-scoped via RLS.
+import { miningBuyersDocumentsRouter } from './buyers-documents.hono';
+
+// Buyer notification preferences round-trip (buyer-mobile-4 / -11). GET + PUT
+// (+ POST) /buyers/profile/notifications persisting into buyers.attributes.
+import { miningBuyersNotificationsRouter } from './buyers-notifications.hono';
+
+// Employee performance coaching (wm-worker-coach-endpoint-missing). GET
+// /copilots/worker-coach grounded in the worker's mining_tasks rows.
+import { miningWorkerCoachRouter } from './worker-coach.hono';
+
 // WS-3 workforce wires — worker payslip read (own committed line item) +
 // worker leave requests with single manager approval (NO four-eye) + audit.
 import { miningPayslipRouter } from './payslip.hono';
@@ -234,6 +252,13 @@ mining.route('/buyers', miningBuyersKycRouter);
 // the same `/buyers` prefix; the two routers own disjoint sub-paths
 // (`/kyc/*` vs `/wallet/*`), so Hono trie resolution keeps both reachable.
 mining.route('/buyers', buyersWalletRouter);
+// Buyer sale-document list + biometric sign (buyer-mobile-1) and notification
+// prefs round-trip (buyer-mobile-4 / -11). Mounted on the SAME `/buyers`
+// family at more-specific prefixes (`/buyers/documents/*`,
+// `/buyers/profile/notifications`) so they own disjoint sub-paths from the KYC
+// + wallet routers and Hono trie resolution keeps every one reachable.
+mining.route('/buyers/documents', miningBuyersDocumentsRouter);
+mining.route('/buyers/profile/notifications', miningBuyersNotificationsRouter);
 // /csr-plans — Corporate Social Responsibility commitments + delivered_pct
 // (migration 0082).
 mining.route('/csr-plans', miningCsrPlansRouter);
@@ -274,6 +299,15 @@ mining.route('/assignment-planner', miningAssignmentPlannerRouter);
 
 // Worker safety pulse — toolbox-talks.
 mining.route('/toolbox-talks', miningToolboxRouter);
+// Generic offline-sync ack sink — `POST /toolbox-acks` dispatches
+// task_complete → mining_tasks done, talk_ack → toolbox-talks acknowledge.
+// Distinct prefix from `/toolbox-talks` so neither shadows the other.
+mining.route('/toolbox-acks', miningToolboxAcksRouter);
+
+// Employee copilots — performance coaching. The workforce-mobile mining client
+// resolves `/copilots/worker-coach` under the `/api/v1/mining` prefix, so the
+// copilots surface lives HERE (mining sub-app), not as a top-level mount.
+mining.route('/copilots', miningWorkerCoachRouter);
 
 // WS-3 workforce wires — worker payslip (own committed line item) + leave
 // requests (worker submit / manager approve|reject with audit append).

@@ -72,9 +72,34 @@ interface AuthContext {
 function getAuth(c: { get: (k: string) => unknown }): AuthContext | null {
   const ctx = c.get('authContext') ?? c.get('auth');
   if (!ctx || typeof ctx !== 'object') return null;
-  const candidate = ctx as Partial<AuthContext>;
-  if (!candidate.tenant?.tenantId || !candidate.actor?.id) return null;
-  return candidate as AuthContext;
+  // owner-handoff-auth-1: the canonical authMiddleware writes the FLAT
+  // shape `{ tenantId, userId }` to the `auth` key — the same shape every
+  // other owner route reads. The original code only accepted the nested
+  // `{ tenant:{tenantId}, actor:{id} }` shape, so it returned null for
+  // every real request and 401'd the whole handoff surface. Accept BOTH
+  // shapes and normalise to the internal AuthContext: prefer the nested
+  // fields when present (an alternate context source), else fall back to
+  // the flat canonical fields.
+  const raw = ctx as {
+    tenant?: { tenantId?: unknown };
+    actor?: { id?: unknown };
+    tenantId?: unknown;
+    userId?: unknown;
+  };
+  const tenantId =
+    typeof raw.tenant?.tenantId === 'string' && raw.tenant.tenantId.length > 0
+      ? raw.tenant.tenantId
+      : typeof raw.tenantId === 'string' && raw.tenantId.length > 0
+        ? raw.tenantId
+        : null;
+  const actorId =
+    typeof raw.actor?.id === 'string' && raw.actor.id.length > 0
+      ? raw.actor.id
+      : typeof raw.userId === 'string' && raw.userId.length > 0
+        ? raw.userId
+        : null;
+  if (!tenantId || !actorId) return null;
+  return { tenant: { tenantId }, actor: { id: actorId } };
 }
 
 function unauthorized(c: { json: (b: unknown, s: number) => Response }) {

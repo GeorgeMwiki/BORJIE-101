@@ -46,6 +46,7 @@ import {
   createNullEmbedder,
   createOpenAiEmbedder,
   createSkillRetriever,
+  reflexion as kernelReflexion,
   registerSeedBrainTools,
   tools as kernelTools,
   type AgencyKernelPort,
@@ -84,6 +85,7 @@ import {
   createKernelActionAuditService,
   createSensoriumEventLogService,
   createSkillRegistryService,
+  createReflexionBufferService,
 } from '@borjie/database';
 // Central Command Phase A C4 / Phase B B2 — Behaviour signal source.
 // Surfaces derived brain-mind-state signals (engagement.high,
@@ -347,6 +349,24 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // rejects null sentinel (no OpenAI key) the retriever degrades to an
   // empty fragment and the kernel/Jarvis path is unchanged.
   let skillRetriever: SkillRetriever | undefined;
+  // Wave-12 DARK-ORGAN closure — the Reflexion verbal-RL loop. The kernel
+  // ALREADY guards on `deps.reflexionRetriever` (step 4e/4f, read-at-start)
+  // and `deps.reflexionWriter` (step 13, write-at-session-end), but no
+  // composition root ever populated them, so the MD never learned from past
+  // mistakes. We back both with the Drizzle `reflexion_buffer` service:
+  //   - writer = the buffer service directly (its `record` matches the
+  //     kernel's ReflexionWriterPort `record` shape exactly).
+  //   - retriever = createReflexionRetriever({ port }) where `port.recall`
+  //     is the buffer's `recall` (same shape) — the retriever adds the
+  //     prompt-fragment renderer the kernel reads.
+  // Both degrade gracefully (the buffer service swallows DB faults), so a
+  // reflexion store fault never breaks a turn.
+  let reflexionRetriever:
+    | ReturnType<typeof kernelReflexion.createReflexionRetriever>
+    | undefined;
+  let reflexionWriter:
+    | ReturnType<typeof createReflexionBufferService>
+    | undefined;
   if (db) {
     const svc = createKernelSubstrateService(db, { tenantId: scope.tenantId });
     substrateSinks = {
@@ -582,6 +602,16 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
       port: createSkillRegistryService(db),
       embedder: skillEmbedder.modelId === 'null' ? null : skillEmbedder,
     });
+
+    // Wave-12 — Reflexion verbal-RL loop. The buffer service satisfies BOTH
+    // the writer port (`record`) and the retriever's underlying read port
+    // (`recall`); we wrap the latter in `createReflexionRetriever` so the
+    // kernel gets the `retrieve` + `renderPromptFragment` surface it reads.
+    const reflexionBuffer = createReflexionBufferService(db);
+    reflexionWriter = reflexionBuffer;
+    reflexionRetriever = kernelReflexion.createReflexionRetriever({
+      port: { recall: (args) => reflexionBuffer.recall(args) },
+    });
   }
 
   // The wrapped `anthropic` client was constructed at the top of
@@ -616,6 +646,50 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // only set when the DB is up (the retriever needs the registry reader).
   if (skillRetriever) mutable.skillRetriever = skillRetriever;
   // autoHaikuJudge defaults to true in compose; we leave it unset.
+
+  // Wave-12 — thread the Reflexion ports onto the kernel deps. `composeSovereign`
+  // forwards both verbatim (compose.ts:541-542) so the kernel's read-at-start
+  // (step 4e/4f) and write-at-session-end (step 13) reflexion steps go live.
+  if (reflexionRetriever) mutable.reflexionRetriever = reflexionRetriever;
+  if (reflexionWriter) mutable.reflexionWriter = reflexionWriter;
+
+  // iq-reflexion-dark-3 (tail) — DEFERRED: the THIRD reflexion seam, the
+  // task-scoped `reflexionLoader` (kernel.ts:1284, `ReflexionLoaderPort`),
+  // remains UNWIRED on purpose. It is NOT half-wired here for two hard reasons,
+  // each outside this composition root's ownership:
+  //
+  //   1. No passthrough. `composeSovereign`'s `SovereignComposeConfig`
+  //      (packages/central-intelligence/src/kernel/compose.ts) declares + forwards
+  //      ONLY `reflexionRetriever` (line 315) and `reflexionWriter` (line 320);
+  //      it has NO `reflexionLoader` field and never copies one onto `kernelDeps`
+  //      (lines 541-542). Setting `mutable.reflexionLoader` here would be SILENTLY
+  //      DROPPED by compose — the kernel guard at kernel.ts:1284 would never see
+  //      it — so a wire from this file alone is inert. Closing this needs a new
+  //      `reflexionLoader` field + passthrough in compose.ts (not owned here).
+  //
+  //   2. No tractable adapter. `ReflexionLoaderPort` is NOT the same contract as
+  //      the retriever: it needs `recentReflexions` (TENANT-WIDE, userId OPTIONAL,
+  //      `pruned_at IS NULL`, surfacing `taskId` / `importance` / `clusterId`) AND
+  //      `recentGuidelines` (reading the SEPARATE `reflexion_guidelines` table —
+  //      pass-3 output). The existing `createReflexionBufferService(db).recall`
+  //      cannot satisfy it: it REQUIRES `userId` (returns [] tenant-wide), does
+  //      not filter `pruned_at`, drops importance/cluster/taskId, and knows
+  //      nothing of `reflexion_guidelines`. A correct `createDrizzleReflexionLoader`
+  //      is therefore two NEW non-trivial bulk-load Drizzle queries that belong in
+  //      @borjie/database (not owned here). The schema is ready
+  //      (reflexion-buffer.schema.ts ships both tables + the needed columns), so
+  //      this is a clean two-file follow-up — see needsAttention.
+
+  // Wave-12/EP-3 — Self-RAG grounding judge. The kernel's self-rag step
+  // (kernel.ts step ~1732, guarded by `if (deps.selfRagJudge)`) tags each
+  // retrieved chunk with IsREL/IsSUP/IsUSE tokens and fail-closes a
+  // financial/contractual claim whose support is low. No composition root
+  // populated `selfRagJudge`, so the gate was inert. We build a Haiku-backed
+  // judge (single critic call returning the tokens in `reasonText`) ONLY when
+  // a real Anthropic client is present, mirroring the debate-port pattern.
+  if (anthropic) {
+    mutable.selfRagJudge = buildSelfRagJudge(anthropic);
+  }
 
   // LP-30 — wire the semantic-cache (LP-03) + intent-verifier (LP-04) ports
   // onto the `composeSovereign` config. The kernel CONSUMES both
@@ -1154,4 +1228,70 @@ function buildMarketDataPort(provider: string): MarketDataPort | null {
     default:
       return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Self-RAG grounding judge (Wave-12 / EP-3 dark-organ closure).
+//
+// The kernel's `SelfRagJudge` is a SINGLE critic call:
+//   (text: string) => Promise<{ score; reasonText?; suggestedFix? }>
+// `runSelfRag` composes the probe + parses IsREL/IsSUP/IsUSE tokens from
+// `reasonText`. We back it with a Haiku completion over the wrapped
+// (circuit-breaker + OTel) Anthropic client. The judge NEVER throws — on any
+// fault it returns a neutral score so the kernel's EP-3 fail-closed policy
+// (inside runSelfRag, stakes-gated) decides whether to block, not us.
+// ---------------------------------------------------------------------------
+
+const SELF_RAG_JUDGE_MODEL = 'claude-haiku-4-5';
+
+const SELF_RAG_JUDGE_SYSTEM =
+  'You are a grounding auditor. Given an AI response plus its retrieved ' +
+  'evidence, emit ONLY three tokens on one line in the exact form ' +
+  '`REL=<high|partial|low> SUP=<high|partial|low> USE=<high|partial|low>` ' +
+  'where REL=relevance of evidence to the claim, SUP=whether each claim is ' +
+  'actually supported by the evidence, USE=whether the response solves the ' +
+  "user's task. Output nothing else.";
+
+function buildSelfRagJudge(
+  anthropic: AnthropicMessagesClient,
+): (text: string) => Promise<{
+  score: number;
+  reasonText?: string;
+  suggestedFix?: string;
+}> {
+  return async (text: string) => {
+    try {
+      const response = (await anthropic.messages.create({
+        model: SELF_RAG_JUDGE_MODEL,
+        max_tokens: 64,
+        system: SELF_RAG_JUDGE_SYSTEM,
+        messages: [{ role: 'user', content: text.slice(0, 8_000) }],
+      })) as {
+        content?: ReadonlyArray<{ type?: string; text?: string }>;
+      };
+      const reasonText = (response.content ?? [])
+        .filter((b) => b?.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('\n')
+        .trim();
+      // A coarse numeric score from the tokens — high support reads as
+      // grounded. `runSelfRag` re-parses the tokens itself; the score is a
+      // secondary signal only.
+      const score = scoreFromTokens(reasonText);
+      return { score, reasonText };
+    } catch {
+      // Side-channel — never bubble. Neutral score; runSelfRag's stakes-gated
+      // EP-3 policy handles the high-stakes fail-closed path.
+      return { score: 0.5, reasonText: '' };
+    }
+  };
+}
+
+/** Map the IsSUP token in the judge text to a coarse 0..1 grounding score. */
+function scoreFromTokens(reasonText: string): number {
+  const sup = /SUP\s*=\s*(high|partial|low)/i.exec(reasonText)?.[1]?.toLowerCase();
+  if (sup === 'high') return 0.9;
+  if (sup === 'partial') return 0.6;
+  if (sup === 'low') return 0.2;
+  return 0.5;
 }

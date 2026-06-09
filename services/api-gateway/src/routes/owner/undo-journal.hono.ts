@@ -29,6 +29,111 @@ import { createLogger } from '../../utils/logger';
 
 const moduleLogger = createLogger('owner-undo-journal');
 
+// ─── Generative reverse-replay (owner-undo-1) ────────────────────────
+//
+// Undo must ACTUALLY revert the source entity, not just stamp undoneAt.
+// A journal row carries `beforeState` — a snapshot of the entity's
+// pre-action column values. To replay, we write those values back onto
+// the entity row. This is GENERATIVE: the dispatcher does not enumerate
+// verbs, it restores whatever columns the snapshot holds, but ONLY the
+// columns in a per-entityType allowlist so a tampered snapshot can never
+// write an arbitrary column (e.g. tenant_id) or escape its table.
+//
+// `beforeState` keys may arrive as camelCase (the forward write captured
+// a Drizzle row) or snake_case (a raw snapshot); we normalise to the
+// physical snake_case column and intersect with the allowlist. Entity
+// types without a known table, or rows with no usable beforeState, are
+// reported `reverted:false` with an honest reason — never falsely
+// "Undone".
+
+interface ReverseTarget {
+  /** Physical table name (already a safe literal — never request-derived). */
+  readonly table: string;
+  /** snake_case columns this entity allows a snapshot to restore. */
+  readonly columns: ReadonlyArray<string>;
+}
+
+// entityType → physical table + restorable columns. Keys cover both the
+// bulk-action entity kinds and their physical table aliases so a journal
+// row written with either convention resolves.
+const REVERSE_TARGETS: Readonly<Record<string, ReverseTarget>> = Object.freeze({
+  reminders: { table: 'reminders', columns: ['status', 'trigger_at', 'attempt_count'] },
+  event_outbox: { table: 'event_outbox', columns: ['next_retry_at', 'last_error'] },
+  incidents: { table: 'incidents', columns: ['status', 'root_cause', 'closed_at', 'closed_by_user_id'] },
+  mining_tasks: { table: 'mining_tasks', columns: ['status', 'completed_at'] },
+  tasks: { table: 'mining_tasks', columns: ['status', 'completed_at'] },
+  marketplace_bids: { table: 'marketplace_bids', columns: ['status', 'attributes'] },
+  bids: { table: 'marketplace_bids', columns: ['status', 'attributes'] },
+  document_uploads: { table: 'document_uploads', columns: ['deleted_at'] },
+  documents: { table: 'document_uploads', columns: ['deleted_at'] },
+});
+
+function toSnakeCase(key: string): string {
+  return key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+}
+
+interface ReverseOutcome {
+  readonly reverted: boolean;
+  readonly reason?: string;
+}
+
+/**
+ * Apply a journal row's `beforeState` back onto its source entity. The
+ * UPDATE is tenant-scoped (defence-in-depth atop the RLS GUC) and only
+ * touches allowlisted columns. Returns an honest reverted/reason outcome.
+ */
+async function replayBeforeState(
+  db: any,
+  tenantId: string,
+  entityType: string,
+  entityId: string,
+  beforeState: Record<string, unknown> | null | undefined,
+): Promise<ReverseOutcome> {
+  const target = REVERSE_TARGETS[entityType];
+  if (!target) {
+    return { reverted: false, reason: `no_reverse_handler_for_${entityType}` };
+  }
+  if (!beforeState || typeof beforeState !== 'object' || Array.isArray(beforeState)) {
+    return { reverted: false, reason: 'no_before_state_captured' };
+  }
+  // Build SET fragments only for allowlisted columns present in the snapshot.
+  const setFragments: ReturnType<typeof sql>[] = [];
+  for (const [rawKey, value] of Object.entries(beforeState)) {
+    const col = toSnakeCase(rawKey);
+    if (!target.columns.includes(col)) continue;
+    // Identifier is from the static allowlist (never request-derived);
+    // value is bound as a parameter so it cannot inject.
+    setFragments.push(sql`${sql.raw(col)} = ${value as never}`);
+  }
+  if (setFragments.length === 0) {
+    return { reverted: false, reason: 'no_restorable_columns_in_before_state' };
+  }
+  try {
+    const result = await db.execute(sql`
+      UPDATE ${sql.raw(target.table)}
+         SET ${sql.join(setFragments, sql`, `)}
+       WHERE id = ${entityId}
+         AND tenant_id = ${tenantId}
+      RETURNING id
+    `);
+    const rows = Array.isArray(result)
+      ? result
+      : ((result as { rows?: ReadonlyArray<unknown> }).rows ?? []);
+    if (rows.length === 0) {
+      return { reverted: false, reason: 'entity_not_found' };
+    }
+    return { reverted: true };
+  } catch (err) {
+    moduleLogger.error('owner-undo-journal: reverse-replay failed', {
+      tenantId,
+      entityType,
+      entityId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return { reverted: false, reason: 'reverse_replay_error' };
+  }
+}
+
 const appendSchema = z.object({
   entityType: z.string().min(1).max(60),
   entityId: z.string().min(1).max(120),
@@ -216,11 +321,21 @@ app.post('/undo-last', async (c: any) => {
     });
   }
 
-  // Mark the journal entry as undone. The actual replay of
-  // `beforeState` into the source entity is dispatched by the
-  // entity-specific undo handler (a follow-up worker). Keeping this
-  // route focused on journal state means each entity owner can supply
-  // its own reverse strategy without coupling.
+  // owner-undo-1: ACTUALLY revert the source entity by replaying the
+  // captured `beforeState` BEFORE we stamp the journal undone, so the
+  // owner's "Undone" confirmation reflects a real reversal. The outcome
+  // (reverted / reason) is returned honestly — a journal whose entity
+  // could not be reverted is still marked undone (the owner's intent is
+  // recorded) but reports `reverted:false` so the FE does not falsely
+  // claim the entity changed.
+  const outcome = await replayBeforeState(
+    db,
+    auth.tenantId,
+    candidate.entityType,
+    candidate.entityId,
+    candidate.beforeState as Record<string, unknown> | null,
+  );
+
   const [row] = await db
     .update(undoJournal)
     .set({
@@ -238,12 +353,16 @@ app.post('/undo-last', async (c: any) => {
     entityType: row.entityType,
     entityId: row.entityId,
     actionKind: row.actionKind,
+    reverted: outcome.reverted,
+    ...(outcome.reason ? { reverseReason: outcome.reason } : {}),
   });
 
   return c.json({
     success: true,
     data: {
       undone: true,
+      reverted: outcome.reverted,
+      ...(outcome.reason ? { reverseReason: outcome.reason } : {}),
       journalId: row.id,
       actionKind: row.actionKind,
       entityType: row.entityType,
@@ -317,6 +436,15 @@ app.post('/undo-by-id', async (c: any) => {
     );
   }
 
+  // owner-undo-1: replay beforeState onto the source entity (see undo-last).
+  const outcome = await replayBeforeState(
+    db,
+    auth.tenantId,
+    candidate.entityType,
+    candidate.entityId,
+    candidate.beforeState as Record<string, unknown> | null,
+  );
+
   const [row] = await db
     .update(undoJournal)
     .set({
@@ -334,12 +462,16 @@ app.post('/undo-by-id', async (c: any) => {
     entityType: row.entityType,
     entityId: row.entityId,
     actionKind: row.actionKind,
+    reverted: outcome.reverted,
+    ...(outcome.reason ? { reverseReason: outcome.reason } : {}),
   });
 
   return c.json({
     success: true,
     data: {
       undone: true,
+      reverted: outcome.reverted,
+      ...(outcome.reason ? { reverseReason: outcome.reason } : {}),
       journalId: row.id,
       actionKind: row.actionKind,
       entityType: row.entityType,

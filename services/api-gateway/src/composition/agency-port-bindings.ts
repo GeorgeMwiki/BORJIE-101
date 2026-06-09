@@ -1,59 +1,58 @@
 /**
  * Agency port bindings — wires the kernel agency layer's duck-typed
  * action-tool ports and wake-trigger read ports onto Drizzle-backed
- * domain queries.
+ * MINING-domain queries.
  *
  * The kernel `agency` module owns the port shapes (see
  * `packages/central-intelligence/src/kernel/agency/action-tools/
- * real-adapters.ts` and `.../initiative/real-detectors.ts`). This file
- * is the api-gateway's composition-root adapter: each factory takes the
- * memoized Drizzle client and returns a port that performs a real DB
- * write/read. When a column the spec needs is absent from the current
- * schema the factory falls back to an honest `{ ok: false, message:
- * 'service not yet wired: ...' }` rather than fabricating success — the
- * same contract the kernel adapters honour when their port itself is
- * undefined.
+ * real-adapters.ts` and `.../initiative/real-detectors.ts`). Those
+ * shapes are DOMAIN-AGNOSTIC — they accept string ids and return
+ * `{ id }`. This file is the api-gateway's composition-root adapter:
+ * each factory takes the memoized Drizzle client and returns a port
+ * that performs a real DB write/read against a SURVIVING mining table.
  *
- * Wired today (DB present):
- *   - notifications.sendRentReminder → INSERT notification_dispatch_log
- *     (template_key='rent.reminder', delivery_status='pending')
- *   - workOrders.create              → repos.workOrders.create(...)
- *     wrapped to apply sensible defaults (title from description,
- *     category='general', source='ai-agent', currency from unit lookup,
- *     work_order_number from getNextSequence)
- *   - inspections.schedule           → repos.inspections.create(...)
- *     wrapped — propertyId resolved from unitId, type='routine',
- *     status='scheduled'
- *   - arrears.escalate               → updates arrears_cases row's
- *     currentLadderStep (looks up the active case for the lease).
- *     Falls back to honest-error when no active case exists.
+ * The property-domain tables the original bindings targeted
+ * (`work_orders`, `inspections`, `arrears_cases`, `leases`, `units`,
+ * `notification_dispatch_log`) were ALL dropped in migration
+ * `0003_mining_domain.sql`. Importing them from the `@borjie/database`
+ * barrel binds `undefined`, and the first `db.insert(undefined)` /
+ * `db.select().from(undefined)` throws a raw Drizzle TypeError. This
+ * rewrite re-points every port to its mining equivalent:
+ *
+ *   - notifications.sendRentReminder → INSERT notifications_outbox
+ *     (a royalty/agreement reminder for the tenant's owner role).
+ *   - workOrders.create              → INSERT mining_tasks (kind=
+ *     'maintenance') — a manager-assigned maintenance task on a site.
+ *   - inspections.schedule           → INSERT mining_tasks (kind=
+ *     'inspection') — a scheduled site/equipment inspection task.
+ *   - arrears.escalate               → INSERT mining_escalations
+ *     (source_kind='production', a royalty/payment-dispute escalation).
  *   - marketplace.publish            → INSERT marketplace_listings
- *     (status='published', listingKind='rent')
- *   - arrearsRead.listActiveOverdue  → SELECT arrears_cases WHERE
- *     status='active' AND days_past_due >= minDaysOverdue
- *   - leaseRead.listExpiringWithin   → SELECT leases WHERE
- *     status='active' AND end_date BETWEEN asOf AND asOf + windowDays
- *   - vacancyRead.listLongVacant     → SELECT units WHERE
- *     status='vacant' AND updated_at <= asOf - minDaysVacant (proxy:
- *     no `last_vacated` column on units; spec accepts the proxy).
+ *     (status='active') — the mining mineral marketplace.
+ *   - arrearsRead.listActiveOverdue  → SELECT sales WHERE
+ *     payment_status='pending' AND ts older than N days (overdue
+ *     mineral-sale payments — the mining analog of overdue rent).
+ *   - leaseRead.listExpiringWithin   → honest empty (offtake_agreements
+ *     carry no expiry column today; the detector handles `[]`).
+ *   - vacancyRead.listLongVacant     → SELECT sites WHERE status in
+ *     ('paused','abandoned') AND updated_at <= asOf - Nd (idle sites,
+ *     the mining analog of a long-vacant unit).
  *
- * Honest fallbacks (port returns the kernel's standard shape but the
- * underlying domain port fails fast with a structured message):
- *   - inspection.schedule when the unitId is unknown or has no
- *     property — the schedule call falls through with a 'not yet
- *     wired: <reason>' on top of the adapter's own honest path.
+ * Honest-degrade contract (unchanged): every port either runs for real
+ * or surfaces a structured `service not yet wired: <reason>` /
+ * graceful-empty result. A missing column or row never throws a raw
+ * TypeError to the executor.
  */
 
-import { and, asc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import {
-  arrearsCases,
   createDatabaseClient,
-  inspections,
-  leases,
   marketplaceListings,
-  notificationDispatchLog,
-  units,
-  workOrders,
+  miningEscalations,
+  miningTasks,
+  notificationsOutbox,
+  sales,
+  sites,
 } from '@borjie/database';
 import { randomUUID } from 'node:crypto';
 
@@ -73,248 +72,187 @@ type ArrearsReadPort = agency.ArrearsReadPort;
 type LeaseReadPort = agency.LeaseReadPort;
 type VacancyReadPort = agency.VacancyReadPort;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 // ---------------------------------------------------------------------------
 // Action-tool ports
 // ---------------------------------------------------------------------------
 
 /**
- * Notifications port — writes a dispatch log row that downstream
- * NotificationService workers pick up. The kernel passes a high-level
- * `(tenantId, leaseId, channel)` triple; we expand to the dispatch
- * log's required columns and store the lease in the payload so the
- * worker can look up the recipient address itself.
+ * Notifications port — writes a `notifications_outbox` row the downstream
+ * notification workers pick up. The kernel passes a high-level
+ * `(tenantId, leaseId, channel)` triple; in the mining domain `leaseId`
+ * is the agreement / royalty reference. We route the reminder to the
+ * tenant's owner role (the outbox row carries the originating reference
+ * in its `summary` so the worker can resolve the recipient address).
  */
 export function createNotificationsPort(
   db: DatabaseClient,
 ): NotificationsPortLike {
   return {
     async sendRentReminder({ tenantId, leaseId, channel }) {
-      const id = `ndl_${randomUUID()}`;
-      const idempotencyKey = `rent-reminder:${leaseId}:${Date.now()}`;
+      const id = `nout_${randomUUID()}`;
       const [row] = await db
-        .insert(notificationDispatchLog)
+        .insert(notificationsOutbox)
         .values({
           id,
           tenantId,
-          channel,
-          recipientAddress: `lease:${leaseId}`,
-          templateKey: 'rent.reminder',
-          payload: { leaseId, source: 'kernel-agency' },
-          idempotencyKey,
-          deliveryStatus: 'pending',
-          attemptCount: 0,
+          // The owner role is the canonical recipient for a royalty /
+          // agreement reminder; the worker resolves the owner's address.
+          recipientUserId: `role:owner`,
+          category: 'royalty.reminder',
+          severity: 'info',
+          summary: {
+            agreementRef: leaseId,
+            channel,
+            source: 'kernel-agency',
+          },
         })
-        .returning({ id: notificationDispatchLog.id });
+        .returning({ id: notificationsOutbox.id });
       return { id: row?.id ?? id };
     },
   };
 }
 
 /**
- * Work-orders port — the agency tool only carries
- * `(propertyId, unitId, description, priority)`. We resolve the unit's
- * currency to satisfy the not-null constraint, derive a title from the
- * description, and stamp the agency's `source`/`createdBy`.
+ * Work-orders port — the agency tool carries
+ * `(propertyId, unitId, description, priority)`. In the mining domain a
+ * "work order" is a maintenance `mining_tasks` row. `unitId` is treated
+ * as the optional `site_id`; the description becomes the bilingual task
+ * title (Swahili-first per the CLAUDE.md hard rule — we mirror the same
+ * text into both columns since the agency only supplies one string).
  */
 export function createWorkOrdersPort(
   db: DatabaseClient,
 ): WorkOrdersPortLike {
   return {
-    async create({
-      tenantId,
-      propertyId,
-      unitId,
-      description,
-      priority,
-      createdByUserId,
-    }) {
-      const unitRow = await db
-        .select({ currency: units.baseRentCurrency })
-        .from(units)
-        .where(and(eq(units.id, unitId), eq(units.tenantId, tenantId)))
-        .limit(1);
-      const currency = unitRow[0]?.currency ?? 'USD';
-
-      const id = `wo_${randomUUID()}`;
-      const sequence = Math.floor(Date.now() / 1000);
-      const workOrderNumber = `WO-${sequence}`;
+    async create({ tenantId, unitId, description, priority, createdByUserId }) {
       const title = description.slice(0, 120);
-
+      const id = randomUUID();
       const [row] = await db
-        .insert(workOrders)
+        .insert(miningTasks)
         .values({
           id,
           tenantId,
-          propertyId,
-          unitId,
-          workOrderNumber,
-          priority,
-          status: 'submitted',
-          category: 'general',
-          source: 'ai-agent',
-          title,
-          description,
-          currency,
-          createdBy: createdByUserId ?? 'kernel-agency',
+          ...(isUuid(unitId) ? { siteId: unitId } : {}),
+          ...(isUuid(createdByUserId) ? { assignedByUserId: createdByUserId } : {}),
+          titleSw: title,
+          titleEn: title,
+          descriptionSw: description,
+          descriptionEn: description,
+          priority: normalizePriority(priority),
+          status: 'pending',
+          kind: 'maintenance',
         })
-        .returning({ id: workOrders.id });
+        .returning({ id: miningTasks.id });
       return { id: row?.id ?? id };
     },
   };
 }
 
 /**
- * Inspections port — the inspections schema requires `propertyId` even
- * though the tool input only carries `unitId`. We resolve the unit's
- * property; if the unit isn't found we throw a typed error so the
- * adapter surfaces a clean honest-error to the executor.
+ * Inspections port — the agency tool carries
+ * `(unitId, scheduledFor, inspectorId)`. In the mining domain a
+ * scheduled inspection is a `mining_tasks` row with `kind='inspection'`,
+ * `site_id=unitId`, `assigned_to_user_id=inspectorId`, and `due_at` set
+ * to the scheduled date.
  */
 export function createInspectionsPort(
   db: DatabaseClient,
 ): InspectionsPortLike {
   return {
-    async schedule({
-      tenantId,
-      unitId,
-      scheduledFor,
-      inspectorId,
-      scheduledByUserId,
-    }) {
-      const unitRow = await db
-        .select({ propertyId: units.propertyId })
-        .from(units)
-        .where(and(eq(units.id, unitId), eq(units.tenantId, tenantId)))
-        .limit(1);
-      const propertyId = unitRow[0]?.propertyId;
-      if (!propertyId) {
+    async schedule({ tenantId, unitId, scheduledFor, inspectorId, scheduledByUserId }) {
+      const dueAt = new Date(scheduledFor);
+      if (Number.isNaN(dueAt.getTime())) {
         throw new Error(
-          `service not yet wired: cannot schedule inspection — unit ${unitId} not found for tenant ${tenantId}`,
+          `service not yet wired: cannot schedule inspection — invalid scheduledFor '${scheduledFor}'`,
         );
       }
-
-      const id = `insp_${randomUUID()}`;
+      const title = `Site inspection${isUuid(unitId) ? ` (site ${unitId})` : ''}`;
+      const id = randomUUID();
       const [row] = await db
-        .insert(inspections)
+        .insert(miningTasks)
         .values({
           id,
           tenantId,
-          propertyId,
-          unitId,
-          inspectorId: inspectorId && inspectorId.length > 0 ? inspectorId : null,
-          type: 'routine',
-          status: 'scheduled',
-          scheduledDate: new Date(scheduledFor),
-          createdBy: scheduledByUserId ?? 'kernel-agency',
+          ...(isUuid(unitId) ? { siteId: unitId } : {}),
+          ...(isUuid(inspectorId) ? { assignedToUserId: inspectorId } : {}),
+          ...(isUuid(scheduledByUserId) ? { assignedByUserId: scheduledByUserId } : {}),
+          titleSw: title,
+          titleEn: title,
+          priority: 'normal',
+          status: 'pending',
+          kind: 'inspection',
+          dueAt,
         })
-        .returning({ id: inspections.id });
+        .returning({ id: miningTasks.id });
       return { id: row?.id ?? id };
     },
   };
 }
 
 /**
- * Arrears port — promotes the active arrears case for the given lease
- * to the new ladder step and appends a ladder-history entry. When no
- * active case exists for the lease we throw, which the adapter
- * translates into the honest-error path.
+ * Arrears port — promotes a royalty/payment delinquency to a human by
+ * opening a `mining_escalations` row (`source_kind='production'`,
+ * severity scaled by ladder step). `leaseId` is the originating
+ * agreement / sale reference; `escalatedByUserId` is the raiser.
  */
 export function createArrearsPort(db: DatabaseClient): ArrearsPortLike {
   return {
     async escalate({ tenantId, leaseId, ladderStep, escalatedByUserId }) {
-      const caseRow = await db
-        .select({
-          id: arrearsCases.id,
-          ladderHistory: arrearsCases.ladderHistory,
+      const raisedBy = isUuid(escalatedByUserId) ? escalatedByUserId : 'kernel-agency';
+      const severity = ladderStep >= 3 ? 'critical' : ladderStep >= 2 ? 'warning' : 'info';
+      const id = randomUUID();
+      const [row] = await db
+        .insert(miningEscalations)
+        .values({
+          id,
+          tenantId,
+          raisedByUserId: raisedBy,
+          toRole: 'owner',
+          sourceKind: 'production',
+          sourceId: leaseId,
+          contextSw: `Ongezo la deni la mrabaha — hatua ya ngazi ${ladderStep} kwa makubaliano ${leaseId}.`,
+          severity,
+          status: 'open',
         })
-        .from(arrearsCases)
-        .where(
-          and(
-            eq(arrearsCases.tenantId, tenantId),
-            eq(arrearsCases.leaseId, leaseId),
-            eq(arrearsCases.status, 'active'),
-          ),
-        )
-        .orderBy(asc(arrearsCases.createdAt))
-        .limit(1);
-
-      const caseId = caseRow[0]?.id;
-      if (!caseId) {
-        throw new Error(
-          `service not yet wired: no active arrears case for lease ${leaseId} (tenant ${tenantId})`,
-        );
-      }
-
-      const previousHistory = Array.isArray(caseRow[0]?.ladderHistory)
-        ? (caseRow[0]!.ladderHistory as unknown[])
-        : [];
-      const nextHistory = [
-        ...previousHistory,
-        {
-          step: ladderStep,
-          at: new Date().toISOString(),
-          by: escalatedByUserId,
-          source: 'kernel-agency',
-        },
-      ];
-
-      await db
-        .update(arrearsCases)
-        .set({
-          currentLadderStep: ladderStep,
-          ladderHistory: nextHistory,
-          updatedAt: new Date(),
-          updatedBy: escalatedByUserId ?? 'kernel-agency',
-        })
-        .where(
-          and(
-            eq(arrearsCases.id, caseId),
-            eq(arrearsCases.tenantId, tenantId),
-          ),
-        );
-
-      return { id: caseId };
+        .returning({ id: miningEscalations.id });
+      return { id: row?.id ?? id };
     },
   };
 }
 
 /**
- * Marketplace port — INSERT into marketplace_listings with status
- * 'published'. propertyId is resolved from the unit lookup; if absent
- * we throw and surface the honest-error path through the adapter.
+ * Marketplace port — INSERT into the mining `marketplace_listings`
+ * (status='active'). The agency tool carries `(unitId, headlineRent,
+ * currency, publishedByUserId)`; in the mining domain `unitId` is the
+ * parcel/site reference, `headlineRent` is the asking price. The mining
+ * listings table prices in TZS (`price_tzs`) — we never hard-code a
+ * currency: a TZS price is stored verbatim; a non-TZS asking price is
+ * recorded in the title so the seller can reconcile (the table has no
+ * generic price-currency column).
  */
 export function createMarketplacePort(
   db: DatabaseClient,
 ): MarketplacePortLike {
   return {
-    async publishListing({
-      tenantId,
-      unitId,
-      headlineRent,
-      currency,
-      publishedByUserId,
-    }) {
-      const unitRow = await db
-        .select({ propertyId: units.propertyId })
-        .from(units)
-        .where(and(eq(units.id, unitId), eq(units.tenantId, tenantId)))
-        .limit(1);
-      const propertyId = unitRow[0]?.propertyId ?? null;
-
-      const id = `lst_${randomUUID()}`;
+    async publishListing({ tenantId, unitId, headlineRent, currency, publishedByUserId }) {
+      const isTzs = currency.toUpperCase() === 'TZS';
+      const title = `Mineral parcel ${unitId}${isTzs ? '' : ` (${currency} ${headlineRent})`}`;
+      const id = `mlst_${randomUUID()}`;
       const [row] = await db
         .insert(marketplaceListings)
         .values({
           id,
           tenantId,
-          unitId,
-          propertyId,
-          listingKind: 'rent',
-          headlinePrice: headlineRent,
-          currency,
-          negotiable: true,
-          status: 'published',
-          publishedAt: new Date(),
-          createdBy: publishedByUserId ?? 'kernel-agency',
+          category: 'mineral',
+          title: title.slice(0, 200),
+          description: `Listing published by Mr. Mwikila for ${unitId}.`,
+          ...(isTzs ? { priceTzs: String(headlineRent) } : {}),
+          priceUnit: 'parcel',
+          ...(isUuid(publishedByUserId) ? { contactUserId: publishedByUserId } : {}),
+          visibility: 'tanzania',
+          status: 'active',
         })
         .returning({ id: marketplaceListings.id });
       return { id: row?.id ?? id };
@@ -327,122 +265,95 @@ export function createMarketplacePort(
 // ---------------------------------------------------------------------------
 
 /**
- * Arrears read port — active arrears cases with `days_past_due >= N`.
- * The kernel detector consumes `unitCode` to make the goal title
- * human-readable; we resolve it via a join to `units`. When the case
- * has no unit the join collapses to NULL, which the kernel handles.
+ * Arrears read port — mineral sales whose payment is still `pending`
+ * more than `minDaysOverdue` after the sale timestamp. This is the
+ * mining analog of "active overdue arrears": the cash owed for a
+ * delivered parcel that the buyer has not yet settled. `leaseId` maps
+ * to the sale id, `customerId` to the buyer, `unitCode` to the parcel.
  */
 export function createArrearsReadPort(db: DatabaseClient): ArrearsReadPort {
   return {
-    async listActiveOverdue({ tenantId, minDaysOverdue, limit }) {
+    async listActiveOverdue({ tenantId, minDaysOverdue, asOf, limit }) {
+      const cutoff = new Date(asOf.getTime() - minDaysOverdue * DAY_MS);
       const rows = await db
         .select({
-          leaseId: arrearsCases.leaseId,
-          tenantId: arrearsCases.tenantId,
-          customerId: arrearsCases.customerId,
-          daysOverdue: arrearsCases.daysPastDue,
-          unitCode: units.unitCode,
+          saleId: sales.id,
+          tenantId: sales.tenantId,
+          buyerId: sales.buyerId,
+          parcelId: sales.parcelId,
+          ts: sales.ts,
         })
-        .from(arrearsCases)
-        .leftJoin(units, eq(units.id, arrearsCases.unitId))
+        .from(sales)
         .where(
           and(
-            eq(arrearsCases.tenantId, tenantId),
-            eq(arrearsCases.status, 'active'),
-            gte(arrearsCases.daysPastDue, minDaysOverdue),
+            eq(sales.tenantId, tenantId),
+            eq(sales.paymentStatus, 'pending'),
+            lte(sales.ts, cutoff),
           ),
         )
         .limit(limit);
 
-      return rows.map((row) => ({
-        leaseId: row.leaseId ?? '',
-        tenantId: row.tenantId,
-        customerId: row.customerId,
-        daysOverdue: row.daysOverdue,
-        unitCode: row.unitCode ?? null,
-      }));
+      return rows.map((row) => {
+        const tsMs =
+          row.ts instanceof Date ? row.ts.getTime() : new Date(row.ts).getTime();
+        const daysOverdue = Math.max(
+          0,
+          Math.floor((asOf.getTime() - tsMs) / DAY_MS),
+        );
+        return {
+          leaseId: row.saleId,
+          tenantId: row.tenantId,
+          customerId: row.buyerId ?? '',
+          daysOverdue,
+          unitCode: row.parcelId ?? null,
+        };
+      });
     },
   };
 }
 
 /**
- * Lease read port — active leases ending within `windowDays` of `asOf`.
- * `endDate` is serialised to ISO so the kernel can pass it through to
- * the goal description verbatim.
+ * Lease read port — "agreements expiring within N days". Offtake
+ * agreements carry no expiry column today, so this read honestly
+ * degrades to an empty array (the wake-loop's count stays accurate and
+ * the detector emits no goals). Adding an `expires_at` column later is
+ * a one-place change here, not new code in the kernel.
  */
-export function createLeaseReadPort(db: DatabaseClient): LeaseReadPort {
+export function createLeaseReadPort(_db: DatabaseClient): LeaseReadPort {
   return {
-    async listExpiringWithin({ tenantId, windowDays, asOf, limit }) {
-      const start = asOf;
-      const end = new Date(asOf.getTime() + windowDays * 24 * 60 * 60 * 1000);
-
-      const rows = await db
-        .select({
-          leaseId: leases.id,
-          tenantId: leases.tenantId,
-          customerId: leases.customerId,
-          endDate: leases.endDate,
-          unitCode: units.unitCode,
-        })
-        .from(leases)
-        .leftJoin(units, eq(units.id, leases.unitId))
-        .where(
-          and(
-            eq(leases.tenantId, tenantId),
-            eq(leases.status, 'active'),
-            gte(leases.endDate, start),
-            lte(leases.endDate, end),
-          ),
-        )
-        .limit(limit);
-
-      return rows.map((row) => ({
-        leaseId: row.leaseId,
-        tenantId: row.tenantId,
-        customerId: row.customerId,
-        endDate:
-          row.endDate instanceof Date
-            ? row.endDate.toISOString()
-            : String(row.endDate ?? ''),
-        unitCode: row.unitCode ?? null,
-      }));
+    async listExpiringWithin() {
+      // No expiry column on offtake_agreements — honest empty.
+      return [];
     },
   };
 }
 
 /**
- * Vacancy read port — units that are currently vacant and whose row
- * has been "stable" for `minDaysVacant` (proxy: `updatedAt <= asOf -
- * Nd`, since the schema does not carry a dedicated `last_vacated`
- * column today). The detector uses the unit's `baseRentAmount` and
- * `baseRentCurrency` to decide whether to emit a `listing.publish`
- * step; we surface those plus a computed `daysVacant`.
+ * Vacancy read port — idle sites (the mining analog of a long-vacant
+ * unit). A `site` whose `status` is `paused` or `abandoned` and whose
+ * row has been stable (`updated_at <= asOf - minDaysVacant`) is an idle
+ * asset the brain can flag for re-activation. `headlineRent` / currency
+ * are not available on a site, so they are returned null; the detector
+ * handles nulls.
  */
 export function createVacancyReadPort(db: DatabaseClient): VacancyReadPort {
   return {
     async listLongVacant({ tenantId, minDaysVacant, asOf, limit }) {
-      const cutoff = new Date(
-        asOf.getTime() - minDaysVacant * 24 * 60 * 60 * 1000,
-      );
-
+      const cutoff = new Date(asOf.getTime() - minDaysVacant * DAY_MS);
       const rows = await db
         .select({
-          unitId: units.id,
-          tenantId: units.tenantId,
-          propertyId: units.propertyId,
-          unitCode: units.unitCode,
-          headlineRent: units.baseRentAmount,
-          currency: units.baseRentCurrency,
-          updatedAt: units.updatedAt,
+          siteId: sites.id,
+          tenantId: sites.tenantId,
+          licenceId: sites.licenceId,
+          name: sites.name,
+          updatedAt: sites.updatedAt,
         })
-        .from(units)
+        .from(sites)
         .where(
           and(
-            eq(units.tenantId, tenantId),
-            eq(units.status, 'vacant'),
-            lte(units.updatedAt, cutoff),
-            // soft-delete guard
-            sql`${units.deletedAt} IS NULL`,
+            eq(sites.tenantId, tenantId),
+            sql`${sites.status} in ('paused','abandoned')`,
+            lte(sites.updatedAt, cutoff),
           ),
         )
         .limit(limit);
@@ -454,20 +365,57 @@ export function createVacancyReadPort(db: DatabaseClient): VacancyReadPort {
             : new Date(row.updatedAt as unknown as string).getTime();
         const daysVacant = Math.max(
           0,
-          Math.floor((asOf.getTime() - updatedMs) / (24 * 60 * 60 * 1000)),
+          Math.floor((asOf.getTime() - updatedMs) / DAY_MS),
         );
         return {
-          unitId: row.unitId,
+          unitId: row.siteId,
           tenantId: row.tenantId,
-          propertyId: row.propertyId,
-          unitCode: row.unitCode ?? null,
-          headlineRent: typeof row.headlineRent === 'number' ? row.headlineRent : null,
-          currency: typeof row.currency === 'string' ? row.currency : null,
+          // The kernel detector reads `propertyId` as the parent
+          // grouping id — the site's licence is the mining equivalent.
+          propertyId: row.licenceId,
+          unitCode: row.name ?? null,
+          headlineRent: null,
+          currency: null,
           daysVacant,
         };
       });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Several mining tables type their FK columns as `uuid`. The agency
+ * tools pass opaque string ids that are NOT always uuid-shaped (e.g. a
+ * synthetic `kernel-agency` actor). Guarding the insert with a uuid
+ * check keeps a non-uuid id from triggering a Postgres cast error —
+ * the column simply stays NULL (all are nullable) and the row still
+ * lands, preserving the honest-degrade contract.
+ */
+function isUuid(value: string | null | undefined): value is string {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
+/** Map the agency's 4-level priority onto the mining-tasks 4-level set. */
+function normalizePriority(
+  priority: 'low' | 'medium' | 'high' | 'critical',
+): 'low' | 'normal' | 'high' | 'urgent' {
+  switch (priority) {
+    case 'low':
+      return 'low';
+    case 'high':
+      return 'high';
+    case 'critical':
+      return 'urgent';
+    default:
+      return 'normal';
+  }
 }
 
 // ---------------------------------------------------------------------------

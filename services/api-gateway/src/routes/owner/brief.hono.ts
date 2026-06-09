@@ -440,15 +440,14 @@ export async function composeOwnerBrief(
   db: any,
   tenantId: string,
 ): Promise<OwnerBrief> {
-  const [
-    dailyBrief,
-    decisions,
-    cashRunway,
-    productionVsTarget,
-    cliffStatus,
-    openHighIncidents,
-    licenceHealth,
-  ] = await Promise.all([
+  // mfr-9: fan out the seven slots with Promise.allSettled so ONE
+  // transient slot failure (e.g. a flaky decisions query) degrades only
+  // that slot to its safe empty shape rather than rejecting the whole
+  // brief and 500-ing a request whose other six slots are healthy. Each
+  // rejected slot is logged and falls back to the same empty shape its
+  // own getter returns on no-data, so the OwnerBriefSchema still passes.
+  const today = dayKey(new Date());
+  const settled = await Promise.allSettled([
     getCockpitDailyBrief(db, tenantId),
     getCockpitDecisions(db, tenantId),
     getCockpitCashRunway(db, tenantId),
@@ -457,6 +456,57 @@ export async function composeOwnerBrief(
     getOpenHighIncidents(db, tenantId),
     getLicenceHealth(db, tenantId),
   ]);
+
+  function slotOr<T>(
+    index: number,
+    label: string,
+    fallback: T,
+  ): T {
+    const r = settled[index];
+    if (r && r.status === 'fulfilled') return r.value as T;
+    moduleLogger.warn('owner-brief slot degraded to fallback', {
+      tenantId,
+      slot: label,
+      reason: r && r.status === 'rejected' ? messageOf(r.reason) : 'unknown',
+    });
+    return fallback;
+  }
+
+  const dailyBrief = slotOr(0, 'dailyBrief', {
+    date: today,
+    shiftsToday: 0,
+    openIncidents: 0,
+    openGrievances: 0,
+    criticalIncidents: 0,
+  } as z.infer<typeof DailyBriefSlotSchema>);
+  const decisions = slotOr(1, 'decisions', {
+    pendingCount: 0,
+    items: [],
+  } as z.infer<typeof DecisionsSlotSchema>);
+  const cashRunway = slotOr(2, 'cashRunway', {
+    ninetyDayNetTzs: 0,
+    dailyAvgTzs: 0,
+    sampleCount: 0,
+  } as z.infer<typeof CashRunwaySlotSchema>);
+  const productionVsTarget = slotOr(3, 'productionVsTarget', {
+    window: '30d',
+    perSite: [],
+  } as z.infer<typeof ProductionSlotSchema>);
+  const cliffStatus = slotOr(4, 'cliffStatus', {
+    cliffDateIso: new Date('2026-03-27T00:00:00.000Z').toISOString(),
+    postCliffSales: 0,
+    usdDenominated: 0,
+    remediationComplete: false,
+  } as z.infer<typeof CliffStatusSlotSchema>);
+  const openHighIncidents = slotOr(5, 'openHighIncidents', {
+    count: 0,
+    items: [],
+  } as z.infer<typeof OpenHighIncidentsSlotSchema>);
+  const licenceHealth = slotOr(6, 'licenceHealth', {
+    totalCount: 0,
+    atRiskCount: 0,
+    items: [],
+  } as z.infer<typeof LicenceHealthSlotSchema>);
   // Best-effort advisor slice — Wave OWNER-OS. If the brain ladder is
   // unwired or every provider errors we surface `advisor: null` and the
   // FE simply hides the sticky note chip. Never blocks the brief.

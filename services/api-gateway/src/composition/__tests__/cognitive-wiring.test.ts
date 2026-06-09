@@ -42,10 +42,11 @@ import {
   type WiredCognitive,
   type CognitiveLogger,
 } from '../cognitive-wiring';
-import type {
-  ContinuityReaders,
-  OpenCommitmentView,
-  RecentActionView,
+import {
+  fetchContinuitySnapshot,
+  type ContinuityReaders,
+  type OpenCommitmentView,
+  type RecentActionView,
 } from '../continuity-readers';
 
 // ---------------------------------------------------------------------------
@@ -959,5 +960,52 @@ describe('enrichBrainTurnWithCognitive — K4 memory continuity', () => {
       personaId: TEST_PERSONA,
     });
     expect(result.enrichedSystemPrompt).toBe('');
+  });
+});
+
+describe('fetchContinuitySnapshot — readFault signal (iq-continuity-opt-in-11)', () => {
+  it('a clean empty read reports readFault === false (genuine new session)', async () => {
+    const snapshot = await fetchContinuitySnapshot({
+      readers: fakeContinuityReaders({ open: [], recent: [] }),
+      tenantId: TEST_TENANT,
+    });
+    expect(snapshot.openThreads).toEqual([]);
+    expect(snapshot.recentActions).toEqual([]);
+    // No fault: the emptiness is genuine, so a "new session" placeholder is safe.
+    expect(snapshot.readFault).toBe(false);
+  });
+
+  it('a swallowed reader fault reports readFault === true (NOT a new session)', async () => {
+    const snapshot = await fetchContinuitySnapshot({
+      readers: fakeContinuityReaders({ throwLive: true, throwRecent: true }),
+      tenantId: TEST_TENANT,
+    });
+    // Same empty data — but the fault is now distinguishable from a fresh session.
+    expect(snapshot.openThreads).toEqual([]);
+    expect(snapshot.recentActions).toEqual([]);
+    expect(snapshot.readFault).toBe(true);
+  });
+
+  it('a single reader fault still taints the snapshot even when the other returns rows', async () => {
+    const snapshot = await fetchContinuitySnapshot({
+      readers: fakeContinuityReaders({
+        open: [openCommitment({ title: 'Renew the export permit' })],
+        throwRecent: true,
+      }),
+      tenantId: TEST_TENANT,
+    });
+    // The open thread survives (isolation), but readFault flags the failed read.
+    expect(snapshot.openThreads).toHaveLength(1);
+    expect(snapshot.readFault).toBe(true);
+  });
+
+  it('a null (unwired) reader is NOT a fault — readFault stays false', async () => {
+    const snapshot = await fetchContinuitySnapshot({
+      readers: Object.freeze({ commitments: null, actions: null }),
+      tenantId: TEST_TENANT,
+    });
+    expect(snapshot.openThreads).toEqual([]);
+    // Absence of a source is a known config, not a read fault.
+    expect(snapshot.readFault).toBe(false);
   });
 });

@@ -35,19 +35,29 @@ function bearer(): string {
 function buildDb(plan: {
   readonly decisions: ReadonlyArray<Record<string, unknown>>;
   readonly reminders: ReadonlyArray<Record<string, unknown>>;
+  readonly opportunities?: ReadonlyArray<Record<string, unknown>>;
+  readonly risks?: ReadonlyArray<Record<string, unknown>>;
 }): {
   execute: (q: unknown) => Promise<unknown>;
 } {
   // Pattern-match on the rendered SQL string so the test is order-
-  // independent — Promise.all calls selectDecisions and selectReminders
-  // concurrently, and the microtask order varies between Node releases.
+  // independent — Promise.all calls the panel selectors concurrently and
+  // the microtask order varies between Node releases. The selectors hit
+  // the REAL tables: decisions now read the Mr. Mwikila open-actions inbox
+  // (`mwikila_actions_inbox`), reminders read the `reminders` table by its
+  // real columns, opportunities read `marketplace_listings`, and risks
+  // union `incidents` + `licences`.
   return {
     execute: async (q: unknown) => {
       const sqlText =
         typeof q === 'object' && q !== null && 'queryChunks' in q
           ? JSON.stringify((q as { queryChunks: unknown }).queryChunks)
           : JSON.stringify(q);
-      if (sqlText.includes('decisions')) return plan.decisions;
+      if (sqlText.includes('mwikila_actions_inbox')) return plan.decisions;
+      if (sqlText.includes('marketplace_listings')) return plan.opportunities ?? [];
+      if (sqlText.includes('incidents') || sqlText.includes('licences')) {
+        return plan.risks ?? [];
+      }
       if (sqlText.includes('reminders')) return plan.reminders;
       return [];
     },
@@ -115,25 +125,28 @@ describe('GET /api/v1/owner/cockpit/hub', () => {
   });
 
   it('hydrates decisions + reminders from db rows', async () => {
+    // decisions now come from `mwikila_actions_inbox` — the open-actions
+    // queue. delegation_tier maps to a severity badge (T2→high, T1→medium).
     const decisionsRows = [
       {
         id: 'dec_001',
         summary: 'Approve T1 royalty payout',
-        severity: 'high',
-        raised_at: '2026-05-29T10:00:00.000Z',
+        delegation_tier: 'T2',
+        proposed_at: '2026-05-29T10:00:00.000Z',
       },
       {
         id: 'dec_002',
         summary: 'Confirm Geita pit 2 shift change',
-        severity: 'medium',
-        raised_at: '2026-05-29T09:00:00.000Z',
+        delegation_tier: 'T1',
+        proposed_at: '2026-05-29T09:00:00.000Z',
       },
     ];
+    // reminders read the REAL columns: title (→text), trigger_at (→dueAt).
     const remindersRows = [
       {
         id: 'rem_001',
-        text: 'Sign monthly TRA filing',
-        due_at: '2026-05-30T08:00:00.000Z',
+        title: 'Sign monthly TRA filing',
+        trigger_at: '2026-05-30T08:00:00.000Z',
       },
     ];
     const db = buildDb({

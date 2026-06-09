@@ -31,6 +31,32 @@ import {
   type PowerToolContext,
   type PowerToolResult,
 } from './types.js';
+import { handoffPowerTool } from './handoff.js';
+import {
+  createSandboxPowerTool,
+  type JsSandboxAdapter,
+  type SandboxPolicyRunner,
+} from './sandbox.js';
+import {
+  createSchedulePowerTool,
+  createInMemoryScheduleAdapter,
+  type ScheduleAdapter,
+} from './schedule.js';
+import {
+  createCrossTenantPowerTool,
+  type CrossTenantAggregateAdapter,
+} from './cross-tenant.js';
+import { createComposePowerTool } from './compose.js';
+import {
+  createSelfModificationPowerTool,
+  createInMemoryAnchorSummaryAdapter,
+  type AnchorSummaryAdapter,
+} from './self-modification.js';
+import {
+  createBlackboardStreamPowerTool,
+  createInMemoryBlackboardPublisher,
+  type BlackboardPublisher,
+} from './blackboard-stream.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Registry public surface
@@ -164,6 +190,92 @@ export function createPowerToolRegistry(): PowerToolRegistry {
   }
 
   return { register, get, list, listForTier, invoke, clear };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// buildPowerToolRegistry — the single composition factory.
+//
+// Instantiates a `PowerToolRegistry` and registers all 6 brain
+// meta-capabilities (handoff, sandbox, schedule, cross_tenant, compose,
+// self_modification, blackboard_stream) so they are reachable from the
+// orchestrator at runtime. Before this factory existed the registry was
+// never built outside tests, leaving every meta-capability dark.
+//
+// Every adapter is OPTIONAL: when omitted the factory binds a safe
+// default (in-memory schedule + blackboard + anchor-summary adapters;
+// a `null` sandbox / cross-tenant adapter that the tool body
+// honest-degrades to a `NOT_IMPLEMENTED` refusal). The api-gateway
+// composition root passes the real Drizzle / Inngest / isolated-vm
+// adapters; tests pass stubs or rely on the defaults.
+//
+// The factory is PURE — it never reads process.env and never mutates a
+// passed-in adapter. The `compose` tool is registered LAST with a
+// reference to the very registry it runs sub-calls against.
+// ─────────────────────────────────────────────────────────────────────
+
+export interface BuildPowerToolRegistryAdapters {
+  /** F7 isolated-vm sandbox adapter; `null` ⇒ sandbox honest-degrades. */
+  readonly sandbox?: JsSandboxAdapter | null;
+  /** Wave-13 policy-aware sandbox runner (preferred over `sandbox`). */
+  readonly sandboxPolicyRunner?: SandboxPolicyRunner;
+  /** Deferred-call adapter; defaults to the in-memory setTimeout adapter. */
+  readonly schedule?: ScheduleAdapter | null;
+  /** k-anonymous cross-tenant aggregate adapter; `null` ⇒ honest-degrade. */
+  readonly crossTenant?: CrossTenantAggregateAdapter | null;
+  /** Reflexion anchor-summary store; defaults to the in-memory adapter. */
+  readonly anchorSummary?: AnchorSummaryAdapter | null;
+  /** Blackboard publisher; defaults to the in-memory publisher. */
+  readonly blackboard?: BlackboardPublisher | null;
+}
+
+export function buildPowerToolRegistry(
+  adapters: BuildPowerToolRegistryAdapters = {},
+): PowerToolRegistry {
+  const registry = createPowerToolRegistry();
+
+  // 1. handoff — static spec, no adapter.
+  registry.register(handoffPowerTool);
+
+  // 2. sandbox — prefer the policy runner; else the raw adapter (or null).
+  const sandboxOptions: { policyRunner?: SandboxPolicyRunner } = {};
+  if (adapters.sandboxPolicyRunner) {
+    sandboxOptions.policyRunner = adapters.sandboxPolicyRunner;
+  }
+  registry.register(
+    createSandboxPowerTool(adapters.sandbox ?? null, sandboxOptions),
+  );
+
+  // 3. schedule — default to the in-memory setTimeout adapter in dev/tests.
+  registry.register(
+    createSchedulePowerTool(
+      adapters.schedule ?? createInMemoryScheduleAdapter(),
+    ),
+  );
+
+  // 4. cross_tenant — `null` ⇒ honest-degrade (no platform aggregate source).
+  registry.register(
+    createCrossTenantPowerTool(adapters.crossTenant ?? null),
+  );
+
+  // 5. self_modification — default to the in-memory anchor-summary store.
+  registry.register(
+    createSelfModificationPowerTool(
+      adapters.anchorSummary ?? createInMemoryAnchorSummaryAdapter(),
+    ),
+  );
+
+  // 6. blackboard_stream — default to the in-memory publisher.
+  registry.register(
+    createBlackboardStreamPowerTool(
+      adapters.blackboard ?? createInMemoryBlackboardPublisher(),
+    ),
+  );
+
+  // 7. compose — registered LAST so it can run the already-registered
+  // tools as a transactional chain against THIS registry.
+  registry.register(createComposePowerTool(registry));
+
+  return registry;
 }
 
 // ─────────────────────────────────────────────────────────────────────

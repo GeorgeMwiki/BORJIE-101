@@ -40,6 +40,11 @@ import {
   recallSupportMemory,
   type RecallLang,
 } from '../services/support-cases/index.js';
+// NOTE: the turn's high-stakes classification is now resolved ONCE via
+// `deriveStakes` (imported below from brain-orchestrator-turn) and shared by
+// BOTH the deep-reasoning composer route AND the orchestrator kernel.think
+// path, so the standalone `isHighStakes` classifier is no longer wired here
+// (the two must never disagree for the same turn). See `resolveTurnStakes`.
 // R8 / LP-01 / LP-30 — per-turn cognitive enrichment. Reads the wired
 // cognitive bundle off the Hono context (set by `createCognitiveContextMiddleware`
 // in index.ts) and prepends a recalled-memory + (flag-gated, default-OFF)
@@ -74,8 +79,11 @@ import { withSecurityEvents } from '@borjie/observability';
 import {
   resolveBrainOrchestratorRoutingEnabled,
   generateBrainTurnViaOrchestrator,
+  deriveStakes,
   type OrchestratorTurnPayload,
   type OrchestratorTurnContext,
+  type DerivedStakes,
+  type StakesHint,
 } from '../composition/brain-orchestrator-turn.js';
 // Latency wins — streaming first-token (smaller SSE chunks for a sooner
 // first paint) + async-offload (defer non-critical post-response work off
@@ -747,6 +755,73 @@ function composerSurfaceForViewer(
   return 'tenant-app';
 }
 
+// ── Stakes resolution (iq-composer-stakes-low-8 + iq-stakes-hardcoded-4) ─────
+//
+// The kernel's escalation gates (3-agent debate / auto-judge / extended-
+// thinking / multi-sample TTC) and the deep-reasoning composer's route both
+// key off the turn's STAKES. Previously the composer derived its own
+// 'high'/'low' from `isHighStakes` while the orchestrator derived its own
+// stakes internally — two independent classifiers that could disagree for the
+// same turn. We now resolve the stakes ONCE, from the user's OWN turn text
+// (before the recall/cognitive preambles are prepended), and pass the SAME
+// value to BOTH paths so they stay in lock-step.
+
+/** Valid `x-stakes-hint` header values — the `DerivedStakes` union. */
+const VALID_STAKES_HINTS: ReadonlySet<DerivedStakes> = new Set([
+  'low',
+  'medium',
+  'high',
+  'critical',
+]);
+
+/**
+ * Parse + validate the optional `x-stakes-hint` request header against the
+ * `DerivedStakes` union. owner-web CEO-mode buttons forward this header (e.g.
+ * `x-stakes-hint: high` on a board-decision query) to FORCE the kernel's
+ * high-stakes escalation regardless of the turn's vocabulary. Any unknown /
+ * malformed value is ignored (returns `undefined`) — never trust raw header
+ * text into the kernel.
+ */
+function readStakesHintHeader(c: any): StakesHint {
+  const raw = c.req.header('x-stakes-hint');
+  if (typeof raw !== 'string') return undefined;
+  const normalized = raw.trim().toLowerCase();
+  return VALID_STAKES_HINTS.has(normalized as DerivedStakes)
+    ? (normalized as DerivedStakes)
+    : undefined;
+}
+
+/**
+ * Resolved turn stakes — computed ONCE per turn and threaded to both the
+ * composer enrichment and the orchestrator kernel.think path.
+ *   - `stakes`: the effective `DerivedStakes` (explicit hint preferred over the
+ *     text-derived value). This is the SINGLE value forwarded to the kernel
+ *     (as `stakesHint`) AND the basis for `composerStakes`, so the composer
+ *     route and the kernel.think stakes can never disagree for one turn.
+ *   - `hint`: the validated explicit caller hint, retained for observability
+ *     (so a log/audit can distinguish a CEO-mode-forced override from a
+ *     text-derived classification). `undefined` when no valid header was sent.
+ *   - `composerStakes`: the binary high/low the deep-reasoning composer routes
+ *     on — `high` whenever the resolved stakes is `high` or `critical`.
+ */
+interface ResolvedTurnStakes {
+  readonly stakes: DerivedStakes;
+  readonly hint: StakesHint;
+  readonly composerStakes: 'high' | 'low';
+}
+
+/**
+ * Resolve the turn stakes a single time from the user's OWN text + the
+ * validated `x-stakes-hint` header. Deterministic + LLM-free.
+ */
+function resolveTurnStakes(c: any, userText: string): ResolvedTurnStakes {
+  const hint = readStakesHintHeader(c);
+  const stakes = deriveStakes({ userText, ...(hint ? { hint } : {}) });
+  const composerStakes: 'high' | 'low' =
+    stakes === 'high' || stakes === 'critical' ? 'high' : 'low';
+  return Object.freeze({ stakes, hint, composerStakes });
+}
+
 /**
  * Read the wired cognitive bundle from the Hono context, enrich the turn,
  * and prepend any context block to `userText`. Pure on the input body
@@ -755,21 +830,42 @@ function composerSurfaceForViewer(
  */
 async function withCognitiveEnrichment<
   T extends { readonly userText: string; readonly threadId?: string },
->(c: any, ctx: TurnGateContext, body: T): Promise<T> {
+>(
+  c: any,
+  ctx: TurnGateContext,
+  body: T,
+  composerStakes: 'high' | 'low',
+): Promise<T> {
   try {
     const wired = c.get('cognitive') as WiredCognitive | undefined;
     if (!wired || !wired.isLive) return body;
+    // EN/SW continuity (iq-locale-continuity-9) — the OPEN THREADS / RECENTLY
+    // DONE continuity block is rendered single-language. Forward the ACTIVE
+    // locale (default 'en'; explicit 'sw' toggles) so a Swahili user never sees
+    // an English continuity preamble mixed into their turn (CLAUDE.md EN/SW
+    // separation is absolute). Without this the block always rendered in English.
+    const locale = pickRecallLang(c.req.header('accept-language') ?? null);
+    // Composer routing (iq-composer-stakes-low-8 + iq-stakes-hardcoded-4) — the
+    // composer's high/low route is the SAME resolved stakes the orchestrator
+    // kernel.think path uses (computed ONCE in the /turn handler from the user's
+    // own text + the validated `x-stakes-hint` header), so the two never
+    // disagree for the same turn. A hard turn (regulator / royalty / payment /
+    // hire-fire / contract / forced CEO-mode hint) earns 'high' so the deep-
+    // reasoning composer can escalate to judge / LATS instead of always taking
+    // the fast path on a hardcoded 'low'. Still gated by
+    // BORJIE_COGNITIVE_COMPOSER_ENABLED (default OFF), so this only changes the
+    // ROUTE once the composer is canaried on.
     const enrichArgs: Parameters<typeof enrichBrainTurnWithCognitive>[0] = {
       wired,
       tenantId: ctx.tenant.tenantId,
       userId: ctx.viewer.userId,
       userText: body.userText,
       personaId: 'mr-mwikila',
-      // Deep composer routing — conservative stakes; the composer slot is
-      // flag-gated (default OFF) and a low-stakes route stays on the fast
-      // path, so this is inert until the composer is enabled + a turn is
-      // routed deep. The surface mirrors the viewer's portal.
-      composer: { stakes: 'low', surface: composerSurfaceForViewer(ctx.viewer) },
+      locale,
+      composer: {
+        stakes: composerStakes,
+        surface: composerSurfaceForViewer(ctx.viewer),
+      },
       ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
       logger: {
         debug: (message, meta) => logger.debug(meta ?? {}, message),
@@ -1214,7 +1310,7 @@ async function auditAndEnforceJson(args: {
     verdict: string;
     evidenceCount: number;
     auditLogId: string;
-    evidenceWarning: 'no_evidence_cited' | null;
+    evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
     enforced: boolean;
   };
 }> {
@@ -1321,6 +1417,7 @@ async function handleTurnJsonViaOrchestrator(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
   ctx: TurnGateContext,
+  turnStakes: ResolvedTurnStakes,
 ): Promise<Response> {
   const brain = registry().for(ctx.tenant.tenantId);
   try {
@@ -1332,6 +1429,11 @@ async function handleTurnJsonViaOrchestrator(
       userText: body.userText,
       ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
       ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+      // Forward the SINGLE resolved stakes value (computed once from the user's
+      // own text + validated `x-stakes-hint`) as the kernel stakes hint, so the
+      // orchestrator uses the EXACT value the composer route used — never a
+      // second derivation off the enrichment-preamble-prepended text.
+      stakesHint: turnStakes.stakes,
       surface: orchestratorSurfaceForViewer(ctx.viewer),
       language: pickRecallLang(c.req.header('accept-language') ?? null),
       logger: {
@@ -1387,6 +1489,7 @@ async function handleTurnSseViaOrchestrator(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
   ctx: TurnGateContext,
+  turnStakes: ResolvedTurnStakes,
 ): Promise<Response> {
   const brain = registry().for(ctx.tenant.tenantId);
   return streamSSE(c, async (stream) => {
@@ -1431,6 +1534,9 @@ async function handleTurnSseViaOrchestrator(
         userText: body.userText,
         ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
         ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+        // Same single resolved stakes value as the JSON twin — keeps the SSE
+        // path's kernel stakes in lock-step with the composer route.
+        stakesHint: turnStakes.stakes,
         surface: orchestratorSurfaceForViewer(ctx.viewer),
         language: pickRecallLang(c.req.header('accept-language') ?? null),
         logger: {
@@ -1482,9 +1588,25 @@ async function handleTurnSseViaOrchestrator(
     // (smaller, env-tunable) stream chunk size so the first visible paint
     // lands sooner than the legacy 80-char chunks.
     try {
-      // SEC-4 — guard the FULL answer text ONCE (final guard, persists blocks)
-      // before chunking so a leak that straddles two chunks is still caught.
-      const text = guardFinalText(payload.responseText ?? '', ctx.tenant.tenantId);
+      // EVIDENCE ENFORCEMENT (iq-sse-no-enforcement-6) — the SSE /turn path is
+      // PSEUDO-streaming: `payload.responseText` is already fully resolved here
+      // (generateBrainTurnViaOrchestrator awaited it), so we CAN run the SAME
+      // HARD evidence decision the JSON twin runs (`auditAndEnforceJson`)
+      // BEFORE the first chunk. On withhold the Auditor substitutes a safe,
+      // already-guarded, single-language placeholder, so we simply chunk THAT
+      // text — no "un-send" is ever needed and the wire format is unchanged
+      // (still `message_chunk` → `done` → `auditor`). The reused helper also
+      // applies the final IP-egress guard, so we drop the now-redundant
+      // separate guardFinalText call here.
+      const enforced = await auditAndEnforceJson({
+        c,
+        ctx,
+        threadId: payload.threadId,
+        personaId: payload.finalPersonaId,
+        responseText: payload.responseText ?? '',
+        tokensUsed: payload.tokensUsed,
+      });
+      const text = enforced.responseText;
       for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
         await stream.writeSSE({
           event: 'message_chunk',
@@ -1518,16 +1640,12 @@ async function handleTurnSseViaOrchestrator(
           cacheReadTokens: null,
         }),
       });
-      await emitAuditorFrame(
-        stream,
-        { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
-        {
-          threadId: payload.threadId,
-          personaId: payload.finalPersonaId,
-          responseText: payload.responseText,
-          tokensUsed: payload.tokensUsed,
-        },
-      );
+      // EVIDENCE ENFORCEMENT (iq-sse-no-enforcement-6) — the auditor frame now
+      // reports the REAL enforcement outcome computed above (no longer warn-only,
+      // no second audit pass). On withhold, `enforced.audit.enforced` is true and
+      // the streamed text was the safe placeholder, so the client badge reflects
+      // that the ungrounded answer was actually withheld.
+      await emitEnforcedAuditorFrame(stream, enforced.audit);
     } catch (err) {
       logger.error(
         {
@@ -1653,6 +1771,44 @@ interface StartedTurnPayload {
 interface AuditorContextForStream {
   readonly tenantId: string;
   readonly userId: string;
+}
+
+/**
+ * EVIDENCE ENFORCEMENT (iq-sse-no-enforcement-6) — emit the terminal `auditor`
+ * SSE frame from an ALREADY-COMPUTED enforcement result (the orchestrator SSE
+ * path runs `auditAndEnforceJson` BEFORE chunking, because it is pseudo-
+ * streaming, so it must NOT re-audit here). The wire frame keeps the SAME field
+ * names as the warn-only path — only the `enforced` / `mode` flags reflect the
+ * real HARD-mode outcome. Best-effort: a write fault never aborts the turn.
+ */
+async function emitEnforcedAuditorFrame(
+  stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
+  audit: {
+    readonly verdict: string;
+    readonly evidenceCount: number;
+    readonly auditLogId: string;
+    readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
+    readonly enforced: boolean;
+  },
+): Promise<void> {
+  try {
+    await stream.writeSSE({
+      event: 'auditor',
+      data: JSON.stringify({
+        verdict: audit.verdict,
+        evidenceCount: audit.evidenceCount,
+        auditLogId: audit.auditLogId,
+        evidenceWarning: audit.evidenceWarning,
+        enforced: audit.enforced,
+        mode: audit.enforced ? 'hard-withheld' : 'hard',
+      }),
+    });
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'failed to emit enforced auditor frame',
+    );
+  }
 }
 
 async function emitAuditorFrame(
@@ -2006,6 +2162,15 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // kernel pre-flight (the safety rail) to run even on the orchestrator path.
   const inputGuardTightenRail = inputGuard.raiseRail;
 
+  // Stakes resolution (iq-composer-stakes-low-8 + iq-stakes-hardcoded-4).
+  // Resolve the turn stakes ONCE — from the user's OWN turn text (the
+  // input-guard-processed text, BEFORE the recall/cognitive preambles are
+  // prepended so the classifier sees exactly what the user asked) plus the
+  // validated `x-stakes-hint` header (owner-web CEO-mode buttons force high).
+  // The SAME resolution drives BOTH the composer enrichment route AND the
+  // orchestrator kernel.think stakes, so the two never disagree for one turn.
+  const turnStakes = resolveTurnStakes(c, body.userText);
+
   // Stage 2 — orchestrator main-loop routing decision (DEFAULT-ON). When
   // ON, `kernel.think()` runs the inviolable/policy/drift rails AND the
   // answer generation in ONE call, so we MUST NOT also run the separate
@@ -2075,7 +2240,7 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // call-site that turns the previously-dark composer ON for a live turn.
   // Best-effort + fail-safe (never throws into the turn); inert until the
   // composer flag is enabled and a turn routes to a non-fast strategy.
-  body = await withCognitiveEnrichment(c, gate.ctx, body);
+  body = await withCognitiveEnrichment(c, gate.ctx, body, turnStakes.composerStakes);
 
   // LP-15 / LP-30 — privacy-router consult BEFORE the orchestrator (the LLM
   // provider boundary). DENIED (restricted data + no local model) refuses
@@ -2137,7 +2302,7 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
       // ON; the proven persona path (`handleTurnJson`) runs UNCHANGED when
       // OFF. Idempotency caching wraps whichever handler runs.
       const response = orchestratorOn
-        ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx)
+        ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx, turnStakes)
         : await handleTurnJson(c, body, gate.ctx);
       // Cache only successful 2xx — error responses must be retryable.
       if (response.status >= 200 && response.status < 300) {
@@ -2168,13 +2333,13 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
       return withTurnMemoryObserve(c, gate.ctx, body.userText, response);
     }
     const jsonResponse = orchestratorOn
-      ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx)
+      ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx, turnStakes)
       : await handleTurnJson(c, body, gate.ctx);
     // MEM-02 — observe the exchange into cognitive memory (fail-safe).
     return withTurnMemoryObserve(c, gate.ctx, body.userText, jsonResponse);
   }
   return orchestratorOn
-    ? handleTurnSseViaOrchestrator(c, body, gate.ctx)
+    ? handleTurnSseViaOrchestrator(c, body, gate.ctx, turnStakes)
     : handleTurnSse(c, body, gate.ctx);
 }));
 

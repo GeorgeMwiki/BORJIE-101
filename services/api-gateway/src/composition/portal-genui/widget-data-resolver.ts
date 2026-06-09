@@ -151,14 +151,82 @@ const READ_ROW_LIMIT = 100;
  * carry `tenant_id` + `created_at` are listed; every other known resource
  * degrades to empty rows. Each value is a bare, allow-listed table name (never
  * interpolated from user input) so the SELECT can never be steered off-list.
+ *
+ * Exported (read-only) so a CI coverage test can assert that every
+ * `PortalQueryResource` either has a mapping here OR is in the documented
+ * `INTENTIONALLY_UNMAPPED_RESOURCES` set — so a newly-added resource can never
+ * silently degrade to empty rows without an explicit decision.
  */
-const RESOURCE_TABLE: Partial<Record<PortalQueryResource, string>> = {
+export const RESOURCE_TABLE: Partial<Record<PortalQueryResource, string>> = {
   licences: 'licences',
   employees: 'employees',
+  // production_records orders by `ts` (its only timestamp column), NOT
+  // created_at — see RESOURCE_ORDER_BY below. Ordering by created_at would
+  // reference a non-existent column and degrade every read to empty rows.
   production_records: 'production_records',
   reminders: 'reminders',
   mining_tasks: 'mining_tasks',
+  // Mining marketplace + offtake — all VERIFIED to carry tenant_id +
+  // created_at (marketplace.schema.ts / marketplace-bids.schema.ts /
+  // offtake-agreements.schema.ts).
+  marketplace_listings: 'marketplace_listings',
+  marketplace_bids: 'marketplace_bids',
+  offtake_agreements: 'offtake_agreements',
+  // Safety incidents — safety-csr.schema.ts (tenant_id + created_at).
+  incidents: 'incidents',
+  // Asset register — assets-fleet.schema.ts (tenant_id + created_at).
+  assets: 'assets',
+  // Documents → the physical document_uploads table (documents.schema.ts;
+  // tenant_id + created_at). The `documents` resource name is the logical
+  // capability; the physical table is document_uploads.
+  documents: 'document_uploads',
+  // Ledger entries — payments-ledger.schema.ts (tenant_id + created_at).
+  // Read-only render path; RLS + the tenant predicate keep it isolated, and
+  // the money WRITE path is unaffected (this never inserts/posts).
+  ledger_entries: 'ledger_entries',
+  // INTENTIONALLY UNMAPPED — see INTENTIONALLY_UNMAPPED_RESOURCES below.
 };
+
+/**
+ * Default ORDER-BY column for the bounded read. Almost every mapped table
+ * carries `created_at`, so that is the fallback; a table whose recency column
+ * has a different name is listed in {@link RESOURCE_ORDER_BY}. Like the table
+ * names above, every value here is a bare, allow-listed column constant — never
+ * interpolated from user input — so the SELECT can never be steered off-column.
+ */
+const DEFAULT_ORDER_BY_COLUMN = 'created_at';
+
+/**
+ * Per-resource ORDER-BY override for tables whose recency column is NOT
+ * `created_at`. `production_records` has only a `ts` timestamp (its sole
+ * timestamp column — see `production-sales.schema.ts`); ordering it by
+ * `created_at` would reference a non-existent column and degrade EVERY read to
+ * empty rows. A resource absent here uses {@link DEFAULT_ORDER_BY_COLUMN}.
+ *
+ * Exported (read-only) so the colocated coverage test can assert the override
+ * is in lock-step with the schema.
+ */
+export const RESOURCE_ORDER_BY: Partial<Record<PortalQueryResource, string>> = {
+  production_records: 'ts',
+};
+
+/**
+ * Resources that are DELIBERATELY unmapped (no surviving physical table that
+ * carries both `tenant_id` and `created_at` today). They degrade to honest
+ * empty rows — never a 500. `tab_records` is resolved separately through the
+ * record store, so it is listed here too. The CI coverage test asserts the
+ * union of `RESOURCE_TABLE` keys + this set covers every `PortalQueryResource`,
+ * so a NEW resource cannot silently fall through to empty without a decision.
+ */
+export const INTENTIONALLY_UNMAPPED_RESOURCES: ReadonlySet<PortalQueryResource> =
+  new Set<PortalQueryResource>([
+    'royalty_returns',
+    'treasury_accounts',
+    'compliance_obligations',
+    'shipments',
+    'subsidiaries',
+    'tab_records',
+  ]);
 
 // ────────────────────────────────────────────────────────────────────
 // READ-ONLY tool allow-set. The vetted `PORTAL_TOOL_IDS` are a MIX of
@@ -230,6 +298,7 @@ export function createWidgetDataResolver(
   /** A mapped estate domain → a bounded, tenant-scoped SELECT. */
   async function resolveMappedTable(
     table: string,
+    orderByColumn: string,
     ctx: WidgetResolveContext,
   ): Promise<WidgetData> {
     if (!query) {
@@ -238,10 +307,11 @@ export function createWidgetDataResolver(
     }
     try {
       const rows = await query.query<Record<string, unknown>>(
-        // `table` is an allow-listed constant from RESOURCE_TABLE — never user
-        // input — so the identifier interpolation is safe. The tenant predicate
-        // is parameterised; RLS FORCE is the DB-side backstop.
-        `SELECT * FROM public.${table} WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2`,
+        // `table` + `orderByColumn` are allow-listed constants from
+        // RESOURCE_TABLE / RESOURCE_ORDER_BY — never user input — so the
+        // identifier interpolation is safe. The tenant predicate is
+        // parameterised; RLS FORCE is the DB-side backstop.
+        `SELECT * FROM public.${table} WHERE tenant_id = $1 ORDER BY ${orderByColumn} DESC LIMIT $2`,
         [ctx.tenantId, READ_ROW_LIMIT],
       );
       return { rows: rows.map((r) => ({ ...r })) };
@@ -277,7 +347,12 @@ export function createWidgetDataResolver(
       // Known-but-unmapped — honest empty rows, never a 500.
       return { rows: [] };
     }
-    return resolveMappedTable(table, ctx);
+    // Resolve the recency column: the per-resource override when present
+    // (production_records → `ts`), else the `created_at` default.
+    const orderByColumn =
+      RESOURCE_ORDER_BY[resource as PortalQueryResource] ??
+      DEFAULT_ORDER_BY_COLUMN;
+    return resolveMappedTable(table, orderByColumn, ctx);
   }
 
   async function resolveTool(

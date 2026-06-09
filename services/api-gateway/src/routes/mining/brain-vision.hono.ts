@@ -8,21 +8,26 @@
  *  - The mobile pipeline already calls
  *    `POST /api/v1/mining/brain/vision-turn` per the contract in
  *    `apps/workforce-mobile/src/photo-advisor/types.ts`.
- *  - The existing Brain orchestrator (`@borjie/ai-copilot`) does not yet
- *    expose a multimodal turn API. This endpoint validates the request
- *    fully and returns 503 BACKEND_VISION_UNAVAILABLE with a structured
- *    `BRAIN_MULTIMODAL_NOT_WIRED` code so the next agent / human can
- *    close the gap on the orchestrator side without changing the
- *    transport contract.
+ *  - The Brain orchestrator (`@borjie/ai-copilot`) DOES expose a multimodal
+ *    turn API: `Brain.orchestrator.startThread` accepts + validates
+ *    `mediaAttachments` (see `buildMultimodalUserMessage`). The only missing
+ *    seam is the composition-root injection: the gateway must call
+ *    `setBrainResolver(ctx => …)` so this router can resolve a per-tenant
+ *    multimodal Brain. Until that injection lands, `brainResolver` is null
+ *    and the handler short-circuits 503 `BACKEND_VISION_UNAVAILABLE` /
+ *    `BRAIN_NOT_CONFIGURED` — the request is validated fully so a misconfig
+ *    never silently 200s. The wiring TODO is tracked for the composition
+ *    root (service-registry.ts); see needsAttention in the brain-routes pass.
  *
  * Contract enforcement (per the photo-advisor agent spec):
- *  - 200 — success (currently unreachable until orchestrator is wired)
+ *  - 200 — success (once `setBrainResolver` is wired at the composition root)
  *  - 400 — invalid body (missing image / prompt, bad mime, etc.)
  *  - 401 — no auth (via shared authMiddleware)
  *  - 413 — image > 10 MB
  *  - 429 — per-tenant + per-actor rate limit
- *  - 503 — `BACKEND_VISION_UNAVAILABLE` when vision flag OFF or
- *          when orchestrator multimodal API is not yet wired
+ *  - 503 — `BACKEND_VISION_UNAVAILABLE` when the vision flag is OFF
+ *          (`VISION_CAPABILITY_DISABLED`) or the brain resolver is not yet
+ *          injected (`BRAIN_NOT_CONFIGURED`)
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';

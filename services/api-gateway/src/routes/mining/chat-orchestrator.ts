@@ -116,6 +116,11 @@ export interface OrchestratorInput {
  */
 export async function* runChatOrchestrator(
   input: OrchestratorInput,
+  // Optional cancellation signal — the mining /chat SSE route aborts it on
+  // client disconnect so the kernel forwards it onto the provider request and
+  // in-flight token generation stops (mfr-3). Backward-compatible: callers that
+  // omit it behave exactly as before.
+  options?: { signal?: AbortSignal },
 ): AsyncGenerator<ChatSseEvent, void, unknown> {
   // No user-selected mode (WS-0): the brain classifies the persona lens(es)
   // from the message itself and blends them. The lens router is deterministic
@@ -199,6 +204,7 @@ export async function* runChatOrchestrator(
     yield* runChatViaOrchestrator(input, {
       lensSelection,
       corpusChunks,
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
     return;
   }
@@ -396,6 +402,7 @@ async function* runChatViaOrchestrator(
   ctx: {
     readonly lensSelection: ReturnType<typeof classifyLenses>;
     readonly corpusChunks: ReadonlyArray<CorpusEvidence>;
+    readonly signal?: AbortSignal;
   },
 ): AsyncGenerator<ChatSseEvent, void, unknown> {
   // Resolve the live SovereignBrain for this tenant. Dynamic import keeps
@@ -427,7 +434,7 @@ async function* runChatViaOrchestrator(
       // CLAUDE.md bilingual single-language — thread the active locale so
       // the orchestrator's terminal directive renders single-language.
       language: input.language === 'sw' ? 'sw' : 'en',
-    });
+    }, ctx.signal ? { signal: ctx.signal } : undefined);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     yield { type: 'error', source: 'master-brain', message };

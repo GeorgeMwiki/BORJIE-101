@@ -39,6 +39,100 @@ type JuniorDeps = Parameters<typeof createAuditorAgent>[0];
 
 const logger = createLogger('chat-response-gate');
 
+// ─── Stage-2 evidence-existence verifier (optional, DB-backed) ──────
+//
+// Stage-1 only checks that the response cites >=1 evidence_id. Stage-2
+// adds the cheap, load-bearing SQL existence check: every cited
+// evidence_id MUST resolve to a real `intelligence_corpus_chunks` row
+// for the tenant (or the global `tenant_id IS NULL` corpus). A cited id
+// that does NOT exist is a FABRICATED citation — the gate rejects it
+// with `EVIDENCE_INVALID` so a hallucinated `[evidence:...]` can no
+// longer pass enforcement just by matching the regex shape.
+//
+// The verifier is INJECTED by the composition root (it owns the DB
+// handle). When unset the gate degrades to Stage-1-only — exactly the
+// prior behaviour — so this is purely additive and never breaks a turn.
+
+export interface EvidenceExistenceVerifier {
+  /**
+   * Return the subset of `evidenceIds` that do NOT exist as a corpus
+   * chunk for this tenant (missing/404 ids). An empty array means every
+   * cited id is real. MUST be tenant-scoped + RLS-safe + read-only.
+   * MUST NOT throw — return `[]` on any infra fault (fail-open on the
+   * existence layer; the Stage-1 + ethics gates still apply).
+   */
+  findMissingEvidenceIds(args: {
+    readonly tenantId: string;
+    readonly evidenceIds: readonly string[];
+  }): Promise<readonly string[]>;
+}
+
+let evidenceVerifier: EvidenceExistenceVerifier | null = null;
+
+/**
+ * Wire (or clear) the Stage-2 evidence-existence verifier. Called once
+ * by the composition root with a DB-backed verifier; tests pass a
+ * deterministic stub or `null` to exercise Stage-1-only behaviour.
+ */
+export function setEvidenceExistenceVerifier(
+  verifier: EvidenceExistenceVerifier | null,
+): void {
+  evidenceVerifier = verifier;
+}
+
+/**
+ * Narrow read port — the SAME `query(sql, params)` boundary the
+ * portal-genui / widget-data resolvers consume from Drizzle's
+ * `$client.unsafe`. Re-declared here so this gate depends on nothing
+ * heavier than the signature (no `@borjie/database` import).
+ */
+export interface CorpusQueryPort {
+  query<Row = Record<string, unknown>>(
+    sql: string,
+    params?: ReadonlyArray<unknown>,
+  ): Promise<ReadonlyArray<Row>>;
+}
+
+/**
+ * Build a DB-backed `EvidenceExistenceVerifier` over the
+ * `intelligence_corpus_chunks` table. An id is "valid" when a chunk with
+ * that id exists for the tenant OR in the global (`tenant_id IS NULL`)
+ * Borjie corpus. The query is tenant-scoped + RLS-safe (RLS FORCE binds
+ * `app.current_tenant_id`) + read-only + parameterised (no interpolation
+ * of cited ids). Fail-open: any infra fault returns `[]` (no missing
+ * ids) so a DB blip degrades to Stage-1-only rather than blocking.
+ */
+export function createCorpusEvidenceVerifier(
+  port: CorpusQueryPort,
+): EvidenceExistenceVerifier {
+  return {
+    async findMissingEvidenceIds({ evidenceIds }) {
+      const ids = Array.from(new Set(evidenceIds.filter((s) => s.length > 0)));
+      if (ids.length === 0) return [];
+      try {
+        // Parameterised ANY($1) membership probe. The global corpus
+        // (tenant_id IS NULL) is shared by every tenant, so a chunk is
+        // visible when it is global OR belongs to the calling tenant —
+        // RLS already restricts the tenant rows; the explicit OR admits
+        // the global corpus that RLS would otherwise hide.
+        const rows = await port.query<{ id: string }>(
+          `SELECT id FROM public.intelligence_corpus_chunks
+             WHERE id = ANY($1::text[])
+               AND (tenant_id IS NULL OR tenant_id = current_setting('app.current_tenant_id', true))`,
+          [ids],
+        );
+        const present = new Set(rows.map((r) => r.id));
+        return ids.filter((id) => !present.has(id));
+      } catch (err) {
+        logger.warn('corpus evidence verifier query failed (fail-open)', {
+          err: err instanceof Error ? err.message : String(err),
+        });
+        return [];
+      }
+    },
+  };
+}
+
 // Stub a JuniorDeps that never reaches Stage 2 — we short-circuit on
 // the evidence-empty case which is decided in Stage 1 before any
 // Claude call. The stub Claude throws if anyone ever reaches it so a
@@ -152,11 +246,18 @@ export interface ChatResponseGateVerdict {
   readonly evidenceCount: number;
   readonly evidenceIds: readonly string[];
   readonly auditLogId: string;
-  readonly evidenceWarning: 'no_evidence_cited' | null;
+  readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
   readonly latencyMs: number;
   /**
-   * True if the gate raised a violation — empty evidence chain OR a
-   * high/critical ethics-framework dark-pattern detection.
+   * The cited evidence_ids that did NOT resolve to a real corpus chunk
+   * for the tenant (Stage-2). Empty when the verifier is unwired or
+   * every cited id exists.
+   */
+  readonly invalidEvidenceIds: readonly string[];
+  /**
+   * True if the gate raised a violation — empty evidence chain, a
+   * FABRICATED (non-existent) cited evidence_id, OR a high/critical
+   * ethics-framework dark-pattern detection.
    */
   readonly violation: boolean;
   /**
@@ -219,6 +320,30 @@ export async function auditChatResponse(
     });
   }
 
+  // Stage-2 — evidence-existence verification. When the verifier is wired AND
+  // the response cited >=1 evidence_id, assert every cited id resolves to a
+  // real corpus chunk for the tenant. A non-existent (fabricated) id is a
+  // hard reject (`EVIDENCE_INVALID`). The verifier is itself fail-open on
+  // infra faults, so a DB blip degrades to Stage-1-only rather than blocking.
+  let invalidEvidenceIds: readonly string[] = [];
+  if (evidenceVerifier && evidenceIds.length > 0) {
+    try {
+      invalidEvidenceIds = await evidenceVerifier.findMissingEvidenceIds({
+        tenantId: input.tenantId,
+        evidenceIds,
+      });
+    } catch (err) {
+      // Defence-in-depth — the port contract says never throw, but a
+      // contract violation must NOT crash the chat turn.
+      logger.warn('evidence-existence verifier threw (non-fatal)', {
+        err: err instanceof Error ? err.message : String(err),
+        tenantId: input.tenantId,
+        threadId: input.threadId,
+      });
+    }
+  }
+  const evidenceInvalid = invalidEvidenceIds.length > 0;
+
   // Ethics-framework screen — composes the dark-pattern detector +
   // transparency principles over the AI's actual response copy. Pure +
   // best-effort; a high/critical dark pattern recommends a BLOCK which
@@ -227,17 +352,26 @@ export async function auditChatResponse(
 
   const latencyMs = Date.now() - startedAt;
   const evidenceEmpty = evidenceIds.length === 0;
-  const evidenceWarning = evidenceEmpty ? ('no_evidence_cited' as const) : null;
+  const evidenceWarning: ChatResponseGateVerdict['evidenceWarning'] =
+    evidenceEmpty
+      ? 'no_evidence_cited'
+      : evidenceInvalid
+        ? 'evidence_invalid'
+        : null;
 
   // Base verdict from the evidence-chain auditor (Stage-1).
   const auditorVerdict: ChatResponseGateVerdict['verdict'] = verdictOutput
     ? verdictOutput.verdict
     : 'approve';
   // Ethics escalation: a `block` recommendation forces a reject so the
-  // existing HARD-mode enforcement withholds the manipulative answer.
+  // existing HARD-mode enforcement withholds the manipulative answer. A
+  // fabricated citation (Stage-2) is ALSO a hard reject — a confident answer
+  // citing evidence that does not exist is worse than one citing none.
   const verdict: ChatResponseGateVerdict['verdict'] =
-    ethics.recommendation === 'block' ? 'reject' : auditorVerdict;
-  const violation = evidenceEmpty || ethics.violation;
+    ethics.recommendation === 'block' || evidenceInvalid
+      ? 'reject'
+      : auditorVerdict;
+  const violation = evidenceEmpty || evidenceInvalid || ethics.violation;
   const auditLogId = verdictOutput
     ? verdictOutput.audit_log_id
     : `audit_${startedAt}_${recommendationId}`;
@@ -251,6 +385,7 @@ export async function auditChatResponse(
     user_id: input.userId,
     persona_id: input.personaId,
     evidence_count: evidenceIds.length,
+    invalid_evidence_count: invalidEvidenceIds.length,
     verdict,
     latency_ms: latencyMs,
     tokens_used: input.tokensUsed ?? null,
@@ -261,6 +396,8 @@ export async function auditChatResponse(
   };
   if (ethics.violation) {
     logger.warn('chat response gate: ethics dark-pattern violation', logPayload);
+  } else if (evidenceInvalid) {
+    logger.warn('chat response auditor: evidence_invalid', logPayload);
   } else if (evidenceEmpty) {
     logger.warn('chat response auditor: no_evidence_cited', logPayload);
   } else {
@@ -274,6 +411,7 @@ export async function auditChatResponse(
     auditLogId,
     evidenceWarning,
     latencyMs,
+    invalidEvidenceIds,
     violation,
     ethics,
   };

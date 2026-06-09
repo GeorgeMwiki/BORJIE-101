@@ -71,6 +71,16 @@ import {
 // redaction ("the streaming consumer has already seen raw deltas"), so the IP
 // strip MUST happen at this gateway seam — not one layer down.
 import { guardKernelStream } from '../composition/kernel-event-projector.js';
+// IP-EGRESS (CLOSE-G) — the NON-streaming /think JSON path must pass model prose
+// through the SAME fail-closed egress firewall the /stream chokepoint already
+// applies. Without it, decision.text/decision.hedge egress on /think with only
+// the policy gate's PII+citation redaction — never the IP-strip classes
+// (persona / prompt-leak / canary / secret / cross-tenant) that getEgressFilter
+// enforces. We also project the kernel ProvenanceRecord to a render-safe subset
+// so internal mechanic ids (sensorId / modelId / toolName / cohortFingerprints /
+// hashes) never reach the wire — mirroring the projectKernelEvent done-frame
+// stripping rules.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
 import pino from 'pino';
 
 import { withSecurityEvents } from '@borjie/observability';
@@ -89,6 +99,107 @@ const logger = pino({
  */
 const GENERIC_STREAM_ERROR =
   'The assistant is temporarily unavailable. Please try again.';
+
+/** Fail-closed placeholder substituted when the egress guard wrapper throws. */
+const EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * IP-EGRESS (CLOSE-G) — run one model-generated text span through the
+ * fail-closed egress filter before it leaves the /think JSON path. The
+ * underlying filter already redacts on any internal fault; this wrapper also
+ * try/catches so a construction fault fails closed to `[redacted]` rather than
+ * leaking the raw model text. Empty / non-string spans pass through unchanged.
+ */
+function guardThinkText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'jarvis-router-factory',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'jarvis /think: egress guard threw — failing closed (redacting span)',
+    );
+    return EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * IP-EGRESS (CLOSE-G) — project the kernel ProvenanceRecord to the render-safe
+ * subset the client legitimately needs (thoughtId / threadId / timing /
+ * confidence-adjacent scalars + a coarse tool count), dropping the internal
+ * mechanic fields the projectKernelEvent done-frame also strips: sensorId,
+ * modelId, per-tool toolName, cohortFingerprints, and the input/output hashes.
+ * Returns a plain object (never mutates the source provenance).
+ */
+function projectProvenanceForEgress(
+  provenance: Record<string, unknown> | null | undefined,
+): Record<string, unknown> | undefined {
+  if (!provenance || typeof provenance !== 'object') return undefined;
+  const toolCalls = Array.isArray(provenance.toolCallSummaries)
+    ? provenance.toolCallSummaries
+    : [];
+  return {
+    thoughtId: provenance.thoughtId,
+    threadId: provenance.threadId,
+    scopeKind: provenance.scopeKind,
+    tier: provenance.tier,
+    stakes: provenance.stakes,
+    cacheHit: provenance.cacheHit,
+    producedAt: provenance.producedAt,
+    latencyMs: provenance.latencyMs,
+    toolCallCount: toolCalls.length,
+    ...(provenance.debateRoundsCompleted !== undefined
+      ? { debateRoundsCompleted: provenance.debateRoundsCompleted }
+      : {}),
+    ...(provenance.debateConverged !== undefined
+      ? { debateConverged: provenance.debateConverged }
+      : {}),
+  };
+}
+
+/**
+ * IP-EGRESS (CLOSE-G) — return a client-safe projection of a kernel
+ * BrainDecision for the /think JSON path: model prose (text / hedge / refusal
+ * reason) routed through the fail-closed egress filter, and provenance reduced
+ * to the render-safe subset. Never mutates the source decision (immutability).
+ */
+function projectDecisionForEgress(
+  decision: unknown,
+  tenantId: string,
+): unknown {
+  if (!decision || typeof decision !== 'object') return decision;
+  const d = decision as Record<string, unknown>;
+  const provenance = projectProvenanceForEgress(
+    d.provenance as Record<string, unknown> | undefined,
+  );
+  if (d.kind === 'answer') {
+    return {
+      ...d,
+      text: guardThinkText(d.text as string, tenantId),
+      ...(provenance ? { provenance } : {}),
+    };
+  }
+  if (d.kind === 'softened') {
+    return {
+      ...d,
+      text: guardThinkText(d.text as string, tenantId),
+      hedge: guardThinkText(d.hedge as string, tenantId),
+      ...(provenance ? { provenance } : {}),
+    };
+  }
+  if (d.kind === 'refusal') {
+    return {
+      ...d,
+      reason: guardThinkText(d.reason as string, tenantId),
+      ...(provenance ? { provenance } : {}),
+    };
+  }
+  return provenance ? { ...d, provenance } : d;
+}
 
 export interface JarvisRouterConfig {
   /** Surface drives default persona selection. */
@@ -456,6 +567,16 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
       }
     }
 
+    // IP-EGRESS (CLOSE-G) — the /think JSON path is the lone brain-output route
+    // that historically returned `decision` verbatim. Route model prose through
+    // the fail-closed egress firewall and project provenance to a render-safe
+    // subset BEFORE serialising, mirroring the /stream chokepoint. The egress
+    // tenant scopes the filter exactly like /stream (platform scope → '' makes
+    // the cross-tenant strip inert; the prose / persona / canary / secret strips
+    // still apply).
+    const egressTenantId = scope.kind === 'tenant' ? scope.tenantId : '';
+    const safeDecision = projectDecisionForEgress(decision, egressTenantId);
+
     return c.json({
       success: true,
       surface: config.surface,
@@ -464,7 +585,7 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
         displayName: personalised.displayName,
         firstPersonNoun: personalised.firstPersonNoun,
       },
-      decision,
+      decision: safeDecision,
     });
   }));
 
@@ -562,6 +683,23 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
     };
 
     return streamSSE(c, async (stream) => {
+      // SSE RESILIENCE (mfr-1) — register a disconnect hook so a client that
+      // drops mid-turn stops the kernel iterator promptly. Hono's streamSSE
+      // swallows write errors, so without this the for-await loop over
+      // guardKernelStream keeps pulling kernel events (and extra model work)
+      // after the reader is gone. We flip the signal on abort and break the
+      // loop at its top — matching brain-teach's established pattern. (Threading
+      // the signal all the way into the provider HTTP call to cancel upstream
+      // token generation is a separate, larger enhancement — see needsAttention.)
+      const abort = new AbortController();
+      stream.onAbort(() => abort.abort());
+      // mfr-1 — thread the disconnect signal into the kernel so upstream
+      // provider token generation can cancel, not just stop being drained
+      // here. The `abort.signal.aborted` break below remains the guaranteed
+      // gateway-side floor; this is the upstream-cancellation enhancement.
+      // See needsAttention for the kernel signature that must accept +
+      // forward it to the provider stream call.
+      const kernelOpts = { signal: abort.signal };
       try {
         await withKernelSpan(
           `tho_stream_${body.threadId}`,
@@ -589,9 +727,13 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
             const egressTenantId =
               scope.kind === 'tenant' ? scope.tenantId : '';
             for await (const ev of guardKernelStream(
-              sov.kernel.thinkStream(req),
+              sov.kernel.thinkStream(req, kernelOpts),
               egressTenantId,
             )) {
+          // SSE RESILIENCE (mfr-1) — client disconnected: stop consuming the
+          // kernel stream so its async-generator cleanup runs and no further
+          // events are processed for a connection no one reads.
+          if (abort.signal.aborted) break;
           if (ev.kind === 'turn_start') {
             await stream.writeSSE({
               event: 'turn_start',

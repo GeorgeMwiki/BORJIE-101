@@ -109,6 +109,14 @@ import {
   type MemorySnapshot,
 } from '../services/advisor-memory/index.js';
 import { getDb } from '../composition/db-client.js';
+// CONFIDENCE CALIBRATION — the same online-ACI conformal bridge the mining/chat
+// surface uses. The teaching `message_chunk.confidence` was previously a
+// fabricated constant (0.95); instead we derive a REAL raw signal (the judge's
+// winner score when a multi-model debate ran, else a grounded/ungrounded prior)
+// and re-grade it against the tenant's calibrated alpha. Honest cold-start: any
+// DB / loop failure (or no persisted state yet) degrades to the raw float
+// snapped to the unshifted tiers — never throws past this boundary.
+import { applyChatConformalConfidence } from '../composition/conformal/chat-conformal-confidence.js';
 // SEC-4 — IP-egress output firewall. The teaching stream's user-visible prose
 // passes the FAIL-CLOSED guard before egress so internal cognition / prompts /
 // architecture / secrets / canary / cross-tenant ids never leak. DEFAULT-ON;
@@ -1109,6 +1117,38 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     }
     let emitted = 0;
     const total = chunks.length;
+
+    // CONFIDENCE CALIBRATION — replace the previously-fabricated 0.95 constant
+    // with a calibrated confidence derived from a REAL raw signal, then re-grade
+    // it against the tenant's online-ACI alpha (the SAME conformal bridge the
+    // mining/chat surface uses). Raw signal:
+    //   • multi-model debate ran + verified → the judge's score for the winning
+    //     provider (a genuine 0..1 quality signal, never fabricated),
+    //   • otherwise → a conservative grounded/ungrounded prior (an answer that
+    //     cites ≥1 evidence id earns a higher prior than one with none).
+    // The calibration degrades honestly (no throw) to the unshifted tiers when
+    // there is no calibrated state yet — so this is never an invented number.
+    const debateWinnerScore =
+      debateResult && debateResult.verified
+        ? debateResult.scores.find(
+            (s) => s.provider === debateResult!.winner.provider,
+          )?.score
+        : undefined;
+    const rawConfidence =
+      typeof debateWinnerScore === 'number'
+        ? debateWinnerScore
+        : ids.length > 0
+          ? 0.7
+          : 0.55;
+    const calibrated = await applyChatConformalConfidence({
+      db: memoryDb,
+      tenantId,
+      rawConfidence,
+      logger: {
+        warn: (obj, msg) => logger.warn(obj, msg ?? 'brain-teach conformal'),
+      },
+    });
+    const turnConfidence = calibrated.confidence;
     while (!abort.signal.aborted) {
       const next = adaptive.pull();
       if (next === null) break;
@@ -1121,7 +1161,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           chunkNo: next.chunkNo,
           batched: next.batched,
           evidence_ids: isLast ? ids : [],
-          confidence: isLast ? 0.95 : null,
+          confidence: isLast ? turnConfidence : null,
           done: false,
         }),
       });
@@ -1209,7 +1249,16 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     //                   suggestion (`authorized:false` + `reason`) so the
     //                   FE shows "suggested — needs confirmation".
     // Fail CLOSED on any gate error (the gate returns authorized:false).
-    let autoAuthOutcome: 'authorized' | 'suggested' | null = null;
+    //   - 'authorized'  → gate passed AND the audit row was durably appended.
+    //   - 'suggested'   → gate downgraded to needs-confirmation.
+    //   - 'audit_failed'→ gate passed but the audit append threw, so the
+    //                     `auto_authorized` frame was SUPPRESSED (fail-closed).
+    //                     The `done` summary MUST reflect that the authorization
+    //                     did not durably land — never report 'authorized' while
+    //                     the frame is suppressed (mfr-7).
+    //   - null          → no auto-authorization tag was emitted.
+    let autoAuthOutcome: 'authorized' | 'suggested' | 'audit_failed' | null =
+      null;
     if (autoAuthResult.autoAuthorized) {
       const payload = autoAuthResult.autoAuthorized;
       const scope: ScopeContext = {
@@ -1228,17 +1277,54 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       if (decision.authorized) {
         // Append the audit row BEFORE the frame leaves the gateway so the
         // authorization is durably recorded the instant the FE sees it.
-        await appendAutoAuthorizedAudit({
-          db: memoryDb,
-          tenantId,
-          userId,
-          action: payload.action,
-          rationale: payload.rationale,
-          payload: payload.payload,
-          modelVersion: winningProvider,
-          logger,
-        });
-        autoAuthOutcome = 'authorized';
+        //
+        // RESILIENCE (mfr-7) — this DB append runs INSIDE the streamSSE
+        // callback. An un-caught throw here (transient DB fault) would reject
+        // out of the callback and drop the whole stream with NO terminal frame,
+        // so the client hangs. Wrap it: on failure we log the raw cause
+        // server-side, emit a structured `error` frame the client can render,
+        // and DO NOT emit the `auto_authorized` frame (the authorization was
+        // never durably recorded — fail closed). The rest of the stream
+        // (board, metrics, suggestions) still completes + reaches `done`.
+        let auditAppended = true;
+        try {
+          await appendAutoAuthorizedAudit({
+            db: memoryDb,
+            tenantId,
+            userId,
+            action: payload.action,
+            rationale: payload.rationale,
+            payload: payload.payload,
+            modelVersion: winningProvider,
+            logger,
+          });
+        } catch (err) {
+          auditAppended = false;
+          logger.error(
+            {
+              wiring: 'auto-authorized-audit',
+              action: payload.action,
+              tenantId,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            'brain-teach: auto-authorized audit append threw — emitting error frame (not authorizing)',
+          );
+          await stream.writeSSE({
+            event: 'error',
+            data: JSON.stringify({
+              kind: 'auto_authorized_audit_failed',
+              message:
+                'The action could not be authorized right now. Please try again.',
+              retryable: true,
+              at: new Date().toISOString(),
+            }),
+          });
+        }
+        // mfr-7 — keep the terminal `done` summary consistent with the
+        // SUPPRESSED `auto_authorized` frame. When the audit append threw the
+        // frame is not emitted (fail-closed), so the outcome MUST NOT claim
+        // 'authorized' — it reports 'audit_failed' instead.
+        autoAuthOutcome = auditAppended ? 'authorized' : 'audit_failed';
 
         // Wave CHAT-ACTIONS — actually EXECUTE the authorized action when
         // its verb is in the executor's SAFE registry (reminders today).
@@ -1250,7 +1336,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         // SSE stream (the authorization itself already passed the gate).
         let executed = false;
         let execResult: unknown = null;
-        if (memoryDb && isSafeVerb(payload.action)) {
+        if (memoryDb && auditAppended && isSafeVerb(payload.action)) {
           try {
             // brain-teach bypasses databaseMiddleware, so the pooled
             // connection has no app.current_tenant_id bound. Bind it with
@@ -1300,18 +1386,24 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           }
         }
 
-        await stream.writeSSE({
-          event: 'auto_authorized',
-          data: JSON.stringify({
-            // IP-EGRESS (CLOSE-G) — guard the model-authored free-text leaves
-            // (rationale / action / nested payload strings) before emit.
-            payload: sanitizeAutoAuthorizedPayload(payload, tenantId),
-            authorized: true,
-            executed,
-            ...(execResult ? { result: execResult } : {}),
-            at: new Date().toISOString(),
-          }),
-        });
+        // RESILIENCE (mfr-7) — only present the authorization to the FE when
+        // the audit row was durably appended. If the append threw we already
+        // emitted an `error` frame above; suppress the `auto_authorized` frame
+        // so the client never sees an authorization that was not recorded.
+        if (auditAppended) {
+          await stream.writeSSE({
+            event: 'auto_authorized',
+            data: JSON.stringify({
+              // IP-EGRESS (CLOSE-G) — guard the model-authored free-text leaves
+              // (rationale / action / nested payload strings) before emit.
+              payload: sanitizeAutoAuthorizedPayload(payload, tenantId),
+              authorized: true,
+              executed,
+              ...(execResult ? { result: execResult } : {}),
+              at: new Date().toISOString(),
+            }),
+          });
+        }
       } else {
         // Downgrade: route the same payload through the auto_authorized
         // frame but flagged NOT authorized, with the deny reason. The FE
@@ -1491,6 +1583,14 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // routine / aversion in the persistent advisor memory. Never
     // blocks the SSE — failures are swallowed inside the recorder.
     if (memoryDb) {
+      // IMMUTABILITY (mfr-11) — build the observation in ONE immutable
+      // expression. The earlier code seeded a base object then Object.assign-
+      // mutated it twice, which violates the immutability hard rule (and risks
+      // an aliased caller seeing a half-built object). Compute the optional
+      // routine / rejected-recommendation fields first, then spread them into a
+      // single fresh literal — no mutation of a live object.
+      const routine = detectRoutineAction(message);
+      const rejected = detectRejectedRecommendation(message);
       const observation = {
         tenantId,
         userId,
@@ -1501,18 +1601,16 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         questionKind: classifyQuestionKind(message),
         normalizedQuestion: message,
         engagement: inferEngagementHint(history, false),
+        ...(routine
+          ? {
+              detectedRoutineAction: routine.action,
+              ...(routine.dom !== undefined
+                ? { routineDayOfMonth: routine.dom }
+                : {}),
+            }
+          : {}),
+        ...(rejected ? { rejectedRecommendationKind: rejected } : {}),
       } as Parameters<typeof recordObservation>[1];
-      const routine = detectRoutineAction(message);
-      if (routine) {
-        Object.assign(observation, {
-          detectedRoutineAction: routine.action,
-          ...(routine.dom !== undefined ? { routineDayOfMonth: routine.dom } : {}),
-        });
-      }
-      const rejected = detectRejectedRecommendation(message);
-      if (rejected) {
-        Object.assign(observation, { rejectedRecommendationKind: rejected });
-      }
       await recordObservation(memoryDb, observation).catch(() => {});
     }
 
@@ -1539,8 +1637,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
                 autoAuthResult.autoAuthorized.action,
                 tenantId,
               ),
-              // 'authorized' when the policy gate + inviolable rules
-              // passed; 'suggested' when downgraded to needs-confirmation.
+              // 'authorized' when the policy gate + inviolable rules passed
+              // AND the audit row durably appended; 'suggested' when downgraded
+              // to needs-confirmation; 'audit_failed' when the gate passed but
+              // the audit append threw so the `auto_authorized` frame was
+              // suppressed (mfr-7 — never report authorized while suppressed).
               outcome: autoAuthOutcome,
             }
           : null,

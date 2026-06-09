@@ -23,8 +23,15 @@ import { withSecurityEvents } from '@borjie/observability';
 // ---------------------------------------------------------------------------
 
 export interface PreferencesApi {
-  getPreferences(userId: string, tenantId: string): unknown;
-  upsertPreferences(userId: string, tenantId: string, input: unknown): unknown;
+  // Async DI so a Drizzle-backed (cross-restart-durable) implementation can be
+  // injected; a synchronous return is still accepted (awaiting a value is a
+  // no-op) so the in-memory dev/test fallback keeps working unchanged.
+  getPreferences(userId: string, tenantId: string): unknown | Promise<unknown>;
+  upsertPreferences(
+    userId: string,
+    tenantId: string,
+    input: unknown,
+  ): unknown | Promise<unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,12 +74,12 @@ export function createNotificationPreferencesRouter(api: PreferencesApi): Hono {
 
   app.use('*', authMiddleware);
 
-  app.get('/', (c) => {
+  app.get('/', async (c) => {
     const auth = c.get('auth');
     if (!auth) {
       return c.json({ error: { code: 'UNAUTHORIZED', message: 'Auth required' } }, 401);
     }
-    const prefs = api.getPreferences(auth.userId, auth.tenantId);
+    const prefs = await api.getPreferences(auth.userId, auth.tenantId);
     return c.json({ data: prefs });
   });
 
@@ -100,7 +107,11 @@ export function createNotificationPreferencesRouter(api: PreferencesApi): Hono {
         400
       );
     }
-    const updated = api.upsertPreferences(auth.userId, auth.tenantId, parsed.data);
+    const updated = await api.upsertPreferences(
+      auth.userId,
+      auth.tenantId,
+      parsed.data,
+    );
     return c.json({ data: updated });
   }));
 

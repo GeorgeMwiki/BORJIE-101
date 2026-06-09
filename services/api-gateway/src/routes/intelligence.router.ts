@@ -250,7 +250,7 @@ app.post(
   withSecurityEvents({ action: 'intelligence.create', resource: 'intelligence', severity: 'info' }, async (c: any) => {
     const auth = c.get('auth');
     const body = c.req.valid('json');
-    const { memory } = getIntelligence(c);
+    const { agent, memory } = getIntelligence(c);
     if (!memory) return unavailableMemory(c);
 
     const scoped = buildScopeContext(auth, body.scope);
@@ -261,12 +261,21 @@ app.post(
 
     try {
       const thread = await memory.createThread(scoped, body.firstMessage);
+      // half-flow polish (intelligence-half-flow-break) — thread lifecycle is
+      // intentionally LIVE even when the LLM agent is not wired (documented
+      // contract: clients exercise thread lifecycle locally). But message send
+      // 503s when `agent` is null, so surface that state UP FRONT here. The FE
+      // can render the "industry voice is offline" banner immediately instead of
+      // navigating to an orphan empty thread and only discovering the offline
+      // state after a failed message POST. Additive flag — does NOT block
+      // creation (which would break the documented degrade contract).
       return c.json(
         {
           success: true,
           data: {
             threadId: thread.threadId,
             title: thread.title,
+            brainAvailable: agent !== null,
           },
         },
         201,

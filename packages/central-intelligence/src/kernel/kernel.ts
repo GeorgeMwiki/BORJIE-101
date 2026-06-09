@@ -573,8 +573,23 @@ export interface BrainKernelDeps {
   readonly semanticCacheEnabled?: boolean;
 }
 
+/**
+ * Optional per-call kernel options. `signal` is a cancellation signal an SSE
+ * surface aborts on client disconnect; the kernel forwards it onto the
+ * sensor's provider SDK request (direct-sensor path) so in-flight token
+ * generation stops. NOTE: like the `extendedThinking` honouring at line ~335,
+ * cancellation is currently forwarded on the DIRECT-sensor path only; the
+ * orchestrator-routed main-loop (default-on) still relies on the calling
+ * surface's own abort floor (the SSE route stops draining on disconnect).
+ * Threading `signal` through the orchestrator main-loop's sensor calls is the
+ * remaining follow-up for full upstream cancellation under orchestrator routing.
+ */
+export interface KernelCallOptions {
+  readonly signal?: AbortSignal;
+}
+
 export interface BrainKernel {
-  think(req: ThoughtRequest): Promise<BrainDecision>;
+  think(req: ThoughtRequest, options?: KernelCallOptions): Promise<BrainDecision>;
   /**
    * Token-level streaming counterpart to `think()`. Runs the full
    * disciplined pipeline:
@@ -589,7 +604,10 @@ export interface BrainKernel {
    * done(refusal)` with no deltas. Post-sensor refusals (drift / policy
    * block) emit deltas, then a `gate_verdict` event, then `done(refusal)`.
    */
-  thinkStream(req: ThoughtRequest): AsyncIterable<KernelStreamEvent>;
+  thinkStream(
+    req: ThoughtRequest,
+    options?: KernelCallOptions,
+  ): AsyncIterable<KernelStreamEvent>;
 }
 
 export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
@@ -606,7 +624,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
   const orchestratorRoutingEnabled = resolveOrchestratorRoutingEnabled(deps);
 
   return {
-    async think(req) {
+    async think(req, options) {
       // F10 DecisionTrace — outer per-turn trace. One trace per
       // `brain.think()` call covering the full 14-step pipeline. Each
       // step is recorded as one branch; the final outcome
@@ -1480,7 +1498,10 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         }
       } else {
         // A2b-2 wire #1 — scrubbed userMessage on the primary sensor
-        // egress.
+        // egress. The optional cancellation `signal` is forwarded here on the
+        // primary direct-sensor path so a disconnected SSE client stops
+        // provider token generation (secondary debate/synth-fallback sites are
+        // rare and intentionally not threaded).
         sensorResult = await router.call(
           {
             system,
@@ -1491,6 +1512,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
             extendedThinking: wantsThinking,
             stakes: req.stakes,
             ...(req.attachments ? { attachments: req.attachments } : {}),
+            ...(options?.signal ? { signal: options.signal } : {}),
           },
           required,
         );
@@ -2031,7 +2053,10 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
      *     → provenance → cache.set, emitting gate_verdict events for
      *     drift/policy soften+block and a confidence event before done
      */
-    async *thinkStream(req: ThoughtRequest): AsyncIterable<KernelStreamEvent> {
+    async *thinkStream(
+      req: ThoughtRequest,
+      options?: KernelCallOptions,
+    ): AsyncIterable<KernelStreamEvent> {
       // Phase E.5.1 — orchestrator-routed streaming. When wired + flag
       // on, the orchestrator's non-streaming `think()` runs and we
       // translate the final answer into the legacy `JarvisStreamEvent`
@@ -2320,6 +2345,8 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       if (hasAttachments) required.push('vision');
 
       // A2b-2 wire #1 — scrubbed userMessage on the streaming egress.
+      // Forward the optional cancellation signal so a disconnected SSE client
+      // stops provider token generation on the direct-streaming-sensor path.
       const sensorArgs: SensorCallArgs = {
         system,
         systemPrompt: system,
@@ -2329,6 +2356,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         extendedThinking: wantsThinking,
         stakes: req.stakes,
         ...(req.attachments ? { attachments: req.attachments } : {}),
+        ...(options?.signal ? { signal: options.signal } : {}),
       };
 
       const streamingSensor = pickStreamingSensor(deps.sensors, required);

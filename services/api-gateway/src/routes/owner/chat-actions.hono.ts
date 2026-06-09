@@ -62,6 +62,81 @@ import {
 
 const moduleLogger = createLogger('owner-chat-actions');
 
+// ─── Proposed-action store (in-process, TTL) ─────────────────────────
+//
+// owner-confirmaction-1 / cm-4. The brain emits a `confirmation_card`
+// carrying a bare `actionId` (no inline verb) when it wants the owner to
+// EXPLICITLY confirm a generated action. When the owner taps Confirm the
+// FE POSTs `{ actionId }` and we must resolve that id back to the
+// (verb, params) the brain intended, then run it through the SAME
+// gate→execute→audit pipeline as an inline confirm. This is GENERATIVE:
+// any brain-emitted verb is stored and replayed without a per-verb
+// hardcode.
+//
+// The store is an in-process Map keyed on `${tenantId}::${actionId}` with
+// a 10-minute TTL (a confirmation card is short-lived). The SSE parser
+// that emits the card registers the mapping via `registerProposedAction`
+// (wired at composition — see needsAttention). When no mapping exists
+// (server restarted, TTL lapsed, or the writer is not yet wired) the
+// confirm path returns an explicit 501 capability envelope rather than a
+// silent 200 `{executed:false}`, so the FE can show "this action has
+// expired or cannot be replayed" and never confuses it with an auth deny.
+
+interface ProposedAction {
+  readonly verb: string;
+  readonly params: Record<string, unknown>;
+  readonly rationale?: string;
+  readonly expiresAtMs: number;
+}
+
+const PROPOSED_ACTION_TTL_MS = 10 * 60 * 1000;
+const proposedActionStore = new Map<string, ProposedAction>();
+
+function proposedKey(tenantId: string, actionId: string): string {
+  return `${tenantId}::${actionId}`;
+}
+
+/**
+ * Register a brain-emitted proposed action so a later `{ actionId }`
+ * confirm can resolve + execute it. Called by the SSE/confirmation-card
+ * emitter at composition. Overwrites any prior mapping for the same id.
+ */
+export function registerProposedAction(args: {
+  readonly tenantId: string;
+  readonly actionId: string;
+  readonly verb: string;
+  readonly params?: Record<string, unknown>;
+  readonly rationale?: string;
+  readonly ttlMs?: number;
+}): void {
+  const ttl = args.ttlMs && args.ttlMs > 0 ? args.ttlMs : PROPOSED_ACTION_TTL_MS;
+  proposedActionStore.set(proposedKey(args.tenantId, args.actionId), {
+    verb: args.verb,
+    params: args.params ?? {},
+    ...(args.rationale !== undefined ? { rationale: args.rationale } : {}),
+    expiresAtMs: Date.now() + ttl,
+  });
+}
+
+/**
+ * Resolve a proposed action, honouring the TTL. Returns null on miss or
+ * expiry (and evicts the expired entry). Eviction-on-read keeps the map
+ * bounded without a background sweeper.
+ */
+function resolveProposedAction(
+  tenantId: string,
+  actionId: string,
+): ProposedAction | null {
+  const key = proposedKey(tenantId, actionId);
+  const entry = proposedActionStore.get(key);
+  if (!entry) return null;
+  if (entry.expiresAtMs <= Date.now()) {
+    proposedActionStore.delete(key);
+    return null;
+  }
+  return entry;
+}
+
 // ─── Schemas ─────────────────────────────────────────────────────────
 
 const VerbSchema = z
@@ -379,28 +454,45 @@ app.post('/confirm-action', async (c: any) => {
     );
   }
 
-  // actionId-only path: no proposed-action store exists in the gateway
-  // yet, so we cannot resolve a bare id to a verb. Return a graceful
-  // not-executed envelope (200) so the FE shows "couldn't replay" rather
-  // than a hard error. Inline {verb, params} is the supported path today.
-  if (!parsed.data.verb) {
-    return c.json(
-      {
-        success: true,
-        data: {
-          executed: false,
-          authorized: false,
-          reason: 'action_id_resolution_unavailable',
-        },
-      },
-      200,
+  // actionId-only path (owner-confirmaction-1 / cm-4): resolve the bare
+  // actionId to the brain-emitted (verb, params) via the proposed-action
+  // store, then run it through the SAME gate→execute→audit pipeline. On a
+  // store HIT we execute. On a MISS (TTL lapsed, server restarted, or the
+  // SSE writer is not yet wired) we return an explicit HTTP 501 capability
+  // envelope — NOT a silent 200 — so the FE renders "this action has
+  // expired or cannot be replayed" and never confuses a capability gap
+  // with an authorization denial.
+  let verb = parsed.data.verb;
+  let params = parsed.data.params;
+  let rationale =
+    parsed.data.rationale ?? `confirm_action:${parsed.data.verb ?? 'actionId'}`;
+  if (!verb) {
+    const resolved = resolveProposedAction(
+      auth.tenantId,
+      parsed.data.actionId as string,
     );
+    if (!resolved) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'ACTION_ID_RESOLUTION_NOT_YET_IMPLEMENTED',
+            message:
+              'This action has expired or cannot be replayed. Please re-issue it from chat.',
+          },
+        },
+        501,
+      );
+    }
+    verb = resolved.verb;
+    params = resolved.params;
+    rationale = resolved.rationale ?? `confirm_action:${resolved.verb}`;
   }
 
   const body = await gateExecuteAudit({
-    verb: parsed.data.verb,
-    params: parsed.data.params,
-    rationale: parsed.data.rationale ?? `confirm_action:${parsed.data.verb}`,
+    verb,
+    params,
+    rationale,
     auth,
     db: gotDb.db,
     source: 'confirm_action',

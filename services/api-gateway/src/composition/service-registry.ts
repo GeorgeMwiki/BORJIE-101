@@ -40,7 +40,12 @@ import { createPinoLikeLogger } from '../utils/pino-shim.js';
  * for the alias.
  */
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
-import { sql } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import {
+  autonomousActionAudit as headBriefingActionAudit,
+  miningApprovalItems as headBriefingApprovalItems,
+  incidents as headBriefingIncidents,
+} from '@borjie/database';
 import {
   ListingService,
   EnquiryService,
@@ -1448,32 +1453,124 @@ function buildOrgAwareness(eventBus: EventBus): OrgAwarenessRegistry {
   };
 }
 
+/** Domains the briefing buckets overnight autonomous actions by. */
+const HEAD_BRIEFING_DOMAINS: ReadonlyArray<string> = [
+  'finance',
+  'offtake',
+  'maintenance',
+  'compliance',
+  'communications',
+  'marketing',
+  'hr',
+  'procurement',
+  'insurance',
+  'legal_proceedings',
+  'community_welfare',
+];
+
+/** Map a free-text audit `domain` onto a known briefing domain bucket. */
+function narrowBriefingDomain(domain: string): string {
+  return HEAD_BRIEFING_DOMAINS.includes(domain) ? domain : 'finance';
+}
+
 /**
- * Build a head-briefing composer backed by in-memory stub sources.
+ * Build the head-briefing composer.
  *
- * Wave 28 ships the composer + its source-port contract only. The real
- * adapters (AutonomousActionAudit, ApprovalGrantService.listActive,
- * ExceptionInbox.listOpen, KPI warehouse, StrategicAdvisor, anomaly
- * pattern-miner) can be swapped in iteratively by overriding individual
- * dependencies on the returned composer deps shape. Until then every
- * request returns a shaped-but-empty BriefingDocument, which is the
- * pilot-acceptable behaviour for a brand-new endpoint.
+ * When a Drizzle handle is present every source is a REAL tenant-scoped
+ * read:
+ *   - overnight        ← autonomous_action_audit (last 24h, by domain)
+ *   - pending approvals ← mining_approval_items WHERE status='pending'
+ *   - escalations      ← ExceptionInbox.listOpen (Wave-13 inbox)
+ *   - anomalies        ← incidents WHERE severity in (high,critical) recent
+ *   - KPI / recommendations remain empty-shaped (see fixNote below)
+ *
+ * Without a DB handle (in-memory / test boot) the sources degrade to the
+ * shaped-but-empty briefing — the prior pilot behaviour.
+ *
+ * KNOWN RESIDUAL (recorded for the orchestrator): `KpiDeltasSection` is a
+ * property-domain shape (occupancyPct / collectionsRate / arrearsDays /
+ * maintenanceSLA / tenantSatisfaction / noi) declared in
+ * `@borjie/ai-copilot` — NOT in this file's ownership. Populating it with
+ * mining KPIs (tonnage / recovery / royalty accrual / safety) requires
+ * re-shaping that type in the ai-copilot package first, so the KPI source
+ * stays zero-valued here rather than fabricating property numbers.
  */
 function buildHeadBriefingComposer(
   exceptionInbox: ExceptionInbox | null,
+  db: DatabaseClient | null,
 ): HeadBriefing.BriefingComposer {
   const overnightSource: HeadBriefing.OvernightSource = {
-    async summarize() {
-      return {
-        totalAutonomousActions: 0,
-        byDomain: {},
-        notableActions: [],
-      };
+    async summarize(tenantId, since) {
+      if (!db) return { totalAutonomousActions: 0, byDomain: {}, notableActions: [] };
+      try {
+        const rows = await db
+          .select({
+            id: headBriefingActionAudit.id,
+            action: headBriefingActionAudit.action,
+            domain: headBriefingActionAudit.domain,
+            reasoning: headBriefingActionAudit.reasoning,
+          })
+          .from(headBriefingActionAudit)
+          .where(
+            and(
+              eq(headBriefingActionAudit.tenantId, tenantId),
+              gte(headBriefingActionAudit.createdAt, since),
+            ),
+          )
+          .orderBy(desc(headBriefingActionAudit.createdAt))
+          .limit(50);
+        const byDomain: Record<string, number> = {};
+        for (const r of rows) {
+          const d = narrowBriefingDomain(r.domain);
+          byDomain[d] = (byDomain[d] ?? 0) + 1;
+        }
+        return {
+          totalAutonomousActions: rows.length,
+          byDomain: byDomain as HeadBriefing.OvernightSection['byDomain'],
+          notableActions: rows.slice(0, 5).map((r) => ({
+            actionId: r.id,
+            domain: narrowBriefingDomain(
+              r.domain,
+            ) as HeadBriefing.NotableAutonomousAction['domain'],
+            summary: r.action,
+            confidence: 0.7,
+          })),
+        };
+      } catch {
+        return { totalAutonomousActions: 0, byDomain: {}, notableActions: [] };
+      }
     },
   };
   const pendingApprovalsSource: HeadBriefing.PendingApprovalsSource = {
-    async list() {
-      return { count: 0, items: [] };
+    async list(tenantId) {
+      if (!db) return { count: 0, items: [] };
+      try {
+        const rows = await db
+          .select({
+            id: headBriefingApprovalItems.id,
+            requestKind: headBriefingApprovalItems.requestKind,
+          })
+          .from(headBriefingApprovalItems)
+          .where(
+            and(
+              eq(headBriefingApprovalItems.tenantId, tenantId),
+              eq(headBriefingApprovalItems.status, 'pending'),
+            ),
+          )
+          .orderBy(desc(headBriefingApprovalItems.createdAt))
+          .limit(20);
+        return {
+          count: rows.length,
+          items: rows.map((r) => ({
+            approvalId: r.id,
+            kind: 'single' as const,
+            summary: r.requestKind,
+            urgency: 'medium' as const,
+          })),
+        };
+      } catch {
+        return { count: 0, items: [] };
+      }
     },
   };
   const escalationsSource: HeadBriefing.EscalationsSource = {
@@ -1504,6 +1601,9 @@ function buildHeadBriefingComposer(
   };
   const kpiSource: HeadBriefing.KpiSource = {
     async fetch() {
+      // KpiDeltasSection is a property-domain shape owned by
+      // @borjie/ai-copilot (see KNOWN RESIDUAL above). Zero-valued until
+      // that type is re-shaped to mining KPIs — honest empty, not fabricated.
       return {
         occupancyPct: { value: 0, delta7d: 0 },
         collectionsRate: { value: 0, delta7d: 0 },
@@ -1520,8 +1620,36 @@ function buildHeadBriefingComposer(
     },
   };
   const anomaliesSource: HeadBriefing.AnomaliesSource = {
-    async list() {
-      return [];
+    async list(tenantId) {
+      if (!db) return [];
+      try {
+        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const rows = await db
+          .select({
+            id: headBriefingIncidents.id,
+            kind: headBriefingIncidents.kind,
+            severity: headBriefingIncidents.severity,
+            description: headBriefingIncidents.description,
+          })
+          .from(headBriefingIncidents)
+          .where(
+            and(
+              eq(headBriefingIncidents.tenantId, tenantId),
+              gte(headBriefingIncidents.createdAt, since),
+              sql`${headBriefingIncidents.severity} in ('high','critical')`,
+            ),
+          )
+          .orderBy(desc(headBriefingIncidents.createdAt))
+          .limit(5);
+        return rows.map((r) => ({
+          area: r.kind,
+          observation: r.description ?? `A ${r.severity} ${r.kind} incident was logged.`,
+          possibleCause: 'See the incident record for root-cause detail.',
+          suggestedInvestigation: 'Review the incident and its corrective actions.',
+        }));
+      } catch {
+        return [];
+      }
     },
   };
   return HeadBriefing.createBriefingComposer({
@@ -1726,6 +1854,8 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
       // of throwing.
       composer: buildHeadBriefingComposer(
         new ExceptionInbox({ repository: new InMemoryExceptionRepository() }),
+        // Degraded registry has no DB handle — sources stay shaped-but-empty.
+        null,
       ),
     },
     juniorAI: {
@@ -2634,6 +2764,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // the section shaped even before the Postgres adapter lands.
       composer: buildHeadBriefingComposer(
         new ExceptionInbox({ repository: new InMemoryExceptionRepository() }),
+        // LIVE mode — real Drizzle sources (overnight autonomy / pending
+        // approvals / recent critical-incident anomalies).
+        db,
       ),
     },
     juniorAI: (() => {
@@ -2830,19 +2963,27 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
           tenantId: '_platform',
         },
       });
-      const llmUrl = process.env.CI_LLM_URL?.trim();
-      if (!llmUrl) {
-        return {
-          agent: null,
-          memory,
-          auditReader: reader,
-          auditRecorder,
-          brainKernel,
-        };
-      }
-      // Adapter not shipped in-tree — the gateway consumes it over
-      // HTTP from a dedicated service. Slot stays null until the
-      // adapter lands; router keeps returning 503 cleanly.
+      // CentralIntelligenceAgent slot — the `/intelligence/thread/:id/message`
+      // surface (admin-web's "Talk to the industry" cross-tenant observer
+      // chat) needs a concrete agent. The previous `CI_LLM_URL` env gate was
+      // DEAD-CODED: both branches returned `agent: null`, so setting the env
+      // var changed nothing and misled operators. We remove the misleading
+      // gate. The slot stays an HONEST null — the router degrades cleanly with
+      // a structured 503 INTELLIGENCE_SERVICE_UNAVAILABLE (never a crash or a
+      // silent dead button) — and we WARN once so the degraded posture is
+      // observable rather than hidden behind a never-true env check.
+      //
+      // Wiring the real local `createCentralIntelligenceAgent` requires an
+      // LlmAdapter + VoiceResolver + ToolRegistry that are not assembled in
+      // this scope; that build is tracked separately (see needsAttention).
+      // This unblocks NO owner/MD chat — owner chat already works via
+      // /mining/chat + /brain/teach and is unaffected by this slot.
+      logger.warn(
+        { wiring: 'central-intelligence-agent' },
+        'central-intelligence: agent slot is intentionally null; ' +
+          '/intelligence/thread message route degrades to 503 until the ' +
+          'local CentralIntelligenceAgent (LlmAdapter+Voice+ToolRegistry) is wired',
+      );
       return {
         agent: null,
         memory,

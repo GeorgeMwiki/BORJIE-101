@@ -89,6 +89,17 @@ const TOOL_RESOURCE_TABLE: Readonly<Record<string, string>> = {
   mining_tasks: 'mining_tasks',
 };
 
+/**
+ * Per-resource ORDER BY column override. Most tables carry `created_at`, but a
+ * few use a domain-specific timestamp (e.g. `production_records.ts`). Ordering
+ * by the wrong column is a hard SQL error, not a silent empty — so the column
+ * here is verified against the Drizzle schema and constrained to SAFE_COLUMN.
+ */
+const TOOL_RESOURCE_ORDER_BY: Readonly<Record<string, string>> = {
+  production_records: 'ts',
+};
+const DEFAULT_ORDER_BY = 'created_at';
+
 /** A SQL-identifier-safe column (lower snake_case, ≤ 60 chars). */
 const SAFE_COLUMN = /^[a-z][a-z0-9_]{0,59}$/;
 
@@ -96,6 +107,17 @@ function resolveTable(args: Readonly<Record<string, unknown>> | undefined): stri
   const raw = args?.['resource'];
   if (typeof raw !== 'string' || !isKnownResource(raw)) return null;
   return TOOL_RESOURCE_TABLE[raw] ?? null;
+}
+
+function resolveOrderBy(
+  args: Readonly<Record<string, unknown>> | undefined,
+): string {
+  const raw = args?.['resource'];
+  const col =
+    typeof raw === 'string' ? TOOL_RESOURCE_ORDER_BY[raw] : undefined;
+  // Defence-in-depth: the override is a vetted constant, but re-assert the
+  // identifier shape so a future bad entry can never steer the ORDER BY.
+  return col && SAFE_COLUMN.test(col) ? col : DEFAULT_ORDER_BY;
 }
 
 function errMessage(err: unknown): string {
@@ -127,11 +149,13 @@ export function createDefaultReadOnlyToolPort(
       );
       return { rows: [] };
     }
+    const orderBy = resolveOrderBy(args);
     const rows = await query.query<Record<string, unknown>>(
-      // `table` is an allow-listed constant from TOOL_RESOURCE_TABLE — never
-      // user input — so the identifier interpolation is safe. The tenant
-      // predicate is parameterised; RLS FORCE is the DB-side backstop.
-      `SELECT * FROM public.${table} WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT $2`,
+      // `table` + `orderBy` are allow-listed constants (TOOL_RESOURCE_TABLE /
+      // TOOL_RESOURCE_ORDER_BY, re-asserted against SAFE_COLUMN) — never user
+      // input — so the identifier interpolation is safe. The tenant predicate
+      // is parameterised; RLS FORCE is the DB-side backstop.
+      `SELECT * FROM public.${table} WHERE tenant_id = $1 ORDER BY ${orderBy} DESC LIMIT $2`,
       [ctx.tenantId, READ_ROW_LIMIT],
     );
     return { rows: rows.map((r) => ({ ...r })) };

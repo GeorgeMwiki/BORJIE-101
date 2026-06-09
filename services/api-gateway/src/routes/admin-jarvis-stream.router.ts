@@ -161,6 +161,27 @@ function foldPresence(message: string, presence: unknown): string {
 }
 
 /**
+ * SSE RESILIENCE (mfr-1) — wrap a kernel-event iterable so it stops yielding
+ * once the client disconnects. The AG-UI emitter already no-ops every `emit()`
+ * after its abort listener fires (`finalize('client-abort')`), but without this
+ * gate `pumpKernelToAgUi` would keep PULLING kernel events (extra kernel work)
+ * for a connection no one reads. Checking `signal.aborted` at the top of the
+ * loop returns early so the upstream async generator's cleanup runs promptly.
+ * (Cancelling upstream provider token generation needs a signal threaded into
+ * the sensor's `client.messages.stream(...)` call — a larger enhancement; see
+ * needsAttention.)
+ */
+async function* stopOnAbort<T>(
+  source: AsyncIterable<T>,
+  signal: AbortSignal | null,
+): AsyncGenerator<T, void, unknown> {
+  for await (const ev of source) {
+    if (signal?.aborted) return;
+    yield ev;
+  }
+}
+
+/**
  * Bridge OTel — the central-intelligence emitter port is duck-typed
  * `recordSpan({ name, attributes, durationMs, status })`. Wrap the
  * gateway's OTel tracer behind that shape so the kernel package stays
@@ -333,7 +354,24 @@ adminJarvisStreamRouter.post('/', withSecurityEvents({ action: 'admin.create', r
       // prose / CoT / persona / secret / JWT strips still apply.
       await pumpKernelToAgUi(
         emitter,
-        guardKernelStream(sovereign.kernel.thinkStream(req), ''),
+        // SSE RESILIENCE (mfr-1) — stop pulling kernel events once the operator
+        // closes the tab (the same `abort` signal already attached to the
+        // emitter), so the kernel iterator unwinds instead of running on for a
+        // dead connection.
+        stopOnAbort(
+          // mfr-1 — thread the disconnect signal into the kernel so upstream
+          // provider token generation can cancel, not just stop being pulled
+          // by `stopOnAbort`. The `stopOnAbort` gate (and the emitter's own
+          // abort listener) remain the guaranteed gateway-side floor; this is
+          // the upstream-cancellation enhancement. See needsAttention for the
+          // kernel signature that must accept + forward it to the provider
+          // stream call.
+          guardKernelStream(
+            sovereign.kernel.thinkStream(req, { signal: abort ?? undefined }),
+            '',
+          ),
+          abort,
+        ),
         {
           threadId: parsed.data.threadId,
           runId,

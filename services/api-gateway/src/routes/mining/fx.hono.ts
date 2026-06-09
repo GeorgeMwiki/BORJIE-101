@@ -48,10 +48,17 @@ fx.get('/latest', async (c) => {
     return c.json({ rates: [], degraded: true }, 200);
   }
   try {
+    // Parameterized IN-list (never string-interpolate the pairs). Each pair is
+    // bound as a placeholder so the query is injection-safe even if KNOWN_PAIRS
+    // is ever sourced from config / a DB read in the future.
+    const pairPlaceholders = sql.join(
+      KNOWN_PAIRS.map((p) => sql`${p}`),
+      sql`, `,
+    );
     const result = await db.execute(sql`
       SELECT DISTINCT ON (pair) id, ts::text AS ts, pair, rate::text AS rate, source
       FROM fx_rates
-      WHERE pair = ANY(${sql.raw(`ARRAY[${KNOWN_PAIRS.map((p) => `'${p}'`).join(',')}]`)}::text[])
+      WHERE pair IN (${pairPlaceholders})
       ORDER BY pair, ts DESC
     `);
     const rates = (result.rows ?? []).map((r) => ({

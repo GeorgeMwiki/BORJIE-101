@@ -114,12 +114,39 @@ const MAX_SECTION_CHARS = 700;
 export interface ContinuitySnapshot {
   readonly openThreads: ReadonlyArray<OpenCommitmentView>;
   readonly recentActions: ReadonlyArray<RecentActionView>;
+  /**
+   * TRUE when EITHER reader swallowed an error while building this snapshot.
+   * A swallowed read fault returns an EMPTY snapshot — structurally identical
+   * to a genuine "new tenant / no open threads" result — so without this flag
+   * a DB blip is indistinguishable from a fresh session. The enrichment layer
+   * reads it to record a failure counter AND to suppress any "new session"
+   * placeholder it would otherwise fabricate on a degraded read.
+   */
+  readonly readFault: boolean;
 }
 
 const EMPTY_SNAPSHOT: ContinuitySnapshot = Object.freeze({
   openThreads: Object.freeze([]),
   recentActions: Object.freeze([]),
+  readFault: false,
 });
+
+/**
+ * An EMPTY snapshot produced because a reader FAULTED (not because the tenant
+ * is genuinely new). Same empty data, but `readFault` is TRUE so the caller can
+ * tell a degraded read apart from a fresh session.
+ */
+const EMPTY_FAULTED_SNAPSHOT: ContinuitySnapshot = Object.freeze({
+  openThreads: Object.freeze([]),
+  recentActions: Object.freeze([]),
+  readFault: true,
+});
+
+/** The result of one safe read — the rows plus whether the read faulted. */
+interface SafeReadResult<T> {
+  readonly items: ReadonlyArray<T>;
+  readonly faulted: boolean;
+}
 
 /** Narrow logger shape — matches the enrichment logger contract. */
 export interface ContinuityLogger {
@@ -145,25 +172,33 @@ export async function fetchContinuitySnapshot(args: {
   const openLimit = clampLimit(args.maxOpenThreads, MAX_OPEN_THREADS);
   const recentLimit = clampLimit(args.maxRecentActions, MAX_RECENT_ACTIONS);
 
-  const openThreads = await safeListLive(
+  const open = await safeListLive(
     readers.commitments,
     tenantId,
     openLimit,
     args.logger,
   );
-  const recentActions = await safeListRecent(
+  const recent = await safeListRecent(
     readers.actions,
     tenantId,
     recentLimit,
     args.logger,
   );
 
-  if (openThreads.length === 0 && recentActions.length === 0) {
-    return EMPTY_SNAPSHOT;
+  // A fault in EITHER reader taints the snapshot — the empty result it would
+  // otherwise produce must NOT be mistaken for a genuine new session.
+  const readFault = open.faulted || recent.faulted;
+
+  if (open.items.length === 0 && recent.items.length === 0) {
+    // Same empty data either way, but preserve WHY it is empty so the caller
+    // can tell a degraded read (record a failure, suppress the placeholder)
+    // apart from a fresh session (safe to show the placeholder).
+    return readFault ? EMPTY_FAULTED_SNAPSHOT : EMPTY_SNAPSHOT;
   }
   return Object.freeze({
-    openThreads: Object.freeze(openThreads),
-    recentActions: Object.freeze(recentActions),
+    openThreads: Object.freeze(open.items),
+    recentActions: Object.freeze(recent.items),
+    readFault,
   });
 }
 
@@ -172,19 +207,23 @@ async function safeListLive(
   tenantId: string,
   limit: number,
   logger?: ContinuityLogger,
-): Promise<ReadonlyArray<OpenCommitmentView>> {
-  if (reader === null) return [];
+): Promise<SafeReadResult<OpenCommitmentView>> {
+  // A null reader is an UNWIRED source, NOT a fault — its absence is a known
+  // configuration (no DB), so it must not taint the snapshot as a read fault.
+  if (reader === null) return { items: [], faulted: false };
   try {
     const live = await reader.listLive(tenantId);
     // Bounded — the reconcile re-read can be the whole backlog; the block only
     // ever shows the most-recent slice so it stays compact + token-bounded.
-    return live.slice(0, limit);
+    return { items: live.slice(0, limit), faulted: false };
   } catch (err) {
     logger?.warn(
       'continuity-readers: listLive failed; open-threads omitted this turn (non-fatal)',
       { tenantId, error: errMsg(err) },
     );
-    return [];
+    // Swallow the fault (the turn must never drop) but SIGNAL it so the empty
+    // result is not mistaken for a genuine new session.
+    return { items: [], faulted: true };
   }
 }
 
@@ -193,17 +232,17 @@ async function safeListRecent(
   tenantId: string,
   limit: number,
   logger?: ContinuityLogger,
-): Promise<ReadonlyArray<RecentActionView>> {
-  if (reader === null) return [];
+): Promise<SafeReadResult<RecentActionView>> {
+  if (reader === null) return { items: [], faulted: false };
   try {
     const recent = await reader.listRecent({ tenantId, limit });
-    return recent.slice(0, limit);
+    return { items: recent.slice(0, limit), faulted: false };
   } catch (err) {
     logger?.warn(
       'continuity-readers: listRecent failed; recently-done omitted this turn (non-fatal)',
       { tenantId, error: errMsg(err) },
     );
-    return [];
+    return { items: [], faulted: true };
   }
 }
 
@@ -417,6 +456,7 @@ export const __continuityTestables = Object.freeze({
   clampLines,
   clampLimit,
   EMPTY_SNAPSHOT,
+  EMPTY_FAULTED_SNAPSHOT,
   MAX_RENDERED_TEXT_CHARS,
   MAX_SECTION_CHARS,
 });

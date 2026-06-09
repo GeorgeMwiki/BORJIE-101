@@ -335,34 +335,42 @@ function makeRepo(db: any, tenantId: string): CoursesRepo {
 
     async finalize(args) {
       const now = new Date().toISOString();
-      // Insert normalised lesson rows (unique (course_id, lesson_number) guards
-      // a double background run).
-      for (let index = 0; index < args.course.lessons.length; index++) {
-        const lesson = args.course.lessons[index];
-        if (!lesson) continue;
-        await db.execute(sql`
-          INSERT INTO course_lessons (
-            id, tenant_id, course_id, created_by_user_id, lesson_number,
-            lesson_title, lesson_content, status, created_at, updated_at
-          ) VALUES (
-            ${randomUUID()}, ${tenantId}, ${args.courseId}, ${args.userId}, ${index + 1},
-            ${lesson.title}, ${JSON.stringify(lesson)}::jsonb, 'not_started', ${now}, ${now}
-          )
-          ON CONFLICT (course_id, lesson_number) DO NOTHING
+      // RESILIENCE (mfr-4) — the N lesson INSERTs and the course UPDATE
+      // (draft → in_progress) MUST land atomically: a crash or transient DB
+      // error part-way through the loop would otherwise leave orphan lesson
+      // rows while the course stays 'draft', a state the re-generate path
+      // (which mints a brand-new course id) never resumes. Wrapping the whole
+      // finalise in one transaction makes the lessons + the status flip a
+      // single all-or-nothing commit. The unique (course_id, lesson_number)
+      // constraint keeps a double background run idempotent inside the tx.
+      await db.transaction(async (tx: any) => {
+        for (let index = 0; index < args.course.lessons.length; index++) {
+          const lesson = args.course.lessons[index];
+          if (!lesson) continue;
+          await tx.execute(sql`
+            INSERT INTO course_lessons (
+              id, tenant_id, course_id, created_by_user_id, lesson_number,
+              lesson_title, lesson_content, status, created_at, updated_at
+            ) VALUES (
+              ${randomUUID()}, ${tenantId}, ${args.courseId}, ${args.userId}, ${index + 1},
+              ${lesson.title}, ${JSON.stringify(lesson)}::jsonb, 'not_started', ${now}, ${now}
+            )
+            ON CONFLICT (course_id, lesson_number) DO NOTHING
+          `);
+        }
+        await tx.execute(sql`
+          UPDATE courses
+             SET status = 'in_progress',
+                 ai_generated_curriculum = ${JSON.stringify(args.course)}::jsonb,
+                 lesson_count = ${args.course.lessons.length},
+                 generated_via = ${args.generatedVia},
+                 generation_error = NULL,
+                 updated_at = ${now}
+           WHERE id = ${args.courseId}
+             AND tenant_id = ${tenantId}
+             AND created_by_user_id = ${args.userId}
         `);
-      }
-      await db.execute(sql`
-        UPDATE courses
-           SET status = 'in_progress',
-               ai_generated_curriculum = ${JSON.stringify(args.course)}::jsonb,
-               lesson_count = ${args.course.lessons.length},
-               generated_via = ${args.generatedVia},
-               generation_error = NULL,
-               updated_at = ${now}
-         WHERE id = ${args.courseId}
-           AND tenant_id = ${tenantId}
-           AND created_by_user_id = ${args.userId}
-      `);
+      });
     },
 
     async markFailed(t, userId, courseId, message) {
@@ -585,15 +593,23 @@ app.post(
           202,
         );
       } catch (error) {
+        // RESILIENCE (mfr-10) — log the raw cause server-side only; a raw
+        // `error.message` in a 500 body can leak DB/driver/provider internals
+        // (hard rule: no raw error.message to clients). The client gets a fixed
+        // generic banner.
+        logger.error(
+          {
+            tenantId: auth?.tenantId,
+            err: error instanceof Error ? error.message : String(error),
+          },
+          'courses: generate failed',
+        );
         return c.json(
           {
             success: false,
             error: {
               code: 'GENERATE_FAILED',
-              message:
-                error instanceof Error
-                  ? error.message
-                  : 'Failed to start course generation. Please try again.',
+              message: 'Failed to start course generation. Please try again.',
             },
           },
           500,
@@ -619,12 +635,20 @@ app.get('/', async (c: any) => {
     const data = await repo.list(auth.tenantId, auth.userId);
     return c.json({ success: true, data });
   } catch (error) {
+    // RESILIENCE (mfr-10) — log raw cause server-side; never leak error.message.
+    logger.error(
+      {
+        tenantId: auth?.tenantId,
+        err: error instanceof Error ? error.message : String(error),
+      },
+      'courses: list failed',
+    );
     return c.json(
       {
         success: false,
         error: {
           code: 'LIST_FAILED',
-          message: error instanceof Error ? error.message : 'Failed to load courses',
+          message: 'Failed to load courses. Please try again.',
         },
       },
       500,
@@ -654,12 +678,20 @@ app.get('/:id', async (c: any) => {
     }
     return c.json({ success: true, data: course });
   } catch (error) {
+    // RESILIENCE (mfr-10) — log raw cause server-side; never leak error.message.
+    logger.error(
+      {
+        tenantId: auth?.tenantId,
+        err: error instanceof Error ? error.message : String(error),
+      },
+      'courses: get failed',
+    );
     return c.json(
       {
         success: false,
         error: {
           code: 'GET_FAILED',
-          message: error instanceof Error ? error.message : 'Failed to load course',
+          message: 'Failed to load course. Please try again.',
         },
       },
       500,

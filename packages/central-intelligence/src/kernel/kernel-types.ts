@@ -451,6 +451,14 @@ export interface SensorCallArgs {
    * its capabilities for the router to pick it.
    */
   readonly attachments?: ReadonlyArray<ThoughtAttachment>;
+  /**
+   * Optional cancellation signal. When the calling surface (an SSE route
+   * whose client disconnected) aborts it, a sensor adapter that honours it
+   * forwards it to the provider SDK request so in-flight token generation
+   * stops instead of running to completion. Adapters that ignore it simply
+   * run to completion — no behaviour change.
+   */
+  readonly signal?: AbortSignal;
 }
 
 export interface SensorCallResult {

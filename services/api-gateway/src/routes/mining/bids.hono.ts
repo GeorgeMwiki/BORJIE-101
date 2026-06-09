@@ -22,12 +22,13 @@
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import {
   buyers,
   marketplaceBids,
   marketplaceListings,
   offtakeAgreements,
+  eventOutbox,
 } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
@@ -594,6 +595,194 @@ app.get('/offtake-agreements/mine', async (c: any) => {
     .orderBy(desc(offtakeAgreements.createdAt))
     .limit(200);
   return c.json({ success: true as const, data: rows }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// POST /offtake-agreements/:id/sign — advance a crystallized offtake contract
+// from `pending_signature` to `signed` AND enqueue the settlement.
+//
+// This is the missing lifecycle link (mining-bid-accept-no-payment-trigger):
+// `accept` crystallizes the contract at `pending_signature` (money never moves
+// from that table — CLAUDE.md), and the documented lifecycle is
+// pending_signature → signed → (settlement). On the SIGNED transition we write
+// a `settlement.requested` row into the transactional `event_outbox` IN THE
+// SAME TRANSACTION as the status flip, so a settlement worker consumes it via
+// the existing ledger composition (LedgerService.post() stays the sole money
+// writer). Idempotent: re-signing a signed contract returns it unchanged and
+// never enqueues a second settlement (the agreementId-keyed outbox guard).
+//
+// Tenant-scoped (RLS + predicate). Registered as a literal POST path so it
+// never collides with the buyer-side `GET /:id`.
+// ---------------------------------------------------------------------------
+
+app.post('/offtake-agreements/:id/sign', async (c: any) => {
+  const auth = c.get('auth') as { tenantId?: string; userId?: string } | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'DATABASE_UNAVAILABLE', message: 'Database not configured' },
+      },
+      503,
+    );
+  }
+  const agreementId = c.req.param('id');
+  if (!agreementId || !/^[0-9a-z-]{8,64}$/i.test(agreementId)) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'INVALID_AGREEMENT_ID', message: 'invalid agreement id' },
+      },
+      400,
+    );
+  }
+
+  let result:
+    | { kind: 'ok'; row: Record<string, unknown>; enqueued: boolean }
+    | { kind: 'not_found' };
+  try {
+    result = await db.transaction(async (tx: DrizzleDb) => {
+      const [existing] = await tx
+        .select()
+        .from(offtakeAgreements)
+        .where(
+          and(
+            eq(offtakeAgreements.id, agreementId),
+            eq(offtakeAgreements.tenantId, auth.tenantId),
+          ),
+        )
+        .limit(1);
+      if (!existing) return { kind: 'not_found' as const };
+
+      // Idempotent: already signed → return as-is, never re-enqueue.
+      if (existing.status === 'signed') {
+        return { kind: 'ok' as const, row: existing, enqueued: false };
+      }
+
+      const now = new Date();
+      const [updated] = await tx
+        .update(offtakeAgreements)
+        .set({ status: 'signed', signedAt: now, updatedAt: now })
+        .where(
+          and(
+            eq(offtakeAgreements.id, agreementId),
+            eq(offtakeAgreements.tenantId, auth.tenantId),
+            eq(offtakeAgreements.status, 'pending_signature'),
+          ),
+        )
+        .returning();
+      if (!updated) {
+        // Lost a race (another signer) — return the current row, no enqueue.
+        return { kind: 'ok' as const, row: existing, enqueued: false };
+      }
+
+      // Next per-tenant outbox sequence number (monotonic ordering key).
+      const seqRow = (
+        await tx.execute(sql`
+          SELECT COALESCE(MAX(sequence_number), 0) + 1 AS next_seq
+            FROM event_outbox
+           WHERE tenant_id = ${auth.tenantId}
+        `)
+      );
+      const nextSeq = Number(
+        (Array.isArray(seqRow)
+          ? seqRow
+          : ((seqRow as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ??
+            []))[0]?.next_seq ?? 1,
+      );
+
+      // settlement.requested → durable outbox row consumed by the settlement
+      // worker. aggregateId is the agreement id so a retry is dedupable.
+      await tx.insert(eventOutbox).values({
+        id: randomUUID(),
+        tenantId: auth.tenantId,
+        eventType: 'settlement.requested',
+        aggregateType: 'offtake_agreement',
+        aggregateId: agreementId,
+        payload: {
+          offtakeAgreementId: agreementId,
+          bidId: updated.bidId,
+          listingId: updated.listingId,
+          buyerId: updated.buyerId,
+          buyerTenantId: updated.buyerTenantId ?? null,
+          agreedPriceTzs: updated.agreedPriceTzs,
+          quantityKg: updated.quantityKg,
+          tenantId: auth.tenantId,
+          signedBy: auth.userId,
+        },
+        metadata: { source: 'offtake-sign', signedAt: now.toISOString() },
+        sequenceNumber: nextSeq,
+        priority: 'high',
+        status: 'pending',
+        createdAt: now,
+      });
+
+      return { kind: 'ok' as const, row: updated, enqueued: true };
+    });
+  } catch (error) {
+    c.get('logger')?.error?.(
+      { err: error, agreementId },
+      'offtake agreement sign / settlement enqueue failed',
+    );
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'SIGN_FAILED',
+          message: 'Could not sign the agreement. Imeshindikana kusaini mkataba.',
+        },
+      },
+      500,
+    );
+  }
+
+  if (result.kind === 'not_found') {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'NOT_FOUND', message: 'Offtake agreement not found' },
+      },
+      404,
+    );
+  }
+
+  // Pulse the cockpit that settlement has been initiated (best-effort).
+  if (result.enqueued) {
+    setImmediate(() => {
+      try {
+        publishCockpitEvent({
+          kind: 'settlement.initiated',
+          tenantId: auth.tenantId as string,
+          emittedAt: new Date().toISOString(),
+          settlementId: agreementId,
+          cooperativeId: null,
+          amountTzs: Number(result.kind === 'ok' ? result.row.agreedPriceTzs : 0),
+          initiatedBy: auth.userId as string,
+        });
+      } catch {
+        // bus failures must never leak to the request response.
+      }
+    });
+  }
+
+  return c.json(
+    {
+      success: true as const,
+      data: result.row,
+      meta: { settlementEnqueued: result.enqueued },
+    },
+    200,
+  );
 });
 
 // ---------------------------------------------------------------------------

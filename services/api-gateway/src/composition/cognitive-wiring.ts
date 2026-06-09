@@ -207,6 +207,28 @@ import {
   type ContinuityReaders,
   type ContinuityLang,
 } from './continuity-readers.js';
+import { metrics, type Counter } from '@opentelemetry/api';
+
+// K4 — continuity-block telemetry. The meter is resolved lazily so this
+// module never touches OTel at import time (pre-init `getMeter` is a no-op
+// meter; the real meter binds after `services/api-gateway/src/index.ts`
+// bootstraps OTel). The counter distinguishes a read FAILURE (DB timeout /
+// contract violation) from the expected new-tenant empty case so a
+// DB-timeout spike is detectable on a dashboard instead of degrading
+// silently.
+let continuityFailureCounter: Counter | null = null;
+function recordContinuityFailure(reason: string): void {
+  if (!continuityFailureCounter) {
+    continuityFailureCounter = metrics
+      .getMeter('borjie.api-gateway.cognitive', '1.0.0')
+      .createCounter('brain.continuity_block.failure', {
+        description:
+          'Count of brain continuity-block read failures, by reason. ' +
+          'Excludes the expected new-tenant empty case.',
+      });
+  }
+  continuityFailureCounter.add(1, { reason });
+}
 
 // ---------------------------------------------------------------------------
 // Logger contract — narrow shape so this file does not bind to a
@@ -1072,6 +1094,17 @@ interface SafeContinuityArgs {
  * null, the snapshot is empty, or any read faulted (the snapshot fetch is
  * itself fail-safe, and this wrapper double-guards). The block is the MD's own
  * data, rendered inside an untrusted-data fence (see `continuity-readers.ts`).
+ *
+ * iq-continuity-opt-in-11 — `fetchContinuitySnapshot` swallows a reader fault
+ * internally and returns an EMPTY snapshot, which is structurally identical to a
+ * genuine "new tenant / no open threads" result. The snapshot now carries a
+ * `readFault` flag so the two are distinguishable here:
+ *   - readFault === true  → a DEGRADED read. Record the failure counter (so a
+ *     DB-blip spike is observable) and emit NO continuity content — never a
+ *     "new session" placeholder, which would fabricate a fresh-session claim on
+ *     a transient fault.
+ *   - readFault === false → a GENUINE empty (true new session). The block is
+ *     legitimately empty (`''`); a "new session" placeholder is safe here.
  */
 async function safeContinuityBlock(args: SafeContinuityArgs): Promise<string> {
   const continuity = args.wired.continuity;
@@ -1088,16 +1121,42 @@ async function safeContinuityBlock(args: SafeContinuityArgs): Promise<string> {
         ? { maxRecentActions: args.maxRecentActions }
         : {}),
     });
+    if (snapshot.readFault) {
+      // A swallowed read fault — make it OBSERVABLE (counter + warn) instead of
+      // degrading silently, and emit NO continuity content. We must NOT treat a
+      // degraded read as a genuine new session.
+      recordContinuityFailure('read_fault');
+      args.logger.warn(
+        'cognitive-wiring: continuity read faulted (swallowed in fetch); skipping continuity block to avoid a false new-session signal',
+        { tenantId: args.tenantId },
+      );
+      return '';
+    }
+    // No fault: a genuinely-empty snapshot is a true new session, so the empty
+    // block (`''`) is honest — `buildContinuityBlock` renders '' when empty.
     return buildContinuityBlock(snapshot, args.locale);
   } catch (err) {
     // Defence-in-depth: the fetch already swallows read faults, but a contract
-    // violation must NEVER break the turn. Skip the continuity block.
+    // violation (e.g. DB timeout surfacing past the inner guard) must NEVER
+    // break the turn. Record the failure on a counter + warn (Pino) so a
+    // DB-timeout spike is observable, then skip the continuity block.
+    recordContinuityFailure(classifyContinuityFailure(err));
     args.logger.warn(
       'cognitive-wiring: continuity block failed unexpectedly; skipping open-threads block',
       { error: err instanceof Error ? err.message : String(err) },
     );
     return '';
   }
+}
+
+/** Coarse reason label for the continuity-failure counter (low cardinality). */
+function classifyContinuityFailure(err: unknown): string {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes('timeout') || msg.includes('timed out')) return 'db_timeout';
+  if (msg.includes('connection') || msg.includes('econnrefused')) {
+    return 'db_connection';
+  }
+  return 'unexpected';
 }
 
 // Conservative composer-routing defaults. Owner-portal + low stakes keep the

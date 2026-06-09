@@ -290,8 +290,15 @@ function toScopeFilter(scope: ScopeContext): ScopeFilter {
 
 interface SubMdStepResult {
   readonly subMdId: string;
-  readonly status: 'completed' | 'failed' | 'skipped';
+  readonly status: 'completed' | 'failed' | 'skipped' | 'insufficient_context';
   readonly description?: string;
+  /**
+   * Stable machine code accompanying a non-`completed` status. For
+   * `insufficient_context` it is always `INSUFFICIENT_CONTEXT` — the
+   * observe() stage yielded ZERO in-scope events, so the redesign LLM is
+   * NOT called and no proposal is fabricated from an empty graph.
+   */
+  readonly code?: string;
   readonly proposal?: {
     readonly summary: string;
     readonly steps: ReadonlyArray<{
@@ -350,12 +357,32 @@ async function runSubMdChain(args: {
         llm,
       });
 
-      // Four-stage pipeline. With no event-bus port the observe stage yields
-      // an empty in-scope window; map produces an empty graph; redesign still
-      // calls the LLM port (real or degraded); automate compiles a DRAFT
-      // artifact — never auto-promoted.
+      // Four-stage pipeline: observe → map → redesign → automate.
       const events: ObservedEvent[] = [];
       for await (const evt of subMd.observe(ctx)) events.push(evt);
+
+      // Hard guard against fabrication from nothing. If observe() yielded ZERO
+      // in-scope events (e.g. no event-bus port wired for this sub-MD bubble),
+      // the graph is empty and any proposal the redesign LLM emits would be a
+      // hallucination with no grounding. Surface a structured
+      // `insufficient_context` result and SKIP the redesign/automate LLM call
+      // for this sub-MD — never invent proposals from an empty graph.
+      if (events.length === 0) {
+        logger.info(
+          { subMdId: spawn.subMdId, correlationId: ctx.correlationId },
+          'brain-dispatch: sub-MD observe() yielded zero events — skipping fabrication',
+        );
+        results.push(
+          Object.freeze({
+            subMdId: spawn.subMdId,
+            status: 'insufficient_context',
+            code: 'INSUFFICIENT_CONTEXT',
+            ...(spawn.description ? { description: spawn.description } : {}),
+          }),
+        );
+        continue;
+      }
+
       const graph = await subMd.map(Object.freeze(events), ctx);
       const proposal = await subMd.redesign(graph, ctx);
       const artifact = await subMd.automate(proposal, ctx);
@@ -380,6 +407,11 @@ async function runSubMdChain(args: {
         }),
       );
     } catch (err) {
+      // Log the raw cause server-side (pino) only. The per-step `error` field is
+      // returned to the client (deep-guarded, but the egress filter strips
+      // IP-classes, not generic operational error text), so we surface a STABLE
+      // machine code instead of the raw `err.message` — no DB/driver/internal
+      // detail leaks while the client still gets a renderable failed signal.
       logger.error(
         {
           subMdId: spawn.subMdId,
@@ -392,7 +424,7 @@ async function runSubMdChain(args: {
           subMdId: spawn.subMdId,
           status: 'failed',
           ...(spawn.description ? { description: spawn.description } : {}),
-          error: err instanceof Error ? err.message : String(err),
+          error: 'sub_md_pipeline_failed',
         }),
       );
     }
@@ -512,6 +544,9 @@ app.post(
       const completed = subMdResults.filter((r) => r.status === 'completed').length;
       const skipped = subMdResults.filter((r) => r.status === 'skipped').length;
       const failed = subMdResults.filter((r) => r.status === 'failed').length;
+      const insufficientContext = subMdResults.filter(
+        (r) => r.status === 'insufficient_context',
+      ).length;
 
       // SEC-4 — recursively guard the LLM-derived free text before it egresses.
       // The VP rationale/summary/gaps and the sub-MD chain results
@@ -547,6 +582,7 @@ app.post(
               completed,
               skipped,
               failed,
+              insufficientContext,
               gaps: plan.gaps.length,
             },
             knownVps: VP_REGISTRY_NAMES,

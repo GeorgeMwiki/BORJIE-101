@@ -30,15 +30,49 @@ import { describe, it, expect } from 'vitest';
 import {
   createGenUIEngine,
   createInMemoryRecordStore,
+  PORTAL_QUERY_RESOURCES,
   type PortalTab,
   type RecordStore,
 } from '@borjie/portal-genui';
 
 import {
   createWidgetDataResolver,
+  RESOURCE_TABLE,
+  RESOURCE_ORDER_BY,
+  INTENTIONALLY_UNMAPPED_RESOURCES,
   UnknownBindingError,
   type WidgetQueryPort,
 } from '../widget-data-resolver.js';
+
+describe('RESOURCE_TABLE coverage', () => {
+  it('every PortalQueryResource is either mapped to a table or documented as intentionally-empty', () => {
+    const unaccounted = PORTAL_QUERY_RESOURCES.filter(
+      (r) =>
+        RESOURCE_TABLE[r] === undefined &&
+        !INTENTIONALLY_UNMAPPED_RESOURCES.has(r),
+    );
+    // A non-empty list means a new resource was added without deciding whether
+    // it maps to a real table or is intentionally empty — fix by adding a
+    // RESOURCE_TABLE entry or an INTENTIONALLY_UNMAPPED_RESOURCES entry.
+    expect(unaccounted).toEqual([]);
+  });
+
+  it('every RESOURCE_ORDER_BY override targets a MAPPED resource', () => {
+    // An override for an unmapped resource is dead config — it can never be
+    // read (the resolver only consults the override for a table-mapped read).
+    const orphans = Object.keys(RESOURCE_ORDER_BY).filter(
+      (r) => RESOURCE_TABLE[r as keyof typeof RESOURCE_TABLE] === undefined,
+    );
+    expect(orphans).toEqual([]);
+  });
+
+  it('production_records orders by `ts` — its only timestamp column (schema lock-step)', () => {
+    // production_records carries NO created_at column (production-sales.schema.ts:
+    // its sole timestamp is `ts`). The override MUST point at `ts` or every read
+    // would ORDER BY a non-existent column and degrade to empty rows.
+    expect(RESOURCE_ORDER_BY.production_records).toBe('ts');
+  });
+});
 
 const NOOP_LOGGER = {
   warn: (_meta: Record<string, unknown>, _msg: string) => undefined,
@@ -213,7 +247,28 @@ describe('createWidgetDataResolver — unit', () => {
     expect(calls[0]?.sql).toContain('FROM public.licences');
     expect(calls[0]?.sql).toContain('WHERE tenant_id = $1');
     expect(calls[0]?.sql).toContain('LIMIT $2');
+    // The default recency column is created_at for an unmapped-override table.
+    expect(calls[0]?.sql).toContain('ORDER BY created_at DESC');
     expect(calls[0]?.params[0]).toBe('tenant_A');
+  });
+
+  it('orders production_records by `ts` (override), never the non-existent created_at', async () => {
+    const { port, calls } = stubQueryPort([{ id: 'pr_1', tenant_id: 'tenant_A' }]);
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: port,
+      logger: NOOP_LOGGER,
+    });
+    const data = await resolver.resolve(
+      { kind: 'query', resource: 'production_records' },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain('FROM public.production_records');
+    // The override drives ORDER BY ts — created_at does not exist on this table.
+    expect(calls[0]?.sql).toContain('ORDER BY ts DESC');
+    expect(calls[0]?.sql).not.toContain('created_at');
   });
 
   it('dispatches a READ-ONLY tool binding against the injected tool port and returns its rows', async () => {
