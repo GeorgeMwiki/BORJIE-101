@@ -4,27 +4,49 @@
  * GenUIWidgetRenderer — renders ONE generated `PortalTabWidget` using the
  * EXISTING widget catalog from `@borjie/portal-genui` (widgets/registry).
  *
- * The registry stays React-free (rendererName strings + metadata), so this
- * is the owner-web binding: each of the 14 widget kinds renders as a titled
- * card carrying the kind's human label + description from the registry. The
- * card is a faithful placeholder — the live data hook that fills each widget
- * (a table's rows, a KPI's value) is wired per-surface later; the preview's
- * job is to show the MD the exact widget shape the generated tab declares.
+ * K1b — the widget now ACTS:
+ *   - when it carries a schema-declared `binding` (kind query/tool) the data
+ *     is resolved via the SINGLE `useGenuiWidgetData(binding)` hook and the
+ *     REAL result is rendered shaped by widget kind (table → rows, kpi_card →
+ *     value, timeline → items). No per-widget code path.
+ *   - with NO binding the card keeps the placeholder but LABELS it clearly so
+ *     the preview is honest.
+ *   - any schema-declared `action` button dispatches `{ verb, params }` to the
+ *     SAME fulfillment endpoint home-chat uses
+ *     (`POST /api/v1/owner/chat/confirm-action`); `deferToBrain` renders a
+ *     "handling it" note instead of a dead click.
  *
- * All title/subtitle text is sanitised to plain text via `toSafeText`
- * (CLAUDE.md: no raw HTML interpolation).
+ * Everything is generative + locale-pure: literal copy flows through the
+ * injected `t()` (owner-web locale-purity is enforced); schema-authored
+ * strings are sanitised via `toSafeText` (CLAUDE.md: no raw HTML).
  */
 
-import { type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
 import {
   getWidgetKindMetadata,
   type PortalTabWidget,
 } from '@borjie/portal-genui';
+import type { TFn } from '@/i18n/resolve';
+import { confirmAction } from '@/lib/queries/chat-actions';
 
 import { toSafeText } from './sanitize';
+import {
+  useGenuiWidgetData,
+  type GenuiWidgetBinding,
+  type GenuiWidgetData,
+} from './use-genui-widget-data';
+import type { GenuiAction } from './genui-tab-extras';
 
 interface GenUIWidgetRendererProps {
   readonly widget: PortalTabWidget;
+  /** Bound translator from the host (locale-strict). */
+  readonly t: TFn;
+  /** Tab id — present in fetched-tab mode, null in preview mode. */
+  readonly tabId: string | null;
+  /** Schema-declared data binding, or null (placeholder). */
+  readonly binding: GenuiWidgetBinding | null;
+  /** Schema-declared action buttons (possibly empty). */
+  readonly actions: ReadonlyArray<GenuiAction>;
 }
 
 function spanToColClass(span: number | undefined): string {
@@ -36,8 +58,270 @@ function spanToColClass(span: number | undefined): string {
   return 'sm:col-span-3';
 }
 
+// ── Cell coercion (read whatever the server returned, render as text) ──────
+
+function cellText(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return toSafeText(String(value));
+}
+
+// ── Kind-shaped data views ─────────────────────────────────────────────────
+
+function TableView({
+  data,
+  t,
+}: {
+  readonly data: GenuiWidgetData;
+  readonly t: TFn;
+}): ReactElement {
+  const rows = Array.isArray(data.rows) ? (data.rows as unknown[]) : [];
+  const declaredColumns = Array.isArray(data.columns)
+    ? (data.columns as unknown[]).map((c) => String(c))
+    : null;
+  // Derive columns from the first row when the server did not declare them.
+  const firstRow =
+    rows.length > 0 && rows[0] && typeof rows[0] === 'object'
+      ? (rows[0] as Record<string, unknown>)
+      : {};
+  const columns = declaredColumns ?? Object.keys(firstRow);
+
+  if (rows.length === 0) {
+    return <p className="text-xs text-neutral-400">{t('genuiTab.widgetEmpty')}</p>;
+  }
+  return (
+    <div className="overflow-x-auto" data-testid="genui-widget-table">
+      <table className="w-full border-collapse text-left text-xs">
+        {columns.length > 0 ? (
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th
+                  key={col}
+                  className="border-b border-border px-2 py-1 font-medium text-neutral-300"
+                >
+                  {toSafeText(col)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        ) : null}
+        <tbody>
+          {rows.map((row, rowIdx) => {
+            const record =
+              row && typeof row === 'object'
+                ? (row as Record<string, unknown>)
+                : {};
+            return (
+              <tr key={rowIdx} className="border-b border-border/50">
+                {columns.map((col) => (
+                  <td key={col} className="px-2 py-1 text-neutral-200">
+                    {cellText(record[col])}
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function KpiView({
+  data,
+  t,
+}: {
+  readonly data: GenuiWidgetData;
+  readonly t: TFn;
+}): ReactElement {
+  const value =
+    data.value != null
+      ? cellText(data.value)
+      : '';
+  const unit = typeof data.unit === 'string' ? toSafeText(data.unit) : '';
+  const label =
+    typeof data.label === 'string'
+      ? toSafeText(data.label)
+      : t('genuiTab.widgetValueLabel');
+  if (!value) {
+    return <p className="text-xs text-neutral-400">{t('genuiTab.widgetEmpty')}</p>;
+  }
+  return (
+    <div className="flex flex-col gap-0.5" data-testid="genui-widget-kpi">
+      <span className="text-2xl font-semibold text-foreground">
+        {value}
+        {unit ? <span className="ml-1 text-sm text-neutral-400">{unit}</span> : null}
+      </span>
+      <span className="text-xs text-neutral-400">{label}</span>
+    </div>
+  );
+}
+
+function TimelineView({
+  data,
+  t,
+}: {
+  readonly data: GenuiWidgetData;
+  readonly t: TFn;
+}): ReactElement {
+  const items = Array.isArray(data.items) ? (data.items as unknown[]) : [];
+  if (items.length === 0) {
+    return <p className="text-xs text-neutral-400">{t('genuiTab.widgetEmpty')}</p>;
+  }
+  return (
+    <ol className="flex flex-col gap-2" data-testid="genui-widget-timeline">
+      {items.map((item, idx) => {
+        const record =
+          item && typeof item === 'object'
+            ? (item as Record<string, unknown>)
+            : {};
+        const title = cellText(record.title ?? record.label ?? item);
+        const at = cellText(record.at ?? record.timestamp ?? record.date);
+        return (
+          <li key={idx} className="flex flex-col gap-0.5 border-l border-border pl-3">
+            <span className="text-sm text-foreground">{title}</span>
+            {at ? <span className="text-xs text-neutral-400">{at}</span> : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Generic fallback for bound widgets whose kind has no bespoke view. */
+function GenericDataView({
+  data,
+  t,
+}: {
+  readonly data: GenuiWidgetData;
+  readonly t: TFn;
+}): ReactElement {
+  if (Array.isArray(data.rows)) return <TableView data={data} t={t} />;
+  if (Array.isArray(data.items)) return <TimelineView data={data} t={t} />;
+  if (data.value != null) return <KpiView data={data} t={t} />;
+  return <p className="text-xs text-neutral-400">{t('genuiTab.widgetEmpty')}</p>;
+}
+
+// ── Bound-data region ───────────────────────────────────────────────────────
+
+function WidgetDataRegion({
+  widget,
+  tabId,
+  binding,
+  t,
+}: {
+  readonly widget: PortalTabWidget;
+  readonly tabId: string | null;
+  readonly binding: GenuiWidgetBinding;
+  readonly t: TFn;
+}): ReactElement {
+  const query = useGenuiWidgetData({ tabId, widgetKey: widget.key, binding });
+  if (query.isLoading) {
+    return <p className="text-xs text-neutral-400">{t('genuiTab.widgetLoading')}</p>;
+  }
+  if (query.isError || !query.data) {
+    return <p className="text-xs text-destructive">{t('genuiTab.widgetError')}</p>;
+  }
+  const data = query.data;
+  switch (widget.kind) {
+    case 'table':
+      return <TableView data={data} t={t} />;
+    case 'kpi_card':
+    case 'gauge':
+      return <KpiView data={data} t={t} />;
+    case 'timeline':
+    case 'calendar':
+      return <TimelineView data={data} t={t} />;
+    default:
+      return <GenericDataView data={data} t={t} />;
+  }
+}
+
+// ── Action buttons ──────────────────────────────────────────────────────────
+
+type ActionStatus =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'running' }
+  | { readonly kind: 'done' }
+  | { readonly kind: 'handling' }
+  | { readonly kind: 'declined'; readonly reason: string }
+  | { readonly kind: 'failed' };
+
+function ActionButton({
+  action,
+  t,
+}: {
+  readonly action: GenuiAction;
+  readonly t: TFn;
+}): ReactElement {
+  const [status, setStatus] = useState<ActionStatus>({ kind: 'idle' });
+  const label = toSafeText(action.label) || action.verb;
+
+  const onClick = useCallback(() => {
+    setStatus({ kind: 'running' });
+    void confirmAction({ verb: action.verb, params: action.params ?? {} })
+      .then((result) => {
+        if (result.executed) {
+          setStatus({ kind: 'done' });
+          return;
+        }
+        // GENERATIVE FULFILLMENT — the verb cleared the hard rails but has no
+        // deterministic handler; the brain is taking it agentically.
+        if (result.deferToBrain) {
+          setStatus({ kind: 'handling' });
+          return;
+        }
+        if (!result.authorized && result.reason) {
+          setStatus({ kind: 'declined', reason: result.reason });
+          return;
+        }
+        setStatus({ kind: 'failed' });
+      })
+      .catch(() => setStatus({ kind: 'failed' }));
+  }, [action.verb, action.params]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={status.kind === 'running'}
+        data-testid={`genui-action-${action.id}`}
+        className="inline-flex items-center justify-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-warning hover:text-warning disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {status.kind === 'running' ? t('genuiTab.actionRunning') : label}
+      </button>
+      {status.kind === 'done' ? (
+        <span className="text-xs text-success">{t('genuiTab.actionDone')}</span>
+      ) : null}
+      {status.kind === 'handling' ? (
+        <span className="text-xs text-neutral-400">
+          {t('genuiTab.actionHandlingIt')}
+        </span>
+      ) : null}
+      {status.kind === 'declined' ? (
+        <span className="text-xs text-warning">
+          {t('genuiTab.actionDeclined', { reason: status.reason })}
+        </span>
+      ) : null}
+      {status.kind === 'failed' ? (
+        <span className="text-xs text-destructive">
+          {t('genuiTab.actionFailed')}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+// ── Widget shell ────────────────────────────────────────────────────────────
+
 export function GenUIWidgetRenderer({
   widget,
+  t,
+  tabId,
+  binding,
+  actions,
 }: GenUIWidgetRendererProps): ReactElement {
   const meta = getWidgetKindMetadata(widget.kind);
   const title = toSafeText(widget.title) || meta.displayLabel;
@@ -66,9 +350,31 @@ export function GenUIWidgetRenderer({
           {kindLabel}
         </span>
       </div>
-      <p className="text-xs leading-relaxed text-neutral-400">
-        {toSafeText(meta.description)}
-      </p>
+
+      {binding ? (
+        <WidgetDataRegion
+          widget={widget}
+          tabId={tabId}
+          binding={binding}
+          t={t}
+        />
+      ) : (
+        // No binding — honest, clearly-labelled placeholder.
+        <p
+          className="text-xs leading-relaxed text-neutral-400"
+          data-testid={`genui-widget-${widget.key}-placeholder`}
+        >
+          {t('genuiTab.widgetPlaceholder')}
+        </p>
+      )}
+
+      {actions.length > 0 ? (
+        <div className="flex flex-wrap gap-2 pt-1">
+          {actions.map((action) => (
+            <ActionButton key={action.id} action={action} t={t} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -413,6 +413,36 @@ export const en = {
       media: 'Media',
     },
   },
+
+  // GenUI dynamic-tab host — a generated tab that ACTS (form-host, live
+  // widgets, action buttons). All copy here is generic across any generated
+  // tab (no per-tab strings).
+  genuiTab: {
+    // Form-host (record submission).
+    submit: 'Save',
+    submitting: 'Saving…',
+    submitSuccess: 'Saved.',
+    submitError: 'Could not save. Check your entries and try again.',
+    requiredHint: 'Fill in the required fields.',
+    // Records list (below the form).
+    recordsHeading: 'Saved records',
+    recordsEmpty: 'No records yet. Submit the form to add the first one.',
+    recordsLoading: 'Loading records…',
+    recordsError: 'Could not load records.',
+    recordCreatedAt: 'Added {at}',
+    // Live widgets.
+    widgetLoading: 'Loading…',
+    widgetError: 'Could not load this widget.',
+    widgetEmpty: 'No data yet.',
+    widgetPlaceholder: 'Live data appears here once this widget is connected.',
+    widgetValueLabel: 'Value',
+    // Action buttons.
+    actionRunning: 'Working…',
+    actionDone: 'Done.',
+    actionDeclined: 'That needs confirmation: {reason}',
+    actionHandlingIt: "On it — I'm handling that for you.",
+    actionFailed: 'That action could not run.',
+  },
 } as const;
 
 export type Dictionary = typeof en;

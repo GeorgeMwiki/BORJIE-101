@@ -172,9 +172,10 @@ export const RemoveWidgetOpSchema = z
 
 /**
  * Partial update of a widget. `key` and `kind` are immutable; everything
- * else (title, subtitle, span, config, genuiKind) is patchable. The merged
- * widget is re-validated, preserving the `genui_part` ⇒ requires
- * `genuiKind` refinement.
+ * else (title, subtitle, span, config, genuiKind, binding) is patchable. The
+ * merged widget is re-validated, preserving the `genui_part` ⇒ requires
+ * `genuiKind` refinement (and re-validating `binding` against the capability
+ * registry).
  */
 export const UpdateWidgetOpSchema = z
   .object({

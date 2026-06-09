@@ -18,6 +18,9 @@ function contact(partial: Partial<Contact>): Contact {
     email: null,
     phone: null,
     slackHandle: null,
+    // Empty ranking by default → these cases exercise the preferred-channel +
+    // deliverable-order fallback. Ordered-list behaviour is covered separately.
+    channelPriority: [],
     preferredChannel: 'email',
     locale: 'en',
     timezone: 'Africa/Dar_es_Salaam',
@@ -27,6 +30,31 @@ function contact(partial: Partial<Contact>): Contact {
 }
 
 describe('pickDeliverableChannel', () => {
+  it('honours the owner ORDERED channelPriority — first deliverable entry wins', () => {
+    // Ranking [slack, email] with only email deliverable → email (slack skipped).
+    expect(
+      pickDeliverableChannel(
+        contact({ channelPriority: ['slack', 'email'], email: 'o@x.co' }),
+      ),
+    ).toBe('email');
+    // Ranking [sms, slack] with a phone present → sms (top of the ranking wins).
+    expect(
+      pickDeliverableChannel(
+        contact({
+          channelPriority: ['sms', 'slack'],
+          phone: '+255700000000',
+          email: 'o@x.co',
+        }),
+      ),
+    ).toBe('sms');
+    // A ranked but undeliverable channel ('whatsapp') is skipped to the next.
+    expect(
+      pickDeliverableChannel(
+        contact({ channelPriority: ['whatsapp', 'slack'], slackHandle: '@owner' }),
+      ),
+    ).toBe('slack');
+  });
+
   it('honours the preferred channel when it has a destination', () => {
     expect(
       pickDeliverableChannel(

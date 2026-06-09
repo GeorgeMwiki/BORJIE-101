@@ -47,9 +47,12 @@ import {
 import {
   createGenUIEngine,
   createDrizzleTabRegistry,
+  createDrizzleRecordStore,
+  createInMemoryRecordStore,
   type GenUIEngine,
   type GenUIEngineBrainPort,
   type DbExecutor,
+  type RecordStore,
 } from '@borjie/portal-genui';
 
 import { getDb } from '../db-client.js';
@@ -165,6 +168,12 @@ export interface PortalGenuiWiring {
   readonly engine: GenUIEngine;
   /** The router to mount at `/api/v1/portal-genui`. */
   readonly router: typeof portalGenUIRouter;
+  /**
+   * The generated-tab RECORD store (K1a) — attach to
+   * `services.portalGenUIRecordStore` so the `/tabs/:id/records` endpoints can
+   * persist + read submissions validated against each tab's own field schema.
+   */
+  readonly recordStore: RecordStore;
   /** True when a live Postgres-backed persistence layer was wired. */
   readonly persistent: boolean;
 }
@@ -184,6 +193,12 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
   const brain = buildBrainPort();
 
   const persistence = db ? createDrizzleTabRegistry({ db: makeDbExecutor(db) }) : undefined;
+
+  // K1a — the generated-tab record store. Postgres-backed when a DB is wired,
+  // else an in-memory store so the records endpoints stay usable in dev/test.
+  const recordStore = db
+    ? createDrizzleRecordStore({ db: makeDbExecutor(db) })
+    : createInMemoryRecordStore();
 
   if (!persistence) {
     logger.warn(
@@ -206,5 +221,10 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
     'portal-genui: engine constructed',
   );
 
-  return { engine, router: portalGenUIRouter, persistent: Boolean(persistence) };
+  return {
+    engine,
+    router: portalGenUIRouter,
+    recordStore,
+    persistent: Boolean(persistence),
+  };
 }

@@ -62,6 +62,7 @@ import {
   type ConfirmationProbe,
   type CommitmentAuditSink,
 } from './md-commitments/reconcile-engine.js';
+import { createDurableConfirmationProbe } from './md-commitments/confirmation-probe.js';
 import {
   createWaitForEventSubscriber,
   type ConditionEvaluator,
@@ -655,12 +656,22 @@ export function createMdCommitmentReconciliation(
   // The gated proposal sink the reconcile sweep resurfaces through — the EXACT
   // proactive_nudge contract drainProactiveNudges already surfaces.
   const proposalSink = createTabEventLogProposalSink(deps.db, deps.logger);
+  // K3 CLOSE-THE-LOOP — the durable positive-proof probe. When the caller does
+  // not inject one (the index.ts construction site passes only { db, logger }),
+  // build the real durable-evidence probe from the same db so commitments
+  // AUTO-CLOSE on proof (a completed mining_tasks row / an executed
+  // mwikila_actions_inbox action / a SUCCESS audit_event) — driven by the
+  // commitment's kind, never a per-commitment hardcode. Without it the loop
+  // re-opens acked-but-unconfirmed items forever (nothing ever closes).
+  const confirmationProbe =
+    deps.confirmationProbe ??
+    createDurableConfirmationProbe({ db: deps.db, logger: deps.logger });
   const reconciliation = createReconcileEngine({
     repo: repository,
     proposalSink,
     ladderDispatchers,
     conditionEvaluator: deps.conditionEvaluator ?? null,
-    confirmationProbe: deps.confirmationProbe ?? null,
+    confirmationProbe,
     auditSink: deps.auditSink ?? null,
     logger: deps.logger,
   });

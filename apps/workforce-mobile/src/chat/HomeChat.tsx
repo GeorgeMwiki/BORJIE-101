@@ -56,6 +56,13 @@ import {
   type WorkforceRoleId
 } from '@borjie/persona-runtime'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
+import { confirmAction } from './chatActions'
+import {
+  buildConfirmRequest,
+  buildFulfillmentTurn,
+  interpretResult,
+  type FulfillmentOutcome
+} from './actionFulfillment'
 import {
   applySelection,
   filterEntities,
@@ -403,7 +410,7 @@ export function HomeChat(): JSX.Element {
           />
         ) : null}
         {turns.map((turn) => (
-          <SettledTurnView key={turn.id} turn={turn} />
+          <SettledTurnView key={turn.id} turn={turn} onFulfill={submitTurn} />
         ))}
         {live !== null ? (
           <LiveTurnView
@@ -413,6 +420,7 @@ export function HomeChat(): JSX.Element {
             showSlow={showSlow}
             pulseGraceMs={PULSE_GRACE_MS}
             onRetry={() => retryFailedTurn(live)}
+            onFulfill={submitTurn}
           />
         ) : null}
       </ScrollView>
@@ -496,7 +504,12 @@ function GreetingCard({
   )
 }
 
-function SettledTurnView({ turn }: { readonly turn: SettledTurn }): JSX.Element {
+interface SettledTurnViewProps {
+  readonly turn: SettledTurn
+  readonly onFulfill: (text: string) => void
+}
+
+function SettledTurnView({ turn, onFulfill }: SettledTurnViewProps): JSX.Element {
   const { lang } = useI18n()
   return (
     <View testID={`home-chat-turn-${turn.id}`}>
@@ -521,7 +534,11 @@ function SettledTurnView({ turn }: { readonly turn: SettledTurn }): JSX.Element 
         <ToolCallRenderer key={`${turn.id}:tool:${index}`} call={call} />
       ))}
       {turn.proposedAction ? (
-        <ProposedActionCard action={turn.proposedAction} lang={lang} />
+        <ProposedActionCard
+          action={turn.proposedAction}
+          lang={lang}
+          onFulfill={onFulfill}
+        />
       ) : null}
     </View>
   )
@@ -534,6 +551,7 @@ interface LiveTurnViewProps {
   readonly showSlow: boolean
   readonly pulseGraceMs: number
   readonly onRetry: () => void
+  readonly onFulfill: (text: string) => void
 }
 
 function LiveTurnView({
@@ -542,7 +560,8 @@ function LiveTurnView({
   showSkeleton,
   showSlow,
   pulseGraceMs,
-  onRetry
+  onRetry,
+  onFulfill
 }: LiveTurnViewProps): JSX.Element {
   const hasStream = turn.kind === 'streaming' && turn.text.length > 0
   const showPulse =
@@ -603,7 +622,11 @@ function LiveTurnView({
         <ToolCallRenderer key={`${turn.id}:tool:${index}`} call={call} />
       ))}
       {turn.proposedAction ? (
-        <ProposedActionCard action={turn.proposedAction} lang={lang} />
+        <ProposedActionCard
+          action={turn.proposedAction}
+          lang={lang}
+          onFulfill={onFulfill}
+        />
       ) : null}
     </View>
   )
@@ -658,12 +681,32 @@ function CitationChips({ citations }: CitationChipsProps): JSX.Element {
 interface ProposedActionCardProps {
   readonly action: NonNullable<SettledTurn['proposedAction']>
   readonly lang: 'sw' | 'en'
+  readonly onFulfill: (text: string) => void
 }
 
+type ActionPhase =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'running' }
+  | { readonly kind: 'settled'; readonly outcome: FulfillmentOutcome }
+
+/**
+ * ProposedActionCard — the brain proposes an action; the worker / owner
+ * acts on it here. Tapping Approve POSTs `{ verb, params }` (derived
+ * generically from the card — no per-verb switch) to the SAME generative
+ * fulfillment endpoint owner-web uses and consumes the `{ executed,
+ * authorized, reason, deferToBrain }` envelope IDENTICALLY:
+ *   executed     → success note · deferToBrain → "Borjie is handling it"
+ *   + a structured fulfillment turn to the brain · !authorized → "needs
+ *   confirmation" · error/declined → inline note. The outcome renders
+ *   inline; the Approve button hides once the action has been taken.
+ */
 function ProposedActionCard({
   action,
-  lang
+  lang,
+  onFulfill
 }: ProposedActionCardProps): JSX.Element {
+  const [phase, setPhase] = useState<ActionPhase>({ kind: 'idle' })
+
   const riskKey =
     action.riskLevel === 'CRITICAL'
       ? 'riskCritical'
@@ -672,6 +715,28 @@ function ProposedActionCard({
         : action.riskLevel === 'MEDIUM'
           ? 'riskMedium'
           : 'riskLow'
+
+  const onApprove = useCallback((): void => {
+    setPhase({ kind: 'running' })
+    void confirmAction(buildConfirmRequest(action))
+      .then((result) => {
+        const outcome = interpretResult(action, result)
+        setPhase({ kind: 'settled', outcome })
+        // deferToBrain — the brain that emitted this dynamic verb fulfills
+        // it agentically. Submit a structured fulfillment turn (mirrors
+        // owner-web's `onSuggestion(buildFulfillmentTurn(...))`).
+        if (outcome.kind === 'deferToBrain') {
+          onFulfill(buildFulfillmentTurn(outcome.verb, outcome.params, lang))
+        }
+      })
+      .catch(() => {
+        setPhase({
+          kind: 'settled',
+          outcome: { kind: 'declined' }
+        })
+      })
+  }, [action, lang, onFulfill])
+
   return (
     <View style={styles.proposedActionWrap} testID="home-chat-proposed-action">
       <Text style={styles.proposedActionLabel}>
@@ -681,8 +746,86 @@ function ProposedActionCard({
         {action.verb} · {action.object}
       </Text>
       <Text style={styles.proposedActionMeta}>{pickLabel(riskKey, lang)}</Text>
+      {phase.kind === 'settled' ? (
+        <ActionOutcomeNote outcome={phase.outcome} lang={lang} />
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={pickLabel('actionApprove', lang)}
+          disabled={phase.kind === 'running'}
+          onPress={onApprove}
+          testID="home-chat-proposed-action-approve"
+          style={({ pressed }) => [
+            styles.proposedActionApprove,
+            pressed ? styles.proposedActionApprovePressed : null,
+            phase.kind === 'running' ? styles.proposedActionApproveBusy : null
+          ]}
+        >
+          <Text style={styles.proposedActionApproveText}>
+            {phase.kind === 'running'
+              ? pickLabel('actionRunning', lang)
+              : pickLabel('actionApprove', lang)}
+          </Text>
+        </Pressable>
+      )}
     </View>
   )
+}
+
+interface ActionOutcomeNoteProps {
+  readonly outcome: FulfillmentOutcome
+  readonly lang: 'sw' | 'en'
+}
+
+function ActionOutcomeNote({
+  outcome,
+  lang
+}: ActionOutcomeNoteProps): JSX.Element {
+  const { text, tone } = describeOutcome(outcome, lang)
+  return (
+    <View
+      style={[
+        styles.actionOutcome,
+        tone === 'success'
+          ? styles.actionOutcomeSuccess
+          : tone === 'pending'
+            ? styles.actionOutcomePending
+            : styles.actionOutcomeWarn
+      ]}
+      testID="home-chat-proposed-action-outcome"
+    >
+      <Text style={styles.actionOutcomeText}>{text}</Text>
+    </View>
+  )
+}
+
+type OutcomeTone = 'success' | 'pending' | 'warn'
+
+function describeOutcome(
+  outcome: FulfillmentOutcome,
+  lang: 'sw' | 'en'
+): { readonly text: string; readonly tone: OutcomeTone } {
+  if (outcome.kind === 'executed') {
+    return { text: pickLabel('actionExecuted', lang), tone: 'success' }
+  }
+  if (outcome.kind === 'deferToBrain') {
+    return { text: pickLabel('actionHandling', lang), tone: 'pending' }
+  }
+  if (outcome.kind === 'needsConfirmation') {
+    return {
+      text: `${pickLabel('actionNeedsConfirmation', lang)} — ${outcome.reason}`,
+      tone: 'warn'
+    }
+  }
+  // declined — show the reason when the bridge supplied one, else the
+  // generic error copy so the note is never empty.
+  return {
+    text:
+      outcome.reason !== undefined
+        ? `${pickLabel('actionDeclined', lang)} — ${outcome.reason}`
+        : pickLabel('actionError', lang),
+    tone: 'warn'
+  }
 }
 
 interface ComposerProps {
@@ -1075,6 +1218,54 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.caption,
     marginTop: spacing.xs
+  },
+  proposedActionApprove: {
+    marginTop: spacing.md,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gold,
+    borderWidth: 1,
+    borderColor: colors.goldDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md
+  },
+  proposedActionApprovePressed: {
+    backgroundColor: colors.goldDark
+  },
+  proposedActionApproveBusy: {
+    opacity: 0.7
+  },
+  proposedActionApproveText: {
+    color: colors.earth900,
+    fontSize: fontSize.body,
+    fontWeight: '700',
+    letterSpacing: 0.3
+  },
+  actionOutcome: {
+    marginTop: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  actionOutcomeSuccess: {
+    backgroundColor: 'rgba(120, 200, 120, 0.12)',
+    borderColor: 'rgba(120, 200, 120, 0.40)'
+  },
+  actionOutcomePending: {
+    backgroundColor: 'rgba(255, 200, 87, 0.12)',
+    borderColor: 'rgba(255, 200, 87, 0.40)'
+  },
+  actionOutcomeWarn: {
+    backgroundColor: 'rgba(255, 140, 90, 0.12)',
+    borderColor: 'rgba(255, 140, 90, 0.40)'
+  },
+  actionOutcomeText: {
+    color: colors.text,
+    fontSize: fontSize.caption,
+    fontWeight: '600',
+    lineHeight: 18
   }
 })
 

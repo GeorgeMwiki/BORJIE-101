@@ -20,6 +20,7 @@ import {
   text,
   timestamp,
   uuid,
+  jsonb,
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
@@ -45,6 +46,17 @@ export const ownerContactPrefs = pgTable(
     phone: text('phone'),
     slackHandle: text('slack_handle'),
     preferredChannel: text('preferred_channel').notNull().default('email'),
+    /**
+     * ORDERED list of dispatch channels, highest-priority first
+     * (e.g. ['slack', 'email', 'sms']). The reminders dispatcher and the
+     * action-executor walk this list and pick the FIRST channel with a
+     * resolvable destination. Empty list falls back to `preferredChannel`.
+     * Kept alongside (not replacing) `preferredChannel` for back-compat.
+     */
+    channelPriority: jsonb('channel_priority')
+      .$type<ReadonlyArray<OwnerContactChannel>>()
+      .notNull()
+      .default([]),
     locale: text('locale').notNull().default('sw'),
     timezone: text('timezone')
       .notNull()

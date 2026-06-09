@@ -360,5 +360,27 @@ export const sw = {
       "document": "Hati",
       "media": "Midia"
     }
+  },
+  "genuiTab": {
+    "submit": "Hifadhi",
+    "submitting": "Inahifadhi…",
+    "submitSuccess": "Imehifadhiwa.",
+    "submitError": "Imeshindwa kuhifadhi. Hakiki ulichojaza kisha ujaribu tena.",
+    "requiredHint": "Jaza sehemu zinazohitajika.",
+    "recordsHeading": "Kumbukumbu zilizohifadhiwa",
+    "recordsEmpty": "Hakuna kumbukumbu bado. Wasilisha fomu kuongeza ya kwanza.",
+    "recordsLoading": "Inapakia kumbukumbu…",
+    "recordsError": "Imeshindwa kupakia kumbukumbu.",
+    "recordCreatedAt": "Imeongezwa {at}",
+    "widgetLoading": "Inapakia…",
+    "widgetError": "Imeshindwa kupakia kifaa hiki.",
+    "widgetEmpty": "Hakuna data bado.",
+    "widgetPlaceholder": "Data ya moja kwa moja itaonekana hapa kifaa hiki kitakapounganishwa.",
+    "widgetValueLabel": "Thamani",
+    "actionRunning": "Inafanya kazi…",
+    "actionDone": "Imekamilika.",
+    "actionDeclined": "Hilo linahitaji uthibitisho: {reason}",
+    "actionHandlingIt": "Naishughulikia — ninakufanyia hilo.",
+    "actionFailed": "Kitendo hicho hakikuweza kufanyika."
   }
 } as const;

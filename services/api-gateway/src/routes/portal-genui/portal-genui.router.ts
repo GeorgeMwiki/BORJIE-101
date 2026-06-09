@@ -30,7 +30,9 @@ import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
 import {
   TabGenerationIntentSchema,
+  RecordValidationError,
   type GenUIEngine,
+  type RecordStore,
 } from '@borjie/portal-genui';
 import { authMiddleware } from '../../middleware/hono-auth.js';
 
@@ -42,6 +44,10 @@ function getServices(c: AnyCtx): Record<string, unknown> {
 
 function getEngine(c: AnyCtx): GenUIEngine | undefined {
   return getServices(c).portalGenUIEngine as GenUIEngine | undefined;
+}
+
+function getRecordStore(c: AnyCtx): RecordStore | undefined {
+  return getServices(c).portalGenUIRecordStore as RecordStore | undefined;
 }
 
 function unavailable(c: AnyCtx, code: string, message: string) {
@@ -161,6 +167,27 @@ const ListTabsQuerySchema = z
         'sustainability',
         'custom',
       ])
+      .optional(),
+  })
+  .strict();
+
+/**
+ * Record submission body. The payload is an opaque field-keyed object — the
+ * route revalidates it against the OWNING tab's own fields (the generic
+ * `validateRecordAgainstTab` inside the record store), so we only assert it is
+ * a record here, never a per-tab shape.
+ */
+const SaveRecordBodySchema = z
+  .object({
+    payload: z.record(z.unknown()),
+  })
+  .strict();
+
+const ListRecordsQuerySchema = z
+  .object({
+    limit: z
+      .string()
+      .regex(/^[0-9]{1,4}$/)
       .optional(),
   })
   .strict();
@@ -483,6 +510,178 @@ router.get('/tabs/:id', async (c: AnyCtx) => {
     );
   }
   return c.json({ success: true, data: { tab } });
+});
+
+// ─── POST /v1/portal-genui/tabs/:id/records ────────────────────
+// Submit a record into a generated tab. Loads the tab (404 if not in the
+// caller's tenant), validates the payload against the tab's OWN fields, and
+// inserts. 422 on validation failure carrying the failing field keys.
+router.post(
+  '/tabs/:id/records',
+  withSecurityEvents(
+    {
+      action: 'portal-genui.create-record',
+      resource: 'portal-genui',
+      severity: 'notice',
+    },
+    async (c: AnyCtx) => {
+      const engine = getEngine(c);
+      if (!engine) {
+        return unavailable(
+          c,
+          'PORTAL_GENUI_ENGINE_MISSING',
+          'portal-genui engine is not wired in this environment',
+        );
+      }
+      const store = getRecordStore(c);
+      if (!store) {
+        return unavailable(
+          c,
+          'PORTAL_GENUI_RECORD_STORE_MISSING',
+          'portal-genui record store is not wired in this environment',
+        );
+      }
+      const auth = c.get('auth');
+      if (!auth?.tenantId || !auth?.userId) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'MISSING_TENANT_OR_USER',
+              message: 'auth context missing tenantId/userId',
+            },
+          },
+          401,
+        );
+      }
+      let body: unknown;
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json(
+          {
+            success: false,
+            error: { code: 'INVALID_JSON', message: 'invalid JSON body' },
+          },
+          400,
+        );
+      }
+      const parsed = SaveRecordBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return c.json(
+          {
+            success: false,
+            error: { code: 'BAD_REQUEST', message: parsed.error.message },
+          },
+          400,
+        );
+      }
+      const id = c.req.param('id');
+      const tab = await engine.get(id);
+      // Tenant-scoped 404: a missing tab AND another tenant's tab look identical.
+      if (!tab || tab.tenantId !== auth.tenantId) {
+        return c.json(
+          {
+            success: false,
+            error: { code: 'TAB_NOT_FOUND', message: `tab ${id} not found` },
+          },
+          404,
+        );
+      }
+      try {
+        const record = await store.saveRecord({
+          tenantId: auth.tenantId,
+          tab,
+          payload: parsed.data.payload,
+          userId: auth.userId,
+        });
+        return c.json({ success: true, data: { id: record.id } }, 201);
+      } catch (err) {
+        if (err instanceof RecordValidationError) {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'RECORD_VALIDATION_FAILED',
+                message: err.message,
+                invalidFieldKeys: err.invalidFieldKeys,
+              },
+            },
+            422,
+          );
+        }
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'RECORD_SAVE_FAILED',
+              message: err instanceof Error ? err.message : 'unknown error',
+            },
+          },
+          500,
+        );
+      }
+    },
+  ),
+);
+
+// ─── GET /v1/portal-genui/tabs/:id/records ─────────────────────
+router.get('/tabs/:id/records', async (c: AnyCtx) => {
+  const engine = getEngine(c);
+  if (!engine) {
+    return unavailable(
+      c,
+      'PORTAL_GENUI_ENGINE_MISSING',
+      'portal-genui engine is not wired in this environment',
+    );
+  }
+  const store = getRecordStore(c);
+  if (!store) {
+    return unavailable(
+      c,
+      'PORTAL_GENUI_RECORD_STORE_MISSING',
+      'portal-genui record store is not wired in this environment',
+    );
+  }
+  const auth = c.get('auth');
+  if (!auth?.tenantId) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'MISSING_TENANT', message: 'auth missing tenantId' },
+      },
+      401,
+    );
+  }
+  const parsed = ListRecordsQuerySchema.safeParse(c.req.query());
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'BAD_REQUEST', message: parsed.error.message },
+      },
+      400,
+    );
+  }
+  const id = c.req.param('id');
+  const tab = await engine.get(id);
+  if (!tab || tab.tenantId !== auth.tenantId) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'TAB_NOT_FOUND', message: `tab ${id} not found` },
+      },
+      404,
+    );
+  }
+  const records = await store.listRecords({
+    tenantId: auth.tenantId,
+    tabId: id,
+    ...(parsed.data.limit !== undefined
+      ? { limit: Number(parsed.data.limit) }
+      : {}),
+  });
+  return c.json({ success: true, data: { records } });
 });
 
 // ─── DELETE /v1/portal-genui/tabs/:id ──────────────────────────

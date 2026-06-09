@@ -7,19 +7,26 @@
  * The registry is React-free (it ships `rendererName` strings + metadata so
  * the package stays usable in Node + the api-gateway). This component is the
  * owner-web side of that contract: it maps each of the 22 field kinds to a
- * concrete control so the MD sees the REAL field they authored. It is a
- * faithful scaffold renderer (the controls are live inputs but not yet wired
- * to a submit pipeline — record persistence is a separate concern); the point
- * is an exact preview of the generated shape.
+ * concrete control so the MD sees the REAL field they authored.
+ *
+ * K1b — the field is now a CONTROLLED input bound to the host's form state
+ * (`useGenuiFormField`) so its value flows back to the submit. When the host
+ * provides NO form (pure-preview mode, e.g. a brain `tab_proposal` chip), the
+ * binding is uncontrolled and the render is byte-identical to the old preview.
  *
  * All label/help text is sanitised to plain text via `toSafeText`
  * (CLAUDE.md: no raw HTML interpolation).
  */
 
-import { type ReactElement } from 'react';
+import { type ChangeEvent, type ReactElement } from 'react';
 import { getFieldKindMetadata, type PortalTabField } from '@borjie/portal-genui';
 
 import { toSafeText } from './sanitize';
+import {
+  useGenuiFormField,
+  type GenuiFieldValue,
+  type GenuiFormFieldBinding,
+} from './genui-form-context';
 
 interface GenUIFieldRendererProps {
   readonly field: PortalTabField;
@@ -40,11 +47,39 @@ function spanToColClass(span: number | undefined): string {
   return 'sm:col-span-2';
 }
 
-/** Render the kind-appropriate control. Read-shaped preview inputs. */
-function renderControl(field: PortalTabField): ReactElement {
+/** Coerce a stored field value into the string a text-like control expects. */
+function asText(value: GenuiFieldValue | undefined): string {
+  if (value == null) return '';
+  if (typeof value === 'boolean') return value ? 'true' : '';
+  if (Array.isArray(value)) return value.join(',');
+  return String(value);
+}
+
+/**
+ * Controlled-input props for a text-like control. In preview mode (no host
+ * form) we return `{}` so the control stays uncontrolled — identical to the
+ * pre-K1b behaviour.
+ */
+function textBinding(
+  bind: GenuiFormFieldBinding,
+): Record<string, unknown> {
+  if (!bind.controlled) return {};
+  return {
+    value: asText(bind.value),
+    onChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      bind.onChange(e.target.value),
+  };
+}
+
+/** Render the kind-appropriate control, bound to form state when controlled. */
+function renderControl(
+  field: PortalTabField,
+  bind: GenuiFormFieldBinding,
+): ReactElement {
   const placeholder = toSafeText(field.placeholder);
-  const disabled = field.readonly === true;
+  const disabled = field.readonly === true || bind.disabled;
   const id = `genui-field-${field.key}`;
+  const text = textBinding(bind);
 
   switch (field.kind) {
     case 'long_text':
@@ -55,16 +90,34 @@ function renderControl(field: PortalTabField): ReactElement {
           className={BASE_INPUT_CLASS}
           placeholder={placeholder}
           disabled={disabled}
+          {...text}
         />
       );
     case 'dropdown':
-    case 'multi_select':
+    case 'multi_select': {
+      const multiple = field.kind === 'multi_select';
+      const selectBinding = bind.controlled
+        ? {
+            value: multiple
+              ? Array.isArray(bind.value)
+                ? (bind.value as ReadonlyArray<string>)
+                : []
+              : asText(bind.value),
+            onChange: (e: ChangeEvent<HTMLSelectElement>) =>
+              bind.onChange(
+                multiple
+                  ? Array.from(e.target.selectedOptions, (o) => o.value)
+                  : e.target.value,
+              ),
+          }
+        : {};
       return (
         <select
           id={id}
           className={BASE_INPUT_CLASS}
           disabled={disabled}
-          multiple={field.kind === 'multi_select'}
+          multiple={multiple}
+          {...selectBinding}
         >
           {(field.options ?? []).map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -73,6 +126,7 @@ function renderControl(field: PortalTabField): ReactElement {
           ))}
         </select>
       );
+    }
     case 'checkbox':
     case 'toggle':
       return (
@@ -81,6 +135,13 @@ function renderControl(field: PortalTabField): ReactElement {
           type="checkbox"
           className="h-4 w-4 rounded border-border text-warning focus:ring-warning/40"
           disabled={disabled}
+          {...(bind.controlled
+            ? {
+                checked: bind.value === true,
+                onChange: (e: ChangeEvent<HTMLInputElement>) =>
+                  bind.onChange(e.target.checked),
+              }
+            : {})}
         />
       );
     case 'number':
@@ -96,11 +157,18 @@ function renderControl(field: PortalTabField): ReactElement {
           disabled={disabled}
           {...(typeof field.min === 'number' ? { min: field.min } : {})}
           {...(typeof field.max === 'number' ? { max: field.max } : {})}
+          {...text}
         />
       );
     case 'date':
       return (
-        <input id={id} type="date" className={BASE_INPUT_CLASS} disabled={disabled} />
+        <input
+          id={id}
+          type="date"
+          className={BASE_INPUT_CLASS}
+          disabled={disabled}
+          {...text}
+        />
       );
     case 'datetime':
       return (
@@ -109,6 +177,7 @@ function renderControl(field: PortalTabField): ReactElement {
           type="datetime-local"
           className={BASE_INPUT_CLASS}
           disabled={disabled}
+          {...text}
         />
       );
     case 'email':
@@ -119,6 +188,7 @@ function renderControl(field: PortalTabField): ReactElement {
           className={BASE_INPUT_CLASS}
           placeholder={placeholder}
           disabled={disabled}
+          {...text}
         />
       );
     case 'url':
@@ -129,6 +199,7 @@ function renderControl(field: PortalTabField): ReactElement {
           className={BASE_INPUT_CLASS}
           placeholder={placeholder}
           disabled={disabled}
+          {...text}
         />
       );
     case 'phone_number':
@@ -139,6 +210,7 @@ function renderControl(field: PortalTabField): ReactElement {
           className={BASE_INPUT_CLASS}
           placeholder={placeholder}
           disabled={disabled}
+          {...text}
         />
       );
     case 'color':
@@ -148,12 +220,15 @@ function renderControl(field: PortalTabField): ReactElement {
           type="color"
           className="h-9 w-16 rounded-md border border-border bg-surface"
           disabled={disabled}
+          {...text}
         />
       );
     case 'file_upload':
     case 'image_upload':
     case 'signature':
     case 'audio_note':
+      // File controls stay uncontrolled (a file input cannot carry a string
+      // value); the binary upload path is out of scope for the record bag.
       return (
         <input
           id={id}
@@ -173,6 +248,7 @@ function renderControl(field: PortalTabField): ReactElement {
           className={`${BASE_INPUT_CLASS} font-mono`}
           placeholder={placeholder || '{ }'}
           disabled={disabled}
+          {...text}
         />
       );
     case 'address_with_map':
@@ -185,6 +261,7 @@ function renderControl(field: PortalTabField): ReactElement {
           className={BASE_INPUT_CLASS}
           placeholder={placeholder}
           disabled={disabled}
+          {...text}
         />
       );
   }
@@ -198,6 +275,8 @@ export function GenUIFieldRenderer({
   const meta = getFieldKindMetadata(field.kind);
   const label = toSafeText(field.label) || meta.displayLabel;
   const help = toSafeText(field.help);
+  // Bind to the host's form state. Uncontrolled (no-op) in preview mode.
+  const bind = useGenuiFormField(field.key);
 
   return (
     <div
@@ -214,7 +293,7 @@ export function GenUIFieldRenderer({
           <span className="ml-0.5 text-destructive">*</span>
         ) : null}
       </label>
-      {renderControl(field)}
+      {renderControl(field, bind)}
       {help ? <p className="text-xs text-neutral-400">{help}</p> : null}
     </div>
   );

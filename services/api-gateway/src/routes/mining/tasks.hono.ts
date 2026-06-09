@@ -410,6 +410,47 @@ export function createMiningTasksRouter(): Hono {
         .where(and(eq(miningTasks.id, id), eq(miningTasks.tenantId, tenantId)))
         .returning();
 
+      // K3 CLOSE-THE-LOOP — publish a cockpit pulse so the owner/MD learns the
+      // task closed. Mirrors the EXACT fire-and-forget publishCockpitEvent
+      // envelope /assign-worker uses above (setImmediate + swallowed try/catch
+      // so a bus fault never leaks into the HTTP response). The closure lands on
+      // the owner's "Acting on your behalf" inbox via the `mwikila.acted` kind;
+      // the summary carries the bilingual title and the payload-bearing fields
+      // (taskId, parentRfbId, assignee) ride the category + summary so the
+      // md_commitments confirmation-probe can join `mining_tasks.status='done'`
+      // back to the originating commitment without a bespoke channel. For an
+      // `rfb_fulfill` task the parentRfbId pins the buyer/settlement linkage.
+      if (row) {
+        setImmediate(() => {
+          try {
+            const parentRfbId =
+              typeof row.parentRfbId === 'string' ? row.parentRfbId : null;
+            const assignee =
+              typeof row.assignedToUserId === 'string'
+                ? row.assignedToUserId
+                : null;
+            publishCockpitEvent({
+              kind: 'mwikila.acted',
+              tenantId,
+              emittedAt: new Date().toISOString(),
+              actionId: row.id,
+              actionKind: 'mining.task.complete',
+              category: parentRfbId ? 'rfb-fulfilment' : 'task-completion',
+              delegationTier: 'T0',
+              summary: JSON.stringify({
+                taskId: row.id,
+                parentRfbId,
+                assignee,
+                status: 'done',
+                title: row.titleSw ?? row.titleEn ?? '',
+              }),
+            });
+          } catch {
+            // bus failures must never leak to the request response.
+          }
+        });
+      }
+
       return c.json({ success: true as const, data: row }, 200);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'complete failed';

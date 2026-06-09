@@ -24,6 +24,9 @@
 // Types
 export * from './types.js';
 
+// Capabilities — the vetted resource / tool vocabulary a tab binds to.
+export * from './capabilities/index.js';
+
 // Intent
 export * from './intent/index.js';
 

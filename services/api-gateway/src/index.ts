@@ -561,6 +561,10 @@ import { adminUsersRouter } from './routes/owner/admin-users.router';
 import { ownerDocsRouter } from './routes/owner/docs.hono';
 import { ownerFormsRouter } from './routes/owner/forms.hono';
 import { ownerRemindersRouter } from './routes/owner/reminders.hono';
+// Wave SELF-ACTING-MD K5 — owner notification-preference write path. Lets the
+// owner set an ORDERED channel priority (honoured by the reminders dispatcher's
+// deliverable-channel resolver). Closes the "no write path for prefs" gap.
+import { ownerContactPrefsRouter } from './routes/owner/contact-prefs.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
 // Wave CHAT-ACTIONS — the chat→action EXECUTION bridge. The cockpit chat
 // (/api/v1/brain/teach) emits action chips; these endpoints actually
@@ -1938,6 +1942,11 @@ api.use('*', createServiceContextMiddleware(serviceRegistry));
 const portalGenuiWiring = buildPortalGenuiWiring();
 (serviceRegistry as { portalGenUIEngine?: unknown }).portalGenUIEngine =
   portalGenuiWiring.engine;
+// K1a — the generated-tab record store, read by the /tabs/:id/records endpoints
+// on the same router so a generated tab's fields can actually COLLECT data
+// (validated against the tab's own field schema).
+(serviceRegistry as { portalGenUIRecordStore?: unknown }).portalGenUIRecordStore =
+  portalGenuiWiring.recordStore;
 api.route('/portal-genui', portalGenuiWiring.router);
 // Deep research: make the research-orchestrator engine reachable on demand.
 // The engine was built + DB-backed but no gateway route ever constructed its
@@ -2535,6 +2544,8 @@ api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/drafts', ownerDraftsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
+// Wave SELF-ACTING-MD K5 — GET/PUT /owner/contact-prefs (ordered channel priority).
+api.route('/owner/contact-prefs', ownerContactPrefsRouter);
 // Wave CHAT-ACTIONS — POST /owner/chat/micro-action + /owner/chat/confirm-action.
 // Mounted before the generic /owner/* wildcards so the specific path wins.
 api.route('/owner/chat', ownerChatActionsRouter);

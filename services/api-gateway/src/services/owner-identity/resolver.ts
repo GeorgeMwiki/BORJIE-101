@@ -49,6 +49,14 @@ export interface ResolvedOwnerContact {
   readonly phone: string | null;
   readonly slackHandle: string | null;
   readonly preferredChannel: OwnerContactChannel;
+  /**
+   * ORDERED list of channels, highest-priority first — the owner's stated
+   * delivery ranking from `owner_contact_prefs.channel_priority`. Empty when
+   * unset; the dispatcher falls back to `preferredChannel` then deliverable
+   * order. Defaults to `[preferredChannel]` when no explicit list is stored
+   * but a preferred channel is.
+   */
+  readonly channelPriority: ReadonlyArray<OwnerContactChannel>;
   readonly locale: OwnerContactLocale;
   readonly timezone: string;
   readonly hasContactPrefRow: boolean;
@@ -82,6 +90,7 @@ function emptyResult(
     phone: null,
     slackHandle: null,
     preferredChannel: DEFAULT_PREFERRED_CHANNEL,
+    channelPriority: [],
     locale: DEFAULT_LOCALE,
     timezone: DEFAULT_TIMEZONE,
     hasContactPrefRow: false,
@@ -110,6 +119,26 @@ function pickChannel(value: unknown): OwnerContactChannel | null {
 function pickLocale(value: unknown): OwnerContactLocale | null {
   if (value === 'sw' || value === 'en') return value;
   return null;
+}
+
+/**
+ * Coerce the `channel_priority` jsonb into a clean ORDERED channel list:
+ * keep only valid channels, dedupe (first occurrence wins — the higher
+ * priority), and preserve order. Returns `[]` for a missing / malformed /
+ * non-array value so the caller falls back to `preferredChannel`. NEVER throws.
+ */
+function pickChannelPriority(value: unknown): ReadonlyArray<OwnerContactChannel> {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<OwnerContactChannel>();
+  const ordered: OwnerContactChannel[] = [];
+  for (const entry of value) {
+    const channel = pickChannel(entry);
+    if (channel && !seen.has(channel)) {
+      seen.add(channel);
+      ordered.push(channel);
+    }
+  }
+  return ordered;
 }
 
 /**
@@ -168,6 +197,19 @@ export async function resolveOwnerContact(
     (prefRow ? pickChannel(prefRow.preferredChannel) : null) ??
     DEFAULT_PREFERRED_CHANNEL;
 
+  // Owner's explicit ORDERED ranking. When the column is empty (legacy row /
+  // owner never set a list), default to the single preferred channel so the
+  // dispatcher still honours intent.
+  const storedPriority = prefRow
+    ? pickChannelPriority(prefRow.channelPriority)
+    : [];
+  const channelPriority =
+    storedPriority.length > 0
+      ? storedPriority
+      : preferredChannel
+        ? [preferredChannel]
+        : [];
+
   const locale =
     (prefRow ? pickLocale(prefRow.locale) : null) ??
     (userRow ? pickLocale(userRow.preferredLang) : null) ??
@@ -185,6 +227,7 @@ export async function resolveOwnerContact(
     phone,
     slackHandle,
     preferredChannel,
+    channelPriority,
     locale,
     timezone,
     hasContactPrefRow: prefRow != null,

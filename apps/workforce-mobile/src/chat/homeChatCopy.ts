@@ -92,6 +92,13 @@ export interface HomeChatLabels {
   readonly riskMedium: BilingualString
   readonly riskLow: BilingualString
   readonly riskCritical: BilingualString
+  readonly actionApprove: BilingualString
+  readonly actionRunning: BilingualString
+  readonly actionExecuted: BilingualString
+  readonly actionHandling: BilingualString
+  readonly actionNeedsConfirmation: BilingualString
+  readonly actionDeclined: BilingualString
+  readonly actionError: BilingualString
 }
 
 export const HOME_CHAT_LABELS: HomeChatLabels = Object.freeze({
@@ -107,7 +114,20 @@ export const HOME_CHAT_LABELS: HomeChatLabels = Object.freeze({
   riskHigh: { sw: 'Hatari kubwa', en: 'High risk' },
   riskMedium: { sw: 'Hatari ya wastani', en: 'Medium risk' },
   riskLow: { sw: 'Hatari ndogo', en: 'Low risk' },
-  riskCritical: { sw: 'Hatari ya juu sana', en: 'Critical risk' }
+  riskCritical: { sw: 'Hatari ya juu sana', en: 'Critical risk' },
+  actionApprove: { sw: 'Idhinisha na endesha', en: 'Approve and run' },
+  actionRunning: { sw: 'Inaendesha…', en: 'Running…' },
+  actionExecuted: { sw: 'Imefanyika.', en: 'Done.' },
+  actionHandling: { sw: 'Borjie anaishughulikia…', en: 'Borjie is handling it…' },
+  actionNeedsConfirmation: {
+    sw: 'Inahitaji uthibitisho',
+    en: 'Needs your confirmation'
+  },
+  actionDeclined: { sw: 'Imekataliwa', en: 'Declined' },
+  actionError: {
+    sw: 'Hatukuweza kukamilisha. Jaribu tena.',
+    en: 'Could not complete. Try again.'
+  }
 })
 
 export type LangChoice = 'sw' | 'en'

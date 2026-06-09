@@ -190,6 +190,24 @@ import {
   type AuditChainPort as PersistentAuditChain,
 } from '@borjie/persistent-memory';
 
+// K4 — MEMORY CONTINUITY. The brain's `/turn` never auto-read its own open
+// commitments (`md_commitments`) or recent actions (`mwikila_actions_inbox`);
+// continuity depended on the LLM voluntarily calling a tool. This wiring folds
+// a compact, single-language OPEN THREADS / RECENTLY DONE block into the
+// enrichment on EVERY turn — continuity by construction. The two readers are
+// built here from the canonical `MdCommitmentRepository` + `MwikilaInboxRecorder`
+// (no re-implemented SQL); both are fail-safe (a read fault → no block).
+import { createDrizzleMdCommitmentRepository } from '@borjie/database';
+import { createMwikilaInboxRecorder } from '../services/mwikila-autonomy/index.js';
+import {
+  fetchContinuitySnapshot,
+  buildContinuityBlock,
+  commitmentReaderFromRepo,
+  actionReaderFromRecorder,
+  type ContinuityReaders,
+  type ContinuityLang,
+} from './continuity-readers.js';
+
 // ---------------------------------------------------------------------------
 // Logger contract — narrow shape so this file does not bind to a
 // specific logging library. Matches the structural shape of the
@@ -229,6 +247,15 @@ export interface WiredCognitive {
    * memory-recall-only enrichment. `runForTurn` is itself fail-safe.
    */
   readonly composition: WiredCognitiveComposer | null;
+  /**
+   * K4 — MEMORY CONTINUITY readers (open commitments + recent actions). When
+   * present, {@link enrichBrainTurnWithCognitive} ALWAYS folds a compact,
+   * single-language OPEN THREADS / RECENTLY DONE block into the preamble so the
+   * MD recalls its own threads + actions every turn — no tool call needed.
+   * `null` when no DB handle was supplied (tests / no-DB boot); the enrichment
+   * then simply omits the continuity block.
+   */
+  readonly continuity: ContinuityReaders | null;
   /** Whether at least one bundle was constructed. False means full
    *  degradation — the enrichment function will return empty. */
   readonly isLive: boolean;
@@ -456,6 +483,50 @@ function buildPersistentMemoryBundle(
   }
 }
 
+/**
+ * K4 — build the MEMORY CONTINUITY readers from the SAME Drizzle handle the
+ * cognitive bundle already receives. The commitment reader wraps the canonical
+ * `MdCommitmentRepository` (its Drizzle impl runs each read inside
+ * `withServiceRoleContext`, which is exactly right for a brain-pool read that
+ * is not request-pinned); the action reader wraps `MwikilaInboxRecorder`. Both
+ * are projected to narrow read-only views.
+ *
+ * Never throws — a construction fault degrades to `null` (the enrichment then
+ * omits the continuity block). Returns `null` when there is no DB handle
+ * (tests / no-DB boot) so continuity is simply absent rather than broken.
+ */
+function buildContinuityReaders(
+  deps: WireCognitiveDeps,
+): ContinuityReaders | null {
+  if (deps.db === null) {
+    deps.logger.warn(
+      'cognitive-wiring: no db handle; memory-continuity readers omitted (no open-threads block)',
+    );
+    return null;
+  }
+  try {
+    const repo = createDrizzleMdCommitmentRepository(
+      deps.db as Parameters<typeof createDrizzleMdCommitmentRepository>[0],
+    );
+    const recorder = createMwikilaInboxRecorder({
+      db: deps.db as Parameters<typeof createMwikilaInboxRecorder>[0]['db'],
+    });
+    deps.logger.info(
+      'cognitive-wiring: memory-continuity readers wired (open commitments + recent actions)',
+    );
+    return Object.freeze({
+      commitments: commitmentReaderFromRepo(repo),
+      actions: actionReaderFromRecorder(recorder),
+    });
+  } catch (err) {
+    deps.logger.warn(
+      'cognitive-wiring: memory-continuity readers construction failed; degrading slot to null',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Public factory
 // ---------------------------------------------------------------------------
@@ -486,13 +557,21 @@ export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
     });
   }
 
-  const isLive = cognitiveMemory !== null || persistent !== null;
+  // K4 — memory-continuity readers (open commitments + recent actions). Built
+  // from the same db handle; null on no-DB / construction fault. Continuity
+  // makes the bundle "live" for enrichment even when the memory slots degrade,
+  // so the MD always recalls its own threads — the never-drop-a-thread spine.
+  const continuity = buildContinuityReaders(deps);
+
+  const isLive =
+    cognitiveMemory !== null || persistent !== null || continuity !== null;
   if (isLive) {
     deps.logger.info('cognitive-wiring: bundles constructed', {
       cognitiveMemory: cognitiveMemory !== null,
       persistent: persistent !== null,
       composition: composition !== null,
       composerEnabled: composition?.enabled ?? false,
+      continuity: continuity !== null,
     });
   } else {
     deps.logger.warn(
@@ -503,6 +582,7 @@ export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
     cognitiveMemory,
     persistent,
     composition,
+    continuity,
     isLive,
   });
 }
@@ -537,6 +617,16 @@ export interface EnrichArgs {
    * its slot is null / disabled / a fast route is chosen — all fail-safe).
    */
   readonly composer?: ComposerEnrichInput;
+  /**
+   * K4 — MEMORY CONTINUITY locale. The OPEN THREADS / RECENTLY DONE block is
+   * rendered in EXACTLY ONE language with zero mixing (CLAUDE.md). Default
+   * `'en'`. Pass `'sw'` only when the active locale toggles to Swahili.
+   */
+  readonly locale?: ContinuityLang;
+  /** K4 — bound on the open-commitments surfaced (default + cap 10). */
+  readonly maxOpenThreads?: number;
+  /** K4 — bound on the recent actions surfaced (default + cap 10). */
+  readonly maxRecentActions?: number;
 }
 
 /**
@@ -711,12 +801,35 @@ export async function enrichBrainTurnWithCognitive(
   if (args.composer !== undefined) composeArgs.composer = args.composer;
   const composerResult = await safeComposeDeep(composeArgs);
 
+  // K4 — MEMORY CONTINUITY. ALWAYS (every turn) read the tenant's LIVE/open
+  // commitments + recent action history and fold a compact, single-language
+  // OPEN THREADS / RECENTLY DONE block into the preamble. Continuity by
+  // construction — the MD recalls its own threads without a tool call. The
+  // fetch is fully fail-safe (a read fault → empty snapshot → no block).
+  const continuityBlock = await safeContinuityBlock({
+    wired: args.wired,
+    tenantId: args.tenantId,
+    locale: args.locale ?? 'en',
+    logger,
+    ...(args.maxOpenThreads !== undefined
+      ? { maxOpenThreads: args.maxOpenThreads }
+      : {}),
+    ...(args.maxRecentActions !== undefined
+      ? { maxRecentActions: args.maxRecentActions }
+      : {}),
+  });
+
   const memoryBlock = formatRecallBlock(recallResults, args.personaId);
   const sessionBlock = formatSessionBlock(sessionSummary);
   const composerBlock = formatComposerBlock(composerResult);
-  const parts = [memoryBlock, sessionBlock, composerBlock].filter(
-    (p) => p.length > 0,
-  );
+  // Continuity leads the preamble — the MD's own open threads + recent actions
+  // are the grounding the rest of the enrichment builds on.
+  const parts = [
+    continuityBlock,
+    memoryBlock,
+    sessionBlock,
+    composerBlock,
+  ].filter((p) => p.length > 0);
 
   if (parts.length === 0) {
     return EMPTY_RESULT;
@@ -940,6 +1053,53 @@ async function safeSessionRecall(
   }
 }
 
+// ---------------------------------------------------------------------------
+// K4 — MEMORY CONTINUITY safe block builder.
+// ---------------------------------------------------------------------------
+
+interface SafeContinuityArgs {
+  readonly wired: WiredCognitive;
+  readonly tenantId: string;
+  readonly locale: ContinuityLang;
+  readonly logger: CognitiveLogger;
+  readonly maxOpenThreads?: number;
+  readonly maxRecentActions?: number;
+}
+
+/**
+ * Fetch the continuity snapshot and render the single-language OPEN THREADS /
+ * RECENTLY DONE block. NEVER throws — returns `''` when the continuity slot is
+ * null, the snapshot is empty, or any read faulted (the snapshot fetch is
+ * itself fail-safe, and this wrapper double-guards). The block is the MD's own
+ * data, rendered inside an untrusted-data fence (see `continuity-readers.ts`).
+ */
+async function safeContinuityBlock(args: SafeContinuityArgs): Promise<string> {
+  const continuity = args.wired.continuity;
+  if (continuity === null) return '';
+  try {
+    const snapshot = await fetchContinuitySnapshot({
+      readers: continuity,
+      tenantId: args.tenantId,
+      logger: { warn: (m, meta) => args.logger.warn(m, meta) },
+      ...(args.maxOpenThreads !== undefined
+        ? { maxOpenThreads: args.maxOpenThreads }
+        : {}),
+      ...(args.maxRecentActions !== undefined
+        ? { maxRecentActions: args.maxRecentActions }
+        : {}),
+    });
+    return buildContinuityBlock(snapshot, args.locale);
+  } catch (err) {
+    // Defence-in-depth: the fetch already swallows read faults, but a contract
+    // violation must NEVER break the turn. Skip the continuity block.
+    args.logger.warn(
+      'cognitive-wiring: continuity block failed unexpectedly; skipping open-threads block',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    return '';
+  }
+}
+
 // Conservative composer-routing defaults. Owner-portal + low stakes keep the
 // TTC allocator from over-firing the deep composer on ordinary chat; the
 // composer only escalates above these when the caller passes higher stakes /
@@ -1051,6 +1211,8 @@ export const __testables = Object.freeze({
   formatSessionBlock,
   formatComposerBlock,
   safeComposeDeep,
+  safeContinuityBlock,
+  buildContinuityReaders,
   clampTopK,
   createSilentLogger,
   buildObservedContent,

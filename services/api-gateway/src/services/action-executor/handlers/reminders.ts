@@ -39,17 +39,44 @@ import type { ActionHandler, ExecContext, ExecResult } from '../types.js';
 type DeliverableReminderChannel = 'email' | 'sms' | 'slack';
 
 /**
+ * Map an owner contact channel to the deliverable reminder channel it backs,
+ * IFF that channel has a resolvable destination on the contact. Returns null
+ * when the channel is undeliverable or one the worker cannot send
+ * (whatsapp / calendar). Pure.
+ */
+function deliverableFor(
+  channel: string,
+  contact: ResolvedOwnerContact,
+): DeliverableReminderChannel | null {
+  if (channel === 'email') return contact.email ? 'email' : null;
+  if (channel === 'sms') return contact.phone ? 'sms' : null;
+  if (channel === 'slack') return contact.slackHandle ? 'slack' : null;
+  // 'whatsapp' / 'calendar' / anything else: the dispatch worker cannot deliver.
+  return null;
+}
+
+/**
  * Pick a DELIVERABLE reminder channel for the owner so a chat/tab-created
  * reminder is never scheduled on a channel with no destination (which the
- * dispatch worker would terminally fail). Honours the owner's chosen
- * `preferredChannel` when it maps to a reminder channel that has a resolvable
- * destination, else falls back to the first channel that can actually deliver
- * (email → sms → slack), else `email` (the worker logs the missing-address
- * failure clearly). Pure.
+ * dispatch worker would terminally fail).
+ *
+ * GENERATIVE ordering: first honour the owner's ORDERED `channelPriority` list
+ * (highest-priority first) and return the FIRST entry with a resolvable
+ * destination. If none of the ranked channels is deliverable (or the list is
+ * empty), fall back to the legacy `preferredChannel` → email → sms → slack
+ * logic, then `email` (the worker logs the missing-address failure clearly).
+ * Pure.
  */
 export function pickDeliverableChannel(
   contact: ResolvedOwnerContact,
 ): DeliverableReminderChannel {
+  // 1) Owner's explicit ranking wins, in order — first deliverable entry.
+  for (const channel of contact.channelPriority) {
+    const deliverable = deliverableFor(channel, contact);
+    if (deliverable) return deliverable;
+  }
+
+  // 2) Fall back to the single preferred channel when it has a destination.
   const canEmail = Boolean(contact.email);
   const canSms = Boolean(contact.phone);
   const canSlack = Boolean(contact.slackHandle);
@@ -57,7 +84,8 @@ export function pickDeliverableChannel(
   if (pref === 'email' && canEmail) return 'email';
   if (pref === 'sms' && canSms) return 'sms';
   if (pref === 'slack' && canSlack) return 'slack';
-  // preferred channel unset / undeliverable (incl. 'whatsapp', not a worker
+
+  // 3) preferred channel unset / undeliverable (incl. 'whatsapp', not a worker
   // channel) → first channel with a real destination.
   if (canEmail) return 'email';
   if (canSms) return 'sms';
