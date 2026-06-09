@@ -372,6 +372,15 @@ router.post(
           (generateInput as { sourceConversationId?: string }).sourceConversationId =
             parsed.data.sourceConversationId;
         }
+        // W3d — owner ACTIVE locale → the brain AUTHORS every generated label in
+        // that single language (CLAUDE.md EN/SW absolute separation). The header
+        // is authoritative; default en.
+        const acceptLang = c.req.header('accept-language') ?? '';
+        (generateInput as { locale?: 'en' | 'sw' }).locale = /\bsw\b/i.test(
+          acceptLang,
+        )
+          ? 'sw'
+          : 'en';
         const result = await engine.generate(generateInput);        if (parsed.data.persist) {
           await engine.persist({ tab: result.tab });
         }

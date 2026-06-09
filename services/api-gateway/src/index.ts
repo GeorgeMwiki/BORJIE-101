@@ -667,6 +667,10 @@ import { createRemindersDispatchWorker } from './workers/reminders-dispatch.work
 // Wave 2 — self-acting-MD workers: proactive-intel insight loop + KG auto-sync.
 import { createProactiveIntelWorker } from './workers/proactive-intel.worker';
 import { createKgSyncWorker } from './workers/kg-sync.worker';
+// Wave 3 — the proactive worker's LIVE per-tenant data feed; the self-build
+// (gap→spec→generate→propose) operator-gated route.
+import { createTickInputsProvider } from './composition/proactive/tick-inputs-provider.js';
+import { internalModulesRouter } from './routes/internal/modules.hono';
 // Wave NOTIFICATION-DISPATCH-WIRE — turn on the already-built notification
 // rails: the dispatch drain worker (delivers notification_dispatch_log
 // pending rows via email/SMS/push with retry+backoff+DLQ), its push
@@ -2666,6 +2670,10 @@ api.route('/regulatory/zones', regulatoryZonesRouter);
 api.route('/owner/workforce', workforceTabConfigOwnerRouter);
 api.route('/owner/workforce', workforceTabConfigOwnerListRouter);
 api.route('/workforce', workforceTabConfigWorkerRouter);
+// Wave 3 (W3c) — the self-build proposal surface (SUPER_ADMIN + four-eye gated,
+// propose-only — never auto-applies). Mounted BEFORE the broad /internal route
+// so the more-specific /internal/modules prefix wins.
+api.route('/internal/modules', internalModulesRouter);
 api.route('/internal', workforceTabPolicyAdminRouter);api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
@@ -3210,6 +3218,30 @@ const proactiveIntelWorker = serviceRegistry.db
       db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       publish: publishCockpitEvent,
+      // W3a — the LIVE per-tenant data feed. Without it the worker idles; with it
+      // the detectors read real cashflow / royalty-arrears / churn signals over
+      // the same tenant-scoped $client.unsafe port the record store uses (RLS
+      // FORCE backstops). A missing/empty source → neutral default (detector
+      // self-skips), never a fabricated signal.
+      inputsForTenant: createTickInputsProvider({
+        query: {
+          query: <Row = Record<string, unknown>>(
+            sql: string,
+            params?: ReadonlyArray<unknown>,
+          ): Promise<ReadonlyArray<Row>> =>
+            (
+              serviceRegistry.db as unknown as {
+                $client: {
+                  unsafe<R = Record<string, unknown>>(
+                    sql: string,
+                    params?: ReadonlyArray<unknown>,
+                  ): Promise<ReadonlyArray<R>>;
+                };
+              }
+            ).$client.unsafe<Row>(sql, params ?? []),
+        },
+        logger,
+      }),
       intervalMs: Number(process.env.BORJIE_PROACTIVE_INTEL_INTERVAL_MS ?? 1_800_000) || 1_800_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_PROACTIVE_INTEL_WORKER_DISABLED !== 'true',
     })

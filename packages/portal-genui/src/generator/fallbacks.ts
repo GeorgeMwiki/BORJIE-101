@@ -6,7 +6,17 @@
  * with LLM output (e.g. cherry-pick widget configs) for resilience.
  */
 
-import type { PortalTab, TabGenerationIntent } from '../types.js';
+import type {
+  PortalLocale,
+  PortalTab,
+  PortalTabSection,
+  TabGenerationIntent,
+} from '../types.js';
+import {
+  localizeAutoDescription,
+  localizeSkeleton,
+  localizeTitle,
+} from './fallback-locale.js';
 
 type DomainSkeleton = Pick<
   PortalTab,
@@ -292,27 +302,41 @@ export interface BuildFallbackArgs {
   readonly actorId: string;
   readonly nowIso: string;
   readonly id: string;
+  /**
+   * Owner's active locale. The deterministic skeleton is authored in
+   * English; when `sw` we run the phrase-map locale pass so a Swahili
+   * owner never sees an English fallback tab (CLAUDE.md EN/SW absolute).
+   * Defaults to `en`.
+   */
+  readonly locale?: PortalLocale;
   readonly sourceConversationId: string | undefined;
 }
 
 /**
  * Build a fully-validated `PortalTab` from the domain skeleton. Used
  * when no LLM is available, or as a hard fallback when every LLM
- * proposer returns invalid JSON.
+ * proposer returns invalid JSON. The skeleton is localized into the
+ * owner's active locale before assembly so the fallback honours the same
+ * single-language mandate as the brain-generated path.
  */
 export function buildFallbackTab(args: BuildFallbackArgs): PortalTab {
+  const locale: PortalLocale = args.locale ?? args.intent.locale ?? 'en';
   const skeleton = getDomainSkeleton(args.intent.domain);
+  const sections: ReadonlyArray<PortalTabSection> = localizeSkeleton(
+    skeleton.sections,
+    locale,
+  );
   const tab: PortalTab = {
     id: args.id,
     version: 1,
     tenantId: args.tenantId,
     userId: args.userId,
     tabKey: args.intent.proposedTabKey,
-    title: args.intent.proposedTabTitle,
-    description: `Auto-generated tab for ${args.intent.proposedTabTitle}.`,
+    title: localizeTitle(args.intent.proposedTabTitle, locale),
+    description: localizeAutoDescription(args.intent.proposedTabTitle, locale),
     icon: skeleton.icon,
     domain: args.intent.domain,
-    sections: skeleton.sections,
+    sections: sections as PortalTab['sections'],
     permissions: skeleton.permissions,
     audit: {
       createdBy: args.actorId,

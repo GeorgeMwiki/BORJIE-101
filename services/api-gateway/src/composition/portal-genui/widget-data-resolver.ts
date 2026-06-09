@@ -9,10 +9,13 @@
  *     a vetted estate domain (licences, employees, production_records, …) or
  *     the tab's OWN records (`tab_records`). `resource` is validated against the
  *     capability registry (`isKnownResource`) exactly like a widget kind.
- *   - `{ kind: 'tool', toolId, args? }` — the widget would invoke a vetted
- *     action. `toolId` is validated against `isKnownTool`. Read-only tool
- *     dispatch is a LATER seam — this resolver NEVER executes a mutating tool;
- *     it returns an empty `{ rows: [] }` for tool bindings for now.
+ *   - `{ kind: 'tool', toolId, args? }` — the widget invokes a vetted action.
+ *     `toolId` is validated against `isKnownTool` AND asserted READ-ONLY
+ *     (membership in `READ_ONLY_TOOL`). A READ-ONLY tool dispatches against the
+ *     injected `ReadOnlyToolPort` (a bounded, tenant-scoped read/aggregate); a
+ *     MUTATING tool is NEVER executed from this render path — it degrades to an
+ *     empty `{ rows: [] }` + a warn. Sovereign + money rails are not in the
+ *     portal-genui tool registry at all and can never reach this resolver.
  *
  * GENERATIVE by construction: there is no per-widget handler. A mapped resource
  * resolves through ONE bounded, tenant-scoped `SELECT … LIMIT 100` over the
@@ -36,8 +39,14 @@ import {
   isKnownResource,
   isKnownTool,
   type PortalQueryResource,
+  type PortalToolId,
   type RecordStore,
 } from '@borjie/portal-genui';
+
+import {
+  createDefaultReadOnlyToolPort,
+  type ReadOnlyToolPort,
+} from './widget-read-tool-port.js';
 
 // ────────────────────────────────────────────────────────────────────
 // Ports + public shapes
@@ -110,6 +119,13 @@ export interface WidgetDataResolverDeps {
   readonly query?: WidgetQueryPort;
   /** Record store — resolves the `tab_records` resource to the tab's own rows. */
   readonly recordStore: RecordStore;
+  /**
+   * READ-ONLY tool-dispatch port for `{ kind: 'tool' }` bindings. Optional: when
+   * omitted, a default generic port is composed from `query` (bounded rollups
+   * over the allow-listed resource map). A MUTATING tool never reaches it —
+   * `resolveTool` asserts `READ_ONLY_TOOL` membership first.
+   */
+  readonly toolPort?: ReadOnlyToolPort;
   readonly logger: WidgetResolverLogger;
 }
 
@@ -145,6 +161,26 @@ const RESOURCE_TABLE: Partial<Record<PortalQueryResource, string>> = {
 };
 
 // ────────────────────────────────────────────────────────────────────
+// READ-ONLY tool allow-set. The vetted `PORTAL_TOOL_IDS` are a MIX of
+// read-only (export/aggregate) and mutating (create_*/request_*/notify_*)
+// actions. A widget-data read is a RENDER path, so ONLY these read-only ids may
+// ever dispatch; a mutating tool is asserted out BEFORE any port call and
+// returns empty rows. This set is the single trust boundary — adding a read
+// tool means adding both its registry id and one entry here, never loosening
+// the check. NEVER add a tool that writes / moves money / mutates an entity.
+// ────────────────────────────────────────────────────────────────────
+
+const READ_ONLY_TOOL: ReadonlySet<PortalToolId> = new Set<PortalToolId>([
+  'export_records',
+  'recompute_royalty_estimate',
+]);
+
+/** True when `id` is a vetted READ-ONLY tool — safe to dispatch from a read. */
+function isReadOnlyTool(id: PortalToolId): boolean {
+  return READ_ONLY_TOOL.has(id);
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Factory
 // ────────────────────────────────────────────────────────────────────
 
@@ -152,6 +188,17 @@ export function createWidgetDataResolver(
   deps: WidgetDataResolverDeps,
 ): WidgetDataResolver {
   const { query, recordStore, logger } = deps;
+
+  // The READ-ONLY tool-dispatch port. Injected one wins; otherwise compose the
+  // default generic port from the same `query` port the query path uses (it
+  // honest-degrades to empty rows when no DB is wired). `resolveTool` is the
+  // gate — the port only ever sees an allow-listed read-only tool.
+  const toolPort: ReadOnlyToolPort =
+    deps.toolPort ??
+    createDefaultReadOnlyToolPort({
+      ...(query !== undefined ? { query } : {}),
+      logger,
+    });
 
   /** The tab's own collected records → widget rows. */
   async function resolveTabRecords(
@@ -233,14 +280,38 @@ export function createWidgetDataResolver(
     return resolveMappedTable(table, ctx);
   }
 
-  async function resolveTool(toolId: string): Promise<WidgetData> {
+  async function resolveTool(
+    toolId: string,
+    args: Readonly<Record<string, unknown>> | undefined,
+    ctx: WidgetResolveContext,
+  ): Promise<WidgetData> {
     if (!isKnownTool(toolId)) {
       logger.warn({ toolId }, 'widget-data: unknown tool id — rejecting');
       throw new UnknownBindingError(`unknown tool '${toolId}'`);
     }
-    // Read-only tool dispatch is a later seam. We NEVER execute a mutating tool
-    // from a widget-data read; the binding is vetted + degrades to empty rows.
-    return { rows: [] };
+    // Hard gate: a render-time widget read may dispatch ONLY a read-only tool. A
+    // mutating tool (create_*/request_*/notify_*) is NEVER executed here — it
+    // degrades to empty rows + a warn so a generated binding can never write,
+    // move money, or mutate an entity from a read path.
+    if (!isReadOnlyTool(toolId)) {
+      logger.warn(
+        { toolId },
+        'widget-data: tool is not read-only — refusing to execute, empty rows',
+      );
+      return { rows: [] };
+    }
+    // Read-only → dispatch against the injected (or default generic) port. Any
+    // port failure is already degraded inside the port to empty rows; we wrap
+    // again so a thrown port can never 500 the request.
+    try {
+      return await toolPort.runReadTool(toolId, args, ctx);
+    } catch (err) {
+      logger.warn(
+        { toolId, err: errMessage(err) },
+        'widget-data: read-tool dispatch threw — degrading to empty rows',
+      );
+      return { rows: [] };
+    }
   }
 
   return {
@@ -251,7 +322,7 @@ export function createWidgetDataResolver(
       if (binding.kind === 'query') {
         return resolveQuery(binding.resource, ctx);
       }
-      return resolveTool(binding.toolId);
+      return resolveTool(binding.toolId, binding.args, ctx);
     },
   };
 }

@@ -8,8 +8,9 @@
  *      query returns the tab's own records as rows; an unknown resource/tool is
  *      REJECTED (UnknownBindingError); a known-but-unmapped resource degrades to
  *      empty rows (never throws → never 500); a mapped resource resolves through
- *      the bounded, tenant-scoped SELECT on the query port; a tool binding is
- *      vetted but returns empty rows (read-only tool dispatch is a later seam).
+ *      the bounded, tenant-scoped SELECT on the query port; a READ-ONLY tool
+ *      binding dispatches against the read-tool port and returns its rows; a
+ *      MUTATING tool binding NEVER executes — it degrades to empty rows.
  *
  *   2. ENDPOINT — the router's POST /tabs/:id/widget-data mounted with an
  *      in-memory engine + record store. Confirms a query binding to tab_records
@@ -215,13 +216,129 @@ describe('createWidgetDataResolver — unit', () => {
     expect(calls[0]?.params[0]).toBe('tenant_A');
   });
 
-  it('vets a tool binding but returns empty rows (read-only dispatch is a later seam)', async () => {
+  it('dispatches a READ-ONLY tool binding against the injected tool port and returns its rows', async () => {
+    const calls: Array<{ toolId: string; args: unknown }> = [];
+    const toolPort = {
+      async runReadTool(toolId: string, args: unknown) {
+        calls.push({ toolId, args });
+        return { rows: [{ id: 'rec_1' }, { id: 'rec_2' }] };
+      },
+    };
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      // Cast: the test port satisfies the structural contract; the resolver
+      // only ever hands it an allow-listed read-only id.
+      toolPort: toolPort as never,
+      logger: NOOP_LOGGER,
+    });
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'licences' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toHaveLength(2);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.toolId).toBe('export_records');
+    expect(calls[0]?.args).toEqual({ resource: 'licences' });
+  });
+
+  it('NEVER executes a MUTATING tool binding — returns empty rows, port untouched', async () => {
+    let invoked = false;
+    const toolPort = {
+      async runReadTool() {
+        invoked = true;
+        return { rows: [{ id: 'should_not_appear' }] };
+      },
+    };
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      toolPort: toolPort as never,
+      logger: NOOP_LOGGER,
+    });
+    // `create_reminder` is a KNOWN tool but MUTATING — it must never dispatch.
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'create_reminder', args: { title: 'x' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toEqual([]);
+    expect(invoked).toBe(false);
+  });
+
+  it('resolves a READ-ONLY export_records tool through the default port over the query port', async () => {
+    const { port, calls } = stubQueryPort([{ id: 'lic_1', tenant_id: 'tenant_A' }]);
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: port,
+      logger: NOOP_LOGGER,
+    });
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'licences' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain('FROM public.licences');
+    expect(calls[0]?.params[0]).toBe('tenant_A');
+  });
+
+  it('resolves a READ-ONLY recompute_royalty_estimate rollup to a single value via the default port', async () => {
+    const { port, calls } = stubQueryPort([{ value: 7 }]);
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: port,
+      logger: NOOP_LOGGER,
+    });
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'recompute_royalty_estimate', args: { resource: 'production_records' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.value).toBe(7);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain('COUNT(*)');
+    expect(calls[0]?.sql).toContain('FROM public.production_records');
+  });
+
+  it('degrades a READ-ONLY tool over an unmapped resource to empty (no off-list table)', async () => {
+    const { port, calls } = stubQueryPort([]);
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: port,
+      logger: NOOP_LOGGER,
+    });
+    // `royalty_returns` is a vetted resource but has no table mapping — the
+    // default port must NOT issue a SELECT against an unmapped table.
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'royalty_returns' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toEqual([]);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('degrades a READ-ONLY tool to empty rows when the default port has no DB wired', async () => {
     const resolver = createWidgetDataResolver({
       recordStore: createInMemoryRecordStore(),
       logger: NOOP_LOGGER,
     });
     const data = await resolver.resolve(
-      { kind: 'tool', toolId: 'create_reminder' },
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'licences' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toEqual([]);
+  });
+
+  it('degrades a thrown read-tool port to empty rows (never propagates a throw → never 500)', async () => {
+    const failingPort: WidgetQueryPort = {
+      async query() {
+        throw new Error('connection reset');
+      },
+    };
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: failingPort,
+      logger: NOOP_LOGGER,
+    });
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'licences' } },
       { tenantId: 'tenant_A', tabId: 'tab_x' },
     );
     expect(data.rows).toEqual([]);

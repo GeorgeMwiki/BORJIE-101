@@ -90,6 +90,23 @@ export type PortalDashboardKindName = (typeof PORTAL_DASHBOARD_KIND_NAMES)[numbe
 const PortalDashboardKindSchema = z.enum(PORTAL_DASHBOARD_KIND_NAMES);
 
 // ---------------------------------------------------------------------------
+// 0. Locale — the owner's ACTIVE render language.
+// ---------------------------------------------------------------------------
+
+/**
+ * Supported render locales for a generated tab. Mirrors the brain's
+ * `'en' | 'sw'` axis (CLAUDE.md: `en` default, `sw` toggle, ZERO
+ * mixing). The brain GENERATES every label — title, section titles,
+ * field labels, widget titles — in this locale; it does not look them
+ * up in a dictionary. When omitted, `en` is assumed (CLAUDE.md default).
+ */
+export const PORTAL_LOCALES = ['en', 'sw'] as const;
+
+export type PortalLocale = (typeof PORTAL_LOCALES)[number];
+
+export const PortalLocaleSchema = z.enum(PORTAL_LOCALES);
+
+// ---------------------------------------------------------------------------
 // 1. ISO + ids
 // ---------------------------------------------------------------------------
 
@@ -560,6 +577,16 @@ export interface TabGenerationIntent {
    * synthesizer because heuristics were ambiguous.
    */
   readonly usedLlm: boolean;
+  /**
+   * Owner's ACTIVE render locale (`en` default, `sw` toggle). The
+   * generator threads this into the system prompt so the brain
+   * AUTHORS every label in this single language — no EN/SW mixing on
+   * the generated surface (CLAUDE.md absolute separation). Omitted ⇒
+   * `en`.
+   */
+  // `| undefined` so the zod `.optional()` parse output (present-but-undefined
+  // under exactOptionalPropertyTypes) is assignable to this interface.
+  readonly locale?: PortalLocale | undefined;
 }
 
 export const TabGenerationIntentSchema = z
@@ -583,6 +610,7 @@ export const TabGenerationIntentSchema = z
     evidence: z.array(z.string().min(1).max(200)).max(10),
     sourceMessage: z.string().min(1).max(2048),
     usedLlm: z.boolean(),
+    locale: PortalLocaleSchema.optional(),
   })
   .strict();
 
