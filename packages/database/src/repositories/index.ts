@@ -113,6 +113,16 @@ export {
   type CreateMdCommitmentInput,
   type TransitionInput as MdCommitmentTransitionInput,
   type ConfirmInput as MdCommitmentConfirmInput,
+  // Capability Gap Register (Loop A, P0; migration 0326).
+  type CreateGapInput as MdCommitmentCreateGapInput,
+  type AdvanceGapStatusInput as MdCommitmentAdvanceGapStatusInput,
+  type GapAuditAppendPort as MdCommitmentGapAuditAppendPort,
+  TERMINAL_GAP_STATUSES,
+  isTerminalGapStatus,
+  // FIX 5 — replayable audit chain (the log verifies without the live row).
+  replayGapAuditChain,
+  type ReplayableGapAuditEntry as MdCommitmentReplayableGapAuditEntry,
+  type GapAuditReplayResult as MdCommitmentGapAuditReplayResult,
 } from './md-commitment-repository.js';
 
 // Enum guards — bug fix A-BUG-DEEP #9. Property-domain enums (lease,

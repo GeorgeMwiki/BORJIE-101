@@ -98,6 +98,44 @@ export interface ReconciliationPort {
   }): Promise<ReconcileResult>;
 }
 
+/**
+ * GAP-WATCH port — the Capability Gap Register's blocker-clear sweep (Loop A,
+ * P0; `Docs/research/THE_METACOGNITIVE_SELF_MODEL.md` §3.4). Folded into the
+ * RECONCILE step of the slow loop so the MD durably re-probes every open
+ * capability gap each tick: read the live capability snapshot (registered
+ * tools / wired organs / flags / approvals / evidence), evaluate each gap's
+ * unblock trigger, and on a clear drive the verifier-gated auto-completion
+ * (sovereign-parks, stale-resume-revalidates, no false-green).
+ *
+ * The kernel does NOT own the gap store, the snapshot source, the watcher, or
+ * the auto-completer — those live in the composition root over
+ * `md_commitments` + the tool registry + the Auditor. This port is the single
+ * call the tick makes; the implementation is FAIL-SAFE (never throws to the
+ * tick — a fault degrades the tick via `degradedReason`).
+ */
+export interface GapWatchPort {
+  watch(input: {
+    readonly tenantId: string;
+    readonly nowMs: number;
+  }): Promise<GapWatchSummary>;
+}
+
+/** Pure observability summary of one gap-watch sweep. Never thrown. */
+export interface GapWatchSummary {
+  /** Open capability gaps re-probed this tick. */
+  readonly probed: number;
+  /** Gaps whose blocker cleared this tick. */
+  readonly cleared: number;
+  /** Cleared gaps that auto-completed (verifier passed) this tick. */
+  readonly completed: number;
+  /** Cleared gaps reopened (verifier rejected / stale-resume) this tick. */
+  readonly reopened: number;
+  /** Sovereign gaps parked for four-eye approval this tick (never actuated). */
+  readonly parkedSovereign: number;
+  /** Set when the sweep degraded (and why); null on a clean sweep. */
+  readonly degradedReason: string | null;
+}
+
 /** Pure observability summary of one reconcile sweep. Never thrown. */
 export interface ReconcileResult {
   /** Live commitments re-read this tick. */
@@ -124,6 +162,8 @@ export interface EstateMindTickResult {
   readonly pruned: number;
   /** RECONCILE summary for this tick; null when no reconcile port is wired. */
   readonly reconcile: ReconcileResult | null;
+  /** GAP-WATCH summary for this tick; null when no gap-watch port is wired. */
+  readonly gapWatch: GapWatchSummary | null;
   /** Set when the tick degraded (and why); null on a clean cycle. */
   readonly degradedReason: string | null;
 }
@@ -152,6 +192,14 @@ export interface EstateMindDeps {
    * ORIENT and PROPOSE, fail-safe (never throws to the tick).
    */
   readonly reconciliation?: ReconciliationPort | null;
+  /**
+   * GAP-WATCH port — the Capability Gap Register's blocker-clear sweep (Loop A,
+   * P0). Folded into the RECONCILE step. When omitted the tick runs exactly as
+   * before (the gap register is purely additive). The implementation lives in
+   * the composition root over `md_commitments` + the tool registry + the
+   * Auditor. Runs inside RECONCILE, fail-safe (never throws to the tick).
+   */
+  readonly gapWatch?: GapWatchPort | null;
   /** Injectable clock for deterministic ticks. */
   readonly now?: () => number;
   /**

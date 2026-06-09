@@ -77,4 +77,9 @@ export {
   type FlowAutonomyRepository,
   type RecordFlowCreationInput,
   type SetFlowPostureInput,
+  // Capability Gap Register (Loop A, P0) — deferred-work DAG resolver.
+  resolveDependents,
+  type DeferredGapNode,
+  type ReadyGap,
+  type DependencyResolution,
 } from './autonomy/index.js';

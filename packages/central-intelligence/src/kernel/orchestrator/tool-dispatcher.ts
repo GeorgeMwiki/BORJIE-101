@@ -30,6 +30,44 @@ import type { BrainToolRegistry } from '../tool-spec.js';
 import type { Decision, DispatchResult, SubMdSpawn } from './decision.js';
 import type { Dispatcher } from './main-loop.js';
 import type { HookContext } from './hook-chain.js';
+import { isSovereignGapSource } from './gap-sovereign-classifier.js';
+
+/**
+ * The Capability-Gap DETECTION SEAM (Loop A, P0;
+ * `Docs/research/THE_METACOGNITIVE_SELF_MODEL.md` §3.2). When a tool resolves to
+ * a NOT_YET_WIRED organ (`executor-failed`) or cannot be found
+ * (`not-found`), the dispatcher records a typed capability gap keyed on the
+ * MISSING tool/organ as the blocker — BEFORE returning the (still-failing)
+ * `tool_error`. The request keeps failing honestly (no faked success); the gap
+ * is now durable so the `GapRegistryWatcher` can auto-complete it once the tool
+ * registers.
+ *
+ * The kernel does NOT own the gap store. The composition root wires this port
+ * over the `MdCommitmentRepository.createGap`, deriving the tenant from `ctx`.
+ * Fire-and-forget + fail-safe: a detector fault NEVER changes the dispatch
+ * result (the tool error is returned regardless).
+ */
+export interface GapDetectorPort {
+  recordUnwiredOrganGap(input: {
+    /** The tool/organ the brain tried to call and could not. */
+    readonly toolName: string;
+    /** Why it was blocked — 'unwired_organ' (stub) or 'missing_tool' (absent). */
+    readonly gapKind: 'unwired_organ' | 'missing_tool';
+    /** The intent that was blocked (e.g. the executor-failed message). */
+    readonly intent: string;
+    /**
+     * Derived sovereign flag (FIX 2). True when the blocked tool/intent is a
+     * SOVEREIGN / HIGH-risk surface (money / licence-suspension / deletion /
+     * four-eye + the sovereign policy prefixes), classified by the SAME rail
+     * the policy gate uses (`isSovereignGapSource` → `isHighRiskLiteralOnly`).
+     * A sovereign-born gap MUST be persisted with `sovereign=true` so the
+     * auto-completer PARKS it (never auto-actuates when the blocker clears).
+     */
+    readonly sovereign: boolean;
+    /** The live hook context (tenant scope, thread) for the gap row. */
+    readonly ctx: HookContext;
+  }): Promise<void>;
+}
 
 export interface ToolDispatcherConfig {
   /** The kernel's tool registry — the SAME catalog projected into toolSearch. */
@@ -94,6 +132,15 @@ export interface ToolDispatcherConfig {
     },
     ctx?: HookContext,
   ) => Promise<{ readonly output?: unknown }>;
+  /**
+   * Capability-Gap DETECTION SEAM (Loop A, P0). When wired, a tool that
+   * resolves to a NOT_YET_WIRED organ (`executor-failed`) or is not found
+   * (`not-found`) records a durable `unwired_organ` / `missing_tool` gap keyed
+   * on the missing tool — BEFORE the (still-failing) `tool_error` is returned.
+   * When omitted the dispatcher behaves exactly as before (the seam is purely
+   * additive). Fail-safe: a detector fault never changes the dispatch result.
+   */
+  readonly gapDetector?: GapDetectorPort;
   /** Optional logger (Pino-style). No console.* per the hard rules. */
   readonly logger?: {
     warn(msg: string, meta?: Record<string, unknown>): void;
@@ -113,8 +160,41 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
       return `handoff_${handoffSeq}`;
     });
 
+  /**
+   * Record a capability gap at the detection seam — fire-and-forget + fail-safe.
+   * A detector fault is swallowed (logged) so it can NEVER change the dispatch
+   * result: the tool keeps failing honestly while the gap is durably filed.
+   */
+  async function recordGap(
+    toolName: string,
+    gapKind: 'unwired_organ' | 'missing_tool',
+    intent: string,
+    ctx: HookContext,
+  ): Promise<void> {
+    if (!config.gapDetector) return;
+    try {
+      // FIX 2 — derive sovereign from the SAME rail the policy gate uses, so a
+      // sovereign tool/intent is born `sovereign=true` and the auto-completer
+      // parks it (never auto-actuates when the blocker clears).
+      const sovereign = isSovereignGapSource({ toolName, intent });
+      await config.gapDetector.recordUnwiredOrganGap({
+        toolName,
+        gapKind,
+        intent,
+        sovereign,
+        ctx,
+      });
+    } catch (err) {
+      config.logger?.warn('tool-dispatcher gapDetector threw', {
+        toolName,
+        reason: err instanceof Error ? err.message : 'gap-detector error',
+      });
+    }
+  }
+
   async function dispatchToolCall(
     decision: Extract<Decision, { kind: 'tool_call' }>,
+    ctx: HookContext,
   ): Promise<DispatchResult> {
     const started = clock();
     const { toolName, input, callId } = decision.call;
@@ -136,6 +216,14 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
             usdCost: 0,
           };
         case 'not-found':
+          // DETECTION SEAM — a dispatch miss is a `missing_tool` gap. File it,
+          // then STILL fail the request (no faked success).
+          await recordGap(
+            toolName,
+            'missing_tool',
+            `tool not found: ${toolName}`,
+            ctx,
+          );
           return {
             kind: 'tool_error',
             callId,
@@ -157,6 +245,14 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
             latencyMs,
           };
         case 'executor-failed':
+          // DETECTION SEAM — a NOT_YET_WIRED organ surfaces here. File an
+          // `unwired_organ` gap keyed on the organ, then STILL fail the request.
+          await recordGap(
+            toolName,
+            'unwired_organ',
+            `executor-failed: ${outcome.message}`,
+            ctx,
+          );
           return {
             kind: 'tool_error',
             callId,
@@ -271,7 +367,7 @@ export function createToolDispatcher(config: ToolDispatcherConfig): Dispatcher {
     ): Promise<DispatchResult> {
       switch (decision.kind) {
         case 'tool_call':
-          return dispatchToolCall(decision);
+          return dispatchToolCall(decision, ctx);
         case 'respond_to_owner':
         case 'final':
           return {

@@ -51,14 +51,73 @@ export type MdCommitmentClass =
 /** The WAIT-FOR trigger family. */
 export type MdCommitmentTriggerKind = 'time' | 'event' | 'condition';
 
-/** Honest lifecycle — never optimistic. */
+/**
+ * Honest lifecycle — never optimistic.
+ *
+ * The LIVE set (`open|scheduled|overdue|blocked|reopened`) is what the watcher /
+ * reconcile sweep re-reads each tick. `done` is a positive-proof TERMINAL close.
+ * Two further TERMINAL states (migration 0326) take a gap OUT of the live set so
+ * it can never re-fire every tick:
+ *   - `needs_approval` — a sovereign gap PARKED on a four-eye human signal. The
+ *     watcher must not re-clear / re-park it every tick (the park-storm hazard);
+ *     a human approval is the ONLY transition out.
+ *   - `dead_letter`    — a gap that exhausted its reopened-attempt cap. It leaves
+ *     the live set so the auto-completer cannot re-fire + re-verify it forever
+ *     (the reattempt-storm hazard); a human must triage it.
+ */
 export type MdCommitmentStatus =
   | 'open'
   | 'scheduled'
   | 'overdue'
   | 'blocked'
   | 'done'
-  | 'reopened';
+  | 'reopened'
+  // ── Capability Gap Register terminal park / dead-letter states (0326) ──
+  | 'needs_approval'
+  | 'dead_letter';
+
+/**
+ * Capability-gap discriminator (migration 0326). `null` = an ordinary GTD
+ * commitment; a non-null value marks the row as a capability/understanding gap
+ * the `GapRegistryWatcher` re-probes. The metacognitive self-model keeps ONE
+ * table for both: a gap and a deferral are the same suspended-goal shape.
+ *   - missing_tool      — a dispatch target / power-tool is not registered.
+ *   - bug               — a fix is required (typecheck/tests green on resume).
+ *   - unwired_organ     — a brain organ resolved to a NOT_YET_WIRED stub.
+ *   - missing_evidence  — the Auditor rejected an empty evidence chain.
+ *   - needs_approval    — a sovereign action awaits a four-eye human signal.
+ *   - understanding_gap — the owner's intent is ambiguous (Loop B).
+ *   - structural        — a deeper structural blocker (feature not shipped).
+ */
+export type MdCommitmentGapKind =
+  | 'missing_tool'
+  | 'bug'
+  | 'unwired_organ'
+  | 'missing_evidence'
+  | 'needs_approval'
+  | 'understanding_gap'
+  | 'structural';
+
+/**
+ * Unblock-trigger predicate stored in `unblock_trigger` jsonb (migration 0326).
+ * The EXACT input that flips the gap to confident (Kadavath inject-context):
+ *   tool_registered   → target = the tool / dispatch name to watch in the registry
+ *   evidence_ingested → target = the evidence_id that must resolve in the corpus
+ *   approval_granted  → target = the four-eye approval key that must be granted
+ *   flag_enabled      → target = the feature-flag name that must flip on
+ *   feature_shipped   → target = the feature key whose ship clears the gap
+ */
+export type MdUnblockTriggerKind =
+  | 'tool_registered'
+  | 'evidence_ingested'
+  | 'approval_granted'
+  | 'flag_enabled'
+  | 'feature_shipped';
+
+export interface MdUnblockTrigger {
+  readonly kind: MdUnblockTriggerKind;
+  readonly target: string;
+}
 
 /**
  * Discriminated trigger spec stored in `trigger_spec` jsonb.
@@ -130,10 +189,35 @@ export const mdCommitments = pgTable(
     blockedReason: text('blocked_reason'),
     /** Reuse the 0303 retry discipline for surface/delivery attempts. */
     attemptCount: integer('attempt_count').notNull().default(0),
+    /**
+     * Reopened-attempt cap counter (0326). After N reopened auto-completion
+     * attempts the gap dead-letters (TERMINAL, out of the live set) so it never
+     * re-fires + re-verifies forever. Distinct from attemptCount above.
+     */
+    attemptFailedCount: integer('attempt_failed_count').notNull().default(0),
+    /**
+     * Per-gap monotonic audit-chain ordinal (0326). 0 at the gap's genesis
+     * advance, +1 per durable advance. Persisted onto each gap-audit log entry so
+     * an independent replay can detect a truncated / inserted chain (a sound log
+     * is a gapless 0..N run). Distinct from the per-tenant ai_audit_chain ordinal.
+     */
+    gapAuditSeq: integer('gap_audit_seq').notNull().default(0),
     /** Hash-chained closure stitch (append-only). */
     auditChainHash: text('audit_chain_hash'),
     /** UNIQUE(tenant_id, idempotency_key) — never double-create a deferral. */
     idempotencyKey: text('idempotency_key').notNull(),
+    // ── Capability Gap Register (migration 0326) ──────────────────────────
+    /** null = ordinary commitment; else a typed capability/understanding gap. */
+    gapKind: text('gap_kind').$type<MdCommitmentGapKind>(),
+    /** DAG dependency edges — blocking commitment ids (Agent SDK addBlockedBy). */
+    blockedBy: jsonb('blocked_by')
+      .$type<ReadonlyArray<string>>()
+      .notNull()
+      .default([]),
+    /** The predicate that flips the gap to confident ({ kind, target }). */
+    unblockTrigger: jsonb('unblock_trigger').$type<MdUnblockTrigger>(),
+    /** Jagged-frontier coordinate (licences | royalty | treasury | ...). */
+    competenceDomain: text('competence_domain'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -157,6 +241,12 @@ export const mdCommitments = pgTable(
     idemUniq: uniqueIndex('md_commitments_idem_uniq').on(
       t.tenantId,
       t.idempotencyKey,
+    ),
+    // The watcher's hot scan: OPEN/BLOCKED gap rows for a tenant (0326).
+    gapOpenIdx: index('md_commitments_gap_open_idx').on(
+      t.tenantId,
+      t.gapKind,
+      t.status,
     ),
   }),
 );

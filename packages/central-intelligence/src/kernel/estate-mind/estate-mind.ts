@@ -31,6 +31,7 @@ import type {
   EstateMindDeps,
   EstateMindTickResult,
   EstateProposal,
+  GapWatchSummary,
   ReconcileResult,
 } from './types.js';
 import type { MotivatedGoal } from '../motivation/types.js';
@@ -110,6 +111,30 @@ export function createEstateMind(deps: EstateMindDeps): EstateMind {
       }
     }
 
+    // ── GAP-WATCH — the Capability Gap Register blocker-clear sweep (Loop A).
+    // Part of RECONCILE: re-probe every OPEN capability gap against the live
+    // capability snapshot (registered tools / wired organs / flags / approvals
+    // / evidence); on a clear, drive the verifier-gated auto-completion
+    // (sovereign-parks, stale-resume-revalidates, no false-green). FAIL-SAFE: a
+    // gap-watch fault degrades the tick, never breaks it.
+    let gapWatch: GapWatchSummary | null = null;
+    if (deps.gapWatch) {
+      try {
+        gapWatch = await deps.gapWatch.watch({ tenantId, nowMs });
+        if (gapWatch.degradedReason && !degradedReason) {
+          degradedReason = `gap-watch:${gapWatch.degradedReason}`;
+        }
+      } catch (err) {
+        // The port contract says watch never throws; belt-and-braces guard the
+        // boundary so a pathological implementation can never break the tick.
+        degradedReason = degradedReason ?? 'gap-watch-failed';
+        logger.warn('estate-mind: gap-watch failed', {
+          tenantId,
+          error: errMsg(err),
+        });
+      }
+    }
+
     // ── MOTIVATE — standing drives → self-formulated goals (no trigger) ────
     const goals = motivation.formulateGoals(snapshot);
 
@@ -153,6 +178,7 @@ export function createEstateMind(deps: EstateMindDeps): EstateMind {
       proposalsEmitted,
       pruned,
       reconcile,
+      gapWatch,
       degradedReason,
     };
   }

@@ -561,6 +561,39 @@ export * as motivation from './motivation/index.js';
 export * as estateMind from './estate-mind/index.js';
 
 /**
+ * Capability Gap Register (Loop A, P0) — the metacognitive self-model. The MD
+ * durably records what it CANNOT yet do (keyed on the blocker) and
+ * auto-completes the deferred work when the blocker clears, under EXTERNAL
+ * verification. `gap-registry-watcher` is the pure blocker-clear probe folded
+ * into the EstateMind RECONCILE step; `gap-auto-completer` is the
+ * verifier-gated completion path (sovereign-parks, stale-resume-revalidates,
+ * no false-green). See Docs/research/THE_METACOGNITIVE_SELF_MODEL.md §3.
+ */
+export {
+  evaluateGapClears,
+  isTriggerSatisfied,
+  type GapKind,
+  type UnblockTriggerKind,
+  type UnblockTrigger,
+  type GapRow,
+  type CapabilitySnapshot,
+  type GapCleared,
+  type GapWatchResult,
+} from './gap-registry-watcher.js';
+export {
+  createGapAutoCompleter,
+  type GapAutoCompleter,
+  type GapAutoCompleterDeps,
+  type GapCompletionOutcome,
+  type GapCompletionResult,
+  type DeferredContinuation,
+  type ReattemptResult,
+  type ExternalVerifier,
+  type VerifierVerdict,
+  type GapStatusSink,
+} from './gap-auto-completer.js';
+
+/**
  * Introspection layer — the brain's "self-knowledge" pattern.
  * Decision-trace replay (drift / regression / fairness sweeps) plus
  * per-persona capability cards (Anthropic-style model cards). Closes

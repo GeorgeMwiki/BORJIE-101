@@ -37,7 +37,11 @@ export {
 export {
   createToolDispatcher,
   type ToolDispatcherConfig,
+  type GapDetectorPort,
 } from './tool-dispatcher.js';
+// Gap sovereign classifier (Loop A, P0 — FIX 2). Reused by the composition root
+// to derive `sovereign` on the durable gap row from the SAME policy-gate rail.
+export { isSovereignGapSource } from './gap-sovereign-classifier.js';
 
 // Decision ADT + dispatch result.
 export {

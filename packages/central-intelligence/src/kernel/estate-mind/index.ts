@@ -20,4 +20,6 @@ export {
   type ProposalSink,
   type ReconciliationPort,
   type ReconcileResult,
+  type GapWatchPort,
+  type GapWatchSummary,
 } from './types.js';
