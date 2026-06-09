@@ -65,7 +65,8 @@ import {
 import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import { apiRequest } from '@/lib/api-client';
 
-import { GenUITabHost } from '@/components/genui-tab/GenUITabHost';
+import dynamic from 'next/dynamic';
+import { SurfaceSkeleton } from '@/components/owner-os/panels/SurfaceSkeleton';
 import { OwnerOSChatPanel } from './OwnerOSChatPanel';
 import { useAdaptiveTabOrder } from './useAdaptiveTabOrder';
 import { OwnerOSDocsPanel } from './OwnerOSDocsPanel';
@@ -79,6 +80,23 @@ import { PANEL_RENDERERS } from './panels';
 import './panels/builtin-descriptors';
 import { resolveIcon } from './panels/icon-map';
 import { OwnerOSTabHost } from './OwnerOSTabHost';
+
+/**
+ * Lazy, code-split GenUI projector. The MD-authored dynamic-tab host
+ * pulls in the field/widget renderers, the `@borjie/portal-genui`
+ * registries and DOMPurify (via the genui sanitiser) — none of which the
+ * cockpit home needs until the owner actually opens a `genui` tab. Behind
+ * `next/dynamic({ ssr: false })` this whole subtree leaves the dashboard
+ * route-entry bundle and loads on demand. Render output is identical once
+ * loaded; the SurfaceSkeleton holds the slot so there is no layout shift.
+ */
+const GenUITabHost = dynamic(
+  () =>
+    import('@/components/genui-tab/GenUITabHost.js').then(
+      (m) => m.GenUITabHost,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const RECENT_CLOSED_MAX = 6;
 

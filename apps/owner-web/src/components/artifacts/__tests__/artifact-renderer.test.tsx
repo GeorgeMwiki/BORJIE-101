@@ -14,7 +14,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, fireEvent, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
-import { ArtifactRenderer } from '../ArtifactRenderer';
+// Imports the eager implementation directly: the public `../ArtifactRenderer`
+// is now a `next/dynamic({ ssr: false })` lazy wrapper (to keep DOMPurify out
+// of the route-entry bundle), which would only paint its fallback in a
+// synchronous test render. The chrome under test lives in the impl.
+import { ArtifactRenderer } from '../ArtifactRendererImpl';
 
 const BASE = {
   title: 'Quarterly Brief',
