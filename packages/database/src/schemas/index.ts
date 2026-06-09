@@ -161,6 +161,11 @@ export * from './sovereign-action-ledger.schema.js';
 // Platform-level controls
 export * from './platform-privacy-budget.schema.js';
 export * from './platform-feature-flags.schema.js';
+// LLM control-plane routing config (migration 0320). One JSONB config doc per
+// scope (global | tenant:<id>): core model + ordered fallback chain + ensemble
+// + per-use-case routing. Consumed fail-safe by @borjie/brain-llm-router
+// (validateRoutingConfig → static TASK_LADDER on any malformed/absent row).
+export * from './platform-llm-routing-config.schema.js';
 export * from './platform-killswitch-state.schema.js';
 export * from './platform-autonomy-settings.schema.js';
 export * from './killswitch-authorities.schema.js';

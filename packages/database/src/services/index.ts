@@ -461,6 +461,18 @@ export {
 } from './platform/feature-flags.service.js';
 
 export {
+  createPlatformLlmRoutingConfigService,
+  type PlatformLlmRoutingConfigService,
+  type RoutingConfigScope as PlatformRoutingConfigScope,
+  type RoutingConfigDocument as PlatformRoutingConfigDocument,
+  type LlmRoutingConfigDeps as PlatformLlmRoutingConfigDeps,
+  type ReadRoutingConfigResult as PlatformReadRoutingConfigResult,
+  type SetRoutingConfigArgs as PlatformSetRoutingConfigArgs,
+  type SetRoutingConfigResult as PlatformSetRoutingConfigResult,
+  type RestoreRoutingConfigArgs as PlatformRestoreRoutingConfigArgs,
+} from './platform/llm-routing-config.service.js';
+
+export {
   createPlatformKillswitchWriteService,
   type PlatformKillswitchWriteService,
   type KillswitchDeps as PlatformKillswitchDeps,

@@ -576,6 +576,11 @@ import { mdAgenticRouter } from './routes/md-agentic.hono';
 // Admin Control Tower — cross-tenant toggles wired to REAL platform state
 // (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
 import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
+// Admin Control Plane — Borjie-internal control plane over the brain: power
+// flags (global + per-tenant), LLM core+ordered-fallbacks+ensemble+per-use-case
+// routing, model catalog, and the suggest-only AI recommender. Admin-only auth;
+// no tenant business data; every mutation hash-chain audited.
+import { adminControlPlaneRouter } from './routes/admin/control-plane.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 // Real Holt-Winters forecasts (cash-flow, production, royalty) wired
@@ -2475,6 +2480,12 @@ api.route('/md-agentic', mdAgenticRouter);
 // Each toggle drives a real platform control; HIGH-impact ones are four-eye
 // gated and only mutate state on the second-eye approval. SOC2-audited.
 api.route('/admin/control-tower', adminControlTowerRouter);
+// Admin Control Plane — GET/PUT /powers, GET/PUT /llm-routing, GET
+// /model-catalog, POST /ai-suggest. Admin-only (SUPER_ADMIN | ADMIN);
+// platform-config only (no tenant business data); each mutation is
+// hash-chain audited + recorded in the undo journal. The routing config
+// changes WHICH model answers, never WHETHER a sovereign action runs.
+api.route('/admin/control-plane', adminControlPlaneRouter);
 api.route('/public/share', publicShareResolverRouter);
 // Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
 // covers /request, /pending, /approve/:token, /reject/:token under

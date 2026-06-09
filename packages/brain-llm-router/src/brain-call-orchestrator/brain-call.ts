@@ -24,7 +24,17 @@ import type {
   ModelTier,
 } from '../types.js';
 import { BrainLLMError } from '../types.js';
-import { resolveLadder, type TenantLadderMap } from '../task-ladder/index.js';
+import { type TenantLadderMap } from '../task-ladder/index.js';
+import {
+  resolveConfigDrivenLadder,
+  resolveEnsembleConfig,
+} from '../routing-config/index.js';
+import {
+  runEnsemble,
+  type EnsembleInvoke,
+  type EnsembleBudgetCheck,
+  type EnsembleSynthesise,
+} from '../ensemble/index.js';
 import { runFallback, type ProviderLadderEntry } from '../provider-fallback/index.js';
 import { computeCost, getPricing } from '../cost-cascade/pricing.js';
 import {
@@ -57,6 +67,18 @@ export interface BrainCallContext {
   readonly cove?: CoveConfig;
   readonly tenantOverrides?: TenantLadderMap;
   readonly hedgeAfterMs?: number;
+  /**
+   * Cost-aware pre-flight for the ENSEMBLE seam (F2). Wired by the
+   * composition root to @borjie/llm-budget-governor.evaluateCall. When the
+   * budget is constrained the ensemble degrades to a single model and
+   * surfaces an economy note. Absent → ensemble runs unbudgeted (dev/test).
+   */
+  readonly ensembleBudgetCheck?: EnsembleBudgetCheck;
+  /**
+   * Judge/synthesiser port for 'judge-synthesis' / 'debate' ensemble
+   * strategies. Absent → those strategies fall back to majority-vote.
+   */
+  readonly ensembleSynthesise?: EnsembleSynthesise;
 }
 
 export interface BrainCallResult {
@@ -68,6 +90,12 @@ export interface BrainCallResult {
   readonly costUsd: number;
   readonly wasHedged: boolean;
   readonly compiledPromptUsed: boolean;
+  /** True iff the all-at-once ensemble strategy ran this turn. */
+  readonly wasEnsemble: boolean;
+  /** Surfaced economy note when the ensemble degraded to a single model. */
+  readonly economyNote?: string;
+  /** Where the ladder came from: 'call-override' | 'admin-config' | 'static-ladder'. */
+  readonly ladderSource: 'call-override' | 'admin-config' | 'static-ladder';
 }
 
 /**
@@ -75,13 +103,22 @@ export interface BrainCallResult {
  */
 export async function brainCall(req: BrainCallRequest, ctx: BrainCallContext): Promise<BrainCallResult> {
   const options = req.options ?? {};
-  // 1. Resolve ladder.
-  const ladder = resolveLadder(
-    req.task,
-    req.tenantId,
-    ctx.tenantOverrides,
-    options.ladderOverride
-  );
+  // 1. Resolve ladder — CONFIG-DRIVEN (F1+F3) with fail-safe fallback to the
+  //    static TASK_LADDER. A bad/empty/absent admin config is transparent:
+  //    the resolver returns the static ladder, so this is identical to the
+  //    legacy behaviour when the kill-switch is off or no config is set.
+  const ladderResolution = resolveConfigDrivenLadder({
+    task: req.task,
+    tenantId: req.tenantId,
+    // `exactOptionalPropertyTypes`: only pass these optional fields when they
+    // are actually present — never an explicit `undefined` (the api-gateway
+    // tsconfig is strict here even though the router's own is not). Matches the
+    // conditional-spread pattern used for the ensemble/economyNote fields below.
+    ...(options.useCase !== undefined ? { useCase: options.useCase } : {}),
+    ...(ctx.tenantOverrides !== undefined ? { tenantOverrides: ctx.tenantOverrides } : {}),
+    ...(options.ladderOverride !== undefined ? { callOverride: options.ladderOverride } : {}),
+  });
+  const ladder = ladderResolution.ladder;
   if (ladder.length === 0) {
     throw new BrainLLMError({ code: 'EMPTY_LADDER', message: 'no models in ladder', retryable: false });
   }
@@ -128,8 +165,34 @@ export async function brainCall(req: BrainCallRequest, ctx: BrainCallContext): P
   let fallbackDepth = 0;
   let wasHedged = false;
   let consistency = 1.0;
+  let wasEnsemble = false;
+  let economyNote: string | undefined;
 
-  if (N > 1) {
+  // ENSEMBLE seam (F2). When the admin enabled an all-at-once ensemble for
+  // this scope, fan the turn to the member models in parallel and combine per
+  // strategy. Cost-aware: the budget check gates fan-out and degrades to a
+  // single model when constrained. Fail-safe: a null/empty config returns no
+  // ensemble and we fall through to the standard single/vote/hedged path.
+  const ensembleConfig = resolveEnsembleConfig(req.tenantId);
+
+  if (ensembleConfig) {
+    const invoke: EnsembleInvoke = (model, request) =>
+      ctx.clientRegistry.resolve(model).invoke(request);
+    const ensembleResult = await runEnsemble({
+      request: baseRequest,
+      members: ensembleConfig.members,
+      strategy: ensembleConfig.combineStrategy,
+      ...(ensembleConfig.judgeModel ? { judgeModel: ensembleConfig.judgeModel } : {}),
+      invoke,
+      ...(ctx.ensembleSynthesise ? { synthesise: ctx.ensembleSynthesise } : {}),
+      ...(ctx.ensembleBudgetCheck ? { budgetCheck: ctx.ensembleBudgetCheck } : {}),
+    });
+    response = ensembleResult.response;
+    consistency = ensembleResult.confidence;
+    wasEnsemble = ensembleResult.strategyUsed !== 'single';
+    economyNote = ensembleResult.economyNote;
+    fallbackDepth = 0;
+  } else if (N > 1) {
     const samples: BrainLLMResponse[] = [];
     for (let i = 0; i < N; i += 1) {
       const result = await runFallback(baseRequest, ladderEntries, {});
@@ -206,6 +269,9 @@ export async function brainCall(req: BrainCallRequest, ctx: BrainCallContext): P
     costUsd: chargedUsd,
     wasHedged,
     compiledPromptUsed: compiledPromptUsed !== undefined,
+    wasEnsemble,
+    ...(economyNote !== undefined ? { economyNote } : {}),
+    ladderSource: ladderResolution.source,
   };
 }
 

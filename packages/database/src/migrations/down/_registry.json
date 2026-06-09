@@ -406,6 +406,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0320_llm_routing_config.sql",
+      "down": "down/0320_down_llm_routing_config.sql",
+      "reverses": "Drops the platform_llm_routing_config table (the LLM control-plane store: one JSONB config doc per scope — coreModel + orderedFallbacks[] + ensemble{members,combineStrategy,judgeModel} + perUseCase map — behind a service-role-only FORCE RLS policy + guarded anon REVOKE). Fail-safe: with no rows the router consumption layer treats config as absent and falls back to the static TASK_LADDER (pre-control-plane behaviour), so no turn breaks. POWERS/kill-switch flags live in platform_feature_flags and are untouched. No money/licence/ledger records; sovereign HITL rails live in the policy-gate, not here. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
