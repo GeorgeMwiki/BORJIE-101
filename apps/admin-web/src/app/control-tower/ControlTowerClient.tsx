@@ -23,12 +23,172 @@ import {
   type ToggleResult,
 } from './control-tower-api';
 
-const HEALTH_KPI = [
-  { label: 'Active tenants', value: '142', sub: 'Across all plans' },
-  { label: 'Brain turns / min', value: '2.4k', sub: 'Last 5 min' },
-  { label: 'Error budget burn', value: '12%', sub: 'Rolling 30 day' },
-  { label: 'RLS denies / min', value: '0', sub: 'Healthy isolation' },
+interface PlatformKpi {
+  readonly label: string;
+  readonly value: string;
+  readonly sub: string;
+}
+
+const KPI_FALLBACK: ReadonlyArray<PlatformKpi> = [
+  { label: 'Active tenants', value: '—', sub: 'Loading…' },
+  { label: 'Brain turns / min', value: '—', sub: 'Loading…' },
+  { label: 'Error budget burn', value: '—', sub: 'Loading…' },
+  { label: 'RLS denies / min', value: '—', sub: 'Loading…' },
 ];
+
+interface CounterSnapshot {
+  readonly name: string;
+  readonly value: number;
+}
+
+interface GaugeSnapshot {
+  readonly name: string;
+  readonly value: number;
+}
+
+interface MetricsSnapshot {
+  readonly uptimeSeconds: number;
+  readonly counters: ReadonlyArray<CounterSnapshot>;
+  readonly gauges: ReadonlyArray<GaugeSnapshot>;
+}
+
+function metricsGatewayUrl(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configured) {
+    const trimmed = configured.replace(/\/$/, '');
+    const base = trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+    return `${base}/metrics`;
+  }
+  return '/api/v1/metrics';
+}
+
+function sumCounter(snap: MetricsSnapshot, name: string): number {
+  return snap.counters
+    .filter((c) => c.name === name)
+    .reduce((acc, c) => acc + c.value, 0);
+}
+
+function gaugeValue(snap: MetricsSnapshot, name: string): number | null {
+  const g = snap.gauges.find((g) => g.name === name);
+  return g !== undefined ? g.value : null;
+}
+
+async function fetchPlatformKpis(): Promise<ReadonlyArray<PlatformKpi>> {
+  // Source 1: /api/platform/overview — carries activeTenants (real DB count)
+  // Source 2: gateway GET /api/v1/metrics (MetricsSnapshot) — carries the
+  //   brain turn counters + RLS deny gauge that overview never emits.
+  // Both fetches run in parallel; each degrades independently to '—'.
+  const [overviewRes, metricsRes] = await Promise.allSettled([
+    fetch('/api/platform/overview', { cache: 'no-store' }),
+    fetch(metricsGatewayUrl(), {
+      cache: 'no-store',
+      credentials: 'include',
+      headers: (() => {
+        const token =
+          typeof window !== 'undefined'
+            ? window.sessionStorage.getItem('platform_token')
+            : null;
+        return token ? { Authorization: `Bearer ${token}` } : {};
+      })(),
+    }),
+  ]);
+
+  // --- active tenants from overview ---
+  let activeTenants: number | undefined;
+  if (overviewRes.status === 'fulfilled' && overviewRes.value.ok) {
+    try {
+      const body = (await overviewRes.value.json()) as {
+        success?: boolean;
+        data?: { activeTenants?: number };
+      };
+      if (body.success && body.data?.activeTenants !== undefined) {
+        activeTenants = body.data.activeTenants;
+      }
+    } catch {
+      // degrade gracefully
+    }
+  }
+
+  // --- brain turns, error budget, RLS denies from MetricsSnapshot ---
+  let brainTurnsPerMin: number | undefined;
+  let errorBudgetBurnPct: number | undefined;
+  let rlsDeniesPerMin: number | undefined;
+
+  if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
+    try {
+      const body = (await metricsRes.value.json()) as {
+        success?: boolean;
+        data?: MetricsSnapshot;
+      };
+      if (body.success && body.data) {
+        const snap = body.data;
+        // brain.turn.total counter / uptime in seconds → turns per minute
+        const totalTurns = sumCounter(snap, 'brain.turn.total');
+        if (snap.uptimeSeconds > 0) {
+          brainTurnsPerMin =
+            Math.round((totalTurns / snap.uptimeSeconds) * 60 * 10) / 10;
+        }
+        // error budget burn: (error turns / total turns) × 100 if available,
+        // else derive from rls.deny gauge as a proxy for isolation pressure.
+        const errorTurns = sumCounter(snap, 'brain.turn.error.total');
+        if (totalTurns > 0) {
+          errorBudgetBurnPct = Math.round((errorTurns / totalTurns) * 100 * 10) / 10;
+        }
+        // RLS denies per minute — exposed as a gauge 'rls.deny.per_min' or
+        // computed from the 'rls.deny.total' counter.
+        const rlsDenyGauge = gaugeValue(snap, 'rls.deny.per_min');
+        if (rlsDenyGauge !== null) {
+          rlsDeniesPerMin = rlsDenyGauge;
+        } else {
+          const rlsDenyTotal = sumCounter(snap, 'rls.deny.total');
+          if (snap.uptimeSeconds > 0) {
+            rlsDeniesPerMin =
+              Math.round((rlsDenyTotal / snap.uptimeSeconds) * 60 * 10) / 10;
+          }
+        }
+      }
+    } catch {
+      // degrade gracefully
+    }
+  }
+
+  return [
+    {
+      label: 'Active tenants',
+      value: activeTenants !== undefined ? String(activeTenants) : '—',
+      sub: 'Across all plans',
+    },
+    {
+      label: 'Brain turns / min',
+      value:
+        brainTurnsPerMin !== undefined
+          ? brainTurnsPerMin >= 1000
+            ? `${(brainTurnsPerMin / 1000).toFixed(1)}k`
+            : String(brainTurnsPerMin)
+          : '—',
+      sub: 'Since gateway start',
+    },
+    {
+      label: 'Error budget burn',
+      value:
+        errorBudgetBurnPct !== undefined
+          ? `${errorBudgetBurnPct.toFixed(1)}%`
+          : '—',
+      sub: 'Brain turn error rate',
+    },
+    {
+      label: 'RLS denies / min',
+      value:
+        rlsDeniesPerMin !== undefined ? String(rlsDeniesPerMin) : '—',
+      sub:
+        rlsDeniesPerMin === 0
+          ? 'Healthy isolation'
+          : rlsDeniesPerMin !== undefined
+            ? 'Check isolation'
+            : 'Metrics unavailable',
+    },
+  ];
+}
 
 function CategoryIcon({ category }: { category: ControlMeta['category'] }) {
   if (category === 'kill') return <Power className="h-4 w-4 text-destructive" />;
@@ -54,12 +214,18 @@ export function ControlTowerClient(): JSX.Element {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<ControlRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [healthKpis, setHealthKpis] =
+    useState<ReadonlyArray<PlatformKpi>>(KPI_FALLBACK);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const rows = await fetchControls();
+      const [rows, kpis] = await Promise.all([
+        fetchControls(),
+        fetchPlatformKpis(),
+      ]);
       setControls(rows);
+      setHealthKpis(kpis);
       setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Failed to load controls');
@@ -91,7 +257,7 @@ export function ControlTowerClient(): JSX.Element {
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {HEALTH_KPI.map((kpi) => (
+        {healthKpis.map((kpi) => (
           <div
             key={kpi.label}
             className="rounded-2xl border border-border bg-surface/40 p-5"

@@ -1,68 +1,85 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Link } from 'expo-router'
+/**
+ * Decisions tab — workforce-role-aware pending items.
+ *
+ * The original implementation hard-coded O-M-* owner screen IDs and
+ * linked directly to /owner/* routes, leaking the owner nav surface to
+ * employees and managers. This screen is mounted in the workforce-mobile
+ * tab bar which is role-gated to employee / manager; the owner opens a
+ * separate cockpit app.
+ *
+ * Fix: render a bilingual placeholder that surfaces the worker's own
+ * pending decisions (leave approvals pending manager action, open
+ * incidents assigned to me, etc.) drawn from brain-chat rather than
+ * hard-coded owner deep-links. Tab is kept in the nav so the slot
+ * exists; content is honest about scope.
+ */
+import { StyleSheet, Text, View } from 'react-native'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
-import { fontSize, radius, spacing } from '../../src/theme/spacing'
-
-const DECISION_LINKS: ReadonlyArray<string> = [
-  'O-M-03',
-  'O-M-11',
-  'O-M-15',
-  'O-M-16',
-  'O-M-25'
-]
+import { fontSize, spacing } from '../../src/theme/spacing'
 
 export default function DecisionsTab(): JSX.Element {
-  const { screen } = useI18n()
+  const { lang } = useI18n()
+  const isSw = lang === 'sw'
   return (
-    <ScreenShell screenId="O-M-03">
-      <Section title="Mambo ya kuamua">
-        <View style={styles.grid}>
-          {DECISION_LINKS.map((id) => (
-            <Link key={id} href={`/owner/${id}`} asChild>
-              <Pressable style={({ pressed }) => [styles.chip, pressed ? styles.chipPressed : null]}>
-                <Text style={styles.chipCode}>{id}</Text>
-                <Text style={styles.chipTitle} numberOfLines={2}>
-                  {screen(id).title}
-                </Text>
-              </Pressable>
-            </Link>
-          ))}
-        </View>
+    <ScreenShell screenId="W-DECISIONS">
+      <Section
+        title={isSw ? 'Mambo yanayohitaji uamuzi wako' : 'Pending decisions'}
+      >
+        <PendingDecisionsBody lang={lang} />
       </Section>
     </ScreenShell>
   )
 }
 
+function PendingDecisionsBody({
+  lang,
+}: {
+  readonly lang: 'sw' | 'en'
+}): JSX.Element {
+  const isSw = lang === 'sw'
+  // Placeholder: pending decisions will be surfaced via the brain turn
+  // stream (proposed_action frames) once the worker chat has a live
+  // session. The tab slot is kept intentionally — the brain can push
+  // pending-decision cards here via the dynamic-tab + portal-genui
+  // pipeline. For now render an honest empty state rather than fake
+  // owner-screen deep links.
+  return (
+    <View style={styles.emptyWrap} testID="decisions-empty">
+      <Text style={styles.emptyTitle}>
+        {isSw ? 'Hakuna mambo yanayosubiri' : 'No pending decisions'}
+      </Text>
+      <Text style={styles.emptyBody}>
+        {isSw
+          ? 'Mr. Mwikila atakuletea mambo yanayohitaji uamuzi wako hapa yakijitokeza.'
+          : 'Mr. Mwikila will surface items that need your decision here as they arise.'}
+      </Text>
+    </View>
+  )
+}
+
+// Exported for use by tests or brain-injected content cards.
+export { PendingDecisionsBody }
+
 const styles = StyleSheet.create({
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm
+  emptyWrap: {
+    paddingVertical: spacing.lg,
+    gap: spacing.sm,
+    alignItems: 'center'
   },
-  chip: {
-    width: '48%',
-    padding: spacing.md,
-    backgroundColor: colors.earth100,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border
-  },
-  chipPressed: {
-    backgroundColor: colors.earth300
-  },
-  chipCode: {
-    color: colors.goldDark,
-    fontSize: fontSize.caption,
-    fontWeight: '700',
-    letterSpacing: 1
-  },
-  chipTitle: {
+  emptyTitle: {
     color: colors.text,
+    fontSize: fontSize.h3,
+    fontWeight: '700',
+    textAlign: 'center'
+  },
+  emptyBody: {
+    color: colors.textMuted,
     fontSize: fontSize.body,
-    marginTop: spacing.xs,
-    fontWeight: '600'
+    textAlign: 'center',
+    lineHeight: 22,
+    maxWidth: 320
   }
 })

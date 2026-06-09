@@ -6,71 +6,69 @@ import {
   Calculator,
   CheckCircle2,
   Clock,
+  Loader2,
   PenLine,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { z } from 'zod';
+import { apiRequest, ApiError } from '@/lib/api-client';
 import { fmtTzs } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
+import { routesBStrings as RB } from '@/i18n/strings/routes-b';
 
 interface RoyaltyDraftPanelProps {
   readonly locale?: 'sw' | 'en';
 }
 
+// ---------------------------------------------------------------------------
+// Types from /api/v1/mining/royalty
+// ---------------------------------------------------------------------------
+
+const DraftSchema = z.object({
+  id: z.string(),
+  periodStart: z.string(),
+  periodEnd: z.string(),
+  mineral: z.string(),
+  quantity: z.number().nullable(),
+  unit: z.string().nullable(),
+  status: z.string(),
+  royaltyAmount: z.number().nullable(),
+  currency: z.string().nullable(),
+  ledgerJournalId: z.string().nullable(),
+  signed: z.boolean(),
+  createdAt: z.string(),
+});
+
+type Draft = z.infer<typeof DraftSchema>;
+
+const ListResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    drafts: z.array(DraftSchema),
+  }),
+});
+
+// ---------------------------------------------------------------------------
+// Status rendering
+// ---------------------------------------------------------------------------
+
 type CutOffKey = 'royaltyCutOff7d' | 'royaltySignedYesterday';
 
-interface DraftRow {
-  readonly id: string;
-  readonly mineral: string;
-  readonly rate: number; // 0.06 = 6%
-  readonly grossTzs: number;
-  readonly royaltyTzs: number;
-  readonly status: 'draft' | 'reviewing' | 'signed' | 'submitted';
-  readonly cutOff: CutOffKey;
+function resolveCutOff(status: string): CutOffKey {
+  return status === 'submitted' || status === 'signed'
+    ? 'royaltySignedYesterday'
+    : 'royaltyCutOff7d';
 }
 
-// Curated April-26 draft until the live `/royalties/draft` endpoint
-// lands; rates anchored on the Tanzanian mining-act schedule.
-const APRIL_DRAFTS: ReadonlyArray<DraftRow> = [
-  {
-    id: 'gold-nyakabale',
-    mineral: 'Gold (Nyakabale)',
-    rate: 0.06,
-    grossTzs: 412_000_000,
-    royaltyTzs: 24_720_000,
-    status: 'draft',
-    cutOff: 'royaltyCutOff7d',
-  },
-  {
-    id: 'gold-kakola',
-    mineral: 'Gold (Kakola)',
-    rate: 0.06,
-    grossTzs: 198_000_000,
-    royaltyTzs: 11_880_000,
-    status: 'reviewing',
-    cutOff: 'royaltyCutOff7d',
-  },
-  {
-    id: 'coltan-mbeya',
-    mineral: 'Coltan (Mbeya Ridge)',
-    rate: 0.03,
-    grossTzs: 64_500_000,
-    royaltyTzs: 1_935_000,
-    status: 'draft',
-    cutOff: 'royaltyCutOff7d',
-  },
-  {
-    id: 'gemstones-arusha',
-    mineral: 'Gemstones (Arusha)',
-    rate: 0.03,
-    grossTzs: 18_400_000,
-    royaltyTzs: 552_000,
-    status: 'signed',
-    cutOff: 'royaltySignedYesterday',
-  },
-];
+type StatusTone = {
+  readonly pill: string;
+  readonly label: { readonly sw: string; readonly en: string };
+  readonly icon: React.ElementType;
+};
 
-function statusTone(status: DraftRow['status']) {
+function statusTone(status: string): StatusTone {
   if (status === 'submitted') {
     return {
       pill: 'border-success/40 bg-success/10 text-success',
@@ -99,61 +97,78 @@ function statusTone(status: DraftRow['status']) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Query
+// ---------------------------------------------------------------------------
+
+const QUERY_KEY = ['mining', 'royalty', 'drafts'] as const;
+
+function useRoyaltyDrafts() {
+  return useQuery({
+    queryKey: QUERY_KEY,
+    queryFn: ({ signal }) =>
+      apiRequest<unknown>('/api/v1/mining/royalty', { signal }),
+    select: (raw): ReadonlyArray<Draft> => {
+      const parsed = ListResponseSchema.safeParse(raw);
+      return parsed.success ? parsed.data.data.drafts : [];
+    },
+    staleTime: 60_000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 /**
  * Monthly royalty draft panel.
  *
- * Renders each mineral / rate / draft amount / signature status as a
- * row in a dense table, plus a CTA strip at top to advance the whole
- * batch to signature. Plugs into `/api/v1/mining/royalties/draft`
- * once the endpoint lands — currently uses the curated April-26
- * fixture.
+ * Fetches live draft data from GET /api/v1/mining/royalty (newest first)
+ * and renders each mineral / rate / draft amount / signature status as a
+ * dense table row. Replaces the April-2026 fixture that was previously
+ * hard-coded here.
  */
-export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JSX.Element {
+export function RoyaltyDraftPanel({
+  locale = 'en',
+}: RoyaltyDraftPanelProps): JSX.Element {
   const isSw = locale === 'sw';
+  const { data, isLoading, isError, error } = useRoyaltyDrafts();
+  const drafts = data ?? [];
 
   const totals = useMemo(() => {
-    return APRIL_DRAFTS.reduce(
+    return drafts.reduce(
       (acc, row) => ({
-        gross: acc.gross + row.grossTzs,
-        royalty: acc.royalty + row.royaltyTzs,
+        royalty: acc.royalty + (row.royaltyAmount ?? 0),
       }),
-      { gross: 0, royalty: 0 },
+      { royalty: 0 },
     );
-  }, []);
+  }, [drafts]);
 
-  const drafts = APRIL_DRAFTS.filter((r) => r.status === 'draft').length;
-  const signed = APRIL_DRAFTS.filter((r) => r.status === 'signed').length;
+  const draftCount = drafts.filter(
+    (r) => r.status === 'draft' || r.status === 'reviewing',
+  ).length;
+  const signedCount = drafts.filter(
+    (r) => r.signed || r.status === 'submitted',
+  ).length;
 
   const metrics: readonly MetricTile[] = [
     {
-      label: isSw ? S.royaltyMetricGrossLabel.sw : S.royaltyMetricGrossLabel.en,
-      value: fmtTzs(totals.gross),
-      sub: isSw ? S.royaltyMetricGrossSub.sw : S.royaltyMetricGrossSub.en,
-      icon: Calculator,
-    },
-    {
-      label: isSw
-        ? S.royaltyMetricRoyaltyLabel.sw
-        : S.royaltyMetricRoyaltyLabel.en,
-      value: fmtTzs(totals.royalty),
+      label: isSw ? S.royaltyMetricRoyaltyLabel.sw : S.royaltyMetricRoyaltyLabel.en,
+      value: totals.royalty > 0 ? fmtTzs(totals.royalty) : '—',
       sub: isSw ? S.royaltyMetricRoyaltySub.sw : S.royaltyMetricRoyaltySub.en,
-      icon: ArrowRight,
+      icon: Calculator,
       tone: 'warning',
     },
     {
-      label: isSw
-        ? S.royaltyMetricDraftsLabel.sw
-        : S.royaltyMetricDraftsLabel.en,
-      value: String(drafts),
+      label: isSw ? S.royaltyMetricDraftsLabel.sw : S.royaltyMetricDraftsLabel.en,
+      value: String(draftCount),
       sub: isSw ? S.royaltyMetricDraftsSub.sw : S.royaltyMetricDraftsSub.en,
       icon: PenLine,
-      tone: drafts > 0 ? 'warning' : 'success',
+      tone: draftCount > 0 ? 'warning' : 'success',
     },
     {
-      label: isSw
-        ? S.royaltyMetricSignedLabel.sw
-        : S.royaltyMetricSignedLabel.en,
-      value: String(signed),
+      label: isSw ? S.royaltyMetricSignedLabel.sw : S.royaltyMetricSignedLabel.en,
+      value: String(signedCount),
       sub: isSw ? S.royaltyMetricSignedSub.sw : S.royaltyMetricSignedSub.en,
       icon: CheckCircle2,
       tone: 'success',
@@ -162,7 +177,7 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
 
   return (
     <div className="space-y-6">
-      <MetricStrip tiles={metrics} cols={4} />
+      <MetricStrip tiles={metrics} cols={3} />
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
@@ -182,61 +197,101 @@ export function RoyaltyDraftPanel({ locale = 'en' }: RoyaltyDraftPanelProps): JS
             <ArrowRight className="h-3 w-3" />
           </Link>
         </header>
-        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-          <div className="col-span-4">
-            {isSw ? S.royaltyColMineral.sw : S.royaltyColMineral.en}
+
+        {/* Loading */}
+        {isLoading ? (
+          <div className="flex items-center gap-2 px-5 py-6 text-sm text-neutral-400">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {isSw
+              ? RB.sharedClientStrings.loadingDrafts.sw
+              : RB.sharedClientStrings.loadingDrafts.en}
           </div>
-          <div className="col-span-1">
-            {isSw ? S.royaltyColRate.sw : S.royaltyColRate.en}
+        ) : null}
+
+        {/* Error */}
+        {isError ? (
+          <div className="px-5 py-6">
+            <p className="text-xs text-destructive">
+              {error instanceof ApiError
+                ? error.message
+                : isSw
+                  ? RB.sharedClientStrings.couldNotLoadRoyaltyDrafts.sw
+                  : RB.sharedClientStrings.couldNotLoadRoyaltyDrafts.en}
+            </p>
           </div>
-          <div className="col-span-2 text-right">
-            {isSw ? S.royaltyColGross.sw : S.royaltyColGross.en}
+        ) : null}
+
+        {/* Empty */}
+        {!isLoading && !isError && drafts.length === 0 ? (
+          <div className="px-5 py-6 text-center">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-neutral-500" />
+            <p className="mt-2 text-sm text-neutral-400">
+              {isSw
+                ? RB.sharedClientStrings.noRoyaltyDrafts.sw
+                : RB.sharedClientStrings.noRoyaltyDrafts.en}
+            </p>
           </div>
-          <div className="col-span-2 text-right">
-            {isSw ? S.royaltyColRoyalty.sw : S.royaltyColRoyalty.en}
-          </div>
-          <div className="col-span-3 text-right">
-            {isSw ? S.royaltyColStatus.sw : S.royaltyColStatus.en}
-          </div>
-        </div>
-        <ul className="divide-y divide-border/60">
-          {APRIL_DRAFTS.map((row) => {
-            const tone = statusTone(row.status);
-            const Icon = tone.icon;
-            return (
-              <li
-                key={row.id}
-                className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4"
-              >
-                <div className="col-span-4">
-                  <div className="text-sm font-medium text-foreground">
-                    {row.mineral}
-                  </div>
-                  <div className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-neutral-500">
-                    {isSw ? S[row.cutOff].sw : S[row.cutOff].en}
-                  </div>
-                </div>
-                <div className="col-span-1 text-xs text-neutral-300">
-                  {(row.rate * 100).toFixed(0)}%
-                </div>
-                <div className="col-span-2 text-right font-mono text-sm text-neutral-300">
-                  {fmtTzs(row.grossTzs)}
-                </div>
-                <div className="col-span-2 text-right font-mono text-sm font-medium text-foreground">
-                  {fmtTzs(row.royaltyTzs)}
-                </div>
-                <div className="col-span-3 flex justify-start md:justify-end">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
+        ) : null}
+
+        {/* Table */}
+        {drafts.length > 0 ? (
+          <>
+            <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
+              <div className="col-span-4">
+                {isSw ? S.royaltyColMineral.sw : S.royaltyColMineral.en}
+              </div>
+              <div className="col-span-2">
+                {isSw ? S.royaltyColRate.sw : S.royaltyColRate.en}
+              </div>
+              <div className="col-span-3 text-right">
+                {isSw ? S.royaltyColRoyalty.sw : S.royaltyColRoyalty.en}
+              </div>
+              <div className="col-span-3 text-right">
+                {isSw ? S.royaltyColStatus.sw : S.royaltyColStatus.en}
+              </div>
+            </div>
+            <ul className="divide-y divide-border/60">
+              {drafts.map((row) => {
+                const tone = statusTone(row.status);
+                const Icon = tone.icon;
+                const cutOff = resolveCutOff(row.status);
+                return (
+                  <li
+                    key={row.id}
+                    className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4"
                   >
-                    <Icon className="h-3 w-3" />
-                    {isSw ? tone.label.sw : tone.label.en}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                    <div className="col-span-4">
+                      <div className="text-sm font-medium text-foreground">
+                        {row.mineral}
+                      </div>
+                      <div className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-neutral-500">
+                        {isSw ? S[cutOff].sw : S[cutOff].en}
+                      </div>
+                    </div>
+                    <div className="col-span-2 text-xs text-neutral-300">
+                      {row.quantity !== null && row.unit
+                        ? `${row.quantity.toLocaleString()} ${row.unit}`
+                        : '—'}
+                    </div>
+                    <div className="col-span-3 text-right font-mono text-sm font-medium text-foreground">
+                      {row.royaltyAmount !== null
+                        ? fmtTzs(row.royaltyAmount)
+                        : '—'}
+                    </div>
+                    <div className="col-span-3 flex justify-start md:justify-end">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
+                      >
+                        <Icon className="h-3 w-3" />
+                        {isSw ? tone.label.sw : tone.label.en}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : null}
       </div>
     </div>
   );

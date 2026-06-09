@@ -372,6 +372,7 @@ export const sw = {
     "recordsLoading": "Inapakia kumbukumbu…",
     "recordsError": "Imeshindwa kupakia kumbukumbu.",
     "recordCreatedAt": "Imeongezwa {at}",
+    "recordsCreatedAtColumn": "Iliundwa",
     "widgetLoading": "Inapakia…",
     "widgetError": "Imeshindwa kupakia kifaa hiki.",
     "widgetEmpty": "Hakuna data bado.",
@@ -381,6 +382,19 @@ export const sw = {
     "actionDone": "Imekamilika.",
     "actionDeclined": "Hilo linahitaji uthibitisho: {reason}",
     "actionHandlingIt": "Naishughulikia — ninakufanyia hilo.",
-    "actionFailed": "Kitendo hicho hakikuweza kufanyika."
+    "actionFailed": "Kitendo hicho hakikuweza kufanyika.",
+    "fieldUploading": "Inapakia…",
+    "fieldUploaded": "Imepakiwa.",
+    "fieldReadingSignature": "Inasoma…",
+    "fieldSignatureCaptured": "Saini imerekodiwa.",
+    "fieldSignatureReadError": "Haikuweza kusoma picha ya saini. Tafadhali chagua faili sahihi ya picha.",
+    "fieldUploadPreviewDisabled": "hakikisho — upakiaji unahitaji kichupo kilichohifadhiwa",
+    "fieldUploadFailed": "Upakiaji umeshindwa",
+    "fieldAddressPlaceholder": "Anwani ya mtaa",
+    "fieldLatitude": "Latitudo",
+    "fieldLongitude": "Longitudo"
+  },
+  "cockpit": {
+    "dailyBriefTitle": "Muhtasari wa kila siku"
   }
 } as const;

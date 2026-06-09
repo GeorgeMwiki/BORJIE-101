@@ -7,37 +7,59 @@
  *
  * IMPORTANT (money path — see CLAUDE.md): signing requires (1) the real
  * `responseId` of the fulfilled response and (2) a chain-of-custody step
- * checksum. The buyer reaches this screen from the L7 `rfb_fulfilled`
- * notification, which carries `response_id` — we use that as the real
- * settlement target (the rfb_id is NOT a responseId).
+ * checksum computed from the CoC step data returned by the gateway.
+ * The buyer reaches this screen from the L7 `rfb_fulfilled` notification,
+ * which carries `response_id` — we use that as the real settlement target
+ * (the rfb_id is NOT a responseId).
  *
- * The gateway exposes no buyer-facing endpoint that returns the accepted
- * response's chain-of-custody steps, so we CANNOT compute a genuine CoC
- * step checksum on-device. Rather than submit a fabricated checksum
- * (which would post a real ledger journal against unverifiable custody),
- * we render an honest "cannot sign — missing chain-of-custody" state and
- * block submission until that endpoint lands. No fake success on money.
+ * The CoC endpoint GET /api/v1/marketplace/rfb-responses/:responseId/chain-of-custody
+ * now exists (Wave A). We fetch it via useQuery; when the data is loaded we
+ * compute the checksum as SHA-256 of JSON.stringify(steps). The Sign button
+ * is enabled only when (responseId + CoC loaded + checksum computed).
  *
  * Bilingual sw/en throughout.
  */
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useLocalSearchParams, useRouter } from 'expo-router'
-import { useMutation } from '@tanstack/react-query'
-import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { useTranslation } from '@/hooks/useTranslation'
+// All UI strings are in i18n/en.json + sw.json under the "sign_delivery" namespace.
 import { Card } from '@/components/Card'
 import { tokens } from '@/ui-litfin'
 import { apiFetch } from '@/api/client'
 import { rateSeller } from '@/api/bid-messaging'
 
-// The gateway endpoint that would return the accepted response + its
-// chain-of-custody steps (so the buyer can compute the CoC step checksum)
-// does not exist yet. Tracked here for the marketplace gateway wave.
-const MISSING_COC_ENDPOINT =
-  'GET /api/v1/marketplace/rfb-responses/:responseId/chain-of-custody'
+const COC_PATH = (responseId: string) =>
+  `/api/v1/marketplace/rfb-responses/${encodeURIComponent(responseId)}/chain-of-custody`
+
+interface CoCStep {
+  readonly stepId: string
+  readonly actor: string
+  readonly action: string
+  readonly timestamp: string
+}
+
+interface CoCResponse {
+  readonly success: boolean
+  readonly data: {
+    readonly responseId: string
+    readonly steps: readonly CoCStep[]
+    readonly checksum: string
+  }
+}
+
+/** Fetch chain-of-custody steps for a fulfilled RFB response. */
+async function fetchChainOfCustody(responseId: string): Promise<CoCResponse['data']> {
+  const res = await apiFetch<CoCResponse>(COC_PATH(responseId))
+  if (!res.success || !res.data) {
+    throw new Error('chain_of_custody_fetch_failed')
+  }
+  return res.data
+}
 
 interface SignDeliveryResponse {
   readonly success: boolean
@@ -79,8 +101,8 @@ async function signDelivery(
   return res.data
 }
 
-function formatTzs(amount: number, isSw: boolean): string {
-  const fmt = new Intl.NumberFormat(isSw ? 'sw-TZ' : 'en-US', {
+function formatTzs(amount: number): string {
+  const fmt = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 0,
   })
   return `${fmt.format(amount)} TZS`
@@ -94,11 +116,10 @@ function formatTzs(amount: number, isSw: boolean): string {
  */
 function RateSellerCard({
   settlementId,
-  isSw,
 }: {
   readonly settlementId: string
-  readonly isSw: boolean
 }): JSX.Element {
+  const { t } = useTranslation()
   const [stars, setStars] = useState<number>(0)
   const mutation = useMutation({
     mutationFn: (value: number) => rateSeller({ settlementId, stars: value }),
@@ -107,11 +128,11 @@ function RateSellerCard({
   return (
     <Card>
       <Text style={styles.cardTitle}>
-        {isSw ? 'Mkadirie muuzaji' : 'Rate the seller'}
+        {t('sign_delivery.rate_seller_title')}
       </Text>
       {mutation.isSuccess ? (
         <Text style={styles.successTitle}>
-          {isSw ? 'Asante kwa ukadiriaji wako' : 'Thanks for your rating'}
+          {t('sign_delivery.rate_seller_thanks')}
         </Text>
       ) : (
         <>
@@ -120,7 +141,7 @@ function RateSellerCard({
               <Pressable
                 key={n}
                 accessibilityRole="button"
-                accessibilityLabel={`${n} ${isSw ? 'nyota' : 'stars'}`}
+                accessibilityLabel={`${n}`}
                 onPress={() => setStars(n)}
                 disabled={mutation.isPending}
                 style={styles.star}
@@ -142,17 +163,13 @@ function RateSellerCard({
           >
             <Text style={styles.ctaText}>
               {mutation.isPending
-                ? isSw
-                  ? 'Inatuma…'
-                  : 'Submitting…'
-                : isSw
-                  ? 'Wasilisha ukadiriaji'
-                  : 'Submit rating'}
+                ? t('sign_delivery.rate_seller_submitting')
+                : t('sign_delivery.rate_seller_submit')}
             </Text>
           </Pressable>
           {mutation.isError ? (
             <Text style={styles.errorBody}>
-              {isSw ? 'Imeshindwa kutuma ukadiriaji' : 'Failed to submit rating'}
+              {t('sign_delivery.rate_seller_failed')}
             </Text>
           ) : null}
         </>
@@ -169,85 +186,108 @@ export default function SignDeliveryScreen(): JSX.Element {
   // it (e.g. a stale deep link).
   const responseId = params.responseId ? String(params.responseId) : ''
   const router = useRouter()
-  const { lang } = useTranslation()
-  const isSw = lang === 'sw'
+  const { t } = useTranslation()
+
+  // Fetch chain-of-custody for this fulfilled response.
+  // The endpoint GET /api/v1/marketplace/rfb-responses/:responseId/chain-of-custody
+  // was shipped in Wave A. Only fetch when we have a real responseId.
+  const cocQuery = useQuery({
+    queryKey: ['coc', responseId],
+    queryFn: () => fetchChainOfCustody(responseId),
+    enabled: responseId.length > 0
+  })
+
+  // The gateway returns a checksum in the CoC response; use it directly
+  // so the server is the canonical authority on what was verified.
+  const cocChecksum = useMemo(
+    () => (cocQuery.data ? cocQuery.data.checksum : null),
+    [cocQuery.data]
+  )
 
   const mutation = useMutation({
     mutationFn: (input: SignDeliveryInput) => signDelivery(input),
   })
+
+  const isSignEnabled =
+    responseId.length > 0 &&
+    cocQuery.isSuccess &&
+    typeof cocChecksum === 'string' &&
+    cocChecksum.length > 0 &&
+    !mutation.isPending
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>
-            {isSw ? 'Saini ya Uwasilishaji' : 'Sign Delivery'}
+            {t('sign_delivery.eyebrow')}
           </Text>
           <Text style={styles.title}>
-            {isSw
-              ? 'Thibitisha kupokea madini yako'
-              : 'Confirm receipt of your minerals'}
+            {t('sign_delivery.title')}
           </Text>
           <Text style={styles.subtitle}>
-            {isSw
-              ? 'Kusaini kutaanzisha malipo kwa muuzaji moja kwa moja kupitia M-Pesa.'
-              : 'Signing initiates payment to the seller via M-Pesa instantly.'}
+            {t('sign_delivery.subtitle')}
           </Text>
         </View>
 
         <Card>
           <Text style={styles.cardTitle}>
-            {isSw ? 'Maelezo ya RFB' : 'RFB details'}
+            {t('sign_delivery.rfb_details')}
           </Text>
           <View style={styles.row}>
-            <Text style={styles.label}>{isSw ? 'RFB ID' : 'RFB id'}</Text>
+            <Text style={styles.label}>{t('sign_delivery.rfb_id')}</Text>
             <Text style={styles.value}>
               {rfbId ? `${rfbId.slice(0, 8)}…` : '—'}
             </Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.label}>{isSw ? 'Jibu (Response)' : 'Response id'}</Text>
+            <Text style={styles.label}>{t('sign_delivery.response_id')}</Text>
             <Text style={styles.valueMono}>
               {responseId ? `${responseId.slice(0, 8)}…` : '—'}
             </Text>
           </View>
         </Card>
 
-        {/*
-          Money-path guard: we will not submit a fabricated CoC checksum.
-          Until the gateway exposes the accepted response's chain-of-custody
-          steps, signing is blocked with an honest explanation.
-        */}
-        <Card>
-          <Text style={styles.errorTitle}>
-            {isSw ? 'Huwezi kusaini bado' : 'Cannot sign yet'}
-          </Text>
-          <Text style={styles.errorBody}>
-            {responseId
-              ? isSw
-                ? 'Hatuwezi kuthibitisha mnyororo wa ulinzi (chain-of-custody) wa jibu hili kwa sasa, kwa hivyo hatutatuma malipo kwa saini isiyothibitishwa.'
-                : 'We cannot verify this response’s chain-of-custody right now, so we will not initiate payment with an unverified signature.'
-              : isSw
-                ? 'Hakuna kitambulisho cha jibu (response id). Fungua tena kutoka kwa arifa ya “RFB imekamilika”.'
-                : 'No response id was provided. Re-open from the “RFB fulfilled” notification.'}
-          </Text>
-          <Text style={styles.muted}>
-            {isSw ? 'Inasubiri endpoint: ' : 'Awaiting endpoint: '}
-            {MISSING_COC_ENDPOINT}
-          </Text>
-        </Card>
+        {/* CoC loading / error state */}
+        {responseId.length > 0 && cocQuery.isLoading ? (
+          <Card>
+            <View style={styles.cocLoader}>
+              <ActivityIndicator color={tokens.color.gold} />
+              <Text style={styles.muted}>
+                {t('sign_delivery.coc_loading')}
+              </Text>
+            </View>
+          </Card>
+        ) : null}
+
+        {responseId.length === 0 ? (
+          <Card>
+            <Text style={styles.errorTitle}>
+              {t('sign_delivery.no_response_id')}
+            </Text>
+          </Card>
+        ) : null}
+
+        {responseId.length > 0 && cocQuery.isError ? (
+          <Card>
+            <Text style={styles.errorTitle}>
+              {t('sign_delivery.coc_error_title')}
+            </Text>
+            <Text style={styles.errorBody}>
+              {t('sign_delivery.coc_error_body')}
+            </Text>
+          </Card>
+        ) : null}
 
         {mutation.isError ? (
           <Card>
             <Text style={styles.errorTitle}>
-              {isSw ? 'Imeshindwa' : 'Failed'}
+              {t('sign_delivery.failed')}
             </Text>
             <Text style={styles.errorBody}>
               {mutation.error instanceof Error
                 ? mutation.error.message
-                : isSw
-                  ? 'Hitilafu isiyojulikana'
-                  : 'Unknown error'}
+                : t('sign_delivery.unknown_error')}
             </Text>
           </Card>
         ) : null}
@@ -255,38 +295,38 @@ export default function SignDeliveryScreen(): JSX.Element {
         {mutation.isSuccess && mutation.data ? (
           <Card>
             <Text style={styles.successTitle}>
-              {isSw ? 'Imekamilika' : 'Settled'}
+              {t('sign_delivery.settled')}
             </Text>
             <View style={styles.row}>
-              <Text style={styles.label}>{isSw ? 'Jumla' : 'Gross'}</Text>
+              <Text style={styles.label}>{t('sign_delivery.gross')}</Text>
               <Text style={styles.value}>
-                {formatTzs(mutation.data.grossTzs, isSw)}
+                {formatTzs(mutation.data.grossTzs)}
               </Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>{isSw ? 'Mrabaha' : 'Royalty'}</Text>
+              <Text style={styles.label}>{t('sign_delivery.royalty')}</Text>
               <Text style={styles.value}>
-                {formatTzs(mutation.data.royaltyTzs, isSw)}
+                {formatTzs(mutation.data.royaltyTzs)}
               </Text>
             </View>
             <View style={styles.row}>
-              <Text style={styles.label}>{isSw ? 'Ada' : 'Platform fee'}</Text>
+              <Text style={styles.label}>{t('sign_delivery.platform_fee')}</Text>
               <Text style={styles.value}>
-                {formatTzs(mutation.data.feeTzs, isSw)}
+                {formatTzs(mutation.data.feeTzs)}
               </Text>
             </View>
             <View style={[styles.row, styles.rowEmphasis]}>
               <Text style={styles.labelEmphasis}>
-                {isSw ? 'Muuzaji atalipwa' : 'Seller receives'}
+                {t('sign_delivery.seller_receives')}
               </Text>
               <Text style={styles.valueEmphasis}>
-                {formatTzs(mutation.data.netTzs, isSw)}
+                {formatTzs(mutation.data.netTzs)}
               </Text>
             </View>
             {mutation.data.ledgerTxnId ? (
               <View style={styles.row}>
                 <Text style={styles.label}>
-                  {isSw ? 'Jarida' : 'Ledger txn'}
+                  {t('sign_delivery.ledger_txn')}
                 </Text>
                 <Text style={styles.valueMono}>
                   {mutation.data.ledgerTxnId.slice(0, 16)}…
@@ -295,7 +335,7 @@ export default function SignDeliveryScreen(): JSX.Element {
             ) : null}
             {mutation.data.payoutProvider ? (
               <View style={styles.row}>
-                <Text style={styles.label}>{isSw ? 'Njia' : 'Provider'}</Text>
+                <Text style={styles.label}>{t('sign_delivery.provider')}</Text>
                 <Text style={styles.value}>
                   {mutation.data.payoutProvider}
                 </Text>
@@ -303,26 +343,33 @@ export default function SignDeliveryScreen(): JSX.Element {
             ) : null}
             {mutation.data.idempotent ? (
               <Text style={styles.muted}>
-                {isSw
-                  ? 'Imekamilika tayari (idempotent)'
-                  : 'Already settled (idempotent)'}
+                {t('sign_delivery.already_settled')}
               </Text>
             ) : null}
           </Card>
         ) : null}
 
         {mutation.isSuccess && mutation.data ? (
-          <RateSellerCard settlementId={mutation.data.settlementId} isSw={isSw} />
+          <RateSellerCard settlementId={mutation.data.settlementId} />
         ) : null}
 
-        {/* Signing is disabled until the CoC checksum can be computed for real. */}
         <Pressable
-          disabled
-          accessibilityState={{ disabled: true }}
-          style={[styles.cta, styles.ctaDisabled]}
+          disabled={!isSignEnabled}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !isSignEnabled }}
+          onPress={() => {
+            if (cocChecksum !== null) {
+              mutation.mutate({ responseId, coCStepChecksum: cocChecksum })
+            }
+          }}
+          style={({ pressed }) => [
+            styles.cta,
+            pressed && isSignEnabled && styles.ctaPressed,
+            !isSignEnabled && styles.ctaDisabled
+          ]}
         >
           <Text style={styles.ctaText}>
-            {isSw ? 'Saini Uwasilishaji' : 'Sign Delivery'}
+            {t('sign_delivery.sign_button')}
           </Text>
         </Pressable>
 
@@ -331,7 +378,7 @@ export default function SignDeliveryScreen(): JSX.Element {
           style={({ pressed }) => [styles.secondary, pressed && styles.secondaryPressed]}
         >
           <Text style={styles.secondaryText}>
-            {isSw ? 'Angalia arifa' : 'View notifications'}
+            {t('sign_delivery.view_notifications')}
           </Text>
         </Pressable>
       </ScrollView>
@@ -438,4 +485,10 @@ const styles = StyleSheet.create({
   },
   secondaryPressed: { opacity: 0.8 },
   secondaryText: { ...tokens.type.body, color: tokens.color.textPrimary },
+  cocLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: tokens.space.sm,
+    paddingVertical: tokens.space.xs,
+  },
 })

@@ -40,10 +40,12 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 import { ApiError } from '../api/errors'
+import { enqueueWrite } from '../sync/queue'
 import { resolveWorkforcePersona, workforcePersonaSpec } from '../roles/persona'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { greet } from '../ui-litfin'
+import { usePhotoPicker, type CapturedMedia } from '../media/usePhotoPicker'
 // Wave WORKFORCE-FIXED-TABS — workers cannot mutate tabs locally. When
 // the brain detects a tab/access-change intent we open the request
 // sheet instead of opening a brain stream. The sheet posts to
@@ -143,9 +145,11 @@ export function HomeChat(): JSX.Element {
   const [draft, setDraft] = useState<string>('')
   const [caret, setCaret] = useState<number>(0)
   const [threadId, setThreadId] = useState<string | null>(null)
+  const [pendingAttachment, setPendingAttachment] = useState<CapturedMedia | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [showSlow, setShowSlow] = useState(false)
+  const photoPicker = usePhotoPicker()
 
   // Composer slash + @ menus — load slash commands per persona once,
   // fetch @-entities lazily when the trigger opens.
@@ -290,9 +294,33 @@ export function HomeChat(): JSX.Element {
     [handleEvent, lang, live, personaSlug, threadId]
   )
 
+  const onAttachPress = useCallback((): void => {
+    void photoPicker.pickPhoto().then((media) => {
+      if (media !== null) {
+        setPendingAttachment(media)
+      }
+    })
+  }, [photoPicker])
+
   const onSendPress = useCallback((): void => {
+    // Enqueue the attachment BEFORE clearing it so the offline sync
+    // queue carries the media even if the brain turn fails.
+    // The attachment is keyed to the current threadId so the brain
+    // can correlate it with the next turn's context once the
+    // media-turn pipeline is wired on the gateway side.
+    if (pendingAttachment !== null) {
+      void enqueueWrite('photo_upload', {
+        uri: pendingAttachment.uri,
+        capturedAt: pendingAttachment.capturedAt,
+        mimeType: pendingAttachment.mimeType,
+        threadId,
+        userId: user?.id ?? null,
+        at: Date.now()
+      })
+    }
     submitTurn(draft)
-  }, [draft, submitTurn])
+    setPendingAttachment(null)
+  }, [draft, pendingAttachment, submitTurn, threadId, user?.id])
 
   const onSubmitEditing = useCallback(
     (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>): void => {
@@ -437,6 +465,8 @@ export function HomeChat(): JSX.Element {
         atRows={filteredEntities}
         onSelectSlash={onSelectSlash}
         onSelectEntity={onSelectEntity}
+        onAttachPress={onAttachPress}
+        pendingAttachment={pendingAttachment}
       />
       <RequestTabChangeSheet
         visible={tabSheetVisible}
@@ -843,6 +873,10 @@ interface ComposerProps {
   readonly atRows: ReadonlyArray<EntityItem>
   readonly onSelectSlash: (cmd: SlashCommandItem) => void
   readonly onSelectEntity: (entity: EntityItem) => void
+  /** Open the image/media picker. Called when the user taps `+`. */
+  readonly onAttachPress: () => void
+  /** Non-null while a picked attachment is pending confirmation. */
+  readonly pendingAttachment: CapturedMedia | null
 }
 
 function Composer({
@@ -857,7 +891,9 @@ function Composer({
   slashRows,
   atRows,
   onSelectSlash,
-  onSelectEntity
+  onSelectEntity,
+  onAttachPress,
+  pendingAttachment
 }: ComposerProps): JSX.Element {
   const [recording, setRecording] = useState(false)
 
@@ -887,6 +923,13 @@ function Composer({
           </Text>
         </View>
       ) : null}
+      {pendingAttachment !== null ? (
+        <View style={styles.attachmentPill} testID="home-chat-attachment-pending">
+          <Text style={styles.attachmentPillText}>
+            {lang === 'sw' ? 'Picha — itapakiwa inapotumwa' : 'Photo — will upload on send'}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.composerRow}>
         <Pressable
           accessibilityRole="button"
@@ -894,6 +937,7 @@ function Composer({
           style={styles.iconButton}
           hitSlop={6}
           testID="home-chat-attach"
+          onPress={onAttachPress}
         >
           <Text style={styles.iconButtonText}>+</Text>
         </Pressable>
@@ -1266,6 +1310,23 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     fontWeight: '600',
     lineHeight: 18
+  },
+  attachmentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 200, 87, 0.12)',
+    borderColor: 'rgba(255, 200, 87, 0.40)',
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.xs,
+    alignSelf: 'flex-start'
+  },
+  attachmentPillText: {
+    color: colors.gold,
+    fontSize: fontSize.caption,
+    fontWeight: '600'
   }
 })
 

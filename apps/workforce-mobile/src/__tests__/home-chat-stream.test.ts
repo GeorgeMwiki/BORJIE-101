@@ -48,6 +48,7 @@ vi.mock('../auth/session', () => ({
 
 import {
   parseFrame,
+  parseNamedFrame,
   streamBrainTurn,
   __setEventSourceModuleForTests,
   BRAIN_TURN_PATH_FOR_TESTS,
@@ -75,8 +76,20 @@ interface FakeEventSourceInit {
   readonly pollingInterval: number
 }
 
+/**
+ * FakeEventSource — mirrors the real named-event wire format.
+ *
+ * The production gateway emits Hono named SSE events (`event:` line set
+ * to the event type). `react-native-sse` routes these to per-name
+ * listeners ONLY. To match production:
+ *   • `emitNamed(eventName, data)` — dispatches to the exact listener
+ *     registered under `eventName` (how the gateway fires in prod).
+ *   • `emitMessage(data)` — dispatches to the generic 'message' listener
+ *     (legacy unnamed SSE / backward-compat path).
+ *   • `emitError(payload)` — dispatches to the 'error' listener.
+ */
 type Listener =
-  | { kind: 'message'; cb: (e: { data?: string }) => void }
+  | { kind: string; cb: (e: { data?: string }) => void }
   | { kind: 'error'; cb: (e: { message?: string; status?: number }) => void }
 
 class FakeEventSource {
@@ -91,18 +104,11 @@ class FakeEventSource {
     instances.push(this)
   }
 
-  addEventListener(name: 'message' | 'error', cb: (e: unknown) => void): void {
-    if (name === 'message') {
-      this.listeners.push({
-        kind: 'message',
-        cb: cb as (e: { data?: string }) => void,
-      })
-    } else {
-      this.listeners.push({
-        kind: 'error',
-        cb: cb as (e: { message?: string; status?: number }) => void,
-      })
-    }
+  addEventListener(name: string, cb: (e: unknown) => void): void {
+    this.listeners.push({
+      kind: name,
+      cb: cb as (e: { data?: string }) => void,
+    })
   }
 
   removeAllEventListeners(): void {
@@ -113,12 +119,18 @@ class FakeEventSource {
     this.closed = true
   }
 
-  emitMessage(data: string): void {
+  /** Dispatch a named SSE event — matches production gateway behaviour. */
+  emitNamed(eventName: string, data: string): void {
     for (const listener of this.listeners) {
-      if (listener.kind === 'message') {
+      if (listener.kind === eventName) {
         ;(listener.cb as (e: { data: string }) => void)({ data })
       }
     }
+  }
+
+  /** Dispatch to the generic 'message' listener (unnamed SSE / legacy). */
+  emitMessage(data: string): void {
+    this.emitNamed('message', data)
   }
 
   emitError(payload: { message?: string; status?: number }): void {
@@ -162,7 +174,75 @@ function frame(record: Record<string, unknown>): string {
   return JSON.stringify(record)
 }
 
-describe('parseFrame — SSE envelope decoding', () => {
+describe('parseNamedFrame — named SSE event decoding (production wire format)', () => {
+  it('decodes a turn.accepted frame using the named-event path', () => {
+    // Production gateway: event: turn.accepted\ndata: {"threadId":"thr-1"}
+    const parsed = parseNamedFrame('turn.accepted', { data: frame({ threadId: 'thr-1' }) })
+    expect(parsed?.kind).toBe('accepted')
+    if (parsed && parsed.data.type === 'accepted') {
+      expect(parsed.data.threadId).toBe('thr-1')
+    }
+  })
+
+  it('decodes a message_chunk frame using `text` (not `delta`) from gateway', () => {
+    // Production gateway: event: message_chunk\ndata: {"text":"Karibu","done":false}
+    const parsed = parseNamedFrame('message_chunk', { data: frame({ text: 'Karibu', done: false }) })
+    expect(parsed?.kind).toBe('message_chunk')
+    if (parsed && parsed.data.type === 'message_chunk') {
+      expect(parsed.data.delta).toBe('Karibu')
+    }
+  })
+
+  it('also accepts legacy `delta` field for message_chunk (backward compat)', () => {
+    const parsed = parseNamedFrame('message_chunk', { data: frame({ delta: 'Habari' }) })
+    expect(parsed?.kind).toBe('message_chunk')
+    if (parsed && parsed.data.type === 'message_chunk') {
+      expect(parsed.data.delta).toBe('Habari')
+    }
+  })
+
+  it('decodes a tool_call frame via named path', () => {
+    const parsed = parseNamedFrame('tool_call', {
+      data: frame({ toolCall: { tool: 'cockpit.daily-brief', ok: true } })
+    })
+    expect(parsed?.kind).toBe('tool_call')
+    if (parsed && parsed.data.type === 'tool_call') {
+      expect(parsed.data.toolCall.tool).toBe('cockpit.daily-brief')
+    }
+  })
+
+  it('decodes a done frame via named path', () => {
+    const parsed = parseNamedFrame('done', { data: frame({ threadId: 'thr-x', tokensUsed: 250 }) })
+    expect(parsed?.kind).toBe('done')
+    if (parsed && parsed.data.type === 'done') {
+      expect(parsed.data.threadId).toBe('thr-x')
+      expect(parsed.data.tokensUsed).toBe(250)
+    }
+  })
+
+  it('decodes an error frame via named path', () => {
+    const parsed = parseNamedFrame('error', {
+      data: frame({ code: 'BUDGET_EXCEEDED', message: 'Budget exceeded' })
+    })
+    expect(parsed?.kind).toBe('error')
+    if (parsed && parsed.data.type === 'error') {
+      expect(parsed.data.code).toBe('BUDGET_EXCEEDED')
+    }
+  })
+
+  it('returns null for empty data and unknown event names', () => {
+    expect(parseNamedFrame('message_chunk', { data: '' })).toBeNull()
+    expect(parseNamedFrame('mystery', { data: frame({ foo: 'bar' }) })).toBeNull()
+    expect(parseNamedFrame('message_chunk', { data: 'not-json' })).toBeNull()
+  })
+
+  it('rejects a message_chunk frame with no text or delta', () => {
+    const parsed = parseNamedFrame('message_chunk', { data: frame({ text: '', done: false }) })
+    expect(parsed).toBeNull()
+  })
+})
+
+describe('parseFrame — legacy unnamed SSE envelope decoding (event type in data JSON)', () => {
   it('decodes a turn.accepted frame and emits the threadId', () => {
     const parsed = parseFrame({ data: frame({ event: 'turn.accepted', threadId: 'thr-1' }) })
     expect(parsed?.kind).toBe('accepted')
@@ -171,7 +251,7 @@ describe('parseFrame — SSE envelope decoding', () => {
     }
   })
 
-  it('decodes a message_chunk frame and exposes the delta', () => {
+  it('decodes a message_chunk frame with delta field (legacy format)', () => {
     const parsed = parseFrame({ data: frame({ event: 'message_chunk', delta: 'Karibu' }) })
     expect(parsed?.kind).toBe('message_chunk')
     if (parsed && parsed.data.type === 'message_chunk') {
@@ -330,7 +410,10 @@ describe('streamBrainTurn — happy path', () => {
     __setEventSourceModuleForTests(null)
   })
 
-  it('opens an SSE channel and forwards every kind of frame', async () => {
+  it('opens an SSE channel and forwards every kind of frame (named-event production format)', async () => {
+    // Uses emitNamed() to match the real gateway wire: each event type
+    // is dispatched to its own named listener, data JSON has no `event`
+    // key. message_chunk uses `text` (not `delta`).
     const seen: BrainStreamEvent[] = []
     const promise = streamBrainTurn({
       userText: 'Habari',
@@ -338,12 +421,10 @@ describe('streamBrainTurn — happy path', () => {
       onEvent: (event) => seen.push(event)
     })
     const source = await waitForInstance()
-    source.emitMessage(frame({ event: 'turn.accepted', threadId: 'thr-1' }))
-    source.emitMessage(frame({ event: 'message_chunk', delta: 'Karibu' }))
-    source.emitMessage(
-      frame({ event: 'tool_call', toolCall: { tool: 'cockpit.daily-brief', ok: true } })
-    )
-    source.emitMessage(frame({ event: 'done', threadId: 'thr-1', tokensUsed: 412 }))
+    source.emitNamed('turn.accepted', frame({ threadId: 'thr-1' }))
+    source.emitNamed('message_chunk', frame({ text: 'Karibu', done: false }))
+    source.emitNamed('tool_call', frame({ toolCall: { tool: 'cockpit.daily-brief', ok: true } }))
+    source.emitNamed('done', frame({ threadId: 'thr-1', tokensUsed: 412 }))
     const result = await promise
     expect(result).toEqual({ threadId: 'thr-1', tokensUsed: 412 })
     expect(seen.map((e) => e.kind)).toEqual([
@@ -355,7 +436,7 @@ describe('streamBrainTurn — happy path', () => {
     expect(source.closed).toBe(true)
   })
 
-  it('forwards a proposed_action frame to the caller', async () => {
+  it('forwards a proposed_action frame to the caller (named-event path)', async () => {
     const seen: BrainStreamEvent[] = []
     const promise = streamBrainTurn({
       userText: 'Habari',
@@ -363,14 +444,11 @@ describe('streamBrainTurn — happy path', () => {
       onEvent: (event) => seen.push(event)
     })
     const source = await waitForInstance()
-    source.emitMessage(frame({ event: 'turn.accepted', threadId: 'thr-1' }))
-    source.emitMessage(
-      frame({
-        event: 'proposed_action',
-        action: { verb: 'review', object: 'x', riskLevel: 'LOW', reviewRequired: false }
-      })
-    )
-    source.emitMessage(frame({ event: 'done', threadId: 'thr-1', tokensUsed: 0 }))
+    source.emitNamed('turn.accepted', frame({ threadId: 'thr-1' }))
+    source.emitNamed('proposed_action', frame({
+      action: { verb: 'review', object: 'x', riskLevel: 'LOW', reviewRequired: false }
+    }))
+    source.emitNamed('done', frame({ threadId: 'thr-1', tokensUsed: 0 }))
     await promise
     expect(seen.some((e) => e.kind === 'proposed_action')).toBe(true)
   })
@@ -385,7 +463,7 @@ describe('streamBrainTurn — happy path', () => {
     expect(source.url.endsWith(BRAIN_TURN_PATH_FOR_TESTS)).toBe(true)
     expect(source.init.headers['Authorization']).toBe('Bearer jwt-test-token')
     expect(source.init.headers['Accept']).toBe('text/event-stream')
-    source.emitMessage(frame({ event: 'done', threadId: 'thr-1', tokensUsed: 0 }))
+    source.emitNamed('done', frame({ threadId: 'thr-1', tokensUsed: 0 }))
     await promise
   })
 
@@ -399,7 +477,7 @@ describe('streamBrainTurn — happy path', () => {
     const body = JSON.parse(source.init.body) as Record<string, unknown>
     expect(body['threadId']).toBe('thr-7')
     expect(body['userText']).toBe('follow-up')
-    source.emitMessage(frame({ event: 'done', threadId: 'thr-7', tokensUsed: 0 }))
+    source.emitNamed('done', frame({ threadId: 'thr-7', tokensUsed: 0 }))
     await promise
   })
 })
@@ -424,7 +502,7 @@ describe('streamBrainTurn — failure modes', () => {
     })
   })
 
-  it('rejects with ApiError when the gateway emits a terminal error frame', async () => {
+  it('rejects with ApiError when the gateway emits a terminal error frame (named event)', async () => {
     getAuthTokenMock.mockResolvedValue('jwt-test-token')
     const promise = streamBrainTurn({
       userText: 'hi',
@@ -432,9 +510,8 @@ describe('streamBrainTurn — failure modes', () => {
       onEvent: () => undefined
     })
     const source = await waitForInstance()
-    source.emitMessage(
-      frame({ event: 'error', code: 'BUDGET_EXCEEDED', message: 'Out of budget' })
-    )
+    // Named-event path: error dispatched to 'error' listener with data field
+    source.emitNamed('error', frame({ code: 'BUDGET_EXCEEDED', message: 'Out of budget' }))
     let caught: unknown
     try {
       await promise

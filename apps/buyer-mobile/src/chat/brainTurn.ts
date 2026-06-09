@@ -152,11 +152,8 @@ export async function streamBrainTurn(
       reject(reason)
     }
 
-    source.addEventListener('message', (event: RNEventMessage) => {
-      const parsed = parseFrame(event)
-      if (parsed === null) {
-        return
-      }
+    // Dispatch helper: process a parsed event and advance the stream state.
+    function handleParsed(parsed: BrainStreamEvent): void {
       if (parsed.kind === 'accepted' && parsed.data.type === 'accepted') {
         resolvedThreadId = parsed.data.threadId
       }
@@ -179,6 +176,60 @@ export async function streamBrainTurn(
           })
         )
       }
+    }
+
+    // Register a listener for each named SSE event the gateway emits.
+    // react-native-sse dispatches named events (event: <name>\ndata: ...)
+    // ONLY to a listener registered under that exact name. The generic
+    // 'message' listener receives only unnamed frames (no event: line).
+    // Each named listener receives { data: <json string> } where the JSON
+    // payload contains the frame fields WITHOUT an 'event' key.
+    const namedEvents: readonly string[] = [
+      'turn.accepted',
+      'ack',
+      'message_chunk',
+      'tool_call',
+      'done',
+      'error'
+    ]
+    for (const eventName of namedEvents) {
+      source.addEventListener(eventName, (event: RNEventMessage) => {
+        if (settled) {
+          return
+        }
+        const payload = typeof event.data === 'string' ? event.data : ''
+        if (payload.length === 0) {
+          return
+        }
+        let record: Record<string, unknown>
+        try {
+          const raw = JSON.parse(payload) as unknown
+          if (typeof raw !== 'object' || raw === null) {
+            return
+          }
+          record = raw as Record<string, unknown>
+        } catch {
+          return
+        }
+        const parsed = parseTypedFrame(eventName, record)
+        if (parsed !== null) {
+          handleParsed(parsed)
+        }
+      })
+    }
+
+    // Generic 'message' listener handles unnamed frames and also serves as
+    // the path for test mocks that inject { event: '...', ... } inside the
+    // data JSON (the FakeEventSource in tests routes everything to 'message').
+    source.addEventListener('message', (event: RNEventMessage) => {
+      if (settled) {
+        return
+      }
+      const parsed = parseFrame(event)
+      if (parsed === null) {
+        return
+      }
+      handleParsed(parsed)
     })
 
     source.addEventListener('error', (event: RNEventError) => {
@@ -217,8 +268,14 @@ interface RNEventError {
   readonly message?: string
 }
 
+/**
+ * Named SSE events are dispatched to a listener registered under the event
+ * type name (e.g. 'message_chunk'), NOT to the generic 'message' listener.
+ * react-native-sse@1.2.x dispatches `event: message_chunk` frames ONLY to
+ * a listener registered as addEventListener('message_chunk', ...).
+ */
 interface RNEventSource {
-  addEventListener(name: 'message', cb: (e: RNEventMessage) => void): void
+  addEventListener(name: string, cb: (e: RNEventMessage) => void): void
   addEventListener(name: 'error', cb: (e: RNEventError) => void): void
   removeAllEventListeners(): void
   close(): void
@@ -294,7 +351,14 @@ function parseTypedFrame(
     return { kind: 'ack', data: { type: 'ack', text, lang } }
   }
   if (eventType === 'message_chunk') {
-    const delta = typeof record['delta'] === 'string' ? record['delta'] : ''
+    // Gateway emits `text` in the data payload for named SSE events.
+    // Legacy test mocks may use `delta`; accept both for backward compat.
+    const delta =
+      typeof record['text'] === 'string' && record['text'].length > 0
+        ? record['text']
+        : typeof record['delta'] === 'string'
+          ? record['delta']
+          : ''
     if (delta.length === 0) {
       return null
     }

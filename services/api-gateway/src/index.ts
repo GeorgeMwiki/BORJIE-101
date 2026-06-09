@@ -1963,6 +1963,11 @@ const portalGenuiWiring = buildPortalGenuiWiring();
 // (validated against the tab's own field schema).
 (serviceRegistry as { portalGenUIRecordStore?: unknown }).portalGenUIRecordStore =
   portalGenuiWiring.recordStore;
+// Wave-B residual — tenant-scoped storage adapter for the generated-tab file/
+// signature/audio upload endpoint (POST /portal-genui/tabs/:id/upload). Without
+// this attachment getStorageAdapter(c) is undefined and the route honest-501s.
+(serviceRegistry as { portalGenUIStorageAdapter?: unknown }).portalGenUIStorageAdapter =
+  portalGenuiWiring.storageAdapter;
 // W2a — optional tenant-scoped read port for LIVE widget-data (mapped estate
 // domains). Same `$client.unsafe(sql, params)` boundary the record store uses;
 // RLS FORCE on app.current_tenant_id isolates in the DB. Unbound in dev/test →

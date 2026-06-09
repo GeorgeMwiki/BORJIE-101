@@ -102,7 +102,7 @@ function SectionView({
       {section.fields.length > 0 ? (
         <div className="grid grid-cols-12 gap-4">
           {section.fields.map((field) => (
-            <GenUIFieldRenderer key={field.key} field={field} />
+            <GenUIFieldRenderer key={field.key} field={field} tabId={tabId} />
           ))}
         </div>
       ) : null}

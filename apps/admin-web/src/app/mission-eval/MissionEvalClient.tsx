@@ -19,12 +19,14 @@ import { Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from 'lucide-react';
 import { api } from '@/lib/api';
 
 // NOTE: `id` values are the wire contract consumed by the gateway's
-// parity-capability-dashboard factory (services/api-gateway). They are NOT
-// user-visible — only `label` is rendered — so the ids stay verbatim while
-// the labels carry the mining domain wording.
+// parity-capability-dashboard factory (services/api-gateway/src/routes/
+// parity-capability-dashboard.router.ts CAPABILITIES array). They are NOT
+// user-visible — only `label` is rendered — so ids must match the gateway
+// enum verbatim. `offtake-renewal` is the mining-domain id for licence
+// renewal; the label surfaces the mining-coherent wording to operators.
 const CAPABILITIES = [
   { id: 'rent-reconciliation', label: 'Royalty reconciliation' },
-  { id: 'lease-renewal', label: 'Licence renewal' },
+  { id: 'offtake-renewal', label: 'Licence renewal' },
   { id: 'kra-mri', label: 'TRA royalty return' },
   { id: 'gepg', label: 'GePG' },
   { id: 'maintenance-triage', label: 'Maintenance triage' },

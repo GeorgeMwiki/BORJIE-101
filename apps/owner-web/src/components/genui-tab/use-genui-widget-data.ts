@@ -68,13 +68,27 @@ export const GenuiWidgetBindingSchema = z.discriminatedUnion('kind', [
 export type GenuiWidgetBinding = z.infer<typeof GenuiWidgetBindingSchema>;
 
 /**
- * The resolved widget data. Loose by construction — the render site reads the
- * fields that match the widget kind (`rows` for table, `value` for kpi_card,
- * `items` for timeline). Unknown extra keys are tolerated.
+ * The resolved widget data. Typed to the shape the resolver actually returns
+ * (rows/value/items/columns/label/unit) with .passthrough() so unknown extra
+ * keys added by future resolver versions are tolerated. Shape drift now
+ * surfaces at parse time as an empty widget rather than silently propagating
+ * into the renderer (cm-5 / owner-genui-4).
+ *
+ * NOTE: do NOT tighten to .strict() — future resolver additions would break
+ * existing clients. .passthrough() is the correct balance.
  */
 export type GenuiWidgetData = Readonly<Record<string, unknown>>;
 
-const WidgetDataResponseSchema = z.record(z.string(), z.unknown());
+const WidgetDataResponseSchema = z
+  .object({
+    rows: z.array(z.record(z.string(), z.unknown())).optional(),
+    columns: z.array(z.string()).optional(),
+    value: z.unknown().optional(),
+    label: z.string().optional(),
+    unit: z.string().optional(),
+    items: z.array(z.unknown()).optional(),
+  })
+  .passthrough();
 
 /** The binding's stable name + bounded payload, per kind. */
 function bindingTarget(binding: GenuiWidgetBinding): {

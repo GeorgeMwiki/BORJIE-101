@@ -10,8 +10,14 @@
  *
  * LitFin rhythm: bordered card, labels above inputs, single primary
  * submit. Fields are typed text / number / date / select / amount-tzs /
- * pml-picker / site-picker — the latter two render as text fallback for
- * now (the cockpit replaces them with picker drawers once wired).
+ * pml-picker / site-picker.
+ *
+ * pml-picker and site-picker render as a structured combobox input: the
+ * owner types to search their known licences/sites. Until a live search
+ * endpoint is wired the input is a clear text field labelled with its
+ * picker type (e.g. "PML Licence ID") so the owner enters a real value
+ * rather than seeing a silently degraded plain text input with no
+ * affordance. The placeholder communicates the expected format.
  */
 
 import { useState, type ReactElement } from 'react';
@@ -61,13 +67,39 @@ function inputType(kind: FieldKind | undefined): string {
 }
 
 function labelFor(field: CaptureField, locale: 'sw' | 'en'): string {
-  const lab =
+  return (
     (locale === 'sw' ? field.label?.sw : field.label?.en) ??
     field.label?.en ??
     field.label?.sw ??
     field.key ??
-    '';
-  return lab;
+    ''
+  );
+}
+
+/** Resolved placeholder for picker kinds when the field doesn't specify one. */
+function pickerPlaceholder(kind: FieldKind, locale: 'sw' | 'en'): string {
+  if (kind === 'pml-picker') {
+    return locale === 'sw'
+      ? 'Ingiza namba ya leseni ya PML (mfano: PML-2024-001)'
+      : 'Enter PML licence ID (e.g. PML-2024-001)';
+  }
+  if (kind === 'site-picker') {
+    return locale === 'sw'
+      ? 'Ingiza jina au namba ya eneo la uchimbaji'
+      : 'Enter mining site name or ID';
+  }
+  return '';
+}
+
+/** Badge label surfaced above the input for picker kinds. */
+function pickerKindLabel(kind: FieldKind, locale: 'sw' | 'en'): string {
+  if (kind === 'pml-picker') {
+    return locale === 'sw' ? 'Leseni ya PML' : 'PML Licence';
+  }
+  if (kind === 'site-picker') {
+    return locale === 'sw' ? 'Eneo la Uchimbaji' : 'Mining Site';
+  }
+  return '';
 }
 
 export function DataCaptureCardBlock({
@@ -76,7 +108,9 @@ export function DataCaptureCardBlock({
   onAction,
 }: DataCaptureCardBlockProps): ReactElement {
   const fields = Array.isArray(block.fields)
-    ? block.fields.filter((f): f is CaptureField => Boolean(f) && typeof f === 'object').slice(0, 3)
+    ? block.fields
+        .filter((f): f is CaptureField => Boolean(f) && typeof f === 'object')
+        .slice(0, 3)
     : [];
   const purpose = typeof block.purpose === 'string' ? block.purpose : '';
   const submitAction =
@@ -99,6 +133,9 @@ export function DataCaptureCardBlock({
     }
   };
 
+  const setValue = (key: string, val: string) =>
+    setValues((prev) => ({ ...prev, [key]: val }));
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -117,7 +154,9 @@ export function DataCaptureCardBlock({
           const kind = field.kind ?? 'text';
           const lab = labelFor(field, locale);
           const placeholder =
-            typeof field.placeholder === 'string' ? field.placeholder : '';
+            typeof field.placeholder === 'string' && field.placeholder.length > 0
+              ? field.placeholder
+              : pickerPlaceholder(kind, locale);
           const required = field.required !== false;
 
           if (kind === 'select' && Array.isArray(field.options)) {
@@ -129,12 +168,12 @@ export function DataCaptureCardBlock({
                 <select
                   required={required}
                   value={values[key] ?? ''}
-                  onChange={(e) =>
-                    setValues({ ...values, [key]: e.target.value })
-                  }
+                  onChange={(e) => setValue(key, e.target.value)}
                   className="mt-1 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground"
                 >
-                  <option value="">{placeholder || (locale === 'sw' ? 'Chagua' : 'Select')}</option>
+                  <option value="">
+                    {placeholder || (locale === 'sw' ? 'Chagua' : 'Select')}
+                  </option>
                   {field.options.map((opt) => (
                     <option key={opt} value={opt}>
                       {opt}
@@ -145,20 +184,47 @@ export function DataCaptureCardBlock({
             );
           }
 
+          // pml-picker / site-picker: render a clearly-labelled text input
+          // so the owner can type a real value. A badge next to the label
+          // communicates the picker kind so the affordance is not invisible.
+          if (kind === 'pml-picker' || kind === 'site-picker') {
+            const kindLabel = pickerKindLabel(kind, locale);
+            return (
+              <label key={key} className="block text-sm">
+                <span className="flex items-center gap-1.5 text-tiny font-medium text-foreground/80">
+                  {lab || kindLabel}
+                  <span className="rounded-full border border-info/40 bg-info/10 px-1.5 py-0.5 text-tiny font-semibold uppercase tracking-wide text-info">
+                    {kindLabel}
+                  </span>
+                </span>
+                <input
+                  type="text"
+                  required={required}
+                  placeholder={placeholder}
+                  value={values[key] ?? ''}
+                  onChange={(e) => setValue(key, e.target.value)}
+                  autoComplete="off"
+                  data-testid={`data-capture-${kind}-${key}`}
+                  className="mt-1 w-full rounded-md border border-info/30 bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:border-info/60 focus:outline-none focus:ring-1 focus:ring-info/30"
+                />
+              </label>
+            );
+          }
+
           return (
             <label key={key} className="block text-sm">
               <span className="block text-tiny font-medium text-foreground/80">
                 {lab}
-                {kind === 'amount-tzs' ? ' (TZS)' : null}
+                {kind === 'amount-tzs' ? (
+                  <span className="ml-1 text-neutral-500">(TZS)</span>
+                ) : null}
               </span>
               <input
                 type={inputType(kind)}
                 required={required}
                 placeholder={placeholder}
                 value={values[key] ?? ''}
-                onChange={(e) =>
-                  setValues({ ...values, [key]: e.target.value })
-                }
+                onChange={(e) => setValue(key, e.target.value)}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground"
               />
             </label>

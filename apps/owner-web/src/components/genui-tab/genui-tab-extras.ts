@@ -70,10 +70,53 @@ const EMPTY_EXTRAS: GenuiTabExtras = {
   widgets: new Map(),
 };
 
+/**
+ * Parse a widget binding from the raw overlay. Accepts both:
+ *  - The canonical K1a discriminated-union shape: { kind, resource/toolId, … }
+ *  - The legacy pre-K1a shape: { ref, params } — migrated on-the-fly to
+ *    { kind:'query', resource:ref, filters:params } so tabs persisted before
+ *    the schema migration still resolve live data instead of silently rendering
+ *    an empty placeholder (owner-genui-7).
+ *
+ * Once all persisted tabs have been batch-migrated to the canonical shape this
+ * shim can be deleted.
+ */
 function parseBinding(value: unknown): GenuiWidgetBinding | null {
   if (value == null) return null;
-  const parsed = GenuiWidgetBindingSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+
+  // Fast path: canonical discriminated-union shape.
+  const canonical = GenuiWidgetBindingSchema.safeParse(value);
+  if (canonical.success) return canonical.data;
+
+  // Backward-compat shim: legacy { ref?, params? } → { kind:'query', resource, filters }.
+  const legacy =
+    value &&
+    typeof value === 'object' &&
+    !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : null;
+
+  if (
+    legacy &&
+    typeof legacy.ref === 'string' &&
+    legacy.ref.length > 0 &&
+    !('kind' in legacy)
+  ) {
+    // Silently coerce the legacy shape. Observability hooks (Sentry) will see
+    // this widget resolve data where before it rendered a placeholder — no
+    // alert needed. The migration is purely additive and forward-compatible.
+    const coerced = {
+      kind: 'query' as const,
+      resource: legacy.ref,
+      ...(legacy.params && typeof legacy.params === 'object' && !Array.isArray(legacy.params)
+        ? { filters: legacy.params as Record<string, unknown> }
+        : {}),
+    };
+    const migrated = GenuiWidgetBindingSchema.safeParse(coerced);
+    if (migrated.success) return migrated.data;
+  }
+
+  return null;
 }
 
 function parseActions(value: unknown): ReadonlyArray<GenuiAction> {

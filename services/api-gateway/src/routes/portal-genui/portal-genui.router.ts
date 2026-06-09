@@ -25,6 +25,7 @@
  * route returns 503 with a config-missing code rather than crashing.
  */
 
+import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
@@ -34,6 +35,11 @@ import {
   type GenUIEngine,
   type RecordStore,
 } from '@borjie/portal-genui';
+import {
+  tenantScopedPath,
+  StorageAdapterError,
+  type StorageAdapter,
+} from '@borjie/storage-adapter';
 import { authMiddleware } from '../../middleware/hono-auth.js';
 import {
   createWidgetDataResolver,
@@ -41,6 +47,31 @@ import {
   type WidgetQueryPort,
 } from '../../composition/portal-genui/widget-data-resolver.js';
 import { logger } from '../../utils/logger.js';
+
+/** Accepted MIME types for tab file/image/audio uploads. */
+const ALLOWED_UPLOAD_TYPES = new Set([
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/ogg',
+  'audio/wav',
+  'audio/webm',
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+
+/** 50 MiB hard cap per upload. */
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
+
+/** Signed-URL TTL: 1 hour. */
+const SIGNED_URL_EXPIRES_SECONDS = 3600;
 
 type AnyCtx = any;
 
@@ -64,6 +95,17 @@ function getRecordStore(c: AnyCtx): RecordStore | undefined {
  */
 function getQueryPort(c: AnyCtx): WidgetQueryPort | undefined {
   return getServices(c).portalGenUIQueryPort as WidgetQueryPort | undefined;
+}
+
+/**
+ * Storage adapter for the tab-upload endpoint. Wired by
+ * `portal-genui-wiring.ts` as `services.portalGenUIStorageAdapter`.
+ * When absent the upload route returns a structured 501 rather than
+ * crashing — the honest-degrade contract used by every optional service
+ * in this router.
+ */
+function getStorageAdapter(c: AnyCtx): StorageAdapter | undefined {
+  return getServices(c).portalGenUIStorageAdapter as StorageAdapter | undefined;
 }
 
 function unavailable(c: AnyCtx, code: string, message: string) {
@@ -852,6 +894,225 @@ router.post('/tabs/:id/widget-data', async (c: AnyCtx) => {
     );
   }
 });
+
+// ─── POST /v1/portal-genui/tabs/:id/upload ─────────────────────
+// Accept multipart/form-data (fields: `file` + optional `fieldKey`).
+// Validates the tab exists + belongs to the caller's tenant (RLS-scoped
+// via JWT). Stores bytes via the `portalGenUIStorageAdapter` (Supabase
+// tenant-uploads bucket in production; in-memory degrade in dev/test).
+// Returns { success: true, data: { url } } — a time-limited signed URL
+// the client stores as the field value. If the storage adapter is not
+// wired (SUPABASE env absent AND in-memory adapter missing) returns a
+// structured 501 rather than crashing.
+router.post(
+  '/tabs/:id/upload',
+  withSecurityEvents(
+    {
+      action: 'portal-genui.tab-upload',
+      resource: 'portal-genui',
+      severity: 'notice',
+    },
+    async (c: AnyCtx) => {
+      const engine = getEngine(c);
+      if (!engine) {
+        return unavailable(
+          c,
+          'PORTAL_GENUI_ENGINE_MISSING',
+          'portal-genui engine is not wired in this environment',
+        );
+      }
+
+      const storageAdapter = getStorageAdapter(c);
+      if (!storageAdapter) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'UPLOAD_NOT_CONFIGURED',
+              message:
+                'File uploads are not yet configured in this environment. Contact the platform team to provision the Supabase storage bucket.',
+            },
+          },
+          501,
+        );
+      }
+
+      const auth = c.get('auth');
+      if (!auth?.tenantId || !auth?.userId) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'MISSING_TENANT_OR_USER',
+              message: 'auth context missing tenantId/userId',
+            },
+          },
+          401,
+        );
+      }
+
+      const id = c.req.param('id');
+
+      // ── Tenant-scoped tab ownership check ──────────────────────
+      const tab = await engine.get(id);
+      if (!tab || tab.tenantId !== auth.tenantId) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'TAB_NOT_FOUND',
+              message: `tab ${id} not found`,
+            },
+          },
+          404,
+        );
+      }
+
+      // ── Parse multipart form ────────────────────────────────────
+      let formData: Record<string, string | File | (string | File)[]>;
+      try {
+        formData = await c.req.parseBody({ all: true });
+      } catch {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'INVALID_MULTIPART',
+              message: 'could not parse multipart/form-data body',
+            },
+          },
+          400,
+        );
+      }
+
+      const fileField = formData['file'];
+      const fileEntry =
+        fileField instanceof File
+          ? fileField
+          : Array.isArray(fileField) && fileField[0] instanceof File
+            ? fileField[0]
+            : null;
+
+      if (!fileEntry) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'FILE_REQUIRED',
+              message: 'multipart field "file" is required and must be a file',
+            },
+          },
+          400,
+        );
+      }
+
+      // ── Type validation ─────────────────────────────────────────
+      const contentType = fileEntry.type || 'application/octet-stream';
+      if (!ALLOWED_UPLOAD_TYPES.has(contentType)) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'UNSUPPORTED_FILE_TYPE',
+              message: `file type '${contentType}' is not permitted for tab uploads`,
+            },
+          },
+          415,
+        );
+      }
+
+      // ── Size validation ─────────────────────────────────────────
+      const bytes = new Uint8Array(await fileEntry.arrayBuffer());
+      if (bytes.byteLength > MAX_UPLOAD_BYTES) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'FILE_TOO_LARGE',
+              message: `file exceeds the ${MAX_UPLOAD_BYTES / (1024 * 1024)} MiB limit`,
+            },
+          },
+          413,
+        );
+      }
+
+      // ── Build tenant-scoped storage path ────────────────────────
+      const fieldKey = typeof formData['fieldKey'] === 'string'
+        ? formData['fieldKey'].replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80)
+        : 'upload';
+      const ext = fileEntry.name?.split('.').pop()?.toLowerCase() ?? 'bin';
+      const fileId = `portal-genui/${id}/${fieldKey}-${randomUUID()}.${ext}`;
+      const storagePath = tenantScopedPath(auth.tenantId, fileId);
+
+      // ── Upload + get signed URL ─────────────────────────────────
+      try {
+        await storageAdapter.upload(
+          'tenant-uploads',
+          storagePath,
+          bytes,
+          contentType,
+        );
+        const signed = await storageAdapter.getUrl(
+          'tenant-uploads',
+          storagePath,
+          SIGNED_URL_EXPIRES_SECONDS,
+        );
+
+        logger.info(
+          {
+            tenantId: auth.tenantId,
+            tabId: id,
+            fieldKey,
+            storagePath,
+            bytes: bytes.byteLength,
+          },
+          'portal-genui: tab file upload complete',
+        );
+
+        return c.json({ success: true, data: { url: signed.url } });
+      } catch (err) {
+        if (err instanceof StorageAdapterError) {
+          logger.warn(
+            {
+              tenantId: auth.tenantId,
+              tabId: id,
+              error: err.message,
+            },
+            'portal-genui: storage upload failed',
+          );
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'UPLOAD_FAILED',
+                message: 'file could not be stored — please try again',
+              },
+            },
+            502,
+          );
+        }
+        logger.warn(
+          {
+            tenantId: auth.tenantId,
+            tabId: id,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'portal-genui: unexpected upload error',
+        );
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'UPLOAD_ERROR',
+              message: err instanceof Error ? err.message : 'unknown error',
+            },
+          },
+          500,
+        );
+      }
+    },
+  ),
+);
 
 // ─── DELETE /v1/portal-genui/tabs/:id ──────────────────────────
 router.delete(

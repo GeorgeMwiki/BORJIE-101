@@ -85,7 +85,7 @@ export function GenUIRecordsList({
                 </th>
               ))}
               <th className="border-b border-border px-2 py-1 font-medium text-neutral-300">
-                {t('genuiTab.recordCreatedAt', { at: '' }).trim()}
+                {t('genuiTab.recordsCreatedAtColumn')}
               </th>
             </tr>
           </thead>

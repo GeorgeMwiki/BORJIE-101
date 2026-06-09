@@ -7,6 +7,8 @@ import { Button } from '../../src/forms/Button'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 import { useTodayShift, type ShiftTaskLite } from '../../src/home/worker/useTodayShift'
+import { enqueueWrite } from '../../src/sync/queue'
+import { useAuth } from '../../src/auth/useAuth'
 
 const SCREEN_ID = 'W-M-02'
 
@@ -21,6 +23,8 @@ export default function Screen(): JSX.Element {
 }
 
 function TodayView(): JSX.Element {
+  const { user } = useAuth()
+  const userId = user?.id ?? null
   const [started, setStarted] = useState<boolean>(false)
   const [doneIds, setDoneIds] = useState<ReadonlyArray<string>>([])
   // R39 — Replace the hardcoded SHIFT fixture with a live query against
@@ -30,12 +34,43 @@ function TodayView(): JSX.Element {
   const shift = shiftQuery.data
 
   const onStart = useCallback((): void => {
+    // Mirror TodayTasks.tsx:41-44 — never enqueue an unattributable write.
+    if (!userId) {
+      return
+    }
     setStarted(true)
-  }, [])
+    // Persist shift-start to the sync queue → flushed to
+    // /api/v1/mining/attendance (attendance entity type) when online.
+    // TodayShift has no `id` field — use shiftDate as the queue key.
+    void enqueueWrite('attendance', {
+      kind: 'shift_start',
+      userId,
+      shiftDate: shift?.shiftDate ?? null,
+      startedAt: Date.now()
+    })
+  }, [shift?.shiftDate, userId])
 
   const toggleTask = useCallback((id: string): void => {
-    setDoneIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
-  }, [])
+    // Mirror TodayTasks.tsx:41-44 — never enqueue an unattributable write.
+    if (!userId) {
+      return
+    }
+    setDoneIds((prev) => {
+      if (prev.includes(id)) {
+        // Untick — no backend write needed (de-complete not supported).
+        return prev.filter((x) => x !== id)
+      }
+      // Persist task completion → flushed to /api/v1/mining/toolbox-acks.
+      // Mirrors the TodayTasks.tsx precedent (src/home/employee/TodayTasks.tsx:44).
+      void enqueueWrite('toolbox_ack', {
+        kind: 'task_complete',
+        taskId: id,
+        userId,
+        at: Date.now()
+      })
+      return [...prev, id]
+    })
+  }, [userId])
 
   const startLabel = useMemo(
     () => (shift ? formatHM(shift.startISO) : '—'),

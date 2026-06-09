@@ -43,11 +43,18 @@ export interface NotificationPrefs {
   readonly priceAlerts: boolean
 }
 
+export async function fetchNotificationPrefs(): Promise<NotificationPrefs> {
+  const response = await apiFetch<{ readonly data: NotificationPrefs }>(
+    `${MINING_PREFIX}/buyers/profile/notifications`
+  )
+  return response.data
+}
+
 export async function updateNotificationPrefs(prefs: NotificationPrefs): Promise<NotificationPrefs> {
   const response = await apiFetch<{ readonly data: NotificationPrefs }>(
     `${MINING_PREFIX}/buyers/profile/notifications`,
     {
-      method: 'POST',
+      method: 'PUT',
       body: prefs
     }
   )

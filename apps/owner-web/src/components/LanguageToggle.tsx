@@ -34,6 +34,16 @@ export function LanguageToggle({ initial }: LanguageToggleProps) {
     if (next === lang) return;
     const oneYear = 60 * 60 * 24 * 365;
     document.cookie = `${LOCALE_COOKIE}=${next}; Max-Age=${oneYear}; Path=/; SameSite=Lax`;
+    // Fire-and-forget: keep the brain's locale field in sync so reminders,
+    // email digests, and voice replies honour the owner's UI language choice.
+    // Never block the reload on this — a network failure must not prevent the
+    // toggle from working. channelPriority [] means "don't change the ranking".
+    void fetch('/api/v1/owner/contact-prefs', {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ channelPriority: [], locale: next }),
+    }).catch(() => undefined);
     window.location.reload();
   }
 

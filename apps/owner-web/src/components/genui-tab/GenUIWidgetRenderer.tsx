@@ -16,6 +16,15 @@
  *     (`POST /api/v1/owner/chat/confirm-action`); `deferToBrain` renders a
  *     "handling it" note instead of a dead click.
  *
+ * genui_part fix (owner-genui-1): a `kind === 'genui_part'` widget embeds one
+ * of the 35 vetted AG-UI primitives from `@borjie/genui`. The dispatch is
+ * fully GENERATIVE inside AdaptiveRenderer's existing switch — no per-kind
+ * branch here. The rich payload lives in `widget.config.initialProps`
+ * (the static AgUiUiPart authored by the brain), optionally merged with any
+ * resolved binding rows. The verdict's fixNote: adapter reads
+ * `widget.config.initialProps` via `parseWidgetConfig`, NOT the binding
+ * response. AdaptiveRenderer handles unknown kinds via UnknownKindCard.
+ *
  * Everything is generative + locale-pure: literal copy flows through the
  * injected `t()` (owner-web locale-purity is enforced); schema-authored
  * strings are sanitised via `toSafeText` (CLAUDE.md: no raw HTML).
@@ -24,8 +33,11 @@
 import { useCallback, useState, type ReactElement } from 'react';
 import {
   getWidgetKindMetadata,
+  parseWidgetConfig,
   type PortalTabWidget,
 } from '@borjie/portal-genui';
+import { AdaptiveRenderer } from '@borjie/genui';
+import type { AgUiUiPart } from '@borjie/genui';
 import type { TFn } from '@/i18n/resolve';
 import { confirmAction } from '@/lib/queries/chat-actions';
 
@@ -203,6 +215,56 @@ function GenericDataView({
   return <p className="text-xs text-neutral-400">{t('genuiTab.widgetEmpty')}</p>;
 }
 
+/**
+ * Adapter that mounts AdaptiveRenderer for a `genui_part` widget.
+ *
+ * The payload is `widget.config.initialProps` — the static AgUiUiPart authored
+ * by the brain at tab-generation time. It is parsed via parseWidgetConfig
+ * (which runs the per-kind configSchema). The dispatch is entirely generative
+ * inside AdaptiveRenderer — no per-genuiKind branch here.
+ *
+ * Per the verdict fixNote: use widget.config.initialProps, NOT the binding
+ * response (which only carries tabular rows/value/items).
+ */
+function GenUiPartView({
+  widget,
+  t,
+}: {
+  readonly widget: PortalTabWidget;
+  readonly t: TFn;
+}): ReactElement {
+  let uiPart: AgUiUiPart | null = null;
+  try {
+    const config = parseWidgetConfig(widget) as {
+      initialProps?: Record<string, unknown>;
+    } | null;
+    const initialProps = config?.initialProps;
+    if (initialProps && typeof initialProps === 'object' && typeof (initialProps as { kind?: unknown }).kind === 'string') {
+      uiPart = initialProps as unknown as AgUiUiPart;
+    }
+  } catch {
+    // parseWidgetConfig threw (malformed config) — degrade to placeholder.
+    uiPart = null;
+  }
+
+  if (!uiPart) {
+    return (
+      <p
+        className="text-xs leading-relaxed text-neutral-400"
+        data-testid={`genui-widget-${widget.key}-placeholder`}
+      >
+        {t('genuiTab.widgetPlaceholder')}
+      </p>
+    );
+  }
+
+  return (
+    <div data-testid={`genui-widget-${widget.key}-adaptive`}>
+      <AdaptiveRenderer uiPart={uiPart} />
+    </div>
+  );
+}
+
 // ── Bound-data region ───────────────────────────────────────────────────────
 
 function WidgetDataRegion({
@@ -233,6 +295,13 @@ function WidgetDataRegion({
     case 'timeline':
     case 'calendar':
       return <TimelineView data={data} t={t} />;
+    case 'genui_part':
+      // The rich primitive payload lives in widget.config.initialProps, not the
+      // binding response. Delegate to the generative adapter — the full dispatch
+      // is inside AdaptiveRenderer's existing switch. Binding rows are available
+      // in `data` for host-driven overrides in future, but the static config is
+      // the primary payload.
+      return <GenUiPartView widget={widget} t={t} />;
     default:
       return <GenericDataView data={data} t={t} />;
   }
@@ -351,7 +420,11 @@ export function GenUIWidgetRenderer({
         </span>
       </div>
 
-      {binding ? (
+      {widget.kind === 'genui_part' ? (
+        // genui_part: always render from widget.config.initialProps regardless of
+        // whether a binding is present — the AdaptiveRenderer is the dispatch.
+        <GenUiPartView widget={widget} t={t} />
+      ) : binding ? (
         <WidgetDataRegion
           widget={widget}
           tabId={tabId}

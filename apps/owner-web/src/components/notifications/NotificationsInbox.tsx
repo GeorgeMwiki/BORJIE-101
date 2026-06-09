@@ -8,6 +8,7 @@ import {
   type CockpitEvent,
   type CockpitEventKind,
 } from '@/lib/cockpit-sse';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 const MAX_ITEMS = 200;
 const READ_IDS_KEY = 'borjie.owner.notifications.readIds.v1';
@@ -55,6 +56,7 @@ function eventId(event: CockpitEvent): string {
  * unread markers + mark-read tap + mark-all action.
  */
 export function NotificationsInbox(): JSX.Element {
+  const locale = useLocale();
   const [items, setItems] = useState<ReadonlyArray<StoredEvent>>([]);
   const [readIds, setReadIds] = useState<Set<string>>(() => loadReadIds());
 
@@ -125,10 +127,17 @@ export function NotificationsInbox(): JSX.Element {
             }
             aria-hidden
           />
-          <span>{stream.connected ? 'Live' : 'Reconnecting…'}</span>
+          <span>
+            {stream.connected
+              ? pickByLocale(locale, { en: 'Live', sw: 'Moja kwa moja' })
+              : pickByLocale(locale, { en: 'Reconnecting…', sw: 'Inaunganisha tena…' })}
+          </span>
           {unreadCount > 0 ? (
             <span className="ml-2 rounded-full bg-warning/20 px-2 py-0.5 text-warning">
-              {unreadCount} unread
+              {pickByLocale(locale, {
+                en: `${unreadCount} unread`,
+                sw: `${unreadCount} hazijasomwa`,
+              })}
             </span>
           ) : null}
         </div>
@@ -138,14 +147,16 @@ export function NotificationsInbox(): JSX.Element {
             onClick={markAllRead}
             className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:bg-surface"
           >
-            Mark all read
+            {pickByLocale(locale, { en: 'Mark all read', sw: 'Weka zote zimesomwa' })}
           </button>
         ) : null}
       </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-border bg-surface p-8 text-sm text-neutral-400">
-          No live events yet. We will show every decision, reminder,
-          handoff and regulator request here as soon as it lands.
+          {pickByLocale(locale, {
+            en: 'No live events yet. We will show every decision, reminder, handoff and regulator request here as soon as it lands.',
+            sw: 'Hakuna matukio bado. Tutaonyesha kila uamuzi, ukumbusho, uhamisho, na ombi la mdhibiti hapa mara inapofika.',
+          })}
         </div>
       ) : (
         <ul className="flex flex-col gap-2">
@@ -184,7 +195,7 @@ export function NotificationsInbox(): JSX.Element {
                     </time>
                   </div>
                   <p className="mt-1 text-sm text-neutral-300">
-                    {describeCockpitEvent(item.event, 'en')}
+                    {describeCockpitEvent(item.event, locale)}
                   </p>
                 </button>
               </li>

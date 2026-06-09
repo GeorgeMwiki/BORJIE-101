@@ -54,6 +54,12 @@ import {
   type DbExecutor,
   type RecordStore,
 } from '@borjie/portal-genui';
+import {
+  createSupabaseStorageAdapter,
+  createInMemoryStorageAdapter,
+  type StorageAdapter,
+} from '@borjie/storage-adapter';
+import { createSupabaseAdminClient } from '@borjie/supabase-client';
 
 import { getDb } from '../db-client.js';
 import { logger } from '../../utils/logger.js';
@@ -160,6 +166,49 @@ function buildBrainPort(): GenUIEngineBrainPort | undefined {
 }
 
 // ────────────────────────────────────────────────────────────────────
+// StorageAdapter — tenant-uploads bucket for file/image/audio fields.
+// Supabase-backed in production; in-memory degrade in dev/test so the
+// gateway still boots without Supabase creds.
+// ────────────────────────────────────────────────────────────────────
+
+function buildStorageAdapter(): StorageAdapter {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+  const environment =
+    process.env.SUPABASE_ENVIRONMENT?.trim() ??
+    process.env.NODE_ENV?.trim() ??
+    'development';
+
+  if (supabaseUrl && serviceRoleKey) {
+    try {
+      const supabase = createSupabaseAdminClient({
+        url: supabaseUrl,
+        serviceRoleKey,
+      });
+      logger.info(
+        { wiring: 'portal-genui-storage', mode: 'supabase', environment },
+        'portal-genui: storage adapter bound to Supabase tenant-uploads bucket',
+      );
+      return createSupabaseStorageAdapter({ supabase, environment });
+    } catch (err) {
+      logger.warn(
+        {
+          wiring: 'portal-genui-storage',
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'portal-genui: Supabase storage init failed — falling back to in-memory adapter',
+      );
+    }
+  }
+
+  logger.info(
+    { wiring: 'portal-genui-storage', mode: 'in-memory' },
+    'portal-genui: using in-memory storage adapter (Supabase env unset)',
+  );
+  return createInMemoryStorageAdapter();
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Engine construction + public build fn.
 // ────────────────────────────────────────────────────────────────────
 
@@ -174,6 +223,14 @@ export interface PortalGenuiWiring {
    * persist + read submissions validated against each tab's own field schema.
    */
   readonly recordStore: RecordStore;
+  /**
+   * Tenant-uploads StorageAdapter — attach to
+   * `services.portalGenUIStorageAdapter` so the `/tabs/:id/upload` endpoint
+   * can store file bytes to the `tenant-uploads` bucket and return a signed URL.
+   * Supabase-backed when NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
+   * are set; otherwise in-memory (dev/test honest-degrade, no crash).
+   */
+  readonly storageAdapter: StorageAdapter;
   /** True when a live Postgres-backed persistence layer was wired. */
   readonly persistent: boolean;
 }
@@ -200,6 +257,9 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
     ? createDrizzleRecordStore({ db: makeDbExecutor(db) })
     : createInMemoryRecordStore();
 
+  // Tenant-uploads storage adapter for the /tabs/:id/upload endpoint.
+  const storageAdapter = buildStorageAdapter();
+
   if (!persistence) {
     logger.warn(
       { wiring: 'portal-genui' },
@@ -225,6 +285,7 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
     engine,
     router: portalGenUIRouter,
     recordStore,
+    storageAdapter,
     persistent: Boolean(persistence),
   };
 }

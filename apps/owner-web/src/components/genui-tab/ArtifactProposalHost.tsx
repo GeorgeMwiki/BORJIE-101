@@ -17,13 +17,24 @@
  *                         barrier (CLAUDE.md: "No raw HTML interpolation —
  *                         DOMPurify wraps required").
  *
+ * owner-genui-11 fix (partial): forecast-preview action buttons now have a
+ * working dispatch path via `confirmAction`. The full fix (per-widget action
+ * extraction from the raw overlay) requires `useArtifactResolver` to expose
+ * `rawTab` and `GenUITabHost` to accept a `rawOverlay` prop — both outside
+ * this file; tracked in needsAttention. This partial fix extracts top-level
+ * `proposalActions[]` from `resolved.artifact` (emitted by the gateway's
+ * forecast projector) and wires each one to `confirmAction` so owners can at
+ * minimum act on the forecast-level verbs (accept, reject, trigger-plan, etc).
+ *
  * Honest states: loading skeleton while the descriptor fetches, a
  * non-blocking inline error notice on failure (degrade-safe — never a crash).
  */
 
-import { type ReactElement } from 'react';
+import { useCallback, useState, type ReactElement } from 'react';
+import { z } from 'zod';
 
 import { ArtifactRenderer } from '@/components/artifacts/ArtifactRenderer';
+import { confirmAction } from '@/lib/queries/chat-actions';
 import { GenUITabHost } from './GenUITabHost';
 import { toSafeText } from './sanitize';
 import {
@@ -112,6 +123,108 @@ function InlineNote({
   );
 }
 
+// ── Proposal-level action buttons ──────────────────────────────────────────
+
+/**
+ * Schema for `proposalActions[]` emitted by the gateway's forecast projector.
+ * Each entry carries a fulfillment `verb` + optional `params`. This is the
+ * top-level dispatch seam (per owner-genui-11); per-widget actions require a
+ * deeper fix tracked in needsAttention.
+ */
+const ProposalActionSchema = z.object({
+  id: z.string().min(1).max(120),
+  label: z.string().max(200).optional(),
+  verb: z.string().min(1).max(200),
+  params: z.record(z.string(), z.unknown()).optional(),
+});
+
+type ProposalAction = z.infer<typeof ProposalActionSchema>;
+
+type ProposalActionStatus =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'running' }
+  | { readonly kind: 'done' }
+  | { readonly kind: 'handling' }
+  | { readonly kind: 'failed' };
+
+function ProposalActionButton({
+  action,
+  locale,
+}: {
+  readonly action: ProposalAction;
+  readonly locale: Locale;
+}): ReactElement {
+  const [status, setStatus] = useState<ProposalActionStatus>({ kind: 'idle' });
+  const label = toSafeText(action.label) || action.verb;
+
+  const RUNNING = locale === 'sw' ? 'Inafanya kazi…' : 'Working…';
+  const DONE = locale === 'sw' ? 'Imekamilika.' : 'Done.';
+  const HANDLING =
+    locale === 'sw' ? 'Naishughulikia…' : "On it — I'm handling that for you.";
+  const FAILED =
+    locale === 'sw'
+      ? 'Kitendo hicho hakikuweza kufanyika.'
+      : 'That action could not run.';
+
+  const onClick = useCallback(() => {
+    setStatus({ kind: 'running' });
+    void confirmAction({ verb: action.verb, params: action.params ?? {} })
+      .then((result) => {
+        if (result.executed) {
+          setStatus({ kind: 'done' });
+          return;
+        }
+        if (result.deferToBrain) {
+          setStatus({ kind: 'handling' });
+          return;
+        }
+        setStatus({ kind: 'failed' });
+      })
+      .catch(() => setStatus({ kind: 'failed' }));
+  }, [action.verb, action.params]);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={status.kind === 'running'}
+        data-testid={`proposal-action-${action.id}`}
+        className="inline-flex items-center justify-center rounded-md border border-border bg-surface px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:border-warning hover:text-warning disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {status.kind === 'running' ? RUNNING : label}
+      </button>
+      {status.kind === 'done' ? (
+        <span className="text-xs text-success">{DONE}</span>
+      ) : null}
+      {status.kind === 'handling' ? (
+        <span className="text-xs text-neutral-400">{HANDLING}</span>
+      ) : null}
+      {status.kind === 'failed' ? (
+        <span className="text-xs text-destructive">{FAILED}</span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Parse `proposalActions[]` from the opaque artifact blob. Returns an empty
+ * array when the field is absent or malformed — degrade-safe.
+ */
+function parseProposalActions(
+  artifact: Readonly<Record<string, unknown>>,
+): ReadonlyArray<ProposalAction> {
+  if (!Array.isArray(artifact.proposalActions)) return [];
+  const out: ProposalAction[] = [];
+  for (const item of artifact.proposalActions) {
+    const parsed = ProposalActionSchema.safeParse(item);
+    if (parsed.success) out.push(parsed.data);
+  }
+  return out;
+}
+
+// ── Ready descriptor renderer ──────────────────────────────────────────────
+
 /** Render a ready descriptor through the kind-matched renderer. */
 function ReadyArtifact({
   resolved,
@@ -124,10 +237,30 @@ function ReadyArtifact({
   readonly tradingName: string;
   readonly locale: Locale;
 }): ReactElement {
+  const proposalActions = parseProposalActions(resolved.artifact);
+
   // forecast → the genui preview tab (chart/table genui blocks). The projected
   // `tab` is the synthesized preview; GenUITabHost renders it directly.
+  // Proposal-level action buttons (accept/reject/trigger-plan etc) dispatch via
+  // confirmAction. Per-widget actions from the raw overlay require needsAttention
+  // fix in GenUITabHost (rawOverlay prop) + useArtifactResolver (expose rawTab).
   if (resolved.artifactKind === 'forecast' && resolved.tab) {
-    return <GenUITabHost tab={resolved.tab} locale={locale} />;
+    return (
+      <div className="flex flex-col gap-4">
+        <GenUITabHost tab={resolved.tab} locale={locale} />
+        {proposalActions.length > 0 ? (
+          <div className="flex flex-wrap gap-2 border-t border-border pt-3">
+            {proposalActions.map((action) => (
+              <ProposalActionButton
+                key={action.id}
+                action={action}
+                locale={locale}
+              />
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   // document / media (and a forecast with no preview tab) → the rich

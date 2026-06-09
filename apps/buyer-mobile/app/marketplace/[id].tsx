@@ -16,7 +16,8 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { fetchListing } from '@/api/marketplace'
 import { queryKeys } from '@/api/queryKeys'
 import { formatKg, formatTzs } from '@/components/formatters'
-import { mockDistanceKm, formatKm } from '@/marketplace/distance'
+// formatKm is available in @/marketplace/distance; re-import when
+// the gateway adds distanceKm to the Listing shape.
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
 
@@ -91,7 +92,7 @@ export default function MarketplaceDetail() {
           <KeyValueRow label={t('marketplace.grade')} value={listing.grade} />
           <KeyValueRow label={t('marketplace.quantity')} value={formatKg(listing.quantityKg)} />
           <KeyValueRow label={t('marketplace.origin')} value={listing.originSite} />
-          <KeyValueRow label={t('marketplace.distance')} value={formatKm(mockDistanceKm(listing.originRegion))} />
+          {/* distance is omitted until the gateway returns real geocoded data */}
           <KeyValueRow
             label={t('marketplace.price_hint')}
             value={`${formatTzs(listing.priceTzsPerKg)} / ${t('common.kg')}`}

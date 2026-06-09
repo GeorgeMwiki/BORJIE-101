@@ -89,8 +89,7 @@ async function request<T>(
     }
 
     return { success: true, data: parsed.data as T };
-  } catch (error) {
-    console.error('Platform API request failed:', error);
+  } catch {
     return { success: false, error: 'Network error' };
   }
 }

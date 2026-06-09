@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View } from 'react-native'
+import { Text, View } from 'react-native'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ScreenShell } from '../../src/components/ScreenShell'
@@ -10,6 +10,8 @@ import { WizardSteps } from '../../src/forms/WizardSteps'
 import { ConfirmationCard } from '../../src/forms/ConfirmationCard'
 import { Step1, Step2, Step3, Step4, StepNav } from '../../src/forms/shiftReportSteps'
 import { useI18n } from '../../src/i18n/useI18n'
+import { colors } from '../../src/theme/colors'
+import { fontSize, spacing } from '../../src/theme/spacing'
 import { usePhotoPicker, type CapturedMedia } from '../../src/media/usePhotoPicker'
 import { useVoiceRecorder } from '../../src/media/useVoiceRecorder'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
@@ -51,6 +53,7 @@ function ShiftReportForm(): JSX.Element {
   const [photos, setPhotos] = useState<ReadonlyArray<CapturedMedia>>([])
   const [submitted, setSubmitted] = useState<SubmittedRef | null>(null)
   const [submitting, setSubmitting] = useState<boolean>(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
   const photoPicker = usePhotoPicker()
   const recorder = useVoiceRecorder()
 
@@ -128,9 +131,12 @@ function ShiftReportForm(): JSX.Element {
         submittedAt: Date.now()
       }
       const entry = await enqueueWrite('shift_report', payload)
+      setSubmitError(null)
       setSubmitted({ queueId: entry.id })
     } catch (error) {
-      console.error('Shift report submit failed:', error)
+      const message =
+        error instanceof Error ? error.message : (t.common.errorGeneric ?? 'Submit failed')
+      setSubmitError(message)
     } finally {
       setSubmitting(false)
     }
@@ -142,6 +148,7 @@ function ShiftReportForm(): JSX.Element {
     recorder.reset()
     setStep(0)
     setSubmitted(null)
+    setSubmitError(null)
   }, [form, recorder])
 
   if (submitted) {
@@ -185,6 +192,9 @@ function ShiftReportForm(): JSX.Element {
           t={t}
         />
       ) : null}
+      {submitError ? (
+        <Text style={submitErrorStyle}>{submitError}</Text>
+      ) : null}
       <StepNav
         step={step}
         total={TOTAL_STEPS}
@@ -201,4 +211,12 @@ function ShiftReportForm(): JSX.Element {
       />
     </View>
   )
+}
+
+const submitErrorStyle = {
+  color: colors.danger,
+  fontSize: fontSize.body,
+  fontWeight: '600' as const,
+  marginTop: spacing.sm,
+  marginBottom: spacing.xs
 }

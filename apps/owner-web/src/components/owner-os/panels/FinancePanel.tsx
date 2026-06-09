@@ -12,6 +12,7 @@ import { PanelHero } from './PanelHero';
 import { SurfaceSkeleton } from './SurfaceSkeleton';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
+import { useFxSeeds } from '@/lib/queries/fx';
 
 const RoyaltyDraftPanel = dynamic(
   () =>
@@ -79,9 +80,25 @@ registerTab(FINANCE_DESCRIPTOR);
 
 export const FINANCE_PANEL_DESCRIPTOR = FINANCE_DESCRIPTOR;
 
+// ── Seed defaults ─────────────────────────────────────────────────────────────
+// Fallback slider seeds used only when the live FX feed has not yet responded.
+// BreakEvenSlider internally calls useFxSeeds() and overrides these immediately
+// once rates arrive — they are never displayed to the owner as live numbers.
+const FALLBACK_GOLD_USD_OZ = 2384;
+const FALLBACK_TZS_USD = 2585;
+const FALLBACK_UNIT_COST_TZS_PER_G = 104_000;
+
 export function FinancePanel({
   locale,
 }: OwnerOSPanelProps): ReactElement {
+  const isSw = locale === 'sw';
+
+  // Pre-fetch seeds here so BreakEvenSlider starts from the live price
+  // rather than the fallback, avoiding a visible snap from seed → live.
+  const seeds = useFxSeeds();
+  const goldSeed = seeds.goldUsdOz ?? FALLBACK_GOLD_USD_OZ;
+  const tzsSeed = seeds.tzsUsd ?? FALLBACK_TZS_USD;
+
   return (
     <section
       className="flex flex-col gap-5 px-2 py-2"
@@ -99,16 +116,16 @@ export function FinancePanel({
       <RoyaltyDraftPanel locale={locale} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <BreakEvenSlider
-          initialGoldUsdOz={2384}
-          initialTzsUsd={2585}
-          initialUnitCostTzsPerG={104_000}
+          initialGoldUsdOz={goldSeed}
+          initialTzsUsd={tzsSeed}
+          initialUnitCostTzsPerG={FALLBACK_UNIT_COST_TZS_PER_G}
         />
         <div className="rounded-2xl border border-border bg-surface/40 p-5">
           <h3 className="text-sm font-semibold text-foreground">
-            {locale === 'sw' ? S.finance.cashWindowsTitle.sw : S.finance.cashWindowsTitle.en}
+            {isSw ? S.finance.cashWindowsTitle.sw : S.finance.cashWindowsTitle.en}
           </h3>
           <p className="mt-2 text-xs leading-relaxed text-neutral-300">
-            {locale === 'sw'
+            {isSw
               ? S.finance.cashWindowsBody.sw
               : S.finance.cashWindowsBody.en}
           </p>

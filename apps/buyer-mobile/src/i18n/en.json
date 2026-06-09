@@ -4,10 +4,11 @@
     "slogan": "Real minerals market"
   },
   "tabs": {
-    "dashboard": "Dashibodi",
+    "dashboard": "Dashboard",
     "marketplace": "Marketplace",
     "bids": "My Bids",
     "documents": "Documents",
+    "documents_intel": "Live Documents",
     "kyc": "KYC",
     "profile": "Profile"
   },
@@ -121,7 +122,8 @@
     "withdraw_bid": "Withdraw bid",
     "message_placeholder": "Reply to the seller",
     "loading": "Loading bid",
-    "load_failed": "Could not load bid"
+    "load_failed": "Could not load bid",
+    "seller_label": "Seller"
   },
   "documents": {
     "title": "Contracts",
@@ -205,7 +207,8 @@
     "notif_bid_updates": "Bid updates",
     "notif_document_ready": "New contracts",
     "notif_price_alerts": "Price alerts",
-    "notifications_saved": "Notification preferences saved"
+    "notifications_saved": "Notification preferences saved",
+    "payment_methods_placeholder": "Payment methods will appear here once configured"
   },
   "chat": {
     "title": "Chat with seller",
@@ -239,6 +242,35 @@
     "yes": "Yes",
     "no": "No"
   },
+  "sign_delivery": {
+    "eyebrow": "Sign Delivery",
+    "title": "Confirm receipt of your minerals",
+    "subtitle": "Signing initiates payment to the seller via M-Pesa instantly.",
+    "rfb_details": "RFB details",
+    "rfb_id": "RFB id",
+    "response_id": "Response id",
+    "coc_loading": "Verifying chain of custody…",
+    "no_response_id": "No response id was provided. Re-open from the \"RFB fulfilled\" notification.",
+    "coc_error_title": "Chain-of-custody error",
+    "coc_error_body": "Could not load chain of custody. Please try again.",
+    "failed": "Failed",
+    "unknown_error": "Unknown error",
+    "settled": "Settled",
+    "gross": "Gross",
+    "royalty": "Royalty",
+    "platform_fee": "Platform fee",
+    "seller_receives": "Seller receives",
+    "ledger_txn": "Ledger txn",
+    "provider": "Provider",
+    "already_settled": "Already settled (idempotent)",
+    "sign_button": "Sign Delivery",
+    "view_notifications": "View notifications",
+    "rate_seller_title": "Rate the seller",
+    "rate_seller_thanks": "Thanks for your rating",
+    "rate_seller_submit": "Submit rating",
+    "rate_seller_submitting": "Submitting…",
+    "rate_seller_failed": "Failed to submit rating"
+  },
   "rfb": {
     "title": "Request for Bids",
     "subtitle": "Tell sellers what you want; they come to you.",
@@ -270,7 +302,24 @@
     "cancel_failed": "Could not cancel the RFB.",
     "tonnage_required_invalid": "Tonnage required must be greater than 0.",
     "unit_price_invalid": "Max price per unit must be greater than 0.",
-    "delivery_in_past": "Required-by date must be in the future."
+    "delivery_in_past": "Required-by date must be in the future.",
+    "detail_title": "RFB Detail",
+    "detail_loading": "Loading RFB…",
+    "detail_load_failed": "Could not load this RFB.",
+    "detail_responses_title": "Responses",
+    "detail_responses_empty": "No responses yet. Sellers in radius will be notified.",
+    "detail_response_seller": "Seller",
+    "detail_response_grade": "Grade",
+    "detail_response_tonnage": "Tonnage",
+    "detail_response_price": "Price",
+    "detail_sign_delivery": "Sign delivery",
+    "detail_cancel_cta": "Cancel RFB",
+    "detail_mineral": "Mineral",
+    "detail_tonnage": "Tonnage min",
+    "detail_unit_price": "Max unit price",
+    "detail_delivery_by": "Required by",
+    "detail_expires": "Expires",
+    "detail_status": "Status"
   },
   "mineMatcher": {
     "eyebrow": "MINE MATCHER",

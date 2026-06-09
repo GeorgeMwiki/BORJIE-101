@@ -33,6 +33,87 @@ export interface BiString {
 }
 
 export const routesBStrings = {
+  /**
+   * Shared loading/empty strings used in 'use client' components under
+   * apps/owner-web/src/components/ that need bilingual content but are
+   * not part of the i18n/strings/data-*.ts cohort.
+   */
+  sharedClientStrings: {
+    loadingDrafts: {
+      sw: 'Inapakia rasimu…',
+      en: 'Loading drafts…',
+    },
+    noRoyaltyDrafts: {
+      sw: 'Hakuna rasimu za mrabaha kwa sasa.',
+      en: 'No royalty drafts pending.',
+    },
+    couldNotLoadRoyaltyDrafts: {
+      sw: 'Imeshindwa kupakia rasimu za mrabaha.',
+      en: 'Could not load royalty drafts.',
+    },
+  },
+
+  /** app/(routes)/compliance/page.tsx and ComplianceSurface.tsx. */
+  compliance: {
+    draftMonthlyPack: {
+      sw: 'Tayarisha pakiti',
+      en: 'Draft monthly pack',
+    },
+    askForCitations: {
+      sw: 'Uliza vidokezo',
+      en: 'Ask for citations',
+    },
+    // ComplianceSurface.tsx — recent packs section
+    recentPacksTitle: {
+      sw: 'Pakiti za hivi karibuni',
+      en: 'Recent compliance packs',
+    },
+    draftPackLink: {
+      sw: 'Unda pakiti',
+      en: 'Draft pack',
+    },
+    loadingPacks: {
+      sw: 'Inapakia…',
+      en: 'Loading…',
+    },
+    loadPacksFailed: {
+      sw: 'Imeshindwa kupakia pakiti za kawaida.',
+      en: 'Could not load compliance packs.',
+    },
+    noPacksYet: {
+      sw: 'Hakuna pakiti zilizoundwa bado.',
+      en: 'No compliance packs generated yet.',
+    },
+    defaultPackLabel: {
+      sw: 'Pakiti ya utiifu',
+      en: 'Compliance pack',
+    },
+  },
+
+  /** app/(routes)/safety/page.tsx — O-W-15 Safety & EHS. */
+  safety: {
+    logNewIncident: {
+      sw: 'Sajili tukio jipya',
+      en: 'Log new incident',
+    },
+    toolboxBrief: {
+      sw: 'Toolbox ya leo',
+      en: 'Toolbox brief',
+    },
+  },
+
+  /** app/(routes)/people/page.tsx — O-W-08 People & roles. */
+  people: {
+    openRoster: {
+      sw: 'Onyesha ratiba',
+      en: 'Open roster',
+    },
+    askAboutWorkforce: {
+      sw: 'Uliza kuhusu wafanyakazi',
+      en: 'Ask about workforce',
+    },
+  },
+
   /** app/(routes)/reports/page.tsx — O-W-18 Reports & exports. */
   reports: {
     reportLibrary: {

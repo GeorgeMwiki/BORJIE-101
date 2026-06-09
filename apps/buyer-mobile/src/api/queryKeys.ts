@@ -12,6 +12,7 @@ export const queryKeys = {
   wallet: () => ['wallet'] as const,
   // R11 — buyer-initiated RFB.
   rfbsMine: () => ['rfbs', 'mine'] as const,
+  rfbResponses: (rfbId: string) => ['rfb-responses', rfbId] as const,
   // Commercial chain L7 — buyer notifications.
   buyerNotifications: (unreadOnly: boolean) =>
     ['buyer-notifications', unreadOnly ? 'unread' : 'all'] as const,

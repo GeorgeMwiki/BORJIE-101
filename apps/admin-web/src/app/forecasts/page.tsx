@@ -39,8 +39,7 @@ async function fetchForecasts(cookieHeader: string): Promise<ForecastsResult> {
     }
     const data = (await res.json()) as { forecasts: ReadonlyArray<ForecastPoint> };
     return { status: 'ok', forecasts: data.forecasts };
-  } catch (error) {
-    console.error('Forecasts fetch failed:', error);
+  } catch {
     return {
       status: 'degraded',
       reason: 'Forecasting service unreachable. No mock intervals rendered.',

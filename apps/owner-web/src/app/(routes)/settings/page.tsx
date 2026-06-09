@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PlanBillingPanel } from '@/components/settings/PlanBillingPanel';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale';
+import { NotificationPreferencesPanel } from '@/components/settings/NotificationPreferencesPanel';
 
 /**
  * O-W-22 — Settings. Plan + billing is wired to the live current-tenant
@@ -11,8 +14,14 @@ import { PlanBillingPanel } from '@/components/settings/PlanBillingPanel';
  * JA-7 — adds a Jurisdiction sub-page link so the owner can inspect
  * the country / regulators / currency / language / time zone that
  * drive every royalty draft and licence reminder.
+ *
+ * owner-settings-3 / owner-settings-8 — adds the NotificationPreferences
+ * surface (PUT /api/v1/owner/contact-prefs) and fixes all locale violations
+ * so EN users never see Swahili subtitles (and vice versa).
  */
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const locale = await readLocaleFromServerCookies();
+
   return (
     <>
       <ScreenHeader slug="settings" />
@@ -24,17 +33,17 @@ export default function SettingsPage() {
           >
             <div className="flex items-baseline justify-between">
               <h2 className="font-display text-lg text-foreground">
-                Jurisdiction
+                {pickByLocale(locale, { en: 'Jurisdiction', sw: 'Eneo la sheria' })}
               </h2>
               <span className="text-xs text-neutral-400 group-hover:text-foreground">
                 →
               </span>
             </div>
             <p className="mt-0.5 text-xs italic text-neutral-500">
-              Eneo la sheria
-            </p>
-            <p className="mt-2 text-sm text-neutral-300">
-              Country, regulators, currency, language, time zone.
+              {pickByLocale(locale, {
+                en: 'Country, regulators, currency, language, time zone.',
+                sw: 'Nchi, wadhibiti, sarafu, lugha, eneo la saa.',
+              })}
             </p>
           </Link>
           <Link
@@ -43,20 +52,24 @@ export default function SettingsPage() {
           >
             <div className="flex items-baseline justify-between">
               <h2 className="font-display text-lg text-foreground">
-                Connected agents
+                {pickByLocale(locale, {
+                  en: 'Connected agents',
+                  sw: 'Wakala walioongezwa',
+                })}
               </h2>
               <span className="text-xs text-neutral-400 group-hover:text-foreground">
                 →
               </span>
             </div>
             <p className="mt-0.5 text-xs italic text-neutral-500">
-              Wakala walioongezwa
-            </p>
-            <p className="mt-2 text-sm text-neutral-300">
-              External agents with active access to your account.
+              {pickByLocale(locale, {
+                en: 'External agents with active access to your account.',
+                sw: 'Mawakala wa nje wenye ufikiaji hai kwa akaunti yako.',
+              })}
             </p>
           </Link>
         </nav>
+        <NotificationPreferencesPanel />
         <PlanBillingPanel />
       </div>
     </>

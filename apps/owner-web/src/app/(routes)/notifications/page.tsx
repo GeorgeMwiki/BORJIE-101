@@ -1,25 +1,35 @@
 import { NotificationsInbox } from '@/components/notifications/NotificationsInbox';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale';
 
 /**
  * Owner-web — notifications inbox (parity with workforce-mobile +
  * buyer-mobile). Shows the live SSE event stream the owner cockpit
  * has consumed during the current session.
  *
- * Out-of-app delivery (when the tab is closed) goes through web push;
- * the token registration backend is the same `/me/device-tokens`
- * endpoint the mobile apps hit.
+ * Out-of-app delivery: web push subscription is registered by
+ * ServiceWorkerRegister (after NEXT_PUBLIC_VAPID_PUBLIC_KEY is
+ * provisioned). Until that env var is set, background push delivery
+ * degrades gracefully — in-session SSE events still render here.
+ *
+ * owner-settings-4: push token registration is wired in
+ * ServiceWorkerRegister.tsx once VAPID env is provisioned; see
+ * needsAttention in the agent-B manifest for the sw.js push listener.
  */
-export default function NotificationsPage() {
+export default async function NotificationsPage() {
+  const locale = await readLocaleFromServerCookies();
+
   return (
     <div className="px-8 py-8">
       <header className="mb-6">
-        <h1 className="font-display text-3xl text-foreground">Notifications</h1>
-        <p className="mt-1 text-sm italic text-neutral-500">Arifa</p>
+        <h1 className="font-display text-3xl text-foreground">
+          {pickByLocale(locale, { en: 'Notifications', sw: 'Arifa' })}
+        </h1>
         <p className="mt-3 max-w-3xl text-sm text-neutral-300">
-          Live activity from your sites — decisions, reminders, manager
-          escalations, RFB dispatches, payroll commits, regulator
-          requests. Background delivery goes through web push and is
-          stored here for replay.
+          {pickByLocale(locale, {
+            en: 'Live activity from your sites — decisions, reminders, manager escalations, RFB dispatches, payroll commits, regulator requests.',
+            sw: 'Shughuli za moja kwa moja kutoka kwa maeneo yako — maamuzi, vikumbusho, upandishaji wa meneja, uwasilishaji wa RFB, ahadi za malipo, maombi ya mdhibiti.',
+          })}
         </p>
       </header>
       <NotificationsInbox />

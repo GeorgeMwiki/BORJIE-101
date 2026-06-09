@@ -430,6 +430,7 @@ export const en = {
     recordsLoading: 'Loading records…',
     recordsError: 'Could not load records.',
     recordCreatedAt: 'Added {at}',
+    recordsCreatedAtColumn: 'Created',
     // Live widgets.
     widgetLoading: 'Loading…',
     widgetError: 'Could not load this widget.',
@@ -442,6 +443,22 @@ export const en = {
     actionDeclined: 'That needs confirmation: {reason}',
     actionHandlingIt: "On it — I'm handling that for you.",
     actionFailed: 'That action could not run.',
+    // Field-level upload / address status strings (GenUIFieldRenderer).
+    fieldUploading: 'Uploading…',
+    fieldUploaded: 'Uploaded.',
+    fieldReadingSignature: 'Reading…',
+    fieldSignatureCaptured: 'Signature captured.',
+    fieldSignatureReadError: 'Could not read signature image. Please choose a valid image file.',
+    fieldUploadPreviewDisabled: 'preview — uploads require a saved tab',
+    fieldUploadFailed: 'Upload failed',
+    fieldAddressPlaceholder: 'Street address',
+    fieldLatitude: 'Latitude',
+    fieldLongitude: 'Longitude',
+  },
+
+  // Daily brief card (cockpit).
+  cockpit: {
+    dailyBriefTitle: 'Daily brief',
   },
 } as const;
 

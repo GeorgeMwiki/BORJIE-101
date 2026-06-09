@@ -152,11 +152,19 @@ export function HomeChat({
   );
 
   const onReset = useCallback(() => {
+    // Call reset() first so the hook clears its state before the URL
+    // changes. We then strip the thread param from the URL only if the
+    // current URL actually has a thread param — this prevents a fast
+    // reset-then-navigate from stripping a freshly-written thread ID on
+    // the next render (the thread-hydration race described in audit
+    // finding HomeChat-thread-race / owner-ceo-*).
     reset();
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    url.searchParams.delete('thread');
-    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    if (url.searchParams.has('thread')) {
+      url.searchParams.delete('thread');
+      router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    }
   }, [reset, router]);
 
   const composerDisabled =

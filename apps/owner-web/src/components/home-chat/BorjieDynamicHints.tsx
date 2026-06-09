@@ -155,6 +155,19 @@ export function BorjieDynamicHints({
     [onShortcutClick],
   );
 
+  // The shortcuts panel is the gated content: shown in full when the
+  // owner reaches the required mastery level, hidden (with a locked-state
+  // hint) until then. This prevents the MasteryGate from rendering `null`
+  // children — a gate that always shows nothing when unlocked is useless.
+  const shortcutsPanel = (
+    <LearnedShortcutsPanel
+      shortcuts={learnedShortcuts}
+      onActionClick={noopShortcutClick}
+      headline={shortcutsHeadline}
+      placement="inline"
+    />
+  );
+
   return (
     <div
       data-testid="borjie-dynamic-hints"
@@ -172,14 +185,8 @@ export function BorjieDynamicHints({
         score={masteryScore}
         hintTemplate={gateCopy.hintTemplate}
       >
-        {null}
+        {shortcutsPanel}
       </MasteryGate>
-      <LearnedShortcutsPanel
-        shortcuts={learnedShortcuts}
-        onActionClick={noopShortcutClick}
-        headline={shortcutsHeadline}
-        placement="inline"
-      />
     </div>
   );
 }

@@ -8,6 +8,7 @@
     "marketplace": "Soko",
     "bids": "Zabuni",
     "documents": "Mikataba",
+    "documents_intel": "Hati za Moja kwa Moja",
     "kyc": "KYC",
     "profile": "Wasifu"
   },
@@ -121,7 +122,8 @@
     "withdraw_bid": "Ondoa zabuni",
     "message_placeholder": "Jibu muuzaji",
     "loading": "Inapakia zabuni",
-    "load_failed": "Imeshindwa kupakia zabuni"
+    "load_failed": "Imeshindwa kupakia zabuni",
+    "seller_label": "Muuzaji"
   },
   "documents": {
     "title": "Mikataba",
@@ -205,7 +207,8 @@
     "notif_bid_updates": "Mabadiliko ya zabuni",
     "notif_document_ready": "Mikataba mipya",
     "notif_price_alerts": "Tahadhari za bei",
-    "notifications_saved": "Mapendeleo ya arifa yamehifadhiwa"
+    "notifications_saved": "Mapendeleo ya arifa yamehifadhiwa",
+    "payment_methods_placeholder": "Njia za malipo zitaonekana hapa baada ya kusanidiwa"
   },
   "chat": {
     "title": "Mazungumzo na muuzaji",
@@ -239,6 +242,35 @@
     "yes": "Ndiyo",
     "no": "Hapana"
   },
+  "sign_delivery": {
+    "eyebrow": "Saini ya Uwasilishaji",
+    "title": "Thibitisha kupokea madini yako",
+    "subtitle": "Kusaini kutaanzisha malipo kwa muuzaji moja kwa moja kupitia M-Pesa.",
+    "rfb_details": "Maelezo ya RFB",
+    "rfb_id": "RFB ID",
+    "response_id": "Jibu (Response)",
+    "coc_loading": "Inathibitisha mlolongo wa uangalizi…",
+    "no_response_id": "Hakuna kitambulisho cha jibu (response id). Fungua tena kutoka kwa arifa ya \"RFB imekamilika\".",
+    "coc_error_title": "Hitilafu ya mlolongo",
+    "coc_error_body": "Imeshindwa kupakia mlolongo wa uangalizi. Tafadhali jaribu tena.",
+    "failed": "Imeshindwa",
+    "unknown_error": "Hitilafu isiyojulikana",
+    "settled": "Imekamilika",
+    "gross": "Jumla",
+    "royalty": "Mrabaha",
+    "platform_fee": "Ada",
+    "seller_receives": "Muuzaji atalipwa",
+    "ledger_txn": "Jarida",
+    "provider": "Njia",
+    "already_settled": "Imekamilika tayari (idempotent)",
+    "sign_button": "Saini Uwasilishaji",
+    "view_notifications": "Angalia arifa",
+    "rate_seller_title": "Mkadirie muuzaji",
+    "rate_seller_thanks": "Asante kwa ukadiriaji wako",
+    "rate_seller_submit": "Wasilisha ukadiriaji",
+    "rate_seller_submitting": "Inatuma…",
+    "rate_seller_failed": "Imeshindwa kutuma ukadiriaji"
+  },
   "rfb": {
     "title": "Ombi la Bei",
     "subtitle": "Waambie wauzaji unachotaka; wao watakuja kwako.",
@@ -270,7 +302,24 @@
     "cancel_failed": "Imeshindikana kughairi ombi.",
     "tonnage_required_invalid": "Tani zinazohitajika lazima ziwe zaidi ya 0.",
     "unit_price_invalid": "Bei ya juu lazima iwe zaidi ya 0.",
-    "delivery_in_past": "Tarehe ya kufikisha lazima iwe ya baadaye."
+    "delivery_in_past": "Tarehe ya kufikisha lazima iwe ya baadaye.",
+    "detail_title": "Maelezo ya Ombi",
+    "detail_loading": "Inapakia ombi…",
+    "detail_load_failed": "Imeshindwa kupakia ombi hili.",
+    "detail_responses_title": "Majibu",
+    "detail_responses_empty": "Bado hakuna majibu. Wauzaji ndani ya eneo wataarifiwa.",
+    "detail_response_seller": "Muuzaji",
+    "detail_response_grade": "Daraja",
+    "detail_response_tonnage": "Tani",
+    "detail_response_price": "Bei",
+    "detail_sign_delivery": "Saini uwasilishaji",
+    "detail_cancel_cta": "Ghairi ombi",
+    "detail_mineral": "Madini",
+    "detail_tonnage": "Tani za chini",
+    "detail_unit_price": "Bei ya juu kwa kipimo",
+    "detail_delivery_by": "Inahitajika ifikapo",
+    "detail_expires": "Inaisha",
+    "detail_status": "Hali"
   },
   "mineMatcher": {
     "eyebrow": "KITAFUTA MIGODI",

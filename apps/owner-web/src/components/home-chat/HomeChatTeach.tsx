@@ -106,6 +106,10 @@ import {
   type UiBulkChip,
   type UiBookmarkChip,
 } from './SuperpowerChips';
+import {
+  HandoffCard,
+  type HandoffCardData,
+} from '@/components/chat/HandoffCard';
 
 export interface HomeChatTeachProps {
   readonly salutation: string;
@@ -168,6 +172,8 @@ interface TeachMessage {
   readonly shares: ReadonlyArray<UiShareChip>;
   readonly bulks: ReadonlyArray<UiBulkChip>;
   readonly bookmarks: ReadonlyArray<UiBookmarkChip>;
+  // Cross-role handoff cards emitted via chat_handoff SSE frame.
+  readonly handoffs: ReadonlyArray<HandoffCardData>;
 }
 
 interface SseFrame {
@@ -204,6 +210,7 @@ function makeAssistantNote(text: string): TeachMessage {
     shares: [],
     bulks: [],
     bookmarks: [],
+    handoffs: [],
     debate: null,
     brainState: null,
     autoAuthorized: null,
@@ -278,6 +285,47 @@ function resolveEmptyKind(args: {
   if (!args.configured) return 'unconfigured';
   if (args.errored && args.messageCount === 0) return 'error';
   return 'fresh';
+}
+
+/** Normalise a raw chat_handoff SSE payload into a HandoffCardData. */
+function normaliseHandoff(value: unknown): HandoffCardData | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  if (
+    typeof v.id !== 'string' ||
+    typeof v.targetUserId !== 'string' ||
+    typeof v.targetRole !== 'string' ||
+    typeof v.topic !== 'string' ||
+    typeof v.createdAt !== 'string'
+  ) {
+    return null;
+  }
+  const resolution =
+    v.resolution === 'replied' ||
+    v.resolution === 'closed' ||
+    v.resolution === 'declined'
+      ? (v.resolution as 'replied' | 'closed' | 'declined')
+      : 'pending';
+  return {
+    id: v.id,
+    targetUserId: v.targetUserId,
+    targetRole: v.targetRole,
+    ...(typeof v.targetDisplayName === 'string' && {
+      targetDisplayName: v.targetDisplayName,
+    }),
+    topic: v.topic,
+    ...(v.scopePayload && typeof v.scopePayload === 'object'
+      ? {
+          scopePayload: v.scopePayload as NonNullable<
+            HandoffCardData['scopePayload']
+          >,
+        }
+      : {}),
+    resolution,
+    replyText:
+      typeof v.replyText === 'string' ? v.replyText : null,
+    createdAt: v.createdAt,
+  };
 }
 
 /** Map a parsed payload onto a TeachUiBlock if the type is allowed. */
@@ -376,6 +424,7 @@ export function HomeChatTeach({
         shares: [],
         bulks: [],
         bookmarks: [],
+        handoffs: [],
         debate: null,
         brainState: null,
         autoAuthorized: null,
@@ -401,6 +450,7 @@ export function HomeChatTeach({
         shares: [],
         bulks: [],
         bookmarks: [],
+        handoffs: [],
         debate: null,
         brainState: null,
         autoAuthorized: null,
@@ -463,15 +513,23 @@ export function HomeChatTeach({
         // stream end reads the full turn text without racing async state.
         let assistantText = '';
         const turnToolCalls: string[] = [];
+        // Set to true when the server emits an explicit `done` SSE frame so
+        // we break out of the read loop immediately rather than waiting for
+        // TCP close (which can leave isStreaming=true for an extra round-trip).
+        let serverDone = false;
 
         while (true) {
           const { value, done } = await reader.read();
-          if (done) break;
+          if (done || serverDone) break;
           buffer += decoder.decode(value, { stream: true });
           const { frames, rest } = parseFrames(buffer);
           buffer = rest;
 
           for (const frame of frames) {
+            if (frame.event === 'done') {
+              serverDone = true;
+              break;
+            }
             let payload: Record<string, unknown> = {};
             try {
               payload = frame.data ? JSON.parse(frame.data) : {};
@@ -696,6 +754,20 @@ export function HomeChatTeach({
               // Feeds <BorjieDynamicHints> → <ProactiveHint>.
               const prof = normaliseAffectiveProfile(payload);
               if (prof) setAffectiveProfile(prof);
+            } else if (frame.event === 'chat_handoff') {
+              // Cross-role handoff card — brain emitted a <chat_handoff/>
+              // SSE tag. Normalise and append to this message's handoffs
+              // array so HandoffCard renders below the bubble.
+              const handoff = normaliseHandoff(payload.handoff ?? payload);
+              if (handoff) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId
+                      ? { ...m, handoffs: [...m.handoffs, handoff].slice(0, 5) }
+                      : m,
+                  ),
+                );
+              }
             } else if (isTabSseEvent(frame.event)) {
               // Brain-driven cockpit tab action — forward the raw frame
               // UP to OwnerOSShell so its single `useOwnerTabs()` store
@@ -721,8 +793,8 @@ export function HomeChatTeach({
                 ),
               );
             }
-            // 'done' frame has no client-side side effect beyond closing
-            // the stream (handled by the loop exiting).
+            // `done` frame is caught before JSON.parse above to break the
+            // outer read loop immediately; no separate case needed here.
           }
         }
 
@@ -1212,6 +1284,13 @@ function TeachBubble({
               onSuggestion(`${verb} ${concept}`);
             }}
             onMicroLessonCta={onSuggestion}
+            onDecisionOption={(_i, label) => {
+              // Generative: route the chosen label as the next brain
+              // turn — no hardcoded option-to-verb map. The brain that
+              // emitted the decision_card receives the owner's choice
+              // and fulfills the intent agentically.
+              onSuggestion(label);
+            }}
           />
         ) : null}
 
@@ -1430,6 +1509,21 @@ function TeachBubble({
           bulks={message.bulks}
           bookmarks={message.bookmarks}
         />
+      ) : null}
+
+      {!isOwner && message.handoffs.length > 0 ? (
+        <div
+          data-testid="teach-handoff-cards"
+          className="ml-10 flex max-w-2xl flex-col gap-2"
+        >
+          {message.handoffs.map((handoff) => (
+            <HandoffCard
+              key={handoff.id}
+              handoff={handoff}
+              language={languagePreference}
+            />
+          ))}
+        </div>
       ) : null}
     </div>
   );

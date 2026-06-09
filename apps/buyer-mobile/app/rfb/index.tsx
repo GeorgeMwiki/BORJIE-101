@@ -82,7 +82,7 @@ export default function RfbIndex() {
     <Screen refreshing={query.isFetching} onRefresh={() => query.refetch()}>
       {header}
       {rfbs.map((rfb) => (
-        <Card key={rfb.id}>
+        <Card key={rfb.id} onPress={() => router.push(`/rfb/${rfb.id}`)}>
           <View style={styles.row}>
             <Text style={styles.title}>
               {rfb.mineral_kind} · {rfb.tonnage_min} t

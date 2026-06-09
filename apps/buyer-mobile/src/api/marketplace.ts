@@ -92,6 +92,11 @@ export async function placeBid(input: PlaceBidInput): Promise<Bid> {
  * (numeric columns are string-encoded; the message thread is served by
  * the bid-messaging surface, not embedded here). Mirrors `BidSchema` in
  * services/api-gateway/src/routes/mining/_openapi/bid-schemas.ts.
+ *
+ * `rfbResponseId` is present when the bid was raised via the RFB counter-
+ * offer flow and links directly to the `request_for_bid_responses` row
+ * that the bid-messaging surface keys on. It is null for pure marketplace
+ * bids that carry no chat thread.
  */
 interface GatewayBidRow {
   readonly id: string
@@ -99,6 +104,8 @@ interface GatewayBidRow {
   readonly bidPriceTzs: string
   readonly status: string
   readonly createdAt: string
+  /** rfb_responses.id — present only for RFB-linked bids. */
+  readonly rfbResponseId?: string | null
 }
 
 /** Listing summary joined to a single bid by GET /bids/:id. */
@@ -141,6 +148,13 @@ function mapGatewayBid(row: GatewayBidRow, listing?: GatewayBidListing): Bid {
   const quantityKg = attrNumber(listing?.attributes, 'quantityKg')
   const offerTzsPerKg = quantityKg > 0 ? safeTotal / quantityKg : safeTotal
   const mineral = attrString(listing?.attributes, 'mineral') as Mineral
+  // Expose the RFB-response thread key when the gateway returns it so
+  // bids/[id].tsx can pass the correct id to the bid-messaging surface.
+  // Null means this is a pure marketplace bid with no chat thread.
+  const threadResponseId =
+    typeof row.rfbResponseId === 'string' && row.rfbResponseId.length > 0
+      ? row.rfbResponseId
+      : null
   return {
     id: row.id,
     listingId: row.listingId,
@@ -150,7 +164,8 @@ function mapGatewayBid(row: GatewayBidRow, listing?: GatewayBidListing): Bid {
     quantityKg: quantityKg > 0 ? quantityKg : 1,
     status: coerceStatus(row.status),
     placedAt: row.createdAt,
-    thread: []
+    thread: [],
+    threadResponseId,
   }
 }
 

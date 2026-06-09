@@ -90,8 +90,7 @@ export default function ProfileIndex() {
 
       <Card>
         <Text style={styles.cardTitle}>{t('profile.payment_methods')}</Text>
-        <Text style={styles.meta}>M-Pesa · +255 712 *** 001</Text>
-        <Text style={styles.meta}>NMB Bank · **** 4421</Text>
+        <Text style={styles.meta}>{t('profile.payment_methods_placeholder')}</Text>
       </Card>
 
       <View style={{ marginTop: spacing.lg }}>
