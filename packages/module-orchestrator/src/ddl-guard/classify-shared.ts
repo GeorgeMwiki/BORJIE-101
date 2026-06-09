@@ -11,6 +11,7 @@ import {
   isCoreTable,
   isPlainIdentifier,
   isTenantNamespacedTable,
+  pgIdentifierLimitError,
   stripSchemaQualifier,
 } from './identifier-policy.js';
 
@@ -25,6 +26,14 @@ export interface ClassifyResult {
   readonly errors: ReadonlyArray<string>;
   readonly kind?: StatementKind;
   readonly table?: string;
+  /**
+   * For a `rls-do-block`, the FULL DO statement text with every stripped
+   * dollar-quote/literal/comment placeholder re-expanded to its raw
+   * on-disk body. The validator byte-compares this against a freshly
+   * built canonical RLS block — so a hand-rolled or tampered DO body can
+   * never pass, regardless of any denylist.
+   */
+  readonly recoveredText?: string;
 }
 
 export function rejectStmt(error: string): ClassifyResult {
@@ -42,6 +51,12 @@ export function checkTableIdentifier(
   const bare = stripSchemaQualifier(name);
   if (isCoreTable(bare)) {
     return rejectStmt(`refusing to touch core table: ${bare}`);
+  }
+  // Over-length identifier wall (defence in depth — the compiler also
+  // guards this; the validator never trusts the DDL source).
+  const lenErr = pgIdentifierLimitError(bare, 'table name');
+  if (lenErr) {
+    return rejectStmt(lenErr);
   }
   if (!isTenantNamespacedTable(bare, tenantId)) {
     return rejectStmt(

@@ -33,7 +33,10 @@
 
 import { tokenizeSql, type TokenizeResult } from './sql-tokenizer.js';
 import { assertTenantIdShape } from './identifier-policy.js';
-import { verifyRlsForced } from './rls-force-injector.js';
+import {
+  buildCanonicalRlsBlock,
+  verifyRlsForced,
+} from './rls-force-injector.js';
 import { classifyCreateTable } from './create-table-classifier.js';
 import {
   classifyCreateIndex,
@@ -104,7 +107,11 @@ export function validateGeneratedDdl(
   }
 
   const errors: string[] = [];
+  // Ordered list of created tenant tables (drives the canonical RLS
+  // block's table-array shape) and the recovered text of every DO block
+  // seen in the migration (drives the byte-equals-canonical check).
   const createdTables: string[] = [];
+  const doBlockTexts: string[] = [];
 
   for (const stmt of tok.statements) {
     const classified = classifyStatement(stmt, tenantId, tok);
@@ -115,10 +122,25 @@ export function validateGeneratedDdl(
     if (classified.kind === 'create-table' && classified.table) {
       createdTables.push(classified.table);
     }
+    if (classified.kind === 'rls-do-block') {
+      doBlockTexts.push(classified.recoveredText ?? '');
+    }
   }
 
   if (createdTables.length === 0 && errors.length === 0) {
     errors.push('no CREATE TABLE statement found — nothing to spawn');
+  }
+
+  // FIX 1 — POSITIVE ALLOWLIST for the DO block. The DO block is NOT
+  // judged by a denylist scan of its body (an author/tampered body can
+  // hide a `DO $evil$ … EXECUTE format(…CREATE ROLE … SUPERUSER…) $evil$`
+  // a denylist misses). Instead the ONLY accepted DO block must be
+  // byte-identical to the freshly-built canonical RLS block:
+  //   - at most ONE DO block, ever;
+  //   - tables present  → EXACTLY ONE DO block, byte-equal to canonical;
+  //   - tables present, zero DO blocks → reject (a table without RLS).
+  if (errors.length === 0) {
+    errors.push(...checkDoBlocks(tenantId, createdTables, doBlockTexts));
   }
 
   // HARD RULE 2 — every created table must be FORCE-RLS covered by the
@@ -136,6 +158,75 @@ export function validateGeneratedDdl(
     errors: Object.freeze([]),
     createdTables: Object.freeze([...new Set(createdTables)]),
   });
+}
+
+/**
+ * FIX 1 — the positive DO-block rule. Returns the (possibly empty) list
+ * of errors. A DO block is accepted ONLY when it is byte-identical to the
+ * canonical RLS block this guard would itself build for the ordered set
+ * of created tables; any deviation, a second DO block, or a missing DO
+ * block when tables exist is a hard reject.
+ */
+function checkDoBlocks(
+  tenantId: string,
+  createdTables: ReadonlyArray<string>,
+  doBlockTexts: ReadonlyArray<string>,
+): string[] {
+  if (doBlockTexts.length > 1) {
+    return [
+      `expected at most one canonical RLS DO block, found ${doBlockTexts.length} (author-supplied DO blocks are forbidden)`,
+    ];
+  }
+  if (createdTables.length === 0) {
+    // No tables → no RLS block expected. A stray DO block with no table
+    // to protect is still rejected by the >1 / byte-compare paths above
+    // and below; a zero/zero case is benign.
+    return doBlockTexts.length === 0
+      ? []
+      : ['a DO block was supplied but no tenant table was created'];
+  }
+  if (doBlockTexts.length === 0) {
+    return [
+      'created tenant table(s) without the canonical FORCE-RLS DO block (RLS is mandatory)',
+    ];
+  }
+
+  let canonical: string;
+  try {
+    canonical = canonicalDoStatement(tenantId, createdTables);
+  } catch (e) {
+    return [`cannot build canonical RLS block: ${(e as Error).message}`];
+  }
+  const supplied = doBlockTexts[0] ?? '';
+  if (stripTrailingSemicolon(supplied) !== stripTrailingSemicolon(canonical)) {
+    return [
+      'the supplied RLS DO block is not byte-identical to the canonical guard block (author-modified/extra RLS is forbidden)',
+    ];
+  }
+  return [];
+}
+
+/**
+ * The canonical DO statement (the `DO $ddlguard_rls$ … $ddlguard_rls$;`
+ * portion) for the given ordered tables — stripped of the leading
+ * comment header `buildCanonicalRlsBlock` prepends, so it byte-matches
+ * the recovered statement text (whose leading comment placeholders the
+ * classifier already removed).
+ */
+function canonicalDoStatement(
+  tenantId: string,
+  tables: ReadonlyArray<string>,
+): string {
+  const built = buildCanonicalRlsBlock(tenantId, [...tables]);
+  const doAt = built.indexOf('DO $ddlguard_rls$');
+  if (doAt === -1) {
+    throw new Error('canonical block missing its DO statement');
+  }
+  return built.slice(doAt);
+}
+
+function stripTrailingSemicolon(s: string): string {
+  return s.replace(/;\s*$/, '');
 }
 
 function classifyStatement(

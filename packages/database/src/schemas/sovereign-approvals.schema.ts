@@ -14,6 +14,7 @@ import {
   timestamp,
   index,
   pgEnum,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { tenants } from './tenant.schema.js';
 
@@ -46,6 +47,12 @@ export const sovereignApprovals = pgTable(
     stakes: sovereignApprovalStakesEnum('stakes').notNull(),
     status: sovereignApprovalStatusEnum('status').notNull(),
     signatures: jsonb('signatures').notNull().default([]),
+    // REAL one-shot flag (migration 0324). The apply executor flips this to
+    // `true` via an atomic compare-and-set INSIDE the apply transaction; the
+    // four-eye gate (assertApplyApproved) refuses any approval whose `executed`
+    // is already `true`. NOT NULL DEFAULT false ⇒ historical rows read "not yet
+    // executed". Replaces the inert `payload.executed` synthetic flag.
+    executed: boolean('executed').notNull().default(false),
     proposedAt: timestamp('proposed_at', { withTimezone: true }).notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true })

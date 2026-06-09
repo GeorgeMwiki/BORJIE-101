@@ -25,6 +25,46 @@
 
 import { SLUG_REGEX } from '@borjie/module-spec-engine';
 
+/**
+ * Postgres NAMEDATALEN-1 — the max identifier length in BYTES. An
+ * identifier over this length is silently truncated by Postgres, which
+ * would let two distinct logical tables collide into one physical table
+ * (cross-entity / cross-tenant data-mixing hazard). Mirrors
+ * `@borjie/module-spec-engine`'s compile-time guard so the wall holds
+ * even if the DDL did not come from this repo's compiler.
+ */
+export const PG_IDENTIFIER_MAX_BYTES = 63;
+
+/** UTF-8 byte length of an identifier. */
+export function identifierByteLength(name: string): number {
+  return Buffer.byteLength(name, 'utf8');
+}
+
+/**
+ * True when the BARE identifier (schema qualifier stripped) exceeds the
+ * Postgres 63-byte limit. We measure the bare name because `public.` is
+ * not part of the stored identifier Postgres truncates.
+ */
+export function exceedsPgIdentifierLimit(name: string): boolean {
+  return identifierByteLength(stripSchemaQualifier(name)) > PG_IDENTIFIER_MAX_BYTES;
+}
+
+/**
+ * Assertion form for the apply-time validator: throws nothing, returns a
+ * structured reason string when the identifier is over-length, else null.
+ */
+export function pgIdentifierLimitError(
+  name: string,
+  context: string,
+): string | null {
+  if (exceedsPgIdentifierLimit(name)) {
+    return `identifier exceeds Postgres ${PG_IDENTIFIER_MAX_BYTES}-byte limit (${context}): ${stripSchemaQualifier(
+      name,
+    )}`;
+  }
+  return null;
+}
+
 /** Canonical tenant-namespace prefix builder. */
 export function canonicalTenantTablePrefix(tenantId: string): string {
   assertTenantIdShape(tenantId);

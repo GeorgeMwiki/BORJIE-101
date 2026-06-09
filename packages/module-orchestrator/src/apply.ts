@@ -23,6 +23,7 @@
  */
 
 import { canTransition } from './lifecycle.js';
+import { validateGeneratedDdl } from './ddl-guard/index.js';
 import type { OrchestratorDeps } from './ports.js';
 
 export interface ApplyModuleSpecInput {
@@ -71,6 +72,24 @@ export async function applyModuleSpec(
     return failure(['spec has no compiled migration SQL']);
   }
 
+  // 2b. RE-VALIDATE the STORED spec — NEVER trust the row. A tampered
+  //     spec (an injected DROP, a non-namespaced table, RLS stripped)
+  //     must be rejected here even though it passed at spawn time. The
+  //     allowlist validator enforces the DDL grammar AND the per-table
+  //     FORCE-RLS coverage internally, so this single call is sufficient.
+  const revalidation = revalidateStoredSpec(spec.migrationSql, input.tenantId);
+  if (!revalidation.ok) {
+    await deps.specs.markFailed({
+      tenantId: input.tenantId,
+      id: input.specId,
+      error: `stored-spec re-validation failed: ${revalidation.errors.join('; ')}`,
+    });
+    return failure([
+      'stored migration SQL failed re-validation (tampered/invalid) — refusing apply',
+      ...revalidation.errors,
+    ]);
+  }
+
   // 3. K5 four-eye approval gate.
   const approval = await deps.approval.resolveApproval({
     tenantId: input.tenantId,
@@ -106,6 +125,7 @@ export async function applyModuleSpec(
     applied = await deps.migrate.applyMigration({
       tenantId: input.tenantId,
       moduleId: input.moduleId,
+      specId: input.specId,
       migrationSql: spec.migrationSql,
     });
   } catch (e) {
@@ -137,6 +157,34 @@ export async function applyModuleSpec(
     errors: [],
     appliedMigrationFilename: applied.appliedMigrationFilename,
   });
+}
+
+interface RevalidationResult {
+  readonly ok: boolean;
+  readonly errors: readonly string[];
+}
+
+/**
+ * Re-run the DDL allowlist + per-table FORCE-RLS coverage over the SQL
+ * fetched from the spec row. `validateGeneratedDdl` already calls
+ * `verifyRlsForced` internally on every created table, so this one call
+ * fully re-establishes both HARD RULE 1 (allowlist) and HARD RULE 2
+ * (RLS-forced) on the persisted artifact. Pure; never throws.
+ */
+function revalidateStoredSpec(
+  migrationSql: string,
+  tenantId: string,
+): RevalidationResult {
+  try {
+    const r = validateGeneratedDdl({ tenantId, migrationSql });
+    return Object.freeze({ ok: r.ok, errors: Object.freeze([...r.errors]) });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return Object.freeze({
+      ok: false,
+      errors: Object.freeze([`re-validation threw: ${message}`]),
+    });
+  }
 }
 
 function failure(errors: readonly string[]): ApplyModuleSpecResult {

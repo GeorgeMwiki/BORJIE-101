@@ -52,7 +52,7 @@ describe('diffCompileResults', () => {
     };
     const after = compileSpec(grown, 'tnt_test');
     const diff = diffCompileResults(before, after);
-    expect(diff.addedTables).toContain('module_tnt_test_department');
+    expect(diff.addedTables).toContain('tenant_mod_tnt_test_department');
     expect(diff.removedTables).toEqual([]);
   });
 
@@ -73,7 +73,7 @@ describe('diffCompileResults', () => {
     );
     const after = compileSpec(baseSpec, 'tnt_test');
     const diff = diffCompileResults(before, after);
-    expect(diff.removedTables).toContain('module_tnt_test_temp');
+    expect(diff.removedTables).toContain('tenant_mod_tnt_test_temp');
   });
 
   it('flags a changed table when a field is added', () => {
@@ -92,6 +92,6 @@ describe('diffCompileResults', () => {
     };
     const after = compileSpec(changed, 'tnt_test');
     const diff = diffCompileResults(before, after);
-    expect(diff.changedTables).toContain('module_tnt_test_employee');
+    expect(diff.changedTables).toContain('tenant_mod_tnt_test_employee');
   });
 });

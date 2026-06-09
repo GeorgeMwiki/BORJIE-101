@@ -5,6 +5,9 @@ import {
   isCoreTable,
   isPlainIdentifier,
   assertTenantIdShape,
+  exceedsPgIdentifierLimit,
+  pgIdentifierLimitError,
+  PG_IDENTIFIER_MAX_BYTES,
 } from '../identifier-policy.js';
 import {
   isSafeColumnType,
@@ -46,6 +49,21 @@ describe('identifier-policy', () => {
     expect(() => assertTenantIdShape(TENANT)).not.toThrow();
     expect(() => assertTenantIdShape('9bad')).toThrow();
     expect(() => assertTenantIdShape('has space')).toThrow();
+  });
+
+  it('flags identifiers over the Postgres 63-byte limit (bare name, schema stripped)', () => {
+    expect(PG_IDENTIFIER_MAX_BYTES).toBe(63);
+    expect(exceedsPgIdentifierLimit('a'.repeat(63))).toBe(false);
+    expect(exceedsPgIdentifierLimit('a'.repeat(64))).toBe(true);
+    // The `public.` qualifier is not part of the stored identifier.
+    expect(exceedsPgIdentifierLimit(`public.${'a'.repeat(63)}`)).toBe(false);
+    expect(exceedsPgIdentifierLimit(`public.${'a'.repeat(64)}`)).toBe(true);
+  });
+
+  it('returns a structured limit error string or null', () => {
+    expect(pgIdentifierLimitError('a'.repeat(63), 'table name')).toBeNull();
+    const err = pgIdentifierLimitError('a'.repeat(64), 'table name');
+    expect(err).toMatch(/63-byte limit \(table name\)/);
   });
 });
 

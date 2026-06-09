@@ -8,6 +8,7 @@ import {
   spawnModuleFromPrompt,
 } from '../spawn.js';
 import { makeFakeState, makeFakeDeps, type FakeState } from './fakes.js';
+import { validateGeneratedDdl } from '../ddl-guard/index.js';
 import { hrBundle } from '@borjie/module-templates';
 
 function seedEstateTemplate(state: FakeState): void {
@@ -58,6 +59,49 @@ describe('spawnModuleFromTemplate', () => {
     const spec = state.specs.get(r.specId!)!;
     expect(spec.compileStatus).toBe('compiled');
     expect(spec.migrationSql.length).toBeGreaterThan(0);
+  });
+
+  it('persists the canonical FORCE-RLS block (orchestrator owns RLS) and the SQL passes validation', async () => {
+    const deps = makeFakeDeps(state);
+    const r = await spawnModuleFromTemplate(
+      {
+        tenantId: 'tnt_trc',
+        templateSlug: 'HR',
+        moduleSlug: 'hr_hq',
+        title: 'HR',
+        titleSw: null,
+        scopedToolIds: [],
+        createdByUserId: 'usr_admin',
+      },
+      deps,
+    );
+    expect(r.ok).toBe(true);
+
+    const persisted = state.specs.get(r.specId!)!.migrationSql;
+    // The persisted artifact is the RLS-injected finalSql, NOT the bare body.
+    expect(persisted).toBe(r.migrationSql);
+    // Canonical tenant-module prefix on every table.
+    expect(persisted).toContain('tenant_mod_tnt_trc_employee');
+    // Canonical guard RLS block markers.
+    expect(persisted).toContain('DO $ddlguard_rls$');
+    expect(persisted).toContain('CREATE POLICY tenant_isolation');
+    expect(persisted).toContain('CREATE POLICY service_role_bypass');
+    expect(persisted).toContain("current_setting('app.current_tenant_id', true)");
+    // Legacy compiler RLS must be gone.
+    expect(persisted).not.toContain('current_app_tenant_id');
+    expect(persisted).not.toContain('tenant_isolation_select');
+
+    // The persisted SQL passes the full allowlist + RLS-forced validator.
+    const v = validateGeneratedDdl({ tenantId: 'tnt_trc', migrationSql: persisted });
+    expect(v.ok).toBe(true);
+    expect(v.errors).toEqual([]);
+    expect(v.createdTables).toEqual(
+      expect.arrayContaining([
+        'tenant_mod_tnt_trc_employee',
+        'tenant_mod_tnt_trc_department',
+        'tenant_mod_tnt_trc_leave_request',
+      ]),
+    );
   });
 
   it('fails when template slug is unknown', async () => {

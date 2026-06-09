@@ -74,6 +74,10 @@ export {
   isCoreTable,
   CORE_TABLE_DENYLIST,
   assertTenantIdShape,
+  PG_IDENTIFIER_MAX_BYTES,
+  identifierByteLength,
+  exceedsPgIdentifierLimit,
+  pgIdentifierLimitError,
 } from './identifier-policy.js';
 
 export {

@@ -21,6 +21,11 @@ import {
   validateSpec,
   type ModuleSpec,
 } from '@borjie/module-spec-engine';
+import {
+  buildCanonicalRlsBlock,
+  validateGeneratedDdl,
+  verifyRlsForced,
+} from './ddl-guard/index.js';
 import type { OrchestratorDeps } from './ports.js';
 
 export interface SpawnFromTemplateInput {
@@ -125,9 +130,21 @@ interface PersistArgs {
 
 async function persistModuleAndSpec(args: PersistArgs): Promise<SpawnResult> {
   // Compile FIRST so we never persist a module whose spec doesn't compile.
+  // The compiler emits ONLY the table+index body — RLS is the
+  // orchestrator's responsibility, injected and verified below so a module
+  // author can never control it.
   const compiled = compileSpec(args.spec, args.tenantId);
   if (!compiled.ok) {
     return failure(compiled.errors);
+  }
+
+  const finalSql = injectAndValidateRls(
+    compiled.migrationSql,
+    compiled.tableNames,
+    args.tenantId,
+  );
+  if (!finalSql.ok) {
+    return failure(finalSql.errors);
   }
 
   const moduleId = args.deps.ids.newId('mod');
@@ -152,13 +169,15 @@ async function persistModuleAndSpec(args: PersistArgs): Promise<SpawnResult> {
     tenantId: args.tenantId,
     version: 1,
     specJsonb: args.spec as unknown as Readonly<Record<string, unknown>>,
-    generatedMigrationSql: compiled.migrationSql,
+    // Persist the RLS-INJECTED + VALIDATED artifact — never the bare
+    // table body. This is what gets hashed / approved / executed.
+    generatedMigrationSql: finalSql.sql,
     generatedZodValidators: compiled.zodValidators as Readonly<
       Record<string, unknown>
     >,
   });
 
-  // Transition DRAFT → PROPOSED (compile succeeded).
+  // Transition DRAFT → PROPOSED (compile + RLS-inject + validate succeeded).
   await args.deps.modules.setLifecycleState({
     tenantId: args.tenantId,
     id: moduleId,
@@ -170,9 +189,52 @@ async function persistModuleAndSpec(args: PersistArgs): Promise<SpawnResult> {
     ok: true,
     moduleId,
     specId,
-    migrationSql: compiled.migrationSql,
+    migrationSql: finalSql.sql,
     errors: [],
   });
+}
+
+interface RlsInjectionResult {
+  readonly ok: boolean;
+  readonly sql: string;
+  readonly errors: readonly string[];
+}
+
+/**
+ * Inject the canonical FORCE-RLS block (the ORCHESTRATOR owns RLS, not
+ * the author) onto the compiler's table+index body, then prove the
+ * resulting DDL passes BOTH the allowlist validator and the per-table
+ * RLS-forced coverage check. On any failure the caller must NOT persist.
+ */
+function injectAndValidateRls(
+  body: string,
+  tableNames: readonly string[],
+  tenantId: string,
+): RlsInjectionResult {
+  try {
+    if (tableNames.length === 0) {
+      return rlsFailure(['compile produced no tenant tables to spawn']);
+    }
+    const rls = buildCanonicalRlsBlock(tenantId, tableNames);
+    const finalSql = `${body}\n\n${rls}`;
+
+    const allowlist = validateGeneratedDdl({ tenantId, migrationSql: finalSql });
+    if (!allowlist.ok) {
+      return rlsFailure(allowlist.errors);
+    }
+    const rlsForced = verifyRlsForced(finalSql, tableNames, tenantId);
+    if (!rlsForced.ok) {
+      return rlsFailure(rlsForced.errors);
+    }
+    return Object.freeze({ ok: true, sql: finalSql, errors: [] });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return rlsFailure([`RLS injection failed: ${message}`]);
+  }
+}
+
+function rlsFailure(errors: readonly string[]): RlsInjectionResult {
+  return Object.freeze({ ok: false, sql: '', errors: Object.freeze([...errors]) });
 }
 
 function failure(errors: readonly string[]): SpawnResult {
