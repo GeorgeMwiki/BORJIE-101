@@ -9,6 +9,8 @@
 export {
   createEstateMind,
   type EstateMind,
+  type PendingProposalReader,
+  createInMemoryPendingProposalReader,
 } from './estate-mind.js';
 
 export {

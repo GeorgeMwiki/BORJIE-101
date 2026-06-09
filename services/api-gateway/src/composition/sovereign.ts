@@ -48,6 +48,7 @@ import {
   createSkillRetriever,
   reflexion as kernelReflexion,
   registerSeedBrainTools,
+  situationalModel as situationalModelKernel,
   tools as kernelTools,
   type AgencyKernelPort,
   type BrainToolRegistry,
@@ -202,6 +203,21 @@ import {
   registerPersonaToolsOnRegistry,
   type BridgeSovereignRole,
 } from './brain-tools/persona-kernel-bridge.js';
+// Wave-C SALIENCE ARENA (C1 win #3) — the two slow-loop READ ports that light
+// up the arena's drive + ACT-R activation sub-bidders. Both are built from the
+// SAME durable situational-model store + gated proactive_nudge contract the
+// resident EstateMind loop already writes (estate-mind-wiring.ts):
+//   - situationalSnapshotReader: createSituationalModel({ store }).snapshot
+//     over `createDrizzleSituationalModelStore(db)` — the ACT-R-activated
+//     estate entities the arena min-maxes into activation bids.
+//   - pendingProposalReader: a read over the persisted `tab_event_log`
+//     proactive_nudge rows the slow loop surfaces (one per breached standing
+//     drive, carrying driveId + breachSeverity + urgency) — the drive bids.
+// Both fail-safe: a store fault resolves to null/[] so the arena simply has
+// fewer bidders (it still competes affect bids via behaviorSignalSource).
+import { createDrizzleSituationalModelStore } from './estate-mind-wiring.js';
+import { createPinoLikeLogger } from '../utils/pino-shim.js';
+import { sql as drizzleSql } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
 // Anthropic SDK loader — optional. We only require the SDK when the
@@ -700,6 +716,22 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   if (skillRetriever) mutable.skillRetriever = skillRetriever;
   // autoHaikuJudge defaults to true in compose; we leave it unset.
 
+  // Wave-C SALIENCE ARENA (C1 win #3) — bind the slow-loop READ ports that
+  // light up the arena's DRIVE + ACT-R ACTIVATION sub-bidders. `composeSovereign`
+  // ALREADY forwards both (compose.ts:576 situationalSnapshotReader, :580
+  // pendingProposalReader), so these reach kernel step 6's `buildActivationBids`
+  // / `buildDriveBids` and join the live affect path. Only wired when the DB is
+  // up (both readers are durable reads); arena degrades to affect-only without.
+  if (db) {
+    mutable.situationalSnapshotReader = buildSituationalSnapshotReader(db);
+    mutable.pendingProposalReader = buildPendingProposalReader(
+      db as unknown as DbExecLike,
+    );
+    // Conflict-monitored effort recruitment (C1) defaults ON inside the kernel
+    // when its inputs exist; we leave `conflictRecruitmentEnabled` UNSET so the
+    // kernel's safe default governs (an explicit env lever is a future seam).
+  }
+
   // Wave-12 — thread the Reflexion ports onto the kernel deps. `composeSovereign`
   // forwards both verbatim (compose.ts:541-542) so the kernel's read-at-start
   // (step 4e/4f) and write-at-session-end (step 13) reflexion steps go live.
@@ -1134,6 +1166,193 @@ export function resolveSkillEmbedder(): EmbedderPort {
     logger.warn('sovereign-composition: skill embedder construction failed; using null embedder', { value: err instanceof Error ? err.message : err });
     return createNullEmbedder();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Wave-C SALIENCE ARENA readers (C1 win #3) — built from existing services.
+//
+// `buildSituationalSnapshotReader` wraps the SAME durable situational-model
+// store the resident EstateMind loop writes (createDrizzleSituationalModelStore)
+// in the kernel's pure `createSituationalModel(...)` so the arena's ACT-R
+// activation sub-bidder reads the per-tenant snapshot the slow loop persists.
+//
+// `buildPendingProposalReader` reads back the gated `tab_event_log`
+// proactive_nudge rows the slow loop's `createTabEventLogProposalSink` writes
+// (one per breached standing drive, carrying driveId + breachSeverity + urgency
+// in the snapshot jsonb) and projects each into the kernel's `EstateProposal`
+// shape so the arena's DRIVE sub-bidder competes them.
+//
+// Both fail-safe: any read fault degrades to null / [] so the arena simply has
+// fewer bidders (it never throws out of a turn; affect bids still compete).
+// ---------------------------------------------------------------------------
+
+/** Read port the kernel's `situationalSnapshotReader` dep consumes. */
+function buildSituationalSnapshotReader(
+  db: NonNullable<ReturnType<typeof getDb>>,
+): { read(tenantId: string): Promise<situationalModelKernel.SituationalSnapshot | null> } {
+  const arenaLogger = createPinoLikeLogger('salience-arena-snapshot');
+  const store = createDrizzleSituationalModelStore(
+    db as unknown as Parameters<typeof createDrizzleSituationalModelStore>[0],
+    arenaLogger,
+  );
+  const model = situationalModelKernel.createSituationalModel({
+    store,
+    logger: {
+      warn: (msg, meta) => arenaLogger.warn(meta ?? {}, msg),
+    },
+  });
+  return {
+    async read(tenantId: string) {
+      try {
+        return await model.snapshot(tenantId);
+      } catch (err) {
+        arenaLogger.warn(
+          { tenantId, err: err instanceof Error ? err.message : String(err) },
+          'salience-arena: snapshot read failed — arena drops activation bids this turn',
+        );
+        return null;
+      }
+    },
+  };
+}
+
+interface DbExecLike {
+  execute(query: unknown): Promise<unknown>;
+}
+
+function nudgeRowsOf(result: unknown): ReadonlyArray<Record<string, unknown>> {
+  if (Array.isArray(result)) return result as ReadonlyArray<Record<string, unknown>>;
+  const rows = (result as { rows?: ReadonlyArray<Record<string, unknown>> })?.rows;
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * Read port the kernel's `pendingProposalReader` dep consumes — projects the
+ * persisted, undelivered `proactive_nudge` rows into `EstateProposal`s. The
+ * snapshot jsonb (written by `createTabEventLogProposalSink`) carries the
+ * driveId / urgency / breachSeverity / evidence the arena's drive bidder reads.
+ */
+function buildPendingProposalReader(
+  db: DbExecLike,
+): import('@borjie/central-intelligence').estateMind.PendingProposalReader {
+  const readerLogger = createPinoLikeLogger('salience-arena-pending');
+  return {
+    async read({ tenantId, limit }) {
+      try {
+        const result = await db.execute(sqlForPendingNudges(tenantId, limit));
+        return nudgeRowsOf(result)
+          .map((row) => projectNudgeToProposal(row, tenantId))
+          .filter((p): p is NonNullable<typeof p> => p !== null);
+      } catch (err) {
+        readerLogger.warn(
+          { tenantId, err: err instanceof Error ? err.message : String(err) },
+          'salience-arena: pending-proposal read failed — arena drops drive bids this turn',
+        );
+        return [];
+      }
+    },
+  };
+}
+
+/** Parameterised SELECT for the tenant's undelivered proactive_nudge rows. */
+function sqlForPendingNudges(tenantId: string, limit: number): unknown {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(50, Math.floor(limit)) : 3;
+  return drizzleSql`
+    SELECT proposal_id, snapshot, notes, created_at
+      FROM tab_event_log
+     WHERE tenant_id  = ${tenantId}
+       AND event_kind = 'proactive_nudge'
+       AND COALESCE((snapshot ->> 'delivered')::boolean, false) = false
+     ORDER BY created_at DESC
+     LIMIT ${safeLimit}
+  `;
+}
+
+/** Project one persisted nudge row into the kernel's `EstateProposal` shape. */
+function projectNudgeToProposal(
+  row: Record<string, unknown>,
+  tenantId: string,
+):
+  | import('@borjie/central-intelligence').estateMind.EstateProposal
+  | null {
+  const proposalId = typeof row.proposal_id === 'string' ? row.proposal_id : '';
+  if (!proposalId) return null;
+  const snapshot = (row.snapshot ?? {}) as Record<string, unknown>;
+  const driveId = typeof snapshot.driveId === 'string' ? snapshot.driveId : 'estate-visibility';
+  const breachSeverity =
+    typeof snapshot.breachSeverity === 'number' && Number.isFinite(snapshot.breachSeverity)
+      ? Math.min(1, Math.max(0, snapshot.breachSeverity))
+      : 0.5;
+  const urgencyRaw = typeof snapshot.urgency === 'string' ? snapshot.urgency : 'high';
+  const urgency = (['low', 'medium', 'high', 'critical'].includes(urgencyRaw)
+    ? urgencyRaw
+    : 'high') as import('@borjie/central-intelligence').estateMind.EstateProposal['urgency'];
+  const evidenceEntityIds = Array.isArray(snapshot.evidenceEntityIds)
+    ? (snapshot.evidenceEntityIds.filter((e) => typeof e === 'string') as string[])
+    : [];
+  const proposedAtMs =
+    typeof snapshot.proposedAtMs === 'number' && Number.isFinite(snapshot.proposedAtMs)
+      ? snapshot.proposedAtMs
+      : row.created_at instanceof Date
+        ? row.created_at.getTime()
+        : Date.now();
+  const headline = typeof row.notes === 'string' ? row.notes : proposalId;
+  return Object.freeze({
+    tenantId,
+    id: proposalId,
+    driveId: driveId as import('@borjie/central-intelligence').estateMind.EstateProposal['driveId'],
+    title: headline.slice(0, 200),
+    rationale: headline,
+    urgency,
+    breachSeverity,
+    evidenceEntityIds,
+    proposedAtMs,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Wave-C C4 — expose the live behaviour-signal source to the proactive-intel
+// worker (constructed in index.ts). The source is built per-(tenant,user)-scope
+// inside `build()` over the Drizzle sensorium-event-log; for the worker (which
+// is tenant-scoped, not request-scoped) we expose a STANDALONE platform-scoped
+// instance over the same service so `signalsForUser(...)` reads the same ribbon.
+// Lazy-built + cached; null when the DB is down (worker honest-degrades).
+// ---------------------------------------------------------------------------
+
+let behaviorSignalSourceSingleton:
+  | ReturnType<typeof createBehaviorSignalSource>
+  | null
+  | undefined;
+
+/**
+ * Return the live ambient behaviour-signal source for the proactive worker's
+ * affect gate. Built from the SAME `createSensoriumEventLogService(db)` +
+ * `createBehaviorSignalSource(...)` the kernel turn already uses, so the worker
+ * reads the identical derived-signal ribbon. Returns null when the DB is down.
+ */
+export function getProactiveBehaviorSignalSource():
+  | ReturnType<typeof createBehaviorSignalSource>
+  | null {
+  if (behaviorSignalSourceSingleton !== undefined) {
+    return behaviorSignalSourceSingleton;
+  }
+  const db = getDb();
+  if (!db) {
+    behaviorSignalSourceSingleton = null;
+    return null;
+  }
+  try {
+    behaviorSignalSourceSingleton = createBehaviorSignalSource(
+      createSensoriumEventLogService(db),
+    );
+  } catch (err) {
+    logger.warn(
+      { value: err instanceof Error ? err.message : err },
+      'sovereign-composition: behaviour-signal source for proactive worker unbuildable — affect gate stays dormant',
+    );
+    behaviorSignalSourceSingleton = null;
+  }
+  return behaviorSignalSourceSingleton;
 }
 
 // ---------------------------------------------------------------------------

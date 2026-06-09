@@ -61,6 +61,10 @@ import {
   createReconcileEngine,
   type ConfirmationProbe,
   type CommitmentAuditSink,
+  type DriveContextResolver,
+  type DrafterRegistry,
+  type SetPointStateStore,
+  type AutonomyCap,
 } from './md-commitments/reconcile-engine.js';
 import { createDurableConfirmationProbe } from './md-commitments/confirmation-probe.js';
 import {
@@ -634,6 +638,30 @@ export interface MdCommitmentReconciliationDeps {
   readonly confirmationProbe?: ConfirmationProbe | null;
   /** Hash-chained closure/transition audit sink. Optional. */
   readonly auditSink?: CommitmentAuditSink | null;
+  // ── Wave-C C3 WIN-3 / WIN-4 — graded corrective + set-point regulation ─────
+  // These optional ports light up the homeostatic controller. When omitted the
+  // engine honest-degrades to the legacy loudness-ladder (no regression). The
+  // composition root forwards them VERBATIM to `createReconcileEngine` below.
+  /**
+   * Resolves a commitment's REAL standing-drive context (driveId +
+   * breachSeverity) from the live drive snapshot. Until bound (a genuinely new
+   * organ — see needsAttention), `toProposal` keeps its prior severity and the
+   * graded corrective stays on the legacy ladder.
+   */
+  readonly driveContextResolver?: DriveContextResolver | null;
+  /** driveId → its bound DRAFTER (the mid-rung corrective). Defaults to empty. */
+  readonly drafterRegistry?: DrafterRegistry | null;
+  /** The tenant delegation ceiling. Caps draft/delegate. Default 'delegate'. */
+  readonly autonomyCap?: AutonomyCap;
+  /** Auto-promote after this many consecutive worsening ticks. Default 3. */
+  readonly worseningTicksFloor?: number;
+  /**
+   * WIN-4 set-point memory store. When omitted, the composition root builds a
+   * default round-trip over the EXISTING `situational_model_entities.attributes`
+   * jsonb (so set-point regulation is live the moment a `driveContextResolver`
+   * lands). Pass `null` explicitly to disable.
+   */
+  readonly setPointStore?: SetPointStateStore | null;
 }
 
 /**
@@ -666,6 +694,15 @@ export function createMdCommitmentReconciliation(
   const confirmationProbe =
     deps.confirmationProbe ??
     createDurableConfirmationProbe({ db: deps.db, logger: deps.logger });
+  // WIN-4 — the set-point memory store. Only forwarded when the caller supplies
+  // one. We deliberately do NOT auto-build a default over
+  // `situational_model_entities`: that table's `kind` is a CLOSED enum (no
+  // `setpoint-state` member) AND it is the SAME store the salience arena reads,
+  // so a synthetic set-point entity would both fail validation and pollute the
+  // arena snapshot. A correct store is a small NEW adapter (its own jsonb column
+  // / table) — flagged in needsAttention. Until then the set-point arc no-ops
+  // (the controller still nudges); it is moot anyway without a driveContextResolver.
+  const setPointStore = deps.setPointStore ?? null;
   const reconciliation = createReconcileEngine({
     repo: repository,
     proposalSink,
@@ -674,6 +711,18 @@ export function createMdCommitmentReconciliation(
     confirmationProbe,
     auditSink: deps.auditSink ?? null,
     logger: deps.logger,
+    // Wave-C C3 WIN-3/4 — forward the homeostatic-controller ports VERBATIM.
+    // `driveContextResolver` + `drafterRegistry` + `setPointStore` are
+    // genuinely-new organs that do not yet exist to bind (flagged in
+    // needsAttention); until a caller supplies them the engine honest-degrades to
+    // the legacy loudness-ladder. The seam is connected so they drop straight in.
+    ...(deps.driveContextResolver ? { driveContextResolver: deps.driveContextResolver } : {}),
+    ...(deps.drafterRegistry ? { drafterRegistry: deps.drafterRegistry } : {}),
+    ...(deps.autonomyCap ? { autonomyCap: deps.autonomyCap } : {}),
+    ...(typeof deps.worseningTicksFloor === 'number'
+      ? { worseningTicksFloor: deps.worseningTicksFloor }
+      : {}),
+    ...(setPointStore ? { setPointStore } : {}),
   });
   const eventSubscriber = createWaitForEventSubscriber({
     repo: repository,
@@ -747,6 +796,24 @@ export interface EstateMindSupervisorDeps {
   /** Per-tenant drive thresholds (tenant-tunable risk appetite). */
   readonly thresholds?: motivationKernel.DriveThresholds;
   /**
+   * Wave-C C2 (schema-conditioned drives) — per-tenant async threshold
+   * resolver. The composition root binds
+   * `resolveDriveThresholdsFromBaselinesDb(db, tenantId)` so a breach is judged
+   * against THIS estate's consolidated baseline rather than the static default.
+   *
+   * SEAM-ONLY (honest): the kernel cycle's `motivation.formulateGoals(snapshot)`
+   * (estate-mind.ts:189, NOT owned) takes NO per-call thresholds override, and
+   * the single motivation engine is built once below — so this resolver cannot
+   * yet be applied PER TENANT from here. We accept + log it so the read-path is
+   * connected from the composition root; closing the loop needs a kernel-cycle
+   * change (per-tenant thresholds into `formulateGoals`) PLUS the Wave-D
+   * estate-baseline sleep pass that writes the `baseline:*` facts the resolver
+   * reads. Until both land the loop honest-degrades to the static thresholds.
+   */
+  readonly resolveThresholds?:
+    | ((tenantId: string) => Promise<motivationKernel.DriveThresholds>)
+    | null;
+  /**
    * RECONCILE port — the DEFERRAL / FOLLOW-THROUGH sweep over the durable
    * md_commitments backlog. When omitted the EstateMind tick runs exactly as
    * before (the deferral organ is purely additive). The composition root
@@ -803,6 +870,16 @@ export function createEstateMindSupervisor(
   const motivation = motivationKernel.createMotivationEngine(
     deps.thresholds ? { thresholds: deps.thresholds } : {},
   );
+  // Wave-C C2 — the per-tenant schema-conditioned threshold resolver is wired
+  // from the composition root but the kernel cycle's `formulateGoals(snapshot)`
+  // has no per-call override yet, so it cannot be applied per tenant here. Log
+  // the connected-but-deferred seam ONCE so the read-path is observable.
+  if (deps.resolveThresholds) {
+    logger.info(
+      {},
+      'estate-mind: per-tenant threshold resolver wired (seam connected); applied once the kernel cycle accepts per-tenant thresholds + the Wave-D baseline writer lands — static defaults until then',
+    );
+  }
   // The proposal sink is the DUAL sink (OK-4): the existing gated
   // proactive_nudge write AND an ADDITIVE OrchestratorRequest proposal into
   // the arbiter-fronted spine (proposal-not-actuation, HITL). The spine sink

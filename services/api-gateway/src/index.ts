@@ -47,6 +47,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import pino from 'pino';
+import { sql as drizzleSqlTag } from 'drizzle-orm';
 import pinoHttp from 'pino-http';
 import { handle } from '@hono/node-server/vercel';
 import { Hono } from 'hono';
@@ -206,7 +207,22 @@ import {
 } from './composition/estate-mind-wiring';
 // B8 — EstateMind PERCEPTION source over the live estate tables (the missing
 // sensor that populates the situational model so proactive proposals emit).
-import { createEstateMindPerceptionFromDb } from './composition/estate-mind-perception';
+import {
+  createEstateMindPerceptionFromDb,
+  resolveDriveThresholdsFromBaselinesDb,
+} from './composition/estate-mind-perception';
+// Wave-C C3 WIN-2 — the reflexion buffer that turns a divergent outcome-
+// reconciliation into a durable lesson (the SAME service sovereign.ts builds for
+// the chat path), so the self-correcting-memory loop fires on the live worker.
+import { createReflexionBufferService } from '@borjie/database';
+// Wave-C C4 — the live ambient behaviour-signal source for the proactive worker's
+// affect gate (constructed in sovereign.ts over the sensorium event log).
+import { getProactiveBehaviorSignalSource } from './composition/sovereign';
+// Wave-C C4 — owner-style posture reader source (the FIRST live consumer of the
+// durable owner-style posterior). `getProfile(tenantId).posture.value` →
+// cautious|balanced|bold tilts the earned-trust autonomy floor.
+import { createOwnerStyleService } from '@borjie/ai-copilot';
+import { createPgOwnerStyleProfileStore } from '@borjie/database/repositories';
 // B5 — control-plane LLM-routing config reader. Installs the routing-config
 // reader once at boot so admin-tuned LLM config is honored by the resolver.
 import { initLlmRoutingConfig } from './composition/llm-routing-config-wiring';
@@ -674,7 +690,12 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
 // Wave 2 — self-acting-MD workers: proactive-intel insight loop + KG auto-sync.
-import { createProactiveIntelWorker } from './workers/proactive-intel.worker';
+import {
+  createProactiveIntelWorker,
+  type ProactiveOwnerResolver,
+  type ProactivePostureReader,
+  type ProactivePosture,
+} from './workers/proactive-intel.worker';
 import { createKgSyncWorker } from './workers/kg-sync.worker';
 // Wave 3 — the proactive worker's LIVE per-tenant data feed; the self-build
 // (gap→spec→generate→propose) operator-gated route.
@@ -3408,6 +3429,84 @@ const remindersDispatchWorker = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 }; } };
 
+// ── Wave-C C4 — proactive-intel regulation readers (owner-resolver + posture) ─
+// Both built from EXISTING services: the `users(tenant_id, is_owner)` SELECT the
+// mwikila-autonomous worker already uses, and the durable owner-style service over
+// the Drizzle `owner_style_profiles` store. Fail-safe: any read fault degrades to
+// the neutral path (no owner → affect/trust skipped; balanced posture).
+
+/**
+ * Resolve a tenant's primary owner user-id — the per-user key the affect/trust
+ * readers need (the worker is tenant-scoped). Mirrors the proven
+ * `users(tenant_id, is_owner)` lookup; returns null on any miss.
+ */
+function createTenantOwnerResolver(
+  db: { execute(q: unknown): Promise<unknown> },
+  log: typeof logger,
+): ProactiveOwnerResolver {
+  return {
+    async ownerForTenant(tenantId: string): Promise<string | null> {
+      try {
+        const result = await db.execute(drizzleSqlTag`
+          SELECT u.id AS owner_user_id
+            FROM users u
+           WHERE u.tenant_id = ${tenantId}
+             AND u.is_owner  = TRUE
+             AND u.status    = 'active'
+           ORDER BY u.created_at ASC
+           LIMIT 1
+        `);
+        const rows = Array.isArray(result)
+          ? (result as ReadonlyArray<Record<string, unknown>>)
+          : (((result as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ??
+              []) as ReadonlyArray<Record<string, unknown>>);
+        const id = rows[0]?.owner_user_id;
+        return typeof id === 'string' && id.length > 0 ? id : null;
+      } catch (err) {
+        log.debug(
+          { worker: 'proactive-intel', tenantId, err: err instanceof Error ? err.message : String(err) },
+          'proactive-intel: ownerForTenant lookup failed; neutral context',
+        );
+        return null;
+      }
+    },
+  };
+}
+
+/**
+ * Owner-style posture reader — the FIRST live consumer of the durable
+ * owner-style posterior. Reads `getProfile(tenantId).posture.value`
+ * (cautious|balanced|bold). Built over the Drizzle `owner_style_profiles` store;
+ * degrades to 'balanced' on any miss.
+ */
+function createOwnerStylePostureReader(
+  db: NonNullable<typeof serviceRegistry.db>,
+  log: typeof logger,
+): ProactivePostureReader {
+  const service = createOwnerStyleService({
+    store: createPgOwnerStyleProfileStore(
+      db as unknown as Parameters<typeof createPgOwnerStyleProfileStore>[0],
+    ) as unknown as NonNullable<
+      NonNullable<Parameters<typeof createOwnerStyleService>[0]>['store']
+    >,
+  });
+  return {
+    async postureForTenant(tenantId: string): Promise<ProactivePosture> {
+      try {
+        const profile = await service.getProfile(tenantId);
+        const value = profile.posture?.value;
+        return value === 'cautious' || value === 'bold' ? value : 'balanced';
+      } catch (err) {
+        log.debug(
+          { worker: 'proactive-intel', tenantId, err: err instanceof Error ? err.message : String(err) },
+          'proactive-intel: postureForTenant failed; balanced',
+        );
+        return 'balanced';
+      }
+    },
+  };
+}
+
 // Wave 2 (W2b) — proactive-intel worker. Runs the previously-DARK proactive-intel
 // detectors + recommendation composer per active tenant on a cadence and routes
 // each insight onto the cockpit bus (publishCockpitEvent → mwikila.proposes), so
@@ -3442,6 +3541,31 @@ const proactiveIntelWorker = serviceRegistry.db
         },
         logger,
       }),
+      // ── Wave-C C4 — proactive affect-gating + earned-trust delegation ──────
+      // (1) behaviorSignalSource: the LIVE ambient ribbon (sovereign.ts) — the
+      //     affect gate goes quiet under frustration/flow, leans in under
+      //     disengagement. (2) ownerResolver: maps a tenant → its primary owner
+      //     user-id (the affect/trust readers are per-user; the worker is
+      //     tenant-scoped) via the SAME `users(tenant_id, is_owner)` SELECT the
+      //     mwikila-autonomous worker uses. (3) postureReader: owner-style's
+      //     first live consumer (cautious|balanced|bold tilts the trust floor).
+      // affectReader (ToM trust) is INTENTIONALLY left unwired — see the flag in
+      // needsAttention: it must be the SAME kernel `createAffectiveAccumulator()`
+      // singleton the turn writes to, which is constructed inside composeSovereign
+      // and is not reachable here; a fresh instance would read an empty posterior.
+      // Without affectReader the trust posterior stays neutral, so earned-trust
+      // de-escalation is conservative (never escalates past the static map).
+      ...(getProactiveBehaviorSignalSource()
+        ? { behaviorSignalSource: getProactiveBehaviorSignalSource()! }
+        : {}),
+      ownerResolver: createTenantOwnerResolver(
+        serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        logger,
+      ),
+      postureReader: createOwnerStylePostureReader(
+        serviceRegistry.db,
+        logger,
+      ),
       intervalMs: Number(process.env.BORJIE_PROACTIVE_INTEL_INTERVAL_MS ?? 1_800_000) || 1_800_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_PROACTIVE_INTEL_WORKER_DISABLED !== 'true',
     })
@@ -3543,6 +3667,17 @@ const outcomeReconciliationWorker = serviceRegistry.db
         db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
         logger,
       }),
+      // Wave-C C3 WIN-2 — self-correcting memory. A divergent reconciliation
+      // whose drift clears the floor is now synthesised into a durable reflexion
+      // lesson in the SAME `reflexion_buffer` the chat path reads (sovereign.ts
+      // builds the identical service). The buffer's `record` satisfies the
+      // kernel `ReflexionRecorderPort` shape; it swallows DB faults, so a
+      // recorder fault never fails the reconciliation.
+      reflexionRecorder: createReflexionBufferService(
+        serviceRegistry.db as unknown as Parameters<
+          typeof createReflexionBufferService
+        >[0],
+      ),
       intervalMs:
         Number(
           process.env.BORJIE_OUTCOME_RECONCILIATION_INTERVAL_MS ??
@@ -3626,6 +3761,23 @@ const estateMindSupervisor = createEstateMindSupervisor({
   // wiring block above; null leaves the tick exactly as before (purely
   // additive). The sweep is fail-safe: a fault never breaks the tick.
   reconciliation: mdCommitmentBundle?.reconciliation ?? null,
+  // Wave-C C2 — connect the per-tenant schema-conditioned threshold read-path.
+  // The resolver reads this estate's consolidated `baseline:*` facts and judges
+  // a breach against THIS estate's baseline (mean ± k·sd) rather than the static
+  // default. SEAM-ONLY today (honest): the kernel cycle's formulateGoals takes no
+  // per-call thresholds yet, and the Wave-D estate-baseline sleep pass that WRITES
+  // `baseline:*` facts is not built — so the resolver returns {} and the loop runs
+  // on static defaults. Wiring it here connects the composition-root half so the
+  // loop closes the moment those two non-owned deps land. Honest-degrade: a {}
+  // result falls through to DEFAULT_DRIVE_THRESHOLDS exactly as today.
+  resolveThresholds: (tenantId: string) =>
+    resolveDriveThresholdsFromBaselinesDb(
+      (serviceRegistry.db as unknown as
+        | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+        | null) ?? null,
+      tenantId,
+      createPinoLikeLogger('estate-mind-thresholds'),
+    ),
 });
 
 // Wave 1 OK-3 — blackboard control-shell scheduler. Construct the wiring
