@@ -138,6 +138,9 @@ import { publishCockpitEvent } from '../services/cockpit-events/index.js';
 // persona tools use, so the brain's working notebook survives restarts. Falls
 // back to the bounded in-memory tool only when no db handle is present.
 import { createDrizzleMemoryTool } from './memory/drizzle-memory-tool.js';
+// W2e — the LIVE capability-gap detector (self-developing MD): records a gap on
+// every tool-resolution miss / unwired-organ outcome on the live dispatch path.
+import { buildConfiguredMdGapDetector } from './brain-tools/md-defer-tools.js';
 
 /**
  * Default on-disk path for the mining intelligence corpus (Docs/, GIS
@@ -1049,6 +1052,21 @@ export function buildOrchestratorComposeBlock(args: {
   const dispatcher = orchestrator.createToolDispatcher({
     registry: args.toolRegistry,
     spawnHandler,
+    // W2e — LIVE capability-gap detection seam (self-developing MD). A
+    // tool-resolution miss (not-found → missing_tool) or a NOT_YET_WIRED organ
+    // (executor-failed → unwired_organ) ALSO files a durable gap on the same
+    // md_commitments store the defer tools use. Additive + fail-safe: the
+    // dispatcher swallows any throw so the tool_error is returned unchanged;
+    // createGap is idempotent (one row per recurring miss). The repo resolves
+    // lazily from configureMdDeferTools, so this is boot-order agnostic.
+    gapDetector: buildConfiguredMdGapDetector(
+      args.logger
+        ? {
+            warn: (meta: Record<string, unknown>, msg: string): void =>
+              args.logger?.warn?.(meta, msg),
+          }
+        : undefined,
+    ),
     // COG-07/AUT-14 — modality handlers. Only bound when the arbiter is
     // enabled (default-OFF leaves these undefined → the dispatcher falls
     // closed to a structured ack breadcrumb, exactly as before).

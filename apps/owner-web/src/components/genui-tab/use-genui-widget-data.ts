@@ -4,23 +4,27 @@
  * useGenuiWidgetData — resolve ONE generated widget's live data from its
  * schema-declared `binding`.
  *
- * A generated `PortalTabWidget` MAY carry a `binding` (K1a-extended shape):
+ * A generated `PortalTabWidget` MAY carry a `binding` (the CANONICAL K1a schema
+ * shape — the same shape persisted on the widget):
  *
- *   binding.kind === 'query'  → a named, server-vetted read (e.g. the tab's
- *                               own record list, a roll-up, a KPI). `ref` is
- *                               the query id; `params` are bounded filters.
+ *   binding.kind === 'query'  → a named, server-vetted read against a vetted
+ *                               estate domain (e.g. the tab's own records, a
+ *                               roll-up, a KPI). `resource` is the queryable
+ *                               resource id; `filters` are bounded predicates.
  *   binding.kind === 'tool'   → a read-only brain/tool call the gateway
- *                               allow-lists. Same `{ ref, params }` shape.
+ *                               allow-lists. `toolId` is the tool id; `args`
+ *                               are bounded arguments.
  *
  * The hook is GENERATIVE: it forwards the binding verbatim to a SINGLE typed
  * gateway endpoint and renders whatever the server returns, shaped by the
  * widget kind. There is NO per-widget code path — a brand-new generated tab
- * with a never-seen binding ref works the moment the server vets it. A widget
- * with NO binding stays a labelled placeholder (handled by the renderer).
+ * with a never-seen binding works the moment the server vets it. A widget with
+ * NO binding stays a labelled placeholder (handled by the renderer).
  *
  * Endpoint (tab-scoped so the gateway RLS-scopes the read by tab + tenant):
  *   POST /api/v1/portal-genui/tabs/:tabId/widget-data
- *        body { binding: { kind, ref, params? } }
+ *        body { binding: { kind:'query', resource, filters? }
+ *                       | { kind:'tool', toolId, args? } }
  *        → { rows? , value? , items? , columns?, label?, unit?, ... }
  *
  * The response is kept loose (`Record<string, unknown>`) and re-validated per
@@ -39,15 +43,27 @@ export const GENUI_WIDGET_BINDING_KINDS = ['query', 'tool'] as const;
 export type GenuiWidgetBindingKind = (typeof GENUI_WIDGET_BINDING_KINDS)[number];
 
 /**
- * The schema-declared binding on a widget. Parsed permissively from the RAW
- * tab JSON (the strict `PortalTab` schema strips unknown keys, so the host
- * reads bindings off the un-stripped response — see `use-genui-tab-extras`).
+ * The schema-declared binding on a widget — the CANONICAL K1a shape (a
+ * discriminated union over `kind`). Parsed permissively from the RAW tab JSON
+ * (the strict `PortalTab` schema strips unknown keys, so the host reads
+ * bindings off the un-stripped response — see `use-genui-tab-extras`).
+ *
+ *   - `{ kind:'query', resource, filters? }` — a live read of a vetted estate
+ *     domain (or the tab's own records).
+ *   - `{ kind:'tool', toolId, args? }` — a vetted, read-only tool call.
  */
-export const GenuiWidgetBindingSchema = z.object({
-  kind: z.enum(GENUI_WIDGET_BINDING_KINDS),
-  ref: z.string().min(1).max(200),
-  params: z.record(z.string(), z.unknown()).optional(),
-});
+export const GenuiWidgetBindingSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('query'),
+    resource: z.string().min(1).max(200),
+    filters: z.record(z.string(), z.unknown()).optional(),
+  }),
+  z.object({
+    kind: z.literal('tool'),
+    toolId: z.string().min(1).max(200),
+    args: z.record(z.string(), z.unknown()).optional(),
+  }),
+]);
 
 export type GenuiWidgetBinding = z.infer<typeof GenuiWidgetBindingSchema>;
 
@@ -60,20 +76,24 @@ export type GenuiWidgetData = Readonly<Record<string, unknown>>;
 
 const WidgetDataResponseSchema = z.record(z.string(), z.unknown());
 
+/** The binding's stable name + bounded payload, per kind. */
+function bindingTarget(binding: GenuiWidgetBinding): {
+  readonly name: string;
+  readonly payload: Readonly<Record<string, unknown>>;
+} {
+  return binding.kind === 'query'
+    ? { name: binding.resource, payload: binding.filters ?? {} }
+    : { name: binding.toolId, payload: binding.args ?? {} };
+}
+
 /** Stable query key per (tab, widget-binding). */
 function widgetDataKey(
   tabId: string,
   widgetKey: string,
   binding: GenuiWidgetBinding,
 ): readonly unknown[] {
-  return [
-    'genui-widget-data',
-    tabId,
-    widgetKey,
-    binding.kind,
-    binding.ref,
-    binding.params ?? {},
-  ];
+  const { name, payload } = bindingTarget(binding);
+  return ['genui-widget-data', tabId, widgetKey, binding.kind, name, payload];
 }
 
 /**

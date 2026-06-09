@@ -34,9 +34,11 @@
 
 import { z } from 'zod';
 
+import { orchestrator } from '@borjie/central-intelligence';
 import type {
   MdCommitmentRepository,
   CreateMdCommitmentInput,
+  MdCommitmentCreateGapInput,
   MdCommitment,
 } from '@borjie/database/repositories';
 import type { PersonaToolDescriptor } from './types';
@@ -66,6 +68,168 @@ function requireRepo(): MdCommitmentRepository {
     );
   }
   return injectedDeps.repo;
+}
+
+// ---------------------------------------------------------------------------
+// Capability-Gap DETECTION SEAM (W2e — Loop A goes LIVE).
+//
+// The kernel's tool-dispatcher already detects a tool-resolution miss (a
+// NOT_YET_WIRED organ surfaces as `executor-failed`; an absent tool as
+// `not-found`) and, when a `GapDetectorPort` is wired, files a durable
+// capability gap BEFORE returning the (still-failing) `tool_error`. Until now
+// that port had ZERO live callers, so the Capability Gap Register was dark and
+// the self-developing loop never started.
+//
+// `createMdGapDetector(repo)` is that missing live adapter. It derives a
+// `MdCommitmentCreateGapInput` GENERATIVELY from the miss — the missing tool
+// name IS the blocker, so the gap is keyed on it; the unblock trigger is
+// `tool_registered:<toolName>` (the watcher re-fires when the organ wires); the
+// competence domain is the tool's namespace segment. NOTHING is per-case
+// hardcoded: any unseen tool name produces a correct gap row.
+//
+// Fail-safe + additive: the kernel seam swallows any throw from this port, so a
+// detector fault NEVER changes the dispatch result (the tool keeps failing
+// honestly while the gap is durably filed). `createGap` is idempotent on
+// (tenantId, idempotencyKey), so a tool that misses every tick files exactly
+// ONE gap row, not a storm.
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the jagged-frontier competence coordinate from a tool name. The
+ * leading namespace segment (everything before the first `.`/`:`/`_`) is the
+ * organ family the gap belongs to (e.g. `platform.suspend_licence` → `platform`,
+ * `royalty:file-return` → `royalty`). Generative — never an allow-list. Returns
+ * `null` for an unnamespaced bareword so the row simply omits the coordinate.
+ */
+export function competenceDomainFromTool(toolName: string): string | null {
+  const head = toolName.split(/[.:_/]/, 1)[0]?.trim().toLowerCase();
+  return head && head.length > 0 ? head : null;
+}
+
+/** Bilingual gap titles + rationale derived from the miss (no per-case copy). */
+function gapNarrative(
+  toolName: string,
+  gapKind: 'unwired_organ' | 'missing_tool',
+): { title: string; titleSw: string; rationale: string } {
+  if (gapKind === 'missing_tool') {
+    return {
+      title: `Capability gap: tool "${toolName}" is not registered yet`,
+      titleSw: `Pengo la uwezo: zana "${toolName}" bado haijasajiliwa`,
+      rationale:
+        `Mr. Mwikila reached for "${toolName}" but the dispatcher could not ` +
+        `resolve it (no such tool). Recording the gap so the self-developing ` +
+        `loop can build or register the capability; it clears when the tool ` +
+        `registers.`,
+    };
+  }
+  return {
+    title: `Capability gap: organ "${toolName}" is wired but not yet operational`,
+    titleSw: `Pengo la uwezo: kiungo "${toolName}" kimeunganishwa lakini bado hakifanyi kazi`,
+    rationale:
+      `Mr. Mwikila invoked "${toolName}" but its executor is NOT_YET_WIRED ` +
+      `(executor-failed). Recording the gap so the self-developing loop can ` +
+      `complete the organ; it clears when the executor goes live.`,
+  };
+}
+
+/**
+ * Build the LIVE `GapDetectorPort` over the durable commitment repository. Wired
+ * once at composition time into `createToolDispatcher({ gapDetector })`. Every
+ * field of the gap row is derived from the miss — the same adapter serves a
+ * tool-resolution miss, a NOT_YET_WIRED organ, and (by gapKind) a future
+ * missing-evidence outcome with zero per-case branching.
+ */
+export function createMdGapDetector(
+  repo: MdCommitmentRepository,
+  logger?: {
+    warn(meta: Record<string, unknown>, msg: string): void;
+  },
+): orchestrator.GapDetectorPort {
+  return {
+    async recordUnwiredOrganGap(input): Promise<void> {
+      const scope = input.ctx.scope;
+      // Only a tenant-scoped miss can own a durable, RLS-isolated gap row. A
+      // platform-scope miss has no tenant to key on — skip (honest no-op) rather
+      // than invent a tenant. Fail-safe: never throw back into the dispatcher.
+      if (scope.kind !== 'tenant') return;
+      const competenceDomain = competenceDomainFromTool(input.toolName);
+      const narrative = gapNarrative(input.toolName, input.gapKind);
+      const gap: MdCommitmentCreateGapInput = {
+        tenantId: scope.tenantId,
+        ownerId: scope.actorUserId,
+        threadId: input.ctx.threadId,
+        gapKind: input.gapKind,
+        kind: input.toolName,
+        title: narrative.title,
+        titleSw: narrative.titleSw,
+        rationale: narrative.rationale,
+        // Evidence-required hard rule: the miss itself IS the evidence — a stable
+        // pointer the watcher resolves against the live capability snapshot.
+        evidenceIds: [`gap:${input.toolName}`],
+        // The EXACT input that flips the gap to confident: the missing tool
+        // registering (Kadavath inject-context). The blocker IS the tool name.
+        unblockTrigger: { kind: 'tool_registered', target: input.toolName },
+        ...(competenceDomain !== null ? { competenceDomain } : {}),
+        // Sovereign flag pre-classified by the dispatcher via the SAME policy-gate
+        // rail (isSovereignGapSource) — a sovereign-born gap parks HITL forever.
+        sovereign: input.sovereign,
+        // Stable per-(tool, kind) key so a tool that misses every tick files
+        // exactly ONE gap row (createGap is idempotent on tenant + key).
+        idempotencyKey: idemKeyFrom([
+          'gap',
+          input.gapKind,
+          input.toolName,
+        ]).replace(/^defer:/, 'gap:'),
+      };
+      try {
+        await repo.createGap(gap);
+      } catch (err) {
+        // Best-effort: the gap write is the forensic mirror, never load-bearing.
+        // Swallow + log so the dispatcher's tool_error is returned unchanged.
+        logger?.warn(
+          {
+            wiring: 'md-gap-detector',
+            toolName: input.toolName,
+            gapKind: input.gapKind,
+            reason: err instanceof Error ? err.message : 'createGap failed',
+          },
+          'md-gap-detector: createGap best-effort write failed',
+        );
+      }
+    },
+  };
+}
+
+/**
+ * Composition-friendly variant: a `GapDetectorPort` that resolves the durable
+ * repository LAZILY (at first miss) from the SAME singleton `configureMdDeferTools`
+ * wired. This lets the dispatcher wiring (`brain-kernel-wiring.ts`) bind the live
+ * gap seam in ONE line — `gapDetector: buildConfiguredMdGapDetector(logger)` —
+ * with no repo re-threading, and the boot order (configure → dispatcher build)
+ * never matters because the repo is read on the first detection, not at
+ * construction. When the repo was never configured (degraded boot), the miss is
+ * a fail-safe no-op (logged) — it NEVER throws back into the dispatcher.
+ */
+export function buildConfiguredMdGapDetector(logger?: {
+  warn(meta: Record<string, unknown>, msg: string): void;
+}): orchestrator.GapDetectorPort {
+  return {
+    async recordUnwiredOrganGap(input): Promise<void> {
+      let repo: MdCommitmentRepository;
+      try {
+        repo = requireRepo();
+      } catch {
+        // Degraded boot — defer tools never configured. Honest no-op (the gap
+        // store is dark) rather than crash the dispatcher's detection seam.
+        logger?.warn(
+          { wiring: 'md-gap-detector', toolName: input.toolName },
+          'md-gap-detector: repo not configured at composition time — gap not recorded',
+        );
+        return;
+      }
+      await createMdGapDetector(repo, logger).recordUnwiredOrganGap(input);
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------

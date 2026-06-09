@@ -35,6 +35,12 @@ import {
   type RecordStore,
 } from '@borjie/portal-genui';
 import { authMiddleware } from '../../middleware/hono-auth.js';
+import {
+  createWidgetDataResolver,
+  UnknownBindingError,
+  type WidgetQueryPort,
+} from '../../composition/portal-genui/widget-data-resolver.js';
+import { logger } from '../../utils/logger.js';
 
 type AnyCtx = any;
 
@@ -48,6 +54,16 @@ function getEngine(c: AnyCtx): GenUIEngine | undefined {
 
 function getRecordStore(c: AnyCtx): RecordStore | undefined {
   return getServices(c).portalGenUIRecordStore as RecordStore | undefined;
+}
+
+/**
+ * Optional tenant-scoped read port for mapped estate domains. The orchestrator
+ * attaches it (built from the live Drizzle `$client`, same boundary the
+ * record store uses). When unbound — dev/test/smoke — the resolver degrades
+ * mapped reads to empty rows rather than crashing.
+ */
+function getQueryPort(c: AnyCtx): WidgetQueryPort | undefined {
+  return getServices(c).portalGenUIQueryPort as WidgetQueryPort | undefined;
 }
 
 function unavailable(c: AnyCtx, code: string, message: string) {
@@ -189,6 +205,45 @@ const ListRecordsQuerySchema = z
       .string()
       .regex(/^[0-9]{1,4}$/)
       .optional(),
+  })
+  .strict();
+
+/**
+ * Widget-data request body. The binding is the CANONICAL K1a shape
+ * (`{ kind:'query', resource, filters? }` | `{ kind:'tool', toolId, args? }`)
+ * — the SAME shape persisted on a widget and parsed by the schema. Kept
+ * permissive here (loose `filters`/`args` records); the resolver re-validates
+ * the resource/tool NAME against the capability registry, and a parse miss
+ * (e.g. the legacy `{ ref, params }` shape) answers 400 rather than crashing.
+ */
+const BindingScalarSchema = z.union([
+  z.string().max(500),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.array(z.union([z.string().max(500), z.number(), z.boolean()])).max(50),
+]);
+
+const WidgetDataBindingSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('query'),
+      resource: z.string().min(1).max(120),
+      filters: z.record(BindingScalarSchema).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('tool'),
+      toolId: z.string().min(1).max(120),
+      args: z.record(BindingScalarSchema).optional(),
+    })
+    .strict(),
+]);
+
+const WidgetDataBodySchema = z
+  .object({
+    binding: WidgetDataBindingSchema,
   })
   .strict();
 
@@ -682,6 +737,111 @@ router.get('/tabs/:id/records', async (c: AnyCtx) => {
       : {}),
   });
   return c.json({ success: true, data: { records } });
+});
+
+// ─── POST /v1/portal-genui/tabs/:id/widget-data ────────────────
+// Resolve ONE generated widget's LIVE data from its schema-declared `binding`.
+// Loads the tab (tenant-scoped 404), then dispatches the canonical K1a binding
+// through the generic widget-data resolver — `kind:'query'` reads tenant-scoped
+// rows (the tab's own records, or a mapped estate domain); `kind:'tool'` is
+// vetted + returns empty rows (read-only tool dispatch is a later seam). The
+// response is the loose shape the renderer reads ({ rows?, value?, items?,
+// columns? }). An unknown resource/tool answers 400; a known-but-unmapped
+// resource degrades to empty rows — never a 500.
+router.post('/tabs/:id/widget-data', async (c: AnyCtx) => {
+  const engine = getEngine(c);
+  if (!engine) {
+    return unavailable(
+      c,
+      'PORTAL_GENUI_ENGINE_MISSING',
+      'portal-genui engine is not wired in this environment',
+    );
+  }
+  const store = getRecordStore(c);
+  if (!store) {
+    return unavailable(
+      c,
+      'PORTAL_GENUI_RECORD_STORE_MISSING',
+      'portal-genui record store is not wired in this environment',
+    );
+  }
+  const auth = c.get('auth');
+  if (!auth?.tenantId) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'MISSING_TENANT', message: 'auth missing tenantId' },
+      },
+      401,
+    );
+  }
+  let body: unknown;
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'INVALID_JSON', message: 'invalid JSON body' },
+      },
+      400,
+    );
+  }
+  const parsed = WidgetDataBodySchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'BAD_REQUEST', message: parsed.error.message },
+      },
+      400,
+    );
+  }
+  const id = c.req.param('id');
+  const tab = await engine.get(id);
+  // Tenant-scoped 404 — a missing tab AND another tenant's tab look identical.
+  if (!tab || tab.tenantId !== auth.tenantId) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'TAB_NOT_FOUND', message: `tab ${id} not found` },
+      },
+      404,
+    );
+  }
+  const queryPort = getQueryPort(c);
+  const resolver = createWidgetDataResolver({
+    recordStore: store,
+    ...(queryPort !== undefined ? { query: queryPort } : {}),
+    logger,
+  });
+  try {
+    const data = await resolver.resolve(parsed.data.binding, {
+      tenantId: auth.tenantId,
+      tabId: id,
+    });
+    return c.json({ success: true, data });
+  } catch (err) {
+    if (err instanceof UnknownBindingError) {
+      return c.json(
+        {
+          success: false,
+          error: { code: 'UNKNOWN_BINDING', message: err.message },
+        },
+        400,
+      );
+    }
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'WIDGET_DATA_FAILED',
+          message: err instanceof Error ? err.message : 'unknown error',
+        },
+      },
+      500,
+    );
+  }
 });
 
 // ─── DELETE /v1/portal-genui/tabs/:id ──────────────────────────

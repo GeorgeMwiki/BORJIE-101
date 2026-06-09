@@ -82,6 +82,7 @@
     "@borjie/extended-reasoning": "workspace:*",
     "@borjie/org-graph": "workspace:*",
     "@borjie/persona-runtime": "workspace:*",
+    "@borjie/proactive-intel": "workspace:*",
     "@borjie/domain-services": "workspace:*",
     "@borjie/enterprise-hardening": "workspace:*",
     "@borjie/fairness-eval": "workspace:*",

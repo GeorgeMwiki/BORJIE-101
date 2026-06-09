@@ -664,6 +664,9 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 // geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave 2 — self-acting-MD workers: proactive-intel insight loop + KG auto-sync.
+import { createProactiveIntelWorker } from './workers/proactive-intel.worker';
+import { createKgSyncWorker } from './workers/kg-sync.worker';
 // Wave NOTIFICATION-DISPATCH-WIRE — turn on the already-built notification
 // rails: the dispatch drain worker (delivers notification_dispatch_log
 // pending rows via email/SMS/push with retry+backoff+DLQ), its push
@@ -742,7 +745,7 @@ import {
   lockIdFor,
 } from './composition/cluster-lock';
 import { initRedisTokenBucket } from './middleware/rate-limiter';
-import { initCockpitBus } from './services/cockpit-events';
+import { initCockpitBus, publishCockpitEvent } from './services/cockpit-events';
 
 // Stable cron names wrapped with withClusterLeader(...) at their .start()
 // sites below. Single source of truth so gracefulShutdown releases exactly
@@ -1947,6 +1950,32 @@ const portalGenuiWiring = buildPortalGenuiWiring();
 // (validated against the tab's own field schema).
 (serviceRegistry as { portalGenUIRecordStore?: unknown }).portalGenUIRecordStore =
   portalGenuiWiring.recordStore;
+// W2a — optional tenant-scoped read port for LIVE widget-data (mapped estate
+// domains). Same `$client.unsafe(sql, params)` boundary the record store uses;
+// RLS FORCE on app.current_tenant_id isolates in the DB. Unbound in dev/test →
+// the resolver degrades mapped-domain reads to empty rows (tab_records always
+// works via the record store, not this port).
+{
+  const widgetDb = getDb();
+  if (widgetDb) {
+    const widgetClient = (widgetDb as unknown as {
+      $client: {
+        unsafe<Row = Record<string, unknown>>(
+          sql: string,
+          params?: ReadonlyArray<unknown>,
+        ): Promise<ReadonlyArray<Row>>;
+      };
+    }).$client;
+    (serviceRegistry as { portalGenUIQueryPort?: unknown }).portalGenUIQueryPort = {
+      async query<Row = Record<string, unknown>>(
+        sql: string,
+        params?: ReadonlyArray<unknown>,
+      ): Promise<ReadonlyArray<Row>> {
+        return widgetClient.unsafe<Row>(sql, params ?? []);
+      },
+    };
+  }
+}
 api.route('/portal-genui', portalGenuiWiring.router);
 // Deep research: make the research-orchestrator engine reachable on demand.
 // The engine was built + DB-backed but no gateway route ever constructed its
@@ -3171,6 +3200,34 @@ const remindersDispatchWorker = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 }; } };
 
+// Wave 2 (W2b) — proactive-intel worker. Runs the previously-DARK proactive-intel
+// detectors + recommendation composer per active tenant on a cadence and routes
+// each insight onto the cockpit bus (publishCockpitEvent → mwikila.proposes), so
+// the MD finally surfaces proactive insights. Honest-degrades to idle (warn-once)
+// until a live per-tenant TickInputs provider is injected; never crashes boot.
+const proactiveIntelWorker = serviceRegistry.db
+  ? createProactiveIntelWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      publish: publishCockpitEvent,
+      intervalMs: Number(process.env.BORJIE_PROACTIVE_INTEL_INTERVAL_MS ?? 1_800_000) || 1_800_000,
+      enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_PROACTIVE_INTEL_WORKER_DISABLED !== 'true',
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { tenants: 0, detected: 0, delivered: 0 }; } };
+
+// Wave 2 (W2d) — KG sync worker. Every 6h (env BORJIE_KG_SYNC_INTERVAL_MS) walks
+// every active tenant and runs the registry-driven ingestKnowledgeGraph pass so
+// kg_nodes/kg_edges stay fresh for GraphRAG without a manual POST (declarative
+// INGEST_SOURCE registry — every domain, not 5 hardcoded tables). Idempotent.
+const kgSyncWorker = serviceRegistry.db
+  ? createKgSyncWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      intervalMs: Number(process.env.BORJIE_KG_SYNC_INTERVAL_MS ?? 21_600_000) || 21_600_000,
+      enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_KG_SYNC_WORKER_DISABLED !== 'true',
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { tenantsScanned: 0, tenantsIngested: 0, tenantsFailed: 0, nodes: 0, edges: 0 }; } };
+
 // Notification-dispatch drain — delivers notification_dispatch_log
 // (pending) rows via email/SMS/push with retry+backoff+DLQ. The
 // announcement fan-out + push rails enqueue rows that THIS worker sends.
@@ -3807,6 +3864,11 @@ if (require.main === module) {
   // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
   // Email default; SMS / Slack land when the operator wires the keys.
   withClusterLeader(remindersDispatchWorker, lockIdFor('reminders-dispatch')).start();
+  // Wave 2 (W2b) — proactive-intel insight loop (cluster-leader gated so only one
+  // instance ticks). Surfaces MD-authored proactive insights onto the cockpit bus.
+  withClusterLeader(proactiveIntelWorker, lockIdFor('proactive-intel')).start();
+  // Wave 2 (W2d) — KG auto-sync so GraphRAG stays fresh across every domain.
+  withClusterLeader(kgSyncWorker, lockIdFor('kg-sync')).start();
   // Wave NOTIFICATION-DISPATCH-WIRE — start the broadcast fan-out (enqueues
   // per-recipient dispatch-log rows) and the dispatch drain (sends them via
   // email/SMS/push). The drain runs as a long-lived runForever loop bounded

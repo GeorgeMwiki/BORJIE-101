@@ -4950,6 +4950,9 @@ importers:
       '@borjie/privacy-router':
         specifier: workspace:*
         version: link:../../packages/privacy-router
+      '@borjie/proactive-intel':
+        specifier: workspace:*
+        version: link:../../packages/proactive-intel
       '@borjie/probe-runners':
         specifier: workspace:*
         version: link:../../packages/probe-runners
@@ -9917,7 +9920,7 @@ packages:
     peerDependencies:
       react-hook-form: ^7.0.0
     dependencies:
-      react-hook-form: 7.75.0(react@18.2.0)
+      react-hook-form: 7.75.0(react@18.3.1)
     dev: false
 
   /@hookform/resolvers@5.2.2(react-hook-form@7.75.0):

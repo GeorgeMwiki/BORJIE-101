@@ -27,7 +27,7 @@ function rawTab(overrides: Record<string, unknown> = {}): Record<string, unknown
           {
             key: 'roster',
             kind: 'table',
-            binding: { kind: 'query', ref: 'hr.payroll.records', params: { limit: 10 } },
+            binding: { kind: 'query', resource: 'tab_records', filters: { limit: 10 } },
             actions: [
               { id: 'run', label: 'Run payroll', verb: 'run_payroll', params: { month: '2026-06' } },
             ],
@@ -51,8 +51,8 @@ describe('readGenuiTabExtras', () => {
     const roster = widgetExtrasFor(extras, 'roster');
     expect(roster.binding).toEqual({
       kind: 'query',
-      ref: 'hr.payroll.records',
-      params: { limit: 10 },
+      resource: 'tab_records',
+      filters: { limit: 10 },
     });
     expect(roster.actions).toHaveLength(1);
     expect(roster.actions[0]).toMatchObject({ verb: 'run_payroll', id: 'run' });
