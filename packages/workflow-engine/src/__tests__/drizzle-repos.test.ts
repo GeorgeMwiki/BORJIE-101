@@ -125,6 +125,30 @@ function extractLeaves(
   return out;
 }
 
+/**
+ * Decide whether an `orderBy(...)` argument is a DESC ordering.
+ *
+ * drizzle lowers both `col` and `desc(col)` to an SQL object before they
+ * reach `orderBy`, with the direction rendered as a trailing StringChunk
+ * (`value: [" asc"]` or `value: [" desc"]`) inside `queryChunks`. We scan
+ * for that ` desc` fragment — robust across the column-wrapping the
+ * `withTenantContext` / `withServiceRoleContext` helpers introduce.
+ */
+function orderByChunkIsDesc(arg: unknown): boolean {
+  if (!arg || typeof arg !== 'object') return false;
+  const chunks = (arg as { queryChunks?: unknown }).queryChunks;
+  if (!Array.isArray(chunks)) return false;
+  return chunks.some((chunk) => {
+    const value = (chunk as { value?: unknown })?.value;
+    return (
+      Array.isArray(value) &&
+      value.some(
+        (part) => typeof part === 'string' && part.trim() === 'desc',
+      )
+    );
+  });
+}
+
 function matchesRow(
   row: Record<string, unknown>,
   leaves: Array<{ name: string; value: unknown }>,
@@ -196,16 +220,19 @@ function makeQueryBuilder(store: FakeStore) {
         },
         orderBy(...args: unknown[]) {
           // Rows are stored in insertion order = recordedAt order for
-          // sequential appends. A bare Column arg has `.name` (ASC); a
-          // desc(col) wrapper does not — detect it and reverse so that
-          // `orderBy(desc(recordedAt)).limit(1)` returns the LATEST row
-          // (latestHashForTenant's intent), not the first-inserted one.
-          orderDesc = args.some(
-            (a) =>
-              a !== null &&
-              typeof a === 'object' &&
-              typeof (a as { name?: unknown }).name !== 'string',
-          );
+          // sequential appends. We need to tell `orderBy(col)` (ASC, keep
+          // insertion order — `listForRun`) apart from `orderBy(desc(col))`
+          // (DESC, reverse — `latestHashForTenant` wants the LATEST row).
+          //
+          // In the current drizzle version BOTH arrive at `orderBy` already
+          // lowered to an SQL object (keys: decoder/queryChunks/...), so the
+          // old `.name`-on-a-bare-Column heuristic mis-classified the ASC
+          // `listForRun` column as DESC and reversed the chain — surfacing
+          // the LAST-appended (committed) entry at index 0 instead of the
+          // GENESIS-anchored `started` entry. Discriminate instead on the
+          // rendered direction: drizzle appends a trailing StringChunk whose
+          // `value` is `[" asc"]` or `[" desc"]` to the column's SQL.
+          orderDesc = args.some((a) => orderByChunkIsDesc(a));
           return chain;
         },
         limit(n: number) {

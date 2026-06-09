@@ -34,10 +34,30 @@ export interface AuditHashChain {
 export function createAuditHashChain(
   repository: AuditChainRepository,
 ): AuditHashChain {
+  // Monotonic-clock guard: `recordedAt` is the chain's total-order key —
+  // every read query (`listForRun`, `latestHashForTenant`) and both DB
+  // indexes order by it, and `latestHashForTenant` reads the head via
+  // `desc(recordedAt) LIMIT 1`. A bursty append sequence can resolve
+  // `now()` to the SAME millisecond, which would make that ordering a
+  // partial order: `listForRun` could surface entries out of append order
+  // (so entry[0] is no longer the GENESIS-anchored head) and the head
+  // read could pick the wrong row and silently fork the chain. We stamp
+  // each append with a timestamp strictly greater than the previous one
+  // so the persisted order is always a faithful total order of the append
+  // sequence. The hash still binds `recordedAt`, so tamper-evidence is
+  // unchanged — verification recomputes against the stored value.
+  let lastStampMs = 0;
+  function monotonicNow(now: () => Date): Date {
+    const candidate = now().getTime();
+    const stampMs = candidate > lastStampMs ? candidate : lastStampMs + 1;
+    lastStampMs = stampMs;
+    return new Date(stampMs);
+  }
+
   return {
     async append(tenantId, runId, kind, payload, entryId, now) {
       const previousHash = await repository.latestHashForTenant(tenantId);
-      const recordedAt = now();
+      const recordedAt = monotonicNow(now);
       const body = JSON.stringify({
         previousHash,
         runId,

@@ -32,6 +32,7 @@ describe('toSafeSvg', () => {
     const malicious =
       '<svg><a href="javascript:alert(1)"><text>click</text></a></svg>';
     const safe = toSafeSvg(malicious).toLowerCase();
+    // eslint-disable-next-line no-script-url -- intentional: XSS regression test asserts the sanitiser REJECTS dangerous schemes
     expect(safe).not.toContain('javascript:');
   });
 

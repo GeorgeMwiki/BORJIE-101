@@ -173,7 +173,7 @@ export function DecisionTraceDetailClient({
             <p className="text-xs text-amber-200">{contentMsg}</p>
           )}
           <div className="flex flex-wrap gap-2 items-end">
-            <label className="flex flex-col text-xs text-neutral-400 flex-1 min-w-[16rem]">
+            <label className="flex flex-col text-xs text-neutral-400 flex-1 min-w-64">
               Justification / reason
               <input
                 type="text"
