@@ -23,6 +23,9 @@ describe('isTabSseEvent', () => {
     expect(isTabSseEvent('tab_remove')).toBe(true);
     expect(isTabSseEvent('tab_proposal')).toBe(true);
     expect(isTabSseEvent('tab_tag_error')).toBe(true);
+    // Closure Wave 8 — the artifact-render seam events.
+    expect(isTabSseEvent('artifact_proposal')).toBe(true);
+    expect(isTabSseEvent('cockpit.tab.proposed')).toBe(true);
   });
   it('rejects unrelated event names', () => {
     expect(isTabSseEvent('message_chunk')).toBe(false);
@@ -225,6 +228,124 @@ describe('handleTabSseFrame', () => {
     });
     expect(ok).toBe(false);
     expect(onSpawn).not.toHaveBeenCalled();
+  });
+
+  // ── modality artifact proposal family (closure Wave 8) ──────────────
+  it('routes a dedicated artifact_proposal frame to onArtifactProposal', () => {
+    const onArtifactProposal = vi.fn();
+    const data = JSON.stringify({
+      payload: {
+        proposalId: 'modality:t1:forecast:abc',
+        artifactKind: 'forecast',
+        title: 'Forecast: gold price',
+        reasonEn: 'Calibrated advisory forecast ready to review.',
+        evidenceIds: ['borjie:ev:1'],
+        confidence: 0.82,
+        posture: 'propose',
+      },
+      at: '2026-06-08T12:00:00Z',
+    });
+    const ok = handleTabSseFrame({
+      eventName: 'artifact_proposal',
+      rawData: data,
+      handlers: { onArtifactProposal },
+    });
+    expect(ok).toBe(true);
+    expect(onArtifactProposal).toHaveBeenCalledTimes(1);
+    const arg = onArtifactProposal.mock.calls[0]?.[0];
+    expect(arg.artifactKind).toBe('forecast');
+    expect(arg.proposalId).toBe('modality:t1:forecast:abc');
+    expect(arg.evidenceIds).toEqual(['borjie:ev:1']);
+  });
+
+  it('routes a modality-arbiter tab_proposal to onArtifactProposal (not genui/static)', () => {
+    const onArtifactProposal = vi.fn();
+    const onGenuiProposal = vi.fn();
+    const onProposal = vi.fn();
+    // The cockpit-bus / sink shape: source=modality-arbiter, tabType=genui_<kind>,
+    // evidence_ids snake-case, reason (not reasonEn).
+    const data = JSON.stringify({
+      payload: {
+        source: 'modality-arbiter',
+        proposalId: 'inbox-row-77',
+        tabType: 'genui_document',
+        title: 'Document: royalty return',
+        reason: 'Generated royalty return ready to review.',
+        evidence_ids: ['borjie:ev:9', 'borjie:ev:10'],
+        confidence: 0.91,
+      },
+    });
+    const ok = handleTabSseFrame({
+      eventName: 'tab_proposal',
+      rawData: data,
+      handlers: { onArtifactProposal, onGenuiProposal, onProposal },
+    });
+    expect(ok).toBe(true);
+    expect(onArtifactProposal).toHaveBeenCalledTimes(1);
+    expect(onGenuiProposal).not.toHaveBeenCalled();
+    expect(onProposal).not.toHaveBeenCalled();
+    const arg = onArtifactProposal.mock.calls[0]?.[0];
+    expect(arg.artifactKind).toBe('document');
+    expect(arg.evidenceIds).toEqual(['borjie:ev:9', 'borjie:ev:10']);
+  });
+
+  it('routes a cockpit.tab.proposed envelope with a genui_ tabType to onArtifactProposal', () => {
+    const onArtifactProposal = vi.fn();
+    const data = JSON.stringify({
+      payload: {
+        proposalId: 'inbox-row-88',
+        tabType: 'genui_media',
+        title: 'Media: investor brand video',
+        reasonEn: 'Generated video ready to review.',
+        evidenceIds: ['borjie:ev:5'],
+      },
+    });
+    const ok = handleTabSseFrame({
+      eventName: 'cockpit.tab.proposed',
+      rawData: data,
+      handlers: { onArtifactProposal },
+    });
+    expect(ok).toBe(true);
+    expect(onArtifactProposal).toHaveBeenCalledTimes(1);
+    expect(onArtifactProposal.mock.calls[0]?.[0].artifactKind).toBe('media');
+  });
+
+  it('drops an artifact proposal with an empty evidence chain (no dispatch)', () => {
+    const onArtifactProposal = vi.fn();
+    const data = JSON.stringify({
+      payload: {
+        proposalId: 'p1',
+        artifactKind: 'forecast',
+        title: 'Forecast',
+        evidenceIds: [], // evidence-required — must be ≥1
+      },
+    });
+    const ok = handleTabSseFrame({
+      eventName: 'artifact_proposal',
+      rawData: data,
+      handlers: { onArtifactProposal },
+    });
+    expect(ok).toBe(false);
+    expect(onArtifactProposal).not.toHaveBeenCalled();
+  });
+
+  it('drops a cockpit.tab.proposed for a non-artifact tabType (no dispatch)', () => {
+    const onArtifactProposal = vi.fn();
+    const data = JSON.stringify({
+      payload: {
+        proposalId: 'p2',
+        tabType: 'finance', // a static-registry tab, not an artifact
+        title: 'Finance',
+        evidenceIds: ['borjie:ev:1'],
+      },
+    });
+    const ok = handleTabSseFrame({
+      eventName: 'cockpit.tab.proposed',
+      rawData: data,
+      handlers: { onArtifactProposal },
+    });
+    expect(ok).toBe(false);
+    expect(onArtifactProposal).not.toHaveBeenCalled();
   });
 });
 

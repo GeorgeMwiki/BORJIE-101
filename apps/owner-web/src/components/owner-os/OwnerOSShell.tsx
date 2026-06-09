@@ -39,7 +39,15 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { X, Plus, History, Sparkles, AlertCircle, Check } from 'lucide-react';
+import {
+  X,
+  Plus,
+  History,
+  Sparkles,
+  AlertCircle,
+  Check,
+  FileText,
+} from 'lucide-react';
 import { useViewportBreakpoint } from '@borjie/dynamic-sections';
 import {
   buildTabId,
@@ -62,6 +70,7 @@ import {
   type TabProposalPayload,
   type TabTagErrorPayload,
 } from '@/lib/tab-sse-parser';
+import { ARTIFACT_TITLE_BY_KIND } from './artifact-copy';
 import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import { apiRequest } from '@/lib/api-client';
 
@@ -94,6 +103,20 @@ const GenUITabHost = dynamic(
   () =>
     import('@/components/genui-tab/GenUITabHost.js').then(
       (m) => m.GenUITabHost,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
+
+/**
+ * Lazy, code-split modality artifact host (closure Wave 8 — the
+ * brain-proposal → artifact-render seam). Pulls in the membrane resolver +
+ * the DOMPurify-wrapped ArtifactRenderer; loads only when the owner opens a
+ * forecast / document / media artifact surfaced from chat.
+ */
+const ArtifactProposalHost = dynamic(
+  () =>
+    import('@/components/genui-tab/ArtifactProposalHost.js').then(
+      (m) => m.ArtifactProposalHost,
     ),
   { ssr: false, loading: () => <SurfaceSkeleton /> },
 );
@@ -165,6 +188,17 @@ export function OwnerOSShell({
   >([]);
   const [tabErrors, setTabErrors] = useState<
     ReadonlyArray<{ readonly key: string; readonly payload: TabTagErrorPayload }>
+  >([]);
+  // Closure Wave 8: modality artifact proposals (forecast / document / media).
+  // The brain surfaced a synthesized artifact from chat; we land a background
+  // `artifact` tab (resolved + rendered by ArtifactProposalHost) and drop a
+  // transparent "opened from chat" notice with Open + Undo.
+  const [artifactNotices, setArtifactNotices] = useState<
+    ReadonlyArray<{
+      readonly proposalId: string;
+      readonly title: string;
+      readonly tabId: string;
+    }>
   >([]);
   const errorKeyRef = useRef(0);
 
@@ -339,6 +373,37 @@ export function OwnerOSShell({
               );
             })();
           },
+          onArtifactProposal: (p) => {
+            // Closure Wave 8: a synthesized forecast / document / media
+            // artifact surfaced from chat. Land it as a BACKGROUND `artifact`
+            // tab (resolved + rendered on Open by ArtifactProposalHost from
+            // the membrane-projected descriptor), then drop a transparent
+            // "opened from chat" notice with Open + Undo. Never steals focus
+            // from the conversation; never renders the raw blob.
+            const kindLabel =
+              ARTIFACT_TITLE_BY_KIND[p.artifactKind][languagePreference];
+            const label =
+              p.title.length > 28 ? `${p.title.slice(0, 25)}…` : p.title;
+            const tabId = `artifact:${p.proposalId}`;
+            openBackground({
+              id: tabId,
+              kind: 'artifact',
+              title: `${kindLabel}: ${label}`,
+              context: {
+                proposalId: p.proposalId,
+                artifactKind: p.artifactKind,
+                artifactTitle: p.title,
+              },
+            });
+            setArtifactNotices((prev) =>
+              prev.some((x) => x.proposalId === p.proposalId)
+                ? prev
+                : [
+                    ...prev,
+                    { proposalId: p.proposalId, title: label, tabId },
+                  ].slice(-4),
+            );
+          },
           onError: (p) => {
             // A tab tag didn't apply (unknown type / validation). Surface
             // a polite, dismissible "that doesn't apply" chip.
@@ -396,6 +461,23 @@ export function OwnerOSShell({
   );
   const dismissNotice = useCallback((proposalId: string) => {
     setSpawnedNotices((prev) =>
+      prev.filter((n) => n.proposalId !== proposalId),
+    );
+  }, []);
+
+  // Artifact notice handlers — same Open / Undo / Dismiss contract as the
+  // genui spawned notices above.
+  const undoArtifact = useCallback(
+    (notice: { readonly proposalId: string; readonly tabId: string }) => {
+      close(notice.tabId);
+      setArtifactNotices((prev) =>
+        prev.filter((n) => n.proposalId !== notice.proposalId),
+      );
+    },
+    [close],
+  );
+  const dismissArtifactNotice = useCallback((proposalId: string) => {
+    setArtifactNotices((prev) =>
       prev.filter((n) => n.proposalId !== proposalId),
     );
   }, []);
@@ -559,6 +641,30 @@ export function OwnerOSShell({
             <GenUITabHost tabId={portalTabId} locale={languagePreference} />
           );
         }
+        case 'artifact': {
+          // Closure Wave 8: a modality artifact surface. context.proposalId is
+          // the modality proposal id ArtifactProposalHost resolves to the
+          // membrane-projected descriptor, then routes to the matching
+          // renderer (forecast → genui preview, document/media →
+          // DOMPurify-wrapped ArtifactRenderer).
+          const proposalId =
+            typeof tab.context?.proposalId === 'string'
+              ? (tab.context.proposalId as string)
+              : null;
+          if (!proposalId) return null;
+          const artifactTitle =
+            typeof tab.context?.artifactTitle === 'string'
+              ? (tab.context.artifactTitle as string)
+              : tab.title;
+          return (
+            <ArtifactProposalHost
+              proposalId={proposalId}
+              title={artifactTitle}
+              tradingName={tradingName}
+              locale={languagePreference}
+            />
+          );
+        }
         default: {
           const descriptor = getTab(tab.kind as OwnerOSTabType);
           if (!descriptor) return null;
@@ -601,6 +707,8 @@ export function OwnerOSShell({
     // Dynamic MD-authored tabs aren't in the static registry — mark them
     // with the same Sparkles glyph the proposal chip uses.
     if (kind === 'genui') return Sparkles;
+    // Modality artifact surfaces (forecast/document/media) — a document glyph.
+    if (kind === 'artifact') return FileText;
     const d = getTab(kind as OwnerOSTabType);
     return d ? resolveIcon(d.iconName) : null;
   }, []);
@@ -724,6 +832,7 @@ export function OwnerOSShell({
 
       {proposals.length > 0 ||
       spawnedNotices.length > 0 ||
+      artifactNotices.length > 0 ||
       tabErrors.length > 0 ? (
         <div
           data-testid="owner-os-proposal-tray"
@@ -822,6 +931,55 @@ export function OwnerOSShell({
               <button
                 type="button"
                 onClick={() => dismissNotice(n.proposalId)}
+                aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
+              >
+                <X aria-hidden="true" className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+          {artifactNotices.map((n) => (
+            <div
+              key={n.proposalId}
+              data-testid={`owner-os-artifact-spawned-${n.proposalId}`}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-info/30 bg-info/5 px-3 py-2"
+            >
+              <FileText
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 text-info"
+              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-semibold text-info">
+                  {languagePreference === 'sw'
+                    ? `Nimekuandalia "${n.title}" kutoka kwenye gumzo`
+                    : `Prepared "${n.title}" from your chat`}
+                </span>
+                <span className="truncate text-tiny text-neutral-400">
+                  {languagePreference === 'sw'
+                    ? 'Kipo kwenye mstari wa vichupo — endelea kuongea.'
+                    : "It's in your tab strip — keep chatting."}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openSpawned(n.tabId)}
+                data-testid={`owner-os-artifact-open-${n.proposalId}`}
+                className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-2 py-1 text-tiny font-semibold text-info hover:bg-info/20"
+              >
+                <Check aria-hidden="true" className="h-3 w-3" />
+                {languagePreference === 'sw' ? 'Fungua' : 'Open'}
+              </button>
+              <button
+                type="button"
+                onClick={() => undoArtifact(n)}
+                data-testid={`owner-os-artifact-undo-${n.proposalId}`}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny font-medium text-neutral-400 hover:text-foreground"
+              >
+                {languagePreference === 'sw' ? 'Tendua' : 'Undo'}
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissArtifactNotice(n.proposalId)}
                 aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
                 className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
               >

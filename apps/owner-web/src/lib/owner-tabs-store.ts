@@ -72,7 +72,11 @@ export type OwnerTabKind =
   | 'reports'
   // MD-authored dynamic tab rendered by GenUITabHost. Its `id` is the
   // persisted portal_tabs row id; `context.portalTabId` mirrors it.
-  | 'genui';
+  | 'genui'
+  // Modality artifact surface (forecast / document / media) rendered by
+  // ArtifactProposalHost. `context.proposalId` carries the modality proposal
+  // id the host resolves to the membrane-projected descriptor.
+  | 'artifact';
 
 export interface OwnerTab {
   /** Stable id. Deterministic by (kind, context) for dedup; literal for built-ins. */
