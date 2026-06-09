@@ -18,4 +18,6 @@ export {
   type EstateProposal,
   type PerceptionSource,
   type ProposalSink,
+  type ReconciliationPort,
+  type ReconcileResult,
 } from './types.js';

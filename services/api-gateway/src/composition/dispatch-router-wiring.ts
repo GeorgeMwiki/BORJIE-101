@@ -1,10 +1,11 @@
 /**
- * Wave-3-int2 — Dispatch-router + ESTATE handler-set composition.
+ * Wave-3-int2 — Dispatch-router + MINING handler-set composition.
  *
  * Wires:
  *   - dispatch-router primitives (already provided by piece-l's
  *     brain-tab-loop-wiring)
- *   - the 5 ESTATE accept-proposal handlers
+ *   - the 3 MINING accept-proposal handlers (schedule_licence_renewal,
+ *     open_equipment_maintenance, bulk_mark_licences_for_renewal)
  *   - a tenant-override routing-rules loader (in-memory default; the
  *     Drizzle-backed loader is a follow-up so this file stays
  *     build-light at CI time)
@@ -18,6 +19,13 @@
  * upgrades to use the unified `runDispatchPipeline` (OTel-instrumented,
  * tenant-override aware, bulk-op safety enforced) and registers the
  * REAL handler registry instead of the stub.
+ *
+ * NOTE: the pre-Borjie property-era ESTATE dispatch actions
+ * (`create_lease_application`, `post_receipt_draft`) were EXCISED — they
+ * are lease/rent/tenant-deposit property concepts with no mining-estate
+ * equivalent (a mining estate uses licences + royalty/sales, whose real
+ * money already flows through `LedgerService.post()` in
+ * `services/payments-ledger`). No dispatch path here touches money.
  */
 
 import {
@@ -43,9 +51,7 @@ import {
   type TabEventLogStore,
 } from '@borjie/dispatch-router';
 import {
-  buildEstateHandlerSet,
   createModuleHandlerRegistry,
-  type EstateHandlerDeps,
   type MiningHandlerDeps,
 } from '@borjie/module-templates';
 
@@ -88,14 +94,6 @@ export interface DispatchRouterWiring {
 // ─── Deps ────────────────────────────────────────────────────────────────
 
 export interface DispatchRouterWiringDeps {
-  /**
-   * Estate handler ports. OPTIONAL and NO LONGER registered: the two ESTATE
-   * actions (`create_lease_application`, `post_receipt_draft`) are
-   * property-domain leftovers, gated off for the mining product (see
-   * `createModuleHandlerRegistry`). Kept as an optional field so the
-   * composition root need not change in lock-step.
-   */
-  readonly estate?: EstateHandlerDeps;
   /**
    * Mining handler ports (closes the historical gh-issue #34 work-item —
    * replaces the pre-Borjie estate stubs). Optional so early-wave
@@ -148,20 +146,16 @@ export function createDispatchRouterWiring(
     createInMemoryRoutingRulesLoader();
   const routingRules = deps.routingRules ?? routingRulesLoader;
 
-  // 4. Handler registry — real one with ESTATE + MINING adapters by
-  //    default. MINING handlers close the historical gh-issue #34
-  //    work-item: the 3 pre-Borjie estate stubs (open_maintenance_case,
+  // 4. Handler registry — real one with the MINING adapters. MINING
+  //    handlers close the historical gh-issue #34 work-item: the 3
+  //    pre-Borjie estate stubs (open_maintenance_case,
   //    schedule_renewal_negotiation, bulk_mark_for_renewal_prep) are
   //    ported to mining-domain (asset_id, licence_id, etc.) and
-  //    registered under the MINING module slug.
+  //    registered under the MINING module slug. The property-era ESTATE
+  //    actions were excised — they are no longer registrable.
   const handlerRegistry =
     deps.handlerRegistry ??
     createModuleHandlerRegistry({
-      // ESTATE deliberately NOT forwarded — the two property-domain leftover
-      // actions are gated off for the mining product. createModuleHandlerRegistry
-      // only registers estate when its deps are supplied, so omitting them here
-      // keeps `create_lease_application` / `post_receipt_draft` out of the
-      // registry entirely (the brain can never dispatch them → no failed proposals).
       ...(deps.mining ? { mining: deps.mining } : {}),
     });
 
@@ -243,69 +237,6 @@ export function createDispatchRouterWiring(
       proposals: proposalStore,
       events: eventLog,
       auditSink,
-    },
-  };
-}
-
-/**
- * Convenience: build a stub estate-handler-deps surface for tests +
- * dev composition where the real ports (LedgerService.post, etc.) are
- * not yet wired. Every port returns a stable fake id so the dispatcher's
- * accept_proposal path is exercisable end-to-end.
- *
- * The 3 pre-Borjie estate stubs (openMaintenanceCase,
- * scheduleRenewalNegotiation, bulkMarkForRenewalPrep) have been
- * dropped — their mining-domain replacements live in
- * `createStubMiningHandlerDeps()` below. Closes the historical
- * gh-issue #34 work-item.
- */
-export function createStubEstateHandlerDeps(): EstateHandlerDeps {
-  const auditChain = {
-    async append() {
-      return { id: `stub_audit_${Math.random().toString(36).slice(2, 8)}` };
-    },
-  };
-  const notifications = {
-    async publish() {
-      /* no-op in dev */
-    },
-  };
-  return {
-    moduleId: 'ESTATE',
-    createLeaseApplication: {
-      coreEntity: {
-        async findById() {
-          return null;
-        },
-        async createPerson() {
-          return { id: `stub_person_${Math.random().toString(36).slice(2, 8)}` };
-        },
-      },
-      ledger: {
-        async post() {
-          return { id: `stub_ledger_${Math.random().toString(36).slice(2, 8)}` };
-        },
-      },
-      applications: {
-        async draftApplication() {
-          return { id: `stub_app_${Math.random().toString(36).slice(2, 8)}` };
-        },
-      },
-      auditChain,
-      notifications,
-    },
-    postReceiptDraft: {
-      ledger: {
-        async draft() {
-          return { id: `stub_ledger_draft_${Math.random().toString(36).slice(2, 8)}` };
-        },
-      },
-      receipts: {
-        async draft() {
-          return { id: `stub_receipt_${Math.random().toString(36).slice(2, 8)}` };
-        },
-      },
-      auditChain,
     },
   };
 }
@@ -393,6 +324,6 @@ export function createStubMiningHandlerDeps(): MiningHandlerDeps {
   };
 }
 
-// Re-export the handler set builder so dependants can grab it without
+// Re-export the registry builder so dependants can grab it without
 // importing both packages.
-export { buildEstateHandlerSet, createModuleHandlerRegistry };
+export { createModuleHandlerRegistry };

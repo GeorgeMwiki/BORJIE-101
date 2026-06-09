@@ -46,6 +46,13 @@ import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 import { OWNER_SAVED_SEARCH_TOOLS } from './owner-saved-search-tools';
 import { SUPERPOWERS_TOOLS } from './superpowers-tools';
 import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
+// MD DEFERRAL / FOLLOW-THROUGH — Mr. Mwikila's "defer with intent + hold a
+// durable backlog + confirm it actually happened" surface (md.defer /
+// md.commitment.{create,list,update,confirm}). Persists into the durable
+// md_commitments ledger (migration 0321); the EstateMind reconcile sweep brings
+// each commitment back on its trigger and never drops a thread. See
+// Docs/research/THE_BRAIN_DEFERRAL_FOLLOWTHROUGH_CAPABILITY.md.
+import { MD_DEFER_TOOLS } from './md-defer-tools';
 import { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
 // Wave UNWIRED-LOGIC-SWEEP-2 — opportunity + risk scanner brain tools.
 // Surfaces the existing 33-rule opportunity scanner and 33-rule risk
@@ -228,6 +235,7 @@ export function buildPersonaToolHandlers(
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
       DECISION_JOURNAL_TOOLS,
+      MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
@@ -296,6 +304,7 @@ export function listPersonaToolDescriptors(
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
       DECISION_JOURNAL_TOOLS,
+      MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
@@ -374,6 +383,10 @@ export {
   DECISION_JOURNAL_TOOLS,
   configureDecisionJournalTools,
 } from './decision-journal-tools';
+export {
+  MD_DEFER_TOOLS,
+  configureMdDeferTools,
+} from './md-defer-tools';
 export { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
 export {
   OPPORTUNITY_SCANNER_TOOLS,

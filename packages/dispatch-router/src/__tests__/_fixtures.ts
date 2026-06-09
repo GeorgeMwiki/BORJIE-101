@@ -97,10 +97,10 @@ export function setupWave3Deps(): Wave3Deps {
 
 export const bulkOpMatrixRow: RoutingMatrixRow = {
   id: 'L-ROW-BULK-1',
-  entity_type: 'lease',
+  entity_type: 'document',
   intent: 'propose_action',
-  module_template_id: 'ESTATE',
-  action: 'bulk_mark_for_renewal_prep',
+  module_template_id: 'MINING',
+  action: 'bulk_mark_licences_for_renewal',
   min_confidence: 0.5,
   auto_apply_threshold: 0.6, // would normally auto-apply
   hitl_required: false, // platform-row says no HITL... but bulk_ ops force it
@@ -115,7 +115,7 @@ export const paymentObservationMatrixRow: RoutingMatrixRow = {
   entity_type: 'amount',
   intent: 'file_event',
   module_template_id: 'FINANCE',
-  action: 'post_receipt_draft',
+  action: 'record_payment_observation',
   min_confidence: 0.6,
   auto_apply_threshold: 0.95,
   hitl_required: true,

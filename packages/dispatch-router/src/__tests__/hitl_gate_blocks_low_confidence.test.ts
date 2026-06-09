@@ -62,8 +62,10 @@ describe('Wave-3-int2 hitl_gate_blocks_low_confidence', () => {
   it('high-confidence non-HITL row still respects GLOBAL_AUTO_APPLY_FLOOR', async () => {
     const deps = setupWave3Deps();
     const handlerRegistry = createStubHandlerRegistry();
-    // confidence 0.84 — above L-ROW-03 auto_apply (0.85)? NO — just below
-    // the global floor (0.85). So auto-apply must NOT fire.
+    // L-ROW-06 (LITFIN.append_payment_received) is the surviving
+    // auto-applyable (hitl_required=false) non-bulk row. Confidence 0.84 is
+    // below its auto_apply_threshold (0.85) AND below the global floor
+    // (0.85), so auto-apply must NOT fire — it stays pending_hitl.
     const result = await runDispatchPipeline(
       {
         tenant_id: 'trc',
@@ -72,9 +74,9 @@ describe('Wave-3-int2 hitl_gate_blocks_low_confidence', () => {
           capture_confidence: 0.84,
           entities: [
             {
-              type: 'lease',
-              canonical_id: 'le_1',
-              raw_value: 'lease',
+              type: 'invoice',
+              canonical_id: 'inv_1',
+              raw_value: 'invoice 1',
               confidence: 0.95,
               source: 'exact',
             },
@@ -90,8 +92,10 @@ describe('Wave-3-int2 hitl_gate_blocks_low_confidence', () => {
         auditSink: deps.auditSink,
       },
     );
-    const leaseEvt = result.proposals.find((p) => p.action === 'append_lease_event');
-    expect(leaseEvt).toBeDefined();
-    expect(leaseEvt!.status).toBe('pending_hitl');
+    const paymentEvt = result.proposals.find(
+      (p) => p.action === 'append_payment_received',
+    );
+    expect(paymentEvt).toBeDefined();
+    expect(paymentEvt!.status).toBe('pending_hitl');
   });
 });

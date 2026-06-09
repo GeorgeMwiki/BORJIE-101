@@ -21,13 +21,15 @@ describe('Wave-3-int2 cross_tenant_isolation', () => {
     const deps = setupWave3Deps();
     const handlerRegistry = createStubHandlerRegistry();
 
-    // Tenant A registers a fake high-priority override row.
+    // Tenant A registers a fake high-priority override row on the same
+    // (customer × propose_action) pair the platform default TRC-EMU row
+    // (L-ROW-09) covers.
     const overrideRow: RoutingMatrixRow = {
       id: 'TENANT_A_OVERRIDE_1',
       entity_type: 'customer',
       intent: 'propose_action',
-      module_template_id: 'ESTATE',
-      action: 'create_lease_application',
+      module_template_id: 'TRC-EMU',
+      action: 'enrol_consumer_account',
       min_confidence: 0.5,
       auto_apply_threshold: 0.55, // very generous — would auto-apply!
       hitl_required: false, // bypass HITL
@@ -56,15 +58,17 @@ describe('Wave-3-int2 cross_tenant_isolation', () => {
       },
     );
 
-    // tenant_b uses ONLY the platform-default ESTATE row (hitl_required=true).
-    const lease = result.proposals.find(
-      (p) => p.module_template_id === 'ESTATE' && p.action === 'create_lease_application',
+    // tenant_b uses ONLY the platform-default TRC-EMU row (hitl_required=true).
+    const enrol = result.proposals.find(
+      (p) =>
+        p.module_template_id === 'TRC-EMU' &&
+        p.action === 'enrol_consumer_account',
     );
-    expect(lease).toBeDefined();
-    expect(lease!.matrix_row_id).toBe('L-ROW-01'); // platform row, NOT override
-    expect(lease!.hitl_required).toBe(true);
-    expect(lease!.priority).toBe('high'); // NOT critical
-    expect(lease!.tenant_id).toBe('tenant_b'); // own tenant only
+    expect(enrol).toBeDefined();
+    expect(enrol!.matrix_row_id).toBe('L-ROW-09'); // platform row, NOT override
+    expect(enrol!.hitl_required).toBe(true);
+    expect(enrol!.priority).toBe('medium'); // platform value, NOT critical
+    expect(enrol!.tenant_id).toBe('tenant_b'); // own tenant only
   });
 
   it("tenant A's proposals do not appear in tenant B's snapshot", async () => {

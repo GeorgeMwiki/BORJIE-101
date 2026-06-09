@@ -98,6 +98,23 @@ export {
   type ListLedgerOptions,
 } from './accounting-ledger-read.repository.js';
 
+// MD commitments (migration 0321) — the durable DEFERRAL / FOLLOW-THROUGH
+// commitment ledger (the brain's prospective-memory backlog + the closed
+// loop). Drizzle adapter runs every method inside withServiceRoleContext so the
+// out-of-band EstateMind RECONCILE sweep can read + advance commitments while
+// RLS FORCE isolates every request caller. In-memory twin for tests. Honest
+// closure: markDone REQUIRES a confirmation proof; create is idempotent on
+// (tenantId, idempotencyKey); evidence-required at the row boundary.
+export {
+  createDrizzleMdCommitmentRepository,
+  createInMemoryMdCommitmentRepository,
+  type MdCommitment,
+  type MdCommitmentRepository,
+  type CreateMdCommitmentInput,
+  type TransitionInput as MdCommitmentTransitionInput,
+  type ConfirmInput as MdCommitmentConfirmInput,
+} from './md-commitment-repository.js';
+
 // Enum guards — bug fix A-BUG-DEEP #9. Property-domain enums (lease,
 // customer, document) retained as opaque type aliases until the
 // mining-domain equivalents replace them.

@@ -33,9 +33,9 @@ function mkCapture(overrides: Partial<ConversationCapture> = {}): ConversationCa
     decision_kind: 'answer',
     entities: [
       {
-        type: 'lease',
-        canonical_id: 'le_1',
-        raw_value: 'le_1',
+        type: 'invoice',
+        canonical_id: 'inv_1',
+        raw_value: 'inv_1',
         confidence: 0.95,
         source: 'exact_name',
       },
@@ -253,9 +253,9 @@ describe('dispatchToTabs — auto-apply failure path', () => {
     const eventLog = createInMemoryEventLogStore();
     const failingHandler = vi
       .fn()
-      .mockResolvedValue({ ok: false, error: 'invalid lease state' });
+      .mockResolvedValue({ ok: false, error: 'invalid payment state' });
     const handlerRegistry = createStubHandlerRegistry({
-      overrides: { 'ESTATE.append_lease_event': failingHandler },
+      overrides: { 'LITFIN.append_payment_received': failingHandler },
     });
     const [first] = await dispatchToTabs(
       {
@@ -269,7 +269,7 @@ describe('dispatchToTabs — auto-apply failure path', () => {
     expect(failingHandler).toHaveBeenCalled();
     const refreshed = await proposalStore.findById('trc', first!.id);
     expect(refreshed?.status).toBe('failed');
-    expect(refreshed?.failure_reason).toBe('invalid lease state');
+    expect(refreshed?.failure_reason).toBe('invalid payment state');
   });
 
   it('uses default ttl when not overridden', async () => {

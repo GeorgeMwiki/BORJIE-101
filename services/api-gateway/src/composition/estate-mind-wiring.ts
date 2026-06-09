@@ -48,9 +48,26 @@ import {
   situationalModelEntities,
   createDatabaseClient,
 } from '@borjie/database';
+import {
+  createDrizzleMdCommitmentRepository,
+  type MdCommitment,
+  type MdCommitmentRepository,
+} from '@borjie/database/repositories';
 import { eq, and } from 'drizzle-orm';
 import type { PinoLikeLogger } from '../utils/pino-shim.js';
 import { createPinoLikeLogger } from '../utils/pino-shim.js';
+import { publishCockpitEvent } from '../services/cockpit-events/index.js';
+import {
+  createReconcileEngine,
+  type ConfirmationProbe,
+  type CommitmentAuditSink,
+} from './md-commitments/reconcile-engine.js';
+import {
+  createWaitForEventSubscriber,
+  type ConditionEvaluator,
+  type WaitForEventSubscriber,
+} from './md-commitments/wait-for.js';
+import type { LadderDispatchers } from './md-commitments/ladder-engine.js';
 
 // `DatabaseClient` collides with a drizzle-orm/postgres-js namespace
 // declaration when imported by name (TS2709). Derive the type locally from the
@@ -80,6 +97,7 @@ type SituationEntityKey = situationalModelKernel.SituationEntityKey;
 type ProposalSink = estateMindKernel.ProposalSink;
 type EstateProposal = estateMindKernel.EstateProposal;
 type PerceptionSource = estateMindKernel.PerceptionSource;
+type ReconciliationPort = estateMindKernel.ReconciliationPort;
 type OrchestratorRequest = orchestrator.OrchestratorRequest;
 
 const DEFAULT_INTERVAL_MS = 15 * 60 * 1000; // 15 min — estate horizons
@@ -457,6 +475,203 @@ export function composeDualSink(
 }
 
 // ---------------------------------------------------------------------------
+// 2c. The RECONCILE engine — the DEFERRAL / FOLLOW-THROUGH sweep (never-drop-
+//     a-thread). Composes the durable md_commitments store + the EXISTING gated
+//     proposal sink + the LIVE reminder ladder (cockpit / reminders SMS+email /
+//     mwikila_actions_inbox safe-halt / mining_escalations) — no new channel.
+// ---------------------------------------------------------------------------
+
+const RUNG_TTL_MS = 24 * 60 * 60 * 1000; // safe-halt proposal_ttl horizon (24h)
+
+/**
+ * Build the LIVE ladder dispatchers. Each rung composes an EXISTING channel
+ * via a best-effort SQL write (every dispatcher is wrapped — a channel outage
+ * or a constraint mismatch degrades, it never breaks the sweep). The
+ * dispatchers run OUT OF BAND, so each write is service-role-scoped.
+ *
+ *   rung 0  in-app   → publishCockpitEvent('mwikila.proposes')
+ *   rung 1  email    → a `reminders` row (channel='email'); the existing
+ *                      reminders-dispatch worker delivers it (quiet-hours aware)
+ *   rung 2  SMS      → a `reminders` row (channel='sms'); same worker, SMS path
+ *   rung 3  owner-   → a `mwikila_actions_inbox` SAFE-HALT row (status='proposed'
+ *           direct     + proposal_ttl_at). For a sovereign commitment this is
+ *                      surface-and-wait — NEVER auto-executed.
+ *   rung 4  escalate → a `mining_escalations` row (owner severity).
+ */
+function createLiveLadderDispatchers(
+  db: DbExecLike,
+  logger: PinoLikeLogger,
+): LadderDispatchers {
+  async function exec(query: unknown, label: string, c: MdCommitment): Promise<void> {
+    try {
+      await db.execute(query);
+    } catch (err) {
+      logger.warn(
+        { commitmentId: c.id, rung: label, err: errMsg(err) },
+        'estate-mind-ladder: dispatch write failed (swallowed)',
+      );
+    }
+  }
+
+  function reminderRow(c: MdCommitment, channel: 'email' | 'sms'): unknown {
+    const idem = `mdc:${c.id}:rung:${channel}:${c.attemptCount}`;
+    const rowId = `mdc_${c.id}_${channel}_${c.attemptCount}`;
+    return sql`
+      INSERT INTO reminders
+        (id, tenant_id, owner_id, title, body, trigger_at, channel, status,
+         payload, idempotency_key)
+      VALUES
+        (${rowId}, ${c.tenantId}, ${c.ownerId}, ${c.title}, ${c.rationale},
+         now(), ${channel}, 'scheduled',
+         ${JSON.stringify({ source: 'md-commitment', commitmentId: c.id })}::jsonb,
+         ${idem})
+      ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+    `;
+  }
+
+  return {
+    async inApp(c) {
+      // The proactive tray. Publish through the in-process cockpit bus; a
+      // listener-less emit is a harmless no-op.
+      try {
+        publishCockpitEvent({
+          kind: 'mwikila.proposes',
+          tenantId: c.tenantId,
+          emittedAt: new Date().toISOString(),
+          actionId: c.id,
+          actionKind: c.kind,
+          category: 'contract-followups',
+          delegationTier: 'T0',
+          summary: c.title,
+        });
+      } catch (err) {
+        logger.warn(
+          { commitmentId: c.id, err: errMsg(err) },
+          'estate-mind-ladder: in-app publish failed (swallowed)',
+        );
+      }
+    },
+    async email(c) {
+      await exec(reminderRow(c, 'email'), 'email', c);
+    },
+    async sms(c) {
+      await exec(reminderRow(c, 'sms'), 'sms', c);
+    },
+    async ownerDirectSafeHalt(c) {
+      // SAFE-HALT — surface to the mwikila_actions_inbox and WAIT. The row is
+      // `proposed` with a proposal_ttl; it is NEVER auto-executed. TTL expiry
+      // parks it (expired) and re-surfaces — it does not auto-file (0129 model).
+      const ttl = new Date(Date.now() + RUNG_TTL_MS).toISOString();
+      const category = c.sovereign
+        ? 'compliance-filings'
+        : 'contract-followups';
+      await exec(
+        sql`
+          INSERT INTO mwikila_actions_inbox
+            (tenant_id, acting_on_user_id, action_kind, category,
+             delegation_tier, status, summary, summary_sw, rationale,
+             payload, proposal_ttl_at, provenance)
+          SELECT ${c.tenantId}, ${c.ownerId}, ${`commitment.${c.kind}`},
+                 ${category}, 'T1', 'proposed', ${c.title}, ${c.titleSw},
+                 ${c.rationale},
+                 ${JSON.stringify({ commitmentId: c.id, sovereign: c.sovereign })}::jsonb,
+                 ${ttl}::timestamptz,
+                 ${JSON.stringify({ via: 'md-commitment-safe-halt' })}::jsonb
+           WHERE EXISTS (SELECT 1 FROM users WHERE id = ${c.ownerId})
+             AND NOT EXISTS (
+               SELECT 1 FROM mwikila_actions_inbox
+                WHERE tenant_id = ${c.tenantId}
+                  AND status = 'proposed'
+                  AND payload ->> 'commitmentId' = ${c.id}
+             )
+        `,
+        'owner-direct-safe-halt',
+        c,
+      );
+    },
+    async escalate(c) {
+      // Top rung — raise the alarm louder via a mining_escalations row
+      // broadcast to the owner role. Still never auto-actuates: an overdue
+      // sovereign obligation escalates to HITL, it does not auto-file. The
+      // table is uuid-typed (tenant_id / raised_by_user_id) and constrains
+      // source_kind ∈ {incident,task,crew,production,safety}; we raise it as a
+      // 'task' escalation under the tenant owner. The SELECT resolves a real
+      // owner uuid so the NOT NULL FK holds; if none resolves the write is a
+      // no-op (swallowed) rather than a constraint error.
+      const summary = `${c.title} — ${c.rationale}`.slice(0, 1000);
+      await exec(
+        sql`
+          INSERT INTO mining_escalations
+            (tenant_id, raised_by_user_id, to_role, source_kind, context_sw,
+             severity, status)
+          SELECT ${c.tenantId}::uuid, u.id, 'owner', 'task', ${summary},
+                 'critical', 'open'
+            FROM users u
+           WHERE u.tenant_id = ${c.tenantId}
+             AND u.id ~ '^[0-9a-fA-F-]{36}$'
+             AND NOT EXISTS (
+               SELECT 1 FROM mining_escalations e
+                WHERE e.tenant_id = ${c.tenantId}::uuid
+                  AND e.status = 'open'
+                  AND e.context_sw = ${summary}
+             )
+           LIMIT 1
+        `,
+        'escalate',
+        c,
+      );
+    },
+  };
+}
+
+export interface MdCommitmentReconciliationDeps {
+  readonly db: (DatabaseClient & DbExecLike) | null;
+  readonly logger: PinoLikeLogger;
+  /** Evaluates `condition` trigger predicates against estate state. Optional. */
+  readonly conditionEvaluator?: ConditionEvaluator | null;
+  /** Positive-proof probe for close-the-loop. Optional (nothing auto-closes when absent). */
+  readonly confirmationProbe?: ConfirmationProbe | null;
+  /** Hash-chained closure/transition audit sink. Optional. */
+  readonly auditSink?: CommitmentAuditSink | null;
+}
+
+/**
+ * Build the durable md_commitments reconcile engine the composition root injects
+ * into the EstateMind supervisor. Also returns the repository + the WaitFor
+ * event subscriber so the composition root can wire the LedgerService.post
+ * credit hook + the blackboard SLOT_DELTA stale-decay seam to flip
+ * waiting_for → due. Returns `null` when no db is present (the loop is inert).
+ */
+export function createMdCommitmentReconciliation(
+  deps: MdCommitmentReconciliationDeps,
+): {
+  readonly reconciliation: ReconciliationPort;
+  readonly repository: MdCommitmentRepository;
+  readonly eventSubscriber: WaitForEventSubscriber;
+} | null {
+  if (!deps.db) return null;
+  const repository = createDrizzleMdCommitmentRepository(deps.db);
+  const ladderDispatchers = createLiveLadderDispatchers(deps.db, deps.logger);
+  // The gated proposal sink the reconcile sweep resurfaces through — the EXACT
+  // proactive_nudge contract drainProactiveNudges already surfaces.
+  const proposalSink = createTabEventLogProposalSink(deps.db, deps.logger);
+  const reconciliation = createReconcileEngine({
+    repo: repository,
+    proposalSink,
+    ladderDispatchers,
+    conditionEvaluator: deps.conditionEvaluator ?? null,
+    confirmationProbe: deps.confirmationProbe ?? null,
+    auditSink: deps.auditSink ?? null,
+    logger: deps.logger,
+  });
+  const eventSubscriber = createWaitForEventSubscriber({
+    repo: repository,
+    logger: deps.logger,
+  });
+  return { reconciliation, repository, eventSubscriber };
+}
+
+// ---------------------------------------------------------------------------
 // 3. The leader-elected heartbeat supervisor
 // ---------------------------------------------------------------------------
 
@@ -520,6 +735,13 @@ export interface EstateMindSupervisorDeps {
   readonly spineSink?: OrchestratorProposalSink | null;
   /** Per-tenant drive thresholds (tenant-tunable risk appetite). */
   readonly thresholds?: motivationKernel.DriveThresholds;
+  /**
+   * RECONCILE port — the DEFERRAL / FOLLOW-THROUGH sweep over the durable
+   * md_commitments backlog. When omitted the EstateMind tick runs exactly as
+   * before (the deferral organ is purely additive). The composition root
+   * injects the real engine via `createMdCommitmentReconciliation`.
+   */
+  readonly reconciliation?: ReconciliationPort | null;
 }
 
 async function defaultListActiveTenantIds(
@@ -591,6 +813,10 @@ export function createEstateMindSupervisor(
       motivation,
       perception: deps.perception ?? null,
       proposalSink,
+      // RECONCILE — the DEFERRAL / FOLLOW-THROUGH sweep (never-drop-a-thread).
+      // When omitted the tick runs exactly as before (purely additive); the
+      // composition root injects the durable md_commitments reconcile engine.
+      reconciliation: deps.reconciliation ?? null,
       logger: kernelLogger,
     });
 

@@ -7,8 +7,8 @@
  * the matrix correctly for the money path.
  *
  * Per the hard rule, money mutations go through LedgerService.post() —
- * but THIS test only verifies routing. The handler (post_receipt_draft)
- * is covered by the registry tests.
+ * but THIS test only verifies routing. The downstream LITFIN handler is
+ * covered by the registry tests.
  */
 
 import { describe, it, expect } from 'vitest';

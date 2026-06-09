@@ -8,18 +8,18 @@
  * real ports injected; tests build it with port fakes.
  *
  * Currently registers:
- *   - ESTATE   — 2 actions (`create_lease_application`, `post_receipt_draft`)
- *                GATED OFF: property-domain leftovers, only registered when
- *                `deps.estate` is explicitly supplied (legacy/property tests);
- *                the mining gateway no longer supplies them.
  *   - MINING   — 3 actions (`schedule_licence_renewal`,
  *                `open_equipment_maintenance`,
  *                `bulk_mark_licences_for_renewal`)
  *
+ * The pre-Borjie property-era ESTATE actions (`create_lease_application`,
+ * `post_receipt_draft`) were EXCISED — a mining estate uses licences (not
+ * leases) and routes receipts through the real royalty/sales/ledger paths.
+ *
  * Other modules (HR, FINANCE, etc.) attach handlers as their wave-3
  * follow-ups land — each new module exports its own
- * `build<Module>HandlerSet` similar to the estate/mining adapter files,
- * and `createModuleHandlerRegistry` merges them.
+ * `build<Module>HandlerSet` similar to the mining adapter file, and
+ * `createModuleHandlerRegistry` merges them.
  *
  * The registry implementation is dispatch-router-compatible: it returns
  * an `AcceptHandlerRegistry` whose `.get(module, action)` is O(1).
@@ -29,12 +29,6 @@ import type {
   AcceptHandler,
   AcceptHandlerRegistry,
 } from '@borjie/dispatch-router';
-import {
-  buildEstateHandlerSet,
-  ESTATE_ACTIONS,
-  type BuildEstateHandlerSet,
-  type EstateHandlerDeps,
-} from './estate/accept-proposal-handlers.js';
 import {
   buildMiningHandlerSet,
   MINING_ACTIONS,
@@ -56,17 +50,6 @@ export interface ModuleHandlerRegistry extends AcceptHandlerRegistry {
 
 export interface CreateModuleHandlerRegistryDeps {
   /**
-   * Estate template injections. OPTIONAL and gated OFF for the mining product:
-   * the two ESTATE actions (`create_lease_application`, `post_receipt_draft`)
-   * are property-domain leftovers with no mining-estate equivalent — a mining
-   * estate uses licences (not leases) and routes receipts through the real
-   * royalty/sales/ledger paths, all of which have their own real handlers.
-   * When `estate` is omitted the estate actions are NOT registered, so the
-   * brain can never dispatch a property action that would flip a proposal to
-   * `failed`. Provide it only for legacy/property tests.
-   */
-  readonly estate?: EstateHandlerDeps;
-  /**
    * Mining template injections. Optional so callers that have not yet
    * wired mining ports (e.g. early-wave tests) still resolve.
    */
@@ -75,7 +58,6 @@ export interface CreateModuleHandlerRegistryDeps {
   readonly overrides?: Readonly<Record<string, AcceptHandler>>;
 }
 
-const ESTATE_MODULE_ID = 'ESTATE';
 const MINING_MODULE_ID = 'MINING';
 
 /**
@@ -87,21 +69,9 @@ export function createModuleHandlerRegistry(
 ): ModuleHandlerRegistry {
   const handlers = new Map<string, AcceptHandler>();
 
-  // ESTATE — property-domain leftovers (create_lease_application,
-  // post_receipt_draft). GATED OFF for the mining product: registered ONLY
-  // when estate deps are explicitly supplied (legacy/property tests). The
-  // gateway composition no longer supplies them, so these actions never enter
-  // the registry and the brain can never dispatch a property action that would
-  // flip a proposal to `failed`.
-  if (deps.estate) {
-    const estateSet: BuildEstateHandlerSet = buildEstateHandlerSet(deps.estate);
-    for (const action of ESTATE_ACTIONS) {
-      const handler = estateSet[action];
-      handlers.set(key(ESTATE_MODULE_ID, action), handler);
-    }
-  }
-
-  // MINING — 3 actions (when wired).
+  // MINING — 3 actions (when wired). The pre-Borjie property-era ESTATE
+  // actions were excised, so the brain can never dispatch a property
+  // action that would flip a proposal to `failed`.
   if (deps.mining) {
     const miningSet: BuildMiningHandlerSet = buildMiningHandlerSet(deps.mining);
     for (const action of MINING_ACTIONS) {

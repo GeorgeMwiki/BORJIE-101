@@ -7,7 +7,7 @@
  *   - approveProposal()    : HITL approval handler
  *   - declineProposal()    : HITL decline handler
  *   - editProposal()       : HITL edit-then-approve handler
- *   - PLATFORM_ROUTING_MATRIX : 17-row default matrix
+ *   - PLATFORM_ROUTING_MATRIX : 13-row default matrix
  *   - In-memory stores + stub handler registry for tests
  *   - Zod schemas for runtime validation at the kernel/api boundary
  */

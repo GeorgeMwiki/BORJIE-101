@@ -2,21 +2,17 @@
  * template-specs.test.ts — Validate every shipped template's spec
  * against the locked DSL grammar from @borjie/module-spec-engine.
  *
- * Pin down the contract: 10 platform built-ins, each with ≥3 entities,
+ * Pin down the contract: 9 platform built-ins, each with ≥3 entities,
  * ≥2 workflows, ≥3 ui_sections, and the spec must compile cleanly for
- * a synthetic tenant id.
+ * a synthetic tenant id. (The pre-Borjie property-era ESTATE bundle was
+ * excised for the mining product.)
  */
 
 import { describe, it, expect } from 'vitest';
 import { validateSpec, compileSpec } from '@borjie/module-spec-engine';
-import {
-  ALL_TEMPLATE_BUNDLES,
-  findBundle,
-  estateBundle,
-} from '../index.js';
+import { ALL_TEMPLATE_BUNDLES, findBundle } from '../index.js';
 
 const REQUIRED_SLUGS = [
-  'ESTATE',
   'HR',
   'FLEET',
   'PROCUREMENT',
@@ -29,8 +25,8 @@ const REQUIRED_SLUGS = [
 ];
 
 describe('ALL_TEMPLATE_BUNDLES', () => {
-  it('ships exactly 10 platform-built-in bundles', () => {
-    expect(ALL_TEMPLATE_BUNDLES.length).toBe(10);
+  it('ships exactly 9 platform-built-in bundles', () => {
+    expect(ALL_TEMPLATE_BUNDLES.length).toBe(9);
   });
 
   it('covers every required slug', () => {
@@ -38,10 +34,10 @@ describe('ALL_TEMPLATE_BUNDLES', () => {
     expect(slugs).toEqual([...REQUIRED_SLUGS].sort());
   });
 
-  it('findBundle returns ESTATE bundle by slug', () => {
-    const found = findBundle('ESTATE');
+  it('findBundle returns HR bundle by slug', () => {
+    const found = findBundle('HR');
     expect(found).toBeDefined();
-    expect(found?.titleEn).toBe('Estate Management');
+    expect(found?.slug).toBe('HR');
   });
 
   it('findBundle returns undefined for an unknown slug', () => {
@@ -105,14 +101,3 @@ describe.each(ALL_TEMPLATE_BUNDLES)(
   },
 );
 
-describe('ESTATE bundle — handler depth', () => {
-  it('ships create_lease_application as the proof-of-concept handler', () => {
-    const handler = estateBundle.acceptHandlers.find(
-      (h) => h.action === 'create_lease_application',
-    );
-    expect(handler).toBeDefined();
-    expect(handler?.riskTier).toBe('HIGH');
-    expect(handler?.emitsMoneyMutation).toBe(true);
-    expect(handler?.allowedPersonaTiers).toContain(2);
-  });
-});

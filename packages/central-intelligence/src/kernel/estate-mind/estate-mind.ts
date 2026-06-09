@@ -31,6 +31,7 @@ import type {
   EstateMindDeps,
   EstateMindTickResult,
   EstateProposal,
+  ReconcileResult,
 } from './types.js';
 import type { MotivatedGoal } from '../motivation/types.js';
 
@@ -85,6 +86,30 @@ export function createEstateMind(deps: EstateMindDeps): EstateMind {
     // ── ORIENT — compute the activated snapshot (salience as computed field)
     const snapshot = await situationalModel.snapshot(tenantId);
 
+    // ── RECONCILE — the DEFERRAL / FOLLOW-THROUGH sweep (never-drop-a-thread).
+    // Re-read the WHOLE durable commitment backlog, recompute due/overdue/
+    // blocked, resurface through the SAME gated proposal sink, advance the
+    // ladder, escalate overdue SOVEREIGN obligations to the HITL safe-halt
+    // (never auto-actuate), and close only on positive proof (else re-open).
+    // FAIL-SAFE: a reconcile fault degrades the tick, never breaks it.
+    let reconcile: ReconcileResult | null = null;
+    if (deps.reconciliation) {
+      try {
+        reconcile = await deps.reconciliation.reconcile({ tenantId, nowMs });
+        if (reconcile.degradedReason && !degradedReason) {
+          degradedReason = `reconcile:${reconcile.degradedReason}`;
+        }
+      } catch (err) {
+        // The port contract says reconcile never throws; belt-and-braces guard
+        // the boundary so a pathological implementation can never break the tick.
+        degradedReason = degradedReason ?? 'reconcile-failed';
+        logger.warn('estate-mind: reconcile failed', {
+          tenantId,
+          error: errMsg(err),
+        });
+      }
+    }
+
     // ── MOTIVATE — standing drives → self-formulated goals (no trigger) ────
     const goals = motivation.formulateGoals(snapshot);
 
@@ -127,6 +152,7 @@ export function createEstateMind(deps: EstateMindDeps): EstateMind {
       goalsFormulated: goals.length,
       proposalsEmitted,
       pruned,
+      reconcile,
       degradedReason,
     };
   }

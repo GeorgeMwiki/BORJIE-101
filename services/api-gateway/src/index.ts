@@ -190,7 +190,14 @@ import { scheduleProactive } from './composition/proactive/proactive-wiring';
 import {
   initEstateMind,
   createEstateMindSupervisor,
+  createMdCommitmentReconciliation,
 } from './composition/estate-mind-wiring';
+// MD DEFERRAL / FOLLOW-THROUGH bundle — built once in the brain-tools wiring
+// block (repo + reconcile engine + WaitFor event subscriber) and referenced at
+// the EstateMind supervisor site so the reconcile sweep is injected into the
+// resident Slow Loop. Null when no db handle is present.
+let mdCommitmentBundle: ReturnType<typeof createMdCommitmentReconciliation> =
+  null;
 // Wave 1 OK-3 — blackboard control-shell scheduler. The Hayes-Roth 1985
 // metalevel scheduler: on every slot convergence it maps the region + its
 // candidate KnowledgeSources (the distinct slot writers) through the control
@@ -787,6 +794,7 @@ import {
   configureDecisionJournalTools,
   configureOpportunityScannerTools,
   configureRiskScannerTools,
+  configureMdDeferTools,
   type PersonaToolGate,
 } from './composition/brain-tools';
 // Loopback HTTP client — closes the gap where `PersonaToolGate.httpClient`
@@ -1403,23 +1411,24 @@ const heartbeatSupervisor = createHeartbeatSupervisor(
 // ----------------------------------------------------------------------------
 // Wave-3-int2 — Brain↔Tab loop composition.
 //
-// Wires the dispatch-router (Piece L) + ESTATE 5-handler set (Piece B) +
-// tenant-override routing-rules loader. Returns a `postThinkCaptureHook`
-// we install on every Jarvis router so `/think` + `/stream` fire the
-// hook fire-and-forget after each turn.
+// Wires the dispatch-router (Piece L) + the 3 MINING accept-proposal
+// handlers + tenant-override routing-rules loader. Returns a
+// `postThinkCaptureHook` we install on every Jarvis router so `/think` +
+// `/stream` fire the hook fire-and-forget after each turn.
 //
 // Wave-3-int3 — REAL handler ports are now wired when a database is
-// present: the brain's accept_proposal path posts the lease deposit
-// through `LedgerService.post()` (CLAUDE.md money hard rule), writes real
-// `tasks` / `temporal_entities` / `maintenance_events` rows, appends to the
+// present: the brain's accept_proposal path writes real `tasks` /
+// `temporal_entities` / `maintenance_events` rows, appends to the
 // hash-chained `ai_audit_chain`, and fans notifications out on the cross-
-// portal bus. The estate lease-application + receipt stores have no
-// mining-domain table yet, so those specific ports fail loud
-// (NotYetWiredError) instead of fabricating a fake id.
+// portal bus. None of the MINING dispatch handlers touch money — a mining
+// estate's real money (royalty / sales) flows through `LedgerService.post()`
+// in `services/payments-ledger`, NOT through any dispatch handler. (The
+// pre-Borjie property-era ESTATE dispatch handlers — lease deposit /
+// receipt draft — were EXCISED; they had no mining-domain backing schema.)
 //
-// When DATABASE_URL is unset (DB-less dev/smoke), there is no money or
-// repo infrastructure, so the silent-success stubs are the correct
-// fallback and the gateway still boots.
+// When DATABASE_URL is unset (DB-less dev/smoke), there is no repo
+// infrastructure, so the silent-success stubs are the correct fallback
+// and the gateway still boots.
 // ----------------------------------------------------------------------------
 const dispatchHandlerDb = getDb();
 const dispatchHandlerLogger = {
@@ -1428,15 +1437,12 @@ const dispatchHandlerLogger = {
   error: (meta: object, msg: string) => logger.error(meta, msg),
 };
 const dispatchRouterWiring = createDispatchRouterWiring({
-  // Estate handler deps OMITTED — the two property-relic dispatch actions are
-  // gated off in module-templates/registry.ts + dispatch-router-wiring (estate
-  // is no longer forwarded to the registry). The wiring's `estate` field is
-  // optional, so we simply don't construct it.
   // Closes the historical gh-issue #34 work-item: 3 mining handlers
   // replace the pre-Borjie estate stubs (open_maintenance_case →
   // open_equipment_maintenance, schedule_renewal_negotiation →
   // schedule_licence_renewal, bulk_mark_for_renewal_prep →
-  // bulk_mark_licences_for_renewal).
+  // bulk_mark_licences_for_renewal). The property-era ESTATE dispatch
+  // actions were excised entirely — there is no `estate` field to wire.
   mining: dispatchHandlerDb
     ? createRealMiningHandlerDeps({
         db: dispatchHandlerDb as never,
@@ -1455,7 +1461,12 @@ logger.info(
       listRegistered?: () => unknown;
     }).listRegistered?.(),
     handlerPorts: dispatchHandlerDb ? 'real' : 'stub',
-    moneyPath: dispatchHandlerDb ? 'LedgerService.post()' : 'stub-noop',
+    // MINING dispatch handlers write tasks/maintenance rows — NO money.
+    // The real money path (royalty/sales) is LedgerService.post() in
+    // services/payments-ledger, never reached via dispatch.
+    handlerEffect: dispatchHandlerDb
+      ? 'tasks/maintenance (no money)'
+      : 'stub-noop',
   },
   'dispatch-router-wiring: live (brain↔tab loop wired)'
 );
@@ -1616,6 +1627,20 @@ try {
       configureOpportunityScannerTools({ db: dbForBrainTools });
       configureRiskScannerTools({ db: dbForBrainTools });
       configureDecisionJournalTools({ db: dbForBrainTools });
+      // MD DEFERRAL / FOLLOW-THROUGH — build the durable md_commitments
+      // reconcile bundle ONCE (repo + reconcile engine + WaitFor event
+      // subscriber) and wire the defer brain tools (md.defer /
+      // md.commitment.*) to its repository. The reconcile engine is injected
+      // into the EstateMind supervisor below; the bundle is null when no db.
+      mdCommitmentBundle = createMdCommitmentReconciliation({
+        db: serviceRegistry.db as unknown as Parameters<
+          typeof createMdCommitmentReconciliation
+        >[0]['db'],
+        logger: createPinoLikeLogger('md-commitments'),
+      });
+      if (mdCommitmentBundle) {
+        configureMdDeferTools({ repo: mdCommitmentBundle.repository });
+      }
     }
     // The `ServiceRegistry` interface does not currently model an
     // optional kill-switch slot. Some legacy boot paths attached an
@@ -3213,6 +3238,11 @@ const estateMindSupervisor = createEstateMindSupervisor({
     | null) ?? null,
   logger: createPinoLikeLogger('estate-mind'),
   config: estateMindConfig,
+  // DEFERRAL / FOLLOW-THROUGH — inject the durable md_commitments RECONCILE
+  // sweep into the resident Slow Loop. The bundle was built in the brain-tools
+  // wiring block above; null leaves the tick exactly as before (purely
+  // additive). The sweep is fail-safe: a fault never breaks the tick.
+  reconciliation: mdCommitmentBundle?.reconciliation ?? null,
 });
 
 // Wave 1 OK-3 — blackboard control-shell scheduler. Construct the wiring

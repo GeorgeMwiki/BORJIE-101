@@ -1,6 +1,7 @@
 /**
- * Routing matrix tests — verify all 17 platform default rows are
+ * Routing matrix tests — verify all 13 platform default rows are
  * well-formed and trigger for the expected (entity_type, intent) pairs.
+ * (The four property-era ESTATE rows were excised for the mining product.)
  */
 
 import { describe, it, expect } from 'vitest';
@@ -13,8 +14,8 @@ import {
 import { RoutingMatrixRowSchema } from '../types.js';
 
 describe('PLATFORM_ROUTING_MATRIX', () => {
-  it('contains exactly 17 rows', () => {
-    expect(PLATFORM_ROUTING_MATRIX.length).toBe(17);
+  it('contains exactly 13 rows', () => {
+    expect(PLATFORM_ROUTING_MATRIX.length).toBe(13);
   });
 
   it('every row validates against the Zod schema', () => {
@@ -29,11 +30,14 @@ describe('PLATFORM_ROUTING_MATRIX', () => {
     expect(ids.size).toBe(PLATFORM_ROUTING_MATRIX.length);
   });
 
-  it('ids match L-ROW-NN ordering', () => {
-    PLATFORM_ROUTING_MATRIX.forEach((row, idx) => {
-      const expected = `L-ROW-${String(idx + 1).padStart(2, '0')}`;
-      expect(row.id).toBe(expected);
-    });
+  it('every id matches the stable L-ROW-NN format', () => {
+    // Ids are STABLE identifiers, NOT positional — the excised ESTATE rows
+    // (L-ROW-01..04) left a gap; surviving rows keep their original ids.
+    for (const row of PLATFORM_ROUTING_MATRIX) {
+      expect(row.id).toMatch(/^L-ROW-\d{2}$/);
+    }
+    // The first surviving row is the (formerly fifth) LITFIN row.
+    expect(PLATFORM_ROUTING_MATRIX[0]?.id).toBe('L-ROW-05');
   });
 
   it('every row has min_confidence ≤ auto_apply_threshold', () => {
@@ -61,11 +65,11 @@ describe('PLATFORM_ROUTING_MATRIX', () => {
     }
   });
 
-  it('ESTATE.create_lease_application requires HITL (high-stakes)', () => {
+  it('MAINTENANCE.open_maintenance_ticket requires HITL (high-stakes)', () => {
     const row = PLATFORM_ROUTING_MATRIX.find(
       (r) =>
-        r.module_template_id === 'ESTATE' &&
-        r.action === 'create_lease_application',
+        r.module_template_id === 'MAINTENANCE' &&
+        r.action === 'open_maintenance_ticket',
     );
     expect(row).toBeDefined();
     expect(row?.hitl_required).toBe(true);

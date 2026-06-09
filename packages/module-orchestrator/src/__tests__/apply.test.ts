@@ -6,15 +6,18 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { applyModuleSpec } from '../apply.js';
 import { spawnModuleFromTemplate } from '../spawn.js';
 import { makeFakeState, makeFakeDeps, type FakeState } from './fakes.js';
-import { estateBundle } from '@borjie/module-templates';
+import { hrBundle } from '@borjie/module-templates';
 
 function seedEstateTemplate(state: FakeState): void {
-  state.templates.set('ESTATE', {
-    id: 'mtpl_estate',
-    slug: 'ESTATE',
-    defaultSpec: estateBundle.spec as unknown as Readonly<Record<string, unknown>>,
-    titleEn: 'Estate Management',
-    titleSw: 'Usimamizi wa Mali',
+  // A generic known-good module-spec bundle (HR) seeds the orchestrator
+  // fake — the test exercises the spawn/apply machinery, not any domain
+  // semantics. (The pre-Borjie ESTATE bundle was excised.)
+  state.templates.set('HR', {
+    id: 'mtpl_hr',
+    slug: 'HR',
+    defaultSpec: hrBundle.spec as unknown as Readonly<Record<string, unknown>>,
+    titleEn: hrBundle.titleEn,
+    titleSw: hrBundle.titleSw,
   });
 }
 
@@ -30,7 +33,7 @@ describe('applyModuleSpec', () => {
     const spawn = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_trc',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'estate_hq',
         title: 'Estate',
         titleSw: null,
@@ -62,7 +65,7 @@ describe('applyModuleSpec', () => {
     const spawn = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_trc',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'estate_hq',
         title: 'Estate',
         titleSw: null,
@@ -102,7 +105,7 @@ describe('applyModuleSpec', () => {
     const spawn = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_trc',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'estate_hq',
         title: 'Estate',
         titleSw: null,
@@ -154,7 +157,7 @@ describe('applyModuleSpec', () => {
     const spawn = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_trc',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'estate_hq',
         title: 'Estate',
         titleSw: null,
@@ -196,7 +199,7 @@ describe('applyModuleSpec', () => {
     const spawn = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_trc',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'estate_hq',
         title: 'Estate',
         titleSw: null,

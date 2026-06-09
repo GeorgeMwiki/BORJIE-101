@@ -416,6 +416,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0321_md_commitments.sql",
+      "down": "down/0321_down_md_commitments.sql",
+      "reverses": "Drops the md_commitments table (the MD deferral/follow-through commitment ledger — the brain's prospective-memory backlog: GTD class discriminator + typed WAIT-FOR trigger (time|event|condition) + honest lifecycle + ladder rung + sovereign safe-halt flag + evidence ids + hash-chained closure, behind FORCE RLS tenant-isolation/service-role-bypass policies + guarded anon REVOKE). Fail-safe: with no table the EstateMind RECONCILE sweep treats the backlog as empty (the reconcile port is fail-safe — a store fault never breaks the tick) and reverts to pre-deferral behaviour. No money/licence/ledger records; sovereign HITL rails live in the policy-gate + mwikila_actions_inbox, not here. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

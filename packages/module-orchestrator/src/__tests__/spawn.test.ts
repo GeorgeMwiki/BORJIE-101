@@ -8,15 +8,18 @@ import {
   spawnModuleFromPrompt,
 } from '../spawn.js';
 import { makeFakeState, makeFakeDeps, type FakeState } from './fakes.js';
-import { estateBundle } from '@borjie/module-templates';
+import { hrBundle } from '@borjie/module-templates';
 
 function seedEstateTemplate(state: FakeState): void {
-  state.templates.set('ESTATE', {
-    id: 'mtpl_estate',
-    slug: 'ESTATE',
-    defaultSpec: estateBundle.spec as unknown as Readonly<Record<string, unknown>>,
-    titleEn: 'Estate Management',
-    titleSw: 'Usimamizi wa Mali',
+  // A generic known-good module-spec bundle (HR) seeds the orchestrator
+  // fake — the test exercises the spawn machinery, not any domain
+  // semantics. (The pre-Borjie ESTATE bundle was excised.)
+  state.templates.set('HR', {
+    id: 'mtpl_hr',
+    slug: 'HR',
+    defaultSpec: hrBundle.spec as unknown as Readonly<Record<string, unknown>>,
+    titleEn: hrBundle.titleEn,
+    titleSw: hrBundle.titleSw,
   });
 }
 
@@ -32,7 +35,7 @@ describe('spawnModuleFromTemplate', () => {
     const r = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_trc',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'estate_trc_hq',
         title: 'Estate Management — HQ',
         titleSw: 'Usimamizi wa Mali — Makao Makuu',
@@ -84,7 +87,7 @@ describe('spawnModuleFromPrompt', () => {
 
   it('accepts an LLM-emitted valid spec', async () => {
     const deps = makeFakeDeps(state);
-    const candidate = estateBundle.spec; // a known-good shape
+    const candidate = hrBundle.spec; // a known-good shape
     const r = await spawnModuleFromPrompt(
       {
         tenantId: 'tnt_trc',
@@ -161,7 +164,7 @@ describe('cross-tenant isolation', () => {
     const a = await spawnModuleFromTemplate(
       {
         tenantId: 'tnt_a',
-        templateSlug: 'ESTATE',
+        templateSlug: 'HR',
         moduleSlug: 'mod_a',
         title: 'A',
         titleSw: null,

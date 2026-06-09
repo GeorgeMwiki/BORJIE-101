@@ -1674,3 +1674,15 @@ export * from './device-push-tokens.schema.js';
 // NULL ⇒ global flow; FORCE RLS on app.current_tenant_id + service-role
 // bypass per migration 0316.
 export * from './workflow-registry.schema.js';
+
+// md_commitments (migration 0321) — the MD DEFERRAL / FOLLOW-THROUGH
+// commitment ledger (the brain's prospective-memory backlog + the closed
+// loop). One durable row per deferred MD commitment: GTD `class` discriminator
+// (next_action|waiting_for|tickler|someday) + typed WAIT-FOR trigger
+// (time|event|condition via trigger_kind + trigger_spec jsonb) + honest
+// lifecycle (open|scheduled|overdue|blocked|done|reopened) + ladder rung +
+// sovereign safe-halt flag + evidence_ids + hash-chained closure. The
+// EstateMind RECONCILE sweep re-reads every OPEN row each tick and never drops
+// a thread. FORCE RLS on app.current_tenant_id + service-role bypass (for the
+// out-of-band reconcile worker) per migration 0321.
+export * from './md-commitments.schema.js';

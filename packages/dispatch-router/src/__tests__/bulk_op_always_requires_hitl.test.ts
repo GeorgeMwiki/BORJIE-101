@@ -17,7 +17,7 @@ describe('Wave-3-int2 bulk_op_always_requires_hitl', () => {
     // Tenant override row tries to disable HITL on a bulk op.
     const tenantBulk = { ...bulkOpMatrixRow, tenant_scope: 'trc', hitl_required: false };
     const merged = mergeMatrices(PLATFORM_ROUTING_MATRIX, [tenantBulk]);
-    const found = merged.find((r) => r.action === 'bulk_mark_for_renewal_prep');
+    const found = merged.find((r) => r.action === 'bulk_mark_licences_for_renewal');
     expect(found).toBeDefined();
     // Bulk action MUST be HITL regardless of override.
     expect(found!.hitl_required).toBe(true);
@@ -40,9 +40,9 @@ describe('Wave-3-int2 bulk_op_always_requires_hitl', () => {
           capture_confidence: 0.99, // max confidence
           entities: [
             {
-              type: 'lease',
-              canonical_id: 'le_1',
-              raw_value: 'lease 1',
+              type: 'document',
+              canonical_id: 'lic_doc_1',
+              raw_value: 'licence batch 1',
               confidence: 0.99,
               source: 'exact',
             },
@@ -60,7 +60,7 @@ describe('Wave-3-int2 bulk_op_always_requires_hitl', () => {
     );
 
     const bulk = result.proposals.find(
-      (p) => p.action === 'bulk_mark_for_renewal_prep',
+      (p) => p.action === 'bulk_mark_licences_for_renewal',
     );
     expect(bulk).toBeDefined();
     expect(bulk!.status).toBe('pending_hitl');
@@ -69,8 +69,11 @@ describe('Wave-3-int2 bulk_op_always_requires_hitl', () => {
 
   it('non-bulk rows respect their hitl_required as-set', () => {
     const merged = mergeMatrices(PLATFORM_ROUTING_MATRIX, []);
-    const leaseEvt = merged.find((r) => r.action === 'append_lease_event');
-    expect(leaseEvt).toBeDefined();
-    expect(leaseEvt!.hitl_required).toBe(false); // L-ROW-03 is auto-applyable
+    // L-ROW-06 (LITFIN.append_payment_received) is an auto-applyable
+    // (hitl_required=false) non-bulk row — the structural twin of the
+    // excised estate append_lease_event row.
+    const paymentEvt = merged.find((r) => r.action === 'append_payment_received');
+    expect(paymentEvt).toBeDefined();
+    expect(paymentEvt!.hitl_required).toBe(false);
   });
 });
