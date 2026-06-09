@@ -1148,11 +1148,6 @@ function TeachBubble({
             <span
               data-testid="teach-badge-verified"
               className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-tiny font-medium text-success"
-              {...(message.debate.winnerModel
-                ? {
-                    title: `${message.debate.winnerProvider} · ${message.debate.winnerModel}`,
-                  }
-                : {})}
             >
               <ShieldCheck aria-hidden="true" className="h-3 w-3" />
               {message.debate.verified

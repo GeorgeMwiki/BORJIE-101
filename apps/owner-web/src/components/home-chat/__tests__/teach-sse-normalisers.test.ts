@@ -83,32 +83,43 @@ describe('normaliseAffectiveProfile', () => {
 });
 
 describe('normaliseDebateBadge', () => {
-  it('extracts winner + contender count from the gateway frame', () => {
+  it('reads verified + contenders from the provider-agnostic gateway frame', () => {
+    // CLOSE-G: the frame carries NO winner/provider/model/judge identity.
     const frame = {
       verified: true,
-      winner: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
-      scores: [0.9, 0.8, 0.7],
-      trace: {
-        judgeProvider: 'openai',
-        responses: [{ provider: 'a' }, { provider: 'b' }, { provider: 'c' }],
-      },
+      contenders: 3,
       at: '2026-05-31T10:00:00.000Z',
     };
     expect(normaliseDebateBadge(frame)).toEqual({
       verified: true,
-      winnerProvider: 'anthropic',
-      winnerModel: 'claude-sonnet-4-6',
       contenders: 3,
     });
   });
 
-  it('defaults gracefully when winner/trace are absent', () => {
+  it('NEVER surfaces provider/model identity, even if a stale frame still carries it (IP-egress invariant)', () => {
+    // Defence in depth: should the wire ever regress and re-include winner /
+    // provider / model / judge identity, the normaliser must DROP it — the
+    // badge shape exposes only { verified, contenders }.
+    const leakyFrame = {
+      verified: true,
+      contenders: 2,
+      winner: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+      trace: { judgeProvider: 'openai', responses: [{}, {}] },
+    };
+    const badge = normaliseDebateBadge(leakyFrame);
+    expect(badge).toEqual({ verified: true, contenders: 2 });
+    const serialised = JSON.stringify(badge);
+    expect(serialised).not.toMatch(/anthropic|openai|claude|provider|model/i);
+  });
+
+  it('defaults contenders to 0 when absent or non-numeric', () => {
     expect(normaliseDebateBadge({ verified: false })).toEqual({
       verified: false,
-      winnerProvider: '',
-      winnerModel: '',
       contenders: 0,
     });
+    expect(
+      normaliseDebateBadge({ verified: true, contenders: 'three' }),
+    ).toEqual({ verified: true, contenders: 0 });
   });
 
   it('returns null for a non-record payload', () => {
