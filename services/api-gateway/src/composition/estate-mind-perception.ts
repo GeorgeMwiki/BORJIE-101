@@ -42,6 +42,7 @@
 import { sql } from 'drizzle-orm';
 import { situationalModel as situationalModelKernel } from '@borjie/central-intelligence';
 import { estateMind as estateMindKernel } from '@borjie/central-intelligence';
+import { motivation as motivationKernel } from '@borjie/central-intelligence';
 import {
   withServiceRoleContext,
   type createDatabaseClient,
@@ -56,6 +57,8 @@ type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 
 type RecordEntityInput = situationalModelKernel.RecordEntityInput;
 type PerceptionSource = estateMindKernel.PerceptionSource;
+type DriveThresholds = motivationKernel.DriveThresholds;
+type SituationKind = situationalModelKernel.SituationEntityKind;
 
 /** Narrow structural db seam — only `execute(sql)` is needed (test-double-able). */
 interface DbExecLike {
@@ -125,6 +128,59 @@ function assetHealthScore(status: string): number | null {
     default:
       return null;
   }
+}
+
+/**
+ * Conservative entity_type → situational kind map; unmapped → null (skip).
+ *
+ * A surprise reconciliation can only DECORATE an entity the loop already
+ * tracks, so the seventh perceiver maps a prediction's free-text
+ * `action_target_entity_type` onto one of the closed situational kinds — and
+ * SKIPS anything that doesn't map (a fabricated `surprise` kind would break the
+ * enum; honest-degrade = no observation for an unmapped type).
+ */
+function surpriseKindFor(entityType: string): SituationKind | null {
+  const t = entityType.trim().toLowerCase();
+  if (t.includes('licen')) return 'licence';
+  if (
+    t.includes('supplier') ||
+    t.includes('buyer') ||
+    t.includes('offtake') ||
+    t.includes('off_take') ||
+    t.includes('counterparty') ||
+    t.includes('vendor')
+  ) {
+    return 'counterparty';
+  }
+  if (
+    t.includes('asset') ||
+    t.includes('equipment') ||
+    t.includes('machine') ||
+    t.includes('fleet')
+  ) {
+    return 'equipment';
+  }
+  if (
+    t.includes('cash') ||
+    t.includes('treasury') ||
+    t.includes('runway') ||
+    t.includes('forecast')
+  ) {
+    return 'cash';
+  }
+  if (
+    t.includes('royalty') ||
+    t.includes('receivable') ||
+    t.includes('arrear') ||
+    t.includes('payment') ||
+    t.includes('filing')
+  ) {
+    return 'arrears';
+  }
+  if (t.includes('site') || t.includes('pit') || t.includes('incident') || t.includes('safety')) {
+    return 'site';
+  }
+  return null;
 }
 
 export interface EstateMindPerceptionDeps {
@@ -366,6 +422,70 @@ export function createEstateMindPerception(
     return out;
   }
 
+  // ── surprise → surpriseDrift (freshest DIVERGENT outcome_reconciliations) ──
+  // Predictive coding / active inference: the MD should attend FIRST to what
+  // most defied its own forecast. This seventh perceiver reads the freshest
+  // high-drift reconciliations (joined to outcome_predictions for the target
+  // entity_type/id) and folds each onto the SAME `kind:entityId` the six domain
+  // perceivers use — so the situational fold MERGES the surprise onto the live
+  // entity, raising its ACT-R recency term AND decorating it with the drift.
+  // The `forecast-surprise` drive then fires on it, and the ORIENT snapshot's
+  // most-salient entity becomes the most-surprising one. Unmapped entity_types
+  // are skipped (no fabricated kind); a missing table degrades to no observation.
+  async function perceiveSurprise(
+    db: DbExecLike,
+    tenantId: string,
+  ): Promise<ReadonlyArray<RecordEntityInput>> {
+    const res = await db.execute(sql`
+      SELECT
+        r.drift_score        AS drift_score,
+        r.reconciled_at      AS reconciled_at,
+        p.action_target_entity_type AS entity_type,
+        p.action_target_entity_id   AS entity_id,
+        p.predicted_outcome  AS predicted_outcome,
+        p.action_kind        AS action_kind
+        FROM outcome_reconciliations r
+        JOIN outcome_predictions p
+          ON p.id = r.prediction_id
+         AND p.tenant_id = r.tenant_id
+       WHERE r.tenant_id = ${tenantId}
+         AND r.status = 'divergent'
+       ORDER BY r.reconciled_at DESC
+       LIMIT 20
+    `);
+    const out: RecordEntityInput[] = [];
+    const seen = new Set<string>();
+    for (const row of rowsOf(res)) {
+      const surpriseDrift = numOf(row.drift_score);
+      if (surpriseDrift === null || surpriseDrift <= 0) continue;
+      const kind = surpriseKindFor(strOf(row.entity_type));
+      if (kind === null) continue;
+      const entityId = strOf(row.entity_id);
+      if (!entityId) continue;
+      // Coalesce to the freshest reconciliation per entity (ORDER BY desc above).
+      const dedupeKey = `${kind}:${entityId}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
+      out.push(
+        Object.freeze({
+          tenantId,
+          entityId,
+          kind,
+          label: `Forecast surprise (${strOf(row.action_kind) || strOf(row.entity_type) || 'outcome'})`,
+          // Surprise rides the EXISTING attributes bag — no schema change. The
+          // fold MERGES this onto the entity the six domain perceivers wrote.
+          attributes: Object.freeze({
+            surpriseDrift,
+            predicted: row.predicted_outcome ?? null,
+            // `observed` is reconstructed downstream from the learning signal;
+            // we carry the prediction side here (the divergence is the signal).
+          }),
+        }),
+      );
+    }
+    return out;
+  }
+
   return {
     async perceive({ tenantId, nowMs }): Promise<ReadonlyArray<RecordEntityInput>> {
       if (!tenantId || !deps.db) return [];
@@ -379,6 +499,7 @@ export function createEstateMindPerception(
         safely('offtake', tenantId, (db) => perceiveOfftake(db, tenantId)),
         safely('arrears', tenantId, (db) => perceiveArrears(db, tenantId, at)),
         safely('equipment', tenantId, (db) => perceiveEquipment(db, tenantId)),
+        safely('surprise', tenantId, (db) => perceiveSurprise(db, tenantId)),
       ]);
       return Object.freeze(batches.flat());
     },
@@ -403,4 +524,144 @@ export function createEstateMindPerceptionFromDb(
       ? (fn) => withServiceRoleContext(db, (tx) => fn(tx as unknown as DbExecLike))
       : (fn) => fn({ async execute() { return []; } }),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Schema-conditioned drives — per-tenant DriveThresholds from consolidated
+// `baseline:*` semantic facts (Memory Consolidation & Schema Formation).
+// ---------------------------------------------------------------------------
+
+/**
+ * Standard-deviation multiplier for the anomaly band: a metric is "worth a
+ * look" when it crosses `mean ± k·sd` for THIS estate. k = 1.5 is a moderate
+ * 1.5-sigma band (≈ the worst-13% tail) — tunable later, never hard-coded at a
+ * call site beyond this single default.
+ */
+const BASELINE_SIGMA_K = 1.5;
+
+/**
+ * Which `baseline:${scope}:${metric}` facts re-tune which DriveThreshold, and
+ * in which direction the anomaly band points. FLOOR concerns (cash runway,
+ * licence lead-time, off-take coverage, equipment health) fire when a value
+ * drops, so their threshold is `mean − k·sd`. CEILING concerns (open
+ * incidents, overdue royalty days) fire when a value rises, so their threshold
+ * is `mean + k·sd`. The metric token is matched case-insensitively against the
+ * fact key so a `baseline:estate:cash_runway_d` fact tunes the cash floor.
+ */
+type BaselineDirection = 'floor' | 'ceiling';
+interface BaselineBinding {
+  readonly metricTokens: ReadonlyArray<string>;
+  readonly thresholdKey: keyof Required<DriveThresholds>;
+  readonly direction: BaselineDirection;
+}
+
+const BASELINE_BINDINGS: ReadonlyArray<BaselineBinding> = Object.freeze([
+  { metricTokens: ['cash_runway', 'runway'], thresholdKey: 'cashRunwayDaysFloor', direction: 'floor' },
+  { metricTokens: ['licence_renewal', 'renewal'], thresholdKey: 'licenceRenewalDaysFloor', direction: 'floor' },
+  { metricTokens: ['open_incidents', 'incidents', 'safety'], thresholdKey: 'safetyOpenIncidentsCeiling', direction: 'ceiling' },
+  { metricTokens: ['offtake_coverage', 'coverage'], thresholdKey: 'offtakeCoverageRatioFloor', direction: 'floor' },
+  { metricTokens: ['royalty_overdue', 'overdue', 'arrears'], thresholdKey: 'royaltyOverdueDaysCeiling', direction: 'ceiling' },
+  { metricTokens: ['equipment_health', 'health'], thresholdKey: 'equipmentHealthScoreFloor', direction: 'floor' },
+]);
+
+/** Pull a finite `mean` and `sd` out of a baseline fact's jsonb value. */
+function meanSdOf(value: unknown): { mean: number; sd: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const v = value as Record<string, unknown>;
+  const mean = numOf(v.mean ?? v.avg ?? v.average ?? v.mu);
+  if (mean === null) return null;
+  const sd = numOf(v.sd ?? v.stddev ?? v.std ?? v.sigma) ?? 0;
+  return { mean, sd: Math.max(0, sd) };
+}
+
+/**
+ * Resolve per-tenant {@link DriveThresholds} from the consolidated baseline
+ * schema the sleep pass writes as `baseline:${scope}:${metric}` semantic facts.
+ * This closes the SECOND half of the consolidation loop: sleep WRITES the
+ * baseline (what is normal for THIS estate), the waking slow loop READS it to
+ * decide what counts as a breach — so nudges fire on what is anomalous for this
+ * estate, not a global static floor.
+ *
+ * For every metric that has a `baseline:*` fact the threshold becomes
+ * `mean ± k·sd`; metrics with NO baseline fact are simply OMITTED from the
+ * returned object so the drive falls back to its built-in `DEFAULT_DRIVE_THRESHOLDS`
+ * default (the `thresholds.X ?? DEFAULT` injection points already in the drives).
+ * An absent table / empty result / read fault degrades to `{}` (every drive uses
+ * its static default) and NEVER throws to the caller.
+ *
+ * DEP (designTier): this consumes the estate-baseline sleep pass. Until that
+ * pass writes `baseline:*` facts, this resolver returns `{}` and the loop runs
+ * on the static defaults — honest-degrade, no fabricated baselines.
+ */
+export async function resolveDriveThresholdsFromBaselines(
+  db: DbExecLike | null,
+  tenantId: string,
+  opts: { readonly runServiceRole?: ServiceRoleRunner; readonly sigmaK?: number } = {},
+  logger: PinoLikeLogger = createPinoLikeLogger('estate-mind-thresholds'),
+): Promise<DriveThresholds> {
+  if (!db || !tenantId) return Object.freeze({});
+  const k = Number.isFinite(opts.sigmaK) ? (opts.sigmaK as number) : BASELINE_SIGMA_K;
+  const run: ServiceRoleRunner = opts.runServiceRole ?? ((fn) => fn(db));
+  try {
+    const rows = await run(async (tx) => {
+      const res = await tx.execute(sql`
+        SELECT key, value
+          FROM kernel_memory_semantic
+         WHERE tenant_id = ${tenantId}
+           AND user_id IS NULL
+           AND key LIKE 'baseline:%'
+      `);
+      return rowsOf(res);
+    });
+    if (rows.length === 0) return Object.freeze({});
+    const thresholds: Record<string, number> = {};
+    for (const row of rows) {
+      const key = strOf(row.key).toLowerCase();
+      const stats = meanSdOf(row.value);
+      if (!stats) continue;
+      for (const binding of BASELINE_BINDINGS) {
+        if (binding.thresholdKey in thresholds) continue; // first match wins
+        const hit = binding.metricTokens.some((tok) => key.includes(tok));
+        if (!hit) continue;
+        const band =
+          binding.direction === 'floor'
+            ? stats.mean - k * stats.sd
+            : stats.mean + k * stats.sd;
+        // Floors can't go below 0; ceilings can't either. Round day-based
+        // metrics to whole days; ratios/scores stay fractional.
+        thresholds[binding.thresholdKey] = Math.max(0, band);
+      }
+    }
+    return Object.freeze({ ...thresholds }) as DriveThresholds;
+  } catch (err) {
+    logger.warn(
+      { tenantId, err: err instanceof Error ? err.message : String(err) },
+      'estate-mind-thresholds: baseline resolve degraded → static defaults',
+    );
+    return Object.freeze({});
+  }
+}
+
+/**
+ * Composition-root convenience: resolve the per-tenant schema-conditioned
+ * thresholds bound to the REAL `withServiceRoleContext`. The supervisor reads
+ * these BEFORE evaluating drives so a breach is judged against THIS estate's
+ * consolidated baseline. Returns `{}` (static defaults) when `db` is null or no
+ * `baseline:*` facts exist yet — honest-degrade.
+ */
+export function resolveDriveThresholdsFromBaselinesDb(
+  db: (DatabaseClient & DbExecLike) | null,
+  tenantId: string,
+  logger: PinoLikeLogger = createPinoLikeLogger('estate-mind-thresholds'),
+): Promise<DriveThresholds> {
+  if (!db) return Promise.resolve(Object.freeze({}));
+  return resolveDriveThresholdsFromBaselines(
+    db,
+    tenantId,
+    {
+      runServiceRole: (fn) =>
+        withServiceRoleContext(db, (tx) => fn(tx as unknown as DbExecLike)),
+    },
+    logger,
+  );
 }

@@ -94,6 +94,28 @@ import {
 // sensorium-event-log service so the kernel reads real user behaviour
 // instead of a static stub.
 import { createBehaviorSignalSource } from '@borjie/ai-copilot/ambient-brain';
+// Cross-session Theory-of-Mind (owner model) — DURABLE per-owner
+// communication-style posterior. The kernel reads `getStyleHint(...)` at
+// step 6 (beside the per-turn affective directive) and folds one
+// observation back via `refine(...)` post-turn. Backed by the Drizzle
+// `owner_style_profiles` store so the bias survives across sessions.
+//
+// WIRING PREREQUISITE (flagged in the manifest — NEITHER file is owned by
+// this agent): the orphaned `OwnerStyleService` is NOT currently reachable
+// from `@borjie/ai-copilot`. Its barrel lives at
+// `packages/ai-copilot/src/personas/owner-style/index.ts` but is not
+// re-exported from the package root. Add ONE line to
+// `packages/ai-copilot/src/personas/index.ts`:
+//     export * from './owner-style/index.js';
+// (or the package root `src/index.ts`) so this import resolves. AND add
+// the `ownerStyleReader` passthrough to `compose.ts`'s
+// `SovereignComposeConfig` (mirror `behaviorSignalSource`) so the bound
+// reader actually reaches the kernel — otherwise it is silently dropped.
+import {
+  createOwnerStyleService,
+  type OwnerStyleProfileStore,
+} from '@borjie/ai-copilot';
+import { createPgOwnerStyleProfileStore } from '@borjie/database/repositories';
 // LP-30 — composition-root activation of the kernel's semantic-cache (LP-03)
 // and intent-verifier (LP-04) seams. Both ports are constructed fail-safe and
 // threaded into `composeSovereign(...)` so the kernel's `think()` pipeline
@@ -338,6 +360,14 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // channel cleanly when the port is missing.
   let behaviorSignalSource:
     | ReturnType<typeof createBehaviorSignalSource>
+    | undefined;
+  // Cross-session ToM (owner model). When the DB is up we back the
+  // durable owner-style posterior with the Drizzle `owner_style_profiles`
+  // store so `getStyleHint(...)` / `refine(...)` round-trip across
+  // sessions; when DB is down the service degrades to an in-memory
+  // neutral default (honest-degrade — never throws out of a turn).
+  let ownerStyleReader:
+    | ReturnType<typeof createOwnerStyleService>
     | undefined;
   // C5 — Voyager skill retriever (READ side of the SKILLS loop). When
   // the DB is up we point the retriever at the Drizzle-backed,
@@ -589,6 +619,19 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     const sensoriumEventLogService = createSensoriumEventLogService(db);
     behaviorSignalSource = createBehaviorSignalSource(sensoriumEventLogService);
 
+    // Cross-session ToM — durable owner-style service over the Drizzle
+    // `owner_style_profiles` store. The DB store's `OwnerStyleProfile`
+    // is a structural duck-type of the service's; the persistence-port
+    // shape ({ fetch, upsert }) matches exactly. Cast at the boundary so
+    // the two independently-declared profile types reconcile.
+    ownerStyleReader = createOwnerStyleService({
+      // The DB repo's `OwnerStyleProfile` is an independently-declared
+      // structural twin of the service's; the persistence-port surface
+      // ({ fetch, upsert }) matches exactly. Cast through `unknown` at
+      // the package boundary so the two nominal profile types reconcile.
+      store: createPgOwnerStyleProfileStore(db) as unknown as OwnerStyleProfileStore,
+    });
+
     // C5 — wire the Voyager skill retriever. The registry service is the
     // pgvector-backed `skill_registry` reader; tenant scope is applied
     // per-call inside `retrieve({ tenantId })` from the kernel (the kernel
@@ -639,6 +682,16 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     // factory returns a richer `BehaviorSignalSource` that satisfies it;
     // assign-by-key keeps the type-narrowing happy.
     mutable.behaviorSignalSource = behaviorSignalSource;
+  }
+  if (ownerStyleReader) {
+    // Cross-session ToM — the kernel's `OwnerStyleReaderPort`
+    // (kernel-types.ts) is the { getStyleHint, refine } slice of the
+    // richer `OwnerStyleService`. Assign-by-key keeps the duck-type
+    // narrowing happy. NOTE: this reaches the kernel ONLY once
+    // `composeSovereign`'s config forwards `ownerStyleReader` — that
+    // passthrough is the one non-owned wiring seam flagged in the
+    // manifest; until then this binding is inert (silently dropped).
+    mutable.ownerStyleReader = ownerStyleReader;
   }
   // C5 — Voyager skill retriever (READ side). Threaded onto the kernel
   // deps via `composeSovereign({ skillRetriever })` so kernel step 4f

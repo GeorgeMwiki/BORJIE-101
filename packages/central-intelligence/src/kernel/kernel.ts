@@ -62,6 +62,34 @@ import type {
 import type { PersonaIdentity } from './identity.js';
 import type { Citation, Artifact } from '../types.js';
 import { selectPersona, renderIdentityPreamble } from './identity.js';
+import type { SalienceVoiceBend } from './identity.js';
+// Salience Arena (Global-Workspace single broadcast) — a winner-take-most
+// competition over drives / detectors / commitments / ACT-R activation /
+// affect that shapes the WHOLE turn (persona voice + the prompt's live-
+// concern segment) BEFORE persona selection. PURE; the snapshot is never
+// mutated; the arena only re-weights ATTENTION (it never acts).
+import {
+  arena as runSalienceArena,
+  activationBids,
+  bidForDetectorSeverity,
+  bidForOverdueCommitment,
+  clampBid,
+  domainForDriveId,
+  domainForEntityKind,
+  renderFocusDirective,
+  vpVoiceForDomain,
+  type Focus,
+  type FocusDomain,
+  type SalienceBid,
+} from './situational-model/salience-arena.js';
+// Honest epistemic-state surface (INV-H). The per-thought self-model is
+// already built (its only consumers were tests); we run it over the final
+// answer + the confidence vector and emit a NEW additive `self_model`
+// stream frame surfacing POSTURE + sure/unsure/would-need (never the math).
+import {
+  buildPerThoughtSelfModel,
+  type PerThoughtSelfModel,
+} from './introspection/per-thought-self-model.js';
 import { applyBrandingOverride, type PersonaBrandingResolver } from './branding.js';
 import { isTierCompatibleWithScope, locusPhrase } from './awareness-scopes.js';
 import { checkInviolable } from './inviolable.js';
@@ -475,6 +503,62 @@ export interface BrainKernelDeps {
    * failures collapse to no-op.
    */
   readonly behaviorSignalSource?: import('./kernel-types.js').BehaviorSignalSourcePort;
+  /**
+   * Cross-session Theory-of-Mind — DURABLE owner communication-style
+   * model. When wired, step 6 reads `getStyleHint(tenantId)` and
+   * concatenates that durable directive BESIDE the per-turn affective
+   * `mindDirective`, so the prompt carries both "how the owner feels
+   * now" and "how this owner always wants to be spoken to". Post-turn,
+   * the kernel folds ONE observation back via `refine(...)` so every
+   * exchange tightens the Bayesian posterior (perceive → bias → observe
+   * → learn). Best-effort: any failure collapses to '' / no-op so a
+   * missing `owner_style_profiles` table never breaks a turn.
+   *
+   * Production adapter: `createOwnerStyleService(...)` from
+   * `@borjie/ai-copilot/owner-style`, bound in `sovereign.ts`. The
+   * port is duck-typed in `kernel-types.ts` so central-intelligence
+   * keeps NO compile-time dep on `@borjie/ai-copilot`.
+   */
+  readonly ownerStyleReader?: import('./kernel-types.js').OwnerStyleReaderPort;
+  /**
+   * Salience Arena input — durable READ port for the slow loop's open
+   * proposals (one per breached standing drive, carrying `driveId` +
+   * `breachSeverity` + `urgency`). When wired, step 6 folds each open
+   * proposal into a comparable arena bid BEFORE persona selection so the
+   * single most-salient estate concern bends the persona voice + seeds
+   * the prompt's live-concern segment. Reuses the existing
+   * `PendingProposalReader` the slow loop already persists into. Fail-
+   * safe: a store fault resolves to `[]`; the arena simply has fewer
+   * bidders.
+   */
+  readonly pendingProposalReader?: import('./estate-mind/estate-mind.js').PendingProposalReader;
+  /**
+   * Salience Arena input — optional READ port for the per-tenant
+   * situational snapshot (the ACT-R-activated estate entities). When
+   * wired, the arena adds activation bids (min-maxed across the
+   * snapshot) so the most-referenced entity competes for the spotlight
+   * alongside drives + detectors + affect. Snapshot is read-only — the
+   * arena never mutates it. Fail-safe: a null snapshot ⇒ no activation
+   * bids.
+   */
+  readonly situationalSnapshotReader?: {
+    read(tenantId: string): Promise<
+      import('./situational-model/types.js').SituationalSnapshot | null
+    >;
+  };
+  /**
+   * Conflict-monitored effort recruitment (System 1/2). When NOT
+   * explicitly disabled (defaults ON when the inputs exist), the kernel
+   * builds one CONFLICT scalar from signals it already computes
+   * (1−confidence.overall, synthesizer disagreement, debate-not-
+   * converged, judge<0.5) and — when conflict crosses the threshold on a
+   * turn the fast-path router scored 'fast'/'standard' — RECRUITS the
+   * next depth tier (debate detour / `preferModelTier='deep'`) ONCE
+   * mid-turn before committing. All rails stay intact: this only
+   * escalates DELIBERATION; it never bypasses a gate or acts. Set
+   * `false` to pin the legacy single-upshift-at-ingress behaviour.
+   */
+  readonly conflictRecruitmentEnabled?: boolean;
   /** D8 — optional regulatory mirror; see `regulatory-mirror.ts`. */
   readonly regulatoryMirror?: import('./regulatory-mirror.js').RegulatoryMirror;
   /**
@@ -1205,12 +1289,40 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
             .catch(() => [])
         : [];
 
+      // 6.0) Salience Arena (wins #3 + #4) — a single Global-Workspace
+      // broadcast that competes drives / ACT-R activation / affect onto
+      // ONE comparable scale and picks the turn's most-salient concern
+      // BEFORE persona selection. The winner bends the persona VOICE
+      // (not its id/taboos/scope) and seeds a "live concern" prompt
+      // segment so the answer leans into the salient estate fact even
+      // when the user asked something tangential. Every input is best-
+      // effort; an empty arena leaves persona selection unchanged.
+      const [arenaDriveBids, arenaActivationBids, arenaAffectBids] =
+        await Promise.all([
+          buildDriveBids(deps.pendingProposalReader, memTenantIdEarly),
+          buildActivationBids(deps.situationalSnapshotReader, memTenantIdEarly),
+          buildAffectBids(deps.behaviorSignalSource, memTenantIdEarly, memUserId),
+        ]);
+      const salience = resolveSalienceFocus([
+        arenaAffectBids,
+        arenaDriveBids,
+        arenaActivationBids,
+      ]);
+      if (salience.focus) {
+        traceStep(
+          'identity-render',
+          clock().getTime(),
+          `salience winner=${salience.focus.winner.id} bid=${salience.focus.winner.bid.toFixed(2)} domain=${salience.focus.winner.domain}`,
+        );
+      }
+
       // 6) identity + theory-of-mind + cognitive-load.
       // Branding override (if any) is applied BEFORE personalisation /
       // preamble rendering so an agency-level rename or preamble flows
       // through the rest of the pipeline (drift detection, audit) under
-      // the rebranded id.
-      const baseSurfacePersona = selectPersona(req);
+      // the rebranded id. The salience voice-bend overlays the most-
+      // salient concern's VP register onto the surface-default tone.
+      const baseSurfacePersona = selectPersona(req, salience.voiceBend);
       const branding = deps.brandingResolver
         ? await deps.brandingResolver
             .resolve({
@@ -1262,9 +1374,24 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         mindState,
         clock,
       );
-      const mindDirective = affectiveProfile
+      const perTurnMindDirective = affectiveProfile
         ? renderMindStateDirectiveWithProfile(mindState, affectiveProfile)
         : renderMindStateDirective(mindState);
+
+      // Cross-session ToM (win #1) — the DURABLE owner-style directive.
+      // Concatenated BESIDE the per-turn affective directive so the
+      // prompt carries both "how the owner feels NOW" and "how this owner
+      // ALWAYS wants to be spoken to". Best-effort: '' on any failure.
+      const ownerStyleHint =
+        deps.ownerStyleReader && memTenantIdEarly
+          ? await deps.ownerStyleReader
+              .getStyleHint(memTenantIdEarly)
+              .catch(() => '')
+          : '';
+      const mindDirective =
+        ownerStyleHint && ownerStyleHint.trim().length > 0
+          ? `${perTurnMindDirective} ${ownerStyleHint.trim()}`
+          : perTurnMindDirective;
 
       const recentTurns = deps.recentTurnCounter ? await deps.recentTurnCounter(req.threadId) : 0;
       const loadOut = assessCognitiveLoad({
@@ -1324,7 +1451,13 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         rolloutPrompt: rolloutPromptFragment,
         moduleInventory,
         locus: `Locus: ${locusPhrase(req.tier, req.scope)}.`,
-        behaviouralDirective: `Behavioural directive: ${mindDirective}`,
+        // The salience focus rides in the SAME dynamic slot as the
+        // behavioural directive so we don't reorder the prompt-cache slot
+        // contract. Empty `salience.directive` ⇒ the legacy directive
+        // verbatim (no behaviour change when the arena had no winner).
+        behaviouralDirective: salience.directive
+          ? `Behavioural directive: ${mindDirective}\n${salience.directive}`
+          : `Behavioural directive: ${mindDirective}`,
         verbosityDirective: `Verbosity directive: ${loadDirective}`,
         semanticMemory: renderSemanticMemoryFragment(semanticFacts),
         reflectiveDigest: renderReflectiveDigestFragment(reflectiveDigest),
@@ -1383,6 +1516,11 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       let sensorResult: SensorCallResult;
       let debateRoundsCompleted: number | undefined;
       let debateConverged: boolean | undefined;
+      // Conflict-recruitment inputs (win #5). The synthesizer already
+      // emits an agreement metric + escalate flag (today telemetry-only);
+      // capture them so the post-judge conflict gate can read them.
+      let synthAgreement: number | undefined;
+      let synthEscalate: boolean | undefined;
       const sensorStart = clock().getTime();
       if (debateEligible && deps.debate) {
         const debateStart = clock().getTime();
@@ -1463,6 +1601,10 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
             modelId: synthOut.modelId,
             sensorId: '__multi-llm-synthesizer__',
           };
+          // Win #5 — surface the synthesizer's disagreement to the
+          // conflict gate (previously this metric only hit telemetry).
+          synthAgreement = synthOut.agreement;
+          synthEscalate = synthOut.escalate;
           traceStep(
             'sensor-call',
             sensorStart,
@@ -1699,6 +1841,102 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
           );
         } catch (e) {
           traceStep('debate', debateGateStart, 'three-agent failed; keeping single-shot answer', e);
+        }
+      }
+
+      // 9b) Conflict-monitored effort recruitment (win #5 / System 1/2).
+      // The router decides depth ONCE at ingress. But a turn the router
+      // scored 'fast'/'standard' can still surface CONFLICT after the
+      // first cheap pass — low confidence, cross-vendor disagreement, a
+      // non-converged debate, a failed judge. We compose those (already-
+      // computed) signals into ONE conflict scalar and, when it crosses
+      // the threshold on a fast/standard lane that hasn't ALREADY
+      // deliberated, RECRUIT the next depth tier ONCE: re-run the wired
+      // three-agent debate detour. This converts uncertainty-policy's
+      // dead-end 'escalate' (refuse) into 'think harder FIRST, refuse
+      // only if still unsure'. All rails stay intact — we only deepen
+      // DELIBERATION; we never bypass a gate or act. One upshift per turn.
+      const conflictRecruitmentEnabled =
+        deps.conflictRecruitmentEnabled !== false;
+      const conflictRoute = resolveFastPathEnabled()
+        ? decideFastPath(req).route
+        : 'full';
+      if (
+        conflictRecruitmentEnabled &&
+        debateRoundsCompleted === undefined &&
+        req.estimatedCostUsd === undefined &&
+        deps.synthesizer === undefined
+      ) {
+        // Cheap early-confidence proxy over the current draft so the gate
+        // can read a confidence signal BEFORE the formal step-12 scoring.
+        const earlyConfidence = scoreConfidence({
+          outputText: normalised.text,
+          citationCount: extractCitationsFromUiBlock(normalised.uiBlock).length,
+          toolResultNumbers: collectToolNumbers(sensorResult),
+          judgeScore: judgeOut?.score ?? null,
+          rerolledOutputText: null,
+        });
+        const conflict = computeConflictScalar({
+          confidenceOverall: earlyConfidence.overall,
+          synthAgreement: synthAgreement ?? null,
+          synthEscalate: synthEscalate === true,
+          debateConverged: debateConverged ?? null,
+          judgeScore: judgeOut?.score ?? null,
+        });
+        const recruit = recruitControl({
+          conflict,
+          currentRoute: conflictRoute,
+          enabled: conflictRecruitmentEnabled,
+        });
+        if (recruit.escalate) {
+          const recruitStart = clock().getTime();
+          try {
+            const { runThreeAgentDebate } = await import(
+              './debate/three-agent-debate.js'
+            );
+            const { BORJIE_CONSTITUTION } = await import(
+              './critics/constitutional-critic.js'
+            );
+            const debateSensor = {
+              call: (args: SensorCallArgs) => router.call(args, required),
+            };
+            const debateOut = await runThreeAgentDebate(
+              req.userMessage,
+              system,
+              debateSensor,
+              {
+                maxTokens: 8000,
+                constitutionalRules: BORJIE_CONSTITUTION.map((r) => ({
+                  id: r.id,
+                  description: r.description,
+                })),
+              },
+            );
+            if (debateOut.synthesis && debateOut.synthesis.trim().length > 0) {
+              sensorResult = { ...sensorResult, text: debateOut.synthesis };
+              normalised = normalize(debateOut.synthesis);
+              debateRoundsCompleted = 3;
+              debateConverged = debateOut.convergence >= 0.8;
+            }
+            traceStep(
+              'debate',
+              recruitStart,
+              `mode=conflict-recruit route=${conflictRoute} conflict=${conflict.toFixed(2)} convergence=${debateOut.convergence.toFixed(2)}`,
+            );
+          } catch (e) {
+            traceStep(
+              'debate',
+              recruitStart,
+              `conflict-recruit failed; keeping fast-lane answer conflict=${conflict.toFixed(2)}`,
+              e,
+            );
+          }
+        } else if (conflict > 0) {
+          traceStep(
+            'confidence',
+            clock().getTime(),
+            `conflict=${conflict.toFixed(2)} route=${conflictRoute} recruit=0`,
+          );
         }
       }
 
@@ -2007,6 +2245,16 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         userMessage: scrubbedUserMessage,
         agentText: pickAgentTraceText(decision),
       });
+      // Cross-session ToM close-the-loop (win #1) — fold one observation
+      // of this turn back into the durable owner-style posterior so the
+      // NEXT turn is already biased toward how this owner wants to be
+      // spoken to. Fire-and-forget; never blocks the caller.
+      maybeRefineOwnerStyle({
+        reader: deps.ownerStyleReader,
+        tenantId: memTenantId,
+        userMessage: scrubbedUserMessage,
+        nowMs: clock().getTime(),
+      });
       traceStep('provenance-write', provStart, `outcome=${decision.kind}`);
 
       // C5 — Reflexion write-at-end. Records a verbal reflection when
@@ -2279,6 +2527,23 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       );
       const moduleInventory = renderSelfAwarenessBlock(deps.bodySchemaReader);
 
+      // Salience Arena (wins #3 + #4), streaming path. The `turn_start`
+      // persona event already fired with the stable surface-default id
+      // (consumers key off it), so on the streaming path the salience
+      // winner shapes the SYSTEM PROMPT (live-concern + voice register)
+      // rather than the streamed persona identity. Best-effort reads.
+      const [streamDriveBids, streamActivationBids, streamAffectBids] =
+        await Promise.all([
+          buildDriveBids(deps.pendingProposalReader, memTenantId),
+          buildActivationBids(deps.situationalSnapshotReader, memTenantId),
+          buildAffectBids(deps.behaviorSignalSource, memTenantId, memUserId),
+        ]);
+      const salience = resolveSalienceFocus([
+        streamAffectBids,
+        streamDriveBids,
+        streamActivationBids,
+      ]);
+
       const mindState = inferMindState(req.userMessage);
       const affectiveProfile = observeAffective(
         deps.affectiveAccumulator,
@@ -2287,9 +2552,22 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         mindState,
         clock,
       );
-      const mindDirective = affectiveProfile
+      const perTurnMindDirective = affectiveProfile
         ? renderMindStateDirectiveWithProfile(mindState, affectiveProfile)
         : renderMindStateDirective(mindState);
+
+      // Cross-session ToM (win #1) — durable owner-style hint beside the
+      // per-turn affective directive. Best-effort: '' on any failure.
+      const ownerStyleHint =
+        deps.ownerStyleReader && memTenantId
+          ? await deps.ownerStyleReader
+              .getStyleHint(memTenantId)
+              .catch(() => '')
+          : '';
+      const mindDirective =
+        ownerStyleHint && ownerStyleHint.trim().length > 0
+          ? `${perTurnMindDirective} ${ownerStyleHint.trim()}`
+          : perTurnMindDirective;
 
       const recentTurns = deps.recentTurnCounter ? await deps.recentTurnCounter(req.threadId) : 0;
       const loadOut = assessCognitiveLoad({
@@ -2322,7 +2600,12 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         rolloutPrompt: rolloutPromptFragment,
         moduleInventory,
         locus: `Locus: ${locusPhrase(req.tier, req.scope)}.`,
-        behaviouralDirective: `Behavioural directive: ${mindDirective}`,
+        // Salience focus folded into the behavioural-directive slot —
+        // same dynamic slot, no prompt-cache reorder. Empty when no
+        // arena winner (legacy directive verbatim).
+        behaviouralDirective: salience.directive
+          ? `Behavioural directive: ${mindDirective}\n${salience.directive}`
+          : `Behavioural directive: ${mindDirective}`,
         verbosityDirective: `Verbosity directive: ${loadDirective}`,
         semanticMemory: renderSemanticMemoryFragment(semanticFacts),
         reflectiveDigest: renderReflectiveDigestFragment(reflectiveDigest),
@@ -2593,9 +2876,31 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         userMessage: scrubbedUserMessage,
         agentText: pickAgentTraceText(decision),
       });
+      // Cross-session ToM close-the-loop (win #1), streaming path.
+      maybeRefineOwnerStyle({
+        reader: deps.ownerStyleReader,
+        tenantId: memTenantId,
+        userMessage: scrubbedUserMessage,
+        nowMs: clock().getTime(),
+      });
 
       if (decision.kind !== 'refusal') {
         yield { kind: 'confidence', vector: decision.confidence };
+        // Honest epistemic-state surface (win #2 / INV-H). ADDITIVE frame
+        // emitted AFTER `confidence`, BEFORE `done`. Surfaces posture +
+        // sure/unsure/would-need (plain language); never the audit math.
+        // Unknown frame kinds are ignored by existing consumers.
+        yield {
+          kind: 'self_model',
+          selfModel: buildSelfModelFrame({
+            answerText: finalText,
+            confidence: decision.confidence,
+            citationCount: citations.length,
+            toolCallsIssued: toolCalls.length > 0,
+            stakes: req.stakes,
+            softened: decision.kind === 'softened',
+          }),
+        };
       }
       yield { kind: 'done', decision };
     },
@@ -3306,6 +3611,388 @@ function observeAffective(
   } catch {
     return null;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Salience Arena helpers (wins #3 + #4). Build a heterogeneous bid set
+// from the organs the kernel can reach BEFORE persona selection, run the
+// arena, and translate the winner into (a) a persona voice bend and (b)
+// the prompt's live-concern segment. All best-effort: a missing reader /
+// store fault yields fewer bidders, never a throw on the hot path.
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Cross-session ToM close-the-loop (win #1). Folds ONE Bayesian
+ * observation of THIS turn back into the durable owner-style posterior
+ * post-turn. Fire-and-forget — the kernel never blocks on it and
+ * swallows any rejection so a store fault can't break the turn. Reaction
+ * is the owner's reaction to the PRIOR MD turn carried in this turn's
+ * message; we leave it neutral here (the service's own `parseFeedbackText`
+ * detects "too long / just tell me" style corrections from the text).
+ */
+function maybeRefineOwnerStyle(args: {
+  readonly reader: BrainKernelDeps['ownerStyleReader'];
+  readonly tenantId: string | null;
+  readonly userMessage: string;
+  readonly nowMs: number;
+}): void {
+  const { reader, tenantId } = args;
+  if (!reader || !tenantId) return;
+  void Promise.resolve()
+    .then(() =>
+      reader.refine(tenantId, [
+        { text: args.userMessage, tsMs: args.nowMs },
+      ]),
+    )
+    .catch(() => undefined);
+}
+
+/** Drive bids from the slow loop's open proposals (one per breached drive). */
+async function buildDriveBids(
+  reader: BrainKernelDeps['pendingProposalReader'],
+  tenantId: string | null,
+): Promise<ReadonlyArray<SalienceBid>> {
+  if (!reader || !tenantId) return [];
+  try {
+    const proposals = await reader.read({ tenantId, limit: 6 });
+    return proposals.map((p) =>
+      Object.freeze({
+        id: `drive:${p.driveId}`,
+        sourceClass: 'drive' as const,
+        // breachSeverity is already [0,1] per the drive contract.
+        bid: clampBid(p.breachSeverity),
+        domain: domainForDriveId(p.driveId),
+        label: p.title,
+      }),
+    );
+  } catch {
+    return [];
+  }
+}
+
+/** ACT-R activation bids from the (read-only) situational snapshot. */
+async function buildActivationBids(
+  reader: BrainKernelDeps['situationalSnapshotReader'],
+  tenantId: string | null,
+): Promise<ReadonlyArray<SalienceBid>> {
+  if (!reader || !tenantId) return [];
+  try {
+    const snapshot = await reader.read(tenantId);
+    // Cap activation low so a referenced-but-not-breached entity never
+    // out-bids a real P0 / high-severity drive on its own.
+    return activationBids(snapshot, { floor: 0, ceiling: 0.5 });
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Affect bids (win #4) — translate the dark `behaviorSignalSource`'s
+ * frustration / dwell signals into first-class arena bidders. A genuine
+ * frustration signal bids HIGH (fast-decaying — see the windowMinutes
+ * floor); repeated deep-dwell-without-progress bids a 'stuck' mid-bid.
+ * When an affect bid wins, the focus directive softens toward
+ * acknowledgement + suppresses proactive framing for the turn.
+ */
+async function buildAffectBids(
+  source: BrainKernelDeps['behaviorSignalSource'],
+  tenantId: string | null,
+  userId: string | null,
+): Promise<ReadonlyArray<SalienceBid>> {
+  if (!source || !tenantId || !userId) return [];
+  try {
+    const signals = await source.signalsForUser({
+      tenantId,
+      userId,
+      // Tight window so affect is a SHORT-lived bidder — the task
+      // concern reclaims the spotlight on the next quiet turn.
+      windowMinutes: 10,
+    });
+    const bids: SalienceBid[] = [];
+    let frustration = 0;
+    let dwell = 0;
+    for (const s of signals) {
+      if (s.kind === 'frustration.detected') frustration += 1;
+      else if (s.kind === 'dwell.deep') dwell += 1;
+    }
+    if (frustration > 0) {
+      bids.push(
+        Object.freeze({
+          id: 'affect:frustration',
+          sourceClass: 'affect' as const,
+          // One detection is already loud; repeats saturate toward 1.
+          bid: clampBid(0.7 + 0.15 * (frustration - 1)),
+          domain: 'affect' as const,
+          label: 'frustrated or stuck right now',
+        }),
+      );
+    }
+    // Repeated deep dwell WITHOUT a frustration spike → a 'stuck' bid
+    // (lower than overt frustration; it still competes with mid drives).
+    if (dwell >= 2 && frustration === 0) {
+      bids.push(
+        Object.freeze({
+          id: 'affect:stuck',
+          sourceClass: 'affect' as const,
+          bid: clampBid(0.45 + 0.1 * (dwell - 2)),
+          domain: 'affect' as const,
+          label: 'dwelling on this without progress',
+        }),
+      );
+    }
+    return bids;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Detector bids (win #3 seam) — map proactive-detector P0/P1/P2 signals
+ * onto arena bids. The kernel has no detector READER wired yet (detectors
+ * fire on the slow loop), so this is the typed adapter a composition root
+ * uses to feed detector signals into the same arena as drives + affect.
+ * Pure; tolerates an absent severity band (falls to a low floor).
+ */
+export function buildDetectorBids(
+  detectors: ReadonlyArray<{
+    readonly id: string;
+    readonly severity: 'P0' | 'P1' | 'P2' | string;
+    readonly entityKind?: string;
+    readonly label: string;
+  }>,
+): ReadonlyArray<SalienceBid> {
+  return detectors.map((d) =>
+    Object.freeze({
+      id: `detector:${d.id}`,
+      sourceClass: 'detector' as const,
+      bid: clampBid(bidForDetectorSeverity(d.severity)),
+      domain: (d.entityKind
+        ? domainForEntityKind(d.entityKind)
+        : 'general') as FocusDomain,
+      label: d.label,
+    }),
+  );
+}
+
+/**
+ * Commitment bids (win #3 seam) — map OVERDUE open commitments onto arena
+ * bids (urgency × days-overdue). Same dormant-but-real adapter pattern as
+ * {@link buildDetectorBids}: the kernel exposes it so a composition root
+ * can feed the reconcile engine's overdue backlog into the arena.
+ */
+export function buildCommitmentBids(
+  commitments: ReadonlyArray<{
+    readonly id: string;
+    readonly urgency: number;
+    readonly daysOverdue: number;
+    readonly entityKind?: string;
+    readonly label: string;
+  }>,
+): ReadonlyArray<SalienceBid> {
+  const bids: SalienceBid[] = [];
+  for (const c of commitments) {
+    const bid = bidForOverdueCommitment({
+      urgency: c.urgency,
+      daysOverdue: c.daysOverdue,
+    });
+    if (bid <= 0) continue; // not overdue → no bid
+    bids.push(
+      Object.freeze({
+        id: `commitment:${c.id}`,
+        sourceClass: 'commitment' as const,
+        bid,
+        domain: (c.entityKind
+          ? domainForEntityKind(c.entityKind)
+          : 'general') as FocusDomain,
+        label: c.label,
+      }),
+    );
+  }
+  return bids;
+}
+
+/**
+ * Compose the whole turn's bid set + run the arena. Returns the Focus
+ * (or null) plus the derived voice-bend + prompt directive. Pure given
+ * the resolved bids; the I/O readers are awaited by the caller-side
+ * builders above.
+ */
+function resolveSalienceFocus(
+  bidGroups: ReadonlyArray<ReadonlyArray<SalienceBid>>,
+): {
+  readonly focus: Focus | null;
+  readonly voiceBend: SalienceVoiceBend | undefined;
+  readonly directive: string;
+} {
+  const all: SalienceBid[] = [];
+  for (const g of bidGroups) for (const b of g) all.push(b);
+  const focus = runSalienceArena(all);
+  if (!focus) {
+    return { focus: null, voiceBend: undefined, directive: '' };
+  }
+  const vp = vpVoiceForDomain(focus.winner.domain);
+  const voiceBend: SalienceVoiceBend | undefined = vp
+    ? { vpVoice: vp, concernLabel: focus.winner.label }
+    : undefined;
+  return { focus, voiceBend, directive: renderFocusDirective(focus) };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Honest epistemic-state surface (win #2 / INV-H). Derive the self-model
+// from the FINAL answer + the confidence vector and project it onto a
+// surface-safe frame: POSTURE + sure/unsure/would-need. We surface the
+// AXES (groundedness / numbers / stakes) translated to plain language —
+// NEVER the four-axis audit numbers (those stay in the confidence frame +
+// provenance). Pure.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Plain-language label per uncertainty axis (surface-safe; no math). */
+const AXIS_SURFACE_LABEL: Record<string, string> = {
+  groundedness: 'how well-sourced this is',
+  'overconfidence-without-evidence': 'claims I made without a citation',
+  'hedged-language': 'how tentative my own wording was',
+  'no-tool-evidence': "whether I pulled live data vs. answered from memory",
+  'high-stakes-margin': 'the safety margin on a high-stakes call',
+  'no-thought-content': 'what you are actually asking',
+};
+
+/** Plain-language "would need" per uncertainty axis (surface-safe). */
+const AXIS_WOULD_NEED: Record<string, string> = {
+  groundedness: 'a source document or the latest figures to cite',
+  'overconfidence-without-evidence': 'evidence for the specific claims above',
+  'no-tool-evidence': 'permission to pull the live numbers',
+  'high-stakes-margin': 'a second confirming data point before you act',
+  'no-thought-content': 'one more detail about what you need',
+};
+
+function buildSelfModelFrame(args: {
+  readonly answerText: string;
+  readonly confidence: ConfidenceVector;
+  readonly citationCount: number;
+  readonly toolCallsIssued: boolean;
+  readonly stakes: ThoughtRequest['stakes'];
+  readonly softened: boolean;
+}): import('./kernel-types.js').SelfModelFrame {
+  const model: PerThoughtSelfModel = buildPerThoughtSelfModel({
+    snapshot: {
+      text: args.answerText,
+      // Feed the AUDITED overall as the producer confidence so the
+      // heuristic posture aligns with the kernel's own scoring — but we
+      // never SURFACE that number (INV-H); only the posture/axes leak.
+      producerConfidence: args.confidence.overall,
+    },
+    context: {
+      citationCount: args.citationCount,
+      toolCallsIssued: args.toolCallsIssued,
+      stakes: args.stakes,
+      ...(args.softened ? { softeningGates: ['confidence'] } : {}),
+    },
+  });
+
+  // SURE = axes that are NOT in the uncertainty set, expressed positively.
+  // We surface a short, deterministic set; if the answer is well-grounded
+  // (citations present, numbers consistent) we say so in plain language.
+  const sureAbout: string[] = [];
+  if (args.citationCount > 0 || args.confidence.groundedness >= 0.66) {
+    sureAbout.push('the parts I cited a source for');
+  }
+  if (args.toolCallsIssued || args.confidence.numericalConsistency >= 0.66) {
+    sureAbout.push('the figures that came from live data');
+  }
+  if (sureAbout.length === 0 && model.posture === 'answering') {
+    sureAbout.push('the general shape of the answer');
+  }
+
+  const unsureAbout: string[] = [];
+  const wouldNeed: string[] = [];
+  for (const axis of model.uncertaintyAxes) {
+    const label = AXIS_SURFACE_LABEL[axis];
+    if (label) unsureAbout.push(label);
+    const need = AXIS_WOULD_NEED[axis];
+    if (need) wouldNeed.push(need);
+  }
+  // De-dupe wouldNeed while preserving order (stable surface).
+  const seenNeed = new Set<string>();
+  const wouldNeedUnique = wouldNeed.filter((n) =>
+    seenNeed.has(n) ? false : (seenNeed.add(n), true),
+  );
+
+  return Object.freeze({
+    posture: model.posture,
+    sureAbout: Object.freeze(sureAbout),
+    unsureAbout: Object.freeze(unsureAbout),
+    wouldNeed: Object.freeze(wouldNeedUnique),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Conflict-monitored effort recruitment (win #5 / System 1/2). Build one
+// CONFLICT scalar from signals the kernel ALREADY computes, and decide
+// whether a fast/standard-routed turn should RECRUIT the next depth tier
+// (debate detour / deep model) ONCE before committing. Pure arbiter; the
+// caller owns the single re-entry guard + keeps every rail.
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Compose the conflict scalar from the parts. Each input contributes a
+ * bounded term; the result is clamped to [0,1]. Absent inputs contribute
+ * 0 (no conflict signal) so the scalar degrades cleanly.
+ */
+function computeConflictScalar(args: {
+  readonly confidenceOverall?: number | null;
+  readonly synthAgreement?: number | null;
+  readonly synthEscalate?: boolean;
+  readonly debateConverged?: boolean | null;
+  readonly judgeScore?: number | null;
+}): number {
+  let conflict = 0;
+  // Low confidence is the dominant signal.
+  if (typeof args.confidenceOverall === 'number') {
+    conflict = Math.max(conflict, clamp01(1 - args.confidenceOverall));
+  }
+  // Cross-vendor synthesizer disagreement.
+  if (typeof args.synthAgreement === 'number') {
+    conflict = Math.max(conflict, clamp01(1 - args.synthAgreement));
+  }
+  if (args.synthEscalate === true) {
+    conflict = Math.max(conflict, 0.7);
+  }
+  // A debate that ran but did NOT converge is a conflict signal.
+  if (args.debateConverged === false) {
+    conflict = Math.max(conflict, 0.6);
+  }
+  // A failed self-review.
+  if (typeof args.judgeScore === 'number' && args.judgeScore < 0.5) {
+    conflict = Math.max(conflict, clamp01(1 - args.judgeScore));
+  }
+  return clamp01(conflict);
+}
+
+/** Conflict threshold above which a fast/standard turn recruits more effort. */
+const CONFLICT_RECRUIT_THRESHOLD = 0.55;
+
+/**
+ * The recruitment arbiter. Returns whether to escalate this turn and the
+ * target depth. Only escalates a turn the router scored 'fast'/'standard'
+ * — a turn already routed 'full'/'deep' has nothing to recruit. The
+ * caller enforces the single-upshift-per-turn guard.
+ */
+function recruitControl(args: {
+  readonly conflict: number;
+  readonly currentRoute: string;
+  readonly enabled: boolean;
+}): { readonly escalate: boolean; readonly to: 'deep' } {
+  const lane = args.currentRoute === 'fast' || args.currentRoute === 'standard';
+  const escalate =
+    args.enabled && lane && args.conflict >= CONFLICT_RECRUIT_THRESHOLD;
+  return { escalate, to: 'deep' };
+}
+
+function clamp01(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 1) return 1;
+  return n;
 }
 
 // ─────────────────────────────────────────────────────────────────────

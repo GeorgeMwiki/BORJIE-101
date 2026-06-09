@@ -273,10 +273,60 @@ const SURFACE_DEFAULT_PERSONA: Record<ThoughtRequest['surface'], PersonaIdentity
   classroom: CLASSROOM_TUTOR_PERSONA,
 };
 
-export function selectPersona(req: ThoughtRequest): PersonaIdentity {
-  return (
-    SURFACE_DEFAULT_PERSONA[req.surface] ?? OWNER_ADVISOR_PERSONA
-  );
+/**
+ * Salience-arena voice bend. The arena (situational-model/salience-arena)
+ * picks the single most-salient estate concern for the turn and maps its
+ * domain to a VP "voice". When present, `selectPersona` overlays that
+ * voice onto the surface-default persona's `toneGuidance` ONLY — the
+ * persona's `id`, `taboos`, `violationSignals`, `firstPersonNoun`, and
+ * accountability scope stay surface-default so drift-detection + audit +
+ * the four-eye/autonomy gate all key off the SAME stable identity. This
+ * is an attention re-weight, never an identity swap: the answer leans
+ * into the salient concern's register without the AI claiming to BE a
+ * different persona.
+ */
+export interface SalienceVoiceBend {
+  /** VP voice label from the arena (`vp.finance`, `vp.risk-compliance`, …). */
+  readonly vpVoice: string;
+  /** Locale-free one-line concern label, for the tone overlay. */
+  readonly concernLabel: string;
+}
+
+/**
+ * Tone overlay per VP voice. Terse imperative clauses appended to the
+ * persona's existing `toneGuidance`. Kept here (not in the heavy
+ * vp-personas department-head registry) because this is a VOICE hint, not
+ * a sub-MD orchestrator — the latter owns its own analysis pipeline.
+ */
+const VP_VOICE_TONE: Record<string, string> = {
+  'vp.finance':
+    'Lead with the cash / runway implication; quantify in money terms first.',
+  'vp.risk-compliance':
+    'Lead with the licence / royalty / deadline exposure; name the rule and the date.',
+  'vp.operations':
+    'Lead with the safety / on-the-ground operational impact; concrete next action.',
+  'vp.commercial':
+    'Lead with the off-take / counterparty / coverage angle; name the relationship.',
+  'vp.assets':
+    'Lead with the equipment / fleet health angle; name the asset and its state.',
+};
+
+export function selectPersona(
+  req: ThoughtRequest,
+  voiceBend?: SalienceVoiceBend,
+): PersonaIdentity {
+  const base = SURFACE_DEFAULT_PERSONA[req.surface] ?? OWNER_ADVISOR_PERSONA;
+  if (!voiceBend) return base;
+  const overlay = VP_VOICE_TONE[voiceBend.vpVoice];
+  if (!overlay) return base;
+  // Immutable overlay — NEW persona object, base untouched. Only the
+  // tone is bent; id / taboos / scope are preserved verbatim.
+  return {
+    ...base,
+    toneGuidance:
+      `${base.toneGuidance} [Most-salient concern right now: ` +
+      `${voiceBend.concernLabel}. ${overlay}]`,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────

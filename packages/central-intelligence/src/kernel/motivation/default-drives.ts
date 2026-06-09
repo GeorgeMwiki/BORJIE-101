@@ -20,13 +20,30 @@
  * owner). Pure + total: no throws, deterministic.
  */
 
-import type { ActivatedEntity, SituationalSnapshot } from '../situational-model/types.js';
+import type {
+  ActivatedEntity,
+  SituationalSnapshot,
+  SituationEntityKind,
+} from '../situational-model/types.js';
 import type {
   Drive,
   DriveAssessment,
+  DriveId,
   DriveThresholds,
   DriveUrgency,
 } from './types.js';
+
+/**
+ * Two epistemic drive ids that extend the closed mining drive pack WITHOUT a
+ * `types.ts` edit. `DriveId` is `(typeof DRIVE_IDS)[number]`; these ids are
+ * open-by-data-design — the only switch over `driveId` (`titleFor`) carries a
+ * `default` branch, and every downstream consumer (the proposal sink, the
+ * `tab_event_log` jsonb snapshot, the owner cockpit inbox) treats the id as an
+ * opaque string. Casting the literal here keeps the new drives type-correct
+ * while leaving the canonical `DRIVE_IDS` tuple untouched.
+ */
+const ESTATE_VISIBILITY_DRIVE_ID = 'estate-visibility' as DriveId;
+const FORECAST_SURPRISE_DRIVE_ID = 'forecast-surprise' as DriveId;
 
 /** Built-in default thresholds (tenant config overrides each). */
 export const DEFAULT_DRIVE_THRESHOLDS: Required<DriveThresholds> = Object.freeze({
@@ -246,6 +263,125 @@ export const EQUIPMENT_HEALTH_DRIVE: Drive = {
   },
 };
 
+// ── estate-visibility (the EPISTEMIC drive — curiosity about blind spots) ────
+// Curiosity & Intrinsic Motivation. Every OTHER drive raises a concern from
+// BREACHED data; this one raises a concern from MISSING data. It does NOT read
+// entity attributes — it reads the SET of entity KINDS the perception fold has
+// populated this tick and scores the high-decision-impact concern-kinds that
+// have ZERO observed entities (a literal blind spot — the perception source's
+// `return []` "no signal" branches feed THIS drive instead of being swallowed).
+//
+// This inverts the anti-curiosity "missing → SATISFIED" rule of the six domain
+// drives: those stay mute on absent data (so they never spam), and the single
+// visibility drive owns the "I can't see X" concern — coalesced by its one
+// drive-key so the MD asks ONCE, not every tick.
+//
+// breachSeverity = the decision-impact weight of the WORST missing kind (cash /
+// licence dominate an artisanal operation; equipment is the gentlest blind
+// spot). A fully-observed estate (every weighted kind present) is satisfied.
+//
+// CRITICAL: we weight ONLY the "presence-expected" kinds — the ones where an
+// EMPTY observation is a genuine BLIND SPOT, not a healthy state. cash /
+// licence / counterparty (off-take) / equipment are things a real operation
+// HAS, so seeing zero of them means "I can't see it", not "all good". We
+// DELIBERATELY exclude `arrears` and `site`-incidents from the coverage check:
+// zero overdue royalties / zero open incidents is the HEALTHY norm there, so a
+// visibility nudge about them would nag a well-run estate (the domain drives
+// already own those — and stay mute on absence by design).
+const VISIBILITY_KIND_WEIGHTS: Partial<Record<SituationEntityKind, number>> =
+  Object.freeze({
+    cash: 1.0, // runway is the #1 killer of an artisanal operation
+    licence: 1.0, // a lapsed licence halts the whole estate
+    counterparty: 0.7, // off-take coverage — uncovered tonnes pile up
+    equipment: 0.4, // fleet health degrades slowly
+  });
+
+function observedKinds(snapshot: SituationalSnapshot): ReadonlySet<string> {
+  const kinds = new Set<string>();
+  for (const e of snapshot.entities) kinds.add(e.entity.kind);
+  return kinds;
+}
+
+export const ESTATE_VISIBILITY_DRIVE: Drive = {
+  id: ESTATE_VISIBILITY_DRIVE_ID,
+  description:
+    'High-decision-impact estate concerns must be OBSERVABLE — a kind with zero observed entities is a blind spot.',
+  evaluate(snapshot): DriveAssessment {
+    const present = observedKinds(snapshot);
+    const missing: Array<{ kind: SituationEntityKind; weight: number }> = [];
+    let worst = 0;
+    for (const [kind, weight] of Object.entries(VISIBILITY_KIND_WEIGHTS)) {
+      if (weight === undefined) continue;
+      if (present.has(kind)) continue;
+      missing.push({ kind: kind as SituationEntityKind, weight });
+      worst = Math.max(worst, weight);
+    }
+    // Nothing missing → fully observable estate → satisfied. An EMPTY snapshot
+    // (every kind missing) is the strongest curiosity signal, not a no-op.
+    if (missing.length === 0) return satisfied(ESTATE_VISIBILITY_DRIVE_ID);
+    // Surface the blind spots in decision-impact order so the proposal names
+    // the things that most kill an operation first.
+    const ordered = [...missing].sort((a, b) => b.weight - a.weight);
+    const names = ordered.map((m) => m.kind).join(', ');
+    // Curiosity fires on ABSENCE — there is no BREACHING entity to cite. To
+    // honour the downstream Auditor evidence rail (≥1 evidence id) we cite the
+    // single most-salient entity the MD CAN see (the broadcast) as provenance
+    // for "the part of the estate I have a view of". A net-new tenant with an
+    // entirely empty snapshot has nothing to cite — evidence stays empty there
+    // (the proposal still surfaces; it is a request FOR data, not a claim).
+    const evidence = snapshot.broadcast ? [snapshot.broadcast] : [];
+    return {
+      driveId: ESTATE_VISIBILITY_DRIVE_ID,
+      satisfied: false,
+      breachSeverity: worst,
+      urgency: urgencyFor(worst),
+      summary: `no visibility into: ${names}`,
+      evidence,
+    };
+  },
+};
+
+// ── forecast-surprise (PREDICTIVE CODING — attend to what defied the forecast) ─
+// Active inference: the MD should look first at what most VIOLATED its own
+// prediction, not at what is merely closest to a static threshold. The estate-
+// mind perception source decorates an entity with a `surpriseDrift` attribute
+// (the reconciliation drift_score, [0,1]) keyed to the SAME entityId the six
+// domain perceivers use; the situational fold merges it onto that entity. This
+// drive fires UNSATISFIED for any entity carrying surpriseDrift above the
+// DIVERGENT band so the most-surprising entity becomes the loop's lead concern.
+//
+// Pure: reads the attributes bag only (no IO). Missing attribute → no signal,
+// honouring the "absent data never raises a concern" rule of the pack.
+const DIVERGENT_SURPRISE_BAND = 0.4; // mirrors the reconciliation worker's band
+
+export const FORECAST_SURPRISE_DRIVE: Drive = {
+  id: FORECAST_SURPRISE_DRIVE_ID,
+  description:
+    'An outcome that diverged sharply from its forecast (high drift) demands attention before raw-threshold concerns.',
+  evaluate(snapshot): DriveAssessment {
+    const breaching: ActivatedEntity[] = [];
+    let worst = 0;
+    for (const e of snapshot.entities) {
+      const drift = num(e, 'surpriseDrift');
+      if (drift === null || drift <= DIVERGENT_SURPRISE_BAND) continue;
+      breaching.push(e);
+      // drift in (band, 1] → severity scales across the remaining headroom.
+      const span = 1 - DIVERGENT_SURPRISE_BAND;
+      const severity = span <= 0 ? 1 : Math.min(1, (drift - DIVERGENT_SURPRISE_BAND) / span);
+      worst = Math.max(worst, severity);
+    }
+    if (breaching.length === 0) return satisfied(FORECAST_SURPRISE_DRIVE_ID);
+    return {
+      driveId: FORECAST_SURPRISE_DRIVE_ID,
+      satisfied: false,
+      breachSeverity: worst,
+      urgency: urgencyFor(worst),
+      summary: `an outcome diverged sharply from its forecast (drift above ${DIVERGENT_SURPRISE_BAND})`,
+      evidence: breaching,
+    };
+  },
+};
+
 /** The full default drive set, in evaluation order. */
 export const DEFAULT_DRIVES: ReadonlyArray<Drive> = Object.freeze([
   CASH_RUNWAY_DRIVE,
@@ -254,4 +390,9 @@ export const DEFAULT_DRIVES: ReadonlyArray<Drive> = Object.freeze([
   OFFTAKE_COVERAGE_DRIVE,
   ROYALTY_CURRENCY_DRIVE,
   EQUIPMENT_HEALTH_DRIVE,
+  // ── epistemic drives (curiosity + surprise) — fire on MISSING / SURPRISING
+  //    data, not breached thresholds. Appended last so the six domain concerns
+  //    keep their evaluation order; the engine re-sorts goals by severity.
+  ESTATE_VISIBILITY_DRIVE,
+  FORECAST_SURPRISE_DRIVE,
 ]);

@@ -51,6 +51,9 @@ import {
 } from './worker-heartbeat';
 import { withWorkerTenantContext } from './with-tenant-context.js';
 import { feedReconciliationToConformal } from '../composition/conformal/reconciliation-conformal-feed.js';
+import { reflexion as kernelReflexion } from '@borjie/central-intelligence';
+
+type ReflexionRecorderPort = kernelReflexion.ReflexionRecorderPort;
 
 const DEFAULT_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const DEFAULT_BATCH = 50;
@@ -106,6 +109,21 @@ export interface ReconciliationWorkerOptions {
   readonly intervalMs?: number;
   readonly enabled?: boolean;
   readonly now?: () => Date;
+  /**
+   * WIN-2 — self-correcting memory. When bound, a `divergent` reconciliation
+   * whose drift exceeds {@link reflexionDriftFloor} is synthesised into a durable
+   * reflexion lesson (the SAME `reflexion_buffer` the chat path writes), so the
+   * nightly sleep pass can cluster recurring surprises into a guideline the next
+   * inference reads back. When omitted the worker behaves exactly as before
+   * (honest-degrade — the surprise is still recorded in the audit chain + the
+   * conformal loop). Best-effort: a recorder fault never fails the reconciliation.
+   */
+  readonly reflexionRecorder?: ReflexionRecorderPort | null;
+  /**
+   * Drift floor (0..1) above which a divergent reconciliation becomes a lesson.
+   * Below it, a small miss is noise — not worth a durable reflexion. Default 0.5.
+   */
+  readonly reflexionDriftFloor?: number;
 }
 
 export interface ReconciliationWorkerHandle {
@@ -276,6 +294,95 @@ function buildLearningSignal(
     poorly_predicted_keys: poorlyPredictedKeys,
     rationale_excerpt: prediction.rationale.slice(0, 400),
   });
+}
+
+const DEFAULT_REFLEXION_DRIFT_FLOOR = 0.5;
+
+/**
+ * WIN-2 — surprise → reflexion adapter.
+ *
+ * Map a DIVERGENT reconciliation's learning_signal into the recorder's critique
+ * string + importance, then write it through `recordReflexion`. This makes the
+ * reconciliation worker a SECOND writer into `reflexion_buffer` — keyed on
+ * model-vs-reality surprise rather than conversation. The correction hint mirrors
+ * the forecasting-engine `lessonFromDelta` synthesis (widen-band on a scalar
+ * miss, re-tune-central-estimate on a directional one) so the lesson the nightly
+ * sleep pass consolidates carries an actionable bias direction, not just "I was
+ * wrong". Importance = drift so the prune pass keeps the biggest surprises.
+ *
+ * Best-effort + fail-soft: the reconciliation row + audit chain + conformal feed
+ * are already durably committed before this runs; a recorder fault is swallowed.
+ */
+async function recordSurpriseAsReflexion(
+  recorder: ReflexionRecorderPort,
+  p: PendingPrediction,
+  predictedValueTzs: number | null,
+  observedValueTzs: number | null,
+  drift: number,
+  poorlyPredictedKeys: readonly string[],
+  logger: Logger,
+): Promise<void> {
+  try {
+    const critique = synthesiseSurpriseLesson(
+      p,
+      predictedValueTzs,
+      observedValueTzs,
+      drift,
+      poorlyPredictedKeys,
+    );
+    await kernelReflexion.recordReflexion(recorder, {
+      tenantId: p.tenantId,
+      taskId: `reconcile:${p.id}`,
+      success: false,
+      critique,
+      importance: Math.max(0, Math.min(1, drift)),
+    });
+  } catch (err) {
+    logger.warn(
+      {
+        worker: 'outcome-reconciliation',
+        predictionId: p.id,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'outcome-reconciliation: surprise→reflexion write failed (reconciliation already committed)',
+    );
+  }
+}
+
+/**
+ * Synthesise the durable lesson text from the divergence. Pure. Carries the
+ * action-kind, the entity-type, the predicted-vs-observed scalar (when present),
+ * the keys that missed, and the correction direction (bias high/low / widen
+ * band) so the next forecast prompt reads an actionable hint.
+ */
+function synthesiseSurpriseLesson(
+  p: PendingPrediction,
+  predictedValueTzs: number | null,
+  observedValueTzs: number | null,
+  drift: number,
+  poorlyPredictedKeys: readonly string[],
+): string {
+  const driftPct = (drift * 100).toFixed(0);
+  let xy = '';
+  let correction: string;
+  if (predictedValueTzs !== null && observedValueTzs !== null && predictedValueTzs !== 0) {
+    const direction = observedValueTzs > predictedValueTzs ? 'underestimated' : 'overestimated';
+    xy = `predicted ${predictedValueTzs.toFixed(0)} vs observed ${observedValueTzs.toFixed(0)}`;
+    // Mirrors lessonFromDelta: a directional miss re-tunes the central estimate;
+    // a large miss widens the band. Drift over the matched band = "outside band".
+    correction =
+      drift > DIVERGENT_DRIFT_BAND
+        ? `widen the confidence band for ${p.actionKind} on ${p.actionTargetEntityType} — residual variance exceeds the model; and re-tune the central estimate (bias ${direction === 'underestimated' ? 'low' : 'high'})`
+        : `re-tune the ${p.actionKind} central estimate — bias ${direction === 'underestimated' ? 'low' : 'high'}`;
+  } else {
+    const missed = poorlyPredictedKeys.slice(0, 6).join(', ') || 'multiple fields';
+    xy = `envelope keys diverged: ${missed}`;
+    correction = `widen the confidence band for ${p.actionKind} on ${p.actionTargetEntityType} — these fields are less predictable than the model assumes`;
+  }
+  return (
+    `${p.actionKind} on ${p.actionTargetEntityType}: surprise (drift ${driftPct}%). ` +
+    `${xy}. Correction: ${correction}.`
+  );
 }
 
 async function appendReconciliationAudit(
@@ -649,6 +756,38 @@ export function createOutcomeReconciliationWorker(
           'outcome-reconciliation: conformal feed failed (reconciliation already committed)',
         );
       }
+    }
+
+    // WIN-2 — self-correcting memory: a BIG surprise (divergent + drift over the
+    // lesson floor) becomes a durable reflexion the next inference reads back.
+    // The lesson was previously synthesised then DISCARDED; this closes the loop.
+    // The recorder port owns its own RLS-safe write path (the row carries an
+    // explicit tenantId; workers connect service_role), so no tenant-context wrap
+    // is needed here — it would pin a connection the recorder doesn't use. The
+    // recorder is best-effort and the reconciliation is already committed, so a
+    // write fault is harmless.
+    const driftFloor = options.reflexionDriftFloor ?? DEFAULT_REFLEXION_DRIFT_FLOOR;
+    if (
+      status === 'divergent' &&
+      drift > driftFloor &&
+      options.reflexionRecorder
+    ) {
+      const poorlyPredictedKeys = Array.isArray(
+        (learning as { poorly_predicted_keys?: unknown }).poorly_predicted_keys,
+      )
+        ? (learning as { poorly_predicted_keys: unknown[] }).poorly_predicted_keys.filter(
+            (k): k is string => typeof k === 'string',
+          )
+        : [];
+      await recordSurpriseAsReflexion(
+        options.reflexionRecorder,
+        p,
+        p.predictedValueTzs,
+        observation.observedValueTzs,
+        drift,
+        poorlyPredictedKeys,
+        options.logger,
+      );
     }
 
     return status;

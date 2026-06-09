@@ -337,6 +337,25 @@ export interface ComposeSovereignConfig {
    */
   readonly behaviorSignalSource?: import('./kernel-types.js').BehaviorSignalSourcePort;
   /**
+   * Wave-C emergent cognition — cross-session owner-model (ToM) reader. When
+   * wired, the kernel folds the durable owner-style directive into the prompt
+   * and refines the posterior post-turn (close the loop).
+   */
+  readonly ownerStyleReader?: import('./kernel-types.js').OwnerStyleReaderPort;
+  /**
+   * Wave-C salience arena — optional reader of the latest SituationalSnapshot
+   * so the ACT-R activation sub-bidder can compete for the attention spotlight.
+   * Dormant (arena still runs on affect/detector/commitment bids) when unset.
+   */
+  readonly situationalSnapshotReader?: Parameters<
+    typeof createBrainKernel
+  >[0]['situationalSnapshotReader'];
+  /**
+   * Wave-C metacognition — when not explicitly false, a fast/standard-routed
+   * turn whose internal signals conflict may upshift ONCE to the debate detour.
+   */
+  readonly conflictRecruitmentEnabled?: boolean;
+  /**
    * Optional multi-LLM synthesizer port. When wired, turns carrying
    * `req.requireSynthesis === true` route through a mixture-of-agents
    * fan-out (Anthropic + OpenAI + DeepSeek by default) plus a Claude
@@ -549,6 +568,13 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   if (config.intentVerificationEnabled !== undefined) (kernelDeps as any).intentVerificationEnabled = config.intentVerificationEnabled;
   // C4 — Sensorium / Brain Skin.
   if (config.behaviorSignalSource) (kernelDeps as any).behaviorSignalSource = config.behaviorSignalSource;
+  // Wave-C emergent cognition — forward the owner-model reader, the situational
+  // snapshot reader (salience arena ACT-R sub-bidder), and the conflict-
+  // recruitment toggle so the new cognitive loops are LIVE, not dropped by the
+  // explicit-per-key forwarding (the `as any` cast would otherwise hide them).
+  if (config.ownerStyleReader) (kernelDeps as any).ownerStyleReader = config.ownerStyleReader;
+  if (config.situationalSnapshotReader) (kernelDeps as any).situationalSnapshotReader = config.situationalSnapshotReader;
+  if (config.conflictRecruitmentEnabled !== undefined) (kernelDeps as any).conflictRecruitmentEnabled = config.conflictRecruitmentEnabled;
   // Close-the-loop — forward the EstateMind pending-proposal reader so the
   // kernel surfaces the slow loop's own proactive insights mid-turn (step 5c).
   if (config.pendingProposalReader) (kernelDeps as any).pendingProposalReader = config.pendingProposalReader;

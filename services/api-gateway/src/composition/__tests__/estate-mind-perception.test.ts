@@ -13,7 +13,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { createEstateMindPerception } from '../estate-mind-perception.js';
+import {
+  createEstateMindPerception,
+  resolveDriveThresholdsFromBaselines,
+} from '../estate-mind-perception.js';
 import type { PinoLikeLogger } from '../../utils/pino-shim.js';
 
 const silentLogger: PinoLikeLogger = {
@@ -212,5 +215,112 @@ describe('estate-mind-perception — degrades gracefully (no observation, never 
     );
     const obs = await src.perceive({ tenantId: TENANT, nowMs: NOW });
     expect(obs.some((o) => o.kind === 'counterparty')).toBe(false);
+  });
+});
+
+describe('estate-mind-perception — surprise (7th perceiver, predictive coding)', () => {
+  it('folds a DIVERGENT reconciliation onto the SAME kind:entityId, decorated with surpriseDrift', async () => {
+    const src = perceptionOver((text) =>
+      text.includes('FROM outcome_reconciliations')
+        ? [
+            {
+              drift_score: '0.61',
+              reconciled_at: '2026-01-01',
+              entity_type: 'asset',
+              entity_id: 'a-1',
+              predicted_outcome: { processing_cost_delta_pct: -18 },
+              action_kind: 'install_crusher',
+            },
+          ]
+        : [],
+    );
+    const obs = await src.perceive({ tenantId: TENANT, nowMs: NOW });
+    const surprise = obs.find((o) => o.entityId === 'a-1');
+    expect(surprise).toBeDefined();
+    // entity_type 'asset' maps onto the equipment kind (same key the equipment
+    // perceiver uses) so the situational fold MERGES the surprise onto it.
+    expect(surprise!.kind).toBe('equipment');
+    expect(surprise!.attributes).toMatchObject({ surpriseDrift: 0.61 });
+  });
+
+  it('skips an UNMAPPED entity_type (honest-degrade, no fabricated kind)', async () => {
+    const src = perceptionOver((text) =>
+      text.includes('FROM outcome_reconciliations')
+        ? [{ drift_score: '0.9', reconciled_at: 'x', entity_type: 'mystery_box', entity_id: 'm-1' }]
+        : [],
+    );
+    const obs = await src.perceive({ tenantId: TENANT, nowMs: NOW });
+    expect(obs.some((o) => o.entityId === 'm-1')).toBe(false);
+  });
+
+  it('a missing reconciliation table degrades to no surprise observation', async () => {
+    const src = perceptionOver((text) => {
+      if (text.includes('FROM outcome_reconciliations')) {
+        throw new Error('relation "outcome_reconciliations" does not exist');
+      }
+      if (text.includes('FROM assets')) {
+        return [{ id: 'a-1', kind: 'pump', make: '', model: '', status: 'operational' }];
+      }
+      return [];
+    });
+    const obs = await src.perceive({ tenantId: TENANT, nowMs: NOW });
+    // surprise reader threw → no extra surpriseDrift entity, equipment still maps.
+    expect(obs.every((o) => o.attributes.surpriseDrift === undefined)).toBe(true);
+    expect(obs.some((o) => o.kind === 'equipment')).toBe(true);
+  });
+});
+
+describe('estate-mind-perception — schema-conditioned thresholds (baseline resolver)', () => {
+  function resolverOver(handler: (text: string) => unknown) {
+    const db = {
+      async execute(query: unknown): Promise<unknown> {
+        return handler(sqlTextOf(query));
+      },
+    };
+    return resolveDriveThresholdsFromBaselines(
+      db,
+      TENANT,
+      { runServiceRole: (fn) => fn(db) },
+      silentLogger,
+    );
+  }
+
+  it('re-tunes the cash FLOOR to mean − k·sd from a baseline fact', async () => {
+    // mean 25, sd 4, k 1.5 → floor = 25 − 6 = 19 (this estate runs lean).
+    const thresholds = await resolverOver((text) =>
+      text.includes('FROM kernel_memory_semantic')
+        ? [{ key: 'baseline:estate:cash_runway_d', value: { mean: 25, sd: 4 } }]
+        : [],
+    );
+    expect(thresholds.cashRunwayDaysFloor).toBeCloseTo(19, 5);
+    // metrics with no baseline fact are OMITTED → drive falls back to default.
+    expect(thresholds.licenceRenewalDaysFloor).toBeUndefined();
+  });
+
+  it('re-tunes a CEILING to mean + k·sd', async () => {
+    // mean 2, sd 1, k 1.5 → ceiling = 2 + 1.5 = 3.5 overdue days.
+    const thresholds = await resolverOver((text) =>
+      text.includes('FROM kernel_memory_semantic')
+        ? [{ key: 'baseline:estate:royalty_overdue_d', value: { mean: 2, sd: 1 } }]
+        : [],
+    );
+    expect(thresholds.royaltyOverdueDaysCeiling).toBeCloseTo(3.5, 5);
+  });
+
+  it('NO baseline facts → empty thresholds (static defaults, honest-degrade)', async () => {
+    const thresholds = await resolverOver(() => []);
+    expect(thresholds).toEqual({});
+  });
+
+  it('a read fault degrades to empty thresholds (never throws)', async () => {
+    const thresholds = await resolverOver(() => {
+      throw new Error('relation "kernel_memory_semantic" does not exist');
+    });
+    expect(thresholds).toEqual({});
+  });
+
+  it('a null db short-circuits to empty thresholds', async () => {
+    const thresholds = await resolveDriveThresholdsFromBaselines(null, TENANT);
+    expect(thresholds).toEqual({});
   });
 });

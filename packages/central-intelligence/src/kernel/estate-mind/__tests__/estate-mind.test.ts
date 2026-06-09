@@ -51,6 +51,22 @@ function perceptionOf(
   return { async perceive() { return rows; } };
 }
 
+/**
+ * Healthy filler for the four visibility-KIND-coverage entities (cash /
+ * licence / counterparty / equipment) so the epistemic `estate-visibility`
+ * drive stays SATISFIED. These tests exercise the cycle MECHANICS against a
+ * single breaching/healthy domain entity; the curiosity drive (which fires on
+ * MISSING kinds) is covered separately in motivation.test.ts. A `tenantId`
+ * keeps the filler tenant-correct in the per-tenant `cycle` test.
+ */
+function visibilityCoverage(tenantId: string = T): RecordEntityInput[] {
+  return [
+    { tenantId, entityId: 'lic-ok', kind: 'licence', label: 'Licence', attributes: { renewalInDays: 365 } },
+    { tenantId, entityId: 'cp-ok', kind: 'counterparty', label: 'Buyer', attributes: { offtakeCoverageRatio: 1 } },
+    { tenantId, entityId: 'eq-ok', kind: 'equipment', label: 'Asset', attributes: { healthScore: 1 } },
+  ];
+}
+
 function build(opts: {
   perception?: PerceptionSource | null;
   sink?: ProposalSink | null;
@@ -76,13 +92,14 @@ describe('EstateMind — one cognitive cycle end-to-end', () => {
     const { mind } = build({
       perception: perceptionOf([
         { tenantId: T, entityId: 'cash-1', kind: 'cash', label: 'Cash', attributes: { runwayDays: 12 } },
+        ...visibilityCoverage(), // keep estate-visibility satisfied
       ]),
       sink,
     });
 
     const result = await mind.tick(T);
 
-    expect(result.observed).toBe(1);
+    expect(result.observed).toBe(4); // cash + 3 healthy coverage entities
     expect(result.goalsFormulated).toBe(1);
     expect(result.proposalsEmitted).toBe(1);
     expect(result.degradedReason).toBeNull();
@@ -97,6 +114,7 @@ describe('EstateMind — one cognitive cycle end-to-end', () => {
     const { mind } = build({
       perception: perceptionOf([
         { tenantId: T, entityId: 'cash-1', kind: 'cash', label: 'Cash', attributes: { runwayDays: 200 } },
+        ...visibilityCoverage(), // full kind coverage → estate-visibility satisfied
       ]),
       sink,
     });
@@ -129,6 +147,7 @@ describe('EstateMind — one cognitive cycle end-to-end', () => {
     const { mind } = build({
       perception: perceptionOf([
         { tenantId: T, entityId: 'cash-1', kind: 'cash', label: 'Cash', attributes: { runwayDays: 12 } },
+        ...visibilityCoverage(), // estate-visibility satisfied → only cash-runway proposes
       ]),
       sink,
     });
@@ -176,9 +195,11 @@ describe('EstateMind — never throws, degrades safe', () => {
     const { mind } = build({
       perception: {
         async perceive({ tenantId }) {
-          // each tenant has its own breach
+          // each tenant has its own breach (+ healthy coverage so the
+          // estate-visibility drive stays satisfied for both tenants)
           return [
             { tenantId, entityId: 'cash-1', kind: 'cash', label: 'Cash', attributes: { runwayDays: 5 } },
+            ...visibilityCoverage(tenantId),
           ];
         },
       },
