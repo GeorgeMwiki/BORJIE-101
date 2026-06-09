@@ -53,9 +53,42 @@ type GroundingViewRole =
 import { getSovereignBrain } from '../composition/sovereign';
 import { getDb } from '../composition/db-client';
 import { withKernelSpan, type KernelTraceScope } from '../observability/kernel-tracing';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection /
+// jailbreak guard. Wired ONCE here so every Jarvis surface (customer /
+// owner / manager / admin / platform) is covered on /think AND /stream
+// BEFORE `sov.kernel.think` / `thinkStream` reaches the model. Mirrors
+// brain.hono /turn: CRITICAL → single-language refusal (the model never
+// sees it); lower severities → run on the detector-redacted text. The guard
+// fails OPEN-but-logged, so a guard fault never drops a legitimate turn.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — the single STREAMING kernel-event chokepoint. Wrapping
+// `kernel.thinkStream(...)` DROPS model chain-of-thought (thought_delta) and
+// runs every model-prose `text_delta` through the FAIL-CLOSED egress filter
+// BEFORE the SSE wire. The kernel yields raw deltas before its own policy
+// redaction ("the streaming consumer has already seen raw deltas"), so the IP
+// strip MUST happen at this gateway seam — not one layer down.
+import { guardKernelStream } from '../composition/kernel-event-projector.js';
+import pino from 'pino';
 
 import { withSecurityEvents } from '@borjie/observability';
 export type JarvisSurface = ThoughtRequest['surface'];
+
+const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  name: 'jarvis-router-factory',
+});
+
+/**
+ * IP-EGRESS (CLOSE-G) — the generic, provider-agnostic SSE error message the
+ * client may see. A raw `err.message` from the sovereign composition root or the
+ * kernel iterator can leak provider / model / internal-id detail, so we NEVER
+ * forward it to the wire. The real cause is logged server-side (pino) only.
+ */
+const GENERIC_STREAM_ERROR =
+  'The assistant is temporarily unavailable. Please try again.';
 
 export interface JarvisRouterConfig {
   /** Surface drives default persona selection. */
@@ -339,11 +372,36 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
     const body = c.req.valid('json');
     const profile = actorProfileFromContext(c, config.greetingStyle);
     const scope = scopeFromContext(c, config.surface);
+
+    // INPUT CONTAINMENT (CLOSE-G) — guard `userMessage` BEFORE `kernel.think`.
+    // CRITICAL → single-language JSON refusal (the model never sees it);
+    // lower severities → run on the detector-redacted text. Fail-OPEN.
+    const ingress = await applyIngressGuard({
+      userText: body.userMessage,
+      tenantId: scope.kind === 'tenant' ? scope.tenantId : '',
+      userId: scope.actorUserId ?? null,
+      lang: pickIngressGuardLang(c.req.header('accept-language') ?? null),
+    });
+    if (ingress.refused) {
+      return c.json(
+        {
+          success: false,
+          surface: config.surface,
+          error: {
+            code: 'INPUT_GUARD_REFUSED',
+            message: ingress.refusalMessage,
+          },
+        },
+        403,
+      );
+    }
+    const guardedUserMessage = ingress.text;
+
     const sov = await getSovereignBrain(sovereignScopeFromContext(c, config.surface));
 
     const req: ThoughtRequest = {
       threadId: body.threadId,
-      userMessage: body.userMessage,
+      userMessage: guardedUserMessage,
       scope,
       tier: body.tier,
       stakes: body.stakes,
@@ -385,7 +443,7 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
               tier: tierToNumber(req.tier),
               jurisdiction: 'TZ',
             },
-            user_text: body.userMessage,
+            user_text: guardedUserMessage,
             assistant_text: text,
             decision_kind: kind,
             thread_id: body.threadId,
@@ -413,15 +471,19 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
   // ───────────────────────────────────────────────────────────────────
   // POST /stream — SSE variant of /think.
   //
-  // Wire-level token streaming. Forwards each event from
-  // `kernel.thinkStream(req)` straight onto the SSE wire:
+  // Wire-level token streaming. Forwards each event from the EGRESS-GUARDED
+  // `guardKernelStream(kernel.thinkStream(req))` onto the SSE wire:
   //
   //   event: turn_start  → { persona }
-  //   event: delta       → { delta: '<token-chunk>' }
-  //   event: thinking    → { delta: '<thought-chunk>' }   (extended thinking)
+  //   event: delta       → { delta: '<egress-filtered token-chunk>' }
   //   event: gate        → { gate, verdict }              (drift / policy / inviolable)
   //   event: confidence  → ConfidenceVector               (answers / softened)
   //   event: done        → { thoughtId, kind }
+  //
+  // IP-EGRESS (CLOSE-G): model chain-of-thought (`thought_delta`) is DROPPED at
+  // the `guardKernelStream` chokepoint and NEVER reaches the wire; every prose
+  // `text_delta` is run through the fail-closed egress filter first. There is no
+  // `thinking` event — extended-thinking CoT is the model's private scratch-pad.
   //
   // For sensors that don't expose `callStream`, the kernel falls back
   // internally to a single-shot `call()` and emits ONE text_delta with
@@ -434,11 +496,40 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
     const body = c.req.valid('json');
     const profile = actorProfileFromContext(c, config.greetingStyle);
     const scope = scopeFromContext(c, config.surface);
+
+    // INPUT CONTAINMENT (CLOSE-G) — guard `userMessage` BEFORE
+    // `kernel.thinkStream`. CRITICAL → single-language SSE refusal frame (the
+    // model never sees it); lower severities → run on the detector-redacted
+    // text. Fail-OPEN-but-logged.
+    const ingress = await applyIngressGuard({
+      userText: body.userMessage,
+      tenantId: scope.kind === 'tenant' ? scope.tenantId : '',
+      userId: scope.actorUserId ?? null,
+      lang: pickIngressGuardLang(c.req.header('accept-language') ?? null),
+    });
+    if (ingress.refused) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            message: ingress.refusalMessage,
+            code: 'INPUT_GUARD_REFUSED',
+            retryable: false,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ thoughtId: '', kind: 'refusal' }),
+        });
+      });
+    }
+    const guardedUserMessage = ingress.text;
+
     const sov = await getSovereignBrain(sovereignScopeFromContext(c, config.surface));
 
     const req: ThoughtRequest = {
       threadId: body.threadId,
-      userMessage: body.userMessage,
+      userMessage: guardedUserMessage,
       scope,
       tier: body.tier,
       stakes: body.stakes,
@@ -489,7 +580,18 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
                 latencyMs: 0,
               },
             };
-            for await (const ev of sov.kernel.thinkStream(req)) {
+            // IP-EGRESS (CLOSE-G) — consume the kernel stream through the single
+            // chokepoint: `thought_delta` (CoT) is dropped and never yielded,
+            // and every `text_delta` arrives already egress-filtered. The egress
+            // tenant scopes the filter (platform scope has none — the
+            // cross-tenant strip is then inert; the prose / CoT / secret strips
+            // still apply).
+            const egressTenantId =
+              scope.kind === 'tenant' ? scope.tenantId : '';
+            for await (const ev of guardKernelStream(
+              sov.kernel.thinkStream(req),
+              egressTenantId,
+            )) {
           if (ev.kind === 'turn_start') {
             await stream.writeSSE({
               event: 'turn_start',
@@ -504,15 +606,9 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
             continue;
           }
           if (ev.kind === 'text_delta') {
+            // Already egress-filtered by guardKernelStream (fail-closed).
             await stream.writeSSE({
               event: 'delta',
-              data: JSON.stringify({ delta: ev.text }),
-            });
-            continue;
-          }
-          if (ev.kind === 'thought_delta') {
-            await stream.writeSSE({
-              event: 'thinking',
               data: JSON.stringify({ delta: ev.text }),
             });
             continue;
@@ -547,10 +643,21 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
           },
         );
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'thinkStream failed';
+        // IP-EGRESS (CLOSE-G) — log the raw cause server-side (pino) only; the
+        // client error carries the GENERIC banner so a provider / model /
+        // internal-id detail in `err.message` never reaches the SSE wire.
+        logger.error(
+          {
+            wiring: 'jarvis-router-factory',
+            surface: config.surface,
+            threadId: body.threadId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'jarvis-router-factory: thinkStream failed',
+        );
         await stream.writeSSE({
           event: 'error',
-          data: JSON.stringify({ message }),
+          data: JSON.stringify({ message: GENERIC_STREAM_ERROR }),
         });
         await stream.writeSSE({
           event: 'done',

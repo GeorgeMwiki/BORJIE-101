@@ -114,6 +114,23 @@ import { getDb } from '../composition/db-client.js';
 // architecture / secrets / canary / cross-tenant ids never leak. DEFAULT-ON;
 // kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (GAP-1 / CLOSE-G) — ingress prompt-injection / jailbreak
+// guard run on the user's OWN message BEFORE the provider ladder, mirroring
+// brain.hono /turn. CRITICAL → refuse with single-language copy (never reaches
+// the model); lower severities run on the detector-redacted text (offending
+// spans stripped). DEFAULT-ON; fails OPEN-but-logged. Reuses the blessed
+// `getInputGuard()` detector via the shared apply helper.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// ARTIFACT EGRESS MEMBRANE (INV-H / INV-D / CLOSE-G) — the `tab_proposal`
+// payload carries a full genui-synthesized PortalTab whose `audit` block holds
+// mechanic provenance (actorId / sourceConversationId / history). Project the
+// tab through the membrane before egress so only the renderable frame
+// (title / description / icon / domain / sections) crosses the wire — every
+// mechanic field is dropped at every depth. FAIL-CLOSED on a projection fault.
+import { getArtifactEgressMembrane } from '../composition/artifact-egress-wiring.js';
 // EA-05 — persist each <board_add> element into a durable CRDT slot so the
 // teaching board (the OUTPUT-LEVEL trend-of-thought) survives a reload and
 // re-projects cross-surface. Keyed by `board:<element.id>` so a same-id
@@ -392,6 +409,58 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * IP-EGRESS (CLOSE-G) — guard a single model-authored free-text leaf before
+ * it egresses to the client. Runs the blessed `getEgressFilter().guardFinal`
+ * (FAIL-CLOSED inside the guard) so a leak smuggled into a `rationale` /
+ * `action` / nested payload string is stripped before the `auto_authorized`
+ * frame leaves the gateway. Empty / non-string leaves pass through unchanged.
+ */
+function guardEgressLeaf(text: unknown, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) {
+    return typeof text === 'string' ? text : '';
+  }
+  return getEgressFilter().guardFinal(text, tenantId).text;
+}
+
+/**
+ * IP-EGRESS (CLOSE-G) — project an auto-authorized payload through the egress
+ * filter, guarding every model-authored free-text leaf (`action`, `rationale`,
+ * and each string value in the nested `payload` record) before the
+ * `auto_authorized` frame is emitted. Structural fields are preserved; only
+ * the free-text leaves are filtered. Immutable: returns a new object.
+ */
+function sanitizeAutoAuthorizedPayload(
+  payload: {
+    readonly action: string;
+    readonly rationale: string;
+    readonly payload?: Readonly<Record<string, unknown>>;
+  },
+  tenantId: string,
+): {
+  readonly action: string;
+  readonly rationale: string;
+  readonly payload?: Readonly<Record<string, unknown>>;
+} {
+  const nested = payload.payload;
+  const safeNested = isRecord(nested)
+    ? Object.freeze(
+        Object.fromEntries(
+          Object.entries(nested).map(([k, v]) => [
+            k,
+            typeof v === 'string' ? guardEgressLeaf(v, tenantId) : v,
+          ]),
+        ),
+      )
+    : nested;
+  return Object.freeze({
+    ...payload,
+    action: guardEgressLeaf(payload.action, tenantId),
+    rationale: guardEgressLeaf(payload.rationale, tenantId),
+    ...(safeNested !== undefined ? { payload: safeNested } : {}),
+  });
+}
+
+/**
  * Find and remove a single primary <ui_block>{...}</ui_block> from the
  * model's text. Returns the parsed block (if any) plus the body with the
  * tag stripped. Only the first valid block is honoured; extras are
@@ -490,6 +559,77 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         at: new Date().toISOString(),
       }),
     });
+
+    // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the user's
+    // own message BEFORE the provider ladder. CRITICAL prompt-injection /
+    // jailbreak → refuse with single-language copy (the model never sees it).
+    // Lower severities → continue on the detector-redacted text (offending
+    // spans stripped). Fail-OPEN-but-logged inside the guard.
+    const ingress = await applyIngressGuard({
+      userText: message,
+      tenantId: auth.tenant.tenantId,
+      userId: auth.actor.id ?? null,
+      lang: pickIngressGuardLang(
+        c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+      ),
+    });
+    if (ingress.refused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'input_guard_refused',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+      });
+      return;
+    }
+    // Run the turn on the (possibly redacted) text — offending spans stripped.
+    const guardedMessage = ingress.text;
+
+    // INPUT CONTAINMENT (CLOSE-G) — the prior `history[]` turns are ALSO free
+    // user text replayed straight to the provider, so a prompt-injection /
+    // jailbreak smuggled into an EARLIER turn must not bypass the guard by
+    // hiding in the transcript. Guard EACH history entry: if ANY trips CRITICAL
+    // the whole turn refuses (single-language copy); otherwise the provider
+    // messages are built from the per-entry detector-redacted text. Fail-OPEN.
+    const historyGuardLang = pickIngressGuardLang(
+      c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+    );
+    const guardedHistory: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+    let historyRefused = false;
+    for (const h of history) {
+      const hGuard = await applyIngressGuard({
+        userText: h.text,
+        tenantId: auth.tenant.tenantId,
+        userId: auth.actor.id ?? null,
+        lang: historyGuardLang,
+      });
+      if (hGuard.refused) {
+        historyRefused = true;
+        break;
+      }
+      guardedHistory.push({ role: h.role, text: hGuard.text });
+    }
+    if (historyRefused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'input_guard_refused',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+      });
+      return;
+    }
 
     if (!anthropic && !openai && !deepseek) {
       await stream.writeSSE({
@@ -658,7 +798,9 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // parsing or streaming (see `restorePii(rawText, …)` below).
     const piiTokeniser = createPiiTokeniser();
     const messages = [
-      ...history.map((h) => ({
+      // CLOSE-G — replay the per-entry ingress-guarded history (offending spans
+      // redacted on a lower-severity hit) to the provider, NOT the raw transcript.
+      ...guardedHistory.map((h) => ({
         role: h.role,
         content: [
           { type: 'text' as const, text: piiTokeniser.tokenise(h.text) },
@@ -666,8 +808,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       })),
       {
         role: 'user' as const,
+        // CLOSE-G — the LLM sees the ingress-guarded text (offending spans
+        // redacted on a lower-severity hit); local sensors above keep using
+        // the original `message`, exactly as brain.hono /turn does.
         content: [
-          { type: 'text' as const, text: piiTokeniser.tokenise(message) },
+          { type: 'text' as const, text: piiTokeniser.tokenise(guardedMessage) },
         ],
       },
     ];
@@ -904,25 +1049,16 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // the "Verified ✓ 3-model debate" badge above the assistant bubble
     // as soon as the first token paints.
     if (debateResult) {
+      // IP-EGRESS (CLOSE-G) — the "Verified ✓ multi-model debate" badge must
+      // NEVER leak provider / model / judge identity or the winner rationale.
+      // Project to a provider-agnostic shape: { verified, contenders: <count> }
+      // — a count of how many voices contended, nothing about WHO or WHY. The
+      // FE renders the badge from `verified` + `contenders` alone.
       await stream.writeSSE({
         event: 'debate_metadata',
         data: JSON.stringify({
           verified: debateResult.verified,
-          winner: {
-            provider: debateResult.winner.provider,
-            model: debateResult.winner.model,
-          },
-          scores: debateResult.scores,
-          trace: {
-            judgeProvider: debateResult.trace.judgeProvider,
-            winnerReason: debateResult.trace.winnerReason,
-            responses: debateResult.trace.responses.map((r) => ({
-              provider: r.provider,
-              model: r.model,
-              latencyMs: r.latencyMs,
-              ...(r.error ? { error: r.error } : {}),
-            })),
-          },
+          contenders: debateResult.trace.responses.length,
           at: new Date().toISOString(),
         }),
       });
@@ -1167,7 +1303,9 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         await stream.writeSSE({
           event: 'auto_authorized',
           data: JSON.stringify({
-            payload,
+            // IP-EGRESS (CLOSE-G) — guard the model-authored free-text leaves
+            // (rationale / action / nested payload strings) before emit.
+            payload: sanitizeAutoAuthorizedPayload(payload, tenantId),
             authorized: true,
             executed,
             ...(execResult ? { result: execResult } : {}),
@@ -1191,7 +1329,10 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         await stream.writeSSE({
           event: 'auto_authorized',
           data: JSON.stringify({
-            payload,
+            // IP-EGRESS (CLOSE-G) — guard the model-authored free-text leaves
+            // before emit (suggestion path). The deny `reason` is gateway-
+            // authored (the policy gate), not model text, so it is not filtered.
+            payload: sanitizeAutoAuthorizedPayload(payload, tenantId),
             authorized: false,
             reason: decision.reason,
             at: new Date().toISOString(),
@@ -1325,10 +1466,19 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         logger,
       }).catch(() => null);
       if (proposal && !abort.signal.aborted) {
+        // ARTIFACT EGRESS MEMBRANE — project the genui PortalTab through the
+        // allow-list so its mechanic `audit` block (actorId /
+        // sourceConversationId / history) is dropped before egress. The
+        // renderable preview metadata (summary / reason / counts) is retained;
+        // only the embedded `tab` is membrane-projected. FAIL-CLOSED.
+        const safeTab = getArtifactEgressMembrane().guardEnvelope({
+          tab: proposal.tab,
+          evidenceIds: [],
+        }).tab;
         await stream.writeSSE({
           event: 'tab_proposal',
           data: JSON.stringify({
-            payload: proposal,
+            payload: { ...proposal, tab: safeTab },
             at: new Date().toISOString(),
           }),
         });
@@ -1381,7 +1531,14 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         inline_block_types: inlineResult.blocks.map((b) => b.type),
         auto_authorized: autoAuthResult.autoAuthorized
           ? {
-              action: autoAuthResult.autoAuthorized.action,
+              // IP-EGRESS (CLOSE-G) — the `action` is model-authored free text;
+              // guard it through getEgressFilter().guardFinal (matching the
+              // auto_authorized frame sanitisation) so a leak smuggled into the
+              // verb cannot ride out in the done summary. FAIL-CLOSED.
+              action: guardEgressLeaf(
+                autoAuthResult.autoAuthorized.action,
+                tenantId,
+              ),
               // 'authorized' when the policy gate + inviolable rules
               // passed; 'suggested' when downgraded to needs-confirmation.
               outcome: autoAuthOutcome,

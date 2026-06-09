@@ -49,6 +49,23 @@ import {
 } from '@borjie/graph-sync';
 import { getBrainExtraSkills } from '../composition/brain-extensions';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection /
+// jailbreak guard, applied to the user's OWN message BEFORE it reaches
+// `streamTurn` (the orchestrator). Mirrors brain.hono /turn: CRITICAL →
+// single-language SSE refusal (the model never sees it); lower severities →
+// run on the detector-redacted text. Fail-OPEN-but-logged inside the guard.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — the SSE projected to `useChatStream` MUST NOT leak the
+// brain's internal mechanics. Before this projection the raw `StreamTurnEvent`
+// was JSON-stringified verbatim, exposing tool/agent names, handoff
+// from/to/objective, persona ids, and un-egress-filtered model prose. We now
+// PROJECT every event: coarsen tool_call / tool_result name to a generic label,
+// DROP handoff + persona ids, and run model-authored text leaves through
+// `getEgressFilter().guardFinal` (FAIL-CLOSED). See `egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
 import { v4 as uuid } from 'uuid';
 
 import { withSecurityEvents } from '@borjie/observability';
@@ -147,41 +164,161 @@ function checkRate(key: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Shared SSE serializer
+// Shared SSE serializer + IP-egress projection
 // ---------------------------------------------------------------------------
 
 /**
- * Pipe an `AsyncGenerator<StreamTurnEvent>` into a Hono `streamSSE` response.
+ * IP-EGRESS (CLOSE-G) — the single coarse, provider-agnostic label the
+ * client-facing tool events carry. The raw internal tool/agent verb is an IP
+ * leak (it exposes the brain's tool surface), so we coarsen it. Mirrors
+ * brain-voice.hono.ts `COARSE_TOOL_CALL_LABEL`.
+ */
+const COARSE_TOOL_CALL_LABEL = 'action' as const;
+
+/** Generic egress fail-closed placeholder for model-authored text. */
+const EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard a model-authored text leaf through the FAIL-CLOSED egress filter. A
+ * thrown filter (or construction fault) yields the generic placeholder, never
+ * the raw text. Empty / non-string spans pass through unchanged.
+ */
+function guardChatText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'ai-chat: egress guard threw — failing closed',
+    );
+    return EGRESS_FAIL_CLOSED;
+  }
+}
+
+/** A projected, client-safe SSE frame. */
+interface ProjectedChatFrame {
+  readonly event: string;
+  readonly data: Record<string, unknown>;
+}
+
+/**
+ * Project ONE raw `StreamTurnEvent` to its client-safe SSE frame. Returns null
+ * for events the client must never see (handoff — agent-to-agent mechanics).
  *
- * Exported so `public-marketing.router` can re-use exactly the same event
- * framing for the unauthenticated Mr. Mwikila chat.
+ *   - turn_start  → DROP persona id; keep threadId + createdAt only.
+ *   - delta       → model prose through the FAIL-CLOSED egress filter.
+ *   - tool_call   → COARSE label, no name, no args (args can carry prompts/IP).
+ *   - tool_result → COARSE label + ok flag, no name.
+ *   - handoff     → DROPPED entirely (from / to / objective are pure mechanics).
+ *   - proposed_action → keep risk + flags; egress-guard the description prose.
+ *   - error       → keep code + retryable; egress-guard the message text.
+ *   - turn_end    → DROP finalPersonaId + totalCost; keep tokens/time/thread.
+ */
+function projectChatStreamEvent(
+  evt: StreamTurnEvent,
+  tenantId: string,
+): ProjectedChatFrame | null {
+  switch (evt.type) {
+    case 'turn_start':
+      return {
+        event: 'turn_start',
+        data: { type: 'turn_start', threadId: evt.threadId, createdAt: evt.createdAt },
+      };
+    case 'delta':
+      return {
+        event: 'delta',
+        data: { type: 'delta', content: guardChatText(evt.content, tenantId) },
+      };
+    case 'tool_call':
+      return {
+        event: 'tool_call',
+        data: { type: 'tool_call', name: COARSE_TOOL_CALL_LABEL },
+      };
+    case 'tool_result':
+      return {
+        event: 'tool_result',
+        data: { type: 'tool_result', name: COARSE_TOOL_CALL_LABEL, ok: evt.ok },
+      };
+    case 'handoff':
+      // Agent-to-agent mechanics (from / to / objective) — NEVER to the client.
+      return null;
+    case 'proposed_action':
+      return {
+        event: 'proposed_action',
+        data: {
+          type: 'proposed_action',
+          risk: evt.risk,
+          description: guardChatText(evt.description, tenantId),
+          reviewRequired: evt.reviewRequired,
+          executionHeld: evt.executionHeld,
+        },
+      };
+    case 'error':
+      return {
+        event: 'error',
+        data: {
+          type: 'error',
+          code: evt.code,
+          message: guardChatText(evt.message, tenantId),
+          retryable: evt.retryable,
+        },
+      };
+    case 'turn_end':
+      return {
+        event: 'turn_end',
+        data: {
+          type: 'turn_end',
+          threadId: evt.threadId,
+          totalTokens: evt.totalTokens,
+          timeMs: evt.timeMs,
+          advisorConsulted: evt.advisorConsulted,
+        },
+      };
+  }
+}
+
+/**
+ * Pipe an `AsyncGenerator<StreamTurnEvent>` into a Hono `streamSSE` response,
+ * PROJECTING every event through `projectChatStreamEvent` so no internal
+ * mechanic (tool/agent names, handoff, persona ids) or un-egress-filtered model
+ * prose reaches the client. `tenantId` scopes the egress filter.
  */
 export async function pipeStreamTurnToSSE(
   stream,
-  iter: AsyncGenerator<StreamTurnEvent>
+  iter: AsyncGenerator<StreamTurnEvent>,
+  tenantId: string,
 ): Promise<void> {
   try {
     for await (const evt of iter) {
-      await stream.writeSSE({
-        event: evt.type,
-        data: JSON.stringify(evt),
-      });
+      const frame = projectChatStreamEvent(evt, tenantId);
+      if (!frame) continue; // dropped (handoff)
+      await stream.writeSSE({ event: frame.event, data: JSON.stringify(frame.data) });
     }
   } catch (err) {
     // Wave-26 Agent Z4 — surface `AiBudgetExceededError` from `withBudgetGuard`
     // (and from `MultiLLMRouter.complete` via `ledger.assertWithinBudget`) as a
     // structured SSE error so the chat UI can render a friendly
     // "monthly AI budget reached" banner. Everything else maps to INTERNAL.
+    // IP-EGRESS (CLOSE-G): the raw `err.message` can leak provider / model /
+    // internal-id detail, so we log it server-side (pino) and emit a GENERIC
+    // client message — never the raw cause.
     const isBudgetExceeded =
       err instanceof Error &&
       ((err as { code?: string }).code === 'AI_BUDGET_EXCEEDED' ||
         err.name === 'AiBudgetExceededError');
+    logger.error(
+      { wiring: 'ai-chat', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'ai-chat: stream pipe threw',
+    );
     await stream.writeSSE({
       event: 'error',
       data: JSON.stringify({
         type: 'error',
         code: isBudgetExceeded ? 'BUDGET_EXCEEDED' : 'INTERNAL',
-        message: err instanceof Error ? err.message : String(err),
+        message: isBudgetExceeded
+          ? 'Monthly AI budget reached. Please try again later.'
+          : 'The assistant is temporarily unavailable. Please try again.',
         retryable: false,
       }),
     });
@@ -283,6 +420,32 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
   // was non-empty to begin with.
   const resolvedThreadId: string = threadId as string;
 
+  // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the
+  // user's OWN message BEFORE `streamTurn` reaches the orchestrator.
+  // CRITICAL prompt-injection / jailbreak → single-language SSE refusal
+  // frame (the model never sees it). Lower severities → run the turn on the
+  // detector-redacted text (offending spans stripped). Fail-OPEN-but-logged.
+  const ingress = await applyIngressGuard({
+    userText: parsed.data.message,
+    tenantId: ctx.tenant.tenantId,
+    userId: ctx.actor.id ?? null,
+    lang: pickIngressGuardLang(c.req.header('accept-language') ?? null),
+  });
+  if (ingress.refused) {
+    return streamSSE(c, async (stream) => {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          type: 'error',
+          code: 'INPUT_GUARD_REFUSED',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+    });
+  }
+  const guardedMessage = ingress.text;
+
   return streamSSE(c, async (stream) => {
     const abort = new AbortController();
     stream.onAbort(() => abort.abort());
@@ -292,12 +455,12 @@ router.post('/chat', withSecurityEvents({ action: 'ai-chat.create', resource: 'a
       tenant: ctx.tenant,
       actor: ctx.actor,
       viewer: ctx.viewer,
-      userText: parsed.data.message,
+      userText: guardedMessage,
       forcePersonaId: parsed.data.forcePersonaId ?? parsed.data.personaId,
       signal: abort.signal,
     });
 
-    await pipeStreamTurnToSSE(stream, iter);
+    await pipeStreamTurnToSSE(stream, iter, ctx.tenant.tenantId);
   });
 }));
 

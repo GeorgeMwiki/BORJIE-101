@@ -38,6 +38,14 @@ import { chatTurnRoute } from './_openapi/route-defs';
 // DEFAULT-ON; kill-switch `BORJIE_EGRESS_FILTER`. See
 // `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (CLOSE-G) — ingress prompt-injection / jailbreak guard on
+// the inbound user message BEFORE the orchestrator, mirroring brain.hono /turn.
+// CRITICAL → refuse with single-language copy (the orchestrator never sees it);
+// lower severities run on the detector-redacted text. DEFAULT-ON; fail-OPEN.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../../composition/ingress-guard-apply.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL ?? 'info', name: 'mining-chat' });
 
@@ -82,11 +90,38 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
   const input = c.req.valid('json');
   return streamSSE(c, async (stream) => {
     try {
+      // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the user
+      // message BEFORE the orchestrator. CRITICAL prompt-injection / jailbreak →
+      // refuse with single-language copy (the orchestrator never sees it); lower
+      // severities → run on the detector-redacted text. Fail-OPEN-but-logged.
+      const ingress = await applyIngressGuard({
+        userText: input.message,
+        tenantId,
+        userId: userId ?? null,
+        lang: pickIngressGuardLang(
+          c.req.header('accept-language') ?? input.language,
+        ),
+      });
+      if (ingress.refused) {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            kind: 'input_guard_refused',
+            message: ingress.refusalMessage,
+            retryable: false,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+        });
+        return;
+      }
       for await (const evt of runChatOrchestrator({
         tenantId,
         userId,
         language: input.language,
-        message: input.message,
+        message: ingress.text,
         sessionId: input.sessionId ?? null,
         db,
       })) {

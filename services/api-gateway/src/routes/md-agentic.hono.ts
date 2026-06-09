@@ -60,6 +60,22 @@ import {
   type SubagentBrainPort,
 } from '../composition/md-subagent-executor';
 import { resolveSubagentBrain } from '../composition/md-subagent-brain-resolver';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection /
+// jailbreak guard, applied to the team `brief` AND every member `brief`
+// BEFORE `dispatchSubagentTeam` persists them + the executor hands them to
+// the model. CRITICAL → single-language JSON refusal envelope (the model
+// never sees the brief); lower severities → run on the detector-redacted
+// brief. Fail-OPEN-but-logged inside the guard.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — the FAIL-CLOSED egress firewall. The aggregate GET
+// reads back PERSISTED subagent model output (`winner` + each `results[].result`
+// + `error`) and returns it to the client; those leaves are model-authored prose
+// and must be stripped of persona / CoT / secret / cross-tenant content first.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+import pino from 'pino';
 
 // ── role gate ────────────────────────────────────────────────────────────
 // Tier-gate (task spec): owner / admin only. Mirrors the persona allowlist on
@@ -181,6 +197,13 @@ function invalid(c: any, message: string) {
   );
 }
 
+function guardRefused(c: any, message: string) {
+  return c.json(
+    { success: false, error: { code: 'INPUT_GUARD_REFUSED', message } },
+    403,
+  );
+}
+
 /** Map a repository failure code to an HTTP status. */
 function statusForFailure(failure: MdRepoFailure): number {
   switch (failure.code) {
@@ -210,6 +233,62 @@ function failure(c: any, f: MdRepoFailure) {
 /** Pull the session id out of a resolved provenance envelope (may be absent). */
 function sessionIdOf(prov: Provenance): string | null {
   return prov.sessionId ?? null;
+}
+
+const logger = pino({
+  level: process.env.LOG_LEVEL ?? 'info',
+  name: 'md-agentic',
+});
+
+/** Fail-closed placeholder when the deep guard wrapper itself throws. */
+const MD_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard one model-authored text span through the FAIL-CLOSED egress firewall
+ * (persists block rows). The filter returns a redacted placeholder on any
+ * internal fault; this wrapper additionally try/catches so a construction fault
+ * fails closed to `[redacted]` rather than leaking the raw subagent text.
+ */
+function guardMdText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'md-agentic: egress guard threw — failing closed (redacting span)',
+    );
+    return MD_EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Recursively egress-guard EVERY string leaf of an arbitrary JSON-shaped value,
+ * preserving structure (objects/arrays rebuilt immutably with guarded leaves,
+ * keys untouched). Used over the aggregate `winner` + each `results[].result`
+ * (persisted subagent model output of unknown shape) so any LLM-derived free
+ * text is filtered without risking a JSON-shape break. Pure (immutability):
+ * returns a NEW value, never mutates the input.
+ */
+function deepGuardMd<T>(value: T, tenantId: string): T {
+  if (typeof value === 'string') {
+    return guardMdText(value, tenantId) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => deepGuardMd(v, tenantId)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = deepGuardMd(v, tenantId);
+    }
+    return out as T;
+  }
+  return value;
 }
 
 const app = new Hono();
@@ -296,10 +375,41 @@ app.post(
         }
       }
 
+      // INPUT CONTAINMENT (CLOSE-G) — guard the team `brief` AND every member
+      // `brief` BEFORE they are persisted + handed to the model. CRITICAL on
+      // ANY brief → single-language refusal (the model never sees it); lower
+      // severities → continue on the detector-redacted brief. Fail-OPEN.
+      const guardLang = pickIngressGuardLang(c.req.header('accept-language') ?? null);
+      const teamBriefGuard = await applyIngressGuard({
+        userText: body.brief,
+        tenantId: auth.tenantId,
+        userId: auth.userId ?? null,
+        lang: guardLang,
+      });
+      if (teamBriefGuard.refused) {
+        return guardRefused(c, teamBriefGuard.refusalMessage);
+      }
+      const guardedBrief = teamBriefGuard.text.trim();
+
+      const guardedMemberBriefs: string[] = [];
+      for (let i = 0; i < body.members.length; i += 1) {
+        const m = body.members[i];
+        const memberGuard = await applyIngressGuard({
+          userText: m.brief,
+          tenantId: auth.tenantId,
+          userId: auth.userId ?? null,
+          lang: guardLang,
+        });
+        if (memberGuard.refused) {
+          return guardRefused(c, memberGuard.refusalMessage);
+        }
+        guardedMemberBriefs.push(memberGuard.text.trim());
+      }
+
       const members = body.members.map(
-        (m: z.infer<typeof SubagentMemberSchema>) => ({
+        (m: z.infer<typeof SubagentMemberSchema>, i: number) => ({
           role: m.role,
-          brief: m.brief.trim(),
+          brief: guardedMemberBriefs[i] ?? m.brief.trim(),
           allowedTools: (m.allowedTools ?? []).map((t: string) => t.trim()),
           tokenBudget: m.tokenBudget ?? ROLE_DEFAULT_BUDGET[m.role] ?? 8000,
         }),
@@ -311,7 +421,7 @@ app.post(
         const result = await repo.dispatchSubagentTeam(
           auth.tenantId,
           {
-            brief: body.brief.trim(),
+            brief: guardedBrief,
             aggregation: body.aggregation ?? 'merge_all',
             members,
             planId: body.planId ?? null,
@@ -406,7 +516,24 @@ app.get(
           teamRunId,
         );
         if (!result.ok) return failure(c, result);
-        return c.json({ success: true, data: result }, 200);
+        // IP-EGRESS (CLOSE-G) — the aggregate carries PERSISTED subagent model
+        // output. Deep-guard the model-authored leaves (`winner` + each
+        // `results[].result` + `error`) through the fail-closed egress firewall
+        // before the JSON leaves the gateway; the structural counts / ids /
+        // status / aggregation strategy are machine values and pass through.
+        const safeResult = {
+          ...result,
+          winner: deepGuardMd(result.winner, auth.tenantId),
+          results: result.results.map((r) => ({
+            ...r,
+            result: deepGuardMd(r.result, auth.tenantId),
+            error:
+              typeof r.error === 'string'
+                ? guardMdText(r.error, auth.tenantId)
+                : r.error,
+          })),
+        };
+        return c.json({ success: true, data: safeResult }, 200);
       } catch (err) {
         return routeCatch(c, err, {
           code: 'MD_SUBAGENT_AGGREGATE_FAILED',

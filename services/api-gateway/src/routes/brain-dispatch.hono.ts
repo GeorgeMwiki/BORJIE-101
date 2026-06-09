@@ -82,6 +82,15 @@ import {
 // through the FAIL-CLOSED guard before the body is built. DEFAULT-ON;
 // kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (CLOSE-G) — ingress prompt-injection / jailbreak guard on
+// the free-text `instruction` BEFORE the VP orchestrate, mirroring brain.hono
+// /turn. CRITICAL → refuse with single-language copy (the VP never sees it);
+// lower severities → orchestrate on the detector-redacted text. DEFAULT-ON;
+// fail-OPEN-but-logged.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -422,6 +431,28 @@ app.post(
         return badRequest(c, pick(COPY.unknownVp, lang));
       }
 
+      // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the
+      // free-text instruction BEFORE the VP turns it into a plan. CRITICAL
+      // prompt-injection / jailbreak → refuse with single-language copy (the VP
+      // never sees it); lower severities → orchestrate on the detector-redacted
+      // text. Fail-OPEN-but-logged inside the guard.
+      const ingress = await applyIngressGuard({
+        userText: instruction,
+        tenantId: auth.tenantId,
+        userId: auth.userId ?? null,
+        lang: pickIngressGuardLang(c.req.header('accept-language') ?? lang),
+      });
+      if (ingress.refused) {
+        return c.json(
+          {
+            success: false,
+            error: { code: 'INPUT_GUARD_REFUSED', message: ingress.refusalMessage },
+          },
+          403,
+        );
+      }
+      const guardedInstruction = ingress.text;
+
       const correlationId = threadId ?? `dispatch-${Date.now()}`;
       const scope: ScopeContext = Object.freeze({
         kind: 'tenant',
@@ -439,7 +470,9 @@ app.post(
         });
         const intent: OwnerIntent = {
           kind: kind as OwnerIntentKind,
-          text: instruction,
+          // CLOSE-G — the VP orchestrates on the ingress-guarded instruction
+          // (offending spans redacted on a lower-severity hit).
+          text: guardedInstruction,
           scope,
           correlationId,
         };

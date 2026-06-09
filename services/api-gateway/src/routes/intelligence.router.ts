@@ -51,8 +51,30 @@ import type {
 import { authMiddleware } from '../middleware/hono-auth';
 import { UserRole } from '../types/user-role';
 import { routeCatch } from '../utils/safe-error';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection /
+// jailbreak guard, applied to `body.message` BEFORE `agent.run` reaches the
+// model. CRITICAL → single-language SSE refusal (the model never sees it);
+// lower severities → run on the detector-redacted text. Fail-OPEN-but-logged.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — the raw `AgentEvent` stream (plan | thought | tool_call
+// | tool_result | text | citation | artifact | error | done) was JSON-
+// stringified VERBATIM onto the SSE wire, leaking model chain-of-thought
+// (plan/thought), tool names + args, and un-egress-filtered prose. We now route
+// EVERY event through the single client-safe `projectKernelEvent` chokepoint:
+// reasoning DROPPED, tool frames coarsened, prose egress-filtered, errors
+// generic. See `composition/kernel-event-projector.ts`.
+import {
+  projectKernelEvent,
+  GENERIC_KERNEL_ERROR_MESSAGE,
+} from '../composition/kernel-event-projector.js';
+import pino from 'pino';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+const logger = pino({ name: 'intelligence-router' });
 // ---------------------------------------------------------------------------
 // Zod schemas
 // ---------------------------------------------------------------------------
@@ -296,31 +318,83 @@ app.post(
       );
     }
 
+    // INPUT CONTAINMENT (CLOSE-G) — guard the user's OWN message BEFORE
+    // `agent.run` reaches the model. CRITICAL prompt-injection / jailbreak →
+    // single-language SSE refusal (the model never sees it); lower severities →
+    // run on the detector-redacted text. Fail-OPEN-but-logged inside the guard.
+    // The egress tenant is the scoped tenant id (platform scope has none, so the
+    // egress filter cross-tenant strip is inert — RLS + the prose/CoT strips
+    // still apply).
+    const egressTenantId = scoped.kind === 'tenant' ? scoped.tenantId : '';
+    const ingress = await applyIngressGuard({
+      userText: body.message,
+      tenantId: egressTenantId,
+      userId: scoped.actorUserId ?? null,
+      lang: pickIngressGuardLang(c.req.header('accept-language') ?? null),
+    });
+    if (ingress.refused) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            kind: 'error',
+            code: 'INPUT_GUARD_REFUSED',
+            message: ingress.refusalMessage,
+            retryable: false,
+          }),
+        });
+      });
+    }
+    const guardedMessage = ingress.text;
+
     return streamSSE(c, async (stream) => {
       try {
         const iter = agent.run({
           threadId,
-          userMessage: body.message,
+          userMessage: guardedMessage,
           ctx: scoped,
           extendedThinking: body.extendedThinking === true,
         });
 
         for await (const event of iter as AsyncIterable<AgentEvent>) {
-          await stream.writeSSE({
-            event: event.kind,
-            data: JSON.stringify(event),
-          });
+          // IP-EGRESS (CLOSE-G) — PROJECT every raw AgentEvent through the
+          // single client-safe chokepoint: reasoning (plan/thought) DROPPED,
+          // tool_call/tool_result coarsened to a generic label (no name/args),
+          // text/citation prose run through the FAIL-CLOSED egress filter, and
+          // any error reduced to a generic banner. A dropped frame (null) emits
+          // nothing. The terminal break is keyed off the RAW event kind so the
+          // loop still stops on done/error even though those frames are
+          // re-projected (error → generic) before the wire.
+          const frame = projectKernelEvent(
+            event as unknown as Record<string, unknown>,
+            egressTenantId,
+          );
+          if (frame) {
+            await stream.writeSSE({
+              event: frame.event,
+              data: JSON.stringify(frame.data),
+            });
+          }
           if (event.kind === 'done' || event.kind === 'error') break;
         }
       } catch (err) {
-        // Surface as a typed SSE error so the client can render a
-        // banner without needing a second HTTP probe.
-        const message = err instanceof Error ? err.message : String(err);
+        // IP-EGRESS (CLOSE-G) — the raw `err.message` can leak provider / model
+        // / internal-id detail, so we log it server-side (pino) and emit a
+        // GENERIC client banner — never the raw cause.
+        logger.error(
+          {
+            wiring: 'intelligence-router',
+            threadId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'intelligence-router: agent.run stream threw',
+        );
         await stream.writeSSE({
           event: 'error',
           data: JSON.stringify({
             kind: 'error',
-            message,
+            code: 'INTERNAL',
+            message: GENERIC_KERNEL_ERROR_MESSAGE,
             retryable: false,
             at: new Date().toISOString(),
           }),

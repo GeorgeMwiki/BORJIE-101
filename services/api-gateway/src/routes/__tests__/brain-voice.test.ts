@@ -344,11 +344,16 @@ describe('VoiceSession', () => {
     });
     await session.handleFrame({ type: 'auth', token, locale: 'sw' });
 
-    // ready emitted with the session id from the upstream
+    // IP-EGRESS (CLOSE-G) — `ready` emits an OPAQUE client session id, NOT
+    // the provider-prefixed internal upstream id ('fake-session' /
+    // 'gemini-live:…'). It must be a non-empty opaque string that NEVER
+    // equals the upstream id and carries no provider prefix.
     const ready = events.find((e) => e.kind === 'ready');
     expect(ready).toBeTruthy();
     if (ready?.kind === 'ready') {
-      expect(ready.sessionId).toBe('fake-session');
+      expect(ready.sessionId).not.toBe('fake-session');
+      expect(ready.sessionId).not.toContain('gemini-live');
+      expect(ready.sessionId.length).toBeGreaterThan(0);
       expect(ready.locale).toBe('sw');
     }
 

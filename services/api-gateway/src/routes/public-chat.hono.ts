@@ -74,6 +74,16 @@ import {
 // marketing visitor has no tenant to leak across.
 // See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (CLOSE-G) — ingress prompt-injection / jailbreak guard on
+// the anonymous marketing turn BEFORE the provider ladder, mirroring brain.hono
+// /turn. The surface is unauthenticated, so the guard runs under the SAME
+// synthetic 'public' principal the egress filter uses (the BP-5 audit row is
+// scoped to it; no real tenant to leak across). CRITICAL → refuse with
+// single-language copy (the model never sees it). DEFAULT-ON; fail-OPEN.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
 // Learning Amplification (LitFin port) — every Mr. Mwikila marketing
 // reply records a `claim_cited` observation per evidence id so the
 // nightly Bayesian roll-up can correlate citations with downstream
@@ -1862,6 +1872,36 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       }),
     });
 
+    // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the
+    // visitor's query BEFORE the provider ladder. Anonymous surface → scope the
+    // BP-5 audit under the synthetic 'public' principal. CRITICAL → refuse with
+    // single-language copy (the model never sees it); lower severities run on
+    // the detector-redacted text. Fail-OPEN-but-logged inside the guard.
+    const ingress = await applyIngressGuard({
+      userText: query,
+      tenantId: PUBLIC_EGRESS_PRINCIPAL,
+      userId: null,
+      lang: pickIngressGuardLang(
+        c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+      ),
+    });
+    if (ingress.refused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'input_guard_refused',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+      });
+      return;
+    }
+    const guardedQuery = ingress.text;
+
     if (!anthropic && !openai && !deepseek) {
       await stream.writeSSE({
         event: 'error',
@@ -1944,7 +1984,10 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       })),
       {
         role: 'user' as const,
-        content: [{ type: 'text' as const, text: query }],
+        // CLOSE-G — the LLM sees the ingress-guarded query (offending spans
+        // redacted on a lower-severity hit); the local jurisdiction detector
+        // above keeps using the original `query`, as brain.hono /turn does.
+        content: [{ type: 'text' as const, text: guardedQuery }],
       },
     ];
 

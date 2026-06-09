@@ -42,6 +42,21 @@ import { randomUUID } from 'node:crypto';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 import { withSecurityEvents } from '@borjie/observability';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection / jailbreak
+// guard, applied to the operator's free-text `scenarioDescription` BEFORE
+// `kickoffGeneration` reaches the LLM. CRITICAL → 403 INPUT_GUARD_REFUSED (the
+// model never sees it); lower severities → generate from the detector-redacted
+// description. Fail-OPEN-but-logged inside the guard.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — the FAIL-CLOSED egress firewall. GET / and GET /:id read
+// back the PERSISTED model-authored curriculum (`title` / `summary`) + lessons
+// (`lessonTitle` / `content`); those leaves must be stripped of persona / CoT /
+// secret content before the JSON leaves the gateway.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+import pino from 'pino';
 import { assertTierPolicy, type RolePolicy } from '@borjie/central-intelligence';
 import {
   AnthropicAdapter,
@@ -173,7 +188,57 @@ function asString(value: unknown, fallback = ''): string {
   return typeof value === 'string' ? value : fallback;
 }
 
-function toSummary(row: Record<string, unknown>) {
+const logger = pino({ level: process.env.LOG_LEVEL ?? 'info', name: 'courses' });
+
+/** Fail-closed placeholder when the deep guard wrapper itself throws. */
+const COURSE_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard one model-authored text span through the FAIL-CLOSED egress firewall
+ * (persists block rows). The filter returns a redacted placeholder on any
+ * internal fault; this wrapper additionally try/catches so a construction fault
+ * fails closed to `[redacted]` rather than leaking raw curriculum text.
+ */
+function guardCourseText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'courses: egress guard threw — failing closed (redacting span)',
+    );
+    return COURSE_EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Recursively egress-guard EVERY string leaf of an arbitrary JSON value
+ * (the model-authored lesson `content` blob), rebuilt immutably with guarded
+ * leaves and untouched keys. Pure: returns a NEW value, never mutates.
+ */
+function deepGuardCourse<T>(value: T, tenantId: string): T {
+  if (typeof value === 'string') {
+    return guardCourseText(value, tenantId) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => deepGuardCourse(v, tenantId)) as unknown as T;
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = deepGuardCourse(v, tenantId);
+    }
+    return out as T;
+  }
+  return value;
+}
+
+function toSummary(row: Record<string, unknown>, tenantId: string) {
   const curriculum = (row.ai_generated_curriculum ?? {}) as Record<string, unknown>;
   const generationError =
     typeof row.generation_error === 'string' && row.generation_error.length > 0
@@ -182,12 +247,16 @@ function toSummary(row: Record<string, unknown>) {
   const summary: Record<string, unknown> = {
     id: asString(row.id),
     domain: asString(row.domain),
+    // scenario_description is the operator's OWN ingress-redacted input (stored
+    // post-guard at generation), echoed back to the same operator — not model-
+    // authored, so it is not an egress concern.
     scenarioDescription: asString(row.scenario_description),
     status: asString(row.status, 'draft'),
     difficulty: asString(row.difficulty, 'beginner'),
     language: asString(row.language, 'en'),
-    title: asString(curriculum.title),
-    summary: asString(curriculum.summary),
+    // IP-EGRESS (CLOSE-G) — title + summary are model-authored curriculum prose.
+    title: guardCourseText(asString(curriculum.title), tenantId),
+    summary: guardCourseText(asString(curriculum.summary), tenantId),
     lessonCount: typeof row.lesson_count === 'number' ? row.lesson_count : 0,
     generatedVia: asString(row.generated_via, 'deterministic'),
     createdAt:
@@ -199,18 +268,26 @@ function toSummary(row: Record<string, unknown>) {
         ? row.updated_at.toISOString()
         : asString(row.updated_at),
   };
-  if (generationError) summary.generationError = generationError;
+  // The failure message can echo a raw provider/model error — egress-filter it.
+  if (generationError) {
+    summary.generationError = guardCourseText(generationError, tenantId);
+  }
   return summary;
 }
 
-function toLessonRow(row: Record<string, unknown>) {
+function toLessonRow(row: Record<string, unknown>, tenantId: string) {
   return {
     id: asString(row.id),
     lessonNumber: typeof row.lesson_number === 'number' ? row.lesson_number : 0,
-    lessonTitle: asString(row.lesson_title),
+    // IP-EGRESS (CLOSE-G) — lessonTitle + the full lesson content blob are
+    // model-authored; deep-guard every prose leaf through the fail-closed filter.
+    lessonTitle: guardCourseText(asString(row.lesson_title), tenantId),
     status: asString(row.status, 'not_started'),
     quizScore: typeof row.quiz_score === 'number' ? row.quiz_score : null,
-    content: (row.lesson_content ?? {}) as Record<string, unknown>,
+    content: deepGuardCourse(
+      (row.lesson_content ?? {}) as Record<string, unknown>,
+      tenantId,
+    ),
   };
 }
 
@@ -312,7 +389,7 @@ function makeRepo(db: any, tenantId: string): CoursesRepo {
          WHERE tenant_id = ${t} AND created_by_user_id = ${userId}
          ORDER BY created_at DESC
       `);
-      return rowsOf(raw).map(toSummary) as any;
+      return rowsOf(raw).map((r) => toSummary(r, tenantId)) as any;
     },
 
     async get(t, userId, courseId) {
@@ -333,8 +410,8 @@ function makeRepo(db: any, tenantId: string): CoursesRepo {
          WHERE course_id = ${courseId} AND tenant_id = ${t} AND created_by_user_id = ${userId}
          ORDER BY lesson_number ASC
       `);
-      const lessons = rowsOf(lessonsRaw).map(toLessonRow);
-      return { ...toSummary(first), lessons } as any;
+      const lessons = rowsOf(lessonsRaw).map((r) => toLessonRow(r, tenantId));
+      return { ...toSummary(first, tenantId), lessons } as any;
     },
   };
 }
@@ -449,6 +526,30 @@ app.post(
         );
       }
 
+      // INPUT CONTAINMENT (CLOSE-G) — guard the operator's free-text
+      // `scenarioDescription` BEFORE `kickoffGeneration` reaches the LLM.
+      // CRITICAL prompt-injection / jailbreak → 403 INPUT_GUARD_REFUSED (the
+      // model never sees it). Lower severities → generate from the detector-
+      // redacted description (offending spans stripped). Fail-OPEN-but-logged.
+      const ingress = await applyIngressGuard({
+        userText: body.scenarioDescription,
+        tenantId: auth.tenantId,
+        userId: auth.userId ?? null,
+        lang: pickIngressGuardLang(
+          c.req.header('accept-language') ?? (body.language === 'sw' ? 'sw' : 'en'),
+        ),
+      });
+      if (ingress.refused) {
+        return c.json(
+          {
+            success: false,
+            error: { code: 'INPUT_GUARD_REFUSED', message: ingress.refusalMessage },
+          },
+          403,
+        );
+      }
+      const guardedScenario = ingress.text;
+
       try {
         const repo = makeRepo(db, auth.tenantId);
         const service = createCourseService({
@@ -466,7 +567,7 @@ app.post(
           tenantId: auth.tenantId,
           userId: auth.userId,
           domain: body.domain,
-          scenarioDescription: body.scenarioDescription,
+          scenarioDescription: guardedScenario,
           difficulty: body.difficulty,
           language: body.language,
           documents,

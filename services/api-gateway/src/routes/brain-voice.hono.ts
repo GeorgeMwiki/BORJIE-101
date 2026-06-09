@@ -94,6 +94,17 @@ import { openGptRealtimeUpstream } from './brain-voice-openai.js';
 // transcripts (the owner's own words echoed back) are left as-is. DEFAULT-ON;
 // kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (CLOSE-G) — the one inbound free-TEXT seam on the voice
+// socket is the `speak_text` frame, which forwards client text STRAIGHT to the
+// realtime provider. That is a direct user-text ingress to the model, so it
+// runs the SAME blessed ingress guard the JSON/SSE chat routes do: CRITICAL
+// prompt-injection / jailbreak → drop the frame (the provider never speaks it);
+// lower severities → forward the detector-redacted text. Audio frames are not a
+// text seam and are not scanned here. DEFAULT-ON; fail-OPEN-but-logged.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -125,6 +136,62 @@ function guardAgentTranscript(text: string, tenantId: string): string {
     );
     return VOICE_EGRESS_FAIL_CLOSED;
   }
+}
+
+/**
+ * IP-EGRESS (CLOSE-G) — the single coarse, provider-agnostic label the
+ * client-facing `tool_call` event may carry. The raw internal tool verb
+ * (`get_portfolio_overview`, `confirm_pending_action`, …) is an IP leak: it
+ * exposes the brain's tool surface. The client only needs to render a generic
+ * "the assistant is taking an action" affordance, so we emit a fixed coarse
+ * label decoupled from the verb. The internal `respondToToolCall` upstream
+ * path keeps the real verb (the model needs it) — only the OUTBOUND
+ * client-facing event is coarsened.
+ */
+const COARSE_TOOL_CALL_LABEL = 'action' as const;
+
+/**
+ * IP-EGRESS (CLOSE-G) — the client-facing `error` event must be
+ * provider-AGNOSTIC. The upstream openers (`openGeminiUpstream` /
+ * `openGptRealtimeUpstream`) emit codes like `upstream_websocket_error` /
+ * `upstream_error` with messages prefixed `gemini-live:` / `gpt-realtime:` and
+ * carrying the raw upstream code/text — all of which leak the provider name and
+ * internal error surface. This helper maps any upstream error to a fixed
+ * provider-agnostic `{ code, message }` pair: `upstream_*` collapses to
+ * `provider_unavailable` (the connection itself failed) or `upstream_error` (a
+ * mid-session fault), and the message is a generic single-language-neutral
+ * banner. The raw upstream code/message is logged server-side (pino) only.
+ */
+const GENERIC_VOICE_ERROR_MESSAGE =
+  'The voice assistant is temporarily unavailable. Please try again.';
+
+function mapVoiceErrorForClient(
+  code: string,
+): { readonly code: string; readonly message: string } {
+  // Codes the bridge itself already emits provider-agnostically pass through
+  // (they carry no provider prefix / upstream detail).
+  const passthrough = new Set([
+    'provider_unavailable',
+    'unauthorized',
+    'not_authenticated',
+    'input_guard_refused',
+  ]);
+  if (passthrough.has(code)) {
+    return {
+      code,
+      message:
+        code === 'provider_unavailable'
+          ? GENERIC_VOICE_ERROR_MESSAGE
+          : code === 'not_authenticated'
+            ? 'Send an auth frame first.'
+            : 'Authentication failed.',
+    };
+  }
+  // A connection-level upstream failure → provider_unavailable; any other
+  // upstream fault → a generic upstream_error. NEVER forward the raw code.
+  const mappedCode =
+    code === 'upstream_websocket_error' ? 'provider_unavailable' : 'upstream_error';
+  return { code: mappedCode, message: GENERIC_VOICE_ERROR_MESSAGE };
 }
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -1167,6 +1234,12 @@ export class VoiceSession {
   private upstream: DuplexUpstream | null = null;
   private locale: VoiceLocale = 'en';
   private closed = false;
+  // IP-EGRESS (CLOSE-G) — an OPAQUE, client-facing session id minted per
+  // session and DECOUPLED from the provider-prefixed internal upstream id
+  // (`gemini-live:<tenantId>:<locale>:<ts>`). The upstream id leaks the
+  // provider name + tenantId; the client never needs it (it correlates frames
+  // by socket, not by id). We emit this opaque id on `ready` instead.
+  private readonly clientSessionId: string = randomUUID();
 
   constructor(private readonly deps: VoiceSessionDeps) {}
 
@@ -1182,7 +1255,28 @@ export class VoiceSession {
         if (this.requireReady()) this.upstream!.pushAudio(decoded.chunk);
         return;
       case 'speak_text':
-        if (this.requireReady()) this.upstream!.speakText(decoded.text);
+        if (this.requireReady()) {
+          // INPUT CONTAINMENT (CLOSE-G) — the only inbound free-TEXT seam.
+          // Run the blessed ingress guard before the provider speaks it.
+          // CRITICAL → drop the frame + surface a single-language refusal;
+          // lower severities → speak the detector-redacted text.
+          const principal = this.principal!;
+          const ingress = await applyIngressGuard({
+            userText: decoded.text,
+            tenantId: principal.tenantId,
+            userId: principal.userId ?? null,
+            lang: pickIngressGuardLang(this.locale),
+          });
+          if (ingress.refused) {
+            this.deps.emit({
+              kind: 'error',
+              code: 'input_guard_refused',
+              message: ingress.refusalMessage,
+            });
+            return;
+          }
+          this.upstream!.speakText(ingress.text);
+        }
         return;
       case 'tool_result':
         if (this.requireReady()) {
@@ -1239,7 +1333,11 @@ export class VoiceSession {
         tenantId,
         callbacks: this.upstreamCallbacks(principal),
       });
-      this.deps.emit({ kind: 'ready', sessionId: this.upstream.sessionId, locale: this.locale });
+      // IP-EGRESS (CLOSE-G) — emit the OPAQUE client session id, NEVER the
+      // provider-prefixed internal `this.upstream.sessionId`
+      // (`gemini-live:<tenantId>:…`), which would leak the provider name +
+      // tenantId to the browser. The internal id stays server-side.
+      this.deps.emit({ kind: 'ready', sessionId: this.clientSessionId, locale: this.locale });
       logger.info({ tenantId, locale: this.locale }, 'brain-voice: realtime session ready');
     } catch (err) {
       logger.error(
@@ -1274,13 +1372,34 @@ export class VoiceSession {
       onToolCall: (call) => {
         void this.onToolCall(principal, call);
       },
-      onError: (code, message) => this.deps.emit({ kind: 'error', code, message }),
+      onError: (code, message) => {
+        // IP-EGRESS (CLOSE-G) — map the upstream error to a provider-AGNOSTIC
+        // { code, message }; never forward the gemini-live:/gpt-realtime:
+        // prefix or the raw upstream code/text. The raw cause is logged
+        // server-side (pino) only.
+        logger.warn(
+          {
+            wiring: 'brain-voice-upstream',
+            tenantId: principal.tenantId,
+            rawCode: code,
+            rawMessage: message,
+          },
+          'brain-voice: upstream error (emitting provider-agnostic code to client)',
+        );
+        const safe = mapVoiceErrorForClient(code);
+        this.deps.emit({ kind: 'error', code: safe.code, message: safe.message });
+      },
       onClose: () => this.close(),
     };
   }
 
   private async onToolCall(principal: BrainAuthPrincipal, call: VoiceToolCall): Promise<void> {
-    this.deps.emit({ kind: 'tool_call', name: call.name, status: 'started' });
+    // IP-EGRESS (CLOSE-G) — the OUTBOUND client-facing `tool_call` event
+    // carries a COARSE provider-agnostic label, NEVER `call.name` (the
+    // internal tool verb, which leaks the brain's tool surface). The INBOUND
+    // `respondToToolCall` upstream path keeps the real verb — the model needs
+    // it to correlate the result; only the browser-facing event is coarsened.
+    this.deps.emit({ kind: 'tool_call', name: COARSE_TOOL_CALL_LABEL, status: 'started' });
     try {
       const output = await dispatchVoiceToolCall({ principal, call });
       this.upstream?.respondToToolCall({
@@ -1288,7 +1407,7 @@ export class VoiceSession {
         name: call.name,
         output,
       });
-      this.deps.emit({ kind: 'tool_call', name: call.name, status: 'ok' });
+      this.deps.emit({ kind: 'tool_call', name: COARSE_TOOL_CALL_LABEL, status: 'ok' });
     } catch (err) {
       logger.error(
         { err: err instanceof Error ? err.message : String(err), tool: call.name },
@@ -1299,7 +1418,7 @@ export class VoiceSession {
         name: call.name,
         output: { status: 'error', executed: false },
       });
-      this.deps.emit({ kind: 'tool_call', name: call.name, status: 'error' });
+      this.deps.emit({ kind: 'tool_call', name: COARSE_TOOL_CALL_LABEL, status: 'error' });
     }
   }
 

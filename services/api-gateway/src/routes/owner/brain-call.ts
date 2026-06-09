@@ -37,8 +37,37 @@ import {
   type SeamProviderFamily,
 } from '@borjie/brain-llm-router';
 import { createLogger } from '../../utils/logger';
+// INPUT CONTAINMENT (CLOSE-G chokepoint) — `callBrainOnce` is the SHARED
+// one-shot brain seam many owner-cockpit / research / worker routes use. This
+// is the structural place to ENFORCE the blessed ingress prompt-injection /
+// jailbreak guard: when a caller declares the raw free-text `userText` portion
+// of its prompt, the guard runs HERE before any provider sees it, and a
+// CRITICAL hit throws `IngressRefusedError` (the caller maps it to a refusal).
+// Callers that pass a `preGuarded` flag assert the guard already ran one layer
+// up (the route seam) and are not double-guarded. Fail-OPEN-but-logged.
+import {
+  applyIngressGuard,
+  INGRESS_GUARD_REFUSAL_TEXTS,
+  type IngressGuardLang,
+} from '../../composition/ingress-guard-apply.js';
 
 const moduleLogger = createLogger('owner-brain-call');
+
+/**
+ * Thrown by `callBrainOnce` when the ENFORCED ingress chokepoint refuses the
+ * free-text `userText` portion (CRITICAL prompt-injection / jailbreak). Carries
+ * the single-language refusal copy so a route can surface it verbatim. Callers
+ * map this to a 403 INPUT_GUARD_REFUSED — it is NOT a provider failure.
+ */
+export class IngressRefusedError extends Error {
+  readonly code = 'INPUT_GUARD_REFUSED' as const;
+  readonly refusalMessage: string;
+  constructor(refusalMessage: string) {
+    super('input_guard_refused');
+    this.name = 'IngressRefusedError';
+    this.refusalMessage = refusalMessage;
+  }
+}
 
 /** DeepSeek is OpenAI-shape; reuse the OpenAI adapter with a base URL. */
 class DeepSeekAdapter implements BrainLLMClient {
@@ -98,6 +127,29 @@ export interface BrainOnceInput {
   readonly tenantId?: string;
   /** Per-use-case routing key (intent / surface) for the config resolver. */
   readonly useCase?: string;
+  /**
+   * The RAW user free-text portion of this turn (the owner's question / scenario
+   * / message), BEFORE it was folded into `userPrompt`. When supplied, the
+   * ENFORCED ingress chokepoint runs the blessed prompt-injection / jailbreak
+   * guard over it here: a CRITICAL hit throws `IngressRefusedError`; a lower
+   * severity is tolerated (the route already redacted the span it folded in).
+   * Omit ONLY when the prompt carries NO raw user text (machine-built summaries,
+   * research synthesis over corpus excerpts) OR when `preGuarded` is set.
+   */
+  readonly userText?: string;
+  /** Locale for the single-language refusal copy. EN default; SW toggles. */
+  readonly lang?: IngressGuardLang;
+  /** User id scoping the BP-5 ingress audit row (null for anonymous surfaces). */
+  readonly userId?: string | null;
+  /**
+   * Assert the caller ALREADY ran `applyIngressGuard` over the free-text portion
+   * one layer up (the route seam). When true the chokepoint does NOT re-guard
+   * (avoids double-guarding + double BP-5 audit rows). The structural invariant
+   * is preserved: EITHER `userText` is guarded here OR `preGuarded` asserts it
+   * ran at the route — a caller passing neither over a raw-user-text prompt is a
+   * documented gap the coverage tripwire flags.
+   */
+  readonly preGuarded?: boolean;
 }
 
 export interface BrainOnceResult {
@@ -111,6 +163,35 @@ export interface BrainOnceResult {
  * non-throwing reply wins. Throws when none of them work.
  */
 export async function callBrainOnce(input: BrainOnceInput): Promise<BrainOnceResult> {
+  // INPUT CONTAINMENT (CLOSE-G chokepoint) — when the caller declares the raw
+  // free-text `userText` portion AND has not asserted `preGuarded`, run the
+  // blessed ingress guard HERE before any provider sees the prompt. CRITICAL
+  // prompt-injection / jailbreak → throw `IngressRefusedError` (the caller maps
+  // it to a 403). Lower severities are tolerated: the prompt was assembled by
+  // the route, which redacted the span it folded in. Fail-OPEN-but-logged
+  // (the underlying guard never throws; this only refuses on a genuine CRITICAL).
+  if (
+    !input.preGuarded &&
+    typeof input.userText === 'string' &&
+    input.userText.length > 0
+  ) {
+    const ingress = await applyIngressGuard({
+      userText: input.userText,
+      tenantId: input.tenantId ?? 'global',
+      userId: input.userId ?? null,
+      lang: input.lang ?? 'en',
+    });
+    if (ingress.refused) {
+      moduleLogger.warn('owner-brain-call: ingress chokepoint refused the turn', {
+        tenantId: input.tenantId ?? 'global',
+        reasons: ingress.reasons,
+      });
+      throw new IngressRefusedError(
+        ingress.refusalMessage || INGRESS_GUARD_REFUSAL_TEXTS[input.lang ?? 'en'],
+      );
+    }
+  }
+
   const p = providers();
   const anthropicModel =
     process.env.BORJIE_OWNER_ANTHROPIC_MODEL?.trim() || 'claude-sonnet-4-6';

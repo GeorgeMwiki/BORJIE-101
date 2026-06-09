@@ -36,8 +36,36 @@ import {
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
+// IP-EGRESS (CLOSE-G) — the advisor slice is model-authored prose (the
+// `insight` + `action` lines come from `callBrainOnce`). It MUST pass the
+// FAIL-CLOSED egress firewall before it is returned to the owner cockpit so no
+// persona / model / provider identity, rationale or canary leaks. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../../composition/egress-filter-wiring.js';
 
 const moduleLogger = createLogger('owner-brief');
+
+/** Generic egress fail-closed placeholder for model-authored advisor text. */
+const ADVISOR_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * IP-EGRESS (CLOSE-G) — guard one model-authored advisor leaf through the
+ * FAIL-CLOSED egress firewall before it reaches the owner cockpit. A thrown
+ * filter (or construction fault) yields a generic placeholder, never the raw
+ * text. Empty / non-string spans pass through unchanged.
+ */
+function guardAdvisorText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    moduleLogger.error('advisor egress guard threw — failing closed', {
+      tenantId,
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    return ADVISOR_EGRESS_FAIL_CLOSED;
+  }
+}
 
 // ----------------------------------------------------------------------------
 // OwnerBrief zod schema — pins the cached jsonb shape end-to-end.
@@ -514,11 +542,16 @@ async function composeAdvisorSlice(slots: {
   const actionLine = lines.find((l) => /^action[:\s]/i.test(l)) ?? lines[1] ?? '';
   const action = actionLine.replace(/^action[:\s]+/i, '').trim();
   if (!insight || !action) return null;
+  // IP-EGRESS (CLOSE-G) — `insight` + `action` are model-authored prose: run
+  // each through the FAIL-CLOSED egress firewall before they leave the gateway.
+  // `provider` is the concrete LLM provider id — it is coarsened to a generic,
+  // non-identifying label so the model/provider identity never crosses the wire
+  // (the real provider stays in the server log via callBrainOnce).
   return {
-    insight,
-    action,
+    insight: guardAdvisorText(insight, tenantId),
+    action: guardAdvisorText(action, tenantId),
     generatedAtIso: new Date().toISOString(),
-    provider: result.provider,
+    provider: 'brain',
     latencyMs: result.latencyMs,
   };
 }

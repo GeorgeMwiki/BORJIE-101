@@ -53,6 +53,21 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddlewareNoPin } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
 import { callBrainOnce } from './brain-call.js';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection / jailbreak
+// guard, applied to the owner's free-text `question` BEFORE it is folded into the
+// userPrompt and `callBrainOnce` reaches the model. CRITICAL → 403
+// INPUT_GUARD_REFUSED (the model never sees it); lower severities → run on the
+// detector-redacted question. Fail-OPEN-but-logged inside the guard.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — /explain (`summary`) and /qa (`answer`) return
+// model-authored prose to the owner cockpit. Each MUST pass the FAIL-CLOSED
+// egress firewall before egress so no persona / model / provider identity,
+// rationale or canary leaks. DEFAULT-ON; kill-switch `BORJIE_EGRESS_FILTER`.
+// See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../../composition/egress-filter-wiring.js';
 // Wave OWNER-OS — REAL Supabase Storage presigned PUT replacing the
 // previous placeholder. Uses `createSignedUploadUrl` against the
 // shared `tenant-uploads` bucket. Path scheme:
@@ -60,6 +75,28 @@ import { callBrainOnce } from './brain-call.js';
 import { issueOwnerDocPresign } from '../../services/owner-docs-storage/presign';
 
 const moduleLogger = createLogger('owner-docs');
+
+/** Generic egress fail-closed placeholder for model-authored doc text. */
+const DOCS_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * IP-EGRESS (CLOSE-G) — guard one model-authored leaf (a doc summary / answer)
+ * through the FAIL-CLOSED egress firewall before it reaches the owner cockpit.
+ * A thrown filter (or construction fault) yields a generic placeholder, never
+ * the raw text. Empty / non-string spans pass through unchanged.
+ */
+function guardDocsText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (e) {
+    moduleLogger.error('owner-docs: egress guard threw — failing closed', {
+      tenantId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    return DOCS_EGRESS_FAIL_CLOSED;
+  }
+}
 
 const ENTITY_TYPE = 'owner_intake';
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -536,15 +573,21 @@ app.post('/:id/explain', async (c: any) => {
       // this document explanation for this tenant (or the global default).
       tenantId: auth.tenantId,
       useCase: 'document_summary',
+      // CLOSE-G — /explain carries NO raw user free-text (the prompt is built
+      // from doc metadata + indexed chunks only), so the ingress chokepoint has
+      // nothing user-authored to guard.
+      preGuarded: true,
     });
     return c.json(
       ok({
         documentId: id,
         category,
         language,
-        summary: result.text,
+        // IP-EGRESS (CLOSE-G) — model-authored prose through the fail-closed
+        // firewall; `provider` coarsened so no model/provider id crosses the wire.
+        summary: guardDocsText(result.text, auth.tenantId),
         evidenceIds: chunkTexts.map((c) => c.id),
-        provider: result.provider,
+        provider: 'brain',
         latencyMs: result.latencyMs,
       }),
       200,
@@ -589,6 +632,27 @@ app.post('/:id/qa', async (c: any) => {
   const language = parsed.data.language;
   const context = joinedContext(chunkTexts);
 
+  // INPUT CONTAINMENT (CLOSE-G) — guard the owner's free-text `question` BEFORE
+  // it is folded into the userPrompt and `callBrainOnce` reaches the model.
+  // CRITICAL prompt-injection / jailbreak → 403 INPUT_GUARD_REFUSED (the model
+  // never sees it). Lower severities → build the prompt from the detector-
+  // redacted question (offending spans stripped). Fail-OPEN-but-logged.
+  const ingress = await applyIngressGuard({
+    userText: parsed.data.question,
+    tenantId: auth.tenantId,
+    userId: (auth as { userId?: string }).userId ?? null,
+    lang: pickIngressGuardLang(
+      c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+    ),
+  });
+  if (ingress.refused) {
+    return c.json(
+      err('INPUT_GUARD_REFUSED', ingress.refusalMessage),
+      403,
+    );
+  }
+  const guardedQuestion = ingress.text;
+
   const systemPrompt =
     language === 'sw'
       ? 'Wewe ni Bwana Mwikila. Jibu swali la mmiliki KWA KUTUMIA TU maandishi yaliyotolewa kutoka hati hii. Ikiwa jibu haliko kwenye maandishi, sema "Sina taarifa hiyo kwenye hati hii" na pendekeza nini cha kufanya.'
@@ -599,7 +663,7 @@ app.post('/:id/qa', async (c: any) => {
     (context.length > 0
       ? `Extracted chunks:\n${context}\n\n`
       : '(no chunks indexed for this document yet)\n\n') +
-    `Owner question: ${parsed.data.question}`;
+    `Owner question: ${guardedQuestion}`;
 
   try {
     const result = await callBrainOnce({
@@ -609,15 +673,22 @@ app.post('/:id/qa', async (c: any) => {
       // LANE B5 — admin control-plane routing for this tenant's doc Q&A turn.
       tenantId: auth.tenantId,
       useCase: 'contract_extraction',
+      // CLOSE-G — the owner's free-text `question` is already guarded above at
+      // the route seam (refused → 403 before we reach here), and the userPrompt
+      // was built from the detector-redacted question. Assert preGuarded so the
+      // chokepoint does not double-guard / double-audit.
+      preGuarded: true,
     });
     return c.json(
       ok({
         documentId: id,
         question: parsed.data.question,
         language,
-        answer: result.text,
+        // IP-EGRESS (CLOSE-G) — model-authored prose through the fail-closed
+        // firewall; `provider` coarsened so no model/provider id crosses the wire.
+        answer: guardDocsText(result.text, auth.tenantId),
         evidenceIds: chunkTexts.map((c) => c.id),
-        provider: result.provider,
+        provider: 'brain',
         latencyMs: result.latencyMs,
       }),
       200,
