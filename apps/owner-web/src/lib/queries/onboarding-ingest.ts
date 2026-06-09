@@ -35,11 +35,15 @@
  * Honesty / contract reality:
  *   - The `/upload` endpoint only accepts DOCUMENT mimes (pdf / docx / images)
  *     and the OCR schema set covers the TZ mining licence. So the LICENCE step
- *     (PDF) commits real `licences` rows end-to-end. The site (GeoJSON) and
- *     drill-hole (CSV) steps are NOT document mimes, so they cannot ride this
- *     OCR bridge — they keep recording refs only (the orchestrator already
- *     reports `bytesPersisted:false` for them). That tabular path needs a
- *     `sample`-shaped `/ingest` upload, which is a separate follow-up.
+ *     (PDF) commits real `licences` rows end-to-end via the OCR bridge.
+ *   - The site (GeoJSON) and drill-hole (CSV) steps are NOT document mimes, so
+ *     they cannot ride the OCR bridge. They take the SEPARATE `sample`-shaped
+ *     `/ingest` + `/commit` path: the bytes are parsed CLIENT-SIDE into a
+ *     `TabularSample` (GeoJSON features → site rows; CSV rows → drill rows) and
+ *     POSTed as `{ sample }`. The gateway commit creates real `sites` /
+ *     `drill_holes` rows (RLS-scoped, hash-chain audited, idempotent by natural
+ *     key). See {@link geoJsonToSites} / {@link csvToDrillHoles} /
+ *     {@link commitOnboardingSample}.
  *
  * All responses are zod-parsed (defence in depth). Never throws to the UI:
  * every leg resolves to a typed outcome so the wizard renders a clean state.
@@ -65,7 +69,10 @@ const EXTRACTION_POLL_ATTEMPTS = 20;
 const EXTRACTION_POLL_INTERVAL_MS = 1_500;
 
 /** The recipe `/commit` entity-type — mirror of the gateway zod enum. */
-export type CommitEntityType = 'worker' | 'site' | 'licence';
+export type CommitEntityType = 'worker' | 'site' | 'licence' | 'drill_hole';
+
+/** The recipe `/ingest`+`/commit` `sample` path (NON-document tabular feeds). */
+const INGEST_PATH = '/api/v1/mining/onboarding/ingest';
 
 // ---------------------------------------------------------------------------
 // Wire schemas (zod — every response is parsed before use)
@@ -341,3 +348,149 @@ export async function commitOnboardingEntities(args: {
   }
   return tally;
 }
+
+// ---------------------------------------------------------------------------
+// STRETCH — tabular `sample` path (GeoJSON sites + CSV drill holes)
+//
+// These feeds are NOT document mimes, so they cannot ride the OCR bridge. We
+// parse the bytes CLIENT-SIDE into the gateway's `TabularSample` shape and
+// POST `{ sample }` to /ingest (proposal) + /commit (real rows). The gateway
+// owns RLS + audit-chain + idempotency; here we only shape the sample.
+// ---------------------------------------------------------------------------
+
+/** The gateway `TabularSample` wire shape (mirror of its zod schema). */
+export interface TabularSample {
+  readonly source_file: { readonly id: string; readonly name: string };
+  readonly headers: ReadonlyArray<string>;
+  readonly rows: ReadonlyArray<ReadonlyArray<string>>;
+  readonly total_row_count: number;
+}
+
+const geoJsonFeatureSchema = z.object({
+  type: z.literal('Feature').optional(),
+  properties: z.record(z.unknown()).nullable().default({}),
+});
+
+const geoJsonSchema = z.object({
+  type: z.string().optional(),
+  features: z.array(geoJsonFeatureSchema).default([]),
+});
+
+/** Coerce any property scalar to a stable cell string. */
+function cell(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
+}
+
+/**
+ * Parse a GeoJSON FeatureCollection into a site `TabularSample`: each feature's
+ * `properties` become a row keyed by the union of all property names. Returns
+ * null when the text is not parseable GeoJSON with features.
+ */
+export function geoJsonToSites(fileName: string, text: string): TabularSample | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const parsed = geoJsonSchema.safeParse(json);
+  if (!parsed.success || parsed.data.features.length === 0) return null;
+
+  const propsList = parsed.data.features.map((f) => f.properties ?? {});
+  const headers = Array.from(
+    propsList.reduce<Set<string>>((acc, props) => {
+      Object.keys(props).forEach((k) => acc.add(k));
+      return acc;
+    }, new Set<string>()),
+  );
+  const safeHeaders = headers.length > 0 ? headers : ['name'];
+  const rows = propsList.map((props) => safeHeaders.map((h) => cell(props[h])));
+  return {
+    source_file: { id: fileName, name: fileName },
+    headers: safeHeaders,
+    rows,
+    total_row_count: rows.length,
+  };
+}
+
+/** Split one CSV line honouring simple double-quoted fields (no embedded \n). */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === ',' && !inQuotes) {
+      out.push(cur);
+      cur = '';
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out.map((c) => c.trim());
+}
+
+/**
+ * Parse a CSV (header row + data rows) into a drill-hole `TabularSample`.
+ * Returns null when there is no header + at least one data row.
+ */
+export function csvToDrillHoles(fileName: string, text: string): TabularSample | null {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+  if (lines.length < 2) return null;
+  const headers = splitCsvLine(lines[0]!);
+  if (headers.length === 0) return null;
+  const rows = lines.slice(1).map((line) => {
+    const cells = splitCsvLine(line);
+    return headers.map((_, i) => cells[i] ?? '');
+  });
+  return {
+    source_file: { id: fileName, name: fileName },
+    headers,
+    rows,
+    total_row_count: rows.length,
+  };
+}
+
+/**
+ * Commit ONE parsed `TabularSample` into real domain rows via the recipe
+ * `/commit` `sample` path. Idempotent server-side (natural key). Returns the
+ * tally, or null when the commit failed (the caller degrades gracefully).
+ */
+export async function commitOnboardingSample(args: {
+  readonly sample: TabularSample;
+  readonly entityType: CommitEntityType;
+}): Promise<CommitTally | null> {
+  try {
+    const raw = await apiRequest<unknown>(COMMIT_PATH, {
+      method: 'POST',
+      body: { sample: args.sample, entity_type: args.entityType },
+      timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+    });
+    const parsed = commitResponseSchema.parse(raw);
+    return {
+      entityType: args.entityType,
+      rowsInserted: parsed.rows_inserted,
+      rowsUpdated: parsed.rows_updated,
+      rowsSkipped: parsed.rows_skipped,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Touch the `/ingest` path constant so it is wired (proposal preview hook). */
+export const ONBOARDING_INGEST_PATH = INGEST_PATH;

@@ -396,3 +396,68 @@ describe('GET /search', () => {
     expect(res.status).toBe(503);
   });
 });
+
+// ─── Principal-role guard (FIX 1) ─────────────────────────────────────
+//
+// The router wires the REAL `requireRole(...)` (mirroring the admin/owner
+// routers) right after `authMiddleware` so a non-buyer authenticated tenant
+// principal is rejected with 403 BEFORE any handler runs — the body
+// `persona: 'buyer'` literal is no longer the only gate. The file-level
+// `vi.mock` stubs `requireRole` to a pass-through for the handler tests
+// above; here we exercise the ACTUAL guard via `importActual` and wire it
+// exactly as the router does (after a middleware that sets `auth.role`).
+describe('principal-role guard', () => {
+  async function buildGuardedApp(role: string) {
+    const honoAuth = await vi.importActual<
+      typeof import('../../../middleware/hono-auth')
+    >('../../../middleware/hono-auth');
+    const { UserRole } = await vi.importActual<
+      typeof import('../../../types/user-role')
+    >('../../../types/user-role');
+
+    const app = new Hono();
+    app.use('*', async (c, next) => {
+      c.set('auth', { tenantId: 'tnt-buyer', userId: 'u-1', role });
+      await next();
+    });
+    app.use(
+      '*',
+      honoAuth.requireRole(
+        UserRole.RESIDENT,
+        UserRole.OWNER,
+        UserRole.TENANT_ADMIN,
+        UserRole.ADMIN,
+        UserRole.SUPER_ADMIN,
+      ),
+    );
+    app.get('/probe', (c) => c.json({ success: true }));
+    return app;
+  }
+
+  it('rejects a non-buyer principal with 403', async () => {
+    // PROPERTY_MANAGER == mining site-manager / employee persona — NOT a buyer.
+    const app = await buildGuardedApp('PROPERTY_MANAGER');
+    const res = await app.request('/probe');
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('rejects MAINTENANCE_STAFF (field employee) with 403', async () => {
+    const app = await buildGuardedApp('MAINTENANCE_STAFF');
+    const res = await app.request('/probe');
+    expect(res.status).toBe(403);
+  });
+
+  it('admits the buyer principal (RESIDENT)', async () => {
+    const app = await buildGuardedApp('RESIDENT');
+    const res = await app.request('/probe');
+    expect(res.status).toBe(200);
+  });
+
+  it('admits an owner acting on a buyer behalf (OWNER)', async () => {
+    const app = await buildGuardedApp('OWNER');
+    const res = await app.request('/probe');
+    expect(res.status).toBe(200);
+  });
+});

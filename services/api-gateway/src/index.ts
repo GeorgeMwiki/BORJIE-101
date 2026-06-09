@@ -1576,7 +1576,8 @@ try {
   const mediaTools = buildMediaGenerationTools();
 
   // Modality capabilities (forecast / media-video+gif / document) — behind
-  // BORJIE_MODALITY_CAPABILITIES (default OFF). When ON, the engines are
+  // BORJIE_MODALITY_CAPABILITIES (DEFAULT-ON kill-switch; set the flag to
+  // `off` to disable). When ON, the engines are
   // constructed once and exposed as rail-gated, evidence-stamped capability
   // brain-tools registered ALONGSIDE the existing image/chart/diagram tools.
   // The brain-tools path returns the artifact directly (the chat renderer

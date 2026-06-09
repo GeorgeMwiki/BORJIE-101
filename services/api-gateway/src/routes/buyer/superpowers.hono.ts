@@ -17,9 +17,17 @@
  *       Handlers never double-filter beyond the explicit tenant guard
  *       that mirrors the owner routes.
  *
- * Persona guard: every handler asserts persona === 'buyer' and rejects
- * any non-buyer action verb server-side, so a caller cannot bypass the
- * mobile client to invoke owner/manager verbs through this surface.
+ * Principal-role guard: `requireRole(...)` runs router-wide (after
+ * `authMiddleware`) so the AUTHENTICATED principal must hold a buyer-
+ * permitted role (RESIDENT — the buyer — or an owner/admin acting on a
+ * buyer's behalf). A non-buyer tenant principal is rejected with 403
+ * BEFORE any handler runs; the request-BODY `persona: 'buyer'` literal is
+ * no longer the sole check.
+ *
+ * Persona guard: every handler additionally asserts persona === 'buyer'
+ * and rejects any non-buyer action verb server-side, so a caller cannot
+ * bypass the mobile client to invoke owner/manager verbs through this
+ * surface.
  */
 
 import { Hono } from 'hono';
@@ -38,8 +46,9 @@ import {
   upsertPinnedItem,
   type BuyerSuperpowersDb,
 } from './superpowers-store';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { UserRole } from '../../types/user-role';
 import { createLogger } from '../../utils/logger';
 
 const moduleLogger = createLogger('buyer-superpowers');
@@ -99,6 +108,25 @@ function validationError(
 
 export const buyerSuperpowersRouter = new Hono();
 buyerSuperpowersRouter.use('*', authMiddleware);
+// Principal-role guard (mirrors the blessed `requireRole(...roles)` used by
+// the admin/owner routers, e.g. sovereign-ledger.router.ts / webhook-dlq.router.ts).
+// The buyer persona maps to `RESIDENT` in `mapSupabaseRolesToUserRole`
+// (`auth/supabase/supabase-auth-middleware.ts`: { match: 'buyer' } → RESIDENT),
+// so the buyer superpowers surface is reachable by RESIDENT (the buyer) plus
+// the owner/admin roles that are permitted to act on a buyer's behalf. Any
+// other authenticated tenant principal (e.g. a field employee / accountant /
+// site-manager) is rejected with 403 BEFORE the handler runs — closing the
+// hole where the request-BODY `persona: 'buyer'` literal was the only check.
+buyerSuperpowersRouter.use(
+  '*',
+  requireRole(
+    UserRole.RESIDENT,
+    UserRole.OWNER,
+    UserRole.TENANT_ADMIN,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN,
+  ),
+);
 buyerSuperpowersRouter.use('*', databaseMiddleware);
 
 // POST /bulk-action — buyer bulk_rfb | bulk_watch.

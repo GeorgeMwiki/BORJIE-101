@@ -21,9 +21,9 @@
  *   - Read-only: GET only. Statement GENERATION (POST) is intentionally NOT
  *     proxied here.
  *
- * Wiring: this file is provided for the serial chokepoint wave to mount. It
- * is NOT mounted yet. See the lane return `deferredMounts` for the exact
- * mount line.
+ * Wiring: MOUNTED at `/api/v1/mining/statements` — `routes/mining/index.ts`
+ * does `mining.route('/statements', miningStatementsRouter)` and the mining
+ * router itself is mounted under `/api/v1/mining` by the gateway.
  *
  * Bilingual sw/en error copy on every 4xx/5xx the gateway itself emits.
  */
