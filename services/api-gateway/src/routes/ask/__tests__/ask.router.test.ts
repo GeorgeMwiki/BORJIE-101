@@ -82,7 +82,10 @@ describe('POST /v1/ask — happy path per role', () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.data.intent).toBe('lease-question');
-    expect(body.data.answer).toContain('tenant');
+    // Mining-coherent: a RESIDENT maps to the buyer-audience persona
+    // ("You are advising a mineral buyer…"), so the role-shaped answer reflects
+    // the BUYER framing — not the property-era 'tenant' string.
+    expect(body.data.answer.toLowerCase()).toContain('buyer');
   });
 
   it('owner question returns owner-shaped answer', async () => {
@@ -110,7 +113,11 @@ describe('POST /v1/ask — happy path per role', () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.data.answer.toLowerCase()).toContain('renewal-rate');
+    // Mining-coherent: a PROPERTY_MANAGER maps to the site-manager persona,
+    // whose framing leads with "licence renewals, output, royalty arrears,
+    // margin levers" — assert the mining renewal framing, not the property-era
+    // 'renewal-rate' KPI string.
+    expect(body.data.answer.toLowerCase()).toContain('renewal');
   });
 
   it('admin question returns admin-shaped answer', async () => {

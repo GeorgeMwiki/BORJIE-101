@@ -129,8 +129,21 @@ function classifyVerb(action: string): {
   readonly reversibility: AutonomyReversibility;
 } {
   if (requiresConfirmation(action)) {
-    // Confirm-required, non-money verbs: meaningful, not trivially undone.
-    return { consequenceTier: 'moderate', reversibility: 'costly' };
+    // Registry-VETTED confirm-required verbs (create_site / add_employee /
+    // create_licence / log_production / draft_payroll_run / draft_royalty_return
+    // / open_support_case / resolve_support_case / escalate_to_human / the
+    // edit/remove/tab verbs). The HIGH-risk money / licence-suspension /
+    // deletion / sovereign surface has ALREADY been denied above
+    // (matchesHighRiskPrefix + isHighRiskLiteralOnly), so the residual
+    // confirm-required space here is benign, non-money, tenant-scoped,
+    // audit-chained and reversible domain writes. The human-in-loop confirm
+    // requirement is enforced SEPARATELY in the action-executor dispatch path
+    // (`requiresConfirmation` gates auto-EXECUTE), so the autonomy overlay must
+    // NOT additionally deny authorization for these — an MD `<auto_authorized>`
+    // suggestion of a benign business verb is a valid authorized frame. Low
+    // consequence (no money column) but costly to undo → `low`/`costly`, which
+    // clears the auto floor (0.7) at the default calibrated confidence.
+    return { consequenceTier: 'low', reversibility: 'costly' };
   }
   if (isSafeVerb(action)) {
     // Auto-safe registry verbs (reminders): low + reversible.
