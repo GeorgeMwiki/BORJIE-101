@@ -22,6 +22,7 @@ import { Hono } from 'hono';
 import { sql } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
+import { getArtifactEgressMembrane } from '../composition/artifact-egress-wiring.js';
 
 interface DbExec {
   execute(query: unknown): Promise<unknown>;
@@ -100,9 +101,21 @@ export function createModalityArtifactsRouter(): Hono {
     }
 
     const config = parseConfig(row.config);
-    const evidenceIds = Array.isArray(row.evidence_ids)
-      ? (row.evidence_ids as unknown[]).filter((v): v is string => typeof v === 'string')
-      : [];
+
+    // ARTIFACT EGRESS MEMBRANE (INV-H / INV-D): the `tab` preview + the
+    // free-form `artifact` descriptor are stashed verbatim in the proposal
+    // `config` jsonb and would otherwise reach the client UN-PROJECTED, bypassing
+    // the text egress firewall. Project them through the StatusSpan | Output |
+    // Evidence allow-list: keep only renderable content + evidence_ids + status,
+    // dropping every mechanic field (agent / tool names, arbiter rationale,
+    // internal ids, chain-of-thought, audit provenance) at every depth.
+    // FAIL-CLOSED: on projection fault the membrane substitutes a safe-minimal
+    // artifact, never the raw blob.
+    const projected = getArtifactEgressMembrane().guardEnvelope({
+      tab: config.tab ?? null,
+      artifact: config.artifact ?? null,
+      evidenceIds: row.evidence_ids,
+    });
 
     // The artifact + the synthesized UI spec the FE hydrates on Open. The
     // surface only mutates when the owner ACCEPTS (separate persist POST) —
@@ -114,12 +127,12 @@ export function createModalityArtifactsRouter(): Hono {
       reversible: config.reversible === true,
       accepted: row.accepted_at != null,
       dismissed: row.dismissed_at != null,
-      // The genui-synthesized UI spec (a PortalTab preview).
-      tab: config.tab ?? null,
+      // The genui-synthesized UI spec (a PortalTab preview) — membrane-projected.
+      tab: projected.tab,
       // The underlying artifact: forecast JSON / document archive refs /
-      // media descriptor (a hosted/base64 url-bearing object for media).
-      artifact: config.artifact ?? null,
-      evidenceIds,
+      // media descriptor — membrane-projected (mechanic keys scrubbed).
+      artifact: projected.artifact,
+      evidenceIds: projected.evidenceIds,
       confidence:
         typeof row.confidence === 'number'
           ? row.confidence
