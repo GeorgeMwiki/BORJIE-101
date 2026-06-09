@@ -315,5 +315,50 @@ export const sw = {
     "schedule": "Hifadhi kikumbusho",
     "empty": "Hakuna vikumbusho.",
     "cancelItem": "Futa"
+  },
+  "sandboxQueue": {
+    "committed": "Imewekwa kwenye mfumo.",
+    "commitFailed": "Imeshindikana",
+    "enterReasonFirst": "Andika sababu kwanza.",
+    "rejected": "Imekataliwa.",
+    "rejectFailed": "Imeshindikana",
+    "loading": "Inapakia…",
+    "empty": "Hakuna maandishi yaliyosubiri.",
+    "commit": "Thibitisha (weka)",
+    "rejectReason": "Sababu ya kukataa",
+    "rejectPlaceholder": "Kwa nini?",
+    "reject": "Kataa"
+  },
+  "headBriefing": {
+    "unavailable": "Taarifa ya asubuhi haipatikani kwa sasa.",
+    "noContent": "Hakuna taarifa.",
+    "overnightActivity": "Shughuli za usiku",
+    "noAutonomousActions": "Hakuna shughuli za kujiendesha.",
+    "pendingApprovals": "Idhini zinazosubiri",
+    "nothingAwaiting": "Hakuna kinachosubiri.",
+    "escalations": "Masuala yaliyopandishwa",
+    "noEscalations": "Hakuna masuala.",
+    "recommendations": "Mapendekezo",
+    "noRecommendations": "Hakuna mapendekezo.",
+    "anomalies": "Mambo yasiyo ya kawaida"
+  },
+  "ownerOsShell": {
+    "spawnNewTab": "Fungua tab mpya",
+    "newTab": "Tab mpya",
+    "recentTabs": "Tabs zilizofungwa hivi karibuni",
+    "recentlyClosed": "Zilizofungwa hivi karibuni",
+    "open": "Kubali",
+    "dismissProposal": "Ondoa pendekezo",
+    "genuiOpened": "Nimekufungulia \"{title}\" kutoka kwenye gumzo",
+    "inTabStrip": "Kipo kwenye mstari wa vichupo — endelea kuongea.",
+    "openShort": "Fungua",
+    "undo": "Tendua",
+    "dismiss": "Ondoa",
+    "artifactPrepared": "Nimekuandalia \"{title}\" kutoka kwenye gumzo",
+    "artifactTitle": {
+      "forecast": "Utabiri",
+      "document": "Hati",
+      "media": "Midia"
+    }
   }
 } as const;

@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   useSandboxWrites,
   useCommitSandboxWrite,
   useRejectSandboxWrite,
   type SandboxWrite,
 } from '@/lib/queries/wave9';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 interface AgenticSandboxQueueProps {
   readonly isSw: boolean;
@@ -31,6 +33,10 @@ function createdOf(w: SandboxWrite): string | undefined {
  * this surface is the human-judgement gate over the staged writes.
  */
 export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Element {
+  const t = useMemo(
+    () => makeT(dictionaries[isSw ? 'sw' : 'en']),
+    [isSw],
+  );
   const [status, setStatus] = useState<string>('pending');
   const query = useSandboxWrites(status);
   const commit = useCommitSandboxWrite(status);
@@ -40,25 +46,24 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
 
   function onCommit(w: SandboxWrite) {
     commit.mutate(w.id, {
-      onSuccess: () =>
-        setToast(isSw ? 'Imewekwa kwenye mfumo.' : 'Committed to the live system.'),
+      onSuccess: () => setToast(t('sandboxQueue.committed')),
       onError: (err) =>
-        setToast(`${isSw ? 'Imeshindikana' : 'Commit failed'}: ${err.message}`),
+        setToast(`${t('sandboxQueue.commitFailed')}: ${err.message}`),
     });
   }
 
   function onReject(w: SandboxWrite) {
     const reason = (reasonById[w.id] ?? '').trim();
     if (reason.length < 1) {
-      setToast(isSw ? 'Andika sababu kwanza.' : 'Enter a reason first.');
+      setToast(t('sandboxQueue.enterReasonFirst'));
       return;
     }
     reject.mutate(
       { id: w.id, reason },
       {
-        onSuccess: () => setToast(isSw ? 'Imekataliwa.' : 'Rejected.'),
+        onSuccess: () => setToast(t('sandboxQueue.rejected')),
         onError: (err) =>
-          setToast(`${isSw ? 'Imeshindikana' : 'Reject failed'}: ${err.message}`),
+          setToast(`${t('sandboxQueue.rejectFailed')}: ${err.message}`),
       },
     );
   }
@@ -87,14 +92,14 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
 
       {query.isPending ? (
         <p className="text-sm text-neutral-500">
-          {isSw ? 'Inapakia…' : 'Loading staged writes…'}
+          {t('sandboxQueue.loading')}
         </p>
       ) : query.isError ? (
         <p className="text-sm text-destructive">{query.error.message}</p>
       ) : writes.length === 0 ? (
         <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
           <p className="text-sm text-neutral-400">
-            {isSw ? 'Hakuna maandishi yaliyosubiri.' : 'No staged writes in this view.'}
+            {t('sandboxQueue.empty')}
           </p>
         </div>
       ) : (
@@ -137,11 +142,11 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                     onClick={() => onCommit(w)}
                     className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-success hover:bg-surface disabled:opacity-40"
                   >
-                    {isSw ? 'Thibitisha (weka)' : 'Commit (four-eye)'}
+                    {t('sandboxQueue.commit')}
                   </button>
                   <label className="block flex-1 min-w-[14rem]">
                     <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-                      {isSw ? 'Sababu ya kukataa' : 'Reject reason'}
+                      {t('sandboxQueue.rejectReason')}
                     </span>
                     <input
                       type="text"
@@ -149,7 +154,7 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                       onChange={(e) =>
                         setReasonById((prev) => ({ ...prev, [w.id]: e.target.value }))
                       }
-                      placeholder={isSw ? 'Kwa nini?' : 'Why reject this write?'}
+                      placeholder={t('sandboxQueue.rejectPlaceholder')}
                       className="w-full rounded-md border border-border bg-surface/60 px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
                     />
                   </label>
@@ -159,7 +164,7 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                     onClick={() => onReject(w)}
                     className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-warning hover:bg-surface disabled:opacity-40"
                   >
-                    {isSw ? 'Kataa' : 'Reject'}
+                    {t('sandboxQueue.reject')}
                   </button>
                 </div>
               ) : null}

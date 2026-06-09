@@ -70,9 +70,11 @@ import {
   type TabProposalPayload,
   type TabTagErrorPayload,
 } from '@/lib/tab-sse-parser';
-import { ARTIFACT_TITLE_BY_KIND } from './artifact-copy';
+import { artifactTitle } from './artifact-copy';
 import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import { apiRequest } from '@/lib/api-client';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 import dynamic from 'next/dynamic';
 import { SurfaceSkeleton } from '@/components/owner-os/panels/SurfaceSkeleton';
@@ -163,6 +165,11 @@ export function OwnerOSShell({
     rename,
     patchState,
   } = useOwnerTabs();
+
+  const t = useMemo(
+    () => makeT(dictionaries[languagePreference]),
+    [languagePreference],
+  );
 
   const [spawnMenuOpen, setSpawnMenuOpen] = useState(false);
   const [recentClosed, setRecentClosed] = useState<ReadonlyArray<RecentClosed>>(
@@ -380,8 +387,7 @@ export function OwnerOSShell({
             // the membrane-projected descriptor), then drop a transparent
             // "opened from chat" notice with Open + Undo. Never steals focus
             // from the conversation; never renders the raw blob.
-            const kindLabel =
-              ARTIFACT_TITLE_BY_KIND[p.artifactKind][languagePreference];
+            const kindLabel = artifactTitle(p.artifactKind, t);
             const label =
               p.title.length > 28 ? `${p.title.slice(0, 25)}…` : p.title;
             const tabId = `artifact:${p.proposalId}`;
@@ -420,6 +426,7 @@ export function OwnerOSShell({
       rename,
       close,
       openBackground,
+      t,
     ],
   );
 
@@ -786,14 +793,12 @@ export function OwnerOSShell({
         <button
           type="button"
           onClick={() => setSpawnMenuOpen(true)}
-          aria-label={
-            languagePreference === 'sw' ? 'Fungua tab mpya' : 'Spawn a new tab'
-          }
+          aria-label={t('ownerOsShell.spawnNewTab')}
           data-testid="owner-os-spawn-button"
           className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-warning/40 bg-warning/5 px-2 py-1 text-tiny font-semibold text-warning hover:bg-warning/10"
         >
           <Plus aria-hidden="true" className="h-3 w-3" />
-          {languagePreference === 'sw' ? 'Tab mpya' : 'New tab'}
+          {t('ownerOsShell.newTab')}
           <kbd className="rounded border border-warning/30 px-1 font-mono text-tiny">
             ⌘T
           </kbd>
@@ -802,20 +807,12 @@ export function OwnerOSShell({
 
       {hasRecent ? (
         <div
-          aria-label={
-            languagePreference === 'sw'
-              ? 'Tabs zilizofungwa hivi karibuni'
-              : 'Recent tabs'
-          }
+          aria-label={t('ownerOsShell.recentTabs')}
           data-testid="owner-os-recent-tray"
           className="flex flex-wrap items-center gap-2 px-3 text-tiny text-neutral-500"
         >
           <History aria-hidden="true" className="h-3 w-3" />
-          <span>
-            {languagePreference === 'sw'
-              ? 'Zilizofungwa hivi karibuni'
-              : 'Recently closed'}
-          </span>
+          <span>{t('ownerOsShell.recentlyClosed')}</span>
           {recentClosed.map((entry) => (
             <button
               key={`${entry.tab.id}_${entry.closedAt}`}
@@ -872,16 +869,12 @@ export function OwnerOSShell({
                   className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
                 >
                   <Check aria-hidden="true" className="h-3 w-3" />
-                  {languagePreference === 'sw' ? 'Kubali' : 'Open'}
+                  {t('ownerOsShell.open')}
                 </button>
                 <button
                   type="button"
                   onClick={() => dismissProposal(p.proposalId)}
-                  aria-label={
-                    languagePreference === 'sw'
-                      ? 'Ondoa pendekezo'
-                      : 'Dismiss proposal'
-                  }
+                  aria-label={t('ownerOsShell.dismissProposal')}
                   className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
                 >
                   <X aria-hidden="true" className="h-3 w-3" />
@@ -901,14 +894,10 @@ export function OwnerOSShell({
               />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-xs font-semibold text-success">
-                  {languagePreference === 'sw'
-                    ? `Nimekufungulia "${n.title}" kutoka kwenye gumzo`
-                    : `Opened "${n.title}" from your chat`}
+                  {t('ownerOsShell.genuiOpened', { title: n.title })}
                 </span>
                 <span className="truncate text-tiny text-neutral-400">
-                  {languagePreference === 'sw'
-                    ? 'Kipo kwenye mstari wa vichupo — endelea kuongea.'
-                    : "It's in your tab strip — keep chatting."}
+                  {t('ownerOsShell.inTabStrip')}
                 </span>
               </div>
               <button
@@ -918,7 +907,7 @@ export function OwnerOSShell({
                 className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
               >
                 <Check aria-hidden="true" className="h-3 w-3" />
-                {languagePreference === 'sw' ? 'Fungua' : 'Open'}
+                {t('ownerOsShell.openShort')}
               </button>
               <button
                 type="button"
@@ -926,12 +915,12 @@ export function OwnerOSShell({
                 data-testid={`owner-os-genui-undo-${n.proposalId}`}
                 className="rounded-md border border-border bg-surface px-2 py-1 text-tiny font-medium text-neutral-400 hover:text-foreground"
               >
-                {languagePreference === 'sw' ? 'Tendua' : 'Undo'}
+                {t('ownerOsShell.undo')}
               </button>
               <button
                 type="button"
                 onClick={() => dismissNotice(n.proposalId)}
-                aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                aria-label={t('ownerOsShell.dismiss')}
                 className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
               >
                 <X aria-hidden="true" className="h-3 w-3" />
@@ -950,14 +939,10 @@ export function OwnerOSShell({
               />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-xs font-semibold text-info">
-                  {languagePreference === 'sw'
-                    ? `Nimekuandalia "${n.title}" kutoka kwenye gumzo`
-                    : `Prepared "${n.title}" from your chat`}
+                  {t('ownerOsShell.artifactPrepared', { title: n.title })}
                 </span>
                 <span className="truncate text-tiny text-neutral-400">
-                  {languagePreference === 'sw'
-                    ? 'Kipo kwenye mstari wa vichupo — endelea kuongea.'
-                    : "It's in your tab strip — keep chatting."}
+                  {t('ownerOsShell.inTabStrip')}
                 </span>
               </div>
               <button
@@ -967,7 +952,7 @@ export function OwnerOSShell({
                 className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-2 py-1 text-tiny font-semibold text-info hover:bg-info/20"
               >
                 <Check aria-hidden="true" className="h-3 w-3" />
-                {languagePreference === 'sw' ? 'Fungua' : 'Open'}
+                {t('ownerOsShell.openShort')}
               </button>
               <button
                 type="button"
@@ -975,12 +960,12 @@ export function OwnerOSShell({
                 data-testid={`owner-os-artifact-undo-${n.proposalId}`}
                 className="rounded-md border border-border bg-surface px-2 py-1 text-tiny font-medium text-neutral-400 hover:text-foreground"
               >
-                {languagePreference === 'sw' ? 'Tendua' : 'Undo'}
+                {t('ownerOsShell.undo')}
               </button>
               <button
                 type="button"
                 onClick={() => dismissArtifactNotice(n.proposalId)}
-                aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                aria-label={t('ownerOsShell.dismiss')}
                 className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
               >
                 <X aria-hidden="true" className="h-3 w-3" />
@@ -1006,7 +991,7 @@ export function OwnerOSShell({
                 <button
                   type="button"
                   onClick={() => dismissTabError(key)}
-                  aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                  aria-label={t('ownerOsShell.dismiss')}
                   className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
                 >
                   <X aria-hidden="true" className="h-3 w-3" />

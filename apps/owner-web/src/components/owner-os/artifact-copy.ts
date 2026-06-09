@@ -2,17 +2,14 @@
  * Bilingual copy for the modality artifact surface (closure Wave 8).
  *
  * Single-language per active locale — never mixed (CLAUDE.md EN/SW purity).
+ * Every string resolves through the locale-bound translator so the Swahili
+ * lives ONLY in the i18n dictionaries.
  */
 
+import type { TFn } from '@/i18n/resolve';
 import type { ArtifactKind } from '@/lib/tab-sse-parser';
 
-type Locale = 'en' | 'sw';
-
-/** Strip-friendly tab title per artifact kind, locale-pure. */
-export const ARTIFACT_TITLE_BY_KIND: Readonly<
-  Record<ArtifactKind, Readonly<Record<Locale, string>>>
-> = {
-  forecast: { en: 'Forecast', sw: 'Utabiri' },
-  document: { en: 'Document', sw: 'Hati' },
-  media: { en: 'Media', sw: 'Midia' },
-};
+/** Strip-friendly tab title per artifact kind, resolved locale-pure via t(). */
+export function artifactTitle(kind: ArtifactKind, t: TFn): string {
+  return t(`ownerOsShell.artifactTitle.${kind}`);
+}

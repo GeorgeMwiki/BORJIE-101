@@ -361,6 +361,58 @@ export const en = {
     empty: 'No reminders yet.',
     cancelItem: 'Cancel',
   },
+
+  // MD-Agentic sandbox-writes review queue (O-W-33).
+  sandboxQueue: {
+    committed: 'Committed to the live system.',
+    commitFailed: 'Commit failed',
+    enterReasonFirst: 'Enter a reason first.',
+    rejected: 'Rejected.',
+    rejectFailed: 'Reject failed',
+    loading: 'Loading staged writes…',
+    empty: 'No staged writes in this view.',
+    commit: 'Commit (four-eye)',
+    rejectReason: 'Reject reason',
+    rejectPlaceholder: 'Why reject this write?',
+    reject: 'Reject',
+  },
+
+  // Head briefing surface (O-W-32, read-only).
+  headBriefing: {
+    unavailable: 'The morning briefing is unavailable right now.',
+    noContent: 'No briefing content.',
+    overnightActivity: 'Overnight activity',
+    noAutonomousActions: 'No autonomous actions.',
+    pendingApprovals: 'Pending approvals',
+    nothingAwaiting: 'Nothing awaiting a decision.',
+    escalations: 'Escalations',
+    noEscalations: 'No escalations.',
+    recommendations: 'Recommendations',
+    noRecommendations: 'No recommendations.',
+    anomalies: 'Anomalies',
+  },
+
+  // OwnerOSShell — the cockpit-home tab shell (OWNER-OS).
+  ownerOsShell: {
+    spawnNewTab: 'Spawn a new tab',
+    newTab: 'New tab',
+    recentTabs: 'Recent tabs',
+    recentlyClosed: 'Recently closed',
+    open: 'Open',
+    dismissProposal: 'Dismiss proposal',
+    genuiOpened: 'Opened "{title}" from your chat',
+    inTabStrip: "It's in your tab strip — keep chatting.",
+    openShort: 'Open',
+    undo: 'Undo',
+    dismiss: 'Dismiss',
+    artifactPrepared: 'Prepared "{title}" from your chat',
+    // Strip-friendly tab title per modality artifact kind (forecast/document/media).
+    artifactTitle: {
+      forecast: 'Forecast',
+      document: 'Document',
+      media: 'Media',
+    },
+  },
 } as const;
 
 export type Dictionary = typeof en;

@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 /**
  * Minimal projection of the gateway BriefingDocument the surface renders.
@@ -83,14 +85,16 @@ export function HeadBriefingSurface({
   errorMessage,
   isSw,
 }: HeadBriefingSurfaceProps): JSX.Element {
+  const t = useMemo(
+    () => makeT(dictionaries[isSw ? 'sw' : 'en']),
+    [isSw],
+  );
   if (errorMessage) {
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
         <p className="text-sm text-destructive">{errorMessage}</p>
         <p className="mt-1 text-xs text-neutral-500">
-          {isSw
-            ? 'Taarifa ya asubuhi haipatikani kwa sasa.'
-            : 'The morning briefing is unavailable right now.'}
+          {t('headBriefing.unavailable')}
         </p>
       </div>
     );
@@ -99,7 +103,7 @@ export function HeadBriefingSurface({
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
         <p className="text-sm text-neutral-400">
-          {isSw ? 'Hakuna taarifa.' : 'No briefing content.'}
+          {t('headBriefing.noContent')}
         </p>
       </div>
     );
@@ -119,12 +123,12 @@ export function HeadBriefingSurface({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card
-          title={isSw ? 'Shughuli za usiku' : 'Overnight activity'}
+          title={t('headBriefing.overnightActivity')}
           count={overnight?.totalAutonomousActions}
         >
           {(overnight?.notableActions ?? []).length === 0 ? (
             <p className="text-xs text-neutral-500">
-              {isSw ? 'Hakuna shughuli za kujiendesha.' : 'No autonomous actions.'}
+              {t('headBriefing.noAutonomousActions')}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -141,12 +145,12 @@ export function HeadBriefingSurface({
         </Card>
 
         <Card
-          title={isSw ? 'Idhini zinazosubiri' : 'Pending approvals'}
+          title={t('headBriefing.pendingApprovals')}
           count={pending?.count}
         >
           {(pending?.items ?? []).length === 0 ? (
             <p className="text-xs text-neutral-500">
-              {isSw ? 'Hakuna kinachosubiri.' : 'Nothing awaiting a decision.'}
+              {t('headBriefing.nothingAwaiting')}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -163,12 +167,12 @@ export function HeadBriefingSurface({
         </Card>
 
         <Card
-          title={isSw ? 'Masuala yaliyopandishwa' : 'Escalations'}
+          title={t('headBriefing.escalations')}
           count={escalations?.count}
         >
           {(escalations?.items ?? []).length === 0 ? (
             <p className="text-xs text-neutral-500">
-              {isSw ? 'Hakuna masuala.' : 'No escalations.'}
+              {t('headBriefing.noEscalations')}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -184,10 +188,10 @@ export function HeadBriefingSurface({
           )}
         </Card>
 
-        <Card title={isSw ? 'Mapendekezo' : 'Recommendations'} count={recs.length}>
+        <Card title={t('headBriefing.recommendations')} count={recs.length}>
           {recs.length === 0 ? (
             <p className="text-xs text-neutral-500">
-              {isSw ? 'Hakuna mapendekezo.' : 'No recommendations.'}
+              {t('headBriefing.noRecommendations')}
             </p>
           ) : (
             <ul className="space-y-2">
@@ -205,7 +209,7 @@ export function HeadBriefingSurface({
       </div>
 
       {anomalies.length > 0 ? (
-        <Card title={isSw ? 'Mambo yasiyo ya kawaida' : 'Anomalies'} count={anomalies.length}>
+        <Card title={t('headBriefing.anomalies')} count={anomalies.length}>
           <ul className="space-y-2">
             {anomalies.map((a, i) => (
               <li key={i} className="text-xs text-neutral-300">
