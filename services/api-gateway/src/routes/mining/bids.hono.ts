@@ -23,7 +23,12 @@
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
-import { buyers, marketplaceBids, marketplaceListings } from '@borjie/database';
+import {
+  buyers,
+  marketplaceBids,
+  marketplaceListings,
+  offtakeAgreements,
+} from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -224,6 +229,60 @@ async function setBidStatus(
   return updated;
 }
 
+/**
+ * Resolve the contract quantity (kg) from the listing's free-form
+ * attributes. Marketplace listings carry no first-class quantity column;
+ * the volume lives under `attributes.quantity_kg` (or the camelCase
+ * `quantityKg`). Defaults to `0` when absent so the contract still
+ * crystallizes — the parties refine the figure before signing.
+ */
+function resolveQuantityKg(attributes: unknown): string {
+  const attrs = (attributes ?? {}) as Record<string, unknown>;
+  const raw = attrs.quantity_kg ?? attrs.quantityKg;
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  return Number.isFinite(n) && n > 0 ? n.toFixed(3) : '0.000';
+}
+
+/**
+ * Crystallize the binding offtake agreement for an accepted bid.
+ *
+ * IDEMPOTENT on `bid_id` (UNIQUE in migration 0325): re-accepting the
+ * same bid never creates a second contract. The amounts are CONTRACT
+ * TERMS, not ledger entries — no money is posted here; settlement still
+ * flows through `LedgerService.post()`.
+ *
+ * Runs inside the caller's tenant-bound transaction so the bid flip and
+ * the contract insert commit (or roll back) together.
+ */
+async function crystallizeOfftakeAgreement(
+  tx: DrizzleDb,
+  tenantId: string,
+  bid: {
+    id: string;
+    listingId: string;
+    buyerId: string;
+    bidPriceTzs: string;
+    paymentTerms: string | null;
+  },
+  listingAttributes: unknown,
+): Promise<void> {
+  await tx
+    .insert(offtakeAgreements)
+    .values({
+      id: randomUUID(),
+      tenantId,
+      listingId: bid.listingId,
+      bidId: bid.id,
+      buyerId: bid.buyerId,
+      buyerTenantId: null,
+      agreedPriceTzs: bid.bidPriceTzs,
+      quantityKg: resolveQuantityKg(listingAttributes),
+      paymentTerms: bid.paymentTerms,
+      status: 'pending_signature',
+    })
+    .onConflictDoNothing({ target: offtakeAgreements.bidId });
+}
+
 app.openapi(
   bidsAcceptRoute,
   withSecurityEvents(
@@ -232,9 +291,67 @@ app.openapi(
       const { tenantId } = c.get('auth');
       const db = c.get('db') as DrizzleDb;
       const { id } = c.req.valid('param');
-      const updated = await setBidStatus(db, tenantId, id, 'accepted', {
-        acceptedAt: new Date().toISOString(),
-      });
+
+      // Flip the bid to accepted AND crystallize the binding offtake
+      // agreement in ONE tenant-bound transaction so the two either both
+      // commit or both roll back. The contract insert is idempotent on
+      // bid_id (migration 0325 UNIQUE), so an at-least-once retry / double
+      // accept never produces a second agreement and never errors.
+      //
+      // NOTE: money is NOT moved here. agreed_price_tzs / quantity_kg are
+      // CONTRACT TERMS; settlement still routes through LedgerService.post().
+      let updated: Record<string, unknown> | null = null;
+      try {
+        updated = await db.transaction(async (tx: DrizzleDb) => {
+          const flipped = await setBidStatus(tx, tenantId, id, 'accepted', {
+            acceptedAt: new Date().toISOString(),
+          });
+          if (!flipped) return null;
+
+          // Re-read the listing INSIDE the tx (tenant-scoped) so the
+          // contract terms (quantity) come from a consistent snapshot.
+          const [listing] = await tx
+            .select({ attributes: marketplaceListings.attributes })
+            .from(marketplaceListings)
+            .where(
+              and(
+                eq(marketplaceListings.id, flipped.listingId),
+                eq(marketplaceListings.tenantId, tenantId),
+              ),
+            )
+            .limit(1);
+
+          await crystallizeOfftakeAgreement(
+            tx,
+            tenantId,
+            {
+              id: flipped.id,
+              listingId: flipped.listingId,
+              buyerId: flipped.buyerId,
+              bidPriceTzs: flipped.bidPriceTzs,
+              paymentTerms: flipped.paymentTerms ?? null,
+            },
+            listing?.attributes ?? {},
+          );
+          return flipped;
+        });
+      } catch (error) {
+        c.get('logger')?.error?.(
+          { err: error, bidId: id },
+          'bid accept / offtake crystallization failed',
+        );
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'ACCEPT_FAILED',
+              message: 'Could not accept bid. Imeshindikana kukubali zabuni.',
+            },
+          },
+          500,
+        );
+      }
+
       if (!updated) {
         return c.json(
           {
@@ -379,6 +496,102 @@ app.get('/mine', async (c: any) => {
     .from(marketplaceBids)
     .where(and(...conds))
     .orderBy(desc(marketplaceBids.createdAt))
+    .limit(200);
+  return c.json({ success: true as const, data: rows }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// GET /offtake-agreements — SELLER-side: every binding offtake agreement
+// crystallized for the calling (seller) tenant. Tenant-scoped only — every
+// offtake_agreements row carries the seller tenant_id and RLS enforces it.
+// Optional `status` filter (pending_signature | signed | ...).
+//
+// Registered BEFORE the `/:id` param route so the literal segment never
+// falls through to the bid-detail handler.
+// ---------------------------------------------------------------------------
+
+app.get('/offtake-agreements', async (c: any) => {
+  const auth = c.get('auth') as { tenantId?: string } | undefined;
+  if (!auth?.tenantId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+  const statusParam = c.req.query('status') as string | undefined;
+  const allowedStatuses = new Set([
+    'pending_signature',
+    'signed',
+    'cancelled',
+    'completed',
+  ]);
+  const status =
+    statusParam && allowedStatuses.has(statusParam) ? statusParam : undefined;
+
+  const conds = [eq(offtakeAgreements.tenantId, auth.tenantId)];
+  if (status) {
+    conds.push(eq(offtakeAgreements.status, status));
+  }
+  const rows = await db
+    .select()
+    .from(offtakeAgreements)
+    .where(and(...conds))
+    .orderBy(desc(offtakeAgreements.createdAt))
+    .limit(200);
+  return c.json({ success: true as const, data: rows }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// GET /offtake-agreements/mine — BUYER-side: the binding offtake agreements
+// for the calling buyer. Resolves the calling user's KYC'd `buyers` row,
+// then lists every offtake_agreements row tied to that buyer. Tenant-scoped
+// (RLS) + buyer-scoped (belt-and-braces predicate).
+//
+// Registered BEFORE `GET /offtake-agreements` would otherwise shadow it?
+// No — Hono matches the longer literal path first; both are literal. Listed
+// here for locality with the seller read.
+// ---------------------------------------------------------------------------
+
+app.get('/offtake-agreements/mine', async (c: any) => {
+  const auth = c.get('auth') as
+    | { tenantId?: string; userId?: string }
+    | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db') as DrizzleDb;
+  if (!db) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+
+  const buyer = await findLinkedBuyer(db, auth.tenantId, auth.userId);
+  if (!buyer) {
+    return c.json({ success: true as const, data: [] as const }, 200);
+  }
+
+  const rows = await db
+    .select()
+    .from(offtakeAgreements)
+    .where(
+      and(
+        eq(offtakeAgreements.tenantId, auth.tenantId),
+        eq(offtakeAgreements.buyerId, buyer.id),
+      ),
+    )
+    .orderBy(desc(offtakeAgreements.createdAt))
     .limit(200);
   return c.json({ success: true as const, data: rows }, 200);
 });

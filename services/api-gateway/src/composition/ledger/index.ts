@@ -28,7 +28,9 @@
 import {
   LedgerService,
   InMemoryEventPublisher,
+  StripePaymentProvider,
 } from '@borjie/payments-ledger-service';
+import type { IPaymentProvider } from '@borjie/payments-ledger-service';
 import type {
   CreateJournalEntryRequest,
   CurrencyCode,
@@ -66,9 +68,14 @@ import type {
 } from '../../services/settlement/types';
 import {
   __setSettlementProductionLedgerPort,
+  __setSettlementProductionPayoutPort,
   __allowSettlementLedgerStub,
   __allowSettlementPayoutStub,
 } from '../../services/settlement';
+import {
+  createSettlementPayoutAdapter,
+  isSettlementPayoutEnabled,
+} from './settlement-payout-adapter';
 import type {
   PayrollLedgerPort,
   PayrollPostInput,
@@ -494,20 +501,77 @@ export function registerProductionLedgerPorts(
   const ledger = buildLedgerService(db);
   __setSettlementProductionLedgerPort(createSettlementLedgerAdapter(db, ledger));
   __setPayrollProductionLedgerPort(createPayrollLedgerAdapter(db, ledger));
-  // NOTE: no production settlement PAYOUT adapter is registered here yet — the
-  // seller-payout rail (Tanzania TZS M-Pesa B2C / ClickPesa) lives in the
-  // external-blocked `services/payments/` package. We deliberately leave the
-  // payout port unregistered with a db present, so `resolveSettlementPayoutPort`
-  // fails LOUD (PAYOUT_NOT_WIRED) instead of fabricating a fake payout success
-  // (seller stamped 'paying_out' with a bogus ref while no money moves). Wire
-  // the real adapter here via `__setSettlementProductionPayoutPort(...)` once
-  // the TZS B2C rail is available.
-  moduleLogger.warn(
-    {},
-    'settlement_payout_port_not_wired (db present, no production payout adapter — resolveSettlementPayoutPort will fail loud PAYOUT_NOT_WIRED; wire the TZS B2C rail before live marketplace settlements)',
-  );
+
+  // Settlement PAYOUT rail (FIX 1). Ship-dark behind a kill-switch:
+  // registered ONLY when `BORJIE_SETTLEMENT_PAYOUT_ENABLED` is truthy AND a
+  // payment provider is configured. When the flag is OFF (default) we leave
+  // the payout port UNREGISTERED so `resolveSettlementPayoutPort` keeps
+  // failing LOUD (PAYOUT_NOT_WIRED) rather than fabricating a fake payout
+  // success. The adapter triggers the EXTERNAL transfer AFTER the ledger has
+  // posted — it never writes ledger entries (LedgerService.post() stays the
+  // sole ledger writer).
+  registerSettlementPayoutPort(db);
+
   moduleLogger.info(
     {},
     'ledger_production_wiring_active (settlement + payroll → LedgerService.post)',
+  );
+}
+
+/**
+ * Build the payment provider for the seller-payout rail. Mirrors the
+ * platform-billing provider construction (gated by `STRIPE_SECRET_KEY`).
+ * Returns null when no provider key is present so the caller leaves the
+ * payout port unregistered (fail-loud). Stripe is the only externally
+ * available transfer rail today; the Tanzania TZS M-Pesa B2C provider + creds
+ * remain a follow-up blocker (M-Pesa B2C is KES-only at present).
+ */
+function buildPayoutProvider(): IPaymentProvider | null {
+  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeKey) return null;
+  try {
+    return new StripePaymentProvider({
+      secretKey: stripeKey,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? '',
+    });
+  } catch (err) {
+    moduleLogger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'settlement_payout_provider_init_failed',
+    );
+    return null;
+  }
+}
+
+/**
+ * Register the production settlement payout port behind the kill-switch
+ * flag. Leaves the port unregistered (fail-loud PAYOUT_NOT_WIRED) when the
+ * flag is OFF or no provider is configured.
+ */
+function registerSettlementPayoutPort(db: DatabaseClient): void {
+  if (!isSettlementPayoutEnabled()) {
+    moduleLogger.warn(
+      {},
+      'settlement_payout_port_disabled (BORJIE_SETTLEMENT_PAYOUT_ENABLED off — ' +
+        'resolveSettlementPayoutPort will fail loud PAYOUT_NOT_WIRED; safe to ship dark)',
+    );
+    return;
+  }
+  const provider = buildPayoutProvider();
+  if (!provider) {
+    moduleLogger.warn(
+      {},
+      'settlement_payout_port_no_provider (flag on but no payment provider ' +
+        'configured — leaving port unwired; resolveSettlementPayoutPort fails loud)',
+    );
+    return;
+  }
+  __setSettlementProductionPayoutPort(
+    createSettlementPayoutAdapter(db, provider),
+  );
+  moduleLogger.info(
+    { provider: provider.name },
+    'settlement_payout_port_wired (flag on, external transfer rail active — ' +
+      'ledger posts first; payout triggers the external transfer only)',
   );
 }

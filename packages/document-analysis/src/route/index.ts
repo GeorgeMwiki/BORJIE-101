@@ -63,8 +63,17 @@ const ROUTING_MATRIX: Readonly<Record<Exclude<DocType, 'unknown'>, ReadonlyArray
   ],
   offtake_agreement: [
     {
-      module: 'estate',
-      action: 'register_offtake_agreement',
+      // RE-POINTED (LANE B3): the legacy `estate.register_offtake_agreement`
+      // target referenced the EXCISED estate module — a dead routing row that
+      // crystallized nothing. The binding offtake contract is now a first-class
+      // record (`offtake_agreements`, migration 0325) crystallized by the
+      // marketplace bid-accept flow (services/api-gateway/src/routes/mining/
+      // bids.hono.ts). For an offtake document that arrives OUTSIDE that flow we
+      // route the counterparty record into the live `crm` module so an operator
+      // can reconcile it against the marketplace contract — never into the dead
+      // estate target.
+      module: 'crm',
+      action: 'record_offtake_agreement',
       requiredKeys: ['buyer_name', 'asset_reference', 'monthly_royalty'],
       optionalKeys: ['offtake_start_date', 'offtake_end_date', 'owner_name'],
     },

@@ -137,15 +137,21 @@ describe('R11 RFB — POST /', () => {
   });
 
   it('inserts a valid RFB and returns the new id', async () => {
-    const { db, calls } = makeDb(() => ({
-      rows: [
-        {
-          id: 'rfb-uuid-xyz',
-          created_at: '2026-05-29T10:00:00Z',
-          expires_at: '2026-06-12T10:00:00Z',
-        },
-      ],
-    }));
+    const { db, calls } = makeDb((rec) => {
+      // Domestic-currency guard reads the tenant jurisdiction first.
+      if (rec.fragments.join('').includes('country_code')) {
+        return { rows: [{ country_code: 'TZ' }] };
+      }
+      return {
+        rows: [
+          {
+            id: 'rfb-uuid-xyz',
+            created_at: '2026-05-29T10:00:00Z',
+            expires_at: '2026-06-12T10:00:00Z',
+          },
+        ],
+      };
+    });
     const app = buildApp({ db });
     const res = await app.request('/', {
       method: 'POST',
@@ -162,9 +168,12 @@ describe('R11 RFB — POST /', () => {
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.data.id).toBe('rfb-uuid-xyz');
-    // Confirm we wrote to request_for_bids (one INSERT call).
-    expect(calls.length).toBe(1);
-    expect(calls[0]?.fragments.join('')).toContain('INSERT INTO request_for_bids');
+    // The INSERT into request_for_bids ran (the country_code lookup runs first).
+    expect(
+      calls.some((c) =>
+        c.fragments.join('').includes('INSERT INTO request_for_bids'),
+      ),
+    ).toBe(true);
   });
 
   it('rejects an invalid mineral kind via zod', async () => {
@@ -181,6 +190,96 @@ describe('R11 RFB — POST /', () => {
       }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it('rejects a TZ tenant + domestic non-TZS contract (CLAUDE.md hard rule)', async () => {
+    const { db, calls } = makeDb((rec) => {
+      if (rec.fragments.join('').includes('country_code')) {
+        return { rows: [{ country_code: 'TZ' }] };
+      }
+      return { rows: [{ id: 'should-not-insert' }] };
+    });
+    const app = buildApp({ db });
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mineralKind: 'gold',
+        tonnageMin: 10,
+        unitPriceTzs: 1_000_000,
+        currency: 'USD',
+        deliveryBy: FUTURE_DATE,
+        radiusKm: 200,
+      }),
+    });
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error.code).toBe('DOMESTIC_NON_JURISDICTION_CURRENCY');
+    expect(body.error.message.en).toContain('TZS');
+    expect(body.error.message.sw.length).toBeGreaterThan(0);
+    // Fail-closed: no INSERT ran.
+    expect(
+      calls.some((c) =>
+        c.fragments.join('').includes('INSERT INTO request_for_bids'),
+      ),
+    ).toBe(false);
+  });
+
+  it('allows a TZ tenant + explicit TZS currency', async () => {
+    const { db } = makeDb((rec) => {
+      if (rec.fragments.join('').includes('country_code')) {
+        return { rows: [{ country_code: 'TZ' }] };
+      }
+      return {
+        rows: [
+          { id: 'rfb-ok', created_at: '2026-05-29T10:00:00Z', expires_at: 'x' },
+        ],
+      };
+    });
+    const app = buildApp({ db });
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mineralKind: 'gold',
+        tonnageMin: 10,
+        unitPriceTzs: 1_000_000,
+        currency: 'TZS',
+        deliveryBy: FUTURE_DATE,
+        radiusKm: 200,
+      }),
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it('allows a KE tenant + KES (honours its own primary currency)', async () => {
+    const { db } = makeDb((rec) => {
+      if (rec.fragments.join('').includes('country_code')) {
+        return { rows: [{ country_code: 'KE' }] };
+      }
+      return {
+        rows: [
+          { id: 'rfb-ke', created_at: '2026-05-29T10:00:00Z', expires_at: 'x' },
+        ],
+      };
+    });
+    const app = buildApp({
+      authResp: { tenantId: 'tenant-ke', userId: 'buyer-ke' },
+      db,
+    });
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        mineralKind: 'gold',
+        tonnageMin: 10,
+        unitPriceTzs: 1_000_000,
+        currency: 'KES',
+        deliveryBy: FUTURE_DATE,
+        radiusKm: 200,
+      }),
+    });
+    expect(res.status).toBe(201);
   });
 });
 
@@ -258,15 +357,17 @@ describe('R11 RFB — POST /:id/respond', () => {
   });
 
   it('inserts a response when the RFB is open', async () => {
-    let call = 0;
-    const { db, calls } = makeDb(() => {
-      call += 1;
-      if (call === 1) {
-        // SELECT — the RFB is open.
-        return { rows: [{ tenant_id: 'tenant-buyer', status: 'open' }] };
+    const { db, calls } = makeDb((rec) => {
+      const sqlText = rec.fragments.join('');
+      // Domestic-currency guard reads the SELLER tenant jurisdiction.
+      if (sqlText.includes('country_code')) {
+        return { rows: [{ country_code: 'TZ' }] };
       }
-      // INSERT — return the new response id.
-      return { rows: [{ id: 'resp-1', created_at: '2026-05-29T11:00:00Z' }] };
+      if (sqlText.includes('INSERT INTO request_for_bid_responses')) {
+        return { rows: [{ id: 'resp-1', created_at: '2026-05-29T11:00:00Z' }] };
+      }
+      // SELECT — the RFB is open.
+      return { rows: [{ tenant_id: 'tenant-buyer', status: 'open' }] };
     });
     const app = buildApp({
       authResp: { tenantId: 'tenant-seller', userId: 'seller-1' },
@@ -284,10 +385,11 @@ describe('R11 RFB — POST /:id/respond', () => {
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body.data.id).toBe('resp-1');
-    expect(calls.length).toBe(2);
-    expect(calls[1]?.fragments.join('')).toContain(
-      'INSERT INTO request_for_bid_responses',
-    );
+    expect(
+      calls.some((c) =>
+        c.fragments.join('').includes('INSERT INTO request_for_bid_responses'),
+      ),
+    ).toBe(true);
   });
 });
 

@@ -40,6 +40,10 @@ export * from './treasury.schema.js';
 export * from './safety-csr.schema.js';
 export * from './marketplace.schema.js';
 export * from './marketplace-bids.schema.js';
+// Offtake agreements — binding mineral-supply contract crystallized when a
+// seller accepts a marketplace bid (LANE B3). Tenant-scoped to the SELLER
+// tenant, FORCE RLS, one row per accepted bid. Migration 0325.
+export * from './offtake-agreements.schema.js';
 export * from './risks-tasks.schema.js';
 export * from './fingerprint-events.schema.js';
 export * from './intelligence-corpus.schema.js';
