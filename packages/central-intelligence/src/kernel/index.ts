@@ -281,6 +281,7 @@ export {
 } from './proactive-nudge.js';
 export {
   createAnthropicSensor,
+  buildAnthropicSystemField,
   ANTHROPIC_SENSOR_PRESETS,
   type AnthropicSensorConfig,
   type AnthropicMessagesClient,
@@ -288,6 +289,9 @@ export {
   type AnthropicMessageResponse,
   type AnthropicRequestContentBlock,
   type AnthropicRequestMessage,
+  type AnthropicSystemBlock,
+  type AnthropicSystemField,
+  type AnthropicCacheControl,
 } from './sensors/anthropic-sensor.js';
 export {
   createAnthropicJudge,
@@ -821,14 +825,19 @@ export {
  */
 export {
   assembleSystemPrompt,
+  assembleSystemPromptBlocks,
   systemFragmentOrderSignature,
   SYSTEM_FRAGMENT_SLOTS,
+  STABLE_PREFIX_SLOTS,
+  DYNAMIC_FRAGMENT_SLOTS,
+  STABLE_PREFIX_SLOT_COUNT,
   SYSTEM_FRAGMENT_ORDER_VERSION,
   IP_PROTECTION_LAYER,
   SECURITY_BOUNDARY_LAYER,
   SECURITY_LAYERS,
   type SystemFragmentSlot,
   type SystemFragments,
+  type SystemPromptSegment,
   type AssembleSystemPromptOptions,
 } from './prompt-layers.js';
 

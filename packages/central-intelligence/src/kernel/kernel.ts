@@ -97,7 +97,7 @@ import { normalize } from './normalizer.js';
 import { type BrainCache, thoughtCacheKey, createBrainCache } from './brain-cache.js';
 // LP-06 / LP-09 — deterministic megaprompt assembly + always-on
 // IP-protection / security-boundary terminal layers.
-import { assembleSystemPrompt } from './prompt-layers.js';
+import { assembleSystemPrompt, assembleSystemPromptBlocks } from './prompt-layers.js';
 import { spotlight } from './prompt-spotlight.js';
 // LP-04 — pre-exec intent verification port (post-LLM, pre-dispatch).
 import { type IntentVerifierPort, verifyToolCalls } from './intent-verification.js';
@@ -1290,7 +1290,11 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // map is rendered through `assembleSystemPrompt` which pins the
       // slot order (prompt-cache stability) and appends the two security
       // layers unconditionally as the final block. See `prompt-layers.ts`.
-      const system = assembleSystemPrompt({
+      // BRAIN §5 — the same record is also rendered to `systemSegments`,
+      // which marks the stable persona + tenant-agnostic prefix so the
+      // Anthropic adapter places a prompt-prefix cache breakpoint there.
+      // `system` (string) stays byte-identical to the segment concatenation.
+      const systemFragments = {
         personaPrelude,
         // Wave-13 F11 — "Recent self-critiques" sits high in the prompt
         // (just below the persona anchor) so the model reads the
@@ -1312,7 +1316,9 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         grounding: renderGroundingFragment(groundingFacts),
         learnedSkills: learnedSkillsFragment,
         cohortMix: cohortMix.promptFragment,
-      });
+      };
+      const system = assembleSystemPrompt(systemFragments);
+      const systemSegments = assembleSystemPromptBlocks(systemFragments);
 
       // 7) sensor call (failover). When attachments are present we add
       // 'vision' to the required-capabilities array so only vision-capable
@@ -1400,6 +1406,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
             {
               system,
               systemPrompt: system,
+              systemSegments,
               userMessage: scrubbedUserMessage,
               priorTurns,
               extendedThinking: wantsThinking,
@@ -1456,6 +1463,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
             {
               system,
               systemPrompt: system,
+              systemSegments,
               userMessage: scrubbedUserMessage,
               priorTurns,
               extendedThinking: wantsThinking,
@@ -1477,6 +1485,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
           {
             system,
             systemPrompt: system,
+            systemSegments,
             userMessage: scrubbedUserMessage,
             priorTurns,
             extendedThinking: wantsThinking,
@@ -2276,8 +2285,13 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       // LP-06 + LP-09 — same deterministic ordering + terminal security
       // layers as the non-streaming `think()` path. Kept in lock-step so
       // a turn served over SSE and one served buffered share the same
-      // cacheable prefix.
-      const system = assembleSystemPrompt({
+      // cacheable prefix. BRAIN §5 — the fragment record is rendered to BOTH
+      // the flat `system` string (byte-identical to before, for every
+      // call-site) AND `systemSegments`, which marks the stable persona +
+      // tenant-agnostic prefix so the Anthropic adapter places a
+      // prompt-prefix cache breakpoint there. The two views carry the SAME
+      // content; only the segment boundaries differ.
+      const systemFragments = {
         personaPrelude,
         identity,
         rolloutPrompt: rolloutPromptFragment,
@@ -2291,7 +2305,9 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         activeGoals: renderActiveGoalsFragment(activeGoals),
         grounding: renderGroundingFragment(groundingFacts),
         cohortMix: cohortMix.promptFragment,
-      });
+      };
+      const system = assembleSystemPrompt(systemFragments);
+      const systemSegments = assembleSystemPromptBlocks(systemFragments);
 
       // 7) sensor selection. Prefer `callStream` when an eligible sensor
       // exposes it; otherwise fall back to `router.call(...)` and emit
@@ -2307,6 +2323,7 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
       const sensorArgs: SensorCallArgs = {
         system,
         systemPrompt: system,
+        systemSegments,
         userMessage: scrubbedUserMessage,
         priorTurns,
         extendedThinking: wantsThinking,

@@ -37,23 +37,36 @@ import { UNTRUSTED_OPEN, UNTRUSTED_CLOSE } from './prompt-spotlight.js';
 // ---------------------------------------------------------------------------
 
 /**
- * The canonical, ORDERED list of system-prompt fragment slots. The kernel
- * builds a `SystemFragments` record and this module renders it in exactly
- * this order every turn. Adding a slot is a deliberate, reviewed change:
- * append to the END (never reorder) to preserve prompt-cache stability for
- * existing prefixes, and update {@link SYSTEM_FRAGMENT_ORDER_VERSION}.
+ * STABLE prefix slots (lazy-load BRAIN §5 — prompt-prefix cache). These
+ * fragments are the persona anchor + the tenant-agnostic ground truth: they
+ * are byte-stable ACROSS TURNS (and largely across tenants and users), so
+ * they form the cacheable Anthropic prompt prefix. Ordered persona → identity
+ * → rollout → module-inventory: the platform-voice anchor first, then the
+ * per-surface persona identity, then the (rare) rollout directive, then the
+ * self-awareness/module body schema. Everything in this list precedes the
+ * Anthropic `cache_control` breakpoint emitted by {@link assembleSystemPromptBlocks}.
  *
- * The two security layers (`ipProtection`, `securityBoundary`) are NOT in
- * this list — they are appended unconditionally by {@link assembleSystemPrompt}
- * AFTER the dynamic fragments so they always terminate the prompt and
- * cannot be displaced by upstream edits.
+ * Adding a slot here is a deliberate, reviewed change: a fragment qualifies
+ * ONLY if its content does not vary per turn (no memory, no grounding facts,
+ * no situational directives). Append to the END to preserve prefix stability,
+ * and bump {@link SYSTEM_FRAGMENT_ORDER_VERSION}.
  */
-export const SYSTEM_FRAGMENT_SLOTS = [
+export const STABLE_PREFIX_SLOTS = [
   'personaPrelude',
-  'taskScopedReflexion',
   'identity',
   'rolloutPrompt',
   'moduleInventory',
+] as const;
+
+/**
+ * DYNAMIC slots — per-turn / per-tenant content that varies each turn
+ * (recalled memory, reflexions, grounding facts, situational directives,
+ * cohort mix). These sit AFTER the cache breakpoint so they never bust the
+ * shared stable prefix. `taskScopedReflexion` leads because the consolidated
+ * self-critiques should be read first within the dynamic block.
+ */
+export const DYNAMIC_FRAGMENT_SLOTS = [
+  'taskScopedReflexion',
   'locus',
   'behaviouralDirective',
   'verbosityDirective',
@@ -67,13 +80,47 @@ export const SYSTEM_FRAGMENT_SLOTS = [
   'cohortMix',
 ] as const;
 
+/**
+ * The canonical, ORDERED list of system-prompt fragment slots: the STABLE
+ * (cacheable persona + tenant-agnostic) prefix FIRST, then the per-turn /
+ * per-tenant DYNAMIC content. The kernel builds a `SystemFragments` record
+ * and this module renders it in exactly this order every turn.
+ *
+ * Anthropic's prompt-prefix cache only hits when the *prefix bytes are
+ * identical across turns*. Pinning persona + corpus to the front and putting
+ * the per-turn content after means the stable prefix is byte-identical turn
+ * over turn (and shared across users in a tenant), so the breakpoint placed
+ * at the end of the stable prefix reads at ~0.1x input cost (BRAIN §5).
+ *
+ * Adding a slot is a deliberate, reviewed change: append to the END of the
+ * relevant group (never reorder) to preserve prompt-cache stability for
+ * existing prefixes, and update {@link SYSTEM_FRAGMENT_ORDER_VERSION}.
+ *
+ * The two security layers (`ipProtection`, `securityBoundary`) are NOT in
+ * this list — they are appended unconditionally by {@link assembleSystemPrompt}
+ * AFTER the dynamic fragments so they always terminate the prompt and
+ * cannot be displaced by upstream edits or the cache breakpoint.
+ */
+export const SYSTEM_FRAGMENT_SLOTS = [
+  ...STABLE_PREFIX_SLOTS,
+  ...DYNAMIC_FRAGMENT_SLOTS,
+] as const;
+
 export type SystemFragmentSlot = (typeof SYSTEM_FRAGMENT_SLOTS)[number];
 
 /**
- * Bumped whenever {@link SYSTEM_FRAGMENT_SLOTS} changes. Lets ops correlate
- * a prompt-cache hit-rate cliff with an ordering change in the changelog.
+ * Count of stable-prefix slots at the FRONT of {@link SYSTEM_FRAGMENT_SLOTS}.
+ * The cache breakpoint sits after this many slots (rendered, non-empty), and
+ * before the dynamic content.
  */
-export const SYSTEM_FRAGMENT_ORDER_VERSION = 1 as const;
+export const STABLE_PREFIX_SLOT_COUNT = STABLE_PREFIX_SLOTS.length;
+
+/**
+ * Bumped whenever {@link SYSTEM_FRAGMENT_SLOTS} ordering changes. Lets ops
+ * correlate a prompt-cache hit-rate cliff with an ordering change in the
+ * changelog. v2: stable-prefix-first reorder + cache breakpoint (BRAIN §5).
+ */
+export const SYSTEM_FRAGMENT_ORDER_VERSION = 2 as const;
 
 /**
  * The fragment payloads the kernel produces each turn. Every value is the
@@ -186,6 +233,104 @@ export function assembleSystemPrompt(
   }
 
   return ordered.join(joiner);
+}
+
+/**
+ * A rendered system-prompt SEGMENT. The kernel keeps the assembled prompt as
+ * a single string for every existing call-site; this structured form exists
+ * only so the Anthropic provider can place a `cache_control` breakpoint at
+ * the END of the STABLE prefix (persona + tenant-agnostic corpus) without
+ * displacing the terminal security layers.
+ *
+ * `cacheBreakpoint: true` marks the LAST cache-eligible segment — the stable
+ * prefix. The provider tags exactly that segment's `cache_control: ephemeral`
+ * so the cached prefix covers everything up to and including it, while the
+ * dynamic + security segments that follow stay un-cached and terminal.
+ */
+export interface SystemPromptSegment {
+  /** The rendered text for this segment. Never empty (empty segments are dropped). */
+  readonly text: string;
+  /**
+   * True for the single segment after which the Anthropic prompt-prefix cache
+   * breakpoint is placed (the end of the stable persona + corpus prefix).
+   * At most one segment carries this flag.
+   */
+  readonly cacheBreakpoint: boolean;
+  /**
+   * True for the two terminal security layers (IP-protection +
+   * security-boundary). These must never receive a cache marker and must
+   * always be the LAST segments so they cannot be displaced.
+   */
+  readonly security: boolean;
+}
+
+/**
+ * Render the ordered fragments into a SEGMENTED block list:
+ *
+ *   [ stablePrefix (cacheBreakpoint) , dynamicContent , ipProtection , securityBoundary ]
+ *
+ * The concatenation of `segment.text` joined with `joiner` is BYTE-IDENTICAL
+ * to {@link assembleSystemPrompt} given the same inputs/options — this
+ * function only marks WHERE the prompt-prefix cache breakpoint and the
+ * terminal security layers fall; it never changes the content or its order.
+ *
+ * Contract (asserted by `prompt-layers.test.ts`):
+ *   - The stable-prefix segment contains exactly the non-empty
+ *     {@link STABLE_PREFIX_SLOTS}, in order, and carries `cacheBreakpoint:true`.
+ *   - The dynamic segment contains exactly the non-empty
+ *     {@link DYNAMIC_FRAGMENT_SLOTS}, in order, with `cacheBreakpoint:false`.
+ *   - The security segments are last, never carry the breakpoint, and have
+ *     `security:true`.
+ *   - Empty groups are dropped (no stray segment, no shifted bytes).
+ *   - `assembleSystemPromptBlocks(f).map(s => s.text).join(joiner)` ===
+ *     `assembleSystemPrompt(f, { joiner })` for every input.
+ *
+ * @returns a NEW array of NEW segment objects. The input is never mutated.
+ */
+export function assembleSystemPromptBlocks(
+  fragments: SystemFragments,
+  options: AssembleSystemPromptOptions = {},
+): ReadonlyArray<SystemPromptSegment> {
+  const includeSecurity = options.includeSecurityLayers !== false;
+  const joiner = options.joiner ?? '\n';
+
+  const collect = (slots: ReadonlyArray<SystemFragmentSlot>): string => {
+    const parts: string[] = [];
+    for (const slot of slots) {
+      const value = fragments[slot];
+      if (typeof value === 'string' && value.trim().length > 0) {
+        parts.push(value);
+      }
+    }
+    return parts.join(joiner);
+  };
+
+  const stableText = collect(STABLE_PREFIX_SLOTS);
+  const dynamicText = collect(DYNAMIC_FRAGMENT_SLOTS);
+
+  const segments: SystemPromptSegment[] = [];
+
+  // 1) Stable persona + tenant-agnostic prefix — the cacheable block. The
+  //    breakpoint marks its END so the cache covers persona + corpus. When
+  //    the stable prefix is empty (only possible in tests / degenerate
+  //    callers) no breakpoint segment is emitted.
+  if (stableText.length > 0) {
+    segments.push({ text: stableText, cacheBreakpoint: true, security: false });
+  }
+
+  // 2) Per-turn / per-tenant dynamic content — AFTER the breakpoint so it
+  //    never busts the shared stable prefix.
+  if (dynamicText.length > 0) {
+    segments.push({ text: dynamicText, cacheBreakpoint: false, security: false });
+  }
+
+  // 3) Terminal security layers — unconditional + last + never cached.
+  if (includeSecurity) {
+    segments.push({ text: IP_PROTECTION_LAYER, cacheBreakpoint: false, security: true });
+    segments.push({ text: SECURITY_BOUNDARY_LAYER, cacheBreakpoint: false, security: true });
+  }
+
+  return segments;
 }
 
 /**

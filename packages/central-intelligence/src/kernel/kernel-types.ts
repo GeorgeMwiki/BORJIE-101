@@ -403,6 +403,22 @@ export type BrainDecision =
 // tracked externally by sensor-failover.
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Provider-agnostic view of one system-prompt segment. Mirrors
+ * `SystemPromptSegment` from `prompt-layers.ts` but lives here so the sensor
+ * contract does not import the assembler. Used to position the Anthropic
+ * prompt-prefix cache breakpoint (BRAIN §5) without reordering or changing
+ * the assembled content.
+ */
+export interface SystemPromptSegmentView {
+  /** Rendered text for this segment (never empty). */
+  readonly text: string;
+  /** True for the single segment after which the cache breakpoint is placed. */
+  readonly cacheBreakpoint: boolean;
+  /** True for the terminal IP-protection / security-boundary layers. */
+  readonly security: boolean;
+}
+
 export interface SensorCallArgs {
   readonly system: string;
   /**
@@ -413,6 +429,17 @@ export interface SensorCallArgs {
    * upstream contract.
    */
   readonly systemPrompt?: string;
+  /**
+   * Optional SEGMENTED view of the SAME system prompt (BRAIN §5 prompt-prefix
+   * cache). When present, the segments' `text` joined with `'\n'` is
+   * byte-identical to `system`; the adapter uses the boundaries to place an
+   * Anthropic `cache_control: ephemeral` breakpoint at the end of the STABLE
+   * persona + tenant-agnostic prefix (the segment flagged `cacheBreakpoint`)
+   * so the cacheable prefix is reused across turns at ~0.1x input cost. The
+   * terminal `security` segments never receive a marker. Adapters that ignore
+   * this field fall back to sending `system` verbatim — no behaviour change.
+   */
+  readonly systemSegments?: ReadonlyArray<SystemPromptSegmentView>;
   readonly userMessage: string;
   readonly priorTurns: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
   readonly extendedThinking: boolean;
