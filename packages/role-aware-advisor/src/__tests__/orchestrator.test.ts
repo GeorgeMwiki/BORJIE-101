@@ -71,21 +71,22 @@ describe('orchestrator.advise — happy path per role', () => {
     expect(res.intent).toBe('general');
   });
 
-  it('PM gets renewal-strategy framing for "is my rent fair" question', async () => {
+  it('site-manager gets royalty/licence framing for a fair-rate question', async () => {
     const { advisor } = buildAdvisor([
       {
         id: 'mkt-1',
         resource: 'public-market-data',
         scope: 'public',
         tenantId: 't1',
-        summary: 'Market median rent for the area is KES 90,000.',
+        summary: 'Market median royalty rate for the area is 6% of gross.',
       },
     ]);
     const res = await advisor.advise({
       user: { id: 'p1', tenantId: 't1', role: 'site-manager' },
-      question: 'Is my rent fair given the market?',
+      question: 'Is my royalty rate fair given the market?',
     });
-    expect(res.answer.toLowerCase()).toContain('renewal-rate');
+    // The site-manager persona frames answers around licence renewals + royalty.
+    expect(res.answer.toLowerCase()).toContain('royalty');
   });
 });
 

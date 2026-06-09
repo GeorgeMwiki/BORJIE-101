@@ -116,6 +116,7 @@ describe('SandboxedSurfaceSchema', () => {
   });
 
   it('rejects a javascript: src body', () => {
+    // eslint-disable-next-line no-script-url -- intentional: XSS regression test asserts the sandbox REJECTS dangerous schemes
     const bad = srcSurface({ src: 'javascript:alert(1)' });
     expect(safeParseSandboxedSurface(bad)).toBeNull();
   });
