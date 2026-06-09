@@ -159,6 +159,14 @@ export const INTERNAL_SCREENS: ReadonlyArray<InternalScreen> = [
     intent: 'Env vars HALT / DEGRADED per junior, per tenant.',
     group: 'ops',
   },
+  {
+    id: 'I-W-21',
+    slug: 'control-plane',
+    title: 'Brain control plane',
+    intent:
+      'Capability powers, LLM routing (core + fallbacks + ensemble + per-use-case), model catalog, and the suggest-only recommender.',
+    group: 'ops',
+  },
 ];
 
 export interface ScreenGroupDescriptor {
@@ -186,7 +194,8 @@ export const SCREEN_GROUPS: ReadonlyArray<ScreenGroupDescriptor> = [
   {
     id: 'ops',
     label: 'Ops',
-    blurb: 'Flags, marketplace, compliance, support, audit packs, rollbacks, killswitch.',
+    blurb:
+      'Flags, marketplace, compliance, support, audit packs, rollbacks, killswitch, control plane.',
   },
 ];
 
