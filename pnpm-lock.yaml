@@ -5520,6 +5520,9 @@ importers:
       nodemailer:
         specifier: '>=7.0.11'
         version: 8.0.7
+      pino:
+        specifier: ^10.3.1
+        version: 10.3.1
       twilio:
         specifier: ^6.0.2
         version: 6.0.2
@@ -9914,7 +9917,7 @@ packages:
     peerDependencies:
       react-hook-form: ^7.0.0
     dependencies:
-      react-hook-form: 7.75.0(react@18.3.1)
+      react-hook-form: 7.75.0(react@18.2.0)
     dev: false
 
   /@hookform/resolvers@5.2.2(react-hook-form@7.75.0):

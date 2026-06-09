@@ -251,6 +251,55 @@ export const routesAStrings = {
     backButton: { both: 'Back / Rudi' },
     finishButton: { both: 'Finish / Maliza' },
     nextButton: { both: 'Next / Endelea' },
+    // ── B1 bridge: real upload → OCR → commit + confirmation surface ──────
+    uploadingLicences: {
+      sw: 'Inapakia na kusoma leseni…',
+      en: 'Uploading and reading your licences…',
+    },
+    uploadFailedTitle: {
+      sw: 'Baadhi ya faili hazikupakia',
+      en: 'Some files did not upload',
+    },
+    reasonMimeNotAllowed: {
+      sw: 'Aina ya faili hairuhusiwi (tumia PDF/picha).',
+      en: 'File type not allowed (use PDF or an image).',
+    },
+    reasonTooLarge: { sw: 'Faili ni kubwa mno (MB 25 juu).', en: 'File is too large (25 MB max).' },
+    reasonStorageUnavailable: {
+      sw: 'Hifadhi haipatikani kwa sasa.',
+      en: 'Storage is unavailable right now.',
+    },
+    reasonStoragePutFailed: {
+      sw: 'Kupakia faili kumeshindwa.',
+      en: 'Uploading the file failed.',
+    },
+    reasonReadyFailed: {
+      sw: 'Hatukuweza kuanzisha usomaji wa faili.',
+      en: 'We could not start reading the file.',
+    },
+    reasonUnknown: { sw: 'Hitilafu isiyojulikana.', en: 'An unknown error occurred.' },
+    pendingExtractionNote: {
+      sw: 'Baadhi ya leseni bado zinasomwa — zitaongezwa zikiisha.',
+      en: 'Some licences are still being read — they will be added once ready.',
+    },
+    // Confirmation surface
+    doneTitle: { sw: 'Usajili umekamilika', en: 'Onboarding complete' },
+    doneSubtitle: {
+      sw: 'Hivi ndivyo tulivyoingiza kwenye dashibodi yako.',
+      en: "Here's what we loaded into your cockpit.",
+    },
+    countLicences: { sw: 'Leseni', en: 'Licences' },
+    countSites: { sw: 'Tovuti', en: 'Sites' },
+    countEmployees: { sw: 'Wafanyakazi', en: 'Employees' },
+    countHoldings: { sw: 'Milki', en: 'Holdings' },
+    rowsCreatedLabel: { sw: 'zimeundwa', en: 'created' },
+    rowsSkippedLabel: { sw: 'zimerukwa (zilikuwepo)', en: 'skipped (already existed)' },
+    headlineLabel: { sw: 'Kichwa cha taarifa ya kwanza', en: 'First brief headline' },
+    goToCockpit: { sw: 'Nenda dashibodini', en: 'Go to cockpit' },
+    emptyCockpitNote: {
+      sw: 'Hakuna safu mpya zilizoundwa. Pakia leseni za PDF ili kujaza dashibodi.',
+      en: 'No new rows were created. Upload licence PDFs to populate your cockpit.',
+    },
   },
 
   // app/(routes)/payroll/page.tsx
