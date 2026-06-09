@@ -179,7 +179,7 @@ function extractPersonByLabels(
 
 // ─── Profiles ─────────────────────────────────────────────────────────────
 
-const LEASE_FIELDS: ReadonlyArray<FieldSpec> = [
+const OFFTAKE_FIELDS: ReadonlyArray<FieldSpec> = [
   {
     key: 'owner_name',
     kind: 'entity',
@@ -256,7 +256,7 @@ const LEASE_FIELDS: ReadonlyArray<FieldSpec> = [
   },
 ];
 
-const LEASE_APPLICATION_FIELDS: ReadonlyArray<FieldSpec> = [
+const LICENCE_APPLICATION_FIELDS: ReadonlyArray<FieldSpec> = [
   {
     key: 'applicant_name',
     kind: 'entity',
@@ -588,8 +588,8 @@ const VENDOR_INVOICE_FIELDS: ReadonlyArray<FieldSpec> = [
 ];
 
 const PROFILES: Record<Exclude<DocType, 'unknown'>, ExtractionProfile> = {
-  lease_application: { fields: LEASE_APPLICATION_FIELDS },
-  lease_contract: { fields: LEASE_FIELDS },
+  licence_application: { fields: LICENCE_APPLICATION_FIELDS },
+  offtake_agreement: { fields: OFFTAKE_FIELDS },
   payment_receipt: { fields: PAYMENT_FIELDS },
   national_id: { fields: NIDA_FIELDS },
   condition_survey: { fields: SURVEY_FIELDS },

@@ -33,7 +33,7 @@ export const moduleUpdateProposals = pgTable(
       .references(() => conversationCapture.id, { onDelete: 'cascade' }),
     /** Soft FK to modules table from Piece B (claude/piece-b). */
     moduleTemplateId: text('module_template_id').notNull(),
-    /** Action name from routing matrix, e.g. 'create_lease_application'. */
+    /** Action name from routing matrix, e.g. 'create_licence_application'. */
     action: text('action').notNull(),
     /** Persona that authored the capture. */
     personaId: text('persona_id').notNull(),

@@ -60,13 +60,13 @@ describe('Orchestrator end-to-end — offtake application', () => {
     const text = loadFixture('lease-application');
     const out = await ingestAndAnalyze(pipeline, 'tenant-a', 'offtake.txt', text);
 
-    expect(out.docType).toBe('lease_application');
+    expect(out.docType).toBe('licence_application');
     expect(out.docTypeConfidence).toBeGreaterThan(0.5);
 
     // Routing.
     expect(out.routings).toHaveLength(1);
     expect(out.routings[0]?.module).toBe('estate');
-    expect(out.routings[0]?.action).toBe('create_lease_application');
+    expect(out.routings[0]?.action).toBe('create_licence_application');
 
     // Extractions persisted.
     const stored = pipeline.extractions.snapshot();

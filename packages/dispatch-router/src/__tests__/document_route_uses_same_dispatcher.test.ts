@@ -30,7 +30,7 @@ function mkDocCapture(): ConversationCapture {
     {
       type: 'document',
       canonical_id: 'doc_lease_app_123',
-      raw_value: 'lease_application',
+      raw_value: 'licence_application',
       confidence: 0.92,
       source: 'doc_self',
     },
@@ -50,7 +50,7 @@ function mkDocCapture(): ConversationCapture {
     persona_id: docPersona.persona_id,
     user_id: null,
     user_text: '[document doc_lease_app_123]',
-    assistant_text: '[classified lease_application]',
+    assistant_text: '[classified licence_application]',
     decision_kind: 'answer',
     entities,
     intent: 'propose_action',
@@ -60,10 +60,10 @@ function mkDocCapture(): ConversationCapture {
     tenant_trust: 0.85,
     attributes: {
       origin: 'document',
-      doc_type: 'lease_application',
+      doc_type: 'licence_application',
       document_id: 'doc_lease_app_123',
     },
-    exchange_hash: 'doc-doc_lease_app_123-lease_application',
+    exchange_hash: 'doc-doc_lease_app_123-licence_application',
     latency_ms: 0,
     created_at: '2026-05-23T10:00:00Z',
   };

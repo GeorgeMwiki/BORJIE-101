@@ -53,18 +53,18 @@ interface RoutingRule {
 }
 
 const ROUTING_MATRIX: Readonly<Record<Exclude<DocType, 'unknown'>, ReadonlyArray<RoutingRule>>> = {
-  lease_application: [
+  licence_application: [
     {
       module: 'estate',
-      action: 'create_lease_application',
+      action: 'create_licence_application',
       requiredKeys: ['applicant_name', 'requested_asset'],
       optionalKeys: ['applicant_phone', 'applicant_nida', 'requested_royalty'],
     },
   ],
-  lease_contract: [
+  offtake_agreement: [
     {
       module: 'estate',
-      action: 'create_lease',
+      action: 'register_offtake_agreement',
       requiredKeys: ['buyer_name', 'asset_reference', 'monthly_royalty'],
       optionalKeys: ['offtake_start_date', 'offtake_end_date', 'owner_name'],
     },
@@ -358,8 +358,8 @@ function docTypeToIntent(
     case 'national_id':
     case 'condition_survey':
       return 'file_event';
-    case 'lease_application':
-    case 'lease_contract':
+    case 'licence_application':
+    case 'offtake_agreement':
     case 'vendor_invoice':
     case 'renewal_request':
     case 'termination_notice':

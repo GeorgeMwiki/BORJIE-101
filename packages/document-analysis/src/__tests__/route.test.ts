@@ -18,8 +18,8 @@ describe('decideRouting matrix coverage', () => {
   it('covers every doc type', () => {
     expect(Object.keys(ROUTING_MATRIX)).toEqual(
       expect.arrayContaining([
-        'lease_application',
-        'lease_contract',
+        'licence_application',
+        'offtake_agreement',
         'payment_receipt',
         'national_id',
         'condition_survey',
@@ -33,9 +33,9 @@ describe('decideRouting matrix coverage', () => {
 });
 
 describe('decideRouting — happy paths', () => {
-  it('lease_application → estate.create_lease_application (auto-apply at high confidence)', () => {
+  it('licence_application → estate.create_licence_application (auto-apply at high confidence)', () => {
     const decisions = decideRouting({
-      docType: 'lease_application',
+      docType: 'licence_application',
       docTypeConfidence: 0.9,
       extractions: [
         field('applicant_name'),
@@ -45,7 +45,7 @@ describe('decideRouting — happy paths', () => {
     });
     expect(decisions).toHaveLength(1);
     expect(decisions[0]?.targetModule).toBe('estate');
-    expect(decisions[0]?.targetAction).toBe('create_lease_application');
+    expect(decisions[0]?.targetAction).toBe('create_licence_application');
     expect(decisions[0]?.hitlRequired).toBe(false);
   });
 
@@ -93,7 +93,7 @@ describe('decideRouting — happy paths', () => {
 describe('decideRouting — HITL flags', () => {
   it('flags HITL when a required field is missing', () => {
     const decisions = decideRouting({
-      docType: 'lease_contract',
+      docType: 'offtake_agreement',
       docTypeConfidence: 0.9,
       extractions: [field('buyer_name'), field('asset_reference')],
       // missing monthly_royalty
@@ -106,7 +106,7 @@ describe('decideRouting — HITL flags', () => {
 
   it('flags HITL when overall confidence is below the auto-apply threshold', () => {
     const decisions = decideRouting({
-      docType: 'lease_application',
+      docType: 'licence_application',
       docTypeConfidence: 0.6,
       extractions: [
         field('applicant_name', 0.6),
