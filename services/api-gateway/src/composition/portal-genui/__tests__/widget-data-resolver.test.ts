@@ -335,6 +335,44 @@ describe('createWidgetDataResolver — unit', () => {
     expect(calls[0]?.params[0]).toBe('tenant_A');
   });
 
+  it('orders an export_records tool over production_records by `ts` (override), never the non-existent created_at', async () => {
+    // production_records has NO created_at column — its only timestamp is `ts`
+    // (production-sales.schema.ts:94). The read-tool port (widget-read-tool-port
+    // TOOL_RESOURCE_ORDER_BY) must order by `ts`, mirroring the resolver path,
+    // or EVERY export_records read over production_records degrades to empty.
+    const { port, calls } = stubQueryPort([{ id: 'pr_1', tenant_id: 'tenant_A' }]);
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: port,
+      logger: NOOP_LOGGER,
+    });
+    const data = await resolver.resolve(
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'production_records' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(data.rows).toHaveLength(1);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.sql).toContain('FROM public.production_records');
+    expect(calls[0]?.sql).toContain('ORDER BY ts DESC');
+    expect(calls[0]?.sql).not.toContain('created_at');
+  });
+
+  it('orders an export_records tool over a default-override resource by created_at', async () => {
+    // licences (and any resource WITHOUT a TOOL_RESOURCE_ORDER_BY override) must
+    // keep the default created_at recency order — proves the override is scoped.
+    const { port, calls } = stubQueryPort([{ id: 'lic_1', tenant_id: 'tenant_A' }]);
+    const resolver = createWidgetDataResolver({
+      recordStore: createInMemoryRecordStore(),
+      query: port,
+      logger: NOOP_LOGGER,
+    });
+    await resolver.resolve(
+      { kind: 'tool', toolId: 'export_records', args: { resource: 'licences' } },
+      { tenantId: 'tenant_A', tabId: 'tab_x' },
+    );
+    expect(calls[0]?.sql).toContain('ORDER BY created_at DESC');
+  });
+
   it('resolves a READ-ONLY recompute_royalty_estimate rollup to a single value via the default port', async () => {
     const { port, calls } = stubQueryPort([{ value: 7 }]);
     const resolver = createWidgetDataResolver({
