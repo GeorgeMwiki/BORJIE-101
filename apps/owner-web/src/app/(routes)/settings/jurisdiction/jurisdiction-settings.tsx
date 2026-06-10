@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { jurisdictionSettingsStrings as JS } from '@/i18n/strings/jurisdiction-settings';
 import { useLocale, pickByLocale } from '@/lib/locale';
 
 type Regulators = {
@@ -86,10 +87,7 @@ export function JurisdictionSettings() {
     return (
       <div className="rounded-md border border-red-500/40 bg-red-500/10 p-4">
         <p className="text-sm text-red-200">
-          {pickByLocale(locale, {
-            en: `Could not load jurisdiction. ${state.message}`,
-            sw: `Imeshindwa kupakia eneo la sheria. ${state.message}`,
-          })}
+          {pickByLocale(locale, JS.loadError(state.message))}
         </p>
         <button
           type="button"
@@ -122,7 +120,7 @@ function CurrentJurisdictionCard({
   return (
     <section className="rounded-md border border-border bg-surface p-5">
       <h2 className="font-display text-xl text-foreground">
-        {pickByLocale(locale, { en: 'Current jurisdiction', sw: 'Eneo la sasa la sheria' })}
+        {pickByLocale(locale, JS.currentHeading)}
       </h2>
       <p className="mt-0.5 text-xs italic text-neutral-500">
         {pickByLocale(locale, S.jurisdictionSettings.currentTagline)}
@@ -175,10 +173,7 @@ function LockedNoticeCard({
   return (
     <section className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-5">
       <h2 className="font-display text-lg text-yellow-200">
-        {pickByLocale(locale, {
-          en: 'Jurisdiction is locked',
-          sw: 'Eneo la sheria limefungwa',
-        })}
+        {pickByLocale(locale, JS.lockedHeading)}
       </h2>
       <p className="mt-0.5 text-xs italic text-yellow-200/60">
         {pickByLocale(locale, S.jurisdictionSettings.lockedTagline)}
@@ -223,10 +218,7 @@ function PerTurnOverrideCard({
   return (
     <section className="rounded-md border border-border bg-surface p-5">
       <h2 className="font-display text-lg text-foreground">
-        {pickByLocale(locale, {
-          en: 'Ask about another jurisdiction',
-          sw: 'Uliza kuhusu eneo lingine la sheria',
-        })}
+        {pickByLocale(locale, JS.overrideHeading)}
       </h2>
       <p className="mt-0.5 text-xs italic text-neutral-500">
         {pickByLocale(locale, S.jurisdictionSettings.overrideTagline)}
@@ -254,10 +246,7 @@ function PerTurnOverrideCard({
         })}
       </p>
       <p className="mt-3 text-xs text-neutral-500">
-        {pickByLocale(locale, {
-          en: 'Seeded jurisdictions: TZ, KE, UG, NG, ZA, AU, CL, ID. Anything else routes through the on-demand jurisdiction discovery service — Mr. Mwikila will research the regulators live, cite his sources, and offer to seed the jurisdiction permanently (requires a Borjie internal admin approval).',
-          sw: 'Maeneo yaliyopandwa: TZ, KE, UG, NG, ZA, AU, CL, ID. Mengine yanaelekezwa kupitia huduma ya ugunduzi wa eneo la sheria — Bw. Mwikila atachunguza wadhibiti moja kwa moja, atataja vyanzo vyake, na atatoa kupanda eneo kwa kudumu (inahitaji idhini ya msimamizi wa ndani wa Borjie).',
-        })}
+        {pickByLocale(locale, JS.seededFootnote)}
       </p>
     </section>
   );

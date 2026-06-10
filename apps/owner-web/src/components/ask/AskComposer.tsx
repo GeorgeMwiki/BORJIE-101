@@ -13,6 +13,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Send, Square, Paperclip } from 'lucide-react';
 import { VoiceMicButton } from '@/components/voice/VoiceMicButton';
+import { pickByLocale } from '@/lib/locale';
+import { askComposerStrings as S } from '@/i18n/strings/ask-composer';
 
 const schema = z.object({
   content: z
@@ -189,12 +191,8 @@ export function AskComposer({
           value={draft}
           onKeyDown={onKey}
           rows={Math.min(6, Math.max(1, draft.split('\n').length))}
-          placeholder={
-            voiceLocale === 'sw'
-              ? 'Muulize Mr. Mwikila — Kiswahili au Kiingereza. Enter kutuma, Shift+Enter mstari mpya.'
-              : 'Ask Mr. Mwikila — Swahili or English. Enter to send, Shift+Enter for a new line.'
-          }
-          aria-label={voiceLocale === 'sw' ? 'Muulize Mr. Mwikila' : 'Ask Mr. Mwikila'}
+          placeholder={pickByLocale(voiceLocale ?? 'en', S.placeholder)}
+          aria-label={pickByLocale(voiceLocale ?? 'en', S.textareaAria)}
           disabled={disabled}
           className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-warning disabled:cursor-not-allowed disabled:opacity-50"
         />
@@ -218,22 +216,22 @@ export function AskComposer({
         <button
           type="button"
           onClick={onAbort}
-          aria-label={voiceLocale === 'sw' ? 'Simamisha kuzalisha' : 'Stop generating'}
+          aria-label={pickByLocale(voiceLocale ?? 'en', S.stopAria)}
           data-testid="ask-composer-stop"
           className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20"
         >
           <Square className="h-4 w-4" aria-hidden="true" />{' '}
-          {voiceLocale === 'sw' ? 'Simamisha' : 'Stop'}
+          {pickByLocale(voiceLocale ?? 'en', S.stop)}
         </button>
       ) : (
         <button
           type="submit"
-          aria-label={voiceLocale === 'sw' ? 'Tuma ujumbe' : 'Send message'}
+          aria-label={pickByLocale(voiceLocale ?? 'en', S.sendAria)}
           disabled={busy || disabled}
           className="inline-flex items-center gap-1 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Send className="h-4 w-4" aria-hidden="true" />{' '}
-          {voiceLocale === 'sw' ? 'Tuma' : 'Send'}
+          {pickByLocale(voiceLocale ?? 'en', S.send)}
         </button>
       )}
     </form>

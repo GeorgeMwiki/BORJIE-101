@@ -13,6 +13,8 @@
 
 import type { ReactElement } from 'react';
 import { ArrowDown } from 'lucide-react';
+import { pickByLocale } from '@/lib/locale-shared';
+import { jumpToLatestPillStrings as S } from '@/i18n/strings/jump-to-latest-pill';
 
 export interface JumpToLatestPillProps {
   readonly visible: boolean;
@@ -26,8 +28,7 @@ export function JumpToLatestPill({
   onClick,
 }: JumpToLatestPillProps): ReactElement | null {
   if (!visible) return null;
-  const label =
-    languagePreference === 'sw' ? 'Nenda kwa za hivi karibuni' : 'Jump to latest';
+  const label = pickByLocale(languagePreference, S.jumpToLatest);
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center">
       <button

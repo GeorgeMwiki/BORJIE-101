@@ -9,6 +9,7 @@ import {
   type CockpitEventKind,
 } from '@/lib/cockpit-sse';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { notificationsInboxStrings as S } from '@/i18n/strings/notifications-inbox';
 
 const MAX_ITEMS = 200;
 const READ_IDS_KEY = 'borjie.owner.notifications.readIds.v1';
@@ -129,15 +130,12 @@ export function NotificationsInbox(): JSX.Element {
           />
           <span>
             {stream.connected
-              ? pickByLocale(locale, { en: 'Live', sw: 'Moja kwa moja' })
-              : pickByLocale(locale, { en: 'Reconnecting…', sw: 'Inaunganisha tena…' })}
+              ? pickByLocale(locale, S.live)
+              : pickByLocale(locale, S.reconnecting)}
           </span>
           {unreadCount > 0 ? (
             <span className="ml-2 rounded-full bg-warning/20 px-2 py-0.5 text-warning">
-              {pickByLocale(locale, {
-                en: `${unreadCount} unread`,
-                sw: `${unreadCount} hazijasomwa`,
-              })}
+              {pickByLocale(locale, S.unread(unreadCount))}
             </span>
           ) : null}
         </div>
@@ -147,16 +145,13 @@ export function NotificationsInbox(): JSX.Element {
             onClick={markAllRead}
             className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:bg-surface"
           >
-            {pickByLocale(locale, { en: 'Mark all read', sw: 'Weka zote zimesomwa' })}
+            {pickByLocale(locale, S.markAllRead)}
           </button>
         ) : null}
       </div>
       {items.length === 0 ? (
         <div className="rounded-2xl border border-border bg-surface p-8 text-sm text-neutral-400">
-          {pickByLocale(locale, {
-            en: 'No live events yet. We will show every decision, reminder, handoff and regulator request here as soon as it lands.',
-            sw: 'Hakuna matukio bado. Tutaonyesha kila uamuzi, ukumbusho, uhamisho, na ombi la mdhibiti hapa mara inapofika.',
-          })}
+          {pickByLocale(locale, S.empty)}
         </div>
       ) : (
         <ul className="flex flex-col gap-2">

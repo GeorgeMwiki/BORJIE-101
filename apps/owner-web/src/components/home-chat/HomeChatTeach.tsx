@@ -91,6 +91,8 @@ import {
 } from './teach-sse-normalisers';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
+import { pickByLocale } from '@/lib/locale';
+import { homeChatTeachStrings as S } from '@/i18n/strings/home-chat-teach';
 import { takeQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import { useChatMode } from './use-chat-mode';
 import { ChatModeSurface } from './ChatModeSurface';
@@ -560,12 +562,8 @@ export function HomeChatTeach({
         if (!res.ok || !res.body) {
           const detail =
             res.status === 401
-              ? languagePreference === 'sw'
-                ? 'Kipindi chako kimeisha. Tafadhali ingia tena.'
-                : 'Your session expired. Please sign in again.'
-              : languagePreference === 'sw'
-                ? `Mr. Mwikila amerudisha HTTP ${res.status}.`
-                : `Mr. Mwikila returned HTTP ${res.status}.`;
+              ? pickByLocale(languagePreference, S.sessionExpired)
+              : pickByLocale(languagePreference, S.httpError(res.status));
           throw new Error(detail);
         }
 
@@ -859,9 +857,7 @@ export function HomeChatTeach({
               const msg =
                 typeof payload.message === 'string'
                   ? payload.message
-                  : languagePreference === 'sw'
-                    ? 'Mtiririko wa Mr. Mwikila umekosea.'
-                    : 'The Mr. Mwikila stream hit an error.';
+                  : pickByLocale(languagePreference, S.streamError);
               setLastError(msg);
               setErrored(true);
               setMessages((prev) =>
@@ -920,10 +916,7 @@ export function HomeChatTeach({
             ),
           );
         } else {
-          const fallback =
-            languagePreference === 'sw'
-              ? 'Mtiririko umeshindwa. Tafadhali jaribu tena.'
-              : 'The connection dropped. Please try again.';
+          const fallback = pickByLocale(languagePreference, S.connectionDropped);
           const msg = err instanceof Error && err.message ? err.message : fallback;
           setLastError(msg);
           setErrored(true);
@@ -1174,14 +1167,13 @@ export function HomeChatTeach({
         <header className="mx-auto flex w-full max-w-[46rem] items-start justify-between gap-3">
           <div>
             <p className="text-tiny uppercase tracking-wide text-warning">
-              {languagePreference === 'sw'
-                ? `${'Kari' + 'bu'}, Bwana Mkubwa`
-                : 'Welcome to your cockpit'}
+              {pickByLocale(languagePreference, S.welcomeEyebrow)}
             </p>
             <p className="mt-0.5 text-xs text-neutral-500">
-              {languagePreference === 'sw'
-                ? `Mwalimu Borjie · ${tradingName} · Hatua ${lessonStep}/5`
-                : `Mr. Mwikila · ${tradingName} · Step ${lessonStep}/5`}
+              {pickByLocale(
+                languagePreference,
+                S.headerSubtitle(tradingName, lessonStep),
+              )}
             </p>
           </div>
           {messages.length > 0 ? (
@@ -1191,7 +1183,7 @@ export function HomeChatTeach({
               className="rounded border border-border bg-surface px-3 py-1.5 text-xs text-neutral-400 hover:bg-surface/60"
               data-testid="home-chat-teach-reset"
             >
-              {languagePreference === 'sw' ? 'Mazungumzo mapya' : 'New thread'}
+              {pickByLocale(languagePreference, S.newThread)}
             </button>
           ) : null}
         </header>
@@ -1231,11 +1223,7 @@ export function HomeChatTeach({
             role="log"
             aria-live="polite"
             aria-relevant="additions text"
-            aria-label={
-              languagePreference === 'sw'
-                ? 'Mazungumzo na Mr. Mwikila'
-                : 'Conversation with Mr. Mwikila'
-            }
+            aria-label={pickByLocale(languagePreference, S.conversationAria)}
           >
             {/* BLOCK 4 — centered reading spine (~736px, 65–72 chars/line). */}
             <div className="mx-auto w-full max-w-[46rem] space-y-7">
@@ -1388,9 +1376,7 @@ function TeachBubble({
     !message.streaming &&
     !message.errored &&
     message.text.trim().length > 0;
-  const personaLabel = languagePreference === 'sw'
-    ? 'Mr. Mwikila · Mwalimu'
-    : 'Mr. Mwikila · Teacher';
+  const personaLabel = pickByLocale(languagePreference, S.personaLabel);
 
   return (
     <div className="space-y-2">
@@ -1463,9 +1449,7 @@ function TeachBubble({
             {message.text ||
               (message.streaming
                 ? ''
-                : languagePreference === 'sw'
-                  ? '(hakuna maudhui)'
-                  : '(no content)')}
+                : pickByLocale(languagePreference, S.noContent))}
           </p>
         ) : message.text.length > 0 ? (
           // BLOCK 2/5 — assistant body: per-word blur-in reveal while
@@ -1473,7 +1457,7 @@ function TeachBubble({
           <StreamedText text={message.text} status={smoothStatus} />
         ) : message.streaming ? null : (
           <p className="whitespace-pre-wrap text-muted-foreground/60">
-            {languagePreference === 'sw' ? '(hakuna jibu)' : '(no content)'}
+            {pickByLocale(languagePreference, S.noReply)}
           </p>
         )}
 
@@ -1485,9 +1469,7 @@ function TeachBubble({
             className="mt-2 flex items-center gap-2 text-tiny text-neutral-400"
           >
             <span>
-              {languagePreference === 'sw'
-                ? 'Jibu limesimamishwa'
-                : 'Response stopped'}
+              {pickByLocale(languagePreference, S.responseStopped)}
             </span>
             <button
               type="button"
@@ -1495,7 +1477,7 @@ function TeachBubble({
               className="rounded-md border border-border bg-surface/40 px-2 py-0.5 text-tiny text-neutral-300 transition-colors hover:bg-surface/70 hover:text-foreground"
               data-testid="teach-bubble-retry"
             >
-              {languagePreference === 'sw' ? 'Jaribu tena' : 'Retry'}
+              {pickByLocale(languagePreference, S.retry)}
             </button>
           </div>
         ) : null}
@@ -1505,22 +1487,17 @@ function TeachBubble({
             block={message.uiBlock}
             language={languagePreference}
             onDeepDive={({ title, point }) => {
-              const verb =
-                languagePreference === 'sw' ? 'Nichunguzie' : 'Deep dive on';
+              const verb = pickByLocale(languagePreference, S.deepDiveVerb);
               const target = point ? `"${point}"` : `"${title}"`;
               onSuggestion(`${verb} ${target}`);
             }}
             onGoWider={({ title, point }) => {
-              const verb =
-                languagePreference === 'sw' ? 'Panua kuhusu' : 'Go wider on';
+              const verb = pickByLocale(languagePreference, S.goWiderVerb);
               const target = point ? `"${point}"` : `"${title}"`;
               onSuggestion(`${verb} ${target}`);
             }}
             onRelatedClick={(concept) => {
-              const verb =
-                languagePreference === 'sw'
-                  ? 'Nifundishe kuhusu'
-                  : 'Teach me about';
+              const verb = pickByLocale(languagePreference, S.teachMeVerb);
               onSuggestion(`${verb} ${concept}`);
             }}
             onMicroLessonCta={onSuggestion}
@@ -1679,7 +1656,7 @@ function TeachBubble({
               data-testid="teach-bubble-error-retry"
               className="w-fit rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-tiny font-medium text-destructive transition-colors hover:bg-destructive/20"
             >
-              {languagePreference === 'sw' ? 'Jaribu tena' : 'Retry'}
+              {pickByLocale(languagePreference, S.retry)}
             </button>
           </div>
         ) : null}
@@ -1731,7 +1708,7 @@ function TeachBubble({
           language={languagePreference}
           onSelect={onSuggestion}
           disabled={composerDisabled}
-          eyebrow={languagePreference === 'sw' ? 'Hatua zinazofuata' : 'Next moves'}
+          eyebrow={pickByLocale(languagePreference, S.nextMoves)}
         />
       ) : null}
 
@@ -1741,9 +1718,7 @@ function TeachBubble({
           className="ml-10 flex max-w-2xl flex-col gap-1.5 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2"
         >
           <p className="text-tiny uppercase tracking-wide text-warning">
-            {languagePreference === 'sw'
-              ? 'Tabs zinazopendekezwa'
-              : 'Suggested tabs'}
+            {pickByLocale(languagePreference, S.suggestedTabs)}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {message.spawnTabs.map((intent, i) => (

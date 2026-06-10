@@ -21,6 +21,8 @@
  */
 
 import { useState, type ReactElement } from 'react';
+import { pickByLocale } from '@/lib/locale-shared';
+import { dataCaptureCardBlockStrings as S } from '@/i18n/strings/data-capture-card-block';
 
 type FieldKind =
   | 'text'
@@ -79,14 +81,10 @@ function labelFor(field: CaptureField, locale: 'sw' | 'en'): string {
 /** Resolved placeholder for picker kinds when the field doesn't specify one. */
 function pickerPlaceholder(kind: FieldKind, locale: 'sw' | 'en'): string {
   if (kind === 'pml-picker') {
-    return locale === 'sw'
-      ? 'Ingiza namba ya leseni ya PML (mfano: PML-2024-001)'
-      : 'Enter PML licence ID (e.g. PML-2024-001)';
+    return pickByLocale(locale, S.pmlPickerPlaceholder);
   }
   if (kind === 'site-picker') {
-    return locale === 'sw'
-      ? 'Ingiza jina au namba ya eneo la uchimbaji'
-      : 'Enter mining site name or ID';
+    return pickByLocale(locale, S.sitePickerPlaceholder);
   }
   return '';
 }
@@ -94,10 +92,10 @@ function pickerPlaceholder(kind: FieldKind, locale: 'sw' | 'en'): string {
 /** Badge label surfaced above the input for picker kinds. */
 function pickerKindLabel(kind: FieldKind, locale: 'sw' | 'en'): string {
   if (kind === 'pml-picker') {
-    return locale === 'sw' ? 'Leseni ya PML' : 'PML Licence';
+    return pickByLocale(locale, S.pmlPickerKindLabel);
   }
   if (kind === 'site-picker') {
-    return locale === 'sw' ? 'Eneo la Uchimbaji' : 'Mining Site';
+    return pickByLocale(locale, S.sitePickerKindLabel);
   }
   return '';
 }
@@ -143,7 +141,7 @@ export function DataCaptureCardBlock({
       className="rounded-xl border border-border bg-surface/60 p-3"
     >
       <p className="text-tiny font-medium uppercase tracking-wide text-info">
-        {locale === 'sw' ? 'Kukusanya' : 'Quick capture'}
+        {pickByLocale(locale, S.quickCapture)}
       </p>
       {purpose ? (
         <p className="mt-1 text-sm text-foreground">{purpose}</p>
@@ -172,7 +170,7 @@ export function DataCaptureCardBlock({
                   className="mt-1 w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground"
                 >
                   <option value="">
-                    {placeholder || (locale === 'sw' ? 'Chagua' : 'Select')}
+                    {placeholder || pickByLocale(locale, S.select)}
                   </option>
                   {field.options.map((opt) => (
                     <option key={opt} value={opt}>
@@ -236,7 +234,7 @@ export function DataCaptureCardBlock({
         disabled={submitting || submitAction.length === 0}
         className="mt-3 w-full rounded-lg bg-warning px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-warning/90 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {locale === 'sw' ? 'Tuma' : 'Send'}
+        {pickByLocale(locale, S.send)}
       </button>
     </form>
   );

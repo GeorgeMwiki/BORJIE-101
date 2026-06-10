@@ -1,6 +1,7 @@
 import { NotificationsInbox } from '@/components/notifications/NotificationsInbox';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { pickByLocale } from '@/lib/locale-shared';
+import { notificationsPageStrings as S } from '@/i18n/strings/notifications-page';
 
 /**
  * Owner-web — notifications inbox (parity with workforce-mobile +
@@ -23,13 +24,10 @@ export default async function NotificationsPage() {
     <div className="px-8 py-8">
       <header className="mb-6">
         <h1 className="font-display text-3xl text-foreground">
-          {pickByLocale(locale, { en: 'Notifications', sw: 'Arifa' })}
+          {pickByLocale(locale, S.title)}
         </h1>
         <p className="mt-3 max-w-3xl text-sm text-neutral-300">
-          {pickByLocale(locale, {
-            en: 'Live activity from your sites — decisions, reminders, manager escalations, RFB dispatches, payroll commits, regulator requests.',
-            sw: 'Shughuli za moja kwa moja kutoka kwa maeneo yako — maamuzi, vikumbusho, upandishaji wa meneja, uwasilishaji wa RFB, ahadi za malipo, maombi ya mdhibiti.',
-          })}
+          {pickByLocale(locale, S.subtitle)}
         </p>
       </header>
       <NotificationsInbox />

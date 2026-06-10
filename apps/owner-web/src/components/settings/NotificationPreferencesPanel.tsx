@@ -24,6 +24,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { z } from 'zod';
 
 import { getCsrfHeaders } from '@/lib/csrf';
+import { notificationPreferencesPanelStrings as S } from '@/i18n/strings/notification-preferences-panel';
 import { useLocale, pickByLocale } from '@/lib/locale';
 
 // Mirror the backend constant locally so this file has no cross-package
@@ -67,12 +68,9 @@ const CHANNEL_LABEL_EN: Record<OwnerContactChannel, string> = {
   whatsapp: 'WhatsApp',
 };
 
-const CHANNEL_LABEL_SW: Record<OwnerContactChannel, string> = {
-  email: 'Barua pepe',
-  sms: 'Ujumbe mfupi (SMS)',
-  slack: 'Slack',
-  whatsapp: 'WhatsApp',
-};
+// Swahili channel labels are sourced from the guard-exempt i18n strings
+// module so no Swahili literal lives in this component.
+const CHANNEL_LABEL_SW: Record<OwnerContactChannel, string> = S.channelLabelSw;
 
 export function NotificationPreferencesPanel() {
   const locale = useLocale();
@@ -215,17 +213,14 @@ export function NotificationPreferencesPanel() {
     return (
       <div className="rounded-md border border-red-500/40 bg-red-500/10 p-4">
         <p className="text-sm text-red-200">
-          {pickByLocale(locale, {
-            en: `Could not load notification preferences. ${loadState.message}`,
-            sw: `Imeshindwa kupakia mapendeleo ya arifa. ${loadState.message}`,
-          })}
+          {pickByLocale(locale, S.loadError(loadState.message))}
         </p>
         <button
           type="button"
           onClick={() => void load()}
           className="mt-2 rounded border border-red-300/40 px-3 py-1 text-xs text-red-100 hover:bg-red-500/20"
         >
-          {pickByLocale(locale, { en: 'Retry', sw: 'Jaribu tena' })}
+          {pickByLocale(locale, S.retry)}
         </button>
       </div>
     );
@@ -235,86 +230,72 @@ export function NotificationPreferencesPanel() {
     <section className="rounded-md border border-border bg-surface p-5 space-y-5">
       <div>
         <h2 className="font-display text-lg text-foreground">
-          {pickByLocale(locale, {
-            en: 'Notification channels',
-            sw: 'Njia za arifa',
-          })}
+          {pickByLocale(locale, S.channelsHeading)}
         </h2>
         <p className="mt-0.5 text-xs italic text-neutral-500">
-          {pickByLocale(locale, {
-            en: 'How Mr. Mwikila reaches you — ranked highest priority first.',
-            sw: 'Jinsi Bw. Mwikila anavyowasiliana nawe — iliyopangwa kwa kipaumbele.',
-          })}
+          {pickByLocale(locale, S.channelsSubtitle)}
         </p>
       </div>
 
       {/* Ranked active channels */}
       <div className="space-y-1.5">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-          {pickByLocale(locale, { en: 'Priority order', sw: 'Mpangilio wa kipaumbele' })}
+          {pickByLocale(locale, S.priorityOrder)}
         </p>
         {channelPriority.length === 0 ? (
           <p className="text-sm text-neutral-400">
-            {pickByLocale(locale, {
-              en: 'No channels ranked. Add one below.',
-              sw: 'Hakuna njia zilizopangwa. Ongeza moja hapa chini.',
-            })}
+            {pickByLocale(locale, S.noChannelsRanked)}
           </p>
         ) : (
           <ol className="space-y-1.5">
-            {channelPriority.map((ch, idx) => (
-              <li
-                key={ch}
-                className="flex items-center gap-2 rounded border border-border bg-background px-3 py-2"
-              >
-                <span className="w-5 shrink-0 text-center text-xs font-bold text-neutral-500">
-                  {idx + 1}
-                </span>
-                <span className="flex-1 text-sm text-foreground">
-                  {pickByLocale(locale, {
-                    en: CHANNEL_LABEL_EN[ch],
-                    sw: CHANNEL_LABEL_SW[ch],
-                  })}
-                </span>
-                <div className="flex gap-1">
-                  <button
-                    type="button"
-                    onClick={() => moveUp(idx)}
-                    disabled={idx === 0}
-                    aria-label={pickByLocale(locale, {
-                      en: `Move ${CHANNEL_LABEL_EN[ch]} up`,
-                      sw: `Sogeza ${CHANNEL_LABEL_SW[ch]} juu`,
-                    })}
-                    className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-30"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => moveDown(idx)}
-                    disabled={idx === channelPriority.length - 1}
-                    aria-label={pickByLocale(locale, {
-                      en: `Move ${CHANNEL_LABEL_EN[ch]} down`,
-                      sw: `Sogeza ${CHANNEL_LABEL_SW[ch]} chini`,
-                    })}
-                    className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-30"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeChannel(ch)}
-                    aria-label={pickByLocale(locale, {
-                      en: `Remove ${CHANNEL_LABEL_EN[ch]}`,
-                      sw: `Ondoa ${CHANNEL_LABEL_SW[ch]}`,
-                    })}
-                    className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:text-destructive"
-                  >
-                    ×
-                  </button>
-                </div>
-              </li>
-            ))}
+            {channelPriority.map((ch, idx) => {
+              // Localize the channel label once, then feed it into the
+              // interpolated aria-label strings so the EN/SW label
+              // distinction is preserved without any Swahili literal here.
+              const label = pickByLocale(locale, {
+                en: CHANNEL_LABEL_EN[ch],
+                sw: CHANNEL_LABEL_SW[ch],
+              });
+              return (
+                <li
+                  key={ch}
+                  className="flex items-center gap-2 rounded border border-border bg-background px-3 py-2"
+                >
+                  <span className="w-5 shrink-0 text-center text-xs font-bold text-neutral-500">
+                    {idx + 1}
+                  </span>
+                  <span className="flex-1 text-sm text-foreground">{label}</span>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => moveUp(idx)}
+                      disabled={idx === 0}
+                      aria-label={pickByLocale(locale, S.moveUpAria(label))}
+                      className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveDown(idx)}
+                      disabled={idx === channelPriority.length - 1}
+                      aria-label={pickByLocale(locale, S.moveDownAria(label))}
+                      className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeChannel(ch)}
+                      aria-label={pickByLocale(locale, S.removeAria(label))}
+                      className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:text-destructive"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
           </ol>
         )}
       </div>
@@ -323,7 +304,7 @@ export function NotificationPreferencesPanel() {
       {unavailableChannels.length > 0 ? (
         <div className="space-y-1">
           <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            {pickByLocale(locale, { en: 'Add channel', sw: 'Ongeza njia' })}
+            {pickByLocale(locale, S.addChannel)}
           </p>
           <div className="flex flex-wrap gap-2">
             {unavailableChannels.map((ch) => (
@@ -348,10 +329,7 @@ export function NotificationPreferencesPanel() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="block text-sm">
           <span className="text-neutral-300">
-            {pickByLocale(locale, {
-              en: 'Email override',
-              sw: 'Barua pepe mbadala',
-            })}
+            {pickByLocale(locale, S.emailOverride)}
           </span>
           <input
             type="email"
@@ -359,15 +337,12 @@ export function NotificationPreferencesPanel() {
             className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
             value={emailOverride}
             onChange={(e) => setEmailOverride(e.target.value)}
-            placeholder={pickByLocale(locale, {
-              en: 'Defaults to account email',
-              sw: 'Msingi: barua pepe ya akaunti',
-            })}
+            placeholder={pickByLocale(locale, S.emailOverridePlaceholder)}
           />
         </label>
         <label className="block text-sm">
           <span className="text-neutral-300">
-            {pickByLocale(locale, { en: 'Phone (SMS / WhatsApp)', sw: 'Simu (SMS / WhatsApp)' })}
+            {pickByLocale(locale, S.phoneLabel)}
           </span>
           <input
             type="tel"
@@ -380,7 +355,7 @@ export function NotificationPreferencesPanel() {
         </label>
         <label className="block text-sm">
           <span className="text-neutral-300">
-            {pickByLocale(locale, { en: 'Slack handle', sw: 'Jina la Slack' })}
+            {pickByLocale(locale, S.slackHandle)}
           </span>
           <input
             type="text"
@@ -393,7 +368,7 @@ export function NotificationPreferencesPanel() {
         </label>
         <label className="block text-sm">
           <span className="text-neutral-300">
-            {pickByLocale(locale, { en: 'Time zone', sw: 'Eneo la saa' })}
+            {pickByLocale(locale, S.timeZone)}
           </span>
           <input
             type="text"
@@ -414,17 +389,17 @@ export function NotificationPreferencesPanel() {
           className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
         >
           {saving
-            ? pickByLocale(locale, { en: 'Saving…', sw: 'Inahifadhi…' })
-            : pickByLocale(locale, { en: 'Save preferences', sw: 'Hifadhi mapendeleo' })}
+            ? pickByLocale(locale, S.saving)
+            : pickByLocale(locale, S.savePreferences)}
         </button>
         {saved ? (
           <span className="text-sm text-success">
-            {pickByLocale(locale, { en: 'Saved', sw: 'Imehifadhiwa' })}
+            {pickByLocale(locale, S.saved)}
           </span>
         ) : null}
         {saveError ? (
           <span className="text-sm text-destructive">
-            {pickByLocale(locale, { en: 'Error: ', sw: 'Hitilafu: ' })}
+            {pickByLocale(locale, S.errorPrefix)}
             {saveError}
           </span>
         ) : null}
