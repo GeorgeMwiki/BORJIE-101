@@ -3,7 +3,13 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: ['src/index.ts'],
   format: ['cjs'],
-  dts: true,
+  // No .d.ts: api-gateway is a PRIVATE, deployable leaf service (`node
+  // dist/index.js`) with no `types` export and zero workspace consumers — the
+  // generated 328-byte d.ts was never imported. Its DTS worker (~52s, rollup
+  // over 1468 files) was also the sole OOM under a concurrent monorepo build.
+  // Dropping it makes the build ~50x faster and OOM-proof; typecheck is still
+  // enforced separately by `tsc --noEmit`.
+  dts: false,
   clean: true,
   sourcemap: true,
   // Keep node_modules + workspace packages unbundled. Node resolves them
