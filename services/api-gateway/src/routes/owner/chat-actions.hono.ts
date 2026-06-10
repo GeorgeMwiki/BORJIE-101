@@ -59,6 +59,7 @@ import {
   type ExecContext,
   type ExecResult,
 } from '../../services/action-executor/index.js';
+import { enqueueFourEyeRequest } from './four-eye-approvals.hono.js';
 
 const moduleLogger = createLogger('owner-chat-actions');
 
@@ -222,6 +223,18 @@ type ActionResponseBody =
         readonly deferToBrain?: boolean;
         readonly verb?: string;
         readonly params?: Record<string, unknown>;
+        /**
+         * DUAL-CONTROL (impossible-do closure). `true` when the autonomy
+         * controller returned `gate` / `four_eyes`: instead of a SILENT
+         * decline (which a second approver could never unblock), the action
+         * is QUEUED as a pending four-eye request. The FE renders an
+         * approval-pending state and a second approver resolves it via the
+         * `/owner/four-eye` surface. This NEVER authorizes or executes —
+         * fail-closed semantics are preserved.
+         */
+        readonly requiresSecondApproval?: boolean;
+        /** The pending `four_eye_requests.id` a second approver resolves. */
+        readonly pendingApprovalId?: string;
       };
     };
 
@@ -310,10 +323,12 @@ async function gateExecuteAudit(args: {
   //    as a denial too (defence-in-depth).
   let authorized = false;
   let reason = 'not_authorized';
+  let autonomyDecision: 'auto' | 'gate' | 'four_eyes' | undefined;
   try {
     const decision = decideAutoAuthorization(verb, rationale, buildScope(auth));
     authorized = decision.authorized;
     reason = decision.reason;
+    autonomyDecision = decision.autonomyDecision;
   } catch (err) {
     moduleLogger.error('chat-actions: gate threw (fail-closed deny)', {
       verb,
@@ -327,6 +342,50 @@ async function gateExecuteAudit(args: {
   }
 
   if (!authorized) {
+    // DUAL-CONTROL closure (impossible-do). When the autonomy controller
+    // escalated this to `gate` / `four_eyes`, a SILENT decline would strand
+    // the action — no approval record exists, so a second approver could
+    // never unblock it and the action vanishes. Instead we QUEUE it as a
+    // pending four-eye request through the SHARED enqueue path and tell the
+    // FE a second approval is required. This does NOT authorize or execute
+    // anything — fail-closed semantics are fully preserved; we only create
+    // a dual-control ticket. Every OTHER denial keeps the silent-decline
+    // shape unchanged.
+    if (autonomyDecision === 'gate' || autonomyDecision === 'four_eyes') {
+      const enqueued = await enqueueFourEyeRequest(db, {
+        tenantId: auth.tenantId,
+        requesterId: auth.userId,
+        actionType: verb,
+        payload: { verb, params, rationale },
+      });
+      if (enqueued) {
+        moduleLogger.info('chat-actions: action queued for second approval', {
+          verb,
+          source,
+          tenantId: auth.tenantId,
+          autonomyDecision,
+          pendingApprovalId: enqueued.requestId,
+        });
+        return {
+          success: true,
+          data: {
+            executed: false,
+            authorized: false,
+            reason,
+            requiresSecondApproval: true,
+            pendingApprovalId: enqueued.requestId,
+          },
+        };
+      }
+      // Enqueue faulted (DB unavailable / insert error) — honest-degrade to
+      // the existing silent-decline shape rather than throwing.
+      moduleLogger.warn('chat-actions: four-eye enqueue faulted, falling back to silent decline', {
+        verb,
+        source,
+        tenantId: auth.tenantId,
+        autonomyDecision,
+      });
+    }
     moduleLogger.info('chat-actions: action not authorized', {
       verb,
       source,

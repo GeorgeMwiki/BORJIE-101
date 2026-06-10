@@ -163,6 +163,114 @@ async function appendAuditEntry(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Shared enqueue path — the ONE place a four-eye request is created.
+// ---------------------------------------------------------------------------
+
+/**
+ * Arguments for {@link enqueueFourEyeRequest}. `actionType` is stored in
+ * the free-form `action_type` text column; callers outside the owner
+ * `/request` surface (e.g. the chat-actions dual-control bridge) pass a
+ * brain verb here that is NOT one of `FOUR_EYE_ACTION_TYPES`, which is
+ * fine — the column is unconstrained text and the original verb is also
+ * preserved inside `payload`.
+ */
+export interface EnqueueFourEyeArgs {
+  readonly tenantId: string;
+  readonly requesterId: string;
+  readonly actionType: string;
+  readonly payload: Record<string, unknown>;
+  /** Supabase user id of the proposed second approver. May be set later. */
+  readonly secondApproverId?: string;
+  /** TTL in minutes — defaults to {@link DEFAULT_TTL_MINUTES} (24h). */
+  readonly ttlMinutes?: number;
+}
+
+/**
+ * Insert a pending four-eye request + append the `four_eye.request.create`
+ * audit entry. This is the SINGLE enqueue path: the owner `POST /request`
+ * handler and any cross-route caller (the chat-actions dual-control
+ * bridge) both funnel through here so the insert + audit logic is never
+ * duplicated.
+ *
+ * Honest-degrade: returns `null` (never throws) on any DB / insert
+ * failure so a caller in a stream / handler can fall back gracefully. The
+ * audit append is itself soft-failing (logs + returns null) and never
+ * voids the created request.
+ */
+export async function enqueueFourEyeRequest(
+  db: any,
+  args: EnqueueFourEyeArgs,
+): Promise<{ readonly requestId: string; readonly approvalToken: string } | null> {
+  if (!db) {
+    return null;
+  }
+  const id = randomUUID();
+  const token = buildToken();
+  const ttlMinutes = args.ttlMinutes ?? DEFAULT_TTL_MINUTES;
+  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+  const now = new Date();
+  try {
+    await db
+      .insert(fourEyeRequests)
+      .values({
+        id,
+        tenantId: args.tenantId,
+        requesterId: args.requesterId,
+        secondApproverId: args.secondApproverId ?? null,
+        actionType: args.actionType,
+        payload: args.payload,
+        approvalToken: token,
+        status: 'pending',
+        expiresAt,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    const auditId = await appendAuditEntry(db, {
+      action: 'four_eye.request.create',
+      tenantId: args.tenantId,
+      turnId: id,
+      userId: args.requesterId,
+      details: {
+        requestId: id,
+        actionType: args.actionType,
+        secondApproverId: args.secondApproverId ?? null,
+        ttlMinutes,
+      },
+    });
+
+    if (auditId) {
+      await db
+        .update(fourEyeRequests)
+        .set({ auditCreateId: auditId, updatedAt: new Date() })
+        .where(
+          and(
+            eq(fourEyeRequests.tenantId, args.tenantId),
+            eq(fourEyeRequests.id, id),
+          ),
+        );
+    }
+
+    moduleLogger.info('four-eye: request enqueued', {
+      tenantId: args.tenantId,
+      requesterId: args.requesterId,
+      requestId: id,
+      actionType: args.actionType,
+    });
+
+    return { requestId: id, approvalToken: token };
+  } catch (e) {
+    moduleLogger.error('four-eye: enqueue failed', {
+      tenantId: args.tenantId,
+      actionType: args.actionType,
+      reason: e instanceof Error ? e.message : String(e),
+    });
+    return null;
+  }
+}
+
 interface DispatchOutcome {
   readonly executed: boolean;
   readonly result: Record<string, unknown>;
@@ -255,80 +363,51 @@ app.post('/request', async (c: any) => {
   if (!parsed.success) {
     return c.json(err('VALIDATION_ERROR', 'Invalid four-eye request payload'), 400);
   }
-  const id = randomUUID();
-  const token = buildToken();
-  const ttlMinutes = parsed.data.ttlMinutes ?? DEFAULT_TTL_MINUTES;
-  const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
-  const now = new Date();
-  try {
-    const [row] = await db
-      .insert(fourEyeRequests)
-      .values({
-        id,
-        tenantId: auth.tenantId,
-        requesterId: auth.userId,
-        secondApproverId: parsed.data.secondApproverId ?? null,
-        actionType: parsed.data.actionType,
-        payload: parsed.data.payload,
-        approvalToken: token,
-        status: 'pending',
-        expiresAt,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning();
-
-    const auditId = await appendAuditEntry(db, {
-      action: 'four_eye.request.create',
-      tenantId: auth.tenantId,
-      turnId: id,
-      userId: auth.userId,
-      details: {
-        requestId: id,
-        actionType: parsed.data.actionType,
-        secondApproverId: parsed.data.secondApproverId ?? null,
-        ttlMinutes,
-      },
-    });
-
-    if (auditId) {
-      await db
-        .update(fourEyeRequests)
-        .set({ auditCreateId: auditId, updatedAt: new Date() })
-        .where(
-          and(
-            eq(fourEyeRequests.tenantId, auth.tenantId),
-            eq(fourEyeRequests.id, id),
-          ),
-        );
-    }
-
-    moduleLogger.info('four-eye: request created', {
-      tenantId: auth.tenantId,
-      requesterId: auth.userId,
-      requestId: id,
-      actionType: parsed.data.actionType,
-    });
-
-    return c.json(
-      ok({
-        id: row.id,
-        actionType: row.actionType,
-        status: row.status,
-        approvalToken: token,
-        approvalUrl: `/four-eye/approve/${token}`,
-        expiresAt: row.expiresAt,
-        auditCreateId: auditId,
-      }),
-      201,
-    );
-  } catch (e) {
-    moduleLogger.error('four-eye: request creation failed', {
-      tenantId: auth.tenantId,
-      reason: e instanceof Error ? e.message : String(e),
-    });
+  const enqueued = await enqueueFourEyeRequest(db, {
+    tenantId: auth.tenantId,
+    requesterId: auth.userId,
+    actionType: parsed.data.actionType,
+    payload: parsed.data.payload,
+    ...(parsed.data.secondApproverId !== undefined
+      ? { secondApproverId: parsed.data.secondApproverId }
+      : {}),
+    ...(parsed.data.ttlMinutes !== undefined
+      ? { ttlMinutes: parsed.data.ttlMinutes }
+      : {}),
+  });
+  if (!enqueued) {
     return c.json(err('FOUR_EYE_CREATE_FAILED', 'Failed to create request'), 500);
   }
+
+  const [row] = await db
+    .select({
+      id: fourEyeRequests.id,
+      actionType: fourEyeRequests.actionType,
+      status: fourEyeRequests.status,
+      expiresAt: fourEyeRequests.expiresAt,
+      auditCreateId: fourEyeRequests.auditCreateId,
+    })
+    .from(fourEyeRequests)
+    .where(
+      and(
+        eq(fourEyeRequests.tenantId, auth.tenantId),
+        eq(fourEyeRequests.id, enqueued.requestId),
+      ),
+    )
+    .limit(1);
+
+  return c.json(
+    ok({
+      id: enqueued.requestId,
+      actionType: row?.actionType ?? parsed.data.actionType,
+      status: row?.status ?? 'pending',
+      approvalToken: enqueued.approvalToken,
+      approvalUrl: `/four-eye/approve/${enqueued.approvalToken}`,
+      expiresAt: row?.expiresAt ?? null,
+      auditCreateId: row?.auditCreateId ?? null,
+    }),
+    201,
+  );
 });
 
 // ---------------------------------------------------------------------------
