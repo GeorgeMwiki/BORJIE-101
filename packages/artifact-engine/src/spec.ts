@@ -78,6 +78,54 @@ export type ArtifactKindName = PortalDashboardKindName;
  */
 export const ArtifactKindSchema = z.enum(ARTIFACT_KIND_NAMES);
 
+/**
+ * The pure-INTERACTION kinds — input affordances, navigation containers, or
+ * transient UI that carry NO data claim or recommendation. These are EXEMPT
+ * from the Auditor "≥1 evidence_id" invariant: a slider or an approve button
+ * cites nothing because it asserts nothing.
+ *
+ * Every KNOWN kind NOT in this set is treated as DATA/RECOMMENDATION-class
+ * and MUST cite ≥1 evidence id (enforced structurally by the spec's
+ * superRefine below). UNKNOWN kinds are NEVER blocked — see the superRefine
+ * note: a brain-invented kind must still parse with an empty chain so
+ * reachability-completeness (generativity) holds.
+ *
+ * Derived from the 35 `ARTIFACT_KIND_NAMES` — chosen by reading the list:
+ * the input/affordance/transient kinds are exempt, every chart / table /
+ * metric / map / evidence / decision surface is NOT.
+ */
+export const ARTIFACT_INTERACTION_KINDS = [
+  'approval', // approve / reject affordance — asserts nothing
+  'prefill-form', // form input affordance
+  'prompt-suggestions', // suggested next prompts — navigation
+  'signature-pad', // capture a signature — input
+  'slider-input', // numeric input affordance
+  'multistep-wizard', // flow container — no data claim of its own
+  'chat-embed', // embedded conversation surface
+  'notification-toast', // transient ack message — not a deliverable
+] as const satisfies ReadonlyArray<ArtifactKindName>;
+
+export type ArtifactInteractionKind =
+  (typeof ARTIFACT_INTERACTION_KINDS)[number];
+
+/** Fast membership set for the closed 35-kind core. */
+const KIND_SET: ReadonlySet<string> = new Set(ARTIFACT_KIND_NAMES);
+
+/** Fast membership set for the evidence superRefine + callers. */
+const INTERACTION_KIND_SET: ReadonlySet<string> = new Set(
+  ARTIFACT_INTERACTION_KINDS,
+);
+
+/**
+ * True when this KNOWN kind must cite ≥1 evidence id (the Auditor
+ * invariant). An UNKNOWN kind returns `false` — it is never blocked for an
+ * empty chain, preserving the generativity guarantee. A known interaction
+ * kind also returns `false` — it asserts nothing to cite.
+ */
+export function kindRequiresEvidence(kind: string): boolean {
+  return KIND_SET.has(kind) && !INTERACTION_KIND_SET.has(kind);
+}
+
 // ---------------------------------------------------------------------------
 // 2. The 5 routing signals — the booleans the pure router reads.
 // ---------------------------------------------------------------------------
@@ -343,20 +391,43 @@ const ArtifactSpecBaseSchema = z
   .strict();
 
 /**
- * The ONE `ArtifactSpec`. A `.superRefine` re-applies the SAME
- * `genui_part` consistency check the tab-widget schema uses (preserving
- * the escape-hatch contract), plus enforces unique `nodeId`s across the
- * tree so fragment addressing is unambiguous.
+ * The ONE `ArtifactSpec`. A `.superRefine` (a) makes the Auditor
+ * "≥1 evidence_id per recommendation" invariant STRUCTURAL — a KNOWN
+ * data/recommendation kind with an empty `evidenceIds` chain fails parse;
+ * (b) re-applies the SAME `genui_part` consistency check the tab-widget
+ * schema uses (preserving the escape-hatch contract); and (c) enforces
+ * unique `nodeId`s across the tree so fragment addressing is unambiguous.
+ *
+ * GENERATIVITY IS PRESERVED: the evidence gate fires ONLY for kinds that
+ * are KNOWN AND in the data/recommendation set. An UNKNOWN / brain-invented
+ * kind, and a known pure-INTERACTION kind, both parse with an empty chain —
+ * a never-seen organ must never be blocked for lacking evidence
+ * (reachability-completeness), and an affordance asserts nothing to cite.
  */
 export const ArtifactSpecSchema = ArtifactSpecBaseSchema.superRefine(
   (spec, ctx) => {
-    // Preserve the tab-widget contract: if a spec was minted from a
+    // (a) Evidence invariant — structural, not prose. A known data /
+    // recommendation kind MUST cite ≥1 evidence id. Unknown kinds and
+    // known interaction kinds are exempt (kindRequiresEvidence encodes
+    // both carve-outs), so generativity + affordances are untouched.
+    if (kindRequiresEvidence(spec.kind) && spec.evidenceIds.length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        type: 'array',
+        minimum: 1,
+        inclusive: true,
+        message: `artifact kind '${spec.kind}' is a data/recommendation surface and must cite ≥1 evidence id (the Auditor invariant)`,
+        path: ['evidenceIds'],
+      });
+    }
+
+    // (b) Preserve the tab-widget contract: if a spec was minted from a
     // genui_part widget, the carried genuiKind must be one of the 35.
     // (ArtifactKindSchema already enforces that at the field level; this
     // guards the inverse — a genuiKind present on a non-genui_part kind is
     // harmless, so we only assert validity, which the field schema does.)
 
-    // Unique nodeIds across the (optional) tree so a fragment address is
+    // (c) Unique nodeIds across the (optional) tree so a fragment address is
     // unambiguous.
     if (spec.nodes && spec.nodes.length > 0) {
       const seen = new Set<string>();
@@ -401,10 +472,10 @@ export function safeParseArtifactSpec(input: unknown): ArtifactSpec | null {
  * True when `kind` is one of the closed 35-kind core (i.e. the renderer
  * has a known primitive for it). An UNKNOWN kind is still a valid
  * `ArtifactSpec`; this just tells a caller whether it will render a real
- * primitive or degrade to `UnknownKindCard`.
+ * primitive or degrade to `UnknownKindCard`. (`KIND_SET` is declared once,
+ * up near the interaction-kind set, so it is available to the evidence
+ * superRefine too.)
  */
-const KIND_SET: ReadonlySet<string> = new Set(ARTIFACT_KIND_NAMES);
-
 export function isKnownArtifactKind(kind: string): kind is ArtifactKindName {
   return KIND_SET.has(kind);
 }

@@ -10,7 +10,9 @@ import {
   parseArtifactSpec,
   safeParseArtifactSpec,
   isKnownArtifactKind,
+  kindRequiresEvidence,
   ARTIFACT_KIND_NAMES,
+  ARTIFACT_INTERACTION_KINDS,
 } from '../spec.js';
 import { makeSpec, signals } from './fixtures.js';
 
@@ -55,6 +57,45 @@ describe('ArtifactSpec — the promoted PortalTabWidget over the 35-kind superse
     expect(parsed).not.toBeNull();
     expect(parsed?.kind).toBe('geological-drill-core-viewer');
     expect(isKnownArtifactKind('geological-drill-core-viewer')).toBe(false);
+  });
+
+  // ── the Auditor invariant — ≥1 evidence id is now STRUCTURAL ───────────
+  it('a known DATA kind with an EMPTY evidence chain FAILS parse (Auditor invariant)', () => {
+    const spec = makeSpec({ kind: 'chart-vega', evidenceIds: [] });
+    const result = ArtifactSpecSchema.safeParse(spec);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // The issue points squarely at evidenceIds so the brain knows what to fix.
+      expect(result.error.issues.some((i) => i.path.includes('evidenceIds'))).toBe(
+        true,
+      );
+    }
+  });
+
+  it('a known DATA kind with ≥1 evidence id PASSES parse', () => {
+    const spec = makeSpec({ kind: 'chart-vega', evidenceIds: ['ev-9'] });
+    const result = ArtifactSpecSchema.safeParse(spec);
+    expect(result.success).toBe(true);
+  });
+
+  it('a known INTERACTION kind (approval) with an EMPTY evidence chain PASSES — an affordance cites nothing', () => {
+    for (const kind of ARTIFACT_INTERACTION_KINDS) {
+      const spec = makeSpec({ kind, config: null, evidenceIds: [] });
+      const result = ArtifactSpecSchema.safeParse(spec);
+      expect(result.success, `interaction kind '${kind}' must pass`).toBe(true);
+    }
+  });
+
+  it('an UNKNOWN invented kind with an EMPTY evidence chain PASSES — generativity is never blocked for lacking evidence', () => {
+    const spec = makeSpec({
+      kind: 'geological-drill-core-viewer',
+      config: { coreId: 'DDH-001' },
+      evidenceIds: [],
+    });
+    const result = ArtifactSpecSchema.safeParse(spec);
+    expect(result.success).toBe(true);
+    expect(isKnownArtifactKind('geological-drill-core-viewer')).toBe(false);
+    expect(kindRequiresEvidence('geological-drill-core-viewer')).toBe(false);
   });
 
   // ── strictness — no smuggled keys ─────────────────────────────────────

@@ -32,6 +32,7 @@
 // ── 1. The ONE spec ──────────────────────────────────────────────────────
 export {
   ARTIFACT_KIND_NAMES,
+  ARTIFACT_INTERACTION_KINDS,
   ArtifactKindSchema,
   ArtifactSignalsSchema,
   ARTIFACT_SIGNAL_KEYS,
@@ -43,7 +44,9 @@ export {
   parseArtifactSpec,
   safeParseArtifactSpec,
   isKnownArtifactKind,
+  kindRequiresEvidence,
   type ArtifactKindName,
+  type ArtifactInteractionKind,
   type ArtifactSignals,
   type ArtifactSignalKey,
   type ArtifactLifecycle,
