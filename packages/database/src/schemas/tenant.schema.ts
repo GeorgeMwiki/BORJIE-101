@@ -156,6 +156,22 @@ export const tenants = pgTable(
      */
     accountKind: text('account_kind').notNull().default('business'),
     /**
+     * Operator-vs-customer discriminator (operator-ERP layer, migration 0335).
+     *   - 'customer': a tenant that BUYS Borjie — runs its estate on a
+     *                 customer-vertical pack (mining-tz, …). The default;
+     *                 every legacy row is a customer.
+     *   - 'operator': Borjie-the-company itself — runs on Mr-Mwikila + the
+     *                 UNIVERSAL business pack (ERP: GL/AP/AR/payroll/CRM/…)
+     *                 over its OWN books. Seeded once (the borjie-operator
+     *                 tenant). Future verticals each seed their own operator.
+     * Orthogonal to `account_kind` (individual|business KYC). The cortex, the
+     * RLS GUC, and the money path are IDENTICAL for both — only the loaded
+     * pack + the primary surface (admin-web for the operator) differ. This is
+     * the self-hosting fractal: the operator is a first-class tenant, never a
+     * back-door (see borjie-business-intelligence-operator-erp-layer memory).
+     */
+    tenantType: text('tenant_type').notNull().default('customer'),
+    /**
      * Display currency preference. The platform is multi-currency
      * (CLAUDE.md "Multi-currency, TZS-primary") so this is the user's
      * preferred rendering currency, NOT the contract-leg currency.
@@ -360,6 +376,7 @@ export const tenants = pgTable(
     createdAtIdx: index('tenants_created_at_idx').on(table.createdAt),
     countryIdx: index('tenants_country_idx').on(table.country),
     accountKindIdx: index('tenants_account_kind_idx').on(table.accountKind),
+    tenantTypeIdx: index('tenants_tenant_type_idx').on(table.tenantType),
     kycStatusIdx: index('tenants_kyc_status_idx').on(table.kycStatus),
     countryAccountKindIdx: index('tenants_country_account_kind_idx').on(
       table.country,

@@ -54,7 +54,7 @@ upserts every chunk into `intelligence_corpus_chunks` with
 | 12-agent brain kernel (think-pipeline, sensors, debate, LATS) | [`Docs/CODEMAPS/central-intelligence.md`](./Docs/CODEMAPS/central-intelligence.md) | `packages/central-intelligence/` |
 | Personas, copilots, predictions, governance, audit-trail | [`Docs/CODEMAPS/ai-copilot.md`](./Docs/CODEMAPS/ai-copilot.md) | `packages/ai-copilot/` |
 | Hono BFF, auth, composition root, route handlers | [`Docs/CODEMAPS/api-gateway.md`](./Docs/CODEMAPS/api-gateway.md) | `services/api-gateway/` |
-| Drizzle schemas, 243 migrations (171 forward-only deltas in `src/migrations/` + 72 Drizzle baseline files in `drizzle/`), RLS, pgvector | [`Docs/CODEMAPS/database.md`](./Docs/CODEMAPS/database.md) | `packages/database/` |
+| Drizzle schemas, 244 migrations (172 forward-only deltas in `src/migrations/` + 72 Drizzle baseline files in `drizzle/`), RLS, pgvector | [`Docs/CODEMAPS/database.md`](./Docs/CODEMAPS/database.md) | `packages/database/` |
 | Double-entry ledger, M-Pesa/Stripe providers, statements | [`Docs/CODEMAPS/payments-ledger.md`](./Docs/CODEMAPS/payments-ledger.md) | `services/payments-ledger/` |
 | Agent-to-agent auth, webhooks, idempotency, error codes | [`Docs/CODEMAPS/agent-platform.md`](./Docs/CODEMAPS/agent-platform.md) | `packages/agent-platform/` |
 | OTel, audit, Sentry, logging, eval, red-team | [`Docs/CODEMAPS/observability.md`](./Docs/CODEMAPS/observability.md) | `packages/observability/` + `evals/` |
