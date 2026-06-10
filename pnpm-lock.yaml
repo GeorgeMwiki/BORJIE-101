@@ -1254,6 +1254,22 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@20.19.41)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/business-ontology:
+    dependencies:
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/buyer-marketplace-advisor:
     dependencies:
       '@borjie/compliance-pack':
@@ -13338,44 +13354,54 @@ packages:
 
   /@protobufjs/aspromise@1.1.2:
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/base64@1.1.2:
     resolution: {integrity: sha512-AZkcAA5vnN/v4PDqKyMR5lx7hZttPDgClv83E//FMNhR2TMcLUhfRUBHCmSl0oi9zMgDDqRUJkSxO3wm85+XLg==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/codegen@2.0.5:
     resolution: {integrity: sha512-zgXFLzW3Ap33e6d0Wlj4MGIm6Ce8O89n/apUaGNB/jx+hw+ruWEp7EwGUshdLKVRCxZW12fp9r40E1mQrf/34g==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/eventemitter@1.1.1:
     resolution: {integrity: sha512-vW1GmwMZNnL+gMRaovlh9yZX74kc+TTU3FObkkurpMaRtBfLP3ldjS9KQWlwZgraRE0+dheEEoAxdzcJQ8eXZg==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/fetch@1.1.1:
     resolution: {integrity: sha512-GpptLrs57adMSuHi3VNj0mAF8dwh36LMaYF6XyJ6JMWlVsc+t42tm1HSEDmOs3A8fC9yyeisgLhsTVQokOZ0zw==}
+    requiresBuild: true
     dependencies:
       '@protobufjs/aspromise': 1.1.2
     dev: false
 
   /@protobufjs/float@1.0.2:
     resolution: {integrity: sha512-Ddb+kVXlXst9d+R9PfTIxh1EdNkgoRe5tOX6t01f1lYWOvJnSPDBlG241QLzcyPdoNTsblLUdujGSE4RzrTZGQ==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/inquire@1.1.2:
     resolution: {integrity: sha512-pa0vFRuws4wkvaXKK1uXZMAwAX4/t8ANaJo45iw/oQHNQ9q5xUzwgFmVJGXiga2BeN+zpX7Vf9vmsiIa2J+MUw==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/path@1.1.2:
     resolution: {integrity: sha512-6JOcJ5Tm08dOHAbdR3GrvP+yUUfkjG5ePsHYczMFLq3ZmMkAD98cDgcT2iA1lJ9NVwFd4tH/iSSoe44YWkltEA==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/pool@1.1.0:
     resolution: {integrity: sha512-0kELaGSIDBKvcgS4zkjz1PeddatrjYcmMWOlAuAPwAeccUrPHdUqo/J6LiymHHEiJT5NrF1UVwxY14f+fy4WQw==}
+    requiresBuild: true
     dev: false
 
   /@protobufjs/utf8@1.1.1:
     resolution: {integrity: sha512-oOAWABowe8EAbMyWKM0tYDKi8Yaox52D+HWZhAIJqQXbqe0xI/GV7FhLWqlEKreMkfDjshR5FKgi3mnle0h6Eg==}
+    requiresBuild: true
     dev: false
 
   /@puppeteer/browsers@3.0.3:
