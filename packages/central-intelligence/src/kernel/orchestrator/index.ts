@@ -337,6 +337,18 @@ export {
   type SelfExtensionRailOutcome,
 } from './self-extension.js';
 
+// Tree-of-Thoughts oracle contracts (search-planner.ts). Re-exported so
+// composition roots that build their OWN expander/evaluator (e.g. the
+// api-gateway Capability-Composition Engine that tree-searches power-tool
+// compositions) can type those oracles against the canonical `Thought` /
+// `PlanContext` shapes the LATS planner consumes — without a deep import.
+export {
+  type Thought,
+  type PlanContext,
+  type Evaluator,
+  type Expander,
+} from './search-planner.js';
+
 // LATS — Language Agent Tree Search planner (alternative to ToT in
 // search-planner.ts). UCB1 selection + value backprop with γ discount +
 // self-reflection on failed sub-trees. See `lats-search.ts`.

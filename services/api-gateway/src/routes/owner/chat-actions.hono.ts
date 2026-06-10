@@ -60,8 +60,40 @@ import {
   type ExecResult,
 } from '../../services/action-executor/index.js';
 import { enqueueFourEyeRequest } from './four-eye-approvals.hono.js';
+import type {
+  CapabilityCompositionEngine,
+  ComposedResult,
+} from '../../composition/capability-composition-types.js';
+import { createPowerToolAuditSink } from '../../composition/power-tool-audit-sink.js';
+import { powerTools } from '@borjie/central-intelligence';
+
+type PowerToolContext = powerTools.PowerToolContext;
 
 const moduleLogger = createLogger('owner-chat-actions');
+
+// ─── Tier-2 Capability-Composition Engine injection seam ─────────────
+//
+// The brain's self-architect. When a novel verb clears the hard rails (the
+// generative `deferToBrain` branch below), the engine surveys the power-tool
+// inventory, tree-searches COMPOSITIONS of those tools, governance-gates the
+// winning chain, and executes it transactionally — BEFORE we fall back to a
+// plain brain turn. It is injected (never imported from the composition root)
+// to keep this route free of the composition graph and CI-inert: when no real
+// Anthropic client is present the composition root never calls
+// `setCompositionEngine`, the slot stays null, and the deferToBrain path is
+// byte-for-byte unchanged. Mirrors the `setBrainResolver` pattern exactly.
+let compositionEngine: CapabilityCompositionEngine | null = null;
+
+/**
+ * Wire the Tier-2 Capability-Composition Engine. The composition root calls
+ * this ONLY when a live (wrapped) Anthropic client exists. Passing `null`
+ * (the default) leaves the deferToBrain path unchanged.
+ */
+export function setCompositionEngine(
+  engine: CapabilityCompositionEngine | null,
+): void {
+  compositionEngine = engine;
+}
 
 // ─── Proposed-action store (in-process, TTL) ─────────────────────────
 //
@@ -201,12 +233,59 @@ function buildScope(auth: AuthCtx): ScopeContext {
 }
 
 /**
+ * Build the `PowerToolContext` the registry threads into every composed
+ * power-tool call. The tier + tenant + caller come from the AUTHENTICATED
+ * session (never from LLM input) so the registry's tier gate fires against
+ * the real caller. Conservative tier mapping: owner-cockpit callers run at
+ * `estate-manager` (the compose tool's own `requiredTier`) — high-blast-radius
+ * tools (cross_tenant=platform-sovereign, etc.) are still refused by the
+ * registry's tier gate AND by the engine's per-step governance gate. No
+ * approval record is threaded here; the engine's governance gate decides
+ * executability and `compose` lands its own summary row. A REAL hash-chained
+ * audit sink IS threaded (`createPowerToolAuditSink`) so EVERY composed
+ * power-tool step lands an append-only row on the audit trail — the registry's
+ * `emitAudit` calls it after each step. The sink is null when no db handle is
+ * available (honest-degrade); the registry tolerates a null sink.
+ */
+function buildPowerToolContext(auth: AuthCtx, db: unknown): PowerToolContext {
+  return {
+    callerId: auth.userId,
+    tier: 'estate-manager',
+    tenantId: auth.tenantId,
+    threadId: `chat-action:${auth.tenantId}:${auth.userId}`,
+    approvalRecordId: null,
+    auditSink: createPowerToolAuditSink(
+      db,
+      moduleLogger as unknown as Parameters<typeof createPowerToolAuditSink>[1],
+    ),
+    clock: () => new Date(),
+  };
+}
+
+/**
  * The 200-body shape both endpoints return. An unauthorized or unknown
  * action is a successful *decision*, not an HTTP error — so it is still
  * `success:true` with `executed:false`.
  */
 type ActionResponseBody =
   | { readonly success: true; readonly data: { readonly executed: true; readonly result: ExecResult } }
+  | {
+      /**
+       * TIER-2 COMPOSED FULFILLMENT (self-architect). `composed:true` when the
+       * Capability-Composition Engine surveyed the power-tool inventory,
+       * tree-searched a winning composition whose EVERY step passed the
+       * governance gate, and executed it transactionally — instead of deferring
+       * to a plain brain turn. The `result` is the composed-chain outcome.
+       */
+      readonly success: true;
+      readonly data: {
+        readonly executed: true;
+        readonly authorized: true;
+        readonly reason: 'composed';
+        readonly composed: true;
+        readonly result: ComposedResult;
+      };
+    }
   | {
       readonly success: true;
       readonly data: {
@@ -299,6 +378,61 @@ async function gateExecuteAudit(args: {
         data: { executed: false, authorized: false, reason: screen.reason },
       };
     }
+    // TIER-2 CAPABILITY-COMPOSITION ENGINE (self-architect). RIGHT BEFORE we
+    // defer to a plain brain turn, give the engine a chance to FULFILL the
+    // need by composing the brain's own power-tools into a governed,
+    // transactional chain. The engine:
+    //   - surveys the power-tool inventory (tier-scoped to this caller),
+    //   - tree-searches COMPOSITIONS of those tools toward the goal,
+    //   - GOVERNANCE-GATES every step through the SAME fail-closed
+    //     decideAutoAuthorization the route runs — a single ungated /
+    //     high-consequence step refuses the whole composition,
+    //   - executes the winning chain via power_tool.compose (rollback intact),
+    //   - and returns a composed result, or null to fall through.
+    // FAIL-SAFE: the engine never throws; we ALSO wrap the call so a defect
+    // can only ever fall through to the UNCHANGED deferToBrain return below.
+    // CI-INERT: when no engine is wired (no Anthropic client) this whole block
+    // is skipped and the deferToBrain return is byte-for-byte unchanged.
+    if (compositionEngine) {
+      try {
+        const composed = await compositionEngine.attempt({
+          verb,
+          params,
+          rationale,
+          scope: buildScope(auth),
+          ctx: buildPowerToolContext(auth, db),
+        });
+        if (composed) {
+          moduleLogger.info('chat-actions: generative verb fulfilled by composition', {
+            verb,
+            source,
+            tenantId: auth.tenantId,
+            score: composed.score,
+            steps: composed.stepCount,
+          });
+          return {
+            success: true,
+            data: {
+              executed: true,
+              authorized: true,
+              reason: 'composed',
+              composed: true,
+              result: composed,
+            },
+          };
+        }
+      } catch (err) {
+        // Defence in depth — the engine already swallows its own errors, but a
+        // throw here MUST NOT reach the response. Log + fall through to brain.
+        moduleLogger.warn('chat-actions: composition engine threw — falling through to brain', {
+          verb,
+          source,
+          tenantId: auth.tenantId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     moduleLogger.info('chat-actions: deferring generative verb to the brain', {
       verb,
       source,

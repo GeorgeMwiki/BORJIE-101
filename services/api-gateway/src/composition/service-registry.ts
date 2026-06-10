@@ -492,6 +492,17 @@ import {
 import { BrainThreadRepository } from '@borjie/database';
 import { getBrainExtraSkills } from './brain-extensions.js';
 import { setBrainResolver } from '../routes/mining/brain-vision.hono.js';
+// Tier-2 Capability-Composition Engine wiring. The owner chat-actions route
+// ships a `setCompositionEngine` injection seam; until the composition root
+// calls it the engine slot stays null and the unknown-verb path defers to a
+// plain brain turn UNCHANGED. We build the engine here — reusing the SAME
+// circuit-breaker + OTel-wrapped Anthropic client construction the kernel
+// debate uses — ONLY when a real Anthropic key is present (CI-inert).
+import { setCompositionEngine } from '../routes/owner/chat-actions.hono.js';
+import { buildCapabilityCompositionEngine } from './power-tools-wiring.js';
+import { wrapAnthropicWithCircuitBreaker } from './anthropic-circuit-breaker.js';
+import { wrapAnthropicWithOtelSpans } from './anthropic-otel-spans.js';
+import type { AnthropicMessagesClient } from '@borjie/central-intelligence';
 // PO-port wave-5 wiring #1 — six-layer cognitive memory (episodic, narrative,
 // procedural, reflective, topic-files, cohort cache). Lives ALONGSIDE the
 // existing single-layer `ConversationMemory` (which the streaming kernel
@@ -1792,6 +1803,87 @@ function wireMultimodalBrainResolver(db: DatabaseClient): void {
 }
 
 /**
+ * Wire the Tier-2 Capability-Composition Engine into the owner chat-actions
+ * route (`setCompositionEngine`). When wired, the engine attempts to FULFILL a
+ * brain-generated unknown verb by composing the power-tool inventory into a
+ * governed, transactional chain BEFORE the route defers to a plain brain turn.
+ *
+ * CI-INERTNESS (non-negotiable): we build the engine ONLY when a real Anthropic
+ * key is present (`tryLoadBrainEnv → non-null` AND the SDK loads). When creds
+ * are absent we leave the slot UNSET, so the deferToBrain path is byte-for-byte
+ * unchanged and the central-intelligence test suite + stub-sensor CI are
+ * unaffected — the SAME discipline as kernel-debate. Construction reuses the
+ * EXACT raw → circuit-breaker → OTel composition the kernel sensors use; we
+ * never fabricate a parallel model client. Never breaks boot: any fault leaves
+ * the slot unset and the route on its unchanged deferToBrain path.
+ */
+async function wireCapabilityCompositionEngine(): Promise<void> {
+  try {
+    const brainEnv = tryLoadBrainEnv(process.env);
+    if (!brainEnv) {
+      logger.warn(
+        { wiring: 'capability-composition' },
+        'capability-composition: Anthropic creds absent (tryLoadBrainEnv → null); ' +
+          'leaving composition engine unset — unknown-verb path defers to brain unchanged (CI-inert)',
+      );
+      return;
+    }
+
+    let rawClient: AnthropicMessagesClient | null = null;
+    try {
+      const mod = await import('@anthropic-ai/sdk');
+      const Anthropic = (mod.default ?? mod) as unknown as new (cfg: {
+        apiKey: string;
+        baseURL?: string;
+      }) => AnthropicMessagesClient;
+      rawClient = new Anthropic(
+        brainEnv.ANTHROPIC_BASE_URL !== undefined
+          ? { apiKey: brainEnv.ANTHROPIC_API_KEY, baseURL: brainEnv.ANTHROPIC_BASE_URL }
+          : { apiKey: brainEnv.ANTHROPIC_API_KEY },
+      );
+    } catch (err) {
+      logger.warn(
+        {
+          wiring: 'capability-composition',
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'capability-composition: @anthropic-ai/sdk not loadable; leaving engine unset (CI-inert)',
+      );
+      return;
+    }
+
+    // Compose raw → circuit-breaker → OTel, matching the kernel sensor stack.
+    const wrapped = wrapAnthropicWithOtelSpans(
+      wrapAnthropicWithCircuitBreaker(rawClient, {
+        failureThreshold: 5,
+        recoveryTimeoutMs: 30_000,
+      }),
+    );
+
+    const engine = buildCapabilityCompositionEngine(
+      wrapped,
+      brainEnv.ANTHROPIC_MODEL_DEFAULT !== undefined
+        ? { model: brainEnv.ANTHROPIC_MODEL_DEFAULT }
+        : {},
+    );
+    setCompositionEngine(engine);
+    logger.info(
+      { wiring: 'capability-composition', engineWired: true },
+      'capability-composition: Tier-2 engine wired — unknown-verb path attempts a governed composition before deferring to brain',
+    );
+  } catch (err) {
+    // Never break boot — leaving the engine unset keeps the deferToBrain path.
+    logger.warn(
+      {
+        wiring: 'capability-composition',
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'capability-composition: engine wiring failed; unknown-verb path keeps its deferToBrain return',
+    );
+  }
+}
+
+/**
  * MEM-01 — select the durable six-layer memory-v2 substrate.
  *
  * When a live DB handle is present, every layer is backed by the Drizzle
@@ -3082,6 +3174,15 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // construction fault surfaces as a null Brain → the route's own
       // `BRAIN_NOT_AVAILABLE` 503, not an unhandled throw.
       wireMultimodalBrainResolver(db);
+
+      // ── Tier-2 Capability-Composition Engine injection ───────────────────
+      // Wire the brain's self-architect into the owner chat-actions route so a
+      // brain-generated unknown verb can be FULFILLED by a governed, composed
+      // power-tool chain BEFORE deferring to a plain brain turn. Fire-and-forget
+      // (async SDK load) — never blocks boot. CI-inert: when no Anthropic key is
+      // present the engine slot stays unset and the deferToBrain path is
+      // byte-for-byte unchanged. Any fault is swallowed internally.
+      void wireCapabilityCompositionEngine();
 
       // CentralIntelligenceAgent slot — the `/intelligence/thread/:id/message`
       // surface (admin-web's "Talk to the industry" cross-tenant observer
