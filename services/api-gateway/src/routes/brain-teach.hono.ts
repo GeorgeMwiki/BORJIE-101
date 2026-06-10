@@ -84,7 +84,7 @@ import {
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
 import { createPiiTokeniser, restorePii } from '@borjie/document-ai';
-import { extractTabTags } from '@borjie/central-intelligence';
+import { extractTabTags, buildSelfModelFrame } from '@borjie/central-intelligence';
 import { processTabTagsForOwner } from '../services/tab-crud/index.js';
 import { buildGenuiTabProposal } from '../services/brain/genui-tab-proposal.js';
 import type { GenUIEngine } from '@borjie/portal-genui';
@@ -122,6 +122,18 @@ import { applyChatConformalConfidence } from '../composition/conformal/chat-conf
 // architecture / secrets / canary / cross-tenant ids never leak. DEFAULT-ON;
 // kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// HONEST EPISTEMIC SELF-MODEL (INV-H / Win #2) — surface the brain's
+// sure/unsure/what-I'd-need posture to the owner cockpit. The owner SelfModelPanel
+// is built but stays dark because this direct-LLM teach stream (NOT the kernel)
+// never emitted a `self_model` frame. We build the IDENTICAL frame the kernel
+// jarvis/admin path emits via `buildSelfModelFrame`, then project it through the
+// gateway's blessed `buildSelfModelEgressPayload` membrane (the SAME projector
+// brain.hono / jarvis / admin already use) so the wire shape is byte-identical
+// and egress-safe by construction — posture enum + constant axis labels only,
+// NEVER the audit math or model prose. Source signals are the honest ones this
+// turn already computes: the calibrated confidence scalar, the citation count,
+// and debate convergence. See `composition/kernel-event-projector.ts`.
+import { buildSelfModelEgressPayload } from '../composition/kernel-event-projector.js';
 // INPUT CONTAINMENT (GAP-1 / CLOSE-G) — ingress prompt-injection / jailbreak
 // guard run on the user's OWN message BEFORE the provider ladder, mirroring
 // brain.hono /turn. CRITICAL → refuse with single-language copy (never reaches
@@ -521,6 +533,72 @@ function extractInlineMetrics(text: string): {
     },
   );
   return { body, metrics: found };
+}
+
+// ─── Honest epistemic self-model (INV-H / Win #2) ──────────────────────
+//
+// Build the egress-safe `self_model` payload from the HONEST signals THIS
+// direct-LLM teach turn already computed — never the kernel (this route does
+// not run it) and never a fabricated certainty:
+//
+//   • confidence scalar — the calibrated conformal confidence (`turnConfidence`),
+//     fed as the producer confidence so the posture heuristic aligns with the
+//     turn's own scoring. We surface the POSTURE only, NEVER this number (INV-H).
+//   • citation count — how many evidence ids the answer cited (real grounding).
+//   • toolCallsIssued = false — HONEST: the teach stream answers from corpus +
+//     memory, not a live tool call, so the self-model truthfully flags
+//     "answered from memory" as an uncertainty axis.
+//   • stakes — the real high-stakes classification of the user message.
+//   • softened — the degraded-brain posture (every provider failing recently).
+//
+// The frame is built by the kernel's `buildSelfModelFrame` (the SAME surfacing
+// logic the jarvis/admin path uses — posture enum + constant axis labels only)
+// then projected through the gateway's blessed `buildSelfModelEgressPayload`
+// membrane so the wire shape is byte-identical + egress-safe by construction.
+//
+// HONEST-DEGRADE: returns `null` when every axis is empty (nothing worth
+// surfacing) so the caller OMITS the frame and the forward-compatible panel
+// stays in its empty state — we never emit a half-formed or fabricated 'sure'.
+function buildTeachSelfModelPayload(args: {
+  readonly answerText: string;
+  readonly turnConfidence: number;
+  readonly citationCount: number;
+  readonly highStakes: boolean;
+  readonly degraded: boolean;
+}): Record<string, unknown> | null {
+  const frame = buildSelfModelFrame({
+    answerText: args.answerText,
+    // The calibrated scalar drives ONLY the posture heuristic; the four-axis
+    // numbers are synthesised conservatively from the real signals (grounded by
+    // citations / not tool-grounded) and are NEVER surfaced (INV-H).
+    confidence: {
+      groundedness: args.citationCount > 0 ? 0.72 : 0.4,
+      stability: args.turnConfidence,
+      review: args.turnConfidence,
+      numericalConsistency: args.citationCount > 0 ? 0.66 : 0.45,
+      overall: args.turnConfidence,
+    },
+    citationCount: args.citationCount,
+    // HONEST: the teach stream issues no live tool calls — it answers from the
+    // corpus + memory. Flagging false surfaces the truthful "answered from
+    // memory" uncertainty axis rather than implying live-data grounding.
+    toolCallsIssued: false,
+    stakes: args.highStakes ? 'high' : 'medium',
+    softened: args.degraded,
+  });
+  // The projector reads the frame off the `selfModel` field of a kernel
+  // `self_model` event (the kernel emits `{ kind:'self_model', selfModel }`),
+  // so wrap the bare frame exactly as the kernel does before projecting.
+  const payload = buildSelfModelEgressPayload({
+    kind: 'self_model',
+    selfModel: frame,
+  } as unknown as Record<string, unknown>);
+  // Honest-degrade: omit when there is nothing worth surfacing (all axes empty).
+  const empty =
+    (frame.sureAbout?.length ?? 0) === 0 &&
+    (frame.unsureAbout?.length ?? 0) === 0 &&
+    (frame.wouldNeed?.length ?? 0) === 0;
+  return empty ? null : payload;
 }
 
 // ─── Hono app ───────────────────────────────────────────────────────
@@ -1171,6 +1249,48 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       }
     }
 
+    // HONEST EPISTEMIC SELF-MODEL (INV-H / Win #2) — emit the `self_model`
+    // frame AFTER the answer prose paints, BEFORE the board / metrics (mirrors
+    // the kernel's "after confidence, before done" ordering) so the owner
+    // SelfModelPanel renders directly under the just-painted assistant bubble.
+    // The payload is the EXACT egress-safe shape the kernel jarvis/admin path
+    // emits (posture + sure/unsure/would-need axes ONLY — never the audit math),
+    // built from this turn's honest signals and projected through the blessed
+    // `buildSelfModelEgressPayload` membrane. Honest-degrade: the helper returns
+    // `null` (frame OMITTED, panel stays empty) when no axis is worth surfacing
+    // — we never fabricate a 'sure' posture. Best-effort: never breaks the turn.
+    let selfModelEmitted = false;
+    if (!abort.signal.aborted) {
+      try {
+        const selfModelPayload = buildTeachSelfModelPayload({
+          answerText: safeClean,
+          turnConfidence,
+          citationCount: ids.length,
+          highStakes,
+          degraded: degradedBrain,
+        });
+        if (selfModelPayload) {
+          await stream.writeSSE({
+            event: 'self_model',
+            data: JSON.stringify({
+              ...selfModelPayload,
+              at: new Date().toISOString(),
+            }),
+          });
+          selfModelEmitted = true;
+        }
+      } catch (err) {
+        logger.warn(
+          {
+            wiring: 'self-model-frame',
+            tenantId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'brain-teach: self_model frame build failed (omitted — panel stays empty)',
+        );
+      }
+    }
+
     // Blackboard elements — emit each as its own SSE event so the FE
     // blackboard store can append them. Document-order is preserved so
     // the owner sees the lesson build in the order Mr. Mwikila chose.
@@ -1679,10 +1799,18 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
               contenders: debateResult.trace.responses.length,
             }
           : null,
+        // INV-H — whether the honest epistemic `self_model` frame was emitted
+        // this turn (omitted when no axis was worth surfacing — never fabricated).
+        self_model: selfModelEmitted,
       }),
     });
   });
 });
 
 export { teachApp as brainTeachRouter };
+// Test seam (INV-H) — the honest epistemic self-model payload builder. Exported
+// so the gateway test can assert the egress-safe projected shape (posture +
+// sure/unsure/would-need axes only — no raw cognition / audit math) and the
+// honest-degrade omission, without standing up the full provider ladder.
+export { buildTeachSelfModelPayload as __buildTeachSelfModelPayloadForTest };
 export default teachApp;

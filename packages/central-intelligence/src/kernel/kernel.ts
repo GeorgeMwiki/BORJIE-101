@@ -3865,7 +3865,22 @@ const AXIS_WOULD_NEED: Record<string, string> = {
   'no-thought-content': 'one more detail about what you need',
 };
 
-function buildSelfModelFrame(args: {
+/**
+ * Build the egress-safe honest-epistemic `SelfModelFrame` (INV-H) from the
+ * already-computed turn signals. Surfaces POSTURE + sure/unsure/would-need
+ * AXES only — every surfaced string is a constant literal or a constant-map
+ * lookup (`AXIS_SURFACE_LABEL` / `AXIS_WOULD_NEED`), NEVER the four-axis audit
+ * math and NEVER the model's chain-of-thought / answer text (the answer text
+ * feeds ONLY the posture heuristic; none of it is surfaced).
+ *
+ * EXPORTED so a non-kernel brain surface (the owner `/brain/teach` direct-LLM
+ * stream, which does not run the kernel) can emit the IDENTICAL frame shape the
+ * kernel jarvis/admin path emits, from the honest signals it DOES compute
+ * (calibrated confidence scalar, citation count, debate convergence, stakes).
+ * The caller is responsible for re-projecting the result through the gateway's
+ * blessed `buildSelfModelEgressPayload` membrane before it crosses the wire.
+ */
+export function buildSelfModelFrame(args: {
   readonly answerText: string;
   readonly confidence: ConfidenceVector;
   readonly citationCount: number;

@@ -220,6 +220,12 @@ export {
 } from './continuous-grading.js';
 export {
   createBrainKernel,
+  // Honest-epistemic self-model frame builder (INV-H). Exported so a non-kernel
+  // brain surface (the owner `/brain/teach` direct-LLM stream) can emit the
+  // IDENTICAL `self_model` frame shape the kernel jarvis/admin path emits, from
+  // the honest signals it computes — never re-implementing the posture/axes
+  // surfacing logic. Surfaces POSTURE + axes only, never the audit math.
+  buildSelfModelFrame,
   type BrainKernel,
   type BrainKernelDeps,
 } from './kernel.js';
