@@ -105,6 +105,75 @@ const TOOL_KINDS: ReadonlyArray<string> = Object.freeze([
 const HANDOFF_KINDS: ReadonlyArray<string> = Object.freeze(['handoff']);
 
 /**
+ * Honest-epistemic self-model (INV-H) — the ONE egress-SAFE structured cognition
+ * frame the projector lets through as a typed frame (it is neither dropped nor
+ * coarsened to nothing). The kernel's `self_model` KernelStreamEvent carries:
+ *   - `posture`     — a FIXED enum label (answering | reasoning | clarifying |
+ *                     softening | refusing | deferring). Never model prose.
+ *   - `sureAbout`   — plain-language axis labels drawn from a CONSTANT label map
+ *   - `unsureAbout`   (`AXIS_SURFACE_LABEL`), NEVER the raw audit math / four-axis
+ *   - `wouldNeed`     numbers and NEVER the model's chain-of-thought / answer text.
+ *
+ * `buildSelfModelFrame` (kernel.ts) feeds the answer text only INTO the posture
+ * heuristic; it surfaces NONE of it — every surfaced string is a constant
+ * literal or a constant-map lookup. So this frame is egress-safe BY
+ * CONSTRUCTION and is allowed across the membrane (INV-H: surface posture/axes,
+ * NEVER the audit math).
+ *
+ * Defensive coarsening anyway: we copy ONLY the four known scalar/array fields
+ * and string-filter each axis label so an upstream shape drift can never smuggle
+ * an extra prose field onto the wire.
+ */
+const SELF_MODEL_KINDS: ReadonlyArray<string> = Object.freeze(['self_model']);
+
+/** The fixed posture vocabulary the self-model frame may carry (INV-H). */
+const SELF_MODEL_POSTURES: ReadonlyArray<string> = Object.freeze([
+  'answering',
+  'reasoning',
+  'clarifying',
+  'softening',
+  'refusing',
+  'deferring',
+]);
+
+/** Per-axis cap so a drifted frame can never balloon the wire. */
+const SELF_MODEL_AXIS_CAP = 6;
+const SELF_MODEL_LABEL_MAX = 160;
+
+/**
+ * Project the honest-epistemic `self_model` frame to its egress-safe client
+ * payload (INV-H). Copies ONLY the four known fields, clamps the posture to the
+ * fixed vocabulary, and coarse-filters each axis label (string, length-capped,
+ * array-capped). Returns a frozen plain object. The axis labels are constant
+ * literals from the kernel's `AXIS_SURFACE_LABEL` map, so no per-leaf egress
+ * firewall is needed — but we still clamp shape defensively.
+ */
+export function buildSelfModelEgressPayload(
+  evt: RawKernelEvent,
+): Record<string, unknown> {
+  const sm = (evt as { selfModel?: unknown }).selfModel;
+  const src = (sm && typeof sm === 'object' ? sm : {}) as Record<string, unknown>;
+  const rawPosture = typeof src.posture === 'string' ? src.posture : '';
+  const posture = SELF_MODEL_POSTURES.includes(rawPosture)
+    ? rawPosture
+    : 'answering';
+  const axis = (value: unknown): ReadonlyArray<string> =>
+    Array.isArray(value)
+      ? value
+          .filter((x): x is string => typeof x === 'string' && x.length > 0)
+          .slice(0, SELF_MODEL_AXIS_CAP)
+          .map((x) => (x.length > SELF_MODEL_LABEL_MAX ? x.slice(0, SELF_MODEL_LABEL_MAX) : x))
+      : [];
+  return Object.freeze({
+    kind: 'self_model',
+    posture,
+    sureAbout: axis(src.sureAbout),
+    unsureAbout: axis(src.unsureAbout),
+    wouldNeed: axis(src.wouldNeed),
+  });
+}
+
+/**
  * A projected, client-safe frame. `event` is the SSE event name (or WS frame
  * kind) the caller serialises; `data` is the client-safe payload. A projector
  * that returns `null` means the frame is DROPPED (reasoning / handoff / unknown
@@ -265,6 +334,19 @@ export function projectKernelEvent(
     return Object.freeze({ event: 'done', data });
   }
 
+  // 7b. Honest-epistemic self-model (INV-H) — the ONE structured cognition
+  //     frame that crosses the membrane as a TYPED frame, not dropped. It
+  //     surfaces posture + sure/unsure/would-need AXES only — a fixed posture
+  //     enum + constant axis labels + the tenant's own evidence framing — and
+  //     NEVER the raw audit math or model prose. We project a coarse, shape-
+  //     clamped copy (see buildSelfModelEgressPayload).
+  if (SELF_MODEL_KINDS.includes(kind)) {
+    return Object.freeze({
+      event: 'self_model',
+      data: buildSelfModelEgressPayload(evt),
+    });
+  }
+
   // 8. Artifact — NOT projected here. The structured-artifact path has its own
   //    blessed membrane (`getArtifactEgressMembrane`); a serializer that emits
   //    artifacts must route them through THAT, not coarsen them to text. Drop
@@ -318,9 +400,13 @@ function guardStreamText(text: unknown, tenantId: string): string {
  *   - `text_delta` (model prose) → run through the FAIL-CLOSED streaming egress
  *     filter (persona / canary / secret / JWT / cross-tenant strips; fail-closed
  *     to `[redacted]`). The kernel's per-delta text is raw sensor output.
- *   - `turn_start` / `gate_verdict` / `confidence` / `done` → structural frames
- *     carrying no model prose; passed through unchanged (the consumer projects
- *     only their safe scalar fields — thoughtId / kind / persona ids / verdict).
+ *   - `turn_start` / `gate_verdict` / `confidence` / `self_model` / `done` →
+ *     structural frames carrying no model prose; passed through unchanged (the
+ *     consumer projects only their safe scalar fields — thoughtId / kind /
+ *     persona ids / verdict / posture+axes). The honest-epistemic `self_model`
+ *     frame (INV-H) is egress-SAFE by construction — posture is a fixed enum and
+ *     every axis label is a constant literal (NEVER the audit math or model
+ *     prose) — so it crosses the membrane as a typed frame, NOT dropped.
  *
  * The `KernelStreamEvent` union has NO `tool_call` frame (tool calls are
  * consumed inside the kernel, never re-yielded to a stream consumer), so there
@@ -348,8 +434,11 @@ export async function* guardKernelStream<T extends { readonly kind: string }>(
       }) as T;
       continue;
     }
-    // Structural frame (turn_start / gate_verdict / confidence / done) — no
-    // model prose; pass through (the consumer emits only safe scalar fields).
+    // Structural frame (turn_start / gate_verdict / confidence / self_model /
+    // done) — no model prose; pass through (the consumer emits only safe scalar
+    // fields). `self_model` (INV-H) is egress-SAFE by construction — a fixed
+    // posture enum + constant axis labels, never the audit math — so it is
+    // forwarded as a typed frame, not dropped.
     yield ev;
   }
 }

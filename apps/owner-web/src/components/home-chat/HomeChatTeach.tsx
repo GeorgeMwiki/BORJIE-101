@@ -110,6 +110,11 @@ import {
   HandoffCard,
   type HandoffCardData,
 } from '@/components/chat/HandoffCard';
+import {
+  SelfModelPanel,
+  normaliseSelfModel,
+  type SelfModelView,
+} from './SelfModelPanel';
 
 export interface HomeChatTeachProps {
   readonly salutation: string;
@@ -174,6 +179,10 @@ interface TeachMessage {
   readonly bookmarks: ReadonlyArray<UiBookmarkChip>;
   // Cross-role handoff cards emitted via chat_handoff SSE frame.
   readonly handoffs: ReadonlyArray<HandoffCardData>;
+  // Honest epistemic-state surface (Win #2 / INV-H) — posture + sure/unsure/
+  // would-need axes, parsed from the additive `self_model` SSE frame. Null
+  // until the frame lands (and stays null on a refusal turn).
+  readonly selfModel: SelfModelView | null;
 }
 
 interface SseFrame {
@@ -211,6 +220,7 @@ function makeAssistantNote(text: string): TeachMessage {
     bulks: [],
     bookmarks: [],
     handoffs: [],
+    selfModel: null,
     debate: null,
     brainState: null,
     autoAuthorized: null,
@@ -425,6 +435,7 @@ export function HomeChatTeach({
         bulks: [],
         bookmarks: [],
         handoffs: [],
+        selfModel: null,
         debate: null,
         brainState: null,
         autoAuthorized: null,
@@ -451,6 +462,7 @@ export function HomeChatTeach({
         bulks: [],
         bookmarks: [],
         handoffs: [],
+        selfModel: null,
         debate: null,
         brainState: null,
         autoAuthorized: null,
@@ -765,6 +777,19 @@ export function HomeChatTeach({
                     m.id === assistantId
                       ? { ...m, handoffs: [...m.handoffs, handoff].slice(0, 5) }
                       : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'self_model') {
+              // Honest epistemic-state surface (Win #2 / INV-H). The brain
+              // emits an additive `self_model` frame after the answer: posture
+              // + sure/unsure/would-need axes (plain language; NEVER the audit
+              // math). Render a compact epistemic panel under the bubble.
+              const view = normaliseSelfModel(payload);
+              if (view) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, selfModel: view } : m,
                   ),
                 );
               }
@@ -1433,6 +1458,10 @@ function TeachBubble({
           </div>
         ) : null}
       </MessageBubble>
+
+      {!isOwner && !message.streaming && message.selfModel ? (
+        <SelfModelPanel selfModel={message.selfModel} t={t} />
+      ) : null}
 
       {!isOwner && message.autoAuthorized ? (
         <div

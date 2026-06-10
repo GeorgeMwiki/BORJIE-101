@@ -70,7 +70,10 @@ import {
 // BEFORE the SSE wire. The kernel yields raw deltas before its own policy
 // redaction ("the streaming consumer has already seen raw deltas"), so the IP
 // strip MUST happen at this gateway seam — not one layer down.
-import { guardKernelStream } from '../composition/kernel-event-projector.js';
+import {
+  guardKernelStream,
+  buildSelfModelEgressPayload,
+} from '../composition/kernel-event-projector.js';
 // IP-EGRESS (CLOSE-G) — the NON-streaming /think JSON path must pass model prose
 // through the SAME fail-closed egress firewall the /stream chokepoint already
 // applies. Without it, decision.text/decision.hedge egress on /think with only
@@ -766,6 +769,23 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
             await stream.writeSSE({
               event: 'confidence',
               data: JSON.stringify(ev.vector),
+            });
+            continue;
+          }
+          if (ev.kind === 'self_model') {
+            // Honest epistemic-state surface (Win #2 / INV-H). ADDITIVE frame
+            // emitted by the kernel after `confidence`, before `done`. It is
+            // egress-SAFE by construction (fixed posture enum + constant axis
+            // labels — NEVER the audit math or model prose), so we forward it
+            // as a typed `self_model` SSE frame. `buildSelfModelEgressPayload`
+            // copies ONLY the four known fields and shape-clamps each axis.
+            await stream.writeSSE({
+              event: 'self_model',
+              data: JSON.stringify(
+                buildSelfModelEgressPayload(
+                  ev as unknown as Record<string, unknown>,
+                ),
+              ),
             });
             continue;
           }

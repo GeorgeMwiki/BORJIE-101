@@ -282,6 +282,20 @@ export const sw = {
       "fulfill": "Tafadhali endelea na: {action}.",
       "fulfillDetail": "Tafadhali endelea na: {action}. Maelezo — {detail}.",
       "promoteTab": "Tafadhali tengeneza na ufungue tab kamili ya: {label}."
+    },
+    "selfModel": {
+      "title": "Kiasi gani nina uhakika",
+      "sureAbout": "Nina uhakika kuhusu",
+      "unsureAbout": "Sina uhakika kuhusu",
+      "wouldNeed": "Kingesaidia",
+      "posture": {
+        "answering": "Nina uhakika",
+        "reasoning": "Nina uhakika",
+        "clarifying": "Inahitaji maelezo",
+        "softening": "Kwa tahadhari",
+        "refusing": "Nimejizuia",
+        "deferring": "Inahitaji uamuzi wako"
+      }
     }
   },
   "portal": {

@@ -99,6 +99,11 @@ import {
 // ids (NOT the tenant's own business data). DEFAULT-ON; kill-switch
 // `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// Honest epistemic-state surface (Win #2 / INV-H) — the egress-safe self-model
+// payload builder, shared with the Jarvis `/stream` + admin AG-UI serializers
+// so the by-name `self_model` SSE contract is identical across every brain
+// surface (fixed posture enum + constant axis labels, NEVER the audit math).
+import { buildSelfModelEgressPayload } from '../composition/kernel-event-projector.js';
 // INPUT CONTAINMENT (GAP-1) — ingress prompt-injection / jailbreak guard run
 // on the user turn BEFORE the orchestrator. CRITICAL refuses (single-language
 // copy, never executes); HIGH / jailbreak tightens the rail (evidence-required
@@ -443,7 +448,28 @@ export function guardPublicFrame(frame: PublicSseFrame, tenantId: string): Publi
   return frame;
 }
 
+/**
+ * Honest epistemic-state surface (Win #2 / INV-H) on the main brain SSE wire.
+ * The orchestrator's `StreamTurnEvent` union does not (today) carry a
+ * `self_model` frame — the kernel's additive epistemic frame rides the Jarvis
+ * `/stream` + admin AG-UI paths. But the by-name SSE contract is uniform across
+ * every brain serializer, so we detect a `self_model`-shaped event up-front and
+ * forward it as a typed `self_model` SSE frame. It is egress-SAFE by
+ * construction (fixed posture enum + constant axis labels — NEVER the audit math
+ * or model prose), and we shape-clamp it via `buildSelfModelEgressPayload`. When
+ * the orchestrator stream never yields this kind (the common case) this branch
+ * is inert. Existing consumers ignore an unknown SSE event name cleanly.
+ */
 function projectStreamEvent(evt: StreamTurnEvent, threadId: string): PublicSseFrame | null {
+  // Escape hatch — a `self_model`-shaped frame (additive, INV-H). Checked
+  // before the typed switch because it is outside the `StreamTurnEvent` union.
+  const anyEvt = evt as unknown as { readonly kind?: unknown; readonly type?: unknown };
+  if (anyEvt.kind === 'self_model' || anyEvt.type === 'self_model') {
+    return {
+      event: 'self_model',
+      data: buildSelfModelEgressPayload(evt as unknown as Record<string, unknown>),
+    };
+  }
   switch (evt.type) {
     case 'turn_start':
       return null;

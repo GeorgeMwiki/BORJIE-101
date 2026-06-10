@@ -1708,3 +1708,12 @@ export * from './workflow-registry.schema.js';
 // a thread. FORCE RLS on app.current_tenant_id + service-role bypass (for the
 // out-of-band reconcile worker) per migration 0321.
 export * from './md-commitments.schema.js';
+
+// set_point_state — the closed-loop set-point regulation memory (Wave-C C3
+// WIN-4). One row per (tenant_id, drive_id): prior_breach_severity +
+// consecutive_worsening_ticks. The EstateMind RECONCILE sweep's delta-evaluator
+// round-trips the per-drive regulation memory through this DEDICATED table (NOT
+// situational_model_entities — its kind is a closed enum + it is the arena
+// snapshot). FORCE RLS on app.current_tenant_id + service-role bypass (for the
+// out-of-band sweep) per migration 0330.
+export * from './set-point-state.schema.js';

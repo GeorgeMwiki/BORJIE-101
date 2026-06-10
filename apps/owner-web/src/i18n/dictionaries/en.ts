@@ -316,6 +316,23 @@ export const en = {
       // registry does not know defers to the brain to build + open it.
       promoteTab: 'Please build and open the full {label} tab.',
     },
+    // Honest epistemic-state surface (Win #2 / INV-H). Rendered under an
+    // assistant answer: a posture badge + three short axis lists. INV-H —
+    // posture + axes only, never the audit math. EN/SW absolute.
+    selfModel: {
+      title: 'How sure I am',
+      sureAbout: 'Sure about',
+      unsureAbout: 'Unsure about',
+      wouldNeed: 'Would help',
+      posture: {
+        answering: 'Confident',
+        reasoning: 'Confident',
+        clarifying: 'Needs detail',
+        softening: 'Tentative',
+        refusing: 'Holding back',
+        deferring: 'Needs your call',
+      },
+    },
   },
 
   // Suite-wide portal switcher (the @borjie/app-shell <AppTopBar>). These

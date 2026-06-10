@@ -204,7 +204,15 @@ import {
   initEstateMind,
   createEstateMindSupervisor,
   createMdCommitmentReconciliation,
+  buildEstateMindSnapshotReader,
 } from './composition/estate-mind-wiring';
+// Wave-C C3 WIN-3/4 — the THREE graded-corrective + closed-loop organs that make
+// the homeostatic controller ACT: the drive-context resolver (commitment → REAL
+// drive severity from the live snapshot), the driveId → drafter registry (the
+// mid-rung PROPOSE-ONLY corrective), and the durable set-point store (did-it-
+// recover? auto-promote). Constructed at the md-commitments wiring site below.
+import { createDriveContextResolver } from './composition/md-commitments/drive-context-resolver';
+import { createDrafterRegistry } from './composition/md-commitments/drafter-registry';
 // B8 — EstateMind PERCEPTION source over the live estate tables (the missing
 // sensor that populates the situational model so proactive proposals emit).
 import {
@@ -232,6 +240,21 @@ import { initLlmRoutingConfig } from './composition/llm-routing-config-wiring';
 // resident Slow Loop. Null when no db handle is present.
 let mdCommitmentBundle: ReturnType<typeof createMdCommitmentReconciliation> =
   null;
+// Wave-C C3 WIN-3 — the graded-corrective ladder ceiling. Resolve the tenant
+// delegation cap for the md_commitments homeostatic controller from the env at
+// bootstrap (the only place process.env is read). It is CLAMPED — it can be set
+// DOWN ('nudge' / 'draft') but is NEVER raised above 'delegate' (the owner-direct
+// HITL safe-halt); an unknown / unset value defaults to the full graded ladder.
+function resolveMdAutonomyCap(
+  raw: string | undefined,
+): import('./composition/md-commitments/reconcile-engine').AutonomyCap {
+  const v = (raw ?? '').trim().toLowerCase();
+  if (v === 'nudge') return 'nudge';
+  if (v === 'draft') return 'draft';
+  // 'delegate', anything else, or unset → the full graded ladder (still HITL at
+  // the top rung; money/licence stay HITL forever regardless of the cap).
+  return 'delegate';
+}
 // Wave 1 OK-3 — blackboard control-shell scheduler. The Hayes-Roth 1985
 // metalevel scheduler: on every slot convergence it maps the region + its
 // candidate KnowledgeSources (the distinct slot writers) through the control
@@ -1720,14 +1743,73 @@ try {
       // subscriber) and wire the defer brain tools (md.defer /
       // md.commitment.*) to its repository. The reconcile engine is injected
       // into the EstateMind supervisor below; the bundle is null when no db.
+      //
+      // Wave-C C3 WIN-3/4 — CONSTRUCT + BIND the three graded-corrective +
+      // closed-loop organs so the homeostatic controller ACTS LIVE:
+      //   (1) driveContextResolver — maps each commitment to its REAL standing-
+      //       drive severity by running DEFAULT_DRIVES over the LIVE per-tenant
+      //       situational snapshot (the SAME store the salience arena reads), so
+      //       the corrective ladder is graded to the true danger instead of the
+      //       fabricated `c.sovereign ? 1 : 0.6`. Honest-degrades to legacy when
+      //       no snapshot / unbound commitment.
+      //   (2) drafterRegistry — driveId → its bound DRAFTER (licence-renewal /
+      //       royalty-filing / payroll), the mid-rung corrective. PROPOSE-ONLY:
+      //       writes a DRAFT `proposed` mwikila_actions_inbox row (HITL), never
+      //       executes. Money/licence stay HITL forever.
+      //   (3) the durable set-point store is auto-built inside
+      //       createMdCommitmentReconciliation over the dedicated
+      //       set_point_state table (migration 0330) so the did-it-recover?
+      //       auto-promote arc is live.
+      // The autonomy cap clamps the graded ladder (nudge→draft→delegate); it is
+      // NEVER raised above 'delegate' (the owner-direct safe-halt — itself a HITL
+      // park). Env-tunable DOWN only; default the full graded ladder.
+      const dbForMd = serviceRegistry.db as unknown as Parameters<
+        typeof createMdCommitmentReconciliation
+      >[0]['db'];
+      const mdLogger = createPinoLikeLogger('md-commitments');
+      const mdAutonomyCap = resolveMdAutonomyCap(
+        process.env.BORJIE_MD_AUTONOMY_CAP,
+      );
       mdCommitmentBundle = createMdCommitmentReconciliation({
-        db: serviceRegistry.db as unknown as Parameters<
-          typeof createMdCommitmentReconciliation
-        >[0]['db'],
-        logger: createPinoLikeLogger('md-commitments'),
+        db: dbForMd,
+        logger: mdLogger,
+        // (1) the REAL standing-drive severity, from the live snapshot.
+        driveContextResolver: dbForMd
+          ? createDriveContextResolver({
+              snapshotReader: buildEstateMindSnapshotReader(
+                dbForMd as unknown as Parameters<
+                  typeof buildEstateMindSnapshotReader
+                >[0],
+                createPinoLikeLogger('md-drive-snapshot'),
+              ),
+              // Wave-C C2 — judge a breach against THIS estate's consolidated
+              // baseline when available (honest-degrades to kernel defaults).
+              resolveThresholds: (tenantId: string) =>
+                resolveDriveThresholdsFromBaselinesDb(
+                  dbForMd as unknown as Parameters<
+                    typeof resolveDriveThresholdsFromBaselinesDb
+                  >[0],
+                  tenantId,
+                ),
+              logger: createPinoLikeLogger('md-drive-resolver'),
+            })
+          : null,
+        // (2) the mid-rung PROPOSE-ONLY drafters (licence / royalty / payroll).
+        drafterRegistry: dbForMd
+          ? createDrafterRegistry(
+              dbForMd as unknown as { execute(q: unknown): Promise<unknown> },
+              createPinoLikeLogger('md-drafter-registry'),
+            )
+          : null,
+        // The graded ladder ceiling. Clamped — never raised above 'delegate'.
+        autonomyCap: mdAutonomyCap,
       });
       if (mdCommitmentBundle) {
         configureMdDeferTools({ repo: mdCommitmentBundle.repository });
+        mdLogger.info(
+          { autonomyCap: mdAutonomyCap },
+          'md-commitments: graded-corrective + closed-loop set-point organs wired (drive-context resolver + drafter registry + set_point_state store) — homeostatic controller LIVE, propose-only/HITL',
+        );
       }
     }
     // The `ServiceRegistry` interface does not currently model an

@@ -67,6 +67,7 @@ import {
   type AutonomyCap,
 } from './md-commitments/reconcile-engine.js';
 import { createDurableConfirmationProbe } from './md-commitments/confirmation-probe.js';
+import { createDrizzleSetPointStateStore } from './md-commitments/set-point-store.js';
 import {
   createWaitForEventSubscriber,
   type ConditionEvaluator,
@@ -99,6 +100,7 @@ type SituationalModelStore = situationalModelKernel.SituationalModelStore;
 type SituationEntity = situationalModelKernel.SituationEntity;
 type RecordEntityInput = situationalModelKernel.RecordEntityInput;
 type SituationEntityKey = situationalModelKernel.SituationEntityKey;
+type SituationalSnapshot = situationalModelKernel.SituationalSnapshot;
 type ProposalSink = estateMindKernel.ProposalSink;
 type EstateProposal = estateMindKernel.EstateProposal;
 type PerceptionSource = estateMindKernel.PerceptionSource;
@@ -267,6 +269,38 @@ export function createDrizzleSituationalModelStore(
           { tenantId, key, err: errMsg(err) },
           'estate-mind-store: remove failed',
         );
+      }
+    },
+  };
+}
+
+/**
+ * Build the live per-tenant situational-snapshot reader the WIN-3
+ * `DriveContextResolver` consumes — the SAME durable store the resident loop
+ * writes + the salience arena reads, wrapped in the kernel's pure
+ * `createSituationalModel(...)` so a snapshot is computed (activation + GWT
+ * broadcast) on read. Fail-safe: a read fault degrades to `null` so the drive
+ * resolver honest-degrades to the legacy fabricated severity (never a throw).
+ */
+export function buildEstateMindSnapshotReader(
+  db: DatabaseClient,
+  logger: PinoLikeLogger = createPinoLikeLogger('estate-mind-snapshot'),
+): { read(tenantId: string): Promise<SituationalSnapshot | null> } {
+  const store = createDrizzleSituationalModelStore(db, logger);
+  const model = situationalModelKernel.createSituationalModel({
+    store,
+    logger: { warn: (msg, meta) => logger.warn(meta ?? {}, msg) },
+  });
+  return {
+    async read(tenantId: string): Promise<SituationalSnapshot | null> {
+      try {
+        return await model.snapshot(tenantId);
+      } catch (err) {
+        logger.warn(
+          { tenantId, err: errMsg(err) },
+          'estate-mind-snapshot: read failed — drive resolver degrades to legacy severity',
+        );
+        return null;
       }
     },
   };
@@ -694,15 +728,23 @@ export function createMdCommitmentReconciliation(
   const confirmationProbe =
     deps.confirmationProbe ??
     createDurableConfirmationProbe({ db: deps.db, logger: deps.logger });
-  // WIN-4 — the set-point memory store. Only forwarded when the caller supplies
-  // one. We deliberately do NOT auto-build a default over
-  // `situational_model_entities`: that table's `kind` is a CLOSED enum (no
-  // `setpoint-state` member) AND it is the SAME store the salience arena reads,
-  // so a synthetic set-point entity would both fail validation and pollute the
-  // arena snapshot. A correct store is a small NEW adapter (its own jsonb column
-  // / table) — flagged in needsAttention. Until then the set-point arc no-ops
-  // (the controller still nudges); it is moot anyway without a driveContextResolver.
-  const setPointStore = deps.setPointStore ?? null;
+  // WIN-4 — the set-point memory store. Now backed by the DEDICATED
+  // `set_point_state` table (migration 0330) via createDrizzleSetPointStateStore
+  // — NOT `situational_model_entities` (whose `kind` is a CLOSED enum AND which
+  // is the SAME store the salience arena reads, so a synthetic set-point entity
+  // would both fail validation and pollute the arena snapshot). The default is
+  // auto-built from the same db so the closed-loop set-point arc is LIVE the
+  // moment a `driveContextResolver` lands. A caller may inject its own store, or
+  // pass `null` explicitly to disable (the controller still nudges).
+  const setPointStore =
+    deps.setPointStore === undefined
+      ? createDrizzleSetPointStateStore(
+          deps.db as unknown as Parameters<
+            typeof createDrizzleSetPointStateStore
+          >[0],
+          deps.logger,
+        )
+      : deps.setPointStore;
   const reconciliation = createReconcileEngine({
     repo: repository,
     proposalSink,
