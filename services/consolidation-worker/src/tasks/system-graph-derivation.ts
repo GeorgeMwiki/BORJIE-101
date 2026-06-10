@@ -117,6 +117,7 @@ const IGNORED_SCREEN_DIRS = new Set([
 
 async function safeReaddir(dir: string): Promise<ReadonlyArray<string>> {
   try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- internal repo-introspection path (repoRoot + the repo's own dir tree), never user input
     return await readdir(dir);
   } catch {
     return [];
@@ -125,6 +126,7 @@ async function safeReaddir(dir: string): Promise<ReadonlyArray<string>> {
 
 async function isDir(p: string): Promise<boolean> {
   try {
+    // eslint-disable-next-line security/detect-non-literal-fs-filename -- internal repo-introspection path (repoRoot + the repo's own dir tree), never user input
     return (await stat(p)).isDirectory();
   } catch {
     return false;
@@ -142,6 +144,7 @@ export async function walkPackages(
     for (const name of await safeReaddir(base)) {
       const pkgJsonPath = join(base, name, 'package.json');
       try {
+        // eslint-disable-next-line security/detect-non-literal-fs-filename -- internal repo-introspection path (repoRoot + the repo's own dir tree), never user input
         const raw = await readFile(pkgJsonPath, 'utf8');
         const parsed = JSON.parse(raw) as {
           name?: string;
@@ -240,6 +243,7 @@ export async function walkSchemas(
   for (const file of await safeReaddir(base)) {
     if (!file.endsWith('.schema.ts')) continue;
     try {
+      // eslint-disable-next-line security/detect-non-literal-fs-filename -- internal repo-introspection path (repoRoot + the repo's own dir tree), never user input
       const raw = await readFile(join(base, file), 'utf8');
       let m: RegExpExecArray | null;
       while ((m = tableRe.exec(raw)) !== null) {
