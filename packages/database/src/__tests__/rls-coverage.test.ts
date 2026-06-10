@@ -41,68 +41,52 @@ const DELTA_DIR = join(PKG_ROOT, 'src', 'migrations');
 /**
  * KNOWN DEBT — tables that genuinely have NO row-level security at all (no
  * ENABLE, no FORCE, no policy) despite declaring a tenant-scoping column.
- * These are the SAME high-severity breach class that migration 0331 just
- * closed for users/organizations/owner_skills — a follow-up migration must
- * close each one. They are NOT silently ignored: this registry is the
- * blocking-test's record of the residual breach surface, and the test asserts
- * the live set EXACTLY equals it, so any drift (a newly-added unprotected
- * table, or a table that gets fixed) fails the build and forces this list to
- * be updated.
+ * These were the SAME high-severity breach class that migration 0331 closed
+ * for users/organizations/owner_skills.
  *
- * Several carry a NON-STANDARD or NULLABLE tenant key, which is WHY they need
- * a hand-designed migration rather than the uniform users/orgs pattern:
- *   - person_links            tenant_id UUID NOT NULL (uuid cast needed)
- *   - personal_memory_cells   source_tenant_id UUID NULL (nullable → some rows global)
- *   - daily_revival_counters  tenant_id text NULL + COALESCE generated PK
- *   - wave_progress           tenant_id text NULL (ops/migration-progress)
- *   - learning_observations   tenant_id text NULL
- *   - org_memberships         platform_tenant_id text (no plain tenant_id)
- *   - invite_codes / cross_tenant_denials / ab_experiments — see 0305 / 0300.
+ * CLOSED by migration 0333 (`0333_rls_residual_no_rls_closure.sql`) — all nine
+ * now have ENABLE + FORCE + a tenant_isolation policy keyed on each table's
+ * ACTUAL tenant column, plus a service_role_bypass policy and a guarded anon
+ * REVOKE (mirroring 0331's shape exactly). Per-table closure:
+ *   - person_links            tenant_id UUID NOT NULL — scoped by tenant_id
+ *                             (NULLIF cast); the me-tenants hat-switching rail's
+ *                             cross-tenant reads run under withServiceRoleContext
+ *                             so the bypass policy keeps multi-hat working.
+ *   - personal_memory_cells   source_tenant_id UUID NULL — nullable-UUID
+ *                             predicate (IS NULL OR = NULLIF(guc)::uuid) keeps
+ *                             federated/global cells visible.
+ *   - org_memberships         platform_tenant_id text NOT NULL — TEXT compare.
+ *   - invite_codes            platform_tenant_id text NOT NULL — TEXT compare.
+ *   - cross_tenant_denials    caller_tenant_id text NOT NULL — TEXT compare
+ *                             (owner reads only their own denial history;
+ *                             recorder inserts cross-tenant under service-role).
+ *   - daily_revival_counters  tenant_id text NULL — nullable-TEXT predicate
+ *                             (NULL = platform-wide aggregate stays visible).
+ *   - wave_progress           tenant_id text NULL — nullable-TEXT predicate.
+ *   - learning_observations   tenant_id text NULL — nullable-TEXT predicate.
+ *   - ab_experiments          tenant_id text NULL — nullable-TEXT predicate
+ *                             (NULL = fleet-wide experiment stays visible).
  *
- * Tracked for closure in a dedicated follow-up (see spawned task).
+ * The test asserts the live no-RLS set EXACTLY equals this registry, so it is
+ * now EMPTY: any NEW unprotected tenant table fails the build (it must get its
+ * own append-only migration, never an entry here).
  */
-const RLS_NO_RLS_KNOWN_DEBT: ReadonlySet<string> = new Set<string>([
-  'ab_experiments',
-  'cross_tenant_denials',
-  'daily_revival_counters',
-  'invite_codes',
-  'learning_observations',
-  'org_memberships',
-  'person_links',
-  'personal_memory_cells',
-  'wave_progress',
-]);
+const RLS_NO_RLS_KNOWN_DEBT: ReadonlySet<string> = new Set<string>([]);
 
 /**
  * KNOWN DEBT — tables that DO have RLS ENABLEd + a tenant_isolation policy but
- * are missing the `FORCE` bit (so the table-OWNER role bypasses RLS; ordinary
- * roles are still scoped by the policy). This violates the CLAUDE.md
- * "RLS is FORCE-enabled" hard rule but is a strictly LESSER exposure than the
- * no-RLS set above. Mostly applied by early dynamic ENABLE-loops (e.g.
- * drizzle/0005) that predate the FORCE convention. The test asserts the live
- * enable-only set EXACTLY equals this registry so no NEW enable-only table can
- * slip in unnoticed.
+ * were missing the `FORCE` bit (so the table-OWNER role bypassed RLS; ordinary
+ * roles were still scoped by the policy). This violated the CLAUDE.md
+ * "RLS is FORCE-enabled" hard rule. Mostly applied by early dynamic ENABLE-loops
+ * (e.g. drizzle/0005) that predate the FORCE convention.
  *
- * Closing these is a mechanical `ALTER TABLE ... FORCE ROW LEVEL SECURITY`
- * sweep, tracked alongside the no-RLS closure.
+ * CLOSED by migration 0334 (`0334_rls_residual_force_sweep.sql`) — a purely
+ * mechanical, idempotent `ALTER TABLE <t> FORCE ROW LEVEL SECURITY` sweep over
+ * all 57 (NO policy changes; each already carries its own tenant_isolation
+ * policy). The test asserts the live enable-only set EXACTLY equals this
+ * registry, so it is now EMPTY: any NEW enable-only table fails the build.
  */
-const RLS_ENABLE_ONLY_KNOWN_DEBT: ReadonlySet<string> = new Set<string>([
-  'asset_status_snapshots', 'audit_log', 'bid_negotiations', 'buyer_kyc_records',
-  'buyer_risk_reports', 'campaign_assets', 'campaign_runs', 'clarifying_question_history',
-  'cognitive_turns', 'compliance_escalations', 'compliance_verdicts', 'contract_remediation',
-  'daily_research_cache', 'data_onboarding_row_provenance', 'data_onboarding_sessions',
-  'decision_log', 'doc_evolution_proposals', 'doc_feedback_events', 'document_artifacts',
-  'forecast_snapshots', 'fx_snapshots', 'generated_reports', 'geology_scores',
-  'grievance_records', 'hr_summaries', 'ingested_attachments', 'junior_csr_plans',
-  'junior_drill_holes', 'junior_maintenance_events', 'junior_marketplace_listings',
-  'licence_dormancy_scores', 'marketing_ab_results', 'marketing_compliance_scans',
-  'marketing_telemetry_events', 'master_brain_briefings', 'metallurgy_recommendations',
-  'notifications_outbox', 'ore_grade_snapshots', 'ore_stockpiles', 'org_units',
-  'passive_capture_events', 'procurement_recommendations', 'qaqc_results', 'risk_snapshots',
-  'safety_snapshots', 'sales_advice', 'sample_batches', 'shift_reconciliations', 'sic_events',
-  'site_layouts', 'spawn_proposals', 'terminology_overrides', 'ui_evolution_proposals',
-  'ui_telemetry_events', 'unit_economics_snapshots', 'user_scope_bindings', 'weekly_plans',
-]);
+const RLS_ENABLE_ONLY_KNOWN_DEBT: ReadonlySet<string> = new Set<string>([]);
 
 /** The three tables this task closed — must have FORCE + policy, never debt. */
 const RLS_BREACH_CLOSED = ['users', 'organizations', 'owner_skills'] as const;

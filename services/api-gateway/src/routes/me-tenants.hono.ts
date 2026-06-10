@@ -14,18 +14,41 @@
  * Security note: the user can only switch to a tenant they already
  * have a link for. Cross-tenant injection via the cookie is impossible
  * because the auth middleware re-validates the link on every request.
+ *
+ * RLS (migration 0333): person_links now carries FORCE RLS scoped to
+ * `app.current_tenant_id` (its tenant key is tenant_id UUID NOT NULL).
+ * BUT both lookups below are, by definition, CROSS-tenant: they read
+ * EVERY tenant the caller is linked to (keyed on supabase_user_id) while
+ * `app.current_tenant_id` is still bound to the user's CURRENTLY-active
+ * tenant. Under the plain tenant_isolation policy they would return only
+ * links for the active tenant — hiding all the OTHER hats and breaking
+ * the rail / the switch re-verification. Each runs inside
+ * `withServiceRoleContext`, which sets `app.is_service_role='true'`
+ * transaction-locally so the `person_links_service_role_bypass` policy
+ * short-circuits the tenant predicate for exactly these reads. The bypass
+ * is GUC-driven (independent of the DB login role's BYPASSRLS bit), and
+ * the `true` set_config scope means it is discarded at COMMIT — it never
+ * leaks onto the rest of the request, which stays tenant-scoped.
  */
 
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { sql } from 'drizzle-orm';
+import { withServiceRoleContext } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 
 interface DbExec {
   execute(query: unknown): Promise<unknown>;
 }
+
+/**
+ * The transaction-capable client `withServiceRoleContext` expects. Derived
+ * from the function's own parameter type so we never have to name the
+ * `DatabaseClient` type (which the bundled d.ts surfaces as a namespace).
+ */
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 interface TenantMembershipRow {
   readonly tenantId: string;
@@ -99,20 +122,27 @@ meTenantsRouter.get('/', async (c) => {
   );
   const activeTenantId = cookieActive ?? auth.tenantId;
   try {
-    const rows = (await db.execute(sql`
-      SELECT
-        pl.tenant_id,
-        pl.role_in_tenant,
-        pl.linked_at,
-        COALESCE(t.name, t.legal_name, 'Tenant') AS tenant_name,
-        t.logo_url
-      FROM person_links pl
-      LEFT JOIN tenants t ON t.id::text = pl.tenant_id::text
-      WHERE pl.supabase_user_id = ${auth.userId}::uuid
-        AND pl.unlinked_at IS NULL
-      ORDER BY pl.linked_at DESC
-      LIMIT 50
-    `)) as unknown as Array<Record<string, unknown>>;
+    // Cross-tenant read: every hat the caller wears, regardless of the bound
+    // tenant GUC. Service-role context lets the bypass policy on person_links
+    // return all linked tenants; the tx-local GUC is discarded at COMMIT.
+    const rows = (await withServiceRoleContext(
+      db as unknown as ServiceRoleDb,
+      (sdb) =>
+        sdb.execute(sql`
+          SELECT
+            pl.tenant_id,
+            pl.role_in_tenant,
+            pl.linked_at,
+            COALESCE(t.name, t.legal_name, 'Tenant') AS tenant_name,
+            t.logo_url
+          FROM person_links pl
+          LEFT JOIN tenants t ON t.id::text = pl.tenant_id::text
+          WHERE pl.supabase_user_id = ${auth.userId}::uuid
+            AND pl.unlinked_at IS NULL
+          ORDER BY pl.linked_at DESC
+          LIMIT 50
+        `),
+    )) as unknown as Array<Record<string, unknown>>;
     const data = rows.map((r) => rowToMembership(r, activeTenantId));
     return c.json({
       success: true,
@@ -153,16 +183,25 @@ meTenantsRouter.post(
     }
     const { tenantId } = c.req.valid('json');
     // Re-verify the user is linked to this tenant — never trust the
-    // client's tenantId blindly.
+    // client's tenantId blindly. This is a CROSS-tenant check: the target
+    // tenantId is (by design) NOT the currently-bound one, so it runs under
+    // service-role context so the person_links bypass policy can see the
+    // target-tenant link. The membership predicate (supabase_user_id +
+    // tenant_id) is the real authorization gate — service-role only lifts the
+    // RLS row-visibility, it does not weaken the explicit WHERE.
     try {
-      const rows = (await db.execute(sql`
-        SELECT 1
-          FROM person_links
-         WHERE supabase_user_id = ${auth.userId}::uuid
-           AND tenant_id        = ${tenantId}::uuid
-           AND unlinked_at IS NULL
-         LIMIT 1
-      `)) as unknown as Array<{ '1'?: number }>;
+      const rows = (await withServiceRoleContext(
+        db as unknown as ServiceRoleDb,
+        (sdb) =>
+          sdb.execute(sql`
+            SELECT 1
+              FROM person_links
+             WHERE supabase_user_id = ${auth.userId}::uuid
+               AND tenant_id        = ${tenantId}::uuid
+               AND unlinked_at IS NULL
+             LIMIT 1
+          `),
+      )) as unknown as Array<{ '1'?: number }>;
       if (rows.length === 0) {
         return c.json(
           {
