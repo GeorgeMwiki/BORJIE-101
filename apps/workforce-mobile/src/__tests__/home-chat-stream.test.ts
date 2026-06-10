@@ -203,7 +203,7 @@ describe('parseNamedFrame — named SSE event decoding (production wire format)'
 
   it('decodes a tool_call frame via named path', () => {
     const parsed = parseNamedFrame('tool_call', {
-      data: frame({ toolCall: { tool: 'cockpit.daily-brief', ok: true } })
+      data: frame({ tool: 'cockpit.daily-brief', status: 'ok' })
     })
     expect(parsed?.kind).toBe('tool_call')
     if (parsed && parsed.data.type === 'tool_call') {
@@ -261,7 +261,7 @@ describe('parseFrame — legacy unnamed SSE envelope decoding (event type in dat
 
   it('decodes a tool_call frame using the strict ToolCallResult schema', () => {
     const parsed = parseFrame({
-      data: frame({ event: 'tool_call', toolCall: { tool: 'cockpit.daily-brief', ok: true } })
+      data: frame({ event: 'tool_call', tool: 'cockpit.daily-brief', status: 'ok' })
     })
     expect(parsed?.kind).toBe('tool_call')
     if (parsed && parsed.data.type === 'tool_call') {
@@ -423,7 +423,7 @@ describe('streamBrainTurn — happy path', () => {
     const source = await waitForInstance()
     source.emitNamed('turn.accepted', frame({ threadId: 'thr-1' }))
     source.emitNamed('message_chunk', frame({ text: 'Karibu', done: false }))
-    source.emitNamed('tool_call', frame({ toolCall: { tool: 'cockpit.daily-brief', ok: true } }))
+    source.emitNamed('tool_call', frame({ tool: 'cockpit.daily-brief', status: 'ok' }))
     source.emitNamed('done', frame({ threadId: 'thr-1', tokensUsed: 412 }))
     const result = await promise
     expect(result).toEqual({ threadId: 'thr-1', tokensUsed: 412 })

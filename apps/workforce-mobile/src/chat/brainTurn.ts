@@ -268,7 +268,8 @@ export async function streamBrainTurn(
       }
     })
 
-    // tool_call — gateway emits: {"toolCall":{...}}
+    // tool_call — gateway emits: {"tool":"...","status":"started"|"ok"|"error","args":{...}}
+    // (brain.hono.ts projectStreamEvent → { event:'tool_call', data:{ tool, status, args } }).
     source.addEventListener('tool_call', (event: RNEventMessage) => {
       const parsed = parseNamedFrame('tool_call', event)
       if (parsed !== null) {
