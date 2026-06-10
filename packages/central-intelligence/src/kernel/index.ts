@@ -1002,3 +1002,48 @@ export {
   type ReflectiveStorePort,
   type ReflectiveNoteLike,
 } from './learning-loop-port.js';
+
+/**
+ * R7 — Proof-carrying membrane (the Rung-5→9 keystone). The unified,
+ * refuse-by-default verifier that EVERY higher-rung action / self-edit
+ * passes through, emitting a signed, hash-chained safety certificate. Wired
+ * in SHADOW mode (computes + emits + logs divergence; never enforces) so it
+ * changes zero allow/deny behavior — the existing scattered checks remain
+ * the sole deciders until a later validated wave flips it to enforce.
+ *
+ * See `kernel/membrane/` (certificate.ts + gatekeeper.ts + shadow.ts).
+ */
+export {
+  SAFETY_INVARIANT_NAMES,
+  InvariantResultSchema,
+  SafetyVerdictSchema,
+  SafetyCertificateSchema,
+  computeVerdict,
+  buildCertificate,
+  createGatekeeper,
+  runShadowGatekeeper,
+  type SafetyInvariantName,
+  type InvariantResult,
+  type SafetyVerdict,
+  type SafetyCertificate,
+  type BuildCertificateInput,
+  type Gatekeeper,
+  type GatekeeperDeps,
+  type GatekeeperAction,
+  type GatekeeperEvaluateOptions,
+  type PolicyGateStatusPort,
+  type InviolableStatusPort,
+  type KillswitchLevelPort,
+  type TenantScopeConsistentPort,
+  type EvidenceChainPort,
+  type LocalePurePort,
+  type EgressCleanPort,
+  type KAnonPort,
+  type NoRailMutationPort,
+  type ShadowGatekeeperDeps,
+  type RunShadowGatekeeperInput,
+  type SafetyCertificateSink,
+  type DivergenceReporter,
+  type ShadowDivergenceEvent,
+  type ExistingDecisionOutcome,
+} from './membrane/index.js';

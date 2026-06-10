@@ -199,6 +199,19 @@ import {
   loadReflexions,
   type ReflexionLoaderPort,
 } from './reflexion/reflexion-loader.js';
+// R7 — proof-carrying membrane (SHADOW mode). The gatekeeper computes a
+// signed, hash-chained safety certificate alongside the already-final
+// decision, emits it via an optional sink, and logs any divergence from
+// the existing checks' verdict — but NEVER enforces. All three deps are
+// optional; absent (CI / bootstrap) → the hook is a pure no-op.
+import {
+  runShadowGatekeeper,
+  type Gatekeeper as SafetyGatekeeper,
+  type GatekeeperAction as SafetyGatekeeperAction,
+  type SafetyCertificateSink,
+  type DivergenceReporter as SafetyDivergenceReporter,
+  type ExistingDecisionOutcome as SafetyExistingDecisionOutcome,
+} from './membrane/index.js';
 // Wave-13 F2 — tier-policy gate that fires BEFORE the sensor call. The
 // resolver lives outside the kernel package (`../policy-gate`) so the
 // kernel imports only the assertion helper + role-policy type. When the
@@ -300,6 +313,21 @@ export interface BrainKernelDeps {
   readonly cotReservoir?: CotReservoir;
   readonly driftSink?: PersonaDriftSink;
   readonly provenanceSink?: ProvenanceSink;
+  /**
+   * R7 — proof-carrying membrane (SHADOW mode). When `safetyGatekeeper`
+   * is wired, the kernel computes a signed, hash-chained safety
+   * certificate alongside each already-final `think()` decision, emits it
+   * via `safetyCertificateSink` (best-effort; absent → no emission), and
+   * reports any divergence between the certificate verdict and the
+   * decision the existing scattered checks already made via
+   * `safetyDivergenceReporter`. It NEVER enforces — the existing checks
+   * remain the sole deciders, so wiring these changes NO allow/deny
+   * outcome. All three are optional; absent → the hook is a pure no-op
+   * (CI-inert). See `kernel/membrane/`.
+   */
+  readonly safetyGatekeeper?: SafetyGatekeeper;
+  readonly safetyCertificateSink?: SafetyCertificateSink;
+  readonly safetyDivergenceReporter?: SafetyDivergenceReporter;
   readonly groundingFacts?: GroundingFactsProvider;
   readonly priorTurnsLoader?: (threadId: string) => Promise<
     ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>
@@ -2210,6 +2238,15 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         provenance,
       });
 
+      // R7 — proof-carrying membrane (SHADOW). Compute + emit a signed,
+      // hash-chained certificate alongside the already-final `decision` and
+      // log any divergence from what the existing checks already decided.
+      // This is a VOID, fail-closed, CI-inert side-channel: it cannot — and
+      // does not — alter `decision`. The existing checks remain the sole
+      // deciders until a later validated wave flips the gatekeeper to
+      // enforce. No-op when `deps.safetyGatekeeper` is absent.
+      runKernelShadowGatekeeper(deps, req, decision, gates, citations);
+
       cache.set(cacheKey, decision);
       // LP-03 — semantic cache write-through. Best-effort, never blocks
       // the caller, and only persists `answer` decisions (refusals /
@@ -2860,6 +2897,15 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         provenance,
       });
 
+      // R7 — proof-carrying membrane (SHADOW). Compute + emit a signed,
+      // hash-chained certificate alongside the already-final `decision` and
+      // log any divergence from what the existing checks already decided.
+      // This is a VOID, fail-closed, CI-inert side-channel: it cannot — and
+      // does not — alter `decision`. The existing checks remain the sole
+      // deciders until a later validated wave flips the gatekeeper to
+      // enforce. No-op when `deps.safetyGatekeeper` is absent.
+      runKernelShadowGatekeeper(deps, req, decision, gates, citations);
+
       cache.set(cacheKey, decision);
       if (deps.provenanceSink) {
         void deps.provenanceSink.record(provenance).catch(() => undefined);
@@ -3020,6 +3066,82 @@ function makeRefusal(args: {
 
 function sha(s: string): string {
   return createHash('sha256').update(s, 'utf8').digest('hex');
+}
+
+/**
+ * R7 — kernel-side SHADOW adapter for the proof-carrying membrane.
+ *
+ * Maps the already-final `decision` + request into the gatekeeper's
+ * action shape, derives the outcome the EXISTING checks already made
+ * (`refusal` → 'refuse', else 'allow'), and hands both to the void
+ * `runShadowGatekeeper` side-channel. This function RETURNS NOTHING the
+ * kernel acts on — it cannot alter `decision`. Fully fail-closed (the
+ * membrane hook swallows its own errors) and CI-inert (no-op when
+ * `deps.safetyGatekeeper` is absent).
+ *
+ * The gatekeeper action is built from the SAME signals the existing
+ * checks read (the gate verdicts on `decision.gates`, the request scope,
+ * whether evidence/citations are present, the surface's evidence-required
+ * flag) — so the certificate verdict is consistent with the pipeline by
+ * construction, never a new restriction.
+ */
+function runKernelShadowGatekeeper(
+  deps: BrainKernelDeps,
+  req: ThoughtRequest,
+  decision: BrainDecision,
+  gates: GateOutcome,
+  citations: ReadonlyArray<unknown>,
+): void {
+  if (!deps.safetyGatekeeper) return; // CI-inert fast path.
+  try {
+    const tenantScope =
+      req.scope.kind === 'tenant' ? req.scope.tenantId : 'platform';
+    const existingDecision: SafetyExistingDecisionOutcome =
+      decision.kind === 'refusal' ? 'refuse' : 'allow';
+    // The membrane reads what the scattered checks already decided. We
+    // surface those decided verdicts as the gatekeeper's port signals so
+    // the certificate cannot diverge by re-judging — it CERTIFIES.
+    const policyBlocked = gates.policy.status === 'block';
+    const inviolableBlocked = gates.inviolable.status === 'block';
+    const driftBlocked = gates.drift.status === 'block';
+    const hasEvidence = citations.length > 0;
+    const evidenceRequired = req.surface !== 'marketing';
+    const action: SafetyGatekeeperAction = {
+      actionRef: decision.provenance.thoughtId,
+      tenantScope,
+      isRecommendation: evidenceRequired,
+      payload: { surface: req.surface, decisionKind: decision.kind },
+    };
+    runShadowGatekeeper(
+      {
+        gatekeeper: deps.safetyGatekeeper,
+        ...(deps.safetyCertificateSink
+          ? { certificateSink: deps.safetyCertificateSink }
+          : {}),
+        ...(deps.safetyDivergenceReporter
+          ? { onDivergence: deps.safetyDivergenceReporter }
+          : {}),
+      },
+      {
+        action: {
+          ...action,
+          // Carry the decided verdicts so a host-bound gatekeeper that
+          // reads the payload mirrors the existing decision exactly.
+          payload: {
+            ...action.payload,
+            policyBlocked,
+            inviolableBlocked,
+            driftBlocked,
+            hasEvidence,
+          },
+        },
+        existingDecision,
+      },
+    );
+  } catch {
+    // Defensive: the membrane hook is a void side-channel and must never
+    // break the turn. Proceed exactly as if it were not wired.
+  }
 }
 
 /**
