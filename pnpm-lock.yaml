@@ -3756,6 +3756,25 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
 
+  packages/operator-pack:
+    dependencies:
+      '@borjie/business-ontology':
+        specifier: workspace:*
+        version: link:../business-ontology
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^25.8.0
+        version: 25.8.0
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@opentelemetry/api@1.9.1)(@types/node@25.8.0)(@vitest/coverage-v8@4.1.7)(vite@6.4.2)
+
   packages/org-graph:
     dependencies:
       zod:
@@ -9982,7 +10001,7 @@ packages:
     peerDependencies:
       react-hook-form: ^7.0.0
     dependencies:
-      react-hook-form: 7.75.0(react@18.3.1)
+      react-hook-form: 7.75.0(react@18.2.0)
     dev: false
 
   /@hookform/resolvers@5.2.2(react-hook-form@7.75.0):

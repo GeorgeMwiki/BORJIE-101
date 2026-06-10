@@ -1,0 +1,34 @@
+{
+  "name": "@borjie/operator-pack",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "The OPERATOR / BUSINESS pack — the UNIVERSAL domain pack the platform operator (Borjie-the-company) loads over the Mr-Mwikila cortex to run itself: an ERP business world (GL/AP/AR/payroll/treasury) expressed in @borjie/business-ontology REA terms, plus the operator's homeostatic drives (cash-runway, AR-collection, payroll-on-time, margin, retention). NOT a customer vertical — it ships WITH the cortex and is always-loaded; every vertical's operator inherits it. The mining/real-estate packs relabel the SAME ontology for CUSTOMERS; this one is for the OPERATOR.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@borjie/business-ontology": "workspace:*",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

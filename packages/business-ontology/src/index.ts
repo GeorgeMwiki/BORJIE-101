@@ -277,13 +277,15 @@ export function validateDomainOntology(
         });
       }
     }
-    // REA duality — a give side AND a take side.
-    const hasInc = e.effects.some((f) => f.flow === 'increment');
-    const hasDec = e.effects.some((f) => f.flow === 'decrement');
-    if (!hasInc || !hasDec) {
+    // REA duality — an economic event is a TRANSFER, so it must touch at least
+    // TWO distinct resources (the give and the take). Whether each effect is an
+    // inflow or an outflow is accounting-direction; the debit=credit BALANCE is
+    // enforced downstream by LedgerService.post(), not here.
+    const distinctResources = new Set(e.effects.map((f) => f.resourceKey));
+    if (distinctResources.size < 2) {
       issues.push({
         code: 'DUALITY_VIOLATION',
-        message: `event '${e.key}' violates REA duality — needs both an increment and a decrement effect`,
+        message: `event '${e.key}' violates REA duality — must transfer between at least two distinct resources`,
       });
     }
   }
