@@ -5,7 +5,7 @@
  *   - env-port reads HALT / DEGRADED / LIVE correctly
  *   - per-tenant state takes precedence over platform state
  *   - HALT-tenant overrides DEGRADED-platform and vice versa
- *   - invalid env values fail-open to LIVE
+ *   - invalid (non-empty) env values fail CLOSED to DEGRADED; absent → LIVE
  *   - reason codes are validated against the documented set
  *   - refusal copy never leaks the reason code
  *   - kernel `think()` short-circuits on HALT (no sensor call)
@@ -104,12 +104,15 @@ describe('env killswitch port', () => {
     ).toBe('degraded');
   });
 
-  it('fails-open to LIVE on unknown level string', () => {
+  it('fails CLOSED to DEGRADED on unknown level string (typo guard)', () => {
+    // A non-empty but unrecognized KILLSWITCH_STATE is an operator typo of an
+    // intended hold — it must NOT silently collapse to fully-live operation
+    // (kill-switch fail-closed). It degrades instead.
     expect(
       createEnvKillswitchPort({ KILLSWITCH_STATE: 'banana' })
         .readPlatform()
         .level,
-    ).toBe('live');
+    ).toBe('degraded');
   });
 
   it('falls back to a documented reason code on unknown KILLSWITCH_REASON', () => {

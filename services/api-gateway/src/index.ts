@@ -4620,6 +4620,31 @@ if (require.main === module) {
 
   process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
   process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
+
+  // Crash-signal handlers (CLAUDE.md: Pino only — it handles redaction and
+  // forwards to Sentry/OTel via the bootstrap pipeline that ran first).
+  // - unhandledRejection: a stray fire-and-forget rejection must be OBSERVABLE
+  //   but must NOT take down in-flight requests — log and keep serving.
+  // - uncaughtException: the process is in an unknown state — log loudly and
+  //   DRAIN via gracefulShutdown (mirrors SIGTERM) instead of dying silently
+  //   with dropped in-flight requests and no structured record.
+  process.on('unhandledRejection', (reason) => {
+    logger.error(
+      {
+        evt: 'unhandled_rejection',
+        error: reason instanceof Error ? reason.message : String(reason),
+        stack: reason instanceof Error ? reason.stack : undefined,
+      },
+      'unhandledRejection — logged; process kept alive',
+    );
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error(
+      { evt: 'uncaught_exception', error: err.message, stack: err.stack },
+      'uncaughtException — draining via graceful shutdown',
+    );
+    void gracefulShutdown('uncaughtException');
+  });
 }
 
 export default app;

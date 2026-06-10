@@ -998,7 +998,13 @@ export class LedgerService {
       reason: voidReason,
     });
 
-    return this.postJournalEntry(voidRequest);
+    // Idempotent void: the UNIQUE (tenant_id, idempotency_key) guarantee makes a
+    // duplicate void of the SAME entry a no-op (returns the original reversal)
+    // instead of double-reversing the balance. A CONFLICTING second void (same
+    // entry, divergent request) throws IdempotencyMismatchError (LOUD).
+    return this.postJournalEntry(voidRequest, {
+      idempotencyKey: `void:${entryId}`,
+    });
   }
 
   /**

@@ -90,17 +90,31 @@ export function pilotKillSwitch(
     const featureFlags = resolveFlags(c);
     const cohort = options.cohort ?? auth?.cohort;
 
-    const enabled = await isPilotEnabled(
-      {
+    let enabled: boolean;
+    try {
+      enabled = await isPilotEnabled(
+        {
+          tenantId,
+          ...(auth?.userId !== undefined ? { userId: auth.userId } : {}),
+          ...(cohort !== undefined ? { cohort } : {}),
+        },
+        {
+          ...(featureFlags ? { featureFlags } : {}),
+          ...(options.env ? { env: options.env } : {}),
+        },
+      );
+    } catch (err) {
+      // FAIL CLOSED (matches killSwitchGuard): a DB/RLS blip while resolving the
+      // pilot flag must NOT 500 with a raw INTERNAL_ERROR — treat the pilot as
+      // PAUSED and return the structured 503, so a degraded environment never
+      // leaks pilot surface on a transient error.
+      moduleLogger.error('pilot kill-switch flag resolution failed; failing closed', {
+        evt: 'pilot_kill_switch_resolve_error',
         tenantId,
-        ...(auth?.userId !== undefined ? { userId: auth.userId } : {}),
-        ...(cohort !== undefined ? { cohort } : {}),
-      },
-      {
-        ...(featureFlags ? { featureFlags } : {}),
-        ...(options.env ? { env: options.env } : {}),
-      },
-    );
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return c.json(PILOT_KILL_SWITCH_RESPONSE, 503);
+    }
 
     if (enabled) {
       return next();
