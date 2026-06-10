@@ -838,19 +838,19 @@ export interface EstateMindSupervisorDeps {
   /** Per-tenant drive thresholds (tenant-tunable risk appetite). */
   readonly thresholds?: motivationKernel.DriveThresholds;
   /**
-   * Wave-C C2 (schema-conditioned drives) — per-tenant async threshold
+   * Wave-D C2 (schema-conditioned drives) — per-tenant async threshold
    * resolver. The composition root binds
    * `resolveDriveThresholdsFromBaselinesDb(db, tenantId)` so a breach is judged
    * against THIS estate's consolidated baseline rather than the static default.
    *
-   * SEAM-ONLY (honest): the kernel cycle's `motivation.formulateGoals(snapshot)`
-   * (estate-mind.ts:189, NOT owned) takes NO per-call thresholds override, and
-   * the single motivation engine is built once below — so this resolver cannot
-   * yet be applied PER TENANT from here. We accept + log it so the read-path is
-   * connected from the composition root; closing the loop needs a kernel-cycle
-   * change (per-tenant thresholds into `formulateGoals`) PLUS the Wave-D
-   * estate-baseline sleep pass that writes the `baseline:*` facts the resolver
-   * reads. Until both land the loop honest-degrades to the static thresholds.
+   * APPLIED PER TENANT: the kernel cycle's
+   * `motivation.formulateGoals(snapshot, override?)` now accepts a per-call
+   * override, and the EstateMind tick resolves THIS tenant's thresholds via the
+   * `thresholdsResolver` dep BEFORE evaluating drives. So this resolver is
+   * forwarded straight into `createEstateMind` below as `thresholdsResolver`.
+   * Honest-degrade: it returns `{}` (→ static `DEFAULT_DRIVE_THRESHOLDS`) when
+   * no `baseline:*` facts exist for the tenant, and a resolver fault inside the
+   * tick simply omits the override — never breaks the heartbeat.
    */
   readonly resolveThresholds?:
     | ((tenantId: string) => Promise<motivationKernel.DriveThresholds>)
@@ -912,14 +912,18 @@ export function createEstateMindSupervisor(
   const motivation = motivationKernel.createMotivationEngine(
     deps.thresholds ? { thresholds: deps.thresholds } : {},
   );
-  // Wave-C C2 — the per-tenant schema-conditioned threshold resolver is wired
-  // from the composition root but the kernel cycle's `formulateGoals(snapshot)`
-  // has no per-call override yet, so it cannot be applied per tenant here. Log
-  // the connected-but-deferred seam ONCE so the read-path is observable.
+  // Wave-D C2 — the per-tenant schema-conditioned threshold resolver. The
+  // kernel cycle's `motivation.formulateGoals(snapshot, override?)` now accepts
+  // a per-call override and the tick resolves THIS tenant's thresholds via the
+  // `thresholdsResolver` dep BEFORE evaluating drives, so the resolver is
+  // forwarded straight into `createEstateMind` below (no longer seam-only). The
+  // resolver returns `{}` (→ static defaults) when no `baseline:*` facts exist,
+  // so the loop honest-degrades exactly as before until the baseline writer
+  // populates them.
   if (deps.resolveThresholds) {
     logger.info(
       {},
-      'estate-mind: per-tenant threshold resolver wired (seam connected); applied once the kernel cycle accepts per-tenant thresholds + the Wave-D baseline writer lands — static defaults until then',
+      'estate-mind: per-tenant threshold resolver wired into the tick — breaches judged against THIS estate baseline (mean ± k·sd); static defaults until baseline facts exist',
     );
   }
   // The proposal sink is the DUAL sink (OK-4): the existing gated
@@ -947,6 +951,13 @@ export function createEstateMindSupervisor(
       // When omitted the tick runs exactly as before (purely additive); the
       // composition root injects the durable md_commitments reconcile engine.
       reconciliation: deps.reconciliation ?? null,
+      // Wave-D C2 — forward the per-tenant schema-conditioned threshold resolver
+      // into the tick. The kernel resolves THIS tenant's `DriveThresholds` (the
+      // consolidated baseline band) before evaluating drives and passes them as
+      // the per-call override into `formulateGoals`. Honest-degrade: the
+      // resolver returns `{}` (→ static defaults) when no `baseline:*` facts
+      // exist, and a resolver fault simply omits the override.
+      thresholdsResolver: deps.resolveThresholds ?? null,
       logger: kernelLogger,
     });
 

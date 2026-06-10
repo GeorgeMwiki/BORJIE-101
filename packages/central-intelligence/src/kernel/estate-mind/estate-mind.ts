@@ -34,7 +34,7 @@ import type {
   GapWatchSummary,
   ReconcileResult,
 } from './types.js';
-import type { MotivatedGoal } from '../motivation/types.js';
+import type { DriveThresholds, MotivatedGoal } from '../motivation/types.js';
 
 const DEFAULT_PRUNE_IDLE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const NOOP_LOGGER = { info(): void {}, warn(): void {} };
@@ -101,6 +101,7 @@ export function createEstateMind(
   const pruneIdleMs = deps.pruneIdleMs ?? DEFAULT_PRUNE_IDLE_MS;
   const logger = deps.logger ?? NOOP_LOGGER;
   const { situationalModel, motivation } = deps;
+  const thresholdsResolver = deps.thresholdsResolver ?? null;
 
   async function tick(tenantId: string): Promise<EstateMindTickResult> {
     const nowMs = now();
@@ -186,7 +187,27 @@ export function createEstateMind(
     }
 
     // ── MOTIVATE — standing drives → self-formulated goals (no trigger) ────
-    const goals = motivation.formulateGoals(snapshot);
+    // Resolve THIS tenant's schema-conditioned thresholds (the consolidated
+    // baseline band) and judge the drives against THAT, so a breach fires on
+    // what is anomalous for this estate — not a global static floor. HONEST-
+    // DEGRADE: no resolver wired, a `null` result, or a resolver fault → omit
+    // the override and the drives use their construction-time defaults (exactly
+    // today's behaviour). The resolve NEVER throws to the tick.
+    let perTenantThresholds: DriveThresholds | null = null;
+    if (thresholdsResolver) {
+      try {
+        perTenantThresholds = await thresholdsResolver(tenantId);
+      } catch (err) {
+        if (!degradedReason) degradedReason = 'thresholds-resolve-failed';
+        logger.warn('estate-mind: thresholds resolve failed', {
+          tenantId,
+          error: errMsg(err),
+        });
+      }
+    }
+    const goals = perTenantThresholds
+      ? motivation.formulateGoals(snapshot, perTenantThresholds)
+      : motivation.formulateGoals(snapshot);
 
     // ── PROPOSE — surface each goal through the gated proposal sink ────────
     let proposalsEmitted = 0;

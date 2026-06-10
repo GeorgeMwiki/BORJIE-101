@@ -42,8 +42,15 @@ import {
   createSemanticMemoryService,
   createProceduralMemoryService,
   createReflectiveMemoryService,
+  withServiceRoleContext,
 } from '@borjie/database';
 import type { ReflectivePeriodKind } from '@borjie/central-intelligence';
+import {
+  computeEstateBaselines,
+  baselineFactKey,
+  type BaselineDbExecLike,
+  type EstateBaseline,
+} from './estate-baseline-computer.js';
 import { logger } from '../utils/logger.js';
 
 // ---------------------------------------------------------------------------
@@ -88,6 +95,12 @@ export interface ConsolidationRunnerSummary {
   readonly digestsWritten: number;
   readonly expiredPurged: number;
   readonly decayedFacts: number;
+  /**
+   * Estate-baseline schema-formation facts written this pass — the
+   * `baseline:<scope>:<metric>` semantic facts the drive-threshold resolver
+   * reads. A tenant with too-little history contributes 0 (honest-degrade).
+   */
+  readonly baselinesWritten: number;
   readonly errors: ReadonlyArray<string>;
   readonly reports: ReadonlyArray<ConsolidationReport>;
 }
@@ -180,6 +193,17 @@ export async function runConsolidationForActiveTenants(
     }
   }
 
+  // ── Estate-baseline schema formation (the episodic→semantic "sleep" ───────
+  // transition for ESTATE OBSERVABLES). After the per-scope reflexion/memory
+  // consolidation above, derive each active tenant's estate baselines and
+  // UPSERT them as the `baseline:<scope>:<metric>` semantic facts the
+  // drive-threshold resolver reads. This is what lets a breach be judged
+  // against THIS estate's consolidated normal (`mean ± k·sd`) instead of a
+  // global static floor. Honest-degrade end-to-end: a tenant with too-little
+  // history writes no baselines and silently keeps its static thresholds; a
+  // null-tenant scope (platform-level, no estate) is skipped.
+  const baselinesWritten = await writeEstateBaselines(db, scopes);
+
   return {
     tenantsProcessed: reports.length,
     factsUpserted,
@@ -187,9 +211,143 @@ export async function runConsolidationForActiveTenants(
     digestsWritten,
     expiredPurged,
     decayedFacts,
+    baselinesWritten,
     errors,
     reports,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Estate-baseline writer — the sleep-pass schema-formation upsert.
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal semantic-store seam — only the `upsertFact` we call. Lets this writer
+ * depend on the structural shape rather than the full `SemanticMemoryService`
+ * type surface (the same decoupling pattern the rest of this file uses).
+ */
+interface SemanticUpsertPort {
+  upsertFact(args: {
+    tenantId: string | null;
+    userId?: string | null;
+    key: string;
+    value: unknown;
+    confidence: number;
+    source?: 'extracted' | 'declared' | 'consolidated';
+  }): Promise<void>;
+}
+
+/**
+ * For every distinct non-null tenant in the active scopes, compute the estate
+ * baselines and UPSERT each as a `baseline:<scope>:<metric>` semantic fact
+ * (`tenant_id = tenant`, `user_id = NULL`, `source = 'consolidated'`) — the
+ * exact shape `resolveDriveThresholdsFromBaselines` reads. Returns the total
+ * number of baseline facts written across all tenants.
+ *
+ * Each tenant is fault-isolated: a compute/upsert failure for one tenant is
+ * logged and skipped, never aborting the others. Idempotent — re-running
+ * overwrites the prior baseline via the store's `(tenant, user, key)`
+ * conflict-update. Tenant-scoped writes run inside `withServiceRoleContext` so
+ * the out-of-band sleep job (no request GUC) can write under RLS FORCE. The
+ * null-tenant (platform-level) scope is excluded — a baseline is an ESTATE
+ * statistic and the resolver only reads non-null-tenant facts.
+ */
+async function writeEstateBaselines(
+  db: DrizzleLikeClient | null | undefined,
+  scopes: ReadonlyArray<ActiveScope>,
+): Promise<number> {
+  if (!db) return 0;
+
+  const tenantIds = Array.from(
+    new Set(
+      scopes
+        .map((s) => s.tenantId)
+        .filter((t): t is string => typeof t === 'string' && t.length > 0),
+    ),
+  );
+  if (tenantIds.length === 0) return 0;
+
+  let totalWritten = 0;
+  for (const tenantId of tenantIds) {
+    try {
+      const baselines = await computeEstateBaselines(
+        db as BaselineDbExecLike,
+        tenantId,
+      );
+      if (baselines.length === 0) {
+        logger.info(
+          `consolidation-runner: estate-baselines tenant=${tenantId} count=0 (too-little history → static thresholds)`,
+        );
+        continue;
+      }
+      const written = await upsertTenantBaselines(db, tenantId, baselines);
+      totalWritten += written;
+      logger.info(
+        `consolidation-runner: estate-baselines tenant=${tenantId} count=${written}`,
+      );
+    } catch (error) {
+      logger.warn('consolidation-runner: estate-baseline pass degraded', {
+        tenantId,
+        value: asMsg(error),
+      });
+    }
+  }
+  return totalWritten;
+}
+
+/**
+ * UPSERT one tenant's baselines under a single service-role context. The
+ * semantic service uses Drizzle's query builder (not raw `execute`), so it must
+ * run inside the `withServiceRoleContext` transaction that binds the
+ * service-role GUC; we build a transaction-scoped semantic service from the
+ * `tx` so the out-of-band sleep job (no request GUC) writes under RLS FORCE. A
+ * malformed individual fact is skipped, never aborting the rest of the tenant.
+ * Confidence is fixed at 1.0 — a baseline is a deterministic statistic over the
+ * tenant's own history, not a probabilistic extraction.
+ */
+async function upsertTenantBaselines(
+  db: DrizzleLikeClient,
+  tenantId: string,
+  baselines: ReadonlyArray<EstateBaseline>,
+): Promise<number> {
+  const computedAtMs = Date.now();
+  const runWrites = async (store: SemanticUpsertPort): Promise<number> => {
+    let written = 0;
+    for (const baseline of baselines) {
+      const key = baselineFactKey(baseline);
+      try {
+        await store.upsertFact({
+          tenantId,
+          userId: null,
+          key,
+          value: {
+            mean: baseline.mean,
+            sd: baseline.sd,
+            n: baseline.n,
+            computedAtMs,
+          },
+          confidence: 1,
+          source: 'consolidated',
+        });
+        written += 1;
+      } catch (error) {
+        logger.warn('consolidation-runner: baseline upsert failed', {
+          tenantId,
+          key,
+          value: asMsg(error),
+        });
+      }
+    }
+    return written;
+  };
+
+  // `withServiceRoleContext` is typed against the full DatabaseClient; the
+  // runner intentionally stays decoupled from that declaration (see the
+  // db-client comment), so we bridge via `never` exactly as the per-scope
+  // memory-port construction above does.
+  return withServiceRoleContext(db as never, (tx) =>
+    runWrites(createSemanticMemoryService(tx as never) as SemanticUpsertPort),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +465,7 @@ function emptySummary(): ConsolidationRunnerSummary {
     digestsWritten: 0,
     expiredPurged: 0,
     decayedFacts: 0,
+    baselinesWritten: 0,
     errors: [],
     reports: [],
   };
@@ -379,7 +538,7 @@ const isDirect =
 if (isDirect) {
   runFromEnv()
     .then((summary) => {
-      logger.info(`consolidation-runner: tenantsProcessed=${summary.tenantsProcessed} facts=${summary.factsUpserted} patterns=${summary.patternsRecorded} digests=${summary.digestsWritten} purged=${summary.expiredPurged} decayed=${summary.decayedFacts} errors=${summary.errors.length}`);
+      logger.info(`consolidation-runner: tenantsProcessed=${summary.tenantsProcessed} facts=${summary.factsUpserted} patterns=${summary.patternsRecorded} digests=${summary.digestsWritten} purged=${summary.expiredPurged} decayed=${summary.decayedFacts} baselines=${summary.baselinesWritten} errors=${summary.errors.length}`);
       process.exit(summary.errors.length > 0 ? 1 : 0);
     })
     .catch((error) => {

@@ -19,7 +19,7 @@
 import type { SituationalModel } from '../situational-model/situational-model.js';
 import type { RecordEntityInput, SituationalSnapshot } from '../situational-model/types.js';
 import type { MotivationEngine } from '../motivation/motivation-engine.js';
-import type { MotivatedGoal } from '../motivation/types.js';
+import type { DriveThresholds, MotivatedGoal } from '../motivation/types.js';
 
 /**
  * PERCEIVE source — supplies the observations that refresh the situational
@@ -200,6 +200,24 @@ export interface EstateMindDeps {
    * Auditor. Runs inside RECONCILE, fail-safe (never throws to the tick).
    */
   readonly gapWatch?: GapWatchPort | null;
+  /**
+   * Per-tenant schema-conditioned threshold resolver (Wave-D C2). When wired,
+   * the tick resolves THIS tenant's `DriveThresholds` (the consolidated
+   * `baseline:*` band — mean ± k·sd) BEFORE evaluating drives and passes them
+   * as the per-call override into `motivation.formulateGoals(snapshot, …)`, so
+   * a breach fires on what is anomalous for THIS estate, not a global static
+   * floor. When omitted (or it resolves `null`/throws) the tick honest-degrades
+   * to the construction-time defaults — exactly today's behaviour. The
+   * implementation lives in the composition root over the consolidated baseline
+   * facts; the kernel stays dependency-light.
+   *
+   * FAIL-SAFE: the resolver is invoked inside a guard — a fault or a `null`
+   * result simply omits the override (default thresholds), never breaks the
+   * tick.
+   */
+  readonly thresholdsResolver?:
+    | ((tenantId: string) => Promise<DriveThresholds | null>)
+    | null;
   /** Injectable clock for deterministic ticks. */
   readonly now?: () => number;
   /**

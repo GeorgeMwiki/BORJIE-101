@@ -3843,15 +3843,19 @@ const estateMindSupervisor = createEstateMindSupervisor({
   // wiring block above; null leaves the tick exactly as before (purely
   // additive). The sweep is fail-safe: a fault never breaks the tick.
   reconciliation: mdCommitmentBundle?.reconciliation ?? null,
-  // Wave-C C2 — connect the per-tenant schema-conditioned threshold read-path.
-  // The resolver reads this estate's consolidated `baseline:*` facts and judges
-  // a breach against THIS estate's baseline (mean ± k·sd) rather than the static
-  // default. SEAM-ONLY today (honest): the kernel cycle's formulateGoals takes no
-  // per-call thresholds yet, and the Wave-D estate-baseline sleep pass that WRITES
-  // `baseline:*` facts is not built — so the resolver returns {} and the loop runs
-  // on static defaults. Wiring it here connects the composition-root half so the
-  // loop closes the moment those two non-owned deps land. Honest-degrade: a {}
-  // result falls through to DEFAULT_DRIVE_THRESHOLDS exactly as today.
+  // Wave-C C2 / Wave-D — per-tenant schema-conditioned drive thresholds, APPLIED.
+  // The resolver reads this estate's consolidated `baseline:*` facts and judges a
+  // breach against THIS estate's baseline (mean ± k·sd) rather than the static
+  // default. The loop is now closed end-to-end: the kernel cycle's
+  // `motivation.formulateGoals(snapshot, override?)` accepts a per-call thresholds
+  // override, the EstateMind tick resolves per-tenant thresholds via its
+  // `thresholdsResolver` dep BEFORE evaluating drives, and the supervisor wiring
+  // (estate-mind-wiring.ts) forwards this `resolveThresholds` into
+  // `createEstateMind({ thresholdsResolver })`. The Wave-D estate-baseline
+  // consolidation pass (estate-baseline-computer.ts) WRITES the `baseline:*`
+  // facts this reads. Honest-degrade: until a tenant has enough history for a
+  // metric, the resolver returns {} for it and that drive falls through to
+  // DEFAULT_DRIVE_THRESHOLDS exactly as before.
   resolveThresholds: (tenantId: string) =>
     resolveDriveThresholdsFromBaselinesDb(
       (serviceRegistry.db as unknown as

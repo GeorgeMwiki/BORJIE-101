@@ -31,14 +31,34 @@ export interface MotivationEngineDeps {
 }
 
 export interface MotivationEngine {
-  /** Evaluate every drive against the snapshot (satisfied + unsatisfied). */
-  assess(snapshot: SituationalSnapshot): ReadonlyArray<DriveAssessment>;
+  /**
+   * Evaluate every drive against the snapshot (satisfied + unsatisfied).
+   *
+   * `thresholdsOverride`, when supplied, is evaluated INSTEAD of the
+   * construction-time thresholds — so a per-tenant schema-conditioned band
+   * (mean ± k·sd for THIS estate) judges the breach rather than the static
+   * default. Omitting it preserves today's behaviour exactly (the
+   * construction-time thresholds, which default to `{}` → built-in per-drive
+   * floors). Per-call, never mutates the engine.
+   */
+  assess(
+    snapshot: SituationalSnapshot,
+    thresholdsOverride?: DriveThresholds,
+  ): ReadonlyArray<DriveAssessment>;
   /**
    * Formulate one goal per UNSATISFIED drive. Goals are returned
    * highest-severity-first so the loop can surface the most-pressing concern
    * as the Global-Workspace broadcast.
+   *
+   * `thresholdsOverride`, when supplied, makes the drives fire on what is
+   * anomalous for THIS estate (the per-tenant band) instead of the
+   * construction-time thresholds — backward-compatible: omitting it = today's
+   * behaviour.
    */
-  formulateGoals(snapshot: SituationalSnapshot): ReadonlyArray<MotivatedGoal>;
+  formulateGoals(
+    snapshot: SituationalSnapshot,
+    thresholdsOverride?: DriveThresholds,
+  ): ReadonlyArray<MotivatedGoal>;
 }
 
 export function createMotivationEngine(
@@ -50,13 +70,19 @@ export function createMotivationEngine(
 
   function assess(
     snapshot: SituationalSnapshot,
+    thresholdsOverride?: DriveThresholds,
   ): ReadonlyArray<DriveAssessment> {
+    // Per-call override wins when supplied; otherwise the construction-time
+    // thresholds (which themselves default to `{}` → built-in per-drive
+    // floors). Undefined → fall through to the construction-time set, so the
+    // no-argument call is byte-for-byte today's behaviour.
+    const active = thresholdsOverride ?? thresholds;
     return drives.map((drive) => {
       // Defensive: a drive evaluator is pure by contract, but a future
       // custom drive could throw; treat a throwing drive as SATISFIED (never
       // let one bad drive break the whole motivational pass) and move on.
       try {
-        return drive.evaluate(snapshot, thresholds);
+        return drive.evaluate(snapshot, active);
       } catch {
         return {
           driveId: drive.id,
@@ -72,10 +98,11 @@ export function createMotivationEngine(
 
   function formulateGoals(
     snapshot: SituationalSnapshot,
+    thresholdsOverride?: DriveThresholds,
   ): ReadonlyArray<MotivatedGoal> {
     const formulatedAtMs = now();
     const goals: MotivatedGoal[] = [];
-    for (const assessment of assess(snapshot)) {
+    for (const assessment of assess(snapshot, thresholdsOverride)) {
       if (assessment.satisfied) continue;
       goals.push(
         Object.freeze({
