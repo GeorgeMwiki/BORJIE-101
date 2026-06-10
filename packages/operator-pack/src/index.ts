@@ -12,6 +12,11 @@ import type { DomainOntology } from '@borjie/business-ontology';
 import { operatorBusinessOntology } from './ontology.js';
 
 export { operatorBusinessOntology } from './ontology.js';
+export {
+  deriveChartOfAccounts,
+  OPERATOR_CHART_OF_ACCOUNTS,
+  type GlAccount,
+} from './chart-of-accounts.js';
 
 /**
  * A homeostatic drive — a standing concern the operator's business MD keeps in
