@@ -558,6 +558,20 @@ export * as situationalModel from './situational-model/index.js';
 export * as motivation from './motivation/index.js';
 
 /**
+ * Loop Economy — the cognitive-loop SUBSTRATE. A "loop" is no longer an
+ * implicit hand-wired worker: `LoopSpec` is a declarative, registrable,
+ * schedulable PRIMITIVE (the loop-of-loops UNIT). `createLoopRegistry` holds a
+ * bounded population (synaptic-pruning cap); `scheduleLoops` is a PURE selector
+ * that RETURNS the due loops + their decided action descriptors for the host to
+ * run through the EXISTING governed membrane — it never executes `act` itself.
+ * Side-effect-free + CI-inert; a later wave adds the loop-former that
+ * synthesises `LoopSpec`s. `createForecastSurpriseLoop` is the proof-of-concept
+ * that wraps the shipped `forecast-surprise` drive as a builtin `LoopSpec`
+ * (additive — the drive is unchanged).
+ */
+export * as loopEconomy from './loop-economy/index.js';
+
+/**
  * EstateMind (Wave 1, organ #1) — the resident per-tenant Slow Loop:
  * PERCEIVE → ORIENT → evaluate drives → emit goals → surface as PROPOSALS
  * through the EXISTING gated proactive sink. Holds state between ticks (the
