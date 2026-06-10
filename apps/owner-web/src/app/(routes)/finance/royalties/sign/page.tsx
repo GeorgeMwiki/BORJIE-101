@@ -130,7 +130,7 @@ function SignRowForm({
 
   const mutation = useMutation({
     mutationFn: (payload: { royaltyAmount: number; confirm: true }) =>
-      apiRequest<unknown>(`/api/v1/mining/royalty/${draft.id}/sign`, {
+      apiRequest<unknown>(`/api/v1/mining/royalties/${draft.id}/sign`, {
         method: 'POST',
         body: payload,
       }),
@@ -238,7 +238,7 @@ export default function RoyaltySignPage() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: QUERY_KEY,
     queryFn: ({ signal }) =>
-      apiRequest<unknown>('/api/v1/mining/royalty', { signal }),
+      apiRequest<unknown>('/api/v1/mining/royalties', { signal }),
     select: (raw): ReadonlyArray<RoyaltyDraft> => {
       const parsed = ListResponseSchema.safeParse(raw);
       if (!parsed.success) return [];

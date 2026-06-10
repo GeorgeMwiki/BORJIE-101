@@ -348,7 +348,11 @@ mining.route('/commodity-intelligence', miningCommodityIntelligenceRouter);
 mining.route('/marketplace-advisor', miningMarketplaceAdvisorRouter);
 mining.route('/inventory', miningInventoryRouter);
 mining.route('/fleet-ops', miningFleetOpsRouter);
-mining.route('/procurement-analytics', miningProcurementCoordinationRouter);
+// Mount path matches the router's self-documented prefix + the owner-web
+// client (procurement-coordination.ts) + the surface hints — all of which
+// expect `/procurement-coordination`. (Was `/procurement-analytics`, the one
+// outlier that 404'd the vendors/budgets/spend panels.)
+mining.route('/procurement-coordination', miningProcurementCoordinationRouter);
 
 // FINAL NEEDS-DESIGN wave mounts. `/knowledge-graph` (POST /ingest, GET /stats,
 // GET /neighbors/:id) drives the GraphRAG store that chat-orchestrator expands

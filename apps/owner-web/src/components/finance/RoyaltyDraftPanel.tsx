@@ -107,7 +107,7 @@ function useRoyaltyDrafts() {
   return useQuery({
     queryKey: QUERY_KEY,
     queryFn: ({ signal }) =>
-      apiRequest<unknown>('/api/v1/mining/royalty', { signal }),
+      apiRequest<unknown>('/api/v1/mining/royalties', { signal }),
     select: (raw): ReadonlyArray<Draft> => {
       const parsed = ListResponseSchema.safeParse(raw);
       return parsed.success ? parsed.data.data.drafts : [];
