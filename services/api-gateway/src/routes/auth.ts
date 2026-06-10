@@ -8,7 +8,14 @@ import { getDatabaseClient } from '../middleware/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { generateToken } from '../middleware/auth';
 import { tokenBlocklist } from '../middleware/token-blocklist';
-import { tenants, users, roles, userRoles } from '@borjie/database';
+import {
+  tenants,
+  users,
+  roles,
+  userRoles,
+  withServiceRoleContext,
+  withTenantContext,
+} from '@borjie/database';
 import { UserRole } from '../types/user-role';
 
 import { withSecurityEvents } from '@borjie/observability';
@@ -51,69 +58,83 @@ async function resolveAuthUser(email: string) {
   const db = getDatabaseClient();
   if (!db) return null;
 
-  const rows = await db
-    .select({
-      id: users.id,
-      tenantId: users.tenantId,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      displayName: users.displayName,
-      avatarUrl: users.avatarUrl,
-      passwordHash: users.passwordHash,
-      status: users.status,
-      tenantName: tenants.name,
-      tenantSlug: tenants.slug,
-      tenantStatus: tenants.status,
-    })
-    .from(users)
-    .innerJoin(tenants, eq(tenants.id, users.tenantId))
-    // Case-insensitive email match. Callers normalize to lowercase
-    // before calling this helper; the LOWER() on the column makes the
-    // match resilient to historically-cased rows pre-dating the
-    // normalization.
-    .where(
-      and(
-        sql`LOWER(${users.email}) = LOWER(${email})`,
-        isNull(users.deletedAt),
-        isNull(tenants.deletedAt)
+  // SECURITY (migration 0331): users/organizations now carry FORCE RLS scoped
+  // to `app.current_tenant_id`. This login lookup is, by definition, a
+  // cross-tenant email→tenant resolution that runs BEFORE the user is
+  // authenticated — there is no tenant GUC to bind, and the WHERE clause
+  // intentionally has no tenant filter. Without the service-role context the
+  // RLS tenant_isolation policy would return zero rows and EVERY login would
+  // fail. `withServiceRoleContext` sets `app.is_service_role='true'` for this
+  // one transaction so the `*_service_role_bypass` policy short-circuits the
+  // tenant predicate. The subsequent userRoles/roles reads (already
+  // tenant-filtered in their WHERE) run inside the same service-role tx so
+  // they too pass RLS. The bypass is GUC-driven, not role-privilege-driven, so
+  // it works regardless of the DB login role's BYPASSRLS bit.
+  return withServiceRoleContext(db, async (sdb) => {
+    const rows = await sdb
+      .select({
+        id: users.id,
+        tenantId: users.tenantId,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        displayName: users.displayName,
+        avatarUrl: users.avatarUrl,
+        passwordHash: users.passwordHash,
+        status: users.status,
+        tenantName: tenants.name,
+        tenantSlug: tenants.slug,
+        tenantStatus: tenants.status,
+      })
+      .from(users)
+      .innerJoin(tenants, eq(tenants.id, users.tenantId))
+      // Case-insensitive email match. Callers normalize to lowercase
+      // before calling this helper; the LOWER() on the column makes the
+      // match resilient to historically-cased rows pre-dating the
+      // normalization.
+      .where(
+        and(
+          sql`LOWER(${users.email}) = LOWER(${email})`,
+          isNull(users.deletedAt),
+          isNull(tenants.deletedAt)
+        )
       )
-    )
-    .limit(1);
+      .limit(1);
 
-  const user = rows[0];
-  if (!user) return null;
+    const user = rows[0];
+    if (!user) return null;
 
-  const assignments = await db
-    .select({ roleId: userRoles.roleId })
-    .from(userRoles)
-    .where(and(eq(userRoles.userId, user.id), eq(userRoles.tenantId, user.tenantId)));
+    const assignments = await sdb
+      .select({ roleId: userRoles.roleId })
+      .from(userRoles)
+      .where(and(eq(userRoles.userId, user.id), eq(userRoles.tenantId, user.tenantId)));
 
-  const roleIds = assignments.map((row) => row.roleId);
-  const roleRows = roleIds.length
-    ? await db
-        .select({
-          id: roles.id,
-          name: roles.name,
-          permissions: roles.permissions,
-          priority: roles.priority,
-        })
-        .from(roles)
-        .where(and(eq(roles.tenantId, user.tenantId), inArray(roles.id, roleIds), isNull(roles.deletedAt)))
-    : [];
+    const roleIds = assignments.map((row) => row.roleId);
+    const roleRows = roleIds.length
+      ? await sdb
+          .select({
+            id: roles.id,
+            name: roles.name,
+            permissions: roles.permissions,
+            priority: roles.priority,
+          })
+          .from(roles)
+          .where(and(eq(roles.tenantId, user.tenantId), inArray(roles.id, roleIds), isNull(roles.deletedAt)))
+      : [];
 
-  roleRows.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
-  const primaryRole = roleRows[0]?.name;
-  const permissions = Array.from(
-    new Set(roleRows.flatMap((role) => (Array.isArray(role.permissions) ? role.permissions : [])))
-  );
+    roleRows.sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
+    const primaryRole = roleRows[0]?.name;
+    const permissions = Array.from(
+      new Set(roleRows.flatMap((role) => (Array.isArray(role.permissions) ? role.permissions : [])))
+    );
 
-  return {
-    ...user,
-    role: mapRoleName(primaryRole),
-    permissions: permissions.length ? permissions : ['*'],
-    propertyAccess: ['*'],
-  };
+    return {
+      ...user,
+      role: mapRoleName(primaryRole),
+      permissions: permissions.length ? permissions : ['*'],
+      propertyAccess: ['*'],
+    };
+  });
 }
 
 async function buildMePayload(auth: any) {
@@ -130,21 +151,27 @@ async function buildMePayload(auth: any) {
     };
   }
 
-  const rows = await db
-    .select({
-      id: users.id,
-      email: users.email,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      avatarUrl: users.avatarUrl,
-      tenantId: tenants.id,
-      tenantName: tenants.name,
-      tenantSlug: tenants.slug,
-    })
-    .from(users)
-    .innerJoin(tenants, eq(tenants.id, users.tenantId))
-    .where(and(eq(users.id, auth.userId), eq(users.tenantId, auth.tenantId), isNull(users.deletedAt)))
-    .limit(1);
+  // SECURITY (migration 0331): users/organizations carry FORCE RLS. This read
+  // is single-tenant (the caller's own tenant from the verified JWT), so bind
+  // that tenant's GUC for the transaction and let the tenant_isolation policy
+  // pass naturally — no service-role bypass needed.
+  const rows = await withTenantContext(db, auth.tenantId, (tdb) =>
+    tdb
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        avatarUrl: users.avatarUrl,
+        tenantId: tenants.id,
+        tenantName: tenants.name,
+        tenantSlug: tenants.slug,
+      })
+      .from(users)
+      .innerJoin(tenants, eq(tenants.id, users.tenantId))
+      .where(and(eq(users.id, auth.userId), eq(users.tenantId, auth.tenantId), isNull(users.deletedAt)))
+      .limit(1)
+  );
 
   const row = rows[0];
   return {

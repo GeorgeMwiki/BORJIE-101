@@ -342,18 +342,40 @@ export async function withReservedConnection<T>(
     );
     return await fn(reqDb);
   } finally {
+    // Tenant-GUC bleed defence (RSS-03). This path uses session-scoped
+    // `set_config(..., false)` GUCs bound on the reserved backend. If the
+    // reset SELECT below fails, the connection would otherwise be
+    // `release()`d back to the pool STILL CARRYING this request's tenant /
+    // service-role GUC — a later borrow of that backend could then read it
+    // and leak rows across tenants. So on reset failure we EVICT the
+    // connection from the pool via `.end()` instead of releasing it, making
+    // a stale session GUC impossible to inherit. (The happy path still
+    // `release()`s for reuse; only the failure path pays the reconnect cost.)
+    let resetOk = false;
     try {
       await reserved`SELECT
         set_config('app.current_tenant_id', '', false),
         set_config('app.tenant_id', '', false),
         set_config('app.current_person_id', '', false),
         set_config('app.is_service_role', 'false', false)`;
+      resetOk = true;
     } catch {
-      // Best-effort reset. The next reservation re-binds the tenant GUC
-      // before any read, so a failed reset cannot surface another tenant's
-      // rows; this clears the person/service GUCs as defence-in-depth.
+      resetOk = false;
     }
-    reserved.release();
+    if (resetOk) {
+      reserved.release();
+    } else {
+      // Destroy the backend rather than return a GUC-poisoned connection to
+      // the pool. `.end()` is on the Sql surface ReservedSql extends.
+      try {
+        await (reserved as unknown as { end: () => Promise<void> }).end();
+      } catch {
+        // If even eviction fails, fall back to release — better than leaking
+        // the handle; the next reservation re-binds the tenant GUC before any
+        // read so a stale value cannot surface another tenant's rows.
+        reserved.release();
+      }
+    }
   }
 }
 

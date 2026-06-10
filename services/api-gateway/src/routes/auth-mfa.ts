@@ -49,7 +49,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/hono-auth';
 import { generateToken } from '../middleware/auth';
 import { getDatabaseClient } from '../middleware/database';
-import { users } from '@borjie/database';
+import { users, withTenantContext } from '@borjie/database';
 import { UserRole } from '../types/user-role';
 import { e400, e401, e403 } from '../utils/error-response';
 
@@ -157,20 +157,25 @@ async function resolveStoredMfaSecret(
 ): Promise<string | null> {
   const db = getDatabaseClient();
   if (!db) return null;
-  const rows = await db
-    .select({
-      mfaEnabled: users.mfaEnabled,
-      mfaSecret: users.mfaSecret,
-    })
-    .from(users)
-    .where(
-      and(
-        eq(users.id, userId),
-        eq(users.tenantId, tenantId),
-        isNull(users.deletedAt)
+  // SECURITY (migration 0331): users carries FORCE RLS. Bind the caller's own
+  // tenant GUC for this transaction so the tenant_isolation policy passes —
+  // this reads `mfa_secret`, a PII column the breach exposed.
+  const rows = await withTenantContext(db, tenantId, (tdb) =>
+    tdb
+      .select({
+        mfaEnabled: users.mfaEnabled,
+        mfaSecret: users.mfaSecret,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.id, userId),
+          eq(users.tenantId, tenantId),
+          isNull(users.deletedAt)
+        )
       )
-    )
-    .limit(1);
+      .limit(1)
+  );
   const row = rows[0];
   if (!row || !row.mfaEnabled || !row.mfaSecret) return null;
   return row.mfaSecret;
@@ -184,10 +189,14 @@ async function persistMfaSecret(
 ): Promise<boolean> {
   const db = getDatabaseClient();
   if (!db) return false;
-  await db
-    .update(users)
-    .set({ mfaEnabled: true, mfaSecret: secret })
-    .where(and(eq(users.id, userId), eq(users.tenantId, tenantId)));
+  // SECURITY (migration 0331): users carries FORCE RLS. Bind the caller's own
+  // tenant GUC so the tenant_isolation policy's WITH CHECK passes on UPDATE.
+  await withTenantContext(db, tenantId, (tdb) =>
+    tdb
+      .update(users)
+      .set({ mfaEnabled: true, mfaSecret: secret })
+      .where(and(eq(users.id, userId), eq(users.tenantId, tenantId)))
+  );
   return true;
 }
 
