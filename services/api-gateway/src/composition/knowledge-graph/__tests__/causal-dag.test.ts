@@ -244,3 +244,80 @@ describe('buildCausalDag — degrades cleanly with no db and no override', () =>
     expect(dag.dropped.every((d) => d.reason === 'no_series')).toBe(true);
   });
 });
+
+// REGRESSION LOCK for the production /root-cause route wiring: the route does
+// `const dag = await buildCausalDag(db, tenantId); explainRootCause(dag, { ...,
+// series: dag.series })`. If buildCausalDag ever stops exposing the series it was
+// built from, or the route drops `series: dag.series`, root-cause silently
+// degrades to established:false against live data (no realizedMove → 0 leverage).
+// This locks the round-trip AND documents the trap.
+describe('explainRootCause — route round-trip via dag.series (regression lock)', () => {
+  function buildCashDip() {
+    const lateness = dailySeries(
+      'royalty_filing_lateness',
+      [0, 0, 0, 0, 11, 13, 15, 17, 19, 21],
+      'royalty_return',
+    );
+    const cash = dailySeries(
+      'cash_runway',
+      [95, 94, 95, 93, 62, 58, 54, 49, 45, 41],
+      'forecast',
+    );
+    const production = dailySeries(
+      'production_tonnage',
+      [100, 100, 99, 98, 96, 95, 94, 93, 92, 91],
+      'tonnage_event',
+    );
+    const sales = dailySeries(
+      'sales_receipts',
+      [50, 50, 49, 49, 48, 48, 47, 47, 46, 46],
+      'sale',
+    );
+    return [lateness, cash, production, sales];
+  }
+
+  it('buildCausalDag exposes the series it was built from (one-per-metric)', async () => {
+    const seriesOverride = buildCashDip();
+    const dag = await buildCausalDag(undefined, 'tenant-rt', {
+      now: () => T0 + 10 * MS_PER_DAY,
+      windowDays: 365,
+      seriesOverride,
+    });
+    // dag.series is present, one entry per known metric, and the data-bearing
+    // metrics carry their points (so explainRootCause can score realizedMove).
+    expect(dag.series.length).toBeGreaterThanOrEqual(seriesOverride.length);
+    const cashSeries = dag.series.find((s) => s.metric === 'cash_runway');
+    expect(cashSeries?.points.length).toBeGreaterThan(0);
+  });
+
+  it('establishes the cause when fed dag.series (exactly what the route passes)', async () => {
+    const dag = await buildCausalDag(undefined, 'tenant-rt', {
+      now: () => T0 + 10 * MS_PER_DAY,
+      windowDays: 365,
+      seriesOverride: buildCashDip(),
+    });
+    // The ROUTE path: feed dag.series back in — NOT a separately-read series.
+    const result = explainRootCause(dag, {
+      metric: 'cash_runway',
+      observedDeltaPct: -0.57,
+      series: dag.series,
+    });
+    expect(result.established).toBe(true);
+    if (!result.established) return;
+    expect(result.rootCause.metric).toBe('royalty_filing_lateness');
+  });
+
+  it('documents the trap: omitting series → always established:false', async () => {
+    const dag = await buildCausalDag(undefined, 'tenant-rt', {
+      now: () => T0 + 10 * MS_PER_DAY,
+      windowDays: 365,
+      seriesOverride: buildCashDip(),
+    });
+    // The pre-fix bug: no series → every realizedMove is 0 → leverage 0 → no cause.
+    const result = explainRootCause(dag, {
+      metric: 'cash_runway',
+      observedDeltaPct: -0.57,
+    });
+    expect(result.established).toBe(false);
+  });
+});
