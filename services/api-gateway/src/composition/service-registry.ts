@@ -475,6 +475,23 @@ import {
   type ConversationAuditRecorder,
   type PersonaRegistry,
 } from '@borjie/central-intelligence';
+// Multimodal Brain wiring for the workforce-mobile Photo Advisor
+// (`/api/v1/mining/brain/vision-turn`). The router ships a `setBrainResolver`
+// injection seam; until the composition root calls it, the route honest-503s
+// (`BRAIN_NOT_CONFIGURED`). We wire a per-tenant `BrainRegistry` here — the SAME
+// construction `routes/brain.hono.ts` uses — so the route resolves a real
+// multimodal Brain. Honest-degrade: when Anthropic/Supabase creds are absent
+// (`tryLoadBrainEnv` → null) we leave the resolver unset and the route keeps
+// its clean 503 — never a crash-on-boot.
+import {
+  createBrain,
+  BrainRegistry,
+  PostgresThreadStoreBackend,
+  tryLoadBrainEnv,
+} from '@borjie/ai-copilot';
+import { BrainThreadRepository } from '@borjie/database';
+import { getBrainExtraSkills } from './brain-extensions.js';
+import { setBrainResolver } from '../routes/mining/brain-vision.hono.js';
 // PO-port wave-5 wiring #1 — six-layer cognitive memory (episodic, narrative,
 // procedural, reflective, topic-files, cohort cache). Lives ALONGSIDE the
 // existing single-layer `ConversationMemory` (which the streaming kernel
@@ -1681,6 +1698,96 @@ function buildGraphQueryService(): GraphQueryService | null {
   } catch (err) {
     logger.warn('service-registry: graph query service init failed — returning null', { value: err instanceof Error ? err.message : err });
     return null;
+  }
+}
+
+/**
+ * Wire the per-tenant multimodal Brain resolver into the workforce-mobile
+ * Photo Advisor router (`/api/v1/mining/brain/vision-turn`).
+ *
+ * Mirrors the EXACT per-tenant `BrainRegistry` construction in
+ * `routes/brain.hono.ts`: a `PostgresThreadStoreBackend` over a per-tenant
+ * `BrainThreadRepository`, then `createBrain({ anthropic, threadStoreBackend,
+ * extraSkills })`. The same registry shape means the vision turn shares the
+ * tenant's durable thread store + skill catalog with the text brain path.
+ *
+ * Honest-degrade (never crash-on-boot):
+ *   - `tryLoadBrainEnv` returns null when Anthropic/Supabase creds are absent →
+ *     we leave the resolver UNSET so the route keeps its clean `BRAIN_NOT_
+ *     CONFIGURED` 503. (`createBrain` THROWS without a real key, so we must not
+ *     even attempt construction in that mode.)
+ *   - the per-tenant factory throw is caught inside the resolver → the route
+ *     resolves a null Brain → its own `BRAIN_NOT_AVAILABLE` 503, not a throw.
+ *   - any unexpected fault wiring the registry is swallowed (warn-once) so the
+ *     route simply stays on its 503 path; brain boot is never blocked.
+ *
+ * Idempotent: safe to call once per registry build (the resolver is a module-
+ * global setter; the last registry built wins, all share the same db handle).
+ */
+function wireMultimodalBrainResolver(db: DatabaseClient): void {
+  try {
+    const brainEnv = tryLoadBrainEnv(process.env);
+    if (!brainEnv) {
+      logger.warn(
+        { wiring: 'mining-brain-vision' },
+        'mining-brain-vision: Anthropic/Supabase creds absent (tryLoadBrainEnv → null); ' +
+          'leaving vision-turn brain resolver unset — route honest-503s BRAIN_NOT_CONFIGURED',
+      );
+      return;
+    }
+
+    const anthropic: { apiKey: string; baseUrl?: string; defaultModel?: string } = {
+      apiKey: brainEnv.ANTHROPIC_API_KEY,
+    };
+    if (brainEnv.ANTHROPIC_BASE_URL !== undefined) {
+      anthropic.baseUrl = brainEnv.ANTHROPIC_BASE_URL;
+    }
+    if (brainEnv.ANTHROPIC_MODEL_DEFAULT !== undefined) {
+      anthropic.defaultModel = brainEnv.ANTHROPIC_MODEL_DEFAULT;
+    }
+
+    const registry = new BrainRegistry((tenantId: string) => {
+      const repo = new BrainThreadRepository(db);
+      const backend = new PostgresThreadStoreBackend(repo, () => tenantId);
+      return createBrain({
+        anthropic,
+        threadStoreBackend: backend,
+        extraSkills: getBrainExtraSkills(),
+      });
+    });
+
+    setBrainResolver(({ tenantId }) => {
+      try {
+        return registry.for(tenantId);
+      } catch (err) {
+        // A per-tenant factory fault degrades to a null Brain — the route maps
+        // that to its own BRAIN_NOT_AVAILABLE 503 rather than throwing.
+        logger.warn(
+          {
+            wiring: 'mining-brain-vision',
+            tenantId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'mining-brain-vision: per-tenant Brain construction failed — vision-turn returns BRAIN_NOT_AVAILABLE',
+        );
+        return null;
+      }
+    });
+
+    logger.info(
+      { wiring: 'mining-brain-vision', resolverWired: true },
+      'mining-brain-vision: per-tenant Brain resolver wired — vision-turn reachable',
+    );
+  } catch (err) {
+    // Never break boot — leaving the resolver unset keeps the route on its
+    // honest 503.
+    logger.warn(
+      {
+        wiring: 'mining-brain-vision',
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'mining-brain-vision: resolver wiring failed; vision-turn keeps its 503 path',
+    );
   }
 }
 
@@ -2963,6 +3070,19 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
           tenantId: '_platform',
         },
       });
+      // ── Multimodal Photo-Advisor Brain resolver injection ────────────────
+      // Wire the per-tenant `BrainRegistry` into `routes/mining/brain-vision`
+      // so `/api/v1/mining/brain/vision-turn` resolves a real multimodal Brain
+      // instead of honest-503ing `BRAIN_NOT_CONFIGURED`. This reuses the EXACT
+      // construction `routes/brain.hono.ts` uses (PostgresThreadStoreBackend +
+      // createBrain + extra skills). Honest-degrade: `tryLoadBrainEnv` returns
+      // null when Anthropic/Supabase creds are absent → we leave the resolver
+      // unset and the route keeps its clean 503 (never a crash-on-boot). The
+      // resolver's per-tenant `.for(...)` is lazy + wrapped so a tenant-level
+      // construction fault surfaces as a null Brain → the route's own
+      // `BRAIN_NOT_AVAILABLE` 503, not an unhandled throw.
+      wireMultimodalBrainResolver(db);
+
       // CentralIntelligenceAgent slot — the `/intelligence/thread/:id/message`
       // surface (admin-web's "Talk to the industry" cross-tenant observer
       // chat) needs a concrete agent. The previous `CI_LLM_URL` env gate was
@@ -2973,9 +3093,21 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // silent dead button) — and we WARN once so the degraded posture is
       // observable rather than hidden behind a never-true env check.
       //
-      // Wiring the real local `createCentralIntelligenceAgent` requires an
-      // LlmAdapter + VoiceResolver + ToolRegistry that are not assembled in
-      // this scope; that build is tracked separately (see needsAttention).
+      // Wiring the real local `createCentralIntelligenceAgent` needs four deps.
+      // THREE are constructible in this scope today:
+      //   - ConversationMemory   → `memory` above (createInMemoryConversationMemory)
+      //   - VoiceResolver        → `createDefaultVoiceResolver()` (no required args)
+      //   - agent-loop ToolRegistry → `createToolRegistry([...])`
+      // The ONE genuinely-missing adapter is the streaming `LlmAdapter` (see
+      // `@borjie/central-intelligence` agent-loop `AgentLoopDeps.llm`): it must
+      // expose `stream({system,messages,tools,extendedThinking}) =>
+      // AsyncIterable<LlmStreamChunk>` translating Anthropic's streaming +
+      // tool-use protocol into the agent-loop chunk shape. NO concrete producer
+      // of `LlmStreamChunk` exists anywhere in the repo (only the interface in
+      // `types.ts`), so a correct adapter is a NEW non-trivial file that belongs
+      // in `@borjie/central-intelligence` (NOT this composition root, and NOT
+      // fabricatable from the kernel's single-shot sensor). We therefore keep
+      // the HONEST null + 503 rather than ship a half-brain. See needsAttention.
       // This unblocks NO owner/MD chat — owner chat already works via
       // /mining/chat + /brain/teach and is unaffected by this slot.
       logger.warn(

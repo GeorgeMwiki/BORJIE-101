@@ -39,6 +39,7 @@
 import {
   agency as agencyKernel,
   composeSovereign,
+  createAffectiveAccumulator,
   createApprovalGate,
   createBrainToolRegistry,
   createDpCohortSource,
@@ -50,6 +51,7 @@ import {
   registerSeedBrainTools,
   situationalModel as situationalModelKernel,
   tools as kernelTools,
+  type AffectiveAccumulator,
   type AgencyKernelPort,
   type BrainToolRegistry,
   type EmbedderPort,
@@ -271,6 +273,36 @@ function createStubSensor(): Sensor {
       };
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// EVERY-POWER-ON default-flip helper.
+//
+// Several capability ports (semantic cache, kernel debate) resolve their
+// master flag with a "default-OFF" reader (`raw === '1'|'true'|'on'`). To turn
+// the CAPABILITY on by default WITHOUT weakening the operator's revert lever,
+// we hand those builders a derived env in which the flag reads `'true'` UNLESS
+// the operator has explicitly pinned an off value (`'0'|'false'|'off'|'no'`).
+// The result: unset → ON (power on by default); explicit-off → still OFF
+// (instant operator revert). We NEVER apply this to a governance/safety flag
+// (kill-switch, four-eye, intent-verify STRICT, payout rails, …) — those keep
+// their built-in defaults verbatim. Pure: returns a shallow copy, never
+// mutates `process.env`.
+// ---------------------------------------------------------------------------
+
+const ENV_OFF_VALUES = new Set(['0', 'false', 'off', 'no']);
+
+function defaultOnEnv(
+  base: Readonly<Record<string, string | undefined>>,
+  key: string,
+): Record<string, string | undefined> {
+  const raw = base[key]?.trim().toLowerCase();
+  // Operator explicitly disabled → preserve verbatim (revert wins).
+  if (raw !== undefined && ENV_OFF_VALUES.has(raw)) {
+    return { ...base };
+  }
+  // Unset / any non-off value → default the capability ON.
+  return { ...base, [key]: 'true' };
 }
 
 // ---------------------------------------------------------------------------
@@ -716,6 +748,15 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   if (skillRetriever) mutable.skillRetriever = skillRetriever;
   // autoHaikuJudge defaults to true in compose; we leave it unset.
 
+  // Wave-C C4 follow-up (affectReader) — inject the SHARED per-tenant affective
+  // accumulator so this tenant's turns `observe(...)` into the SAME instance the
+  // proactive worker reads via `getAffectAccumulator(tenantId)`. Without this,
+  // compose mints a fresh per-brain accumulator and the worker's earned-trust
+  // resolver would read an always-empty posterior. `composeSovereign` honours a
+  // caller-supplied accumulator (config.affectiveAccumulator ?? fresh), so this
+  // wins. The accumulator is pure in-memory + TTL-evicting — never throws.
+  mutable.affectiveAccumulator = getAffectAccumulator(scope.tenantId);
+
   // Wave-C SALIENCE ARENA (C1 win #3) — bind the slow-loop READ ports that
   // light up the arena's DRIVE + ACT-R ACTIVATION sub-bidders. `composeSovereign`
   // ALREADY forwards both (compose.ts:576 situationalSnapshotReader, :580
@@ -795,8 +836,17 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     info: (meta: object, msg: string) => logger.info(meta as Record<string, unknown>, msg),
     warn: (meta: object, msg: string) => logger.warn(meta as Record<string, unknown>, msg),
   };
+  // EVERY-POWER-ON — semantic-cache (LP-03) is a WIRED, fail-safe capability
+  // (embedding-keyed read-through; a null embedder or a miss falls through to
+  // the normal sensor path; it only ever stores `answer` decisions — never a
+  // refusal/softened reply). Its wiring resolves the master flag via
+  // `flagDefaultOff(BORJIE_SEMANTIC_CACHE_ENABLED)`, so we flip the DEFAULT to
+  // ON by passing a derived env where the flag reads `'true'` UNLESS the
+  // operator explicitly set an off value. The operator force-OFF revert
+  // (`BORJIE_SEMANTIC_CACHE_ENABLED=0|false|off`) is preserved verbatim.
   const semanticCache = buildSemanticCachePort({
     embedder: resolveSkillEmbedder(),
+    env: defaultOnEnv(process.env, 'BORJIE_SEMANTIC_CACHE_ENABLED'),
     logger: lp30Logger,
   });
   mutable.semanticCache = semanticCache.port;
@@ -826,7 +876,22 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // never stalls a turn. Propose-only: debate shapes the answer text, never
   // actuates the sovereign rail.
   if (anthropic) {
-    const debate = buildDebateKernelPort({ anthropic, logger: lp30Logger });
+    // EVERY-POWER-ON — the stakes-gated multi-voice debate detour is a WIRED
+    // capability that only fires at high/critical stakes AND when the kernel's
+    // own `debateEligible` agrees, behind a wall-clock + token budget whose
+    // overrun fails SAFE to the single-shot sensor. It needs a live model, so
+    // it is only built when a real (circuit-breaker + OTel wrapped) Anthropic
+    // client is present (the stub-sensor CI/eval path never constructs it →
+    // zero behaviour change there). Its wiring resolves the master flag via
+    // `organFlagDefaultOff(BORJIE_KERNEL_DEBATE_ENABLED)`, so we flip the
+    // DEFAULT to ON via a derived env (operator force-OFF
+    // `BORJIE_KERNEL_DEBATE_ENABLED=0|false|off` still wins). Propose-only:
+    // debate shapes answer text, never actuates the sovereign rail.
+    const debate = buildDebateKernelPort({
+      anthropic,
+      env: defaultOnEnv(process.env, 'BORJIE_KERNEL_DEBATE_ENABLED'),
+      logger: lp30Logger,
+    });
     mutable.debate = debate.port;
     logger.info(
       { wiring: 'kernel-debate', debateEnabled: debate.enabled },
@@ -1308,6 +1373,48 @@ function projectNudgeToProposal(
     evidenceEntityIds,
     proposedAtMs,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Wave-C C4 follow-up (affectReader) — per-TENANT affective accumulator.
+//
+// The kernel's ToM affective accumulator carries the per-(tenant,user) trust
+// posterior the proactive worker's earned-trust resolver reads. Previously the
+// accumulator was minted fresh inside `composeSovereign(...)` per cached brain,
+// so the proactive worker (which is tenant-scoped, constructed in index.ts) had
+// no way to read what the turn wrote — its `affectReader` was left unwired and
+// earned-trust de-escalation stayed conservative-neutral.
+//
+// We now construct ONE accumulator PER TENANT here, inject the SAME instance
+// into every cached brain for that tenant via `mutable.affectiveAccumulator`
+// (so all of a tenant's turns `observe(...)` into it), and expose it to the
+// worker via `getAffectAccumulator(tenantId)`. The accumulator discriminates
+// per-(tenant,user) internally (`read(tenantId, userId)`), so a single per-
+// tenant instance is correct: each user's posterior stays isolated by key.
+//
+// Pure in-memory + TTL-evicting (24h) — no DB dependency, so this is always
+// available (honest-degrade is N/A: the accumulator simply starts empty and
+// `read(...)` returns null → the worker treats trust as neutral, exactly the
+// pre-wiring posture, until the first turn populates it).
+// ---------------------------------------------------------------------------
+
+const affectAccumulatorByTenant = new Map<string, AffectiveAccumulator>();
+
+/**
+ * Return the shared per-tenant affective accumulator. The SAME instance is
+ * injected into that tenant's brains (so turns write to it) and read by the
+ * proactive worker's earned-trust resolver (so it reads what the turns wrote).
+ * Lazily minted; the platform-tier (null tenant) shares the `__platform__` key.
+ */
+export function getAffectAccumulator(
+  tenantId: string | null,
+): AffectiveAccumulator {
+  const key = tenantId ?? '__platform__';
+  const existing = affectAccumulatorByTenant.get(key);
+  if (existing) return existing;
+  const fresh = createAffectiveAccumulator();
+  affectAccumulatorByTenant.set(key, fresh);
+  return fresh;
 }
 
 // ---------------------------------------------------------------------------

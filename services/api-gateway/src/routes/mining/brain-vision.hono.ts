@@ -10,14 +10,15 @@
  *    `apps/workforce-mobile/src/photo-advisor/types.ts`.
  *  - The Brain orchestrator (`@borjie/ai-copilot`) DOES expose a multimodal
  *    turn API: `Brain.orchestrator.startThread` accepts + validates
- *    `mediaAttachments` (see `buildMultimodalUserMessage`). The only missing
- *    seam is the composition-root injection: the gateway must call
- *    `setBrainResolver(ctx => …)` so this router can resolve a per-tenant
- *    multimodal Brain. Until that injection lands, `brainResolver` is null
- *    and the handler short-circuits 503 `BACKEND_VISION_UNAVAILABLE` /
- *    `BRAIN_NOT_CONFIGURED` — the request is validated fully so a misconfig
- *    never silently 200s. The wiring TODO is tracked for the composition
- *    root (service-registry.ts); see needsAttention in the brain-routes pass.
+ *    `mediaAttachments` (see `buildMultimodalUserMessage`). The composition
+ *    root (`composition/service-registry.ts::wireMultimodalBrainResolver`) now
+ *    calls `setBrainResolver(ctx => …)` so this router resolves a per-tenant
+ *    multimodal Brain from the SAME per-tenant `BrainRegistry` construction the
+ *    text brain path (`routes/brain.hono.ts`) uses. Honest-degrade: when
+ *    Anthropic/Supabase creds are absent the composition root leaves the
+ *    resolver UNSET, so `brainResolver` is null and the handler short-circuits
+ *    503 `BACKEND_VISION_UNAVAILABLE` / `BRAIN_NOT_CONFIGURED` — the request is
+ *    validated fully so a misconfig never silently 200s.
  *
  * Contract enforcement (per the photo-advisor agent spec):
  *  - 200 — success (once `setBrainResolver` is wired at the composition root)

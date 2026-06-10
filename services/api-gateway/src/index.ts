@@ -225,7 +225,13 @@ import {
 import { createReflexionBufferService } from '@borjie/database';
 // Wave-C C4 — the live ambient behaviour-signal source for the proactive worker's
 // affect gate (constructed in sovereign.ts over the sensorium event log).
-import { getProactiveBehaviorSignalSource } from './composition/sovereign';
+// `getAffectAccumulator(tenantId)` returns the SAME per-tenant ToM accumulator
+// the chat turns write to, so the worker's earned-trust resolver reads a LIVE
+// trust posterior (adapts) instead of a static neutral default.
+import {
+  getProactiveBehaviorSignalSource,
+  getAffectAccumulator,
+} from './composition/sovereign';
 // Wave-C C4 — owner-style posture reader source (the FIRST live consumer of the
 // durable owner-style posterior). `getProfile(tenantId).posture.value` →
 // cautious|balanced|bold tilts the earned-trust autonomy floor.
@@ -3631,12 +3637,19 @@ const proactiveIntelWorker = serviceRegistry.db
       //     tenant-scoped) via the SAME `users(tenant_id, is_owner)` SELECT the
       //     mwikila-autonomous worker uses. (3) postureReader: owner-style's
       //     first live consumer (cautious|balanced|bold tilts the trust floor).
-      // affectReader (ToM trust) is INTENTIONALLY left unwired — see the flag in
-      // needsAttention: it must be the SAME kernel `createAffectiveAccumulator()`
-      // singleton the turn writes to, which is constructed inside composeSovereign
-      // and is not reachable here; a fresh instance would read an empty posterior.
-      // Without affectReader the trust posterior stays neutral, so earned-trust
-      // de-escalation is conservative (never escalates past the static map).
+      // (4) affectReader (ToM trust) — NOW WIRED. It delegates to the SHARED
+      // per-tenant affective accumulator (`getAffectAccumulator(tenantId)`),
+      // which is the SAME instance the chat turns `observe(...)` into (injected
+      // into every cached brain in sovereign.ts via `mutable.affectiveAccumulator`).
+      // So the earned-trust resolver now reads a LIVE per-owner trust posterior
+      // and ADAPTS (was conservative-neutral). The accumulator is pure in-memory
+      // + 24h-TTL-evicting and `read(...)` returns null until the first turn
+      // populates it, so this honest-degrades to the prior neutral posture on a
+      // cold worker — never throws, no DB dependency.
+      affectReader: {
+        read: (tenantId: string, userId: string, nowMs?: number) =>
+          getAffectAccumulator(tenantId).read(tenantId, userId, nowMs),
+      },
       ...(getProactiveBehaviorSignalSource()
         ? { behaviorSignalSource: getProactiveBehaviorSignalSource()! }
         : {}),
