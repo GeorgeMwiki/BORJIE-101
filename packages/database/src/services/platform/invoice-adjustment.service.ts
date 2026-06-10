@@ -92,7 +92,9 @@ const NOT_WIRED_REASON =
  * client-safe. Extends Error so `withHqTelemetry` reads `.message`.
  */
 class InvoiceAdjustmentNotWiredError extends Error {
-  readonly reasonCode = 'NOT_YET_WIRED' as const;
+  // Specific, stable branch token — platform billing ledger is pending (no
+  // platform invoices table). More descriptive than a generic marker.
+  readonly reasonCode = 'PLATFORM_BILLING_PENDING' as const;
   constructor() {
     super(NOT_WIRED_REASON);
     this.name = 'InvoiceAdjustmentNotWiredError';

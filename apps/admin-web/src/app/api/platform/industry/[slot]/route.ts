@@ -30,13 +30,14 @@ export async function GET(
     { method: 'GET' },
   );
 
-  // If the gateway returns 404 (route not yet wired) surface a 503 so
-  // the industry page's per-slot degraded guard fires correctly.
+  // If the gateway returns 404 (aggregator route absent) surface a 503 so
+  // the industry page's per-slot degraded guard fires correctly. The page keys
+  // on the 503 status (not this code), so the code is purely informational.
   if (upstream.status === 404) {
     return NextResponse.json(
       {
         success: false,
-        error: { code: 'NOT_YET_WIRED', message: `Industry slot '${slot}' is not yet available from the platform aggregator.` },
+        error: { code: 'AGGREGATOR_UNAVAILABLE', message: `Industry slot '${slot}' is not yet available from the platform aggregator.` },
       },
       { status: 503 },
     );

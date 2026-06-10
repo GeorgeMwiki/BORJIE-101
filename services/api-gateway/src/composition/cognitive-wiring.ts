@@ -1099,10 +1099,14 @@ interface SafeContinuityArgs {
  * internally and returns an EMPTY snapshot, which is structurally identical to a
  * genuine "new tenant / no open threads" result. The snapshot now carries a
  * `readFault` flag so the two are distinguishable here:
- *   - readFault === true  → a DEGRADED read. Record the failure counter (so a
- *     DB-blip spike is observable) and emit NO continuity content — never a
- *     "new session" placeholder, which would fabricate a fresh-session claim on
- *     a transient fault.
+ *   - readFault === true, NO content  → a DEGRADED empty read. Record the
+ *     failure counter (so a DB-blip spike is observable) and emit NO continuity
+ *     content — never a "new session" placeholder, which would fabricate a
+ *     fresh-session claim on a transient fault.
+ *   - readFault === true, WITH content → a PARTIAL-success read (one reader
+ *     faulted in isolation, the other returned real threads). Record the
+ *     failure counter, but STILL surface the threads we did read — discarding
+ *     honest data is worse than a tainted-but-partial snapshot.
  *   - readFault === false → a GENUINE empty (true new session). The block is
  *     legitimately empty (`''`); a "new session" placeholder is safe here.
  */
@@ -1122,18 +1126,29 @@ async function safeContinuityBlock(args: SafeContinuityArgs): Promise<string> {
         : {}),
     });
     if (snapshot.readFault) {
-      // A swallowed read fault — make it OBSERVABLE (counter + warn) instead of
-      // degrading silently, and emit NO continuity content. We must NOT treat a
-      // degraded read as a genuine new session.
+      // A swallowed read fault — ALWAYS make it OBSERVABLE (counter + warn)
+      // instead of degrading silently. We must NOT treat a degraded read as a
+      // genuine new session.
       recordContinuityFailure('read_fault');
       args.logger.warn(
-        'cognitive-wiring: continuity read faulted (swallowed in fetch); skipping continuity block to avoid a false new-session signal',
+        'cognitive-wiring: continuity read faulted (swallowed in fetch); recording failure',
         { tenantId: args.tenantId },
       );
-      return '';
+      const hasContent =
+        snapshot.openThreads.length > 0 || snapshot.recentActions.length > 0;
+      if (!hasContent) {
+        // A GENUINELY-EMPTY degraded read: emit NO continuity content — never a
+        // false new-session placeholder, which would fabricate a fresh-session
+        // claim on a transient fault.
+        return '';
+      }
+      // PARTIAL success (reader isolation): one source faulted but the other
+      // returned real threads — surface what we DID read rather than discarding
+      // honest data. buildContinuityBlock only renders the non-empty sections.
     }
-    // No fault: a genuinely-empty snapshot is a true new session, so the empty
-    // block (`''`) is honest — `buildContinuityBlock` renders '' when empty.
+    // No fault, or a partial-success fault carrying real content: render the
+    // snapshot. A genuinely-empty no-fault snapshot is a true new session, so
+    // the empty block ('') is honest — buildContinuityBlock renders '' when empty.
     return buildContinuityBlock(snapshot, args.locale);
   } catch (err) {
     // Defence-in-depth: the fetch already swallows read faults, but a contract

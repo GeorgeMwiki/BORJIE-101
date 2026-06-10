@@ -126,7 +126,7 @@ function gapNarrative(
     title: `Capability gap: organ "${toolName}" is wired but not yet operational`,
     titleSw: `Pengo la uwezo: kiungo "${toolName}" kimeunganishwa lakini bado hakifanyi kazi`,
     rationale:
-      `Mr. Mwikila invoked "${toolName}" but its executor is NOT_YET_WIRED ` +
+      `Mr. Mwikila invoked "${toolName}" but its executor is not yet wired ` +
       `(executor-failed). Recording the gap so the self-developing loop can ` +
       `complete the organ; it clears when the executor goes live.`,
   };

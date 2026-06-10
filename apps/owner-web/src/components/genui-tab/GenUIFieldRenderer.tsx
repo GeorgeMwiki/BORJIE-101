@@ -31,6 +31,7 @@
 
 import { type ChangeEvent, useRef, useState, type ReactElement } from 'react';
 import { API_BASE, ApiError } from '@/lib/api-client';
+import { getCsrfHeaders } from '@/lib/csrf';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getFieldKindMetadata, type PortalTabField } from '@borjie/portal-genui';
 import { useT } from '@/i18n/t.client';
@@ -385,7 +386,7 @@ function FileUploadControl({
       const response = await fetch(url, {
         method: 'POST',
         credentials: 'include',
-        headers: { Accept: 'application/json', ...authHeaders },
+        headers: { Accept: 'application/json', ...authHeaders, ...getCsrfHeaders() },
         body: formData,
       });
 

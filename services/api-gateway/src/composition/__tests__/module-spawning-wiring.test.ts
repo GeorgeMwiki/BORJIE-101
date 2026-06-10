@@ -213,9 +213,9 @@ function makeFakeDb(opts: {
         // COMMIT — promote this txn's pending consumes to durable.
         for (const id of txPending) consumed.add(id);
         return out;
-      } catch (err) {
-        // ROLLBACK — discard this txn's pending consumes (un-consume).
-        throw err;
+        // ROLLBACK on throw: the pending consumes are never promoted to
+        // `consumed` (the loop above is skipped), so they are naturally
+        // discarded/un-consumed as the error propagates out of the `finally`.
       } finally {
         currentTxStatements = prev;
         pendingConsumed = prevPending;

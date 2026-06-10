@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { LOCALE_COOKIE, readLocaleFromDocument, type Locale } from '@/lib/locale';
+import { getCsrfHeaders } from '@/lib/csrf';
 
 interface LanguageToggleProps {
   readonly initial: Locale;
@@ -41,7 +42,7 @@ export function LanguageToggle({ initial }: LanguageToggleProps) {
     void fetch('/api/v1/owner/contact-prefs', {
       method: 'PUT',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
       body: JSON.stringify({ channelPriority: [], locale: next }),
     }).catch(() => undefined);
     window.location.reload();
