@@ -159,19 +159,36 @@ const QsBoqLine = z.object({
     .optional(),
 });
 
+const QsDayworks = z
+  .object({
+    labour: z.number().nonnegative(),
+    plant: z.number().nonnegative(),
+    materials: z.number().nonnegative(),
+    percentage_addition: z.number().min(0).max(2),
+  })
+  .optional();
+
+/** A plural-register variation row (carries its own `ref`). */
 const QsVariation = z.object({
   ref: z.string().min(1),
   quantity: z.number().nonnegative(),
   rate: z.number().optional(),
   basis: z.enum(['boq_rate', 'pro_rata', 'fair_rate', 'dayworks']),
-  dayworks: z
-    .object({
-      labour: z.number().nonnegative(),
-      plant: z.number().nonnegative(),
-      materials: z.number().nonnegative(),
-      percentage_addition: z.number().min(0).max(2),
-    })
-    .optional(),
+  dayworks: QsDayworks,
+});
+
+/**
+ * A SINGLE-variation register row — `ref` is optional because the singular
+ * dispatch path returns one valued variation directly. The deterministic
+ * dispatcher accepts BOTH this singular `variation` and the plural
+ * `variations[]` array so the two QS call-shapes share one engine.
+ */
+const QsSingleVariation = z.object({
+  ref: z.string().min(1).optional(),
+  quantity: z.number().nonnegative(),
+  rate: z.number().optional(),
+  basis: z.enum(['boq_rate', 'pro_rata', 'fair_rate', 'dayworks']),
+  dayworks: QsDayworks,
 });
 
 export const QsTaskSchema = z.enum(['cost_plan', 'ipc_valuation', 'variation', 'final_account', 'evm']);
@@ -203,7 +220,10 @@ export const CostEngineerQsInputSchema = z.object({
       previously_certified: z.number().nonnegative(),
     })
     .optional(),
+  /** Plural register — backward-compatible batch of variations. */
   variations: z.array(QsVariation).optional(),
+  /** Singular register — a single variation valued on its own. */
+  variation: QsSingleVariation.optional(),
   final_account: z
     .object({
       original_contract_sum: z.number().positive(),
@@ -273,10 +293,43 @@ export const COST_ENGINEER_QS_SYSTEM_PROMPT = buildUniversalPrompt({
   ],
 });
 
-function computeQs(input: CostEngineerQsInput): { computed: Record<string, unknown>; posts: boolean } {
+/**
+ * Pure QS dispatcher input. Structurally identical to
+ * {@link CostEngineerQsInput} — it accepts BOTH the singular `variation`
+ * (one variation valued on its own) and the plural `variations[]` batch so
+ * the deterministic engine has a single entry point regardless of call
+ * shape.
+ */
+export type QsInput = CostEngineerQsInput;
+
+/**
+ * Money tasks (IPC / variation / final account) imply a ledger event;
+ * cost-plan and EVM are advisory-only. Centralised so the dispatcher and
+ * `processQs` agree on the money flag.
+ */
+const MONEY_TASKS: ReadonlySet<CostEngineerQsInput['task']> = new Set([
+  'ipc_valuation',
+  'variation',
+  'final_account',
+]);
+
+/**
+ * Deterministic QS dispatcher — runs the relevant `qs-engine` function for
+ * the task and returns the COMPUTED object directly (no LLM, no envelope):
+ *   - `cost_plan`     → `{ cost_plan }`
+ *   - `ipc_valuation` → `{ ipc, retention_release }`
+ *   - `variation`     → `{ variation: { basis, value } }`  (singular)
+ *                       or `{ variations: [...], total }`   (plural batch)
+ *   - `final_account` → `{ final_account }`
+ *   - `evm`           → `{ evm }`
+ *
+ * Throws `"<task> payload required"` (e.g. "ipc_valuation payload required")
+ * when the task's payload is absent. Shared verbatim by `processQs`.
+ */
+export function runQsTask(input: QsInput): Record<string, unknown> {
   switch (input.task) {
     case 'cost_plan': {
-      if (!input.cost_plan) throw new Error('cost-engineer.qs: cost_plan payload required for task=cost_plan');
+      if (!input.cost_plan) throw new Error('cost_plan payload required');
       const measured_works: BoqLine[] = input.cost_plan.measured_works.map((l) => ({
         code: l.code,
         description: l.description,
@@ -284,46 +337,91 @@ function computeQs(input: CostEngineerQsInput): { computed: Record<string, unkno
         unit: l.unit,
         rate: l.rate ?? buildUnitRate(requireBuildup(l)).unit_rate,
       }));
-      return {
-        computed: { cost_plan: buildCostPlan({ ...input.cost_plan, measured_works }) },
-        posts: false,
-      };
+      return { cost_plan: buildCostPlan({ ...input.cost_plan, measured_works }) };
     }
     case 'ipc_valuation': {
-      if (!input.ipc) throw new Error('cost-engineer.qs: ipc payload required for task=ipc_valuation');
+      if (!input.ipc) throw new Error('ipc_valuation payload required');
       const ipc = valuateIpc(input.ipc);
-      return {
-        computed: { ipc, retention_release: retentionReleaseSchedule(ipc.retention_held) },
-        posts: true,
-      };
+      return { ipc, retention_release: retentionReleaseSchedule(ipc.retention_held) };
     }
     case 'variation': {
-      if (!input.variations?.length) throw new Error('cost-engineer.qs: variations[] required for task=variation');
-      const valued = input.variations.map((v) => ({
-        ref: v.ref,
-        ...valuateVariation({
-          quantity: v.quantity,
-          basis: v.basis,
-          ...(v.rate !== undefined ? { rate: v.rate } : {}),
-          ...(v.dayworks !== undefined ? { dayworks: v.dayworks } : {}),
-        }),
-      }));
-      return {
-        computed: { variations: valued, total: round2Sum(valued.map((v) => v.value)) },
-        posts: true,
-      };
+      // Singular `variation` wins when present; otherwise fall back to the
+      // plural `variations[]` batch. Either way at least one is required.
+      if (input.variation) {
+        const v = input.variation;
+        return {
+          variation: valuateVariation({
+            quantity: v.quantity,
+            basis: v.basis,
+            ...(v.rate !== undefined ? { rate: v.rate } : {}),
+            ...(v.dayworks !== undefined ? { dayworks: v.dayworks } : {}),
+          }),
+        };
+      }
+      if (input.variations?.length) {
+        const valued = input.variations.map((v) => ({
+          ref: v.ref,
+          ...valuateVariation({
+            quantity: v.quantity,
+            basis: v.basis,
+            ...(v.rate !== undefined ? { rate: v.rate } : {}),
+            ...(v.dayworks !== undefined ? { dayworks: v.dayworks } : {}),
+          }),
+        }));
+        return { variations: valued, total: round2Sum(valued.map((vv) => vv.value)) };
+      }
+      throw new Error('variation payload required');
     }
     case 'final_account': {
-      if (!input.final_account) throw new Error('cost-engineer.qs: final_account payload required for task=final_account');
-      return { computed: { final_account: reconcileFinalAccount(input.final_account) }, posts: true };
+      if (!input.final_account) throw new Error('final_account payload required');
+      return { final_account: reconcileFinalAccount(input.final_account) };
     }
     case 'evm': {
-      if (!input.evm) throw new Error('cost-engineer.qs: evm payload required for task=evm');
-      return { computed: { evm: computeEvm(input.evm) }, posts: false };
+      if (!input.evm) throw new Error('evm payload required');
+      return { evm: computeEvm(input.evm) };
     }
     default:
-      throw new Error(`cost-engineer.qs: unknown task ${String(input.task)}`);
+      throw new Error(`unknown QS task ${String(input.task)}`);
   }
+}
+
+/**
+ * `processQs` wrapper over {@link runQsTask}: returns the computed object
+ * plus the deterministic money flag derived from the task type.
+ */
+function computeQs(input: CostEngineerQsInput): { computed: Record<string, unknown>; posts: boolean } {
+  return { computed: runQsTask(input), posts: MONEY_TASKS.has(input.task) };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// RIBA stage-gate guard (deterministic)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * RIBA stages at which a project is construction-ready and may certify a
+ * money event (IPC / variation / final account). Certifying money on an
+ * earlier design stage is a stage-gate breach — cost/procurement must not
+ * run ahead of the gate (dossier §5 / NRM discipline).
+ */
+const CONSTRUCTION_READY_STAGES: ReadonlySet<CostEngineerQsInput['riba_stage']> = new Set([
+  'stage_4_technical_design',
+  'stage_5_manufacturing_construction',
+  'stage_6_handover',
+  'stage_7_use',
+]);
+
+/**
+ * Deterministic stage-gate verdict. `null` when the task is non-money or
+ * the stage is construction-ready; otherwise a `"Stage-gate breach"`
+ * string flagging a money event certified on an early design stage.
+ */
+function stageGateWarning(input: CostEngineerQsInput): string | null {
+  if (!MONEY_TASKS.has(input.task)) return null;
+  if (CONSTRUCTION_READY_STAGES.has(input.riba_stage)) return null;
+  return (
+    `Stage-gate breach: a money event (${input.task}) is being certified at ${input.riba_stage}, ` +
+    `before the project is construction-ready (RIBA stage 4+). Cost/procurement must not run ahead of the gate.`
+  );
 }
 
 function requireBuildup(line: z.infer<typeof QsBoqLine>) {
@@ -403,8 +501,9 @@ export function createCostEngineerAgent(deps: JuniorDeps) {
         maxTokens: 2500,
       });
 
-      // Deterministic fields override the LLM — numbers + money-flag are
-      // authoritative from qs-engine, never from the model.
+      // Deterministic fields override the LLM — numbers, money-flag AND the
+      // RIBA stage-gate verdict are authoritative from the engine, never the
+      // model (whose "IGNORED" stage_gate_warning must never leak).
       const output: CostEngineerQsOutput = {
         ...narrated,
         project_id: validated.projectId,
@@ -413,6 +512,7 @@ export function createCostEngineerAgent(deps: JuniorDeps) {
         riba_stage: validated.riba_stage,
         computed,
         posts_to_ledger: posts,
+        stage_gate_warning: stageGateWarning(validated),
       };
 
       if (deps.db) {

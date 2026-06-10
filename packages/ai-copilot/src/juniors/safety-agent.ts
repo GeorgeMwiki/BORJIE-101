@@ -6,22 +6,37 @@
  * "elimination of fatalities, injuries and occupational disease") and
  * the GISTM "zero tolerance for human fatality" posture (§1.3).
  *
- * Two layers:
- *   1. DETERMINISTIC `computeSafetyRates()` — TRIFR / LTIFR / AIFR /
- *      fatality-rate per million hours worked, severity rate, and ICMM
- *      Critical-Control Management (CCM) verification status. Pure, no
- *      LLM, no network — every number traces to an incident_id + the
- *      hours-worked denominator (HSE is a HARD CONSTRAINT, not a KPI,
- *      per CAPABILITY_SPEC_WAVE3 "Licence-to-Operate" pillar).
- *   2. LLM narrative (optional) — `runClaudeJunior` for the qualitative
- *      heatmap commentary / required-actions wording only. The rates
- *      themselves are ALWAYS the deterministic truth.
+ * HSE is a HARD CONSTRAINT, not a KPI (CAPABILITY_SPEC_WAVE3
+ * "Licence-to-Operate" pillar). The agent therefore carries TWO
+ * deterministic registers, both of which OVERRIDE any LLM echo:
+ *
+ *   • Local incident-level engine (`computeSafetyRates`,
+ *     `verifyCriticalControls`, `buildIncidentHeatmap`,
+ *     `computePpeCompliancePct`) — TRIFR/LTIFR/AIFR/fatality + severity
+ *     rate per million hours from a list of `IncidentRecord`s, plus
+ *     cadence/field-result critical-control verification and the
+ *     severity-weighted heatmap. Pure, no LLM, no network.
+ *
+ *   • Pooled-count frequency engine (`safety-hse-metrics.ts`) — the same
+ *     per-million-hours convention from pooled injury counts
+ *     (`computeFrequencyRates`) plus the ICMM Critical-Control Management
+ *     (CCM) bowtie assessment (`assessCriticalControls`) that surfaces
+ *     exposed Material Unwanted Events (MUEs).
+ *
+ * Both registers are computed deterministically and stamped onto the
+ * output; the LLM only narrates required-actions / rationale wording over
+ * the verified numbers. The LLM output is still validated against the
+ * Auditor base (empty `evidence_ids` → `validation_failed`). When there is
+ * measurable exposure (hours worked OR at least one incident) an LLM
+ * failure FALLS BACK to a deterministic envelope so the hard-constraint
+ * rates never go dark; when there is nothing to measure the LLM failure
+ * propagates (no deterministic truth to protect).
  *
  * HIGH-risk guardrail mapping (advisory flags only — this junior NEVER
- * edits the kernel): any fatality or any failed/missing critical
- * control raises `escalation` keyed to the inviolable/policy-gate
- * prefixes the kernel owns (`kill_switch`, `four_eye`). The Master
- * Brain / policy-gate consume these flags; the junior only recommends.
+ * edits the kernel): any fatality or any failed critical control raises
+ * `escalation` keyed to the inviolable/policy-gate prefixes the kernel
+ * owns (`kill_switch`, `four_eye`). The Master Brain / policy-gate consume
+ * these flags; the junior only recommends.
  *
  * Writes via typed `db.insert(safetySnapshots)` (migration 0011).
  */
@@ -37,6 +52,13 @@ import {
   withResolvedDb,
   type JuniorDeps,
 } from './_shared.js';
+import {
+  assessCriticalControls,
+  computeFrequencyRates,
+  type CriticalControlRecord,
+  type FrequencyRates,
+  type InjuryCounts,
+} from './safety-hse-metrics.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Schemas — incident + PPE inputs (kept stable for index.ts re-exports)
@@ -82,25 +104,35 @@ export type PpeIssue = z.infer<typeof PpeIssue>;
 /**
  * ICMM Critical-Control Management (CCM) register row. Each critical
  * control is the LAST line of defence against a material unwanted event
- * (MUE) — fall-of-ground, vehicle interaction, inrush, etc. A control is
- * only "verified" if it was field-checked within its verification cadence.
+ * (MUE). The schema accepts BOTH cadence styles so callers can supply
+ * either a last-verified ISO date + field result (cadence-style) OR a
+ * days-since-verification + boolean pass (interval-style); the agent runs
+ * both deterministic verifiers over whichever fields are present.
  */
 export const CriticalControlInput = z.object({
   control_id: z.string().min(1),
-  /** The material unwanted event this control defends against. */
-  mue: z.string().min(1),
   /** What the control IS (e.g. "ground support installed to standard"). */
   control: z.string().min(1),
+  /** The material unwanted event this control defends against. */
+  mue: z.string().min(1),
   /** Named accountable person (ICMM "assign accountability"). */
-  owner: z.string().min(1),
+  owner: z.string().min(1).optional(),
+  // ── cadence-style fields (ISO date + field result) ──
   /** ISO date of the last field verification, or null if never verified. */
-  last_verified_iso: z.string().nullable().default(null),
+  last_verified_iso: z.string().nullable().optional(),
   /** Required verification cadence in days (e.g. 7 for weekly). */
-  cadence_days: z.number().int().positive().default(30),
+  cadence_days: z.number().int().positive().optional(),
   /** Most recent field-verification result. */
-  field_result: z.enum(['pass', 'partial', 'fail', 'unverified']).default('unverified'),
+  field_result: z.enum(['pass', 'partial', 'fail', 'unverified']).optional(),
   /** Evidence the verification happened (photo / checklist id). */
   verification_evidence_id: z.string().optional(),
+  // ── interval-style fields (days-since + boolean pass) ──
+  /** Required verification cadence in days (interval-style alias). */
+  verification_interval_days: z.number().int().positive().optional(),
+  /** Days since the control was last field-verified (omitted = never verified). */
+  days_since_last_verification: z.number().int().nonnegative().optional(),
+  /** Whether the last field verification found the control effective. */
+  last_verification_passed: z.boolean().optional(),
 });
 export type CriticalControlInput = z.infer<typeof CriticalControlInput>;
 
@@ -117,6 +149,9 @@ export const SafetyAgentInputSchema = z.object({
    * Ties to the workforce-hours TRIFR-denominator rule in the spec.
    */
   hours_worked: z.number().nonnegative().default(0),
+  /** Optional prior-period rates to derive a frequency trend direction. */
+  prior_trifr: z.number().nonnegative().optional(),
+  prior_ltifr: z.number().nonnegative().optional(),
   critical_controls: z.array(CriticalControlInput).default([]),
   /** ISO date the report is generated against (for cadence math). */
   as_of_iso: z.string().optional(),
@@ -131,6 +166,9 @@ export type SafetyAgentInput = z.infer<typeof SafetyAgentInputSchema>;
 // Output schema
 // ─────────────────────────────────────────────────────────────────────
 
+const RateTrendSchema = z.enum(['improving', 'worsening', 'flat', 'no_baseline']);
+
+/** Local incident-level rate block (TRIFR/LTIFR/AIFR/fatality + severity). */
 export const SafetyRates = z.object({
   hours_worked: z.number().nonnegative(),
   /** Per million hours worked: recordable (MTI+RWC+LTI+fatality). */
@@ -151,18 +189,39 @@ export const SafetyRates = z.object({
 });
 export type SafetyRates = z.infer<typeof SafetyRates>;
 
+/** Pooled-count frequency block (mirrors `FrequencyRates`). */
+export const SafetyFrequencyRates = z.object({
+  hours_worked: z.number().nonnegative(),
+  recordable_count: z.number().nonnegative(),
+  lost_time_count: z.number().nonnegative(),
+  fatality_count: z.number().nonnegative(),
+  trifr: z.number().nonnegative(),
+  ltifr: z.number().nonnegative(),
+  fatality_rate: z.number().nonnegative(),
+  trifr_trend: RateTrendSchema,
+  ltifr_trend: RateTrendSchema,
+  /** Zero fatalities is the ICMM Principle-5 hard line; any fatality trips this. */
+  fatality_free: z.boolean(),
+});
+export type SafetyFrequencyRates = z.infer<typeof SafetyFrequencyRates>;
+
+/**
+ * Local critical-control verdict (cadence/field-result engine). Identity
+ * fields default so a thin LLM echo validates before the deterministic
+ * override replaces the array with the engine truth.
+ */
 export const CriticalControlStatus = z.object({
-  control_id: z.string(),
-  mue: z.string(),
-  owner: z.string(),
-  status: z.enum(['effective', 'degraded', 'failed', 'unknown']),
+  control_id: z.string().default(''),
+  mue: z.string().default(''),
+  owner: z.string().default(''),
+  status: z.enum(['effective', 'degraded', 'failed', 'unknown', 'unverified']),
   /** Verified within cadence AND last field result was a pass. */
-  verified: z.boolean(),
+  verified: z.boolean().default(false),
   /** Days since last verification (null when never verified). */
-  days_since_verification: z.number().int().nullable(),
+  days_since_verification: z.number().int().nullable().default(null),
   /** True when verification is older than the required cadence. */
-  overdue: z.boolean(),
-  reason: z.string(),
+  overdue: z.boolean().default(false),
+  reason: z.string().default(''),
 });
 export type CriticalControlStatus = z.infer<typeof CriticalControlStatus>;
 
@@ -176,27 +235,38 @@ export type SafetyEscalation = z.infer<typeof SafetyEscalation>;
 
 export const SafetyAgentOutput = AuditedOutputBase.extend({
   site_id: z.string(),
-  rates: SafetyRates,
-  critical_controls: z.array(CriticalControlStatus),
-  /** Count of critical controls that are failed or unverified-overdue. */
-  controls_at_risk: z.number().int().nonnegative(),
-  incident_heatmap: z.array(
-    z.object({
-      site_section: z.string(),
-      severity_score: z.number().nonnegative(),
-      count: z.number().int().nonnegative(),
-    }),
-  ),
-  ppe_compliance_pct: z.number().min(0).max(100),
-  immediate_alerts: z.array(z.string()),
-  required_actions: z.array(z.string()),
+  /** Local incident-level rate block. */
+  rates: SafetyRates.optional(),
+  /**
+   * Pooled-count frequency block — null when no hours AND no incidents.
+   * The same numbers as `rates` under the per-million-hours convention,
+   * surfaced under the dossier-aligned `frequency_rates` key.
+   */
+  frequency_rates: SafetyFrequencyRates.nullable().default(null),
+  critical_controls: z.array(CriticalControlStatus).default([]),
+  /** Count of critical controls that are failed or unverified/overdue (local engine). */
+  controls_at_risk: z.number().int().nonnegative().default(0),
+  /** MUEs whose every guarding control is failed/unverified — top risk (CCM bowtie). */
+  exposed_mues: z.array(z.string()).default([]),
+  incident_heatmap: z
+    .array(
+      z.object({
+        site_section: z.string(),
+        severity_score: z.number().nonnegative(),
+        count: z.number().int().nonnegative(),
+      }),
+    )
+    .default([]),
+  ppe_compliance_pct: z.number().min(0).max(100).default(0),
+  immediate_alerts: z.array(z.string()).default([]),
+  required_actions: z.array(z.string()).default([]),
   /** HIGH-risk guardrail flags for the kernel to consume (never auto-acted here). */
   escalations: z.array(SafetyEscalation).default([]),
 });
 export type SafetyAgentOutput = z.infer<typeof SafetyAgentOutput>;
 
 // ─────────────────────────────────────────────────────────────────────
-// Deterministic HSE-rate engine (pure — no LLM, no network)
+// Local deterministic HSE-rate engine (pure — no LLM, no network)
 // ─────────────────────────────────────────────────────────────────────
 
 const PER_MILLION = 1_000_000;
@@ -226,10 +296,10 @@ const INJURY_KINDS: ReadonlySet<IncidentKind> = new Set<IncidentKind>([
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
- * Compute ICMM-aligned safety frequency rates. Rate = numerator /
- * hours_worked * 1,000,000. When hours_worked is 0 the rates are
- * reported as 0 but flagged `denominator_insufficient` — a world-class
- * MD never confabulates a TRIFR from a missing denominator.
+ * Compute ICMM-aligned safety frequency rates from a list of incidents.
+ * Rate = numerator / hours_worked * 1,000,000. When hours_worked is 0 the
+ * rates are reported as 0 but flagged `denominator_insufficient` — a
+ * world-class MD never confabulates a TRIFR from a missing denominator.
  */
 export function computeSafetyRates(
   incidents: ReadonlyArray<IncidentRecord>,
@@ -259,10 +329,10 @@ export function computeSafetyRates(
 }
 
 /**
- * Deterministic ICMM Critical-Control Management verification. A control
- * is `effective` only when its last field result is a `pass` AND the
- * verification is within cadence. `fail` -> failed; `partial` -> degraded;
- * overdue/unverified -> unknown.
+ * Local ICMM Critical-Control Management verification (cadence/field-result
+ * engine). A control is `effective` only when its last field result is a
+ * `pass` AND the verification is within cadence. `fail` → failed;
+ * `partial` → degraded; overdue/unverified → unknown.
  */
 export function verifyCriticalControls(
   controls: ReadonlyArray<CriticalControlInput>,
@@ -271,37 +341,50 @@ export function verifyCriticalControls(
   const asOf = Date.parse(asOfIso);
   const asOfValid = Number.isFinite(asOf);
   return controls.map((c) => {
+    const cadence = c.cadence_days ?? c.verification_interval_days ?? 30;
+    // Field result is explicit (cadence-style) or derived from the
+    // interval-style boolean pass; `unverified` when neither is present.
+    const fieldResult: 'pass' | 'partial' | 'fail' | 'unverified' =
+      c.field_result ??
+      (c.last_verification_passed === true
+        ? 'pass'
+        : c.last_verification_passed === false
+          ? 'fail'
+          : 'unverified');
+    // Days-since may come from an ISO date (cadence-style) or directly
+    // (interval-style); either drives the overdue/never-verified branches.
     const lastMs = c.last_verified_iso ? Date.parse(c.last_verified_iso) : NaN;
-    const hasVerification = Number.isFinite(lastMs);
+    const hasIsoVerification = Number.isFinite(lastMs);
     const daysSince =
-      hasVerification && asOfValid
+      hasIsoVerification && asOfValid
         ? Math.max(0, Math.floor((asOf - lastMs) / 86_400_000))
-        : null;
-    const overdue = daysSince === null ? true : daysSince > c.cadence_days;
+        : (c.days_since_last_verification ?? null);
+    const hasVerification = hasIsoVerification || c.days_since_last_verification !== undefined;
+    const overdue = daysSince === null ? true : daysSince > cadence;
 
     let status: CriticalControlStatus['status'];
     let reason: string;
-    if (c.field_result === 'fail') {
+    if (fieldResult === 'fail') {
       status = 'failed';
       reason = `Last field verification FAILED for MUE "${c.mue}".`;
-    } else if (c.field_result === 'partial') {
+    } else if (fieldResult === 'partial') {
       status = 'degraded';
       reason = `Field verification only PARTIAL for MUE "${c.mue}".`;
-    } else if (c.field_result === 'unverified' || !hasVerification) {
+    } else if (fieldResult === 'unverified' || !hasVerification) {
       status = 'unknown';
       reason = `No valid field verification on record for MUE "${c.mue}".`;
     } else if (overdue) {
       status = 'unknown';
-      reason = `Verification overdue (${daysSince}d > ${c.cadence_days}d cadence) for MUE "${c.mue}".`;
+      reason = `Verification overdue (${daysSince}d > ${cadence}d cadence) for MUE "${c.mue}".`;
     } else {
       status = 'effective';
-      reason = `Verified pass within cadence (${daysSince}d <= ${c.cadence_days}d).`;
+      reason = `Verified pass within cadence (${daysSince}d <= ${cadence}d).`;
     }
 
     return {
       control_id: c.control_id,
       mue: c.mue,
-      owner: c.owner,
+      owner: c.owner ?? '',
       status,
       verified: status === 'effective',
       days_since_verification: daysSince,
@@ -340,6 +423,61 @@ export function computePpeCompliancePct(
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Pooled-count frequency engine bridge
+// ─────────────────────────────────────────────────────────────────────
+
+/** Tally recent incidents into the `InjuryCounts` the frequency engine consumes. */
+function tallyInjuries(incidents: ReadonlyArray<IncidentRecord>): InjuryCounts {
+  const zero: InjuryCounts = {
+    first_aid: 0,
+    medical_treatment: 0,
+    restricted_work: 0,
+    lost_time_injury: 0,
+    fatality: 0,
+    near_miss: 0,
+  };
+  return incidents.reduce<InjuryCounts>((acc, i) => {
+    switch (i.kind) {
+      case 'first_aid':
+        return { ...acc, first_aid: acc.first_aid + 1 };
+      case 'medical_treatment':
+        return { ...acc, medical_treatment: acc.medical_treatment + 1 };
+      case 'restricted_work':
+        return { ...acc, restricted_work: acc.restricted_work + 1 };
+      case 'lost_time_injury':
+        return { ...acc, lost_time_injury: acc.lost_time_injury + 1 };
+      case 'fatality':
+        return { ...acc, fatality: acc.fatality + 1 };
+      case 'near_miss':
+        return { ...acc, near_miss: acc.near_miss + 1 };
+      default:
+        // environmental_release / property_damage are non-injury.
+        return acc;
+    }
+  }, zero);
+}
+
+/** Project a `CriticalControlInput` onto the CCM `CriticalControlRecord` shape. */
+function toCcmRecord(c: CriticalControlInput): CriticalControlRecord {
+  const interval = c.verification_interval_days ?? c.cadence_days ?? 30;
+  // last_verification_passed wins; else derive from a cadence field_result.
+  const passed =
+    c.last_verification_passed ??
+    (c.field_result === 'pass' ? true : c.field_result === 'fail' ? false : undefined);
+  return {
+    control_id: c.control_id,
+    control: c.control,
+    mue: c.mue,
+    verification_interval_days: interval,
+    ...(c.owner !== undefined ? { owner: c.owner } : {}),
+    ...(c.days_since_last_verification !== undefined
+      ? { days_since_last_verification: c.days_since_last_verification }
+      : {}),
+    ...(passed !== undefined ? { last_verification_passed: passed } : {}),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Prompt (narrative only — rates/controls are deterministic)
 // ─────────────────────────────────────────────────────────────────────
 
@@ -353,11 +491,12 @@ export const SAFETY_SYSTEM_PROMPT = buildUniversalPrompt({
   tools:
     'critical_controls, verify_critical_control, capture_toolbox_talk, log_incident, ppe_status, proximity_check, blast_permit_status, norm_status.',
   evidence:
-    'Cite the incident_id for every alert. Cite the control_id + verification_evidence_id for every at-risk critical control. ' +
+    'Cite the incident_id for every alert. Cite the control_id for every at-risk critical control. ' +
     'Cite the ICMM Principle / GISTM clause for the HSE-as-hard-constraint framing.',
   outputSchema:
-    '{ "site_id": string, "rates": {...}, "critical_controls": [...], "controls_at_risk": number, "incident_heatmap": [...], ' +
-    '"ppe_compliance_pct": number, "immediate_alerts": string[], "required_actions": string[], "escalations": [...], ' +
+    '{ "site_id": string, "rates": {...}, "frequency_rates": {...}|null, "critical_controls": [...], ' +
+    '"controls_at_risk": number, "exposed_mues": string[], "incident_heatmap": [...], "ppe_compliance_pct": number, ' +
+    '"immediate_alerts": string[], "required_actions": string[], "escalations": [...], ' +
     '"confidence": number, "rationale": string, "evidence_ids": string[], "citations": string[] }',
   confidenceFloor: 0.85,
   autonomyDomain: 'monitoring + alerting; never issues PPE or signs off blast permits autonomously',
@@ -395,7 +534,9 @@ function buildUserPrompt(
 function assembleAlertsAndEscalations(
   input: SafetyAgentInput,
   rates: SafetyRates,
-  controls: ReadonlyArray<CriticalControlStatus>,
+  localControls: ReadonlyArray<CriticalControlStatus>,
+  exposedMues: ReadonlyArray<string>,
+  ccmFailedIds: ReadonlyArray<string>,
 ): { alerts: string[]; escalations: SafetyEscalation[]; controlsAtRisk: number } {
   const alerts: string[] = [];
   const escalations: SafetyEscalation[] = [];
@@ -411,15 +552,25 @@ function assembleAlertsAndEscalations(
     });
   }
 
-  // Any failed critical control → four-eye class (last line of defence breached).
-  const failed = controls.filter((c) => c.status === 'failed');
-  for (const c of failed) {
-    alerts.push(`FAILED critical control ${c.control_id} for MUE "${c.mue}" (owner ${c.owner}).`);
-    escalations.push({
-      policy_prefix: 'four_eye',
-      reason: `Critical control ${c.control_id} FAILED — material unwanted event "${c.mue}" undefended; two-person verification required to resume.`,
-      evidence_id: c.control_id,
-    });
+  // Any failed critical control (either engine) → four-eye class.
+  const failedIds = new Set<string>([
+    ...localControls.filter((c) => c.status === 'failed').map((c) => c.control_id),
+    ...ccmFailedIds,
+  ]);
+  for (const c of localControls) {
+    if (failedIds.has(c.control_id)) {
+      alerts.push(`FAILED critical control ${c.control_id} for MUE "${c.mue}" (owner ${c.owner || 'UNOWNED'}).`);
+      escalations.push({
+        policy_prefix: 'four_eye',
+        reason: `Critical control ${c.control_id} FAILED — material unwanted event "${c.mue}" undefended; two-person verification required to resume.`,
+        evidence_id: c.control_id,
+      });
+    }
+  }
+
+  // Exposed MUEs (every guarding control failed/unverified) → alert.
+  for (const mue of exposedMues) {
+    alerts.push(`EXPOSED MUE "${mue}" — no effective critical control currently guards it.`);
   }
 
   // High-severity injuries (non-fatal) → immediate alert, no kill-switch.
@@ -429,8 +580,9 @@ function assembleAlertsAndEscalations(
     }
   }
 
-  const atRiskControls = controls.filter((c) => c.status === 'failed' || c.status === 'unknown');
-  const controlsAtRisk = atRiskControls.length;
+  const controlsAtRisk = localControls.filter(
+    (c) => c.status === 'failed' || c.status === 'unknown' || c.status === 'unverified',
+  ).length;
 
   if (rates.denominator_insufficient && input.recent_incidents.length > 0) {
     alerts.push('Hours-worked denominator missing — TRIFR/LTIFR UNRELIABLE; supply hours_worked.');
@@ -439,91 +591,6 @@ function assembleAlertsAndEscalations(
   return { alerts, escalations, controlsAtRisk };
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Factory
-// ─────────────────────────────────────────────────────────────────────
-
-export function createSafetyAgent(deps: JuniorDeps) {
-  return {
-    async processInput(input: SafetyAgentInput): Promise<SafetyAgentOutput> {
-      const validated = SafetyAgentInputSchema.parse(input);
-      const asOf = validated.as_of_iso ?? new Date().toISOString();
-
-      // 1) Deterministic truth — these are NEVER produced by the LLM.
-      const rates = computeSafetyRates(validated.recent_incidents, validated.hours_worked);
-      const controls = verifyCriticalControls(validated.critical_controls, asOf);
-      const heatmap = buildIncidentHeatmap(validated.recent_incidents);
-      const ppeCompliance = computePpeCompliancePct(
-        validated.ppe_issuance,
-        validated.workforce_headcount,
-      );
-      const { alerts, escalations, controlsAtRisk } = assembleAlertsAndEscalations(
-        validated,
-        rates,
-        controls,
-      );
-
-      // Deterministic evidence chain — incident_ids + control_ids actually used.
-      const evidenceIds = [
-        ...validated.recent_incidents.map((i) => i.incident_id),
-        ...controls.map((c) => c.control_id),
-      ];
-      const baseEvidence = evidenceIds.length > 0 ? evidenceIds : ['safety_baseline_no_incidents'];
-
-      // 2) LLM narrative (best-effort). On any failure we fall back to a
-      //    deterministic envelope so the HARD-CONSTRAINT rates always ship.
-      let narrative: { required_actions: string[]; rationale: string; citations: string[] } = {
-        required_actions: deterministicRequiredActions(controls, rates),
-        rationale: deterministicRationale(rates, controlsAtRisk),
-        citations: [
-          'mining-esg-compliance.md §1.1 ICMM Principle 5 (eliminate fatalities/injuries)',
-          'mining-esg-compliance.md §1.3 GISTM zero-tolerance for human fatality',
-        ],
-      };
-      try {
-        const llm = await runClaudeJunior({
-          claude: deps.claude,
-          logger: deps.logger,
-          juniorName: 'safety-agent',
-          schema: SafetyAgentOutput,
-          systemPrompt: SAFETY_SYSTEM_PROMPT,
-          userPrompt: buildUserPrompt(validated, rates, controls),
-          maxTokens: 2500,
-        });
-        narrative = {
-          required_actions: llm.required_actions,
-          rationale: llm.rationale,
-          citations: llm.citations,
-        };
-      } catch (err) {
-        deps.logger?.warn('safety-agent: LLM narrative skipped — using deterministic envelope', {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
-
-      const output: SafetyAgentOutput = {
-        site_id: validated.siteId,
-        rates,
-        critical_controls: [...controls],
-        controls_at_risk: controlsAtRisk,
-        incident_heatmap: [...heatmap],
-        ppe_compliance_pct: ppeCompliance,
-        immediate_alerts: alerts,
-        required_actions: narrative.required_actions,
-        escalations,
-        confidence: rates.denominator_insufficient ? 0.6 : 0.9,
-        rationale: narrative.rationale,
-        evidence_ids: baseEvidence,
-        citations: narrative.citations,
-      };
-
-      await persistSnapshot(deps, validated, output);
-      return output;
-    },
-  };
-}
-export type SafetyAgent = ReturnType<typeof createSafetyAgent>;
-
 function deterministicRequiredActions(
   controls: ReadonlyArray<CriticalControlStatus>,
   rates: SafetyRates,
@@ -531,8 +598,8 @@ function deterministicRequiredActions(
   const actions: string[] = [];
   for (const c of controls) {
     if (c.status === 'failed') {
-      actions.push(`Stop work on MUE "${c.mue}"; restore critical control ${c.control_id} (owner ${c.owner}).`);
-    } else if (c.status === 'unknown' && c.overdue) {
+      actions.push(`Stop work on MUE "${c.mue}"; restore critical control ${c.control_id} (owner ${c.owner || 'UNOWNED'}).`);
+    } else if ((c.status === 'unknown' || c.status === 'unverified') && c.overdue) {
       actions.push(`Field-verify overdue critical control ${c.control_id} for MUE "${c.mue}".`);
     } else if (c.status === 'degraded') {
       actions.push(`Remediate partial critical control ${c.control_id} for MUE "${c.mue}".`);
@@ -551,6 +618,121 @@ function deterministicRationale(rates: SafetyRates, controlsAtRisk: number): str
     `${controlsAtRisk} critical control(s) at risk. HSE treated as a hard constraint per ICMM Principle 5.`
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Factory
+// ─────────────────────────────────────────────────────────────────────
+
+export function createSafetyAgent(deps: JuniorDeps) {
+  return {
+    async processInput(input: SafetyAgentInput): Promise<SafetyAgentOutput> {
+      const validated = SafetyAgentInputSchema.parse(input);
+      const asOf = validated.as_of_iso ?? new Date().toISOString();
+
+      // 1) Deterministic truth — NEVER produced by the LLM.
+      const rates = computeSafetyRates(validated.recent_incidents, validated.hours_worked);
+      const localControls = verifyCriticalControls(validated.critical_controls, asOf);
+      const heatmap = buildIncidentHeatmap(validated.recent_incidents);
+      const ppeCompliance = computePpeCompliancePct(
+        validated.ppe_issuance,
+        validated.workforce_headcount,
+      );
+
+      // Pooled-count frequency block (null when nothing to measure) + CCM bowtie.
+      const hasMeasurableExposure =
+        validated.hours_worked > 0 || validated.recent_incidents.length > 0;
+      const frequencyRates: FrequencyRates | null = hasMeasurableExposure
+        ? computeFrequencyRates({
+            injuries: tallyInjuries(validated.recent_incidents),
+            hours_worked: validated.hours_worked,
+            ...(validated.prior_trifr !== undefined ? { prior_trifr: validated.prior_trifr } : {}),
+            ...(validated.prior_ltifr !== undefined ? { prior_ltifr: validated.prior_ltifr } : {}),
+          })
+        : null;
+      const ccm = assessCriticalControls(validated.critical_controls.map(toCcmRecord));
+
+      const { alerts, escalations, controlsAtRisk } = assembleAlertsAndEscalations(
+        validated,
+        rates,
+        localControls,
+        ccm.exposed_mues,
+        ccm.failed_control_ids,
+      );
+
+      // Deterministic evidence chain — incident_ids + control_ids actually used.
+      const evidenceIds = [
+        ...validated.recent_incidents.map((i) => i.incident_id),
+        ...validated.critical_controls.map((c) => c.control_id),
+      ];
+      const baseEvidence = evidenceIds.length > 0 ? evidenceIds : null;
+
+      // 2) LLM narrative. The output is validated against the Auditor base
+      //    (empty evidence_ids → validation_failed). When there is
+      //    measurable exposure we FALL BACK to a deterministic envelope on
+      //    any LLM failure (HSE never goes dark); otherwise the failure
+      //    propagates (no deterministic truth to protect).
+      let narrative: { required_actions: string[]; rationale: string; citations: string[]; evidence_ids: string[] };
+      const deterministicNarrative = {
+        required_actions: deterministicRequiredActions(localControls, rates),
+        rationale: deterministicRationale(rates, controlsAtRisk),
+        citations: [
+          'mining-esg-compliance.md §1.1 ICMM Principle 5 (eliminate fatalities/injuries)',
+          'mining-esg-compliance.md §1.3 GISTM zero-tolerance for human fatality',
+        ],
+        evidence_ids: baseEvidence ?? ['safety_baseline_no_incidents'],
+      };
+      try {
+        const llm = await runClaudeJunior({
+          claude: deps.claude,
+          logger: deps.logger,
+          juniorName: 'safety-agent',
+          schema: SafetyAgentOutput,
+          systemPrompt: SAFETY_SYSTEM_PROMPT,
+          userPrompt: buildUserPrompt(validated, rates, localControls),
+          maxTokens: 2500,
+        });
+        narrative = {
+          required_actions:
+            llm.required_actions.length > 0 ? llm.required_actions : deterministicNarrative.required_actions,
+          rationale: llm.rationale || deterministicNarrative.rationale,
+          citations: llm.citations,
+          evidence_ids: baseEvidence ?? llm.evidence_ids,
+        };
+      } catch (err) {
+        if (!hasMeasurableExposure) {
+          // Nothing to protect — surface the failure to the caller.
+          throw err;
+        }
+        deps.logger?.warn('safety-agent: LLM narrative skipped — using deterministic envelope', {
+          error: err instanceof Error ? err.message : String(err),
+        });
+        narrative = deterministicNarrative;
+      }
+
+      const output: SafetyAgentOutput = {
+        site_id: validated.siteId,
+        rates,
+        frequency_rates: frequencyRates,
+        critical_controls: localControls.map((c) => ({ ...c })),
+        controls_at_risk: controlsAtRisk,
+        exposed_mues: [...ccm.exposed_mues],
+        incident_heatmap: [...heatmap],
+        ppe_compliance_pct: ppeCompliance,
+        immediate_alerts: alerts,
+        required_actions: narrative.required_actions,
+        escalations,
+        confidence: rates.denominator_insufficient ? 0.6 : 0.9,
+        rationale: narrative.rationale,
+        evidence_ids: narrative.evidence_ids,
+        citations: narrative.citations,
+      };
+
+      await persistSnapshot(deps, validated, output);
+      return output;
+    },
+  };
+}
+export type SafetyAgent = ReturnType<typeof createSafetyAgent>;
 
 async function persistSnapshot(
   deps: JuniorDeps,
