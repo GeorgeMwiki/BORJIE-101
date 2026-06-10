@@ -281,7 +281,16 @@ export const sw = {
       "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako.",
       "fulfill": "Tafadhali endelea na: {action}.",
       "fulfillDetail": "Tafadhali endelea na: {action}. Maelezo — {detail}.",
-      "promoteTab": "Tafadhali tengeneza na ufungue tab kamili ya: {label}."
+      "promoteTab": "Tafadhali tengeneza na ufungue tab kamili ya: {label}.",
+      "expandBlock": "Tafadhali nipanulie hili."
+    },
+    "stream": {
+      "stop": "Simamisha",
+      "stopAria": "Simamisha kuzalisha",
+      "stopped": "Jibu limesimamishwa",
+      "retry": "Jaribu tena",
+      "attach": "Ambatisha faili",
+      "dropHere": "Dondosha faili kuambatisha"
     },
     "selfModel": {
       "title": "Kiasi gani nina uhakika",

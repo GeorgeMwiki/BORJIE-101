@@ -315,6 +315,19 @@ export const en = {
       // GENERATIVE TAB PROMOTION — a dynamic, brain-authored tab type the static
       // registry does not know defers to the brain to build + open it.
       promoteTab: 'Please build and open the full {label} tab.',
+      // UNKNOWN-BLOCK affordance — a block kind the FE has no renderer for is
+      // deferred to the brain to expand (re-emit as a known kind or describe
+      // in prose). Never a raw `[unknown block]` at a paying owner.
+      expandBlock: 'Please expand this for me.',
+    },
+    // Streaming chat lifecycle + controls. Single language per active locale.
+    stream: {
+      stop: 'Stop',
+      stopAria: 'Stop generating',
+      stopped: 'Response stopped',
+      retry: 'Retry',
+      attach: 'Attach a file',
+      dropHere: 'Drop files to attach',
     },
     // Honest epistemic-state surface (Win #2 / INV-H). Rendered under an
     // assistant answer: a posture badge + three short axis lists. INV-H —

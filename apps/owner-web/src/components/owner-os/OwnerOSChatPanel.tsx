@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useState, type DragEvent, type ReactElement } from 'react';
-import { Upload, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import type { OwnerOSSpawnIntent } from '@borjie/owner-os-tabs';
 import { HomeChatTeach } from '@/components/home-chat/HomeChatTeach';
 import { Blackboard } from '@/components/blackboard';
@@ -73,7 +73,13 @@ export function OwnerOSChatPanel({
     async (files: ReadonlyArray<File>) => {
       const accepted = files.filter((f) => ACCEPT_MIMES.includes(f.type) || f.name.match(/\.(pdf|docx|xlsx|jpg|png|txt)$/i));
       if (accepted.length === 0) {
-        setStatus({ kind: 'error', message: 'No supported files in drop' });
+        setStatus({
+          kind: 'error',
+          message:
+            languagePreference === 'sw'
+              ? S.chatPanel.noSupported.sw
+              : S.chatPanel.noSupported.en,
+        });
         return;
       }
       setStatus({ kind: 'uploading', total: accepted.length, done: 0 });
@@ -98,7 +104,12 @@ export function OwnerOSChatPanel({
         } catch (e) {
           setStatus({
             kind: 'error',
-            message: e instanceof Error ? e.message : 'Intake failed',
+            message:
+              e instanceof Error
+                ? e.message
+                : languagePreference === 'sw'
+                  ? S.chatPanel.intakeFailed.sw
+                  : S.chatPanel.intakeFailed.en,
           });
           return;
         }
@@ -107,7 +118,7 @@ export function OwnerOSChatPanel({
       }
       setStatus({ kind: 'done', results });
     },
-    [onSpawnDocTab],
+    [onSpawnDocTab, languagePreference],
   );
 
   const onDrop = useCallback(
@@ -120,51 +131,83 @@ export function OwnerOSChatPanel({
     [handleFiles],
   );
 
+  const onAttachFiles = useCallback(
+    (files: ReadonlyArray<File>) => {
+      void handleFiles(files);
+    },
+    [handleFiles],
+  );
+
+  const filingStatus =
+    status.kind === 'uploading'
+      ? languagePreference === 'sw'
+        ? `Inapakia ${status.done}/${status.total}…`
+        : `Filing ${status.done}/${status.total}…`
+      : status.kind === 'done'
+        ? languagePreference === 'sw'
+          ? `${S.chatPanel.filedDonePrefix.sw}${status.results.length}${S.chatPanel.filedDoneSuffix.sw}`
+          : `${S.chatPanel.filedDonePrefix.en}${status.results.length} document${status.results.length === 1 ? '' : 's'}`
+        : status.kind === 'error'
+          ? status.message
+          : null;
+
+  // The whole panel IS the drop target now. The dashed banner is gone — its
+  // ~90px is recovered for the transcript. An absolute, pointer-events-none
+  // overlay appears ONLY while dragging over the panel; the paperclip in the
+  // composer is the always-available attach path.
   return (
-    <div className="flex flex-col gap-3" data-testid="owner-os-chat-panel">
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDropActive(true);
-        }}
-        onDragLeave={() => setDropActive(false)}
-        onDrop={onDrop}
-        data-testid="owner-os-drop-zone"
-        className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 text-center transition ${
-          dropActive
-            ? 'border-warning bg-warning/10'
-            : 'border-border bg-surface/30 text-neutral-400'
-        }`}
-      >
-        <Upload aria-hidden="true" className="h-5 w-5 text-warning" />
-        <p className="text-sm">
-          {languagePreference === 'sw'
-            ? S.chatPanel.dropHint.sw
-            : S.chatPanel.dropHint.en}
+    <div
+      className="relative flex flex-col gap-3"
+      data-testid="owner-os-chat-panel"
+      onDragEnter={(e) => {
+        e.preventDefault();
+        setDropActive(true);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+      }}
+      onDragLeave={(e) => {
+        // Only clear when the drag actually leaves the panel (not a child).
+        if (e.currentTarget === e.target) setDropActive(false);
+      }}
+      onDrop={onDrop}
+    >
+      {/* Compact, ephemeral filing status — only when something is happening. */}
+      {filingStatus ? (
+        <p
+          data-testid="owner-os-filing-status"
+          className={`text-tiny ${
+            status.kind === 'error'
+              ? 'text-destructive'
+              : status.kind === 'done'
+                ? 'text-success'
+                : 'text-warning'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {filingStatus}
         </p>
-        <p className="text-tiny text-neutral-500">PDF · DOCX · XLSX · JPG · PNG · TXT (≤25 MB)</p>
-        {status.kind === 'uploading' ? (
-          <p className="text-tiny text-warning">
+      ) : null}
+
+      {/* Drag-only overlay — shown while a file is dragged over the panel. */}
+      {dropActive ? (
+        <div
+          data-testid="owner-os-drop-overlay"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-warning bg-background/80 backdrop-blur-sm"
+        >
+          <Upload className="h-6 w-6 text-warning" aria-hidden="true" />
+          <p className="text-sm font-medium text-foreground">
             {languagePreference === 'sw'
-              ? `Inapakia ${status.done}/${status.total}…`
-              : `Filing ${status.done}/${status.total}…`}
+              ? S.chatPanel.dropOverlay.sw
+              : S.chatPanel.dropOverlay.en}
           </p>
-        ) : null}
-        {status.kind === 'done' ? (
-          <p className="inline-flex items-center gap-1 text-tiny text-success">
-            <CheckCircle aria-hidden="true" className="h-3.5 w-3.5" />
-            {languagePreference === 'sw'
-              ? `${S.chatPanel.filedDonePrefix.sw}${status.results.length}${S.chatPanel.filedDoneSuffix.sw}`
-              : `${S.chatPanel.filedDonePrefix.en}${status.results.length} document${status.results.length === 1 ? '' : 's'}`}
+          <p className="text-tiny text-neutral-400">
+            PDF · DOCX · XLSX · JPG · PNG · TXT (≤25 MB)
           </p>
-        ) : null}
-        {status.kind === 'error' ? (
-          <p className="inline-flex items-center gap-1 text-tiny text-destructive">
-            <AlertTriangle aria-hidden="true" className="h-3.5 w-3.5" />
-            {status.message}
-          </p>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div
         className="grid flex-1 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,_55fr)_minmax(0,_45fr)]"
@@ -174,6 +217,12 @@ export function OwnerOSChatPanel({
           salutation={salutation}
           tradingName={tradingName}
           languagePreference={languagePreference}
+          onAttachFiles={onAttachFiles}
+          attachLabel={
+            languagePreference === 'sw'
+              ? S.chatPanel.attach.sw
+              : S.chatPanel.attach.en
+          }
           {...(onSpawnTab ? { onSpawnTab } : {})}
           {...(onTabSseFrame ? { onTabSseFrame } : {})}
         />

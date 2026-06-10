@@ -1,10 +1,17 @@
 'use client';
 
-import { useCallback, useState, type FormEvent, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Send, Square } from 'lucide-react';
+import { Send, Square, Paperclip } from 'lucide-react';
 import { VoiceMicButton } from '@/components/voice/VoiceMicButton';
 
 const schema = z.object({
@@ -43,6 +50,15 @@ interface AskComposerProps {
    * render it in the conversation alongside the audio.
    */
   readonly onVoiceReply?: (text: string) => void;
+  /**
+   * Optional: when set, a paperclip attach button is mounted in the composer.
+   * Clicking it opens a native file picker; the chosen files are handed to
+   * this callback (the host owns the upload + transcript reflection). This
+   * recovers the vertical space the old always-on dashed drop-zone consumed.
+   */
+  readonly onAttachFiles?: (files: ReadonlyArray<File>) => void;
+  /** Localised label for the attach button (EN/SW). */
+  readonly attachLabel?: string;
 }
 
 /**
@@ -69,6 +85,8 @@ export function AskComposer({
   voiceLocale,
   preferRealtimeVoice = true,
   onVoiceReply,
+  onAttachFiles,
+  attachLabel,
 }: AskComposerProps) {
   const {
     register,
@@ -81,6 +99,19 @@ export function AskComposer({
     defaultValues: { content: '' },
   });
   const [draft, setDraft] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onFilePicked = useCallback(
+    (e: ChangeEvent<HTMLInputElement>): void => {
+      const list = e.target.files;
+      if (list && list.length > 0 && onAttachFiles) {
+        onAttachFiles(Array.from(list));
+      }
+      // Reset so picking the same file twice still fires a change event.
+      e.target.value = '';
+    },
+    [onAttachFiles],
+  );
 
   const submit = (values: FormValues): void => {
     onSubmit(values.content);
@@ -126,6 +157,30 @@ export function AskComposer({
       data-testid="ask-composer"
       noValidate
     >
+      {onAttachFiles ? (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={onFilePicked}
+            data-testid="ask-composer-file-input"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={Boolean(busy || disabled)}
+            aria-label={attachLabel ?? 'Attach a file'}
+            data-testid="ask-composer-attach"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-surface/40 p-2 text-neutral-400 transition-colors hover:bg-surface/70 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Paperclip className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </>
+      ) : null}
       <div className="flex-1">
         <textarea
           {...register('content', {
@@ -134,8 +189,12 @@ export function AskComposer({
           value={draft}
           onKeyDown={onKey}
           rows={Math.min(6, Math.max(1, draft.split('\n').length))}
-          placeholder="Ask Borjie Brain — Swahili or English. Enter to send, Shift+Enter for a new line."
-          aria-label="Ask Borjie"
+          placeholder={
+            voiceLocale === 'sw'
+              ? 'Muulize Mr. Mwikila — Kiswahili au Kiingereza. Enter kutuma, Shift+Enter mstari mpya.'
+              : 'Ask Mr. Mwikila — Swahili or English. Enter to send, Shift+Enter for a new line.'
+          }
+          aria-label={voiceLocale === 'sw' ? 'Muulize Mr. Mwikila' : 'Ask Mr. Mwikila'}
           disabled={disabled}
           className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground placeholder-neutral-500 focus:outline-none focus:ring-1 focus:ring-warning disabled:cursor-not-allowed disabled:opacity-50"
         />
@@ -159,19 +218,22 @@ export function AskComposer({
         <button
           type="button"
           onClick={onAbort}
-          aria-label="Stop generating"
+          aria-label={voiceLocale === 'sw' ? 'Simamisha kuzalisha' : 'Stop generating'}
+          data-testid="ask-composer-stop"
           className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive hover:bg-destructive/20"
         >
-          <Square className="h-4 w-4" aria-hidden="true" /> Stop
+          <Square className="h-4 w-4" aria-hidden="true" />{' '}
+          {voiceLocale === 'sw' ? 'Simamisha' : 'Stop'}
         </button>
       ) : (
         <button
           type="submit"
-          aria-label="Send message"
+          aria-label={voiceLocale === 'sw' ? 'Tuma ujumbe' : 'Send message'}
           disabled={busy || disabled}
           className="inline-flex items-center gap-1 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Send className="h-4 w-4" aria-hidden="true" /> Send
+          <Send className="h-4 w-4" aria-hidden="true" />{' '}
+          {voiceLocale === 'sw' ? 'Tuma' : 'Send'}
         </button>
       )}
     </form>

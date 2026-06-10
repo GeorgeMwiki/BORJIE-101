@@ -39,6 +39,26 @@ export const ownerOsAStrings = {
       sw: ' zimewasilishwa',
       en: '',
     },
+    /** Drag-only overlay headline (shown only while dragging over the panel). */
+    dropOverlay: {
+      sw: 'Achia hati hapa',
+      en: 'Drop documents here',
+    },
+    /** No droppable file matched the accepted types. */
+    noSupported: {
+      sw: 'Hakuna faili linalokubalika kwenye ulichoachia',
+      en: 'No supported files in that drop',
+    },
+    /** Generic intake failure (the gateway detail is appended at the site). */
+    intakeFailed: {
+      sw: 'Uwasilishaji umeshindwa',
+      en: 'Intake failed',
+    },
+    /** Paperclip attach button accessible label. */
+    attach: {
+      sw: 'Ambatisha hati',
+      en: 'Attach a document',
+    },
   },
 
   // ── components/owner-os/OwnerOSDocsPanel.tsx ──────────────────────

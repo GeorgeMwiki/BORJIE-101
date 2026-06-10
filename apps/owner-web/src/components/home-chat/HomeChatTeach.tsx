@@ -67,7 +67,14 @@ import { fillDocUpload } from '@/i18n/strings/doc-upload';
 import { MessageBubble, TypingBubble } from './MessageBubble';
 import { VoicePlayButton } from '@/components/voice/VoicePlayButton';
 import { QuickReplyChips } from './QuickReplyChips';
-import { StepperBar } from './StepperBar';
+// StepperBar (left rail) retired from this surface — replaced by the thin,
+// always-visible <ProgressPill> at the top of the transcript (Block 6).
+import { StreamedText } from './streaming/StreamedText';
+import { useRafFlush } from './streaming/use-raf-flush';
+import { useScrollAnchor } from './streaming/use-scroll-anchor';
+import { JumpToLatestPill } from './streaming/JumpToLatestPill';
+import { ProgressPill } from './streaming/ProgressPill';
+import { MessageActions } from './streaming/MessageActions';
 import {
   BorjieDynamicHints,
   type BorjieAffectiveProfile,
@@ -134,6 +141,15 @@ export interface HomeChatTeachProps {
    * driven tab action live. Receives the raw event name + data string.
    */
   readonly onTabSseFrame?: (eventName: string, rawData: string) => void;
+  /**
+   * Optional — when set, a paperclip attach button is mounted in the
+   * composer and the chosen files are handed back to the host (OwnerOS
+   * panel) which performs the real intake. Lets the chat surface drop the
+   * always-on dashed drop-zone banner without losing the attach affordance.
+   */
+  readonly onAttachFiles?: (files: ReadonlyArray<File>) => void;
+  /** Localised label for the composer attach button (EN/SW). */
+  readonly attachLabel?: string;
 }
 
 /**
@@ -163,6 +179,8 @@ interface TeachMessage {
   readonly streaming: boolean;
   readonly errored: boolean;
   readonly errorMessage: string | null;
+  /** True when the owner pressed Stop mid-stream — keep partial text + Retry. */
+  readonly stopped: boolean;
   readonly createdAt: string;
   /** OwnerOS spawn-tab candidates emitted by the brain (max 3). */
   readonly spawnTabs: ReadonlyArray<OwnerOSSpawnIntent>;
@@ -227,6 +245,7 @@ function makeAssistantNote(text: string): TeachMessage {
     streaming: false,
     errored: false,
     errorMessage: null,
+    stopped: false,
     createdAt: new Date().toISOString(),
   };
 }
@@ -374,6 +393,8 @@ export function HomeChatTeach({
   languagePreference,
   onSpawnTab,
   onTabSseFrame,
+  onAttachFiles,
+  attachLabel,
 }: HomeChatTeachProps): ReactElement {
   const configured = isBrainConfigured();
   const [messages, setMessages] = useState<ReadonlyArray<TeachMessage>>([]);
@@ -405,13 +426,32 @@ export function HomeChatTeach({
     reset: resetChatMode,
   } = useChatMode();
   const abortRef = useRef<AbortController | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== 'function') return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, isStreaming]);
+  // BLOCK 3 — scroll contract. Auto-follow the bottom DURING the stream via
+  // ResizeObserver/MutationObserver, but only when the owner is near the
+  // bottom; a scroll-up disengages follow and surfaces the "Jump to latest"
+  // pill. resetAtStreamStart re-engages follow at the top of each new turn.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useScrollAnchor();
+
+  // BLOCK 3 — abort-on-unmount. Kill any in-flight SSE reader so a navigation
+  // away mid-stream never leaves a zombie reader writing into a dead tree.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // BLOCK 1 — rAF flush buffer. The current turn's assistant id is held in a
+  // ref so a single stable sink can fold the coalesced text delta into the
+  // right message. The sink appends; immutable map preserves React semantics.
+  const streamingAssistantIdRef = useRef<string | null>(null);
+  const { push: pushChunk, flushNow: flushChunks, cancel: cancelChunks } =
+    useRafFlush(
+      useCallback((delta: string) => {
+        const id = streamingAssistantIdRef.current;
+        if (!id) return;
+        setMessages((prev) =>
+          prev.map((m) => (m.id === id ? { ...m, text: m.text + delta } : m)),
+        );
+      }, []),
+    );
 
   const send = useCallback(
     async (text: string): Promise<void> => {
@@ -442,6 +482,7 @@ export function HomeChatTeach({
         streaming: false,
         errored: false,
         errorMessage: null,
+        stopped: false,
         createdAt: new Date().toISOString(),
       };
       const assistantId = genId();
@@ -469,12 +510,18 @@ export function HomeChatTeach({
         streaming: true,
         errored: false,
         errorMessage: null,
+        stopped: false,
         createdAt: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setIsStreaming(true);
       setErrored(false);
       setLastError(null);
+      // BLOCK 1/3 — point the rAF buffer at this turn's assistant bubble and
+      // re-engage bottom-follow for the fresh answer.
+      streamingAssistantIdRef.current = assistantId;
+      cancelChunks();
+      resetAtStreamStart();
 
       // Snapshot the history we send to the server BEFORE we appended
       // the new pair so the API sees the prior turns only.
@@ -513,8 +560,12 @@ export function HomeChatTeach({
         if (!res.ok || !res.body) {
           const detail =
             res.status === 401
-              ? 'Your session expired. Please sign in again.'
-              : `Borjie Brain returned HTTP ${res.status}.`;
+              ? languagePreference === 'sw'
+                ? 'Kipindi chako kimeisha. Tafadhali ingia tena.'
+                : 'Your session expired. Please sign in again.'
+              : languagePreference === 'sw'
+                ? `Mr. Mwikila amerudisha HTTP ${res.status}.`
+                : `Mr. Mwikila returned HTTP ${res.status}.`;
           throw new Error(detail);
         }
 
@@ -551,23 +602,22 @@ export function HomeChatTeach({
             if (frame.event === 'message_chunk') {
               const chunk = typeof payload.text === 'string' ? payload.text : '';
               assistantText += chunk;
+              // BLOCK 1 — buffer the token; the rAF sink folds the coalesced
+              // delta into the bubble ~once per frame (not per token).
+              pushChunk(chunk);
               const evidence = Array.isArray(payload.evidence_ids)
                 ? (payload.evidence_ids as ReadonlyArray<unknown>).filter(
                     (x): x is string => typeof x === 'string',
                   )
                 : [];
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? {
-                        ...m,
-                        text: m.text + chunk,
-                        citations:
-                          evidence.length > 0 ? evidence : m.citations,
-                      }
-                    : m,
-                ),
-              );
+              // Citations are sparse — update them out-of-band (not per token).
+              if (evidence.length > 0) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, citations: evidence } : m,
+                  ),
+                );
+              }
             } else if (frame.event === 'ui_block') {
               const block = normaliseUiBlock(payload.block);
               if (block) {
@@ -799,10 +849,19 @@ export function HomeChatTeach({
               // spawns / augments / patches / closes the tab live.
               onTabSseFrame?.(frame.event, frame.data);
             } else if (frame.event === 'error') {
+              // Flush any buffered tail (so the partial answer is intact) then
+              // stop the buffer — no late token may land after the error notice.
+              flushChunks();
+              cancelChunks();
+              // Terminal: an error ends the turn. Mark serverDone so the outer
+              // read loop unwinds and we stop ingesting (no zombie reader).
+              serverDone = true;
               const msg =
                 typeof payload.message === 'string'
                   ? payload.message
-                  : 'Borjie Brain stream errored.';
+                  : languagePreference === 'sw'
+                    ? 'Mtiririko wa Mr. Mwikila umekosea.'
+                    : 'The Mr. Mwikila stream hit an error.';
               setLastError(msg);
               setErrored(true);
               setMessages((prev) =>
@@ -817,12 +876,16 @@ export function HomeChatTeach({
                     : m,
                 ),
               );
+              break; // stop processing further frames in this read chunk
             }
             // `done` frame is caught before JSON.parse above to break the
             // outer read loop immediately; no separate case needed here.
           }
         }
 
+        // BLOCK 1 — drain any buffered tail synchronously so the final words
+        // land before we flip `streaming` off (avoids a one-frame truncation).
+        flushChunks();
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId ? { ...m, streaming: false } : m,
@@ -842,32 +905,66 @@ export function HomeChatTeach({
           });
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Stream failed.';
-        setLastError(msg);
-        setErrored(true);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? {
-                  ...m,
-                  streaming: false,
-                  errored: true,
-                  errorMessage: msg,
-                }
-              : m,
-          ),
-        );
+        // BLOCK 1 — drop any buffered tail so a stale token can't paint after
+        // an abort/error. An AbortError (owner pressed Stop) is NOT an error —
+        // keep the partial text and mark the bubble "stopped", not "errored".
+        cancelChunks();
+        const aborted =
+          err instanceof DOMException && err.name === 'AbortError';
+        if (aborted) {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, streaming: false, stopped: true }
+                : m,
+            ),
+          );
+        } else {
+          const fallback =
+            languagePreference === 'sw'
+              ? 'Mtiririko umeshindwa. Tafadhali jaribu tena.'
+              : 'The connection dropped. Please try again.';
+          const msg = err instanceof Error && err.message ? err.message : fallback;
+          setLastError(msg);
+          setErrored(true);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? {
+                    ...m,
+                    streaming: false,
+                    errored: true,
+                    errorMessage: msg,
+                  }
+                : m,
+            ),
+          );
+        }
       } finally {
+        streamingAssistantIdRef.current = null;
         setIsStreaming(false);
         abortRef.current = null;
       }
     },
-    [isStreaming, languagePreference, lessonStep, messages, onTabSseFrame, ingestAssistantTurn],
+    [
+      isStreaming,
+      languagePreference,
+      lessonStep,
+      messages,
+      onTabSseFrame,
+      ingestAssistantTurn,
+      pushChunk,
+      flushChunks,
+      cancelChunks,
+      resetAtStreamStart,
+    ],
   );
 
   const onReset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
+    cancelChunks();
+    streamingAssistantIdRef.current = null;
     setMessages([]);
     setIsStreaming(false);
     setErrored(false);
@@ -875,7 +972,13 @@ export function HomeChatTeach({
     setLessonStep(1);
     setAffectiveProfile(null);
     resetChatMode();
-  }, [resetChatMode]);
+  }, [resetChatMode, cancelChunks]);
+
+  // BLOCK 5 — Stop. Abort the in-flight reader; the catch path keeps the
+  // partial text and flags the bubble `stopped` (Retry offered there).
+  const onStop = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
 
   const emptyKind = resolveEmptyKind({
     configured,
@@ -891,6 +994,24 @@ export function HomeChatTeach({
       void send(text);
     },
     [send],
+  );
+
+  // BLOCK 5 — Retry a stopped/errored turn: re-ask the user prompt that
+  // immediately preceded the given assistant message. No-op while streaming.
+  const onRetry = useCallback(
+    (assistantId: string) => {
+      if (isStreaming) return;
+      const idx = messages.findIndex((m) => m.id === assistantId);
+      if (idx <= 0) return;
+      for (let i = idx - 1; i >= 0; i -= 1) {
+        const m = messages[i];
+        if (m && m.role === 'user' && m.text.trim().length > 0) {
+          void send(m.text);
+          return;
+        }
+      }
+    },
+    [isStreaming, messages, send],
   );
 
   // "Ask Brain" hand-off: the Spawn-tab menu parks a free-form prompt in
@@ -1049,14 +1170,8 @@ export function HomeChatTeach({
       className="flex flex-1 overflow-hidden"
       data-testid="home-chat-teach-root"
     >
-      <StepperBar
-        language={languagePreference}
-        currentStep={lessonStep}
-        className="hidden md:flex"
-      />
-
       <div className="flex flex-1 flex-col gap-4 px-6 py-6 lg:px-8">
-        <header className="flex items-start justify-between gap-3">
+        <header className="mx-auto flex w-full max-w-[46rem] items-start justify-between gap-3">
           <div>
             <p className="text-tiny uppercase tracking-wide text-warning">
               {languagePreference === 'sw'
@@ -1066,7 +1181,7 @@ export function HomeChatTeach({
             <p className="mt-0.5 text-xs text-neutral-500">
               {languagePreference === 'sw'
                 ? `Mwalimu Borjie · ${tradingName} · Hatua ${lessonStep}/5`
-                : `Borjie Teach · ${tradingName} · Step ${lessonStep}/5`}
+                : `Mr. Mwikila · ${tradingName} · Step ${lessonStep}/5`}
             </p>
           </div>
           {messages.length > 0 ? (
@@ -1082,58 +1197,85 @@ export function HomeChatTeach({
         </header>
 
         {showGreeting ? (
-          <PersonaGreeting
-            salutation={salutation}
-            tradingName={tradingName}
-            languagePreference={languagePreference}
-            onSuggestion={onSuggestion}
-            disabled={composerDisabled || isStreaming}
-          />
+          <div className="mx-auto w-full max-w-[46rem]">
+            <PersonaGreeting
+              salutation={salutation}
+              tradingName={tradingName}
+              languagePreference={languagePreference}
+              onSuggestion={onSuggestion}
+              disabled={composerDisabled || isStreaming}
+            />
+          </div>
         ) : null}
 
         <section
-          className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-surface/40"
-          aria-label="Borjie Teach transcript"
+          className="relative flex flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-surface/40"
+          aria-label="Ask Mr. Mwikila transcript"
           data-testid="home-chat-teach-transcript"
         >
+          {/* BLOCK 6 — thin, always-visible 5-segment progress pill (replaces
+              the desktop-only StepperBar rail). Pinned at the top of the
+              transcript so the literacy step is visible on every viewport. */}
+          <div className="border-b border-border/60 px-4 py-2">
+            <div className="mx-auto w-full max-w-[46rem]">
+              <ProgressPill
+                language={languagePreference}
+                currentStep={lessonStep}
+              />
+            </div>
+          </div>
+
           <div
             ref={scrollRef}
-            className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+            className="flex-1 overflow-y-auto px-4 py-4 [scroll-behavior:auto]"
+            role="log"
             aria-live="polite"
+            aria-relevant="additions text"
+            aria-label={
+              languagePreference === 'sw'
+                ? 'Mazungumzo na Mr. Mwikila'
+                : 'Conversation with Mr. Mwikila'
+            }
           >
-            {messages.length === 0 ? (
-              <AskEmptyState
-                kind={emptyKind}
-                detail={emptyKind === 'error' ? lastError : null}
-              />
-            ) : (
-              messages.map((message) => (
-                <TeachBubble
-                  key={message.id}
-                  message={message}
-                  languagePreference={languagePreference}
-                  isLatestAssistant={message.id === lastAssistantId}
-                  onSuggestion={onSuggestion}
-                  onInlineAction={runInlineAction}
-                  onUploadResults={reflectUploadResults}
-                  composerDisabled={composerDisabled || isStreaming}
-                  {...(onSpawnTab ? { onSpawnTab } : {})}
+            {/* BLOCK 4 — centered reading spine (~736px, 65–72 chars/line). */}
+            <div className="mx-auto w-full max-w-[46rem] space-y-7">
+              {messages.length === 0 ? (
+                <AskEmptyState
+                  kind={emptyKind}
+                  detail={emptyKind === 'error' ? lastError : null}
                 />
-              ))
-            )}
-            {isStreaming && !messages.some((m) => m.streaming) ? (
-              <TypingBubble language={languagePreference} />
-            ) : null}
-            {errored && messages.length > 0 ? (
-              <div
-                role="alert"
-                data-testid="home-chat-teach-error-inline"
-                className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-              >
-                {lastError ?? 'Stream errored.'}
-              </div>
-            ) : null}
+              ) : (
+                messages.map((message) => (
+                  <TeachBubble
+                    key={message.id}
+                    message={message}
+                    languagePreference={languagePreference}
+                    isLatestAssistant={message.id === lastAssistantId}
+                    onSuggestion={onSuggestion}
+                    onInlineAction={runInlineAction}
+                    onUploadResults={reflectUploadResults}
+                    onRetry={onRetry}
+                    composerDisabled={composerDisabled || isStreaming}
+                    {...(onSpawnTab ? { onSpawnTab } : {})}
+                  />
+                ))
+              )}
+              {isStreaming && !messages.some((m) => m.streaming) ? (
+                <TypingBubble language={languagePreference} />
+              ) : null}
+              {/* BLOCK 6 — NO global error banner. Each errored/stopped turn
+                  carries its own in-bubble notice + recovery action, so the
+                  cause is never double-rendered or reduced to a generic line. */}
+            </div>
           </div>
+
+          {/* BLOCK 3 — floating "Jump to latest" pill (bottom-center, above
+              the composer) when the owner scrolled up from a growing answer. */}
+          <JumpToLatestPill
+            visible={showJumpPill}
+            languagePreference={languagePreference}
+            onClick={jumpToLatest}
+          />
 
           {onSpawnTab ? (
             <div className="px-3 pb-2">
@@ -1174,6 +1316,9 @@ export function HomeChatTeach({
             disabled={composerDisabled}
             voiceLocale={languagePreference}
             onSubmit={(content) => void send(content)}
+            onAbort={onStop}
+            {...(onAttachFiles ? { onAttachFiles } : {})}
+            {...(attachLabel ? { attachLabel } : {})}
           />
         </section>
         <BorjieDynamicHints
@@ -1206,6 +1351,8 @@ interface TeachBubbleProps {
   readonly onUploadResults: (
     results: ReadonlyArray<DocUploadOutcome>,
   ) => void;
+  /** Re-ask the user prompt for a stopped/errored assistant turn. */
+  readonly onRetry: (assistantId: string) => void;
   readonly composerDisabled: boolean;
   readonly onSpawnTab?: (intent: OwnerOSSpawnIntent) => void;
 }
@@ -1217,6 +1364,7 @@ function TeachBubble({
   onSuggestion,
   onInlineAction,
   onUploadResults,
+  onRetry,
   composerDisabled,
   onSpawnTab,
 }: TeachBubbleProps): ReactElement {
@@ -1225,6 +1373,24 @@ function TeachBubble({
     () => makeT(dictionaries[languagePreference]),
     [languagePreference],
   );
+
+  // BLOCK 2/5 — lifecycle status fed to <StreamedText>: history/finalized
+  // turns render instantly, only an actively-streaming turn animates.
+  const smoothStatus = message.streaming
+    ? 'streaming'
+    : message.stopped
+      ? 'stopped'
+      : 'complete';
+
+  // BLOCK 5 — completed-turn affordances: copy / regenerate + persona label.
+  const showActions =
+    !isOwner &&
+    !message.streaming &&
+    !message.errored &&
+    message.text.trim().length > 0;
+  const personaLabel = languagePreference === 'sw'
+    ? 'Mr. Mwikila · Mwalimu'
+    : 'Mr. Mwikila · Teacher';
 
   return (
     <div className="space-y-2">
@@ -1280,10 +1446,59 @@ function TeachBubble({
         errored={message.errored}
         streaming={message.streaming}
         testId={`teach-bubble-${message.role}`}
+        {...(showActions
+          ? {
+              trailingLabel: personaLabel,
+              actions: (
+                <MessageActions
+                  text={message.text}
+                  languagePreference={languagePreference}
+                />
+              ),
+            }
+          : {})}
       >
-        <p className="whitespace-pre-wrap">
-          {message.text || (message.streaming ? '' : '(no content)')}
-        </p>
+        {isOwner ? (
+          <p className="whitespace-pre-wrap">
+            {message.text ||
+              (message.streaming
+                ? ''
+                : languagePreference === 'sw'
+                  ? '(hakuna maudhui)'
+                  : '(no content)')}
+          </p>
+        ) : message.text.length > 0 ? (
+          // BLOCK 2/5 — assistant body: per-word blur-in reveal while
+          // streaming, streaming-tolerant Markdown once finalized / in history.
+          <StreamedText text={message.text} status={smoothStatus} />
+        ) : message.streaming ? null : (
+          <p className="whitespace-pre-wrap text-muted-foreground/60">
+            {languagePreference === 'sw' ? '(hakuna jibu)' : '(no content)'}
+          </p>
+        )}
+
+        {/* BLOCK 5 — stopped state: keep the partial text, label it, offer
+            Retry. Distinct from an errored turn (handled below). */}
+        {!isOwner && message.stopped ? (
+          <div
+            data-testid="teach-bubble-stopped"
+            className="mt-2 flex items-center gap-2 text-tiny text-neutral-400"
+          >
+            <span>
+              {languagePreference === 'sw'
+                ? 'Jibu limesimamishwa'
+                : 'Response stopped'}
+            </span>
+            <button
+              type="button"
+              onClick={() => onRetry(message.id)}
+              className="rounded-md border border-border bg-surface/40 px-2 py-0.5 text-tiny text-neutral-300 transition-colors hover:bg-surface/70 hover:text-foreground"
+              data-testid="teach-bubble-retry"
+            >
+              {languagePreference === 'sw' ? 'Jaribu tena' : 'Retry'}
+            </button>
+          </div>
+        ) : null}
 
         {!isOwner && message.uiBlock ? (
           <UiBlockRenderer
@@ -1407,6 +1622,14 @@ function TeachBubble({
                       }
                       return;
                     }
+                    // BLOCK 6 — unknown-block "ask to expand" affordance.
+                    // A block kind the FE has no renderer for defers to the
+                    // brain (re-emit as a known kind or describe in prose)
+                    // rather than dead-ending at a raw placeholder.
+                    if (event.action === 'expand_block') {
+                      onSuggestion(t('teach.microAction.expandBlock'));
+                      return;
+                    }
                     // ACTION-bearing blocks (micro_action_card,
                     // confirmation_card primary, data_capture submit) →
                     // EXECUTE through the gateway action-bridge. The host
@@ -1440,10 +1663,25 @@ function TeachBubble({
           </div>
         ) : null}
 
+        {/* BLOCK 6 — ONE error per message, in the bubble: names the cause
+            and offers a single recovery action (Retry). Never a generic
+            "Something went wrong", never a second global render. */}
         {!isOwner && message.errored && message.errorMessage ? (
-          <p className="mt-2 text-tiny text-destructive">
-            {message.errorMessage}
-          </p>
+          <div
+            role="alert"
+            data-testid="teach-bubble-error"
+            className="mt-2 flex flex-col gap-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2"
+          >
+            <p className="text-tiny text-destructive">{message.errorMessage}</p>
+            <button
+              type="button"
+              onClick={() => onRetry(message.id)}
+              data-testid="teach-bubble-error-retry"
+              className="w-fit rounded-md border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-tiny font-medium text-destructive transition-colors hover:bg-destructive/20"
+            >
+              {languagePreference === 'sw' ? 'Jaribu tena' : 'Retry'}
+            </button>
+          </div>
         ) : null}
 
         {!isOwner &&
