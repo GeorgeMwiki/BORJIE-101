@@ -89,6 +89,7 @@ import {
   createSensoriumEventLogService,
   createSkillRegistryService,
   createReflexionBufferService,
+  createDrizzleReflexionLoader,
 } from '@borjie/database';
 // Central Command Phase A C4 / Phase B B2 — Behaviour signal source.
 // Surfaces derived brain-mind-state signals (engagement.high,
@@ -445,6 +446,17 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   let reflexionWriter:
     | ReturnType<typeof createReflexionBufferService>
     | undefined;
+  // iq-reflexion-dark-3 (CLOSED) — the THIRD reflexion seam: the task-scoped
+  // READ-back loader. This is the read side of the compounding loop: the
+  // kernel writes reflexions on surprise + the nightly sleep consolidates
+  // them into `reflexion_guidelines`; the loader reads the consolidated
+  // lessons BACK at session start (kernel step F11). It is a DISTINCT
+  // contract from the retriever — TENANT-WIDE, userId OPTIONAL,
+  // `pruned_at IS NULL`, and it ALSO reads the separate
+  // `reflexion_guidelines` table — so it gets its own Drizzle service.
+  let reflexionLoader:
+    | ReturnType<typeof createDrizzleReflexionLoader>
+    | undefined;
   if (db) {
     const svc = createKernelSubstrateService(db, { tenantId: scope.tenantId });
     substrateSinks = {
@@ -703,6 +715,12 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     reflexionRetriever = kernelReflexion.createReflexionRetriever({
       port: { recall: (args) => reflexionBuffer.recall(args) },
     });
+    // Compounding loop READ-back — the task-scoped loader. Structurally
+    // satisfies the kernel's `ReflexionLoaderPort` (recentReflexions +
+    // recentGuidelines): tenant-wide, userId optional, `pruned_at IS NULL`,
+    // and reads the consolidated `reflexion_guidelines`. Degrades to [] on
+    // any DB fault so the read-back side never breaks a turn.
+    reflexionLoader = createDrizzleReflexionLoader(db);
   }
 
   // The wrapped `anthropic` client was constructed at the top of
@@ -779,32 +797,20 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   if (reflexionRetriever) mutable.reflexionRetriever = reflexionRetriever;
   if (reflexionWriter) mutable.reflexionWriter = reflexionWriter;
 
-  // iq-reflexion-dark-3 (tail) — DEFERRED: the THIRD reflexion seam, the
-  // task-scoped `reflexionLoader` (kernel.ts:1284, `ReflexionLoaderPort`),
-  // remains UNWIRED on purpose. It is NOT half-wired here for two hard reasons,
-  // each outside this composition root's ownership:
-  //
-  //   1. No passthrough. `composeSovereign`'s `SovereignComposeConfig`
-  //      (packages/central-intelligence/src/kernel/compose.ts) declares + forwards
-  //      ONLY `reflexionRetriever` (line 315) and `reflexionWriter` (line 320);
-  //      it has NO `reflexionLoader` field and never copies one onto `kernelDeps`
-  //      (lines 541-542). Setting `mutable.reflexionLoader` here would be SILENTLY
-  //      DROPPED by compose — the kernel guard at kernel.ts:1284 would never see
-  //      it — so a wire from this file alone is inert. Closing this needs a new
-  //      `reflexionLoader` field + passthrough in compose.ts (not owned here).
-  //
-  //   2. No tractable adapter. `ReflexionLoaderPort` is NOT the same contract as
-  //      the retriever: it needs `recentReflexions` (TENANT-WIDE, userId OPTIONAL,
-  //      `pruned_at IS NULL`, surfacing `taskId` / `importance` / `clusterId`) AND
-  //      `recentGuidelines` (reading the SEPARATE `reflexion_guidelines` table —
-  //      pass-3 output). The existing `createReflexionBufferService(db).recall`
-  //      cannot satisfy it: it REQUIRES `userId` (returns [] tenant-wide), does
-  //      not filter `pruned_at`, drops importance/cluster/taskId, and knows
-  //      nothing of `reflexion_guidelines`. A correct `createDrizzleReflexionLoader`
-  //      is therefore two NEW non-trivial bulk-load Drizzle queries that belong in
-  //      @borjie/database (not owned here). The schema is ready
-  //      (reflexion-buffer.schema.ts ships both tables + the needed columns), so
-  //      this is a clean two-file follow-up — see needsAttention.
+  // iq-reflexion-dark-3 (CLOSED) — the THIRD reflexion seam, the task-scoped
+  // `reflexionLoader` (kernel.ts step F11 ~1429, `ReflexionLoaderPort`), is now
+  // LIVE. This is the read-back side of the compounding loop. Both blockers the
+  // prior deferral noted are resolved:
+  //   1. compose.ts NOW declares a `reflexionLoader` field on
+  //      `SovereignComposeConfig` and copies it onto `kernelDeps`, so the
+  //      binding below actually reaches the kernel guard (no longer dropped).
+  //   2. `@borjie/database` NOW ships `createDrizzleReflexionLoader(db)` — the
+  //      correct adapter (TENANT-WIDE, userId OPTIONAL, `pruned_at IS NULL`,
+  //      surfacing importance/cluster/taskId AND reading the consolidated
+  //      `reflexion_guidelines`). It degrades to [] on any DB fault.
+  // With both wired the loop closes end-to-end: write-on-surprise →
+  // nightly-sleep consolidate → read-back-at-session-start.
+  if (reflexionLoader) mutable.reflexionLoader = reflexionLoader;
 
   // Wave-12/EP-3 — Self-RAG grounding judge. The kernel's self-rag step
   // (kernel.ts step ~1732, guarded by `if (deps.selfRagJudge)`) tags each

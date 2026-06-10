@@ -319,6 +319,21 @@ export interface ComposeSovereignConfig {
    */
   readonly reflexionWriter?: import('./reflexion/reflexion-writer.js').ReflexionWriterPort;
   /**
+   * Optional task-scoped Reflexion LOADER (read-back of the consolidated
+   * lessons). This is the third reflexion seam and the READ side of the
+   * compounding loop: the kernel writes reflexions on surprise, the 4-pass
+   * nightly sleep consolidates them into `reflexion_guidelines`, and this
+   * loader reads them BACK at session start (kernel step F11) so learned
+   * lessons re-enter the reasoning context. Distinct from
+   * `reflexionRetriever` (raw session-scoped recent rows) — the loader is
+   * TENANT-WIDE, userId OPTIONAL, `pruned_at IS NULL`, and folds in the
+   * consolidated `reflexion_guidelines`. Wired by the api-gateway
+   * composition root from `@borjie/database`
+   * (`createDrizzleReflexionLoader(db)`). Fail-safe in the kernel (a null
+   * loader / query error yields an empty prompt fragment).
+   */
+  readonly reflexionLoader?: import('./reflexion/reflexion-loader.js').ReflexionLoaderPort;
+  /**
    * Optional Self-RAG critic. When wired, the kernel runs IsREL /
    * IsSUP / IsUSE reflection tokens after the sensor result is
    * normalised. Same shape as the legacy judge port.
@@ -559,6 +574,11 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   if (config.skillRetriever)    (kernelDeps as any).skillRetriever = config.skillRetriever;
   if (config.reflexionRetriever) (kernelDeps as any).reflexionRetriever = config.reflexionRetriever;
   if (config.reflexionWriter)   (kernelDeps as any).reflexionWriter = config.reflexionWriter;
+  // Compounding loop — forward the task-scoped reflexion LOADER so the
+  // kernel's read-back step (F11, kernel.ts ~1429) actually receives the
+  // consolidated lessons. Without this passthrough the loader is silently
+  // dropped and learned guidelines never re-enter the prompt.
+  if (config.reflexionLoader)   (kernelDeps as any).reflexionLoader = config.reflexionLoader;
   if (config.selfRagJudge)      (kernelDeps as any).selfRagJudge = config.selfRagJudge;
   // LP-30 — forward the semantic-cache + intent-verifier ports the gateway
   // constructs so they actually reach the kernel hot path.

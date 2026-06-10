@@ -372,6 +372,22 @@ export {
   type ReflexionOutcome,
 } from './reflexion-buffer.service.js';
 
+// Reflexion loader (the compounding-loop READ-back side). Structurally
+// satisfies the kernel's `ReflexionLoaderPort` (recentReflexions +
+// recentGuidelines): TENANT-WIDE, userId OPTIONAL, `pruned_at IS NULL`,
+// reading BOTH `reflexion_buffer` and the consolidated
+// `reflexion_guidelines` (pass-3 output). The gateway composition root
+// binds it onto the kernel deps so learned lessons are read back at the
+// start of every turn — closing write → consolidate → read-back.
+export {
+  createDrizzleReflexionLoader,
+  type ReflexionLoaderService,
+  type RecentReflexionsArgs,
+  type RecentGuidelinesArgs,
+  type LoadedReflexion as ReflexionLoaderLoadedReflexion,
+  type LoadedGuideline as ReflexionLoaderLoadedGuideline,
+} from './reflexion-loader.service.js';
+
 // Implicit feedback signals (migration 0135 — C5 Phase A). Adapter for
 // the sensorium's downstream signal store. Joined to traces by
 // `(trace_id, agent_action_id, tenant_id, user_id, surface, role)`.
