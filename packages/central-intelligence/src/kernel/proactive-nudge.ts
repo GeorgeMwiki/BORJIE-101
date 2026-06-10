@@ -31,6 +31,14 @@ export interface NudgeIntent {
   readonly severity: 'info' | 'warn' | 'urgent';
   /** Suggested action the admin can take in one click. */
   readonly suggestedAction: string | null;
+  /**
+   * Active owner locale for this nudge. CLAUDE.md mandates an ABSOLUTE
+   * single-language render (zero EN/SW mixing); the trigger source stamps
+   * the tenant's active toggle here so the kernel renders the nudge in the
+   * owner's language. Omitted ⇒ the kernel treats the turn as `en` (the
+   * default), so existing call sites keep today's behaviour.
+   */
+  readonly locale?: 'en' | 'sw';
   readonly proposedAt: string;
 }
 
@@ -77,6 +85,9 @@ export function createNudgeRouter(deps: NudgeRouterDeps) {
         tier: intent.scope.kind === 'platform' ? 'industry' : 'org',
         stakes,
         surface: 'admin-portal',
+        // Render the nudge in the owner's active language (ABSOLUTE
+        // single-language mandate). Omitted locale ⇒ 'en' default.
+        language: intent.locale ?? 'en',
       };
       const decision = await deps.kernel.think(req);
       const at = clock().toISOString();

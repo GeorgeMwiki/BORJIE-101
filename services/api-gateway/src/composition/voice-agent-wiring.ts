@@ -105,6 +105,14 @@ export interface KernelThoughtRequestLike {
     | 'admin-portal'
     | 'platform-hq'
     | 'classroom';
+  /**
+   * Active locale for the turn. CLAUDE.md mandates an ABSOLUTE
+   * single-language render — the kernel reads this field to emit its
+   * terminal single-language directive. The voice path detects the
+   * caller's locale (`sw`|`en`, widened codes collapse to `en`) and
+   * threads it here so Swahili callers never get an English answer.
+   */
+  readonly language?: 'en' | 'sw';
 }
 
 /**
@@ -266,6 +274,9 @@ function createRealVoiceBrain(
         sessionId: input.sessionId,
       });
 
+      const detectedLanguage =
+        input.languageCode || detectLanguageFromTranscript(input.userTranscript);
+
       const req: KernelThoughtRequestLike = {
         threadId: input.sessionId,
         userMessage: input.userTranscript,
@@ -281,11 +292,16 @@ function createRealVoiceBrain(
         // judge and extended-thinking branches in the kernel.
         stakes: 'medium',
         surface: 'tenant-app',
+        // Thread the detected locale so the kernel fires its ABSOLUTE
+        // single-language directive — the union is `'en' | 'sw'`, so
+        // any wider/unknown code (es/fr/…) collapses to the `en`
+        // default per CLAUDE.md.
+        language: detectedLanguage === 'sw' ? 'sw' : 'en',
       };
 
       try {
         const decision = await kernelThink(req);
-        const text = pickVoiceTextFromDecision(decision, input.languageCode || detectLanguageFromTranscript(input.userTranscript));
+        const text = pickVoiceTextFromDecision(decision, detectedLanguage);
         const response: VoiceBrainResponse = {
           text,
           toolCalls: [],

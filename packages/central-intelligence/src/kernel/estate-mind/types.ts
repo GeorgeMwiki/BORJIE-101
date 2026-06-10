@@ -60,6 +60,22 @@ export interface EstateProposal {
   readonly driveId: MotivatedGoal['driveId'];
   readonly title: string;
   readonly rationale: string;
+  /**
+   * Active owner locale for this proposal's copy. CLAUDE.md mandates an
+   * ABSOLUTE single-language render (zero EN/SW mixing); `title` and
+   * `rationale` must be in THIS language. The kernel tick stamps it from
+   * the goal where available and otherwise defaults to `en`; the EstateMind
+   * tick should source the TENANT's active locale and pass it through (the
+   * sourcing wire-up is a caller concern in the composition root —
+   * estate-mind-wiring.ts).
+   *
+   * OPTIONAL (additive): downstream proposal constructors across the gateway
+   * (reconcile-engine, conformal-feed, projectNudgeToProposal) predate this
+   * field; consumers MUST default it with `proposal.locale ?? 'en'` at the
+   * render/delivery seam so an un-stamped proposal degrades to English rather
+   * than breaking the build. The kernel's own `toProposal` stamps it.
+   */
+  readonly locale?: 'en' | 'sw';
   readonly urgency: MotivatedGoal['urgency'];
   readonly breachSeverity: number;
   /** Entity ids that evidence the concern (Auditor evidence-required rail). */

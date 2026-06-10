@@ -338,6 +338,12 @@ function toProposal(goal: MotivatedGoal, nowMs: number): EstateProposal {
     driveId: goal.driveId,
     title: goal.title,
     rationale: goal.rationale,
+    // ABSOLUTE single-language mandate (CLAUDE.md): the proposal copy must
+    // be in the owner's active language. MotivatedGoal is locale-free, so
+    // the kernel defaults to 'en'; the EstateMind tick should source the
+    // tenant's active locale and stamp it here (composition-root concern,
+    // estate-mind-wiring.ts).
+    locale: 'en',
     urgency: goal.urgency,
     breachSeverity: goal.breachSeverity,
     evidenceEntityIds: Object.freeze(

@@ -276,6 +276,10 @@ describe('createVoiceAgentWiring', () => {
     expect(req.tier).toBe('tenant');
     expect(req.surface).toBe('tenant-app');
     expect(req.stakes).toBe('medium');
+    // Detected locale threads into the request so the kernel fires its
+    // single-language directive. French collapses to the `en` default
+    // since the kernel union is only `'en' | 'sw'`.
+    expect(req.language).toBe('en');
     expect(req.scope.kind).toBe('tenant');
     if (req.scope.kind === 'tenant') {
       expect(req.scope.tenantId).toBe('tenant-XYZ');
@@ -284,6 +288,36 @@ describe('createVoiceAgentWiring', () => {
       expect(req.scope.roles).toEqual(['tenant']);
       expect(req.scope.personaId).toBe('voice-agent-default');
     }
+  });
+
+  it('threads the detected Swahili locale into the ThoughtRequest.language', async () => {
+    const fake = createFakeDb();
+    const captured: KernelThoughtRequestLike[] = [];
+    const kernelThink: KernelThinkFn = async (req) => {
+      captured.push(req);
+      const decision: KernelBrainDecisionLike = {
+        kind: 'answer',
+        text: 'Salio lako ni TZS 200,000.',
+        provenance: { modelId: 'claude-haiku-4-5' },
+      };
+      return decision;
+    };
+
+    const wiring = createVoiceAgentWiring({
+      db: fake.client as never,
+      kernelThink,
+    });
+
+    await wiring!.agent.turn({
+      tenantId: 'tenant-SW',
+      sessionId: 'sess-sw',
+      transcript: 'Habari, ninahitaji msaada na nyumba yangu',
+    });
+
+    expect(captured).toHaveLength(1);
+    // Swahili cues → kernel receives `language: 'sw'`, so the ABSOLUTE
+    // single-language directive renders the answer in Swahili.
+    expect(captured[0]!.language).toBe('sw');
   });
 
   it('degrades politely when kernelThink throws', async () => {
