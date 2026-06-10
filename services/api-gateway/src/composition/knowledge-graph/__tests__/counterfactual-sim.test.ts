@@ -67,6 +67,7 @@ function dagOf(
     dropped: Object.freeze([]),
     windowDays: 120,
     asOf: 1_700_000_000_000,
+    series: Object.freeze([]),
   }) as CausalDag;
 }
 

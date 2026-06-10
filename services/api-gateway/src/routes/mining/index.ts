@@ -119,6 +119,11 @@ import { miningToolboxRouter } from './toolbox.hono';
 // offline write queue's `toolbox_ack` entity (endpointFor → 'toolbox-acks').
 import { miningToolboxAcksRouter } from './toolbox-acks.hono';
 
+// Causal root-cause + counterfactual intervention simulation (Wave D). POST
+// /root-cause ("why did cash dip?") + POST /simulate ("hedge now vs in 2 weeks").
+// Read-only analysis over the KG + ledger; honest-degrades to "cannot establish".
+import { miningCausalInterventionRouter } from './causal-intervention.hono';
+
 // Buyer sale-document list + biometric sign (buyer-mobile-1). GET /, GET /:id,
 // POST /:id/sign backed by offtake_agreements, buyer-scoped via RLS.
 import { miningBuyersDocumentsRouter } from './buyers-documents.hono';
@@ -303,6 +308,7 @@ mining.route('/toolbox-talks', miningToolboxRouter);
 // task_complete → mining_tasks done, talk_ack → toolbox-talks acknowledge.
 // Distinct prefix from `/toolbox-talks` so neither shadows the other.
 mining.route('/toolbox-acks', miningToolboxAcksRouter);
+mining.route('/causal', miningCausalInterventionRouter);
 
 // Employee copilots — performance coaching. The workforce-mobile mining client
 // resolves `/copilots/worker-coach` under the `/api/v1/mining` prefix, so the

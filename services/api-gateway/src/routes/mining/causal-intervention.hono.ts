@@ -184,6 +184,10 @@ app.post('/root-cause', async (c: any) => {
     const result = explainRootCause(dag, {
       metric: parsed.data.metric,
       observedDeltaPct: parsed.data.observedDeltaPct,
+      // Pass the SAME series the DAG was built from so ancestor scoring can run
+      // (a node earns leverage only if it itself moved) — without this, scoring
+      // degrades to edge-strength-only and never establishes a cause.
+      series: dag.series,
     });
     return c.json({ success: true as const, data: result }, 200);
   } catch (err) {

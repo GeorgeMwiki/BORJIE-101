@@ -1,56 +1,44 @@
 /**
  * Causal DAG + do-calculus-lite ROOT-CAUSE engine (Wave D — causal reasoning).
  *
- * THE GAP THIS CLOSES
- * ───────────────────
- * Today Mr. Mwikila can SHOW that cash dipped and that, in the same window,
- * the royalty filing was late AND production softened — but it gestures at
- * CORRELATION and lets the owner guess which one is the REASON. This module
- * lets the brain say, with evidence: "the REASON cash dipped was the late
- * royalty filing — production is a red herring; it moved too, but it moves
- * cash with a lag that doesn't line up, and its own move was small." A wrong
- * root cause is worse than none, so when nothing clears the confidence floor
- * the engine returns an explicit { established: false, reason } — never a
- * fabricated causal claim.
+ * THE GAP THIS CLOSES. Today Mr. Mwikila SHOWS that cash dipped while, in the
+ * same window, the royalty filing was late AND production softened — but it
+ * gestures at CORRELATION and lets the owner guess the REASON. This lets the
+ * brain say, with evidence: "cash dipped BECAUSE of the late royalty filing —
+ * production is a red herring; it moved too, but its move was small and its
+ * causal route to cash is weaker." A wrong root cause is worse than none, so
+ * when nothing clears the confidence floor the engine returns an explicit
+ * { established: false, reason } — never a fabricated causal claim.
  *
- * HOW IT WORKS (two stages)
- * ─────────────────────────
+ * TWO STAGES.
  * 1. buildCausalDag(db, tenantId) — the estate's observable METRICS (cash
  *    runway, sales receipts, production tonnage, royalty-filing timeliness) are
  *    the causal nodes; a small DOMAIN-PRIOR set of candidate directed edges is
- *    the hypothesis space. Each candidate is PROMOTED to a causal edge only if
- *    it validates against this tenant's history: (a) TEMPORAL PRECEDENCE — the
+ *    the hypothesis space. A candidate is PROMOTED to a causal edge only if it
+ *    validates against this tenant's history: (a) TEMPORAL PRECEDENCE — the
  *    cause leads the effect by a non-negative lag — and (b) lagged CORRELATION
  *    above a strength floor over enough paired observations. Failing candidates
- *    are DROPPED (honest-degrade — never an unvalidated cause). ACYCLIC by
- *    construction: a cycle-break keeps the strongest temporally-valid edge.
- *
+ *    are DROPPED (never an unvalidated cause). ACYCLIC by construction: a
+ *    cycle-break keeps the strongest temporally-valid edge.
  * 2. explainRootCause(dag, { metric, observedDeltaPct, asOf }) — walks UPSTREAM
- *    from the moved KPI and scores each ancestor by (path edge strength × that
+ *    from the moved KPI and scores each ancestor by (path strength × the
  *    ancestor's OWN realized move). A node earns leverage only if it ITSELF
- *    moved AND has a validated route to the KPI. Returns the top cause, the
- *    ranked list, the "ruled out" red herrings, a confidence + evidence rows —
- *    or { established: false, reason } when nothing clears the floor.
+ *    moved AND has a validated route. Returns the top cause + ranked list +
+ *    "ruled out" red herrings + confidence + evidence, or { established: false,
+ *    reason } when nothing clears the floor.
  *
- * HARD RAILS (BORJIE invariants)
- * ──────────────────────────────
- *   - TENANT-SCOPED. Every read carries an explicit `tenant_id = ${tenantId}`
- *     predicate. The caller runs inside a pinned/`withTenantContext` handle so
- *     RLS FORCE also filters server-side. This module only READS the
- *     ledger/production/royalty series for ANALYSIS — it never writes
- *     accounting truth (money path stays LedgerService-only) and never
- *     actuates. A "commit as plan" action, if a consumer offers one, must route
- *     through the existing governed action membrane — this engine only explains.
- *   - HONEST-DEGRADE. A missing table / thin window / sub-floor support yields
- *     a dropped edge or an { established: false } result, NEVER a guessed cause.
- *   - IMMUTABLE. All returned structures are frozen; no input is mutated.
- *   - PINO ONLY. No `console.*` — the shared logger handles redaction.
+ * HARD RAILS (BORJIE). TENANT-SCOPED: every read carries `tenant_id =
+ * ${tenantId}` and runs inside a pinned/`withTenantContext` handle so RLS FORCE
+ * also filters server-side. READ-ONLY ANALYSIS: never writes accounting truth
+ * (money path stays LedgerService-only), never actuates — a "commit as plan"
+ * consumer must route through the governed action membrane; this only explains.
+ * HONEST-DEGRADE: a missing table / thin window / sub-floor support yields a
+ * dropped edge or { established: false }, never a guess. IMMUTABLE (frozen
+ * results). PINO ONLY (no `console.*`).
  *
- * Companion to:
- *   - services/api-gateway/src/composition/knowledge-graph/postgres-kg-store.ts
- *   - services/api-gateway/src/composition/estate-baseline-computer.ts
- *     (same windowed-series reader idiom: forecasts / production_tonnage_events
- *      / sales / royalty_return_drafts, fault-isolated per metric).
+ * Companion to postgres-kg-store.ts + estate-baseline-computer.ts (same
+ * windowed-series reader idiom: forecasts / production_tonnage_events / sales /
+ * royalty_return_drafts, fault-isolated per metric).
  */
 
 import { sql } from 'drizzle-orm';
@@ -76,39 +64,24 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Default trailing window the engine samples its series over. */
 export const DEFAULT_CAUSAL_WINDOW_DAYS = 120;
 
-/**
- * Minimum number of PAIRED (lag-aligned) observations before a candidate edge
- * may be validated. Below this the correlation estimate is too unstable to
- * trust — the edge is dropped (honest-degrade), never asserted.
- */
+/** Min PAIRED (lag-aligned) observations before an edge may validate; below
+ *  this the correlation is too unstable — the edge is dropped (honest-degrade). */
 export const MIN_PAIRED_OBSERVATIONS = 4;
 
-/**
- * Minimum |correlation| a lag-aligned candidate must reach to be promoted to a
- * validated causal edge. Deliberately conservative — a weak co-move is not a
- * cause.
- */
+/** Min |correlation| a lag-aligned candidate must reach to be promoted to a
+ *  validated causal edge. Conservative — a weak co-move is not a cause. */
 export const MIN_EDGE_STRENGTH = 0.35;
 
-/**
- * The candidate lags (in days) the validator scans. A cause that leads its
- * effect by one of these lags satisfies temporal precedence; lag 0 is a
- * same-bucket contemporaneous move (still "cause not after effect"). Negative
- * lags are NEVER scanned — that would let an effect "precede" its cause.
- */
+/** Candidate lags (days) the validator scans. Lag 0 is contemporaneous; only
+ *  non-negative lags are scanned, so an effect can never "precede" its cause. */
 const CANDIDATE_LAG_DAYS: ReadonlyArray<number> = Object.freeze([0, 7, 14, 30]);
 
-/**
- * Confidence floor a root-cause explanation must clear to be `established`.
- * Below this we return { established: false } rather than name a weak cause.
- */
+/** Confidence floor a root-cause must clear to be `established`; below it we
+ *  return { established: false } rather than name a weak cause. */
 export const ROOT_CAUSE_CONFIDENCE_FLOOR = 0.3;
 
-/**
- * A node is treated as having "actually moved" in the window only if its
- * realized fractional move exceeds this. Smaller wiggles are noise and must not
- * be promoted into a cause.
- */
+/** A node counts as having "actually moved" only if its realized fractional
+ *  move exceeds this. Smaller wiggles are noise and cannot become a cause. */
 const MIN_REALIZED_MOVE = 0.02;
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -187,6 +160,13 @@ export interface CausalDag {
   /** The window the series were sampled over. */
   readonly windowDays: number;
   readonly asOf: number;
+  /**
+   * The metric series the DAG was built from — exposed so a consumer
+   * (explainRootCause ancestor scoring, the counterfactual baseline) uses the
+   * SAME data, not a divergent re-read. Without this, root-cause scoring
+   * degrades to edge-strength-only and can never establish a cause.
+   */
+  readonly series: ReadonlyArray<MetricSeries>;
 }
 
 export interface DroppedCandidate {
@@ -392,32 +372,44 @@ async function readProductionTonnage(
 }
 
 /**
- * royalty_filing_lateness — per royalty return draft, the days between its
- * statutory due date and when it was actually filed (late = positive; on-time /
- * early clamp to 0). Keyed on the due date so it aligns temporally with the
- * obligation. Unfiled-but-past-due rows are skipped: we measure REALIZED
- * lateness, not projected (no server-side "now" here — honest).
+ * royalty_filing_lateness — per SUBMITTED royalty return, the days its filing ran
+ * past the statutory due date (late = positive; on-time / early clamp to 0).
+ *
+ * royalty_return_drafts has NO explicit due_at / submitted_at column (real schema:
+ * period_start, period_end, status, created_at, updated_at). So we derive both
+ * from what exists, with the assumptions made EXPLICIT (honest proxy, not a
+ * fabricated field): the statutory DUE date = period_end + the filing grace
+ * window; the FILED time ≈ updated_at of a row that has reached status='submitted'
+ * (the timestamp it became submitted). Keyed on the derived due date so it aligns
+ * temporally with the obligation. Only realized (submitted) rows count — we never
+ * project lateness for an unfiled return.
  */
+// Statutory filing window after a royalty period closes. No explicit due column
+// exists; this is a documented, tunable approximation (conservative).
+const ROYALTY_DUE_GRACE_DAYS = 30;
+
 async function readRoyaltyFilingLateness(
   db: CausalDbExecLike,
   tenantId: string,
   cutoff: Date,
 ): Promise<ReadonlyArray<MetricPoint>> {
   const res = await db.execute(sql`
-    SELECT id, due_at, submitted_at, period_start
+    SELECT id, period_end, updated_at
       FROM royalty_return_drafts
      WHERE tenant_id = ${tenantId}
-       AND due_at IS NOT NULL
-       AND due_at >= ${cutoff}
-     ORDER BY due_at ASC
+       AND status = 'submitted'
+       AND period_end IS NOT NULL
+       AND period_end >= ${cutoff}
+     ORDER BY period_end ASC
   `);
   const out: MetricPoint[] = [];
   for (const row of rowsOf(res)) {
-    const due = tsOf(row.due_at);
-    if (due === null) continue;
-    const submitted = tsOf(row.submitted_at);
-    if (submitted === null) continue; // unfiled → no realized lateness yet
-    const lateDays = Math.max(0, Math.round((submitted - due) / MS_PER_DAY));
+    const periodEnd = tsOf(row.period_end);
+    if (periodEnd === null) continue;
+    const filed = tsOf(row.updated_at);
+    if (filed === null) continue; // unfiled → no realized lateness yet
+    const due = periodEnd + ROYALTY_DUE_GRACE_DAYS * MS_PER_DAY;
+    const lateDays = Math.max(0, Math.round((filed - due) / MS_PER_DAY));
     out.push({
       t: due,
       value: lateDays,
@@ -491,11 +483,8 @@ function bestLaggedFit(
   return best;
 }
 
-/**
- * Confidence = |r| tempered by sample support, so a strong correlation on few
- * pairs is discounted relative to the same strength on many pairs. Saturates
- * toward |r| as support grows. Bounded [0,1].
- */
+/** Confidence = |r| tempered by sample support (a strong correlation on few
+ *  pairs is discounted); saturates toward |r| as support grows. Bounded [0,1]. */
 function edgeConfidence(absR: number, support: number): number {
   const supportFactor = support / (support + MIN_PAIRED_OBSERVATIONS);
   return Math.max(0, Math.min(1, absR * supportFactor));
@@ -505,13 +494,10 @@ function edgeConfidence(absR: number, support: number): number {
 // Acyclicity guard — keep the strongest temporally-valid edge on any cycle.
 // ───────────────────────────────────────────────────────────────────────────
 
-/**
- * Greedily admit validated edges strongest-first, skipping any edge that would
- * introduce a cycle into the accepted set. Because we admit the strongest edge
- * first, a residual cycle is always broken by dropping the WEAKER back-edge —
- * exactly the mandated tie-break. Returns the acyclic accepted set + the edges
- * dropped for cycle-breaking.
- */
+/** Greedily admit validated edges strongest-first, skipping any that would
+ *  introduce a cycle. Admitting strongest-first means a residual cycle is always
+ *  broken by dropping the WEAKER back-edge (the mandated tie-break). Returns the
+ *  acyclic accepted set + the cycle-broken drops. */
 function enforceAcyclic(
   edges: ReadonlyArray<CausalEdge>,
 ): { kept: ReadonlyArray<CausalEdge>; dropped: ReadonlyArray<DroppedCandidate> } {
@@ -558,11 +544,8 @@ export interface BuildCausalDagOptions {
   readonly minPairedObservations?: number;
   /** Injectable clock for deterministic tests. */
   readonly now?: () => number;
-  /**
-   * Pre-read series (test seam). When provided, the DB readers are bypassed and
-   * these series are validated directly — lets unit tests feed a synthetic DAG
-   * without a DB. Production callers omit this.
-   */
+  /** Pre-read series (test seam): when set, DB readers are bypassed and these
+   *  series are validated directly. Production callers omit this. */
   readonly seriesOverride?: ReadonlyArray<MetricSeries>;
 }
 
@@ -641,9 +624,8 @@ export async function buildCausalDag(
       dropped.push({ from: cand.from, to: cand.to, reason: 'below_strength_floor' });
       continue;
     }
-    // Temporal precedence: bestLaggedFit only scans lag ≥ 0, so any fit it
-    // returns already has the cause leading (or contemporaneous with) the
-    // effect. The explicit guard documents the invariant + future-proofs it.
+    // Temporal precedence: bestLaggedFit only scans lag ≥ 0 (cause leads/is
+    // contemporaneous), so this guard documents + future-proofs the invariant.
     if (fit.lagDays < 0) {
       dropped.push({ from: cand.from, to: cand.to, reason: 'no_temporal_precedence' });
       continue;
@@ -683,6 +665,12 @@ export async function buildCausalDag(
     dropped: Object.freeze([...dropped, ...cycleDropped]),
     windowDays,
     asOf: nowMs,
+    series: Object.freeze(
+      ALL_METRICS.map(
+        (m): MetricSeries =>
+          Object.freeze({ metric: m, points: seriesByMetric.get(m) ?? [] }),
+      ),
+    ),
   }) satisfies CausalDag;
 }
 
@@ -690,12 +678,9 @@ export async function buildCausalDag(
 // Realized-move helper — how much did a metric ACTUALLY move in the window?
 // ───────────────────────────────────────────────────────────────────────────
 
-/**
- * Fractional realized move of a metric's series over its own window: the
- * signed change from the early-window mean to the late-window mean, normalised
- * by the early-window magnitude. Split at the series midpoint so each half has
- * support. Returns 0 when the series is too short or the baseline is ~0.
- */
+/** Fractional realized move of a series over its own window: signed change from
+ *  the early-half mean to the late-half mean, normalised by the early magnitude
+ *  (split at the midpoint). Returns 0 for a too-short series. */
 function realizedMove(points: ReadonlyArray<MetricPoint>): number {
   const byDay = bucketize(points);
   const days = [...byDay.keys()].sort((a, b) => a - b);
@@ -729,12 +714,8 @@ export interface ExplainRootCauseInput {
   readonly observedDeltaPct: number;
   /** As-of epoch ms (informational; the DAG already fixed its window). */
   readonly asOf?: number;
-  /**
-   * The per-metric series the DAG was built from, so ancestors can be scored by
-   * their OWN realized move. Production callers pass the same `seriesOverride`
-   * they (or the builder) read; when omitted the builder must have been fed an
-   * override and we fall back to edge strength alone (degraded scoring).
-   */
+  /** The per-metric series the DAG was built from, so ancestors are scored by
+   *  their OWN realized move. Omitting it falls back to edge strength alone. */
   readonly series?: ReadonlyArray<MetricSeries>;
 }
 
@@ -811,28 +792,27 @@ export function explainRootCause(
   };
 
   // Best causal PATH from each ancestor to the KPI: strongest product of edge
-  // strengths (and accumulated lag), via a bounded BFS upstream from the KPI.
+  // strengths (accumulating lag, min-ing confidence) via a bounded BFS upstream.
   interface PathInfo {
     readonly pathStrength: number;
     readonly lagDays: number;
     readonly confidence: number;
   }
+  interface QueueItem {
+    readonly node: CausalMetric;
+    readonly strength: number;
+    readonly lag: number;
+    readonly conf: number;
+  }
   const best = new Map<CausalMetric, PathInfo>();
-  // Seed: direct parents of the KPI.
-  const queue: Array<{ node: CausalMetric; strength: number; lag: number; conf: number }> = [];
+  const queue: QueueItem[] = [];
   for (const e of incoming.get(metric) ?? []) {
     queue.push({ node: e.from, strength: e.strength, lag: e.lagDays, conf: e.confidence });
   }
-  // Bound traversal depth to the node count (DAG ⇒ no infinite walk; this is a
-  // belt-and-braces cap).
+  // DAG ⇒ no infinite walk; this depth bound is belt-and-braces.
   let guard = dag.nodes.length * dag.edges.length + dag.edges.length + 1;
   while (queue.length > 0 && guard-- > 0) {
-    const cur = queue.shift() as {
-      node: CausalMetric;
-      strength: number;
-      lag: number;
-      conf: number;
-    };
+    const cur = queue.shift() as QueueItem;
     const prior = best.get(cur.node);
     if (!prior || cur.strength > prior.pathStrength) {
       best.set(cur.node, {
@@ -840,8 +820,6 @@ export function explainRootCause(
         lagDays: cur.lag,
         confidence: cur.conf,
       });
-      // Continue upstream through this ancestor's own parents (multiply
-      // strengths along the path; accumulate lag; min the confidence).
       for (const e of incoming.get(cur.node) ?? []) {
         queue.push({
           node: e.from,
