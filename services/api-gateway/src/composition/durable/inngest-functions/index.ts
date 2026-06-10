@@ -12,3 +12,9 @@ export {
   type InngestFunctionLike,
   type InngestStepRunner,
 } from './agency-run.fn.js';
+
+export {
+  createPowerToolScheduledCallFunction,
+  type PowerToolScheduledCallEventData,
+  type PowerToolScheduledCallFunctionDeps,
+} from './power-tool-scheduled-call.fn.js';
