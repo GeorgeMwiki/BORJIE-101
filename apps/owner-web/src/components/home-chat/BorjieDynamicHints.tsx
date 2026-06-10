@@ -155,19 +155,12 @@ export function BorjieDynamicHints({
     [onShortcutClick],
   );
 
-  // The shortcuts panel is the gated content: shown in full when the
-  // owner reaches the required mastery level, hidden (with a locked-state
-  // hint) until then. This prevents the MasteryGate from rendering `null`
-  // children — a gate that always shows nothing when unlocked is useless.
-  const shortcutsPanel = (
-    <LearnedShortcutsPanel
-      shortcuts={learnedShortcuts}
-      onActionClick={noopShortcutClick}
-      headline={shortcutsHeadline}
-      placement="inline"
-    />
-  );
-
+  // Three INDEPENDENT adaptive surfaces (DU-2/3/4). The LearnedShortcutsPanel
+  // is NOT gated behind mastery: learned shortcuts are EARNED from the owner's
+  // own behaviour, so they surface whenever they flow (the panel self-hides on
+  // an empty list). The MasteryGate is a separate aspiration nudge — it shows
+  // its "unlocks at <level>" hint when the score is below `level`, and nothing
+  // otherwise (a null score hides it during load).
   return (
     <div
       data-testid="borjie-dynamic-hints"
@@ -185,8 +178,14 @@ export function BorjieDynamicHints({
         score={masteryScore}
         hintTemplate={gateCopy.hintTemplate}
       >
-        {shortcutsPanel}
+        {null}
       </MasteryGate>
+      <LearnedShortcutsPanel
+        shortcuts={learnedShortcuts}
+        onActionClick={noopShortcutClick}
+        headline={shortcutsHeadline}
+        placement="inline"
+      />
     </div>
   );
 }
