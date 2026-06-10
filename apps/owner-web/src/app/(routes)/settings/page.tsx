@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { PlanBillingPanel } from '@/components/settings/PlanBillingPanel';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
-import { pickByLocale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
 import { NotificationPreferencesPanel } from '@/components/settings/NotificationPreferencesPanel';
 
 /**

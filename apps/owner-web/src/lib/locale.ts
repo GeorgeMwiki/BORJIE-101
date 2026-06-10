@@ -19,25 +19,20 @@
 
 import { useEffect, useState } from 'react';
 
-import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from './locale-shared';
+import {
+  DEFAULT_LOCALE,
+  LOCALE_COOKIE,
+  readLocaleFromDocument,
+  type Locale,
+} from './locale-shared';
 
 export type { Locale };
-export { DEFAULT_LOCALE, LOCALE_COOKIE };
-
-/**
- * Read the locale from `document.cookie`. Returns the project default
- * when the cookie is missing or malformed. SSR-safe — returns the
- * default on the server. Never mixes languages — only ever returns one.
- */
-export function readLocaleFromDocument(): Locale {
-  if (typeof document === 'undefined') return DEFAULT_LOCALE;
-  const match = document.cookie.match(
-    new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)`),
-  );
-  if (!match) return DEFAULT_LOCALE;
-  const value = decodeURIComponent(match[1]!);
-  return value === 'sw' || value === 'en' ? value : DEFAULT_LOCALE;
-}
+// Re-export the hook-free helpers so the many CLIENT importers of
+// `@/lib/locale` keep working unchanged. Server Components must import these
+// from `@/lib/locale-shared` directly (importing this file would drag the
+// `useLocale` hook below into the server bundle — which Next rejects).
+export { DEFAULT_LOCALE, LOCALE_COOKIE, readLocaleFromDocument } from './locale-shared';
+export { pickByLocale } from './locale-shared';
 
 /**
  * React hook that subscribes to the active locale. Re-renders if the
@@ -53,15 +48,4 @@ export function useLocale(): Locale {
     return () => window.clearInterval(interval);
   }, []);
   return locale;
-}
-
-/**
- * Pick one of two locale-strict variants. Never returns a concatenated
- * "EN / SW" string — that is the bug this helper exists to prevent.
- */
-export function pickByLocale<T>(
-  locale: Locale,
-  variants: { readonly en: T; readonly sw: T },
-): T {
-  return locale === 'sw' ? variants.sw : variants.en;
 }

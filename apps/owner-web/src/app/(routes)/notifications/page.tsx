@@ -1,6 +1,6 @@
 import { NotificationsInbox } from '@/components/notifications/NotificationsInbox';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
-import { pickByLocale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
 
 /**
  * Owner-web — notifications inbox (parity with workforce-mobile +
