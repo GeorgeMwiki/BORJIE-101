@@ -16,7 +16,10 @@
  *   - The callback runs WITHOUT a JWT (the provider redirects the browser).
  *     It trusts ONLY the HMAC-signed single-use `state` (tenant/user/
  *     connector + nonce + expiry) — the CSRF token of the OAuth dance.
- *     Replays are rejected by the bounded in-process guard (v1, documented).
+ *     Replays are rejected by an in-process fast-path AND the cluster-wide
+ *     DURABLE Postgres consume (oauth_state_nonces, migration 0343 —
+ *     INSERT … ON CONFLICT DO NOTHING; fail-closed on a ledger fault) so a
+ *     multi-replica deploy cannot be replayed across replicas.
  *   - redirect_uri comes from env only — never from the request.
  *   - Tokens are SEALED (AES-256-GCM connector-token-cipher) before any
  *     write; plaintext never persists, never logs, never echoes.
@@ -54,6 +57,11 @@ import {
   readConnectorOAuthProviderConfig,
   type OAuthStateReplayGuard,
 } from '../../composition/connector-oauth-descriptors.js';
+import {
+  consumeOAuthStateNonceDurably,
+  type DurableNonceConsumeOutcome,
+  type OAuthNonceDb,
+} from '../../composition/oauth-state-nonce-store.js';
 
 const moduleLogger = createLogger('connectors-oauth');
 
@@ -96,6 +104,21 @@ export interface ConnectorsOAuthRouterOptions {
   readonly cipher?: ConnectorTokenCipher | null;
   /** Replay-guard override for tests. */
   readonly replayGuard?: OAuthStateReplayGuard;
+  /**
+   * Durable (Postgres) nonce-consume override for tests. Default is the real
+   * `consumeOAuthStateNonceDurably` over migration 0343's oauth_state_nonces
+   * — the CLUSTER-WIDE replay authority (the in-process guard is only a
+   * same-process fast-path on a multi-replica deploy).
+   */
+  readonly durableNonceConsume?: (
+    db: OAuthNonceDb,
+    args: {
+      readonly nonce: string;
+      readonly tenantId: string;
+      readonly connectorId: string;
+      readonly expMs: number;
+    },
+  ) => Promise<DurableNonceConsumeOutcome>;
   /** Clock override for tests. */
   readonly now?: () => number;
 }
@@ -184,6 +207,8 @@ export function createConnectorsOAuthRouter(
   const cipher =
     opts.cipher !== undefined ? opts.cipher : createConnectorTokenCipher(env);
   const replayGuard = opts.replayGuard ?? createOAuthStateReplayGuard();
+  const durableNonceConsume =
+    opts.durableNonceConsume ?? consumeOAuthStateNonceDurably;
   const now = opts.now ?? Date.now;
 
   const app = new Hono();
@@ -343,6 +368,8 @@ export function createConnectorsOAuthRouter(
         400,
       );
     }
+    // FAST-PATH replay check (same-process). NOT the authority on a
+    // multi-replica deploy — the durable Postgres consume below decides.
     if (!replayGuard.consume(state.nonce, state.exp)) {
       moduleLogger.warn('connectors-oauth: replayed state rejected', {
         tenantId: state.tenantId,
@@ -405,6 +432,49 @@ export function createConnectorsOAuthRouter(
         {
           success: false as const,
           error: { code: 'DB_UNAVAILABLE', message: 'database not configured' },
+        },
+        503,
+      );
+    }
+
+    // DURABLE single-use consumption — THE replay authority (migration 0343).
+    // The in-process fast-path above cannot see a consumption that happened
+    // on another replica; this atomic INSERT … ON CONFLICT DO NOTHING decides
+    // cluster-wide BEFORE the code exchange (a replayed state must never
+    // trigger a provider round-trip). FAIL-CLOSED: an unreachable ledger
+    // rejects — we cannot prove first-use, so we refuse rather than risk a
+    // replay riding a DB outage.
+    const durable = await durableNonceConsume(db as OAuthNonceDb, {
+      nonce: state.nonce,
+      tenantId: state.tenantId,
+      connectorId: state.connectorId,
+      expMs: state.exp,
+    });
+    if (durable === 'replayed') {
+      moduleLogger.warn('connectors-oauth: replayed state rejected (durable)', {
+        tenantId: state.tenantId,
+        connectorId: state.connectorId,
+      });
+      return c.json(
+        {
+          success: false as const,
+          error: {
+            code: 'STATE_ALREADY_USED',
+            message: 'this OAuth state was already consumed — restart the connect flow',
+          },
+        },
+        400,
+      );
+    }
+    if (durable === 'failed') {
+      return c.json(
+        {
+          success: false as const,
+          error: {
+            code: 'STATE_CONSUME_FAILED',
+            message:
+              'could not verify single-use of the OAuth state — try the connect flow again',
+          },
         },
         503,
       );

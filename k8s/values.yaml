@@ -52,6 +52,12 @@ gateway:
   env:
     NODE_ENV: production
     PORT: "4000"
+    # Cron leader election (composition/cluster-lock.ts). REQUIRED at
+    # replicaCount 3 / minReplicas 3 so the ~28 in-process crons run
+    # exactly once cluster-wide. Needs DATABASE_SESSION_URL (session
+    # :5432 / direct URL) in borjie-secrets — a transaction pooler
+    # (:6543) silently drops the session advisory lock.
+    CRON_LEADER_ELECTION: "on"
   envFromSecret: borjie-secrets
 
 # ----------------------------------------------------------------------------

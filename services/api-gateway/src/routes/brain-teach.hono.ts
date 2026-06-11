@@ -144,6 +144,16 @@ import {
   applyIngressGuard,
   pickIngressGuardLang,
 } from '../composition/ingress-guard-apply.js';
+// EVIDENCE-REQUIRED GROUNDING (CLAUDE.md hard rule) — the owner's PRIMARY chat
+// surface previously shipped its answer with ZERO auditor grounding while the
+// fail-closed gate protected only /turn /think /stream. `auditTeachAnswer`
+// runs the SAME `auditChatResponse` contract over the accumulated answer
+// BEFORE the first chunk flushes: HARD verdicts withhold the prose (the
+// single-language safe message + an `auditor` frame ship instead); approved /
+// strict-OFF turns stream unchanged with a warn-only `auditor` frame before
+// `done`. Fail-OPEN on a gate fault — a broken auditor never breaks chat.
+// Kill-switch: BORJIE_STRICT_EVIDENCE=off. See `routes/teach-grounding.ts`.
+import { auditTeachAnswer } from './teach-grounding.js';
 // ARTIFACT EGRESS MEMBRANE (INV-H / INV-D / CLOSE-G) — the `tab_proposal`
 // payload carries a full genui-synthesized PortalTab whose `audit` block holds
 // mechanic provenance (actorId / sourceConversationId / history). Project the
@@ -1182,6 +1192,57 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       );
       safeClean = '[redacted]';
     }
+
+    // EVIDENCE-REQUIRED GROUNDING — audit the ACCUMULATED answer BEFORE the
+    // first chunk flushes (the teach stream buffers the full answer, so a
+    // HARD withhold is possible here, unlike jarvis /stream). On a withhold
+    // verdict the ungrounded prose — and every model-derived frame downstream
+    // of it (blocks / metrics / actions / auto-authorized / spawn tabs) — is
+    // dropped; the owner receives the single-language safe message plus an
+    // `auditor` frame, then a terminal `done`. Fail-OPEN: a gate fault ships
+    // the answer unaudited (frame omitted).
+    const grounding = await auditTeachAnswer({
+      answerText: safeClean,
+      tenantId,
+      userId,
+      sessionId,
+      lang: language === 'sw' ? 'sw' : 'en',
+    });
+    if (grounding.withheld && grounding.safeText !== null) {
+      if (grounding.frame) {
+        await stream.writeSSE({
+          event: 'auditor',
+          data: JSON.stringify({
+            ...grounding.frame,
+            at: new Date().toISOString(),
+          }),
+        });
+      }
+      await stream.writeSSE({
+        event: 'message_chunk',
+        data: JSON.stringify({
+          text: grounding.safeText,
+          chunkNo: 1,
+          batched: false,
+          evidence_ids: [],
+          confidence: null,
+          done: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({
+          at: new Date().toISOString(),
+          provider: winningProvider,
+          depth,
+          latencyMs: Date.now() - startedAt,
+          attempts: attempts.length,
+          withheld: true,
+        }),
+      });
+      return;
+    }
+
     const chunks = chunkText(safeClean);
     const lastChunkParam = c.req.query('lastChunk');
     const initialAck =
@@ -1732,6 +1793,20 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         ...(rejected ? { rejectedRecommendationKind: rejected } : {}),
       } as Parameters<typeof recordObservation>[1];
       await recordObservation(memoryDb, observation).catch(() => {});
+    }
+
+    // SOFT path — surface the grounding verdict as a warn-only `auditor`
+    // frame BEFORE `done` (the same client "unverified badge" contract
+    // jarvis /stream emits). Omitted entirely when the gate faulted
+    // (fail-OPEN — no fabricated verdict).
+    if (grounding.frame && !abort.signal.aborted) {
+      await stream.writeSSE({
+        event: 'auditor',
+        data: JSON.stringify({
+          ...grounding.frame,
+          at: new Date().toISOString(),
+        }),
+      });
     }
 
     await stream.writeSSE({

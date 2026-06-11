@@ -429,6 +429,13 @@ appConfig:
   NODE_ENV: production
   LOG_LEVEL: info
   TZ: Africa/Dar_es_Salaam
+  # Cron leader election (composition/cluster-lock.ts). REQUIRED on this
+  # multi-replica deploy (api-gateway minReplicas 2-3): without it every
+  # replica runs all ~28 in-process crons N× (N× LLM spend, N× duplicate
+  # notifications, N× gov-endpoint hits). Pair with the DATABASE_SESSION_URL
+  # secret (session :5432 / direct URL) — a transaction pooler (:6543)
+  # silently drops the session advisory lock that backs the election.
+  CRON_LEADER_ELECTION: "on"
   DEFAULT_CURRENCY: TZS
   DEFAULT_LOCALE: en-TZ
   # Comma-separated list of locales the frontends ship translations for.

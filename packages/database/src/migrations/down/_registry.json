@@ -476,6 +476,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0343_oauth_state_nonces.sql",
+      "down": "down/0343_down_oauth_state_nonces.sql",
+      "reverses": "Drops the oauth_state_nonces table (the DURABLE cluster-wide single-use consumption ledger for connector-OAuth state nonces: nonce PRIMARY KEY consumed via INSERT ... ON CONFLICT DO NOTHING RETURNING by the api-gateway callback, with an inline 15-minute purge, behind FORCE RLS tenant-isolation/service-role-bypass policies on app.current_tenant_id + guarded anon REVOKE). Fail-safe: the callback's durable consume FAULTS and the callback rejects (fail-closed) — connector OAuth connects stop completing until the table is restored; the bounded in-process guard alone is NOT trusted on a multi-replica deploy. No money/licence/ledger records; rows are opaque random nonces (no PII, no token material). DATA LOSS: discards the consumed-nonce ledger, re-opening the replay window for any still-unexpired (<10 min) captured state. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

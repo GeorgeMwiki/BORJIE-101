@@ -15,9 +15,10 @@
  *     token of the OAuth dance AND the identity carrier across the consent
  *     redirect (the callback returns with no JWT; tenant/user/connector come
  *     from the verified state, mirroring calendar-providers/oauth.ts).
- *   - A bounded in-process replay guard consumes each state nonce exactly
- *     once (v1: per-process map with TTL — documented limitation; a
- *     multi-replica deployment should move consumption into Postgres).
+ *   - A bounded in-process replay guard consumes each state nonce as a
+ *     same-process FAST-PATH; the cluster-wide authority is the durable
+ *     Postgres consume (`composition/oauth-state-nonce-store.ts`, migration
+ *     0343) the callback runs after it.
  *   - The authorization-code exchange engine (form-urlencoded POST to the
  *     descriptor's tokenUrl) returning a NORMALIZED token shape the route
  *     seals via the connector-token-cipher. Raw provider payloads (which
@@ -373,11 +374,12 @@ export interface OAuthStateReplayGuard {
 }
 
 /**
- * v1 LIMITATION (documented): consumption is per-process. Replays land on
- * the same gateway process in the single-instance deployment this ships
- * for; expired states are independently rejected by the signature TTL. A
- * multi-replica deployment should move consumption into Postgres
- * (INSERT … ON CONFLICT DO NOTHING on the nonce).
+ * SAME-PROCESS FAST-PATH ONLY (not the authority): this map cannot see a
+ * consumption that happened on another replica. The cluster-wide replay
+ * authority is the DURABLE Postgres consume in
+ * `composition/oauth-state-nonce-store.ts` (migration 0343 — INSERT … ON
+ * CONFLICT DO NOTHING on the nonce), which the callback runs AFTER this
+ * fast-path. Expired states are independently rejected by the signature TTL.
  */
 export function createOAuthStateReplayGuard(opts?: {
   readonly maxEntries?: number;
