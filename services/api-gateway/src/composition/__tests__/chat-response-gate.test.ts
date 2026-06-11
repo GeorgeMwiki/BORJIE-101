@@ -14,6 +14,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   auditChatResponse,
   extractEvidenceIds,
+  isResponseGrounded,
   setEvidenceExistenceVerifier,
 } from '../chat-response-gate';
 
@@ -60,6 +61,21 @@ describe('extractEvidenceIds', () => {
   it('extracts ids from a Vyanzo: (Swahili) footer', () => {
     const body = ['Pendekezo hapo juu.', '', 'Vyanzo:', '- lmbm_88'].join('\n');
     expect(extractEvidenceIds(body)).toContain('lmbm_88');
+  });
+});
+
+describe('isResponseGrounded', () => {
+  it('is false when no evidence is cited', () => {
+    expect(isResponseGrounded('No citations whatsoever.')).toBe(false);
+  });
+
+  it('is true when an inline citation is present', () => {
+    expect(isResponseGrounded('Grade is high [evidence:lmbm_42].')).toBe(true);
+  });
+
+  it('is false for empty / non-string input', () => {
+    expect(isResponseGrounded('')).toBe(false);
+    expect(isResponseGrounded(undefined as unknown as string)).toBe(false);
   });
 });
 
@@ -116,8 +132,8 @@ describe('auditChatResponse — Stage-2 evidence-existence verification', () => 
   it('rejects a response that cites a non-existent (fabricated) evidence_id', async () => {
     setEvidenceExistenceVerifier({
       // The cited id does not exist → report it as missing.
-      async findMissingEvidenceIds({ evidenceIds }) {
-        return evidenceIds; // none exist
+      async verifyEvidenceIds({ evidenceIds }) {
+        return { verified: true, missingIds: evidenceIds }; // none exist
       },
     });
     const out = await auditChatResponse({
@@ -128,12 +144,13 @@ describe('auditChatResponse — Stage-2 evidence-existence verification', () => 
     expect(out.violation).toBe(true);
     expect(out.evidenceWarning).toBe('evidence_invalid');
     expect(out.invalidEvidenceIds).toContain('made_up_999');
+    expect(out.groundingFault).toBe(false);
   });
 
   it('approves when every cited evidence_id resolves to a real chunk', async () => {
     setEvidenceExistenceVerifier({
-      async findMissingEvidenceIds() {
-        return []; // all exist
+      async verifyEvidenceIds() {
+        return { verified: true, missingIds: [] }; // all exist
       },
     });
     const out = await auditChatResponse({
@@ -143,11 +160,35 @@ describe('auditChatResponse — Stage-2 evidence-existence verification', () => 
     expect(out.verdict).toBe('approve');
     expect(out.violation).toBe(false);
     expect(out.invalidEvidenceIds).toEqual([]);
+    expect(out.groundingFault).toBe(false);
   });
 
-  it('fails open (Stage-1 only) when the verifier throws', async () => {
+  it('fails CLOSED (treats citations as UNVERIFIED) when the corpus reports a fault', async () => {
     setEvidenceExistenceVerifier({
-      async findMissingEvidenceIds() {
+      // Corpus unreachable — the contract resolves `verified: false` instead
+      // of throwing.
+      async verifyEvidenceIds() {
+        return { verified: false, missingIds: [] };
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'Backed by [evidence:lmbm_42].',
+    });
+    // A broken corpus check must NOT bless the cited id (no silent approve).
+    // The unverified state is carried by `groundingFault` + the needs_human
+    // verdict (the warning-string union is intentionally not widened).
+    expect(out.groundingFault).toBe(true);
+    expect(out.violation).toBe(true);
+    expect(out.evidenceWarning).toBeNull();
+    expect(out.verdict).toBe('needs_human');
+    // Crucially: NOT silently valid.
+    expect(out.verdict).not.toBe('approve');
+  });
+
+  it('fails CLOSED when the verifier THROWS (contract violation still not blessed)', async () => {
+    setEvidenceExistenceVerifier({
+      async verifyEvidenceIds() {
         throw new Error('db down');
       },
     });
@@ -155,9 +196,9 @@ describe('auditChatResponse — Stage-2 evidence-existence verification', () => 
       ...BASE_INPUT,
       responseText: 'Backed by [evidence:lmbm_42].',
     });
-    // A verifier fault must not block the turn — Stage-1 (evidence present)
-    // still approves.
-    expect(out.verdict).toBe('approve');
-    expect(out.invalidEvidenceIds).toEqual([]);
+    // A thrown verifier is treated the SAME as a reported fault — fail-CLOSED.
+    expect(out.groundingFault).toBe(true);
+    expect(out.verdict).toBe('needs_human');
+    expect(out.verdict).not.toBe('approve');
   });
 });

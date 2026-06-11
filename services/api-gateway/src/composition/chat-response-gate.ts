@@ -29,6 +29,7 @@
  */
 
 import { MiningJuniors, type ClaudeClient } from '@borjie/ai-copilot';
+import { trace } from '@opentelemetry/api';
 import { createLogger } from '../utils/logger';
 import { screenResponseEthics, type EthicsGateVerdict } from './ethics-gate';
 
@@ -53,18 +54,33 @@ const logger = createLogger('chat-response-gate');
 // handle). When unset the gate degrades to Stage-1-only — exactly the
 // prior behaviour — so this is purely additive and never breaks a turn.
 
+/**
+ * Result of a Stage-2 evidence-existence probe.
+ *
+ *   - `verified: true`  → the corpus was reachable; `missingIds` lists the
+ *     cited ids that do NOT resolve to a real chunk (empty = all real).
+ *   - `verified: false` → the corpus query FAULTED (DB down / timeout).
+ *     `missingIds` is empty but the citations are NOT blessed — the gate
+ *     treats them as UNVERIFIED (fail-CLOSED). A broken corpus check must
+ *     never silently validate a fabricated `[evidence:...]`.
+ */
+export interface EvidenceVerificationResult {
+  readonly verified: boolean;
+  readonly missingIds: readonly string[];
+}
+
 export interface EvidenceExistenceVerifier {
   /**
-   * Return the subset of `evidenceIds` that do NOT exist as a corpus
-   * chunk for this tenant (missing/404 ids). An empty array means every
-   * cited id is real. MUST be tenant-scoped + RLS-safe + read-only.
-   * MUST NOT throw — return `[]` on any infra fault (fail-open on the
-   * existence layer; the Stage-1 + ethics gates still apply).
+   * Probe whether each cited `evidenceId` exists as a corpus chunk for
+   * this tenant. MUST be tenant-scoped + RLS-safe + read-only. MUST NOT
+   * throw — on any infra fault, resolve with `{ verified: false }` so the
+   * gate can fail CLOSED (treat citations as unverified) rather than
+   * silently bless them.
    */
-  findMissingEvidenceIds(args: {
+  verifyEvidenceIds(args: {
     readonly tenantId: string;
     readonly evidenceIds: readonly string[];
-  }): Promise<readonly string[]>;
+  }): Promise<EvidenceVerificationResult>;
 }
 
 let evidenceVerifier: EvidenceExistenceVerifier | null = null;
@@ -99,16 +115,22 @@ export interface CorpusQueryPort {
  * that id exists for the tenant OR in the global (`tenant_id IS NULL`)
  * Borjie corpus. The query is tenant-scoped + RLS-safe (RLS FORCE binds
  * `app.current_tenant_id`) + read-only + parameterised (no interpolation
- * of cited ids). Fail-open: any infra fault returns `[]` (no missing
- * ids) so a DB blip degrades to Stage-1-only rather than blocking.
+ * of cited ids).
+ *
+ * FAIL-CLOSED: any infra fault resolves `{ verified: false }` — the corpus
+ * could NOT be reached, so the cited ids are NOT blessed. The caller treats
+ * them as UNVERIFIED rather than silently valid. A broken corpus check must
+ * never let a fabricated `[evidence:...]` pass enforcement. (This is the
+ * deliberate asymmetry: the corpus verifier fails CLOSED, while the auditor
+ * gate around it fails OPEN so a broken auditor never breaks chat.)
  */
 export function createCorpusEvidenceVerifier(
   port: CorpusQueryPort,
 ): EvidenceExistenceVerifier {
   return {
-    async findMissingEvidenceIds({ evidenceIds }) {
+    async verifyEvidenceIds({ evidenceIds }) {
       const ids = Array.from(new Set(evidenceIds.filter((s) => s.length > 0)));
-      if (ids.length === 0) return [];
+      if (ids.length === 0) return { verified: true, missingIds: [] };
       try {
         // Parameterised ANY($1) membership probe. The global corpus
         // (tenant_id IS NULL) is shared by every tenant, so a chunk is
@@ -122,15 +144,44 @@ export function createCorpusEvidenceVerifier(
           [ids],
         );
         const present = new Set(rows.map((r) => r.id));
-        return ids.filter((id) => !present.has(id));
+        return {
+          verified: true,
+          missingIds: ids.filter((id) => !present.has(id)),
+        };
       } catch (err) {
-        logger.warn('corpus evidence verifier query failed (fail-open)', {
-          err: err instanceof Error ? err.message : String(err),
-        });
-        return [];
+        // FAIL-CLOSED: the corpus is unreachable. Do NOT return `[]` (which
+        // would read as "all cited ids are real"). Signal the fault so the
+        // gate marks the citations UNVERIFIED. Pino error + OTel span attr
+        // make the grounding fault observable end-to-end.
+        emitGroundingFault('corpus_verifier_query_failed', err);
+        return { verified: false, missingIds: [] };
       }
     },
   };
+}
+
+/**
+ * Emit the canonical `grounding_fault` warning audit: a Pino ERROR line plus
+ * an OTel span attribute on the active span (best-effort — never throws).
+ * Surfaces a corpus-verifier fault so a fail-CLOSED "unverified" verdict is
+ * traceable to its cause rather than looking like a clean reject.
+ */
+function emitGroundingFault(reason: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error('grounding_fault: corpus evidence verifier unavailable (fail-closed)', {
+    grounding_fault: reason,
+    err: message,
+  });
+  try {
+    const span = trace.getActiveSpan();
+    if (span) {
+      span.setAttribute('borjie.grounding_fault', true);
+      span.setAttribute('borjie.grounding_fault_reason', reason);
+    }
+  } catch {
+    // OTel attribution is best-effort observability — a tracing fault must
+    // never escape the grounding gate.
+  }
 }
 
 // Stub a JuniorDeps that never reaches Stage 2 — we short-circuit on
@@ -229,6 +280,19 @@ export function extractEvidenceIds(responseText: string): readonly string[] {
   return Array.from(found);
 }
 
+/**
+ * Lightweight, synchronous Stage-1 grounding check: does this response cite
+ * at least one evidence_id? This is the cheap shape-only assertion behind the
+ * CLAUDE.md hard rule ("every recommendation cites >=1 evidence_id"). It does
+ * NOT confirm the cited ids exist in the corpus — that is the (async,
+ * DB-backed, fail-CLOSED) Stage-2 verifier inside `auditChatResponse`. Use
+ * this for a fast pre-check; use `decideStrictResponse` over an
+ * `auditChatResponse` verdict as the single source of truth for enforcement.
+ */
+export function isResponseGrounded(responseText: string): boolean {
+  return extractEvidenceIds(responseText).length > 0;
+}
+
 // ─── Public gate API ────────────────────────────────────────────────
 
 export interface ChatResponseGateInput {
@@ -255,9 +319,18 @@ export interface ChatResponseGateVerdict {
    */
   readonly invalidEvidenceIds: readonly string[];
   /**
+   * True when the Stage-2 corpus verifier FAULTED (DB down / timeout) so
+   * the cited evidence_ids could NOT be confirmed. Fail-CLOSED: the cited
+   * ids are treated as UNVERIFIED (not silently valid) and the verdict is
+   * escalated to `needs_human` so a fabricated citation can never pass
+   * enforcement on the back of a broken corpus check.
+   */
+  readonly groundingFault: boolean;
+  /**
    * True if the gate raised a violation — empty evidence chain, a
-   * FABRICATED (non-existent) cited evidence_id, OR a high/critical
-   * ethics-framework dark-pattern detection.
+   * FABRICATED (non-existent) cited evidence_id, an UNVERIFIED corpus probe
+   * (grounding fault), OR a high/critical ethics-framework dark-pattern
+   * detection.
    */
   readonly violation: boolean;
   /**
@@ -323,23 +396,31 @@ export async function auditChatResponse(
   // Stage-2 — evidence-existence verification. When the verifier is wired AND
   // the response cited >=1 evidence_id, assert every cited id resolves to a
   // real corpus chunk for the tenant. A non-existent (fabricated) id is a
-  // hard reject (`EVIDENCE_INVALID`). The verifier is itself fail-open on
-  // infra faults, so a DB blip degrades to Stage-1-only rather than blocking.
+  // hard reject (`EVIDENCE_INVALID`).
+  //
+  // FAIL-CLOSED on the corpus: when the verifier reports `verified: false`
+  // (DB down / timeout) we DO NOT bless the citations. They are marked
+  // UNVERIFIED (`groundingFault`) and the verdict escalates to needs_human —
+  // a broken corpus check must never let a fabricated citation through.
   let invalidEvidenceIds: readonly string[] = [];
+  let groundingFault = false;
   if (evidenceVerifier && evidenceIds.length > 0) {
     try {
-      invalidEvidenceIds = await evidenceVerifier.findMissingEvidenceIds({
+      const probe = await evidenceVerifier.verifyEvidenceIds({
         tenantId: input.tenantId,
         evidenceIds,
       });
+      if (probe.verified) {
+        invalidEvidenceIds = probe.missingIds;
+      } else {
+        groundingFault = true;
+      }
     } catch (err) {
       // Defence-in-depth — the port contract says never throw, but a
-      // contract violation must NOT crash the chat turn.
-      logger.warn('evidence-existence verifier threw (non-fatal)', {
-        err: err instanceof Error ? err.message : String(err),
-        tenantId: input.tenantId,
-        threadId: input.threadId,
-      });
+      // contract violation must NOT crash the chat turn. Treat a thrown
+      // verifier the SAME as a reported fault: fail CLOSED (unverified).
+      groundingFault = true;
+      emitGroundingFault('corpus_verifier_threw', err);
     }
   }
   const evidenceInvalid = invalidEvidenceIds.length > 0;
@@ -352,6 +433,11 @@ export async function auditChatResponse(
 
   const latencyMs = Date.now() - startedAt;
   const evidenceEmpty = evidenceIds.length === 0;
+  // NOTE: the `evidenceWarning` string union is intentionally NOT widened for
+  // the grounding-fault case (a downstream consumer pins the narrow union). The
+  // precise "citation present but UNVERIFIED because the corpus was unreachable"
+  // signal is carried by the dedicated `groundingFault: true` field + the
+  // `needs_human` verdict below — not by a new warning literal.
   const evidenceWarning: ChatResponseGateVerdict['evidenceWarning'] =
     evidenceEmpty
       ? 'no_evidence_cited'
@@ -367,11 +453,19 @@ export async function auditChatResponse(
   // existing HARD-mode enforcement withholds the manipulative answer. A
   // fabricated citation (Stage-2) is ALSO a hard reject — a confident answer
   // citing evidence that does not exist is worse than one citing none.
+  //
+  // Grounding fault (corpus unreachable) → `needs_human`: we cannot prove the
+  // citation is real, so we MUST NOT bless it (fail-CLOSED). needs_human still
+  // triggers a HARD-mode withhold but is distinct from an outright reject so
+  // the cause (unverified, not fabricated) stays legible in the audit trail.
   const verdict: ChatResponseGateVerdict['verdict'] =
     ethics.recommendation === 'block' || evidenceInvalid
       ? 'reject'
-      : auditorVerdict;
-  const violation = evidenceEmpty || evidenceInvalid || ethics.violation;
+      : groundingFault
+        ? 'needs_human'
+        : auditorVerdict;
+  const violation =
+    evidenceEmpty || evidenceInvalid || groundingFault || ethics.violation;
   const auditLogId = verdictOutput
     ? verdictOutput.audit_log_id
     : `audit_${startedAt}_${recommendationId}`;
@@ -386,6 +480,7 @@ export async function auditChatResponse(
     persona_id: input.personaId,
     evidence_count: evidenceIds.length,
     invalid_evidence_count: invalidEvidenceIds.length,
+    grounding_fault: groundingFault,
     verdict,
     latency_ms: latencyMs,
     tokens_used: input.tokensUsed ?? null,
@@ -398,6 +493,8 @@ export async function auditChatResponse(
     logger.warn('chat response gate: ethics dark-pattern violation', logPayload);
   } else if (evidenceInvalid) {
     logger.warn('chat response auditor: evidence_invalid', logPayload);
+  } else if (groundingFault) {
+    logger.warn('chat response auditor: evidence_unverified (grounding fault)', logPayload);
   } else if (evidenceEmpty) {
     logger.warn('chat response auditor: no_evidence_cited', logPayload);
   } else {
@@ -412,6 +509,7 @@ export async function auditChatResponse(
     evidenceWarning,
     latencyMs,
     invalidEvidenceIds,
+    groundingFault,
     violation,
     ethics,
   };

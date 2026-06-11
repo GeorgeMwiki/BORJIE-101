@@ -84,6 +84,20 @@ import {
 // hashes) never reach the wire — mirroring the projectKernelEvent done-frame
 // stripping rules.
 import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// ENFORCED GROUNDING (anti-hallucination hard rule) — every Jarvis answer
+// must cite >=1 real evidence_id (CLAUDE.md → Evidence-required AI output).
+// The helpers reuse the SAME `auditChatResponse` / `decideStrictResponse`
+// contract mining/chat + brain.hono use (no parallel mechanism). /think =
+// HARD withhold (422); /stream = warn-only auditor frame. The asymmetry is
+// deliberate: the corpus verifier inside the gate fails CLOSED (never blesses
+// a fake citation), while these gate helpers fail OPEN (a broken auditor must
+// never break chat). Extracted to `jarvis-grounding.ts` to keep this factory
+// under the file-size budget.
+import {
+  auditAndEnforceThinkResponse,
+  emitAuditorFrameStream,
+  pickAuditLang,
+} from './jarvis-grounding.js';
 import pino from 'pino';
 
 import { withSecurityEvents } from '@borjie/observability';
@@ -570,6 +584,40 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
       }
     }
 
+    // ENFORCED GROUNDING (HARD mode) — audit the model prose against the
+    // evidence-chain hard rule BEFORE egress. A tenant-scoped, ungrounded (or
+    // corpus-unverified) answer is WITHHELD: we substitute a safe
+    // single-language message + 422 and NEVER serialise the original decision
+    // (so no ungrounded provider prose / reasoning leaks). Platform scope and
+    // non-answer decisions skip the gate. Fail-OPEN on a gate fault.
+    const auditLang = pickAuditLang(c.req.header('accept-language') ?? null);
+    const grounding = await auditAndEnforceThinkResponse({
+      decision,
+      tenantId: scope.kind === 'tenant' ? scope.tenantId ?? null : null,
+      userId: scope.actorUserId ?? null,
+      threadId: body.threadId,
+      personaId: personalised.id,
+      lang: auditLang,
+      surface: config.surface,
+    });
+    if (grounding.withheld) {
+      return c.json(
+        {
+          success: true,
+          surface: config.surface,
+          persona: {
+            id: personalised.id,
+            displayName: personalised.displayName,
+            firstPersonNoun: personalised.firstPersonNoun,
+          },
+          // The ungrounded decision is dropped; only the safe message ships.
+          decision: { kind: 'withheld', text: grounding.safeText },
+          audit: grounding.audit,
+        },
+        422,
+      );
+    }
+
     // IP-EGRESS (CLOSE-G) — the /think JSON path is the lone brain-output route
     // that historically returned `decision` verbatim. Route model prose through
     // the fail-closed egress firewall and project provenance to a render-safe
@@ -589,6 +637,7 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
         firstPersonNoun: personalised.firstPersonNoun,
       },
       decision: safeDecision,
+      ...(grounding.audit ? { audit: grounding.audit } : {}),
     });
   }));
 
@@ -791,6 +840,20 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
           }
           if (ev.kind === 'done') {
             finalDecision = ev.decision;
+            // ENFORCED GROUNDING (SOFT mode) — emit a warn-only `auditor`
+            // frame BEFORE `done` so the client can render an "unverified"
+            // badge. Tokens were already streamed (a stream cannot un-send),
+            // so HARD withhold lives on /think only. Fail-OPEN — never aborts
+            // the turn. Platform scope / non-answer decisions are skipped.
+            await emitAuditorFrameStream(stream, {
+              decision: ev.decision,
+              tenantId:
+                scope.kind === 'tenant' ? scope.tenantId ?? null : null,
+              userId: scope.actorUserId ?? null,
+              threadId: body.threadId,
+              personaId: personalised.id,
+              surface: config.surface,
+            });
             await stream.writeSSE({
               event: 'done',
               data: JSON.stringify({
