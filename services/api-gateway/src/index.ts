@@ -511,6 +511,11 @@ import headBriefingRouter from './routes/head-briefing.router';
 import juniorAIRouter from './routes/junior-ai.router';
 // Canonical Property Graph (CPG) — tenant-scoped Neo4j query + relationship explorer.
 import graphRouter from './routes/graph.router';
+// Regulator-facing Chain-of-Thought reservoir (GDPR Art.15 / TZ-PDPA s.13 DSAR
+// read-back, PII-scrubbed, admin-role + tenant-scoped). Was BUILT + unit-tested
+// but never mounted — admin-web's mission-eval CoT panel had no backend. Now
+// reachable at /admin/cot-query/query.
+import cotQueryRouter from './routes/cot-query.router';
 // Wave 29 — Forecasting (TGN + conformal) surface. Returns 503
 // FORECAST_SERVICE_UNAVAILABLE when the TGN inference + repo env
 // vars are unset (no mock forecasts, ever).
@@ -2836,6 +2841,8 @@ api.route('/head/briefing', headBriefingRouter);
 api.route('/junior-ai', juniorAIRouter);
 // Canonical Property Graph — relationship-explorer + named-query surface
 api.route('/graph', graphRouter);
+// Regulator-facing CoT reservoir read-back (DSAR / accountability surface).
+api.route('/admin/cot-query', cotQueryRouter());
 // Wave 29 — Forecasting surface (TGN + conformal). Returns 503
 // FORECAST_SERVICE_UNAVAILABLE until the inference + repo adapters are
 // wired (no mock forecasts, ever).

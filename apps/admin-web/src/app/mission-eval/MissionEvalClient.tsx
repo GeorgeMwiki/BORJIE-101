@@ -69,6 +69,39 @@ interface EvalRunDetail extends EvalRunRow {
   readonly sensorId?: string;
 }
 
+// Row shape returned by GET /api/v1/admin/cot-query/query — the dedicated
+// regulator-facing CoT reservoir surface (PII-scrubbed, hash-anchored). The
+// parity dashboard's own drill endpoint does NOT carry the captured CoT for
+// this view, so the drawer fetches it from this endpoint and matches by
+// `thoughtId`. See services/api-gateway/src/routes/cot-query.router.ts.
+interface CotReservoirRow {
+  readonly thoughtId: string;
+  readonly threadId: string;
+  readonly thoughtText: string;
+  readonly stakes: 'low' | 'medium' | 'high' | 'critical';
+  readonly capturedAt: string;
+}
+
+// The CoT reservoir query is keyed by tenant + time window (not a single
+// thoughtId), so we bracket the selected run's `producedAt` and match the
+// row out of the returned window. A generous ±10 minute window absorbs clock
+// skew between the provenance row and the reservoir capture.
+const COT_WINDOW_MS = 10 * 60 * 1000;
+
+function cotQueryPath(producedAt: string): string {
+  const center = Date.parse(producedAt);
+  const params = new URLSearchParams();
+  if (Number.isFinite(center)) {
+    params.set('since', new Date(center - COT_WINDOW_MS).toISOString());
+    params.set('until', new Date(center + COT_WINDOW_MS).toISOString());
+  }
+  // Sovereign raw access — the mission-eval console is staff-only and the
+  // session carries the `cot:read:raw` scope; the gateway re-scrubs on read.
+  params.set('include_raw', 'true');
+  params.set('limit', '200');
+  return `/admin/cot-query/query?${params.toString()}`;
+}
+
 function scoreBadge(score: number | null): string {
   if (score === null) return 'bg-neutral-700 text-neutral-300';
   if (score < 0.5) return 'bg-rose-500/20 text-rose-300';
@@ -89,6 +122,7 @@ export function MissionEvalClient() {
   const [category, setCategory] = useState<string>('');
   const [selected, setSelected] = useState<EvalRunDetail | null>(null);
   const [rejudging, setRejudging] = useState(false);
+  const [cotLoading, setCotLoading] = useState(false);
 
   const loadRollup = useCallback(async () => {
     setLoadingRollup(true);
@@ -135,12 +169,35 @@ export function MissionEvalClient() {
 
   async function openDetail(row: EvalRunRow): Promise<void> {
     setSelected({ ...row, cotThoughtText: null });
-    const res = await api.get<EvalRunDetail>(
-      `/parity/capability/dashboard/runs/${encodeURIComponent(row.thoughtId)}`,
+    setCotLoading(true);
+    // Load the parity drill (judge reason/fix, hashes, model) and the
+    // captured chain-of-thought (from the dedicated reservoir endpoint) in
+    // parallel. The CoT lives on a separate, sovereign-scoped surface, so the
+    // drawer stitches the two together.
+    const [detailRes, cotText] = await Promise.all([
+      api.get<EvalRunDetail>(
+        `/parity/capability/dashboard/runs/${encodeURIComponent(row.thoughtId)}`,
+      ),
+      fetchCotText(row),
+    ]);
+    setCotLoading(false);
+    // Guard against a stale resolution: only apply if this row is still the
+    // selected one (the operator may have clicked another row meanwhile).
+    setSelected((current) => {
+      if (!current || current.thoughtId !== row.thoughtId) return current;
+      const base: EvalRunDetail =
+        detailRes.success && detailRes.data ? detailRes.data : current;
+      return { ...base, cotThoughtText: cotText ?? base.cotThoughtText ?? null };
+    });
+  }
+
+  async function fetchCotText(row: EvalRunRow): Promise<string | null> {
+    const res = await api.get<ReadonlyArray<CotReservoirRow>>(
+      cotQueryPath(row.producedAt),
     );
-    if (res.success && res.data) {
-      setSelected(res.data);
-    }
+    if (!res.success || !res.data) return null;
+    const match = res.data.find((r) => r.thoughtId === row.thoughtId);
+    return match?.thoughtText ?? null;
   }
 
   async function rejudge(thoughtId: string): Promise<void> {
@@ -431,7 +488,14 @@ export function MissionEvalClient() {
                 Captured chain-of-thought (PII-scrubbed)
               </dt>
               <dd className="mt-1 whitespace-pre-wrap rounded bg-neutral-900 p-3 font-mono text-xs text-neutral-200">
-                {selected.cotThoughtText ?? '— (not captured at sampling)'}
+                {cotLoading && selected.cotThoughtText === null ? (
+                  <span className="flex items-center gap-2 text-neutral-400">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Loading captured
+                    chain-of-thought…
+                  </span>
+                ) : (
+                  (selected.cotThoughtText ?? '— (not captured at sampling)')
+                )}
               </dd>
             </div>
             <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400">

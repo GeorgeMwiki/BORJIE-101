@@ -45,6 +45,9 @@ import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 // HTTP client.
 import { OWNER_SAVED_SEARCH_TOOLS } from './owner-saved-search-tools';
 import { SUPERPOWERS_TOOLS } from './superpowers-tools';
+// Legacy-portal browser super-power — the MD's "remote Chrome window" for
+// no-API third-party portals (KRA iTax …), AXTree-perceived + governance-gated.
+import { LEGACY_PORTAL_TOOLS } from './legacy-portal-tools';
 import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
 // MD DEFERRAL / FOLLOW-THROUGH — Mr. Mwikila's "defer with intent + hold a
 // durable backlog + confirm it actually happened" surface (md.defer /
@@ -245,6 +248,7 @@ export function buildPersonaToolHandlers(
       OWNER_MESSAGING_TOOLS,
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
+      LEGACY_PORTAL_TOOLS,
       DECISION_JOURNAL_TOOLS,
       MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
@@ -317,6 +321,7 @@ export function listPersonaToolDescriptors(
       OWNER_MESSAGING_TOOLS,
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
+      LEGACY_PORTAL_TOOLS,
       DECISION_JOURNAL_TOOLS,
       MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,

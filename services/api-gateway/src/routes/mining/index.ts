@@ -118,6 +118,9 @@ import { miningToolboxRouter } from './toolbox.hono';
 // talk_ack → toolbox-talks acknowledge. Idempotent. Backs the workforce-mobile
 // offline write queue's `toolbox_ack` entity (endpointFor → 'toolbox-acks').
 import { miningToolboxAcksRouter } from './toolbox-acks.hono';
+// Legacy-portal browser super-power — the MD drives no-API third-party portals
+// (KRA iTax …) via AXTree perception. Reachable at /mining/legacy-portal/*.
+import { createLegacyPortalRouter } from './legacy-portal.hono';
 
 // Causal root-cause + counterfactual intervention simulation (Wave D). POST
 // /root-cause ("why did cash dip?") + POST /simulate ("hedge now vs in 2 weeks").
@@ -308,6 +311,7 @@ mining.route('/toolbox-talks', miningToolboxRouter);
 // task_complete → mining_tasks done, talk_ack → toolbox-talks acknowledge.
 // Distinct prefix from `/toolbox-talks` so neither shadows the other.
 mining.route('/toolbox-acks', miningToolboxAcksRouter);
+mining.route('/legacy-portal', createLegacyPortalRouter());
 mining.route('/causal', miningCausalInterventionRouter);
 
 // Employee copilots — performance coaching. The workforce-mobile mining client
