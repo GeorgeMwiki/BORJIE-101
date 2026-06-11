@@ -41,7 +41,9 @@ const DEFAULT_TIER_RESOLVER: ModelTierResolver = {
   resolve(tier: ThinkingModelTier): string {
     switch (tier) {
       case 'opus':
-        return ModelTier.OPUS;
+        // The deepest-thinking tier → the frontier Fable reasoning family
+        // (intelligence-elasticity: ALL core reasoning runs the rank front).
+        return ModelTier.FABLE;
       case 'sonnet':
         return ModelTier.SONNET;
       case 'haiku':

@@ -26,7 +26,7 @@ import {
   MediaAttachment,
 } from './ai-provider.js';
 import { applyPrefixCache } from './anthropic-prefix-cache.js';
-import { DEFAULT_TIER_MODEL_IDS } from '../model-resolution.js';
+import { MODELS } from '@borjie/brain-llm-router/dynamic-registry';
 
 /**
  * Anthropic provider configuration
@@ -45,12 +45,17 @@ export interface AnthropicProviderConfig {
 }
 
 /**
- * Anthropic model identifiers (2026 Messages API).
+ * Anthropic model identifiers (2026 Messages API). Keyed by FAMILY off the
+ * dynamic-registry baselines (single id source, operator-overridable via
+ * `BORJIE_MODEL_BASELINE_<FAMILY>`) — NOT by tier, so the version-named
+ * constants stay semantically correct independent of which tier each family
+ * serves. `FABLE` is the frontier core-reasoning family.
  */
 export const ANTHROPIC_MODELS = {
-  OPUS_4_8: DEFAULT_TIER_MODEL_IDS.deep,
-  SONNET_4_6: DEFAULT_TIER_MODEL_IDS.standard,
-  HAIKU_4_5: DEFAULT_TIER_MODEL_IDS.cheap,
+  FABLE: MODELS.fable,
+  OPUS_4_8: MODELS.opus,
+  SONNET_4_6: MODELS.sonnet,
+  HAIKU_4_5: MODELS.haiku,
 } as const;
 
 export type AnthropicModelId =

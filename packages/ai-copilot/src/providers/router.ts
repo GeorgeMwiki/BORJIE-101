@@ -52,7 +52,8 @@ export function buildMultiLLMRouter(opts: BuildRouterOptions): MultiLLMRouter {
       }),
       preferredModels: {
         analysis: ANTHROPIC_MODELS.SONNET_4_6,
-        reasoning: ANTHROPIC_MODELS.OPUS_4_8,
+        // Core reasoning → the frontier Fable family (intelligence-elasticity).
+        reasoning: ANTHROPIC_MODELS.FABLE,
         tool_use: ANTHROPIC_MODELS.SONNET_4_6,
         conversation: ANTHROPIC_MODELS.HAIKU_4_5,
         summarization: ANTHROPIC_MODELS.HAIKU_4_5,

@@ -28,11 +28,11 @@ afterEach(() => {
   setLegacyOpenAiModelMap(undefined);
 });
 
-describe('model-resolution — behavior-identical defaults (LAW guarantee a)', () => {
-  it('resolves Claude tiers to EXACTLY today\'s production ids', () => {
+describe('model-resolution — rank-driven reasoning deck (LAW guarantee a)', () => {
+  it('resolves Claude tiers to the capability cascade (deep=Fable core reasoning)', () => {
     expect(resolveTierModelId('cheap')).toBe('claude-haiku-4-5');
-    expect(resolveTierModelId('standard')).toBe('claude-sonnet-4-6');
-    expect(resolveTierModelId('deep')).toBe('claude-opus-4-8');
+    expect(resolveTierModelId('standard')).toBe('claude-opus-4-8');
+    expect(resolveTierModelId('deep')).toBe('claude-fable-5');
   });
 
   it('resolves legacy OpenAI slots to EXACTLY today\'s ids', () => {
@@ -43,11 +43,11 @@ describe('model-resolution — behavior-identical defaults (LAW guarantee a)', (
     expect(resolveLegacyOpenAiModelId('tts')).toBe('gpt-4o-mini-tts');
   });
 
-  it('keeps the frozen default maps pinned to today\'s exact ids', () => {
+  it('keeps the frozen default map on the rank-driven cascade', () => {
     expect(DEFAULT_TIER_MODEL_IDS).toEqual({
       cheap: 'claude-haiku-4-5',
-      standard: 'claude-sonnet-4-6',
-      deep: 'claude-opus-4-8',
+      standard: 'claude-opus-4-8',
+      deep: 'claude-fable-5',
     });
     expect(DEFAULT_LEGACY_OPENAI_MODEL_IDS).toEqual({
       default: 'gpt-4-turbo-preview',
@@ -59,10 +59,12 @@ describe('model-resolution — behavior-identical defaults (LAW guarantee a)', (
     expect(Object.isFrozen(DEFAULT_LEGACY_OPENAI_MODEL_IDS)).toBe(true);
   });
 
-  it('provider catalogs derive from the single source and stay id-identical', () => {
+  it('provider catalogs derive by FAMILY from the registry (names stay id-correct)', () => {
+    expect(ANTHROPIC_MODELS.FABLE).toBe('claude-fable-5');
     expect(ANTHROPIC_MODELS.OPUS_4_8).toBe('claude-opus-4-8');
     expect(ANTHROPIC_MODELS.SONNET_4_6).toBe('claude-sonnet-4-6');
     expect(ANTHROPIC_MODELS.HAIKU_4_5).toBe('claude-haiku-4-5');
+    expect(ModelTier.FABLE).toBe('claude-fable-5');
     expect(ModelTier.HAIKU).toBe('claude-haiku-4-5');
     expect(ModelTier.SONNET).toBe('claude-sonnet-4-6');
     expect(ModelTier.OPUS).toBe('claude-opus-4-8');
@@ -71,10 +73,12 @@ describe('model-resolution — behavior-identical defaults (LAW guarantee a)', (
 
 describe('model-resolution — injected map overrides (LAW guarantee b)', () => {
   it('an injected tier map overrides only the injected tiers', () => {
-    setModelTierMap({ deep: 'claude-fable-5' });
-    expect(resolveTierModelId('deep')).toBe('claude-fable-5');
+    // Inject a hypothetical superior model onto deep; cheap/standard fall
+    // through to the rank-driven cascade defaults.
+    setModelTierMap({ deep: 'claude-mythos-1' });
+    expect(resolveTierModelId('deep')).toBe('claude-mythos-1');
     expect(resolveTierModelId('cheap')).toBe('claude-haiku-4-5');
-    expect(resolveTierModelId('standard')).toBe('claude-sonnet-4-6');
+    expect(resolveTierModelId('standard')).toBe('claude-opus-4-8');
   });
 
   it('clearing the injection restores behavior-identical defaults', () => {
@@ -171,6 +175,6 @@ describe('runClaudeJunior — the ~30-junior inheritance point', () => {
       juniorName: 'test-junior',
       model: resolveTierModelId('deep'),
     });
-    expect(calls).toEqual(['claude-opus-4-8']);
+    expect(calls).toEqual(['claude-fable-5']);
   });
 });

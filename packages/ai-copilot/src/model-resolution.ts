@@ -36,14 +36,19 @@ import { z } from 'zod';
 export type ModelTierLabel = 'cheap' | 'standard' | 'deep';
 
 /**
- * Today's exact production ids. Behavior-identical defaults — these MUST
- * only change via the composition-root injection seam, never by edit-here
- * drift (the registry/env owns upgrades).
+ * The rank-driven default reasoning deck (intelligence-elasticity): DEEP is
+ * core reasoning + thinking — the front of the Anthropic capability rank,
+ * which Fable leads today; STANDARD is the next-most-capable; CHEAP is the
+ * floor. This is the un-wired FALLBACK; the composition root injects the
+ * LIVE registry-resolved ids via `setModelTierMap` so a newer/superior model
+ * (a `claude-fable-*` minor, or a family ranked above Fable) takes core
+ * reasoning automatically. Change upgrades through the rank/registry, never
+ * by edit-here drift.
  */
 export const DEFAULT_TIER_MODEL_IDS = Object.freeze({
   cheap: 'claude-haiku-4-5',
-  standard: 'claude-sonnet-4-6',
-  deep: 'claude-opus-4-8',
+  standard: 'claude-opus-4-8',
+  deep: 'claude-fable-5',
 } as const satisfies Record<ModelTierLabel, string>);
 
 export type ModelTierMap = Readonly<Partial<Record<ModelTierLabel, string>>>;

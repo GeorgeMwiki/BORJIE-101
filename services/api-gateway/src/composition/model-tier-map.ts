@@ -26,16 +26,16 @@
 import { resolveModelIdForTier, type ModelTier } from '@borjie/central-intelligence';
 import {
   getModelLatest,
-  type ModelFamily,
+  tierFamilyByCapability,
 } from '@borjie/brain-llm-router/dynamic-registry';
 
 export type { ModelTier } from '@borjie/central-intelligence';
 
-const TIER_FAMILY: Readonly<Record<ModelTier, ModelFamily>> = Object.freeze({
-  cheap: 'haiku',
-  standard: 'sonnet',
-  deep: 'opus',
-});
+// Tier→family is RANK-DRIVEN (intelligence-elasticity): deep = the front of
+// the Anthropic capability rank (Fable today), standard = next, cheap = floor.
+// A superior new Anthropic model (a `claude-fable-*` minor via L2, or a family
+// ranked above Fable in FAMILY_CAPABILITY_RANK / BORJIE_ANTHROPIC_RANK) takes
+// core reasoning automatically — zero call-site change.
 
 const TIER_ENV_KEY: Readonly<Record<ModelTier, string>> = Object.freeze({
   cheap: 'BORJIE_MODEL_TIER_CHEAP',
@@ -72,7 +72,7 @@ export function resolveTierModel(
   tier: ModelTier,
   env: EnvSource = process.env,
 ): string {
-  const registryDefault = getModelLatest(TIER_FAMILY[tier]);
+  const registryDefault = getModelLatest(tierFamilyByCapability(tier, env));
   return (
     resolveModelIdForTier(tier, readTierModelMap(env), registryDefault) ??
     registryDefault

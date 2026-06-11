@@ -51,10 +51,15 @@ function rate(
  * by `baselines.ts`, not here).
  */
 export const ANTHROPIC_PRICE_RATES: Readonly<{
+  fable: ModelPriceRate;
   opus: ModelPriceRate;
   sonnet: ModelPriceRate;
   haiku: ModelPriceRate;
 }> = Object.freeze({
+  // Fable — frontier core-reasoning family. Priced at the opus tier as a
+  // conservative estimate until a published rate is wired (telemetry/cost-
+  // estimation only, not billing); operator overrides the id via baselines.
+  fable: rate(MODELS.fable, 0.005, 0.025),
   opus: rate(MODELS.opus, 0.005, 0.025),
   sonnet: rate(MODELS.sonnet, 0.003, 0.015),
   haiku: rate(MODELS.haiku, 0.0008, 0.004),
@@ -70,6 +75,7 @@ export const DEFAULT_PRICE_RATE_ID = 'default';
  */
 export const PRICE_BOOK_FALLBACK_RATES: ReadonlyArray<ModelPriceRate> =
   Object.freeze([
+    ANTHROPIC_PRICE_RATES.fable,
     ANTHROPIC_PRICE_RATES.opus,
     ANTHROPIC_PRICE_RATES.sonnet,
     ANTHROPIC_PRICE_RATES.haiku,

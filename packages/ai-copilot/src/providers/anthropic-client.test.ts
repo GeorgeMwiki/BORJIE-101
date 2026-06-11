@@ -60,8 +60,13 @@ describe('ModelTier', () => {
     expect(ModelTier.OPUS).toBe('claude-opus-4-8');
   });
 
-  it('is frozen-style — three canonical tiers only', () => {
-    expect(Object.keys(ModelTier).sort()).toEqual(['HAIKU', 'OPUS', 'SONNET']);
+  it('is frozen-style — the four canonical reasoning families', () => {
+    expect(Object.keys(ModelTier).sort()).toEqual([
+      'FABLE',
+      'HAIKU',
+      'OPUS',
+      'SONNET',
+    ]);
   });
 });
 

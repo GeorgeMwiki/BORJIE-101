@@ -1109,6 +1109,29 @@ const logger = pino({
 import { wireDynamicModelRegistry } from './composition/dynamic-model-registry-wiring';
 wireDynamicModelRegistry({ logger });
 
+// Feed the LIVE, rank-driven tier→model-id map into the ai-copilot juniors so
+// core reasoning (the DEEP tier) runs the front of the Anthropic capability
+// rank — Fable today, whatever supersedes it tomorrow — with zero code change.
+// resolveTierModel goes env-pin → registry (L2 /v1/models) → L3 baseline;
+// setModelTierMap rebinds the package's per-call resolution (not the static
+// catalog). Without this the juniors fall back to DEFAULT_TIER_MODEL_IDS,
+// which already encodes the same deep=Fable cascade.
+import { setModelTierMap } from '@borjie/ai-copilot';
+import { resolveTierModel } from './composition/model-tier-map';
+setModelTierMap({
+  cheap: resolveTierModel('cheap'),
+  standard: resolveTierModel('standard'),
+  deep: resolveTierModel('deep'),
+});
+logger.info(
+  {
+    deep: resolveTierModel('deep'),
+    standard: resolveTierModel('standard'),
+    cheap: resolveTierModel('cheap'),
+  },
+  'model-tiering: rank-driven deck bound — DEEP=core-reasoning at rank front (Fable), auto-promotes on a superior Anthropic model',
+);
+
 // Wave AGENTIC-PLATFORM — OAuth2 device-flow + capability manifest
 // (migration 0118 + Docs/RESEARCH/AGENTIC_SOTA_COMPARISON.md). Powers
 // the public MCP / CLI / SDK consumers — Claude Code, Cursor,
