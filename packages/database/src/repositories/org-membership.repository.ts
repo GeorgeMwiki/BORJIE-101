@@ -61,6 +61,24 @@ export function newMembershipId(): string {
   return `mem_${randomUUID()}`;
 }
 
+/**
+ * Invite codes are URL/QR-friendly: 12 chars from an unambiguous alphabet
+ * (no 0/O/1/I/L), sourced from crypto randomness — ~56 bits of entropy.
+ */
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+export function newInviteCode(): string {
+  const bytes = new Uint8Array(12);
+  // randomUUID-based fallback is unnecessary — node:crypto webcrypto is
+  // always present on the supported runtimes.
+  globalThis.crypto.getRandomValues(bytes);
+  let code = '';
+  for (const b of bytes) {
+    code += INVITE_ALPHABET[b % INVITE_ALPHABET.length];
+  }
+  return code;
+}
+
 /** Statuses a public re-request may resurrect from (mode b). */
 const RE_REQUESTABLE = ['LEFT', 'REJECTED', 'REVOKED'] as const;
 
@@ -224,6 +242,45 @@ export function createDrizzleOrgMembershipRepository(
           defaultRoleId: invite.defaultRoleId,
           redeemable,
         });
+      });
+    },
+
+    async createInvite(input) {
+      assertKey(input.organizationId, 'createInvite', 'organizationId');
+      assertKey(input.platformTenantId, 'createInvite', 'platformTenantId');
+      assertKey(input.issuedBy, 'createInvite', 'issuedBy');
+      assertKey(input.defaultRoleId, 'createInvite', 'defaultRoleId');
+      return withServiceRoleContext(db, async (tx) => {
+        const inserted = (await tx
+          .insert(inviteCodes)
+          .values({
+            code: newInviteCode(),
+            organizationId: input.organizationId,
+            platformTenantId: input.platformTenantId,
+            issuedBy: input.issuedBy,
+            defaultRoleId: input.defaultRoleId,
+            relationshipType: input.relationshipType ?? 'employment',
+            expiresAt: input.expiresAt ?? null,
+            maxRedemptions: input.maxRedemptions ?? null,
+          })
+          .returning({
+            code: inviteCodes.code,
+            organizationId: inviteCodes.organizationId,
+            platformTenantId: inviteCodes.platformTenantId,
+            relationshipType: inviteCodes.relationshipType,
+            defaultRoleId: inviteCodes.defaultRoleId,
+          })) as unknown as Array<{
+          code: string;
+          organizationId: string;
+          platformTenantId: string;
+          relationshipType: InvitePeek['relationshipType'];
+          defaultRoleId: string;
+        }>;
+        const row = inserted[0];
+        if (!row) {
+          throw new Error('org-membership: createInvite failed (no row)');
+        }
+        return Object.freeze({ ...row, redeemable: true });
       });
     },
 

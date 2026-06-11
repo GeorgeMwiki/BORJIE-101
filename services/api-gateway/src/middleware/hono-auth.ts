@@ -50,6 +50,13 @@ import {
   decodeSessionCookie,
   readSessionCookie,
 } from '../auth/public/session-cookie';
+// SC-2 — validated multi-org active-tenant override (the single reader of
+// the `borjie-active-tenant` cookie / `X-Borjie-Active-Tenant` header).
+import {
+  expiredActiveTenantCookie,
+  resolveActiveTenantOverride,
+} from './active-tenant-override';
+import { getDatabaseClient } from './database';
 
 export interface AuthContext {
   userId: string;
@@ -74,6 +81,9 @@ export interface AuthContext {
   tokenExp?: number | undefined;
   tokenIat?: number | undefined;
   sessionId?: string | undefined;
+  /** E.164-ish phone claim from the Supabase token (phone-OTP principals) —
+   *  consumed by identity provisioning on the membership routes (SC-2). */
+  phone?: string | undefined;
 }
 
 export interface JWTPayload {
@@ -85,6 +95,9 @@ export interface JWTPayload {
   jti?: string | undefined;
   exp: number;
   iat: number;
+  /** Supabase phone / email claims — identity provisioning inputs (SC-2). */
+  phone?: string | undefined;
+  email?: string | undefined;
 }
 
 /**
@@ -126,6 +139,10 @@ function coerceVerifiedJwtPayload(verified: unknown): JWTPayload {
     jti: typeof p.jti === 'string' ? p.jti : undefined,
     exp: typeof p.exp === 'number' ? p.exp : 0,
     iat: typeof p.iat === 'number' ? p.iat : 0,
+    phone:
+      typeof p.phone === 'string' && p.phone.length > 0 ? p.phone : undefined,
+    email:
+      typeof p.email === 'string' && p.email.length > 0 ? p.email : undefined,
   };
 }
 
@@ -209,6 +226,10 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       ) {
         throw new Error('tenant_id must come from app_metadata, not user_metadata');
       }
+      const spClaims = sp as JoseJWTPayload & {
+        phone?: string;
+        email?: string;
+      };
       decoded = {
         userId: String(sp.sub ?? ''),
         tenantId: appTenantId ?? '',
@@ -220,6 +241,14 @@ export const authMiddleware = createMiddleware(async (c, next) => {
         jti: typeof sp.jti === 'string' ? sp.jti : undefined,
         exp: typeof sp.exp === 'number' ? sp.exp : 0,
         iat: typeof sp.iat === 'number' ? sp.iat : 0,
+        phone:
+          typeof spClaims.phone === 'string' && spClaims.phone.length > 0
+            ? spClaims.phone
+            : undefined,
+        email:
+          typeof spClaims.email === 'string' && spClaims.email.length > 0
+            ? spClaims.email
+            : undefined,
       };
     } else {
       // Pin algorithm to prevent alg=none / RS256-vs-HS256 confusion.
@@ -251,6 +280,49 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       );
     }
 
+    // SC-2 — validated multi-org switch. The requested active tenant
+    // (header for mobile Bearer clients, cookie for web) is honored ONLY
+    // when the membership graph authorizes it: an ACTIVE employment-class
+    // org_membership in the target tenant, resolved through the caller's
+    // auth principal. On success BOTH tenantId and userId are rebound (the
+    // shadow user is the caller's `users` row IN that tenant); on failure
+    // the request fails CLOSED with 403 + a cookie clear (a silent fallback
+    // to the home tenant would mis-scope writes — confused deputy). PUBLIC
+    // (tenant-less marketing) tokens never carry a switch.
+    if (String(decoded.role) !== 'PUBLIC' && decoded.userId.length > 0) {
+      const resolution = await resolveActiveTenantOverride({
+        c,
+        db:
+          (c.get('db') as Parameters<
+            typeof resolveActiveTenantOverride
+          >[0]['db']) ?? getDatabaseClient(),
+        supabaseUserId: decoded.userId,
+        jwtTenantId: decoded.tenantId,
+      });
+      if (resolution.kind === 'denied') {
+        c.header('Set-Cookie', expiredActiveTenantCookie());
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'TENANT_SWITCH_INVALID',
+              message:
+                'You are not an active member of the requested tenant. ' +
+                'The active-tenant selection has been reset.',
+            },
+          },
+          403
+        );
+      }
+      if (resolution.kind === 'switched') {
+        decoded = {
+          ...decoded,
+          tenantId: resolution.grant.tenantId,
+          userId: resolution.grant.shadowUserId,
+        };
+      }
+    }
+
     c.set('auth', {
       userId: decoded.userId,
       tenantId: decoded.tenantId,
@@ -259,6 +331,8 @@ export const authMiddleware = createMiddleware(async (c, next) => {
       propertyAccess: decoded.propertyAccess,
       jti: decoded.jti,
       exp: decoded.exp,
+      phone: decoded.phone,
+      email: decoded.email,
     });
 
     // Flat accessors — legacy routers look up `tenantId`/`userId`

@@ -143,6 +143,7 @@ import { pnlTableRouter } from './routes/bff/pnl-table.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
 import { meTenantsRouter } from './routes/me-tenants.hono';
+import { membershipsRouter } from './routes/memberships.hono';
 // JA-7 — owner-facing jurisdiction snapshot endpoint
 // (GET /me/jurisdiction) backing the settings/jurisdiction page.
 import { meJurisdictionRouter } from './routes/me-jurisdiction.hono';
@@ -2532,6 +2533,9 @@ api.route('/md', mdRouter);
 api.route('/owner/finance', pnlTableRouter);
 // Roadmap R12 — Discord-style tenant switcher backend.
 api.route('/me/tenants', meTenantsRouter);
+// Surface-completion SC-4 — the pairing surface (invite/QR redeem +
+// public-discovery request→approve + org-side lifecycle + invite minting).
+api.route('/memberships', membershipsRouter);
 // JA-7 — owner-facing jurisdiction snapshot endpoint.
 api.route('/me/jurisdiction', meJurisdictionRouter);
 // Progressive-disclosure: mastery score + ranked learned shortcuts.

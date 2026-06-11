@@ -166,6 +166,7 @@ export {
   type RedeemInviteInput,
   type RedeemInviteResult,
   type InvitePeek,
+  type CreateInviteInput,
   type RequestPairingInput,
   type DecideMembershipInput,
   type ApproveMembershipInput,

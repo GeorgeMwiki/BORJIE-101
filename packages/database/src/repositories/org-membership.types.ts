@@ -147,6 +147,20 @@ export interface BlockMembershipInput {
   readonly reason?: string | null;
 }
 
+/** ISSUE input — an org mints an invite code (pairing mode a). */
+export interface CreateInviteInput {
+  readonly organizationId: string;
+  readonly platformTenantId: string;
+  /** users.id of the org-side issuer. */
+  readonly issuedBy: string;
+  /** Targeting label granted at redeem (member_role source). */
+  readonly defaultRoleId: string;
+  /** The relationship the invite grants. Defaults 'employment'. */
+  readonly relationshipType?: OrgMembershipRelationshipType;
+  readonly expiresAt?: Date | null;
+  readonly maxRedemptions?: number | null;
+}
+
 /** A relationship/role-class predicate the audience resolver fans over. */
 export interface AudienceQuery {
   readonly relationshipType?: OrgMembershipRelationshipType;
@@ -162,6 +176,8 @@ export interface OrgMembershipRepository {
   redeemInvite(input: RedeemInviteInput): Promise<RedeemInviteResult>;
   /** Read-only invite lookup (org/tenant/relationship) — null if unknown. */
   peekInvite(code: string): Promise<InvitePeek | null>;
+  /** Mint an invite code for an org (pairing mode a; QR encodes the code). */
+  createInvite(input: CreateInviteInput): Promise<InvitePeek>;
   /** Pairing mode (b): create/refresh a PENDING request (re-request from
    *  LEFT|REJECTED|REVOKED; ACTIVE and BLOCKED rows returned unchanged). */
   requestPairing(input: RequestPairingInput): Promise<OrgMembership>;

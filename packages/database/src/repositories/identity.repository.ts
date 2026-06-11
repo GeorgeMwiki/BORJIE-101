@@ -56,6 +56,8 @@ export interface IdentityRepository {
   resolveByPrincipal(supabaseUserId: string): Promise<TenantIdentityView | null>;
   /** Find-or-create the identity + attach the principal (idempotent). */
   provision(input: ProvisionIdentityInput): Promise<TenantIdentityView>;
+  /** Direct identity read — the approve flow names the shadow user from it. */
+  getById(tenantIdentityId: string): Promise<TenantIdentityView | null>;
 }
 
 export function normalizePhoneDigits(
@@ -160,6 +162,23 @@ export function createDrizzleIdentityRepository(
       return withServiceRoleContext(db, (tx) =>
         findByPrincipal(tx, supabaseUserId),
       );
+    },
+
+    async getById(tenantIdentityId) {
+      if (!tenantIdentityId) {
+        throw new Error(
+          'identity: getById requires a non-empty tenantIdentityId',
+        );
+      }
+      return withServiceRoleContext(db, async (tx) => {
+        const rows = (await tx
+          .select()
+          .from(tenantIdentities)
+          .where(eq(tenantIdentities.id, tenantIdentityId))
+          .limit(1)) as unknown as IdentityRow[];
+        const row = rows[0];
+        return row ? rowToView(row) : null;
+      });
     },
 
     async provision(input) {
@@ -274,6 +293,16 @@ export function createInMemoryIdentityRepository(): IdentityRepository {
       }
       const id = principals.get(supabaseUserId);
       const row = id ? identities.get(id) : undefined;
+      return row ? rowToView(row) : null;
+    },
+
+    async getById(tenantIdentityId) {
+      if (!tenantIdentityId) {
+        throw new Error(
+          'identity: getById requires a non-empty tenantIdentityId',
+        );
+      }
+      const row = identities.get(tenantIdentityId);
       return row ? rowToView(row) : null;
     },
 

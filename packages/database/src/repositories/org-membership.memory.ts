@@ -225,6 +225,33 @@ export function createInMemoryOrgMembershipRepository(
       });
     },
 
+    async createInvite(input) {
+      assertKey(input.organizationId, 'createInvite', 'organizationId');
+      assertKey(input.platformTenantId, 'createInvite', 'platformTenantId');
+      assertKey(input.issuedBy, 'createInvite', 'issuedBy');
+      assertKey(input.defaultRoleId, 'createInvite', 'defaultRoleId');
+      const code = `INV-${randomUUID().slice(0, 12).toUpperCase()}`;
+      invites.set(code, {
+        code,
+        organizationId: input.organizationId,
+        platformTenantId: input.platformTenantId,
+        defaultRoleId: input.defaultRoleId,
+        relationshipType: input.relationshipType ?? 'employment',
+        expiresAt: input.expiresAt ?? null,
+        revokedAt: null,
+        maxRedemptions: input.maxRedemptions ?? null,
+        redemptionsUsed: 0,
+      });
+      return Object.freeze({
+        code,
+        organizationId: input.organizationId,
+        platformTenantId: input.platformTenantId,
+        relationshipType: input.relationshipType ?? 'employment',
+        defaultRoleId: input.defaultRoleId,
+        redeemable: true,
+      });
+    },
+
     async redeemInvite(input) {
       assertKey(input.code, 'redeemInvite', 'code');
       assertKey(input.tenantIdentityId, 'redeemInvite', 'tenantIdentityId');

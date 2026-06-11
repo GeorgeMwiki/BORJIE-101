@@ -1,34 +1,28 @@
 /**
- * /api/v1/me/tenants — Roadmap R12.
+ * /api/v1/me/tenants — Roadmap R12, re-read over the UNIFIED membership
+ * graph (surface-completion SC-5: person_links → org_memberships).
  *
- * Discord-style tenant rail backend. Returns every tenant the caller
- * has a `person_links` row for, with the canonical display name +
- * primary logo URL (when set). The rail in owner-web reads this and
- * lets the user wear another "hat" without re-authenticating.
+ * Discord-style tenant rail backend. Returns every tenant where the caller
+ * holds an ACTIVE EMPLOYMENT-CLASS org_membership (user_id IS NOT NULL —
+ * the insider hats; buyer connections are external counterparties and never
+ * appear in the insider rail), resolved from the caller's Supabase sub
+ * through identity_auth_principals. person_links is NO LONGER read here —
+ * migration 0346 backfilled every live link into the membership graph.
  *
- * POST /api/v1/me/tenants/active — switch the active tenant. Writes
- * a `borjie-active-tenant` cookie (HttpOnly, SameSite=Lax). The
- * api-gateway auth middleware reads this cookie on each request and
- * re-binds the `app.current_tenant_id` GUC for RLS scoping.
+ * POST /api/v1/me/tenants/active — switch the active tenant. Validates the
+ * SAME membership predicate the auth middleware enforces per request
+ * (`verifyEmploymentMembershipForTenant` — single shared gate), then writes
+ * the `borjie-active-tenant` cookie (HttpOnly, SameSite=Lax). Since SC-2 the
+ * auth middleware actually READS that cookie on every request: it re-derives
+ * the membership grant, rebinds `app.current_tenant_id` AND swaps userId to
+ * the shadow user in the target tenant, failing closed on a stale grant.
  *
- * Security note: the user can only switch to a tenant they already
- * have a link for. Cross-tenant injection via the cookie is impossible
- * because the auth middleware re-validates the link on every request.
- *
- * RLS (migration 0333): person_links now carries FORCE RLS scoped to
- * `app.current_tenant_id` (its tenant key is tenant_id UUID NOT NULL).
- * BUT both lookups below are, by definition, CROSS-tenant: they read
- * EVERY tenant the caller is linked to (keyed on supabase_user_id) while
- * `app.current_tenant_id` is still bound to the user's CURRENTLY-active
- * tenant. Under the plain tenant_isolation policy they would return only
- * links for the active tenant — hiding all the OTHER hats and breaking
- * the rail / the switch re-verification. Each runs inside
- * `withServiceRoleContext`, which sets `app.is_service_role='true'`
- * transaction-locally so the `person_links_service_role_bypass` policy
- * short-circuits the tenant predicate for exactly these reads. The bypass
- * is GUC-driven (independent of the DB login role's BYPASSRLS bit), and
- * the `true` set_config scope means it is discarded at COMMIT — it never
- * leaks onto the rest of the request, which stays tenant-scoped.
+ * RLS: both lookups are by definition CROSS-tenant (they read every hat
+ * while the GUC is bound to the currently-active tenant), so they run inside
+ * `withServiceRoleContext` — the service-role bypass policies on
+ * org_memberships / identity_auth_principals (0336/0345) lift row visibility
+ * for exactly these reads; the explicit sub + status predicates are the real
+ * authorization gate. The tx-local GUC is discarded at COMMIT.
  */
 
 import { Hono } from 'hono';
@@ -38,6 +32,11 @@ import { sql } from 'drizzle-orm';
 import { withServiceRoleContext } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
+import {
+  ACTIVE_TENANT_COOKIE_NAME as ACTIVE_TENANT_COOKIE,
+  clearActiveTenantCache,
+  verifyEmploymentMembershipForTenant,
+} from '../middleware/active-tenant-override';
 
 interface DbExec {
   execute(query: unknown): Promise<unknown>;
@@ -58,8 +57,6 @@ interface TenantMembershipRow {
   readonly linkedAt: string;
   readonly active: boolean;
 }
-
-const ACTIVE_TENANT_COOKIE = 'borjie-active-tenant';
 
 const SwitchTenantSchema = z.object({
   tenantId: z.string().uuid(),
@@ -122,24 +119,28 @@ meTenantsRouter.get('/', async (c) => {
   );
   const activeTenantId = cookieActive ?? auth.tenantId;
   try {
-    // Cross-tenant read: every hat the caller wears, regardless of the bound
-    // tenant GUC. Service-role context lets the bypass policy on person_links
-    // return all linked tenants; the tx-local GUC is discarded at COMMIT.
+    // Cross-tenant read: every INSIDER hat the caller wears, regardless of
+    // the bound tenant GUC — sub → principal → ACTIVE employment-class
+    // memberships. Service-role lifts row visibility; the sub predicate is
+    // the authorization gate.
     const rows = (await withServiceRoleContext(
       db as unknown as ServiceRoleDb,
       (sdb) =>
         sdb.execute(sql`
           SELECT
-            pl.tenant_id,
-            pl.role_in_tenant,
-            pl.linked_at,
-            COALESCE(t.name, t.legal_name, 'Tenant') AS tenant_name,
+            m.platform_tenant_id AS tenant_id,
+            m.member_role        AS role_in_tenant,
+            m.joined_at          AS linked_at,
+            COALESCE(t.name, 'Tenant') AS tenant_name,
             t.logo_url
-          FROM person_links pl
-          LEFT JOIN tenants t ON t.id::text = pl.tenant_id::text
-          WHERE pl.supabase_user_id = ${auth.userId}::uuid
-            AND pl.unlinked_at IS NULL
-          ORDER BY pl.linked_at DESC
+          FROM identity_auth_principals iap
+          JOIN org_memberships m
+            ON m.tenant_identity_id = iap.tenant_identity_id
+          LEFT JOIN tenants t ON t.id::text = m.platform_tenant_id
+          WHERE iap.supabase_user_id = ${auth.userId}::uuid
+            AND m.status = 'ACTIVE'
+            AND m.user_id IS NOT NULL
+          ORDER BY m.joined_at DESC
           LIMIT 50
         `),
     )) as unknown as Array<Record<string, unknown>>;
@@ -182,34 +183,24 @@ meTenantsRouter.post(
       );
     }
     const { tenantId } = c.req.valid('json');
-    // Re-verify the user is linked to this tenant — never trust the
-    // client's tenantId blindly. This is a CROSS-tenant check: the target
-    // tenantId is (by design) NOT the currently-bound one, so it runs under
-    // service-role context so the person_links bypass policy can see the
-    // target-tenant link. The membership predicate (supabase_user_id +
-    // tenant_id) is the real authorization gate — service-role only lifts the
-    // RLS row-visibility, it does not weaken the explicit WHERE.
+    // Re-verify through the EXACT predicate the per-request auth override
+    // enforces (SC-2): an ACTIVE employment-class membership in the target
+    // tenant, resolved from the caller's auth principal. Never trust the
+    // client's tenantId blindly.
     try {
-      const rows = (await withServiceRoleContext(
+      const grant = await verifyEmploymentMembershipForTenant(
         db as unknown as ServiceRoleDb,
-        (sdb) =>
-          sdb.execute(sql`
-            SELECT 1
-              FROM person_links
-             WHERE supabase_user_id = ${auth.userId}::uuid
-               AND tenant_id        = ${tenantId}::uuid
-               AND unlinked_at IS NULL
-             LIMIT 1
-          `),
-      )) as unknown as Array<{ '1'?: number }>;
-      if (rows.length === 0) {
+        auth.userId,
+        tenantId,
+      );
+      if (!grant) {
         return c.json(
           {
             success: false,
             error: {
               code: 'TENANT_NOT_LINKED',
               message:
-                'You are not a member of this tenant, or your link was unlinked.',
+                'You are not an active member of this tenant, or your membership ended.',
             },
           },
           403,
@@ -228,6 +219,11 @@ meTenantsRouter.post(
       );
     }
 
+    // The switch takes effect on the NEXT request through the auth
+    // middleware's override; bust its TTL cache so a re-switch after a very
+    // recent denial is not shadowed for up to 60s.
+    clearActiveTenantCache();
+
     // Write the active-tenant cookie. HttpOnly + SameSite=Lax so the
     // browser sends it back on every owner-web → api-gateway hop but
     // JS in the page cannot read or forge it.
@@ -243,5 +239,6 @@ meTenantsRouter.post(
   },
 );
 
-/** Exported for the auth middleware composition root. */
+/** Re-exported for the auth middleware composition root (defined in
+ *  middleware/active-tenant-override.ts since SC-2 — the single reader). */
 export const ACTIVE_TENANT_COOKIE_NAME = ACTIVE_TENANT_COOKIE;
