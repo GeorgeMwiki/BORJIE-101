@@ -646,6 +646,9 @@ import {
 import { createWebhookRetryWorker } from './workers/webhook-retry-worker';
 import { ensureTenantIsolation } from './middleware/tenant-context.middleware';
 import { assertApiKeyConfig } from './middleware/api-key-registry';
+// Deep-health admin gate — role derived from the VERIFIED bearer JWT, never
+// a client-supplied header.
+import { verifyJwt, extractBearerToken } from './middleware/auth-core';
 import { customerAppRouter } from './routes/bff/customer-app';
 import { ownerPortalRouter } from './routes/bff/owner-portal';
 // Endpoint wave — owner group/holdings rollup. Mounted at the specific
@@ -2122,9 +2125,21 @@ try {
 const deepHealthHandler = createDeepHealthHandler({
   version: process.env.APP_VERSION ?? 'dev',
   cacheMs: Number(process.env.DEEP_HEALTH_CACHE_MS ?? '15000') || 15_000,
+  // Admin gate derives the role from the VERIFIED bearer JWT — never from a
+  // client-supplied header (the prior x-user-role check let any caller probe
+  // the full Postgres/Redis/provider cascade in production).
   requireAdmin: (req) => {
-    const roleHeader = req.header('x-user-role');
-    if (roleHeader === 'TENANT_ADMIN' || roleHeader === 'PLATFORM_ADMIN') return true;
+    const verified = verifyJwt(extractBearerToken(req.header('authorization')));
+    // SUPER_ADMIN/ADMIN are the real admin members of the verified-JWT role
+    // union (the prior header check compared against role names that do not
+    // exist in the JWT vocabulary — it could never pass legitimately).
+    if (
+      verified.ok &&
+      (verified.payload.role === 'SUPER_ADMIN' ||
+        verified.payload.role === 'ADMIN')
+    ) {
+      return true;
+    }
     return process.env.NODE_ENV !== 'production';
   },
   probes: [
