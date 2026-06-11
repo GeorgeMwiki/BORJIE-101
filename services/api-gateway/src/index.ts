@@ -219,6 +219,23 @@ import { registerMdEventBridge } from './composition/living-md/event-subscriber-
 import { configureLivingMdTurnHooks } from './routes/mining/chat-orchestrator';
 import { livingPlanRouter } from './routes/owner/living-plan.hono';
 import { commitmentGovernanceRouter } from './routes/owner/commitment-governance.hono';
+// SELF-RUNNING-ORG SPINE (org-loop) — the gap→strategize→pick→assign→dispatch→
+// deliver→report→close thread over the living-MD commitment substrate. The
+// orchestrator composes the G0-G3 ports; the binder closes the loop in real
+// time off the cockpit bus tap; assignTask() (the previously-dark write path)
+// fires through the composed WorkforceDeps.
+import { createWorkforceDeps } from './composition/org-loop/workforce-deps-wiring';
+import { createTaskDispatchPort } from './composition/org-loop/task-dispatch-port';
+import { createPersonMatcher } from './composition/org-loop/person-matcher-wiring';
+import { createStrategizePort } from './composition/org-loop/strategize-port';
+import { createGapBriefingPort } from './composition/org-loop/gap-briefing-port';
+import {
+  createOrgLoopOrchestrator,
+  ORG_LOOP_CRON_NAME,
+} from './composition/org-loop/org-loop-orchestrator';
+import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
+import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
+import { tapCockpitEvents } from './services/cockpit-events';
 // Wave-C C3 WIN-3/4 — the THREE graded-corrective + closed-loop organs that make
 // the homeostatic controller ACT: the drive-context resolver (commitment → REAL
 // drive severity from the live snapshot), the driveId → drafter registry (the
@@ -265,6 +282,11 @@ let mdCommitmentBundle: ReturnType<typeof createMdCommitmentReconciliation> =
 // Module-level so the cron seam, route mount, event-bridge, and shutdown block
 // can all reach the single composed instance. Null when no db handle is present.
 let livingMd: LivingMdOrgan | null = null;
+// The self-running-org SPINE orchestrator (org-loop). Composed beside the
+// living-MD organ (it reads the same commitment substrate); leader-gated at
+// its .start() site; stopped on shutdown. Null when no db handle is present.
+let orgLoopOrchestrator: ReturnType<typeof createOrgLoopOrchestrator> | null =
+  null;
 // Wave-C C3 WIN-3 — the graded-corrective ladder ceiling. Resolve the tenant
 // delegation cap for the md_commitments homeostatic controller from the env at
 // bootstrap (the only place process.env is read). It is CLAMPED — it can be set
@@ -881,6 +903,7 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'control-shell',
   'loop-economy',
   'someday-review',
+  'org-loop',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -1921,6 +1944,71 @@ try {
         // Inject the per-turn re-read + post-turn commitment_state hooks into the
         // LIVE chat seam (DI — chat-orchestrator stays import-free of the organ).
         configureLivingMdTurnHooks(livingMd.turnHooks);
+
+        // ── SELF-RUNNING-ORG SPINE (org-loop) ─────────────────────────
+        // Compose the gap→strategize→pick→assign→dispatch→deliver→report→
+        // close thread over the SAME commitment substrate. This lights up
+        // the previously-dark assignTask() write path through the composed
+        // WorkforceDeps; the binder closes the loop in real time when a
+        // worker completes the dispatched task. PROPOSE-ONLY/HITL: HIGH/
+        // sovereign assignments are surfaced for owner approval, never
+        // auto-executed. Kill-switch BORJIE_ORG_LOOP (default-ON).
+        if (dbForMd) {
+          const orgLoopLogger = createPinoLikeLogger('org-loop');
+          const orgLoopRunRepo = createDrizzleOrgLoopRunRepository(
+            dbForMd as unknown as Parameters<
+              typeof createDrizzleOrgLoopRunRepository
+            >[0],
+          );
+          const workforceDeps = createWorkforceDeps({
+            db: dbForMd as unknown as Parameters<
+              typeof createWorkforceDeps
+            >[0]['db'],
+          });
+          orgLoopOrchestrator = createOrgLoopOrchestrator({
+            commitmentRepo: mdCommitmentBundle.repository,
+            runRepo: orgLoopRunRepo,
+            strategist: createStrategizePort({
+              logger: createPinoLikeLogger('org-loop-strategize'),
+            }),
+            personMatcher: createPersonMatcher({
+              db: dbForMd as unknown as Parameters<
+                typeof createPersonMatcher
+              >[0]['db'],
+              logger: createPinoLikeLogger('org-loop-matcher'),
+            }),
+            dispatcher: createTaskDispatchPort({ workforceDeps }),
+            briefer: createGapBriefingPort(),
+            proposalSink: createTabEventLogProposalSink(
+              dbForMd as unknown as { execute(q: unknown): Promise<unknown> },
+              createPinoLikeLogger('org-loop-sink'),
+            ),
+            cockpit: {
+              publish: (event) =>
+                void publishCockpitEvent(
+                  event as Parameters<typeof publishCockpitEvent>[0],
+                ),
+            },
+            listActiveTenantIds: listActiveTenantIdsForMd,
+            logger: orgLoopLogger,
+          });
+          // RE-LOOP closure binder — task completion (mwikila.acted /
+          // mining.task.complete on the cockpit bus) marks the originating
+          // commitment done with positive proof + advances the run to
+          // closed. Local process tap = exactly-once cluster semantics.
+          const taskCommitmentBinder = createTaskCommitmentBinder({
+            runRepo: orgLoopRunRepo,
+            commitmentRepo: mdCommitmentBundle.repository,
+            logger: createPinoLikeLogger('org-loop-binder'),
+          });
+          tapCockpitEvents((event) => {
+            void taskCommitmentBinder.onMwikilaActed(event);
+          });
+          orgLoopLogger.info(
+            { wiring: 'org-loop', killSwitchEnv: 'BORJIE_ORG_LOOP' },
+            'org-loop: spine composed (strategize+match+dispatch+brief+binder) — assignTask write-path LIVE, propose-only/HITL',
+          );
+        }
         mdLogger.info(
           { autonomyCap: mdAutonomyCap },
           'md-commitments: graded-corrective + closed-loop set-point organs wired (drive-context resolver + drafter registry + set_point_state store) + LIVING-MD organ composed (turn re-read + someday resurfacing + hash-chained timeline) — homeostatic controller LIVE, propose-only/HITL',
@@ -4184,6 +4272,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: living-md someday-review stop failed');
   }
   try {
+    orgLoopOrchestrator?.stop();
+    logger.info('shutdown: org-loop spine stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: org-loop spine stop failed');
+  }
+  try {
     geofenceWatcher.stop();
     logger.info('shutdown: geofence watcher stopped');
   } catch (err) {
@@ -4512,6 +4606,15 @@ if (require.main === module) {
     withClusterLeader(
       livingMd.somedayReviewSupervisor,
       lockIdFor('someday-review'),
+    ).start();
+  }
+  // SELF-RUNNING-ORG SPINE — leader-gated sweep over live commitments
+  // needing delegation (strategize→match→dispatch→brief, propose-only/
+  // HITL). Inert under NODE_ENV=test; kill-switch BORJIE_ORG_LOOP.
+  if (orgLoopOrchestrator) {
+    withClusterLeader(
+      orgLoopOrchestrator,
+      lockIdFor(ORG_LOOP_CRON_NAME),
     ).start();
   }
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB

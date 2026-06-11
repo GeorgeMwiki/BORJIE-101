@@ -1,6 +1,7 @@
 export {
   publishCockpitEvent,
   subscribeCockpitEvents,
+  tapCockpitEvents,
   initCockpitBus,
   __resetCockpitBusForTests,
 } from './bus.js';

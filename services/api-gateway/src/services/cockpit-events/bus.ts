@@ -239,6 +239,28 @@ function releaseCrossReplicaTenantSub(tenantId: string): void {
 }
 
 /**
+ * Process-wide local taps — observers of EVERY locally-published event
+ * regardless of tenant (e.g. the org-loop task→commitment closure binder).
+ * Registered ONCE at composition time; deliberately NOT bridged across
+ * replicas (see the publish-site note on exactly-once cluster semantics).
+ */
+const processTaps = new Set<(event: CockpitEvent) => void>();
+
+/**
+ * Register a process-wide tap on every locally-published cockpit event.
+ * Returns an unregister handle. Taps must be fast and non-blocking; faults
+ * are contained at the publish site and never break the SSE hot path.
+ */
+export function tapCockpitEvents(
+  tap: (event: CockpitEvent) => void,
+): () => void {
+  processTaps.add(tap);
+  return () => {
+    processTaps.delete(tap);
+  };
+}
+
+/**
  * Publish a cockpit event to all current subscribers for the tenant.
  *
  * - Always emits to the LOCAL EventEmitter (this replica's SSE clients),
@@ -255,6 +277,26 @@ export function publishCockpitEvent(event: CockpitEvent): number {
   const listenerCount = emitter.listenerCount(channel);
   if (listenerCount > 0) {
     emitter.emit(channel, event);
+  }
+
+  // Process-wide LOCAL taps (org-loop closure binder et al). Local-only is
+  // the correct cluster semantics here: the publishing request lands on
+  // exactly one replica, so a local tap fires exactly once cluster-wide —
+  // unlike the per-tenant Redis fanout, which re-emits on every replica.
+  // Tap faults are contained; the SSE hot path is never broken by a tap.
+  for (const tap of processTaps) {
+    try {
+      tap(event);
+    } catch (err) {
+      logger.error(
+        {
+          tenantId: event.tenantId,
+          kind: event.kind,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'cockpit-bus: process tap failed; publish unaffected',
+      );
+    }
   }
 
   const state = crossReplica;
@@ -307,5 +349,6 @@ export function subscribeCockpitEvents(
  */
 export function __resetCockpitBusForTests(): void {
   emitter.removeAllListeners();
+  processTaps.clear();
   crossReplica = null;
 }

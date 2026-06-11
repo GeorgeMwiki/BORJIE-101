@@ -1739,3 +1739,16 @@ export * from './md-commitment-timeline.schema.js';
 // defaults in code. FORCE RLS on app.current_tenant_id + service-role bypass
 // per migration 0340.
 export * from './owner-governance-preferences.schema.js';
+
+// org_loop_runs (migration 0341) — the SELF-RUNNING-ORG SPINE correlation
+// identity: one durable row per loop run joining an md_commitments row
+// (commitment_id, the close-the-loop back-edge) to the mining_tasks row the
+// workforce orchestrator spawned (task_id, the dispatch forward-edge). Carries
+// the stage machine (detect → strategize → pick → assign → dispatch → deliver →
+// report → reloop → closed), honest status (open|active|closed|failed), the
+// chosen employee + match_confidence (matcher-learning inputs), and the
+// evidence ids threaded from the commitment. The loop ENGINE is universal
+// Mr-Mwikila core; loop_kind/stage/source_data are domain-pack DATA. FORCE RLS
+// on app.current_tenant_id + service-role bypass for the out-of-band
+// loop-economy cron per migration 0341.
+export * from './org-loop-runs.js';
