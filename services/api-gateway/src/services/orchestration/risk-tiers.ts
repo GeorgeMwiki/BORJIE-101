@@ -86,6 +86,10 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   // Jurisdiction promote — sovereign-grade launch-market mutation; must
   // out-prefix the blanket `mwikila.` low rule (longest-prefix wins).
   { prefix: 'mwikila.jurisdiction.promote', tier: 'high' },
+  // Jurisdiction compliance learn-feed — writes into the SHARED (tenant_id
+  // NULL) corpus every tenant inherits; sovereign-grade, policy-literal.
+  // Same longest-prefix carve-out from the blanket `mwikila.` low rule.
+  { prefix: 'mwikila.jurisdiction.ingest_compliance', tier: 'high' },
 
   // ── MEDIUM (preview) ─────────────────────────────────────────────
   { prefix: 'mining.production.', tier: 'medium' },
