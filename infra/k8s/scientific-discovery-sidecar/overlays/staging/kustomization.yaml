@@ -44,3 +44,13 @@ patches:
       - op: replace
         path: /spec/dataFrom/0/extract/key
         value: borjie/staging/scientific-discovery-sidecar
+  # SEC-4 — gVisor (runsc) kernel-level isolation (see prod overlay). Applied
+  # in staging too so the gVisor path is exercised before prod. Conditional:
+  # pods stay Pending on a cluster without the `gvisor` RuntimeClass.
+  - target:
+      kind: Deployment
+      name: scientific-discovery-sidecar
+    patch: |-
+      - op: add
+        path: /spec/template/spec/runtimeClassName
+        value: gvisor

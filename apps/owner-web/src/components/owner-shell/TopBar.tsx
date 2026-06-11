@@ -177,14 +177,14 @@ export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps
         {t('nav.ask')}
       </button>
 
-      <button
-        type="button"
+      <Link
+        href="/notifications"
         aria-label={t('nav.notifications')}
         className="relative rounded-xl p-2 text-neutral-400 hover:bg-surface hover:text-foreground"
       >
         <Bell className="h-4 w-4" />
         <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-signal-500" />
-      </button>
+      </Link>
 
       <div className="hidden h-6 w-px bg-border/60 sm:block" />
 

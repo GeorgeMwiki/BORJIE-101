@@ -1,12 +1,20 @@
 /**
  * Structured logger for notifications service.
  *
- * PII-safe: every log call is piped through a scrubber that masks phone
- * numbers, email addresses, and obvious credential-looking fields before
- * the payload is serialised. The scrubber is intentionally conservative
- * (it will over-mask rather than under-mask) because WhatsApp/SMS flows
- * handle raw user identifiers at every hop.
+ * Backed by pino (the project-canonical structured-log primitive — it
+ * owns redaction and serialisation; `console.*` is banned in services).
+ * On top of pino's own redaction we keep a conservative PII scrubber that
+ * masks phone numbers, email addresses, and credential-looking fields
+ * before the payload is handed to pino. The scrubber is intentionally
+ * over-eager (it masks rather than risk leaking) because WhatsApp/SMS
+ * flows handle raw user identifiers at every hop.
+ *
+ * The public interface — `LogLevel`, `Logger`, `createLogger`,
+ * `scrubMeta` — is unchanged so existing callers keep their
+ * `(message, meta)` calling convention.
  */
+
+import pino, { type Logger as PinoLogger } from 'pino';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -17,14 +25,7 @@ export interface Logger {
   error(message: string, meta?: Record<string, unknown>): void;
 }
 
-const logLevelOrder: LogLevel[] = ['debug', 'info', 'warn', 'error'];
 const minLevel = (process.env['LOG_LEVEL'] as LogLevel) ?? 'info';
-
-function shouldLog(level: LogLevel): boolean {
-  const minIdx = logLevelOrder.indexOf(minLevel);
-  const levelIdx = logLevelOrder.indexOf(level);
-  return levelIdx >= minIdx;
-}
 
 // Keys whose value should always be masked. Lower-cased match.
 const PII_KEYS = new Set([
@@ -107,35 +108,82 @@ export function scrubMeta(
   return out;
 }
 
-function formatMessage(level: string, message: string, meta?: Record<string, unknown>): string {
-  const timestamp = new Date().toISOString();
-  const scrubbed = scrubMeta(meta);
-  const metaStr = scrubbed ? ` ${JSON.stringify(scrubbed)}` : '';
-  return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr}`;
+/**
+ * Root pino instance — the single structured-log primitive for the
+ * notifications service. pino owns level filtering and serialisation;
+ * it also redacts the well-known PII paths as a defence-in-depth layer
+ * beneath the application-level `scrubMeta` pass.
+ */
+const rootPino: PinoLogger = pino({
+  level: minLevel,
+  redact: {
+    paths: [
+      'phone',
+      'phoneNumber',
+      'phone_number',
+      'msisdn',
+      'email',
+      'to',
+      'from',
+      'password',
+      'secret',
+      'token',
+      'apiKey',
+      'api_key',
+      'authorization',
+      'nationalId',
+      'national_id',
+      'passport',
+      'ssn',
+    ],
+    censor: '[REDACTED]',
+  },
+});
+
+/**
+ * Emit one structured log line via pino. Object-first, message-second so
+ * downstream aggregators get a redaction-friendly structured payload.
+ * Errors from the logging path are swallowed (logging must never throw
+ * and take down a notification dispatch).
+ */
+function emit(
+  child: PinoLogger,
+  level: LogLevel,
+  message: string,
+  meta?: Record<string, unknown>
+): void {
+  try {
+    const scrubbed = scrubMeta(meta);
+    if (scrubbed) {
+      child[level](scrubbed, message);
+    } else {
+      child[level](message);
+    }
+  } catch {
+    // Defensive: a logging failure must not propagate into the caller's
+    // notification flow. Intentionally no console.* fallback (banned).
+  }
 }
 
+/**
+ * Create a logger instance bound to a named module. Returns the same
+ * `(message, meta)` interface callers already depend on; under the hood
+ * each call routes through a pino child logger tagged with `name`.
+ */
 export function createLogger(name: string): Logger {
-  const prefix = `[${name}]`;
+  const child = rootPino.child({ name });
   return {
     debug(message: string, meta?: Record<string, unknown>) {
-      if (shouldLog('debug')) {
-        console.debug(prefix, formatMessage('debug', message, meta));
-      }
+      emit(child, 'debug', message, meta);
     },
     info(message: string, meta?: Record<string, unknown>) {
-      if (shouldLog('info')) {
-        console.info(prefix, formatMessage('info', message, meta));
-      }
+      emit(child, 'info', message, meta);
     },
     warn(message: string, meta?: Record<string, unknown>) {
-      if (shouldLog('warn')) {
-        console.warn(prefix, formatMessage('warn', message, meta));
-      }
+      emit(child, 'warn', message, meta);
     },
     error(message: string, meta?: Record<string, unknown>) {
-      if (shouldLog('error')) {
-        console.error(prefix, formatMessage('error', message, meta));
-      }
+      emit(child, 'error', message, meta);
     },
   };
 }

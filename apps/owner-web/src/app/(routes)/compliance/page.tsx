@@ -3,6 +3,7 @@ import { FileCheck, Sparkles } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { ComplianceSurface } from '@/components/compliance/ComplianceSurface';
 import { getOwnerSession } from '@/lib/session';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 /**
  * O-W-14 — Compliance centre.
@@ -26,14 +27,14 @@ export default async function CompliancePage() {
               className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
             >
               <FileCheck className="h-3.5 w-3.5" />
-              {isSw ? 'Tayarisha pakiti' : 'Draft monthly pack'}
+              {isSw ? S.compliance.draftMonthlyPack.sw : S.compliance.draftMonthlyPack.en}
             </Link>
             <Link
               href="/ask?prompt=compliance"
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isSw ? 'Uliza vidokezo' : 'Ask for citations'}
+              {isSw ? S.compliance.askForCitations.sw : S.compliance.askForCitations.en}
             </Link>
           </>
         }

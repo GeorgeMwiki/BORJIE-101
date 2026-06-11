@@ -4,17 +4,23 @@
  * detector) and the latest price tick to produce a buy / sell / hold
  * recommendation with bulleted causal reasoning.
  *
- * The reasoning is intentionally explainable — `@borjie/causal-inference`
- * would normally provide a back-door-adjusted treatment effect, but
- * for the offline default we use simple deterministic rules:
+ * The reasoning is intentionally explainable. For the offline default we
+ * use simple deterministic rules:
  *
  *   - p50 forecast trend rises strongly + low disruption => BUY
  *   - p50 forecast trend falls strongly + active high-sev disruption => SELL
  *   - bands wide + mixed signals => HOLD
  *
- * LATER(wire): @borjie/causal-inference.fuelPriceImpact /
- *   royaltyRateImpact to attribute causality from the active-disruption
- *   set to forecasted demand moves. See KI-DEBT-001.
+ * Wave-3 closure (Docs/research/MASTER_WIRING_CLOSURE_PLAN.md): the
+ * `@borjie/causal-inference` estimators (`fuelPriceImpact` /
+ * `shiftScheduleImpact`) are now LIVE — but as a reachable brain tool
+ * (`mwikila.causal.infer`, wired at
+ * `services/api-gateway/src/composition/brain-tools/causal-inference-tools.ts`),
+ * NOT inline here. The brain can attribute causality from the
+ * active-disruption set to forecasted demand moves on demand and feed the
+ * result back as reasoning, rather than this engine taking a hard dep on
+ * the estimator. The deterministic rules below stay as the offline default.
+ * See KI-DEBT-001.
  */
 
 import {

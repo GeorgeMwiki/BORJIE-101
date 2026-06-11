@@ -1,0 +1,115 @@
+# =============================================================================
+# proactive-triggers-worker — follow-up CronJob (one-shot, hourly)
+# Source: services/proactive-triggers-worker
+#   - Drives the follow-up schedulers (user-followup + employee-perf-
+#     followup) on a CronJob cadence as an ALTERNATIVE to folding them
+#     into the always-on Deployment loop. Ops can prefer this variant
+#     when they want each pass to run in a fresh, short-lived pod with a
+#     hard activeDeadline instead of an in-process setInterval.
+#   - PROACTIVE_TRIGGERS_INTERVAL_MS=0 → the worker runs every wired pass
+#     exactly once then exits (one-shot mode). The sweep, the follow-up
+#     cron, and (when enabled) the intel tick all run once per fire.
+#   - Hourly schedule: the employee-perf cron self-gates to its
+#     06:00-local fire window, so an hourly drive fires it once per day
+#     per employee while keeping the user-followup engine responsive.
+#   - Mirrors the Deployment's pod security context, image, secrets, and
+#     resources. No HTTP surface.
+#
+# This manifest is NOT in the default kustomization `resources` list —
+# the always-on Deployment is the default. Add it (and set the
+# Deployment's PROACTIVE_FOLLOWUP_CRON_ENABLED=0 to avoid double-firing)
+# only when switching to CronJob-driven follow-ups.
+# =============================================================================
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: proactive-triggers-worker-followup
+  labels:
+    app.kubernetes.io/name: proactive-triggers-worker-followup
+    app.kubernetes.io/part-of: borjie
+    app.kubernetes.io/component: cronjob
+    app.kubernetes.io/version: "0.1.0"
+spec:
+  # Hourly, on the hour. UTC — the worker resolves each tenant/employee
+  # local fire window internally.
+  schedule: "0 * * * *"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      # One-shot pass; give it 10 minutes before it's reaped.
+      activeDeadlineSeconds: 600
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: proactive-triggers-worker-followup
+            app.kubernetes.io/part-of: borjie
+            app.kubernetes.io/component: cronjob
+            app.kubernetes.io/version: "0.1.0"
+        spec:
+          restartPolicy: Never
+          serviceAccountName: proactive-triggers-worker
+          automountServiceAccountToken: false
+          imagePullSecrets:
+            - name: ghcr-pull
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 1001
+            fsGroup: 1001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: proactive-triggers-worker-followup
+              image: ghcr.io/georgemwiki/borjie-proactive-triggers-worker:latest
+              imagePullPolicy: IfNotPresent
+              envFrom:
+                - secretRef:
+                    name: proactive-triggers-worker-secrets
+              env:
+                - name: NODE_ENV
+                  value: production
+                # One-shot: run every wired pass once, then exit.
+                - name: PROACTIVE_TRIGGERS_INTERVAL_MS
+                  value: "0"
+                - name: PROACTIVE_TRIGGERS_CONCURRENCY
+                  value: "4"
+                - name: PROACTIVE_TRIGGERS_MIN_URGENCY
+                  value: "4"
+                - name: PROACTIVE_TRIGGERS_LOOKBACK_HOURS
+                  value: "24"
+                - name: PROACTIVE_FOLLOWUP_CRON_ENABLED
+                  value: "1"
+                - name: PROACTIVE_INTEL_TICK_ENABLED
+                  value: "0"
+                - name: OTEL_SERVICE_NAME
+                  value: proactive-triggers-worker-followup
+              resources:
+                requests:
+                  cpu: "150m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "1"
+                  memory: "1Gi"
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                runAsNonRoot: true
+                capabilities:
+                  drop: ["ALL"]
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: cache
+                  mountPath: /app/services/proactive-triggers-worker/.cache
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 128Mi
+            - name: cache
+              emptyDir:
+                sizeLimit: 128Mi

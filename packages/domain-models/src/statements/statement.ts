@@ -14,7 +14,6 @@ import {
   StatementPeriodTypeSchema,
   StatementStatus,
   StatementStatusSchema,
-  LedgerEntryType,
   TenantScopedEntity,
   CurrencyCodeSchema,
   CurrencyCode

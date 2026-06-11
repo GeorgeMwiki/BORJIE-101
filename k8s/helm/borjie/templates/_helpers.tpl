@@ -57,6 +57,20 @@ seccompProfile:
 {{- end -}}
 
 {{/*
+RuntimeClass binding for agent-code-executing pods. Emits the
+`runtimeClassName:` field ONLY when .Values.runtimeClass is set, so a
+cluster without a provisioned gVisor/kata node pool deploys unchanged.
+Call at the pod-spec `spec:` level:
+  spec:
+    {{- include "borjie.runtimeClassName" . | nindent 6 }}
+*/}}
+{{- define "borjie.runtimeClassName" -}}
+{{- if .Values.runtimeClass }}
+runtimeClassName: {{ .Values.runtimeClass }}
+{{- end }}
+{{- end -}}
+
+{{/*
 Standard pod annotations — Linkerd inject, config checksum.
 */}}
 {{- define "borjie.podAnnotations" -}}

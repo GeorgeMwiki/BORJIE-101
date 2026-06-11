@@ -1,71 +1,54 @@
 /**
- * module_templates (migration 0218) — platform-built-in & tenant-fork
- * template bundles.
+ * module_templates — the GLOBAL built-in module catalogue.
  *
- * Ten platform-built-in templates ship with Borjie:
- *   ESTATE / HR / FLEET / PROCUREMENT / LEGAL / FINANCE
- *   STRATEGY / COMPLIANCE / CRM / INVENTORY
+ * NOT tenant-scoped: every tenant reads the SAME built-in templates (there is
+ * no `tenant_id` column). One row per built-in module the orchestrator can
+ * instantiate into a tenant's `modules` registry. Carries a stable `slug`
+ * (globally UNIQUE), a bilingual title (EN required, SW optional), and the
+ * `default_spec` JSONB the instantiation seeds from.
  *
- * Templates are PLATFORM-WIDE (not tenant-scoped). All authenticated
- * users may SELECT; INSERT/UPDATE/DELETE forbidden from authenticated
- * (only service-role / migration seeds may modify).
- *
- * The migration seeds 10 stubs with minimal `default_spec_jsonb`; the
- * real spec_jsonb is UPSERTed at runtime by the
- * @borjie/module-templates package's boot routine.
+ * Companion to migration 0323_module_spawning_registry.sql. Because there is no
+ * tenant boundary, 0323 FORCE-enables RLS with a READ-ALL SELECT policy
+ * (USING true — any caller may read the catalogue) plus a SERVICE-ROLE-ONLY
+ * write policy (INSERT/UPDATE/DELETE gated on
+ * `current_setting('app.is_service_role', true) = 'true'`), plus the standard
+ * pg_roles-guarded REVOKE ALL FROM anon. A tenant can READ templates but NEVER
+ * write them.
  */
 
 import {
   pgTable,
   text,
-  boolean,
   jsonb,
   timestamp,
   uniqueIndex,
-  index,
-  check,
 } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
 
-export const MODULE_TEMPLATE_SLUGS = [
-  'ESTATE',
-  'HR',
-  'FLEET',
-  'PROCUREMENT',
-  'LEGAL',
-  'FINANCE',
-  'STRATEGY',
-  'COMPLIANCE',
-  'CRM',
-  'INVENTORY',
-] as const;
-
-export type ModuleTemplateSlug = (typeof MODULE_TEMPLATE_SLUGS)[number];
+// ============================================================================
+// module_templates — global built-in module catalogue (no tenant boundary).
+// ============================================================================
 
 export const moduleTemplates = pgTable(
   'module_templates',
   {
     id: text('id').primaryKey(),
+    /** Globally-unique stable slug (e.g. 'tailings-register'). */
     slug: text('slug').notNull(),
+    /** English display title (required — EN is the default locale). */
     titleEn: text('title_en').notNull(),
+    /** Swahili display title (bilingual; nullable until translated). */
     titleSw: text('title_sw'),
-    description: text('description'),
-    defaultSpecJsonb: jsonb('default_spec_jsonb')
+    /** The seed spec the orchestrator instantiates into a tenant's module. */
+    defaultSpec: jsonb('default_spec')
       .$type<Record<string, unknown>>()
       .notNull(),
-    icon: text('icon'),
-    isBuiltIn: boolean('is_built_in').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => ({
-    slugUnique: uniqueIndex('module_templates_slug_unique').on(t.slug),
-    builtInIdx: index('module_templates_is_built_in_idx').on(t.isBuiltIn),
-    slugCheck: check(
-      'module_templates_slug_nonempty_check',
-      sql`length(slug) > 0`,
-    ),
+    /** Globally-unique slug — the catalogue lookup + dedup key. */
+    slugUniq: uniqueIndex('module_templates_slug_uniq').on(t.slug),
   }),
 );
 

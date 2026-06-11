@@ -37,7 +37,11 @@ export {
 export {
   createToolDispatcher,
   type ToolDispatcherConfig,
+  type GapDetectorPort,
 } from './tool-dispatcher.js';
+// Gap sovereign classifier (Loop A, P0 — FIX 2). Reused by the composition root
+// to derive `sovereign` on the durable gap row from the SAME policy-gate rail.
+export { isSovereignGapSource } from './gap-sovereign-classifier.js';
 
 // Decision ADT + dispatch result.
 export {
@@ -52,6 +56,66 @@ export {
   type SubMdEffort,
   type SubMdIsolation,
 } from './decision.js';
+
+// COG-07/AUT-14 — the modality arbiter (the 7-way output head). The
+// composition root (api-gateway brain-kernel-wiring) constructs it with the
+// kernel's embedder + Drizzle-backed skill/flow/recipe retrievers + the
+// rail-composed autonomy decider + body-change syscall + loop-runner
+// adapter, threads it onto `OrchestratorDeps.modalityArbiter`, and gates the
+// whole thing behind `BORJIE_MODALITY_ARBITER` (default-OFF = chat-only).
+export {
+  createModalityArbiter,
+  liftToModalityDecision,
+  DEFAULT_MODALITY_TAU,
+  DEFAULT_MODALITY_TOP_K,
+} from './modality-arbiter.js';
+export {
+  MODALITIES,
+  LOOP_KINDS,
+  isModality,
+  type Modality,
+  type LoopKind,
+  type ModalityArbiter,
+  type ModalityArbiterDeps,
+  type ModalityArbiterInput,
+  type ModalityVerdict,
+  type ArbiterTier,
+  type ArbiterEmbedderPort,
+  type AutonomyDecision,
+  type AutonomyDeciderInput,
+  type AutonomyDeciderOutput,
+  type AutonomyDeciderPort,
+  type ConsequenceTier as ModalityConsequenceTier,
+  type Reversibility as ModalityReversibility,
+  type SkillRetrieverPort as ModalitySkillRetrieverPort,
+  type RetrievedSkill,
+  type FlowRetrieverPort,
+  type RetrievedFlow,
+  type ModalityDescriptor,
+  type FlowPosture,
+  type FlowPosturePort,
+  type BodyChangeRequest,
+  type BodyChangeVerdict,
+  type BodyChangePort,
+  type LoopRunnerPort,
+  type LlmTieBreakPort,
+} from './modality-arbiter-types.js';
+
+// K-7 (honesty unblock) — the REAL confidence / evidence / conformal-
+// abstention scorer over a finished answer. The orchestrator main-loop
+// attaches the verdict on `answer.honesty` (always) and rewrites the
+// surfaced text to an honest abstention/hedge when `honestConfidence` is
+// on (default-OFF). The internal audit reasons must NEVER reach a client
+// frame (INV-H/INV-D) — only the hedge/abstention status.
+export {
+  scoreHonestConfidence,
+  DEFAULT_HONEST_ABSTAIN_FLOOR,
+  DEFAULT_HONEST_HEDGE_FLOOR,
+  type HonestVerdict,
+  type HonestStatus,
+  type HonestConfidenceInput,
+  type HonestFloors,
+} from './honest-confidence.js';
 
 // Budget primitives.
 export {
@@ -249,6 +313,7 @@ export {
   detectRecurringGap,
   proposeNewSubMd,
   compileAndDeploySubMd,
+  authorizeSelfExtension,
   type SelfExtensionDeps,
   type DetectRecurringGapOptions,
   type ActivityLogPort,
@@ -263,7 +328,26 @@ export {
   type SubMdSpec,
   type SubMdProposal,
   type DeploymentReceipt,
+  type AuthorizeSelfExtensionArgs,
+  type SelfExtensionAuthorizationVerdict,
+  type SelfExtensionGovernancePorts,
+  type SelfExtensionControllerPort,
+  type SelfExtensionComposePort,
+  type SelfExtensionAutonomyDecision,
+  type SelfExtensionRailOutcome,
 } from './self-extension.js';
+
+// Tree-of-Thoughts oracle contracts (search-planner.ts). Re-exported so
+// composition roots that build their OWN expander/evaluator (e.g. the
+// api-gateway Capability-Composition Engine that tree-searches power-tool
+// compositions) can type those oracles against the canonical `Thought` /
+// `PlanContext` shapes the LATS planner consumes — without a deep import.
+export {
+  type Thought,
+  type PlanContext,
+  type Evaluator,
+  type Expander,
+} from './search-planner.js';
 
 // LATS — Language Agent Tree Search planner (alternative to ToT in
 // search-planner.ts). UCB1 selection + value backprop with γ discount +

@@ -301,6 +301,28 @@ export {
 export { projectArtifactToUiPart } from './projector';
 
 // ─────────────────────────────────────────────────────────────────────
+// SandboxedSurface — MCP-Apps escape-hatch lane for genuinely novel
+// surfaces the 35-primitive catalog + portal-tab vocab cannot express.
+// CSP-isolated sandboxed iframe; no service redeploy.
+// ─────────────────────────────────────────────────────────────────────
+export {
+  SandboxedSurfaceSchema,
+  SANDBOX_ALLOWED_TOKENS,
+  SANDBOXED_SURFACE_SCHEMA_VERSION,
+  computeSandboxAttr,
+  isMessageOriginAllowed,
+  parseSandboxedSurface,
+  safeParseSandboxedSurface,
+  type SandboxedSurface,
+  type SandboxAllowedToken,
+} from './sandboxed-surface';
+
+export {
+  SandboxedSurfaceFrame,
+  type SandboxedSurfaceFrameProps,
+} from './components/SandboxedSurfaceFrame';
+
+// ─────────────────────────────────────────────────────────────────────
 // LP-24b — framework-free streaming-artifact contract. Pure logic (no
 // React/DOM), re-exported here for client hooks and also available from
 // the node-safe `@borjie/genui/server` entry.

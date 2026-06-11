@@ -237,6 +237,8 @@ export const en = {
     masterBrain: 'Master Brain',
     lmbm: 'LMBM',
     ask: 'Ask Borjie',
+    headBriefing: 'Head briefing',
+    agentic: 'Agentic plans',
     training: 'Training',
     portfolioMap: 'Portfolio map',
     sites: 'Sites',
@@ -305,6 +307,44 @@ export const en = {
       reminderSnoozed: 'Reminder snoozed {days} days',
       needsConfirmation: 'Needs your confirmation — {reason}',
       needsConfirmationBare: 'This action needs your confirmation.',
+      // GENERATIVE FULFILLMENT (self-evolving org) — a brain-generated action
+      // with no deterministic handler is fulfilled by the brain's own agentic
+      // turn. These compose the structured follow-up the owner's tap sends.
+      fulfill: 'Please go ahead with: {action}.',
+      fulfillDetail: 'Please go ahead with: {action}. Details — {detail}.',
+      // GENERATIVE TAB PROMOTION — a dynamic, brain-authored tab type the static
+      // registry does not know defers to the brain to build + open it.
+      promoteTab: 'Please build and open the full {label} tab.',
+      // UNKNOWN-BLOCK affordance — a block kind the FE has no renderer for is
+      // deferred to the brain to expand (re-emit as a known kind or describe
+      // in prose). Never a raw `[unknown block]` at a paying owner.
+      expandBlock: 'Please expand this for me.',
+    },
+    // Streaming chat lifecycle + controls. Single language per active locale.
+    stream: {
+      stop: 'Stop',
+      stopAria: 'Stop generating',
+      stopped: 'Response stopped',
+      retry: 'Retry',
+      attach: 'Attach a file',
+      dropHere: 'Drop files to attach',
+    },
+    // Honest epistemic-state surface (Win #2 / INV-H). Rendered under an
+    // assistant answer: a posture badge + three short axis lists. INV-H —
+    // posture + axes only, never the audit math. EN/SW absolute.
+    selfModel: {
+      title: 'How sure I am',
+      sureAbout: 'Sure about',
+      unsureAbout: 'Unsure about',
+      wouldNeed: 'Would help',
+      posture: {
+        answering: 'Confident',
+        reasoning: 'Confident',
+        clarifying: 'Needs detail',
+        softening: 'Tentative',
+        refusing: 'Holding back',
+        deferring: 'Needs your call',
+      },
     },
   },
 
@@ -350,6 +390,105 @@ export const en = {
     schedule: 'Schedule reminder',
     empty: 'No reminders yet.',
     cancelItem: 'Cancel',
+  },
+
+  // MD-Agentic sandbox-writes review queue (O-W-33).
+  sandboxQueue: {
+    committed: 'Committed to the live system.',
+    commitFailed: 'Commit failed',
+    enterReasonFirst: 'Enter a reason first.',
+    rejected: 'Rejected.',
+    rejectFailed: 'Reject failed',
+    loading: 'Loading staged writes…',
+    empty: 'No staged writes in this view.',
+    commit: 'Commit (four-eye)',
+    rejectReason: 'Reject reason',
+    rejectPlaceholder: 'Why reject this write?',
+    reject: 'Reject',
+  },
+
+  // Head briefing surface (O-W-32, read-only).
+  headBriefing: {
+    unavailable: 'The morning briefing is unavailable right now.',
+    noContent: 'No briefing content.',
+    overnightActivity: 'Overnight activity',
+    noAutonomousActions: 'No autonomous actions.',
+    pendingApprovals: 'Pending approvals',
+    nothingAwaiting: 'Nothing awaiting a decision.',
+    escalations: 'Escalations',
+    noEscalations: 'No escalations.',
+    recommendations: 'Recommendations',
+    noRecommendations: 'No recommendations.',
+    anomalies: 'Anomalies',
+  },
+
+  // OwnerOSShell — the cockpit-home tab shell (OWNER-OS).
+  ownerOsShell: {
+    spawnNewTab: 'Spawn a new tab',
+    newTab: 'New tab',
+    recentTabs: 'Recent tabs',
+    recentlyClosed: 'Recently closed',
+    open: 'Open',
+    dismissProposal: 'Dismiss proposal',
+    genuiOpened: 'Opened "{title}" from your chat',
+    inTabStrip: "It's in your tab strip — keep chatting.",
+    openShort: 'Open',
+    undo: 'Undo',
+    dismiss: 'Dismiss',
+    artifactPrepared: 'Prepared "{title}" from your chat',
+    // Strip-friendly tab title per modality artifact kind (forecast/document/media).
+    artifactTitle: {
+      forecast: 'Forecast',
+      document: 'Document',
+      media: 'Media',
+    },
+  },
+
+  // GenUI dynamic-tab host — a generated tab that ACTS (form-host, live
+  // widgets, action buttons). All copy here is generic across any generated
+  // tab (no per-tab strings).
+  genuiTab: {
+    // Form-host (record submission).
+    submit: 'Save',
+    submitting: 'Saving…',
+    submitSuccess: 'Saved.',
+    submitError: 'Could not save. Check your entries and try again.',
+    requiredHint: 'Fill in the required fields.',
+    // Records list (below the form).
+    recordsHeading: 'Saved records',
+    recordsEmpty: 'No records yet. Submit the form to add the first one.',
+    recordsLoading: 'Loading records…',
+    recordsError: 'Could not load records.',
+    recordCreatedAt: 'Added {at}',
+    recordsCreatedAtColumn: 'Created',
+    // Live widgets.
+    widgetLoading: 'Loading…',
+    widgetError: 'Could not load this widget.',
+    widgetEmpty: 'No data yet.',
+    widgetPlaceholder: 'Live data appears here once this widget is connected.',
+    widgetValueLabel: 'Value',
+    // Action buttons.
+    actionRunning: 'Working…',
+    actionDone: 'Done.',
+    actionDeclined: 'That needs confirmation: {reason}',
+    actionHandlingIt: "On it — I'm handling that for you.",
+    actionFailed: 'That action could not run.',
+    // Field-level upload / address status strings (GenUIFieldRenderer).
+    fieldUploading: 'Uploading…',
+    fieldUploaded: 'Uploaded.',
+    fieldReadingSignature: 'Reading…',
+    fieldSignatureCaptured: 'Signature captured.',
+    fieldSignatureReadError: 'Could not read signature image. Please choose a valid image file.',
+    fieldUploadPreviewDisabled: 'preview — uploads require a saved tab',
+    fieldUploadFailed: 'Upload failed',
+    fieldAddressPlaceholder: 'Street address',
+    fieldLatitude: 'Latitude',
+    fieldLongitude: 'Longitude',
+  },
+
+  // Daily brief card (cockpit).
+  cockpit: {
+    dailyBriefTitle: 'Daily brief',
   },
 } as const;
 

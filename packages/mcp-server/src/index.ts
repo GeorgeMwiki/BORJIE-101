@@ -87,6 +87,14 @@ export {
 // Tool registry
 export { BORJIE_TOOLS, findToolDefinition } from './tool-registry.js';
 
+// Progressive disclosure (tools-as-/proc-filesystem over the deployable registry)
+export {
+  listToolCatalog,
+  describeTools,
+  type ToolCatalogEntry,
+  type ToolFullSpec,
+} from './progressive-disclosure.js';
+
 // Universal tool adapter
 export {
   wrapToolHandler,

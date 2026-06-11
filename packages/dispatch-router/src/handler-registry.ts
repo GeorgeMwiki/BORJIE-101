@@ -1,7 +1,7 @@
 /**
  * Piece L — Accept-proposal handler registry.
  *
- * Module template handlers (ESTATE, LITFIN, MAINTENANCE, ...) live on
+ * Module template handlers (MINING, LITFIN, MAINTENANCE, ...) live on
  * Piece B's `claude/piece-b-dynamic-modules` branch. Until that merges,
  * this stub registry logs the would-be call and returns a successful
  * "stub" response so the dispatcher's accept_proposal path is

@@ -1,0 +1,6 @@
+{
+  "note": "Baseline of KNOWN RLS-coverage gaps accepted as of generation time. The rls-coverage-gate fails ONLY on violations whose table is NOT listed here (i.e. a NEW tenant-scoped table that landed without FORCE RLS). To ratchet forward: land the RLS migration, then remove the table from this list so it can never regress. Regenerate with: node scripts/audit/rls-coverage-gate.mjs --update-baseline",
+  "generatedAt": "2026-06-11T01:09:41.981Z",
+  "knownViolations": [],
+  "knownStaleAllowlist": []
+}

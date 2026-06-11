@@ -43,6 +43,17 @@ import type {
   BrainLLMResponse,
   ContentBlock,
 } from '@borjie/brain-llm-router';
+// LANE B5 — route the live marketing-chat turn through the admin control-plane
+// config at the universal-client seam. The marketing surface is anonymous (no
+// tenant row), so the resolver reads the GLOBAL scope. `applyConfigRouting`
+// reorders + re-ids the live providers to the admin's core + ordered fallbacks
+// when a global config exists, and fail-safes to the live order otherwise.
+// IP-EGRESS: model ids never leave the server (the SSE stream emits text only).
+import {
+  applyConfigRouting,
+  type LiveProviderEntry,
+  type SeamProviderFamily,
+} from '@borjie/brain-llm-router';
 import {
   extractSpawnTabs,
   extractAutoAuthorized,
@@ -53,6 +64,26 @@ import {
   isSeededOverride,
   getAuthoritiesByCountry,
 } from '../services/jurisdiction-resolver/index.js';
+// SEC-4 — IP-egress output firewall. The public marketing surface has its own
+// provider ladder + message_chunk SSE that emits RAW model text, so it must
+// pass the SAME fail-closed egress guard as the authenticated brain routes
+// (brain.hono / mining/chat / brain-voice / brain-dispatch / brain-teach). The
+// surface is anonymous (no tenant row), so we guard under a SYNTHETIC 'public'
+// principal — canary / system-prompt / secret leaks are still stripped. The
+// cross-tenant rule is inert here (no directory), which is correct: a
+// marketing visitor has no tenant to leak across.
+// See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (CLOSE-G) — ingress prompt-injection / jailbreak guard on
+// the anonymous marketing turn BEFORE the provider ladder, mirroring brain.hono
+// /turn. The surface is unauthenticated, so the guard runs under the SAME
+// synthetic 'public' principal the egress filter uses (the BP-5 audit row is
+// scoped to it; no real tenant to leak across). CRITICAL → refuse with
+// single-language copy (the model never sees it). DEFAULT-ON; fail-OPEN.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
 // Learning Amplification (LitFin port) — every Mr. Mwikila marketing
 // reply records a `claim_cited` observation per evidence id so the
 // nightly Bayesian roll-up can correlate citations with downstream
@@ -63,6 +94,45 @@ const logger = pino({
   name: 'public-chat',
   level: process.env.LOG_LEVEL ?? 'info',
 });
+
+// ─── SEC-4 — IP-egress guard (synthetic public principal) ────────────
+//
+// The marketing surface is unauthenticated, so there is no real tenant id.
+// We guard every user-visible span under a constant SYNTHETIC principal. The
+// egress filter's cross-tenant rule is keyed on a directory of OTHER tenant
+// ids; with no directory wired (and no tenant here) that rule is inert, which
+// is exactly right — a visitor has no estate to leak across. The canary /
+// secret / env-var / JWT / system-prompt / image classes all still fire, so a
+// model echoing a leaked system prompt or a secret on this surface is stripped
+// before it reaches the SSE stream. FAIL-CLOSED: a guard fault redacts the
+// span rather than passing raw text through.
+const PUBLIC_EGRESS_PRINCIPAL = 'public';
+
+/** Sentinel returned when a guard fault forces a fully-redacted span. */
+const PUBLIC_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard a complete user-visible span (a model-text chunk or an error message)
+ * before it egresses on the marketing SSE stream. FAIL-CLOSED: any fault in the
+ * filter yields a redacted placeholder, NEVER the raw input. Empty / non-string
+ * input passes through untouched (nothing to leak).
+ */
+function guardPublicText(text: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, PUBLIC_EGRESS_PRINCIPAL).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        principal: PUBLIC_EGRESS_PRINCIPAL,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'public-chat: egress guard threw — failing closed (redacting span)',
+    );
+    return PUBLIC_EGRESS_FAIL_CLOSED;
+  }
+}
 
 // ─── JA-2: anonymous-surface jurisdiction injection ─────────────────
 //
@@ -1802,13 +1872,47 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       }),
     });
 
+    // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the
+    // visitor's query BEFORE the provider ladder. Anonymous surface → scope the
+    // BP-5 audit under the synthetic 'public' principal. CRITICAL → refuse with
+    // single-language copy (the model never sees it); lower severities run on
+    // the detector-redacted text. Fail-OPEN-but-logged inside the guard.
+    const ingress = await applyIngressGuard({
+      userText: query,
+      tenantId: PUBLIC_EGRESS_PRINCIPAL,
+      userId: null,
+      lang: pickIngressGuardLang(
+        c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+      ),
+    });
+    if (ingress.refused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'input_guard_refused',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+      });
+      return;
+    }
+    const guardedQuery = ingress.text;
+
     if (!anthropic && !openai && !deepseek) {
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
           kind: 'no_provider_configured',
-          message:
+          // SEC-4 — guard the error message (a classic leak vector). This
+          // static copy names env-var NAMES on purpose for operators; the
+          // egress filter redacts them so they never reach a public visitor.
+          message: guardPublicText(
             'No LLM provider configured (ANTHROPIC_API_KEY / OPENAI_API_KEY / DEEPSEEK_API_KEY).',
+          ),
           retryable: false,
         }),
       });
@@ -1880,7 +1984,10 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       })),
       {
         role: 'user' as const,
-        content: [{ type: 'text' as const, text: query }],
+        // CLOSE-G — the LLM sees the ingress-guarded query (offending spans
+        // redacted on a lower-severity hit); the local jurisdiction detector
+        // above keeps using the original `query`, as brain.hono /turn does.
+        content: [{ type: 'text' as const, text: guardedQuery }],
       },
     ];
 
@@ -1889,8 +1996,9 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       readonly model: string;
       readonly client: BrainLLMClient;
       readonly providerName: 'anthropic' | 'openai' | 'deepseek';
+      readonly family: SeamProviderFamily;
     }
-    const ladder: LadderEntry[] = [];
+    const baseLadder: LadderEntry[] = [];
     // Latest flagship models per provider (2026-05). Override per env:
     //   BORJIE_CHAT_ANTHROPIC_MODEL, BORJIE_CHAT_OPENAI_MODEL,
     //   BORJIE_CHAT_DEEPSEEK_MODEL.
@@ -1906,26 +2014,53 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       process.env.BORJIE_CHAT_DEEPSEEK_MODEL?.trim() || 'deepseek-chat';
 
     if (anthropic) {
-      ladder.push({
+      baseLadder.push({
         model: anthropicModel,
         client: anthropic,
         providerName: 'anthropic',
+        family: 'anthropic',
       });
     }
     if (openai) {
-      ladder.push({
+      baseLadder.push({
         model: openaiModel,
         client: openai,
         providerName: 'openai',
+        family: 'openai',
       });
     }
     if (deepseek) {
-      ladder.push({
+      baseLadder.push({
         model: deepseekModel,
         client: deepseek,
         providerName: 'deepseek',
+        family: 'deepseek',
       });
     }
+
+    // LANE B5 — apply the admin control-plane routing config. The marketing
+    // surface is anonymous so we resolve the GLOBAL scope (synthetic 'public'
+    // tenant → resolver's global fallback) with the marketing use-case. When a
+    // global admin config exists, the live providers are reordered to the
+    // admin's core + ordered fallbacks and bound to the admin's chosen raw
+    // model id per provider family; otherwise the live order stands. Model ids
+    // stay server-side (IP-egress invariant — SSE emits text only).
+    const liveLadder: ReadonlyArray<LiveProviderEntry<LadderEntry>> =
+      baseLadder.map((e) => ({
+        model: e.model,
+        providerFamily: e.family,
+        entry: e,
+      }));
+    const applied = applyConfigRouting({
+      task: 'chat',
+      tenantId: 'public',
+      useCase: 'casual_chat',
+      live: liveLadder,
+    });
+    const ladder: LadderEntry[] = applied.ladder.map((x) => ({
+      ...x.entry,
+      model: x.model,
+    }));
 
     interface Attempt {
       readonly provider: string;
@@ -2000,8 +2135,13 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
         event: 'error',
         data: JSON.stringify({
           kind: 'all_providers_failed',
-          message: `All ${ladder.length} provider(s) failed`,
-          attempts,
+          message: guardPublicText(`All ${ladder.length} provider(s) failed`),
+          // SEC-4 — provider SDK error strings can echo a key / url / prompt;
+          // guard each attempt's error text before it egresses.
+          attempts: attempts.map((a) => ({
+            latencyMs: a.latencyMs,
+            ...(a.error ? { error: guardPublicText(a.error) } : {}),
+          })),
           retryable: true,
         }),
       });
@@ -2022,9 +2162,13 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
         event: 'error',
         data: JSON.stringify({
           kind: 'empty_response',
-          message: 'Model returned no text content.',
+          message: guardPublicText('Model returned no text content.'),
           retryable: true,
-          attempts,
+          // SEC-4 — guard each attempt's raw provider error before egress.
+          attempts: attempts.map((a) => ({
+            latencyMs: a.latencyMs,
+            ...(a.error ? { error: guardPublicText(a.error) } : {}),
+          })),
         }),
       });
       await stream.writeSSE({
@@ -2055,7 +2199,9 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       await stream.writeSSE({
         event: 'message_chunk',
         data: JSON.stringify({
-          text: chunks[i] ?? '',
+          // SEC-4 — guard the RAW model chunk before it egresses. Strips any
+          // canary / secret / system-prompt leak; fail-closed on a fault.
+          text: guardPublicText(chunks[i] ?? ''),
           evidence_ids: isLast ? ids : [],
           confidence: isLast ? 0.95 : null,
           done: false,
@@ -2095,12 +2241,17 @@ app.post('/chat', zValidator('json', PublicChatSchema), async (c) => {
       });
     }
 
+    // Provider/model identity + fallback depth are IP — log them server-side
+    // only; the anonymous public client never learns which model/provider
+    // served it (IP-egress invariant on the most-exposed surface).
+    logger.info(
+      { winningProvider, depth, latencyMs: Date.now() - startedAt },
+      'public-chat: turn resolved',
+    );
     await stream.writeSSE({
       event: 'done',
       data: JSON.stringify({
         at: new Date().toISOString(),
-        provider: winningProvider,
-        depth,
         latencyMs: Date.now() - startedAt,
         attempts: attempts.length,
         actions_count: actions.length,

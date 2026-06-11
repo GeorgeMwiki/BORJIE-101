@@ -75,6 +75,11 @@ import { ReviewService } from '../services/review-service.js';
 import { AIGovernanceService } from '../governance/ai-governance.js';
 import type { OwnerStyleService } from '../personas/owner-style/index.js';
 import { logger } from '../logger.js';
+import {
+  spotlight,
+  UNTRUSTED_BOUNDARY_DIRECTIVE,
+  type IndirectContentScanner,
+} from './untrusted-content.js';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -168,6 +173,41 @@ export interface OrchestratorConfig {
    * the pre-turn + post-turn seams in `executePersona`).
    */
   ownerStyle?: OwnerStyleService;
+  /**
+   * INPUT-CONTAINMENT (BP-1). Optional indirect-prompt-injection scanner run
+   * over EVERY tool/junior result BEFORE it is re-ingested into the next LLM
+   * call. Production composition injects
+   * `@borjie/agent-security-guard`'s `createIndirectInjectionDetector()`; tests
+   * may pass a deterministic fake. Injected as a structural PORT so this leaf
+   * package takes no hard security-guard dependency. When absent the
+   * re-ingestion scan is skipped (the spotlighting fence still applies).
+   *
+   * FAIL-OPEN: a scanner throw NEVER drops the turn — the raw text passes
+   * through and a single Pino signal is logged.
+   */
+  indirectScanner?: IndirectContentScanner;
+  /**
+   * INPUT-CONTAINMENT audit sink (BP-5). Optional fire-and-forget callback
+   * invoked when {@link indirectScanner} neutralises an injected span in a
+   * re-ingested tool/junior result. Production composition wires this to the
+   * hash-chained `PromptInjectionAttemptRepository` / `AgentSecuritySignalRepository`.
+   * A sink fault NEVER blocks or opens the gate (the text is already cleaned).
+   */
+  onIndirectInjection?: (event: IndirectInjectionAuditEvent) => void;
+}
+
+/**
+ * Audit event emitted when a re-ingested tool/junior result carried an
+ * injected instruction that the {@link OrchestratorConfig.indirectScanner}
+ * neutralised. Consumed fire-and-forget by the optional audit sink.
+ */
+export interface IndirectInjectionAuditEvent {
+  readonly tenantId: string;
+  readonly userId: string | null;
+  readonly source: string;
+  readonly highestSeverity: 'low' | 'medium' | 'high' | 'critical' | null;
+  readonly matchKinds: ReadonlyArray<string>;
+  readonly redactedExcerpt: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -364,6 +404,84 @@ export class Orchestrator {
   // Internals
   // -------------------------------------------------------------------------
 
+  /**
+   * BP-1 + BP-3 — INPUT CONTAINMENT on tool/junior result re-ingestion.
+   *
+   * For ONE result string, in order:
+   *   1. (BP-1) Run the injected indirect-injection scanner over the RAW
+   *      content. On detection, substitute the scanner's `redactedInput`
+   *      (offending spans + zero-width payloads stripped in-line) and fire
+   *      the optional audit sink (BP-5, fire-and-forget).
+   *   2. (BP-3) Fence the (now cleaned) content in the unambiguous
+   *      data-spotlight delimiter so the model treats it as DATA, never
+   *      instructions, even if step 1 missed a novel phrasing.
+   *
+   * FAIL-OPEN per result: a scanner throw NEVER drops the turn — the raw
+   * text is still spotlighted and passed through, and a single Pino signal
+   * is logged. Immutability: returns a NEW result object.
+   */
+  private neutraliseToolResult(
+    result: {
+      toolUseId: string;
+      content: string;
+      isError?: boolean;
+      toolName?: string;
+    },
+    req: TurnRequest
+  ): { toolUseId: string; content: string; isError?: boolean } {
+    const source = result.toolName ?? 'tool';
+    let cleaned = result.content;
+    const scanner = this.cfg.indirectScanner;
+    if (scanner) {
+      try {
+        const scan = scanner.scan({ source, text: result.content });
+        if (scan.detected) {
+          cleaned = scan.redactedInput;
+          logger.warn('orchestrator: indirect injection neutralised in tool result', {
+            wiring: 'input-containment',
+            tenantId: req.tenant.tenantId,
+            source,
+            highestSeverity: scan.highestSeverity,
+            matchKinds: scan.matches.map((m) => m.kind),
+          });
+          // BP-5 — fire-and-forget audit sink (never blocks/opens the gate).
+          const sink = this.cfg.onIndirectInjection;
+          if (sink) {
+            try {
+              sink({
+                tenantId: req.tenant.tenantId,
+                userId: req.actor.id ?? null,
+                source,
+                highestSeverity: scan.highestSeverity,
+                matchKinds: scan.matches.map((m) => m.kind),
+                redactedExcerpt: cleaned.slice(0, 200),
+              });
+            } catch (sinkErr) {
+              logger.warn('orchestrator: indirect-injection audit sink failed', {
+                wiring: 'input-containment',
+                err: sinkErr instanceof Error ? sinkErr.message : String(sinkErr),
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // FAIL-OPEN: a scanner fault must NEVER drop the turn. Pass the raw
+        // text through (still spotlighted below) and log a single signal.
+        logger.warn('orchestrator: indirect-injection scan threw (failing open)', {
+          wiring: 'input-containment',
+          source,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+    // BP-3 — always spotlight the (cleaned) untrusted content.
+    return {
+      toolUseId: result.toolUseId,
+      content: spotlight(cleaned, source),
+      ...(result.isError !== undefined ? { isError: result.isError } : {}),
+    };
+  }
+
   private resolvePersona(
     personaId: string,
     tenantId: string,
@@ -410,10 +528,17 @@ export class Orchestrator {
     );
 
     const handoffText = handoffPacket ? renderHandoffPacket(handoffPacket) : '';
+    // BP-3 — spotlight the rendered thread context (which can carry prior
+    // tool outputs, recalled memories, and retrieved corpus chunks) as
+    // untrusted DATA. The user's OWN latest message is the principal's
+    // instruction channel (guarded on ingress, not fenced as data). The
+    // trusted boundary directive NAMES the fence so the model treats any
+    // bytes between the sentinels as data-only, never instructions.
     const userPrompt = [
+      UNTRUSTED_BOUNDARY_DIRECTIVE,
       handoffText,
       'Thread context (filtered to your visibility):',
-      contextText,
+      spotlight(contextText, 'thread-context'),
       '',
       'Latest user message:',
       req.userText,
@@ -564,6 +689,8 @@ export class Orchestrator {
           toolUseId: string;
           content: string;
           isError?: boolean;
+          /** Trusted tool name for the spotlight provenance tag (BP-3). */
+          toolName?: string;
         }> = [];
         for (const call of toolCalls) {
           const dispatch = await this.cfg.tools.dispatch(
@@ -580,6 +707,10 @@ export class Orchestrator {
           if (dispatch.success) {
             const data = dispatch.data;
             acc.toolCalls.push({ tool: call.name, ok: data.ok });
+            // Raw (UNSCANNED, UNFENCED) content. BP-1 neutralisation + BP-3
+            // spotlighting are applied together below, just before
+            // re-ingestion (see `neutraliseToolResult`), so the scanner sees
+            // the raw payload and the fence wraps the cleaned result.
             results.push({
               toolUseId: call.id,
               content:
@@ -588,6 +719,7 @@ export class Orchestrator {
                   4_000
                 ),
               isError: !data.ok,
+              toolName: call.name,
             });
           } else {
             const dErr = (dispatch as { success: false; error: { code: string; message: string } }).error;
@@ -596,11 +728,20 @@ export class Orchestrator {
               toolUseId: call.id,
               content: `${dErr.code}: ${dErr.message}`,
               isError: true,
+              toolName: call.name,
             });
           }
         }
+        // BP-1 — INPUT CONTAINMENT: scan + neutralise every tool/junior
+        // result BEFORE re-ingestion. A poisoned result ("ignore previous",
+        // "reveal your system prompt", a markdown-image exfil url, zero-width
+        // payload) is stripped in-line so the surrounding doc stays usable.
+        // Immutability: build a NEW results array. Fail-OPEN per result.
+        const guardedResults = results.map((r) =>
+          this.neutraliseToolResult(r, req)
+        );
         // Feed results back as a user turn and continue.
-        messages.push(buildToolResultMessage(results));
+        messages.push(buildToolResultMessage(guardedResults));
         // If the model also produced text alongside the tool calls, capture
         // it so we still have something to append on early-exit.
         if (exec.content && exec.content.trim()) responseText = exec.content;

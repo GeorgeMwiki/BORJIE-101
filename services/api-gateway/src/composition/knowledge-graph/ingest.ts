@@ -2,16 +2,30 @@
  * Corpus + entity ingestion for the Postgres knowledge graph.
  *
  * Populates `kg_nodes` / `kg_edges` (migration 0298) from REAL existing rows —
- * NEVER fabricated data:
+ * NEVER fabricated data. Entity ingestion is driven by a single DECLARATIVE
+ * `INGEST_SOURCE` registry (see below): adding a whole new domain to GraphRAG
+ * is ONE registry entry, never new orchestration code. Each entry maps a live
+ * mining table to a node kind + a label / entity-ref / props projection and an
+ * optional set of edge projections (which reference OTHER registered node
+ * kinds; the adapter drops any edge whose endpoint node is absent, so a
+ * cross-domain edge is best-effort and self-healing).
  *
  *   ENTITIES (mirrored from the live mining tables, when they exist):
- *     - estate_groups        → node kind `estate_group`
- *     - estate_entities      → node kind `estate_entity`  (owns ← group;
- *                              parent/subsidiary edges between entities)
- *     - staff_members        → node kind `staff`          (employs ← group)
- *     - procurement_vendors  → node kind `vendor`         (supplies → group)
+ *     - estate_groups          → node kind `estate_group`
+ *     - estate_entities        → node kind `estate_entity`  (owns ← group;
+ *                                parent/subsidiary edges between entities)
+ *     - staff_members          → node kind `staff`          (manages edges)
+ *     - procurement_vendors    → node kind `vendor`
  *     - mineral_chain_of_custody.parcel_id → node kind `ore_parcel`
- *                              (located-at / supplies provenance edges)
+ *                                (supplies provenance edges ← vendor)
+ *     - licences               → node kind `licence`        (held-by ← company /
+ *                                operating entity, when that node exists)
+ *     - royalty_return_drafts  → node kind `royalty_return`
+ *     - production_records     → node kind `production_record`
+ *     - mining_tasks           → node kind `mining_task`
+ *     - marketplace_listings   → node kind `marketplace_listing`
+ *     - offtake_agreements     → node kind `offtake_agreement`
+ *                                (for-listing → marketplace_listing)
  *
  *   CORPUS (links the graph to the existing pgvector corpus):
  *     - intelligence_corpus_chunks → node kind `corpus_chunk`. The chunk's
@@ -19,9 +33,7 @@
  *       (`SELECT embedding FROM intelligence_corpus_chunks`). NO new embedding
  *       is ever computed — there is no embedder call and no OpenAI/Cohere
  *       credential required. `mentions` edges connect a chunk to any entity
- *       whose label appears (case-insensitively) in the chunk text, and
- *       `document_corpus_links` (when present) is honoured for doc→chunk
- *       grouping.
+ *       whose label appears (case-insensitively) in the chunk text.
  *
  * IDEMPOTENT: node ids are deterministic slugs (`<kind>:<sourceId>`) and the
  * adapter upserts ON CONFLICT (tenant, kind, entity_ref) / (tenant, src, dst,
@@ -41,9 +53,10 @@
  * Companion to:
  *   - services/api-gateway/src/composition/knowledge-graph/postgres-kg-store.ts
  *   - services/api-gateway/src/routes/mining/knowledge-graph.hono.ts
+ *   - services/api-gateway/src/workers/kg-sync.worker.ts (cadenced auto-ingest)
  */
 
-import { sql } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 import type { Edge, KGStorePort, Node } from '@borjie/knowledge-graph';
 import { createLogger } from '../../utils/logger.js';
 import { createPostgresKgStore, type KgDbExec } from './postgres-kg-store.js';
@@ -55,7 +68,7 @@ export interface KgIngestResult {
   readonly tenantId: string;
   readonly nodes: number;
   readonly edges: number;
-  /** Source tables that were present and contributed rows. */
+  /** Source registry keys that were present and contributed rows. */
   readonly sources: ReadonlyArray<string>;
   /** Source tables that were absent on this DB (honest skip log). */
   readonly skipped: ReadonlyArray<string>;
@@ -142,258 +155,373 @@ async function tryUpsertEdge(store: KGStorePort, edge: Edge): Promise<boolean> {
   }
 }
 
-// ── entity ingestion (each returns nodes/edges written) ─────────────────────
+// ── declarative ingest-source registry ──────────────────────────────────────
 
 interface Counts {
   nodes: number;
   edges: number;
 }
 
-async function ingestEstate(
+/** A row read from a source table — snake_case columns as the DB returns them. */
+type SourceRow = Record<string, unknown>;
+
+/**
+ * Declarative description of a single edge to mint from a source row. The
+ * endpoints are EXPRESSED as `(kind, ref)` pairs resolved against the same
+ * `<kind>:<ref>` slug convention every node uses, so an edge can point at ANY
+ * registered node kind. A null `fromRef`/`toRef` (e.g. a NULL FK column) drops
+ * the edge cleanly; the adapter additionally drops any edge whose endpoint node
+ * was not ingested (honest, self-healing cross-domain links).
+ */
+interface EdgeMapper {
+  readonly relation: string;
+  /** Resolve the source endpoint `(kind, ref)` for a row. */
+  readonly from: (row: SourceRow) => { kind: string; ref: string | null };
+  /** Resolve the destination endpoint `(kind, ref)` for a row. */
+  readonly to: (row: SourceRow) => { kind: string; ref: string | null };
+}
+
+/**
+ * One declarative ingest source. Adding a domain to GraphRAG is adding one of
+ * these to `INGEST_SOURCE` — no new orchestration code is ever required.
+ */
+interface IngestSource {
+  /** Stable registry key surfaced in `sources` (e.g. 'estate_groups'). */
+  readonly key: string;
+  /** Physical table name (probed via information_schema before any read). */
+  readonly table: string;
+  /** Node kind minted for each row (e.g. 'licence'). */
+  readonly nodeKind: string;
+  /**
+   * Column projection list — drives `SELECT <columns> FROM <table>`. Each entry
+   * is `'col'` or `'expr AS alias'`. ALWAYS include a column/alias named `id`
+   * (the entity ref) cast to text. Kept as raw identifiers (never user input).
+   */
+  readonly columns: ReadonlyArray<string>;
+  /** Optional extra WHERE predicate (ANDed with the tenant predicate). */
+  readonly where?: SQL;
+  /** Optional `DISTINCT ON (...)` clause (trusted SQL, never user input). */
+  readonly distinctOn?: SQL;
+  /**
+   * Optional `ORDER BY ...` clause (trusted SQL). REQUIRED when `distinctOn`
+   * is set — Postgres needs the ORDER BY to lead with the distinct key.
+   */
+  readonly orderBy?: SQL;
+  /** Human label for the node (falls back to the ref when empty). */
+  readonly labelMapper: (row: SourceRow) => string;
+  /** Stable entity ref (defaults to the row's `id` column). */
+  readonly refMapper?: (row: SourceRow) => string | null;
+  /** Extra node properties (label/entity_ref are added automatically). */
+  readonly propsMapper?: (row: SourceRow) => Record<string, unknown>;
+  /** Edges minted from each row (each independently best-effort). */
+  readonly edgeMappers?: ReadonlyArray<EdgeMapper>;
+}
+
+function asText(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v);
+  return s.length > 0 ? s : null;
+}
+
+/**
+ * The single source of truth for entity ingestion. The 5 original hardcoded
+ * tables PLUS the previously-invisible domains (licences, royalty, production,
+ * tasks, marketplace, offtakes). To wire a new domain, append one entry — the
+ * orchestrator loop, idempotency, probing and tenant-scoping all apply for free.
+ */
+const INGEST_SOURCE: ReadonlyArray<IngestSource> = [
+  // ── estate (root holdings) ──────────────────────────────────────────────
+  {
+    key: 'estate_groups',
+    table: 'estate_groups',
+    nodeKind: 'estate_group',
+    columns: ['id::text AS id', 'name', 'holding_type'],
+    labelMapper: (r) => asText(r.name) ?? '',
+    propsMapper: (r) => ({ holding_type: asText(r.holding_type) ?? undefined }),
+  },
+  {
+    key: 'estate_entities',
+    table: 'estate_entities',
+    nodeKind: 'estate_entity',
+    columns: [
+      'id::text AS id',
+      'name',
+      'kind',
+      'estate_group_id::text AS estate_group_id',
+      'parent_entity_id::text AS parent_entity_id',
+    ],
+    labelMapper: (r) => asText(r.name) ?? '',
+    propsMapper: (r) => ({ entity_kind: asText(r.kind) ?? undefined }),
+    edgeMappers: [
+      {
+        relation: 'owns',
+        from: (r) => ({ kind: 'estate_group', ref: asText(r.estate_group_id) }),
+        to: (r) => ({ kind: 'estate_entity', ref: asText(r.id) }),
+      },
+      {
+        relation: 'parent-of',
+        from: (r) => ({
+          kind: 'estate_entity',
+          ref: asText(r.parent_entity_id),
+        }),
+        to: (r) => ({ kind: 'estate_entity', ref: asText(r.id) }),
+      },
+    ],
+  },
+  // ── workforce ───────────────────────────────────────────────────────────
+  {
+    key: 'staff_members',
+    table: 'staff_members',
+    nodeKind: 'staff',
+    columns: [
+      'id::text AS id',
+      'full_name',
+      'role',
+      'manager_id::text AS manager_id',
+    ],
+    where: sql`status <> 'terminated'`,
+    labelMapper: (r) => asText(r.full_name) ?? '',
+    propsMapper: (r) => ({ role: asText(r.role) ?? undefined }),
+    edgeMappers: [
+      {
+        relation: 'manages',
+        from: (r) => ({ kind: 'staff', ref: asText(r.manager_id) }),
+        to: (r) => ({ kind: 'staff', ref: asText(r.id) }),
+      },
+    ],
+  },
+  // ── procurement ─────────────────────────────────────────────────────────
+  {
+    key: 'procurement_vendors',
+    table: 'procurement_vendors',
+    nodeKind: 'vendor',
+    columns: ['id::text AS id', 'company_name', 'country', 'kyc_status'],
+    labelMapper: (r) => asText(r.company_name) ?? '',
+    propsMapper: (r) => ({
+      country: asText(r.country) ?? undefined,
+      kyc_status: asText(r.kyc_status) ?? undefined,
+    }),
+  },
+  // ── ore provenance (chain of custody) ───────────────────────────────────
+  {
+    key: 'mineral_chain_of_custody',
+    table: 'mineral_chain_of_custody',
+    nodeKind: 'ore_parcel',
+    // Distinct parcels (latest custody row), plus a supplies edge ← vendor.
+    columns: ['parcel_id::text AS id', 'location', 'to_party_id::text AS to_party_id'],
+    distinctOn: sql`DISTINCT ON (parcel_id)`,
+    orderBy: sql`ORDER BY parcel_id, happened_at DESC`,
+    labelMapper: (r) => `Parcel ${asText(r.id) ?? ''}`.trim(),
+    propsMapper: (r) =>
+      asText(r.location) ? { location: asText(r.location) } : {},
+    edgeMappers: [
+      {
+        relation: 'supplies',
+        from: (r) => ({ kind: 'vendor', ref: asText(r.to_party_id) }),
+        to: (r) => ({ kind: 'ore_parcel', ref: asText(r.id) }),
+      },
+    ],
+  },
+  // ── licences (sovereign mining rights) ──────────────────────────────────
+  {
+    key: 'licences',
+    table: 'licences',
+    nodeKind: 'licence',
+    columns: [
+      'id::text AS id',
+      'number',
+      'kind',
+      'mineral',
+      'status',
+      'company_id::text AS company_id',
+    ],
+    labelMapper: (r) => asText(r.number) ?? asText(r.id) ?? '',
+    propsMapper: (r) => ({
+      licence_kind: asText(r.kind) ?? undefined,
+      mineral: asText(r.mineral) ?? undefined,
+      status: asText(r.status) ?? undefined,
+    }),
+    edgeMappers: [
+      // Held by the operating company / estate entity, when that node exists.
+      {
+        relation: 'held-by',
+        from: (r) => ({ kind: 'licence', ref: asText(r.id) }),
+        to: (r) => ({ kind: 'estate_entity', ref: asText(r.company_id) }),
+      },
+    ],
+  },
+  // ── royalty returns (regulatory filings) ────────────────────────────────
+  {
+    key: 'royalty_return_drafts',
+    table: 'royalty_return_drafts',
+    nodeKind: 'royalty_return',
+    columns: [
+      'id::text AS id',
+      'mineral',
+      'status',
+      'period_start::text AS period_start',
+      'period_end::text AS period_end',
+    ],
+    labelMapper: (r) =>
+      `Royalty ${asText(r.mineral) ?? ''} ${asText(r.period_start) ?? ''}`.trim(),
+    propsMapper: (r) => ({
+      mineral: asText(r.mineral) ?? undefined,
+      status: asText(r.status) ?? undefined,
+      period_start: asText(r.period_start) ?? undefined,
+      period_end: asText(r.period_end) ?? undefined,
+    }),
+  },
+  // ── production (ore output records) ─────────────────────────────────────
+  {
+    key: 'production_records',
+    table: 'production_records',
+    nodeKind: 'production_record',
+    columns: [
+      'id::text AS id',
+      'kind',
+      'mass_kg::text AS mass_kg',
+      'site_id::text AS site_id',
+    ],
+    labelMapper: (r) =>
+      `Production ${asText(r.kind) ?? ''} ${asText(r.mass_kg) ?? ''}kg`.trim(),
+    propsMapper: (r) => ({
+      record_kind: asText(r.kind) ?? undefined,
+      mass_kg: asText(r.mass_kg) ?? undefined,
+      site_id: asText(r.site_id) ?? undefined,
+    }),
+  },
+  // ── tasks (operations workflow) ─────────────────────────────────────────
+  {
+    key: 'mining_tasks',
+    table: 'mining_tasks',
+    nodeKind: 'mining_task',
+    columns: [
+      'id::text AS id',
+      'title_en',
+      'title_sw',
+      'status',
+      'priority',
+      'site_id::text AS site_id',
+    ],
+    labelMapper: (r) => asText(r.title_en) ?? asText(r.title_sw) ?? '',
+    propsMapper: (r) => ({
+      status: asText(r.status) ?? undefined,
+      priority: asText(r.priority) ?? undefined,
+      site_id: asText(r.site_id) ?? undefined,
+    }),
+  },
+  // ── marketplace (listings) ──────────────────────────────────────────────
+  {
+    key: 'marketplace_listings',
+    table: 'marketplace_listings',
+    nodeKind: 'marketplace_listing',
+    columns: ['id::text AS id', 'title', 'category', 'status'],
+    labelMapper: (r) => asText(r.title) ?? '',
+    propsMapper: (r) => ({
+      category: asText(r.category) ?? undefined,
+      status: asText(r.status) ?? undefined,
+    }),
+  },
+  // ── off-take agreements (signed buyer contracts) ────────────────────────
+  {
+    key: 'offtake_agreements',
+    table: 'offtake_agreements',
+    nodeKind: 'offtake_agreement',
+    columns: [
+      'id::text AS id',
+      'status',
+      'listing_id::text AS listing_id',
+      'buyer_id::text AS buyer_id',
+    ],
+    where: sql`deleted_at IS NULL`,
+    labelMapper: (r) => `Off-take ${asText(r.id) ?? ''}`.trim(),
+    propsMapper: (r) => ({
+      status: asText(r.status) ?? undefined,
+      buyer_id: asText(r.buyer_id) ?? undefined,
+    }),
+    edgeMappers: [
+      {
+        relation: 'for-listing',
+        from: (r) => ({ kind: 'offtake_agreement', ref: asText(r.id) }),
+        to: (r) => ({ kind: 'marketplace_listing', ref: asText(r.listing_id) }),
+      },
+    ],
+  },
+];
+
+/** The registry, exported for the worker + tests (read-only). */
+export { INGEST_SOURCE };
+export type { IngestSource };
+
+// ── registry-driven entity ingestion ────────────────────────────────────────
+
+/** Strip `undefined` props so the persisted jsonb stays compact + explainable. */
+function cleanProps(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * Ingest ONE declarative source: probe → query (tenant-scoped) → upsert a node
+ * per row → mint each declared edge. Pure registry interpretation — never any
+ * per-domain branching. Returns the node/edge counts written.
+ */
+async function ingestSource(
   db: KgDbExec,
   store: KGStorePort,
   tenantId: string,
+  source: IngestSource,
 ): Promise<Counts> {
   const counts: Counts = { nodes: 0, edges: 0 };
-  // Groups (root holdings).
-  if (await tableExists(db, 'estate_groups')) {
-    const groups = extractRows<{ id: string; name: string; holding_type: string }>(
-      await db.execute(sql`
-        SELECT id::text AS id, name, holding_type
-          FROM estate_groups
-         WHERE tenant_id = ${tenantId}
-         LIMIT ${NODE_LIMIT}
-      `),
+  if (!(await tableExists(db, source.table))) return counts;
+
+  // Build the projection + table refs as raw (trusted, non-user) identifiers.
+  const columnsSql = sql.raw(source.columns.join(', '));
+  const tableSql = sql.raw(source.table);
+  const distinct = source.distinctOn ?? sql``;
+  const whereExtra = source.where ? sql`AND ${source.where}` : sql``;
+  const orderBy = source.orderBy ?? sql``;
+
+  const rows = extractRows<SourceRow>(
+    await db.execute(sql`
+      SELECT ${distinct} ${columnsSql}
+        FROM ${tableSql}
+       WHERE tenant_id = ${tenantId}
+       ${whereExtra}
+       ${orderBy}
+       LIMIT ${NODE_LIMIT}
+    `),
+  );
+
+  for (const row of rows) {
+    const ref = source.refMapper ? source.refMapper(row) : asText(row.id);
+    if (!ref) continue;
+    const label = source.labelMapper(row) || ref;
+    const props = cleanProps(source.propsMapper ? source.propsMapper(row) : {});
+    const ok = await tryUpsertNode(
+      store,
+      entityNode({ tenantId, kind: source.nodeKind, ref, label, props }),
     );
-    for (const g of groups) {
-      if (
-        await tryUpsertNode(
-          store,
-          entityNode({
-            tenantId,
-            kind: 'estate_group',
-            ref: g.id,
-            label: g.name,
-            props: { holding_type: g.holding_type },
-          }),
-        )
-      ) {
-        counts.nodes += 1;
-      }
-    }
-  }
-  // Entities (subsidiaries / operating companies) — owns ← group; parent edges.
-  if (await tableExists(db, 'estate_entities')) {
-    const entities = extractRows<{
-      id: string;
-      name: string;
-      kind: string;
-      estate_group_id: string | null;
-      parent_entity_id: string | null;
-    }>(
-      await db.execute(sql`
-        SELECT id::text AS id, name, kind,
-               estate_group_id::text AS estate_group_id,
-               parent_entity_id::text AS parent_entity_id
-          FROM estate_entities
-         WHERE tenant_id = ${tenantId}
-         LIMIT ${NODE_LIMIT}
-      `),
-    );
-    for (const e of entities) {
-      const ok = await tryUpsertNode(
+    if (!ok) continue;
+    counts.nodes += 1;
+
+    for (const em of source.edgeMappers ?? []) {
+      const from = em.from(row);
+      const to = em.to(row);
+      if (!from.ref || !to.ref) continue;
+      const wrote = await tryUpsertEdge(
         store,
-        entityNode({
+        relEdge({
           tenantId,
-          kind: 'estate_entity',
-          ref: e.id,
-          label: e.name,
-          props: { entity_kind: e.kind },
+          fromId: nodeId(from.kind, from.ref),
+          toId: nodeId(to.kind, to.ref),
+          relation: em.relation,
         }),
       );
-      if (!ok) continue;
-      counts.nodes += 1;
-      if (e.estate_group_id) {
-        if (
-          await tryUpsertEdge(
-            store,
-            relEdge({
-              tenantId,
-              fromId: nodeId('estate_group', e.estate_group_id),
-              toId: nodeId('estate_entity', e.id),
-              relation: 'owns',
-            }),
-          )
-        ) {
-          counts.edges += 1;
-        }
-      }
-      if (e.parent_entity_id) {
-        if (
-          await tryUpsertEdge(
-            store,
-            relEdge({
-              tenantId,
-              fromId: nodeId('estate_entity', e.parent_entity_id),
-              toId: nodeId('estate_entity', e.id),
-              relation: 'parent-of',
-            }),
-          )
-        ) {
-          counts.edges += 1;
-        }
-      }
-    }
-  }
-  return counts;
-}
-
-async function ingestStaff(
-  db: KgDbExec,
-  store: KGStorePort,
-  tenantId: string,
-): Promise<Counts> {
-  const counts: Counts = { nodes: 0, edges: 0 };
-  if (!(await tableExists(db, 'staff_members'))) return counts;
-  const staff = extractRows<{
-    id: string;
-    full_name: string;
-    role: string;
-    manager_id: string | null;
-  }>(
-    await db.execute(sql`
-      SELECT id::text AS id, full_name, role, manager_id::text AS manager_id
-        FROM staff_members
-       WHERE tenant_id = ${tenantId}
-         AND status <> 'terminated'
-       LIMIT ${NODE_LIMIT}
-    `),
-  );
-  for (const s of staff) {
-    const ok = await tryUpsertNode(
-      store,
-      entityNode({
-        tenantId,
-        kind: 'staff',
-        ref: s.id,
-        label: s.full_name,
-        props: { role: s.role },
-      }),
-    );
-    if (!ok) continue;
-    counts.nodes += 1;
-    if (s.manager_id) {
-      if (
-        await tryUpsertEdge(
-          store,
-          relEdge({
-            tenantId,
-            fromId: nodeId('staff', s.manager_id),
-            toId: nodeId('staff', s.id),
-            relation: 'manages',
-          }),
-        )
-      ) {
-        counts.edges += 1;
-      }
-    }
-  }
-  return counts;
-}
-
-async function ingestVendors(
-  db: KgDbExec,
-  store: KGStorePort,
-  tenantId: string,
-): Promise<Counts> {
-  const counts: Counts = { nodes: 0, edges: 0 };
-  if (!(await tableExists(db, 'procurement_vendors'))) return counts;
-  const vendors = extractRows<{
-    id: string;
-    company_name: string;
-    country: string;
-    kyc_status: string;
-  }>(
-    await db.execute(sql`
-      SELECT id::text AS id, company_name, country, kyc_status
-        FROM procurement_vendors
-       WHERE tenant_id = ${tenantId}
-       LIMIT ${NODE_LIMIT}
-    `),
-  );
-  for (const v of vendors) {
-    if (
-      await tryUpsertNode(
-        store,
-        entityNode({
-          tenantId,
-          kind: 'vendor',
-          ref: v.id,
-          label: v.company_name,
-          props: { country: v.country, kyc_status: v.kyc_status },
-        }),
-      )
-    ) {
-      counts.nodes += 1;
-    }
-  }
-  return counts;
-}
-
-async function ingestOreParcels(
-  db: KgDbExec,
-  store: KGStorePort,
-  tenantId: string,
-): Promise<Counts> {
-  const counts: Counts = { nodes: 0, edges: 0 };
-  if (!(await tableExists(db, 'mineral_chain_of_custody'))) return counts;
-  // Distinct ore parcels appearing in the chain-of-custody ledger, plus a
-  // `supplies` edge to the most-recent receiving party when that party is a
-  // known vendor node (defence: the FK guard in the adapter drops dangling).
-  const parcels = extractRows<{
-    parcel_id: string;
-    location: string | null;
-    to_party_id: string | null;
-  }>(
-    await db.execute(sql`
-      SELECT DISTINCT ON (parcel_id)
-             parcel_id, location, to_party_id::text AS to_party_id
-        FROM mineral_chain_of_custody
-       WHERE tenant_id = ${tenantId}
-       ORDER BY parcel_id, happened_at DESC
-       LIMIT ${NODE_LIMIT}
-    `),
-  );
-  for (const p of parcels) {
-    if (!p.parcel_id) continue;
-    const ok = await tryUpsertNode(
-      store,
-      entityNode({
-        tenantId,
-        kind: 'ore_parcel',
-        ref: p.parcel_id,
-        label: `Parcel ${p.parcel_id}`,
-        props: p.location ? { location: p.location } : {},
-      }),
-    );
-    if (!ok) continue;
-    counts.nodes += 1;
-    if (p.to_party_id) {
-      // Parcel currently held by / supplied to a vendor (best-effort link;
-      // dropped cleanly by the adapter guard if the vendor node is absent).
-      if (
-        await tryUpsertEdge(
-          store,
-          relEdge({
-            tenantId,
-            fromId: nodeId('vendor', p.to_party_id),
-            toId: nodeId('ore_parcel', p.parcel_id),
-            relation: 'supplies',
-          }),
-        )
-      ) {
-        counts.edges += 1;
-      }
+      if (wrote) counts.edges += 1;
     }
   }
   return counts;
@@ -519,28 +647,27 @@ export async function ingestKnowledgeGraph(args: {
   let nodes = 0;
   let edges = 0;
 
-  const estate = await ingestEstate(db, store, tenantId);
-  if (estate.nodes > 0) sources.push('estate');
-  nodes += estate.nodes;
-  edges += estate.edges;
-
-  const staff = await ingestStaff(db, store, tenantId);
-  if (staff.nodes > 0) sources.push('staff');
-  else skipped.push('staff_members');
-  nodes += staff.nodes;
-  edges += staff.edges;
-
-  const vendors = await ingestVendors(db, store, tenantId);
-  if (vendors.nodes > 0) sources.push('vendors');
-  else skipped.push('procurement_vendors');
-  nodes += vendors.nodes;
-  edges += vendors.edges;
-
-  const ore = await ingestOreParcels(db, store, tenantId);
-  if (ore.nodes > 0) sources.push('ore_parcels');
-  else skipped.push('mineral_chain_of_custody');
-  nodes += ore.nodes;
-  edges += ore.edges;
+  // Generic, registry-driven entity pass. One loop covers every domain; adding
+  // a domain never touches this code — it is one INGEST_SOURCE entry.
+  for (const source of INGEST_SOURCE) {
+    let counts: Counts;
+    try {
+      counts = await ingestSource(db, store, tenantId, source);
+    } catch (err) {
+      // A single source failing (schema drift, unexpected column) must not
+      // abort the whole pass — degrade honestly and keep going.
+      logger.warn(
+        { err, source: source.key },
+        'kg_ingest_source_failed',
+      );
+      skipped.push(source.table);
+      continue;
+    }
+    if (counts.nodes > 0) sources.push(source.key);
+    else skipped.push(source.table);
+    nodes += counts.nodes;
+    edges += counts.edges;
+  }
 
   // Snapshot entity labels for the `mentions` linker (all non-chunk nodes).
   const entityNodes = (await store.allNodes(tenantId)).filter(

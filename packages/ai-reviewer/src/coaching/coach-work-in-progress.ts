@@ -19,7 +19,7 @@ import { coachingMessageSchema } from '../types.js';
 import { policyFor } from '../policies/index.js';
 
 const COACHING_SYSTEM_PROMPT =
-  'You are a property-management coach. Given a work-in-progress payload, ' +
+  'You are a mining-estate coach. Given a work-in-progress payload, ' +
   'return a JSON array of CoachingMessage objects: ' +
   '{id, tone (hint|caution|block), title, body, field?, suggestedFix?}. ' +
   'Keep messages concise; prefer hints over blocks unless you are certain.';

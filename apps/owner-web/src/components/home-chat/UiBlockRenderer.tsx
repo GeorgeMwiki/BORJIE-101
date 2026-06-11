@@ -175,7 +175,13 @@ function MetricStrip({ block }: { readonly block: MetricStripBlock }): ReactElem
   );
 }
 
-function DecisionCard({ block }: { readonly block: DecisionCardBlock }): ReactElement {
+function DecisionCard({
+  block,
+  onOptionSelect,
+}: {
+  readonly block: DecisionCardBlock;
+  readonly onOptionSelect?: (index: number, label: string) => void;
+}): ReactElement {
   const options = Array.isArray(block.options) ? block.options : [];
   const recommended =
     typeof block.recommendedIndex === 'number' && block.recommendedIndex >= 0
@@ -192,26 +198,32 @@ function DecisionCard({ block }: { readonly block: DecisionCardBlock }): ReactEl
       <ul className="mt-2 space-y-2">
         {options.map((opt, i) => {
           const isRec = i === recommended;
+          const label = opt.label ?? `Option ${i + 1}`;
           return (
-            <li
-              key={i}
-              className={`rounded border px-3 py-2 text-sm ${
-                isRec
-                  ? 'border-warning/60 bg-warning-subtle/20'
-                  : 'border-border bg-surface/40'
-              }`}
-            >
-              <p className="font-medium text-foreground">
-                {opt.label ?? `Option ${i + 1}`}
-                {isRec ? (
-                  <span className="ml-2 rounded-full bg-warning/30 px-2 py-0.5 text-tiny font-semibold uppercase tracking-wide text-warning">
-                    Recommended
-                  </span>
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => onOptionSelect?.(i, label)}
+                disabled={!onOptionSelect}
+                className={`w-full rounded border px-3 py-2 text-left text-sm transition-colors ${
+                  isRec
+                    ? 'border-warning/60 bg-warning-subtle/20 hover:bg-warning/10'
+                    : 'border-border bg-surface/40 hover:bg-surface/60'
+                } disabled:cursor-default`}
+                data-testid={`decision-option-${i}`}
+              >
+                <p className="font-medium text-foreground">
+                  {label}
+                  {isRec ? (
+                    <span className="ml-2 rounded-full bg-warning/30 px-2 py-0.5 text-tiny font-semibold uppercase tracking-wide text-warning">
+                      Recommended
+                    </span>
+                  ) : null}
+                </p>
+                {opt.detail ? (
+                  <p className="mt-0.5 text-tiny text-neutral-400">{opt.detail}</p>
                 ) : null}
-              </p>
-              {opt.detail ? (
-                <p className="mt-0.5 text-tiny text-neutral-400">{opt.detail}</p>
-              ) : null}
+              </button>
             </li>
           );
         })}
@@ -278,6 +290,13 @@ interface UiBlockRendererProps {
   readonly onGoWider?: (payload: { readonly title: string; readonly point: string | null }) => void;
   readonly onRelatedClick?: (concept: string) => void;
   readonly onMicroLessonCta?: (value: string) => void;
+  /**
+   * Fired when the owner taps a decision_card option. Receives the
+   * zero-based option index and its display label so the caller can
+   * route the label as the next brain turn (generative — no hardcoded
+   * option-to-verb map).
+   */
+  readonly onDecisionOption?: (index: number, label: string) => void;
 }
 
 export function UiBlockRenderer({
@@ -287,6 +306,7 @@ export function UiBlockRenderer({
   onGoWider,
   onRelatedClick,
   onMicroLessonCta,
+  onDecisionOption,
 }: UiBlockRendererProps): ReactElement | null {
   switch (block.type) {
     case 'concept_card':
@@ -302,7 +322,12 @@ export function UiBlockRenderer({
     case 'metric_strip':
       return <MetricStrip block={block as MetricStripBlock} />;
     case 'decision_card':
-      return <DecisionCard block={block as DecisionCardBlock} />;
+      return (
+        <DecisionCard
+          block={block as DecisionCardBlock}
+          {...(onDecisionOption ? { onOptionSelect: onDecisionOption } : {})}
+        />
+      );
     case 'step_progress':
       return <StepProgress block={block as StepProgressBlock} />;
     case 'micro_lesson':

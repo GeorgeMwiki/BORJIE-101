@@ -34,6 +34,11 @@
 
 import type { PersonaIdentity } from '../identity.js';
 import type { ScopeFilter } from '../sub-mds/shared/sub-md-base.js';
+import {
+  checkBodyChangeInviolable,
+  type BodyChangeDescriptor,
+  type BodyChangeInviolableVerdict,
+} from '../inviolable.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Ports — caller injects production / fake.
@@ -479,4 +484,226 @@ export async function compileAndDeploySubMd(
     ledgerEntryId,
     approvers: Object.freeze([...args.approvers]),
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Body-change authorization entry — route self-extension through the
+// ONE body-change syscall (meta-rail + controller + composeWithRail).
+//
+// Deploying a new sub-MD is a self-modification (an L3 body-change in
+// the MD-as-Body architecture: composing a new sub-agent graph from
+// vetted parts). Per the capstone spec it MUST route through the same
+// monotone controller as every other body-change, with the meta-rail as
+// one more monotone-most-cautious input. `authorizeSelfExtension` is the
+// kernel/orchestrator entry that composes:
+//
+//   1. checkBodyChangeInviolable  — the deterministic, fail-closed
+//      META-RAIL (imported directly — same package).
+//   2. the continuous controller  — injected port (decideAutonomy).
+//   3. composeWithRail            — injected port (the monotone combine
+//      that takes the meta-rail outcome as one more input).
+//
+// Dependency discipline: central-intelligence does NOT depend on
+// autonomy-governance / mutation-authority, so the controller + composer
+// are injected as PORTS. The composition root wires the real
+// implementations (and, in production, the single chokepoint is the
+// mutation-authority body-change syscall which itself calls these three).
+//
+// FAIL-CLOSED: any missing port, any throw, any malformed verdict ⇒
+// `authorized: false`, `decision: 'four_eyes'`. A self-extension NEVER
+// auto-deploys on an evaluation failure. The deploy step
+// (`compileAndDeploySubMd`) is reached ONLY when `authorized === true`;
+// otherwise the change is handed to the four-eye / owner-approval path.
+// ─────────────────────────────────────────────────────────────────────
+
+export type SelfExtensionAutonomyDecision = 'auto' | 'gate' | 'four_eyes';
+export type SelfExtensionRailOutcome = 'allow' | 'gate' | 'four_eyes';
+
+/** The continuous-controller port (binds `decideAutonomy`). */
+export interface SelfExtensionControllerPort {
+  readonly decide: (input: unknown) => {
+    readonly decision: SelfExtensionAutonomyDecision;
+    readonly reasons: ReadonlyArray<string>;
+    readonly gatedBy: string | null;
+  };
+}
+
+/** The compose-with-rail port (binds `composeWithRail`). */
+export interface SelfExtensionComposePort {
+  readonly compose: (
+    rail: SelfExtensionRailOutcome,
+    controller: {
+      readonly decision: SelfExtensionAutonomyDecision;
+      readonly reasons: ReadonlyArray<string>;
+      readonly gatedBy: string | null;
+    },
+    metaRail: 'allow' | 'forbid',
+  ) => {
+    readonly decision: SelfExtensionAutonomyDecision;
+    readonly reasons: ReadonlyArray<string>;
+    readonly metaRailForbade: boolean;
+    readonly railDominated: boolean;
+  };
+}
+
+export interface SelfExtensionGovernancePorts {
+  readonly controller: SelfExtensionControllerPort;
+  readonly composeWithRail: SelfExtensionComposePort;
+}
+
+export interface AuthorizeSelfExtensionArgs {
+  /**
+   * The structured body-change descriptor handed to the meta-rail. The
+   * caller derives this from the proposal (target node, ceiling
+   * before/after, integrity hashes). Built deterministically — never
+   * from model weights.
+   */
+  readonly descriptor: BodyChangeDescriptor;
+  /**
+   * Collapsed verdict of the EXISTING rail stack (policy-gate /
+   * inviolable / four-eye / kill-switch). RAIL-GATE ALWAYS WINS.
+   */
+  readonly railOutcome: SelfExtensionRailOutcome;
+  /** Inputs to the continuous controller (`decideAutonomy`). */
+  readonly controllerInput: unknown;
+}
+
+export interface SelfExtensionAuthorizationVerdict {
+  /** TRUE only when the deploy may proceed without further human action. */
+  readonly authorized: boolean;
+  readonly decision: SelfExtensionAutonomyDecision;
+  readonly metaRailForbade: boolean;
+  readonly railDominated: boolean;
+  /** TRUE when the entry failed closed (port missing/threw/malformed). */
+  readonly failedClosed: boolean;
+  readonly reasons: ReadonlyArray<string>;
+  /** The raw meta-rail verdict for audit. */
+  readonly metaRailVerdict: BodyChangeInviolableVerdict;
+}
+
+function denySelfExtension(
+  reason: string,
+  metaRailVerdict: BodyChangeInviolableVerdict,
+): SelfExtensionAuthorizationVerdict {
+  return Object.freeze({
+    authorized: false,
+    decision: 'four_eyes' as const,
+    metaRailForbade: metaRailVerdict.status === 'forbid',
+    railDominated: false,
+    failedClosed: true,
+    reasons: Object.freeze([`authorize-self-extension: FAIL-CLOSED — ${reason}`]),
+    metaRailVerdict,
+  });
+}
+
+/**
+ * Authorize (or deny) a self-extension body-change through the unified
+ * governance composition. Pure relative to its ports. FAILS CLOSED.
+ *
+ * The result `authorized` is TRUE only when the composed decision is
+ * `auto`; the caller proceeds to `compileAndDeploySubMd` ONLY then —
+ * every other outcome (gate / four_eyes / meta-rail forbid / fail-closed)
+ * routes to the owner four-eye approval path.
+ */
+export function authorizeSelfExtension(
+  args: AuthorizeSelfExtensionArgs,
+  ports: SelfExtensionGovernancePorts,
+): SelfExtensionAuthorizationVerdict {
+  // 1. META-RAIL — imported directly; deterministic + fail-closed itself.
+  const metaRailVerdict = checkBodyChangeInviolable(args.descriptor);
+
+  // Fail-closed shell for the ports.
+  if (
+    !ports ||
+    typeof ports.controller?.decide !== 'function' ||
+    typeof ports.composeWithRail?.compose !== 'function'
+  ) {
+    return denySelfExtension('missing or invalid governance port(s)', metaRailVerdict);
+  }
+  if (
+    args.railOutcome !== 'allow' &&
+    args.railOutcome !== 'gate' &&
+    args.railOutcome !== 'four_eyes'
+  ) {
+    return denySelfExtension(
+      `invalid railOutcome '${String(args.railOutcome)}'`,
+      metaRailVerdict,
+    );
+  }
+
+  const metaRailOutcome: 'allow' | 'forbid' =
+    metaRailVerdict.status === 'forbid' ? 'forbid' : 'allow';
+
+  // 2. CONTROLLER.
+  let controllerVerdict: {
+    readonly decision: SelfExtensionAutonomyDecision;
+    readonly reasons: ReadonlyArray<string>;
+    readonly gatedBy: string | null;
+  };
+  try {
+    const verdict = ports.controller.decide(args.controllerInput);
+    if (
+      !verdict ||
+      (verdict.decision !== 'auto' &&
+        verdict.decision !== 'gate' &&
+        verdict.decision !== 'four_eyes')
+    ) {
+      return denySelfExtension('controller returned a malformed verdict', metaRailVerdict);
+    }
+    controllerVerdict = verdict;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown error';
+    return denySelfExtension(`controller threw: ${message}`, metaRailVerdict);
+  }
+
+  // 3. COMPOSE — monotone-most-cautious over rail + controller + meta-rail.
+  try {
+    const composed = ports.composeWithRail.compose(
+      args.railOutcome,
+      controllerVerdict,
+      metaRailOutcome,
+    );
+    if (
+      !composed ||
+      (composed.decision !== 'auto' &&
+        composed.decision !== 'gate' &&
+        composed.decision !== 'four_eyes')
+    ) {
+      return denySelfExtension('composeWithRail returned a malformed verdict', metaRailVerdict);
+    }
+
+    // Defence-in-depth — assert the post-conditions rather than trust.
+    if (metaRailOutcome === 'forbid' && composed.decision !== 'four_eyes') {
+      return denySelfExtension(
+        'meta-rail forbade but composer did not escalate to four_eyes',
+        metaRailVerdict,
+      );
+    }
+    if (args.railOutcome === 'four_eyes' && composed.decision !== 'four_eyes') {
+      return denySelfExtension('rail four_eyes but composer did not escalate', metaRailVerdict);
+    }
+    if (args.railOutcome === 'gate' && composed.decision === 'auto') {
+      return denySelfExtension('rail gate but composer downgraded to auto', metaRailVerdict);
+    }
+
+    const reasons: string[] = [
+      `authorize-self-extension: target='${args.descriptor.targetNodeId}'`,
+      `meta-rail: ${metaRailOutcome}${metaRailVerdict.reason ? ` (${metaRailVerdict.reason})` : ''}`,
+      ...composed.reasons,
+      `authorize-self-extension: final='${composed.decision}' authorized=${composed.decision === 'auto'}`,
+    ];
+
+    return Object.freeze({
+      authorized: composed.decision === 'auto',
+      decision: composed.decision,
+      metaRailForbade: composed.metaRailForbade === true,
+      railDominated: composed.railDominated === true,
+      failedClosed: false,
+      reasons: Object.freeze(reasons),
+      metaRailVerdict,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'unknown error';
+    return denySelfExtension(`composeWithRail threw: ${message}`, metaRailVerdict);
+  }
 }

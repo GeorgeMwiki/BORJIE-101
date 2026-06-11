@@ -82,6 +82,48 @@ export async function cancelRfb(rfbId: string): Promise<CancelResponse['data']> 
   return res.data
 }
 
+/**
+ * A single response to a buyer's RFB, as returned by
+ * GET /api/v1/marketplace/rfb/:id/responses.
+ * The endpoint is Wave-C planned — the screen handles a 404 gracefully.
+ */
+export interface RfbResponse {
+  readonly id: string
+  readonly rfb_id: string
+  readonly seller_id: string
+  readonly seller_name: string
+  readonly grade: string | null
+  readonly tonnage_kg: string
+  readonly price_per_unit_tzs: string
+  readonly status: 'pending' | 'accepted' | 'rejected' | 'fulfilled'
+  readonly notes: string | null
+  readonly created_at: string
+}
+
+interface RfbResponsesResponse {
+  readonly success: boolean
+  readonly data: { responses: ReadonlyArray<RfbResponse> }
+}
+
+/**
+ * Fetch responses to a specific RFB the buyer posted.
+ * GET /api/v1/marketplace/rfb/:rfbId/responses
+ *
+ * NOTE: this endpoint is planned for Wave C. Until it exists the call
+ * returns [] (the screen shows the empty state, not an error).
+ */
+export async function fetchRfbResponses(rfbId: string): Promise<ReadonlyArray<RfbResponse>> {
+  try {
+    const res = await apiFetch<RfbResponsesResponse>(
+      `${RFB_PREFIX}/${encodeURIComponent(rfbId)}/responses`
+    )
+    return res.data?.responses ?? []
+  } catch {
+    // Endpoint not yet available — degrade gracefully to empty list.
+    return []
+  }
+}
+
 /** Mineral kinds the gateway accepts. Matches the zod enum on the route. */
 export const RFB_MINERAL_KINDS = [
   'gold',

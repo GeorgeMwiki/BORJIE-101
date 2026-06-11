@@ -166,8 +166,8 @@ export type Routing = z.infer<typeof RoutingSchema>;
 // ─── Doc taxonomy ─────────────────────────────────────────────────────────
 
 export const DocTypeSchema = z.enum([
-  'lease_application',
-  'lease_contract',
+  'licence_application',
+  'offtake_agreement',
   'payment_receipt',
   'national_id',
   'condition_survey',

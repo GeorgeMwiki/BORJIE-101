@@ -57,6 +57,13 @@ const microActionResultSchema = z.object({
   authorized: z.boolean().default(false),
   reason: z.string().optional(),
   result: z.unknown().optional(),
+  // GENERATIVE FULFILLMENT (self-evolving org). `deferToBrain:true` means the
+  // verb is not in the deterministic registry but cleared the hard rails — the
+  // caller routes it to the brain's agentic turn to fulfill (with the echoed
+  // verb/params) instead of showing a dead "needs confirmation" note.
+  deferToBrain: z.boolean().default(false),
+  verb: z.string().optional(),
+  params: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type MicroActionResult = z.infer<typeof microActionResultSchema>;
@@ -73,7 +80,7 @@ async function postAction(
     // graceful unauthorized/undecided result so the chat can fall back
     // to the text suggestion instead of crashing the bubble.
     const reason = error instanceof Error ? error.message : 'request failed';
-    return { executed: false, authorized: false, reason };
+    return { executed: false, authorized: false, deferToBrain: false, reason };
   }
 }
 

@@ -47,6 +47,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import pino from 'pino';
+import { sql as drizzleSqlTag } from 'drizzle-orm';
 import pinoHttp from 'pino-http';
 import { handle } from '@hono/node-server/vercel';
 import { Hono } from 'hono';
@@ -67,6 +68,14 @@ import { createPublicAuthRouter } from './routes/auth/public-auth.hono';
 import { createPublicAuthDeps } from './composition/public-auth-wiring';
 import { tenantsRouter } from './routes/tenants.hono';
 import { usersRouter } from './routes/users.hono';
+// Dark-router wave — self-service GDPR Art.15/17/20 + TZ-PDPA s.27/28
+// surface (data-export + erasure of the CALLER's own account). Auth-scoped
+// to the caller; cannot read or erase anyone else's data.
+import { createUsersMeRouter } from './routes/users-me.router';
+// Dark-router wave — declared-facts producer (the only user-facing path
+// that writes into the kernel's semantic memory). Real db-backed service,
+// auth + tenant + user scoped, per-user rate-limited.
+import memoryDeclareRouter from './routes/memory-declare.router';
 import { notificationsRouter } from './routes/notifications';
 import { onboardingRouter } from './routes/onboarding';
 import { onboardingFlowRouter } from './routes/onboarding.router';
@@ -91,6 +100,9 @@ import { ownerThreadsRouter } from './routes/owner/messaging/threads.hono';
 // Persists the brain's `<chat_handoff />` SSE tag, fires notifications
 // to the recipient, and bubbles the reply back to the source chat.
 import { ownerHandoffRouter } from './routes/owner/handoff.hono';
+// INV-A / FIRE-1 — tenant-visible break-glass Trust Center (consent / deny /
+// revoke + the hash-chained access-transparency log for this tenant).
+import { ownerBreakGlassRouter } from './routes/owner/break-glass.hono';
 // Roadmap R2 — owner saved-search alerts. New CRUD surface under
 // /owner/saved-searches; companion worker lives in
 // services/api-gateway/src/workers/saved-search-worker.ts.
@@ -155,6 +167,10 @@ import { brainRouter } from './routes/brain.hono';
 // chain. Sibling mount under /brain so Hono composes it next to the
 // existing /turn route without touching the kernel.
 import { brainTeachRouter } from './routes/brain-teach.hono';
+// EA-05 — cross-surface CRDT state-bus front door. set/read/list/handoff over
+// the durable blackboard slot store; the slot lives once + re-projects onto
+// every surface via the realtime `state-bus` topic.
+import { blackboardRouter } from './routes/blackboard.hono';
 // Gap 6 — VP department-head dispatch. /api/v1/brain/dispatch resolves one
 // of the five VPs by name via the central-intelligence registry, orchestrates
 // a free-form owner/admin instruction into a line-worker plan, and runs each
@@ -174,8 +190,141 @@ import {
   type ClientSocketLike,
 } from './routes/brain-voice.hono';
 import { buildPortalGenuiWiring } from './composition/portal-genui/portal-genui-wiring';
+import {
+  setEvidenceExistenceVerifier,
+  createCorpusEvidenceVerifier,
+} from './composition/chat-response-gate';
 import { buildResearchWiring } from './composition/research/research-wiring';
 import { scheduleProactive } from './composition/proactive/proactive-wiring';
+// Wave 1 EstateMind — the resident per-tenant Slow Loop heartbeat. init reads
+// flag BORJIE_ESTATE_MIND ONCE (DEFAULT-ON dual-sink — only off/0/false/no
+// disables); the supervisor is leader-gated at its .start() site below.
+// Additive: nothing on the per-request think(req) path changes.
+import {
+  initEstateMind,
+  createEstateMindSupervisor,
+  createMdCommitmentReconciliation,
+  buildEstateMindSnapshotReader,
+  createTabEventLogProposalSink,
+} from './composition/estate-mind-wiring';
+// Living-MD organ — the felt loop that closes over the durable md_commitments
+// substrate (per-turn plan re-read + deferred resurfacing + hash-chained
+// timeline). Composed at the mdCommitmentBundle site; its someday-review
+// supervisor is leader-gated at its .start() site like every other cron.
+import {
+  createLivingMdOrgan,
+  type LivingMdOrgan,
+} from './composition/living-md/living-md-wiring';
+import { registerMdEventBridge } from './composition/living-md/event-subscriber-wiring';
+import { configureLivingMdTurnHooks } from './routes/mining/chat-orchestrator';
+import { livingPlanRouter } from './routes/owner/living-plan.hono';
+import { commitmentGovernanceRouter } from './routes/owner/commitment-governance.hono';
+// SELF-RUNNING-ORG SPINE (org-loop) — the gap→strategize→pick→assign→dispatch→
+// deliver→report→close thread over the living-MD commitment substrate. The
+// orchestrator composes the G0-G3 ports; the binder closes the loop in real
+// time off the cockpit bus tap; assignTask() (the previously-dark write path)
+// fires through the composed WorkforceDeps.
+import { createWorkforceDeps } from './composition/org-loop/workforce-deps-wiring';
+import { createTaskDispatchPort } from './composition/org-loop/task-dispatch-port';
+import { createPersonMatcher } from './composition/org-loop/person-matcher-wiring';
+import { createStrategizePort } from './composition/org-loop/strategize-port';
+import { createGapBriefingPort } from './composition/org-loop/gap-briefing-port';
+import {
+  createOrgLoopOrchestrator,
+  ORG_LOOP_CRON_NAME,
+} from './composition/org-loop/org-loop-orchestrator';
+import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
+import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
+import { tapCockpitEvents } from './services/cockpit-events';
+// HITL approval consumer — the owner's approve/dismiss verbs over parked
+// HIGH/sovereign org-loop runs (late-bound to the orchestrator; 503 until
+// the spine composes).
+import {
+  orgLoopApprovalsRouter,
+  registerOrgLoopApprovalActions,
+} from './routes/owner/org-loop-approvals.hono';
+// Wave-C C3 WIN-3/4 — the THREE graded-corrective + closed-loop organs that make
+// the homeostatic controller ACT: the drive-context resolver (commitment → REAL
+// drive severity from the live snapshot), the driveId → drafter registry (the
+// mid-rung PROPOSE-ONLY corrective), and the durable set-point store (did-it-
+// recover? auto-promote). Constructed at the md-commitments wiring site below.
+import { createDriveContextResolver } from './composition/md-commitments/drive-context-resolver';
+import { createDrafterRegistry } from './composition/md-commitments/drafter-registry';
+// B8 — EstateMind PERCEPTION source over the live estate tables (the missing
+// sensor that populates the situational model so proactive proposals emit).
+import {
+  createEstateMindPerceptionFromDb,
+  resolveDriveThresholdsFromBaselinesDb,
+} from './composition/estate-mind-perception';
+// Wave-C C3 WIN-2 — the reflexion buffer that turns a divergent outcome-
+// reconciliation into a durable lesson (the SAME service sovereign.ts builds for
+// the chat path), so the self-correcting-memory loop fires on the live worker.
+import { createReflexionBufferService } from '@borjie/database';
+// Wave-C C4 — the live ambient behaviour-signal source for the proactive worker's
+// affect gate (constructed in sovereign.ts over the sensorium event log).
+// `getAffectAccumulator(tenantId)` returns the SAME per-tenant ToM accumulator
+// the chat turns write to, so the worker's earned-trust resolver reads a LIVE
+// trust posterior (adapts) instead of a static neutral default.
+import {
+  getProactiveBehaviorSignalSource,
+  getAffectAccumulator,
+} from './composition/sovereign';
+// Wave-C C4 — owner-style posture reader source (the FIRST live consumer of the
+// durable owner-style posterior). `getProfile(tenantId).posture.value` →
+// cautious|balanced|bold tilts the earned-trust autonomy floor.
+import { createOwnerStyleService } from '@borjie/ai-copilot';
+import { createPgOwnerStyleProfileStore } from '@borjie/database/repositories';
+// B5 — control-plane LLM-routing config reader. Installs the routing-config
+// reader once at boot so admin-tuned LLM config is honored by the resolver.
+import { initLlmRoutingConfig } from './composition/llm-routing-config-wiring';
+// MD DEFERRAL / FOLLOW-THROUGH bundle — built once in the brain-tools wiring
+// block (repo + reconcile engine + WaitFor event subscriber) and referenced at
+// the EstateMind supervisor site so the reconcile sweep is injected into the
+// resident Slow Loop. Null when no db handle is present.
+let mdCommitmentBundle: ReturnType<typeof createMdCommitmentReconciliation> =
+  null;
+// The living-MD organ — composed at the mdCommitmentBundle site so the chat
+// turn re-reads the durable plan, the deferred/someday work resurfaces on its
+// own clock, and every lifecycle transition lands on the hash-chained timeline.
+// Module-level so the cron seam, route mount, event-bridge, and shutdown block
+// can all reach the single composed instance. Null when no db handle is present.
+let livingMd: LivingMdOrgan | null = null;
+// The self-running-org SPINE orchestrator (org-loop). Composed beside the
+// living-MD organ (it reads the same commitment substrate); leader-gated at
+// its .start() site; stopped on shutdown. Null when no db handle is present.
+let orgLoopOrchestrator: ReturnType<typeof createOrgLoopOrchestrator> | null =
+  null;
+// Wave-C C3 WIN-3 — the graded-corrective ladder ceiling. Resolve the tenant
+// delegation cap for the md_commitments homeostatic controller from the env at
+// bootstrap (the only place process.env is read). It is CLAMPED — it can be set
+// DOWN ('nudge' / 'draft') but is NEVER raised above 'delegate' (the owner-direct
+// HITL safe-halt); an unknown / unset value defaults to the full graded ladder.
+function resolveMdAutonomyCap(
+  raw: string | undefined,
+): import('./composition/md-commitments/reconcile-engine').AutonomyCap {
+  const v = (raw ?? '').trim().toLowerCase();
+  if (v === 'nudge') return 'nudge';
+  if (v === 'draft') return 'draft';
+  // 'delegate', anything else, or unset → the full graded ladder (still HITL at
+  // the top rung; money/licence stay HITL forever regardless of the cap).
+  return 'delegate';
+}
+// Wave 1 OK-3 — blackboard control-shell scheduler. The Hayes-Roth 1985
+// metalevel scheduler: on every slot convergence it maps the region + its
+// candidate KnowledgeSources (the distinct slot writers) through the control
+// shell and proposes the single KS to act next — PROPOSE-ONLY, audit-plane
+// only (it never invokes the KS, never reaches a client). DEFAULT-ON
+// kill-switch (BORJIE_CONTROL_SHELL); the cross-replica `start(tenantId)` is
+// leader-gated below. Convergence is wired via registerSlotConvergedListener.
+import {
+  createControlShellWiring,
+  createTabEventLogActivationSink,
+  createControlShellConnectSupervisor,
+  createActiveTenantSource,
+  type ActiveTenantSource,
+} from './composition/control-shell-wiring';
+import { registerSlotConvergedListener } from './composition/blackboard-slots-wiring';
+import { createPinoLikeLogger } from './utils/pino-shim';
 import { createCalendarRouter } from './routes/owner/calendar.hono';
 import { createCalendarChannelFromEnv } from './services/notification-dispatch/calendar-providers/index';
 // REMOVED (borjie hard-fork): property-mgmt maintenance + hr routers — Borjie
@@ -219,6 +368,9 @@ import { rfbRouter } from './routes/marketplace/rfb.hono';
 // Commercial chain L7 — buyer fulfilment notification queue.
 // Migration 0132. RLS-scoped to the buyer's tenant on read.
 import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
+// B6 — buyer-persona superpowers (bulk-action / undo-last / pinned-items /
+// search). Mirrors the owner superpowers wiring, persona-guarded to 'buyer'.
+import { buyerSuperpowersRouter } from './routes/buyer/superpowers.hono';
 // Commercial chain L8 — settlement orchestrator entry point.
 // Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
 import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
@@ -250,6 +402,7 @@ import { ownerPayrollRouter } from './routes/owner/payroll.hono';
 // stub so /types is always live; /:id/render returns 404 until the
 // real Playwright + DB-backed service is bound (issue #33).
 import { createArtifactsRouter } from './routes/artifacts.hono';
+import { createModalityArtifactsRouter } from './routes/modality-artifacts.hono';
 import { createNotWiredArtifactRenderService } from './composition/artifact-render-wiring';
 import { createMigrationRouter } from './routes/migration.router';
 // REMOVED (borjie hard-fork): import { negotiationsRouter } from './routes/negotiations.router';
@@ -341,6 +494,7 @@ import { stageRouter } from './routes/stage/index.js';
 // `ai-reviewer` + `assignment-registry` ScopeGuard). See wiring-gap
 // audit chain 8.
 import workflowRouter from './routes/workflow/index.js';
+import flowAutonomyRouter from './routes/workflow/flow-autonomy.js';
 import agentCertificationsRouter from './routes/agent-certifications.router';
 // REMOVED (borjie hard-fork): import classroomRouter from './routes/classroom.router';
 import trainingRouter from './routes/training.router';
@@ -405,6 +559,29 @@ import headBriefingRouter from './routes/head-briefing.router';
 import juniorAIRouter from './routes/junior-ai.router';
 // Canonical Property Graph (CPG) — tenant-scoped Neo4j query + relationship explorer.
 import graphRouter from './routes/graph.router';
+// Regulator-facing Chain-of-Thought reservoir (GDPR Art.15 / TZ-PDPA s.13 DSAR
+// read-back, PII-scrubbed, admin-role + tenant-scoped). Was BUILT + unit-tested
+// but never mounted — admin-web's mission-eval CoT panel had no backend. Now
+// reachable at /admin/cot-query/query.
+import cotQueryRouter from './routes/cot-query.router';
+// Generative jurisdiction unlock — promote a learned country into the launch
+// market (enabled_countries, migration 0337). Seeded TZ-only; new markets are a
+// governed row, not a deploy. Backs mwikila.jurisdiction.promote.
+import { createJurisdictionPromotionRouter } from './routes/admin/jurisdiction-promotion.hono';
+// Universal integration fabric — the ONE governed route over the 21 dormant
+// connector packages (Slack / email / calendar / CRM / devtools / social …).
+// Generic dispatch over composition/connector-catalog.ts; backs the
+// integration.connector.{list,invoke} brain tools. Honest-degrades when a
+// connector is not connected or its runtime invoker is not provisioned.
+import { createConnectorsRouter } from './routes/integrations/connectors.hono';
+// LAST outward-reach seam — bind the REAL runtime invokers behind the connector
+// fabric + legacy-portal route. Both honest-degrade (credential / env-gated):
+// connectorInvokers executes a live action only when the tenant HAS connected
+// the account AND the provider env + cipher key are provisioned; legacyPortalFileKra
+// drives a live (lazy) Playwright portal only when LEGACY_PORTAL_LIVE + a vault
+// are set. Governance unchanged — both stay HIGH-gated by their brain tools upstream.
+import { createConnectorInvokers } from './composition/connector-invokers-wiring';
+import { createLegacyPortalLiveWiring } from './composition/legacy-portal-live-wiring';
 // Wave 29 — Forecasting (TGN + conformal) surface. Returns 503
 // FORECAST_SERVICE_UNAVAILABLE when the TGN inference + repo env
 // vars are unset (no mock forecasts, ever).
@@ -476,6 +653,9 @@ import {
 import { createWebhookRetryWorker } from './workers/webhook-retry-worker';
 import { ensureTenantIsolation } from './middleware/tenant-context.middleware';
 import { assertApiKeyConfig } from './middleware/api-key-registry';
+// Deep-health admin gate — role derived from the VERIFIED bearer JWT, never
+// a client-supplied header.
+import { verifyJwt, extractBearerToken } from './middleware/auth-core';
 import { customerAppRouter } from './routes/bff/customer-app';
 import { ownerPortalRouter } from './routes/bff/owner-portal';
 // Endpoint wave — owner group/holdings rollup. Mounted at the specific
@@ -495,6 +675,11 @@ import { billingRouter } from './routes/owner/billing.router';
 import { ownerMessagingRouter } from './routes/owner/owner-messaging.router';
 import { supportRouter } from './routes/owner/support.router';
 import { adminUsersRouter } from './routes/owner/admin-users.router';
+// admin-rest-3 — cross-tenant subscription / MRR overview for the admin-web
+// Platform → Subscriptions page. Thin aggregator over the `tenants` index,
+// platform-admin gated. Honest-degrades to an empty envelope + note when no
+// DB / no billing table.
+import { adminSubscriptionsRouter } from './routes/admin/subscriptions.hono';
 // Wave OWNER-OS — owner cockpit OS surface (docs intake + drop-zone,
 // regulator-form drafter, reminders CRUD + dispatcher, dynamic tabs,
 // per-tenant advisor slice on /owner/brief). See:
@@ -504,6 +689,10 @@ import { adminUsersRouter } from './routes/owner/admin-users.router';
 import { ownerDocsRouter } from './routes/owner/docs.hono';
 import { ownerFormsRouter } from './routes/owner/forms.hono';
 import { ownerRemindersRouter } from './routes/owner/reminders.hono';
+// Wave SELF-ACTING-MD K5 — owner notification-preference write path. Lets the
+// owner set an ORDERED channel priority (honoured by the reminders dispatcher's
+// deliverable-channel resolver). Closes the "no write path for prefs" gap.
+import { ownerContactPrefsRouter } from './routes/owner/contact-prefs.hono';
 import { ownerTabsRouter } from './routes/owner/tabs.hono';
 // Wave CHAT-ACTIONS — the chat→action EXECUTION bridge. The cockpit chat
 // (/api/v1/brain/teach) emits action chips; these endpoints actually
@@ -527,6 +716,11 @@ import { ownerSuperpowersRouter } from './routes/owner/superpowers.hono';
 // Admin-side bulk-action surface — distinct whitelist + 4-eye approval
 // for HIGH-impact verbs (suspend tenant, regulator-pack export, etc).
 import { adminSuperpowersRouter } from './routes/admin/superpowers.hono';
+// JC-7 admin jurisdiction override — four-eye PROPOSE -> APPROVE flow
+// (a tenant cannot self-change jurisdiction; only Borjie internal admin
+// can, via a DIFFERENT second admin). Auth-guarded factory built from the
+// composition-root Drizzle adapters (migration 0322 jurisdiction_proposals).
+import { createMountedAdminTenantJurisdictionRouter } from './composition/jurisdiction-override-wiring';
 // Damage-settlement (migration 0279) — contractor / site damage claims +
 // mine-rehabilitation action-plan approval. Backs the site.damage_claim.* /
 // site.rehabilitation.approve_plan brain tools. Ported from the BN dispute /
@@ -558,6 +752,11 @@ import { mdAgenticRouter } from './routes/md-agentic.hono';
 // Admin Control Tower — cross-tenant toggles wired to REAL platform state
 // (kill-switch / feature flags / rate caps), four-eye gated + SOC2 audited.
 import { adminControlTowerRouter } from './routes/admin/control-tower.hono';
+// Admin Control Plane — Borjie-internal control plane over the brain: power
+// flags (global + per-tenant), LLM core+ordered-fallbacks+ensemble+per-use-case
+// routing, model catalog, and the suggest-only AI recommender. Admin-only auth;
+// no tenant business data; every mutation hash-chain audited.
+import { adminControlPlaneRouter } from './routes/admin/control-plane.hono';
 import { ownerBriefRouter } from './routes/owner/brief.hono';
 import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 // Real Holt-Winters forecasts (cash-flow, production, royalty) wired
@@ -593,6 +792,18 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 // geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave 2 — self-acting-MD workers: proactive-intel insight loop + KG auto-sync.
+import {
+  createProactiveIntelWorker,
+  type ProactiveOwnerResolver,
+  type ProactivePostureReader,
+  type ProactivePosture,
+} from './workers/proactive-intel.worker';
+import { createKgSyncWorker } from './workers/kg-sync.worker';
+// Wave 3 — the proactive worker's LIVE per-tenant data feed; the self-build
+// (gap→spec→generate→propose) operator-gated route.
+import { createTickInputsProvider } from './composition/proactive/tick-inputs-provider.js';
+import { internalModulesRouter } from './routes/internal/modules.hono';
 // Wave NOTIFICATION-DISPATCH-WIRE — turn on the already-built notification
 // rails: the dispatch drain worker (delivers notification_dispatch_log
 // pending rows via email/SMS/push with retry+backoff+DLQ), its push
@@ -653,6 +864,57 @@ import { createEmailProviderFromEnv } from './services/notification-dispatch/ema
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
 import { getDb } from './composition/db-client';
+// Scale-P0 lane wiring — each init fn reads its OWN env flag ONCE here at
+// bootstrap and DEFAULTS to today's behaviour (merging is a runtime no-op
+// until the operator flips the flag). These four are the ONLY new gateway
+// bootstrap wires this integration pass adds; the lanes themselves never
+// touch index.ts.
+//   - initDbClient()         flag DATABASE_POOL_MODE  (default 'session' = today)
+//   - initClusterLock() +    flag CRON_LEADER_ELECTION (default off = run-on-every-replica)
+//     withClusterLeader() / releaseLeadership()
+//   - initRedisTokenBucket() gate REDIS_URL           (unset = in-process limiter = today)
+//   - initCockpitBus()       gate REDIS_URL (via CrossPortalBus; in-memory = today)
+import { initDbClient } from './composition/db-client';
+import {
+  initClusterLock,
+  withClusterLeader,
+  releaseLeadership,
+  lockIdFor,
+} from './composition/cluster-lock';
+import { initRedisTokenBucket } from './middleware/rate-limiter';
+import { initCockpitBus, publishCockpitEvent } from './services/cockpit-events';
+
+// Stable cron names wrapped with withClusterLeader(...) at their .start()
+// sites below. Single source of truth so gracefulShutdown releases exactly
+// the locks the boot sequence acquired (lock-id = lockIdFor(name)). Keep in
+// sync with the wrapped .start() calls in the listen block.
+const CLUSTER_LEADER_CRON_NAMES = [
+  'heartbeat',
+  'background-supervisor',
+  'intelligence-history',
+  'cases-sla',
+  'learning-amplification',
+  'geofence-watcher',
+  'lease-expiry',
+  'executive-brief',
+  'daily-brief',
+  'ica-cert-expiry',
+  'compliance-deadline-scan',
+  'entity-indexer',
+  'fx-feed',
+  'executive-brief-action-runner',
+  'reminders-dispatch',
+  'announcement-fanout',
+  'outcome-reconciliation',
+  'mwikila-autonomous',
+  'proactive-scheduler',
+  'decision-retrospective',
+  'estate-mind',
+  'control-shell',
+  'loop-economy',
+  'someday-review',
+  'org-loop',
+] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
   wireCognitive,
@@ -682,9 +944,23 @@ import {
 // nightly amplification job; the worker drives the cron tick.
 import { createLearningAmplificationWiring } from './composition/learning-amplification-wiring';
 import { createLearningAmplificationCron } from './workers/learning-amplification-cron';
+// R8 — AOP meta-learning loop (Decagon pattern). Composes the dark
+// registry/runner/regression/canary factories over the persisted AOP
+// store and drives OBSERVE→PROPOSE→REGRESSION→CANARY on the cron seam.
+import {
+  createAnthropicAopExecutor,
+  createAopMetaLoopCron,
+} from './composition/aop-wiring';
+// LOOP-ECONOMY — the cognitive-loop substrate (declarative LoopSpec
+// registry + pure scheduler + the forecast-surprise builtin). Composes
+// the dark loop-economy factories over the REAL estate organs
+// (situational-model snapshot reader + gated proactive proposal sink)
+// and drives FOLD → SCHEDULE → MEMBRANE → LEARN on the cron seam.
+import { createLoopEconomyCronFromDb } from './composition/loop-economy-wiring';
 import {
   setBrainExtraSkills,
   appendBrainExtraSkills,
+  setBrainModalityCapabilities,
 } from './composition/brain-extensions';
 // Wave UNWIRED-LOGIC-SWEEP-2 — persona-aware brain tool catalog wiring.
 // Surfaces the 50+ persona-aware brain tools (owner, manager, worker,
@@ -700,6 +976,7 @@ import {
   configureDecisionJournalTools,
   configureOpportunityScannerTools,
   configureRiskScannerTools,
+  configureMdDeferTools,
   type PersonaToolGate,
 } from './composition/brain-tools';
 // Loopback HTTP client — closes the gap where `PersonaToolGate.httpClient`
@@ -745,6 +1022,10 @@ import { buildDocumentDrafterTools } from './services/document-drafter/brain-too
 import { createDrizzleRevisionsPersistence } from './services/document-drafter/revisions-persistence';
 import { buildFreeFormDrafterTool } from './services/document-drafter/free-form-brain-tool';
 import { buildMediaGenerationTools } from './services/media-generation/brain-tools';
+import {
+  buildModalityCapabilities,
+  type ModalityCapabilities,
+} from './composition/modality-capability';
 import { ownerDraftsRouter } from './routes/owner/drafts.hono';
 // Wave-3-int2 — brain↔tab loop composition (Piece L → Piece B handlers).
 import {
@@ -770,6 +1051,10 @@ import {
   elevenLabsProbe,
   gepgProbe,
 } from './health/deep-health';
+// Dark-router wave — public, recon-safe dependency roll-up for uptime
+// probes / load balancers / status pages. Returns ONLY { overall, timestamp }
+// (the DA1-audited safe surface); the full per-dependency detail stays gated.
+import { createHealthDependenciesPublicHandler } from './routes/health-dependencies.router';
 import { validateEnv } from './config/validate-env';
 import { securityEventsMiddleware } from '@borjie/observability';
 // SOTA perf middleware — Brotli compression + Cache-Control presets.
@@ -1003,6 +1288,74 @@ app.use(
   })()
 );
 
+// SEC-G3 — wire the shared (Redis) token-revocation store at boot so a
+// logout / refresh-rotation / role-change on ANY HPA replica revokes the
+// token cluster-wide (the in-process Map only catches same-replica
+// revocations). GATE: REDIS_URL. When unset (local dev / tests) the
+// token-blocklist façade stays on its in-process Map = today's behaviour.
+// The Redis adapter degrades to the local Map on a Redis error and flips a
+// health flag (see redis-token-blocklist.ts) rather than failing open.
+(() => {
+  if (!process.env.REDIS_URL) {
+    logger.info(
+      'token-blocklist: REDIS_URL unset — using in-process revocation map (dev mode)',
+    );
+    return;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ioredisMod = require('ioredis');
+    const RedisCtor = ioredisMod?.default ?? ioredisMod?.Redis ?? ioredisMod;
+    const client = new RedisCtor(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+      lazyConnect: false,
+    });
+    client.on?.('error', (err: Error) => {
+      logger.warn(
+        { err: err.message },
+        'token-blocklist: redis client error (revocation will fall back to in-process map)',
+      );
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const blkMod = require('./middleware/redis-token-blocklist') as {
+      RedisTokenBlocklist: new (opts: {
+        redis: unknown;
+        logger?: { warn: (meta: unknown, msg: string) => void };
+        sentryCapture?: (err: unknown, ctx?: Record<string, unknown>) => void;
+      }) => unknown;
+    };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const facadeMod = require('./middleware/token-blocklist') as {
+      wireRedisRevocationStore: (store: unknown) => void;
+    };
+    const store = new blkMod.RedisTokenBlocklist({
+      redis: client,
+      logger: { warn: (meta, msg) => logger.warn(meta as object, msg) },
+      sentryCapture: (err, ctx) => {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const obs = require('@borjie/observability') as {
+            getSentry?: () => {
+              captureException: (err: unknown, ctx?: unknown) => void;
+            };
+          };
+          obs.getSentry?.().captureException(err, ctx);
+        } catch {
+          // Sentry hook bugs must never break the auth pipeline.
+        }
+      },
+    });
+    facadeMod.wireRedisRevocationStore(store);
+    logger.info('token-blocklist: wired Redis-backed cross-replica revocation store');
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'token-blocklist: failed to initialize Redis store — using in-process map',
+    );
+  }
+})();
+
 // Health check — both /health (legacy) and /healthz (k8s-style) are served.
 // Returns `{ status, version, service, timestamp, upstreams }` per the
 // shared contract in @borjie/observability. Deep probes live at
@@ -1035,6 +1388,10 @@ const healthHandler = async (
 };
 app.get('/health', healthHandler);
 app.get('/healthz', healthHandler);
+// Public dependency roll-up — recon-safe `{ overall, timestamp }` only.
+// Lets external uptime probes / load balancers / status pages render a
+// degraded-mode indicator without learning the integration topology.
+app.get('/healthz/dependencies', createHealthDependenciesPublicHandler());
 
 // API v1 - Hono routes
 // FIXED C-1 production startup guard: refuses to boot if API keys aren't configured.
@@ -1050,6 +1407,26 @@ assertApiKeyConfig();
 // set, real Postgres-backed services are constructed and pure-DB
 // endpoints start returning real rows.
 // ----------------------------------------------------------------------------
+// Scale-P0 db-client lane — read DATABASE_POOL_MODE ONCE and eagerly
+// materialise the single shared primary + readonly clients so the one
+// bounded pool is the factory of record before the first request. With no
+// env set, poolMode resolves to 'session' (today's exact reserve()-pin +
+// prepared-statements-on behaviour) and this is a pure no-op beyond logging.
+// Idempotent + fail-soft: a degraded (no DATABASE_URL) boot still returns
+// null handles and the gateway 503s pure-DB endpoints exactly as before.
+try {
+  const dbInit = initDbClient();
+  logger.info(
+    { poolMode: dbInit.poolMode, hasPrimary: dbInit.db !== null },
+    'db-client: bootstrap init complete',
+  );
+} catch (err) {
+  logger.warn(
+    { err: err instanceof Error ? err.message : String(err) },
+    'db-client: initDbClient failed at bootstrap (continuing — getDb() lazy path still applies)',
+  );
+}
+
 let serviceRegistry: ServiceRegistry;
 try {
   serviceRegistry = buildServices({ db: getDb() });
@@ -1067,6 +1444,76 @@ try {
   );
   serviceRegistry = buildServices({ db: null });
 }
+
+// B5 — control-plane LLM-routing config reader. Install the routing-config
+// reader ONCE at boot over the platform service-role db so admin-tuned LLM
+// config is honored by the router's resolver. The reader fail-safes to the
+// static ladder until the first warm lands; when db is null we skip (the
+// resolver simply keeps the static ladder — today's exact behaviour).
+{
+  const platformDb = serviceRegistry.db;
+  if (platformDb) {
+    initLlmRoutingConfig({ db: platformDb, logger });
+  } else {
+    logger.warn(
+      'llm-routing-config: skipped (no platform db — static routing ladder retained)'
+    );
+  }
+}
+
+// ----------------------------------------------------------------------------
+// Scale-P0 redis-rate-limiter lane (RSS-08) — wire the distributed token
+// bucket ONCE at bootstrap. GATE: REDIS_URL. When unset, initRedisTokenBucket
+// returns null and perUserRateLimit / customRateLimit keep the in-process
+// limiter — today's exact behaviour. When set, the per-route token bucket is
+// enforced cluster-wide via the shared Lua script. Idempotent: a double-wire
+// is ignored. We pass the Sentry capture hook so on-call pages light up if the
+// bucket degrades back to in-process (mirrors the rate-limit-redis pattern).
+try {
+  initRedisTokenBucket({
+    sentryCapture: (err, ctx) => {
+      try {
+        // Lazy require — sentry init happens later in this boot sequence, so a
+        // top-of-file import would resolve before the DSN is wired.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const obs = require('@borjie/observability') as {
+          getSentry?: () => {
+            captureException: (err: unknown, ctx?: unknown) => void;
+          };
+        };
+        obs.getSentry?.().captureException(err, ctx);
+      } catch {
+        // Sentry hook bugs must never break the request pipeline.
+      }
+    },
+  });
+} catch (err) {
+  logger.warn(
+    { err: err instanceof Error ? err.message : String(err) },
+    'rate-limiter: initRedisTokenBucket failed (in-process limiter remains in force)',
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Scale-P0 redis-sse-bus lane (RSS-05) — back the cockpit SSE bus with the
+// composition-root CrossPortalBus singleton ONCE at boot. GATE: REDIS_URL is
+// mediated by the CrossPortalBus itself (it selects the ioredis pub/sub
+// backend only when REDIS_URL is set, in-memory otherwise). With REDIS_URL
+// unset the bus is in-memory and nothing changes vs. today — the local
+// EventEmitter remains the sole path. `serviceRegistry.crossPortalBus` is a
+// Promise (the Redis impl lazy-imports ioredis), so we await it fire-and-forget
+// and wire on resolve; a failure leaves the local-only path intact.
+void serviceRegistry.crossPortalBus
+  .then((bus) => {
+    initCockpitBus(bus);
+    logger.info('cockpit-bus: wired to cross-portal bus (cross-replica SSE fan-out gated on REDIS_URL)');
+  })
+  .catch((err: unknown) => {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'cockpit-bus: initCockpitBus skipped (cross-portal bus unavailable — local EventEmitter remains the sole path)',
+    );
+  });
 
 // ----------------------------------------------------------------------------
 // LIVE money path — wire the settlement + payroll ledger ports to the REAL
@@ -1170,23 +1617,24 @@ const heartbeatSupervisor = createHeartbeatSupervisor(
 // ----------------------------------------------------------------------------
 // Wave-3-int2 — Brain↔Tab loop composition.
 //
-// Wires the dispatch-router (Piece L) + ESTATE 5-handler set (Piece B) +
-// tenant-override routing-rules loader. Returns a `postThinkCaptureHook`
-// we install on every Jarvis router so `/think` + `/stream` fire the
-// hook fire-and-forget after each turn.
+// Wires the dispatch-router (Piece L) + the 3 MINING accept-proposal
+// handlers + tenant-override routing-rules loader. Returns a
+// `postThinkCaptureHook` we install on every Jarvis router so `/think` +
+// `/stream` fire the hook fire-and-forget after each turn.
 //
 // Wave-3-int3 — REAL handler ports are now wired when a database is
-// present: the brain's accept_proposal path posts the lease deposit
-// through `LedgerService.post()` (CLAUDE.md money hard rule), writes real
-// `tasks` / `temporal_entities` / `maintenance_events` rows, appends to the
+// present: the brain's accept_proposal path writes real `tasks` /
+// `temporal_entities` / `maintenance_events` rows, appends to the
 // hash-chained `ai_audit_chain`, and fans notifications out on the cross-
-// portal bus. The estate lease-application + receipt stores have no
-// mining-domain table yet, so those specific ports fail loud
-// (NotYetWiredError) instead of fabricating a fake id.
+// portal bus. None of the MINING dispatch handlers touch money — a mining
+// estate's real money (royalty / sales) flows through `LedgerService.post()`
+// in `services/payments-ledger`, NOT through any dispatch handler. (The
+// pre-Borjie property-era ESTATE dispatch handlers — lease deposit /
+// receipt draft — were EXCISED; they had no mining-domain backing schema.)
 //
-// When DATABASE_URL is unset (DB-less dev/smoke), there is no money or
-// repo infrastructure, so the silent-success stubs are the correct
-// fallback and the gateway still boots.
+// When DATABASE_URL is unset (DB-less dev/smoke), there is no repo
+// infrastructure, so the silent-success stubs are the correct fallback
+// and the gateway still boots.
 // ----------------------------------------------------------------------------
 const dispatchHandlerDb = getDb();
 const dispatchHandlerLogger = {
@@ -1195,15 +1643,12 @@ const dispatchHandlerLogger = {
   error: (meta: object, msg: string) => logger.error(meta, msg),
 };
 const dispatchRouterWiring = createDispatchRouterWiring({
-  // Estate handler deps OMITTED — the two property-relic dispatch actions are
-  // gated off in module-templates/registry.ts + dispatch-router-wiring (estate
-  // is no longer forwarded to the registry). The wiring's `estate` field is
-  // optional, so we simply don't construct it.
   // Closes the historical gh-issue #34 work-item: 3 mining handlers
   // replace the pre-Borjie estate stubs (open_maintenance_case →
   // open_equipment_maintenance, schedule_renewal_negotiation →
   // schedule_licence_renewal, bulk_mark_for_renewal_prep →
-  // bulk_mark_licences_for_renewal).
+  // bulk_mark_licences_for_renewal). The property-era ESTATE dispatch
+  // actions were excised entirely — there is no `estate` field to wire.
   mining: dispatchHandlerDb
     ? createRealMiningHandlerDeps({
         db: dispatchHandlerDb as never,
@@ -1222,7 +1667,12 @@ logger.info(
       listRegistered?: () => unknown;
     }).listRegistered?.(),
     handlerPorts: dispatchHandlerDb ? 'real' : 'stub',
-    moneyPath: dispatchHandlerDb ? 'LedgerService.post()' : 'stub-noop',
+    // MINING dispatch handlers write tasks/maintenance rows — NO money.
+    // The real money path (royalty/sales) is LedgerService.post() in
+    // services/payments-ledger, never reached via dispatch.
+    handlerEffect: dispatchHandlerDb
+      ? 'tasks/maintenance (no money)'
+      : 'stub-noop',
   },
   'dispatch-router-wiring: live (brain↔tab loop wired)'
 );
@@ -1285,6 +1735,30 @@ try {
   });
   const mediaTools = buildMediaGenerationTools();
 
+  // Modality capabilities (forecast / media-video+gif / document) — behind
+  // BORJIE_MODALITY_CAPABILITIES (DEFAULT-ON kill-switch; set the flag to
+  // `off` to disable). When ON, the engines are
+  // constructed once and exposed as rail-gated, evidence-stamped capability
+  // brain-tools registered ALONGSIDE the existing image/chart/diagram tools.
+  // The brain-tools path returns the artifact directly (the chat renderer
+  // inlines it); the arbiter→engine→PROPOSAL path (brain-kernel-wiring) binds
+  // its own per-request proposal sink, so the tool-path sink is a no-op here.
+  const modalityCapabilities: ModalityCapabilities = buildModalityCapabilities({
+    envSource: process.env,
+    proposalSink: {
+      async emit(): Promise<{ readonly surfacedProposalId: string }> {
+        return { surfacedProposalId: 'tool-path-no-proposal' };
+      },
+    },
+    fetch: ((url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) =>
+      fetch(url, init as RequestInit) as unknown) as never,
+    logger,
+  });
+  const capabilityTools = modalityCapabilities.capabilityTools;
+  if (modalityCapabilities.enabled) {
+    setBrainModalityCapabilities(modalityCapabilities);
+  }
+
   // Build the WRITE-tool set from the persona descriptor catalog plus
   // every tool registered here that mutates state (draft_*, free-form
   // draft, media generation). We use it to know which extras to wrap
@@ -1300,6 +1774,7 @@ try {
   for (const t of draftTools) personaWriteIds.add(t.name);
   personaWriteIds.add(freeFormTool.name);
   for (const t of mediaTools) personaWriteIds.add(t.name);
+  for (const t of capabilityTools) personaWriteIds.add(t.name);
   const writeIds: WriteToolIdSet = personaWriteIds;
 
   // Wave CLOSED-LOOP - bind the calibration tracker and surface its
@@ -1318,6 +1793,7 @@ try {
     ...draftTools,
     freeFormTool,
     ...mediaTools,
+    ...capabilityTools,
     calibrationScoreTool,
   ];
   const wrappedSkills = wrapWritesWithOutcomePrediction(rawSkills, writeIds, {
@@ -1358,6 +1834,200 @@ try {
       configureOpportunityScannerTools({ db: dbForBrainTools });
       configureRiskScannerTools({ db: dbForBrainTools });
       configureDecisionJournalTools({ db: dbForBrainTools });
+      // MD DEFERRAL / FOLLOW-THROUGH — build the durable md_commitments
+      // reconcile bundle ONCE (repo + reconcile engine + WaitFor event
+      // subscriber) and wire the defer brain tools (md.defer /
+      // md.commitment.*) to its repository. The reconcile engine is injected
+      // into the EstateMind supervisor below; the bundle is null when no db.
+      //
+      // Wave-C C3 WIN-3/4 — CONSTRUCT + BIND the three graded-corrective +
+      // closed-loop organs so the homeostatic controller ACTS LIVE:
+      //   (1) driveContextResolver — maps each commitment to its REAL standing-
+      //       drive severity by running DEFAULT_DRIVES over the LIVE per-tenant
+      //       situational snapshot (the SAME store the salience arena reads), so
+      //       the corrective ladder is graded to the true danger instead of the
+      //       fabricated `c.sovereign ? 1 : 0.6`. Honest-degrades to legacy when
+      //       no snapshot / unbound commitment.
+      //   (2) drafterRegistry — driveId → its bound DRAFTER (licence-renewal /
+      //       royalty-filing / payroll), the mid-rung corrective. PROPOSE-ONLY:
+      //       writes a DRAFT `proposed` mwikila_actions_inbox row (HITL), never
+      //       executes. Money/licence stay HITL forever.
+      //   (3) the durable set-point store is auto-built inside
+      //       createMdCommitmentReconciliation over the dedicated
+      //       set_point_state table (migration 0330) so the did-it-recover?
+      //       auto-promote arc is live.
+      // The autonomy cap clamps the graded ladder (nudge→draft→delegate); it is
+      // NEVER raised above 'delegate' (the owner-direct safe-halt — itself a HITL
+      // park). Env-tunable DOWN only; default the full graded ladder.
+      const dbForMd = serviceRegistry.db as unknown as Parameters<
+        typeof createMdCommitmentReconciliation
+      >[0]['db'];
+      const mdLogger = createPinoLikeLogger('md-commitments');
+      const mdAutonomyCap = resolveMdAutonomyCap(
+        process.env.BORJIE_MD_AUTONOMY_CAP,
+      );
+      mdCommitmentBundle = createMdCommitmentReconciliation({
+        db: dbForMd,
+        logger: mdLogger,
+        // (1) the REAL standing-drive severity, from the live snapshot.
+        driveContextResolver: dbForMd
+          ? createDriveContextResolver({
+              snapshotReader: buildEstateMindSnapshotReader(
+                dbForMd as unknown as Parameters<
+                  typeof buildEstateMindSnapshotReader
+                >[0],
+                createPinoLikeLogger('md-drive-snapshot'),
+              ),
+              // Wave-C C2 — judge a breach against THIS estate's consolidated
+              // baseline when available (honest-degrades to kernel defaults).
+              resolveThresholds: (tenantId: string) =>
+                resolveDriveThresholdsFromBaselinesDb(
+                  dbForMd as unknown as Parameters<
+                    typeof resolveDriveThresholdsFromBaselinesDb
+                  >[0],
+                  tenantId,
+                ),
+              logger: createPinoLikeLogger('md-drive-resolver'),
+            })
+          : null,
+        // (2) the mid-rung PROPOSE-ONLY drafters (licence / royalty / payroll).
+        drafterRegistry: dbForMd
+          ? createDrafterRegistry(
+              dbForMd as unknown as { execute(q: unknown): Promise<unknown> },
+              createPinoLikeLogger('md-drafter-registry'),
+            )
+          : null,
+        // The graded ladder ceiling. Clamped — never raised above 'delegate'.
+        autonomyCap: mdAutonomyCap,
+      });
+      if (mdCommitmentBundle) {
+        // LIVING-MD ORGAN — compose the felt loop over the durable substrate so
+        // the chat turn re-reads the plan (turnHooks), deferred/someday work
+        // resurfaces on its own leader-gated clock (somedayReviewSupervisor),
+        // and every lifecycle transition appends to the hash-chained timeline
+        // (timelineSink). Pure composition over the bundle + estate-mind sink.
+        const listActiveTenantIdsForMd = async (): Promise<
+          ReadonlyArray<string>
+        > => {
+          if (!dbForMd) return [];
+          try {
+            const res = await (
+              dbForMd as unknown as { execute(q: unknown): Promise<unknown> }
+            ).execute(
+              drizzleSqlTag`SELECT id FROM tenants WHERE status = 'active'`,
+            );
+            const rows = Array.isArray(res)
+              ? (res as readonly unknown[])
+              : ((res as { rows?: readonly unknown[] }).rows ?? []);
+            return rows
+              .map((r) => {
+                const id = (r as { id?: unknown }).id;
+                return typeof id === 'string' ? id : String(id ?? '');
+              })
+              .filter((s) => s.length > 0);
+          } catch {
+            return [];
+          }
+        };
+        livingMd = createLivingMdOrgan({
+          repository: mdCommitmentBundle.repository,
+          eventSubscriber: mdCommitmentBundle.eventSubscriber,
+          proposalSink: dbForMd
+            ? createTabEventLogProposalSink(
+                dbForMd as unknown as { execute(q: unknown): Promise<unknown> },
+                createPinoLikeLogger('living-md-proposal-sink'),
+              )
+            : null,
+          listActiveTenantIds: listActiveTenantIdsForMd,
+          db: dbForMd as unknown as Parameters<
+            typeof createLivingMdOrgan
+          >[0]['db'],
+          logger: createPinoLikeLogger('living-md'),
+        });
+        // Feed the LIVING-MD hash-chained timeline into the defer tools so
+        // confirm/reopen/block lands on the lifecycle trail the plan-tab +
+        // governance surfaces read.
+        configureMdDeferTools({
+          repo: mdCommitmentBundle.repository,
+          timelineSink: livingMd.timelineSink,
+        });
+        // Inject the per-turn re-read + post-turn commitment_state hooks into the
+        // LIVE chat seam (DI — chat-orchestrator stays import-free of the organ).
+        configureLivingMdTurnHooks(livingMd.turnHooks);
+
+        // ── SELF-RUNNING-ORG SPINE (org-loop) ─────────────────────────
+        // Compose the gap→strategize→pick→assign→dispatch→deliver→report→
+        // close thread over the SAME commitment substrate. This lights up
+        // the previously-dark assignTask() write path through the composed
+        // WorkforceDeps; the binder closes the loop in real time when a
+        // worker completes the dispatched task. PROPOSE-ONLY/HITL: HIGH/
+        // sovereign assignments are surfaced for owner approval, never
+        // auto-executed. Kill-switch BORJIE_ORG_LOOP (default-ON).
+        if (dbForMd) {
+          const orgLoopLogger = createPinoLikeLogger('org-loop');
+          const orgLoopRunRepo = createDrizzleOrgLoopRunRepository(
+            dbForMd as unknown as Parameters<
+              typeof createDrizzleOrgLoopRunRepository
+            >[0],
+          );
+          const workforceDeps = createWorkforceDeps({
+            db: dbForMd as unknown as Parameters<
+              typeof createWorkforceDeps
+            >[0]['db'],
+          });
+          orgLoopOrchestrator = createOrgLoopOrchestrator({
+            commitmentRepo: mdCommitmentBundle.repository,
+            runRepo: orgLoopRunRepo,
+            strategist: createStrategizePort({
+              logger: createPinoLikeLogger('org-loop-strategize'),
+            }),
+            personMatcher: createPersonMatcher({
+              db: dbForMd as unknown as Parameters<
+                typeof createPersonMatcher
+              >[0]['db'],
+              logger: createPinoLikeLogger('org-loop-matcher'),
+            }),
+            dispatcher: createTaskDispatchPort({ workforceDeps }),
+            briefer: createGapBriefingPort(),
+            proposalSink: createTabEventLogProposalSink(
+              dbForMd as unknown as { execute(q: unknown): Promise<unknown> },
+              createPinoLikeLogger('org-loop-sink'),
+            ),
+            cockpit: {
+              publish: (event) =>
+                void publishCockpitEvent(
+                  event as Parameters<typeof publishCockpitEvent>[0],
+                ),
+            },
+            listActiveTenantIds: listActiveTenantIdsForMd,
+            logger: orgLoopLogger,
+          });
+          // RE-LOOP closure binder — task completion (mwikila.acted /
+          // mining.task.complete on the cockpit bus) marks the originating
+          // commitment done with positive proof + advances the run to
+          // closed. Local process tap = exactly-once cluster semantics.
+          const taskCommitmentBinder = createTaskCommitmentBinder({
+            runRepo: orgLoopRunRepo,
+            commitmentRepo: mdCommitmentBundle.repository,
+            logger: createPinoLikeLogger('org-loop-binder'),
+          });
+          tapCockpitEvents((event) => {
+            void taskCommitmentBinder.onMwikilaActed(event);
+          });
+          // Late-bind the HITL approval consumer: the owner's approve verb
+          // resumes a parked HIGH/sovereign run through the dispatch leg;
+          // dismiss closes it. Until this registration the route 503s.
+          registerOrgLoopApprovalActions(orgLoopOrchestrator);
+          orgLoopLogger.info(
+            { wiring: 'org-loop', killSwitchEnv: 'BORJIE_ORG_LOOP' },
+            'org-loop: spine composed (strategize+match+dispatch+brief+binder+approval-consumer) — assignTask write-path LIVE, propose-only/HITL',
+          );
+        }
+        mdLogger.info(
+          { autonomyCap: mdAutonomyCap },
+          'md-commitments: graded-corrective + closed-loop set-point organs wired (drive-context resolver + drafter registry + set_point_state store) + LIVING-MD organ composed (turn re-read + someday resurfacing + hash-chained timeline) — homeostatic controller LIVE, propose-only/HITL',
+        );
+      }
     }
     // The `ServiceRegistry` interface does not currently model an
     // optional kill-switch slot. Some legacy boot paths attached an
@@ -1466,9 +2136,21 @@ try {
 const deepHealthHandler = createDeepHealthHandler({
   version: process.env.APP_VERSION ?? 'dev',
   cacheMs: Number(process.env.DEEP_HEALTH_CACHE_MS ?? '15000') || 15_000,
+  // Admin gate derives the role from the VERIFIED bearer JWT — never from a
+  // client-supplied header (the prior x-user-role check let any caller probe
+  // the full Postgres/Redis/provider cascade in production).
   requireAdmin: (req) => {
-    const roleHeader = req.header('x-user-role');
-    if (roleHeader === 'TENANT_ADMIN' || roleHeader === 'PLATFORM_ADMIN') return true;
+    const verified = verifyJwt(extractBearerToken(req.header('authorization')));
+    // SUPER_ADMIN/ADMIN are the real admin members of the verified-JWT role
+    // union (the prior header check compared against role names that do not
+    // exist in the JWT vocabulary — it could never pass legitimately).
+    if (
+      verified.ok &&
+      (verified.payload.role === 'SUPER_ADMIN' ||
+        verified.payload.role === 'ADMIN')
+    ) {
+      return true;
+    }
     return process.env.NODE_ENV !== 'production';
   },
   probes: [
@@ -1608,6 +2290,82 @@ api.use('*', createServiceContextMiddleware(serviceRegistry));
 const portalGenuiWiring = buildPortalGenuiWiring();
 (serviceRegistry as { portalGenUIEngine?: unknown }).portalGenUIEngine =
   portalGenuiWiring.engine;
+// K1a — the generated-tab record store, read by the /tabs/:id/records endpoints
+// on the same router so a generated tab's fields can actually COLLECT data
+// (validated against the tab's own field schema).
+(serviceRegistry as { portalGenUIRecordStore?: unknown }).portalGenUIRecordStore =
+  portalGenuiWiring.recordStore;
+// Wave-B residual — tenant-scoped storage adapter for the generated-tab file/
+// signature/audio upload endpoint (POST /portal-genui/tabs/:id/upload). Without
+// this attachment getStorageAdapter(c) is undefined and the route honest-501s.
+(serviceRegistry as { portalGenUIStorageAdapter?: unknown }).portalGenUIStorageAdapter =
+  portalGenuiWiring.storageAdapter;
+// LAST outward-reach seam — bind the REAL connector + legacy-portal runtime
+// invokers onto the SAME serviceRegistry the service-context middleware closed
+// over (the connectors route reads `services.connectorInvokers`; the legacy-
+// portal route reads `services.legacyPortalFileKra`). Both are credential/env
+// gated and honest-degrade: an unprovisioned connector / unset live env leaves
+// the slot empty so the routes keep their structured not-provisioned envelopes.
+{
+  const connectorInvokersWiring = createConnectorInvokers({
+    db: serviceRegistry.db as unknown as
+      | { execute(q: unknown): Promise<unknown> }
+      | null,
+    logger: createPinoLikeLogger('connector-invokers'),
+  });
+  (serviceRegistry as { connectorInvokers?: unknown }).connectorInvokers =
+    connectorInvokersWiring.connectorInvokers;
+
+  const legacyPortalWiring = createLegacyPortalLiveWiring({
+    logger: createPinoLikeLogger('legacy-portal-live'),
+  });
+  if (legacyPortalWiring.fileKra !== undefined) {
+    (serviceRegistry as { legacyPortalFileKra?: unknown }).legacyPortalFileKra =
+      legacyPortalWiring.fileKra;
+  }
+}
+// W2a — optional tenant-scoped read port for LIVE widget-data (mapped estate
+// domains). Same `$client.unsafe(sql, params)` boundary the record store uses;
+// RLS FORCE on app.current_tenant_id isolates in the DB. Unbound in dev/test →
+// the resolver degrades mapped-domain reads to empty rows (tab_records always
+// works via the record store, not this port).
+{
+  const widgetDb = getDb();
+  if (widgetDb) {
+    const widgetClient = (widgetDb as unknown as {
+      $client: {
+        unsafe<Row = Record<string, unknown>>(
+          sql: string,
+          params?: ReadonlyArray<unknown>,
+        ): Promise<ReadonlyArray<Row>>;
+      };
+    }).$client;
+    (serviceRegistry as { portalGenUIQueryPort?: unknown }).portalGenUIQueryPort = {
+      async query<Row = Record<string, unknown>>(
+        sql: string,
+        params?: ReadonlyArray<unknown>,
+      ): Promise<ReadonlyArray<Row>> {
+        return widgetClient.unsafe<Row>(sql, params ?? []);
+      },
+    };
+    // Stage-2 evidence-existence verifier (iq-evidence-stage2-disabled-12) —
+    // give the Auditor real teeth: confirm every cited evidence_id actually
+    // resolves to an intelligence_corpus_chunk for this tenant (or the global
+    // corpus) before a recommendation is allowed out. Same tenant-scoped
+    // `$client.unsafe` boundary (RLS FORCE isolates); fail-open on infra fault
+    // so a DB blip degrades to Stage-1 regex only, never blocks a turn.
+    setEvidenceExistenceVerifier(
+      createCorpusEvidenceVerifier({
+        async query<Row = Record<string, unknown>>(
+          sql: string,
+          params?: ReadonlyArray<unknown>,
+        ): Promise<ReadonlyArray<Row>> {
+          return widgetClient.unsafe<Row>(sql, params ?? []);
+        },
+      }),
+    );
+  }
+}
 api.route('/portal-genui', portalGenuiWiring.router);
 // Deep research: make the research-orchestrator engine reachable on demand.
 // The engine was built + DB-backed but no gateway route ever constructed its
@@ -1681,7 +2439,14 @@ api.route('/auth', createPublicAuthRouter(publicAuthDeps));
 api.route('/auth', authRouter);
 api.route('/auth/mfa', authMfaRouter);
 api.route('/tenants', tenantsRouter);
+// Self-service GDPR/PDPA surface. Mounted BEFORE `/users` so the more
+// specific `/users/me/*` prefix resolves to this router; `usersRouter`
+// defines no `/me` route, so the two never collide.
+api.route('/users/me', createUsersMeRouter());
 api.route('/users', usersRouter);
+// Declared-facts producer — POST/GET/DELETE /memory/declare. Real
+// semantic-memory store, auth + tenant + user scoped, per-user rate-limited.
+api.route('/memory', memoryDeclareRouter);
 api.route('/notifications', notificationsRouter);
 // Phase F.5 tenant-signup flow mounts FIRST so specific paths
 // (/signup, /first-site, /first-workforce-import, /first-md-chat,
@@ -1703,10 +2468,23 @@ api.route('/owner/threads', ownerThreadsRouter);
 // Wave KNOWLEDGE-HANDOFF — POST /owner/handoff (create),
 // GET /owner/handoff/inbox, POST /owner/handoff/:id/resolve.
 api.route('/owner/handoff', ownerHandoffRouter);
+// INV-A / FIRE-1 — tenant-visible break-glass Trust Center.
+api.route('/owner/break-glass', ownerBreakGlassRouter);
+// EA-05 — cross-surface CRDT state-bus. Tenant-scoped slot set/read/list +
+// surface handoff; the slot lives once + re-projects onto every surface.
+api.route('/blackboard', blackboardRouter);
 // Roadmap R2 — owner saved-search alerts.
 api.route('/owner/saved-searches', savedSearchesRouter);
 // Mr. Mwikila autonomous-MD inbox + delegation surface.
 api.route('/owner/mwikila-inbox', mwikilaInboxRouter);
+// LIVING-MD plan surfaces — the owner's lens on the durable md_commitments
+// plan (summary / upcoming / overdue / deferred / past + per-item timeline) and
+// the per-tenant governance set-points the someday-review cadence reads fresh.
+api.route('/owner/living-plan', livingPlanRouter);
+api.route('/owner/commitment-governance', commitmentGovernanceRouter);
+// HITL approval consumer for parked HIGH/sovereign org-loop runs — approve
+// advances the parked run through the dispatch leg; dismiss closes it.
+api.route('/owner/org-loop-approvals', orgLoopApprovalsRouter);
 api.route('/owner/delegation', delegationRouter);
 // Roadmap R7 — owner-mobile cockpit hub aggregator.
 api.route('/owner/cockpit', cockpitHubRouter);
@@ -1773,6 +2551,11 @@ api.route('/owner/group-rollup', ownerGroupRollupRouter);
 api.route('/owner', ownerPortalRouter);
 api.route('/manager', estateManagerAppRouter);
 api.route('/admin', adminPortalRouter);
+// admin-rest-3 — cross-tenant subscription / MRR overview. Mounted at the
+// more-specific `/admin/subscriptions` prefix so it is never shadowed by the
+// broad `/admin` portal mounts (adminPortalRouter / adminUsersRouter own
+// disjoint sub-paths). Platform-admin gated inside the router.
+api.route('/admin/subscriptions', adminSubscriptionsRouter);
 // Wave 1-2 feature routers
 api.route('/applications', applicationsRouter);
 // REMOVED (borjie hard-fork): api.route('/arrears', arrearsRouter);
@@ -1846,6 +2629,8 @@ api.route('/marketplace', marketplaceRouter);
 api.route('/marketplace/rfb', rfbRouter);
 // Commercial chain L7 — buyer's at-rest notification queue.
 api.route('/buyer/notifications', buyerNotificationsRouter);
+// B6 — buyer-persona superpowers (bulk-action / undo / pinned / search).
+api.route('/buyer/superpowers', buyerSuperpowersRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);
@@ -1907,6 +2692,10 @@ api.route(
     },
   }),
 );
+// Modality artifacts — fetch the artifact (forecast JSON / document archive
+// refs / media descriptor) behind a surfaced modality PROPOSAL so owner-web's
+// GenUITabHost renders it on Open. Read-only; never mutates a tab.
+api.route('/modality-artifacts', createModalityArtifactsRouter());
 // Routers built via factory — inject real services from the composition root
 // where available. For services that aren't yet wired, the factory gracefully
 // returns a 503/501 to the client rather than a synchronous throw — a pilot
@@ -1931,13 +2720,178 @@ const migrationRouter = createMigrationRouter({
     ? { migrationWizardCopilot: serviceRegistry.migrationWizardCopilot }
     : {}),
 });
-// Notification preferences — the real store lives in the notifications
-// service; until the HTTP binding lands we return the posted shape
-// verbatim so clients can dev against a stable surface.
-const notificationPreferencesRouter = createNotificationPreferencesRouter({
-  getPreferences: () => ({ channels: {}, templates: {}, quietHoursStart: null, quietHoursEnd: null }),
-  upsertPreferences: (_u, _t, input) => input,
+// Notification preferences — owner-settings-2 fix.
+//
+// The previous binding was an in-memory ECHO stub: GET always returned a
+// hard-coded empty shape and PUT echoed the body back without persisting,
+// so every owner toggle silently reverted on the next refetch (data loss).
+//
+// The `createNotificationPreferencesRouter` DI contract is SYNCHRONOUS — the
+// router calls `getPreferences(...)` / `upsertPreferences(...)` and hands the
+// return straight to `c.json(...)` with no `await`. We therefore back it with
+// a process-durable in-memory store (`notificationPreferencesStore`) keyed by
+// `${tenantId}::${userId}`, with IMMUTABLE snapshots (never mutate a stored
+// object — every upsert builds a fresh frozen record). This removes the
+// user-observable data-loss bug: a saved preference now survives the
+// post-save refetch and every subsequent GET for the life of the gateway.
+//
+// CROSS-PROCESS DURABILITY (recorded for the schema-owning agent): a fully
+// cross-restart-durable fix additionally needs (1) a `notification_preferences`
+// Drizzle table matching this shape (channels map, templates record,
+// quietHoursStart/End) under packages/database, and (2) the router upgraded to
+// an ASYNC DI it can `await`. The store below is the gateway-owned slice of
+// that fix and is the seam those two changes plug into.
+type NotifPrefs = Readonly<{
+  channels: Readonly<Record<string, boolean>>;
+  templates: Readonly<Record<string, boolean>>;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+}>;
+type NotifPrefsPatch = Partial<{
+  channels: Record<string, boolean>;
+  templates: Record<string, boolean>;
+  quietHoursStart: string | null;
+  quietHoursEnd: string | null;
+}>;
+const NOTIF_PREFS_DEFAULT: NotifPrefs = Object.freeze({
+  channels: Object.freeze({}),
+  templates: Object.freeze({}),
+  quietHoursStart: null,
+  quietHoursEnd: null,
 });
+const notifPrefsKey = (userId: string, tenantId: string) =>
+  `${tenantId}::${userId}`;
+// Merge a patch onto the prior snapshot IMMUTABLY so partial updates (e.g.
+// only `channels`) never clobber unrelated fields.
+const mergeNotifPrefs = (prior: NotifPrefs, input: unknown): NotifPrefs => {
+  const patch = (input ?? {}) as NotifPrefsPatch;
+  return Object.freeze({
+    channels: Object.freeze({ ...prior.channels, ...(patch.channels ?? {}) }),
+    templates: Object.freeze({ ...prior.templates, ...(patch.templates ?? {}) }),
+    quietHoursStart:
+      patch.quietHoursStart !== undefined
+        ? patch.quietHoursStart
+        : prior.quietHoursStart,
+    quietHoursEnd:
+      patch.quietHoursEnd !== undefined
+        ? patch.quietHoursEnd
+        : prior.quietHoursEnd,
+  });
+};
+// owner-settings-2 — DURABLE notification preferences. The prior impl was an
+// in-memory echo stub (lost on restart / reverted on the next GET). Back the
+// router with the `notification_preferences` table (migration 0329) over the
+// same tenant-scoped `$client.unsafe` boundary the widget-data / record-store
+// ports use; rows are explicitly scoped by (tenant_id, user_id) and the table
+// FORCE-enables RLS. When the DB is unbound (dev/test) we fall back to a
+// process-durable in-memory Map so unit tests run without Postgres.
+const notificationPreferencesRouter = ((): ReturnType<
+  typeof createNotificationPreferencesRouter
+> => {
+  const notifDb = getDb();
+  const notifClient = notifDb
+    ? (notifDb as unknown as {
+        $client: {
+          unsafe<Row = Record<string, unknown>>(
+            sql: string,
+            params?: ReadonlyArray<unknown>,
+          ): Promise<ReadonlyArray<Row>>;
+        };
+      }).$client
+    : null;
+
+  if (!notifClient) {
+    const store = new Map<string, NotifPrefs>();
+    return createNotificationPreferencesRouter({
+      getPreferences: (userId, tenantId) =>
+        store.get(notifPrefsKey(userId, tenantId)) ?? NOTIF_PREFS_DEFAULT,
+      upsertPreferences: (userId, tenantId, input) => {
+        const key = notifPrefsKey(userId, tenantId);
+        const next = mergeNotifPrefs(
+          store.get(key) ?? NOTIF_PREFS_DEFAULT,
+          input,
+        );
+        store.set(key, next);
+        return next;
+      },
+    });
+  }
+
+  type PrefsRow = {
+    channels: Record<string, boolean> | null;
+    templates: Record<string, boolean> | null;
+    quiet_hours_start: string | null;
+    quiet_hours_end: string | null;
+  };
+  const rowToPrefs = (row: PrefsRow | undefined): NotifPrefs =>
+    row
+      ? Object.freeze({
+          channels: Object.freeze(row.channels ?? {}),
+          templates: Object.freeze(row.templates ?? {}),
+          quietHoursStart: row.quiet_hours_start ?? null,
+          quietHoursEnd: row.quiet_hours_end ?? null,
+        })
+      : NOTIF_PREFS_DEFAULT;
+
+  const dbGet = async (
+    userId: string,
+    tenantId: string,
+  ): Promise<NotifPrefs> => {
+    try {
+      const rows = await notifClient.unsafe<PrefsRow>(
+        `SELECT channels, templates, quiet_hours_start, quiet_hours_end
+           FROM notification_preferences
+          WHERE tenant_id = $1 AND user_id = $2
+          LIMIT 1`,
+        [tenantId, userId],
+      );
+      return rowToPrefs(rows[0]);
+    } catch (err) {
+      logger.error(
+        { err: err instanceof Error ? err.message : String(err) },
+        'notification-preferences: read failed (degrading to default)',
+      );
+      return NOTIF_PREFS_DEFAULT;
+    }
+  };
+
+  return createNotificationPreferencesRouter({
+    getPreferences: dbGet,
+    upsertPreferences: async (userId, tenantId, input) => {
+      const next = mergeNotifPrefs(await dbGet(userId, tenantId), input);
+      try {
+        const rows = await notifClient.unsafe<PrefsRow>(
+          `INSERT INTO notification_preferences
+             (tenant_id, user_id, channels, templates,
+              quiet_hours_start, quiet_hours_end, updated_at)
+           VALUES ($1, $2, $3::jsonb, $4::jsonb, $5, $6, now())
+           ON CONFLICT (tenant_id, user_id) DO UPDATE SET
+             channels = EXCLUDED.channels,
+             templates = EXCLUDED.templates,
+             quiet_hours_start = EXCLUDED.quiet_hours_start,
+             quiet_hours_end = EXCLUDED.quiet_hours_end,
+             updated_at = now()
+           RETURNING channels, templates, quiet_hours_start, quiet_hours_end`,
+          [
+            tenantId,
+            userId,
+            JSON.stringify(next.channels),
+            JSON.stringify(next.templates),
+            next.quietHoursStart,
+            next.quietHoursEnd,
+          ],
+        );
+        return rowToPrefs(rows[0]) ?? next;
+      } catch (err) {
+        logger.error(
+          { err: err instanceof Error ? err.message : String(err) },
+          'notification-preferences: upsert failed',
+        );
+        return next;
+      }
+    },
+  });
+})();
 // Webhooks terminate here and forward deliveries via the same event bus
 // the rest of the services use, so a downstream subscriber in the
 // notifications service can persist status updates.
@@ -2054,6 +3008,10 @@ api.route('/stage', stageRouter);
 // runs survive process restarts and so the new engine is the single
 // source of truth.
 api.route('/workflow', workflowRouter);
+// Flow-keyed autonomy posture + creation-time auto-vs-gated confirmation
+// (migration 0308). Mounted as a sibling segment so the literal
+// `/workflow/flow-autonomy` paths never collide with `/workflow/runs/:id`.
+api.route('/workflow/flow-autonomy', flowAutonomyRouter);
 api.route('/agent-certifications', agentCertificationsRouter);
 // REMOVED (borjie hard-fork): api.route('/classroom', classroomRouter);
 api.route('/training', trainingRouter);
@@ -2133,6 +3091,13 @@ api.route('/head/briefing', headBriefingRouter);
 api.route('/junior-ai', juniorAIRouter);
 // Canonical Property Graph — relationship-explorer + named-query surface
 api.route('/graph', graphRouter);
+// Regulator-facing CoT reservoir read-back (DSAR / accountability surface).
+api.route('/admin/cot-query', cotQueryRouter());
+// Generative jurisdiction unlock — the governed launch-market registry.
+api.route('/admin/jurisdictions', createJurisdictionPromotionRouter());
+// Universal integration fabric — un-darks the 21 connector packages behind
+// one generic, governed, honest-degrading dispatch surface.
+api.route('/integrations/connectors', createConnectorsRouter());
 // Wave 29 — Forecasting surface (TGN + conformal). Returns 503
 // FORECAST_SERVICE_UNAVAILABLE until the inference + repo adapters are
 // wired (no mock forecasts, ever).
@@ -2183,6 +3148,8 @@ api.route('/owner/docs', ownerDocsRouter);
 api.route('/owner/forms', ownerFormsRouter);
 api.route('/owner/drafts', ownerDraftsRouter);
 api.route('/owner/reminders', ownerRemindersRouter);
+// Wave SELF-ACTING-MD K5 — GET/PUT /owner/contact-prefs (ordered channel priority).
+api.route('/owner/contact-prefs', ownerContactPrefsRouter);
 // Wave CHAT-ACTIONS — POST /owner/chat/micro-action + /owner/chat/confirm-action.
 // Mounted before the generic /owner/* wildcards so the specific path wins.
 api.route('/owner/chat', ownerChatActionsRouter);
@@ -2195,6 +3162,21 @@ api.route('/owner/pinned-items', ownerPinnedItemsRouter);
 api.route('/owner/superpowers', ownerSuperpowersRouter);
 // Admin counterpart — only the bulk-action verb-set differs.
 api.route('/admin/superpowers', adminSuperpowersRouter);
+// JC-7 admin jurisdiction override (four-eye). Mounted at the api root —
+// the router's own paths are absolute (/admin/tenants/:id/jurisdiction…).
+// Auth-guarded inside the factory (authMiddleware + requireRole +
+// admin-context pin). Backed by jurisdiction_proposals (migration 0322).
+api.route(
+  '/',
+  createMountedAdminTenantJurisdictionRouter({
+    db: getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+    logger: {
+      info: (message, meta) => logger.info({ ...(meta ?? {}) }, message),
+      warn: (message, meta) => logger.warn({ ...(meta ?? {}) }, message),
+      error: (message, meta) => logger.error({ ...(meta ?? {}) }, message),
+    },
+  }),
+);
 // Damage-settlement (migration 0279) — POST / (file), GET /open, GET /:id,
 // POST /:id/respond, POST /:id/settle, POST /rehabilitation-plans/:planId/
 // action-plans/:actionPlanId/approve. Wraps the site.damage_claim.* /
@@ -2225,6 +3207,12 @@ api.route('/md-agentic', mdAgenticRouter);
 // Each toggle drives a real platform control; HIGH-impact ones are four-eye
 // gated and only mutate state on the second-eye approval. SOC2-audited.
 api.route('/admin/control-tower', adminControlTowerRouter);
+// Admin Control Plane — GET/PUT /powers, GET/PUT /llm-routing, GET
+// /model-catalog, POST /ai-suggest. Admin-only (SUPER_ADMIN | ADMIN);
+// platform-config only (no tenant business data); each mutation is
+// hash-chain audited + recorded in the undo journal. The routing config
+// changes WHICH model answers, never WHETHER a sovereign action runs.
+api.route('/admin/control-plane', adminControlPlaneRouter);
 api.route('/public/share', publicShareResolverRouter);
 // Wave FOUR-EYE-APPROVAL — high-stakes action gate. The Hono router
 // covers /request, /pending, /approve/:token, /reject/:token under
@@ -2253,6 +3241,10 @@ api.route('/regulatory/zones', regulatoryZonesRouter);
 api.route('/owner/workforce', workforceTabConfigOwnerRouter);
 api.route('/owner/workforce', workforceTabConfigOwnerListRouter);
 api.route('/workforce', workforceTabConfigWorkerRouter);
+// Wave 3 (W3c) — the self-build proposal surface (SUPER_ADMIN + four-eye gated,
+// propose-only — never auto-applies). Mounted BEFORE the broad /internal route
+// so the more-specific /internal/modules prefix wins.
+api.route('/internal/modules', internalModulesRouter);
 api.route('/internal', workforceTabPolicyAdminRouter);api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // Unit subdivision + components — Manager-app dependency. Hono mounts
@@ -2509,6 +3501,42 @@ const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger);
 // dropped counter; job returns a zero summary).
 createLearningAmplificationWiring({ logger });
 const learningAmplificationCron = createLearningAmplificationCron({ logger });
+
+// R8 — AOP meta-learning loop. Observes candidate AOP versions persisted
+// in the registry store (aop_specs / aop_regression_sets /
+// aop_active_versions), regression-replays each candidate against its
+// historical-transcript set through the budget-guarded Anthropic client,
+// and walks winners up the canary ladder (shadow → 1% → 5% → 25% → live)
+// ONE rung per tick — activation flips ONLY through the factories' own
+// regression+canary gate. Honest-degrade: no Anthropic key ⇒ candidates
+// HELD at their stage (no fake passes); no DB ⇒ the null store yields
+// zero candidates. Kill-switch: BORJIE_AOP_META_LOOP=off.
+const aopMetaLoopCron = createAopMetaLoopCron({
+  store: serviceRegistry.persistentStores.aopRegistryStore,
+  executor: createAnthropicAopExecutor({
+    buildBudgetGuardedAnthropicClient:
+      serviceRegistry.buildBudgetGuardedAnthropicClient,
+  }),
+  logger: createPinoLikeLogger('aop-meta-loop'),
+});
+
+// LOOP-ECONOMY — the brain's standing cognitive loops. Registers the
+// builtin forecast-surprise loop (active inference: compare world-model
+// forecasts against actuals, surface the sharpest violations as learning
+// signals), folds the durable per-tenant situational snapshot each tick,
+// runs the substrate's PURE scheduler, and routes every decided action
+// through the GOVERNED proactive proposal sink (idempotent drive-keyed
+// proactive_nudge — never a direct write). READ+LEARN only; loop efficacy
+// is scored back onto the registry (reflexion EMA). No formed-loop
+// persistence store exists yet — builtins only, logged honestly.
+// Kill-switch: BORJIE_LOOP_ECONOMY=off. Degraded mode (no db): the loop
+// registers DORMANT and every tick is a free no-op.
+const loopEconomyCron = createLoopEconomyCronFromDb({
+  db: (serviceRegistry.db as unknown as
+    | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+    | null) ?? null,
+  logger: createPinoLikeLogger('loop-economy'),
+});
 
 // Geo SOTA 2026-05-29 — geofencing service backed by PostGIS (migration
 // 0130). Wraps point-in-polygon / distance / regulatory-zone queries
@@ -2787,6 +3815,168 @@ const remindersDispatchWorker = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 }; } };
 
+// ── Wave-C C4 — proactive-intel regulation readers (owner-resolver + posture) ─
+// Both built from EXISTING services: the `users(tenant_id, is_owner)` SELECT the
+// mwikila-autonomous worker already uses, and the durable owner-style service over
+// the Drizzle `owner_style_profiles` store. Fail-safe: any read fault degrades to
+// the neutral path (no owner → affect/trust skipped; balanced posture).
+
+/**
+ * Resolve a tenant's primary owner user-id — the per-user key the affect/trust
+ * readers need (the worker is tenant-scoped). Mirrors the proven
+ * `users(tenant_id, is_owner)` lookup; returns null on any miss.
+ */
+function createTenantOwnerResolver(
+  db: { execute(q: unknown): Promise<unknown> },
+  log: typeof logger,
+): ProactiveOwnerResolver {
+  return {
+    async ownerForTenant(tenantId: string): Promise<string | null> {
+      try {
+        const result = await db.execute(drizzleSqlTag`
+          SELECT u.id AS owner_user_id
+            FROM users u
+           WHERE u.tenant_id = ${tenantId}
+             AND u.is_owner  = TRUE
+             AND u.status    = 'active'
+           ORDER BY u.created_at ASC
+           LIMIT 1
+        `);
+        const rows = Array.isArray(result)
+          ? (result as ReadonlyArray<Record<string, unknown>>)
+          : (((result as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ??
+              []) as ReadonlyArray<Record<string, unknown>>);
+        const id = rows[0]?.owner_user_id;
+        return typeof id === 'string' && id.length > 0 ? id : null;
+      } catch (err) {
+        log.debug(
+          { worker: 'proactive-intel', tenantId, err: err instanceof Error ? err.message : String(err) },
+          'proactive-intel: ownerForTenant lookup failed; neutral context',
+        );
+        return null;
+      }
+    },
+  };
+}
+
+/**
+ * Owner-style posture reader — the FIRST live consumer of the durable
+ * owner-style posterior. Reads `getProfile(tenantId).posture.value`
+ * (cautious|balanced|bold). Built over the Drizzle `owner_style_profiles` store;
+ * degrades to 'balanced' on any miss.
+ */
+function createOwnerStylePostureReader(
+  db: NonNullable<typeof serviceRegistry.db>,
+  log: typeof logger,
+): ProactivePostureReader {
+  const service = createOwnerStyleService({
+    store: createPgOwnerStyleProfileStore(
+      db as unknown as Parameters<typeof createPgOwnerStyleProfileStore>[0],
+    ) as unknown as NonNullable<
+      NonNullable<Parameters<typeof createOwnerStyleService>[0]>['store']
+    >,
+  });
+  return {
+    async postureForTenant(tenantId: string): Promise<ProactivePosture> {
+      try {
+        const profile = await service.getProfile(tenantId);
+        const value = profile.posture?.value;
+        return value === 'cautious' || value === 'bold' ? value : 'balanced';
+      } catch (err) {
+        log.debug(
+          { worker: 'proactive-intel', tenantId, err: err instanceof Error ? err.message : String(err) },
+          'proactive-intel: postureForTenant failed; balanced',
+        );
+        return 'balanced';
+      }
+    },
+  };
+}
+
+// Wave 2 (W2b) — proactive-intel worker. Runs the previously-DARK proactive-intel
+// detectors + recommendation composer per active tenant on a cadence and routes
+// each insight onto the cockpit bus (publishCockpitEvent → mwikila.proposes), so
+// the MD finally surfaces proactive insights. Honest-degrades to idle (warn-once)
+// until a live per-tenant TickInputs provider is injected; never crashes boot.
+const proactiveIntelWorker = serviceRegistry.db
+  ? createProactiveIntelWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      publish: publishCockpitEvent,
+      // W3a — the LIVE per-tenant data feed. Without it the worker idles; with it
+      // the detectors read real cashflow / royalty-arrears / churn signals over
+      // the same tenant-scoped $client.unsafe port the record store uses (RLS
+      // FORCE backstops). A missing/empty source → neutral default (detector
+      // self-skips), never a fabricated signal.
+      inputsForTenant: createTickInputsProvider({
+        query: {
+          query: <Row = Record<string, unknown>>(
+            sql: string,
+            params?: ReadonlyArray<unknown>,
+          ): Promise<ReadonlyArray<Row>> =>
+            (
+              serviceRegistry.db as unknown as {
+                $client: {
+                  unsafe<R = Record<string, unknown>>(
+                    sql: string,
+                    params?: ReadonlyArray<unknown>,
+                  ): Promise<ReadonlyArray<R>>;
+                };
+              }
+            ).$client.unsafe<Row>(sql, params ?? []),
+        },
+        logger,
+      }),
+      // ── Wave-C C4 — proactive affect-gating + earned-trust delegation ──────
+      // (1) behaviorSignalSource: the LIVE ambient ribbon (sovereign.ts) — the
+      //     affect gate goes quiet under frustration/flow, leans in under
+      //     disengagement. (2) ownerResolver: maps a tenant → its primary owner
+      //     user-id (the affect/trust readers are per-user; the worker is
+      //     tenant-scoped) via the SAME `users(tenant_id, is_owner)` SELECT the
+      //     mwikila-autonomous worker uses. (3) postureReader: owner-style's
+      //     first live consumer (cautious|balanced|bold tilts the trust floor).
+      // (4) affectReader (ToM trust) — NOW WIRED. It delegates to the SHARED
+      // per-tenant affective accumulator (`getAffectAccumulator(tenantId)`),
+      // which is the SAME instance the chat turns `observe(...)` into (injected
+      // into every cached brain in sovereign.ts via `mutable.affectiveAccumulator`).
+      // So the earned-trust resolver now reads a LIVE per-owner trust posterior
+      // and ADAPTS (was conservative-neutral). The accumulator is pure in-memory
+      // + 24h-TTL-evicting and `read(...)` returns null until the first turn
+      // populates it, so this honest-degrades to the prior neutral posture on a
+      // cold worker — never throws, no DB dependency.
+      affectReader: {
+        read: (tenantId: string, userId: string, nowMs?: number) =>
+          getAffectAccumulator(tenantId).read(tenantId, userId, nowMs),
+      },
+      ...(getProactiveBehaviorSignalSource()
+        ? { behaviorSignalSource: getProactiveBehaviorSignalSource()! }
+        : {}),
+      ownerResolver: createTenantOwnerResolver(
+        serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        logger,
+      ),
+      postureReader: createOwnerStylePostureReader(
+        serviceRegistry.db,
+        logger,
+      ),
+      intervalMs: Number(process.env.BORJIE_PROACTIVE_INTEL_INTERVAL_MS ?? 1_800_000) || 1_800_000,
+      enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_PROACTIVE_INTEL_WORKER_DISABLED !== 'true',
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { tenants: 0, detected: 0, delivered: 0 }; } };
+
+// Wave 2 (W2d) — KG sync worker. Every 6h (env BORJIE_KG_SYNC_INTERVAL_MS) walks
+// every active tenant and runs the registry-driven ingestKnowledgeGraph pass so
+// kg_nodes/kg_edges stay fresh for GraphRAG without a manual POST (declarative
+// INGEST_SOURCE registry — every domain, not 5 hardcoded tables). Idempotent.
+const kgSyncWorker = serviceRegistry.db
+  ? createKgSyncWorker({
+      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      logger,
+      intervalMs: Number(process.env.BORJIE_KG_SYNC_INTERVAL_MS ?? 21_600_000) || 21_600_000,
+      enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_KG_SYNC_WORKER_DISABLED !== 'true',
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { tenantsScanned: 0, tenantsIngested: 0, tenantsFailed: 0, nodes: 0, edges: 0 }; } };
+
 // Notification-dispatch drain — delivers notification_dispatch_log
 // (pending) rows via email/SMS/push with retry+backoff+DLQ. The
 // announcement fan-out + push rails enqueue rows that THIS worker sends.
@@ -2870,6 +4060,17 @@ const outcomeReconciliationWorker = serviceRegistry.db
         db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
         logger,
       }),
+      // Wave-C C3 WIN-2 — self-correcting memory. A divergent reconciliation
+      // whose drift clears the floor is now synthesised into a durable reflexion
+      // lesson in the SAME `reflexion_buffer` the chat path reads (sovereign.ts
+      // builds the identical service). The buffer's `record` satisfies the
+      // kernel `ReflexionRecorderPort` shape; it swallows DB faults, so a
+      // recorder fault never fails the reconciliation.
+      reflexionRecorder: createReflexionBufferService(
+        serviceRegistry.db as unknown as Parameters<
+          typeof createReflexionBufferService
+        >[0],
+      ),
       intervalMs:
         Number(
           process.env.BORJIE_OUTCOME_RECONCILIATION_INTERVAL_MS ??
@@ -2921,6 +4122,105 @@ const mwikilaAutonomousWorker = createMwikilaAutonomousWiring({
 const proactiveScheduler = scheduleProactive({
   db: (serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> }) ?? null,
   logger,
+});
+
+// Wave 1 EstateMind — the resident per-tenant Slow Loop. PERCEIVE → ORIENT →
+// evaluate standing drives → emit self-formulated goals as PROPOSALS through
+// the DUAL sink: the EXISTING gated proactive_nudge AND an ADDITIVE
+// OrchestratorRequest proposal into the arbiter-fronted spine (it NEVER
+// executes money/licence actions — those stay HITL). DEFAULT-ON kill-switch
+// (BORJIE_ESTATE_MIND; only off/0/false/no disables); leader-gated at .start().
+const estateMindConfig = initEstateMind();
+const estateMindSupervisor = createEstateMindSupervisor({
+  db: (serviceRegistry.db as unknown as
+    | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+    | null) ?? null,
+  logger: createPinoLikeLogger('estate-mind'),
+  config: estateMindConfig,
+  // B8 — PERCEPTION source over the live estate tables. Without it the
+  // situational model stays empty, every standing drive reports SATISFIED, and
+  // the loop emits ZERO proactive nudges. The factory binds the kernel's
+  // PerceptionSource port to the real `withServiceRoleContext` over the
+  // platform db (read-only, tenant-scoped, degrade-safe); a null db yields a
+  // no-op source so the supervisor stays a safe no-op without it.
+  perception: createEstateMindPerceptionFromDb(
+    (serviceRegistry.db as unknown as
+      | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+      | null) ?? null,
+    createPinoLikeLogger('estate-mind-perception'),
+  ),
+  // DEFERRAL / FOLLOW-THROUGH — inject the durable md_commitments RECONCILE
+  // sweep into the resident Slow Loop. The bundle was built in the brain-tools
+  // wiring block above; null leaves the tick exactly as before (purely
+  // additive). The sweep is fail-safe: a fault never breaks the tick.
+  reconciliation: mdCommitmentBundle?.reconciliation ?? null,
+  // Wave-C C2 / Wave-D — per-tenant schema-conditioned drive thresholds, APPLIED.
+  // The resolver reads this estate's consolidated `baseline:*` facts and judges a
+  // breach against THIS estate's baseline (mean ± k·sd) rather than the static
+  // default. The loop is now closed end-to-end: the kernel cycle's
+  // `motivation.formulateGoals(snapshot, override?)` accepts a per-call thresholds
+  // override, the EstateMind tick resolves per-tenant thresholds via its
+  // `thresholdsResolver` dep BEFORE evaluating drives, and the supervisor wiring
+  // (estate-mind-wiring.ts) forwards this `resolveThresholds` into
+  // `createEstateMind({ thresholdsResolver })`. The Wave-D estate-baseline
+  // consolidation pass (estate-baseline-computer.ts) WRITES the `baseline:*`
+  // facts this reads. Honest-degrade: until a tenant has enough history for a
+  // metric, the resolver returns {} for it and that drive falls through to
+  // DEFAULT_DRIVE_THRESHOLDS exactly as before.
+  resolveThresholds: (tenantId: string) =>
+    resolveDriveThresholdsFromBaselinesDb(
+      (serviceRegistry.db as unknown as
+        | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+        | null) ?? null,
+      tenantId,
+      createPinoLikeLogger('estate-mind-thresholds'),
+    ),
+});
+
+// Wave 1 OK-3 — blackboard control-shell scheduler. Construct the wiring
+// (DEFAULT-ON via BORJIE_CONTROL_SHELL; INERT when explicitly disabled), then
+// REGISTER its delta trigger with the slot store so a slot convergence (a
+// local route `set`/`remove` OR a merged remote delta) fires onSlotConverged →
+// pickNext → the audit-plane sink. The candidate source defaults to the REAL
+// slot-writer source over the durable slot repository (the distinct actors that
+// have posted to the tenant's blackboard). PROPOSE-ONLY: it never invokes the
+// KS, never reaches a client; a fault never breaks the slot path or a turn.
+const controlShellWiring = createControlShellWiring({
+  // No measurement source wired yet → the shell falls back to competence 0.5
+  // internally (spec §3.2). This is honest: capability measurement is a
+  // separate seam; the scheduler is fully functional without it.
+  measurementSource: null,
+  // Real audit-plane sink: Pino + a propose-only tab_event_log row (best-effort,
+  // RLS-bound, degrade-safe). Never returned to a client; never calls the KS.
+  activationSink: createTabEventLogActivationSink(
+    (serviceRegistry.db as unknown as
+      | { execute(q: unknown): Promise<unknown> }
+      | null) ?? null,
+    createPinoLikeLogger('control-shell-sink'),
+  ),
+  logger: createPinoLikeLogger('control-shell'),
+});
+// Wire the convergence trigger: every converged slot fans out to this handler.
+// Fail-safe — onSlotConverged never throws, so a control-shell fault can never
+// break the slot/state-bus path. No-op when the wiring is INERT (kill-switch
+// off) because INERT_WIRING.onSlotConverged resolves null.
+const controlShellUnsubscribe = controlShellWiring.enabled
+  ? registerSlotConvergedListener((slot) => {
+      void controlShellWiring.onSlotConverged(slot);
+    })
+  : () => {};
+// Cross-replica half — the elected leader connects each active tenant's
+// state-bus so a convergence on ANOTHER replica also fires the handler here.
+// Active-tenant discovery is degrade-safe (returns [] on any fault / no db).
+const controlShellTenantSource: ActiveTenantSource = createActiveTenantSource(
+  (serviceRegistry.db as unknown as
+    | { execute(q: unknown): Promise<unknown> }
+    | null) ?? null,
+);
+const controlShellConnectSupervisor = createControlShellConnectSupervisor({
+  wiring: controlShellWiring,
+  tenantSource: controlShellTenantSource,
+  logger: createPinoLikeLogger('control-shell-connect'),
 });
 
 // Graceful shutdown — documented and tested step-by-step:
@@ -2981,6 +4281,30 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: learning-amplification cron stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: learning-amplification cron stop failed');
+  }
+  try {
+    aopMetaLoopCron.stop();
+    logger.info('shutdown: aop-meta-loop cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: aop-meta-loop cron stop failed');
+  }
+  try {
+    loopEconomyCron.stop();
+    logger.info('shutdown: loop-economy cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: loop-economy cron stop failed');
+  }
+  try {
+    livingMd?.somedayReviewSupervisor.stop();
+    logger.info('shutdown: living-md someday-review stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: living-md someday-review stop failed');
+  }
+  try {
+    orgLoopOrchestrator?.stop();
+    logger.info('shutdown: org-loop spine stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: org-loop spine stop failed');
   }
   try {
     geofenceWatcher.stop();
@@ -3059,6 +4383,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
   try {
     mwikilaAutonomousWorker.stop();
     proactiveScheduler.stop();
+    estateMindSupervisor.stop();
+    // OK-3 — stop the control-shell connect supervisor (tears down realtime
+    // subscriptions) and drop its convergence listener so no late delta fires
+    // during drain. Best-effort; never blocks shutdown.
+    controlShellConnectSupervisor.stop();
+    controlShellUnsubscribe();
     logger.info('shutdown: mwikila autonomous worker stopped');
   } catch (err) {
     logger.warn(
@@ -3095,6 +4425,27 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: sovereign-ledger verify cron stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: sovereign-ledger verify cron stop failed');
+  }
+
+  // Scale-P0 cron-leader-election lane (RSS-06) — release every per-cron
+  // advisory lock so another replica can be promoted promptly. No-op (and
+  // resolves instantly) when CRON_LEADER_ELECTION is unset/"off" — there is
+  // no held connection in pass-through mode. The dedicated session ending on
+  // process exit would release the locks anyway; explicit unlock is cleaner.
+  try {
+    await Promise.all(
+      CLUSTER_LEADER_CRON_NAMES.map((name) =>
+        releaseLeadership(lockIdFor(name)).catch((err: unknown) => {
+          logger.warn(
+            { cron: name, err: err instanceof Error ? err.message : String(err) },
+            'shutdown: releaseLeadership failed (session close will release)',
+          );
+        }),
+      ),
+    );
+    logger.info('shutdown: cluster leadership released');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: cluster leadership release failed');
   }
 
   // Step 4 — close the HTTP server. Wrapped in a promise so we can
@@ -3241,26 +4592,67 @@ if (require.main === module) {
     );
   }
 
+  // Scale-P0 cron-leader-election lane (RSS-06) — initialise the cluster
+  // lock ONCE before any cron starts. GATE: CRON_LEADER_ELECTION. Unset /
+  // "off" (DEFAULT) → withClusterLeader is a PASS-THROUGH and every cron
+  // runs on every replica exactly as today. "on" → leader-only: the wrapped
+  // crons start only on the replica that wins the per-lock-id advisory lock
+  // (held on the dedicated session connection from DATABASE_SESSION_URL,
+  // falling back to DATABASE_URL). Reads its env ONCE here, never per tick.
+  initClusterLock();
+
   // Wave 12 — start heartbeat + background scheduler after the server
   // is listening. Both are gated by DATABASE_URL internally; degraded
   // mode skips the supervisors gracefully.
-  heartbeatSupervisor.start();
-  backgroundSupervisor.start();
-  intelligenceHistorySupervisor.start();
+  withClusterLeader(heartbeatSupervisor, lockIdFor('heartbeat')).start();
+  withClusterLeader(backgroundSupervisor, lockIdFor('background-supervisor')).start();
+  withClusterLeader(intelligenceHistorySupervisor, lockIdFor('intelligence-history')).start();
   // Wave 26 — start the Cases SLA supervisor alongside the other
   // background workers. Skipped in tests + when disabled by env.
-  casesSlaSupervisor.start();
+  withClusterLeader(casesSlaSupervisor, lockIdFor('cases-sla')).start();
   // Learning Amplification (LitFin port) — nightly Bayesian roll-up of
   // learning_observations. Interval overridable via
   // BORJIE_LEARNING_AMPLIFY_INTERVAL_MS (min 60s).
-  learningAmplificationCron.start();
+  withClusterLeader(learningAmplificationCron, lockIdFor('learning-amplification')).start();
+  // R8 — AOP meta-learning loop. Until this start() the meta-learning
+  // organ was dark: the registry/runner/regression/canary factories had
+  // ZERO production callers. Leader-gated; every tick is fail-safe (a
+  // fault never escapes); inert under NODE_ENV=test and when
+  // BORJIE_AOP_META_LOOP=off.
+  withClusterLeader(aopMetaLoopCron, lockIdFor('aop-meta-loop')).start();
+  // LOOP-ECONOMY — until this start() the cognitive-loop substrate
+  // (createLoopRegistry / scheduleLoops / createForecastSurpriseLoop) had
+  // ZERO production callers: the brain's standing loops never ran.
+  // Leader-gated; every tick is fail-safe; loops are READ+LEARN only —
+  // decided actions route through the governed proactive proposal sink.
+  // Inert under NODE_ENV=test and when BORJIE_LOOP_ECONOMY=off.
+  withClusterLeader(loopEconomyCron, lockIdFor('loop-economy')).start();
+  // LIVING-MD someday-review — the deferred-resurfacing heartbeat. Leader-gated
+  // (only the elected leader sweeps), inert under NODE_ENV=test, default-ON
+  // (BORJIE_SOMEDAY_REVIEW). Resurfaces tickler/someday commitments whose time
+  // has come back into the owner's plan via the governed proposal sink.
+  if (livingMd) {
+    withClusterLeader(
+      livingMd.somedayReviewSupervisor,
+      lockIdFor('someday-review'),
+    ).start();
+  }
+  // SELF-RUNNING-ORG SPINE — leader-gated sweep over live commitments
+  // needing delegation (strategize→match→dispatch→brief, propose-only/
+  // HITL). Inert under NODE_ENV=test; kill-switch BORJIE_ORG_LOOP.
+  if (orgLoopOrchestrator) {
+    withClusterLeader(
+      orgLoopOrchestrator,
+      lockIdFor(ORG_LOOP_CRON_NAME),
+    ).start();
+  }
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
-  geofenceWatcher.start();
+  withClusterLeader(geofenceWatcher, lockIdFor('geofence-watcher')).start();
   // Wave 15 — start the lease-expiry alert cron. Ticks daily, scans
   // for leases at 60/30/7/1-day expiry windows, idempotent via
   // notification_dispatch_log.idempotency_key.
-  leaseExpiryCron.start();
+  withClusterLeader(leaseExpiryCron, lockIdFor('lease-expiry')).start();
   // H2 deferral closure — idempotency_keys sweeper. Hourly DELETE of
   // rows past expires_at. Module-scoped `idempotencySweeperStop` is
   // set here so the gracefulShutdown handler above can stop it.
@@ -3278,40 +4670,47 @@ if (require.main === module) {
   // Piece C — executive brief cron. Daily / weekly / monthly subscriptions
   // get briefs generated at their local_time + cadence. ON_DEMAND
   // subscriptions are never auto-fired.
-  executiveBriefCron.start();
+  withClusterLeader(executiveBriefCron, lockIdFor('executive-brief')).start();
   // Wave OWNER-OS DAILY-BRIEF rebuild — start the per-tenant daily-brief
   // cron. Ticks every 5 min, fires per tenant when their local
   // `daily_brief_cadence` matches the wall clock; idempotent via
   // UNIQUE constraint on the dispatch ledger.
-  dailyBriefCron.start();
+  withClusterLeader(dailyBriefCron, lockIdFor('daily-brief')).start();
   // Wave WORKFORCE-CERT-EXPIRY — 6h cron that scans
   // workforce_certifications for any active cert expiring within 30d
   // and auto-creates reminders at 30d / 14d / 3d (idempotent via
   // UNIQUE(tenant_id, cert_id, days_before)).
-  icaCertExpiryCron.start();
+  withClusterLeader(icaCertExpiryCron, lockIdFor('ica-cert-expiry')).start();
   // Roadmap R6 — hourly compliance-deadline scanner. Pushes
   // `compliance.deadline_approaching` events for filings whose
   // due_at lands inside the 7-day horizon.
-  complianceDeadlineScan.start();
+  withClusterLeader(complianceDeadlineScan, lockIdFor('compliance-deadline-scan')).start();
   // Wave ENTITY-LEGIBILITY — 30-min indexer that embeds + tags + cross-
   // references every entity in the system so the brain can resolve any
   // natural-language phrase and traverse the graph in one hop.
-  entityIndexerWorker.start();
+  withClusterLeader(entityIndexerWorker, lockIdFor('entity-indexer')).start();
   // Live FX feed — pulls BoT TZS/USD + LBMA gold AM/PM fix every 5 min
-  // and writes rows into both fx_rates + external_benchmarks.
-  fxFeedCron.start();
+  // and writes rows into both fx_rates + external_benchmarks. Leader-only
+  // is especially important here: every replica hitting BoT/LBMA risks an
+  // upstream rate-limit / ban (RSS-06 fx-feed sibling note).
+  withClusterLeader(fxFeedCron, lockIdFor('fx-feed')).start();
   // Piece E (issue #41) — drain the approved-actions queue every 10s,
   // dispatch to the junior executor, audit each dispatch.
-  executiveBriefActionRunner.start();
+  withClusterLeader(executiveBriefActionRunner, lockIdFor('executive-brief-action-runner')).start();
   // Wave OWNER-OS — reminders dispatch worker. Polls the `reminders`
   // table every 30s (configurable via BORJIE_REMINDERS_INTERVAL_MS).
   // Email default; SMS / Slack land when the operator wires the keys.
-  remindersDispatchWorker.start();
+  withClusterLeader(remindersDispatchWorker, lockIdFor('reminders-dispatch')).start();
+  // Wave 2 (W2b) — proactive-intel insight loop (cluster-leader gated so only one
+  // instance ticks). Surfaces MD-authored proactive insights onto the cockpit bus.
+  withClusterLeader(proactiveIntelWorker, lockIdFor('proactive-intel')).start();
+  // Wave 2 (W2d) — KG auto-sync so GraphRAG stays fresh across every domain.
+  withClusterLeader(kgSyncWorker, lockIdFor('kg-sync')).start();
   // Wave NOTIFICATION-DISPATCH-WIRE — start the broadcast fan-out (enqueues
   // per-recipient dispatch-log rows) and the dispatch drain (sends them via
   // email/SMS/push). The drain runs as a long-lived runForever loop bounded
   // by an AbortController that graceful-shutdown trips.
-  announcementFanoutWorker.start();
+  withClusterLeader(announcementFanoutWorker, lockIdFor('announcement-fanout')).start();
   if (notificationDispatcher && process.env.NODE_ENV !== 'test' && process.env.BORJIE_NOTIFICATION_DISPATCH_DISABLED !== 'true') {
     void notificationDispatcher
       .runForever({ signal: notificationDispatchAbort.signal })
@@ -3320,20 +4719,31 @@ if (require.main === module) {
   // Wave CLOSED-LOOP - outcome reconciliation worker. Every 6h walks
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.
-  outcomeReconciliationWorker.start();
+  withClusterLeader(outcomeReconciliationWorker, lockIdFor('outcome-reconciliation')).start();
   // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Every
   // 15 min by default, walks every active tenant, runs all 5 handlers
   // through the runtime (kill-switch + inviolable rails enforced) so
   // the inbox fills on a cadence rather than only on inbound route
   // calls. Inert in test mode + when BORJIE_MWIKILA_WORKER_DISABLED=true.
-  mwikilaAutonomousWorker.start();
-  proactiveScheduler.start();
+  withClusterLeader(mwikilaAutonomousWorker, lockIdFor('mwikila-autonomous')).start();
+  withClusterLeader(proactiveScheduler, lockIdFor('proactive-scheduler')).start();
+  // Wave 1 EstateMind — resident Slow Loop heartbeat. Only the elected leader
+  // ticks (one resident mind per cluster); `.start()` is a no-op unless
+  // BORJIE_ESTATE_MIND=on, so this is inert by default.
+  withClusterLeader(estateMindSupervisor, lockIdFor('estate-mind')).start();
+  // Wave 1 OK-3 — blackboard control-shell scheduler. The LOCAL convergence
+  // path (registerSlotConvergedListener above) already fires on every replica
+  // for local slot writes. This leader-gated start() adds the CROSS-REPLICA
+  // half: the elected leader connects each active tenant's `state-bus` so a
+  // convergence on another replica/surface also schedules. INERT when the
+  // kill-switch (BORJIE_CONTROL_SHELL) is off; propose-only + audit-plane only.
+  withClusterLeader(controlShellConnectSupervisor, lockIdFor('control-shell')).start();
   // Wave DECISION-LEGIBILITY - 24h retrospective worker. For every
   // committed decision whose prediction horizon has passed, joins
   // outcome_reconciliations + outcome_observations, grades the
   // decision (good / bad / neutral / undetermined), and writes the
   // hash-chained retrospective entry via the decision recorder.
-  decisionRetrospectiveWorker.start();
+  withClusterLeader(decisionRetrospectiveWorker, lockIdFor('decision-retrospective')).start();
   // K7 parity-litfin Gap H — wake-loop cron. Until this start() call the
   // supervisor was inert: the brain only woke when an out-of-band k8s
   // CronJob fired. In-process start arms an advisory-lock-guarded interval
@@ -3431,6 +4841,20 @@ if (require.main === module) {
         logger,
         arrearsService: serviceRegistry.arrears?.service ?? null,
       });
+
+      // LIVING-MD event bridge — relay the carried domain/outbox events
+      // (ledger.credit, settlement, slot.stale, …) onto the injected MD event
+      // bus so a `waiting_for` commitment flips to `due` the moment its real
+      // trigger fires (at-least-once + idempotent on tenantId:eventKey). The
+      // bridge replaces the prior `global` event-bus anti-pattern; absent the
+      // organ (no db) it is simply skipped.
+      if (livingMd) {
+        registerMdEventBridge({
+          bus: subscribableBus,
+          mdEventBus: livingMd.mdEventBus,
+          logger,
+        });
+      }
 
       // Outbound webhook delivery — subscribe the retry-worker to every
       // `WebhookDeliveryQueued` event emitted by the DLQ admin router
@@ -3564,6 +4988,31 @@ if (require.main === module) {
 
   process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
   process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
+
+  // Crash-signal handlers (CLAUDE.md: Pino only — it handles redaction and
+  // forwards to Sentry/OTel via the bootstrap pipeline that ran first).
+  // - unhandledRejection: a stray fire-and-forget rejection must be OBSERVABLE
+  //   but must NOT take down in-flight requests — log and keep serving.
+  // - uncaughtException: the process is in an unknown state — log loudly and
+  //   DRAIN via gracefulShutdown (mirrors SIGTERM) instead of dying silently
+  //   with dropped in-flight requests and no structured record.
+  process.on('unhandledRejection', (reason) => {
+    logger.error(
+      {
+        evt: 'unhandled_rejection',
+        error: reason instanceof Error ? reason.message : String(reason),
+        stack: reason instanceof Error ? reason.stack : undefined,
+      },
+      'unhandledRejection — logged; process kept alive',
+    );
+  });
+  process.on('uncaughtException', (err) => {
+    logger.error(
+      { evt: 'uncaught_exception', error: err.message, stack: err.stack },
+      'uncaughtException — draining via graceful shutdown',
+    );
+    void gracefulShutdown('uncaughtException');
+  });
 }
 
 export default app;

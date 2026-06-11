@@ -18,6 +18,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
+import { DEFAULT_TIER_MODEL_IDS } from '../model-resolution.js';
+
 // ---------------------------------------------------------------------------
 // Model tier constants (2026 Anthropic Messages API model IDs)
 // ---------------------------------------------------------------------------
@@ -27,9 +29,9 @@ import { z } from 'zod';
  * `anthropic.ts` so both modules can co-exist without drift.
  */
 export const ModelTier = {
-  HAIKU: 'claude-haiku-4-5',
-  SONNET: 'claude-sonnet-4-6',
-  OPUS: 'claude-opus-4-8',
+  HAIKU: DEFAULT_TIER_MODEL_IDS.cheap,
+  SONNET: DEFAULT_TIER_MODEL_IDS.standard,
+  OPUS: DEFAULT_TIER_MODEL_IDS.deep,
 } as const;
 
 export type ModelTierId = (typeof ModelTier)[keyof typeof ModelTier];

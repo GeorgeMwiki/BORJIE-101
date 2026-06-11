@@ -33,6 +33,7 @@ import { sql } from 'drizzle-orm';
 import type { Logger as PinoLogger } from 'pino';
 
 import { createSupabaseAdminClient } from '@borjie/supabase-client';
+import { BUYER_COUNTRY_CODES } from '@borjie/database';
 import { createDrizzleAiAuditChainRepo } from './ai-audit-chain-repo.js';
 import {
   createAuditHashChain,
@@ -628,6 +629,57 @@ function buildBuyerAuditChainAdapter(args: {
   };
 }
 
+// ─── Launch-market gates (jurisdiction as DATA — migration 0337) ────
+//
+// Reads the `enabled_countries` registry (TZ-seeded; markets are promoted in
+// via mwikila.jurisdiction.promote) behind a 5-minute TTL cache so signup
+// never adds a per-request query in the steady state. Buyer gate = the legacy
+// international demand-side set UNION the enabled markets — a newly-promoted
+// market's buyers unlock with ZERO code. On a registry read fault the gate
+// THROWS and the route fail-safes to its legacy launch set (never widens,
+// never blocks TZ because a lookup failed). When `db` is null (dev bootstrap)
+// no gates are returned and the routes use their legacy sets.
+const COUNTRY_GATE_TTL_MS = 5 * 60_000;
+
+function buildCountryGates(args: {
+  readonly db: DrizzleLikeClient | null;
+  readonly logger: PinoLogger;
+}): {
+  readonly isCountryEnabled?: (code: string) => Promise<boolean>;
+  readonly isBuyerCountryEnabled?: (code: string) => Promise<boolean>;
+} {
+  const db = args.db;
+  if (!db) return {};
+  let cache: { readonly at: number; readonly codes: ReadonlySet<string> } | null =
+    null;
+  const loadEnabled = async (): Promise<ReadonlySet<string>> => {
+    const now = Date.now();
+    if (cache && now - cache.at < COUNTRY_GATE_TTL_MS) return cache.codes;
+    const res: unknown = await db.execute(
+      sql`SELECT code FROM enabled_countries WHERE disabled_at IS NULL`,
+    );
+    const rows: ReadonlyArray<unknown> = Array.isArray(res)
+      ? res
+      : ((res as { rows?: ReadonlyArray<unknown> } | null)?.rows ?? []);
+    const codes = new Set<string>(
+      rows
+        .map((r) => String((r as { code?: unknown }).code ?? '').toUpperCase())
+        .filter((c) => c.length >= 2),
+    );
+    cache = { at: now, codes };
+    return codes;
+  };
+  const buyerLegacy = new Set<string>(BUYER_COUNTRY_CODES);
+  return {
+    isCountryEnabled: async (code) => (await loadEnabled()).has(code.toUpperCase()),
+    isBuyerCountryEnabled: async (code) => {
+      const upper = code.toUpperCase();
+      if (buyerLegacy.has(upper)) return true;
+      return (await loadEnabled()).has(upper);
+    },
+  };
+}
+
 // ─── Top-level factory ──────────────────────────────────────────────
 
 export interface SignupWiringInput {
@@ -688,6 +740,8 @@ export function createSignupWiring(input: SignupWiringInput): SignupWiringBundle
 
   const logger = adaptLogger(input.logger);
 
+  const countryGates = buildCountryGates({ db: input.db, logger: input.logger });
+
   const orgs: SignupDeps = {
     supabaseAdmin,
     tenantWriter: buildTenantWriter({ db: input.db, logger: input.logger }),
@@ -697,6 +751,9 @@ export function createSignupWiring(input: SignupWiringInput): SignupWiringBundle
     newTenantId: newTenantIdDefault,
     newUserId: newUserIdDefault,
     newSlug: defaultSlugFactory,
+    ...(countryGates.isCountryEnabled
+      ? { isCountryEnabled: countryGates.isCountryEnabled }
+      : {}),
   };
 
   const buyers: BuyerSignupDeps = {
@@ -707,6 +764,9 @@ export function createSignupWiring(input: SignupWiringInput): SignupWiringBundle
     logger,
     newTenantId: newBuyerTenantIdDefault,
     newBuyerOrgId: newBuyerOrgIdDefault,
+    ...(countryGates.isBuyerCountryEnabled
+      ? { isBuyerCountryEnabled: countryGates.isBuyerCountryEnabled }
+      : {}),
   };
 
   return { orgs, buyers };

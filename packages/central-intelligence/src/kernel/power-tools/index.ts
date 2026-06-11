@@ -21,7 +21,9 @@
 export * from './types.js';
 export {
   createPowerToolRegistry,
+  buildPowerToolRegistry,
   createInMemoryPowerToolAuditSink,
+  type BuildPowerToolRegistryAdapters,
   type InMemoryPowerToolAuditSink,
   type PowerToolRegistry,
 } from './registry.js';

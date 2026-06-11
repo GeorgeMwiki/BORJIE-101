@@ -103,17 +103,44 @@ import {
 import {
   buildOrchestratorBindings,
   type OrchestratorBindings,
+  // COG-07/AUT-14 — modality arbiter port builders (DEFAULT-ON kill-switch
+  // behind BORJIE_MODALITY_ARBITER; only off/0/false/no disables).
+  buildSkillRetriever,
+  buildFlowRetriever,
+  buildModalityDescriptors,
+  buildFlowPosturePort,
+  buildAutonomyDecider,
+  buildBodyChangePort,
+  createLoopRunnerAdapter,
 } from './orchestrator-bindings.js';
+import {
+  createSubMdSpawnHandler,
+  type SpawnParentContext,
+} from './sub-md-spawn-handler.js';
 import {
   MINING_TOOL_NAMES,
   registerMiningGovernmentTools,
 } from './mining-government-tools-pending.js';
+// Modality capabilities — the arbiter routes a `run_modality`
+// document/media/forecast Decision through this executor, which generates the
+// real artifact and emits a PROPOSAL (never a direct UI mutation). Read off the
+// boot-time singleton (constructed behind BORJIE_MODALITY_CAPABILITIES).
+import { getBrainModalityCapabilities } from './brain-extensions.js';
+import { createDrizzleModalityProposalSink } from './modality-capability/proposal-sink.js';
+import {
+  createModalityExecutorBoundToSink,
+  type ModalityExecutor,
+} from './modality-capability/index.js';
+import { publishCockpitEvent } from '../services/cockpit-events/index.js';
 // Durable orchestrator memory — the Drizzle-backed MemoryTool (agent_memory,
 // migration 0302, FORCE RLS). When the kernel runs the orchestrator main-loop,
 // recall()/persist key off the SAME persisted backend the mwikila.memory.*
 // persona tools use, so the brain's working notebook survives restarts. Falls
 // back to the bounded in-memory tool only when no db handle is present.
 import { createDrizzleMemoryTool } from './memory/drizzle-memory-tool.js';
+// W2e — the LIVE capability-gap detector (self-developing MD): records a gap on
+// every tool-resolution miss / unwired-organ outcome on the live dispatch path.
+import { buildConfiguredMdGapDetector } from './brain-tools/md-defer-tools.js';
 
 /**
  * Default on-disk path for the mining intelligence corpus (Docs/, GIS
@@ -390,6 +417,24 @@ function resolveUncertaintyPolicyMode(
   const raw = env['BORJIE_UNCERTAINTY_POLICY'];
   if (!raw) return 'off';
   return raw.trim().toLowerCase() === 'on' ? 'on' : 'off';
+}
+
+/**
+ * COG-07/AUT-14 — resolve whether the modality arbiter is enabled from
+ * `BORJIE_MODALITY_ARBITER`. DEFAULT-ON kill-switch (Wave 1 conductor):
+ * only an explicit `off`/`0`/`false`/`no` disables it; an unset / typo'd
+ * value ARMS the 7-way output head. This is safe because the arbiter only
+ * ROUTES (and emits PROPOSALS through the existing portal-genui
+ * `tab_proposal` channel — never a direct UI mutation); every routed
+ * action still hits the policy-gate + 9-hook chain, and a null embedder
+ * (line ~1002) degrades the arbiter to undefined → today's chat/action
+ * behaviour with zero added risk. Mirrors `initEstateMind`'s kill-switch.
+ */
+export function resolveModalityArbiterEnabled(
+  env: Readonly<Record<string, string | undefined>>,
+): boolean {
+  const raw = (env['BORJIE_MODALITY_ARBITER'] ?? 'on').trim().toLowerCase();
+  return !['off', '0', 'false', 'no'].includes(raw);
 }
 
 /**
@@ -878,8 +923,229 @@ export function buildOrchestratorComposeBlock(args: {
     },
   );
 
+  // Durable working-memory when a db handle is present: the orchestrator
+  // main-loop's recall()/persist bind to the agent_memory table (FORCE RLS,
+  // migration 0302) — the SAME backend the mwikila.memory.* persona tools use,
+  // so the brain's notebook survives restarts. Honest fallback to the bounded
+  // in-memory tool only when no db is wired (degraded boot / tests).
+  //
+  // Built BEFORE the dispatcher because the sub-MD spawnHandler folds each
+  // child's result back into the PARENT working notebook via this SAME tool —
+  // the parent's next loop tick recalls it and reasons over the child's work.
+  const memoryTool = args.db
+    ? createDrizzleMemoryTool(args.db)
+    : orchestrator.createInMemoryMemoryTool();
+
+  // Wave-23 EX-5 unblock — REAL mid-turn sub-MD spawn. When the brain emits a
+  // `spawn_sub_md` Decision, this handler runs + executes the child sub-MD as
+  // a real child orchestrator turn (the brain port) inheriting the parent's
+  // permission-mode + risk-tier ceiling, then folds the child's result back
+  // into the parent turn via the shared memory tool. Replaces the prior no-op
+  // breadcrumb ack that let any spawn-dependent answer complete WITHOUT the
+  // sub-agent's work (borjie-execution-architecture-audit.md EX-5).
+  //
+  // The root parent context is a platform-scoped fallback; the dispatcher
+  // hands the handler the LIVE parent `HookContext` per dispatch, so the child
+  // always inherits the CURRENT parent thread/scope/tier.
+  const rootParentContext: SpawnParentContext = {
+    threadId: '_kernel_orchestrator_root',
+    scope: {
+      kind: 'platform',
+      actorUserId: 'kernel-orchestrator',
+      roles: [],
+      personaId: 'industry-observer',
+    },
+    tier: 'industry',
+  };
+  const spawnHandler = createSubMdSpawnHandler(
+    {
+      toolRegistry: args.toolRegistry,
+      // Fresh router per child turn (own callId counter) over the SAME
+      // budget-guarded Anthropic client + model the parent loop uses.
+      buildRouter: (): ReturnType<typeof orchestrator.createAnthropicRouter> =>
+        orchestrator.createAnthropicRouter(
+          args.anthropicMessagesClient as unknown as Parameters<
+            typeof orchestrator.createAnthropicRouter
+          >[0],
+          { model },
+        ),
+      // Reuse the production 9-hook chain so the child's tool calls hit the
+      // same PII-scrub / denylist / four-eye / rate-limit / cost-circuit /
+      // sandbox-divert / audit / ledger-seal rails the parent uses.
+      hookChain: args.bindings.hookChain,
+      memoryTool,
+      ...(args.logger
+        ? {
+            logger: {
+              ...(args.logger.info ? { info: args.logger.info } : {}),
+              ...(args.logger.warn ? { warn: args.logger.warn } : {}),
+            },
+          }
+        : {}),
+    },
+    rootParentContext,
+  );
+
+  // ───────────────────────────────────────────────────────────────────
+  // COG-07/AUT-14 — the modality arbiter (the 7-way output head).
+  //
+  // DEFAULT-ON kill-switch behind `BORJIE_MODALITY_ARBITER` (Wave 1
+  // conductor). Only an explicit off/0/false/no disables it. When OFF the
+  // arbiter is NOT constructed → zero added latency and today's chat/action
+  // -only behaviour. When ON, it is constructed from the SAME `resolveEmbedder`
+  // the kernel already uses + Drizzle-backed skill/flow/posture retrievers
+  // (RLS via the canonical GUC) + the rail-composed autonomy decider
+  // (composeWithRail(decideAutonomy(...))) + the EA-04 body-change syscall
+  // + the loop-runner adapter. Its skill/modality HANDLERS are bound onto
+  // the dispatcher below so a lifted `run_skill`/`run_modality` Decision has
+  // a real runtime path. The arbiter can ROUTE to an action but the action
+  // still hits the policy-gate + 9-hook chain — NO rail is bypassed; money/
+  // licence/deletion stay dual-control HITL.
+  const modalityArbiterEnabled = resolveModalityArbiterEnabled(args.envSource);
+  // Resolve the SAME text-embedder the kernel uses (OPENAI_EMBEDDING_API_KEY
+  // → OPENAI_API_KEY → null embedder) so Tier-1 nearest-neighbour shares the
+  // kernel's embedding space. Only constructed when the arbiter is enabled.
+  const arbiterEmbedder = modalityArbiterEnabled
+    ? resolveEmbedder(args.envSource, args.logger)
+    : undefined;
+  const modalityArbiter = modalityArbiterEnabled && arbiterEmbedder
+    ? orchestrator.createModalityArbiter({
+        embedder: arbiterEmbedder,
+        skillRetriever: buildSkillRetriever(args.db),
+        flowRetriever: buildFlowRetriever(args.db),
+        recipeDescriptors: buildModalityDescriptors(),
+        autonomyDecider: buildAutonomyDecider(),
+        flowPosturePort: buildFlowPosturePort(args.db),
+        bodyChangePort: buildBodyChangePort(),
+        loopRunner: createLoopRunnerAdapter(args.db, args.toolRegistry),
+        ...(args.logger?.warn
+          ? {
+              logger: {
+                warn: (msg: string, meta?: Record<string, unknown>): void => {
+                  args.logger?.warn?.({ wiring: 'modality-arbiter', ...meta }, msg);
+                },
+              },
+            }
+          : {}),
+      })
+    : undefined;
+
+  if (modalityArbiter) {
+    args.logger?.info?.(
+      { wiring: 'modality-arbiter', killSwitchEnvFlag: 'BORJIE_MODALITY_ARBITER' },
+      'brain-kernel: modality arbiter constructed (7-way output head); handlers bound to dispatcher; DEFAULT-ON kill-switch',
+    );
+  }
+
+  // The loop-runner adapter (reused by the modality handler's loop branch).
+  const loopRunner = createLoopRunnerAdapter(args.db, args.toolRegistry);
+
+  // Modality executor — the arbiter → engine → PROPOSAL binding. Read off the
+  // boot-time singleton (constructed behind BORJIE_MODALITY_CAPABILITIES). When
+  // null (flag off / degraded boot) document/media/forecast modalities keep
+  // their breadcrumb-ack behaviour. The executor itself never mutates a UI; it
+  // emits a proposal through the per-request sink we build from the live
+  // HookContext scope below.
+  const modalityCaps = getBrainModalityCapabilities();
+  const modalityExecutor: ModalityExecutor | null = modalityCaps?.executor ?? null;
+
   const dispatcher = orchestrator.createToolDispatcher({
     registry: args.toolRegistry,
+    spawnHandler,
+    // W2e — LIVE capability-gap detection seam (self-developing MD). A
+    // tool-resolution miss (not-found → missing_tool) or a NOT_YET_WIRED organ
+    // (executor-failed → unwired_organ) ALSO files a durable gap on the same
+    // md_commitments store the defer tools use. Additive + fail-safe: the
+    // dispatcher swallows any throw so the tool_error is returned unchanged;
+    // createGap is idempotent (one row per recurring miss). The repo resolves
+    // lazily from configureMdDeferTools, so this is boot-order agnostic.
+    gapDetector: buildConfiguredMdGapDetector(
+      args.logger
+        ? {
+            warn: (meta: Record<string, unknown>, msg: string): void =>
+              args.logger?.warn?.(meta, msg),
+          }
+        : undefined,
+    ),
+    // COG-07/AUT-14 — modality handlers. Only bound when the arbiter is
+    // enabled (default-OFF leaves these undefined → the dispatcher falls
+    // closed to a structured ack breadcrumb, exactly as before).
+    ...(modalityArbiterEnabled
+      ? {
+          modalityHandler: async (
+            a: {
+              readonly modality:
+                | 'tab'
+                | 'document'
+                | 'media'
+                | 'forecast'
+                | 'workflow'
+                | 'loop';
+              readonly payload: Readonly<Record<string, unknown>>;
+            },
+            ctx?: orchestrator.HookContext,
+          ): Promise<{ readonly output?: unknown }> => {
+            // A standing/recurring loop routes to the (now-reachable)
+            // loop-runner.
+            if (a.modality === 'loop' || a.modality === 'workflow') {
+              const flowId = String(a.payload.flowId ?? 'adhoc');
+              const loopKind = String(a.payload.loopKind ?? 'reactive');
+              const { loopRunId } = await loopRunner.runLoop({
+                flowId,
+                loopKind: loopKind as Parameters<typeof loopRunner.runLoop>[0]['loopKind'],
+                tenantId: null,
+                payload: a.payload,
+              });
+              return { output: { modality: a.modality, loopRunId } };
+            }
+            // document / media / forecast → run the engine + emit a PROPOSAL
+            // (never a direct UI mutation). The proposal is routed through the
+            // EXISTING portal-genui `tab_proposal` channel; the owner approves
+            // before any surface mutates (the UI invariant).
+            if (
+              modalityExecutor &&
+              args.db &&
+              (a.modality === 'document' ||
+                a.modality === 'media' ||
+                a.modality === 'forecast')
+            ) {
+              const scope = ctx?.scope;
+              const tenantId = scope?.kind === 'tenant' ? scope.tenantId : null;
+              const userId = scope?.actorUserId ?? null;
+              if (tenantId && userId) {
+                // Per-request sink bound to the live scope — the proposal
+                // lands in THIS tenant's inbox + cockpit tray.
+                const sink = createDrizzleModalityProposalSink({
+                  db: args.db as unknown as { execute(q: unknown): Promise<unknown> },
+                  logger: {
+                    info: (meta: object, msg: string): void =>
+                      args.logger?.info?.({ wiring: 'modality-proposal-sink', ...meta }, msg),
+                    warn: (meta: object, msg: string): void =>
+                      args.logger?.warn?.({ wiring: 'modality-proposal-sink', ...meta }, msg),
+                  },
+                  tenantId,
+                  userId,
+                  language: 'en',
+                  publish: publishCockpitEvent,
+                });
+                // Rebuild the executor bound to THIS sink (the executor is
+                // pure; only the sink is per-request).
+                const result = await createModalityExecutorBoundToSink(
+                  modalityCaps,
+                  sink,
+                ).execute({
+                  modality: a.modality,
+                  payload: a.payload,
+                  tenantId,
+                  userId,
+                });
+                return { output: { modality: a.modality, ...(result ?? { proposed: false }) } };
+              }
+            }
+            return { output: { modality: a.modality, acked: true } };
+          },
+        }
+      : {}),
     ...(args.logger?.warn
       ? {
           logger: {
@@ -890,15 +1156,6 @@ export function buildOrchestratorComposeBlock(args: {
         }
       : {}),
   });
-
-  // Durable working-memory when a db handle is present: the orchestrator
-  // main-loop's recall()/persist bind to the agent_memory table (FORCE RLS,
-  // migration 0302) — the SAME backend the mwikila.memory.* persona tools use,
-  // so the brain's notebook survives restarts. Honest fallback to the bounded
-  // in-memory tool only when no db is wired (degraded boot / tests).
-  const memoryTool = args.db
-    ? createDrizzleMemoryTool(args.db)
-    : orchestrator.createInMemoryMemoryTool();
 
   const { deps: hookDeps } = args.bindings;
   return {

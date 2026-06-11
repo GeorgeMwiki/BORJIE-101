@@ -43,6 +43,12 @@ export interface SemanticScope {
   readonly tenantId: string | null;
   readonly surface: string;
   readonly personaId: string;
+  /**
+   * Active render locale (`en` default / `sw` toggle). Part of the cache
+   * key so the EN/SW ABSOLUTE rule (CLAUDE.md) holds at the cache boundary —
+   * an `en` turn can NEVER replay a cached `sw` answer. Omitted ⇒ `en`.
+   */
+  readonly locale?: string;
 }
 
 export interface SemanticCacheLookupArgsLike {
@@ -99,6 +105,8 @@ export function buildSemanticScope(args: {
   readonly tenantId: string | null;
   readonly surface: string | undefined;
   readonly personaId: string | undefined;
+  /** Active locale; defaults to `en` (CLAUDE.md EN/SW absolute). */
+  readonly locale?: string | undefined;
 }): SemanticScope {
   return Object.freeze({
     tenantId: args.tenantId,
@@ -110,6 +118,10 @@ export function buildSemanticScope(args: {
       typeof args.personaId === 'string' && args.personaId.length > 0
         ? args.personaId
         : 'mr-mwikila',
+    locale:
+      typeof args.locale === 'string' && args.locale.length > 0
+        ? args.locale
+        : 'en',
   });
 }
 

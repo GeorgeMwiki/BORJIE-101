@@ -9,6 +9,25 @@
  * `BrainTurnResponseSchema` and synthesise an equivalent ordered stream
  * (`accepted → message_chunk → tool_call* → proposed_action? → done`)
  * so the HomeChat surface runs one render path regardless of transport.
+ *
+ * NAMED-EVENT WIRE FORMAT (cm-1 fix):
+ * The gateway emits Hono named SSE events:
+ *   event: turn.accepted    data: {"threadId":"..."}
+ *   event: message_chunk    data: {"text":"...","done":false}
+ *   event: ack              data: {"threadId":"..."}
+ *   event: tool_call        data: {"tool":"...","status":"started"|"ok"|"error","args":{...}}
+ *   (proposed_action is embedded in message_chunk as data.proposedAction, NOT a separate event)
+ *   event: done             data: {"threadId":"...","tokensUsed":N}
+ *   event: error            data: {"code":"...","message":"..."}
+ *
+ * react-native-sse routes named events to per-name listeners only — a
+ * generic 'message' listener never fires for these. We register
+ * addEventListener for EACH named event type.
+ *
+ * The data JSON payload uses the field `text` (not `delta`) for
+ * message_chunk frames. `parseNamedFrame` reads accordingly; the
+ * `delta` alias is kept for backward compat with any legacy emitters
+ * and the legacy-JSON-fallback path.
  */
 import { API_BASE_URL } from '../api/config'
 import { ApiError } from '../api/errors'
@@ -201,11 +220,11 @@ export async function streamBrainTurn(
       reject(reason)
     }
 
-    source.addEventListener('message', (event: RNEventMessage) => {
-      const parsed = parseFrame(event)
-      if (parsed === null) {
-        return
-      }
+    // NAMED-EVENT LISTENERS (cm-1 fix):
+    // react-native-sse routes named events ONLY to same-named listeners.
+    // We register one listener per event name the gateway emits.
+
+    const handleParsed = (parsed: BrainStreamEvent): void => {
       if (parsed.kind === 'accepted' && parsed.data.type === 'accepted') {
         resolvedThreadId = parsed.data.threadId
       }
@@ -223,9 +242,71 @@ export async function streamBrainTurn(
           new ApiError(parsed.data.message, 0, url, { code: parsed.data.code })
         )
       }
+    }
+
+    // turn.accepted — gateway emits: {"threadId":"..."}
+    source.addEventListener('turn.accepted', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('turn.accepted', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
     })
 
+    // ack — alias for turn.accepted in some gateway builds
+    source.addEventListener('ack', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('turn.accepted', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
+
+    // message_chunk — gateway emits: {"text":"...","done":false}
+    source.addEventListener('message_chunk', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('message_chunk', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
+
+    // tool_call — gateway emits: {"tool":"...","status":"started"|"ok"|"error","args":{...}}
+    // (brain.hono.ts projectStreamEvent → { event:'tool_call', data:{ tool, status, args } }).
+    source.addEventListener('tool_call', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('tool_call', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
+
+    // proposed_action — gateway emits: {"action":{...}}
+    source.addEventListener('proposed_action', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('proposed_action', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
+
+    // done — gateway emits: {"threadId":"...","tokensUsed":N}
+    source.addEventListener('done', (event: RNEventMessage) => {
+      const parsed = parseNamedFrame('done', event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
+
+    // error — gateway emits: {"code":"...","message":"..."}
     source.addEventListener('error', (event: RNEventError) => {
+      // First check if this is an application-level error event from the
+      // gateway (named 'error' SSE event). If the event has a `data`
+      // field it came through the named-event path; try parsing it as an
+      // app error frame before falling back to legacy JSON.
+      const asMessage = event as unknown as RNEventMessage
+      if (typeof asMessage.data === 'string' && asMessage.data.length > 0) {
+        const parsed = parseNamedFrame('error', asMessage)
+        if (parsed !== null) {
+          handleParsed(parsed)
+          return
+        }
+      }
       const fallback = tryLegacyJsonFallback(event)
       if (fallback) {
         for (const evt of fallback.events) {
@@ -241,12 +322,36 @@ export async function streamBrainTurn(
       const message = typeof event.message === 'string' ? event.message : 'stream_error'
       safeReject(new ApiError(message, status, url, null))
     })
+
+    // Fallback: legacy untyped 'message' events for gateway builds that
+    // send unnamed SSE (no `event:` line). These embed the event type
+    // inside the data JSON as `record['event']`.
+    source.addEventListener('message', (event: RNEventMessage) => {
+      const parsed = parseFrame(event)
+      if (parsed !== null) {
+        handleParsed(parsed)
+      }
+    })
   })
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // SSE parsing helpers
 // ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Named event types the gateway brain router emits (non-error).
+ * react-native-sse routes these to per-name listeners.
+ */
+type GatewayDataEventName =
+  | 'message'
+  | 'turn.accepted'
+  | 'ack'
+  | 'message_chunk'
+  | 'tool_call'
+  | 'proposed_action'
+  | 'done'
+  | 'error'
 
 interface RNEventMessage {
   readonly type?: string
@@ -260,7 +365,7 @@ interface RNEventError {
 }
 
 interface RNEventSource {
-  addEventListener(name: 'message', cb: (e: RNEventMessage) => void): void
+  addEventListener(name: GatewayDataEventName, cb: (e: RNEventMessage) => void): void
   addEventListener(name: 'error', cb: (e: RNEventError) => void): void
   removeAllEventListeners(): void
   close(): void
@@ -293,6 +398,41 @@ export function __setEventSourceModuleForTests(mod: EventSourceModule | null): v
   cachedEventSourceModule = mod
 }
 
+/**
+ * parseNamedFrame — decode a frame that arrived on a named SSE listener.
+ *
+ * The `eventName` is the SSE `event:` field as delivered by
+ * react-native-sse; the data JSON payload does NOT embed an `event`
+ * key (Hono never puts one in the data object — only in the SSE framing
+ * line). Reads `text` (not `delta`) for message_chunk per the gateway
+ * wire format.
+ */
+export function parseNamedFrame(
+  eventName: string,
+  event: RNEventMessage
+): BrainStreamEvent | null {
+  const payload = event.data
+  if (typeof payload !== 'string' || payload.length === 0) {
+    return null
+  }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(payload)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null) {
+    return null
+  }
+  const record = parsed as Record<string, unknown>
+  return parseTypedFrame(eventName, record)
+}
+
+/**
+ * parseFrame — decode a legacy unnamed 'message' event whose data JSON
+ * embeds the event type as `record['event']`. Kept for backward compat
+ * with gateway builds that emit unnamed SSE frames.
+ */
 export function parseFrame(event: RNEventMessage): BrainStreamEvent | null {
   const payload = event.data
   if (typeof payload !== 'string' || payload.length === 0) {
@@ -327,23 +467,94 @@ function parseTypedFrame(
     return { kind: 'accepted', data: { type: 'accepted', threadId } }
   }
   if (eventType === 'message_chunk') {
-    const delta = typeof record['delta'] === 'string' ? record['delta'] : ''
-    if (delta.length === 0) {
+    // Gateway emits `text` in the named-event path. Accept `delta` too
+    // for the legacy unnamed-frame path and test backward compat.
+    const text =
+      typeof record['text'] === 'string' && record['text'].length > 0
+        ? record['text']
+        : typeof record['delta'] === 'string'
+          ? record['delta']
+          : ''
+    // Gateway routes proposed_action THROUGH message_chunk (brain.hono.ts:461-474):
+    //   { event:'message_chunk', data:{ text:'', done:false, proposedAction:{...} } }
+    // When a proposedAction sub-field is present, return the proposed_action
+    // event instead of (or in addition to) the text chunk. An empty-text chunk
+    // that only carries the proposedAction payload is treated as proposed_action.
+    const rawPa = record['proposedAction']
+    if (rawPa !== null && rawPa !== undefined && typeof rawPa === 'object') {
+      const pa = rawPa as Record<string, unknown>
+      const rawRisk = typeof pa['risk'] === 'string' ? pa['risk'].toUpperCase() : ''
+      const riskLevel: ProposedAction['riskLevel'] =
+        rawRisk === 'CRITICAL' ? 'CRITICAL'
+        : rawRisk === 'HIGH' ? 'HIGH'
+        : rawRisk === 'MEDIUM' ? 'MEDIUM'
+        : 'LOW'
+      const description =
+        typeof pa['description'] === 'string' ? pa['description'] : ''
+      const spaceIdx = description.indexOf(' ')
+      const verb = spaceIdx > 0 ? description.slice(0, spaceIdx) : description
+      const object = spaceIdx > 0 ? description.slice(spaceIdx + 1) : ''
+      const reviewRequired =
+        typeof pa['reviewRequired'] === 'boolean' ? pa['reviewRequired'] : false
+      const parsed = ProposedActionSchema.safeParse({ verb, object, riskLevel, reviewRequired })
+      if (parsed.success) {
+        return {
+          kind: 'proposed_action',
+          data: { type: 'proposed_action', action: parsed.data }
+        }
+      }
+    }
+    if (text.length === 0) {
       return null
     }
-    return { kind: 'message_chunk', data: { type: 'message_chunk', delta } }
+    return { kind: 'message_chunk', data: { type: 'message_chunk', delta: text } }
   }
   if (eventType === 'tool_call') {
-    const candidate = record['toolCall'] ?? record['call'] ?? record
-    const parsed = ToolCallResultSchema.safeParse(candidate)
-    if (!parsed.success) {
+    // Gateway emits: { tool, status: 'started'|'ok'|'error', args }
+    // (brain.hono.ts:453-459). ToolCallResultSchema requires { tool, ok }
+    // so we build the result directly from the real field names rather than
+    // feeding the raw frame through safeParse, which would fail because
+    // `status` !== `ok` field.
+    const tool = typeof record['tool'] === 'string' ? record['tool'] : ''
+    if (tool.length === 0) {
       return null
     }
-    return { kind: 'tool_call', data: { type: 'tool_call', toolCall: parsed.data } }
+    const status = typeof record['status'] === 'string' ? record['status'] : 'ok'
+    const toolCall: ToolCallResult = {
+      tool,
+      ok: status !== 'error',
+      result: record['args'] !== undefined ? record['args'] : undefined
+    }
+    return { kind: 'tool_call', data: { type: 'tool_call', toolCall } }
   }
   if (eventType === 'proposed_action') {
+    // The gateway routes proposed_action through message_chunk (not as a
+    // separate SSE event type) in the normal streaming path — see
+    // brain.hono.ts:461-474: projectStreamEvent case 'proposed_action'
+    // returns event:'message_chunk' with a proposedAction sub-field.
+    // This branch handles any legacy gateway build that emits a standalone
+    // proposed_action event. Map the gateway shape to ProposedActionSchema:
+    //   risk → riskLevel (coerce to enum or default LOW)
+    //   description → derive verb + object
     const candidate = record['action'] ?? record
-    const parsed = ProposedActionSchema.safeParse(candidate)
+    const raw = typeof candidate === 'object' && candidate !== null
+      ? candidate as Record<string, unknown>
+      : record
+    const rawRisk = typeof raw['risk'] === 'string' ? raw['risk'].toUpperCase() : ''
+    const riskLevel: ProposedAction['riskLevel'] =
+      rawRisk === 'CRITICAL' ? 'CRITICAL'
+      : rawRisk === 'HIGH' ? 'HIGH'
+      : rawRisk === 'MEDIUM' ? 'MEDIUM'
+      : 'LOW'
+    const description =
+      typeof raw['description'] === 'string' ? raw['description'] : ''
+    // Split "verb object" on the first space; fall back to description as verb.
+    const spaceIdx = description.indexOf(' ')
+    const verb = spaceIdx > 0 ? description.slice(0, spaceIdx) : description
+    const object = spaceIdx > 0 ? description.slice(spaceIdx + 1) : ''
+    const reviewRequired =
+      typeof raw['reviewRequired'] === 'boolean' ? raw['reviewRequired'] : false
+    const parsed = ProposedActionSchema.safeParse({ verb, object, riskLevel, reviewRequired })
     if (!parsed.success) {
       return null
     }

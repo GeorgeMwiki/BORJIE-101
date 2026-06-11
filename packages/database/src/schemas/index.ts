@@ -40,6 +40,10 @@ export * from './treasury.schema.js';
 export * from './safety-csr.schema.js';
 export * from './marketplace.schema.js';
 export * from './marketplace-bids.schema.js';
+// Offtake agreements — binding mineral-supply contract crystallized when a
+// seller accepts a marketplace bid (LANE B3). Tenant-scoped to the SELLER
+// tenant, FORCE RLS, one row per accepted bid. Migration 0325.
+export * from './offtake-agreements.schema.js';
 export * from './risks-tasks.schema.js';
 export * from './fingerprint-events.schema.js';
 export * from './intelligence-corpus.schema.js';
@@ -61,6 +65,14 @@ export * from './onboarding-state.schema.js';
 // RLS FORCE-enabled with service-managed policy — see schema file for
 // the full security-model rationale.
 export * from './onboarding-signup.schema.js';
+
+// Onboarding-session durable store (RSS-09). One tenant-scoped table
+// (onboarding_sessions) backing the move-in OnboardingRepository in
+// routes/onboarding.ts, replacing the in-memory Map triple so onboarding
+// state survives a restart and is shared across replicas. Migration
+// 0314_onboarding_session_store.sql; FORCE RLS on the canonical
+// app.current_tenant_id GUC + service-role bypass.
+export * from './onboarding-sessions.schema.js';
 
 // Mining onboarding-wizard run state (migration 0286 / FLOW-2). One row per
 // owner onboarding run: current_step + status + an append-only steps jsonb of
@@ -123,6 +135,9 @@ export * from './ai-audit-chain.schema.js';
 export * from './ai-semantic-memory.schema.js';
 export * from './training.schema.js';
 
+// INV-A break-glass operator-access spine (FIRE-1)
+export * from './operator-access.schema.js';
+
 // Intelligence + autonomy
 export * from './ai-intelligence-feedback.schema.js';
 export * from './progressive-context.schema.js';
@@ -150,6 +165,11 @@ export * from './sovereign-action-ledger.schema.js';
 // Platform-level controls
 export * from './platform-privacy-budget.schema.js';
 export * from './platform-feature-flags.schema.js';
+// LLM control-plane routing config (migration 0320). One JSONB config doc per
+// scope (global | tenant:<id>): core model + ordered fallback chain + ensemble
+// + per-use-case routing. Consumed fail-safe by @borjie/brain-llm-router
+// (validateRoutingConfig → static TASK_LADDER on any malformed/absent row).
+export * from './platform-llm-routing-config.schema.js';
 export * from './platform-killswitch-state.schema.js';
 export * from './platform-autonomy-settings.schema.js';
 export * from './killswitch-authorities.schema.js';
@@ -265,7 +285,9 @@ export * from './sub-md-slo.schema.js';
 // admin console (`apps/admin-web`).
 export * from './admin-internals.schema.js';
 
-// Polymorphic core-entity + dynamic modules (sub-package barrels).
+// Polymorphic core-entity (Piece A) + the routing_rules dispatch matrix
+// (the Piece B module-spawning tables were removed as false drift; see
+// ./modules/index.js).
 export * from './core-entity/index.js';
 export * from './modules/index.js';
 
@@ -332,6 +354,21 @@ export * from './cognitive-engine.schema.js';
 // platform_memory_cells (federated cross-tenant cells, PII-stripped, no RLS).
 // See docs/DESIGN/UNIFIED_COGNITIVE_MEMORY_SPEC.md.
 export * from './cognitive-memory.schema.js';
+
+// ---------------------------------------------------------------------------
+// MEM-01 — six-layer memory-v2 durable stores (episodic, narrative,
+// procedural, reflective, topic, cohort). Seven tables backing migration
+// 0312_memory_v2_durable_stores.sql so `@borjie/memory-v2` survives a
+// process restart. Companion: packages/memory-v2/src/*/store-drizzle.ts.
+export * from './memory-v2.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave 1 EstateMind — situational model durable store (organ #2). One table
+// (situational_model_entities) backing migration 0317_situational_model.sql so
+// the resident mind's standing situational state survives a process restart.
+// Companion: packages/central-intelligence/src/kernel/situational-model/* +
+// the Drizzle adapter in services/api-gateway/.../estate-mind-wiring.ts.
+export * from './situational-model.schema.js';
 
 // ---------------------------------------------------------------------------
 // Wave 18V — Junior Architecture (27 juniors as MD-class within scope)
@@ -1012,6 +1049,33 @@ export * from './intel-self-improve.schema.js';
 export * from './blackboard-sota.schema.js';
 
 // ---------------------------------------------------------------------------
+// EA-05 — Blackboard cross-surface CRDT slots (migration 0319)
+// ---------------------------------------------------------------------------
+// One tenant-scoped table backing migration 0319_blackboard_slots.sql:
+//   blackboard_slots — one row per (tenant_id, slot_id). A CRDT
+//                      Last-Writer-Wins register (value jsonb) paired with a
+//                      version-vector (version jsonb) so the merge is a
+//                      lattice-join. The cross-surface state-bus spine: a
+//                      decision/doc/task lives ONCE here + re-projects onto
+//                      chat + owner-web + workforce-mobile + buyer-mobile.
+// Backs the durable createSqlSlotsRepository(...) adapter in
+// @borjie/blackboard-sota (the in-memory adapter ships with the package).
+export * from './blackboard-slots.schema.js';
+
+// ---------------------------------------------------------------------------
+// Wave-6 closure — jurisdiction_proposals (migration 0322)
+// ---------------------------------------------------------------------------
+//   jurisdiction_proposals — one row per JC-7 four-eye jurisdiction-change
+//                            proposal (pending -> approved | rejected). A
+//                            tenant CANNOT self-change jurisdiction; only
+//                            Borjie internal admin can, via a PROPOSE ->
+//                            APPROVE flow where the approver MUST be a
+//                            DIFFERENT admin (four-eye). Backs the Drizzle
+//                            JurisdictionProposalStore adapter for the
+//                            admin/tenants/:id/jurisdiction route.
+export * from './jurisdiction-proposals.schema.js';
+
+// ---------------------------------------------------------------------------
 // Wave OWNER-OS — owner reminders + dynamic tabs (migration 0089)
 // ---------------------------------------------------------------------------
 //   reminders   — owner-scheduled events. trigger_at + channel + payload;
@@ -1045,11 +1109,31 @@ export * from './owner-brief.schema.js';
 // crutch used by the reminders worker.
 export * from './owner-contact-prefs.schema.js';
 
+// Audit-fix (owner-settings-2, migration 0329). Durable per-user
+// notification channel/template toggles + quiet-hours for the
+// /me/notification-preferences surface — replaces the in-memory echo stub.
+export * from './notification-preferences.schema.js';
+
 // Wave FOUR-EYE-APPROVAL (migration 0099). Two-person sign-off on
 // high-stakes owner actions (payment > 5M TZS, regulator filing,
 // contract signature). Hash-chained into ai_audit_chain on every
 // state change.
 export * from './four-eye-requests.schema.js';
+
+// Workflow-engine durable repos (migration 0307). Persist the
+// @borjie/workflow-engine run aggregate, append-only transition log, and
+// hashed per-tenant audit chain so /workflow runs, the four-eyes approval
+// queue, and the audit chain survive an api-gateway restart (SOC 2 CC7.2).
+export * from './workflow-runs.schema.js';
+export * from './workflow-run-events.schema.js';
+export * from './workflow-audit-chain.schema.js';
+
+// Flow-keyed autonomy preferences (migration 0308). Per-flow sticky
+// `auto | gated` posture + creation-time auto-vs-gated confirmation,
+// the per-flow upgrade over the single global tenant_autonomy_caps
+// switch. AUTO lets the workflow-engine skip the per-run approval step;
+// the inviolable rails + autonomy-controller STILL gate per action.
+export * from './flow-autonomy-prefs.schema.js';
 
 // Wave WORKFORCE-CERT-EXPIRY (migration 0102). Per-employee mining
 // certifications + dedup ledger for the cert-expiry reminder cron.
@@ -1209,6 +1293,7 @@ export * from './clock-in-events.schema.js';
 export * from './hazard-zones.schema.js';
 export * from './workforce-locations.schema.js';
 export * from './regulatory-zones.schema.js';
+export * from './enabled-jurisdictions.schema.js';
 
 // ---------------------------------------------------------------------------
 // Wave PRODUCTION-CAPTURE — supervisor tonnage capture (migration 0104)
@@ -1603,3 +1688,67 @@ export * from './agent-memory.schema.js';
 // services/notification-dispatch/push-provider.ts). tenant_id is uuid
 // (pre-dates the text-tenant convention); FORCE RLS per migration 0139.
 export * from './device-push-tokens.schema.js';
+
+// workflow_registry (migration 0316) — the persisted, embeddable flow
+// catalog the modality arbiter (COG-07/AUT-14) retrieves over. Adds
+// `trigger_embedding VECTOR(1536)` so a turn intent can nearest-neighbour a
+// flow's trigger description; `loop_kind` distinguishes a bounded workflow
+// (workflow-engine) from a standing loop (@borjie/loop-runner). tenant_id
+// NULL ⇒ global flow; FORCE RLS on app.current_tenant_id + service-role
+// bypass per migration 0316.
+export * from './workflow-registry.schema.js';
+
+// md_commitments (migration 0321) — the MD DEFERRAL / FOLLOW-THROUGH
+// commitment ledger (the brain's prospective-memory backlog + the closed
+// loop). One durable row per deferred MD commitment: GTD `class` discriminator
+// (next_action|waiting_for|tickler|someday) + typed WAIT-FOR trigger
+// (time|event|condition via trigger_kind + trigger_spec jsonb) + honest
+// lifecycle (open|scheduled|overdue|blocked|done|reopened) + ladder rung +
+// sovereign safe-halt flag + evidence_ids + hash-chained closure. The
+// EstateMind RECONCILE sweep re-reads every OPEN row each tick and never drops
+// a thread. FORCE RLS on app.current_tenant_id + service-role bypass (for the
+// out-of-band reconcile worker) per migration 0321.
+export * from './md-commitments.schema.js';
+
+// set_point_state — the closed-loop set-point regulation memory (Wave-C C3
+// WIN-4). One row per (tenant_id, drive_id): prior_breach_severity +
+// consecutive_worsening_ticks. The EstateMind RECONCILE sweep's delta-evaluator
+// round-trips the per-drive regulation memory through this DEDICATED table (NOT
+// situational_model_entities — its kind is a closed enum + it is the arena
+// snapshot). FORCE RLS on app.current_tenant_id + service-role bypass (for the
+// out-of-band sweep) per migration 0330.
+export * from './set-point-state.schema.js';
+
+// md_commitment_timeline (migration 0339) — the APPEND-ONLY, hash-chained
+// lifecycle trail of the MD commitment ledger (the living-MD organ audit
+// spine). One immutable row per lifecycle event (deferred → became_due →
+// overdue → confirmed/done, or reopened on an unconfirmed deadline);
+// proof_kind + evidence_ids carry the positive-proof closure
+// (closure-by-confirmation, never by timeout); audit_hash stitches a
+// per-commitment chain so a truncated/mutated trail is detectable. FORCE RLS on
+// app.current_tenant_id + service-role bypass (for the out-of-band reconcile
+// sweep / someday supervisor) per migration 0339.
+export * from './md-commitment-timeline.schema.js';
+
+// owner_governance_preferences (migration 0340) — the per-tenant governance
+// set-points the living-MD organ reads FRESH each tick (never cached):
+// autonomy_cap (graded-corrective ceiling, clamped ≤ delegate),
+// someday_review_cadence_days, evidence_requirement_enforced (the CLAUDE.md
+// evidence-required hard rule), confirmation_probe_mappings
+// (closure-by-confirmation config). Upsert-only; an absent row resolves to safe
+// defaults in code. FORCE RLS on app.current_tenant_id + service-role bypass
+// per migration 0340.
+export * from './owner-governance-preferences.schema.js';
+
+// org_loop_runs (migration 0341) — the SELF-RUNNING-ORG SPINE correlation
+// identity: one durable row per loop run joining an md_commitments row
+// (commitment_id, the close-the-loop back-edge) to the mining_tasks row the
+// workforce orchestrator spawned (task_id, the dispatch forward-edge). Carries
+// the stage machine (detect → strategize → pick → assign → dispatch → deliver →
+// report → reloop → closed), honest status (open|active|closed|failed), the
+// chosen employee + match_confidence (matcher-learning inputs), and the
+// evidence ids threaded from the commitment. The loop ENGINE is universal
+// Mr-Mwikila core; loop_kind/stage/source_data are domain-pack DATA. FORCE RLS
+// on app.current_tenant_id + service-role bypass for the out-of-band
+// loop-economy cron per migration 0341.
+export * from './org-loop-runs.js';

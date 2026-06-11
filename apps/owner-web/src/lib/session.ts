@@ -38,6 +38,7 @@
  * check and the RSC render.)
  */
 
+import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { createSupabaseServerClient } from './supabase/server';
@@ -245,7 +246,21 @@ async function hydrateOwnerEstate(
  * no valid authenticated owner. Returns a non-null `OwnerSession` so the
  * existing call sites (which never null-checked) stay correct.
  */
-export async function getOwnerSession(): Promise<OwnerSession> {
+/**
+ * Per-request memoised session resolver.
+ *
+ * Wrapped in React's `cache()` so the dashboard can `await` it from
+ * several independently-streamed Suspense regions (greeting hero,
+ * Owner-OS shell, …) without re-issuing the Supabase `getUser()` /
+ * `getSession()` network calls — every caller within one server render
+ * shares the single resolution. Behaviour is otherwise identical to the
+ * original single-await page.
+ */
+export const getOwnerSession: () => Promise<OwnerSession> = cache(
+  getOwnerSessionUncached,
+);
+
+async function getOwnerSessionUncached(): Promise<OwnerSession> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
   const user = error ? null : data.user;

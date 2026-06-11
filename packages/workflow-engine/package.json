@@ -23,6 +23,8 @@
   },
   "dependencies": {
     "@borjie/assignment-registry": "workspace:*",
+    "@borjie/database": "workspace:*",
+    "drizzle-orm": "^0.45.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {

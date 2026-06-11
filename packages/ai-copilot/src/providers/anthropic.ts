@@ -26,6 +26,7 @@ import {
   MediaAttachment,
 } from './ai-provider.js';
 import { applyPrefixCache } from './anthropic-prefix-cache.js';
+import { DEFAULT_TIER_MODEL_IDS } from '../model-resolution.js';
 
 /**
  * Anthropic provider configuration
@@ -47,9 +48,9 @@ export interface AnthropicProviderConfig {
  * Anthropic model identifiers (2026 Messages API).
  */
 export const ANTHROPIC_MODELS = {
-  OPUS_4_8: 'claude-opus-4-8',
-  SONNET_4_6: 'claude-sonnet-4-6',
-  HAIKU_4_5: 'claude-haiku-4-5',
+  OPUS_4_8: DEFAULT_TIER_MODEL_IDS.deep,
+  SONNET_4_6: DEFAULT_TIER_MODEL_IDS.standard,
+  HAIKU_4_5: DEFAULT_TIER_MODEL_IDS.cheap,
 } as const;
 
 export type AnthropicModelId =

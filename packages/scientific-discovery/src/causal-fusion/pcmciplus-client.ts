@@ -25,6 +25,7 @@ import {
   SidecarHttpError,
   SidecarSchemaError,
   SidecarUnavailableError,
+  buildSidecarHeaders,
   resolveSidecarBaseUrl,
 } from './refutation-client.js';
 
@@ -32,6 +33,8 @@ export interface PcmciClientOptions {
   readonly baseUrl?: string;
   readonly fetchImpl?: typeof fetch;
   readonly timeoutMs?: number;
+  /** SEC-1 — shared-secret bearer token (see RefutationClientOptions). */
+  readonly authToken?: string;
 }
 
 const DagEdgeWire = z.object({
@@ -61,6 +64,7 @@ export function createPcmciClient(opts: PcmciClientOptions = {}): PcmciClient {
   const baseUrl = resolveSidecarBaseUrl(opts.baseUrl);
   const fetchImpl = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? 30_000;
+  const headers = buildSidecarHeaders(opts.authToken);
 
   return {
     async pcmciplus(req) {
@@ -70,7 +74,7 @@ export function createPcmciClient(opts: PcmciClientOptions = {}): PcmciClient {
       try {
         const res = await fetchImpl(url, {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers,
           body: JSON.stringify(req),
           signal: ctl.signal,
         });

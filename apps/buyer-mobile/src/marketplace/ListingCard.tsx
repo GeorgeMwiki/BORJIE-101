@@ -2,9 +2,9 @@ import { StyleSheet, Text, View } from 'react-native'
 import { Card } from '@/components/Card'
 import { Pill } from '@/components/Pill'
 import { formatKg, formatTzs } from '@/components/formatters'
-import { mockDistanceKm, formatKm } from './distance'
 import { mineralGlyph } from './options'
 import { TrustChipStack } from './TrustChipStack'
+import { resolveSellerName } from './sellerAttribution'
 import { tokens } from '@/ui-litfin'
 import type { Listing } from '@/types/listing'
 
@@ -15,6 +15,9 @@ export interface ListingCardProps {
 }
 
 export function ListingCard({ listing, onPress, translate }: ListingCardProps) {
+  // The "from <mine>" label attributes a parcel to its owning mine —
+  // gateway `sellerName` first, rich `seller.name` fallback.
+  const sellerName = resolveSellerName(listing, translate('marketplace.this_mine'))
   return (
     <Card onPress={onPress}>
       <View style={styles.headerRow}>
@@ -26,7 +29,7 @@ export function ListingCard({ listing, onPress, translate }: ListingCardProps) {
             {listing.title}
           </Text>
           <Text style={styles.meta}>
-            {listing.originRegion} · {listing.seller.name}
+            {listing.originRegion} · {translate('marketplace.from_seller')} {sellerName}
           </Text>
         </View>
         {listing.status === 'reserved' ? (
@@ -39,7 +42,6 @@ export function ListingCard({ listing, onPress, translate }: ListingCardProps) {
       <View style={styles.statRow}>
         <Stat label={translate('marketplace.grade')} value={listing.grade} />
         <Stat label={translate('marketplace.quantity')} value={formatKg(listing.quantityKg)} />
-        <Stat label={translate('marketplace.distance')} value={formatKm(mockDistanceKm(listing.originRegion))} />
       </View>
 
       <TrustChipStack listing={listing} translate={translate} />

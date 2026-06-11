@@ -274,6 +274,13 @@ export type ModuleSpec = z.infer<typeof ModuleSpecSchema>;
 export interface CompileResult {
   readonly ok: boolean;
   readonly migrationSql: string;
+  /**
+   * The bare tenant-namespaced table identifiers the compiler created
+   * (e.g. `tenant_mod_{tenantId}_{slug}`). The orchestrator consumes
+   * this list to build + verify the canonical FORCE-RLS block. RLS is
+   * NEVER emitted by the compiler — the orchestrator owns it.
+   */
+  readonly tableNames: readonly string[];
   readonly zodValidators: Readonly<Record<string, ZodValidatorTree>>;
   readonly uiLayout: Readonly<{
     sections: ReadonlyArray<{

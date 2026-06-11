@@ -96,17 +96,24 @@ describe('cosineSimilarity', () => {
 });
 
 describe('scopeKey', () => {
-  it('preserves tenant + surface + persona triple', () => {
-    expect(scopeKey(SCOPE_A)).toBe('tenant-A|tenant-portal|counterparty-resident');
+  it('preserves tenant + surface + persona + locale (locale defaults to en)', () => {
+    expect(scopeKey(SCOPE_A)).toBe('tenant-A|tenant-portal|counterparty-resident|en');
   });
-  it('falls back to __platform__ for null tenantId', () => {
+  it('falls back to __platform__ for null tenantId (locale defaults to en)', () => {
     expect(
       scopeKey({
         tenantId: null,
         surface: 'sovereign-cockpit',
         personaId: 'sovereign-admin',
       }),
-    ).toBe('__platform__|sovereign-cockpit|sovereign-admin');
+    ).toBe('__platform__|sovereign-cockpit|sovereign-admin|en');
+  });
+  it('includes the locale dimension so en and sw never share a bucket (EN/SW absolute)', () => {
+    const en = scopeKey({ tenantId: 'tenant-A', surface: 'tenant-portal', personaId: 'p', locale: 'en' });
+    const sw = scopeKey({ tenantId: 'tenant-A', surface: 'tenant-portal', personaId: 'p', locale: 'sw' });
+    expect(en).toBe('tenant-A|tenant-portal|p|en');
+    expect(sw).toBe('tenant-A|tenant-portal|p|sw');
+    expect(en).not.toBe(sw);
   });
 });
 

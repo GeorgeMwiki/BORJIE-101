@@ -155,6 +155,12 @@ export function BorjieDynamicHints({
     [onShortcutClick],
   );
 
+  // Three INDEPENDENT adaptive surfaces (DU-2/3/4). The LearnedShortcutsPanel
+  // is NOT gated behind mastery: learned shortcuts are EARNED from the owner's
+  // own behaviour, so they surface whenever they flow (the panel self-hides on
+  // an empty list). The MasteryGate is a separate aspiration nudge — it shows
+  // its "unlocks at <level>" hint when the score is below `level`, and nothing
+  // otherwise (a null score hides it during load).
   return (
     <div
       data-testid="borjie-dynamic-hints"

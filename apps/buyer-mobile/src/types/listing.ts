@@ -39,6 +39,25 @@ export interface Listing {
   readonly chainOfCustody: readonly string[]
   readonly listedAt: string
   readonly status: 'open' | 'reserved' | 'closed'
+  /**
+   * Owning-mine attribution joined by the gateway from `tenants`
+   * (`marketplace_listings.tenant_id`). Drives the "from <mine>" label
+   * and the owner-scoped ("buy from this mine") browse. Optional because
+   * older fixtures / chat-card payloads carry only the rich `seller`.
+   */
+  readonly sellerTenantId?: string
+  readonly sellerName?: string | null
+}
+
+/**
+ * A seller org that has at least one buyer-visible active listing —
+ * the row a "browse by mine" surface lists. Mirrors the gateway
+ * `GET /mining/marketplace/listings/sellers` response shape.
+ */
+export interface MarketplaceSeller {
+  readonly sellerTenantId: string
+  readonly sellerName: string | null
+  readonly listingCount: number
 }
 
 export type BidStatus = 'pending' | 'accepted' | 'rejected' | 'countered'
@@ -73,6 +92,13 @@ export interface Bid {
   readonly status: BidStatus
   readonly placedAt: string
   readonly thread: readonly BidMessage[]
+  /**
+   * RFB-response thread key for the WS-2 bid chat. Present when this bid
+   * has a live buyer↔seller thread (loaded via api/bid-messaging.ts
+   * fetchThread/sendThreadMessage). Null for marketplace bids that carry
+   * no chat thread.
+   */
+  readonly threadResponseId?: string | null
   /**
    * Chat-as-OS bidirectional parity. When `via === 'chat'` the buyer
    * sees a small "via Mr. Mwikila" pill next to the bid in the My

@@ -84,7 +84,7 @@ import {
   extractAutoAuthorized,
 } from '@borjie/owner-os-tabs';
 import { createPiiTokeniser, restorePii } from '@borjie/document-ai';
-import { extractTabTags } from '@borjie/central-intelligence';
+import { extractTabTags, buildSelfModelFrame } from '@borjie/central-intelligence';
 import { processTabTagsForOwner } from '../services/tab-crud/index.js';
 import { buildGenuiTabProposal } from '../services/brain/genui-tab-proposal.js';
 import type { GenUIEngine } from '@borjie/portal-genui';
@@ -109,6 +109,64 @@ import {
   type MemorySnapshot,
 } from '../services/advisor-memory/index.js';
 import { getDb } from '../composition/db-client.js';
+// CONFIDENCE CALIBRATION — the same online-ACI conformal bridge the mining/chat
+// surface uses. The teaching `message_chunk.confidence` was previously a
+// fabricated constant (0.95); instead we derive a REAL raw signal (the judge's
+// winner score when a multi-model debate ran, else a grounded/ungrounded prior)
+// and re-grade it against the tenant's calibrated alpha. Honest cold-start: any
+// DB / loop failure (or no persisted state yet) degrades to the raw float
+// snapped to the unshifted tiers — never throws past this boundary.
+import { applyChatConformalConfidence } from '../composition/conformal/chat-conformal-confidence.js';
+// SEC-4 — IP-egress output firewall. The teaching stream's user-visible prose
+// passes the FAIL-CLOSED guard before egress so internal cognition / prompts /
+// architecture / secrets / canary / cross-tenant ids never leak. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// HONEST EPISTEMIC SELF-MODEL (INV-H / Win #2) — surface the brain's
+// sure/unsure/what-I'd-need posture to the owner cockpit. The owner SelfModelPanel
+// is built but stays dark because this direct-LLM teach stream (NOT the kernel)
+// never emitted a `self_model` frame. We build the IDENTICAL frame the kernel
+// jarvis/admin path emits via `buildSelfModelFrame`, then project it through the
+// gateway's blessed `buildSelfModelEgressPayload` membrane (the SAME projector
+// brain.hono / jarvis / admin already use) so the wire shape is byte-identical
+// and egress-safe by construction — posture enum + constant axis labels only,
+// NEVER the audit math or model prose. Source signals are the honest ones this
+// turn already computes: the calibrated confidence scalar, the citation count,
+// and debate convergence. See `composition/kernel-event-projector.ts`.
+import { buildSelfModelEgressPayload } from '../composition/kernel-event-projector.js';
+// INPUT CONTAINMENT (GAP-1 / CLOSE-G) — ingress prompt-injection / jailbreak
+// guard run on the user's OWN message BEFORE the provider ladder, mirroring
+// brain.hono /turn. CRITICAL → refuse with single-language copy (never reaches
+// the model); lower severities run on the detector-redacted text (offending
+// spans stripped). DEFAULT-ON; fails OPEN-but-logged. Reuses the blessed
+// `getInputGuard()` detector via the shared apply helper.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
+// EVIDENCE-REQUIRED GROUNDING (CLAUDE.md hard rule) — the owner's PRIMARY chat
+// surface previously shipped its answer with ZERO auditor grounding while the
+// fail-closed gate protected only /turn /think /stream. `auditTeachAnswer`
+// runs the SAME `auditChatResponse` contract over the accumulated answer
+// BEFORE the first chunk flushes: HARD verdicts withhold the prose (the
+// single-language safe message + an `auditor` frame ship instead); approved /
+// strict-OFF turns stream unchanged with a warn-only `auditor` frame before
+// `done`. Fail-OPEN on a gate fault — a broken auditor never breaks chat.
+// Kill-switch: BORJIE_STRICT_EVIDENCE=off. See `routes/teach-grounding.ts`.
+import { auditTeachAnswer } from './teach-grounding.js';
+// ARTIFACT EGRESS MEMBRANE (INV-H / INV-D / CLOSE-G) — the `tab_proposal`
+// payload carries a full genui-synthesized PortalTab whose `audit` block holds
+// mechanic provenance (actorId / sourceConversationId / history). Project the
+// tab through the membrane before egress so only the renderable frame
+// (title / description / icon / domain / sections) crosses the wire — every
+// mechanic field is dropped at every depth. FAIL-CLOSED on a projection fault.
+import { getArtifactEgressMembrane } from '../composition/artifact-egress-wiring.js';
+// EA-05 — persist each <board_add> element into a durable CRDT slot so the
+// teaching board (the OUTPUT-LEVEL trend-of-thought) survives a reload and
+// re-projects cross-surface. Keyed by `board:<element.id>` so a same-id
+// re-emit updates the slot in place (idempotent-append parity with the FE
+// smartboard reducer). Best-effort: never blocks or breaks the turn.
+import { getSlotStore } from '../composition/blackboard-slots-wiring.js';
 import type { ScopeContext } from '@borjie/central-intelligence';
 // Auto-authorized safety gate — validate the LLM's <auto_authorized> tag
 // against the real policy gate + inviolable rules before presenting it as
@@ -381,6 +439,58 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * IP-EGRESS (CLOSE-G) — guard a single model-authored free-text leaf before
+ * it egresses to the client. Runs the blessed `getEgressFilter().guardFinal`
+ * (FAIL-CLOSED inside the guard) so a leak smuggled into a `rationale` /
+ * `action` / nested payload string is stripped before the `auto_authorized`
+ * frame leaves the gateway. Empty / non-string leaves pass through unchanged.
+ */
+function guardEgressLeaf(text: unknown, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) {
+    return typeof text === 'string' ? text : '';
+  }
+  return getEgressFilter().guardFinal(text, tenantId).text;
+}
+
+/**
+ * IP-EGRESS (CLOSE-G) — project an auto-authorized payload through the egress
+ * filter, guarding every model-authored free-text leaf (`action`, `rationale`,
+ * and each string value in the nested `payload` record) before the
+ * `auto_authorized` frame is emitted. Structural fields are preserved; only
+ * the free-text leaves are filtered. Immutable: returns a new object.
+ */
+function sanitizeAutoAuthorizedPayload(
+  payload: {
+    readonly action: string;
+    readonly rationale: string;
+    readonly payload?: Readonly<Record<string, unknown>>;
+  },
+  tenantId: string,
+): {
+  readonly action: string;
+  readonly rationale: string;
+  readonly payload?: Readonly<Record<string, unknown>>;
+} {
+  const nested = payload.payload;
+  const safeNested = isRecord(nested)
+    ? Object.freeze(
+        Object.fromEntries(
+          Object.entries(nested).map(([k, v]) => [
+            k,
+            typeof v === 'string' ? guardEgressLeaf(v, tenantId) : v,
+          ]),
+        ),
+      )
+    : nested;
+  return Object.freeze({
+    ...payload,
+    action: guardEgressLeaf(payload.action, tenantId),
+    rationale: guardEgressLeaf(payload.rationale, tenantId),
+    ...(safeNested !== undefined ? { payload: safeNested } : {}),
+  });
+}
+
+/**
  * Find and remove a single primary <ui_block>{...}</ui_block> from the
  * model's text. Returns the parsed block (if any) plus the body with the
  * tag stripped. Only the first valid block is honoured; extras are
@@ -435,6 +545,72 @@ function extractInlineMetrics(text: string): {
   return { body, metrics: found };
 }
 
+// ─── Honest epistemic self-model (INV-H / Win #2) ──────────────────────
+//
+// Build the egress-safe `self_model` payload from the HONEST signals THIS
+// direct-LLM teach turn already computed — never the kernel (this route does
+// not run it) and never a fabricated certainty:
+//
+//   • confidence scalar — the calibrated conformal confidence (`turnConfidence`),
+//     fed as the producer confidence so the posture heuristic aligns with the
+//     turn's own scoring. We surface the POSTURE only, NEVER this number (INV-H).
+//   • citation count — how many evidence ids the answer cited (real grounding).
+//   • toolCallsIssued = false — HONEST: the teach stream answers from corpus +
+//     memory, not a live tool call, so the self-model truthfully flags
+//     "answered from memory" as an uncertainty axis.
+//   • stakes — the real high-stakes classification of the user message.
+//   • softened — the degraded-brain posture (every provider failing recently).
+//
+// The frame is built by the kernel's `buildSelfModelFrame` (the SAME surfacing
+// logic the jarvis/admin path uses — posture enum + constant axis labels only)
+// then projected through the gateway's blessed `buildSelfModelEgressPayload`
+// membrane so the wire shape is byte-identical + egress-safe by construction.
+//
+// HONEST-DEGRADE: returns `null` when every axis is empty (nothing worth
+// surfacing) so the caller OMITS the frame and the forward-compatible panel
+// stays in its empty state — we never emit a half-formed or fabricated 'sure'.
+function buildTeachSelfModelPayload(args: {
+  readonly answerText: string;
+  readonly turnConfidence: number;
+  readonly citationCount: number;
+  readonly highStakes: boolean;
+  readonly degraded: boolean;
+}): Record<string, unknown> | null {
+  const frame = buildSelfModelFrame({
+    answerText: args.answerText,
+    // The calibrated scalar drives ONLY the posture heuristic; the four-axis
+    // numbers are synthesised conservatively from the real signals (grounded by
+    // citations / not tool-grounded) and are NEVER surfaced (INV-H).
+    confidence: {
+      groundedness: args.citationCount > 0 ? 0.72 : 0.4,
+      stability: args.turnConfidence,
+      review: args.turnConfidence,
+      numericalConsistency: args.citationCount > 0 ? 0.66 : 0.45,
+      overall: args.turnConfidence,
+    },
+    citationCount: args.citationCount,
+    // HONEST: the teach stream issues no live tool calls — it answers from the
+    // corpus + memory. Flagging false surfaces the truthful "answered from
+    // memory" uncertainty axis rather than implying live-data grounding.
+    toolCallsIssued: false,
+    stakes: args.highStakes ? 'high' : 'medium',
+    softened: args.degraded,
+  });
+  // The projector reads the frame off the `selfModel` field of a kernel
+  // `self_model` event (the kernel emits `{ kind:'self_model', selfModel }`),
+  // so wrap the bare frame exactly as the kernel does before projecting.
+  const payload = buildSelfModelEgressPayload({
+    kind: 'self_model',
+    selfModel: frame,
+  } as unknown as Record<string, unknown>);
+  // Honest-degrade: omit when there is nothing worth surfacing (all axes empty).
+  const empty =
+    (frame.sureAbout?.length ?? 0) === 0 &&
+    (frame.unsureAbout?.length ?? 0) === 0 &&
+    (frame.wouldNeed?.length ?? 0) === 0;
+  return empty ? null : payload;
+}
+
 // ─── Hono app ───────────────────────────────────────────────────────
 
 const teachApp = new Hono();
@@ -479,6 +655,77 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         at: new Date().toISOString(),
       }),
     });
+
+    // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the user's
+    // own message BEFORE the provider ladder. CRITICAL prompt-injection /
+    // jailbreak → refuse with single-language copy (the model never sees it).
+    // Lower severities → continue on the detector-redacted text (offending
+    // spans stripped). Fail-OPEN-but-logged inside the guard.
+    const ingress = await applyIngressGuard({
+      userText: message,
+      tenantId: auth.tenant.tenantId,
+      userId: auth.actor.id ?? null,
+      lang: pickIngressGuardLang(
+        c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+      ),
+    });
+    if (ingress.refused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'input_guard_refused',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+      });
+      return;
+    }
+    // Run the turn on the (possibly redacted) text — offending spans stripped.
+    const guardedMessage = ingress.text;
+
+    // INPUT CONTAINMENT (CLOSE-G) — the prior `history[]` turns are ALSO free
+    // user text replayed straight to the provider, so a prompt-injection /
+    // jailbreak smuggled into an EARLIER turn must not bypass the guard by
+    // hiding in the transcript. Guard EACH history entry: if ANY trips CRITICAL
+    // the whole turn refuses (single-language copy); otherwise the provider
+    // messages are built from the per-entry detector-redacted text. Fail-OPEN.
+    const historyGuardLang = pickIngressGuardLang(
+      c.req.header('accept-language') ?? (language === 'sw' ? 'sw' : 'en'),
+    );
+    const guardedHistory: Array<{ role: 'user' | 'assistant'; text: string }> = [];
+    let historyRefused = false;
+    for (const h of history) {
+      const hGuard = await applyIngressGuard({
+        userText: h.text,
+        tenantId: auth.tenant.tenantId,
+        userId: auth.actor.id ?? null,
+        lang: historyGuardLang,
+      });
+      if (hGuard.refused) {
+        historyRefused = true;
+        break;
+      }
+      guardedHistory.push({ role: h.role, text: hGuard.text });
+    }
+    if (historyRefused) {
+      await stream.writeSSE({
+        event: 'error',
+        data: JSON.stringify({
+          kind: 'input_guard_refused',
+          message: ingress.refusalMessage,
+          retryable: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({ at: new Date().toISOString(), refused: true }),
+      });
+      return;
+    }
 
     if (!anthropic && !openai && !deepseek) {
       await stream.writeSSE({
@@ -647,7 +894,9 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // parsing or streaming (see `restorePii(rawText, …)` below).
     const piiTokeniser = createPiiTokeniser();
     const messages = [
-      ...history.map((h) => ({
+      // CLOSE-G — replay the per-entry ingress-guarded history (offending spans
+      // redacted on a lower-severity hit) to the provider, NOT the raw transcript.
+      ...guardedHistory.map((h) => ({
         role: h.role,
         content: [
           { type: 'text' as const, text: piiTokeniser.tokenise(h.text) },
@@ -655,8 +904,11 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       })),
       {
         role: 'user' as const,
+        // CLOSE-G — the LLM sees the ingress-guarded text (offending spans
+        // redacted on a lower-severity hit); local sensors above keep using
+        // the original `message`, exactly as brain.hono /turn does.
         content: [
-          { type: 'text' as const, text: piiTokeniser.tokenise(message) },
+          { type: 'text' as const, text: piiTokeniser.tokenise(guardedMessage) },
         ],
       },
     ];
@@ -893,25 +1145,16 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // the "Verified ✓ 3-model debate" badge above the assistant bubble
     // as soon as the first token paints.
     if (debateResult) {
+      // IP-EGRESS (CLOSE-G) — the "Verified ✓ multi-model debate" badge must
+      // NEVER leak provider / model / judge identity or the winner rationale.
+      // Project to a provider-agnostic shape: { verified, contenders: <count> }
+      // — a count of how many voices contended, nothing about WHO or WHY. The
+      // FE renders the badge from `verified` + `contenders` alone.
       await stream.writeSSE({
         event: 'debate_metadata',
         data: JSON.stringify({
           verified: debateResult.verified,
-          winner: {
-            provider: debateResult.winner.provider,
-            model: debateResult.winner.model,
-          },
-          scores: debateResult.scores,
-          trace: {
-            judgeProvider: debateResult.trace.judgeProvider,
-            winnerReason: debateResult.trace.winnerReason,
-            responses: debateResult.trace.responses.map((r) => ({
-              provider: r.provider,
-              model: r.model,
-              latencyMs: r.latencyMs,
-              ...(r.error ? { error: r.error } : {}),
-            })),
-          },
+          contenders: debateResult.trace.responses.length,
           at: new Date().toISOString(),
         }),
       });
@@ -928,7 +1171,79 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // 0 and micro mode applies — but the seam is in place so a slow
     // 3G client batched by the controller will get coarse chunks
     // without any further server-side change).
-    const chunks = chunkText(clean);
+    // SEC-4 — IP-egress guard on the FULL user-visible prose ONCE (final
+    // guard) before chunking so a leak split across two chunks is still
+    // caught. Strips internal cognition / prompts / architecture / secrets /
+    // canary / cross-tenant ids; does NOT redact the owner's own business
+    // data. FAIL-CLOSED inside the guard (a thrown filter yields a redacted
+    // placeholder, never the raw prose). Falls back to the original text only
+    // when the guard's own wrapper short-circuits an empty string.
+    let safeClean = clean;
+    try {
+      safeClean = getEgressFilter().guardFinal(clean, tenantId).text;
+    } catch (err) {
+      logger.error(
+        {
+          wiring: 'egress-filter',
+          tenantId,
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'brain-teach: egress guard threw — failing closed (redacting body)',
+      );
+      safeClean = '[redacted]';
+    }
+
+    // EVIDENCE-REQUIRED GROUNDING — audit the ACCUMULATED answer BEFORE the
+    // first chunk flushes (the teach stream buffers the full answer, so a
+    // HARD withhold is possible here, unlike jarvis /stream). On a withhold
+    // verdict the ungrounded prose — and every model-derived frame downstream
+    // of it (blocks / metrics / actions / auto-authorized / spawn tabs) — is
+    // dropped; the owner receives the single-language safe message plus an
+    // `auditor` frame, then a terminal `done`. Fail-OPEN: a gate fault ships
+    // the answer unaudited (frame omitted).
+    const grounding = await auditTeachAnswer({
+      answerText: safeClean,
+      tenantId,
+      userId,
+      sessionId,
+      lang: language === 'sw' ? 'sw' : 'en',
+    });
+    if (grounding.withheld && grounding.safeText !== null) {
+      if (grounding.frame) {
+        await stream.writeSSE({
+          event: 'auditor',
+          data: JSON.stringify({
+            ...grounding.frame,
+            at: new Date().toISOString(),
+          }),
+        });
+      }
+      await stream.writeSSE({
+        event: 'message_chunk',
+        data: JSON.stringify({
+          text: grounding.safeText,
+          chunkNo: 1,
+          batched: false,
+          evidence_ids: [],
+          confidence: null,
+          done: false,
+        }),
+      });
+      await stream.writeSSE({
+        event: 'done',
+        data: JSON.stringify({
+          at: new Date().toISOString(),
+          provider: winningProvider,
+          depth,
+          latencyMs: Date.now() - startedAt,
+          attempts: attempts.length,
+          withheld: true,
+        }),
+      });
+      return;
+    }
+
+    const chunks = chunkText(safeClean);
     const lastChunkParam = c.req.query('lastChunk');
     const initialAck =
       lastChunkParam !== undefined && /^\d+$/.test(lastChunkParam)
@@ -941,6 +1256,38 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     }
     let emitted = 0;
     const total = chunks.length;
+
+    // CONFIDENCE CALIBRATION — replace the previously-fabricated 0.95 constant
+    // with a calibrated confidence derived from a REAL raw signal, then re-grade
+    // it against the tenant's online-ACI alpha (the SAME conformal bridge the
+    // mining/chat surface uses). Raw signal:
+    //   • multi-model debate ran + verified → the judge's score for the winning
+    //     provider (a genuine 0..1 quality signal, never fabricated),
+    //   • otherwise → a conservative grounded/ungrounded prior (an answer that
+    //     cites ≥1 evidence id earns a higher prior than one with none).
+    // The calibration degrades honestly (no throw) to the unshifted tiers when
+    // there is no calibrated state yet — so this is never an invented number.
+    const debateWinnerScore =
+      debateResult && debateResult.verified
+        ? debateResult.scores.find(
+            (s) => s.provider === debateResult!.winner.provider,
+          )?.score
+        : undefined;
+    const rawConfidence =
+      typeof debateWinnerScore === 'number'
+        ? debateWinnerScore
+        : ids.length > 0
+          ? 0.7
+          : 0.55;
+    const calibrated = await applyChatConformalConfidence({
+      db: memoryDb,
+      tenantId,
+      rawConfidence,
+      logger: {
+        warn: (obj, msg) => logger.warn(obj, msg ?? 'brain-teach conformal'),
+      },
+    });
+    const turnConfidence = calibrated.confidence;
     while (!abort.signal.aborted) {
       const next = adaptive.pull();
       if (next === null) break;
@@ -953,7 +1300,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           chunkNo: next.chunkNo,
           batched: next.batched,
           evidence_ids: isLast ? ids : [],
-          confidence: isLast ? 0.95 : null,
+          confidence: isLast ? turnConfidence : null,
           done: false,
         }),
       });
@@ -963,15 +1310,90 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       }
     }
 
+    // HONEST EPISTEMIC SELF-MODEL (INV-H / Win #2) — emit the `self_model`
+    // frame AFTER the answer prose paints, BEFORE the board / metrics (mirrors
+    // the kernel's "after confidence, before done" ordering) so the owner
+    // SelfModelPanel renders directly under the just-painted assistant bubble.
+    // The payload is the EXACT egress-safe shape the kernel jarvis/admin path
+    // emits (posture + sure/unsure/would-need axes ONLY — never the audit math),
+    // built from this turn's honest signals and projected through the blessed
+    // `buildSelfModelEgressPayload` membrane. Honest-degrade: the helper returns
+    // `null` (frame OMITTED, panel stays empty) when no axis is worth surfacing
+    // — we never fabricate a 'sure' posture. Best-effort: never breaks the turn.
+    let selfModelEmitted = false;
+    if (!abort.signal.aborted) {
+      try {
+        const selfModelPayload = buildTeachSelfModelPayload({
+          answerText: safeClean,
+          turnConfidence,
+          citationCount: ids.length,
+          highStakes,
+          degraded: degradedBrain,
+        });
+        if (selfModelPayload) {
+          await stream.writeSSE({
+            event: 'self_model',
+            data: JSON.stringify({
+              ...selfModelPayload,
+              at: new Date().toISOString(),
+            }),
+          });
+          selfModelEmitted = true;
+        }
+      } catch (err) {
+        logger.warn(
+          {
+            wiring: 'self-model-frame',
+            tenantId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'brain-teach: self_model frame build failed (omitted — panel stays empty)',
+        );
+      }
+    }
+
     // Blackboard elements — emit each as its own SSE event so the FE
     // blackboard store can append them. Document-order is preserved so
     // the owner sees the lesson build in the order Mr. Mwikila chose.
+    //
+    // EA-05 — ALSO persist each element into a durable CRDT slot keyed by
+    // `board:<element.id>`. The board becomes durable + cross-surface: the
+    // OUTPUT-LEVEL trend-of-thought survives a reload and re-projects onto
+    // owner-web / mobile via the realtime `state-bus`. The slot id-keying
+    // makes a same-id re-emit an in-place update (idempotent-append, parity
+    // with the FE smartboard reducer) — NO duplicate slot. Best-effort: the
+    // persist is fire-after-emit and its failure NEVER breaks the SSE stream,
+    // the local teaching board, replay, or PDF export.
+    const boardSlotStore = getSlotStore(logger);
     for (const element of boardResult.elements) {
       if (abort.signal.aborted) break;
       await stream.writeSSE({
         event: 'board_element',
         data: JSON.stringify({ element, at: new Date().toISOString() }),
       });
+      try {
+        await boardSlotStore.set({
+          tenantId,
+          slotId: `board:${element.id}`,
+          slotKind: 'note',
+          value: {
+            kind: 'board-element',
+            element: element as unknown as Record<string, unknown>,
+            ...(sessionId ? { sessionId } : {}),
+          },
+          actorId: `chat:${userId}`,
+          surface: 'chat',
+        });
+      } catch (err) {
+        logger.warn(
+          {
+            tenantId,
+            elementId: element.id,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'brain-teach: board slot persist failed (board still rendered locally)',
+        );
+      }
     }
 
     // Inline metrics — emit each as its own SSE event so the renderer
@@ -1008,7 +1430,16 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     //                   suggestion (`authorized:false` + `reason`) so the
     //                   FE shows "suggested — needs confirmation".
     // Fail CLOSED on any gate error (the gate returns authorized:false).
-    let autoAuthOutcome: 'authorized' | 'suggested' | null = null;
+    //   - 'authorized'  → gate passed AND the audit row was durably appended.
+    //   - 'suggested'   → gate downgraded to needs-confirmation.
+    //   - 'audit_failed'→ gate passed but the audit append threw, so the
+    //                     `auto_authorized` frame was SUPPRESSED (fail-closed).
+    //                     The `done` summary MUST reflect that the authorization
+    //                     did not durably land — never report 'authorized' while
+    //                     the frame is suppressed (mfr-7).
+    //   - null          → no auto-authorization tag was emitted.
+    let autoAuthOutcome: 'authorized' | 'suggested' | 'audit_failed' | null =
+      null;
     if (autoAuthResult.autoAuthorized) {
       const payload = autoAuthResult.autoAuthorized;
       const scope: ScopeContext = {
@@ -1027,17 +1458,54 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
       if (decision.authorized) {
         // Append the audit row BEFORE the frame leaves the gateway so the
         // authorization is durably recorded the instant the FE sees it.
-        await appendAutoAuthorizedAudit({
-          db: memoryDb,
-          tenantId,
-          userId,
-          action: payload.action,
-          rationale: payload.rationale,
-          payload: payload.payload,
-          modelVersion: winningProvider,
-          logger,
-        });
-        autoAuthOutcome = 'authorized';
+        //
+        // RESILIENCE (mfr-7) — this DB append runs INSIDE the streamSSE
+        // callback. An un-caught throw here (transient DB fault) would reject
+        // out of the callback and drop the whole stream with NO terminal frame,
+        // so the client hangs. Wrap it: on failure we log the raw cause
+        // server-side, emit a structured `error` frame the client can render,
+        // and DO NOT emit the `auto_authorized` frame (the authorization was
+        // never durably recorded — fail closed). The rest of the stream
+        // (board, metrics, suggestions) still completes + reaches `done`.
+        let auditAppended = true;
+        try {
+          await appendAutoAuthorizedAudit({
+            db: memoryDb,
+            tenantId,
+            userId,
+            action: payload.action,
+            rationale: payload.rationale,
+            payload: payload.payload,
+            modelVersion: winningProvider,
+            logger,
+          });
+        } catch (err) {
+          auditAppended = false;
+          logger.error(
+            {
+              wiring: 'auto-authorized-audit',
+              action: payload.action,
+              tenantId,
+              err: err instanceof Error ? err.message : String(err),
+            },
+            'brain-teach: auto-authorized audit append threw — emitting error frame (not authorizing)',
+          );
+          await stream.writeSSE({
+            event: 'error',
+            data: JSON.stringify({
+              kind: 'auto_authorized_audit_failed',
+              message:
+                'The action could not be authorized right now. Please try again.',
+              retryable: true,
+              at: new Date().toISOString(),
+            }),
+          });
+        }
+        // mfr-7 — keep the terminal `done` summary consistent with the
+        // SUPPRESSED `auto_authorized` frame. When the audit append threw the
+        // frame is not emitted (fail-closed), so the outcome MUST NOT claim
+        // 'authorized' — it reports 'audit_failed' instead.
+        autoAuthOutcome = auditAppended ? 'authorized' : 'audit_failed';
 
         // Wave CHAT-ACTIONS — actually EXECUTE the authorized action when
         // its verb is in the executor's SAFE registry (reminders today).
@@ -1049,7 +1517,7 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         // SSE stream (the authorization itself already passed the gate).
         let executed = false;
         let execResult: unknown = null;
-        if (memoryDb && isSafeVerb(payload.action)) {
+        if (memoryDb && auditAppended && isSafeVerb(payload.action)) {
           try {
             // brain-teach bypasses databaseMiddleware, so the pooled
             // connection has no app.current_tenant_id bound. Bind it with
@@ -1099,16 +1567,24 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
           }
         }
 
-        await stream.writeSSE({
-          event: 'auto_authorized',
-          data: JSON.stringify({
-            payload,
-            authorized: true,
-            executed,
-            ...(execResult ? { result: execResult } : {}),
-            at: new Date().toISOString(),
-          }),
-        });
+        // RESILIENCE (mfr-7) — only present the authorization to the FE when
+        // the audit row was durably appended. If the append threw we already
+        // emitted an `error` frame above; suppress the `auto_authorized` frame
+        // so the client never sees an authorization that was not recorded.
+        if (auditAppended) {
+          await stream.writeSSE({
+            event: 'auto_authorized',
+            data: JSON.stringify({
+              // IP-EGRESS (CLOSE-G) — guard the model-authored free-text leaves
+              // (rationale / action / nested payload strings) before emit.
+              payload: sanitizeAutoAuthorizedPayload(payload, tenantId),
+              authorized: true,
+              executed,
+              ...(execResult ? { result: execResult } : {}),
+              at: new Date().toISOString(),
+            }),
+          });
+        }
       } else {
         // Downgrade: route the same payload through the auto_authorized
         // frame but flagged NOT authorized, with the deny reason. The FE
@@ -1126,7 +1602,10 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         await stream.writeSSE({
           event: 'auto_authorized',
           data: JSON.stringify({
-            payload,
+            // IP-EGRESS (CLOSE-G) — guard the model-authored free-text leaves
+            // before emit (suggestion path). The deny `reason` is gateway-
+            // authored (the policy gate), not model text, so it is not filtered.
+            payload: sanitizeAutoAuthorizedPayload(payload, tenantId),
             authorized: false,
             reason: decision.reason,
             at: new Date().toISOString(),
@@ -1260,10 +1739,19 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         logger,
       }).catch(() => null);
       if (proposal && !abort.signal.aborted) {
+        // ARTIFACT EGRESS MEMBRANE — project the genui PortalTab through the
+        // allow-list so its mechanic `audit` block (actorId /
+        // sourceConversationId / history) is dropped before egress. The
+        // renderable preview metadata (summary / reason / counts) is retained;
+        // only the embedded `tab` is membrane-projected. FAIL-CLOSED.
+        const safeTab = getArtifactEgressMembrane().guardEnvelope({
+          tab: proposal.tab,
+          evidenceIds: [],
+        }).tab;
         await stream.writeSSE({
           event: 'tab_proposal',
           data: JSON.stringify({
-            payload: proposal,
+            payload: { ...proposal, tab: safeTab },
             at: new Date().toISOString(),
           }),
         });
@@ -1276,6 +1764,14 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
     // routine / aversion in the persistent advisor memory. Never
     // blocks the SSE — failures are swallowed inside the recorder.
     if (memoryDb) {
+      // IMMUTABILITY (mfr-11) — build the observation in ONE immutable
+      // expression. The earlier code seeded a base object then Object.assign-
+      // mutated it twice, which violates the immutability hard rule (and risks
+      // an aliased caller seeing a half-built object). Compute the optional
+      // routine / rejected-recommendation fields first, then spread them into a
+      // single fresh literal — no mutation of a live object.
+      const routine = detectRoutineAction(message);
+      const rejected = detectRejectedRecommendation(message);
       const observation = {
         tenantId,
         userId,
@@ -1286,19 +1782,31 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         questionKind: classifyQuestionKind(message),
         normalizedQuestion: message,
         engagement: inferEngagementHint(history, false),
+        ...(routine
+          ? {
+              detectedRoutineAction: routine.action,
+              ...(routine.dom !== undefined
+                ? { routineDayOfMonth: routine.dom }
+                : {}),
+            }
+          : {}),
+        ...(rejected ? { rejectedRecommendationKind: rejected } : {}),
       } as Parameters<typeof recordObservation>[1];
-      const routine = detectRoutineAction(message);
-      if (routine) {
-        Object.assign(observation, {
-          detectedRoutineAction: routine.action,
-          ...(routine.dom !== undefined ? { routineDayOfMonth: routine.dom } : {}),
-        });
-      }
-      const rejected = detectRejectedRecommendation(message);
-      if (rejected) {
-        Object.assign(observation, { rejectedRecommendationKind: rejected });
-      }
       await recordObservation(memoryDb, observation).catch(() => {});
+    }
+
+    // SOFT path — surface the grounding verdict as a warn-only `auditor`
+    // frame BEFORE `done` (the same client "unverified badge" contract
+    // jarvis /stream emits). Omitted entirely when the gate faulted
+    // (fail-OPEN — no fabricated verdict).
+    if (grounding.frame && !abort.signal.aborted) {
+      await stream.writeSSE({
+        event: 'auditor',
+        data: JSON.stringify({
+          ...grounding.frame,
+          at: new Date().toISOString(),
+        }),
+      });
     }
 
     await stream.writeSSE({
@@ -1316,9 +1824,19 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
         inline_block_types: inlineResult.blocks.map((b) => b.type),
         auto_authorized: autoAuthResult.autoAuthorized
           ? {
-              action: autoAuthResult.autoAuthorized.action,
-              // 'authorized' when the policy gate + inviolable rules
-              // passed; 'suggested' when downgraded to needs-confirmation.
+              // IP-EGRESS (CLOSE-G) — the `action` is model-authored free text;
+              // guard it through getEgressFilter().guardFinal (matching the
+              // auto_authorized frame sanitisation) so a leak smuggled into the
+              // verb cannot ride out in the done summary. FAIL-CLOSED.
+              action: guardEgressLeaf(
+                autoAuthResult.autoAuthorized.action,
+                tenantId,
+              ),
+              // 'authorized' when the policy gate + inviolable rules passed
+              // AND the audit row durably appended; 'suggested' when downgraded
+              // to needs-confirmation; 'audit_failed' when the gate passed but
+              // the audit append threw so the `auto_authorized` frame was
+              // suppressed (mfr-7 — never report authorized while suppressed).
               outcome: autoAuthOutcome,
             }
           : null,
@@ -1356,10 +1874,18 @@ teachApp.post('/teach', zValidator('json', TeachChatSchema), async (c) => {
               contenders: debateResult.trace.responses.length,
             }
           : null,
+        // INV-H — whether the honest epistemic `self_model` frame was emitted
+        // this turn (omitted when no axis was worth surfacing — never fabricated).
+        self_model: selfModelEmitted,
       }),
     });
   });
 });
 
 export { teachApp as brainTeachRouter };
+// Test seam (INV-H) — the honest epistemic self-model payload builder. Exported
+// so the gateway test can assert the egress-safe projected shape (posture +
+// sure/unsure/would-need axes only — no raw cognition / audit math) and the
+// honest-degrade omission, without standing up the full provider ladder.
+export { buildTeachSelfModelPayload as __buildTeachSelfModelPayloadForTest };
 export default teachApp;

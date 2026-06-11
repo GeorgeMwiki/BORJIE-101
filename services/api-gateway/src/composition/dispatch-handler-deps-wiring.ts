@@ -1,14 +1,11 @@
 /**
  * REAL dispatch-handler dependency wiring (Wave-3-int3).
  *
- * Replaces the silent success-shaped stubs in `dispatch-router-wiring.ts`
- * (`createStubEstateHandlerDeps` / `createStubMiningHandlerDeps`) with
- * REAL ports backed by the services that already live in the gateway
+ * Replaces the silent success-shaped MINING stub in
+ * `dispatch-router-wiring.ts` (`createStubMiningHandlerDeps`) with REAL
+ * ports backed by the services that already live in the gateway
  * composition:
  *
- *   - MONEY  → the real double-entry `LedgerService` via
- *              `createEstateLedgerAdapter` (CLAUDE.md hard rule: money
- *              goes through `LedgerService.post()`).
  *   - AUDIT  → the real append-only, hash-chained `ai_audit_chain` via
  *              `createAuditHashChain` over the Drizzle repo (immutable,
  *              cryptographically linked — no fabricated ids).
@@ -17,7 +14,6 @@
  *              out to every running portal SSE stream.
  *   - MINING repos → typed Drizzle inserts against the canonical mining
  *              tables `tasks`, `temporal_entities`, `maintenance_events`.
- *   - CORE entity → typed Drizzle reads/writes against `core_entity`.
  *
  * Tenant isolation (RLS): every write binds `app.current_tenant_id`
  * transaction-locally as its FIRST statement so the INSERT is subject to
@@ -25,13 +21,14 @@
  * from the request middleware). Drizzle only; immutable inputs; no
  * `console.log` (Pino logger threaded by the caller).
  *
- * Honest-failure boundary: the estate `create_lease_application` handler
- * also needs a lease-application row store and `post_receipt_draft` needs
- * a receipts table — NEITHER exists in the mining-domain schema yet. Those
- * specific ports THROW a clear `NotYetWired` error rather than fabricate a
- * fake id behind a success surface. Every OTHER estate port (core-entity,
- * the LedgerService money path, the audit chain) is real, so the failure
- * is surfaced honestly at exactly the missing seam.
+ * NOTE: the pre-Borjie property-era ESTATE dispatch handlers
+ * (`create_lease_application` deposit through `LedgerService.post()` +
+ * `post_receipt_draft`) were EXCISED. They modelled lease / tenant-deposit
+ * property money with no mining-estate backing schema; a mining estate's
+ * real money (royalty / sales) already flows through `LedgerService.post()`
+ * in `services/payments-ledger`. No dispatch path in this file touches
+ * money — mining handlers only write `tasks` / `temporal_entities` /
+ * `maintenance_events`.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -40,16 +37,9 @@ import {
   createAuditHashChain,
   type AuditHashChain,
 } from '@borjie/ai-copilot';
-import type {
-  EstateHandlerDeps,
-  MiningHandlerDeps,
-} from '@borjie/module-templates';
+import type { MiningHandlerDeps } from '@borjie/module-templates';
 
 import { createDrizzleAiAuditChainRepo } from './ai-audit-chain-repo.js';
-import {
-  buildLedgerService,
-  createEstateLedgerAdapter,
-} from './ledger/index.js';
 import { tenantTopic, type CrossPortalBus } from './cross-portal-bus.js';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -114,18 +104,6 @@ async function withTenantTx<T>(
     );
     return body(tx);
   });
-}
-
-/** Raised when a real backing store genuinely does not exist yet. */
-export class NotYetWiredError extends Error {
-  constructor(what: string) {
-    super(
-      `dispatch-handler wiring: ${what} has no real backing store in the ` +
-        `mining-domain schema yet — refusing to fabricate a fake success id. ` +
-        `Wire the real table + repository, then replace this throw.`,
-    );
-    this.name = 'NotYetWiredError';
-  }
 }
 
 /**
@@ -241,102 +219,6 @@ function makeIdGenerator(): { newId(prefix: string): string } {
   return {
     newId(prefix: string): string {
       return `${prefix}_${randomUUID()}`;
-    },
-  };
-}
-
-// ─────────────────────────────────────────────────────────────────────
-// ESTATE
-// ─────────────────────────────────────────────────────────────────────
-
-export interface RealEstateHandlerDepsInput {
-  readonly db: SqlExecutor;
-  readonly crossPortalBus: Promise<CrossPortalBus>;
-  readonly logger?: DispatchHandlerDepsLogger;
-}
-
-/**
- * Build REAL estate handler deps. The MONEY path
- * (`create_lease_application` deposit) flows through `LedgerService.post()`;
- * the canonical-person resolution is a real `core_entity` read/write; the
- * audit chain is the real hash-chained `ai_audit_chain`.
- *
- * The lease-application row store and the receipt-draft store have no
- * mining-domain table yet, so those ports fail loud (`NotYetWiredError`)
- * rather than fabricating an id — see the file header.
- */
-export function createRealEstateHandlerDeps(
-  input: RealEstateHandlerDepsInput,
-): EstateHandlerDeps {
-  const { db } = input;
-
-  const auditChainPort = makeAuditChainPort(db);
-  const notifications = makeNotificationPort(input.crossPortalBus, input.logger);
-
-  const ledger = buildLedgerService(db as never);
-  const estateLedger = createEstateLedgerAdapter(db as never, ledger);
-
-  return {
-    moduleId: 'ESTATE',
-    createLeaseApplication: {
-      coreEntity: {
-        async findById(id: string) {
-          const raw = await db.execute(sql`
-            SELECT id, display_name
-              FROM core_entity
-             WHERE id = ${id}
-               AND deleted_at IS NULL
-             LIMIT 1
-          `);
-          const row = rowsOf(raw)[0];
-          if (!row) return null;
-          return {
-            id: String(row.id),
-            displayName: String(row.display_name ?? ''),
-          };
-        },
-        async createPerson(args) {
-          const id = `ce_${randomUUID()}`;
-          await withTenantTx(db, args.tenantId, async (tx) => {
-            await tx.execute(sql`
-              INSERT INTO core_entity (
-                id, tenant_id, module_id, entity_type, display_name,
-                lifecycle_state, custom_fields, created_at, updated_at, created_by
-              ) VALUES (
-                ${id}, ${args.tenantId}, ${args.moduleId}, 'person',
-                ${args.displayName}, 'active',
-                ${JSON.stringify(args.customFields ?? {})}::jsonb,
-                now(), now(), 'estate-create-lease-application'
-              )
-            `);
-          });
-          return { id };
-        },
-      },
-      // MONEY — real double-entry post via LedgerService.post().
-      ledger: estateLedger,
-      applications: {
-        async draftApplication() {
-          // No lease-application table exists in the mining-domain schema.
-          throw new NotYetWiredError('estate lease-application store');
-        },
-      },
-      auditChain: auditChainPort,
-      notifications,
-    },
-    postReceiptDraft: {
-      ledger: {
-        async draft() {
-          // No receipts table; the draft-ledger leg has nothing to anchor.
-          throw new NotYetWiredError('estate receipt-draft ledger store');
-        },
-      },
-      receipts: {
-        async draft() {
-          throw new NotYetWiredError('estate receipts store');
-        },
-      },
-      auditChain: auditChainPort,
     },
   };
 }

@@ -16,6 +16,13 @@
  *        `workforce_role_tab_configs` row, and falls back to a built-
  *        in default per role if none exists. NEVER mutates state.
  *
+ *        ADDITIVE `projectedTabs[]` (owner-spawn → workforce bridge):
+ *        the response also carries the role-scoped projections of the
+ *        tenant's ACTIVE owner-spawned cockpit tabs (owner_tabs_structural,
+ *        kind='custom') whose config declares a projectable semantic kind.
+ *        Old clients ignore the extra field; failures on this auxiliary
+ *        path degrade honestly to `[]`. See ./tab-projection.ts.
+ *
  *   POST /api/v1/workforce/tab-change-requests
  *        Any workforce user submits a request to change their tabs.
  *        Body: { reason, requested_changes }. Status starts 'pending'.
@@ -63,6 +70,7 @@ import {
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
+import { fetchProjectedTabs } from './tab-projection';
 
 const moduleLogger = createLogger('workforce-tab-configs');
 
@@ -268,6 +276,16 @@ workerApp.get('/tab-config', async (c: any) => {
     config = global;
   }
 
+  // Owner-spawn → workforce bridge: project the tenant's ACTIVE owner-
+  // spawned cockpit tabs into this worker's shell (role-scoped, additive,
+  // honest-degrade to [] — never breaks the base contract).
+  const projectedTabs = await fetchProjectedTabs(
+    db,
+    auth.tenantId,
+    role,
+    moduleLogger,
+  );
+
   if (!config) {
     return c.json({
       success: true,
@@ -278,6 +296,7 @@ workerApp.get('/tab-config', async (c: any) => {
         layoutDensity: 'comfortable' as const,
         updatedAt: null,
         hydratedFromDefault: true,
+        projectedTabs,
       },
     });
   }
@@ -291,6 +310,7 @@ workerApp.get('/tab-config', async (c: any) => {
       layoutDensity: config.layoutDensity,
       updatedAt: config.updatedAt,
       hydratedFromDefault: false,
+      projectedTabs,
     },
   });
 });

@@ -69,11 +69,13 @@ const authedUser: BuyerUser = {
 }
 
 describe('dashboard i18n', () => {
-  it('exposes a Swahili-first "Dashibodi" tab label', () => {
+  it('exposes a locale-pure dashboard tab label (Dashibodi / Dashboard)', () => {
+    // Absolute-toggle rule (CLAUDE.md): EN shows ZERO Swahili and vice-versa.
+    // The dashboard tab is 'Dashibodi' in sw, 'Dashboard' in en — never mixed.
     expect(sw.tabs.dashboard).toBe('Dashibodi')
-    expect(en.tabs.dashboard).toBe('Dashibodi')
+    expect(en.tabs.dashboard).toBe('Dashboard')
     expect(translate('sw', 'tabs.dashboard')).toBe('Dashibodi')
-    expect(translate('en', 'tabs.dashboard')).toBe('Dashibodi')
+    expect(translate('en', 'tabs.dashboard')).toBe('Dashboard')
   })
 
   it('defines a dashboard.* dictionary for every section in both languages', () => {

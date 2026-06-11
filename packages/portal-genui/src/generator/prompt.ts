@@ -11,6 +11,7 @@ import {
   PORTAL_TAB_FIELD_KINDS,
   PORTAL_TAB_WIDGET_KINDS,
   type GeneratorOrgContext,
+  type PortalLocale,
   type TabGenerationIntent,
 } from '../types.js';
 import { FIELD_KIND_REGISTRY } from '../fields/registry.js';
@@ -30,7 +31,7 @@ function renderWidgetCatalog(): string {
   }).join('\n');
 }
 
-const STATIC_PROMPT_HEAD = `You design a tab for a multi-tenant property-management portal.
+const STATIC_PROMPT_HEAD = `You design a tab for a multi-tenant mining-estate portal.
 
 Output STRICT JSON with the shape (Zod schema: PortalTab):
 
@@ -106,6 +107,48 @@ FIELD KINDS:
 WIDGET KINDS:
 {{WIDGETS}}`;
 
+/**
+ * Render the ABSOLUTE single-language directive for the generation
+ * system prompt. Mirrors the brain `/turn` orchestrator directive
+ * (`renderOrchestratorLanguageDirective` in central-intelligence
+ * `kernel.ts`): CLAUDE.md mandate is `en` default, `sw` toggle, ZERO
+ * mixing. The brain is bilingual — it AUTHORS every label in the
+ * target language; it does NOT translate or look up a dictionary.
+ *
+ * The directive copy itself is written in the target language so the
+ * model is anchored by example and never mixes the two. It enumerates
+ * EVERY generated string surface (title, description, section titles,
+ * field labels, options, help, widget titles) because those are the
+ * only human-visible strings on a generated tab — system keys
+ * (tabKey, field keys, kinds, icons) stay machine-stable regardless of
+ * locale.
+ */
+export function renderGenerationLanguageDirective(
+  locale: PortalLocale,
+): string {
+  if (locale === 'sw') {
+    return [
+      '# LUGHA YA LEBO (LAZIMA)',
+      'Andika MANENO YOTE yanayoonekana kwa Kiswahili PEKEE: kichwa cha',
+      'tab (title), maelezo (description), vichwa vya sehemu (section',
+      'titles), lebo za sehemu za kujaza (field labels), chaguo (options),',
+      'maelezo ya msaada (help), na vichwa vya wijeti (widget titles).',
+      'USICHANGANYE Kiingereza na Kiswahili popote. Funguo za mfumo —',
+      'tabKey, funguo za sehemu (keys), aina (kinds), na ikoni — zibaki',
+      'kama zilivyo (hazitafsiriwi).',
+    ].join('\n');
+  }
+  return [
+    '# LABEL LANGUAGE (REQUIRED)',
+    'Write EVERY human-visible string in English ONLY: the tab title,',
+    'description, section titles, field labels, dropdown option labels,',
+    'help text, and widget titles. Never mix Swahili and English',
+    'anywhere. System keys — tabKey, section/field/widget keys, kinds,',
+    'and icon names — stay as-is (they are machine identifiers, never',
+    'translated).',
+  ].join('\n');
+}
+
 const STATIC_PROMPT_TAIL = `INTENT EVIDENCE:
 {{EVIDENCE}}
 
@@ -120,22 +163,38 @@ PROPOSED TAB:
   title: {{PROPOSED_TITLE}}
   domain: {{DOMAIN}}
 
+OWNER ACTIVE LOCALE: {{LOCALE}}
+{{LOCALE_REMINDER}}
+
 Return the JSON now.`;
 
 export interface BuildPromptArgs {
   readonly intent: TabGenerationIntent;
   readonly orgContext: GeneratorOrgContext | undefined;
+  /** Owner's active locale. Defaults to `en` (CLAUDE.md) when omitted. */
+  readonly locale?: PortalLocale;
 }
 
-export function buildGenerationSystemPrompt(): string {
-  return STATIC_PROMPT_HEAD.replace('{{FIELDS}}', renderFieldCatalog()).replace(
-    '{{WIDGETS}}',
-    renderWidgetCatalog(),
-  );
+/**
+ * Build the generation system prompt. The absolute single-language
+ * directive is appended LAST so it is the terminal instruction the
+ * model reads — it cannot be displaced by the field/widget catalogs
+ * that precede it (same ordering discipline as the brain orchestrator's
+ * locale-last layering). Defaults to `en` per CLAUDE.md.
+ */
+export function buildGenerationSystemPrompt(
+  locale: PortalLocale = 'en',
+): string {
+  const base = STATIC_PROMPT_HEAD.replace(
+    '{{FIELDS}}',
+    renderFieldCatalog(),
+  ).replace('{{WIDGETS}}', renderWidgetCatalog());
+  return `${base}\n\n${renderGenerationLanguageDirective(locale)}`;
 }
 
 export function buildGenerationUserMessage(args: BuildPromptArgs): string {
   const { intent, orgContext } = args;
+  const locale: PortalLocale = args.locale ?? intent.locale ?? 'en';
   const evidence =
     intent.evidence.length > 0
       ? intent.evidence.map((e) => `  - "${e}"`).join('\n')
@@ -158,6 +217,15 @@ export function buildGenerationUserMessage(args: BuildPromptArgs): string {
       `  - existingTabKeys: ${orgContext.existingTabKeys.join(', ')}`,
     );
   }
+  // The proposed title is a machine-derived HINT (often English from the
+  // heuristic detector) — the brain must (re)author it in the owner's
+  // locale rather than echo it verbatim, so a `sw` owner never inherits an
+  // English title. The reminder is written in the target language.
+  const localeReminder =
+    locale === 'sw'
+      ? 'KUMBUSHO: kichwa kilichopendekezwa hapo juu ni dokezo tu — andika title, vichwa, na lebo ZOTE kwa Kiswahili.'
+      : 'REMINDER: the proposed title above is only a hint — write the title, section titles, and all labels in English.';
+
   return STATIC_PROMPT_TAIL.replace('{{EVIDENCE}}', evidence)
     .replace(
       '{{ORG_CONTEXT}}',
@@ -166,5 +234,7 @@ export function buildGenerationUserMessage(args: BuildPromptArgs): string {
     .replace('{{SOURCE_MESSAGE}}', intent.sourceMessage)
     .replace('{{PROPOSED_KEY}}', intent.proposedTabKey)
     .replace('{{PROPOSED_TITLE}}', intent.proposedTabTitle)
-    .replace('{{DOMAIN}}', intent.domain);
+    .replace('{{DOMAIN}}', intent.domain)
+    .replace('{{LOCALE}}', locale)
+    .replace('{{LOCALE_REMINDER}}', localeReminder);
 }

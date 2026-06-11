@@ -138,10 +138,12 @@ import {
   createInMemoryCellRepository,
   createDrizzleCellRepository,
   createInMemoryReinforcementRepository,
+  createDrizzleReinforcementRepository,
   // Embedding service
   createEmbeddingService,
   // Audit
   createInMemoryAuditChain,
+  createDrizzleAuditChain,
   // Constants
   EMBEDDING_DIM,
   // Types
@@ -188,6 +190,46 @@ import {
   type AuditChainPort as PersistentAuditChain,
 } from '@borjie/persistent-memory';
 
+// K4 — MEMORY CONTINUITY. The brain's `/turn` never auto-read its own open
+// commitments (`md_commitments`) or recent actions (`mwikila_actions_inbox`);
+// continuity depended on the LLM voluntarily calling a tool. This wiring folds
+// a compact, single-language OPEN THREADS / RECENTLY DONE block into the
+// enrichment on EVERY turn — continuity by construction. The two readers are
+// built here from the canonical `MdCommitmentRepository` + `MwikilaInboxRecorder`
+// (no re-implemented SQL); both are fail-safe (a read fault → no block).
+import { createDrizzleMdCommitmentRepository } from '@borjie/database';
+import { createMwikilaInboxRecorder } from '../services/mwikila-autonomy/index.js';
+import {
+  fetchContinuitySnapshot,
+  buildContinuityBlock,
+  commitmentReaderFromRepo,
+  actionReaderFromRecorder,
+  type ContinuityReaders,
+  type ContinuityLang,
+} from './continuity-readers.js';
+import { metrics, type Counter } from '@opentelemetry/api';
+
+// K4 — continuity-block telemetry. The meter is resolved lazily so this
+// module never touches OTel at import time (pre-init `getMeter` is a no-op
+// meter; the real meter binds after `services/api-gateway/src/index.ts`
+// bootstraps OTel). The counter distinguishes a read FAILURE (DB timeout /
+// contract violation) from the expected new-tenant empty case so a
+// DB-timeout spike is detectable on a dashboard instead of degrading
+// silently.
+let continuityFailureCounter: Counter | null = null;
+function recordContinuityFailure(reason: string): void {
+  if (!continuityFailureCounter) {
+    continuityFailureCounter = metrics
+      .getMeter('borjie.api-gateway.cognitive', '1.0.0')
+      .createCounter('brain.continuity_block.failure', {
+        description:
+          'Count of brain continuity-block read failures, by reason. ' +
+          'Excludes the expected new-tenant empty case.',
+      });
+  }
+  continuityFailureCounter.add(1, { reason });
+}
+
 // ---------------------------------------------------------------------------
 // Logger contract — narrow shape so this file does not bind to a
 // specific logging library. Matches the structural shape of the
@@ -227,6 +269,15 @@ export interface WiredCognitive {
    * memory-recall-only enrichment. `runForTurn` is itself fail-safe.
    */
   readonly composition: WiredCognitiveComposer | null;
+  /**
+   * K4 — MEMORY CONTINUITY readers (open commitments + recent actions). When
+   * present, {@link enrichBrainTurnWithCognitive} ALWAYS folds a compact,
+   * single-language OPEN THREADS / RECENTLY DONE block into the preamble so the
+   * MD recalls its own threads + actions every turn — no tool call needed.
+   * `null` when no DB handle was supplied (tests / no-DB boot); the enrichment
+   * then simply omits the continuity block.
+   */
+  readonly continuity: ContinuityReaders | null;
   /** Whether at least one bundle was constructed. False means full
    *  degradation — the enrichment function will return empty. */
   readonly isLive: boolean;
@@ -376,8 +427,31 @@ function buildCognitiveMemoryBundle(
         'cognitive-wiring: no db handle; cognitive-memory cells are in-memory (volatile across restarts)',
       );
     }
-    const reinforcements = createInMemoryReinforcementRepository();
-    const audit = createInMemoryAuditChain();
+    // Reinforcement trail — same Drizzle/in-memory guard as the cell store.
+    // The Drizzle repo persists one row per reinforce call to
+    // `cognitive_memory_reinforcements` (migration 0029); it implements the
+    // identical `ReinforcementRepository` port, so no other slot changes.
+    const reinforcements: ReinforcementRepository =
+      deps.db !== null
+        ? createDrizzleReinforcementRepository(
+            deps.db as Parameters<
+              typeof createDrizzleReinforcementRepository
+            >[0],
+            { warn: (message, meta) => deps.logger.warn(message, meta) },
+          )
+        : createInMemoryReinforcementRepository();
+    // Audit chain — hash-chained, append-only. The Drizzle variant persists
+    // every memory mutation to `cognitive_memory_audit_chain`, preserving the
+    // exact chain semantics (prevHash + chainIndex + sha256 rowHash from
+    // `@borjie/audit-hash-chain`); the in-memory variant is the volatile
+    // fallback for no-DB boots.
+    const audit: MemoryAuditChain =
+      deps.db !== null
+        ? createDrizzleAuditChain(
+            deps.db as Parameters<typeof createDrizzleAuditChain>[0],
+            { logger: { warn: (message, meta) => deps.logger.warn(message, meta) } },
+          )
+        : createInMemoryAuditChain();
     const upstream = deps.upstreamEmbedder ?? createFixedVectorEmbedder();
     const embedder = createEmbeddingService({ upstream });
     const recall = createRecall({ cells, embedder });
@@ -431,6 +505,50 @@ function buildPersistentMemoryBundle(
   }
 }
 
+/**
+ * K4 — build the MEMORY CONTINUITY readers from the SAME Drizzle handle the
+ * cognitive bundle already receives. The commitment reader wraps the canonical
+ * `MdCommitmentRepository` (its Drizzle impl runs each read inside
+ * `withServiceRoleContext`, which is exactly right for a brain-pool read that
+ * is not request-pinned); the action reader wraps `MwikilaInboxRecorder`. Both
+ * are projected to narrow read-only views.
+ *
+ * Never throws — a construction fault degrades to `null` (the enrichment then
+ * omits the continuity block). Returns `null` when there is no DB handle
+ * (tests / no-DB boot) so continuity is simply absent rather than broken.
+ */
+function buildContinuityReaders(
+  deps: WireCognitiveDeps,
+): ContinuityReaders | null {
+  if (deps.db === null) {
+    deps.logger.warn(
+      'cognitive-wiring: no db handle; memory-continuity readers omitted (no open-threads block)',
+    );
+    return null;
+  }
+  try {
+    const repo = createDrizzleMdCommitmentRepository(
+      deps.db as Parameters<typeof createDrizzleMdCommitmentRepository>[0],
+    );
+    const recorder = createMwikilaInboxRecorder({
+      db: deps.db as Parameters<typeof createMwikilaInboxRecorder>[0]['db'],
+    });
+    deps.logger.info(
+      'cognitive-wiring: memory-continuity readers wired (open commitments + recent actions)',
+    );
+    return Object.freeze({
+      commitments: commitmentReaderFromRepo(repo),
+      actions: actionReaderFromRecorder(recorder),
+    });
+  } catch (err) {
+    deps.logger.warn(
+      'cognitive-wiring: memory-continuity readers construction failed; degrading slot to null',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Public factory
 // ---------------------------------------------------------------------------
@@ -461,13 +579,21 @@ export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
     });
   }
 
-  const isLive = cognitiveMemory !== null || persistent !== null;
+  // K4 — memory-continuity readers (open commitments + recent actions). Built
+  // from the same db handle; null on no-DB / construction fault. Continuity
+  // makes the bundle "live" for enrichment even when the memory slots degrade,
+  // so the MD always recalls its own threads — the never-drop-a-thread spine.
+  const continuity = buildContinuityReaders(deps);
+
+  const isLive =
+    cognitiveMemory !== null || persistent !== null || continuity !== null;
   if (isLive) {
     deps.logger.info('cognitive-wiring: bundles constructed', {
       cognitiveMemory: cognitiveMemory !== null,
       persistent: persistent !== null,
       composition: composition !== null,
       composerEnabled: composition?.enabled ?? false,
+      continuity: continuity !== null,
     });
   } else {
     deps.logger.warn(
@@ -478,6 +604,7 @@ export function wireCognitive(deps: WireCognitiveDeps): WiredCognitive {
     cognitiveMemory,
     persistent,
     composition,
+    continuity,
     isLive,
   });
 }
@@ -512,6 +639,16 @@ export interface EnrichArgs {
    * its slot is null / disabled / a fast route is chosen — all fail-safe).
    */
   readonly composer?: ComposerEnrichInput;
+  /**
+   * K4 — MEMORY CONTINUITY locale. The OPEN THREADS / RECENTLY DONE block is
+   * rendered in EXACTLY ONE language with zero mixing (CLAUDE.md). Default
+   * `'en'`. Pass `'sw'` only when the active locale toggles to Swahili.
+   */
+  readonly locale?: ContinuityLang;
+  /** K4 — bound on the open-commitments surfaced (default + cap 10). */
+  readonly maxOpenThreads?: number;
+  /** K4 — bound on the recent actions surfaced (default + cap 10). */
+  readonly maxRecentActions?: number;
 }
 
 /**
@@ -686,12 +823,35 @@ export async function enrichBrainTurnWithCognitive(
   if (args.composer !== undefined) composeArgs.composer = args.composer;
   const composerResult = await safeComposeDeep(composeArgs);
 
+  // K4 — MEMORY CONTINUITY. ALWAYS (every turn) read the tenant's LIVE/open
+  // commitments + recent action history and fold a compact, single-language
+  // OPEN THREADS / RECENTLY DONE block into the preamble. Continuity by
+  // construction — the MD recalls its own threads without a tool call. The
+  // fetch is fully fail-safe (a read fault → empty snapshot → no block).
+  const continuityBlock = await safeContinuityBlock({
+    wired: args.wired,
+    tenantId: args.tenantId,
+    locale: args.locale ?? 'en',
+    logger,
+    ...(args.maxOpenThreads !== undefined
+      ? { maxOpenThreads: args.maxOpenThreads }
+      : {}),
+    ...(args.maxRecentActions !== undefined
+      ? { maxRecentActions: args.maxRecentActions }
+      : {}),
+  });
+
   const memoryBlock = formatRecallBlock(recallResults, args.personaId);
   const sessionBlock = formatSessionBlock(sessionSummary);
   const composerBlock = formatComposerBlock(composerResult);
-  const parts = [memoryBlock, sessionBlock, composerBlock].filter(
-    (p) => p.length > 0,
-  );
+  // Continuity leads the preamble — the MD's own open threads + recent actions
+  // are the grounding the rest of the enrichment builds on.
+  const parts = [
+    continuityBlock,
+    memoryBlock,
+    sessionBlock,
+    composerBlock,
+  ].filter((p) => p.length > 0);
 
   if (parts.length === 0) {
     return EMPTY_RESULT;
@@ -706,6 +866,102 @@ export async function enrichBrainTurnWithCognitive(
     recallResults: Object.freeze(recallResults.slice()),
     composer: composerResult,
   });
+}
+
+// ---------------------------------------------------------------------------
+// MEM-02 — the live `observe()` WRITER.
+//
+// Before this, the brain turn only RECALLED from cognitive memory; nothing
+// ever wrote a cell on the live `/turn` path, so the store stayed empty and
+// recall always returned nothing (`grep .observe( in gateway = Prometheus
+// only`). This closes the write side: after a turn produces an answer, the
+// exchange is observed as a single `pattern` cell so memory ACCRUES turn over
+// turn. With the Drizzle cell repository selected at the composition root
+// (db present) the cell is durable across a process restart.
+//
+// Fail-safe by construction: it short-circuits when the bundle is degraded
+// (`cognitiveMemory === null`) or the texts are empty, and it try/catches so a
+// write fault NEVER blocks or fails the turn (the user already has their
+// answer by the time this runs).
+// ---------------------------------------------------------------------------
+
+export interface ObserveTurnArgs {
+  readonly wired: WiredCognitive;
+  readonly tenantId: string;
+  /** The user's message for the turn (already privacy-processed). */
+  readonly userText: string;
+  /** The assistant's answer text. */
+  readonly responseText: string;
+  /** The specialisation that produced the answer (default 'mr-mwikila'). */
+  readonly specialisation?: string;
+  /** Turn id for the observe audit row + cell provenance. */
+  readonly turnId?: string;
+  /** Optional logger; defaults to a silent logger. */
+  readonly logger?: CognitiveLogger;
+}
+
+/** Hard cap on the observed content length — keep cells compact + cheap. */
+const OBSERVE_MAX_CHARS = 1200;
+
+function buildObservedContent(userText: string, responseText: string): string {
+  const u = userText.trim();
+  const a = responseText.trim();
+  const block = [`User asked: ${u}`, `Assistant answered: ${a}`].join('\n');
+  return block.length > OBSERVE_MAX_CHARS
+    ? `${block.slice(0, OBSERVE_MAX_CHARS - 1)}…`
+    : block;
+}
+
+/**
+ * Observe one memory cell from a completed turn. Returns the new cell id, or
+ * `null` when nothing was written (degraded bundle, empty texts, or a
+ * swallowed write error). NEVER throws.
+ */
+export async function observeBrainTurnMemory(
+  args: ObserveTurnArgs,
+): Promise<string | null> {
+  const logger = args.logger ?? createSilentLogger();
+  const cm = args.wired.cognitiveMemory;
+  if (cm === null) return null;
+  const userText = args.userText.trim();
+  const responseText = args.responseText.trim();
+  if (userText.length === 0 || responseText.length === 0) return null;
+  if (args.tenantId.length === 0) return null;
+
+  try {
+    const cell = await cm.observe(
+      {
+        content_text: buildObservedContent(userText, responseText),
+        kind: 'pattern',
+        initial_confidence: 0.5,
+        content_structured: {
+          source: 'brain.turn',
+          user_chars: userText.length,
+          answer_chars: responseText.length,
+        },
+      },
+      {
+        tenant_id: args.tenantId,
+        scope_id: 'tenant_root',
+        specialisation: args.specialisation ?? 'mr-mwikila',
+        turn_id: args.turnId ?? '',
+      },
+    );
+    return cell.id;
+  } catch (err) {
+    if (err instanceof CognitiveMemoryError) {
+      logger.warn('cognitive-wiring: observe returned typed error', {
+        code: err.code,
+        message: err.message,
+      });
+    } else {
+      logger.warn(
+        'cognitive-wiring: observe failed; turn memory not written (non-fatal)',
+        { error: err instanceof Error ? err.message : String(err) },
+      );
+    }
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -819,6 +1075,105 @@ async function safeSessionRecall(
   }
 }
 
+// ---------------------------------------------------------------------------
+// K4 — MEMORY CONTINUITY safe block builder.
+// ---------------------------------------------------------------------------
+
+interface SafeContinuityArgs {
+  readonly wired: WiredCognitive;
+  readonly tenantId: string;
+  readonly locale: ContinuityLang;
+  readonly logger: CognitiveLogger;
+  readonly maxOpenThreads?: number;
+  readonly maxRecentActions?: number;
+}
+
+/**
+ * Fetch the continuity snapshot and render the single-language OPEN THREADS /
+ * RECENTLY DONE block. NEVER throws — returns `''` when the continuity slot is
+ * null, the snapshot is empty, or any read faulted (the snapshot fetch is
+ * itself fail-safe, and this wrapper double-guards). The block is the MD's own
+ * data, rendered inside an untrusted-data fence (see `continuity-readers.ts`).
+ *
+ * iq-continuity-opt-in-11 — `fetchContinuitySnapshot` swallows a reader fault
+ * internally and returns an EMPTY snapshot, which is structurally identical to a
+ * genuine "new tenant / no open threads" result. The snapshot now carries a
+ * `readFault` flag so the two are distinguishable here:
+ *   - readFault === true, NO content  → a DEGRADED empty read. Record the
+ *     failure counter (so a DB-blip spike is observable) and emit NO continuity
+ *     content — never a "new session" placeholder, which would fabricate a
+ *     fresh-session claim on a transient fault.
+ *   - readFault === true, WITH content → a PARTIAL-success read (one reader
+ *     faulted in isolation, the other returned real threads). Record the
+ *     failure counter, but STILL surface the threads we did read — discarding
+ *     honest data is worse than a tainted-but-partial snapshot.
+ *   - readFault === false → a GENUINE empty (true new session). The block is
+ *     legitimately empty (`''`); a "new session" placeholder is safe here.
+ */
+async function safeContinuityBlock(args: SafeContinuityArgs): Promise<string> {
+  const continuity = args.wired.continuity;
+  if (continuity === null) return '';
+  try {
+    const snapshot = await fetchContinuitySnapshot({
+      readers: continuity,
+      tenantId: args.tenantId,
+      logger: { warn: (m, meta) => args.logger.warn(m, meta) },
+      ...(args.maxOpenThreads !== undefined
+        ? { maxOpenThreads: args.maxOpenThreads }
+        : {}),
+      ...(args.maxRecentActions !== undefined
+        ? { maxRecentActions: args.maxRecentActions }
+        : {}),
+    });
+    if (snapshot.readFault) {
+      // A swallowed read fault — ALWAYS make it OBSERVABLE (counter + warn)
+      // instead of degrading silently. We must NOT treat a degraded read as a
+      // genuine new session.
+      recordContinuityFailure('read_fault');
+      args.logger.warn(
+        'cognitive-wiring: continuity read faulted (swallowed in fetch); recording failure',
+        { tenantId: args.tenantId },
+      );
+      const hasContent =
+        snapshot.openThreads.length > 0 || snapshot.recentActions.length > 0;
+      if (!hasContent) {
+        // A GENUINELY-EMPTY degraded read: emit NO continuity content — never a
+        // false new-session placeholder, which would fabricate a fresh-session
+        // claim on a transient fault.
+        return '';
+      }
+      // PARTIAL success (reader isolation): one source faulted but the other
+      // returned real threads — surface what we DID read rather than discarding
+      // honest data. buildContinuityBlock only renders the non-empty sections.
+    }
+    // No fault, or a partial-success fault carrying real content: render the
+    // snapshot. A genuinely-empty no-fault snapshot is a true new session, so
+    // the empty block ('') is honest — buildContinuityBlock renders '' when empty.
+    return buildContinuityBlock(snapshot, args.locale);
+  } catch (err) {
+    // Defence-in-depth: the fetch already swallows read faults, but a contract
+    // violation (e.g. DB timeout surfacing past the inner guard) must NEVER
+    // break the turn. Record the failure on a counter + warn (Pino) so a
+    // DB-timeout spike is observable, then skip the continuity block.
+    recordContinuityFailure(classifyContinuityFailure(err));
+    args.logger.warn(
+      'cognitive-wiring: continuity block failed unexpectedly; skipping open-threads block',
+      { error: err instanceof Error ? err.message : String(err) },
+    );
+    return '';
+  }
+}
+
+/** Coarse reason label for the continuity-failure counter (low cardinality). */
+function classifyContinuityFailure(err: unknown): string {
+  const msg = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  if (msg.includes('timeout') || msg.includes('timed out')) return 'db_timeout';
+  if (msg.includes('connection') || msg.includes('econnrefused')) {
+    return 'db_connection';
+  }
+  return 'unexpected';
+}
+
 // Conservative composer-routing defaults. Owner-portal + low stakes keep the
 // TTC allocator from over-firing the deep composer on ordinary chat; the
 // composer only escalates above these when the caller passes higher stakes /
@@ -930,8 +1285,12 @@ export const __testables = Object.freeze({
   formatSessionBlock,
   formatComposerBlock,
   safeComposeDeep,
+  safeContinuityBlock,
+  buildContinuityReaders,
   clampTopK,
   createSilentLogger,
+  buildObservedContent,
+  OBSERVE_MAX_CHARS,
   DEFAULT_TOP_K,
   EMPTY_RESULT,
   COMPOSER_DEFAULT_STAKES,

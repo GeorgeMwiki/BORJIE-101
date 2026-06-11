@@ -93,7 +93,9 @@ const DEFAULT_LIVE: KillswitchState = {
  *   - `KILLSWITCH_TENANT_<id>_REASON`  — per-tenant reason (optional)
  *
  * Levels accepted: 'halt' | 'degraded' | 'live' (case-insensitive).
- * Anything else collapses to 'live' to fail-open on misconfiguration.
+ * An ABSENT/empty value is 'live' (no kill-switch configured). A non-empty but
+ * unrecognized value FAILS CLOSED to 'degraded' (kill-switch fail-closed) — a
+ * typo'd hold must never silently leave the kernel fully live.
  */
 export function createEnvKillswitchPort(
   envSource: Readonly<Record<string, string | undefined>> = process.env,
@@ -126,11 +128,19 @@ export function createEnvKillswitchPort(
 }
 
 function parseLevel(raw: string | undefined): KillswitchLevel {
-  if (!raw) return 'live';
+  // Absent / empty → genuinely no kill-switch configured → normal operation.
+  if (!raw || raw.trim().length === 0) return 'live';
   const v = raw.trim().toLowerCase();
   if (v === 'halt') return 'halt';
   if (v === 'degraded') return 'degraded';
-  return 'live';
+  if (v === 'live') return 'live';
+  // FAIL-CLOSED (CLAUDE.md hard rule: "Kill-switch fail-closed"). A non-empty
+  // but UNRECOGNIZED value is an operator misconfiguration — most likely a typo
+  // of an intended 'halt' / 'degraded'. We must NOT silently fabricate full
+  // 'live' operation. Degrade to the minimum non-live state: capability is
+  // reduced and the state is surfaced in provenance (observable), without a
+  // single fat-fingered env value causing a full-platform HALT outage.
+  return 'degraded';
 }
 
 const VALID_REASON_CODES = new Set<string>([

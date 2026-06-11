@@ -28,6 +28,9 @@ def fresh_app() -> TestClient:
         pcmci_pc_alpha_default=0.05,
         max_payload_rows=10_000,
         cors_allow_origins=(),
+        auth_token="test-token",
+        allow_local_paths=True,
+        max_payload_bytes=64 * 1024 * 1024,
     )
     app = create_app(settings)
     return TestClient(app)

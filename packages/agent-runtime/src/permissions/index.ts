@@ -41,6 +41,10 @@ import type {
   RuntimeLogger,
 } from '../types.js';
 import { noopLogger } from '../types.js';
+import type {
+  AgentSecurityGuard,
+  GuardToolCall,
+} from '../security-guard/index.js';
 
 export interface PermissionEngineOptions {
   readonly projectPath: string;
@@ -50,6 +54,31 @@ export interface PermissionEngineOptions {
   readonly logger?: RuntimeLogger;
   /** Optional audit sink — defaults to a bounded in-memory ring buffer. */
   readonly auditSink?: (entry: PermissionAuditEntry) => void;
+  /**
+   * SEC-G1 — optional agent-security-guard. When wired, `checkToolCall`
+   * runs the rule-list decision AND the guard (authority-tier / recursion /
+   * confirmation), taking the STRICTER of the two. Absent (the default) the
+   * engine behaves exactly as before — pure additive activation.
+   */
+  readonly securityGuard?: AgentSecurityGuard;
+}
+
+/** Per-call context the guard needs beyond the bare tool name + args. */
+export interface GuardedToolContext {
+  readonly callerTier?: GuardToolCall['callerTier'];
+  readonly confirmed?: boolean;
+  readonly callDepth?: number;
+  readonly siblingsAtThisDepth?: number;
+  readonly tenantId: string;
+  readonly agentKind: string;
+}
+
+/** Combined decision: the stricter of the rule-list and the guard. */
+export interface GuardedPermissionDecision {
+  readonly decision: PermissionDecision;
+  /** Which layer produced the binding (strictest) decision. */
+  readonly source: 'rules' | 'guard';
+  readonly rationale?: string;
 }
 
 const RULE_RE = /^([A-Za-z][\w-]*)(?:\(([^)]*)\))?$/;
@@ -61,6 +90,7 @@ export class PermissionEngine {
   readonly #logger: RuntimeLogger;
   readonly #auditSink: (e: PermissionAuditEntry) => void;
   readonly #audit: PermissionAuditEntry[] = [];
+  readonly #securityGuard: AgentSecurityGuard | undefined;
   static readonly #AUDIT_CAP = 1024;
 
   #config: PermissionConfig;
@@ -69,6 +99,7 @@ export class PermissionEngine {
     this.#projectPath = opts.projectPath;
     this.#userScopePath = opts.userScopePath;
     this.#enterpriseScopePath = opts.enterpriseScopePath;
+    this.#securityGuard = opts.securityGuard;
     this.#logger = opts.logger ?? noopLogger;
     this.#auditSink =
       opts.auditSink ??
@@ -206,6 +237,89 @@ export class PermissionEngine {
       }),
     );
     return decision;
+  }
+
+  /** True iff an agent-security-guard is wired (SEC-G1 active). */
+  hasSecurityGuard(): boolean {
+    return this.#securityGuard !== undefined;
+  }
+
+  /**
+   * SEC-G1 — combined tool-call gate.
+   *
+   * Runs the rule-list `checkPermission` AND (when wired) the
+   * agent-security-guard, returning the STRICTER decision
+   * (`deny > ask > allow`). The guard can only ever NARROW — it never
+   * upgrades a rule-list `deny` to `allow`. When no guard is wired this is
+   * identical to `checkPermission`, so it is a safe drop-in.
+   *
+   * `ctx` supplies the authority tier / recursion depth / confirmation the
+   * rule list does not know about; the caller (the loop runner) threads it
+   * from the live agent context.
+   */
+  checkToolCall(
+    check: PermissionCheck,
+    ctx: GuardedToolContext,
+  ): GuardedPermissionDecision {
+    const ruleDecision = this.checkPermission(check);
+    const guard = this.#securityGuard;
+    if (guard === undefined) {
+      return Object.freeze({ decision: ruleDecision, source: 'rules' });
+    }
+    // A rule-list `deny` already blocks; the guard cannot widen it, so skip
+    // the guard work (and avoid recording a redundant violation) on deny.
+    if (ruleDecision === 'deny') {
+      return Object.freeze({
+        decision: 'deny' as const,
+        source: 'rules' as const,
+      });
+    }
+    let guardDecision;
+    try {
+      guardDecision = guard.checkToolCall({
+        toolName: check.tool,
+        args: check.args ?? {},
+        ...(ctx.callerTier !== undefined ? { callerTier: ctx.callerTier } : {}),
+        ...(ctx.confirmed !== undefined ? { confirmed: ctx.confirmed } : {}),
+        ...(ctx.callDepth !== undefined ? { callDepth: ctx.callDepth } : {}),
+        ...(ctx.siblingsAtThisDepth !== undefined
+          ? { siblingsAtThisDepth: ctx.siblingsAtThisDepth }
+          : {}),
+        tenantId: ctx.tenantId,
+        agentKind: ctx.agentKind,
+      });
+    } catch (err) {
+      // Fail-closed: a guard that throws denies the call (never widens to the
+      // rule-list allow). This is the meta-rail — the agent can never bypass
+      // it via a guard crash.
+      this.#logger.log(
+        'error',
+        'agent-runtime: security-guard threw — failing closed (deny)',
+        {
+          error: err instanceof Error ? err.message : String(err),
+          tool: check.tool,
+        },
+      );
+      return Object.freeze({
+        decision: 'deny' as const,
+        source: 'guard' as const,
+        rationale: 'security-guard error (fail-closed)',
+      });
+    }
+    // Pick the stricter: deny > ask > allow.
+    const rank: Record<PermissionDecision, number> = {
+      deny: 2,
+      ask: 1,
+      allow: 0,
+    };
+    if (rank[guardDecision.decision] > rank[ruleDecision]) {
+      return Object.freeze({
+        decision: guardDecision.decision,
+        source: 'guard' as const,
+        rationale: guardDecision.rationale,
+      });
+    }
+    return Object.freeze({ decision: ruleDecision, source: 'rules' });
   }
 
   /** Drains the in-memory audit ring buffer. */

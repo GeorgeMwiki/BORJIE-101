@@ -43,6 +43,8 @@ const COPY = Object.freeze({
     iso ? `Bili inayofuata: ${iso.slice(0, 10)}` : 'Bili haijapangwa',
   planUsersLine: (count: number): string => `Watumiaji: ${count}`,
   planUpgrade: 'Boresha mpango',
+  planUpgradeHint:
+    'Kuboresha mpango kunafanyika kwenye portali ya wavuti ya mmiliki. Wasiliana na msimamizi wa Borjie.',
   toggleMultiTenant: 'Mfumo wa Multi-Tenant',
   toggleMultiTenantHint: 'Tenga data kwa kila kampuni',
   toggleBrandLock: 'Brand-Lock',
@@ -420,7 +422,18 @@ function SettingsAndBilling(): JSX.Element {
         ) : (
           <PreviewBanner kind="no-data" />
         )}
-        <Button label={COPY.planUpgrade} variant="secondary" onPress={() => undefined} />
+        {/*
+          Plan upgrade is intentionally a disabled affordance, not a silent
+          no-op. The real money path (POST /api/v1/billing/subscription →
+          IPaymentProvider charge + LedgerService.post) requires a
+          `providerCustomerId` and a captured payment method that this mobile
+          screen does not collect — self-serve checkout lives only in the
+          owner-web billing portal. Surfacing a working-looking button here
+          would either fail validation or risk a charge with fabricated data,
+          so we route the owner to the web portal / admin instead.
+        */}
+        <Button label={COPY.planUpgrade} variant="secondary" onPress={() => undefined} disabled />
+        <Text style={styles.upgradeHint}>{COPY.planUpgradeHint}</Text>
       </Section>
     </View>
   )
@@ -538,5 +551,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.body,
     marginTop: spacing.xs
+  },
+  upgradeHint: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    marginTop: spacing.sm
   }
 })

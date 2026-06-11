@@ -26,9 +26,22 @@ import { routeCatch } from '../utils/safe-error';
 
 const app = new Hono();
 app.use('*', authMiddleware);
+// The head-briefing is the mining OWNER's first-login strategic screen, so the
+// OWNER must be in the allowlist (the previous SUPER_ADMIN/ADMIN/TENANT_ADMIN
+// gate 403'd every real owner). The composer is already tenant-scoped via
+// `auth.tenantId`, so this widens the gate to the briefing's actual audience:
+// the owner plus their finance lead (ACCOUNTANT) and site manager
+// (PROPERTY_MANAGER maps to the mining site-manager role).
 app.use(
   '*',
-  requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TENANT_ADMIN),
+  requireRole(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.TENANT_ADMIN,
+    UserRole.OWNER,
+    UserRole.ACCOUNTANT,
+    UserRole.PROPERTY_MANAGER,
+  ),
 );
 
 function getComposer(c: any): BriefingComposer | null {

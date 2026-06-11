@@ -342,3 +342,63 @@ export {
   DEFAULT_EFFORT,
 } from './effort/index.js';
 export type { ReasoningEffort } from './effort/index.js';
+
+// Control-plane routing config — admin-set core+fallback+ensemble+per-use-case
+// (F1+F3). Fail-safe: a bad/empty/absent config falls back to TASK_LADDER.
+export {
+  tenantScope,
+  parseTenantFromScope,
+  isCombineStrategy,
+  ladderFromRouting,
+  ALL_COMBINE_STRATEGIES,
+  validateRoutingConfig,
+  validateEnsemble,
+  setRoutingConfigReader,
+  resetRoutingConfigReader,
+  readInjected as readInjectedRoutingConfig,
+  isRoutingConfigEnabled,
+  resolveConfigDrivenLadder,
+  resolveEnsembleConfig,
+  applyConfigRouting,
+  canonicalToFamily,
+  InMemoryRoutingConfigAdapter,
+} from './routing-config/index.js';
+export type {
+  ConfigScope,
+  PowerFlag,
+  CombineStrategy,
+  EnsembleConfig,
+  LlmRoutingConfig,
+  ResolvedRoutingConfig,
+  RoutingConfigPort,
+  RoutingConfigReader,
+  ResolveLadderArgs,
+  ConfigDrivenLadder,
+  RoutingConfigSchemaResult,
+  LiveProviderEntry,
+  SeamProviderFamily,
+  ApplyConfigRoutingArgs,
+  AppliedConfigRouting,
+} from './routing-config/index.js';
+
+// All-at-once ENSEMBLE orchestrator (F2). Cost-aware + fail-safe.
+export { runEnsemble } from './ensemble/index.js';
+export type {
+  EnsembleInvoke,
+  EnsembleSynthesise,
+  EnsembleBudgetCheck,
+  EnsembleBudgetDecision,
+  RunEnsembleArgs,
+  RunEnsembleResult,
+} from './ensemble/index.js';
+
+// AI-SUGGEST model recommender (F3) — suggest-only (HITL).
+export { suggestModelRouting } from './model-recommender/index.js';
+export type {
+  ModelCandidate,
+  ModelMetrics,
+  SuggestArgs,
+  ModelSuggestion,
+  UseCaseSuggestion,
+  SuggestResult,
+} from './model-recommender/index.js';

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { jurisdictionSettingsStrings as JS } from '@/i18n/strings/jurisdiction-settings';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 type Regulators = {
   readonly mineral: string;
@@ -40,6 +42,7 @@ function gatewayBaseUrl(): string {
  * (JA-7 endpoint) and renders the resolved snapshot.
  */
 export function JurisdictionSettings() {
+  const locale = useLocale();
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   const load = useCallback(async () => {
@@ -75,7 +78,7 @@ export function JurisdictionSettings() {
   if (state.kind === 'loading') {
     return (
       <p className="text-sm text-neutral-400">
-        {`${S.jurisdictionSettings.loading.en} / ${S.jurisdictionSettings.loading.sw}`}
+        {pickByLocale(locale, S.jurisdictionSettings.loading)}
       </p>
     );
   }
@@ -84,14 +87,14 @@ export function JurisdictionSettings() {
     return (
       <div className="rounded-md border border-red-500/40 bg-red-500/10 p-4">
         <p className="text-sm text-red-200">
-          Could not load jurisdiction. {state.message}
+          {pickByLocale(locale, JS.loadError(state.message))}
         </p>
         <button
           type="button"
           onClick={load}
           className="mt-2 rounded border border-red-300/40 px-3 py-1 text-xs text-red-100 hover:bg-red-500/20"
         >
-          Retry
+          {pickByLocale(locale, { en: 'Retry', sw: S.connectedAgentsList.retry.sw })}
         </button>
       </div>
     );
@@ -100,57 +103,59 @@ export function JurisdictionSettings() {
   const snap = state.snapshot;
   return (
     <div className="space-y-6">
-      <CurrentJurisdictionCard snapshot={snap} />
-      <LockedNoticeCard snapshot={snap} />
-      <PerTurnOverrideCard snapshot={snap} />
+      <CurrentJurisdictionCard snapshot={snap} locale={locale} />
+      <LockedNoticeCard snapshot={snap} locale={locale} />
+      <PerTurnOverrideCard snapshot={snap} locale={locale} />
     </div>
   );
 }
 
 function CurrentJurisdictionCard({
   snapshot,
+  locale,
 }: {
   snapshot: JurisdictionSnapshot;
+  locale: ReturnType<typeof useLocale>;
 }) {
   return (
     <section className="rounded-md border border-border bg-surface p-5">
       <h2 className="font-display text-xl text-foreground">
-        Current jurisdiction
+        {pickByLocale(locale, JS.currentHeading)}
       </h2>
       <p className="mt-0.5 text-xs italic text-neutral-500">
-        {S.jurisdictionSettings.currentTagline.sw}
+        {pickByLocale(locale, S.jurisdictionSettings.currentTagline)}
       </p>
       <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field
-          label={`${S.jurisdictionSettings.fieldCountry.en} / ${S.jurisdictionSettings.fieldCountry.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldCountry)}
           value={`${snapshot.countryName} (${snapshot.country})`}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldCurrency.en} / ${S.jurisdictionSettings.fieldCurrency.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldCurrency)}
           value={snapshot.currency}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldDefaultLanguage.en} / ${S.jurisdictionSettings.fieldDefaultLanguage.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldDefaultLanguage)}
           value={`${snapshot.defaultLanguage} (${snapshot.locale})`}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldTimeZone.en} / ${S.jurisdictionSettings.fieldTimeZone.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldTimeZone)}
           value={snapshot.timeZone}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldMineralAuthority.en} / ${S.jurisdictionSettings.fieldMineralAuthority.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldMineralAuthority)}
           value={snapshot.regulators.mineral}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldEnvironmentalAuthority.en} / ${S.jurisdictionSettings.fieldEnvironmentalAuthority.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldEnvironmentalAuthority)}
           value={snapshot.regulators.environmental}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldTransparency.en} / ${S.jurisdictionSettings.fieldTransparency.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldTransparency)}
           value={snapshot.regulators.transparency}
         />
         <Field
-          label={`${S.jurisdictionSettings.fieldAuditAuthority.en} / ${S.jurisdictionSettings.fieldAuditAuthority.sw}`}
+          label={pickByLocale(locale, S.jurisdictionSettings.fieldAuditAuthority)}
           value={snapshot.regulators.audit}
         />
       </dl>
@@ -160,33 +165,43 @@ function CurrentJurisdictionCard({
 
 function LockedNoticeCard({
   snapshot,
+  locale,
 }: {
   snapshot: JurisdictionSnapshot;
+  locale: ReturnType<typeof useLocale>;
 }) {
   return (
     <section className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-5">
       <h2 className="font-display text-lg text-yellow-200">
-        Jurisdiction is locked
+        {pickByLocale(locale, JS.lockedHeading)}
       </h2>
       <p className="mt-0.5 text-xs italic text-yellow-200/60">
-        {S.jurisdictionSettings.lockedTagline.sw}
+        {pickByLocale(locale, S.jurisdictionSettings.lockedTagline)}
       </p>
       <p className="mt-3 text-sm text-yellow-100/80">
-        Your tenant is locked to <strong>{snapshot.country}</strong>{' '}
-        ({snapshot.countryName}) for compliance. Permanent jurisdiction
-        changes touch every saved licence, royalty, and audit chain, so
-        only Borjie support can apply them after a verification call.
-      </p>
-      <p className="mt-2 text-sm italic text-yellow-100/60">
-        {S.jurisdictionSettings.lockedBodySwPrefix.sw}{' '}
-        <strong>{snapshot.country}</strong>{' '}
-        {S.jurisdictionSettings.lockedBodySwSuffix.sw}
+        {pickByLocale(locale, {
+          en: (
+            <>
+              Your tenant is locked to <strong>{snapshot.country}</strong>{' '}
+              ({snapshot.countryName}) for compliance. Permanent jurisdiction
+              changes touch every saved licence, royalty, and audit chain, so
+              only Borjie support can apply them after a verification call.
+            </>
+          ),
+          sw: (
+            <>
+              {S.jurisdictionSettings.lockedBodySwPrefix.sw}{' '}
+              <strong>{snapshot.country}</strong>{' '}
+              {S.jurisdictionSettings.lockedBodySwSuffix.sw}
+            </>
+          ),
+        })}
       </p>
       <a
         href="mailto:support@borjie.app?subject=Jurisdiction%20change%20request"
         className="mt-4 inline-flex items-center rounded border border-yellow-300/40 px-3 py-1.5 text-xs text-yellow-100 hover:bg-yellow-500/10"
       >
-        {`${S.jurisdictionSettings.requestChange.en} / ${S.jurisdictionSettings.requestChange.sw}`}
+        {pickByLocale(locale, S.jurisdictionSettings.requestChange)}
       </a>
     </section>
   );
@@ -194,38 +209,44 @@ function LockedNoticeCard({
 
 function PerTurnOverrideCard({
   snapshot,
+  locale,
 }: {
   snapshot: JurisdictionSnapshot;
+  locale: ReturnType<typeof useLocale>;
 }) {
   void snapshot;
   return (
     <section className="rounded-md border border-border bg-surface p-5">
       <h2 className="font-display text-lg text-foreground">
-        Ask about another jurisdiction
+        {pickByLocale(locale, JS.overrideHeading)}
       </h2>
       <p className="mt-0.5 text-xs italic text-neutral-500">
-        {S.jurisdictionSettings.overrideTagline.sw}
+        {pickByLocale(locale, S.jurisdictionSettings.overrideTagline)}
       </p>
       <p className="mt-3 text-sm text-neutral-300">
-        You can ask Mr. Mwikila for a one-turn answer in any other
-        jurisdiction we know — just say{' '}
-        <em>&quot;in Kenya, ...&quot;</em> or{' '}
-        <em>&quot;for our Uganda operation, ...&quot;</em>. The chat
-        switches context for that turn and resets back to your locked
-        jurisdiction on the next message.
-      </p>
-      <p className="mt-2 text-sm italic text-neutral-400">
-        {S.jurisdictionSettings.overrideBodySw.sw}{' '}
-        <em>&quot;in Kenya, ...&quot;</em>{' '}
-        {S.jurisdictionSettings.overrideBodySwOr.sw}{' '}
-        <em>&quot;for our Uganda operation, ...&quot;</em>.
+        {pickByLocale(locale, {
+          en: (
+            <>
+              You can ask Mr. Mwikila for a one-turn answer in any other
+              jurisdiction we know — just say{' '}
+              <em>&quot;in Kenya, ...&quot;</em> or{' '}
+              <em>&quot;for our Uganda operation, ...&quot;</em>. The chat
+              switches context for that turn and resets back to your locked
+              jurisdiction on the next message.
+            </>
+          ),
+          sw: (
+            <>
+              {S.jurisdictionSettings.overrideBodySw.sw}{' '}
+              <em>&quot;in Kenya, ...&quot;</em>{' '}
+              {S.jurisdictionSettings.overrideBodySwOr.sw}{' '}
+              <em>&quot;for our Uganda operation, ...&quot;</em>.
+            </>
+          ),
+        })}
       </p>
       <p className="mt-3 text-xs text-neutral-500">
-        Seeded jurisdictions: TZ, KE, UG, NG, ZA, AU, CL, ID. Anything
-        else routes through the on-demand jurisdiction discovery service
-        — Mr. Mwikila will research the regulators live, cite his
-        sources, and offer to seed the jurisdiction permanently (requires
-        a Borjie internal admin approval).
+        {pickByLocale(locale, JS.seededFootnote)}
       </p>
     </section>
   );

@@ -6,6 +6,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import { successEnvelope, errorResponses, jsonContent } from './envelopes';
 import {
   MarketplaceListingSchema,
+  MarketplaceSellerSchema,
   ListListingsQuerySchema,
   ListingIdParamSchema,
 } from './marketplace-schemas';
@@ -24,6 +25,22 @@ export const marketplaceListListingsRoute = createRoute({
     200: jsonContent(
       successEnvelope(z.array(MarketplaceListingSchema)),
       'Listings array (visibility-filtered).',
+    ),
+    401: errorResponses[401],
+    500: errorResponses[500],
+  },
+});
+
+export const marketplaceListSellersRoute = createRoute({
+  method: 'get',
+  path: '/listings/sellers',
+  tags,
+  summary: 'Distinct seller orgs with buyer-visible active listings.',
+  security,
+  responses: {
+    200: jsonContent(
+      successEnvelope(z.array(MarketplaceSellerSchema)),
+      'Seller orgs (id + name + buyer-visible active listing count).',
     ),
     401: errorResponses[401],
     500: errorResponses[500],

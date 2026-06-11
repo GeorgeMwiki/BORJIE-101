@@ -18,7 +18,7 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { incidents } from '@borjie/database';
+import { incidents, regulatoryFilings } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -344,6 +344,28 @@ const escalateBodySchema = z.object({
   reason: z.string().min(1).max(2000),
 });
 
+/**
+ * Map the incident-escalation regulator alias to the canonical
+ * `regulatory_filings.regulator` enum (regulatory-filings.schema REGULATORS).
+ * `pccb` (anti-corruption bureau) has no first-class enum value, so it routes
+ * to `other` — the filing carries the precise regulator in `notes`.
+ */
+function toFilingRegulator(
+  regulator: 'osha-tz' | 'nemc' | 'pccb' | 'mining-commission',
+): string {
+  switch (regulator) {
+    case 'osha-tz':
+      return 'osha';
+    case 'nemc':
+      return 'nemc';
+    case 'mining-commission':
+      return 'mining_commission';
+    case 'pccb':
+    default:
+      return 'other';
+  }
+}
+
 app.post(
   '/:id/escalate-regulator',
   withSecurityEvents(
@@ -405,27 +427,75 @@ app.post(
         );
       }
 
-      const [updated] = await db
-        .update(incidents)
-        .set({
-          status: 'escalated_to_OSHA',
-          attributes: {
-            ...(existing.attributes as Record<string, unknown>),
-            escalatedRegulator: parsed.data.regulator,
-            escalationReason: parsed.data.reason,
-            escalatedByUserId: userId,
-            escalatedAt: new Date().toISOString(),
-          },
-        })
-        .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
-        .returning();
+      // Flip the incident AND create a REAL durable regulator-filing record in
+      // ONE transaction so the escalation is never a dead button: the admin
+      // compliance officer gets an actionable `regulatory_filings` row (status
+      // 'in_progress') routed to the correct regulator, not just a transient
+      // pulse. The regulator alias is carried into the filing so the filing is
+      // retrievable and routable. Due immediately (incident escalations are not
+      // a future-calendar obligation).
+      const filingId = randomUUID();
+      const now = new Date();
+      let updated: typeof existing | undefined;
+      try {
+        updated = await db.transaction(async (tx: typeof db) => {
+          const [row] = await tx
+            .update(incidents)
+            .set({
+              status: 'escalated_to_OSHA',
+              attributes: {
+                ...(existing.attributes as Record<string, unknown>),
+                escalatedRegulator: parsed.data.regulator,
+                escalationReason: parsed.data.reason,
+                escalatedByUserId: userId,
+                escalatedAt: now.toISOString(),
+                regulatoryFilingId: filingId,
+              },
+            })
+            .where(and(eq(incidents.id, id), eq(incidents.tenantId, tenantId)))
+            .returning();
 
-      // Cockpit + admin compliance pulse.
+          await tx.insert(regulatoryFilings).values({
+            id: filingId,
+            tenantId,
+            regulator: toFilingRegulator(parsed.data.regulator),
+            filingType: 'incident_escalation',
+            dueAt: now,
+            status: 'in_progress',
+            notes:
+              `Incident ${id} escalated to ${parsed.data.regulator} by ${userId}. ` +
+              parsed.data.reason,
+            createdAt: now,
+            updatedAt: now,
+          });
+
+          return row;
+        });
+      } catch (err) {
+        c.get('logger')?.error?.(
+          { err, incidentId: id },
+          'incident escalation / regulatory filing failed',
+        );
+        return c.json(
+          {
+            success: false as const,
+            error: {
+              code: 'ESCALATE_FAILED',
+              message:
+                'Could not escalate the incident. Imeshindikana kupandisha tukio.',
+            },
+          },
+          500,
+        );
+      }
+
+      // Cockpit + admin compliance pulse — references the durable filing id so
+      // the admin-web compliance screen can deep-link to the new filing.
       try {
         publishCockpitEvent({
           kind: 'incident.escalated',
           tenantId,
-          emittedAt: new Date().toISOString(),
+          emittedAt: now.toISOString(),
           incidentId: id,
           fromLevel: existing.status,
           toLevel: 'regulator',
@@ -435,7 +505,10 @@ app.post(
         // bus failures must never leak to the request response.
       }
 
-      return c.json({ success: true as const, data: updated }, 200);
+      return c.json(
+        { success: true as const, data: updated, meta: { regulatoryFilingId: filingId } },
+        200,
+      );
     },
   ),
 );

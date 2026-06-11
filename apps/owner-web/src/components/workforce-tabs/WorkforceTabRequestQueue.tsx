@@ -91,6 +91,8 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState<Readonly<Record<string, string>>>({});
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  /** Per-row error messages keyed by request id. Cleared when a new decision starts. */
+  const [rowErrors, setRowErrors] = useState<Readonly<Record<string, string>>>({});
 
   const pendingQuery = useQuery({
     queryKey: ['workforce', 'tab-change-requests', 'pending'],
@@ -107,13 +109,22 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
         method: 'PATCH',
         body: { decision: input.decision, note: input.note },
       }),
-    onSettled: () => {
+    onSettled: (_data, _err, input) => {
       void queryClient.invalidateQueries({
         queryKey: ['workforce', 'tab-change-requests', 'pending'],
       });
       void queryClient.invalidateQueries({
         queryKey: ['workforce', 'tab-configs', 'all'],
       });
+      // Per-request cache key (owner-genui-10 cache invalidation).
+      void queryClient.invalidateQueries({
+        queryKey: ['workforce', 'tab-change-request', input.id],
+      });
+    },
+    onError: (err, input) => {
+      const message =
+        err instanceof Error ? err.message : copy.error;
+      setRowErrors((prev) => ({ ...prev, [input.id]: message }));
     },
   });
 
@@ -121,6 +132,11 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
     id: string,
     decision: 'approve' | 'reject',
   ): Promise<void> {
+    // Clear the per-row error for this request before starting a new attempt.
+    setRowErrors((prev) => {
+      const { [id]: _removed, ...rest } = prev;
+      return rest;
+    });
     setDecidingId(`${id}::${decision}`);
     try {
       const trimmedNote = notes[id]?.trim();
@@ -211,36 +227,43 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
                     className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
                   />
                 </label>
-                <div className="mt-3 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void decide(row.id, 'approve')}
-                    disabled={decidingId !== null}
-                    className="rounded-full bg-success px-4 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-60"
-                  >
-                    {decidingId === `${row.id}::approve`
-                      ? copy.deciding
-                      : copy.approve}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void decide(row.id, 'reject')}
-                    disabled={decidingId !== null}
-                    className="rounded-full border border-destructive px-4 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
-                  >
-                    {decidingId === `${row.id}::reject`
-                      ? copy.deciding
-                      : copy.reject}
-                  </button>
+                <div className="mt-3 flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void decide(row.id, 'approve')}
+                      disabled={decidingId !== null}
+                      className="rounded-full bg-success px-4 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-60"
+                    >
+                      {decidingId === `${row.id}::approve`
+                        ? copy.deciding
+                        : copy.approve}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void decide(row.id, 'reject')}
+                      disabled={decidingId !== null}
+                      className="rounded-full border border-destructive px-4 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                    >
+                      {decidingId === `${row.id}::reject`
+                        ? copy.deciding
+                        : copy.reject}
+                    </button>
+                  </div>
+                  {rowErrors[row.id] ? (
+                    <p
+                      className="text-xs text-destructive"
+                      data-testid={`workforce-request-error-${row.id}`}
+                    >
+                      {rowErrors[row.id]}
+                    </p>
+                  ) : null}
                 </div>
               </li>
             );
           })}
         </ul>
       )}
-      {decideMutation.isError ? (
-        <p className="mt-3 text-xs text-destructive">{copy.error}</p>
-      ) : null}
     </aside>
   );
 }

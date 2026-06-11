@@ -137,6 +137,91 @@ export const tabTagErrorPayloadSchema = z.object({
 });
 export type TabTagErrorPayload = z.infer<typeof tabTagErrorPayloadSchema>;
 
+/**
+ * The modality ARTIFACT-proposal family (closure Wave 8 — the brain-proposal →
+ * artifact-render seam). The brain's modality arbiter surfaces a forecast /
+ * document / media artifact whose UI it SYNTHESIZES (not a catalog tab). It
+ * rides the dedicated `artifact_proposal` SSE event AND, as a fallback, a
+ * `tab_proposal` discriminated by `source: 'modality-arbiter'` with a
+ * `genui_<kind>` tabType (the shape the gateway's `proposal-sink` + the
+ * `cockpit.tab.proposed` bus emit).
+ *
+ * The payload carries ONLY the IDENTITY of the artifact — never the artifact
+ * body. The resolver hook fetches the EGRESS-MEMBRANE-PROJECTED descriptor from
+ * `GET /api/v1/modality-artifacts/:proposalId` (the allow-listed, scrubbed
+ * shape, safe to render). Carrying only the identity here keeps the
+ * un-projected blob off the stream by construction.
+ */
+export const ARTIFACT_KINDS = ['forecast', 'document', 'media'] as const;
+export type ArtifactKind = (typeof ARTIFACT_KINDS)[number];
+
+/** Coerce a `genui_<kind>` tabType (or a bare kind) onto an ArtifactKind. */
+function artifactKindFrom(value: unknown): ArtifactKind | null {
+  if (typeof value !== 'string') return null;
+  const bare = value.startsWith('genui_') ? value.slice('genui_'.length) : value;
+  return (ARTIFACT_KINDS as ReadonlyArray<string>).includes(bare)
+    ? (bare as ArtifactKind)
+    : null;
+}
+
+export const artifactProposalPayloadSchema = z.object({
+  proposalId: z.string().min(1).max(200),
+  artifactKind: z.enum(ARTIFACT_KINDS),
+  title: z.string().min(1).max(160),
+  reasonEn: z.string().max(600).default(''),
+  reasonSw: z.string().max(600).nullable().optional(),
+  evidenceIds: z.array(z.string().min(1)).min(1).max(8),
+  confidence: z.number().min(0).max(1).nullable().optional(),
+  /** propose-and-approve (default) vs explicit, reversible auto. */
+  posture: z.enum(['propose', 'auto']).default('propose'),
+});
+export type ArtifactProposalPayload = z.infer<
+  typeof artifactProposalPayloadSchema
+>;
+
+/**
+ * Best-effort coercion of a raw modality-proposal frame (either the dedicated
+ * `artifact_proposal` event or a `source:'modality-arbiter'` `tab_proposal` /
+ * `cockpit.tab.proposed` envelope) into a typed `ArtifactProposalPayload`.
+ * Returns null when the frame is not a recognisable artifact proposal so the
+ * caller drops it cleanly (degrade-safe — never throws).
+ */
+function coerceArtifactProposal(
+  payload: Record<string, unknown>,
+): ArtifactProposalPayload | null {
+  const artifactKind =
+    artifactKindFrom(payload.artifactKind) ?? artifactKindFrom(payload.tabType);
+  if (!artifactKind) return null;
+  const proposalId =
+    typeof payload.proposalId === 'string' ? payload.proposalId : null;
+  if (!proposalId) return null;
+  const evidenceIds = Array.isArray(payload.evidenceIds)
+    ? payload.evidenceIds
+    : Array.isArray(payload.evidence_ids)
+      ? payload.evidence_ids
+      : [];
+  const reasonEn =
+    typeof payload.reasonEn === 'string'
+      ? payload.reasonEn
+      : typeof payload.reason === 'string'
+        ? payload.reason
+        : '';
+  const candidate = {
+    proposalId,
+    artifactKind,
+    title: typeof payload.title === 'string' ? payload.title : artifactKind,
+    reasonEn,
+    reasonSw:
+      typeof payload.reasonSw === 'string' ? payload.reasonSw : null,
+    evidenceIds,
+    confidence:
+      typeof payload.confidence === 'number' ? payload.confidence : null,
+    posture: payload.posture === 'auto' ? 'auto' : 'propose',
+  };
+  const parsed = artifactProposalPayloadSchema.safeParse(candidate);
+  return parsed.success ? parsed.data : null;
+}
+
 // ─── Dispatch handler interface ─────────────────────────────────────
 
 export interface TabSseHandlers {
@@ -146,6 +231,11 @@ export interface TabSseHandlers {
   onProposal?(payload: TabProposalPayload): void;
   /** A portal-genui proposal carrying a full generated PortalTab. */
   onGenuiProposal?(payload: GenuiTabProposalPayload): void;
+  /**
+   * A modality artifact proposal (forecast / document / media). The handler
+   * fetches the membrane-projected descriptor + routes it to the renderer.
+   */
+  onArtifactProposal?(payload: ArtifactProposalPayload): void;
   onError?(payload: TabTagErrorPayload): void;
 }
 
@@ -159,6 +249,11 @@ export const TAB_SSE_EVENTS = [
   'tab_remove',
   'tab_proposal',
   'tab_tag_error',
+  // Closure Wave 8 — the brain-proposal → artifact-render seam. The brain's
+  // modality arbiter emits these for synthesized forecast / document / media
+  // surfaces; they were previously DROPPED (not in this allow-list).
+  'artifact_proposal',
+  'cockpit.tab.proposed',
 ] as const;
 export type TabSseEvent = (typeof TAB_SSE_EVENTS)[number];
 
@@ -209,23 +304,46 @@ export function handleTabSseFrame(args: {
       return true;
     }
     case 'tab_proposal': {
-      // Two proposal families ride this event. The portal-genui family is
-      // discriminated by `source:'portal-genui'` and carries a full
-      // generated PortalTab → route to onGenuiProposal. Everything else is
-      // a static-registry proposal (tabType + evidenceIds) → onProposal.
-      if (
-        payload &&
-        typeof payload === 'object' &&
-        (payload as { source?: unknown }).source === 'portal-genui'
-      ) {
-        const parsedGenui = genuiTabProposalPayloadSchema.safeParse(payload);
-        if (!parsedGenui.success) return false;
-        args.handlers.onGenuiProposal?.(parsedGenui.data);
-        return true;
+      // Three proposal families ride this event.
+      //  1. modality-arbiter — a synthesized forecast/document/media artifact
+      //     (discriminated by `source:'modality-arbiter'` or a `genui_<kind>`
+      //     tabType) → onArtifactProposal (fetch + render the projected
+      //     descriptor).
+      //  2. portal-genui — a full generated PortalTab → onGenuiProposal.
+      //  3. static-registry — tabType + evidenceIds → onProposal.
+      if (payload && typeof payload === 'object') {
+        const source = (payload as { source?: unknown }).source;
+        if (source === 'modality-arbiter') {
+          const artifact = coerceArtifactProposal(
+            payload as Record<string, unknown>,
+          );
+          if (!artifact) return false;
+          args.handlers.onArtifactProposal?.(artifact);
+          return true;
+        }
+        if (source === 'portal-genui') {
+          const parsedGenui = genuiTabProposalPayloadSchema.safeParse(payload);
+          if (!parsedGenui.success) return false;
+          args.handlers.onGenuiProposal?.(parsedGenui.data);
+          return true;
+        }
       }
       const parsed = tabProposalPayloadSchema.safeParse(payload);
       if (!parsed.success) return false;
       args.handlers.onProposal?.(parsed.data);
+      return true;
+    }
+    case 'artifact_proposal':
+    case 'cockpit.tab.proposed': {
+      // A modality artifact proposal on its dedicated event (or the cockpit
+      // bus envelope). The frame carries only the artifact identity; the
+      // resolver fetches the membrane-projected descriptor by proposalId.
+      if (!payload || typeof payload !== 'object') return false;
+      const artifact = coerceArtifactProposal(
+        payload as Record<string, unknown>,
+      );
+      if (!artifact) return false;
+      args.handlers.onArtifactProposal?.(artifact);
       return true;
     }
     case 'tab_tag_error': {
@@ -270,6 +388,7 @@ const TAB_KINDS: ReadonlySet<OwnerTabKind> = new Set<OwnerTabKind>([
   'sites',
   'safety',
   'reports',
+  'artifact',
 ]);
 
 export function isKnownTabKind(s: string): s is OwnerTabKind {

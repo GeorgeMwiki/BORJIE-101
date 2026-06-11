@@ -319,9 +319,54 @@ briefs.post('/:id/actions/:idx/approve', async (c) => {
   }
   const action = actions[actionIdx];
   const packet = (row.approval_packets_jsonb || []).find((p) => p.actionIndex === actionIdx);
-  // See gh-issue #41: wire through the actual action runtime — for now
-  // we mark the brief ACTIONED and return the prebuilt approval packet
-  // so the client can show "approval submitted" while we land Piece E.
+
+  // ── W2c: the create→approve→execute bridge ──────────────────────────
+  // Derive the executable queue row GENERICALLY from the approved
+  // RecommendedAction (+ its prebuilt ApprovalPacket). No per-action
+  // hardcoding: junior_name / intent / payload are all projected from the
+  // structured action shape (`@borjie/executive-brief-engine` types). The
+  // Piece E worker (executive-brief-action-runner) drains
+  // `status='approved' AND executed_at IS NULL` rows and dispatches each to
+  // the junior executor; this handler is that worker's sole producer.
+  const queueRow = deriveBriefActionQueueRow({
+    briefId,
+    tenantId: auth.tenantId,
+    actionIndex: actionIdx,
+    action,
+    packet,
+  });
+
+  let queuedActionId: string | null = null;
+  try {
+    const insertRes = await db.execute(sql`
+      INSERT INTO executive_brief_actions (
+        id, tenant_id, brief_id, junior_name, intent, payload_jsonb,
+        status, attempts, approved_at
+      ) VALUES (
+        ${queueRow.id}, ${auth.tenantId}, ${briefId}, ${queueRow.juniorName},
+        ${queueRow.intent}, ${JSON.stringify(queueRow.payload)}::jsonb,
+        'approved', 0, NOW()
+      )
+      ON CONFLICT (id) DO NOTHING
+      RETURNING id
+    `);
+    const inserted = fetchRows(insertRes);
+    queuedActionId = inserted.length > 0 ? inserted[0].id : queueRow.id;
+  } catch (err) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'ENQUEUE_FAILED',
+          message: err instanceof Error ? err.message : String(err),
+        },
+      },
+      500,
+    );
+  }
+
+  // Mark the brief ACTIONED so the surface reflects the approval. The
+  // executor worker carries the action forward from here.
   await db.execute(sql`
     UPDATE executive_briefs
        SET status = 'ACTIONED'
@@ -332,8 +377,10 @@ briefs.post('/:id/actions/:idx/approve', async (c) => {
     data: {
       action,
       packet,
+      actionId: queuedActionId,
+      juniorName: queueRow.juniorName,
+      intent: queueRow.intent,
       status: 'queued',
-      note: 'Action queued; Piece E will wire through to the executor.',
     },
   });
 });
@@ -444,6 +491,122 @@ async function persistBrief(db, brief) {
     )
     ON CONFLICT (id) DO NOTHING
   `);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// W2c — generic brief-action → executor-queue projection.
+//
+// A RecommendedAction (see @borjie/executive-brief-engine types) is a
+// structured `{ targetModule, action, payload, ... }`. An ApprovalPacket
+// is its prebuilt four-eye payload. We project BOTH into the executor
+// queue's row shape WITHOUT per-action branching:
+//
+//   • intent       ← the action slug (the verb the junior runs)
+//   • junior_name  ← an explicit hint when the action/packet carries one,
+//                    else the registry-convention slug derived from
+//                    targetModule (`<module-slug>-agent`). The runner
+//                    safely SKIPS an unknown junior (no crash), so an
+//                    imperfect derivation degrades rather than fails.
+//   • payload      ← the action payload merged with the packet payload and
+//                    provenance, so the junior receives full context.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Lower-case, hyphenate, strip noise — turns 'FINANCE' → 'finance'. */
+function slugify(value: string): string {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+/** First non-empty string field from a record, by key precedence. */
+function firstString(
+  source: Record<string, unknown> | null | undefined,
+  keys: ReadonlyArray<string>,
+): string | null {
+  if (!source) return null;
+  for (const k of keys) {
+    const v = source[k];
+    if (typeof v === 'string' && v.trim().length > 0) return v.trim();
+  }
+  return null;
+}
+
+interface DeriveQueueRowArgs {
+  readonly briefId: string;
+  readonly tenantId: string;
+  readonly actionIndex: number;
+  readonly action: Record<string, unknown> | null | undefined;
+  readonly packet: Record<string, unknown> | null | undefined;
+}
+
+interface DerivedQueueRow {
+  readonly id: string;
+  readonly juniorName: string;
+  readonly intent: string;
+  readonly payload: Record<string, unknown>;
+}
+
+/**
+ * Project an approved RecommendedAction (+ ApprovalPacket) into the
+ * executive_brief_actions queue row the Piece E worker consumes. Pure +
+ * exported for unit testing — no DB, no side effects.
+ */
+export function deriveBriefActionQueueRow(
+  args: DeriveQueueRowArgs,
+): DerivedQueueRow {
+  const action = (args.action ?? {}) as Record<string, unknown>;
+  const packet = (args.packet ?? {}) as Record<string, unknown>;
+  const actionPayload =
+    action.payload && typeof action.payload === 'object'
+      ? (action.payload as Record<string, unknown>)
+      : {};
+  const packetPayload =
+    packet.payload && typeof packet.payload === 'object'
+      ? (packet.payload as Record<string, unknown>)
+      : {};
+
+  // intent ← action slug, falling back to a slug of the title.
+  const intent =
+    firstString(action, ['action', 'intent']) ??
+    (typeof action.title === 'string' && action.title.trim()
+      ? slugify(action.title)
+      : 'brief_action');
+
+  // junior_name ← explicit hint anywhere in the action/packet/payloads,
+  // else the registry-convention slug derived from targetModule.
+  const explicitJunior =
+    firstString(action, ['junior_name', 'junior', 'juniorName']) ??
+    firstString(actionPayload, ['junior_name', 'junior', 'juniorName']) ??
+    firstString(packet, ['junior_name', 'junior', 'juniorName']) ??
+    firstString(packetPayload, ['junior_name', 'junior', 'juniorName']);
+  const targetModule = firstString(action, ['targetModule', 'target_module', 'module']);
+  const juniorName = explicitJunior
+    ? slugify(explicitJunior)
+    : targetModule
+      ? `${slugify(targetModule)}-agent`
+      : 'master-brain';
+
+  const payload: Record<string, unknown> = {
+    ...actionPayload,
+    ...packetPayload,
+    brief_id: args.briefId,
+    action_index: args.actionIndex,
+    action_slug: intent,
+    target_module: targetModule,
+    title: typeof action.title === 'string' ? action.title : null,
+    confidence: typeof action.confidence === 'number' ? action.confidence : null,
+    requires_approval: action.requiresApproval === true,
+    policy_id: typeof packet.policyId === 'string' ? packet.policyId : null,
+  };
+
+  return {
+    id: `eba_${crypto.randomUUID()}`,
+    juniorName,
+    intent,
+    payload,
+  };
 }
 
 /**

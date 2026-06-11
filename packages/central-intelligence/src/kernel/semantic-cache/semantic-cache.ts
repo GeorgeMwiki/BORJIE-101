@@ -30,6 +30,8 @@
  *    complementary layer that lives in `ai-copilot/anthropic-prefix-cache.ts`)
  */
 
+import { ANTHROPIC_PRICE_RATES } from '@borjie/brain-llm-router/price-book';
+
 import type { BrainDecision } from '../kernel-types.js';
 import {
   classifyIntent,
@@ -112,23 +114,16 @@ export interface ModelCostRate {
   readonly completionUsdPer1k: number;
 }
 
-export const SONNET_4_6_RATE: ModelCostRate = Object.freeze({
-  modelId: 'claude-sonnet-4-6',
-  promptUsdPer1k: 0.003,
-  completionUsdPer1k: 0.015,
-});
+// Rates come from THE single PriceBook source
+// (`@borjie/brain-llm-router/price-book`) — the figures + model-id
+// spellings live there, shared with ai-governance's cost accounting.
+// The exported const names are kept for back-compat with existing
+// consumers/tests; they are reference-identical to the PriceBook rows.
+export const SONNET_4_6_RATE: ModelCostRate = ANTHROPIC_PRICE_RATES.sonnet;
 
-export const OPUS_4_6_RATE: ModelCostRate = Object.freeze({
-  modelId: 'claude-opus-4-8',
-  promptUsdPer1k: 0.005,
-  completionUsdPer1k: 0.025,
-});
+export const OPUS_4_6_RATE: ModelCostRate = ANTHROPIC_PRICE_RATES.opus;
 
-export const HAIKU_4_5_RATE: ModelCostRate = Object.freeze({
-  modelId: 'claude-haiku-4-5',
-  promptUsdPer1k: 0.0008,
-  completionUsdPer1k: 0.004,
-});
+export const HAIKU_4_5_RATE: ModelCostRate = ANTHROPIC_PRICE_RATES.haiku;
 
 const DEFAULT_RATES: ReadonlyArray<ModelCostRate> = [
   SONNET_4_6_RATE,

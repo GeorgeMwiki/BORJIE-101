@@ -21,3 +21,14 @@ export type {
 // Top bar — three-slot suite-wide header wrapping the PortalSwitcher.
 export { AppTopBar } from './AppTopBar.js';
 export type { AppTopBarProps } from './AppTopBar.js';
+
+// Generative surface mount — the suite-wide seam that mounts an MD-authored
+// surface (incremental-patched PortalTab body OR a CSP-isolated sandboxed
+// iframe for genuinely novel surfaces). The MD "redesigns its own body" here.
+export { GenerativeSurfaceMount } from './GenerativeSurfaceMount.js';
+export type {
+  GenerativeSurfaceMountProps,
+  GenerativeSurfaceDescriptor,
+  PortalTabSurfaceDescriptor,
+  SandboxedSurfaceDescriptor,
+} from './GenerativeSurfaceMount.js';

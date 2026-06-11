@@ -19,6 +19,7 @@ import {
   computeEntryHash,
 } from '../services/ledger-hash-chain';
 import type { ChainedLedgerEntry } from '../domain-extensions';
+import type { NewOutboxRow } from '../events/outbox-row';
 
 export interface LedgerEntryFilters {
   tenantId: TenantId;
@@ -82,6 +83,19 @@ export interface AtomicJournalPost {
    * journal instead of double-posting.
    */
   readonly idempotencyKey?: string;
+  /**
+   * RSS-01 — the producer's domain events, ALREADY serialised into the
+   * minimal `NewOutboxRow` shape by `LedgerService` (via
+   * `IEventPublisher.serializeForTx`). When present, these rows are
+   * inserted into `event_outbox` INSIDE the same transaction as the
+   * ledger entries + balance CAS, so event emission is at-least-once and
+   * crash-safe: a failure rolls the outbox rows back WITH the money
+   * write, and a commit makes both durable together. The money math is
+   * untouched — this is a purely additive insert after all financial
+   * writes, still inside the atomic boundary. Optional → existing callers
+   * and tests are unaffected.
+   */
+  readonly outboxRows?: ReadonlyArray<NewOutboxRow>;
 }
 
 /**
@@ -276,6 +290,15 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
   /** Persisted idempotency keys → journalId (durability defect #2). */
   private idempotencyKeys: Map<string, string> = new Map();
   /**
+   * RSS-01 — outbox rows committed alongside ledger entries. Staged INSIDE
+   * the same snapshot/rollback guard as the entries + balances + idempotency
+   * key, so a fault (CAS miss, sequence collision, injected fault) rolls the
+   * outbox rows back too — proving co-commit in the in-memory model exactly
+   * as `event_outbox` co-commits in the Drizzle transaction. Test-readable
+   * via `getCommittedOutboxRows`.
+   */
+  private committedOutboxRows: NewOutboxRow[] = [];
+  /**
    * Optional fault injected BETWEEN the balance writes and the entry
    * inserts — exercises the rollback-of-both invariant in tests. When
    * set and it throws, `postJournalAtomic` must restore the account
@@ -286,6 +309,16 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
   /** Test hook: inject a fault between balance writes and entry inserts. */
   setFaultBetweenBalanceAndEntries(fault: (() => void) | null): void {
     this.faultBetweenBalanceAndEntries = fault;
+  }
+
+  /**
+   * RSS-01 test hook — the outbox rows committed alongside ledger entries.
+   * Returns a defensive copy. Used by the co-commit tests to assert that a
+   * successful post staged the producer's events AND that a rolled-back
+   * post left zero rows (proving outbox and money roll back together).
+   */
+  getCommittedOutboxRows(): NewOutboxRow[] {
+    return [...this.committedOutboxRows];
   }
 
   private idempotencyMapKey(tenantId: TenantId, key: string): string {
@@ -331,6 +364,9 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
     const entriesSnapshot = new Map(this.entries);
     const sequenceSnapshot = new Map(this.sequenceCounters);
     const idempotencySnapshot = new Map(this.idempotencyKeys);
+    // RSS-01 — snapshot the outbox rows in the SAME guard so a rollback
+    // un-stages any rows added this post (co-commit / co-rollback).
+    const outboxSnapshot = [...this.committedOutboxRows];
 
     try {
       // 1. Apply per-account CAS balance writes (validate-all then
@@ -403,6 +439,15 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
         );
       }
 
+      // 5. RSS-01 — co-commit the producer's outbox rows in the SAME
+      //    atomic unit. They were staged after all financial writes; if
+      //    anything above had thrown we'd never reach here, and if a fault
+      //    is injected the catch below restores `outboxSnapshot` — so the
+      //    outbox rows roll back WITH the money write (no half-write).
+      if (post.outboxRows && post.outboxRows.length > 0) {
+        this.committedOutboxRows.push(...post.outboxRows);
+      }
+
       return { status: 'committed', entries: created };
     } catch (err) {
       // Roll back EVERYTHING — balance writes included. This is the
@@ -411,6 +456,8 @@ export class InMemoryLedgerRepository implements ILedgerRepository {
       this.entries = entriesSnapshot;
       this.sequenceCounters = sequenceSnapshot;
       this.idempotencyKeys = idempotencySnapshot;
+      // RSS-01 — un-stage any outbox rows added this post (co-rollback).
+      this.committedOutboxRows = outboxSnapshot;
       if (err instanceof SequenceCollisionError) {
         // A collision behaves like a stale-version race: caller retries.
         return { status: 'stale', conflictAccountId: err.accountId };

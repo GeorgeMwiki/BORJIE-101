@@ -78,9 +78,18 @@ function LeaveView(): JSX.Element {
   const refresh = useCallback(async () => {
     try {
       const res = await miningApi.get<ListEnvelope>('/leave-requests/mine')
-      setRows(res.success ? res.data : [])
-      setListError(null)
+      if (res.success) {
+        setRows(res.data)
+        setListError(null)
+      } else {
+        // Server responded but flagged failure — surface the error rather
+        // than silently rendering the empty-state copy as if there are no
+        // requests (which could prompt a duplicate submission).
+        setListError(isSw ? 'Imeshindwa kupakua maombi.' : 'Could not load requests.')
+      }
     } catch {
+      // Network / 5xx — surface an error state rather than showing
+      // "no requests yet" which is indistinguishable from a real empty list.
       setListError(isSw ? 'Imeshindwa kupakua maombi.' : 'Could not load requests.')
     }
   }, [isSw])

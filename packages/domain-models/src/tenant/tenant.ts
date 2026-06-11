@@ -6,7 +6,6 @@
 import { getRegionConfig } from '../common/region-config';
 import type {
   TenantId,
-  OrganizationId,
   UserId,
   EntityMetadata,
   SoftDeletable,

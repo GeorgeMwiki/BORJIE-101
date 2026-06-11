@@ -15,9 +15,26 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { type ReactElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { parsePortalTab, type PortalTab } from '@borjie/portal-genui';
 
 import { GenUITabHost } from '../GenUITabHost';
+
+/**
+ * The host now uses TanStack Query (record list + widget data + record
+ * create) in BOTH modes, so every render is wrapped in a fresh QueryClient —
+ * mirrors the app's `AppProviders`. Retries off so a disabled/failing query
+ * never hangs the test.
+ */
+function renderHost(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  );
+}
 
 function buildTab(): PortalTab {
   const now = new Date().toISOString();
@@ -77,7 +94,7 @@ function buildTab(): PortalTab {
 
 describe('GenUITabHost — direct tab render', () => {
   it('renders the tab header (title + domain + description)', () => {
-    render(<GenUITabHost tab={buildTab()} locale="en" />);
+    renderHost(<GenUITabHost tab={buildTab()} locale="en" />);
     expect(screen.getByText('Staff Payroll')).toBeInTheDocument();
     expect(screen.getByText('Track monthly staff payroll.')).toBeInTheDocument();
     expect(screen.getByTestId('genui-tab-host')).toHaveAttribute(
@@ -87,7 +104,7 @@ describe('GenUITabHost — direct tab render', () => {
   });
 
   it('renders every section + its fields by kind', () => {
-    render(<GenUITabHost tab={buildTab()} locale="en" />);
+    renderHost(<GenUITabHost tab={buildTab()} locale="en" />);
     expect(screen.getByTestId('genui-section-employee')).toBeInTheDocument();
     // Each field renders with a kind-tagged wrapper.
     expect(screen.getByTestId('genui-field-name')).toHaveAttribute(
@@ -109,7 +126,7 @@ describe('GenUITabHost — direct tab render', () => {
   });
 
   it('renders widgets as registry-labelled cards', () => {
-    render(<GenUITabHost tab={buildTab()} locale="en" />);
+    renderHost(<GenUITabHost tab={buildTab()} locale="en" />);
     const widget = screen.getByTestId('genui-widget-roster');
     expect(widget).toHaveAttribute('data-widget-kind', 'table');
     expect(screen.getByText('Payroll roster')).toBeInTheDocument();
@@ -120,7 +137,7 @@ describe('GenUITabHost — direct tab render', () => {
     // Force a zero-section render path by stripping sections post-validation
     // (the host tolerates it with an empty-state note).
     const empty = { ...tab, sections: [] } as PortalTab;
-    render(<GenUITabHost tab={empty} locale="sw" />);
+    renderHost(<GenUITabHost tab={empty} locale="sw" />);
     expect(screen.getByText('Kichupo hiki bado hakina sehemu.')).toBeInTheDocument();
   });
 });

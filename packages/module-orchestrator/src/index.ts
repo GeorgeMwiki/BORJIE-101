@@ -46,3 +46,31 @@ export type {
   IdGenPort,
   ModuleRowSummary,
 } from './ports.js';
+
+// ─────────────────────────────────────────────────────────────────────
+// Pass 2 — the ddl-guard security wall on the PUBLIC surface. The
+// api-gateway executor imports these to re-validate + RLS-force-verify
+// the stored migration before it ever touches the tenant DB, and to gate
+// the apply behind the four-eye approval record. The compiler emits NO
+// RLS; the orchestrator owns it via these helpers.
+// ─────────────────────────────────────────────────────────────────────
+export {
+  validateGeneratedDdl,
+  type ValidateGeneratedDdlInput,
+  type ValidateGeneratedDdlResult,
+  buildCanonicalRlsBlock,
+  verifyRlsForced,
+  type RlsVerifyResult,
+  TENANT_GUC,
+  SERVICE_ROLE_GUC,
+  assertApplyApproved,
+  MODULE_SPAWN_TOOL_NAMES,
+  type FourEyeApprovalView,
+  type AssertApplyApprovedInput,
+  type AssertApplyApprovedResult,
+  canonicalTenantTablePrefix,
+  isTenantNamespacedTable,
+  assertTenantIdShape,
+  exceedsPgIdentifierLimit,
+  PG_IDENTIFIER_MAX_BYTES,
+} from './ddl-guard/index.js';

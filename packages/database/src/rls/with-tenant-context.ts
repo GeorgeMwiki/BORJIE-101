@@ -25,6 +25,16 @@ import type { DatabaseClient } from '../client.js';
 export interface WithTenantContextOpts {
   /** Set when the caller legitimately needs cross-tenant access. */
   readonly serviceRole?: boolean;
+  /**
+   * Optional person id to bind as `app.current_person_id` inside the SAME
+   * transaction (transaction-local `SET LOCAL`). On the transaction pooler the
+   * per-request reserved connection no longer exists, so person-scoped policies
+   * must get their GUC per-operation here rather than on a held connection.
+   *
+   * Omitting it (the default) emits NO `app.current_person_id` statement at
+   * all — behaviour is byte-for-byte identical to before this option existed.
+   */
+  readonly personId?: string;
 }
 
 /**
@@ -45,6 +55,7 @@ export async function withTenantContext<T>(
     throw new Error('withTenantContext requires a non-empty tenantId');
   }
   const isService = opts?.serviceRole ?? false;
+  const personId = opts?.personId;
 
   // Test-double affordance. A real Drizzle/postgres-js client ALWAYS exposes
   // `.transaction`; unit tests, however, stub the db with a bare
@@ -80,6 +91,14 @@ export async function withTenantContext<T>(
     await tx.execute(
       sql`SELECT set_config('app.is_service_role', ${isService ? 'true' : 'false'}, true)`,
     );
+    // Person-scope GUC — only when the caller asks for it. Same transaction,
+    // `true` third arg = transaction-local, so it is discarded at COMMIT and
+    // never leaks onto the next transaction the pooler routes to this backend.
+    if (personId) {
+      await tx.execute(
+        sql`SELECT set_config('app.current_person_id', ${personId}, true)`,
+      );
+    }
     return await fn(tx as unknown as DatabaseClient);
   });
 }

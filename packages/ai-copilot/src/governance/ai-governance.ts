@@ -10,6 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { PRICE_BOOK_FALLBACK_RATES } from '@borjie/brain-llm-router/price-book';
 import {
   CopilotRequestId,
   CopilotDomain,
@@ -325,24 +326,18 @@ export class AIGovernanceService {
   constructor(storage?: AIGovernanceStorageBackend) {
     this.storage = storage ?? new InMemoryGovernanceStorage();
 
-    // Default cost per 1K tokens (USD).
-    // Anthropic Claude rates are first-class — they are the Brain's primary
-    // executor. OpenAI rates remain for any legacy copilot still routed via
-    // the OpenAIProvider. The 'default' entry mirrors Sonnet 4.6 since most
-    // Brain turns run through that tier.
-    this.costPerToken = {
-      // Anthropic
-      'claude-opus-4-8': { prompt: 0.005, completion: 0.025 },
-      'claude-sonnet-4-6': { prompt: 0.003, completion: 0.015 },
-      'claude-haiku-4-5': { prompt: 0.0008, completion: 0.004 },
-      // OpenAI (legacy copilot path)
-      'gpt-4-turbo-preview': { prompt: 0.01, completion: 0.03 },
-      'gpt-4-turbo': { prompt: 0.01, completion: 0.03 },
-      'gpt-4': { prompt: 0.03, completion: 0.06 },
-      'gpt-3.5-turbo': { prompt: 0.0005, completion: 0.0015 },
-      // Fallback — Sonnet rates so unknown models don't silently overcharge
-      'default': { prompt: 0.003, completion: 0.015 },
-    };
+    // Cost per 1K tokens (USD) — derived from the ONE PriceBook source
+    // (@borjie/brain-llm-router/price-book), whose Anthropic rows are keyed
+    // off the dynamic-registry baselines, so a model swap re-keys these
+    // rates with zero code change. Figures are bit-identical to the prior
+    // inline table (asserted by the price-book test). The 'default' row
+    // mirrors the standard tier so unknown models never silently overcharge.
+    this.costPerToken = Object.fromEntries(
+      PRICE_BOOK_FALLBACK_RATES.map((r) => [
+        r.modelId,
+        { prompt: r.promptUsdPer1k, completion: r.completionUsdPer1k },
+      ]),
+    );
   }
 
   /**

@@ -41,8 +41,8 @@ export interface HaikuLlmPort {
 export const HYPOTHESIS_PROMPT_VERSION = '2026-05-22.v1';
 
 const SYSTEM_PROMPT = [
-  'You are the analyst inside an executive brief engine for a property',
-  'management SaaS. Given the sensor signals below, surface 5-8 candidate',
+  'You are the analyst inside an executive brief engine for a mining-estate',
+  'operations platform. Given the sensor signals below, surface 5-8 candidate',
   'findings that an executive would want flagged.',
   '',
   'Output JSON with these constraints:',

@@ -15,6 +15,9 @@ import {
 import { PersonaGreeting } from './PersonaGreeting';
 import { ToolCallSidebar } from './ToolCallSidebar';
 import { BorjieDynamicHints } from './BorjieDynamicHints';
+import { hintActionSuggestion } from './hint-action-suggestion';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
 /**
  * HomeChat — chat-first surface that becomes the owner's `/` (home).
@@ -133,12 +136,35 @@ export function HomeChat({
     [send],
   );
 
+  // Locale-bound translator for the proactive-hint follow-up copy.
+  const t = useMemo(() => makeT(dictionaries[languagePreference]), [languagePreference]);
+
+  // Wave SUPERPOWERS (UI-2) — bridge a ProactiveHint CTA emit into a real
+  // follow-up turn so the idle Cmd-K / handoff / simpler-explanation hint is
+  // never a dead click on THIS mount (mirrors the HomeChatTeach mount via the
+  // shared hint-action map). An unmapped action is dropped (no junk turn).
+  const handleHintAction = useCallback(
+    (_hintId: string, action: string) => {
+      const text = hintActionSuggestion(action, t);
+      if (text) onSuggestion(text);
+    },
+    [onSuggestion, t],
+  );
+
   const onReset = useCallback(() => {
+    // Call reset() first so the hook clears its state before the URL
+    // changes. We then strip the thread param from the URL only if the
+    // current URL actually has a thread param — this prevents a fast
+    // reset-then-navigate from stripping a freshly-written thread ID on
+    // the next render (the thread-hydration race described in audit
+    // finding HomeChat-thread-race / owner-ceo-*).
     reset();
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
-    url.searchParams.delete('thread');
-    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    if (url.searchParams.has('thread')) {
+      url.searchParams.delete('thread');
+      router.replace(`${url.pathname}${url.search}`, { scroll: false });
+    }
   }, [reset, router]);
 
   const composerDisabled =
@@ -243,7 +269,10 @@ export function HomeChat({
             onSubmit={(content) => void send(content)}
           />
         </section>
-        <BorjieDynamicHints language={languagePreference} />
+        <BorjieDynamicHints
+          language={languagePreference}
+          onHintAction={handleHintAction}
+        />
       </div>
       <div className="hidden lg:flex">
         <ToolCallSidebar

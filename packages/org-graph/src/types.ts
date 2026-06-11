@@ -33,6 +33,53 @@ export type EdgeType = (typeof EDGE_TYPES)[number];
 export const EdgeTypeSchema = z.enum(EDGE_TYPES);
 
 // ─────────────────────────────────────────────────────────────────────
+// MD-as-body edge + node vocabulary (ADDITIVE — does NOT touch the
+// migration-bound `EDGE_TYPES` above; the `org_graph_edges` migration
+// stores TEXT so these forward-compatible body edges persist without a
+// schema change). The body schema is materialised by `@borjie/system-
+// graph`, which composes on top of this org-graph layer.
+//
+// See Docs/research/MD_AS_BODY_ARCHITECTURE.md §bodyModel.
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Body-schema edge types — how the MD's organs connect. Kept here (not
+ * only in system-graph) so org-graph consumers can reason over a unified
+ * edge vocabulary; system-graph re-exports + extends.
+ */
+export const BODY_EDGE_TYPES = [
+  'renders_on',
+  'depends_on',
+  'flows_data_to',
+  'governed_by',
+  'measured_by',
+  'mirrors',
+  'exposes',
+  'serves',
+] as const;
+
+export type BodyEdgeType = (typeof BODY_EDGE_TYPES)[number];
+
+export const BodyEdgeTypeSchema = z.enum(BODY_EDGE_TYPES);
+
+/** Body-schema node kinds (the MD's morphology). */
+export const BODY_NODE_KINDS = [
+  'org',
+  'surface',
+  'screen',
+  'service',
+  'package',
+  'capability',
+  'schema',
+  'mcp',
+  'junior',
+] as const;
+
+export type BodyNodeKind = (typeof BODY_NODE_KINDS)[number];
+
+export const BodyNodeKindSchema = z.enum(BODY_NODE_KINDS);
+
+// ─────────────────────────────────────────────────────────────────────
 // Core types
 // ─────────────────────────────────────────────────────────────────────
 

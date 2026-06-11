@@ -12,6 +12,7 @@
 import {
   PortalTabSchema,
   type GeneratorOrgContext,
+  type PortalLocale,
   type PortalTab,
   type TabGenerationIntent,
 } from '../types.js';
@@ -62,6 +63,25 @@ export interface GenerateTabInput {
   readonly orgContext?: GeneratorOrgContext;
   /** Optional pointer to the chat conversation that triggered this. */
   readonly sourceConversationId?: string;
+  /**
+   * Owner's ACTIVE render locale (`en` default, `sw` toggle). When
+   * set, the brain AUTHORS every generated label — title, section
+   * titles, field labels, widget titles — in this single language so a
+   * Swahili owner never sees an English tab (CLAUDE.md EN/SW absolute
+   * separation). Takes precedence over `intent.locale`; both omitted ⇒
+   * `en`.
+   */
+  readonly locale?: PortalLocale;
+}
+
+/**
+ * Resolve the effective render locale for a generation call. Input-level
+ * `locale` (the gateway-resolved owner active locale) wins; the intent's
+ * own `locale` is the fallback; `en` is the CLAUDE.md default when neither
+ * is set.
+ */
+function resolveLocale(input: GenerateTabInput): PortalLocale {
+  return input.locale ?? input.intent.locale ?? 'en';
 }
 
 export interface GenerateTabResult {
@@ -192,11 +212,15 @@ export function createTabGenerator(deps: GeneratorDeps = {}): TabGenerator {
   const clock = deps.clock ?? (() => new Date());
   const cache = deps.cache ?? createInMemoryGeneratorCache();
   const newId = deps.newId ?? fallbackId;
-  const systemPrompt = buildGenerationSystemPrompt();
 
   async function generate(input: GenerateTabInput): Promise<GenerateTabResult> {
     const startedAt = clock().getTime();
-    const cacheKey = buildCacheKey(input.intent, input.orgContext);
+    const locale = resolveLocale(input);
+    // Locale is part of the cache identity: `en` and `sw` renders of the
+    // same intent are DIFFERENT artefacts and must never share a slot
+    // (CLAUDE.md EN/SW absolute — a cached English tab must not leak to a
+    // Swahili owner).
+    const cacheKey = `${locale}|${buildCacheKey(input.intent, input.orgContext)}`;
     const hit = cache.get(cacheKey);
     if (hit) {
       const reused: PortalTab = {
@@ -231,12 +255,17 @@ export function createTabGenerator(deps: GeneratorDeps = {}): TabGenerator {
       };
     }
 
-    // Try the LLM. If it's not wired or it fails, fall through.
+    // Try the LLM. If it's not wired or it fails, fall through. The
+    // system prompt is built per-call so the absolute single-language
+    // directive is anchored in the OWNER'S active locale — the brain
+    // AUTHORS every label in that one language (no dictionary lookup).
     if (deps.brain) {
       try {
+        const systemPrompt = buildGenerationSystemPrompt(locale);
         const userMessage = buildGenerationUserMessage({
           intent: input.intent,
           orgContext: input.orgContext,
+          locale,
         });
         const llm = await deps.brain.generate({
           system: systemPrompt,
@@ -293,6 +322,7 @@ export function createTabGenerator(deps: GeneratorDeps = {}): TabGenerator {
       actorId: input.actorId,
       nowIso,
       id,
+      locale,
       sourceConversationId: input.sourceConversationId,
     });
     cache.set(cacheKey, {

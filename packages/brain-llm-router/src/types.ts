@@ -142,6 +142,13 @@ export interface BrainCallOptions {
   readonly costCapUsd?: number;
   /** Override TASK_LADDER per-tenant. */
   readonly ladderOverride?: readonly ModelTier[];
+  /**
+   * Per-use-case routing key (intent / surface). When set, the config-driven
+   * resolver applies a per-use-case core-model override from the admin config
+   * (unless the use-case is in LOCKED_CATEGORIES). Absent → ladder resolves
+   * from the task kind alone.
+   */
+  readonly useCase?: string;
 }
 
 export interface BrainCallRequest {

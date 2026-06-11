@@ -3,7 +3,7 @@
  * Represents a buyer / off-taker counterparty in the system
  */
 
-import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
+import type { TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
 import type { CustomerId } from '../payments/payment-intent';
 
 export type { CustomerId } from '../payments/payment-intent';

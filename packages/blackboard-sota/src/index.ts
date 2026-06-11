@@ -37,6 +37,18 @@ export type {
   PostsRepository,
   CrossReferencesRepository,
   SummariesRepository,
+  // Cross-surface state bus
+  Slot,
+  SlotKind,
+  SlotSurface,
+  ActorId,
+  VersionVector,
+  SlotWriteInput,
+  SlotDeleteInput,
+  SlotDelta,
+  HandoffRequest,
+  HandoffProjection,
+  SlotsRepository,
 } from './types.js';
 
 export {
@@ -46,6 +58,9 @@ export {
   CROSSREF_KINDS,
   SUMMARY_KINDS,
   BLACKBOARD_CONSTANTS,
+  // Cross-surface state bus
+  SLOT_KINDS,
+  SLOT_SURFACES,
 } from './types.js';
 
 // ---------------------------------------------------------------------------
@@ -166,3 +181,49 @@ export { createInMemoryKnowledgeSourcesRepository } from './repositories/in-memo
 export { createInMemoryPostsRepository } from './repositories/in-memory-posts-repository.js';
 export { createInMemoryCrossReferencesRepository } from './repositories/in-memory-cross-references-repository.js';
 export { createInMemorySummariesRepository } from './repositories/in-memory-summaries-repository.js';
+export { createInMemorySlotsRepository } from './repositories/in-memory-slots-repository.js';
+// Durable CRDT-slot backing (EA-05). The SQL adapter persists the slot
+// lattice via the CRDT merge so a slot survives a process restart + is shared
+// across replicas. It speaks a narrow `SlotsDbPort` (rows, not SQL) so the
+// substrate stays free of a `@borjie/database` dependency; the gateway
+// composition root satisfies the port over the `blackboard_slots` table
+// (migration 0319).
+export {
+  createSqlSlotsRepository,
+  type SlotsDbPort,
+  type SlotRow,
+} from './repositories/sql-slots-repository.js';
+
+// ---------------------------------------------------------------------------
+// Cross-surface state bus — CRDT named slots + surface/device handoff
+//
+// MD-as-Body capstone (Docs/research/MD_AS_BODY_ARCHITECTURE.md). The
+// blackboard promoted from progress-only to the canonical cross-surface
+// state bus: a decision/doc/task lives ONCE as a CRDT slot, projected
+// onto chat + owner-web + workforce-mobile + buyer-mobile, with a
+// handoff primitive to re-project live state onto another surface/device.
+// ---------------------------------------------------------------------------
+
+export {
+  joinVersionVectors,
+  nextClock,
+  dominates,
+  writeSlot,
+  deleteSlot,
+  mergeSlot,
+  isSlotKind,
+} from './slots/slot-crdt.js';
+
+export {
+  createSlotStore,
+  SLOT_DELTA_EVENT,
+  type SlotStore,
+  type SlotStoreDeps,
+} from './slots/slot-store.js';
+
+export {
+  createHandoffService,
+  SLOT_HANDOFF_EVENT,
+  type HandoffService,
+  type HandoffServiceDeps,
+} from './handoff/handoff.js';

@@ -10,12 +10,15 @@
  *
  * Decisions encoded here:
  *
- *   - In-memory repositories are used by default. Production should swap
- *     in Drizzle-backed adapters once the matching migrations land
- *     (`workflow_runs`, `workflow_run_events`, `workflow_audit_chain`,
- *     `assignments`, `assignment_events`). The seams are clean: every
- *     repository is a Port that already has both an in-memory and a
- *     future-Drizzle adapter contract.
+ *   - Durable Drizzle-backed repositories (migration 0307:
+ *     `workflow_runs`, `workflow_run_events`, `workflow_audit_chain`) are
+ *     selected whenever a DB client is reachable, so `/workflow` runs, the
+ *     four-eyes approval queue, and the append-only hashed audit chain survive
+ *     an api-gateway restart (SOC2 CC7.2). When DATABASE_URL is unset (tests,
+ *     local smoke) the wiring falls back to the in-memory adapters so the
+ *     gateway still boots. The assignment-registry repositories remain
+ *     in-memory pending their own migration. The seams are clean: every
+ *     repository is a Port with both an in-memory and a Drizzle adapter.
  *
  *   - The brain port behind `@borjie/ai-reviewer` defaults to a
  *     deterministic "escalate" responder. This is the SAFE default:
@@ -63,16 +66,27 @@ import {
   createAuditHashChain,
   createCommitter,
   createDefinitionRegistry,
+  createDrizzleAuditChainRepository,
+  createDrizzleRunEventRepository,
+  createDrizzleRunRepository,
   createInMemoryApprovalRouter,
   createInMemoryAuditChainRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
+  createDrizzleFlowAutonomyRepository,
+  createInMemoryFlowAutonomyRepository,
   createWorkflowEngine,
   type AIReviewerPort,
+  type AuditChainRepository,
   type ChangeApplier,
+  type FlowAutonomyRepository,
   type WorkflowEngine,
   type WorkflowKind,
+  type WorkflowRunEventRepository,
+  type WorkflowRunRepository,
 } from '@borjie/workflow-engine';
+import { getDb } from './db-client.js';
+import { logger } from '../utils/logger.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Module-local singleton — required so the engine's per-run mutex map
@@ -81,10 +95,99 @@ import {
 
 let cachedEngine: WorkflowEngine | null = null;
 let cachedRegistry: AssignmentRegistry | null = null;
+let cachedFlowAutonomy: FlowAutonomyRepository | null = null;
 
 export interface WorkflowEngineBundle {
   readonly engine: WorkflowEngine;
   readonly assignmentRegistry: AssignmentRegistry;
+  readonly flowAutonomy: FlowAutonomyRepository;
+}
+
+interface WorkflowRepositories {
+  readonly runRepository: WorkflowRunRepository;
+  readonly eventRepository: WorkflowRunEventRepository;
+  readonly auditChainRepository: AuditChainRepository;
+}
+
+/**
+ * Select the persistence layer. Drizzle-backed (durable, migration 0307) when
+ * a DB client is available; in-memory fallback otherwise. NEVER throws — a
+ * construction failure on the Drizzle path degrades to in-memory so the gateway
+ * boots cleanly even when the DB is offline.
+ */
+function buildWorkflowRepositories(): WorkflowRepositories {
+  let db: ReturnType<typeof getDb> = null;
+  try {
+    db = getDb();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `workflow-engine-wiring: getDb() failed (${message}); using in-memory repositories`,
+    );
+    db = null;
+  }
+
+  if (!db) {
+    return {
+      runRepository: createInMemoryRunRepository(),
+      eventRepository: createInMemoryRunEventRepository(),
+      auditChainRepository: createInMemoryAuditChainRepository(),
+    };
+  }
+
+  try {
+    return {
+      runRepository: createDrizzleRunRepository(db),
+      eventRepository: createDrizzleRunEventRepository(db),
+      auditChainRepository: createDrizzleAuditChainRepository(db),
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `workflow-engine-wiring: Drizzle repository wiring failed (${message}); ` +
+        'falling back to in-memory repositories',
+    );
+    return {
+      runRepository: createInMemoryRunRepository(),
+      eventRepository: createInMemoryRunEventRepository(),
+      auditChainRepository: createInMemoryAuditChainRepository(),
+    };
+  }
+}
+
+/**
+ * Select the flow-autonomy persistence layer. Drizzle-backed (durable,
+ * migration 0308: `flow_autonomy_prefs`) when a DB client is available; the
+ * in-memory adapter otherwise. NEVER throws — a construction failure on the
+ * Drizzle path degrades to in-memory so the gateway boots cleanly even when the
+ * DB is offline. Mirrors `buildWorkflowRepositories()` exactly.
+ */
+function buildFlowAutonomyRepository(): FlowAutonomyRepository {
+  let db: ReturnType<typeof getDb> = null;
+  try {
+    db = getDb();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `workflow-engine-wiring: getDb() failed (${message}); using in-memory flow-autonomy repository`,
+    );
+    db = null;
+  }
+
+  if (!db) {
+    return createInMemoryFlowAutonomyRepository();
+  }
+
+  try {
+    return createDrizzleFlowAutonomyRepository(db);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      `workflow-engine-wiring: Drizzle flow-autonomy wiring failed (${message}); ` +
+        'falling back to in-memory flow-autonomy repository',
+    );
+    return createInMemoryFlowAutonomyRepository();
+  }
 }
 
 /**
@@ -94,8 +197,12 @@ export interface WorkflowEngineBundle {
  * fail to construct.
  */
 export function getWorkflowEngine(): WorkflowEngineBundle {
-  if (cachedEngine && cachedRegistry) {
-    return { engine: cachedEngine, assignmentRegistry: cachedRegistry };
+  if (cachedEngine && cachedRegistry && cachedFlowAutonomy) {
+    return {
+      engine: cachedEngine,
+      assignmentRegistry: cachedRegistry,
+      flowAutonomy: cachedFlowAutonomy,
+    };
   }
 
   // ── Assignment registry: provides the ScopeGuard the engine needs.
@@ -233,11 +340,15 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
     committer.register(applier);
   }
 
-  // ── Repositories: in-memory defaults. Production swaps in Drizzle
-  //   adapters via `createWorkflowEngine({ runRepository: drizzleRepo, ... })`.
-  const runRepository = createInMemoryRunRepository();
-  const eventRepository = createInMemoryRunEventRepository();
-  const auditChainRepository = createInMemoryAuditChainRepository();
+  // ── Repositories: Drizzle-backed when a DB is reachable, in-memory
+  //   otherwise. The Drizzle adapters (migration 0307) make `/workflow`
+  //   runs, the four-eyes approval queue, and the append-only hashed audit
+  //   chain survive an api-gateway restart (SOC2 CC7.2). When DATABASE_URL is
+  //   unset (tests, local smoke) we fall back to the in-memory adapters so the
+  //   gateway still boots cleanly. NEVER throws — any wiring failure degrades
+  //   to in-memory rather than crashing construction.
+  const { runRepository, eventRepository, auditChainRepository } =
+    buildWorkflowRepositories();
   const auditChain = createAuditHashChain(auditChainRepository);
 
   const definitionRegistry = createDefinitionRegistry();
@@ -254,9 +365,15 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
     auditChain,
   });
 
+  // ── Flow-autonomy repository: Drizzle-backed (migration 0308) when a DB is
+  //   reachable, in-memory otherwise. Same selection pattern as the workflow
+  //   repositories above; backs the `/workflow/flow-autonomy` router.
+  const flowAutonomy = buildFlowAutonomyRepository();
+
   cachedEngine = engine;
   cachedRegistry = assignmentRegistry;
-  return { engine, assignmentRegistry };
+  cachedFlowAutonomy = flowAutonomy;
+  return { engine, assignmentRegistry, flowAutonomy };
 }
 
 /**
@@ -267,4 +384,5 @@ export function getWorkflowEngine(): WorkflowEngineBundle {
 export function resetWorkflowEngineForTests(): void {
   cachedEngine = null;
   cachedRegistry = null;
+  cachedFlowAutonomy = null;
 }

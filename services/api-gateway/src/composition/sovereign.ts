@@ -36,20 +36,27 @@
  * (no tenant) shares a separate cache key.
  */
 
+import { randomUUID } from 'node:crypto';
 import {
   agency as agencyKernel,
   composeSovereign,
+  createAffectiveAccumulator,
   createApprovalGate,
   createBrainToolRegistry,
   createDpCohortSource,
+  createGatekeeper,
   createInMemoryApprovalStore,
   createNullEmbedder,
   createOpenAiEmbedder,
   createSkillRetriever,
+  reflexion as kernelReflexion,
   registerSeedBrainTools,
+  situationalModel as situationalModelKernel,
   tools as kernelTools,
+  type AffectiveAccumulator,
   type AgencyKernelPort,
   type BrainToolRegistry,
+  type DivergenceReporter,
   type EmbedderPort,
   type FeedbackMemoryPort,
   type MemoryHierarchy,
@@ -84,6 +91,8 @@ import {
   createKernelActionAuditService,
   createSensoriumEventLogService,
   createSkillRegistryService,
+  createReflexionBufferService,
+  createDrizzleReflexionLoader,
 } from '@borjie/database';
 // Central Command Phase A C4 / Phase B B2 — Behaviour signal source.
 // Surfaces derived brain-mind-state signals (engagement.high,
@@ -92,6 +101,28 @@ import {
 // sensorium-event-log service so the kernel reads real user behaviour
 // instead of a static stub.
 import { createBehaviorSignalSource } from '@borjie/ai-copilot/ambient-brain';
+// Cross-session Theory-of-Mind (owner model) — DURABLE per-owner
+// communication-style posterior. The kernel reads `getStyleHint(...)` at
+// step 6 (beside the per-turn affective directive) and folds one
+// observation back via `refine(...)` post-turn. Backed by the Drizzle
+// `owner_style_profiles` store so the bias survives across sessions.
+//
+// WIRING PREREQUISITE (flagged in the manifest — NEITHER file is owned by
+// this agent): the orphaned `OwnerStyleService` is NOT currently reachable
+// from `@borjie/ai-copilot`. Its barrel lives at
+// `packages/ai-copilot/src/personas/owner-style/index.ts` but is not
+// re-exported from the package root. Add ONE line to
+// `packages/ai-copilot/src/personas/index.ts`:
+//     export * from './owner-style/index.js';
+// (or the package root `src/index.ts`) so this import resolves. AND add
+// the `ownerStyleReader` passthrough to `compose.ts`'s
+// `SovereignComposeConfig` (mirror `behaviorSignalSource`) so the bound
+// reader actually reaches the kernel — otherwise it is silently dropped.
+import {
+  createOwnerStyleService,
+  type OwnerStyleProfileStore,
+} from '@borjie/ai-copilot';
+import { createPgOwnerStyleProfileStore } from '@borjie/database/repositories';
 // LP-30 — composition-root activation of the kernel's semantic-cache (LP-03)
 // and intent-verifier (LP-04) seams. Both ports are constructed fail-safe and
 // threaded into `composeSovereign(...)` so the kernel's `think()` pipeline
@@ -102,6 +133,14 @@ import {
   buildSemanticCachePort,
   buildIntentVerifierPort,
 } from './lp30-kernel-ports-wiring.js';
+// Wave-3 DARK-ORGAN closure (Docs/research/MASTER_WIRING_CLOSURE_PLAN.md) —
+// the kernel's normal-turn multi-voice debate detour. The kernel ALREADY
+// consumes `deps.debate` at high/critical stakes, but no composition root
+// ever populated it, so the detour never fired. This binds a real
+// stakes-gated DebatePort (N voices × R rounds over the same Anthropic
+// sensor) behind `BORJIE_KERNEL_DEBATE_ENABLED` (default OFF) + a wall-clock
+// budget so a slow debate can never stall a turn (fail-safe → single-shot).
+import { buildDebateKernelPort } from './debate-kernel-port-wiring.js';
 // See gh-issue #29: `@borjie/market-intelligence` was a property-vertical
 // package (Zillow / Airbnb rental comps). Mining equivalents (LME spot
 // prices, Argus DRC tin index, etc.) will live under a new
@@ -170,6 +209,32 @@ import {
   registerPersonaToolsOnRegistry,
   type BridgeSovereignRole,
 } from './brain-tools/persona-kernel-bridge.js';
+// R6 WORLD-MODEL un-darking — the kernel's forward-simulation organ
+// (`createWorldModelKernelTools`: world.property_trajectory /
+// world.arrears_trajectory / world.market_regime) was exported + unit-tested
+// with ZERO composition-root callers. This binds the three tools onto the
+// orchestrator's BrainToolRegistry over READ-ONLY, tenant-scoped Drizzle
+// history fetchers so the brain can forward-simulate MID-TURN; each forecast
+// carries a `forecast:world.*` citation the main loop harvests as evidence
+// (auditable deliberation). The simulator never writes — only
+// `LedgerService.post()` moves money.
+import { registerWorldModelToolsOnRegistry } from './world-model-wiring.js';
+import { resolveTierModel } from './model-tier-map.js';
+// Wave-C SALIENCE ARENA (C1 win #3) — the two slow-loop READ ports that light
+// up the arena's drive + ACT-R activation sub-bidders. Both are built from the
+// SAME durable situational-model store + gated proactive_nudge contract the
+// resident EstateMind loop already writes (estate-mind-wiring.ts):
+//   - situationalSnapshotReader: createSituationalModel({ store }).snapshot
+//     over `createDrizzleSituationalModelStore(db)` — the ACT-R-activated
+//     estate entities the arena min-maxes into activation bids.
+//   - pendingProposalReader: a read over the persisted `tab_event_log`
+//     proactive_nudge rows the slow loop surfaces (one per breached standing
+//     drive, carrying driveId + breachSeverity + urgency) — the drive bids.
+// Both fail-safe: a store fault resolves to null/[] so the arena simply has
+// fewer bidders (it still competes affect bids via behaviorSignalSource).
+import { createDrizzleSituationalModelStore } from './estate-mind-wiring.js';
+import { createPinoLikeLogger } from '../utils/pino-shim.js';
+import { sql as drizzleSql } from 'drizzle-orm';
 
 // ---------------------------------------------------------------------------
 // Anthropic SDK loader — optional. We only require the SDK when the
@@ -223,6 +288,36 @@ function createStubSensor(): Sensor {
       };
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// EVERY-POWER-ON default-flip helper.
+//
+// Several capability ports (semantic cache, kernel debate) resolve their
+// master flag with a "default-OFF" reader (`raw === '1'|'true'|'on'`). To turn
+// the CAPABILITY on by default WITHOUT weakening the operator's revert lever,
+// we hand those builders a derived env in which the flag reads `'true'` UNLESS
+// the operator has explicitly pinned an off value (`'0'|'false'|'off'|'no'`).
+// The result: unset → ON (power on by default); explicit-off → still OFF
+// (instant operator revert). We NEVER apply this to a governance/safety flag
+// (kill-switch, four-eye, intent-verify STRICT, payout rails, …) — those keep
+// their built-in defaults verbatim. Pure: returns a shallow copy, never
+// mutates `process.env`.
+// ---------------------------------------------------------------------------
+
+const ENV_OFF_VALUES = new Set(['0', 'false', 'off', 'no']);
+
+function defaultOnEnv(
+  base: Readonly<Record<string, string | undefined>>,
+  key: string,
+): Record<string, string | undefined> {
+  const raw = base[key]?.trim().toLowerCase();
+  // Operator explicitly disabled → preserve verbatim (revert wins).
+  if (raw !== undefined && ENV_OFF_VALUES.has(raw)) {
+    return { ...base };
+  }
+  // Unset / any non-off value → default the capability ON.
+  return { ...base, [key]: 'true' };
 }
 
 // ---------------------------------------------------------------------------
@@ -329,6 +424,14 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   let behaviorSignalSource:
     | ReturnType<typeof createBehaviorSignalSource>
     | undefined;
+  // Cross-session ToM (owner model). When the DB is up we back the
+  // durable owner-style posterior with the Drizzle `owner_style_profiles`
+  // store so `getStyleHint(...)` / `refine(...)` round-trip across
+  // sessions; when DB is down the service degrades to an in-memory
+  // neutral default (honest-degrade — never throws out of a turn).
+  let ownerStyleReader:
+    | ReturnType<typeof createOwnerStyleService>
+    | undefined;
   // C5 — Voyager skill retriever (READ side of the SKILLS loop). When
   // the DB is up we point the retriever at the Drizzle-backed,
   // pgvector-keyed `skill_registry` (the same table the consolidation
@@ -339,6 +442,35 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   // rejects null sentinel (no OpenAI key) the retriever degrades to an
   // empty fragment and the kernel/Jarvis path is unchanged.
   let skillRetriever: SkillRetriever | undefined;
+  // Wave-12 DARK-ORGAN closure — the Reflexion verbal-RL loop. The kernel
+  // ALREADY guards on `deps.reflexionRetriever` (step 4e/4f, read-at-start)
+  // and `deps.reflexionWriter` (step 13, write-at-session-end), but no
+  // composition root ever populated them, so the MD never learned from past
+  // mistakes. We back both with the Drizzle `reflexion_buffer` service:
+  //   - writer = the buffer service directly (its `record` matches the
+  //     kernel's ReflexionWriterPort `record` shape exactly).
+  //   - retriever = createReflexionRetriever({ port }) where `port.recall`
+  //     is the buffer's `recall` (same shape) — the retriever adds the
+  //     prompt-fragment renderer the kernel reads.
+  // Both degrade gracefully (the buffer service swallows DB faults), so a
+  // reflexion store fault never breaks a turn.
+  let reflexionRetriever:
+    | ReturnType<typeof kernelReflexion.createReflexionRetriever>
+    | undefined;
+  let reflexionWriter:
+    | ReturnType<typeof createReflexionBufferService>
+    | undefined;
+  // iq-reflexion-dark-3 (CLOSED) — the THIRD reflexion seam: the task-scoped
+  // READ-back loader. This is the read side of the compounding loop: the
+  // kernel writes reflexions on surprise + the nightly sleep consolidates
+  // them into `reflexion_guidelines`; the loader reads the consolidated
+  // lessons BACK at session start (kernel step F11). It is a DISTINCT
+  // contract from the retriever — TENANT-WIDE, userId OPTIONAL,
+  // `pruned_at IS NULL`, and it ALSO reads the separate
+  // `reflexion_guidelines` table — so it gets its own Drizzle service.
+  let reflexionLoader:
+    | ReturnType<typeof createDrizzleReflexionLoader>
+    | undefined;
   if (db) {
     const svc = createKernelSubstrateService(db, { tenantId: scope.tenantId });
     substrateSinks = {
@@ -561,6 +693,19 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     const sensoriumEventLogService = createSensoriumEventLogService(db);
     behaviorSignalSource = createBehaviorSignalSource(sensoriumEventLogService);
 
+    // Cross-session ToM — durable owner-style service over the Drizzle
+    // `owner_style_profiles` store. The DB store's `OwnerStyleProfile`
+    // is a structural duck-type of the service's; the persistence-port
+    // shape ({ fetch, upsert }) matches exactly. Cast at the boundary so
+    // the two independently-declared profile types reconcile.
+    ownerStyleReader = createOwnerStyleService({
+      // The DB repo's `OwnerStyleProfile` is an independently-declared
+      // structural twin of the service's; the persistence-port surface
+      // ({ fetch, upsert }) matches exactly. Cast through `unknown` at
+      // the package boundary so the two nominal profile types reconcile.
+      store: createPgOwnerStyleProfileStore(db) as unknown as OwnerStyleProfileStore,
+    });
+
     // C5 — wire the Voyager skill retriever. The registry service is the
     // pgvector-backed `skill_registry` reader; tenant scope is applied
     // per-call inside `retrieve({ tenantId })` from the kernel (the kernel
@@ -574,6 +719,22 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
       port: createSkillRegistryService(db),
       embedder: skillEmbedder.modelId === 'null' ? null : skillEmbedder,
     });
+
+    // Wave-12 — Reflexion verbal-RL loop. The buffer service satisfies BOTH
+    // the writer port (`record`) and the retriever's underlying read port
+    // (`recall`); we wrap the latter in `createReflexionRetriever` so the
+    // kernel gets the `retrieve` + `renderPromptFragment` surface it reads.
+    const reflexionBuffer = createReflexionBufferService(db);
+    reflexionWriter = reflexionBuffer;
+    reflexionRetriever = kernelReflexion.createReflexionRetriever({
+      port: { recall: (args) => reflexionBuffer.recall(args) },
+    });
+    // Compounding loop READ-back — the task-scoped loader. Structurally
+    // satisfies the kernel's `ReflexionLoaderPort` (recentReflexions +
+    // recentGuidelines): tenant-wide, userId optional, `pruned_at IS NULL`,
+    // and reads the consolidated `reflexion_guidelines`. Degrades to [] on
+    // any DB fault so the read-back side never breaks a turn.
+    reflexionLoader = createDrizzleReflexionLoader(db);
   }
 
   // The wrapped `anthropic` client was constructed at the top of
@@ -602,12 +763,136 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     // assign-by-key keeps the type-narrowing happy.
     mutable.behaviorSignalSource = behaviorSignalSource;
   }
+  if (ownerStyleReader) {
+    // Cross-session ToM — the kernel's `OwnerStyleReaderPort`
+    // (kernel-types.ts) is the { getStyleHint, refine } slice of the
+    // richer `OwnerStyleService`. Assign-by-key keeps the duck-type
+    // narrowing happy. NOTE: this reaches the kernel ONLY once
+    // `composeSovereign`'s config forwards `ownerStyleReader` — that
+    // passthrough is the one non-owned wiring seam flagged in the
+    // manifest; until then this binding is inert (silently dropped).
+    mutable.ownerStyleReader = ownerStyleReader;
+  }
   // C5 — Voyager skill retriever (READ side). Threaded onto the kernel
   // deps via `composeSovereign({ skillRetriever })` so kernel step 4f
   // renders the "Available learned skills:" fragment. Optional/additive:
   // only set when the DB is up (the retriever needs the registry reader).
   if (skillRetriever) mutable.skillRetriever = skillRetriever;
   // autoHaikuJudge defaults to true in compose; we leave it unset.
+
+  // Wave-C C4 follow-up (affectReader) — inject the SHARED per-tenant affective
+  // accumulator so this tenant's turns `observe(...)` into the SAME instance the
+  // proactive worker reads via `getAffectAccumulator(tenantId)`. Without this,
+  // compose mints a fresh per-brain accumulator and the worker's earned-trust
+  // resolver would read an always-empty posterior. `composeSovereign` honours a
+  // caller-supplied accumulator (config.affectiveAccumulator ?? fresh), so this
+  // wins. The accumulator is pure in-memory + TTL-evicting — never throws.
+  mutable.affectiveAccumulator = getAffectAccumulator(scope.tenantId);
+
+  // Wave-C SALIENCE ARENA (C1 win #3) — bind the slow-loop READ ports that
+  // light up the arena's DRIVE + ACT-R ACTIVATION sub-bidders. `composeSovereign`
+  // ALREADY forwards both (compose.ts:576 situationalSnapshotReader, :580
+  // pendingProposalReader), so these reach kernel step 6's `buildActivationBids`
+  // / `buildDriveBids` and join the live affect path. Only wired when the DB is
+  // up (both readers are durable reads); arena degrades to affect-only without.
+  if (db) {
+    mutable.situationalSnapshotReader = buildSituationalSnapshotReader(db);
+    mutable.pendingProposalReader = buildPendingProposalReader(
+      db as unknown as DbExecLike,
+    );
+    // Conflict-monitored effort recruitment (C1) defaults ON inside the kernel
+    // when its inputs exist; we leave `conflictRecruitmentEnabled` UNSET so the
+    // kernel's safe default governs (an explicit env lever is a future seam).
+  }
+
+  // Wave-12 — thread the Reflexion ports onto the kernel deps. `composeSovereign`
+  // forwards both verbatim (compose.ts:541-542) so the kernel's read-at-start
+  // (step 4e/4f) and write-at-session-end (step 13) reflexion steps go live.
+  if (reflexionRetriever) mutable.reflexionRetriever = reflexionRetriever;
+  if (reflexionWriter) mutable.reflexionWriter = reflexionWriter;
+
+  // iq-reflexion-dark-3 (CLOSED) — the THIRD reflexion seam, the task-scoped
+  // `reflexionLoader` (kernel.ts step F11 ~1429, `ReflexionLoaderPort`), is now
+  // LIVE. This is the read-back side of the compounding loop. Both blockers the
+  // prior deferral noted are resolved:
+  //   1. compose.ts NOW declares a `reflexionLoader` field on
+  //      `SovereignComposeConfig` and copies it onto `kernelDeps`, so the
+  //      binding below actually reaches the kernel guard (no longer dropped).
+  //   2. `@borjie/database` NOW ships `createDrizzleReflexionLoader(db)` — the
+  //      correct adapter (TENANT-WIDE, userId OPTIONAL, `pruned_at IS NULL`,
+  //      surfacing importance/cluster/taskId AND reading the consolidated
+  //      `reflexion_guidelines`). It degrades to [] on any DB fault.
+  // With both wired the loop closes end-to-end: write-on-surprise →
+  // nightly-sleep consolidate → read-back-at-session-start.
+  if (reflexionLoader) mutable.reflexionLoader = reflexionLoader;
+
+  // Wave-12/EP-3 — Self-RAG grounding judge. The kernel's self-rag step
+  // (kernel.ts step ~1732, guarded by `if (deps.selfRagJudge)`) tags each
+  // retrieved chunk with IsREL/IsSUP/IsUSE tokens and fail-closes a
+  // financial/contractual claim whose support is low. No composition root
+  // populated `selfRagJudge`, so the gate was inert. We build a Haiku-backed
+  // judge (single critic call returning the tokens in `reasonText`) ONLY when
+  // a real Anthropic client is present, mirroring the debate-port pattern.
+  if (anthropic) {
+    mutable.selfRagJudge = buildSelfRagJudge(anthropic);
+  }
+
+  // R7 (Ascent keystone) — proof-carrying membrane, SHADOW mode. The unified
+  // gatekeeper was BUILT (`kernel/membrane/`) but never injected: the kernel's
+  // `runKernelShadowGatekeeper` hook is `if (!deps.safetyGatekeeper) return;`,
+  // so absent this wiring it has always been a pure no-op (the "dark organ"
+  // the deployment audit flagged). We now construct it + a divergence reporter
+  // and forward both onto the `composeSovereign` config (compose.ts copies them
+  // onto `kernelDeps`). The kernel computes a signed, hash-chained
+  // SafetyCertificate ALONGSIDE each already-final decision and the reporter
+  // fires only when the certificate verdict diverges from the verdict the
+  // existing scattered checks already reached. It NEVER enforces — there is no
+  // return value the kernel reads — so this changes ZERO allow/deny outcomes;
+  // it only lights up the membrane in observe-only mode so we can measure
+  // agreement before ever promoting it past shadow.
+  //
+  // Each port CERTIFIES (mirrors the live decision via the flags the kernel
+  // carries on `action.payload`), it does NOT re-judge. Dimensions the shadow
+  // action does not populate certify 'satisfied' because they are already
+  // enforced upstream at their own chokepoints (RLS/scope before think()
+  // returns, locale-purity + egress at the projector membrane, money/RLS/audit
+  // rails write-gated independently, kill-switch resolved fail-closed before
+  // the hook runs). Genuine divergences therefore surface exactly the edge
+  // cases the unified set sees that the scattered checks encode elsewhere —
+  // which is the entire point of running it in shadow first.
+  const safetyGatekeeper = createGatekeeper({
+    policyGate: (a) => (a.payload?.['policyBlocked'] === true ? 'block' : 'pass'),
+    inviolable: (a) => (a.payload?.['inviolableBlocked'] === true ? 'block' : 'pass'),
+    killswitch: () => 'live',
+    tenantScopeConsistent: () => true,
+    evidenceChain: (a) => a.payload?.['hasEvidence'] === true,
+    localePure: () => true,
+    egressClean: () => true,
+    kAnon: () => true,
+    noRailMutation: () => true,
+    now: () => Date.now(),
+    newCertId: () => `cert_${randomUUID()}`,
+  });
+  mutable.safetyGatekeeper = safetyGatekeeper;
+  // Divergence reporter — structured-log ONLY (no enforcement). Emits a line
+  // solely when the certificate disagrees with the live decision: the precise
+  // signal to investigate before R7 is ever promoted out of shadow. Agreement
+  // (the overwhelming common case) is intentionally silent to bound log volume.
+  const safetyDivergenceReporter: DivergenceReporter = (event) => {
+    if (!event.diverged) return;
+    logger.warn(
+      {
+        actionRef: event.actionRef,
+        tenantScope: event.tenantScope,
+        certificateVerdict: event.certificateVerdict,
+        existingDecision: event.existingDecision,
+        certId: event.certId,
+        certHash: event.certHash,
+      },
+      'r7-shadow-divergence: proof-carrying certificate verdict diverged from the live decision',
+    );
+  };
+  mutable.safetyDivergenceReporter = safetyDivergenceReporter;
 
   // LP-30 — wire the semantic-cache (LP-03) + intent-verifier (LP-04) ports
   // onto the `composeSovereign` config. The kernel CONSUMES both
@@ -628,8 +913,17 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     info: (meta: object, msg: string) => logger.info(meta as Record<string, unknown>, msg),
     warn: (meta: object, msg: string) => logger.warn(meta as Record<string, unknown>, msg),
   };
+  // EVERY-POWER-ON — semantic-cache (LP-03) is a WIRED, fail-safe capability
+  // (embedding-keyed read-through; a null embedder or a miss falls through to
+  // the normal sensor path; it only ever stores `answer` decisions — never a
+  // refusal/softened reply). Its wiring resolves the master flag via
+  // `flagDefaultOff(BORJIE_SEMANTIC_CACHE_ENABLED)`, so we flip the DEFAULT to
+  // ON by passing a derived env where the flag reads `'true'` UNLESS the
+  // operator explicitly set an off value. The operator force-OFF revert
+  // (`BORJIE_SEMANTIC_CACHE_ENABLED=0|false|off`) is preserved verbatim.
   const semanticCache = buildSemanticCachePort({
     embedder: resolveSkillEmbedder(),
+    env: defaultOnEnv(process.env, 'BORJIE_SEMANTIC_CACHE_ENABLED'),
     logger: lp30Logger,
   });
   mutable.semanticCache = semanticCache.port;
@@ -648,6 +942,39 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     },
     'lp30: semantic-cache + intent-verifier ports wired into kernel deps',
   );
+
+  // Wave-3 — bind the kernel debate port onto the MAIN kernel deps. The
+  // kernel reads `deps.debate` at step 7 and (only at high/critical stakes
+  // AND when `shouldDebate(req)` returns true) replaces the single sensor
+  // call with an N-voice debate. Only wired when a real Anthropic sensor is
+  // present — a debate needs a live model. Default OFF via
+  // `BORJIE_KERNEL_DEBATE_ENABLED`; the wall-clock budget + empty-outcome
+  // fail-safe mean a slow debate falls back to the single-shot sensor and
+  // never stalls a turn. Propose-only: debate shapes the answer text, never
+  // actuates the sovereign rail.
+  if (anthropic) {
+    // EVERY-POWER-ON — the stakes-gated multi-voice debate detour is a WIRED
+    // capability that only fires at high/critical stakes AND when the kernel's
+    // own `debateEligible` agrees, behind a wall-clock + token budget whose
+    // overrun fails SAFE to the single-shot sensor. It needs a live model, so
+    // it is only built when a real (circuit-breaker + OTel wrapped) Anthropic
+    // client is present (the stub-sensor CI/eval path never constructs it →
+    // zero behaviour change there). Its wiring resolves the master flag via
+    // `organFlagDefaultOff(BORJIE_KERNEL_DEBATE_ENABLED)`, so we flip the
+    // DEFAULT to ON via a derived env (operator force-OFF
+    // `BORJIE_KERNEL_DEBATE_ENABLED=0|false|off` still wins). Propose-only:
+    // debate shapes answer text, never actuates the sovereign rail.
+    const debate = buildDebateKernelPort({
+      anthropic,
+      env: defaultOnEnv(process.env, 'BORJIE_KERNEL_DEBATE_ENABLED'),
+      logger: lp30Logger,
+    });
+    mutable.debate = debate.port;
+    logger.info(
+      { wiring: 'kernel-debate', debateEnabled: debate.enabled },
+      'kernel-debate: stakes-gated multi-voice debate port wired into kernel deps',
+    );
+  }
 
   // Stage 1 — orchestrator main-loop wire onto the LIVE kernel. Build the
   // router + dispatcher + durable memory tool + the 9 production hook
@@ -871,6 +1198,26 @@ function maybeWireOrchestratorBlock(args: {
       },
     });
 
+    // R6 — world-model forward simulation on the SAME registry. The three
+    // `world.*` tools are deterministic local compute over READ-ONLY history
+    // reads (scope-tenant-pinned inside the fetchers); a tenant brain asked
+    // about another estate degrades to an honest "no history" error. Their
+    // forecast citations ride the output object so the main loop's
+    // CitationAccumulator folds every mid-turn simulation into the answer's
+    // evidence chain.
+    const worldModelRegistered = registerWorldModelToolsOnRegistry({
+      registry: toolRegistry,
+      db: args.db,
+      scope: {
+        tenantId: args.scope.tenantId,
+        userId: args.scope.userId,
+        ...(args.scope.role ? { role: args.scope.role } : {}),
+      },
+      logger: {
+        warn: (meta, msg) => logger.warn(meta, msg),
+      },
+    });
+
     // (d) 9 production hook ports — PII scrub / permission / four-eye /
     // denylist / rate-limit / cost-circuit / sandbox-divert / audit /
     // ledger-seal. The hook chain is scoped to THIS brain's tenant (the cache
@@ -898,6 +1245,14 @@ function maybeWireOrchestratorBlock(args: {
     // tool registry, durable Drizzle memory tool, + the 9 hook ports.
     // `useByDefault` is UNSET inside the builder so the kernel's resolver
     // governs routing (DEFAULT-ON with the env reverts).
+    //
+    // COG-07/AUT-14 — `buildOrchestratorComposeBlock` ALSO constructs the
+    // modality arbiter (the 7-way output head) + binds its skill/modality
+    // dispatcher handlers when `BORJIE_MODALITY_ARBITER` is on (read from the
+    // `envSource` below). DEFAULT-OFF: the arbiter is not constructed and this
+    // sovereign path behaves byte-identically to today (chat/action only). The
+    // arbiter can route to an action but it still hits the policy-gate + 9-hook
+    // chain — money/licence/deletion stay dual-control HITL; no rail bypassed.
     args.mutable.orchestrator = buildOrchestratorComposeBlock({
       // The sensor-wrapped client structurally satisfies `KernelAnthropicSdkLike`
       // (`.messages.create`); cast at the boundary to the builder's narrow shape.
@@ -930,9 +1285,13 @@ function maybeWireOrchestratorBlock(args: {
         // count is the at-boot signal that the orchestrator is no longer
         // running the degraded 5-tool seed catalog.
         personaToolsRegistered: personaRegistered,
+        // R6 proof-at-boot — 3 means the brain can forward-simulate mid-turn
+        // (world.property_trajectory / world.arrears_trajectory /
+        // world.market_regime); 0 means the organ is dark again.
+        worldModelToolsRegistered: worldModelRegistered,
         totalToolsRegistered: toolRegistry.list().length,
       },
-      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks + FULL persona catalog); DEFAULT-ON',
+      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks + FULL persona catalog + R6 world-model simulation); DEFAULT-ON',
     );
   } catch (err) {
     // Fail-safe — never break kernel boot. Leaving `mutable.orchestrator`
@@ -973,6 +1332,235 @@ export function resolveSkillEmbedder(): EmbedderPort {
     logger.warn('sovereign-composition: skill embedder construction failed; using null embedder', { value: err instanceof Error ? err.message : err });
     return createNullEmbedder();
   }
+}
+
+// ---------------------------------------------------------------------------
+// Wave-C SALIENCE ARENA readers (C1 win #3) — built from existing services.
+//
+// `buildSituationalSnapshotReader` wraps the SAME durable situational-model
+// store the resident EstateMind loop writes (createDrizzleSituationalModelStore)
+// in the kernel's pure `createSituationalModel(...)` so the arena's ACT-R
+// activation sub-bidder reads the per-tenant snapshot the slow loop persists.
+//
+// `buildPendingProposalReader` reads back the gated `tab_event_log`
+// proactive_nudge rows the slow loop's `createTabEventLogProposalSink` writes
+// (one per breached standing drive, carrying driveId + breachSeverity + urgency
+// in the snapshot jsonb) and projects each into the kernel's `EstateProposal`
+// shape so the arena's DRIVE sub-bidder competes them.
+//
+// Both fail-safe: any read fault degrades to null / [] so the arena simply has
+// fewer bidders (it never throws out of a turn; affect bids still compete).
+// ---------------------------------------------------------------------------
+
+/** Read port the kernel's `situationalSnapshotReader` dep consumes. */
+function buildSituationalSnapshotReader(
+  db: NonNullable<ReturnType<typeof getDb>>,
+): { read(tenantId: string): Promise<situationalModelKernel.SituationalSnapshot | null> } {
+  const arenaLogger = createPinoLikeLogger('salience-arena-snapshot');
+  const store = createDrizzleSituationalModelStore(
+    db as unknown as Parameters<typeof createDrizzleSituationalModelStore>[0],
+    arenaLogger,
+  );
+  const model = situationalModelKernel.createSituationalModel({
+    store,
+    logger: {
+      warn: (msg, meta) => arenaLogger.warn(meta ?? {}, msg),
+    },
+  });
+  return {
+    async read(tenantId: string) {
+      try {
+        return await model.snapshot(tenantId);
+      } catch (err) {
+        arenaLogger.warn(
+          { tenantId, err: err instanceof Error ? err.message : String(err) },
+          'salience-arena: snapshot read failed — arena drops activation bids this turn',
+        );
+        return null;
+      }
+    },
+  };
+}
+
+interface DbExecLike {
+  execute(query: unknown): Promise<unknown>;
+}
+
+function nudgeRowsOf(result: unknown): ReadonlyArray<Record<string, unknown>> {
+  if (Array.isArray(result)) return result as ReadonlyArray<Record<string, unknown>>;
+  const rows = (result as { rows?: ReadonlyArray<Record<string, unknown>> })?.rows;
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * Read port the kernel's `pendingProposalReader` dep consumes — projects the
+ * persisted, undelivered `proactive_nudge` rows into `EstateProposal`s. The
+ * snapshot jsonb (written by `createTabEventLogProposalSink`) carries the
+ * driveId / urgency / breachSeverity / evidence the arena's drive bidder reads.
+ */
+function buildPendingProposalReader(
+  db: DbExecLike,
+): import('@borjie/central-intelligence').estateMind.PendingProposalReader {
+  const readerLogger = createPinoLikeLogger('salience-arena-pending');
+  return {
+    async read({ tenantId, limit }) {
+      try {
+        const result = await db.execute(sqlForPendingNudges(tenantId, limit));
+        return nudgeRowsOf(result)
+          .map((row) => projectNudgeToProposal(row, tenantId))
+          .filter((p): p is NonNullable<typeof p> => p !== null);
+      } catch (err) {
+        readerLogger.warn(
+          { tenantId, err: err instanceof Error ? err.message : String(err) },
+          'salience-arena: pending-proposal read failed — arena drops drive bids this turn',
+        );
+        return [];
+      }
+    },
+  };
+}
+
+/** Parameterised SELECT for the tenant's undelivered proactive_nudge rows. */
+function sqlForPendingNudges(tenantId: string, limit: number): unknown {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(50, Math.floor(limit)) : 3;
+  return drizzleSql`
+    SELECT proposal_id, snapshot, notes, created_at
+      FROM tab_event_log
+     WHERE tenant_id  = ${tenantId}
+       AND event_kind = 'proactive_nudge'
+       AND COALESCE((snapshot ->> 'delivered')::boolean, false) = false
+     ORDER BY created_at DESC
+     LIMIT ${safeLimit}
+  `;
+}
+
+/** Project one persisted nudge row into the kernel's `EstateProposal` shape. */
+function projectNudgeToProposal(
+  row: Record<string, unknown>,
+  tenantId: string,
+):
+  | import('@borjie/central-intelligence').estateMind.EstateProposal
+  | null {
+  const proposalId = typeof row.proposal_id === 'string' ? row.proposal_id : '';
+  if (!proposalId) return null;
+  const snapshot = (row.snapshot ?? {}) as Record<string, unknown>;
+  const driveId = typeof snapshot.driveId === 'string' ? snapshot.driveId : 'estate-visibility';
+  const breachSeverity =
+    typeof snapshot.breachSeverity === 'number' && Number.isFinite(snapshot.breachSeverity)
+      ? Math.min(1, Math.max(0, snapshot.breachSeverity))
+      : 0.5;
+  const urgencyRaw = typeof snapshot.urgency === 'string' ? snapshot.urgency : 'high';
+  const urgency = (['low', 'medium', 'high', 'critical'].includes(urgencyRaw)
+    ? urgencyRaw
+    : 'high') as import('@borjie/central-intelligence').estateMind.EstateProposal['urgency'];
+  const evidenceEntityIds = Array.isArray(snapshot.evidenceEntityIds)
+    ? (snapshot.evidenceEntityIds.filter((e) => typeof e === 'string') as string[])
+    : [];
+  const proposedAtMs =
+    typeof snapshot.proposedAtMs === 'number' && Number.isFinite(snapshot.proposedAtMs)
+      ? snapshot.proposedAtMs
+      : row.created_at instanceof Date
+        ? row.created_at.getTime()
+        : Date.now();
+  const headline = typeof row.notes === 'string' ? row.notes : proposalId;
+  return Object.freeze({
+    tenantId,
+    id: proposalId,
+    driveId: driveId as import('@borjie/central-intelligence').estateMind.EstateProposal['driveId'],
+    title: headline.slice(0, 200),
+    rationale: headline,
+    urgency,
+    breachSeverity,
+    evidenceEntityIds,
+    proposedAtMs,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Wave-C C4 follow-up (affectReader) — per-TENANT affective accumulator.
+//
+// The kernel's ToM affective accumulator carries the per-(tenant,user) trust
+// posterior the proactive worker's earned-trust resolver reads. Previously the
+// accumulator was minted fresh inside `composeSovereign(...)` per cached brain,
+// so the proactive worker (which is tenant-scoped, constructed in index.ts) had
+// no way to read what the turn wrote — its `affectReader` was left unwired and
+// earned-trust de-escalation stayed conservative-neutral.
+//
+// We now construct ONE accumulator PER TENANT here, inject the SAME instance
+// into every cached brain for that tenant via `mutable.affectiveAccumulator`
+// (so all of a tenant's turns `observe(...)` into it), and expose it to the
+// worker via `getAffectAccumulator(tenantId)`. The accumulator discriminates
+// per-(tenant,user) internally (`read(tenantId, userId)`), so a single per-
+// tenant instance is correct: each user's posterior stays isolated by key.
+//
+// Pure in-memory + TTL-evicting (24h) — no DB dependency, so this is always
+// available (honest-degrade is N/A: the accumulator simply starts empty and
+// `read(...)` returns null → the worker treats trust as neutral, exactly the
+// pre-wiring posture, until the first turn populates it).
+// ---------------------------------------------------------------------------
+
+const affectAccumulatorByTenant = new Map<string, AffectiveAccumulator>();
+
+/**
+ * Return the shared per-tenant affective accumulator. The SAME instance is
+ * injected into that tenant's brains (so turns write to it) and read by the
+ * proactive worker's earned-trust resolver (so it reads what the turns wrote).
+ * Lazily minted; the platform-tier (null tenant) shares the `__platform__` key.
+ */
+export function getAffectAccumulator(
+  tenantId: string | null,
+): AffectiveAccumulator {
+  const key = tenantId ?? '__platform__';
+  const existing = affectAccumulatorByTenant.get(key);
+  if (existing) return existing;
+  const fresh = createAffectiveAccumulator();
+  affectAccumulatorByTenant.set(key, fresh);
+  return fresh;
+}
+
+// ---------------------------------------------------------------------------
+// Wave-C C4 — expose the live behaviour-signal source to the proactive-intel
+// worker (constructed in index.ts). The source is built per-(tenant,user)-scope
+// inside `build()` over the Drizzle sensorium-event-log; for the worker (which
+// is tenant-scoped, not request-scoped) we expose a STANDALONE platform-scoped
+// instance over the same service so `signalsForUser(...)` reads the same ribbon.
+// Lazy-built + cached; null when the DB is down (worker honest-degrades).
+// ---------------------------------------------------------------------------
+
+let behaviorSignalSourceSingleton:
+  | ReturnType<typeof createBehaviorSignalSource>
+  | null
+  | undefined;
+
+/**
+ * Return the live ambient behaviour-signal source for the proactive worker's
+ * affect gate. Built from the SAME `createSensoriumEventLogService(db)` +
+ * `createBehaviorSignalSource(...)` the kernel turn already uses, so the worker
+ * reads the identical derived-signal ribbon. Returns null when the DB is down.
+ */
+export function getProactiveBehaviorSignalSource():
+  | ReturnType<typeof createBehaviorSignalSource>
+  | null {
+  if (behaviorSignalSourceSingleton !== undefined) {
+    return behaviorSignalSourceSingleton;
+  }
+  const db = getDb();
+  if (!db) {
+    behaviorSignalSourceSingleton = null;
+    return null;
+  }
+  try {
+    behaviorSignalSourceSingleton = createBehaviorSignalSource(
+      createSensoriumEventLogService(db),
+    );
+  } catch (err) {
+    logger.warn(
+      { value: err instanceof Error ? err.message : err },
+      'sovereign-composition: behaviour-signal source for proactive worker unbuildable — affect gate stays dormant',
+    );
+    behaviorSignalSourceSingleton = null;
+  }
+  return behaviorSignalSourceSingleton;
 }
 
 // ---------------------------------------------------------------------------
@@ -1120,4 +1708,70 @@ function buildMarketDataPort(provider: string): MarketDataPort | null {
     default:
       return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Self-RAG grounding judge (Wave-12 / EP-3 dark-organ closure).
+//
+// The kernel's `SelfRagJudge` is a SINGLE critic call:
+//   (text: string) => Promise<{ score; reasonText?; suggestedFix? }>
+// `runSelfRag` composes the probe + parses IsREL/IsSUP/IsUSE tokens from
+// `reasonText`. We back it with a Haiku completion over the wrapped
+// (circuit-breaker + OTel) Anthropic client. The judge NEVER throws — on any
+// fault it returns a neutral score so the kernel's EP-3 fail-closed policy
+// (inside runSelfRag, stakes-gated) decides whether to block, not us.
+// ---------------------------------------------------------------------------
+
+const SELF_RAG_JUDGE_SYSTEM =
+  'You are a grounding auditor. Given an AI response plus its retrieved ' +
+  'evidence, emit ONLY three tokens on one line in the exact form ' +
+  '`REL=<high|partial|low> SUP=<high|partial|low> USE=<high|partial|low>` ' +
+  'where REL=relevance of evidence to the claim, SUP=whether each claim is ' +
+  'actually supported by the evidence, USE=whether the response solves the ' +
+  "user's task. Output nothing else.";
+
+function buildSelfRagJudge(
+  anthropic: AnthropicMessagesClient,
+): (text: string) => Promise<{
+  score: number;
+  reasonText?: string;
+  suggestedFix?: string;
+}> {
+  return async (text: string) => {
+    try {
+      const response = (await anthropic.messages.create({
+        // Cheap tier (Haiku-class) — single grounding-critic call.
+        // Resolved per-call via the composition-root tier map.
+        model: resolveTierModel('cheap'),
+        max_tokens: 64,
+        system: SELF_RAG_JUDGE_SYSTEM,
+        messages: [{ role: 'user', content: text.slice(0, 8_000) }],
+      })) as {
+        content?: ReadonlyArray<{ type?: string; text?: string }>;
+      };
+      const reasonText = (response.content ?? [])
+        .filter((b) => b?.type === 'text' && typeof b.text === 'string')
+        .map((b) => b.text as string)
+        .join('\n')
+        .trim();
+      // A coarse numeric score from the tokens — high support reads as
+      // grounded. `runSelfRag` re-parses the tokens itself; the score is a
+      // secondary signal only.
+      const score = scoreFromTokens(reasonText);
+      return { score, reasonText };
+    } catch {
+      // Side-channel — never bubble. Neutral score; runSelfRag's stakes-gated
+      // EP-3 policy handles the high-stakes fail-closed path.
+      return { score: 0.5, reasonText: '' };
+    }
+  };
+}
+
+/** Map the IsSUP token in the judge text to a coarse 0..1 grounding score. */
+function scoreFromTokens(reasonText: string): number {
+  const sup = /SUP\s*=\s*(high|partial|low)/i.exec(reasonText)?.[1]?.toLowerCase();
+  if (sup === 'high') return 0.9;
+  if (sup === 'partial') return 0.6;
+  if (sup === 'low') return 0.2;
+  return 0.5;
 }

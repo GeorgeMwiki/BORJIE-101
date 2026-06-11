@@ -32,7 +32,8 @@ const COPY = Object.freeze({
   fingerprintHint: 'Thibitisha maamuzi yote kwa biometrics',
   fingerprintLabel: 'Saini hapa kumaliza',
   sectionTitle: 'Maamuzi yanayosubiri',
-  mutationErrorPrefix: 'Imeshindikana: '
+  mutationErrorPrefix: 'Imeshindikana: ',
+  rejectReason: 'Imekataliwa kupitia kifaa cha mkononi cha mmiliki'
 })
 
 type DecisionStatus = 'pending' | 'approved' | 'rejected'
@@ -48,9 +49,59 @@ interface DecisionRow {
   readonly createdAt: string
 }
 
-interface DecisionsResponse {
-  readonly success: true
-  readonly data: ReadonlyArray<DecisionRow>
+// The gateway GET /cockpit/decisions returns the raw mining_approval_items
+// rows nested under { data: { items } }; the request detail lives in the
+// per-kind `requestPayload` JSON. We map defensively to the card shape so the
+// screen renders regardless of which request-kind populated the payload.
+interface RawApprovalItem {
+  readonly id: string
+  readonly requestKind?: string
+  readonly requestPayload?: unknown
+  readonly status?: string
+  readonly createdAt?: string
+}
+
+interface DecisionsEnvelope {
+  readonly success: boolean
+  readonly data?: { readonly items?: ReadonlyArray<RawApprovalItem> }
+}
+
+function humanizeKind(kind: string | undefined): string {
+  if (!kind) return 'Decision'
+  return kind.replace(/[_-]+/g, ' ').replace(/\b\w/g, (ch) => ch.toUpperCase())
+}
+
+function toDecisionRow(raw: RawApprovalItem): DecisionRow {
+  const payload =
+    raw.requestPayload && typeof raw.requestPayload === 'object'
+      ? (raw.requestPayload as Record<string, unknown>)
+      : {}
+  const evidence = Array.isArray(payload.evidence)
+    ? payload.evidence.filter((e): e is string => typeof e === 'string')
+    : []
+  const status: DecisionStatus =
+    raw.status === 'approved' || raw.status === 'rejected' ? raw.status : 'pending'
+  const riskLevel: RiskLevel =
+    payload.riskLevel === 'low' || payload.riskLevel === 'high'
+      ? payload.riskLevel
+      : 'med'
+  return {
+    id: raw.id,
+    title:
+      typeof payload.title === 'string' && payload.title.length > 0
+        ? payload.title
+        : humanizeKind(raw.requestKind),
+    summary:
+      typeof payload.summary === 'string'
+        ? payload.summary
+        : typeof payload.description === 'string'
+          ? payload.description
+          : '',
+    riskLevel,
+    status,
+    evidence,
+    createdAt: raw.createdAt ?? '',
+  }
 }
 
 export default function Screen(): JSX.Element {
@@ -68,25 +119,27 @@ function PendingDecisions(): JSX.Element {
   const query = useQuery<ReadonlyArray<DecisionRow>, ApiError>({
     queryKey: ['mining', 'cockpit', 'decisions'],
     queryFn: async ({ signal }) => {
-      const response = await miningApi.get<DecisionsResponse>('/cockpit/decisions', {
+      const body = await miningApi.get<DecisionsEnvelope>('/cockpit/decisions', {
         signal
       })
-      return response.data
+      return (body.data?.items ?? []).map(toDecisionRow)
     }
   })
 
   const mutation = useMutation<
-    DecisionRow,
+    void,
     ApiError,
     { id: string; outcome: 'approved' | 'rejected' },
     { previous: ReadonlyArray<DecisionRow> | undefined }
   >({
     mutationFn: async ({ id, outcome }) => {
-      const result = await miningApi.post<{ success: true; data: DecisionRow }>(
-        `/cockpit/decisions/${encodeURIComponent(id)}/${outcome}`,
-        {}
-      )
-      return result.data
+      // The decisions queue is backed by mining_approval_items; the live
+      // transition routes are POST /approvals/:id/approve|reject (reject needs
+      // a mandatory reason). The decision id IS the approval-item id from the
+      // GET above, so the same id addresses both surfaces.
+      const verb = outcome === 'approved' ? 'approve' : 'reject'
+      const reqBody = outcome === 'rejected' ? { reason: COPY.rejectReason } : {}
+      await miningApi.post(`/approvals/${encodeURIComponent(id)}/${verb}`, reqBody)
     },
     onMutate: async ({ id, outcome }) => {
       await queryClient.cancelQueries({ queryKey: ['mining', 'cockpit', 'decisions'] })

@@ -22,8 +22,6 @@ export const dataBStrings = {
   royaltyStatusSigned: { sw: 'Imesainiwa', en: 'Signed' },
   royaltyStatusReviewing: { sw: 'Inakaguliwa', en: 'In review' },
   royaltyStatusDraft: { sw: 'Rasimu', en: 'Draft' },
-  royaltyMetricGrossLabel: { sw: 'Mauzo ya April', en: 'April gross sales' },
-  royaltyMetricGrossSub: { sw: 'Kabla ya mrabaha', en: 'Pre-royalty top line' },
   royaltyMetricRoyaltyLabel: {
     sw: 'Mrabaha wa April',
     en: 'April royalty draft',

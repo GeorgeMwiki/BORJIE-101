@@ -16,6 +16,7 @@
 import { describe, it, expect } from 'vitest';
 import type { BrainDecision } from '@borjie/central-intelligence';
 import {
+  deriveStakes,
   mapDecisionToTurnPayload,
   resolveBrainOrchestratorRoutingEnabled,
 } from '../brain-orchestrator-turn';
@@ -135,5 +136,36 @@ describe('mapDecisionToTurnPayload (BrainDecision → turn payload)', () => {
     expect(p.refused).toBe(true);
     expect(p.refusalGate).toBe('policy');
     expect(p.proposedAction?.riskLevel).toBe('high');
+  });
+});
+
+describe('deriveStakes (turn → kernel stakes)', () => {
+  it('escalates licence / royalty / contract / succession / treasury turns to high', () => {
+    expect(deriveStakes({ userText: 'Should I renew the PML licence?' })).toBe('high');
+    expect(deriveStakes({ userText: 'Compute this month royalty / mrabaha owed.' })).toBe('high');
+    expect(deriveStakes({ userText: 'Draft the offtake contract terms.' })).toBe('high');
+    expect(deriveStakes({ userText: 'Plan the estate succession for my heirs.' })).toBe('high');
+    expect(deriveStakes({ userText: 'Approve the treasury payout to the supplier.' })).toBe('high');
+  });
+
+  it('escalates kill-switch / licence-revocation language to critical', () => {
+    expect(deriveStakes({ userText: 'Trigger the kill-switch now.' })).toBe('critical');
+    expect(deriveStakes({ userText: 'Revoke licence PML-123 immediately.' })).toBe('critical');
+  });
+
+  it('classifies conversational / informational turns as low', () => {
+    expect(deriveStakes({ userText: 'Hello there' })).toBe('low');
+    expect(deriveStakes({ userText: 'What is the weather at the site?' })).toBe('low');
+  });
+
+  it('defaults unclassified turns to medium', () => {
+    expect(deriveStakes({ userText: 'Move the truck to section 3.' })).toBe('medium');
+    expect(deriveStakes({ userText: '' })).toBe('medium');
+  });
+
+  it('an explicit hint always overrides the derived value', () => {
+    // "Hello" would derive low, but the CEO-mode hint forces high.
+    expect(deriveStakes({ userText: 'Hello', hint: 'high' })).toBe('high');
+    expect(deriveStakes({ userText: 'Revoke licence', hint: 'low' })).toBe('low');
   });
 });

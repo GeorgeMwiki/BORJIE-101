@@ -116,10 +116,18 @@ export interface MigrationApplyPort {
    *
    * Returns the on-disk filename the runner wrote the migration to
    * under `packages/database/src/migrations/tenant-modules/{tenantId}/`.
+   *
+   * `specId` is the REQUESTED spec id the orchestrator is applying. The
+   * executor passes THIS value (not the one read back from the approval
+   * payload) into the four-eye gate so the gate's
+   * `payload.specId === requested specId` binding check genuinely fires —
+   * a stale approval bound to a different spec is rejected, not silently
+   * tautologically accepted.
    */
   applyMigration(args: {
     readonly tenantId: string;
     readonly moduleId: string;
+    readonly specId: string;
     readonly migrationSql: string;
   }): Promise<{ readonly appliedMigrationFilename: string }>;
 }

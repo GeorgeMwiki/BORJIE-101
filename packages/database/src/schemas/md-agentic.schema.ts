@@ -9,8 +9,8 @@
  * real table until the owner commits.
  *
  * Ported from the BN md-agentic stack (itself a LitFin iter-32 plan-mode +
- * iter-36 agent-teams / sandbox-writes port) and retargeted real-estate →
- * mining.
+ * iter-36 agent-teams / sandbox-writes port) and retargeted to Borjie's
+ * mining-estate domain.
  *
  * Companion files:
  *   - packages/database/src/migrations/0281_md_agentic_sandbox.sql

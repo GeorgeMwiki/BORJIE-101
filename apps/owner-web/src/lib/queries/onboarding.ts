@@ -51,8 +51,29 @@ export function useAdvanceOnboarding() {
 }
 
 /**
+ * The cockpit seed the orchestrator records on `/complete`. Counts are the
+ * uploaded file REFS per step (the run state). The confirmation surface pairs
+ * these with the REAL committed-row tallies from `/onboarding/commit`.
+ */
+export interface OnboardingCockpitSeed {
+  readonly headline?: string;
+  readonly kybCaptured?: boolean;
+  readonly licencesRefs?: number;
+  readonly sitesRefs?: number;
+  readonly drillRefs?: number;
+}
+
+export interface CompleteOnboardingResult {
+  readonly sessionId: string;
+  readonly status?: string;
+  readonly cockpitSeed?: OnboardingCockpitSeed;
+}
+
+/**
  * POST /api/v1/mining/onboarding/complete — last step. Finalises the
- * session and seeds the cockpit. On 2xx the wizard redirects to `/`.
+ * session and seeds the cockpit. Returns the server-side `cockpitSeed`
+ * (ref counts + headline) so the wizard can render a confirmation surface
+ * instead of redirecting blindly.
  */
 export function useCompleteOnboarding() {
   return useMutation({
@@ -60,9 +81,10 @@ export function useCompleteOnboarding() {
       // Finalise + cockpit seed runs the brief composition server-side
       // (10–60s) — use the long timeout so it is not aborted as a false
       // failure by the 5s default.
-      apiRequest<{ readonly sessionId: string; readonly briefId?: string }>(
-        `/api/v1/mining/onboarding/complete`,
-        { method: 'POST', body: { sessionId }, timeoutMs: LLM_REQUEST_TIMEOUT_MS },
-      ),
+      apiRequest<CompleteOnboardingResult>(`/api/v1/mining/onboarding/complete`, {
+        method: 'POST',
+        body: { sessionId },
+        timeoutMs: LLM_REQUEST_TIMEOUT_MS,
+      }),
   });
 }

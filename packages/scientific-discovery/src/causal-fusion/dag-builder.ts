@@ -102,8 +102,8 @@ export function passesRefutation(
 
 async function proposeDagViaLlm(seed: HypothesisSeed, llm: LLMClient): Promise<CausalDAG> {
   const system =
-    'You are a domain-expert causal-inference assistant for a multi-tenant property ' +
-    'management platform. Given a hypothesis seed, propose a minimal causal DAG ' +
+    'You are a domain-expert causal-inference assistant for a multi-tenant mining ' +
+    'estate operating system. Given a hypothesis seed, propose a minimal causal DAG ' +
     'over the listed variables. Return strict JSON only.';
 
   const prompt = buildDagPrompt(seed);

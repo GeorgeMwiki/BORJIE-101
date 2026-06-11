@@ -30,7 +30,7 @@ import {
 } from '../scorers/index.js';
 import { renderReport, type BaselineSnapshot } from './report.js';
 import { createMockLlm } from './mock-llm.js';
-import { createAnthropicLlm } from './anthropic-llm.js';
+import { createAnthropicLlm, resolveBenchModel } from './anthropic-llm.js';
 import type { BenchLlmPort } from './llm-port.js';
 import { runSubMd } from './sub-md-adapter.js';
 import {
@@ -271,7 +271,7 @@ function selectLlm(args: Args): LlmSelection | null {
   return Object.freeze({
     llm: createAnthropicLlm({ apiKey }),
     mode: 'anthropic',
-    notice: `Using Anthropic LLM (model = ${process.env.BENCH_ANTHROPIC_MODEL ?? 'claude-sonnet-4-6'}).`,
+    notice: `Using Anthropic LLM (model = ${resolveBenchModel()}).`,
   });
 }
 

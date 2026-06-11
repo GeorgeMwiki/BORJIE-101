@@ -47,16 +47,128 @@ import { type ScopeContext } from '@borjie/central-intelligence';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
-import { decideAutoAuthorization } from '../../services/auto-authorize-gate/index.js';
+import {
+  decideAutoAuthorization,
+  screenGenerativeVerb,
+} from '../../services/auto-authorize-gate/index.js';
 import { appendAutoAuthorizedAudit } from '../../services/auto-authorize-gate/audit.js';
 import {
   dispatchAction,
   requiresConfirmation,
+  isKnownVerb,
   type ExecContext,
   type ExecResult,
 } from '../../services/action-executor/index.js';
+import { enqueueFourEyeRequest } from './four-eye-approvals.hono.js';
+import type {
+  CapabilityCompositionEngine,
+  ComposedResult,
+} from '../../composition/capability-composition-types.js';
+import { createPowerToolAuditSink } from '../../composition/power-tool-audit-sink.js';
+import { powerTools } from '@borjie/central-intelligence';
+
+type PowerToolContext = powerTools.PowerToolContext;
 
 const moduleLogger = createLogger('owner-chat-actions');
+
+// ─── Tier-2 Capability-Composition Engine injection seam ─────────────
+//
+// The brain's self-architect. When a novel verb clears the hard rails (the
+// generative `deferToBrain` branch below), the engine surveys the power-tool
+// inventory, tree-searches COMPOSITIONS of those tools, governance-gates the
+// winning chain, and executes it transactionally — BEFORE we fall back to a
+// plain brain turn. It is injected (never imported from the composition root)
+// to keep this route free of the composition graph and CI-inert: when no real
+// Anthropic client is present the composition root never calls
+// `setCompositionEngine`, the slot stays null, and the deferToBrain path is
+// byte-for-byte unchanged. Mirrors the `setBrainResolver` pattern exactly.
+let compositionEngine: CapabilityCompositionEngine | null = null;
+
+/**
+ * Wire the Tier-2 Capability-Composition Engine. The composition root calls
+ * this ONLY when a live (wrapped) Anthropic client exists. Passing `null`
+ * (the default) leaves the deferToBrain path unchanged.
+ */
+export function setCompositionEngine(
+  engine: CapabilityCompositionEngine | null,
+): void {
+  compositionEngine = engine;
+}
+
+// ─── Proposed-action store (in-process, TTL) ─────────────────────────
+//
+// owner-confirmaction-1 / cm-4. The brain emits a `confirmation_card`
+// carrying a bare `actionId` (no inline verb) when it wants the owner to
+// EXPLICITLY confirm a generated action. When the owner taps Confirm the
+// FE POSTs `{ actionId }` and we must resolve that id back to the
+// (verb, params) the brain intended, then run it through the SAME
+// gate→execute→audit pipeline as an inline confirm. This is GENERATIVE:
+// any brain-emitted verb is stored and replayed without a per-verb
+// hardcode.
+//
+// The store is an in-process Map keyed on `${tenantId}::${actionId}` with
+// a 10-minute TTL (a confirmation card is short-lived). The SSE parser
+// that emits the card registers the mapping via `registerProposedAction`
+// (wired at composition — see needsAttention). When no mapping exists
+// (server restarted, TTL lapsed, or the writer is not yet wired) the
+// confirm path returns an explicit 501 capability envelope rather than a
+// silent 200 `{executed:false}`, so the FE can show "this action has
+// expired or cannot be replayed" and never confuses it with an auth deny.
+
+interface ProposedAction {
+  readonly verb: string;
+  readonly params: Record<string, unknown>;
+  readonly rationale?: string;
+  readonly expiresAtMs: number;
+}
+
+const PROPOSED_ACTION_TTL_MS = 10 * 60 * 1000;
+const proposedActionStore = new Map<string, ProposedAction>();
+
+function proposedKey(tenantId: string, actionId: string): string {
+  return `${tenantId}::${actionId}`;
+}
+
+/**
+ * Register a brain-emitted proposed action so a later `{ actionId }`
+ * confirm can resolve + execute it. Called by the SSE/confirmation-card
+ * emitter at composition. Overwrites any prior mapping for the same id.
+ */
+export function registerProposedAction(args: {
+  readonly tenantId: string;
+  readonly actionId: string;
+  readonly verb: string;
+  readonly params?: Record<string, unknown>;
+  readonly rationale?: string;
+  readonly ttlMs?: number;
+}): void {
+  const ttl = args.ttlMs && args.ttlMs > 0 ? args.ttlMs : PROPOSED_ACTION_TTL_MS;
+  proposedActionStore.set(proposedKey(args.tenantId, args.actionId), {
+    verb: args.verb,
+    params: args.params ?? {},
+    ...(args.rationale !== undefined ? { rationale: args.rationale } : {}),
+    expiresAtMs: Date.now() + ttl,
+  });
+}
+
+/**
+ * Resolve a proposed action, honouring the TTL. Returns null on miss or
+ * expiry (and evicts the expired entry). Eviction-on-read keeps the map
+ * bounded without a background sweeper.
+ */
+function resolveProposedAction(
+  tenantId: string,
+  actionId: string,
+): ProposedAction | null {
+  const key = proposedKey(tenantId, actionId);
+  const entry = proposedActionStore.get(key);
+  if (!entry) return null;
+  if (entry.expiresAtMs <= Date.now()) {
+    proposedActionStore.delete(key);
+    return null;
+  }
+  return entry;
+}
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -121,6 +233,36 @@ function buildScope(auth: AuthCtx): ScopeContext {
 }
 
 /**
+ * Build the `PowerToolContext` the registry threads into every composed
+ * power-tool call. The tier + tenant + caller come from the AUTHENTICATED
+ * session (never from LLM input) so the registry's tier gate fires against
+ * the real caller. Conservative tier mapping: owner-cockpit callers run at
+ * `estate-manager` (the compose tool's own `requiredTier`) — high-blast-radius
+ * tools (cross_tenant=platform-sovereign, etc.) are still refused by the
+ * registry's tier gate AND by the engine's per-step governance gate. No
+ * approval record is threaded here; the engine's governance gate decides
+ * executability and `compose` lands its own summary row. A REAL hash-chained
+ * audit sink IS threaded (`createPowerToolAuditSink`) so EVERY composed
+ * power-tool step lands an append-only row on the audit trail — the registry's
+ * `emitAudit` calls it after each step. The sink is null when no db handle is
+ * available (honest-degrade); the registry tolerates a null sink.
+ */
+function buildPowerToolContext(auth: AuthCtx, db: unknown): PowerToolContext {
+  return {
+    callerId: auth.userId,
+    tier: 'estate-manager',
+    tenantId: auth.tenantId,
+    threadId: `chat-action:${auth.tenantId}:${auth.userId}`,
+    approvalRecordId: null,
+    auditSink: createPowerToolAuditSink(
+      db,
+      moduleLogger as unknown as Parameters<typeof createPowerToolAuditSink>[1],
+    ),
+    clock: () => new Date(),
+  };
+}
+
+/**
  * The 200-body shape both endpoints return. An unauthorized or unknown
  * action is a successful *decision*, not an HTTP error — so it is still
  * `success:true` with `executed:false`.
@@ -128,11 +270,50 @@ function buildScope(auth: AuthCtx): ScopeContext {
 type ActionResponseBody =
   | { readonly success: true; readonly data: { readonly executed: true; readonly result: ExecResult } }
   | {
+      /**
+       * TIER-2 COMPOSED FULFILLMENT (self-architect). `composed:true` when the
+       * Capability-Composition Engine surveyed the power-tool inventory,
+       * tree-searched a winning composition whose EVERY step passed the
+       * governance gate, and executed it transactionally — instead of deferring
+       * to a plain brain turn. The `result` is the composed-chain outcome.
+       */
+      readonly success: true;
+      readonly data: {
+        readonly executed: true;
+        readonly authorized: true;
+        readonly reason: 'composed';
+        readonly composed: true;
+        readonly result: ComposedResult;
+      };
+    }
+  | {
       readonly success: true;
       readonly data: {
         readonly executed: false;
         readonly authorized: boolean;
         readonly reason: string;
+        /**
+         * GENERATIVE FULFILLMENT (self-evolving org). `true` when the verb is
+         * NOT in the deterministic registry but cleared the HARD rails — the
+         * caller routes it to the brain's agentic turn to fulfill (the brain
+         * that emitted the dynamic action also fulfills it). The verb/params
+         * are echoed so the caller can build a structured fulfillment turn.
+         */
+        readonly deferToBrain?: boolean;
+        readonly verb?: string;
+        readonly params?: Record<string, unknown>;
+        /**
+         * DUAL-CONTROL (impossible-do closure). `true` when the autonomy
+         * controller returned `gate` / `four_eyes`: instead of a SILENT
+         * decline (which a second approver could never unblock), the action
+         * is QUEUED as a pending four-eye request. The FE renders an
+         * approval-pending state and a second approver resolves it via the
+         * `/owner/four-eye` surface. This NEVER authorizes or executes —
+         * fail-closed semantics are preserved.
+         */
+        readonly requiresSecondApproval?: boolean;
+        /** The pending `four_eye_requests.id` a second approver resolves. */
+        readonly pendingApprovalId?: string;
       };
     };
 
@@ -172,16 +353,116 @@ async function gateExecuteAudit(args: {
     };
   }
 
+  // 0b) GENERATIVE FULFILLMENT (self-evolving org). Mr. Mwikila creates tabs +
+  //    action verbs DYNAMICALLY, so the deterministic registry can never
+  //    enumerate every verb a generated tab might emit. A verb the registry
+  //    does NOT know is a brain-GENERATED action: rather than dead-ending it as
+  //    an unknown/denied verb ("dead button"), we screen the HARD rails
+  //    (high-risk / inviolable / policy) and, if they clear, DEFER it to the
+  //    brain's agentic turn to FULFILL — the brain that emitted the action also
+  //    fulfills it, and its per-tool gates enforce the money / sovereign rails.
+  //    A HARD-rail hit still denies (a brain-invented `sovereign:*` verb never
+  //    defers). Confirm-required known verbs were already handled above; this
+  //    branch is ONLY for verbs absent from the registry.
+  if (!isKnownVerb(verb)) {
+    const screen = screenGenerativeVerb(verb, rationale, buildScope(auth));
+    if (!screen.allowed) {
+      moduleLogger.info('chat-actions: generative verb hard-denied', {
+        verb,
+        source,
+        tenantId: auth.tenantId,
+        reason: screen.reason,
+      });
+      return {
+        success: true,
+        data: { executed: false, authorized: false, reason: screen.reason },
+      };
+    }
+    // TIER-2 CAPABILITY-COMPOSITION ENGINE (self-architect). RIGHT BEFORE we
+    // defer to a plain brain turn, give the engine a chance to FULFILL the
+    // need by composing the brain's own power-tools into a governed,
+    // transactional chain. The engine:
+    //   - surveys the power-tool inventory (tier-scoped to this caller),
+    //   - tree-searches COMPOSITIONS of those tools toward the goal,
+    //   - GOVERNANCE-GATES every step through the SAME fail-closed
+    //     decideAutoAuthorization the route runs — a single ungated /
+    //     high-consequence step refuses the whole composition,
+    //   - executes the winning chain via power_tool.compose (rollback intact),
+    //   - and returns a composed result, or null to fall through.
+    // FAIL-SAFE: the engine never throws; we ALSO wrap the call so a defect
+    // can only ever fall through to the UNCHANGED deferToBrain return below.
+    // CI-INERT: when no engine is wired (no Anthropic client) this whole block
+    // is skipped and the deferToBrain return is byte-for-byte unchanged.
+    if (compositionEngine) {
+      try {
+        const composed = await compositionEngine.attempt({
+          verb,
+          params,
+          rationale,
+          scope: buildScope(auth),
+          ctx: buildPowerToolContext(auth, db),
+        });
+        if (composed) {
+          moduleLogger.info('chat-actions: generative verb fulfilled by composition', {
+            verb,
+            source,
+            tenantId: auth.tenantId,
+            score: composed.score,
+            steps: composed.stepCount,
+          });
+          return {
+            success: true,
+            data: {
+              executed: true,
+              authorized: true,
+              reason: 'composed',
+              composed: true,
+              result: composed,
+            },
+          };
+        }
+      } catch (err) {
+        // Defence in depth — the engine already swallows its own errors, but a
+        // throw here MUST NOT reach the response. Log + fall through to brain.
+        moduleLogger.warn('chat-actions: composition engine threw — falling through to brain', {
+          verb,
+          source,
+          tenantId: auth.tenantId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    moduleLogger.info('chat-actions: deferring generative verb to the brain', {
+      verb,
+      source,
+      tenantId: auth.tenantId,
+    });
+    return {
+      success: true,
+      data: {
+        executed: false,
+        authorized: true,
+        reason: 'defer_to_brain',
+        deferToBrain: true,
+        verb,
+        params,
+      },
+    };
+  }
+
   // 1) FAIL-CLOSED authorization gate FIRST. On any internal gate error
   //    the gate itself returns authorized:false (never throws an allow),
   //    so an exception here can only mean a programmer error — treat it
   //    as a denial too (defence-in-depth).
   let authorized = false;
   let reason = 'not_authorized';
+  let autonomyDecision: 'auto' | 'gate' | 'four_eyes' | undefined;
   try {
     const decision = decideAutoAuthorization(verb, rationale, buildScope(auth));
     authorized = decision.authorized;
     reason = decision.reason;
+    autonomyDecision = decision.autonomyDecision;
   } catch (err) {
     moduleLogger.error('chat-actions: gate threw (fail-closed deny)', {
       verb,
@@ -195,6 +476,50 @@ async function gateExecuteAudit(args: {
   }
 
   if (!authorized) {
+    // DUAL-CONTROL closure (impossible-do). When the autonomy controller
+    // escalated this to `gate` / `four_eyes`, a SILENT decline would strand
+    // the action — no approval record exists, so a second approver could
+    // never unblock it and the action vanishes. Instead we QUEUE it as a
+    // pending four-eye request through the SHARED enqueue path and tell the
+    // FE a second approval is required. This does NOT authorize or execute
+    // anything — fail-closed semantics are fully preserved; we only create
+    // a dual-control ticket. Every OTHER denial keeps the silent-decline
+    // shape unchanged.
+    if (autonomyDecision === 'gate' || autonomyDecision === 'four_eyes') {
+      const enqueued = await enqueueFourEyeRequest(db, {
+        tenantId: auth.tenantId,
+        requesterId: auth.userId,
+        actionType: verb,
+        payload: { verb, params, rationale },
+      });
+      if (enqueued) {
+        moduleLogger.info('chat-actions: action queued for second approval', {
+          verb,
+          source,
+          tenantId: auth.tenantId,
+          autonomyDecision,
+          pendingApprovalId: enqueued.requestId,
+        });
+        return {
+          success: true,
+          data: {
+            executed: false,
+            authorized: false,
+            reason,
+            requiresSecondApproval: true,
+            pendingApprovalId: enqueued.requestId,
+          },
+        };
+      }
+      // Enqueue faulted (DB unavailable / insert error) — honest-degrade to
+      // the existing silent-decline shape rather than throwing.
+      moduleLogger.warn('chat-actions: four-eye enqueue faulted, falling back to silent decline', {
+        verb,
+        source,
+        tenantId: auth.tenantId,
+        autonomyDecision,
+      });
+    }
     moduleLogger.info('chat-actions: action not authorized', {
       verb,
       source,
@@ -322,28 +647,45 @@ app.post('/confirm-action', async (c: any) => {
     );
   }
 
-  // actionId-only path: no proposed-action store exists in the gateway
-  // yet, so we cannot resolve a bare id to a verb. Return a graceful
-  // not-executed envelope (200) so the FE shows "couldn't replay" rather
-  // than a hard error. Inline {verb, params} is the supported path today.
-  if (!parsed.data.verb) {
-    return c.json(
-      {
-        success: true,
-        data: {
-          executed: false,
-          authorized: false,
-          reason: 'action_id_resolution_unavailable',
-        },
-      },
-      200,
+  // actionId-only path (owner-confirmaction-1 / cm-4): resolve the bare
+  // actionId to the brain-emitted (verb, params) via the proposed-action
+  // store, then run it through the SAME gate→execute→audit pipeline. On a
+  // store HIT we execute. On a MISS (TTL lapsed, server restarted, or the
+  // SSE writer is not yet wired) we return an explicit HTTP 501 capability
+  // envelope — NOT a silent 200 — so the FE renders "this action has
+  // expired or cannot be replayed" and never confuses a capability gap
+  // with an authorization denial.
+  let verb = parsed.data.verb;
+  let params = parsed.data.params;
+  let rationale =
+    parsed.data.rationale ?? `confirm_action:${parsed.data.verb ?? 'actionId'}`;
+  if (!verb) {
+    const resolved = resolveProposedAction(
+      auth.tenantId,
+      parsed.data.actionId as string,
     );
+    if (!resolved) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'ACTION_ID_RESOLUTION_NOT_YET_IMPLEMENTED',
+            message:
+              'This action has expired or cannot be replayed. Please re-issue it from chat.',
+          },
+        },
+        501,
+      );
+    }
+    verb = resolved.verb;
+    params = resolved.params;
+    rationale = resolved.rationale ?? `confirm_action:${resolved.verb}`;
   }
 
   const body = await gateExecuteAudit({
-    verb: parsed.data.verb,
-    params: parsed.data.params,
-    rationale: parsed.data.rationale ?? `confirm_action:${parsed.data.verb}`,
+    verb,
+    params,
+    rationale,
     auth,
     db: gotDb.db,
     source: 'confirm_action',

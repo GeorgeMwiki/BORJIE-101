@@ -1,33 +1,34 @@
 /**
  * /api/v1/mining/internal/support/tickets — HQ support-queue list.
  *
- * SUPER_ADMIN / ADMIN only. The "ticket" surface inside Borjie HQ is
- * the union of:
- *   - unresolved `compliance_escalations` rows (Compliance Agent fan-in
- *     → operator review queue). These are the canonical "things
- *     a human operator must triage" today.
+ * SUPER_ADMIN / ADMIN only. The "ticket" surface inside Borjie HQ is the union
+ * of unresolved `compliance_escalations` rows (Compliance Agent fan-in →
+ * operator review queue).
  *
- * The list-shape is intentionally a thin projection so the admin-web
- * `support` page can render a table + `TicketAck` per row without
- * teaching the FE a different SLA model than the compliance-queue
- * page already uses.
- *
- * When a dedicated `support_tickets` table lands (multi-channel email
- * / chat / webhook), this route can fan-in another data source by
- * appending to the projection.
+ * INV-A / FIRE-4 — METADATA vs CONTENT split. The escalation `summary` is the
+ * FREE-TEXT body of a tenant's compliance escalation — tenant BUSINESS DATA,
+ * not platform metadata. So this route splits into two projections:
+ *   - DEFAULT (metadata): id, tenantId, severity, openedAt, SLA, counts. The
+ *     `summary` is REDACTED to a placeholder. Always allowed.
+ *   - CONTENT (`GET /content?tenant=…`): includes the `summary` body, gated by
+ *     `requireBreakGlass('support_ticket_content')` — deny-by-default unless
+ *     the tenant has consented to a time-boxed grant; every read hash-chain
+ *     audited + tenant-visible. Single-tenant scoped (the grant is per-tenant),
+ *     so the content path is filtered to the grant's tenant.
  */
 
-import { OpenAPIHono } from '@hono/zod-openapi';
-import { desc, isNull } from 'drizzle-orm';
-import { complianceEscalations } from '@borjie/database';
+import { Hono } from 'hono';
+import { desc, eq, isNull, and } from 'drizzle-orm';
+import { complianceEscalations, withServiceRoleContext } from '@borjie/database';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
-import { databaseMiddleware } from '../../../middleware/database';
+import { databaseMiddlewareNoPin } from '../../../middleware/database';
 import { UserRole } from '../../../types/user-role';
+import {
+  recordBreakGlassAccess,
+  requireBreakGlass,
+} from '../../../middleware/break-glass';
 
-const app = new OpenAPIHono();
-app.use('*', authMiddleware);
-app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
-app.use('*', databaseMiddleware);
+const REDACTED = '[redacted — request break-glass to view content]';
 
 interface SupportTicketRow {
   readonly id: string;
@@ -39,50 +40,108 @@ interface SupportTicketRow {
   readonly ackedAt: string | null;
 }
 
-app.get('/', async (c) => {
-  const db = c.get('db') as {
-    select: () => {
-      from: (t: unknown) => {
-        where: (cond: unknown) => {
-          orderBy: (
-            ...cols: unknown[]
-          ) => {
-            limit: (
-              n: number,
-            ) => Promise<readonly Record<string, unknown>[]>;
-          };
-        };
-      };
-    };
-  };
-  const rows = await db
-    .select()
-    .from(complianceEscalations)
-    .where(isNull(complianceEscalations.resolvedAt))
-    .orderBy(desc(complianceEscalations.escalatedAt))
-    .limit(200);
-
-  const data: readonly SupportTicketRow[] = rows.map((row) => ({
+function projectRow(
+  row: Record<string, unknown>,
+  withContent: boolean,
+): SupportTicketRow {
+  return {
     id: String(row['id']),
     tenantId: row['tenantId'] != null ? String(row['tenantId']) : null,
     source: 'compliance-escalation' as const,
     severity: String(row['severity'] ?? 'medium'),
-    summary: String(row['summary'] ?? ''),
+    summary: withContent ? String(row['summary'] ?? '') : REDACTED,
     openedAt:
       row['escalatedAt'] instanceof Date
         ? row['escalatedAt'].toISOString()
         : String(row['escalatedAt'] ?? new Date(0).toISOString()),
     ackedAt: null,
-  }));
+  };
+}
+
+const app = new Hono();
+app.use('*', authMiddleware);
+app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
+app.use('*', databaseMiddlewareNoPin);
+
+// GET / — metadata-only (summary REDACTED) across all tenants.
+app.get('/', async (c: any) => {
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const rows = await withServiceRoleContext(db, async (tx) =>
+    tx
+      .select()
+      .from(complianceEscalations)
+      .where(isNull(complianceEscalations.resolvedAt))
+      .orderBy(desc(complianceEscalations.escalatedAt))
+      .limit(200),
+  );
+
+  const data = rows.map((r: Record<string, unknown>) => projectRow(r, false));
 
   return c.json(
     {
       success: true as const,
       data,
-      meta: { count: data.length, source: 'compliance_escalations' as const },
+      meta: { count: data.length, source: 'compliance_escalations' as const, content: false },
     },
     200,
   );
 });
+
+// GET /content?tenant=… — includes the free-text summary; break-glass gated +
+// single-tenant scoped.
+const contentApp = new Hono();
+contentApp.use('*', authMiddleware);
+contentApp.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
+contentApp.use('*', databaseMiddlewareNoPin);
+contentApp.use('*', requireBreakGlass('support_ticket_content'));
+
+contentApp.get('/content', async (c: any) => {
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+  const tenantId = c.get('breakGlassTenantId') as string;
+  const rows = await withServiceRoleContext(db, async (tx) =>
+    tx
+      .select()
+      .from(complianceEscalations)
+      .where(
+        and(
+          isNull(complianceEscalations.resolvedAt),
+          eq(complianceEscalations.tenantId, tenantId),
+        ),
+      )
+      .orderBy(desc(complianceEscalations.escalatedAt))
+      .limit(200),
+  );
+
+  const data = rows.map((r: Record<string, unknown>) => projectRow(r, true));
+
+  await recordBreakGlassAccess(c, {
+    route: 'internal/support/tickets/content',
+    scope: 'support_ticket_content',
+    rowCount: data.length,
+  });
+
+  return c.json(
+    {
+      success: true as const,
+      data,
+      meta: { count: data.length, source: 'compliance_escalations' as const, content: true },
+    },
+    200,
+  );
+});
+
+app.route('/', contentApp);
 
 export const miningInternalSupportTicketsRouter = app;

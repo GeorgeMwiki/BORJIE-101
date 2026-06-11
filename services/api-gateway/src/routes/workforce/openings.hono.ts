@@ -34,6 +34,7 @@ import {
   workforceOpenings,
   workforceInvitations,
 } from '@borjie/database';
+import { isNotNull } from 'drizzle-orm';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
@@ -326,6 +327,132 @@ export function createWorkforceOpeningsRouter(): Hono {
         {
           success: false,
           error: { code: 'OPENING_LIST_FAILED', message },
+        },
+        500,
+      );
+    }
+  });
+
+  // ----------------------------------------------------------------
+  // GET /:id/candidates — pending candidates for an opening
+  // ----------------------------------------------------------------
+  // A "pending candidate" is a worker who activated an invitation drafted
+  // from this opening (workforce_invitations.status = 'activated',
+  // opening_id = :id) AND whose user row is still awaiting manager review
+  // (users.workforce_status = 'pending'). RLS FORCE auto-scopes both
+  // tables to the caller's tenant, so no explicit tenant filter is needed
+  // beyond the opening lookup.
+  app.get('/:id/candidates', async (c: any) => {
+    const auth = c.get('auth');
+    if (!auth || !canReviewCandidates(auth.role)) {
+      return c.json(
+        {
+          success: false,
+          error: { code: 'FORBIDDEN', message: 'Insufficient permissions' },
+        },
+        403,
+      );
+    }
+    const db = c.get('db');
+    if (!db) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'OPENINGS_UNAVAILABLE',
+            message: 'database is not configured on this gateway',
+          },
+        },
+        503,
+      );
+    }
+    const openingId = c.req.param('id');
+
+    try {
+      const [opening] = await db
+        .select()
+        .from(workforceOpenings)
+        .where(
+          and(
+            eq(workforceOpenings.tenantId, auth.tenantId),
+            eq(workforceOpenings.id, openingId),
+          ),
+        )
+        .limit(1);
+      if (!opening) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'OPENING_NOT_FOUND',
+              message: 'Opening not found',
+            },
+          },
+          404,
+        );
+      }
+
+      const rows = await db
+        .select({
+          userId: workforceInvitations.activatedUserId,
+          displayName: users.displayName,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          activatedAt: workforceInvitations.activatedAt,
+        })
+        .from(workforceInvitations)
+        .innerJoin(
+          users,
+          eq(users.id, workforceInvitations.activatedUserId),
+        )
+        .where(
+          and(
+            eq(workforceInvitations.tenantId, auth.tenantId),
+            eq(workforceInvitations.openingId, openingId),
+            eq(workforceInvitations.status, 'activated'),
+            isNotNull(workforceInvitations.activatedUserId),
+            eq(users.workforceStatus, 'pending'),
+          ),
+        )
+        .orderBy(desc(workforceInvitations.activatedAt));
+
+      const candidates = rows.map(
+        (row: {
+          userId: string | null;
+          displayName: string | null;
+          firstName: string | null;
+          lastName: string | null;
+          activatedAt: Date | null;
+        }) => ({
+          id: String(row.userId),
+          displayName:
+            (row.displayName && row.displayName.length > 0
+              ? row.displayName
+              : [row.firstName, row.lastName].filter(Boolean).join(' ')) ||
+            'Unknown',
+          openingId,
+          openingTitle: opening.title,
+          activatedAt:
+            row.activatedAt instanceof Date
+              ? row.activatedAt.toISOString()
+              : (row.activatedAt ?? null),
+        }),
+      );
+
+      return c.json({ success: true, data: candidates }, 200);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'candidate list failed';
+      moduleLogger.error('workforce candidate list failed', {
+        evt: 'workforce_candidate_list_failed',
+        tenantId: auth.tenantId,
+        openingId,
+        reason: message,
+      });
+      return c.json(
+        {
+          success: false,
+          error: { code: 'CANDIDATE_LIST_FAILED', message },
         },
         500,
       );

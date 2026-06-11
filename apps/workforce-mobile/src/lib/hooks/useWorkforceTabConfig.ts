@@ -10,6 +10,12 @@
  * Tabs are NEVER mutated locally. Any worker request to change them
  * goes through `RequestTabChangeSheet` → POST
  * `/api/v1/workforce/tab-change-requests` → owner approval.
+ *
+ * Owner-spawn → workforce bridge: the response also carries an additive
+ * `projectedTabs[]` array — role-scoped projections of the tenant's
+ * ACTIVE owner-spawned cockpit tabs. They are zod-validated here
+ * (`parseProjectedTabs`) and surfaced as `projectedTabs`; the layout
+ * maps KNOWN kinds onto screens and skips the rest.
  */
 
 import { useCallback, useEffect, useState } from 'react'
@@ -25,6 +31,10 @@ import { request } from '../../../src/api/client'
 import { useAuth } from '../../../src/auth/useAuth'
 import { useI18n } from '../../../src/i18n/useI18n'
 import type { Role } from '../../../src/roles/types'
+import {
+  parseProjectedTabs,
+  type ProjectedWorkforceTab
+} from '../workforce-tab-projection'
 
 const CACHE_KEY = 'borjie.workforce.tab-config.v1'
 
@@ -37,6 +47,8 @@ export interface WorkforceTabConfigPayload {
   readonly layoutDensity: WorkforceTabDensity
   readonly updatedAt: string | null
   readonly hydratedFromDefault: boolean
+  /** Additive owner-spawn → workforce projections (may be absent on old caches). */
+  readonly projectedTabs?: ReadonlyArray<ProjectedWorkforceTab>
 }
 
 interface ApiResponse {
@@ -53,6 +65,8 @@ export interface ResolvedWorkforceTab {
 export interface UseWorkforceTabConfigResult {
   readonly config: WorkforceTabConfigPayload | null
   readonly tabs: ReadonlyArray<ResolvedWorkforceTab>
+  /** Validated owner-spawned projections for this worker's role. */
+  readonly projectedTabs: ReadonlyArray<ProjectedWorkforceTab>
   readonly loading: boolean
   readonly error: string | null
   readonly refresh: () => Promise<void>
@@ -192,9 +206,14 @@ export function useWorkforceTabConfig(): UseWorkforceTabConfigResult {
     lang
   )
 
+  // Re-validate on every read: the payload may come from the network OR
+  // a (possibly stale / malformed) AsyncStorage cache.
+  const projectedTabs = parseProjectedTabs(config?.projectedTabs)
+
   return {
     config,
     tabs,
+    projectedTabs,
     loading,
     error,
     refresh: fetchConfig

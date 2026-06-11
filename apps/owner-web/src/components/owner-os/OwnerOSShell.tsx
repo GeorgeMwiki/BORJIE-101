@@ -39,7 +39,15 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
-import { X, Plus, History, Sparkles, AlertCircle, Check } from 'lucide-react';
+import {
+  X,
+  Plus,
+  History,
+  Sparkles,
+  AlertCircle,
+  Check,
+  FileText,
+} from 'lucide-react';
 import { useViewportBreakpoint } from '@borjie/dynamic-sections';
 import {
   buildTabId,
@@ -61,12 +69,15 @@ import {
   spawnPayloadToTab,
   type TabProposalPayload,
   type TabTagErrorPayload,
-  type GenuiTabProposalPayload,
 } from '@/lib/tab-sse-parser';
+import { artifactTitle } from './artifact-copy';
 import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 import { apiRequest } from '@/lib/api-client';
+import { dictionaries } from '@/i18n/dictionaries';
+import { makeT } from '@/i18n/resolve';
 
-import { GenUITabHost } from '@/components/genui-tab/GenUITabHost';
+import dynamic from 'next/dynamic';
+import { SurfaceSkeleton } from '@/components/owner-os/panels/SurfaceSkeleton';
 import { OwnerOSChatPanel } from './OwnerOSChatPanel';
 import { useAdaptiveTabOrder } from './useAdaptiveTabOrder';
 import { OwnerOSDocsPanel } from './OwnerOSDocsPanel';
@@ -74,12 +85,44 @@ import { OwnerOSRemindersPanel } from './OwnerOSRemindersPanel';
 import { OwnerOSDraftsPanel } from './OwnerOSDraftsPanel';
 import { OwnerOSInsightsPanel } from './OwnerOSInsightsPanel';
 import { SpawnTabMenu } from './SpawnTabMenu';
+import { useTabMultiDeviceSync } from './useTabMultiDeviceSync';
 import { PANEL_RENDERERS } from './panels';
 // Registering built-in descriptors with the singleton registry happens
 // as a top-level side-effect of importing this module.
 import './panels/builtin-descriptors';
 import { resolveIcon } from './panels/icon-map';
 import { OwnerOSTabHost } from './OwnerOSTabHost';
+
+/**
+ * Lazy, code-split GenUI projector. The MD-authored dynamic-tab host
+ * pulls in the field/widget renderers, the `@borjie/portal-genui`
+ * registries and DOMPurify (via the genui sanitiser) — none of which the
+ * cockpit home needs until the owner actually opens a `genui` tab. Behind
+ * `next/dynamic({ ssr: false })` this whole subtree leaves the dashboard
+ * route-entry bundle and loads on demand. Render output is identical once
+ * loaded; the SurfaceSkeleton holds the slot so there is no layout shift.
+ */
+const GenUITabHost = dynamic(
+  () =>
+    import('@/components/genui-tab/GenUITabHost.js').then(
+      (m) => m.GenUITabHost,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
+
+/**
+ * Lazy, code-split modality artifact host (closure Wave 8 — the
+ * brain-proposal → artifact-render seam). Pulls in the membrane resolver +
+ * the DOMPurify-wrapped ArtifactRenderer; loads only when the owner opens a
+ * forecast / document / media artifact surfaced from chat.
+ */
+const ArtifactProposalHost = dynamic(
+  () =>
+    import('@/components/genui-tab/ArtifactProposalHost.js').then(
+      (m) => m.ArtifactProposalHost,
+    ),
+  { ssr: false, loading: () => <SurfaceSkeleton /> },
+);
 
 const RECENT_CLOSED_MAX = 6;
 
@@ -116,12 +159,18 @@ export function OwnerOSShell({
     activeTabId,
     activeTab,
     open,
+    openBackground,
     spawnOrAugment,
     close,
     focus,
     rename,
     patchState,
   } = useOwnerTabs();
+
+  const t = useMemo(
+    () => makeT(dictionaries[languagePreference]),
+    [languagePreference],
+  );
 
   const [spawnMenuOpen, setSpawnMenuOpen] = useState(false);
   const [recentClosed, setRecentClosed] = useState<ReadonlyArray<RecentClosed>>(
@@ -134,14 +183,30 @@ export function OwnerOSShell({
   const [proposals, setProposals] = useState<ReadonlyArray<TabProposalPayload>>(
     [],
   );
-  // Portal-genui proposals (carry a full MD-authored PortalTab). Kept
-  // separate from registry proposals: accepting one persists the tab then
-  // opens a dynamic `genui` tab rendered by GenUITabHost.
-  const [genuiProposals, setGenuiProposals] = useState<
-    ReadonlyArray<GenuiTabProposalPayload>
+  // Truly chat-first: genui tabs spawn in the BACKGROUND from what the owner
+  // explored in chat (persist + land in the strip without stealing focus from
+  // the conversation). We keep a short "recently opened from chat" notice list
+  // with Open + Undo so the spawn is transparent without gating the chat.
+  const [spawnedNotices, setSpawnedNotices] = useState<
+    ReadonlyArray<{
+      readonly proposalId: string;
+      readonly title: string;
+      readonly tabId: string;
+    }>
   >([]);
   const [tabErrors, setTabErrors] = useState<
     ReadonlyArray<{ readonly key: string; readonly payload: TabTagErrorPayload }>
+  >([]);
+  // Closure Wave 8: modality artifact proposals (forecast / document / media).
+  // The brain surfaced a synthesized artifact from chat; we land a background
+  // `artifact` tab (resolved + rendered by ArtifactProposalHost) and drop a
+  // transparent "opened from chat" notice with Open + Undo.
+  const [artifactNotices, setArtifactNotices] = useState<
+    ReadonlyArray<{
+      readonly proposalId: string;
+      readonly title: string;
+      readonly tabId: string;
+    }>
   >([]);
   const errorKeyRef = useRef(0);
 
@@ -280,12 +345,70 @@ export function OwnerOSShell({
             );
           },
           onGenuiProposal: (p) => {
-            // MD authored a full dynamic tab — preview it as a chip showing
-            // its real shape (sections · fields). Accept persists + opens it.
-            setGenuiProposals((prev) =>
+            // TRULY CHAT-FIRST: the MD authored a full dynamic tab from what
+            // the owner explored in chat. Spawn it in the BACKGROUND (persist
+            // + land in the strip with a pulse, never stealing focus from the
+            // conversation), then drop a transparent "opened from chat" notice
+            // with Undo. The owner keeps talking; they find the tab when they
+            // leave chat.
+            const label =
+              p.title.length > 28 ? `${p.title.slice(0, 25)}…` : p.title;
+            void (async () => {
+              let portalTabId = p.tabId;
+              try {
+                const saved = await apiRequest<{ id: string; tabKey: string }>(
+                  '/api/v1/portal-genui/tabs',
+                  { method: 'POST', body: { tab: p.tab } },
+                );
+                portalTabId = saved?.id ?? p.tabId;
+              } catch {
+                // Persist failed (offline / key conflict) — still surface the
+                // tab so chat-first never loses what the owner explored.
+              }
+              openBackground({
+                id: portalTabId,
+                kind: 'genui',
+                title: label,
+                context: { portalTabId },
+              });
+              setSpawnedNotices((prev) =>
+                prev.some((x) => x.proposalId === p.proposalId)
+                  ? prev
+                  : [
+                      ...prev,
+                      { proposalId: p.proposalId, title: label, tabId: portalTabId },
+                    ].slice(-4),
+              );
+            })();
+          },
+          onArtifactProposal: (p) => {
+            // Closure Wave 8: a synthesized forecast / document / media
+            // artifact surfaced from chat. Land it as a BACKGROUND `artifact`
+            // tab (resolved + rendered on Open by ArtifactProposalHost from
+            // the membrane-projected descriptor), then drop a transparent
+            // "opened from chat" notice with Open + Undo. Never steals focus
+            // from the conversation; never renders the raw blob.
+            const kindLabel = artifactTitle(p.artifactKind, t);
+            const label =
+              p.title.length > 28 ? `${p.title.slice(0, 25)}…` : p.title;
+            const tabId = `artifact:${p.proposalId}`;
+            openBackground({
+              id: tabId,
+              kind: 'artifact',
+              title: `${kindLabel}: ${label}`,
+              context: {
+                proposalId: p.proposalId,
+                artifactKind: p.artifactKind,
+                artifactTitle: p.title,
+              },
+            });
+            setArtifactNotices((prev) =>
               prev.some((x) => x.proposalId === p.proposalId)
                 ? prev
-                : [...prev, p].slice(-4),
+                : [
+                    ...prev,
+                    { proposalId: p.proposalId, title: label, tabId },
+                  ].slice(-4),
             );
           },
           onError: (p) => {
@@ -297,8 +420,45 @@ export function OwnerOSShell({
           },
         },
       }),
-    [languagePreference, spawnOrAugment, patchState, rename, close],
+    [
+      languagePreference,
+      spawnOrAugment,
+      patchState,
+      rename,
+      close,
+      openBackground,
+      t,
+    ],
   );
+
+  // ──────────────────────────────────────────────────────────────────
+  // PRIMARY cross-device chat→tab live linkage (decoupled from chat).
+  //
+  // `handleBrainTabFrame` above is the in-band FAST path — it applies tab
+  // frames from THIS device's own chat stream for instant responsiveness.
+  // But that path dies with the chat stream: a stalled generation stops
+  // tab sync, and it never reaches the owner's OTHER signed-in devices.
+  //
+  // This hook is the durable cross-device path. It subscribes to the
+  // dedicated `/api/v1/portal-genui/tabs/subscribe` SSE channel — user-
+  // scoped, echo-filtered, and INDEPENDENT of the chat stream — so every
+  // tab the owner spawns reaches all their devices in <2s even when the
+  // initiating chat turn hangs. Proposals feed the same accept/dismiss
+  // tray the in-band path uses, deduped by proposalId.
+  // ──────────────────────────────────────────────────────────────────
+  const onSyncProposal = useCallback((p: TabProposalPayload) => {
+    setProposals((prev) =>
+      prev.some((x) => x.proposalId === p.proposalId)
+        ? prev
+        : [...prev, p].slice(-4),
+    );
+  }, []);
+
+  useTabMultiDeviceSync({
+    userId,
+    language: languagePreference,
+    onProposal: onSyncProposal,
+  });
 
   // Accept a brain proposal → route through the same registry path as a
   // `<spawn_tabs>` chip so dedup + augment + idempotency apply, then drop
@@ -323,46 +483,40 @@ export function OwnerOSShell({
     setProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
   }, []);
 
-  // Accept a portal-genui proposal: PERSIST the generated tab server-side
-  // (the gateway re-validates + re-scopes the tenant), then OPEN a dynamic
-  // `genui` tab keyed by the persisted id. GenUITabHost fetches it by id.
-  // The chip drops optimistically and re-surfaces on failure so the owner
-  // can retry — we never silently swallow a generated tab.
-  const acceptGenuiProposal = useCallback(
-    async (proposal: GenuiTabProposalPayload) => {
-      setGenuiProposals((prev) =>
-        prev.filter((x) => x.proposalId !== proposal.proposalId),
+  // A background-spawned genui tab notice → focus it (the store clears its
+  // pulse on focus). Undo closes the tab + drops the notice. Dismiss just
+  // drops the notice (tab stays — the owner can still find it in the strip).
+  const openSpawned = useCallback((tabId: string) => focus(tabId), [focus]);
+  const undoSpawned = useCallback(
+    (notice: { readonly proposalId: string; readonly tabId: string }) => {
+      close(notice.tabId);
+      setSpawnedNotices((prev) =>
+        prev.filter((n) => n.proposalId !== notice.proposalId),
       );
-      try {
-        const saved = await apiRequest<{ id: string; tabKey: string }>(
-          '/api/v1/portal-genui/tabs',
-          { method: 'POST', body: { tab: proposal.tab } },
-        );
-        const portalTabId = saved?.id ?? proposal.tabId;
-        const label =
-          proposal.title.length > 28
-            ? `${proposal.title.slice(0, 25)}…`
-            : proposal.title;
-        open({
-          id: portalTabId,
-          kind: 'genui',
-          title: label,
-          context: { portalTabId },
-        });
-      } catch {
-        // Re-surface so the owner can retry — generation is never lost.
-        setGenuiProposals((prev) =>
-          prev.some((x) => x.proposalId === proposal.proposalId)
-            ? prev
-            : [...prev, proposal].slice(-4),
-        );
-      }
     },
-    [open],
+    [close],
   );
+  const dismissNotice = useCallback((proposalId: string) => {
+    setSpawnedNotices((prev) =>
+      prev.filter((n) => n.proposalId !== proposalId),
+    );
+  }, []);
 
-  const dismissGenuiProposal = useCallback((proposalId: string) => {
-    setGenuiProposals((prev) => prev.filter((p) => p.proposalId !== proposalId));
+  // Artifact notice handlers — same Open / Undo / Dismiss contract as the
+  // genui spawned notices above.
+  const undoArtifact = useCallback(
+    (notice: { readonly proposalId: string; readonly tabId: string }) => {
+      close(notice.tabId);
+      setArtifactNotices((prev) =>
+        prev.filter((n) => n.proposalId !== notice.proposalId),
+      );
+    },
+    [close],
+  );
+  const dismissArtifactNotice = useCallback((proposalId: string) => {
+    setArtifactNotices((prev) =>
+      prev.filter((n) => n.proposalId !== proposalId),
+    );
   }, []);
 
   const dismissTabError = useCallback((key: string) => {
@@ -524,6 +678,30 @@ export function OwnerOSShell({
             <GenUITabHost tabId={portalTabId} locale={languagePreference} />
           );
         }
+        case 'artifact': {
+          // Closure Wave 8: a modality artifact surface. context.proposalId is
+          // the modality proposal id ArtifactProposalHost resolves to the
+          // membrane-projected descriptor, then routes to the matching
+          // renderer (forecast → genui preview, document/media →
+          // DOMPurify-wrapped ArtifactRenderer).
+          const proposalId =
+            typeof tab.context?.proposalId === 'string'
+              ? (tab.context.proposalId as string)
+              : null;
+          if (!proposalId) return null;
+          const artifactTitle =
+            typeof tab.context?.artifactTitle === 'string'
+              ? (tab.context.artifactTitle as string)
+              : tab.title;
+          return (
+            <ArtifactProposalHost
+              proposalId={proposalId}
+              title={artifactTitle}
+              tradingName={tradingName}
+              locale={languagePreference}
+            />
+          );
+        }
         default: {
           const descriptor = getTab(tab.kind as OwnerOSTabType);
           if (!descriptor) return null;
@@ -566,6 +744,8 @@ export function OwnerOSShell({
     // Dynamic MD-authored tabs aren't in the static registry — mark them
     // with the same Sparkles glyph the proposal chip uses.
     if (kind === 'genui') return Sparkles;
+    // Modality artifact surfaces (forecast/document/media) — a document glyph.
+    if (kind === 'artifact') return FileText;
     const d = getTab(kind as OwnerOSTabType);
     return d ? resolveIcon(d.iconName) : null;
   }, []);
@@ -643,14 +823,12 @@ export function OwnerOSShell({
         <button
           type="button"
           onClick={() => setSpawnMenuOpen(true)}
-          aria-label={
-            languagePreference === 'sw' ? 'Fungua tab mpya' : 'Spawn a new tab'
-          }
+          aria-label={t('ownerOsShell.spawnNewTab')}
           data-testid="owner-os-spawn-button"
           className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-warning/40 bg-warning/5 px-2 py-1 text-tiny font-semibold text-warning hover:bg-warning/10"
         >
           <Plus aria-hidden="true" className="h-3 w-3" />
-          {languagePreference === 'sw' ? 'Tab mpya' : 'New tab'}
+          {t('ownerOsShell.newTab')}
           <kbd className="rounded border border-warning/30 px-1 font-mono text-tiny">
             ⌘T
           </kbd>
@@ -659,20 +837,12 @@ export function OwnerOSShell({
 
       {hasRecent ? (
         <div
-          aria-label={
-            languagePreference === 'sw'
-              ? 'Tabs zilizofungwa hivi karibuni'
-              : 'Recent tabs'
-          }
+          aria-label={t('ownerOsShell.recentTabs')}
           data-testid="owner-os-recent-tray"
           className="flex flex-wrap items-center gap-2 px-3 text-tiny text-neutral-500"
         >
           <History aria-hidden="true" className="h-3 w-3" />
-          <span>
-            {languagePreference === 'sw'
-              ? 'Zilizofungwa hivi karibuni'
-              : 'Recently closed'}
-          </span>
+          <span>{t('ownerOsShell.recentlyClosed')}</span>
           {recentClosed.map((entry) => (
             <button
               key={`${entry.tab.id}_${entry.closedAt}`}
@@ -688,7 +858,8 @@ export function OwnerOSShell({
       ) : null}
 
       {proposals.length > 0 ||
-      genuiProposals.length > 0 ||
+      spawnedNotices.length > 0 ||
+      artifactNotices.length > 0 ||
       tabErrors.length > 0 ? (
         <div
           data-testid="owner-os-proposal-tray"
@@ -728,16 +899,12 @@ export function OwnerOSShell({
                   className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
                 >
                   <Check aria-hidden="true" className="h-3 w-3" />
-                  {languagePreference === 'sw' ? 'Kubali' : 'Open'}
+                  {t('ownerOsShell.open')}
                 </button>
                 <button
                   type="button"
                   onClick={() => dismissProposal(p.proposalId)}
-                  aria-label={
-                    languagePreference === 'sw'
-                      ? 'Ondoa pendekezo'
-                      : 'Dismiss proposal'
-                  }
+                  aria-label={t('ownerOsShell.dismissProposal')}
                   className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
                 >
                   <X aria-hidden="true" className="h-3 w-3" />
@@ -745,68 +912,96 @@ export function OwnerOSShell({
               </div>
             );
           })}
-          {genuiProposals.map((p) => {
-            const isGeneric = p.generationSource !== 'llm';
-            return (
-              <div
-                key={p.proposalId}
-                data-testid={`owner-os-genui-proposal-${p.proposalId}`}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2"
+          {spawnedNotices.map((n) => (
+            <div
+              key={n.proposalId}
+              data-testid={`owner-os-genui-spawned-${n.proposalId}`}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-success/30 bg-success/5 px-3 py-2"
+            >
+              <Sparkles
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 text-success"
+              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-semibold text-success">
+                  {t('ownerOsShell.genuiOpened', { title: n.title })}
+                </span>
+                <span className="truncate text-tiny text-neutral-400">
+                  {t('ownerOsShell.inTabStrip')}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openSpawned(n.tabId)}
+                data-testid={`owner-os-genui-open-${n.proposalId}`}
+                className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
               >
-                <Sparkles
-                  aria-hidden="true"
-                  className="h-3.5 w-3.5 shrink-0 text-warning"
-                />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-warning">
-                    <span className="truncate">{p.title}</span>
-                    {isGeneric ? (
-                      <span className="shrink-0 rounded-full border border-border bg-surface px-1.5 text-tiny font-medium text-neutral-400">
-                        {languagePreference === 'sw'
-                          ? 'Kiolezo cha jumla'
-                          : 'Generic template'}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="truncate text-tiny text-neutral-400">
-                    {p.reason}
-                  </span>
-                  <span className="text-tiny text-neutral-500">
-                    {languagePreference === 'sw'
-                      ? `Sehemu ${p.summary.sectionCount} · sehemu za kujaza ${p.summary.fieldCount}`
-                      : `${p.summary.sectionCount} section${
-                          p.summary.sectionCount === 1 ? '' : 's'
-                        } · ${p.summary.fieldCount} field${
-                          p.summary.fieldCount === 1 ? '' : 's'
-                        }`}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void acceptGenuiProposal(p);
-                  }}
-                  data-testid={`owner-os-genui-accept-${p.proposalId}`}
-                  className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success/10 px-2 py-1 text-tiny font-semibold text-success hover:bg-success/20"
-                >
-                  <Check aria-hidden="true" className="h-3 w-3" />
-                  {languagePreference === 'sw' ? 'Tengeneza' : 'Create'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => dismissGenuiProposal(p.proposalId)}
-                  aria-label={
-                    languagePreference === 'sw'
-                      ? 'Ondoa pendekezo'
-                      : 'Dismiss proposal'
-                  }
-                  className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
-                >
-                  <X aria-hidden="true" className="h-3 w-3" />
-                </button>
+                <Check aria-hidden="true" className="h-3 w-3" />
+                {t('ownerOsShell.openShort')}
+              </button>
+              <button
+                type="button"
+                onClick={() => undoSpawned(n)}
+                data-testid={`owner-os-genui-undo-${n.proposalId}`}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny font-medium text-neutral-400 hover:text-foreground"
+              >
+                {t('ownerOsShell.undo')}
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissNotice(n.proposalId)}
+                aria-label={t('ownerOsShell.dismiss')}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
+              >
+                <X aria-hidden="true" className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+          {artifactNotices.map((n) => (
+            <div
+              key={n.proposalId}
+              data-testid={`owner-os-artifact-spawned-${n.proposalId}`}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-info/30 bg-info/5 px-3 py-2"
+            >
+              <FileText
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0 text-info"
+              />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-semibold text-info">
+                  {t('ownerOsShell.artifactPrepared', { title: n.title })}
+                </span>
+                <span className="truncate text-tiny text-neutral-400">
+                  {t('ownerOsShell.inTabStrip')}
+                </span>
               </div>
-            );
-          })}
+              <button
+                type="button"
+                onClick={() => openSpawned(n.tabId)}
+                data-testid={`owner-os-artifact-open-${n.proposalId}`}
+                className="inline-flex items-center gap-1 rounded-md border border-info/40 bg-info/10 px-2 py-1 text-tiny font-semibold text-info hover:bg-info/20"
+              >
+                <Check aria-hidden="true" className="h-3 w-3" />
+                {t('ownerOsShell.openShort')}
+              </button>
+              <button
+                type="button"
+                onClick={() => undoArtifact(n)}
+                data-testid={`owner-os-artifact-undo-${n.proposalId}`}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny font-medium text-neutral-400 hover:text-foreground"
+              >
+                {t('ownerOsShell.undo')}
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissArtifactNotice(n.proposalId)}
+                aria-label={t('ownerOsShell.dismiss')}
+                className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
+              >
+                <X aria-hidden="true" className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
           {tabErrors.map(({ key, payload }) => {
             const reason =
               languagePreference === 'sw' ? payload.reasonSw : payload.reasonEn;
@@ -826,7 +1021,7 @@ export function OwnerOSShell({
                 <button
                   type="button"
                   onClick={() => dismissTabError(key)}
-                  aria-label={languagePreference === 'sw' ? 'Ondoa' : 'Dismiss'}
+                  aria-label={t('ownerOsShell.dismiss')}
                   className="rounded-md border border-border bg-surface px-2 py-1 text-tiny text-neutral-400 hover:text-foreground"
                 >
                   <X aria-hidden="true" className="h-3 w-3" />

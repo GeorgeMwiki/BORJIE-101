@@ -65,7 +65,11 @@ export function createStubEmbedder(): Embedder {
 /**
  * Minimum Drizzle surface this adapter needs. `insert(...)` returns the
  * fluent builder ending in `.onConflictDoUpdate(...)`, typed once the
- * schema map is passed at client construction.
+ * schema map is passed at client construction. The conflict `target`
+ * accepts a raw SQL expression so it can match the EXPRESSION unique
+ * index `(COALESCE(tenant_id,''), source_file, COALESCE(section,''))`
+ * that migration 0311 creates — a column-list target would NOT match an
+ * expression index.
  */
 interface DrizzleLikeClient {
   execute(q: unknown): Promise<unknown>;
@@ -74,7 +78,7 @@ interface DrizzleLikeClient {
       row: Record<string, unknown>,
     ) => {
       onConflictDoUpdate: (args: {
-        target: ReadonlyArray<unknown>;
+        target: unknown;
         set: Record<string, unknown>;
       }) => Promise<unknown>;
     };
@@ -83,15 +87,17 @@ interface DrizzleLikeClient {
 
 /**
  * Drizzle-backed CorpusSink. Typed insert against the
- * `intelligenceCorpusChunks` schema with an upsert keyed on
- * `(source_file, section)`.
+ * `intelligenceCorpusChunks` schema with an upsert keyed on the
+ * EXPRESSION unique index from migration 0311:
+ *   (COALESCE(tenant_id, ''), source_file, COALESCE(section, ''))
  *
- * Note: the base migration `0003_mining_domain.sql` shipped only a
- * non-unique index on `(source_file, section)`. The Drizzle schema now
- * declares `intelligence_corpus_chunks_source_section_uniq` as
- * `uniqueIndex(...)`; running `drizzle generate` will emit a follow-up
- * migration that promotes the index to UNIQUE so this ON CONFLICT
- * clause is enforceable in production.
+ * The `ON CONFLICT` target is a raw SQL expression that mirrors the index
+ * expression EXACTLY (Postgres matches an expression-index arbiter only on
+ * an identical expression). Re-running the ingest therefore overwrites the
+ * matching row's content + embedding instead of erroring or duplicating.
+ * This sink writes GLOBAL rows (`tenant_id = NULL`); under the 0310 RLS
+ * split those NULL writes are legitimate only via the BYPASSRLS service
+ * role the worker connects as.
  */
 export function createDrizzleCorpusSink(db: DrizzleLikeClient): CorpusSink {
   return {
@@ -99,6 +105,7 @@ export function createDrizzleCorpusSink(db: DrizzleLikeClient): CorpusSink {
       // Dynamic import so the module compiles in environments without
       // drizzle-orm installed (unit tests, fresh checkout).
       const { intelligenceCorpusChunks } = await import('@borjie/database');
+      const { sql } = await import('drizzle-orm');
 
       await db
         .insert(intelligenceCorpusChunks)
@@ -112,10 +119,8 @@ export function createDrizzleCorpusSink(db: DrizzleLikeClient): CorpusSink {
           ingestedAt: new Date(row.ingestedAt),
         })
         .onConflictDoUpdate({
-          target: [
-            intelligenceCorpusChunks.sourceFile,
-            intelligenceCorpusChunks.section,
-          ],
+          // Must match migration 0311's expression index verbatim.
+          target: sql`(COALESCE(tenant_id, ''), source_file, COALESCE(section, ''))`,
           set: {
             text: row.content,
             embedding: [...row.embedding],

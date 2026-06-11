@@ -13,6 +13,22 @@
 
 import { z } from 'zod';
 import { ModuleSpecSchema, type ModuleSpec } from './types.js';
+import {
+  exceedsPgIdentifierLimit,
+  PG_IDENTIFIER_MAX_BYTES,
+} from './identifier-limit.js';
+
+/**
+ * Validate-time slug bound against the Postgres identifier limit. The
+ * compiler prepends `tenant_mod_{tenantId}_` and may append index
+ * suffixes (`_module_idx`, `_{field}_idx`), so the CONCRETE per-tenant
+ * identifier is re-checked in the compiler with the real tenantId. Here
+ * we only bound the SLUG itself — a slug longer than the 63-byte limit
+ * can never produce a non-truncating identifier under any tenant. The
+ * grammar already caps slugs at 48 bytes (SLUG_REGEX), so this is a
+ * defence-in-depth ceiling that rejects only pathological input.
+ */
+
 
 export interface ValidateResult {
   readonly ok: boolean;
@@ -49,6 +65,15 @@ export function validateSpec(input: unknown): ValidateResult {
       errors.push(`duplicate entity slug: ${e.slug}`);
     }
     entitySlugs.add(e.slug);
+
+    // Identifier-length bound (silent-truncation collision hazard). The
+    // grammar caps slugs at 48 bytes, so this only fires for pathological
+    // input; the compiler re-checks the concrete per-tenant identifier.
+    if (exceedsPgIdentifierLimit(e.slug)) {
+      errors.push(
+        `entity slug "${e.slug}" exceeds the Postgres ${PG_IDENTIFIER_MAX_BYTES}-byte identifier limit`,
+      );
+    }
   }
 
   // FK references must point at declared entities.

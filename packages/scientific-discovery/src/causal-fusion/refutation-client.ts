@@ -81,6 +81,25 @@ export interface RefutationClientOptions {
   readonly fetchImpl?: typeof fetch;
   /** Default 10s. */
   readonly timeoutMs?: number;
+  /**
+   * SEC-1 — shared-secret bearer token. When set, sent as
+   * `Authorization: Bearer <token>` on every sidecar call. The gateway /
+   * worker sources it from KMS via ESO; it is never hardcoded.
+   */
+  readonly authToken?: string;
+}
+
+/**
+ * Build the request headers for a sidecar call, attaching the bearer
+ * token when one is configured. Exported so the PCMCIplus client (and
+ * any future causal-fusion clients) share one header policy.
+ */
+export function buildSidecarHeaders(authToken: string | undefined): Record<string, string> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (authToken && authToken.length > 0) {
+    headers['authorization'] = `Bearer ${authToken}`;
+  }
+  return headers;
 }
 
 const RefutationScoresWire = z.object({
@@ -103,11 +122,12 @@ export function createRefutationClient(opts: RefutationClientOptions = {}): Refu
   const baseUrl = resolveSidecarBaseUrl(opts.baseUrl);
   const fetchImpl = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? 10_000;
+  const headers = buildSidecarHeaders(opts.authToken);
 
   return {
     async refute(req) {
       const url = `${baseUrl.replace(/\/$/, '')}/dowhy/refute`;
-      const res = await fetchWithTimeout(fetchImpl, url, req, timeoutMs);
+      const res = await fetchWithTimeout(fetchImpl, url, req, timeoutMs, headers);
       const raw: unknown = await res.json().catch(() => ({}));
       const parsed = RefuteResponseWire.safeParse(raw);
       if (!parsed.success) {
@@ -124,13 +144,14 @@ async function fetchWithTimeout(
   url: string,
   body: unknown,
   timeoutMs: number,
+  headers: Record<string, string>,
 ): Promise<Response> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const res = await fetchImpl(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal: ctl.signal,
     });

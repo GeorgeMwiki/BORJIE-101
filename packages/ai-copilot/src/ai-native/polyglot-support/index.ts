@@ -77,7 +77,7 @@ export interface PolyglotDeps {
 // Prompts — NEVER hardcoded en/sw. LLM detects + responds.
 // ---------------------------------------------------------------------------
 
-const DETECT_SYSTEM_PROMPT = `You are a language-detection + property-management assistant.
+const DETECT_SYSTEM_PROMPT = `You are a language-detection + mining-estate operations assistant.
 Detect the user's language (ISO-639-1/-2), then answer in THAT language.
 Return ONLY JSON:
 {
@@ -90,7 +90,7 @@ Return ONLY JSON:
 Rules:
 - If you are unsure of the language, set responseLanguage to "en" and answer in English.
 - translationEn MUST be an English version of your reply (for audit).
-- Be concise and professional; this is property-management support.`;
+- Be concise and professional; this is mining-estate operations support.`;
 
 function userPrompt(
   userText: string,

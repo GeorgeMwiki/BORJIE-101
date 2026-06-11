@@ -40,10 +40,12 @@ import {
 import { useAuth } from '../auth/useAuth'
 import { useI18n } from '../i18n/useI18n'
 import { ApiError } from '../api/errors'
+import { enqueueWrite } from '../sync/queue'
 import { resolveWorkforcePersona, workforcePersonaSpec } from '../roles/persona'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { greet } from '../ui-litfin'
+import { usePhotoPicker, type CapturedMedia } from '../media/usePhotoPicker'
 // Wave WORKFORCE-FIXED-TABS — workers cannot mutate tabs locally. When
 // the brain detects a tab/access-change intent we open the request
 // sheet instead of opening a brain stream. The sheet posts to
@@ -56,6 +58,13 @@ import {
   type WorkforceRoleId
 } from '@borjie/persona-runtime'
 import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
+import { confirmAction } from './chatActions'
+import {
+  buildConfirmRequest,
+  buildFulfillmentTurn,
+  interpretResult,
+  type FulfillmentOutcome
+} from './actionFulfillment'
 import {
   applySelection,
   filterEntities,
@@ -136,9 +145,11 @@ export function HomeChat(): JSX.Element {
   const [draft, setDraft] = useState<string>('')
   const [caret, setCaret] = useState<number>(0)
   const [threadId, setThreadId] = useState<string | null>(null)
+  const [pendingAttachment, setPendingAttachment] = useState<CapturedMedia | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [showSlow, setShowSlow] = useState(false)
+  const photoPicker = usePhotoPicker()
 
   // Composer slash + @ menus — load slash commands per persona once,
   // fetch @-entities lazily when the trigger opens.
@@ -283,9 +294,33 @@ export function HomeChat(): JSX.Element {
     [handleEvent, lang, live, personaSlug, threadId]
   )
 
+  const onAttachPress = useCallback((): void => {
+    void photoPicker.pickPhoto().then((media) => {
+      if (media !== null) {
+        setPendingAttachment(media)
+      }
+    })
+  }, [photoPicker])
+
   const onSendPress = useCallback((): void => {
+    // Enqueue the attachment BEFORE clearing it so the offline sync
+    // queue carries the media even if the brain turn fails.
+    // The attachment is keyed to the current threadId so the brain
+    // can correlate it with the next turn's context once the
+    // media-turn pipeline is wired on the gateway side.
+    if (pendingAttachment !== null) {
+      void enqueueWrite('photo_upload', {
+        uri: pendingAttachment.uri,
+        capturedAt: pendingAttachment.capturedAt,
+        mimeType: pendingAttachment.mimeType,
+        threadId,
+        userId: user?.id ?? null,
+        at: Date.now()
+      })
+    }
     submitTurn(draft)
-  }, [draft, submitTurn])
+    setPendingAttachment(null)
+  }, [draft, pendingAttachment, submitTurn, threadId, user?.id])
 
   const onSubmitEditing = useCallback(
     (event: NativeSyntheticEvent<TextInputSubmitEditingEventData>): void => {
@@ -403,7 +438,7 @@ export function HomeChat(): JSX.Element {
           />
         ) : null}
         {turns.map((turn) => (
-          <SettledTurnView key={turn.id} turn={turn} />
+          <SettledTurnView key={turn.id} turn={turn} onFulfill={submitTurn} />
         ))}
         {live !== null ? (
           <LiveTurnView
@@ -413,6 +448,7 @@ export function HomeChat(): JSX.Element {
             showSlow={showSlow}
             pulseGraceMs={PULSE_GRACE_MS}
             onRetry={() => retryFailedTurn(live)}
+            onFulfill={submitTurn}
           />
         ) : null}
       </ScrollView>
@@ -429,6 +465,8 @@ export function HomeChat(): JSX.Element {
         atRows={filteredEntities}
         onSelectSlash={onSelectSlash}
         onSelectEntity={onSelectEntity}
+        onAttachPress={onAttachPress}
+        pendingAttachment={pendingAttachment}
       />
       <RequestTabChangeSheet
         visible={tabSheetVisible}
@@ -496,7 +534,12 @@ function GreetingCard({
   )
 }
 
-function SettledTurnView({ turn }: { readonly turn: SettledTurn }): JSX.Element {
+interface SettledTurnViewProps {
+  readonly turn: SettledTurn
+  readonly onFulfill: (text: string) => void
+}
+
+function SettledTurnView({ turn, onFulfill }: SettledTurnViewProps): JSX.Element {
   const { lang } = useI18n()
   return (
     <View testID={`home-chat-turn-${turn.id}`}>
@@ -521,7 +564,11 @@ function SettledTurnView({ turn }: { readonly turn: SettledTurn }): JSX.Element 
         <ToolCallRenderer key={`${turn.id}:tool:${index}`} call={call} />
       ))}
       {turn.proposedAction ? (
-        <ProposedActionCard action={turn.proposedAction} lang={lang} />
+        <ProposedActionCard
+          action={turn.proposedAction}
+          lang={lang}
+          onFulfill={onFulfill}
+        />
       ) : null}
     </View>
   )
@@ -534,6 +581,7 @@ interface LiveTurnViewProps {
   readonly showSlow: boolean
   readonly pulseGraceMs: number
   readonly onRetry: () => void
+  readonly onFulfill: (text: string) => void
 }
 
 function LiveTurnView({
@@ -542,7 +590,8 @@ function LiveTurnView({
   showSkeleton,
   showSlow,
   pulseGraceMs,
-  onRetry
+  onRetry,
+  onFulfill
 }: LiveTurnViewProps): JSX.Element {
   const hasStream = turn.kind === 'streaming' && turn.text.length > 0
   const showPulse =
@@ -603,7 +652,11 @@ function LiveTurnView({
         <ToolCallRenderer key={`${turn.id}:tool:${index}`} call={call} />
       ))}
       {turn.proposedAction ? (
-        <ProposedActionCard action={turn.proposedAction} lang={lang} />
+        <ProposedActionCard
+          action={turn.proposedAction}
+          lang={lang}
+          onFulfill={onFulfill}
+        />
       ) : null}
     </View>
   )
@@ -658,12 +711,32 @@ function CitationChips({ citations }: CitationChipsProps): JSX.Element {
 interface ProposedActionCardProps {
   readonly action: NonNullable<SettledTurn['proposedAction']>
   readonly lang: 'sw' | 'en'
+  readonly onFulfill: (text: string) => void
 }
 
+type ActionPhase =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'running' }
+  | { readonly kind: 'settled'; readonly outcome: FulfillmentOutcome }
+
+/**
+ * ProposedActionCard — the brain proposes an action; the worker / owner
+ * acts on it here. Tapping Approve POSTs `{ verb, params }` (derived
+ * generically from the card — no per-verb switch) to the SAME generative
+ * fulfillment endpoint owner-web uses and consumes the `{ executed,
+ * authorized, reason, deferToBrain }` envelope IDENTICALLY:
+ *   executed     → success note · deferToBrain → "Borjie is handling it"
+ *   + a structured fulfillment turn to the brain · !authorized → "needs
+ *   confirmation" · error/declined → inline note. The outcome renders
+ *   inline; the Approve button hides once the action has been taken.
+ */
 function ProposedActionCard({
   action,
-  lang
+  lang,
+  onFulfill
 }: ProposedActionCardProps): JSX.Element {
+  const [phase, setPhase] = useState<ActionPhase>({ kind: 'idle' })
+
   const riskKey =
     action.riskLevel === 'CRITICAL'
       ? 'riskCritical'
@@ -672,6 +745,28 @@ function ProposedActionCard({
         : action.riskLevel === 'MEDIUM'
           ? 'riskMedium'
           : 'riskLow'
+
+  const onApprove = useCallback((): void => {
+    setPhase({ kind: 'running' })
+    void confirmAction(buildConfirmRequest(action))
+      .then((result) => {
+        const outcome = interpretResult(action, result)
+        setPhase({ kind: 'settled', outcome })
+        // deferToBrain — the brain that emitted this dynamic verb fulfills
+        // it agentically. Submit a structured fulfillment turn (mirrors
+        // owner-web's `onSuggestion(buildFulfillmentTurn(...))`).
+        if (outcome.kind === 'deferToBrain') {
+          onFulfill(buildFulfillmentTurn(outcome.verb, outcome.params, lang))
+        }
+      })
+      .catch(() => {
+        setPhase({
+          kind: 'settled',
+          outcome: { kind: 'declined' }
+        })
+      })
+  }, [action, lang, onFulfill])
+
   return (
     <View style={styles.proposedActionWrap} testID="home-chat-proposed-action">
       <Text style={styles.proposedActionLabel}>
@@ -681,8 +776,86 @@ function ProposedActionCard({
         {action.verb} · {action.object}
       </Text>
       <Text style={styles.proposedActionMeta}>{pickLabel(riskKey, lang)}</Text>
+      {phase.kind === 'settled' ? (
+        <ActionOutcomeNote outcome={phase.outcome} lang={lang} />
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={pickLabel('actionApprove', lang)}
+          disabled={phase.kind === 'running'}
+          onPress={onApprove}
+          testID="home-chat-proposed-action-approve"
+          style={({ pressed }) => [
+            styles.proposedActionApprove,
+            pressed ? styles.proposedActionApprovePressed : null,
+            phase.kind === 'running' ? styles.proposedActionApproveBusy : null
+          ]}
+        >
+          <Text style={styles.proposedActionApproveText}>
+            {phase.kind === 'running'
+              ? pickLabel('actionRunning', lang)
+              : pickLabel('actionApprove', lang)}
+          </Text>
+        </Pressable>
+      )}
     </View>
   )
+}
+
+interface ActionOutcomeNoteProps {
+  readonly outcome: FulfillmentOutcome
+  readonly lang: 'sw' | 'en'
+}
+
+function ActionOutcomeNote({
+  outcome,
+  lang
+}: ActionOutcomeNoteProps): JSX.Element {
+  const { text, tone } = describeOutcome(outcome, lang)
+  return (
+    <View
+      style={[
+        styles.actionOutcome,
+        tone === 'success'
+          ? styles.actionOutcomeSuccess
+          : tone === 'pending'
+            ? styles.actionOutcomePending
+            : styles.actionOutcomeWarn
+      ]}
+      testID="home-chat-proposed-action-outcome"
+    >
+      <Text style={styles.actionOutcomeText}>{text}</Text>
+    </View>
+  )
+}
+
+type OutcomeTone = 'success' | 'pending' | 'warn'
+
+function describeOutcome(
+  outcome: FulfillmentOutcome,
+  lang: 'sw' | 'en'
+): { readonly text: string; readonly tone: OutcomeTone } {
+  if (outcome.kind === 'executed') {
+    return { text: pickLabel('actionExecuted', lang), tone: 'success' }
+  }
+  if (outcome.kind === 'deferToBrain') {
+    return { text: pickLabel('actionHandling', lang), tone: 'pending' }
+  }
+  if (outcome.kind === 'needsConfirmation') {
+    return {
+      text: `${pickLabel('actionNeedsConfirmation', lang)} — ${outcome.reason}`,
+      tone: 'warn'
+    }
+  }
+  // declined — show the reason when the bridge supplied one, else the
+  // generic error copy so the note is never empty.
+  return {
+    text:
+      outcome.reason !== undefined
+        ? `${pickLabel('actionDeclined', lang)} — ${outcome.reason}`
+        : pickLabel('actionError', lang),
+    tone: 'warn'
+  }
 }
 
 interface ComposerProps {
@@ -700,6 +873,10 @@ interface ComposerProps {
   readonly atRows: ReadonlyArray<EntityItem>
   readonly onSelectSlash: (cmd: SlashCommandItem) => void
   readonly onSelectEntity: (entity: EntityItem) => void
+  /** Open the image/media picker. Called when the user taps `+`. */
+  readonly onAttachPress: () => void
+  /** Non-null while a picked attachment is pending confirmation. */
+  readonly pendingAttachment: CapturedMedia | null
 }
 
 function Composer({
@@ -714,7 +891,9 @@ function Composer({
   slashRows,
   atRows,
   onSelectSlash,
-  onSelectEntity
+  onSelectEntity,
+  onAttachPress,
+  pendingAttachment
 }: ComposerProps): JSX.Element {
   const [recording, setRecording] = useState(false)
 
@@ -744,6 +923,13 @@ function Composer({
           </Text>
         </View>
       ) : null}
+      {pendingAttachment !== null ? (
+        <View style={styles.attachmentPill} testID="home-chat-attachment-pending">
+          <Text style={styles.attachmentPillText}>
+            {lang === 'sw' ? 'Picha — itapakiwa inapotumwa' : 'Photo — will upload on send'}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.composerRow}>
         <Pressable
           accessibilityRole="button"
@@ -751,6 +937,7 @@ function Composer({
           style={styles.iconButton}
           hitSlop={6}
           testID="home-chat-attach"
+          onPress={onAttachPress}
         >
           <Text style={styles.iconButtonText}>+</Text>
         </Pressable>
@@ -1075,6 +1262,71 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: fontSize.caption,
     marginTop: spacing.xs
+  },
+  proposedActionApprove: {
+    marginTop: spacing.md,
+    minHeight: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gold,
+    borderWidth: 1,
+    borderColor: colors.goldDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md
+  },
+  proposedActionApprovePressed: {
+    backgroundColor: colors.goldDark
+  },
+  proposedActionApproveBusy: {
+    opacity: 0.7
+  },
+  proposedActionApproveText: {
+    color: colors.earth900,
+    fontSize: fontSize.body,
+    fontWeight: '700',
+    letterSpacing: 0.3
+  },
+  actionOutcome: {
+    marginTop: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  actionOutcomeSuccess: {
+    backgroundColor: 'rgba(120, 200, 120, 0.12)',
+    borderColor: 'rgba(120, 200, 120, 0.40)'
+  },
+  actionOutcomePending: {
+    backgroundColor: 'rgba(255, 200, 87, 0.12)',
+    borderColor: 'rgba(255, 200, 87, 0.40)'
+  },
+  actionOutcomeWarn: {
+    backgroundColor: 'rgba(255, 140, 90, 0.12)',
+    borderColor: 'rgba(255, 140, 90, 0.40)'
+  },
+  actionOutcomeText: {
+    color: colors.text,
+    fontSize: fontSize.caption,
+    fontWeight: '600',
+    lineHeight: 18
+  },
+  attachmentPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 200, 87, 0.12)',
+    borderColor: 'rgba(255, 200, 87, 0.40)',
+    borderWidth: 1,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.xs,
+    alignSelf: 'flex-start'
+  },
+  attachmentPillText: {
+    color: colors.gold,
+    fontSize: fontSize.caption,
+    fontWeight: '600'
   }
 })
 

@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { StyleSheet, Switch, Text, View } from 'react-native'
+import { useEffect, useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native'
 import { Screen } from '@/components/Screen'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Card } from '@/components/Card'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
-import { updateNotificationPrefs, type NotificationPrefs } from '@/api/buyers'
+import { fetchNotificationPrefs, updateNotificationPrefs, type NotificationPrefs } from '@/api/buyers'
 import { colors } from '@/theme/colors'
 import { spacing, typography } from '@/theme/spacing'
 
@@ -24,17 +24,29 @@ const toggles: readonly ToggleConfig[] = [
   { key: 'priceAlerts', i18nKey: 'profile.notif_price_alerts', defaultValue: false }
 ] as const
 
-function initialState(): NotificationPrefs {
-  return toggles.reduce<NotificationPrefs>(
-    (acc, item) => ({ ...acc, [item.key]: item.defaultValue }),
-    { newListings: true, bidUpdates: true, documentReady: true, priceAlerts: false }
-  )
+const DEFAULT_PREFS: NotificationPrefs = {
+  newListings: true,
+  bidUpdates: true,
+  documentReady: true,
+  priceAlerts: false
 }
 
 export default function ProfileNotifications() {
   const { t } = useTranslation()
   const toast = useToast()
-  const [prefs, setPrefs] = useState<NotificationPrefs>(() => initialState())
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS)
+
+  const prefsQuery = useQuery({
+    queryKey: ['buyer-notification-prefs'],
+    queryFn: fetchNotificationPrefs
+  })
+
+  // Hydrate local state once the server data arrives (or changes).
+  useEffect(() => {
+    if (prefsQuery.data) {
+      setPrefs(prefsQuery.data)
+    }
+  }, [prefsQuery.data])
 
   const saveMutation = useMutation({
     mutationFn: updateNotificationPrefs,
@@ -46,6 +58,12 @@ export default function ProfileNotifications() {
     <Screen>
       <SectionHeader title={t('profile.notifications_title')} />
 
+      {prefsQuery.isLoading ? (
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.forest} />
+        </View>
+      ) : null}
+
       {toggles.map((item) => (
         <Card key={item.key}>
           <View style={styles.row}>
@@ -54,6 +72,7 @@ export default function ProfileNotifications() {
               value={prefs[item.key]}
               onValueChange={(next) => setPrefs((prev) => ({ ...prev, [item.key]: next }))}
               trackColor={{ true: colors.forest, false: colors.line }}
+              disabled={prefsQuery.isLoading}
             />
           </View>
         </Card>
@@ -63,7 +82,7 @@ export default function ProfileNotifications() {
         <PrimaryButton
           label={t('profile.save')}
           onPress={() => saveMutation.mutate(prefs)}
-          disabled={saveMutation.isPending}
+          disabled={saveMutation.isPending || prefsQuery.isLoading}
         />
       </View>
     </Screen>
@@ -72,5 +91,6 @@ export default function ProfileNotifications() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  label: { ...typography.bodyStrong, color: colors.ink, flexShrink: 1, paddingRight: spacing.md }
+  label: { ...typography.bodyStrong, color: colors.ink, flexShrink: 1, paddingRight: spacing.md },
+  loader: { paddingVertical: spacing.lg, alignItems: 'center' }
 })

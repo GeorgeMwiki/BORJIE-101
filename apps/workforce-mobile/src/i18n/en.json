@@ -23,7 +23,15 @@
     "people": "People",
     "sites": "Sites",
     "docs": "Documents",
-    "ask": "Ask"
+    "ask": "Ask",
+    "marketplace": "Marketplace"
+  },
+  "projection": {
+    "originOwner": "Shared from the owner cockpit",
+    "assignedTasks": "Your assigned tasks",
+    "noTasks": "No assigned task right now",
+    "due": "Due",
+    "location": "Location"
   },
   "common": {
     "next": "Next",
@@ -303,6 +311,7 @@
     "W-M-20": { "title": "Driver Letter Receipt", "intent": "Tap to view + share" },
     "W-M-21": { "title": "Sync Status", "intent": "Upload queue + reconciliation" },
     "W-M-22": { "title": "Help / Training (Offline Videos)", "intent": "Voice-narrated tutorials" },
+    "W-M-MKT": { "title": "Marketplace", "intent": "Marketplace work shared by your owner" },
     "photo-advisor": { "title": "Ask with a photo · Borjie Vision", "intent": "Take a photo of an area and get Borjie's advice" },
     "home-chat": { "title": "Home · Talk to Borjie", "intent": "Type or speak — data arrives as cards" },
     "dashboard": { "title": "Dashboard", "intent": "Your role-aware status at a glance" }

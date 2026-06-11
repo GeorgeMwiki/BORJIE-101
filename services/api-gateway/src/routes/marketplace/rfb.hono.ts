@@ -30,6 +30,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
@@ -39,6 +40,10 @@ import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { createLogger } from '../../utils/logger';
 import { UserRole } from '../../types/user-role';
+import {
+  evaluateDomesticContractCurrency,
+  domesticCurrencyRejectionMessage,
+} from '../../services/marketplace/domestic-currency-guard';
 
 const moduleLogger = createLogger('marketplace-rfb');
 
@@ -59,12 +64,28 @@ const MINERAL_KINDS = [
   'gemstone_other',
 ] as const;
 
+// ISO-4217-shaped currency code (3 upper-case letters). Optional on the
+// money paths — when omitted the figure is taken to be in the tenant's
+// jurisdiction currency, which the domestic-currency guard re-confirms.
+const CurrencyCodeSchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Za-z]{3}$/, 'currency must be a 3-letter ISO-4217 code')
+  .transform((s) => s.toUpperCase());
+
 const CreateRfbSchema = z.object({
   mineralKind: z.enum(MINERAL_KINDS),
   gradeMin: z.string().min(1).max(120).optional().nullable(),
   tonnageMin: z.number().positive().max(1_000_000),
   tonnageMax: z.number().positive().max(1_000_000).optional().nullable(),
   unitPriceTzs: z.number().positive().max(100_000_000_000),
+  /**
+   * Contract currency. Optional + currency-neutral: the domestic-currency
+   * guard rejects a non-jurisdiction currency (CLAUDE.md hard rule). The
+   * `unitPriceTzs` field keeps its historical name but is denominated in
+   * this currency (the tenant's domestic currency by default).
+   */
+  currency: CurrencyCodeSchema.optional().nullable(),
   deliveryBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   locationLat: z.number().gte(-90).lte(90).optional().nullable(),
   locationLon: z.number().gte(-180).lte(180).optional().nullable(),
@@ -85,6 +106,8 @@ const NearbyQuerySchema = z.object({
 const RespondSchema = z.object({
   offeredTonnage: z.number().positive().max(1_000_000),
   offeredPriceTzs: z.number().positive().max(100_000_000_000),
+  /** Offered-price currency — guarded the same way as RFB create. */
+  currency: CurrencyCodeSchema.optional().nullable(),
   deliveryBy: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().max(1500).optional().nullable(),
 });
@@ -131,6 +154,69 @@ function bilingualError(
   codeSw: string,
 ): { en: string; sw: string } {
   return { en: codeEn, sw: codeSw };
+}
+
+/**
+ * Resolve the tenant's ISO-3166-1 alpha-2 jurisdiction country code from
+ * the tenants table, scoped to the current RLS context. Returns null when
+ * the row / column is absent so the domestic-currency guard can fail
+ * closed (reject) rather than guess.
+ */
+async function resolveTenantCountryCode(
+  db: DbExecutor,
+  tenantId: string,
+): Promise<string | null> {
+  const rows = rowsOf(
+    await db.execute(sql`
+      SELECT country_code
+        FROM tenants
+       WHERE id = ${tenantId}::uuid
+       LIMIT 1
+    `),
+  );
+  const code = rows[0]?.country_code;
+  return typeof code === 'string' && code.trim().length > 0 ? code : null;
+}
+
+/**
+ * Enforce the domestic-contract currency rule (CLAUDE.md hard rule) for a
+ * tenant + supplied currency. Returns null when the contract is clean, or a
+ * ready-to-return Hono JSON 4xx response when it must be rejected. Reads the
+ * jurisdiction currency from the region config (never hard-coded) and fails
+ * closed on an unresolved jurisdiction.
+ */
+async function enforceDomesticCurrency(
+  c: Context,
+  db: DbExecutor,
+  tenantId: string,
+  suppliedCurrency: string | null | undefined,
+): Promise<Response | null> {
+  const countryCode = await resolveTenantCountryCode(db, tenantId);
+  const decision = evaluateDomesticContractCurrency({
+    countryCode,
+    suppliedCurrency,
+  });
+  if (decision.ok) return null;
+
+  moduleLogger.warn(
+    {
+      tenantId,
+      code: decision.code,
+      domesticCurrency: decision.domesticCurrency,
+      suppliedCurrency: decision.suppliedCurrency,
+    },
+    'rfb_domestic_currency_rejected',
+  );
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: decision.code,
+        message: domesticCurrencyRejectionMessage(decision),
+      },
+    },
+    422,
+  );
 }
 
 export const rfbRouter = new Hono();
@@ -193,8 +279,19 @@ rfbRouter.post('/', zValidator('json', CreateRfbSchema), async (c) => {
     );
   }
 
+  // Domestic-contract currency guard (CLAUDE.md hard rule). Reject a
+  // non-jurisdiction currency for a domestic contract before any write.
+  const currencyRejection = await enforceDomesticCurrency(
+    c,
+    db,
+    auth.tenantId,
+    body.currency,
+  );
+  if (currencyRejection) return currencyRejection;
+
   const provenance = {
     via: 'buyer_mobile',
+    ...(body.currency ? { currency: body.currency } : {}),
     ...(body.provenance ?? {}),
   };
 
@@ -457,6 +554,18 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
     );
   }
   const rfbTenantId = String(rfb.tenant_id);
+
+  // Domestic-contract currency guard on the offered price (CLAUDE.md hard
+  // rule). The offered price denominates the responding seller's side, so
+  // we evaluate against the SELLER tenant's jurisdiction currency.
+  const respondCurrencyRejection = await enforceDomesticCurrency(
+    c,
+    db,
+    auth.tenantId,
+    body.currency,
+  );
+  if (respondCurrencyRejection) return respondCurrencyRejection;
+
   const inserted = await db.execute(sql`
     INSERT INTO request_for_bid_responses (
       rfb_id, tenant_id, seller_id,
@@ -466,7 +575,11 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
       ${id}::uuid, ${rfbTenantId}::uuid, ${auth.userId},
       ${body.offeredTonnage}, ${body.offeredPriceTzs}, ${body.deliveryBy}::date,
       ${body.notes ?? null},
-      ${JSON.stringify({ via: 'buyer_mobile', sellerTenantId: auth.tenantId })}::jsonb
+      ${JSON.stringify({
+        via: 'buyer_mobile',
+        sellerTenantId: auth.tenantId,
+        ...(body.currency ? { currency: body.currency } : {}),
+      })}::jsonb
     )
     RETURNING id::text AS id, created_at
   `);

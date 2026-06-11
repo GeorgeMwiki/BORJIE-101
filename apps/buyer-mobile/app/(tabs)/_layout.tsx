@@ -83,7 +83,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="documents-intel"
         options={{
-          title: 'Live docs',
+          title: t('tabs.documents_intel'),
           tabBarIcon: ({ color }) => <TabIcon glyph="L" color={color} />
         }}
       />

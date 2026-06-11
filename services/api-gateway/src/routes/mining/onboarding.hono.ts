@@ -63,7 +63,9 @@ import {
 } from '../../services/activation-events/record-activation-event';
 import {
   createDrizzleOnboardingWriters,
+  ensureCompanyForTenant,
   isSupportedOnboardingTable,
+  type CompanyKyb,
   type OnboardingTxClient,
   type OnboardingWriterCtx,
 } from '../../composition/onboarding/drizzle-row-writer';
@@ -117,6 +119,16 @@ const LOGICAL_TARGETS: Readonly<Record<string, TenantTable>> = Object.freeze({
       { name: 'kind', type: 'text', nullable: true, is_pk: false, is_unique: false },
     ]),
   }),
+  drill_hole: Object.freeze({
+    schema: 'public',
+    table: 'drill_holes',
+    entity_type_hint: 'drill_hole' as const,
+    columns: Object.freeze([
+      { name: 'id', type: 'uuid', nullable: false, is_pk: true, is_unique: true },
+      { name: 'hole_id', type: 'text', nullable: false, is_pk: false, is_unique: true },
+      { name: 'kind', type: 'text', nullable: true, is_pk: false, is_unique: false },
+    ]),
+  }),
 });
 
 /** Natural-key logical field per entity (mirror of the writer binding). */
@@ -124,12 +136,18 @@ const NATURAL_KEY_FIELD: Readonly<Record<string, string>> = Object.freeze({
   worker: 'nida',
   site: 'name',
   licence: 'licence_no',
+  drill_hole: 'hole_id',
 });
 
-type SupportedEntity = 'worker' | 'site' | 'licence';
+type SupportedEntity = 'worker' | 'site' | 'licence' | 'drill_hole';
 
 function isSupportedEntity(value: EntityType): value is SupportedEntity {
-  return value === 'worker' || value === 'site' || value === 'licence';
+  return (
+    value === 'worker' ||
+    value === 'site' ||
+    value === 'licence' ||
+    value === 'drill_hole'
+  );
 }
 
 function buildTenantCtx(
@@ -245,9 +263,10 @@ const commitBodySchema = z
   .object({
     sample: tabularSampleSchema.optional(),
     ocr_extraction_id: z.string().min(1).optional(),
-    entity_type: z.enum(['worker', 'site', 'licence']),
+    entity_type: z.enum(['worker', 'site', 'licence', 'drill_hole']),
     company_id: z.string().min(1).optional(),
     licence_id: z.string().min(1).optional(),
+    site_id: z.string().min(1).optional(),
   })
   .refine((b) => b.sample !== undefined || b.ocr_extraction_id !== undefined, {
     message: 'provide either `sample` or `ocr_extraction_id`',
@@ -337,6 +356,81 @@ async function resolveDefaultLicenceId(
     ? (result as ReadonlyArray<{ id: string }>)
     : ((result as { rows?: ReadonlyArray<{ id: string }> }).rows ?? []);
   return rows.length > 0 ? rows[0]!.id : null;
+}
+
+async function resolveDefaultSiteId(
+  db: { execute(q: unknown): Promise<unknown> },
+  tenantId: string,
+  override: string | undefined,
+): Promise<string | null> {
+  if (override !== undefined) return override;
+  const result = await db.execute(
+    sql`
+      SELECT id FROM sites
+      WHERE tenant_id = ${tenantId}
+      ORDER BY created_at ASC
+      LIMIT 1
+    `,
+  );
+  const rows = Array.isArray(result)
+    ? (result as ReadonlyArray<{ id: string }>)
+    : ((result as { rows?: ReadonlyArray<{ id: string }> }).rows ?? []);
+  return rows.length > 0 ? rows[0]!.id : null;
+}
+
+// ---------------------------------------------------------------------------
+// KYB loader — captured company facts from the most-recent onboarding run
+// ---------------------------------------------------------------------------
+
+/**
+ * Shape of one `mining_onboarding_runs.steps.kyb.payload` blob (mirrors
+ * `kybPayloadSchema` in onboarding-orchestrator.ts). Only the fields the
+ * company-materialisation seam needs are read; the rest (directors, etc.) is
+ * persisted on the run row and surfaced elsewhere.
+ */
+const kybStepPayloadSchema = z.object({
+  companyName: z.string().trim().min(1).max(256),
+  registrationNo: z.string().trim().min(1).max(128),
+  tin: z.string().trim().min(1).max(64).optional(),
+  registeredAddress: z.string().trim().min(1).max(512).optional(),
+});
+
+/**
+ * Load the captured KYB for a tenant from the most-recent onboarding run
+ * whose `steps` jsonb carries a `kyb` step. Tenant-scoped read (RLS GUC is
+ * already bound by the surrounding tx; the explicit `tenant_id =` predicate
+ * is the belt-and-braces second layer). Returns `null` when KYB was never
+ * captured — the caller then leaves company resolution untouched (no
+ * fabricated company).
+ */
+async function loadCapturedKyb(
+  db: { execute(q: unknown): Promise<unknown> },
+  tenantId: string,
+): Promise<CompanyKyb | null> {
+  const result = await db.execute(
+    sql`
+      SELECT steps -> 'kyb' -> 'payload' AS kyb_payload
+      FROM mining_onboarding_runs
+      WHERE tenant_id = ${tenantId}
+        AND steps ? 'kyb'
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+  );
+  const rows = Array.isArray(result)
+    ? (result as ReadonlyArray<{ kyb_payload: unknown }>)
+    : ((result as { rows?: ReadonlyArray<{ kyb_payload: unknown }> }).rows ?? []);
+  if (rows.length === 0) return null;
+  const raw = rows[0]!.kyb_payload;
+  if (raw === null || raw === undefined) return null;
+  const parsed = kybStepPayloadSchema.safeParse(raw);
+  if (!parsed.success) return null;
+  return Object.freeze({
+    companyName: parsed.data.companyName,
+    registrationNo: parsed.data.registrationNo,
+    tin: parsed.data.tin ?? null,
+    registeredAddress: parsed.data.registeredAddress ?? null,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -579,14 +673,6 @@ app.post('/commit', async (c) => {
     );
   }
 
-  // Resolve FK prerequisites (tenant-scoped) before opening the tx.
-  const [defaultCompanyId, defaultLicenceId] = await Promise.all([
-    resolveDefaultCompanyId(db, tenantId, body.company_id),
-    entity === 'site'
-      ? resolveDefaultLicenceId(db, tenantId, body.licence_id)
-      : Promise.resolve<string | null>(null),
-  ]);
-
   // Compute the approved schema once (discover → match drives the
   // confirmed column mappings).
   const ctx = buildTenantCtx(tenantId, entity);
@@ -607,6 +693,43 @@ app.post('/commit', async (c) => {
       await tx.execute(
         sql`SELECT set_config('app.current_tenant_id', ${tenantId}, true)`,
       );
+
+      // ── Company materialisation (B1 launch-blocker closure) ───────────
+      // A brand-new tenant has NO companies row, so the licence / worker
+      // projections (which require a NOT NULL company_id) would SKIP every
+      // row and the commit would honestly return rows_inserted:0. Before
+      // resolving the default company, idempotently materialise it from the
+      // captured KYB — INSIDE this same tenant-GUC-bound tx so RLS fires and
+      // the row is hash-chain audited like every other onboarding insert.
+      // No KYB captured → leave resolution as-is (never fabricate a company).
+      if (body.company_id === undefined) {
+        const kyb = await loadCapturedKyb(tx, tenantId);
+        if (kyb !== null) {
+          await ensureCompanyForTenant({
+            ctx: Object.freeze({ tx, tenantId, userId, sessionId }),
+            kyb,
+          });
+        }
+      }
+
+      // Resolve FK prerequisites INSIDE the tx so the freshly-materialised
+      // company is visible and the same GUC-bound connection is used.
+      const defaultCompanyId = await resolveDefaultCompanyId(
+        tx,
+        tenantId,
+        body.company_id,
+      );
+      const defaultLicenceId =
+        entity === 'site'
+          ? await resolveDefaultLicenceId(tx, tenantId, body.licence_id)
+          : null;
+      // drill_holes.site_id is a NOT NULL FK — a drill-hole commit needs a
+      // resolvable site (its parent). Absent → the writer skips the row
+      // rather than violating the FK (honest, never a partial insert).
+      const defaultSiteId =
+        entity === 'drill_hole'
+          ? await resolveDefaultSiteId(tx, tenantId, body.site_id)
+          : null;
 
       // Create the onboarding session row FIRST — provenance rows carry a
       // FK to it (ON DELETE CASCADE).
@@ -638,6 +761,7 @@ app.post('/commit', async (c) => {
         sessionId,
         defaultCompanyId,
         defaultLicenceId,
+        defaultSiteId,
       });
       const { writer, provenance } = createDrizzleOnboardingWriters(writerCtx);
       const deps: RecipePersistDeps = Object.freeze({
@@ -739,6 +863,7 @@ export const __TEST_ONLY = Object.freeze({
   buildApprovedSchema,
   sampleToRows,
   recipeFor,
+  loadCapturedKyb,
   LOGICAL_TARGETS,
   NATURAL_KEY_FIELD,
 });

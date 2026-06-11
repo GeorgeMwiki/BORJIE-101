@@ -68,14 +68,21 @@ export {
 export * from './kernel/index.js';
 
 // Namespace exports (`agency`, `autonomy`, `counterModel`,
-// `orchestrator`, `powerTools`) must be re-exported explicitly —
-// `export * from` does NOT carry over `export * as <ns>` declarations.
+// `orchestrator`, `powerTools`, and the Wave-1 EstateMind organs
+// `situationalModel` / `motivation` / `estateMind`) must be re-exported
+// explicitly — `export * from` does NOT carry over `export * as <ns>`
+// declarations, so the bundled root barrel would otherwise leave them
+// `undefined` at runtime (the gateway's estate-mind-wiring imports them by
+// name from this barrel).
 export {
   agency,
   autonomy,
   counterModel,
   orchestrator,
   powerTools,
+  situationalModel,
+  motivation,
+  estateMind,
 } from './kernel/index.js';
 
 // Durable-execution wrapper around the legacy task-agents executor.

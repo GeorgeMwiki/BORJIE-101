@@ -48,6 +48,12 @@ export { validateSpec, type ValidateResult } from './validate.js';
 export { compileSpec } from './compile.js';
 
 export {
+  PG_IDENTIFIER_MAX_BYTES,
+  identifierByteLength,
+  exceedsPgIdentifierLimit,
+} from './identifier-limit.js';
+
+export {
   previewMigration,
   diffCompileResults,
   type DryRunResult,

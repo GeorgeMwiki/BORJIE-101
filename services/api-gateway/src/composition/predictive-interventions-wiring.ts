@@ -8,13 +8,19 @@
  *
  * The DB service exposes `insertPrediction`, `insertOpportunity`,
  * `listRecentPredictions`, and `listOpenOpportunities`. The agent's
- * port additionally requires `listActiveTenants(tenantId)` which joins
- * leases / customers / payments / cases / intelligence_history /
- * credit_rating_snapshots / arrears_cases per active customer to
- * project a `TenantFeatureSnapshot`. This wiring implements that join
- * directly via Drizzle. Where a particular signal is unavailable
- * cleanly the field is returned `null`; the agent's heuristic baseline
- * gracefully handles nulls.
+ * port additionally requires `listActiveTenants(tenantId)` which
+ * projects one `TenantFeatureSnapshot` per active mining BUYER (the
+ * mining-domain customer). The original property-domain join
+ * (leases / customers / payments / cases / intelligence_history /
+ * credit_rating_snapshots / arrears_cases) referenced tables ALL
+ * dropped in migration `0003_mining_domain.sql`; importing them bound
+ * `undefined` and crashed `listActiveTenants` with a raw TypeError.
+ * This wiring re-points the join to the SURVIVING mining tables
+ * `buyers` + `sales`: the payment-on-time rate and arrears-days are
+ * derived from each buyer's mineral-sale settlement history; the
+ * property-only signals (credit score, tenancy months, sentiment,
+ * churn, disputes) are returned `null`/`0` — the agent's heuristic
+ * baseline gracefully handles the absent signals.
  *
  * LLM port: when an `anthropicClientFactory`
  * (`buildBudgetGuardedAnthropicClient`) is supplied, the wiring exposes
@@ -34,19 +40,11 @@
  * guard knows which cap to enforce.
  */
 
-import { and, desc, eq, gte, isNotNull, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 
 import { createDatabaseClient } from '@borjie/database';
 import { createTenantPredictionsService } from '@borjie/database';
-import {
-  customers,
-  leases,
-  payments,
-  cases as casesTable,
-  arrearsCases,
-  intelligenceHistory,
-  creditRatingSnapshots,
-} from '@borjie/database';
+import { buyers, sales } from '@borjie/database';
 import {
   createPredictiveInterventions,
   type ClassifyLLMPort,
@@ -119,33 +117,34 @@ export interface PredictiveInterventionsWiring {
 // ---------------------------------------------------------------------------
 
 /**
- * One row per active customer, projecting the eight TenantFeatureSnapshot
- * fields. Internal shape — converted to readonly TenantFeatureSnapshot by
- * the caller.
+ * One row per active buyer, carrying the two derivable mining signals.
+ * Internal shape — projected to the full readonly TenantFeatureSnapshot
+ * (property-only fields null/0) by the caller.
  */
 interface ActiveTenantRow {
   customerId: string;
   paymentOnTimeRate: number | null;
   arrearsDays: number | null;
-  creditScore: number | null;
-  tenancyMonths: number | null;
-  openCases: number;
-  rollingSentiment: number | null;
-  churnSignalAvg: number | null;
-  disputeCount90d: number;
 }
 
-const NINETY_DAYS_MS = 90 * 24 * 60 * 60 * 1000;
-const SIX_MONTHS_MS = 180 * 24 * 60 * 60 * 1000;
-
-function diffMonths(a: Date, b: Date): number {
-  const ms = a.getTime() - b.getTime();
-  return Math.max(0, Math.floor(ms / (30 * 24 * 60 * 60 * 1000)));
-}
+const DAY_MS = 24 * 60 * 60 * 1000;
+const SIX_MONTHS_MS = 180 * DAY_MS;
 
 /**
- * Real Drizzle implementation of `listActiveTenants`. Returns `[]` on
- * any query error so the agent's nightly run degrades gracefully.
+ * Real Drizzle implementation of `listActiveTenants`, mining-domain
+ * edition. Projects one `TenantFeatureSnapshot` per active BUYER from
+ * the surviving `buyers` + `sales` tables. Returns `[]` on any query
+ * error so the agent's nightly run degrades gracefully.
+ *
+ * Mining mapping:
+ *   - customer            ← buyer (kyc_status != 'rejected')
+ *   - paymentOnTimeRate   ← fraction of the buyer's recent sales whose
+ *                           payment_status is a settled state
+ *                           (completed | paid | settled)
+ *   - arrearsDays         ← max age (days) of any still-pending sale
+ *   - creditScore / tenancyMonths / rollingSentiment / churnSignalAvg
+ *                         ← null (no surviving mining source)
+ *   - openCases / disputeCount90d ← 0 (no surviving mining source)
  */
 async function listActiveTenantsImpl(
   db: DatabaseClient,
@@ -155,243 +154,95 @@ async function listActiveTenantsImpl(
 ): Promise<readonly TenantFeatureSnapshot[]> {
   if (!tenantId) return [];
 
-  const cutoff90d = new Date(now().getTime() - NINETY_DAYS_MS);
   const cutoff6m = new Date(now().getTime() - SIX_MONTHS_MS);
   const today = now();
 
   try {
-    // 1. Active customers via active leases — one row per (customer, lease)
-    //    pair. We dedupe by customerId after fetch and pick the earliest
-    //    leaseStart for tenancyMonths.
-    const activeLeaseRows = (await db
-      .select({
-        customerId: leases.customerId,
-        startDate: leases.startDate,
-      })
-      .from(leases)
-      .innerJoin(customers, eq(customers.id, leases.customerId))
+    // 1. Active buyers (the mining-domain customer). A buyer is "active"
+    //    when it is not KYC-rejected; the bid/sale flow gates further.
+    const buyerRows = (await db
+      .select({ id: buyers.id })
+      .from(buyers)
       .where(
         and(
-          eq(leases.tenantId, tenantId),
-          eq(leases.status, 'active'),
-          eq(customers.tenantId, tenantId),
-          eq(customers.status, 'active'),
+          eq(buyers.tenantId, tenantId),
+          sql`${buyers.kycStatus} <> 'rejected'`,
         ),
-      )) as ReadonlyArray<{ customerId: string; startDate: Date | string }>;
+      )) as ReadonlyArray<{ id: string }>;
 
-    if (activeLeaseRows.length === 0) return [];
+    if (buyerRows.length === 0) return [];
+    const activeCustomerIds = buyerRows.map((b) => b.id);
 
-    // Earliest start per customer = tenancy length proxy.
-    const earliestStartByCustomer = new Map<string, Date>();
-    for (const row of activeLeaseRows) {
-      const start =
-        row.startDate instanceof Date ? row.startDate : new Date(row.startDate);
-      const prev = earliestStartByCustomer.get(row.customerId);
-      if (!prev || start.getTime() < prev.getTime()) {
-        earliestStartByCustomer.set(row.customerId, start);
-      }
-    }
-
-    const activeCustomerIds = Array.from(earliestStartByCustomer.keys());
-    if (activeCustomerIds.length === 0) return [];
-
-    // 2. Per-customer payment on-time rate over the last 6 months.
-    //    A payment is "on-time" when status='completed' and
-    //    completedAt <= invoice.dueDate. We count both totals via two
-    //    aggregated queries and compute the rate per customer.
+    // 2. Per-buyer payment on-time rate over the last 6 months. A sale is
+    //    "settled" when payment_status is completed | paid | settled.
     const paymentTotalsRaw = (await db
       .select({
-        customerId: payments.customerId,
+        buyerId: sales.buyerId,
         total: sql<number>`count(*)::int`,
-        ontime: sql<number>`sum(case when ${payments.status} = 'completed' then 1 else 0 end)::int`,
+        settled: sql<number>`sum(case when ${sales.paymentStatus} in ('completed','paid','settled') then 1 else 0 end)::int`,
       })
-      .from(payments)
+      .from(sales)
       .where(
         and(
-          eq(payments.tenantId, tenantId),
-          gte(payments.createdAt, cutoff6m),
+          eq(sales.tenantId, tenantId),
+          gte(sales.ts, cutoff6m),
+          sql`${sales.buyerId} is not null`,
         ),
       )
-      .groupBy(payments.customerId)) as ReadonlyArray<{
-      customerId: string;
+      .groupBy(sales.buyerId)) as ReadonlyArray<{
+      buyerId: string | null;
       total: number;
-      ontime: number;
+      settled: number;
     }>;
 
     const paymentRateByCustomer = new Map<string, number | null>();
     for (const r of paymentTotalsRaw) {
+      if (!r.buyerId) continue;
       const total = Number(r.total) || 0;
-      const ontime = Number(r.ontime) || 0;
+      const settled = Number(r.settled) || 0;
       paymentRateByCustomer.set(
-        r.customerId,
-        total > 0 ? Math.max(0, Math.min(1, ontime / total)) : null,
+        r.buyerId,
+        total > 0 ? Math.max(0, Math.min(1, settled / total)) : null,
       );
     }
 
-    // 3. arrearsDays — max daysPastDue from active arrears_cases.
+    // 3. arrearsDays — age (days) of the OLDEST still-pending sale per
+    //    buyer (a delivered parcel the buyer has not settled).
     const arrearsRowsRaw = (await db
       .select({
-        customerId: arrearsCases.customerId,
-        daysPastDue: arrearsCases.daysPastDue,
+        buyerId: sales.buyerId,
+        oldestPending: sql<string | null>`min(${sales.ts})`,
       })
-      .from(arrearsCases)
+      .from(sales)
       .where(
         and(
-          eq(arrearsCases.tenantId, tenantId),
-          eq(arrearsCases.status, 'active'),
+          eq(sales.tenantId, tenantId),
+          eq(sales.paymentStatus, 'pending'),
+          sql`${sales.buyerId} is not null`,
         ),
-      )) as ReadonlyArray<{ customerId: string; daysPastDue: number | null }>;
+      )
+      .groupBy(sales.buyerId)) as ReadonlyArray<{
+      buyerId: string | null;
+      oldestPending: string | Date | null;
+    }>;
     const arrearsByCustomer = new Map<string, number>();
     for (const r of arrearsRowsRaw) {
-      const days = Number(r.daysPastDue) || 0;
-      const prev = arrearsByCustomer.get(r.customerId) ?? 0;
-      if (days > prev) arrearsByCustomer.set(r.customerId, days);
+      if (!r.buyerId || r.oldestPending == null) continue;
+      const ms =
+        r.oldestPending instanceof Date
+          ? r.oldestPending.getTime()
+          : new Date(r.oldestPending).getTime();
+      if (Number.isNaN(ms)) continue;
+      const days = Math.max(0, Math.floor((today.getTime() - ms) / DAY_MS));
+      arrearsByCustomer.set(r.buyerId, days);
     }
 
-    // 4. Latest credit-rating snapshot per customer.
-    const creditRowsRaw = (await db
-      .select({
-        customerId: creditRatingSnapshots.customerId,
-        numericScore: creditRatingSnapshots.numericScore,
-        computedAt: creditRatingSnapshots.computedAt,
-      })
-      .from(creditRatingSnapshots)
-      .where(eq(creditRatingSnapshots.tenantId, tenantId))
-      .orderBy(desc(creditRatingSnapshots.computedAt))) as ReadonlyArray<{
-      customerId: string;
-      numericScore: number | null;
-      computedAt: Date | string;
-    }>;
-    const creditByCustomer = new Map<string, number | null>();
-    for (const r of creditRowsRaw) {
-      if (creditByCustomer.has(r.customerId)) continue; // first row = latest
-      creditByCustomer.set(
-        r.customerId,
-        r.numericScore === null || r.numericScore === undefined
-          ? null
-          : Number(r.numericScore),
-      );
-    }
-
-    // 5. Open cases per customer (any status that's not closed/resolved/withdrawn).
-    const openCaseRowsRaw = (await db
-      .select({
-        customerId: casesTable.customerId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(casesTable)
-      .where(
-        and(
-          eq(casesTable.tenantId, tenantId),
-          isNotNull(casesTable.customerId),
-          sql`${casesTable.status} not in ('closed','resolved','withdrawn')`,
-        ),
-      )
-      .groupBy(casesTable.customerId)) as ReadonlyArray<{
-      customerId: string | null;
-      count: number;
-    }>;
-    const openCasesByCustomer = new Map<string, number>();
-    for (const r of openCaseRowsRaw) {
-      if (!r.customerId) continue;
-      openCasesByCustomer.set(r.customerId, Number(r.count) || 0);
-    }
-
-    // 6. Disputes in last 90 days = cases of type billing_dispute /
-    //    deposit_dispute / damage_claim opened within window.
-    const disputeRowsRaw = (await db
-      .select({
-        customerId: casesTable.customerId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(casesTable)
-      .where(
-        and(
-          eq(casesTable.tenantId, tenantId),
-          isNotNull(casesTable.customerId),
-          gte(casesTable.createdAt, cutoff90d),
-          sql`${casesTable.caseType} in ('billing_dispute','deposit_dispute','damage_claim')`,
-        ),
-      )
-      .groupBy(casesTable.customerId)) as ReadonlyArray<{
-      customerId: string | null;
-      count: number;
-    }>;
-    const disputeCountByCustomer = new Map<string, number>();
-    for (const r of disputeRowsRaw) {
-      if (!r.customerId) continue;
-      disputeCountByCustomer.set(r.customerId, Number(r.count) || 0);
-    }
-
-    // 7. Latest intelligence_history snapshot per customer for sentiment +
-    //    churn signals. We pull the most recent row per customer using the
-    //    snapshotDate desc; the (tenant_id, customer_id, snapshot_date)
-    //    uniqueness keeps this efficient.
-    //    `snapshot_date` is a Postgres DATE column (no time-of-day) so we
-    //    bound the window with ISO-yyyy-mm-dd strings rather than Date
-    //    objects (Drizzle's date adapter accepts the string form natively).
-    const cutoff90dDateStr = cutoff90d.toISOString().slice(0, 10);
-    const todayDateStr = today.toISOString().slice(0, 10);
-    const intelRowsRaw = (await db
-      .select({
-        customerId: intelligenceHistory.customerId,
-        sentimentScore: intelligenceHistory.sentimentScore,
-        churnRiskScore: intelligenceHistory.churnRiskScore,
-        snapshotDate: intelligenceHistory.snapshotDate,
-      })
-      .from(intelligenceHistory)
-      .where(
-        and(
-          eq(intelligenceHistory.tenantId, tenantId),
-          gte(intelligenceHistory.snapshotDate, cutoff90dDateStr),
-          lte(intelligenceHistory.snapshotDate, todayDateStr),
-        ),
-      )
-      .orderBy(desc(intelligenceHistory.snapshotDate))) as ReadonlyArray<{
-      customerId: string;
-      sentimentScore: number | string | null;
-      churnRiskScore: number | null;
-      snapshotDate: Date | string;
-    }>;
-    const sentimentByCustomer = new Map<string, number | null>();
-    const churnByCustomer = new Map<string, number | null>();
-    for (const r of intelRowsRaw) {
-      if (!sentimentByCustomer.has(r.customerId)) {
-        const s =
-          r.sentimentScore === null || r.sentimentScore === undefined
-            ? null
-            : Number(r.sentimentScore);
-        sentimentByCustomer.set(
-          r.customerId,
-          s === null || Number.isNaN(s) ? null : Math.max(-1, Math.min(1, s)),
-        );
-      }
-      if (!churnByCustomer.has(r.customerId)) {
-        const c = r.churnRiskScore;
-        churnByCustomer.set(
-          r.customerId,
-          c === null || c === undefined
-            ? null
-            : Math.max(0, Math.min(1, Number(c) / 100)),
-        );
-      }
-    }
-
-    // 8. Project rows.
-    const rows: ActiveTenantRow[] = activeCustomerIds.map((customerId) => {
-      const start = earliestStartByCustomer.get(customerId);
-      return {
-        customerId,
-        paymentOnTimeRate: paymentRateByCustomer.get(customerId) ?? null,
-        arrearsDays: arrearsByCustomer.get(customerId) ?? null,
-        creditScore: creditByCustomer.get(customerId) ?? null,
-        tenancyMonths: start ? diffMonths(today, start) : null,
-        openCases: openCasesByCustomer.get(customerId) ?? 0,
-        rollingSentiment: sentimentByCustomer.get(customerId) ?? null,
-        churnSignalAvg: churnByCustomer.get(customerId) ?? null,
-        disputeCount90d: disputeCountByCustomer.get(customerId) ?? 0,
-      };
-    });
+    // 4. Project rows.
+    const rows: ActiveTenantRow[] = activeCustomerIds.map((customerId) => ({
+      customerId,
+      paymentOnTimeRate: paymentRateByCustomer.get(customerId) ?? null,
+      arrearsDays: arrearsByCustomer.get(customerId) ?? null,
+    }));
 
     return rows.map(
       (r): TenantFeatureSnapshot => ({
@@ -399,12 +250,13 @@ async function listActiveTenantsImpl(
         customerId: r.customerId,
         paymentOnTimeRate: r.paymentOnTimeRate,
         arrearsDays: r.arrearsDays,
-        creditScore: r.creditScore,
-        tenancyMonths: r.tenancyMonths,
-        openCases: r.openCases,
-        rollingSentiment: r.rollingSentiment,
-        churnSignalAvg: r.churnSignalAvg,
-        disputeCount90d: r.disputeCount90d,
+        // Property-only signals with no surviving mining source — null/0.
+        creditScore: null,
+        tenancyMonths: null,
+        openCases: 0,
+        rollingSentiment: null,
+        churnSignalAvg: null,
+        disputeCount90d: 0,
       }),
     );
   } catch (error) {
@@ -465,9 +317,9 @@ function createAnthropicClassifyPort(
 /**
  * Adapt the DB service into the agent's
  * `PredictiveInterventionRepository` port. `listActiveTenants` is the
- * one method the DB service does NOT expose — it requires a join with
- * leases / customers / payments / cases / intelligence-history /
- * credit-rating-snapshots / arrears-cases, which we run here directly.
+ * one method the DB service does NOT expose — it projects per-buyer
+ * settlement features from the mining `buyers` + `sales` tables, which
+ * we run here directly (see `listActiveTenantsImpl`).
  */
 function createRepoAdapter(
   db: DatabaseClient,

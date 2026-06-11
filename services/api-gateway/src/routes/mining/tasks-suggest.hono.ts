@@ -29,6 +29,11 @@ import {
   employees as employeesTable,
   attendance as attendanceTable,
 } from '@borjie/database';
+import {
+  rankCandidates,
+  type MatchCandidate,
+  type MatchNeed,
+} from '@borjie/workforce-orchestrator';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 
@@ -65,92 +70,151 @@ export interface SuggestAssigneePort {
 /**
  * Default deterministic rules-based scorer. Pure function so it is
  * trivially testable. Confidence in [0, 1].
+ *
+ * REFACTORED: the scoring math is now the single-source pure kernel
+ * `rankCandidates` from `@borjie/workforce-orchestrator`. This port maps
+ * each `CandidateSnapshot` into the kernel's `MatchCandidate` shape (with
+ * the spine's load/skill/role signals NEUTRALISED — see `toMatchCandidate`)
+ * so the score is byte-identical to the prior inline scorer, then re-derives
+ * the bilingual sw/en reasoning from the same four signal booleans. Behaviour
+ * is unchanged; the weights now live in ONE place.
  */
 export const rulesBasedSuggestPort: SuggestAssigneePort = {
   rank(input: SuggestAssigneeInput): SuggestAssigneeResult {
     const { task, candidates } = input;
     if (candidates.length === 0) {
-      return {
-        userId: null,
-        confidence: 0,
-        reasoning: {
-          sw: 'Hakuna mfanyakazi anayepatikana',
-          en: 'No candidates available',
-        },
-        top: [],
-      };
+      return noCandidates();
     }
 
     const requiredCert = extractRequiredCert(task);
     const taskSiteId = task.siteId ?? null;
 
-    const scored = candidates.map((cand) => {
-      const certHit = certificationMatches(cand.employee, requiredCert);
-      const noConflict = !cand.hasActiveShiftNow;
-      const sameSite =
-        cand.lastAttendance !== null &&
-        taskSiteId !== null &&
-        cand.lastAttendance.siteId === taskSiteId;
-      // Lower fatigue is better; map (0..1) -> (1..0) contribution.
-      const fatigueContribution = clamp01(1 - cand.fatigueScore);
+    // The need: the route's signals are cert (requiredCert) + same-site
+    // (siteId). We deliberately omit competenceDomain/desiredRole so the
+    // kernel's skill/role budgets stay inert — preserving the legacy score.
+    // Conditional spread at the package boundary: the kernel treats absent
+    // and null identically (`?? null`), and the package's non-strict d.ts
+    // collapses `string | null` to `string` in optional slots.
+    const need: MatchNeed = {
+      ...(requiredCert !== null ? { requiredCert } : {}),
+      ...(taskSiteId !== null ? { siteId: taskSiteId } : {}),
+    };
 
-      const confidence = clamp01(
-        (certHit ? 0.5 : 0) +
-          (noConflict ? 0.2 : 0) +
-          (sameSite ? 0.2 : 0) +
-          0.1 * fatigueContribution,
-      );
+    // Stable id → snapshot map so we can re-attach the bilingual reasoning
+    // after the kernel ranks by score.
+    const matchCandidates: MatchCandidate[] = candidates.map((c) =>
+      toMatchCandidate(c, taskSiteId),
+    );
+    const ranked = rankCandidates(matchCandidates, need);
 
-      const reasonsSw: string[] = [];
-      const reasonsEn: string[] = [];
-      if (certHit) {
-        reasonsSw.push('cheti kinapatana');
-        reasonsEn.push('certification match');
-      }
-      if (noConflict) {
-        reasonsSw.push('hayuko kwenye zamu');
-        reasonsEn.push('no current shift');
-      }
-      if (sameSite) {
-        reasonsSw.push('uzoefu wa eneo hili');
-        reasonsEn.push('site experience');
-      }
-      if (cand.fatigueScore <= 0.3) {
-        reasonsSw.push('uchovu chini');
-        reasonsEn.push('low fatigue');
-      }
-      const sw = reasonsSw.length > 0 ? reasonsSw.join(', ') : 'sababu chache';
-      const en = reasonsEn.length > 0 ? reasonsEn.join(', ') : 'few matching signals';
+    const byId = new Map<string, CandidateSnapshot>();
+    for (const cand of candidates) {
+      byId.set(cand.employee.userId ?? cand.employee.id, cand);
+    }
 
-      return {
-        userId: cand.employee.userId ?? cand.employee.id,
-        confidence,
-        reasoning: { sw, en },
-      };
+    const scored = ranked.map((r) => {
+      const snap = byId.get(r.employeeId);
+      const reasoning = snap
+        ? bilingualReasoning(snap, requiredCert, taskSiteId)
+        : { sw: 'sababu chache', en: 'few matching signals' };
+      return { userId: r.employeeId, confidence: r.score, reasoning };
     });
 
-    const sorted = scored.slice().sort((a, b) => b.confidence - a.confidence);
-    const winner = sorted[0];
-    const top = sorted.slice(0, 3);
-    if (!winner) {
-      return {
-        userId: null,
-        confidence: 0,
-        reasoning: {
-          sw: 'Hakuna mfanyakazi anayepatikana',
-          en: 'No candidates available',
-        },
-        top: [],
-      };
-    }
+    const winner = scored[0];
+    if (!winner) return noCandidates();
     return {
       userId: winner.userId,
       confidence: winner.confidence,
       reasoning: winner.reasoning,
-      top,
+      top: scored.slice(0, 3),
     };
   },
 };
+
+function noCandidates(): SuggestAssigneeResult {
+  return {
+    userId: null,
+    confidence: 0,
+    reasoning: {
+      sw: 'Hakuna mfanyakazi anayepatikana',
+      en: 'No candidates available',
+    },
+    top: [],
+  };
+}
+
+/**
+ * Map a route snapshot into the kernel's MatchCandidate with the spine's
+ * load/skill/role signals NEUTRALISED so the kernel reproduces the route's
+ * exact four-signal score:
+ *   - openAssignmentCount = LOAD_SATURATION (5) ⇒ zero load contribution.
+ *   - no skillDomains ⇒ skill signal zero (need has no competenceDomain).
+ *   - role omitted ⇒ role signal zero (need has no desiredRole).
+ *   - successRateByDomain null ⇒ neutral learned multiplier.
+ */
+function toMatchCandidate(
+  cand: CandidateSnapshot,
+  taskSiteId: string | null,
+): MatchCandidate {
+  const attrs = (cand.employee.attributes ?? {}) as Record<string, unknown>;
+  const held = Array.isArray(attrs.certifications)
+    ? (attrs.certifications as unknown[]).filter(
+        (x): x is string => typeof x === 'string',
+      )
+    : [];
+  return {
+    employeeId: cand.employee.userId ?? cand.employee.id,
+    certifications: held,
+    lastSiteId:
+      cand.lastAttendance !== null && taskSiteId !== null
+        ? cand.lastAttendance.siteId
+        : null,
+    hasActiveShiftNow: cand.hasActiveShiftNow,
+    fatigueScore: cand.fatigueScore,
+    openAssignmentCount: KERNEL_LOAD_SATURATION,
+    successRateByDomain: null,
+  };
+}
+
+/** Mirrors the kernel's LOAD_SATURATION so the load contribution is zero. */
+const KERNEL_LOAD_SATURATION = 5;
+
+/** Re-derive the route's bilingual reasoning from the four signal booleans. */
+function bilingualReasoning(
+  cand: CandidateSnapshot,
+  requiredCert: string | null,
+  taskSiteId: string | null,
+): { sw: string; en: string } {
+  const certHit = certificationMatches(cand.employee, requiredCert);
+  const noConflict = !cand.hasActiveShiftNow;
+  const sameSite =
+    cand.lastAttendance !== null &&
+    taskSiteId !== null &&
+    cand.lastAttendance.siteId === taskSiteId;
+
+  const reasonsSw: string[] = [];
+  const reasonsEn: string[] = [];
+  if (certHit) {
+    reasonsSw.push('cheti kinapatana');
+    reasonsEn.push('certification match');
+  }
+  if (noConflict) {
+    reasonsSw.push('hayuko kwenye zamu');
+    reasonsEn.push('no current shift');
+  }
+  if (sameSite) {
+    reasonsSw.push('uzoefu wa eneo hili');
+    reasonsEn.push('site experience');
+  }
+  if (cand.fatigueScore <= 0.3) {
+    reasonsSw.push('uchovu chini');
+    reasonsEn.push('low fatigue');
+  }
+  return {
+    sw: reasonsSw.length > 0 ? reasonsSw.join(', ') : 'sababu chache',
+    en: reasonsEn.length > 0 ? reasonsEn.join(', ') : 'few matching signals',
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Route

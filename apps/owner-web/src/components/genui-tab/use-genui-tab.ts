@@ -20,7 +20,19 @@ import { apiRequest, ApiError } from '@/lib/api-client';
 
 export type GenuiTabFetchState =
   | { readonly status: 'loading' }
-  | { readonly status: 'ready'; readonly tab: PortalTab }
+  | {
+      readonly status: 'ready';
+      readonly tab: PortalTab;
+      /**
+       * The UN-stripped tab JSON exactly as the gateway returned it. The
+       * strict `PortalTab` schema drops K1a-extended keys (widget `binding`,
+       * the tab `record` flag, schema-declared action buttons); the host
+       * reads those off `raw` via `use-genui-tab-extras` so a generated tab
+       * can ACT, not just preview. `null` when the gateway sent no inner
+       * `tab` object.
+       */
+      readonly raw: Readonly<Record<string, unknown>> | null;
+    }
   | { readonly status: 'not_found' }
   | { readonly status: 'error'; readonly message: string };
 
@@ -52,7 +64,11 @@ export function useGenuiTab(tabId: string | null | undefined): GenuiTabFetchStat
           setState({ status: 'not_found' });
           return;
         }
-        setState({ status: 'ready', tab });
+        const raw =
+          data?.tab && typeof data.tab === 'object'
+            ? (data.tab as Readonly<Record<string, unknown>>)
+            : null;
+        setState({ status: 'ready', tab, raw });
       } catch (err) {
         if (activeId.current !== tabId) return;
         if (err instanceof ApiError && err.status === 404) {

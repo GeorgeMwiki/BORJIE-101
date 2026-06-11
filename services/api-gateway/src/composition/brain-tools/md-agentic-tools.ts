@@ -44,8 +44,8 @@
  * opaque to this layer; no jurisdiction currency is hard-coded.
  *
  * Ported from the BN md-agentic chat tools (itself a LitFin iter-32 plan-mode +
- * iter-36 agent-teams / sandbox-writes port) and retargeted real-estate →
- * mining.
+ * iter-36 agent-teams / sandbox-writes port) and retargeted to the
+ * mining-estate domain.
  */
 
 import { z } from 'zod';
@@ -99,8 +99,8 @@ export const planProposeTool: PersonaToolDescriptor<
   description:
     'Propose a multi-step plan for the owner to approve in chat (Claude-' +
     'Code "plan mode"). Use when a request needs several governed steps — ' +
-    '"draft a Q3 hiring plan", "lay out the move-out workflow for the north ' +
-    'pit crew". title + summary + at least one step required (re-ask if ' +
+    '"draft a Q3 hiring plan", "lay out the demobilization workflow for the ' +
+    'north pit crew". title + summary + at least one step required (re-ask if ' +
     'missing — never invent). Each step is { tool, input, rationale }. This ' +
     'ONLY persists the proposal; it does NOT execute. Approved steps run ' +
     'later through the normal tier-policy pipeline.',

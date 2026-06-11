@@ -105,3 +105,49 @@ export type {
 } from './fatigue/fatigue-tracker.js';
 export { applyFatigue } from './fatigue/fatigue-policy.js';
 export type { FatigueDecision } from './fatigue/fatigue-policy.js';
+
+// ───────────────────────────────────────────────────────────────────────
+// Data-routing reasoner (the "whole thinking behind it") — ADDITIVE.
+// Given a captured datum, decide WHERE it belongs, WHY, and WHAT-NEXT
+// (reminder / follow-up / workflow / nothing). Composes-with the kernel
+// rails: a rail GATE always wins; this layer may only ADD gating.
+// ───────────────────────────────────────────────────────────────────────
+export type {
+  CapturedDatum,
+  CapturedDatumInput,
+  ExtractedDatumField,
+  DataRoutingDecision,
+  DatedObligation,
+  RoutingModule,
+  RoutingNeed,
+  RoutingRationale,
+  RoutingRationaleCode,
+  RoutingEvidence,
+} from './routing/routing-types.js';
+export {
+  capturedDatumSchema,
+  extractedDatumFieldSchema,
+} from './routing/routing-types.js';
+export {
+  routeCapturedDatum,
+  DEFAULT_AUTO_APPLY_THRESHOLD,
+  BUILTIN_DESTINATIONS,
+} from './routing/data-router.js';
+export type {
+  RouteContext,
+  DestinationRule,
+} from './routing/data-router.js';
+export {
+  applyRailGate,
+  isAutoActionable,
+  RAIL_PASS,
+} from './routing/rail-gate.js';
+export type { RailGateVerdict } from './routing/rail-gate.js';
+export { followupFromRouting } from './routing/followup-bridge.js';
+export type {
+  FollowupCandidateSeed,
+  FollowupBridgeContext,
+  FollowupChannelHint,
+  FollowupActionHint,
+} from './routing/followup-bridge.js';
+export { recommendationFromRouting } from './routing/routing-recommendation.js';

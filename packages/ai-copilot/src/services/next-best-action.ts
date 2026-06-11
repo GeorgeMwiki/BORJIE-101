@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { NEXT_BEST_ACTION_PROMPT } from '../prompts/index.js';
 
@@ -153,7 +154,7 @@ export class NextBestActionService {
 
   constructor(config: NextBestActionConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.4;
     this.maxTokens = config.maxTokens ?? 2048;
   }

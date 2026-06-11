@@ -143,7 +143,12 @@ const FlowQueryInput = z.object({
 });
 const FlowQueryOutput = z.object({
   movements: z.array(z.record(z.any())),
-  totalAmountTzs: z.number(),
+  // Multi-currency by construction: a map { TZS: 500000, KES: 250000, … } so an
+  // estate holding entities in more than one currency is summarised in FULL,
+  // never silently filtered down to one. Honours the CLAUDE.md hard rule
+  // (never hard-code a single currency in a money path) and keeps the brain's
+  // view complete as the platform expands to KE/UG/NG.
+  totalAmountByCurrency: z.record(z.number()),
 });
 
 export const estateIntercompanyFlowTool: PersonaToolDescriptor<
@@ -163,7 +168,7 @@ export const estateIntercompanyFlowTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const client = ctx.httpClient;
-    if (!client) return { movements: [], totalAmountTzs: 0 };
+    if (!client) return { movements: [], totalAmountByCurrency: {} };
     const query: Record<string, string> = {};
     if (input.fromEntityId) query.fromEntityId = input.fromEntityId;
     if (input.toEntityId) query.toEntityId = input.toEntityId;
@@ -173,14 +178,21 @@ export const estateIntercompanyFlowTool: PersonaToolDescriptor<
         movements: ReadonlyArray<{ amount: string; currency: string }>;
       };
     }>('/estate/capital-movements', { query });
-    const totalAmountTzs = (res.data?.movements ?? [])
-      .filter((m) => m.currency === 'TZS')
-      .reduce((sum, m) => sum + Number(m.amount ?? 0), 0);
+    // Aggregate per-currency across EVERY movement — do NOT filter to one
+    // currency (that silently dropped non-TZS legs and fed the brain an
+    // incomplete picture for any multi-currency estate).
+    const totalAmountByCurrency = (res.data?.movements ?? []).reduce<
+      Record<string, number>
+    >((acc, m) => {
+      const code = m.currency || 'TZS';
+      acc[code] = (acc[code] ?? 0) + Number(m.amount ?? 0);
+      return acc;
+    }, {});
     return {
       movements: (res.data?.movements ?? []) as unknown as Array<
         Record<string, unknown>
       >,
-      totalAmountTzs,
+      totalAmountByCurrency,
     };
   },
 };

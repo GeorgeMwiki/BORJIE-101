@@ -147,6 +147,13 @@ jobs:
             build_args: |
               APP_NAME=admin-web
               APP_PATH=apps/admin-web
+          # CD-1 — scientific-discovery Python sidecar (DoWhy + Tigramite).
+          # Self-contained Dockerfile with its own build context; the cosign
+          # sign + SLSA attest + identity-bound verify steps below key off
+          # matrix.service, so it is signed/attested automatically.
+          - service: scientific-discovery-sidecar
+            context: services/scientific-discovery-sidecar
+            dockerfile: services/scientific-discovery-sidecar/Dockerfile
     steps:
       - uses: actions/checkout@v6
 
@@ -161,6 +168,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push ${{ matrix.service }}
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
@@ -180,6 +188,85 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      # ---------------------------------------------------------------------
+      # SUPPLY-CHAIN PROVENANCE — Sigstore/cosign keyless signing on the
+      # immutable image digest (mirrors ai-bom-attest.yml's sign+verify loop,
+      # but for OCI images instead of the AI-BOM blob). ADDITIVE: deploy steps
+      # below are unchanged. Identity is the cd.yml workflow ref bound by
+      # Fulcio (OIDC), so admission policy can require it (GAP 4 closure).
+      # ---------------------------------------------------------------------
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.4.1'
+
+      - name: Cosign sign image (keyless OIDC via Fulcio) + SLSA attestation
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          IMAGE: ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/borjie-${{ matrix.service }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          REF="${IMAGE}@${DIGEST}"
+          echo "[sign] signing immutable digest: ${REF}"
+
+          # 1) Sigstore signature over the exact pushed digest (not a tag).
+          cosign sign --yes "${REF}"
+
+          # 2) SLSA-provenance attestation bound to the build (subject = digest).
+          #    The buildx provenance:true already produced an in-toto SLSA
+          #    predicate in GHCR; this re-attests it under the same Fulcio
+          #    identity so verify-attestation can match the workflow ref.
+          cat > slsa-predicate.json <<EOF
+          {
+            "buildType": "https://github.com/borjie/cd.yml@refs/heads/main",
+            "builder": { "id": "https://github.com/${{ github.repository }}/.github/workflows/cd.yml@${{ github.ref }}" },
+            "invocation": {
+              "configSource": {
+                "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}",
+                "digest": { "sha1": "${{ github.sha }}" },
+                "entryPoint": ".github/workflows/cd.yml"
+              }
+            },
+            "metadata": {
+              "buildInvocationId": "${{ github.run_id }}-${{ github.run_attempt }}",
+              "completeness": { "parameters": true, "environment": false, "materials": false },
+              "reproducible": false
+            },
+            "materials": [
+              { "uri": "git+https://github.com/${{ github.repository }}@${{ github.ref }}", "digest": { "sha1": "${{ github.sha }}" } }
+            ]
+          }
+          EOF
+          cosign attest --yes \
+            --predicate slsa-predicate.json \
+            --type slsaprovenance \
+            "${REF}"
+
+      - name: Verify signature + attestation (identity-bound, fail-closed)
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+          IMAGE: ${{ env.REGISTRY }}/${{ env.REGISTRY_OWNER }}/borjie-${{ matrix.service }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          EXPECTED_OIDC_ISSUER: https://token.actions.githubusercontent.com
+          EXPECTED_IDENTITY_REGEX: '^https://github.com/${{ github.repository }}/\.github/workflows/cd\.yml@.+$'
+        run: |
+          set -euo pipefail
+          REF="${IMAGE}@${DIGEST}"
+
+          cosign verify \
+            --certificate-oidc-issuer "${EXPECTED_OIDC_ISSUER}" \
+            --certificate-identity-regexp "${EXPECTED_IDENTITY_REGEX}" \
+            "${REF}"
+
+          cosign verify-attestation \
+            --type slsaprovenance \
+            --certificate-oidc-issuer "${EXPECTED_OIDC_ISSUER}" \
+            --certificate-identity-regexp "${EXPECTED_IDENTITY_REGEX}" \
+            "${REF}"
+
+          echo "[sign] OK — ${REF} signed + attested + identity verified"
 
   deploy-staging:
     name: Deploy staging

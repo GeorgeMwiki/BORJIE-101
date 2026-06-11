@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import type { Brand, TenantId, UserId, ISOTimestamp } from '../common/types';
+import type { Brand, TenantId, ISOTimestamp } from '../common/types';
 import type { CustomerId } from '../payments/payment-intent';
 
 // ============================================================================

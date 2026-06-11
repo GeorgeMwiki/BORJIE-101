@@ -18,25 +18,29 @@ import { DocTypeSchema, type DocType, THRESHOLDS } from '../types.js';
  * documents.
  */
 const KEYWORDS: Record<Exclude<DocType, 'unknown'>, ReadonlyArray<readonly [string, number]>> = {
-  lease_application: [
+  licence_application: [
+    ['licence application', 3],
+    ['mining licence', 3],
+    ['prospecting licence', 3],
+    ['mineral right application', 3],
+    ['permit application', 3],
     ['offtake application', 3],
-    ['supply application', 3],
     ['applicant', 1.5],
-    ['ombi la mnada', 3],
+    ['ombi la leseni', 3],
     ['naomba kununua', 3],
+    ['requested royalty', 1.5],
     ['proposed royalty', 1.5],
-    ['requested volume', 1.5],
-    ['monthly income', 1],
     ['nida no', 1.5],
-    ['employer', 1],
   ],
-  lease_contract: [
+  offtake_agreement: [
     ['offtake agreement', 3],
-    ['supply agreement', 3],
-    ['mkataba wa mnada', 3],
+    ['offtake contract', 3],
+    ['sales agreement', 3],
+    ['mineral purchase agreement', 3],
+    ['sale and purchase', 3],
     ['mkataba wa madini', 3],
-    ['seller', 2],
-    ['buyer', 2],
+    ['mnunuzi', 2],
+    ['mwenye madini', 2],
     ['monthly royalty', 1.5],
     ['mrabaha wa mwezi', 1.5],
     ['offtake start date', 1.5],

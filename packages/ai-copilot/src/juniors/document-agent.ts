@@ -39,6 +39,7 @@ import {
   DOCUMENT_AGENT_SYSTEM_PROMPT,
   buildDocumentAgentUserPrompt,
 } from './document-agent-prompt.js';
+import { resolveTierModelId } from '../model-resolution.js';
 import {
   deterministicEvidenceId,
   deterministicLicenceId,
@@ -180,7 +181,7 @@ export function createDocumentAgent(deps: DocumentAgentDeps) {
           userPrompt: buildDocumentAgentUserPrompt(documentText),
           maxTokens: 1024,
           temperature: 0,
-          model: 'claude-haiku-4-5',
+          model: resolveTierModelId('cheap'),
         });
         raw = response.content;
       } catch (error) {

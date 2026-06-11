@@ -71,6 +71,19 @@ spec:
               value: "4"
             - name: PROACTIVE_TRIGGERS_LOOKBACK_HOURS
               value: "24"
+            # Follow-up cron — folds the user-followup +
+            # employee-perf-followup schedulers into the same hourly
+            # loop. The composition root only wires them when "1"; the
+            # employee-perf cron self-gates to its 06:00-local fire
+            # window, so an hourly drive fires it once/day per employee.
+            - name: PROACTIVE_FOLLOWUP_CRON_ENABLED
+              value: "1"
+            # Proactive-intel tick — runs @borjie/proactive-intel's
+            # detectors when the host supplies pre-fetched tick inputs.
+            # Off by default until the per-tenant input-fetch layer is
+            # provisioned at the composition root (see deferred note).
+            - name: PROACTIVE_INTEL_TICK_ENABLED
+              value: "0"
             - name: OTEL_SERVICE_NAME
               value: proactive-triggers-worker
           resources:

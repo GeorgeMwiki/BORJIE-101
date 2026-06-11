@@ -45,6 +45,7 @@ import {
 } from '@borjie/executive-brief-engine';
 import type { GraphTraversalPort, GraphHop, EdgeType } from '@borjie/org-graph';
 import { sql } from 'drizzle-orm';
+import { resolveTierModel } from './model-tier-map.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public surface
@@ -337,7 +338,9 @@ function buildHaikuLlm(): HaikuLlmPort {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-haiku-4-5',
+            // Cheap tier (Haiku-class) — resolved per-call via the
+            // composition-root tier map (no pinned model id).
+            model: resolveTierModel('cheap'),
             max_tokens: maxOutputTokens ?? 2048,
             system,
             messages: [{ role: 'user', content: user }],

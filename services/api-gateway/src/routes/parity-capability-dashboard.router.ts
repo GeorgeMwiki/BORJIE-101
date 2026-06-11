@@ -65,6 +65,11 @@ const RunsQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).optional(),
 });
 
+const SamplesQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(200).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+});
+
 const RejudgeBodySchema = z.object({
   /**
    * Optional override text. When omitted, the router asks the
@@ -224,6 +229,80 @@ parityCapabilityDashboardRouter.get('/dashboard/runs/:thoughtId', async (c: AnyC
 });
 
 // ─────────────────────────────────────────────────────────────────────
+// GET /dashboard/scenarios/:scenarioId/samples — per-scenario CoT drill-down.
+//
+// The admin mission-eval drill-down
+// (apps/admin-web/src/app/mission-eval/[scenarioId]/MissionEvalScenarioDrillDown.tsx)
+// renders the full CoT + judge verdict for every captured sample of one
+// scenario. A scenario id is a `sensor_id` prefix (the same prefix filter
+// `listRuns` already exposes as `category`), so we list the matching runs
+// then enrich each one with its CoT detail via `getRun`. Same tenant scope +
+// auth gate as the sibling read routes — no platform-NULL leakage because the
+// factory filters strictly on `tenant_id = auth.tenantId`.
+// ─────────────────────────────────────────────────────────────────────
+
+parityCapabilityDashboardRouter.get(
+  '/dashboard/scenarios/:scenarioId/samples',
+  async (c: AnyCtx) => {
+    const services = getServices(c);
+    const dashboard = services.parityCapabilityDashboard;
+    if (!dashboard) return unavailable(c, 'parity-capability-dashboard not wired');
+    const auth = c.get('auth');
+    const scenarioId = c.req.param('scenarioId');
+    if (!scenarioId) return badRequest(c, 'scenarioId required');
+    const parsed = SamplesQuerySchema.safeParse({
+      limit: c.req.query('limit'),
+      offset: c.req.query('offset'),
+    });
+    if (!parsed.success) return badRequest(c, parsed.error.message);
+    const limit = parsed.data.limit ?? 50;
+    const offset = parsed.data.offset ?? 0;
+    try {
+      // 1. List the scenario's captured runs (sensor_id-prefix filter).
+      const result = await dashboard.listRuns(auth.tenantId, {
+        category: scenarioId,
+        limit,
+        offset,
+      });
+
+      // 2. Enrich each run with its full CoT detail (judge reason/fix +
+      //    CoT text) so the drawer can render without a second round-trip.
+      //    A single missing detail must not poison the whole list — fall
+      //    back to the list-row fields when getRun returns null.
+      const samples = await Promise.all(
+        result.runs.map(async (run) => {
+          const detail = await dashboard.getRun(auth.tenantId, run.thoughtId);
+          return {
+            thoughtId: run.thoughtId,
+            threadId: run.threadId,
+            capturedAt: run.producedAt,
+            stakes: run.stakes,
+            judgeScore: detail?.judgeScore ?? run.judgeScore,
+            judgeReasonText: detail?.judgeReasonText ?? null,
+            judgeSuggestedFix: detail?.judgeSuggestedFix ?? null,
+            cotThoughtText: detail?.cotThoughtText ?? null,
+            modelId: detail?.modelId ?? null,
+            sensorId: detail?.sensorId ?? null,
+          };
+        }),
+      );
+
+      return c.json({
+        success: true,
+        data: {
+          scenarioId,
+          samples,
+          total: result.total,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    } catch (e) {
+      return internalError(c, e);
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────
 // POST /dashboard/runs/:thoughtId/judge — re-judge a captured run.
 //
 // Re-judge is sovereign and cost-bearing (re-runs the LLM-judge against a
@@ -265,8 +344,19 @@ parityCapabilityDashboardRouter.post(
     if (!parsed.success) return badRequest(c, parsed.error.message);
     try {
       const verdict = await dashboard.rejudge(auth.tenantId, thoughtId, {
-        draftOverride: parsed.data.draft,
+        ...(parsed.data.draft !== undefined
+          ? { draftOverride: parsed.data.draft }
+          : {}),
       });
+
+      // Honest degraded path: when no judge-runner is wired (or the run
+      // cannot be re-judged), the service returns `accepted: false`. Do
+      // NOT report a fake success — surface 503 unavailable so the UI
+      // does not show "queued" for a no-op.
+      if (verdict.accepted === false) {
+        return unavailable(c, verdict.reason);
+      }
+
       // Best-effort audit-trail emission. The recorder shape mirrors
       // audit-trail.router.ts:152 — degraded gateways without an auditTrail
       // service slot simply skip the emission so the rejudge still returns.
@@ -291,6 +381,8 @@ parityCapabilityDashboardRouter.post(
               attachments: {
                 requestedBy: auth.userId ?? null,
                 draftOverride: parsed.data.draft ? true : false,
+                judgeScore: verdict.score ?? null,
+                persisted: verdict.persisted ?? false,
               },
             },
           });

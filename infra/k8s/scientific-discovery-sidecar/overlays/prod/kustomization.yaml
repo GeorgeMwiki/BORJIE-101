@@ -35,3 +35,19 @@ patches:
                 matchLabels:
                   app.kubernetes.io/name: scientific-discovery-sidecar
               topologyKey: kubernetes.io/hostname
+  # SEC-4 — gVisor (runsc) kernel-level isolation. This sidecar runs heavy
+  # third-party numerical code (DoWhy / Tigramite / EconML); wrapping it in
+  # the gVisor application-kernel adds the missing kernel-isolation layer so
+  # a native-code exploit cannot escape to the node. The RuntimeClass is
+  # defined in infra/k8s/base/runtimeclass-gvisor.yaml and scheduled onto
+  # the gVisor node pool. CONDITIONAL by design: a cluster without the
+  # `gvisor` RuntimeClass provisioned leaves these pods Pending — so this
+  # is applied as an overlay patch (not in base), keeping clusters without
+  # runsc bootable. Matches MEMORY:borjie-agent-isolation-security.
+  - target:
+      kind: Deployment
+      name: scientific-discovery-sidecar
+    patch: |-
+      - op: add
+        path: /spec/template/spec/runtimeClassName
+        value: gvisor

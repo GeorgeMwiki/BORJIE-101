@@ -98,6 +98,52 @@ export {
   type ListLedgerOptions,
 } from './accounting-ledger-read.repository.js';
 
+// MD commitments (migration 0321) — the durable DEFERRAL / FOLLOW-THROUGH
+// commitment ledger (the brain's prospective-memory backlog + the closed
+// loop). Drizzle adapter runs every method inside withServiceRoleContext so the
+// out-of-band EstateMind RECONCILE sweep can read + advance commitments while
+// RLS FORCE isolates every request caller. In-memory twin for tests. Honest
+// closure: markDone REQUIRES a confirmation proof; create is idempotent on
+// (tenantId, idempotencyKey); evidence-required at the row boundary.
+export {
+  createDrizzleMdCommitmentRepository,
+  createInMemoryMdCommitmentRepository,
+  type MdCommitment,
+  type MdCommitmentRepository,
+  type CreateMdCommitmentInput,
+  type TransitionInput as MdCommitmentTransitionInput,
+  type ConfirmInput as MdCommitmentConfirmInput,
+  // Capability Gap Register (Loop A, P0; migration 0326).
+  type CreateGapInput as MdCommitmentCreateGapInput,
+  type AdvanceGapStatusInput as MdCommitmentAdvanceGapStatusInput,
+  type GapAuditAppendPort as MdCommitmentGapAuditAppendPort,
+  TERMINAL_GAP_STATUSES,
+  isTerminalGapStatus,
+  // FIX 5 — replayable audit chain (the log verifies without the live row).
+  replayGapAuditChain,
+  type ReplayableGapAuditEntry as MdCommitmentReplayableGapAuditEntry,
+  type GapAuditReplayResult as MdCommitmentGapAuditReplayResult,
+} from './md-commitment-repository.js';
+
+// Org loop runs (migration 0341) — the SELF-RUNNING-ORG SPINE correlation
+// identity: one durable row per loop run joining an md_commitments row
+// (commitmentId, the close-the-loop back-edge) to the mining_tasks row the
+// workforce orchestrator spawned (taskId, the dispatch forward-edge). Carries
+// the stage machine (detect → strategize → pick → assign → dispatch → deliver →
+// report → reloop → closed), honest status, the chosen employee + match
+// confidence (matcher-learning inputs), and the evidence ids threaded from the
+// commitment. The Drizzle adapter runs every method inside withServiceRoleContext
+// so the out-of-band loop-economy cron can read + advance runs while RLS FORCE
+// isolates every request caller. In-memory twin for tests.
+export {
+  createDrizzleOrgLoopRunRepository,
+  createInMemoryOrgLoopRunRepository,
+  type OrgLoopRun,
+  type OrgLoopRunRepository,
+  type CreateOrgLoopRunInput,
+  type AdvanceOrgLoopRunInput,
+} from './org-loop-run-repository.js';
+
 // Enum guards — bug fix A-BUG-DEEP #9. Property-domain enums (lease,
 // customer, document) retained as opaque type aliases until the
 // mining-domain equivalents replace them.

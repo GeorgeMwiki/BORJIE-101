@@ -81,6 +81,30 @@ export interface IngestOptions {
   readonly logger?: WorkerLogger;
   /** Skip embedding for very small chunks (< minBytes). Default 64. */
   readonly minBytes?: number;
+  /**
+   * Fail LOUD (throw) when zero markdown files were scanned across every
+   * corpus root. The historical default-path bug (KI-01) made the ingest
+   * silently complete with `filesScanned:0` + exit-0, so ZERO global
+   * knowledge ever reached the corpus and nothing alerted. When `true`,
+   * an empty scan throws a descriptive error so a misconfigured corpus
+   * path is caught at boot instead of degrading the brain in silence.
+   * Default `false` to preserve the pure-engine's no-throw contract for
+   * callers that legitimately ingest a (possibly empty) sub-tree.
+   */
+  readonly failOnZeroFiles?: boolean;
+}
+
+/** Thrown when {@link IngestOptions.failOnZeroFiles} is set and a run scanned no files. */
+export class EmptyCorpusError extends Error {
+  constructor(roots: ReadonlyArray<string>) {
+    super(
+      `borjie-corpus-ingest: ZERO markdown files found across ${roots.length} corpus root(s): ` +
+        `${roots.join(', ')}. The corpus path is misconfigured — set BORJIE_MINING_CORPUS_PATH ` +
+        `to a directory tree containing *.md, or restore the in-repo Docs corpus. Refusing to ` +
+        `report success on an empty ingest (KI-01).`,
+    );
+    this.name = 'EmptyCorpusError';
+  }
 }
 
 export interface IngestReport {
@@ -135,6 +159,18 @@ export async function ingestCorpus(opts: IngestOptions): Promise<IngestReport> {
         opts.logger?.warn('borjie-corpus-ingest: file failed', { file: absolutePath, error: asMessage(error) });
       }
     }
+  }
+
+  if (opts.failOnZeroFiles && filesScanned === 0) {
+    // FAIL LOUD (KI-01): a zero-file scan means the corpus path is dead.
+    // Log the error first so the structured sink captures it, then throw
+    // so the boot/cron caller surfaces a non-zero exit instead of a
+    // silent "success" that leaves the brain ungrounded.
+    opts.logger?.error('borjie-corpus-ingest: zero files scanned — corpus path is dead', {
+      corpusRoots: opts.corpusRoots,
+      errorCount: errors.length,
+    });
+    throw new EmptyCorpusError(opts.corpusRoots);
   }
 
   opts.logger?.info('borjie-corpus-ingest: completed', {

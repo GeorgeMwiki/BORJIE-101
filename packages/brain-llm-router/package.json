@@ -101,6 +101,10 @@
     "./effort": {
       "types": "./src/effort/index.ts",
       "default": "./src/effort/index.ts"
+    },
+    "./price-book": {
+      "types": "./src/price-book/index.ts",
+      "default": "./src/price-book/index.ts"
     }
   },
   "scripts": {

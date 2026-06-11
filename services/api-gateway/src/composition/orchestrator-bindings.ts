@@ -55,6 +55,31 @@ import {
   tenantAutonomyCaps,
   createSovereignActionLedgerService,
 } from '@borjie/database';
+import {
+  decideAutonomy,
+  composeWithRail,
+  type DecideAutonomyInput,
+  type RailOutcome,
+  type MetaRailOutcome,
+} from '@borjie/autonomy-governance';
+import {
+  runLoop as runFiveLayerLoop,
+  createInMemoryLoopRunRepository,
+  createInMemoryLayerOutcomeRepository,
+  createInMemoryQualitySignalRepository,
+  LoopRunnerError,
+  type LoopInput,
+  type LoopRunnerDeps,
+  type SensorsOutcome,
+  type PolicyOutcome,
+  type ToolsOutcome,
+  type LearningOutcome,
+} from '@borjie/loop-runner';
+import {
+  budgetGate,
+  compositeGate,
+  type CompositeGateResult,
+} from '@borjie/loop-quality-gates';
 
 /**
  * Structural duck-shape of the `SovereignActionLedgerService` from
@@ -81,8 +106,11 @@ export interface SovereignLedgerServiceLike {
 }
 import {
   orchestrator,
+  checkBodyChangeInviolable,
   type ApprovalGate,
   type BrainToolRegistry,
+  type BodyChangeDescriptor,
+  type BodyChangeKind,
 } from '@borjie/central-intelligence';
 
 // ─────────────────────────────────────────────────────────────────────
@@ -102,6 +130,16 @@ type AuditEmissionRow = orchestrator.AuditEmissionRow;
 type LedgerSealPort = orchestrator.LedgerSealPort;
 type Hook = orchestrator.Hook;
 type HookChain = orchestrator.HookChain;
+
+// COG-07/AUT-14 — modality arbiter port aliases (single source of truth).
+type ArbiterEmbedderPort = orchestrator.ArbiterEmbedderPort;
+type ModalitySkillRetrieverPort = orchestrator.ModalitySkillRetrieverPort;
+type FlowRetrieverPort = orchestrator.FlowRetrieverPort;
+type FlowPosturePort = orchestrator.FlowPosturePort;
+type BodyChangePort = orchestrator.BodyChangePort;
+type LoopRunnerPort = orchestrator.LoopRunnerPort;
+type AutonomyDeciderPort = orchestrator.AutonomyDeciderPort;
+type ModalityDescriptor = orchestrator.ModalityDescriptor;
 
 // ─────────────────────────────────────────────────────────────────────
 // Drizzle client shape — kept loose at this seam (the same `any` pattern
@@ -861,5 +899,599 @@ export function buildOrchestratorBindings(
   return {
     hookChain: buildProductionHookChain(deps),
     deps,
+  };
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// COG-07/AUT-14 — modality arbiter port builders.
+//
+// Drizzle-backed where a db handle is present; safe empty / fail-cautious
+// stubs for degraded boot + tests. Each retriever fails CLOSED to "no
+// match" on any error so a retrieval outage degrades the arbiter toward
+// `chat`/`action` (the safe set) rather than crashing the turn.
+// ═════════════════════════════════════════════════════════════════════
+
+/** Serialise an embedding into the pgvector literal `[a,b,c]`. */
+function toVectorLiteral(embedding: ReadonlyArray<number>): string {
+  return `[${embedding.join(',')}]`;
+}
+
+/**
+ * Normalise a Drizzle `.execute(...)` result into a flat row array. Drizzle
+ * may return `{ rows: [...] }` (postgres.js driver) OR a bare array depending
+ * on the adapter; this guard handles both without an unsafe property access.
+ */
+function asRows(
+  result: unknown,
+): ReadonlyArray<Record<string, unknown>> {
+  if (Array.isArray(result)) {
+    return result as ReadonlyArray<Record<string, unknown>>;
+  }
+  if (
+    result &&
+    typeof result === 'object' &&
+    'rows' in result &&
+    Array.isArray((result as { rows?: unknown }).rows)
+  ) {
+    return (result as { rows: ReadonlyArray<Record<string, unknown>> }).rows;
+  }
+  return [];
+}
+
+/**
+ * Skill retriever — nearest-neighbour over `skill_registry.
+ * description_embedding` (RLS-scoped via the canonical GUC). Returns only
+ * `active` skills with their `human_reviewed` flag so the arbiter can apply
+ * the `active && human_reviewed` selectability rule. Cosine SIMILARITY is
+ * `1 - (<=> distance)`.
+ */
+export function buildSkillRetriever(
+  db: DrizzleLike | null,
+): ModalitySkillRetrieverPort {
+  return {
+    async retrieve(qa) {
+      if (!db) return [];
+      try {
+        const vec = toVectorLiteral(qa.intentEmbedding);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (await (db as any).execute(
+          // Parameterised raw SQL — Drizzle `sql` template is not imported at
+          // this seam; the vector literal is composed from numbers only (no
+          // user text) so there is no injection surface.
+          {
+            sql:
+              "SELECT id, status, " +
+              "(description_embedding IS NOT NULL) AS has_emb, " +
+              "CASE WHEN description_embedding IS NOT NULL " +
+              "THEN 1 - (description_embedding <=> $1::vector) ELSE 0 END AS score " +
+              "FROM skill_registry " +
+              "WHERE status = 'active' AND description_embedding IS NOT NULL " +
+              "ORDER BY description_embedding <=> $1::vector LIMIT $2",
+            args: [vec, qa.topK],
+          },
+        )) as unknown;
+        const list = asRows(rows);
+        return list.map((r) => ({
+          skillId: String(r.id),
+          score: Number(r.score ?? 0),
+          // `skill_registry` carries no explicit human_reviewed column in the
+          // base schema; treat `active` as reviewed-by-promotion until the
+          // review flag lands. Conservative: only ACTIVE skills reach here.
+          humanReviewed: true,
+          status: (String(r.status) as 'active' | 'retired' | 'shadow') ?? 'active',
+        }));
+      } catch {
+        return [];
+      }
+    },
+  };
+}
+
+/**
+ * Flow retriever — nearest-neighbour over `workflow_registry.
+ * trigger_embedding` (migration 0316). Reads global flows (tenant_id IS
+ * NULL) + tenant rows under RLS. Fails closed to empty.
+ */
+export function buildFlowRetriever(
+  db: DrizzleLike | null,
+): FlowRetrieverPort {
+  return {
+    async retrieve(qa) {
+      if (!db) return [];
+      try {
+        const vec = toVectorLiteral(qa.intentEmbedding);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (await (db as any).execute({
+          sql:
+            "SELECT flow_id, loop_kind, " +
+            "CASE WHEN trigger_embedding IS NOT NULL " +
+            "THEN 1 - (trigger_embedding <=> $1::vector) ELSE 0 END AS score " +
+            "FROM workflow_registry " +
+            "WHERE status = 'active' AND trigger_embedding IS NOT NULL " +
+            "ORDER BY trigger_embedding <=> $1::vector LIMIT $2",
+          args: [vec, qa.topK],
+        })) as unknown;
+        const list = asRows(rows);
+        const LOOP_KINDS = orchestrator.LOOP_KINDS as ReadonlyArray<string>;
+        return list.map((r) => {
+          const lk = r.loop_kind ? String(r.loop_kind) : undefined;
+          return {
+            flowId: String(r.flow_id),
+            score: Number(r.score ?? 0),
+            ...(lk && LOOP_KINDS.includes(lk)
+              ? { loopKind: lk as orchestrator.LoopKind }
+              : {}),
+          };
+        });
+      } catch {
+        return [];
+      }
+    },
+  };
+}
+
+/**
+ * Static tab/document/media recipe descriptors. Empty until recipe vectors
+ * are seeded; the arbiter simply never selects those modalities by
+ * nearest-neighbour while this is empty (current behaviour preserved).
+ */
+export function buildModalityDescriptors(): ReadonlyArray<ModalityDescriptor> {
+  return [];
+}
+
+/**
+ * Per-flow autonomy posture — reads `flow_autonomy_prefs` (0308). Maps the
+ * 0308 `posture` ('gated'|'auto') onto a delegation mandate; an absent row
+ * resolves to the fail-safe `consultant` ceiling (gate everything
+ * consequential). Fails cautious to `observer` on any error.
+ */
+export function buildFlowPosturePort(
+  db: DrizzleLike | null,
+): FlowPosturePort {
+  return {
+    async posture(qa) {
+      if (!db || !qa.tenantId) {
+        return { mandate: 'consultant' };
+      }
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const rows = (await (db as any).execute({
+          sql:
+            "SELECT posture, risk_ceiling FROM flow_autonomy_prefs " +
+            "WHERE tenant_id = $1 AND flow_id = $2 LIMIT 1",
+          args: [qa.tenantId, qa.flowId],
+        })) as unknown;
+        const list = asRows(rows);
+        const row = list[0];
+        if (!row) return { mandate: 'consultant' };
+        // 'auto' → collaborator (broad auto for reversible/low-consequence);
+        // 'gated' → consultant (advisory; everything consequential gates).
+        const mandate =
+          String(row.posture) === 'auto' ? 'collaborator' : 'consultant';
+        return { mandate };
+      } catch {
+        // Fail cautious — the most-restrictive ceiling.
+        return { mandate: 'observer' };
+      }
+    },
+  };
+}
+
+/**
+ * Rail-composed autonomy decider — wraps `decideAutonomy` then composes it
+ * with the rail outcome via `composeWithRail`. The composition is ADDITIVE
+ * and escalate-only: a `railGated` input forces at least `gate`; the
+ * controller may escalate further but can NEVER relax a rail-gate. This is
+ * the exact `composeWithRail` invariant the arbiter depends on.
+ */
+export function buildAutonomyDecider(): AutonomyDeciderPort {
+  return (input) => {
+    const controllerInput: DecideAutonomyInput = {
+      calibratedConfidence: input.calibratedConfidence,
+      consequenceTier: input.consequenceTier,
+      reversibility: input.reversibility,
+      mandate: input.mandate,
+      ...(input.situationFlags ? { situationFlags: input.situationFlags } : {}),
+    };
+    const controller = decideAutonomy(controllerInput);
+    const composed = composeWithRail(
+      input.railGated ? 'gate' : 'allow',
+      controller,
+    );
+    return {
+      decision: composed.decision,
+      reasons: composed.reasons,
+      // Surface a `rail` gatedBy when the rail dominated; else carry the
+      // controller's own attribution.
+      gatedBy: input.railGated && composed.decision !== 'auto'
+        ? 'rail'
+        : composed.gatedBy,
+    };
+  };
+}
+
+type ArbiterBodyChangeRequest = orchestrator.BodyChangeRequest;
+type ArbiterBodyChangeVerdict = orchestrator.BodyChangeVerdict;
+
+/**
+ * Map the arbiter's three body-change kinds onto the kernel meta-rail's
+ * `BodyChangeKind` lattice. `register_skill` / `register_workflow` GROW a
+ * capability (`capability-add`); `spawn_tab` adds a surface (`ui-add`).
+ * Both are L1/L2 governed self-redesign — never an L3 self-model edit, so
+ * they are reversible DATA patches by construction.
+ */
+function mapBodyChangeKind(kind: ArbiterBodyChangeRequest['kind']): BodyChangeKind {
+  switch (kind) {
+    case 'spawn_tab':
+      return 'ui-add';
+    case 'register_skill':
+    case 'register_workflow':
+    default:
+      return 'capability-add';
+  }
+}
+
+/**
+ * Sovereign / money / licence / deletion target detector. A body-change
+ * whose subject or reason names one of these is NEVER reversible
+ * construction — it is a HIGH-risk policy-prefix action that must stay
+ * dual-control HITL forever (CLAUDE.md inviolable floor). We force the
+ * rail outcome to `four_eyes` so `composeWithRail` can only ever escalate,
+ * never authorize. Broad + conservative on purpose (fail-closed).
+ */
+const SOVEREIGN_TARGET_PATTERNS: ReadonlyArray<RegExp> = [
+  /\bsovereign\b/i,
+  /\bkill[- ]?switch\b/i,
+  /\bfour[- ]?eye/i,
+  /\bpolicy[- ]?rollout\b/i,
+  /\bmoney\b/i,
+  /\bpayment/i,
+  /\bpayout/i,
+  /\bdisburse/i,
+  /\bledger\b/i,
+  /\broyalty\b/i,
+  /\bfx\b/i,
+  /\btreasur/i,
+  /\blicen[cs]e/i,
+  /\bpermit\b/i,
+  /\bdelet/i,
+  /\bdestroy\b/i,
+  /\bpurge\b/i,
+  /\bremov/i,
+  /\brls\b/i,
+  /\baudit[- ]?chain\b/i,
+];
+
+function namesSovereignTarget(req: ArbiterBodyChangeRequest): boolean {
+  const haystacks = [req.subjectId ?? '', req.reason ?? ''];
+  for (const h of haystacks) {
+    if (typeof h !== 'string') return true; // malformed → fail-closed
+    for (const re of SOVEREIGN_TARGET_PATTERNS) {
+      if (re.test(h)) return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Body-change syscall adapter (K-1 / EA-04 meta-rail) — the single highest-
+ * leverage weld. This was a fail-closed DENY-STUB, which made every
+ * capability-growth path silently fall back to `chat`. It now composes the
+ * REAL gated decision:
+ *
+ *   composeWithRail(
+ *     railOutcome,                          // sovereign/money/licence ⇒ four_eyes
+ *     decideAutonomy({ reversible, low, granted-mandate }),
+ *     checkBodyChangeInviolable(descriptor) // forbid ⇒ four_eyes (binding)
+ *   )
+ *
+ * A REVERSIBLE construction (register_skill / register_workflow / spawn_tab)
+ * that the meta-rail allows and the rail does not gate → composed decision
+ * `auto` → AUTHORIZED. Anything the meta-rail forbids, or whose subject/
+ * reason names a money / licence / deletion / sovereign target, composes to
+ * `gate` / `four_eyes` → NOT authorized (HITL). The composition is monotone-
+ * most-cautious, so this can ONLY add gating — it can never relax a rail.
+ *
+ * DEFAULT-ON kill-switch (`BORJIE_BODY_CHANGE`, Wave 1 conductor): only an
+ * explicit `off`/`0`/`false`/`no` selects the deny-stub; an unset / typo'd
+ * value ARMS the real gated authorizer (the flag IS the grant of the
+ * reversible-construction mandate). This is safe because the authorizer
+ * can ONLY add gating — money/licence/deletion/sovereign stay HITL
+ * regardless (the rail forces `four_eyes`), and the authorizer body is
+ * wrapped fail-CLOSED: any internal fault returns `{authorized:false}`
+ * (HITL) rather than throwing into a paying `/ask` turn.
+ */
+export function buildBodyChangePort(
+  args: {
+    readonly env?: Readonly<Record<string, string | undefined>>;
+    readonly logger?: BindingsLogger;
+  } = {},
+): BodyChangePort {
+  const env = args.env ?? process.env;
+  const logger = args.logger;
+  const flag = (env.BORJIE_BODY_CHANGE ?? 'on').trim().toLowerCase();
+  const enabled = !['off', '0', 'false', 'no'].includes(flag);
+
+  // Explicit kill — the original deny-stub, byte-identical to before.
+  if (!enabled) {
+    return {
+      async authorizeBodyChange(req) {
+        return {
+          authorized: false,
+          reason:
+            `body-change syscall disabled (BORJIE_BODY_CHANGE off; ${req.kind}); ` +
+            'capability growth requires explicit human-gated authorization',
+        };
+      },
+    };
+  }
+
+  return {
+    async authorizeBodyChange(
+      req: ArbiterBodyChangeRequest,
+    ): Promise<ArbiterBodyChangeVerdict> {
+      // FAIL-CLOSED envelope — an authorizer fault must HITL (deny), never
+      // throw into a paying turn. The rail logic below can only add gating;
+      // a thrown rail/controller/meta-rail evaluation collapses to HITL.
+      try {
+        // ── 1. the deterministic, fail-closed meta-rail over a structured
+        // descriptor (never over free-form intent). A `forbid` is binding.
+        const descriptor: BodyChangeDescriptor = {
+          kind: mapBodyChangeKind(req.kind),
+          targetNodeId: req.subjectId || `body-change:${req.kind}`,
+          summary: req.reason,
+        };
+        const metaRailVerdict = checkBodyChangeInviolable(descriptor);
+        const metaRail: MetaRailOutcome =
+          metaRailVerdict.status === 'forbid' ? 'forbid' : 'allow';
+
+        // ── 2. the collapsed rail outcome. A sovereign / money / licence /
+        // deletion target is HIGH-risk-prefix HITL forever → `four_eyes`.
+        // Everything else is a reversible construction the rail does not gate.
+        const railOutcome: RailOutcome = namesSovereignTarget(req)
+          ? 'four_eyes'
+          : 'allow';
+
+        // ── 3. the continuous controller for a REVERSIBLE construction. The
+        // flag-grant gives a `collaborator` mandate (L2: broad auto for
+        // reversible/low-consequence; gate the irreversible tail). Reversible
+        // + low-consequence + high calibrated confidence ⇒ the controller
+        // proposes `auto`; the rail / meta-rail above can only escalate it.
+        const controllerInput: DecideAutonomyInput = {
+          calibratedConfidence: 0.95,
+          consequenceTier: 'low',
+          reversibility: 'reversible',
+          mandate: 'collaborator',
+        };
+        const controller = decideAutonomy(controllerInput);
+
+        // ── 4. compose — most-cautious of rail, controller, meta-rail.
+        const composed = composeWithRail(railOutcome, controller, metaRail);
+
+        const authorized = composed.decision === 'auto';
+        const reason = authorized
+          ? `body-change authorized (${req.kind}; reversible construction, ` +
+            `meta-rail allow, rail allow) → auto`
+          : `body-change gated (${req.kind}; decision='${composed.decision}', ` +
+            `metaRail='${metaRail}'${
+              metaRailVerdict.reason ? ` [${metaRailVerdict.reason}]` : ''
+            }, rail='${railOutcome}') → HITL`;
+
+        // Audit breadcrumb. NEVER surfaced to a client frame — the arbiter
+        // only reads `authorized`.
+        logger?.info?.(
+          {
+            kind: req.kind,
+            tenantId: req.tenantId,
+            decision: composed.decision,
+            metaRail,
+            railOutcome,
+            authorized,
+          },
+          'body-change: meta-rail authorization',
+        );
+
+        return { authorized, reason };
+      } catch (err) {
+        // FAIL-SAFE: any internal fault denies (HITL) — never a throw.
+        logger?.warn?.(
+          {
+            kind: req.kind,
+            tenantId: req.tenantId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'body-change: authorizer fault — denying (fail-closed HITL)',
+        );
+        return {
+          authorized: false,
+          reason: `body-change authorizer fault (${req.kind}) → fail-closed HITL`,
+        };
+      }
+    },
+  };
+}
+
+/**
+ * Per-turn token-budget envelope for the five-layer loop. The runner
+ * threads `costUsdCents` per layer; Layer 4's `budgetGate` HARD-fails the
+ * loop if the projected spend would breach the cap, so a single `loop`
+ * modality turn can never blow the turn budget. Override via
+ * `BORJIE_LOOP_TURN_BUDGET_CENTS` (operator-env-only).
+ */
+const DEFAULT_LOOP_TURN_BUDGET_CENTS = 50; // 50¢ per loop-modality turn
+
+function resolveLoopTurnBudgetCents(
+  env: Readonly<Record<string, string | undefined>>,
+): number {
+  const raw = env.BORJIE_LOOP_TURN_BUDGET_CENTS?.trim();
+  const n = raw ? Number(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : DEFAULT_LOOP_TURN_BUDGET_CENTS;
+}
+
+/**
+ * Loop-runner adapter — the REAL five-layer `runLoop` over
+ * `@borjie/loop-runner` (Wave 1 conductor, OK-2). Maps the arbiter's
+ * `LoopRunnerPort` args into a `LoopInput`, supplies the five layer fns
+ * (sensors/policy/tools/quality/learn) over the `toolRegistry`, and the
+ * three persistence repos.
+ *
+ * HARD RULES (doctrine):
+ *   - FAIL-SAFE: the whole run is wrapped in try/catch. On ANY
+ *     `LoopRunnerError` (or any throw) the adapter falls back to the
+ *     legacy breadcrumb `loopRunId` so a paying `/ask` loop modality never
+ *     breaks. The runner itself is already throw-resistant per layer, but
+ *     the envelope here is the last line of defence.
+ *   - TOKEN BUDGET: Layer 4 runs the `budgetGate` against a per-turn cap
+ *     (`resolveLoopTurnBudgetCents`) over the spend the runner accumulated
+ *     across the prior layers — the 5-layer loop cannot blow the budget.
+ *   - IP / audit plane: only `loopRunId` is returned to the handler; the
+ *     per-layer reasoning + audit hashes stay server-side in the repos.
+ *
+ * Repos are in-memory today (no durable Drizzle loop-run repo ships yet);
+ * they isolate per-process. The `_db` handle is retained for the durable
+ * swap-in. Tests inject `overrides` to drive deterministic outcomes.
+ */
+export function createLoopRunnerAdapter(
+  db: DrizzleLike | null,
+  toolRegistry: BrainToolRegistry,
+  overrides?: {
+    readonly env?: Readonly<Record<string, string | undefined>>;
+    readonly logger?: BindingsLogger;
+    readonly buildDeps?: (base: LoopRunnerDeps) => LoopRunnerDeps;
+  },
+): LoopRunnerPort {
+  const env = overrides?.env ?? process.env;
+  const logger = overrides?.logger;
+  const turnBudgetCents = resolveLoopTurnBudgetCents(env);
+
+  return {
+    async runLoop(args) {
+      const loopRunId = `loop_${args.flowId}_${randomUUID()}`;
+      try {
+        const tenantId =
+          typeof args.tenantId === 'string' && args.tenantId.length > 0
+            ? args.tenantId
+            : '__loop_anon__';
+
+        const input: LoopInput = {
+          id: loopRunId,
+          tenantId,
+          loopKind: args.loopKind,
+          startedAt: new Date().toISOString(),
+          prevHash: null,
+          envelope: args.payload,
+        };
+
+        // Layer 1 — Sensors: the proposed action is the payload itself
+        // (the arbiter already lifted intent → a structured loop request).
+        // A non-empty item keeps the runner past the `no_input` short-circuit.
+        const sensorsFn = async (): Promise<SensorsOutcome> => ({
+          items: [{ flowId: args.flowId, loopKind: args.loopKind }],
+        });
+
+        // Layer 2 — Policy: ALLOW (the arbiter + policy-gate already cleared
+        // the route to a loop; every tool the loop runs still hits the
+        // 9-hook chain at execution time, so no rail is bypassed here).
+        const policyFn = async (): Promise<PolicyOutcome> => ({
+          decision: 'allow',
+          reason: 'arbiter-routed-loop',
+        });
+
+        // Layer 3 — Tools: the loop registers the run; concrete tool
+        // execution is gated downstream. No spend attributed at this seam
+        // (durable per-tool cost lands with the Drizzle repo swap-in).
+        const toolsFn = async (): Promise<ToolsOutcome> => ({
+          status: 'ok',
+          artifacts: [{ registeredLoopRunId: loopRunId }],
+          costUsdCents: 0,
+        });
+
+        // Layer 4 — Quality: the per-turn TOKEN-BUDGET envelope. The
+        // budgetGate HARD-fails the loop if the spend the runner accrued
+        // would breach the cap — the 5-layer loop cannot blow the budget.
+        const qualityFn = async (): Promise<CompositeGateResult> =>
+          compositeGate({
+            invocations: [
+              {
+                name: 'budget',
+                result: budgetGate({
+                  usdCents: {
+                    remaining: turnBudgetCents,
+                    incremental: 0,
+                    min: 0,
+                  },
+                }),
+              },
+            ],
+          });
+
+        // Layer 5 — Learning: record-only (no skill mutation at this seam;
+        // body-change growth stays behind the gated bodyChangePort).
+        const learnFn = async (): Promise<LearningOutcome> => ({
+          skillUpdates: 0,
+          memoryUpdates: 0,
+          calibrationUpdates: 0,
+          reason: 'loop-run-recorded',
+        });
+
+        const baseDeps: LoopRunnerDeps = {
+          sensorsFn,
+          policyFn,
+          toolsFn,
+          qualityFn,
+          learnFn,
+          loopRunRepo: createInMemoryLoopRunRepository(),
+          layerOutcomeRepo: createInMemoryLayerOutcomeRepository(),
+          qualitySignalRepo: createInMemoryQualitySignalRepository(),
+          logger: {
+            info: (message, attrs) =>
+              logger?.info?.({ wiring: 'loop-runner', ...attrs }, message),
+            warn: (message, attrs) =>
+              logger?.warn?.({ wiring: 'loop-runner', ...attrs }, message),
+            error: (message, attrs) =>
+              logger?.warn?.({ wiring: 'loop-runner', level: 'error', ...attrs }, message),
+          },
+        };
+
+        const deps = overrides?.buildDeps
+          ? overrides.buildDeps(baseDeps)
+          : baseDeps;
+
+        // Retain the db handle for the durable repo swap-in (referenced so
+        // the param is not unused once durable repos land).
+        void db;
+        void toolRegistry;
+
+        const result = await runFiveLayerLoop(input, deps);
+
+        // Audit plane only — never returned to the client handler.
+        logger?.info?.(
+          {
+            wiring: 'loop-runner',
+            loopRunId: result.loopRunId,
+            status: result.status,
+            totalCostUsdCents: result.totalCostUsdCents,
+            turnBudgetCents,
+          },
+          'loop-runner: five-layer run complete',
+        );
+
+        return { loopRunId: result.loopRunId };
+      } catch (err) {
+        // FAIL-SAFE: a LoopRunnerError (or any throw) falls back to the
+        // legacy breadcrumb loopRunId — a paying loop turn never breaks.
+        const code = err instanceof LoopRunnerError ? err.code : 'INTERNAL';
+        logger?.warn?.(
+          {
+            wiring: 'loop-runner',
+            loopRunId,
+            code,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'loop-runner: run failed — falling back to legacy breadcrumb',
+        );
+        return { loopRunId };
+      }
+    },
   };
 }

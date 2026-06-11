@@ -28,7 +28,9 @@
 import {
   LedgerService,
   InMemoryEventPublisher,
+  StripePaymentProvider,
 } from '@borjie/payments-ledger-service';
+import type { IPaymentProvider } from '@borjie/payments-ledger-service';
 import type {
   CreateJournalEntryRequest,
   CurrencyCode,
@@ -37,7 +39,7 @@ import type {
   EntryDirection,
   LedgerEntryType,
 } from '@borjie/domain-models';
-import { Money, CURRENCY_DECIMALS } from '@borjie/domain-models';
+import { Money } from '@borjie/domain-models';
 import { sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
 // `DatabaseClient` type derived via ReturnType to dodge the TS2709
@@ -66,9 +68,14 @@ import type {
 } from '../../services/settlement/types';
 import {
   __setSettlementProductionLedgerPort,
+  __setSettlementProductionPayoutPort,
   __allowSettlementLedgerStub,
   __allowSettlementPayoutStub,
 } from '../../services/settlement';
+import {
+  createSettlementPayoutAdapter,
+  isSettlementPayoutEnabled,
+} from './settlement-payout-adapter';
 import type {
   PayrollLedgerPort,
   PayrollPostInput,
@@ -461,162 +468,6 @@ export function createPayrollLedgerAdapter(
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Estate accept-proposal ledger adapter (create_lease_application deposit)
-// ────────────────────────────────────────────────────────────────────
-
-/**
- * Estate `create_lease_application` deposit post: a balanced 2-leg journal
- *   DR  cash_clearing     deposit
- *   CR  tenant_deposits   deposit
- * posted through the REAL `LedgerService` (CLAUDE.md hard rule — money goes
- * through `LedgerService.post()`; this calls `postJournalEntry`). The
- * dispatch-router handler injects this as its `ledger.post()` port.
- *
- * The handler hands a MAJOR-unit `amount` in the payload's `currencyCode`.
- * We scale to integer minor units currency-aware (no hard-coded decimals —
- * CLAUDE.md) via `CURRENCY_DECIMALS`, ensure the tenant's two clearing /
- * deposit accounts exist, and post. Idempotency is keyed on the
- * application id so a retried accept replays the original journal rather
- * than double-posting a second deposit.
- */
-export interface EstateLedgerPostInput {
-  readonly tenantId: string;
-  readonly amount: number;
-  readonly currencyCode: string;
-  readonly memo: string;
-  readonly debitAccount: string;
-  readonly creditAccount: string;
-  readonly correlation: {
-    readonly module_id: string;
-    readonly application_id: string;
-  };
-}
-
-/**
- * Map the handler's logical account label onto a provisioned
- * `LedgerAccountKey`. The estate deposit handler only ever uses
- * `cash_clearing` / `tenant_deposits`; an unrecognised label fails LOUD
- * rather than silently mis-routing real money.
- */
-function estateAccountKey(label: string): LedgerAccountKey {
-  switch (label) {
-    case 'cash_clearing':
-      return 'cash_clearing';
-    case 'tenant_deposits':
-      return 'tenant_deposits';
-    default:
-      throw new Error(
-        `estate ledger adapter: unmapped account label '${label}' — ` +
-          `refusing to post real money to an unknown account`,
-      );
-  }
-}
-
-/** Currency-aware major→integer-minor scale (no hard-coded decimals). */
-function toMinorUnitsForCurrency(
-  amountMajor: number,
-  currency: CurrencyCode,
-): number {
-  if (!Number.isFinite(amountMajor) || amountMajor <= 0) {
-    throw new Error(
-      `estate ledger adapter: amount must be a positive finite number (got ${String(amountMajor)})`,
-    );
-  }
-  const decimals = CURRENCY_DECIMALS[currency] ?? 2;
-  const factor = decimals === 0 ? 1 : Math.pow(10, decimals);
-  return Math.round(amountMajor * factor);
-}
-
-export function createEstateLedgerAdapter(
-  db: DatabaseClient,
-  ledger: LedgerService,
-): {
-  post(input: EstateLedgerPostInput): Promise<{ readonly id: string }>;
-} {
-  return {
-    async post(input: EstateLedgerPostInput): Promise<{ readonly id: string }> {
-      const tenantId = input.tenantId;
-      const currency = await resolveTenantCurrency(db, tenantId);
-
-      // The handler nominally carries its own currency code, but the
-      // durable money record posts in the TENANT'S primary currency
-      // (single source of truth). A mismatch is a hard fault — never
-      // silently post a deposit in the wrong currency.
-      if (input.currencyCode && input.currencyCode !== currency) {
-        throw new Error(
-          `estate ledger adapter: payload currency ${input.currencyCode} ≠ ` +
-            `tenant primary currency ${currency} — refusing cross-currency deposit post`,
-        );
-      }
-
-      const debitKey = estateAccountKey(input.debitAccount);
-      const creditKey = estateAccountKey(input.creditAccount);
-      const amountMinor = toMinorUnitsForCurrency(input.amount, currency);
-
-      const accounts = await ensureLedgerAccounts(db, {
-        tenantId,
-        currency,
-        keys: [debitKey, creditKey],
-        createdBy: 'estate-create-lease-application',
-      });
-
-      const meta = {
-        moduleId: input.correlation.module_id,
-        applicationId: input.correlation.application_id,
-      };
-
-      const lines = [
-        line(
-          accounts[debitKey],
-          'DEBIT',
-          'DEPOSIT_PAYMENT',
-          amountMinor,
-          currency,
-          input.memo,
-          meta,
-        ),
-        line(
-          accounts[creditKey],
-          'CREDIT',
-          'DEPOSIT_PAYMENT',
-          amountMinor,
-          currency,
-          input.memo,
-          meta,
-        ),
-      ];
-      assertBalanced(lines);
-
-      // Idempotency key bound to the application id (stable per accept).
-      const depositKey = `estate-deposit:${input.correlation.application_id}`;
-
-      const request: CreateJournalEntryRequest = {
-        tenantId: tenantId as TenantId,
-        effectiveDate: new Date(),
-        lines,
-        createdBy: 'estate-create-lease-application',
-      };
-
-      const result = await ledger.postJournalEntry(request, {
-        idempotencyKey: depositKey,
-      });
-
-      moduleLogger.info(
-        {
-          tenantId,
-          applicationId: input.correlation.application_id,
-          journalId: result.journalId,
-          amountMinor,
-          currency,
-        },
-        'estate_lease_deposit_ledger_post_committed',
-      );
-      return { id: result.journalId };
-    },
-  };
-}
-
-// ────────────────────────────────────────────────────────────────────
 // Composition-root entry point
 // ────────────────────────────────────────────────────────────────────
 
@@ -650,20 +501,77 @@ export function registerProductionLedgerPorts(
   const ledger = buildLedgerService(db);
   __setSettlementProductionLedgerPort(createSettlementLedgerAdapter(db, ledger));
   __setPayrollProductionLedgerPort(createPayrollLedgerAdapter(db, ledger));
-  // NOTE: no production settlement PAYOUT adapter is registered here yet — the
-  // seller-payout rail (Tanzania TZS M-Pesa B2C / ClickPesa) lives in the
-  // external-blocked `services/payments/` package. We deliberately leave the
-  // payout port unregistered with a db present, so `resolveSettlementPayoutPort`
-  // fails LOUD (PAYOUT_NOT_WIRED) instead of fabricating a fake payout success
-  // (seller stamped 'paying_out' with a bogus ref while no money moves). Wire
-  // the real adapter here via `__setSettlementProductionPayoutPort(...)` once
-  // the TZS B2C rail is available.
-  moduleLogger.warn(
-    {},
-    'settlement_payout_port_not_wired (db present, no production payout adapter — resolveSettlementPayoutPort will fail loud PAYOUT_NOT_WIRED; wire the TZS B2C rail before live marketplace settlements)',
-  );
+
+  // Settlement PAYOUT rail (FIX 1). Ship-dark behind a kill-switch:
+  // registered ONLY when `BORJIE_SETTLEMENT_PAYOUT_ENABLED` is truthy AND a
+  // payment provider is configured. When the flag is OFF (default) we leave
+  // the payout port UNREGISTERED so `resolveSettlementPayoutPort` keeps
+  // failing LOUD (PAYOUT_NOT_WIRED) rather than fabricating a fake payout
+  // success. The adapter triggers the EXTERNAL transfer AFTER the ledger has
+  // posted — it never writes ledger entries (LedgerService.post() stays the
+  // sole ledger writer).
+  registerSettlementPayoutPort(db);
+
   moduleLogger.info(
     {},
     'ledger_production_wiring_active (settlement + payroll → LedgerService.post)',
+  );
+}
+
+/**
+ * Build the payment provider for the seller-payout rail. Mirrors the
+ * platform-billing provider construction (gated by `STRIPE_SECRET_KEY`).
+ * Returns null when no provider key is present so the caller leaves the
+ * payout port unregistered (fail-loud). Stripe is the only externally
+ * available transfer rail today; the Tanzania TZS M-Pesa B2C provider + creds
+ * remain a follow-up blocker (M-Pesa B2C is KES-only at present).
+ */
+function buildPayoutProvider(): IPaymentProvider | null {
+  const stripeKey = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!stripeKey) return null;
+  try {
+    return new StripePaymentProvider({
+      secretKey: stripeKey,
+      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET?.trim() ?? '',
+    });
+  } catch (err) {
+    moduleLogger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'settlement_payout_provider_init_failed',
+    );
+    return null;
+  }
+}
+
+/**
+ * Register the production settlement payout port behind the kill-switch
+ * flag. Leaves the port unregistered (fail-loud PAYOUT_NOT_WIRED) when the
+ * flag is OFF or no provider is configured.
+ */
+function registerSettlementPayoutPort(db: DatabaseClient): void {
+  if (!isSettlementPayoutEnabled()) {
+    moduleLogger.warn(
+      {},
+      'settlement_payout_port_disabled (BORJIE_SETTLEMENT_PAYOUT_ENABLED off — ' +
+        'resolveSettlementPayoutPort will fail loud PAYOUT_NOT_WIRED; safe to ship dark)',
+    );
+    return;
+  }
+  const provider = buildPayoutProvider();
+  if (!provider) {
+    moduleLogger.warn(
+      {},
+      'settlement_payout_port_no_provider (flag on but no payment provider ' +
+        'configured — leaving port unwired; resolveSettlementPayoutPort fails loud)',
+    );
+    return;
+  }
+  __setSettlementProductionPayoutPort(
+    createSettlementPayoutAdapter(db, provider),
+  );
+  moduleLogger.info(
+    { provider: provider.name },
+    'settlement_payout_port_wired (flag on, external transfer rail active — ' +
+      'ledger posts first; payout triggers the external transfer only)',
   );
 }

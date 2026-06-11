@@ -15,6 +15,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { getCsrfHeaders } from '@/lib/csrf';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface SavedSearch {
   readonly id: string;
@@ -27,10 +28,22 @@ interface SavedSearch {
   readonly createdAt: string;
 }
 
+const FREQUENCY_LABELS_EN: Record<SavedSearch['frequency'], string> = {
+  hourly: S.savedSearches.frequencyHourly.en,
+  daily: S.savedSearches.frequencyDaily.en,
+  weekly: S.savedSearches.frequencyWeekly.en,
+};
+
 const FREQUENCY_LABELS_SW: Record<SavedSearch['frequency'], string> = {
   hourly: S.savedSearches.frequencyHourly.sw,
   daily: S.savedSearches.frequencyDaily.sw,
   weekly: S.savedSearches.frequencyWeekly.sw,
+};
+
+const SOURCE_LABELS_EN: Record<SavedSearch['source'], string> = {
+  marketplace: S.savedSearches.sourceMarketplace.en,
+  opportunities: S.savedSearches.sourceOpportunities.en,
+  regulatory: S.savedSearches.sourceRegulatory.en,
 };
 
 const SOURCE_LABELS_SW: Record<SavedSearch['source'], string> = {
@@ -40,6 +53,7 @@ const SOURCE_LABELS_SW: Record<SavedSearch['source'], string> = {
 };
 
 export function SavedSearchesPanel() {
+  const locale = useLocale();
   const [items, setItems] = useState<ReadonlyArray<SavedSearch>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,14 +156,14 @@ export function SavedSearchesPanel() {
         }}
       >
         <h2 className="font-display text-xl text-foreground">
-          New saved search
+          {pickByLocale(locale, { en: 'New saved search', sw: 'Utafutaji mpya' })}
         </h2>
         <p className="text-xs italic text-neutral-500">
-          {S.savedSearches.newSearchTagline.sw}
+          {pickByLocale(locale, S.savedSearches.newSearchTagline)}
         </p>
         <label className="block text-sm">
           <span className="text-neutral-300">
-            {`${S.savedSearches.labelField.en} / ${S.savedSearches.labelField.sw}`}
+            {pickByLocale(locale, S.savedSearches.labelField)}
           </span>
           <input
             className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -162,7 +176,7 @@ export function SavedSearchesPanel() {
         </label>
         <label className="block text-sm">
           <span className="text-neutral-300">
-            {`${S.savedSearches.queryField.en} / ${S.savedSearches.queryField.sw}`}
+            {pickByLocale(locale, S.savedSearches.queryField)}
           </span>
           <textarea
             className="mt-1 h-24 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground"
@@ -174,7 +188,7 @@ export function SavedSearchesPanel() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block text-sm">
             <span className="text-neutral-300">
-              {`${S.savedSearches.frequencyField.en} / ${S.savedSearches.frequencyField.sw}`}
+              {pickByLocale(locale, S.savedSearches.frequencyField)}
             </span>
             <select
               className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -184,19 +198,19 @@ export function SavedSearchesPanel() {
               }
             >
               <option value="hourly">
-                {`${S.savedSearches.frequencyHourly.en} / ${S.savedSearches.frequencyHourly.sw}`}
+                {pickByLocale(locale, S.savedSearches.frequencyHourly)}
               </option>
               <option value="daily">
-                {`${S.savedSearches.frequencyDaily.en} / ${S.savedSearches.frequencyDaily.sw}`}
+                {pickByLocale(locale, S.savedSearches.frequencyDaily)}
               </option>
               <option value="weekly">
-                {`${S.savedSearches.frequencyWeekly.en} / ${S.savedSearches.frequencyWeekly.sw}`}
+                {pickByLocale(locale, S.savedSearches.frequencyWeekly)}
               </option>
             </select>
           </label>
           <label className="block text-sm">
             <span className="text-neutral-300">
-              {`${S.savedSearches.sourceField.en} / ${S.savedSearches.sourceField.sw}`}
+              {pickByLocale(locale, S.savedSearches.sourceField)}
             </span>
             <select
               className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -206,13 +220,13 @@ export function SavedSearchesPanel() {
               }
             >
               <option value="marketplace">
-                {`${S.savedSearches.sourceMarketplace.en} / ${S.savedSearches.sourceMarketplace.sw}`}
+                {pickByLocale(locale, S.savedSearches.sourceMarketplace)}
               </option>
               <option value="opportunities">
-                {`${S.savedSearches.sourceOpportunities.en} / ${S.savedSearches.sourceOpportunities.sw}`}
+                {pickByLocale(locale, S.savedSearches.sourceOpportunities)}
               </option>
               <option value="regulatory">
-                {`${S.savedSearches.sourceRegulatory.en} / ${S.savedSearches.sourceRegulatory.sw}`}
+                {pickByLocale(locale, S.savedSearches.sourceRegulatory)}
               </option>
             </select>
           </label>
@@ -223,58 +237,83 @@ export function SavedSearchesPanel() {
           className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
         >
           {creating
-            ? 'Saving…'
-            : `${S.savedSearches.save.en} / ${S.savedSearches.save.sw}`}
+            ? pickByLocale(locale, { en: 'Saving…', sw: 'Inahifadhi…' })
+            : pickByLocale(locale, S.savedSearches.save)}
         </button>
         {error ? (
-          <p className="text-sm text-destructive">Error: {error}</p>
+          <p className="text-sm text-destructive">
+            {pickByLocale(locale, { en: 'Error: ', sw: 'Hitilafu: ' })}
+            {error}
+          </p>
         ) : null}
       </form>
 
       <div className="rounded-lg border border-border bg-surface p-4">
         <h2 className="font-display text-xl text-foreground">
-          Your saved searches
+          {pickByLocale(locale, {
+            en: 'Your saved searches',
+            sw: 'Utafutaji wako uliohifadhiwa',
+          })}
         </h2>
         <p className="text-xs italic text-neutral-500">
-          {S.savedSearches.savedListTagline.sw}
+          {pickByLocale(locale, S.savedSearches.savedListTagline)}
         </p>
         {loading ? (
-          <p className="mt-4 text-sm text-neutral-400">Loading…</p>
+          <p className="mt-4 text-sm text-neutral-400">
+            {pickByLocale(locale, { en: 'Loading…', sw: 'Inapakia…' })}
+          </p>
         ) : items.length === 0 ? (
           <p className="mt-4 text-sm text-neutral-400">
-            {`${S.savedSearches.emptyList.en} / ${S.savedSearches.emptyList.sw}`}
+            {pickByLocale(locale, S.savedSearches.emptyList)}
           </p>
         ) : (
           <ul className="mt-4 space-y-2">
-            {items.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-start justify-between gap-3 rounded border border-border bg-background p-3"
-              >
-                <div>
-                  <p className="font-medium text-foreground">{item.label}</p>
-                  <p className="text-xs text-neutral-400">
-                    {SOURCE_LABELS_SW[item.source]} ·{' '}
-                    {FREQUENCY_LABELS_SW[item.frequency]}
-                    {item.lastRunAt
-                      ? ` · last ${new Date(item.lastRunAt).toLocaleString()}`
-                      : ' · not yet run'}
-                    {' · '}
-                    {item.lastMatchCount} matches
-                  </p>
-                  <pre className="mt-1 max-w-md overflow-x-auto rounded bg-surface p-2 text-xxs text-neutral-500">
-                    {JSON.stringify(item.queryJson, null, 0)}
-                  </pre>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void remove(item.id)}
-                  className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:text-destructive"
+            {items.map((item) => {
+              const freqLabel = pickByLocale(locale, {
+                en: FREQUENCY_LABELS_EN[item.frequency],
+                sw: FREQUENCY_LABELS_SW[item.frequency],
+              });
+              const srcLabel = pickByLocale(locale, {
+                en: SOURCE_LABELS_EN[item.source],
+                sw: SOURCE_LABELS_SW[item.source],
+              });
+              const lastRunLabel = item.lastRunAt
+                ? pickByLocale(locale, {
+                    en: `last ${new Date(item.lastRunAt).toLocaleString()}`,
+                    sw: `mwisho ${new Date(item.lastRunAt).toLocaleString()}`,
+                  })
+                : pickByLocale(locale, {
+                    en: 'not yet run',
+                    sw: 'haijatekelezwa bado',
+                  });
+              const matchesLabel = pickByLocale(locale, {
+                en: `${item.lastMatchCount} matches`,
+                sw: `${item.lastMatchCount} mechi`,
+              });
+              return (
+                <li
+                  key={item.id}
+                  className="flex items-start justify-between gap-3 rounded border border-border bg-background p-3"
                 >
-                  {`${S.savedSearches.delete.en} / ${S.savedSearches.delete.sw}`}
-                </button>
-              </li>
-            ))}
+                  <div>
+                    <p className="font-medium text-foreground">{item.label}</p>
+                    <p className="text-xs text-neutral-400">
+                      {srcLabel} · {freqLabel} · {lastRunLabel} · {matchesLabel}
+                    </p>
+                    <pre className="mt-1 max-w-md overflow-x-auto rounded bg-surface p-2 text-xxs text-neutral-500">
+                      {JSON.stringify(item.queryJson, null, 0)}
+                    </pre>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void remove(item.id)}
+                    className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:text-destructive"
+                  >
+                    {pickByLocale(locale, S.savedSearches.delete)}
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

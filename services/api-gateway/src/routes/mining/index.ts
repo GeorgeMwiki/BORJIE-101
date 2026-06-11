@@ -99,6 +99,11 @@ import { miningDraftsRouter } from './draft.hono';
 import { miningEscalationsRouter } from './escalations.hono';
 import { miningApprovalsRouter } from './approvals.hono';
 import { miningTasksSuggestRouter } from './tasks-suggest.hono';
+// Assignment-plan preview — wraps the pure-compute
+// `@borjie/workforce-orchestrator` planAssignment() (risk-tier + HITL gate
+// + follow-up cadence). Complements `tasks-suggest` (WHO) by answering WHAT
+// dispatch plan a chosen task gets; no new tables, no migrations.
+import { miningAssignmentPlannerRouter } from './assignment-planner.hono';
 
 // B-WorkerTasks — manager-assigned worker tasks (list / complete /
 // block / reassign). Coexists with miningTasksSuggestRouter under
@@ -107,6 +112,32 @@ import { miningTasksRouter } from './tasks.hono';
 
 // Worker safety — pre-shift toolbox talks (list / schedule / ack).
 import { miningToolboxRouter } from './toolbox.hono';
+
+// Generic offline-sync acknowledgement sink (wm-toolbox-ack-404). POST
+// /toolbox-acks dispatches on payload.kind: task_complete → mining_tasks done,
+// talk_ack → toolbox-talks acknowledge. Idempotent. Backs the workforce-mobile
+// offline write queue's `toolbox_ack` entity (endpointFor → 'toolbox-acks').
+import { miningToolboxAcksRouter } from './toolbox-acks.hono';
+// Legacy-portal browser super-power — the MD drives no-API third-party portals
+// (KRA iTax …) via AXTree perception. Reachable at /mining/legacy-portal/*.
+import { createLegacyPortalRouter } from './legacy-portal.hono';
+
+// Causal root-cause + counterfactual intervention simulation (Wave D). POST
+// /root-cause ("why did cash dip?") + POST /simulate ("hedge now vs in 2 weeks").
+// Read-only analysis over the KG + ledger; honest-degrades to "cannot establish".
+import { miningCausalInterventionRouter } from './causal-intervention.hono';
+
+// Buyer sale-document list + biometric sign (buyer-mobile-1). GET /, GET /:id,
+// POST /:id/sign backed by offtake_agreements, buyer-scoped via RLS.
+import { miningBuyersDocumentsRouter } from './buyers-documents.hono';
+
+// Buyer notification preferences round-trip (buyer-mobile-4 / -11). GET + PUT
+// (+ POST) /buyers/profile/notifications persisting into buyers.attributes.
+import { miningBuyersNotificationsRouter } from './buyers-notifications.hono';
+
+// Employee performance coaching (wm-worker-coach-endpoint-missing). GET
+// /copilots/worker-coach grounded in the worker's mining_tasks rows.
+import { miningWorkerCoachRouter } from './worker-coach.hono';
 
 // WS-3 workforce wires — worker payslip read (own committed line item) +
 // worker leave requests with single manager approval (NO four-eye) + audit.
@@ -138,6 +169,13 @@ import { miningInternalComplianceQueueRouter } from './internal/compliance-queue
 import { miningInternalFeatureFlagsRouter } from './internal/feature-flags.hono';
 import { miningInternalJuniorsRouter } from './internal/juniors.hono';
 import { miningInternalSupportTicketsRouter } from './internal/support-tickets.hono';
+// INV-A / FIRE-1 — platform operator break-glass surface (deny-by-default
+// access request + grant-status list; surfaces NO tenant business data).
+import { miningInternalBreakGlassRouter } from './internal/break-glass.hono';
+// INV-A / FIRE-2 — decision-trace replay: metadata-only by default, full
+// decision CONTENT behind break-glass. Replaces the admin-web service-role
+// Supabase client that bypassed RLS for any ?tenant=.
+import { miningInternalDecisionTraceRouter } from './internal/decision-trace.hono';
 // Wave OWNER-OS DAILY-BRIEF rebuild — fleet overview for the admin cockpit.
 import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.hono';
 
@@ -145,6 +183,10 @@ import { adminDailyBriefOverviewRouter } from './internal/daily-brief-overview.h
 // (top-up / balance / escrow), fleet telemetry, SIC asset pings, and the
 // admin-console internal marketplace + models surfaces.
 import { miningRoyaltyRouter } from './royalty.hono';
+// B2 — statements BFF proxy. Thin authenticated pass-through to the
+// standalone payments-ledger service's statement-generation surface; the
+// downstream service re-verifies the JWT and binds tenant scope.
+import { miningStatementsRouter } from './statements.hono';
 import { buyersWalletRouter } from './buyers-wallet.hono';
 import { miningFleetRouter } from './fleet.hono';
 import { miningSicPingsRouter } from './sic-pings.hono';
@@ -218,6 +260,13 @@ mining.route('/buyers', miningBuyersKycRouter);
 // the same `/buyers` prefix; the two routers own disjoint sub-paths
 // (`/kyc/*` vs `/wallet/*`), so Hono trie resolution keeps both reachable.
 mining.route('/buyers', buyersWalletRouter);
+// Buyer sale-document list + biometric sign (buyer-mobile-1) and notification
+// prefs round-trip (buyer-mobile-4 / -11). Mounted on the SAME `/buyers`
+// family at more-specific prefixes (`/buyers/documents/*`,
+// `/buyers/profile/notifications`) so they own disjoint sub-paths from the KYC
+// + wallet routers and Hono trie resolution keeps every one reachable.
+mining.route('/buyers/documents', miningBuyersDocumentsRouter);
+mining.route('/buyers/profile/notifications', miningBuyersNotificationsRouter);
 // /csr-plans — Corporate Social Responsibility commitments + delivered_pct
 // (migration 0082).
 mining.route('/csr-plans', miningCsrPlansRouter);
@@ -252,9 +301,23 @@ mining.route('/approvals', miningApprovalsRouter);
 // `/:id/suggest-assignee` priority. Both nest at `/tasks/*`.
 mining.route('/tasks', miningTasksSuggestRouter);
 mining.route('/tasks', miningTasksRouter);
+// Assignment-plan preview (pure orchestrator compute). Distinct prefix so
+// it never collides with `/tasks` (suggest WHO) — this answers WHAT plan.
+mining.route('/assignment-planner', miningAssignmentPlannerRouter);
 
 // Worker safety pulse — toolbox-talks.
 mining.route('/toolbox-talks', miningToolboxRouter);
+// Generic offline-sync ack sink — `POST /toolbox-acks` dispatches
+// task_complete → mining_tasks done, talk_ack → toolbox-talks acknowledge.
+// Distinct prefix from `/toolbox-talks` so neither shadows the other.
+mining.route('/toolbox-acks', miningToolboxAcksRouter);
+mining.route('/legacy-portal', createLegacyPortalRouter());
+mining.route('/causal', miningCausalInterventionRouter);
+
+// Employee copilots — performance coaching. The workforce-mobile mining client
+// resolves `/copilots/worker-coach` under the `/api/v1/mining` prefix, so the
+// copilots surface lives HERE (mining sub-app), not as a top-level mount.
+mining.route('/copilots', miningWorkerCoachRouter);
 
 // WS-3 workforce wires — worker payslip (own committed line item) + leave
 // requests (worker submit / manager approve|reject with audit append).
@@ -264,6 +327,9 @@ mining.route('/leave-requests', miningLeaveRequestsRouter);
 // Endpoint wave — royalty ledger projection (read), fleet telemetry, and
 // SIC asset-pings ingestion.
 mining.route('/royalties', miningRoyaltyRouter);
+// B2 — statements proxy: GET /statements (+ /:id) forwards to the
+// payments-ledger service; tenant scope enforced end-to-end downstream.
+mining.route('/statements', miningStatementsRouter);
 mining.route('/fleet', miningFleetRouter);
 mining.route('/sic-pings', miningSicPingsRouter);
 
@@ -286,7 +352,11 @@ mining.route('/commodity-intelligence', miningCommodityIntelligenceRouter);
 mining.route('/marketplace-advisor', miningMarketplaceAdvisorRouter);
 mining.route('/inventory', miningInventoryRouter);
 mining.route('/fleet-ops', miningFleetOpsRouter);
-mining.route('/procurement-analytics', miningProcurementCoordinationRouter);
+// Mount path matches the router's self-documented prefix + the owner-web
+// client (procurement-coordination.ts) + the surface hints — all of which
+// expect `/procurement-coordination`. (Was `/procurement-analytics`, the one
+// outlier that 404'd the vendors/budgets/spend panels.)
+mining.route('/procurement-coordination', miningProcurementCoordinationRouter);
 
 // FINAL NEEDS-DESIGN wave mounts. `/knowledge-graph` (POST /ingest, GET /stats,
 // GET /neighbors/:id) drives the GraphRAG store that chat-orchestrator expands
@@ -318,6 +388,10 @@ mining.route('/internal/compliance-queue', miningInternalComplianceQueueRouter);
 mining.route('/internal/feature-flags', miningInternalFeatureFlagsRouter);
 mining.route('/internal/juniors', miningInternalJuniorsRouter);
 mining.route('/internal/support/tickets', miningInternalSupportTicketsRouter);
+// INV-A / FIRE-1 — operator break-glass request + grant-status surface.
+mining.route('/internal/break-glass', miningInternalBreakGlassRouter);
+// INV-A / FIRE-2 — decision-trace replay (metadata default, content gated).
+mining.route('/internal/decision-trace', miningInternalDecisionTraceRouter);
 // Wave OWNER-OS DAILY-BRIEF rebuild — admin fleet overview of today's
 // daily-brief sends + failures + top alerts across every tenant.
 mining.route('/internal/daily-brief-overview', adminDailyBriefOverviewRouter);

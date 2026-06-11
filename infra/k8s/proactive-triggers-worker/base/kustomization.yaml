@@ -1,9 +1,17 @@
 # =============================================================================
 # proactive-triggers-worker base — Deployment + NetworkPolicy + ExternalSecret
 # =============================================================================
-# Singleton always-on worker; loop mode by default. CronJob mode (one-shot
-# every hour) requires PROACTIVE_TRIGGERS_INTERVAL_MS=0 and a wrapping
-# CronJob manifest — out of scope for the loop variant.
+# Singleton always-on worker; loop mode by default. The Deployment now
+# drives THREE folded passes per hourly tick:
+#   1. the proactive-triggers sweep (always),
+#   2. the follow-up cron (user-followup + employee-perf-followup),
+#      gated by PROACTIVE_FOLLOWUP_CRON_ENABLED,
+#   3. the proactive-intel tick, gated by PROACTIVE_INTEL_TICK_ENABLED.
+#
+# CronJob mode (one-shot every hour) is shipped as `followup-cron.yaml`
+# but is NOT in the default `resources` list — it's an alternative to the
+# always-on loop. To switch: add `followup-cron.yaml` below AND set the
+# Deployment's PROACTIVE_FOLLOWUP_CRON_ENABLED=0 so passes don't double-fire.
 # =============================================================================
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -18,6 +26,7 @@ resources:
   - deployment.yaml
   - networkpolicy.yaml
   - externalsecret.yaml
+  # - followup-cron.yaml  # opt-in CronJob variant (see header)
 
 images:
   - name: ghcr.io/georgemwiki/borjie-proactive-triggers-worker

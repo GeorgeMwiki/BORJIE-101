@@ -1,23 +1,26 @@
 /**
  * Onboarding router.
  *
- * Minimal wiring over the `OnboardingService` in `@borjie/domain-services`
- * — every handler uses a tenant-scoped in-memory repository until a Postgres
- * repo adapter lands (tracked; schema fields exist in onboarding-service.ts).
- * This means:
- *   - Data is lost on gateway restart (acceptable for pilot flows).
- *   - The HTTP surface matches the final contract so mobile/web clients can
- *     dev against a stable shape.
+ * Minimal wiring over the `OnboardingService` in `@borjie/domain-services`.
+ * Storage is pluggable behind the `OnboardingRepository` port:
+ *   - DEFAULT (`ONBOARDING_SESSION_STORE` unset / `memory`): a process-wide
+ *     in-memory repo. Tenant isolation via the composite `tenantId::id` key.
+ *     Data is lost on gateway restart and not shared across replicas — the
+ *     historical behaviour, retained verbatim as the dev/test path.
+ *   - DURABLE (`ONBOARDING_SESSION_STORE=drizzle` AND a live DB handle on the
+ *     request): the Drizzle repo backed by `onboarding_sessions` (migration
+ *     0314), so onboarding state SURVIVES a restart and is SHARED across
+ *     replicas (RSS-09). The HTTP surface is unchanged either way.
+ *
+ * The per-request store selection lives in `onboarding-session-store.ts`
+ * (`resolveOnboardingRepo`), mirroring the memory-v2 inmemory/drizzle store
+ * pair. Flipping the flag is the ONLY thing that changes runtime behaviour.
  *
  * Endpoints:
  *   GET  /                       — list active onboarding sessions (smoke)
  *   POST /                       — start an onboarding session
  *   GET  /:id                    — fetch an onboarding session
  *   POST /:id/complete-step      — mark a checklist step complete
- *
- * Upstream-missing: a Postgres `OnboardingRepository` implementation. Once
- * that lands in domain-services/onboarding, this router flips to pulling
- * the service from `services.onboarding` via the composition root.
  */
 
 import { Hono } from 'hono';
@@ -27,52 +30,51 @@ import { authMiddleware } from '../middleware/hono-auth';
 import {
   OnboardingService,
   type OnboardingRepository,
-  type OnboardingSession,
   type OnboardingSessionId,
 } from '@borjie/domain-services/onboarding';
 import { InMemoryEventBus } from '@borjie/domain-services';
+// Derive the Drizzle client type locally via `ReturnType` to dodge the
+// `TS2709 namespace-vs-type` barrel drift that bites the named `DatabaseClient`
+// type-alias export at this consumption site (same pattern as
+// services/action-executor/types.ts and composition/db-client.ts).
+import type { createDatabaseClient } from '@borjie/database';
 import type { TenantId, CustomerId, LeaseId } from '@borjie/domain-models';
 
+type DatabaseClient = ReturnType<typeof createDatabaseClient>;
+
 import { withSecurityEvents } from '@borjie/observability';
+import { logger } from '../utils/logger';
+import {
+  createInMemoryOnboardingRepo,
+  resolveOnboardingRepo,
+} from './onboarding-session-store';
+
 // ---------------------------------------------------------------------------
-// Process-wide in-memory repo. Tenant isolation is enforced by the
-// composite `tenantId::id` key.
+// Process-wide in-memory repo + event bus. Used directly when the durable
+// store flag is off (the default), and as the fallback when it is on but no
+// DB handle is present (dev/test).
 // ---------------------------------------------------------------------------
-function createInMemoryRepo(): OnboardingRepository {
-  const byId = new Map<string, OnboardingSession>();
-  const byCustomer = new Map<string, OnboardingSession>();
-  const byLease = new Map<string, OnboardingSession>();
 
-  const key = (t: string, id: string) => `${t}::${id}`;
-
-  return {
-    async findById(id, tenantId) {
-      return byId.get(key(String(tenantId), String(id))) ?? null;
-    },
-    async findByCustomer(customerId, tenantId) {
-      return byCustomer.get(key(String(tenantId), String(customerId))) ?? null;
-    },
-    async findByLease(leaseId, tenantId) {
-      return byLease.get(key(String(tenantId), String(leaseId))) ?? null;
-    },
-    async create(session) {
-      byId.set(key(String(session.tenantId), String(session.id)), session);
-      byCustomer.set(key(String(session.tenantId), String(session.customerId)), session);
-      byLease.set(key(String(session.tenantId), String(session.leaseId)), session);
-      return session;
-    },
-    async update(session) {
-      byId.set(key(String(session.tenantId), String(session.id)), session);
-      byCustomer.set(key(String(session.tenantId), String(session.customerId)), session);
-      byLease.set(key(String(session.tenantId), String(session.leaseId)), session);
-      return session;
-    },
-  };
-}
-
-const repo = createInMemoryRepo();
+const sharedInMemoryRepo: OnboardingRepository = createInMemoryOnboardingRepo();
 const bus = new InMemoryEventBus();
-const service = new OnboardingService(repo, bus);
+
+/**
+ * Resolve the repo + service for this request. When the durable-store flag is
+ * off this returns the module-shared in-memory repo (zero behavioural change).
+ * When on and a DB handle is present it returns a request-scoped Drizzle repo.
+ */
+function resolveOnboarding(c: { get(key: string): unknown }): {
+  repo: OnboardingRepository;
+  service: OnboardingService;
+} {
+  const db = c.get('db') as DatabaseClient | null | undefined;
+  const repo = resolveOnboardingRepo({
+    db,
+    sharedInMemoryRepo,
+    logger,
+  });
+  return { repo, service: new OnboardingService(repo, bus) };
+}
 
 const app = new Hono();
 app.use('*', authMiddleware);
@@ -115,6 +117,7 @@ app.get('/', (c) => {
 app.post('/', zValidator('json', StartSchema), withSecurityEvents({ action: 'onboarding.create', resource: 'onboarding', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
+  const { service } = resolveOnboarding(c);
   const correlationId =
     c.req.header('x-correlation-id') ?? `onb_${Date.now()}`;
   const result = await service.startOnboarding(
@@ -146,6 +149,7 @@ app.post('/', zValidator('json', StartSchema), withSecurityEvents({ action: 'onb
 app.get('/:id', async (c) => {
   const auth = c.get('auth');
   const id = c.req.param('id');
+  const { repo } = resolveOnboarding(c);
   const session = await repo.findById(
     id as OnboardingSessionId,
     auth.tenantId as TenantId,
@@ -163,6 +167,7 @@ app.post('/:id/complete-step', zValidator('json', CompleteStepSchema), withSecur
   const auth = c.get('auth');
   const id = c.req.param('id');
   const body = c.req.valid('json');
+  const { service } = resolveOnboarding(c);
   const correlationId =
     c.req.header('x-correlation-id') ?? `onb_${Date.now()}`;
   const result = await service.completeStep(

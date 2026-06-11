@@ -383,45 +383,52 @@ export function createOwnerPayrollRouter(): Hono {
         },
       );
 
-      // Wipe + insert line items inside a transaction-shaped pair.
-      await db
-        .delete(payrollLineItems)
-        .where(eq(payrollLineItems.payrollRunId, runId));
-
-      const inserted =
-        lineItemResults.length === 0
-          ? []
-          : await db
-              .insert(payrollLineItems)
-              .values(
-                lineItemResults.map((li) => ({
-                  tenantId: auth.tenantId,
-                  payrollRunId: runId,
-                  workerUserId: li.workerUserId,
-                  hoursWorked: String(li.hoursWorked),
-                  overtimeHours: String(li.overtimeHours),
-                  hourlyRateTzs: String(li.hourlyRateTzs),
-                  baseTzs: String(li.baseTzs),
-                  overtimeTzs: String(li.overtimeTzs),
-                  bonusTzs: String(li.bonusTzs),
-                  deductionTzs: String(li.deductionTzs),
-                  netTzs: String(li.netTzs),
-                  status: 'pending' as const,
-                })),
-              )
-              .returning();
-
+      // owner-payroll-1: wrap the delete + insert + run-status-update in a
+      // single db.transaction so they commit or roll back together. Before,
+      // a crash between the delete and the insert left the run 'previewed'
+      // with ZERO line items (a transient empty-run window).
       const rollup = rollupRun(lineItemResults);
-      const [updated] = await db
-        .update(payrollRuns)
-        .set({
-          status: 'previewed',
-          previewedAt: new Date(),
-          totalTzs: String(rollup.totalTzs),
-          workerCount: rollup.workerCount,
-        })
-        .where(eq(payrollRuns.id, runId))
-        .returning();
+      const { inserted, updated } = await db.transaction(async (tx: any) => {
+        await tx
+          .delete(payrollLineItems)
+          .where(eq(payrollLineItems.payrollRunId, runId));
+
+        const insertedRows =
+          lineItemResults.length === 0
+            ? []
+            : await tx
+                .insert(payrollLineItems)
+                .values(
+                  lineItemResults.map((li) => ({
+                    tenantId: auth.tenantId,
+                    payrollRunId: runId,
+                    workerUserId: li.workerUserId,
+                    hoursWorked: String(li.hoursWorked),
+                    overtimeHours: String(li.overtimeHours),
+                    hourlyRateTzs: String(li.hourlyRateTzs),
+                    baseTzs: String(li.baseTzs),
+                    overtimeTzs: String(li.overtimeTzs),
+                    bonusTzs: String(li.bonusTzs),
+                    deductionTzs: String(li.deductionTzs),
+                    netTzs: String(li.netTzs),
+                    status: 'pending' as const,
+                  })),
+                )
+                .returning();
+
+        const [updatedRow] = await tx
+          .update(payrollRuns)
+          .set({
+            status: 'previewed',
+            previewedAt: new Date(),
+            totalTzs: String(rollup.totalTzs),
+            workerCount: rollup.workerCount,
+          })
+          .where(eq(payrollRuns.id, runId))
+          .returning();
+
+        return { inserted: insertedRows, updated: updatedRow };
+      });
 
       await appendAuditEntry(db, {
         action: 'owner.payroll.run.preview',
@@ -506,7 +513,11 @@ export function createOwnerPayrollRouter(): Hono {
           200,
         );
       }
-      if (run.status !== 'previewed') {
+      // owner-payroll-2: a 'partial_commit' run (some workers failed to
+      // post on a prior attempt) is re-committable — the per-worker
+      // idempotency key replays the already-posted workers safely and
+      // retries the failed ones. 'previewed' is the normal first commit.
+      if (run.status !== 'previewed' && run.status !== 'partial_commit') {
         return c.json(
           {
             success: false,
@@ -542,32 +553,74 @@ export function createOwnerPayrollRouter(): Hono {
         );
       }
 
+      // owner-payroll-2: post each worker's journal, collecting a per-worker
+      // outcome instead of throwing on the first failure. The
+      // (runId:workerUserId) idempotency key makes re-commit safe (replays
+      // short-circuit in LedgerService). Mark the RUN 'committed' only when
+      // every worker posted — else 'partial_commit' so it is never wedged in
+      // 'previewed' with a mixed ledger; return a worker-level manifest.
       const port = resolvePayrollLedgerPort();
       const postedRows: any[] = [];
+      const manifest: Array<{
+        workerUserId: string;
+        posted: boolean;
+        journalId: string | null;
+        error?: string;
+      }> = [];
       for (const li of lineItems) {
         const idempotencyKey = `${runId}:${li.workerUserId}`;
-        const { journalId } = await port.post({
-          tenantId: auth.tenantId,
-          workerUserId: li.workerUserId,
-          payrollRunId: runId,
-          netTzs: Number(li.netTzs),
-          idempotencyKey,
-        });
-        const [updated] = await db
-          .update(payrollLineItems)
-          .set({
-            ledgerTxnId: journalId,
-            status: 'posted',
-            postedAt: new Date(),
-          })
-          .where(eq(payrollLineItems.id, li.id))
-          .returning();
-        postedRows.push(updated);
+        try {
+          const { journalId } = await port.post({
+            tenantId: auth.tenantId,
+            workerUserId: li.workerUserId,
+            payrollRunId: runId,
+            netTzs: Number(li.netTzs),
+            idempotencyKey,
+          });
+          const [updated] = await db
+            .update(payrollLineItems)
+            .set({
+              ledgerTxnId: journalId,
+              status: 'posted',
+              postedAt: new Date(),
+            })
+            .where(eq(payrollLineItems.id, li.id))
+            .returning();
+          postedRows.push(updated);
+          manifest.push({
+            workerUserId: li.workerUserId,
+            posted: true,
+            journalId,
+          });
+        } catch (postErr) {
+          const reason =
+            postErr instanceof Error ? postErr.message : String(postErr);
+          moduleLogger.error('payroll worker post failed (continuing)', {
+            evt: 'payroll_worker_post_failed',
+            tenantId: auth.tenantId,
+            runId,
+            workerUserId: li.workerUserId,
+            reason,
+          });
+          manifest.push({
+            workerUserId: li.workerUserId,
+            posted: false,
+            journalId: null,
+            error: reason,
+          });
+        }
       }
+
+      const failedCount = manifest.filter((m) => !m.posted).length;
+      const allPosted = failedCount === 0;
+      const runStatus = allPosted ? 'committed' : 'partial_commit';
 
       const [updatedRun] = await db
         .update(payrollRuns)
-        .set({ status: 'committed', committedAt: new Date() })
+        .set({
+          status: runStatus,
+          ...(allPosted ? { committedAt: new Date() } : {}),
+        })
         .where(eq(payrollRuns.id, runId))
         .returning();
 
@@ -581,25 +634,37 @@ export function createOwnerPayrollRouter(): Hono {
           workerCount: lineItems.length,
           totalTzs: Number(run.totalTzs),
           ledgerJournalCount: postedRows.length,
+          failedCount,
+          status: runStatus,
         },
       });
 
-      // Cockpit pulse — workers see "you've been paid" via this kind.
-      publishCockpitEvent({
-        kind: 'payroll.committed',
-        tenantId: auth.tenantId,
-        emittedAt: new Date().toISOString(),
-        payrollRunId: runId,
-        periodEnd: String(run.periodEnd),
-        netTotalTzs: Number(run.totalTzs),
-        headcount: lineItems.length,
-        committedBy: auth.userId,
-      });
+      // Cockpit pulse — workers see "you've been paid" via this kind. Only
+      // fire when the WHOLE run committed; a partial commit should not
+      // announce a completed payroll to every worker.
+      if (allPosted) {
+        publishCockpitEvent({
+          kind: 'payroll.committed',
+          tenantId: auth.tenantId,
+          emittedAt: new Date().toISOString(),
+          payrollRunId: runId,
+          periodEnd: String(run.periodEnd),
+          netTotalTzs: Number(run.totalTzs),
+          headcount: lineItems.length,
+          committedBy: auth.userId,
+        });
+      }
 
       return c.json(
         {
           success: true,
-          data: { run: updatedRun, lineItems: postedRows },
+          data: {
+            run: updatedRun,
+            lineItems: postedRows,
+            manifest,
+            partial: !allPosted,
+            failedCount,
+          },
         },
         200,
       );

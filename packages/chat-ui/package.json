@@ -29,7 +29,8 @@
   },
   "dependencies": {
     "@borjie/api-sdk": "workspace:*",
-    "@borjie/genui": "workspace:*"
+    "@borjie/genui": "workspace:*",
+    "dompurify": "^3.4.5"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.2.0",

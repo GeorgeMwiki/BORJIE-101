@@ -19,8 +19,6 @@ import type { BorjieAffectiveProfile } from './BorjieDynamicHints';
  */
 export interface DebateBadge {
   readonly verified: boolean;
-  readonly winnerProvider: string;
-  readonly winnerModel: string;
   readonly contenders: number;
 }
 
@@ -81,21 +79,21 @@ export function normaliseAffectiveProfile(
 }
 
 /**
- * Map the `debate_metadata` frame onto the trust badge. Returns null for
- * a non-record payload; otherwise always a badge (the frame only fires
- * when a real debate ran).
+ * Map the `debate_metadata` frame onto the trust badge. The gateway frame
+ * is intentionally PROVIDER-AGNOSTIC — `{ verified, contenders, at }` — and
+ * carries NO winner / provider / model / judge identity. That identity is
+ * an IP-egress leak the backend strips (CLOSE-G); it must NEVER be read or
+ * re-introduced on the wire. Returns null for a non-record payload;
+ * otherwise always a badge (the frame only fires when a real debate ran).
  */
 export function normaliseDebateBadge(value: unknown): DebateBadge | null {
   if (!isRecord(value)) return null;
-  const winner = isRecord(value.winner) ? value.winner : {};
-  const trace = isRecord(value.trace) ? value.trace : {};
-  const responses = (trace as { responses?: unknown }).responses;
   return {
     verified: value.verified === true,
-    winnerProvider:
-      typeof winner.provider === 'string' ? winner.provider : '',
-    winnerModel: typeof winner.model === 'string' ? winner.model : '',
-    contenders: Array.isArray(responses) ? responses.length : 0,
+    contenders:
+      typeof value.contenders === 'number' && Number.isFinite(value.contenders)
+        ? value.contenders
+        : 0,
   };
 }
 

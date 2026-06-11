@@ -366,6 +366,126 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0310_corpus_ratings_with_check.sql",
+      "down": "down/0310_down_corpus_ratings_with_check.sql",
+      "reverses": "Restores the original single permissive `tenant_or_global` (read+write, no WITH CHECK) policy on intelligence_corpus_chunks + ratings. WARNING: reopens the cross-tenant data-poisoning hole (a tenant session can write tenant_id=NULL global rows). Policy-only — no data loss. Down for dev/staging rollback only; never run in production.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0313_media_rls_canonical_fixup.sql",
+      "down": "down/0313_down_media_rls_canonical_fixup.sql",
+      "reverses": "Restores the pre-0313 (defective) RLS state on media_artifacts + media_safety_scans + media_engagement_events: drops the canonical `<table>_tenant_isolation` + `<table>_service_role_bypass` policies, removes FORCE (back to ENABLE-only), and recreates the original `tenant_isolation` policy bound to the non-canonical `app.tenant_id` GUC as 0020 shipped it. WARNING: reopens the media tenant-isolation gap (no FORCE + policy on a GUC the gateway never sets). Policy-only — no data loss. Dev/staging rollback only; never run in production.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0315_rls_tenant_id_indexes.sql",
+      "down": "down/0315_down_rls_tenant_id_indexes.sql",
+      "reverses": "Drops the `idx_<table>_tenant_id` btree access-path indexes added on the hot tenant-scoped tables (ledger_entries, marketplace_bids/listings, bid_negotiations/messages, request_for_bids(+responses), offtake_queue, buyer_kyc_records, procurement_kyc_documents, buyer_notifications, notifications_outbox, notification_dispatch_log, threads, intelligence_corpus_chunks, agent_memory, ai_audit_chain) that make the RLS tenant predicate resolve via index scan on the DATABASE_POOL_MODE=transaction SET-LOCAL hot path. Index-only — no data loss and no change to row visibility (drop only reverts to a sequential scan). Dev/staging rollback only.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0316_workflow_trigger_embedding.sql",
+      "down": "down/0316_down_workflow_trigger_embedding.sql",
+      "reverses": "Drops the workflow_registry table (the modality arbiter's persisted, embeddable flow catalog: trigger_embedding VECTOR(1536) + loop_kind + status/source + ivfflat cosine index + FORCE RLS tenant-isolation/service-role-bypass policies). Fail-safe: with no rows the arbiter's Tier-1 flow retrieval returns empty so a `workflow` modality is never nearest-neighbour-selected — flows revert to explicit-id-only selection (pre-0316 behaviour). No money/licence/ledger records; rails unaffected. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0320_llm_routing_config.sql",
+      "down": "down/0320_down_llm_routing_config.sql",
+      "reverses": "Drops the platform_llm_routing_config table (the LLM control-plane store: one JSONB config doc per scope — coreModel + orderedFallbacks[] + ensemble{members,combineStrategy,judgeModel} + perUseCase map — behind a service-role-only FORCE RLS policy + guarded anon REVOKE). Fail-safe: with no rows the router consumption layer treats config as absent and falls back to the static TASK_LADDER (pre-control-plane behaviour), so no turn breaks. POWERS/kill-switch flags live in platform_feature_flags and are untouched. No money/licence/ledger records; sovereign HITL rails live in the policy-gate, not here. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0321_md_commitments.sql",
+      "down": "down/0321_down_md_commitments.sql",
+      "reverses": "Drops the md_commitments table (the MD deferral/follow-through commitment ledger — the brain's prospective-memory backlog: GTD class discriminator + typed WAIT-FOR trigger (time|event|condition) + honest lifecycle + ladder rung + sovereign safe-halt flag + evidence ids + hash-chained closure, behind FORCE RLS tenant-isolation/service-role-bypass policies + guarded anon REVOKE). Fail-safe: with no table the EstateMind RECONCILE sweep treats the backlog as empty (the reconcile port is fail-safe — a store fault never breaks the tick) and reverts to pre-deferral behaviour. No money/licence/ledger records; sovereign HITL rails live in the policy-gate + mwikila_actions_inbox, not here. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0328_portal_tab_records.sql",
+      "down": "down/0328_down_portal_tab_records.sql",
+      "reverses": "Drops the portal_tab_records table (the generic schema-on-read record store that makes a GENERATED portal-genui tab ACT: one JSONB payload row per submitted record, tenant-scoped + keyed by tab_id/tab_key, payload shape enforced at write time by the owning tab's own PortalTabField[], behind FORCE RLS tenant-isolation/service-role-bypass policies on app.current_tenant_id + guarded anon REVOKE). Fail-safe: with no table the record store surfaces a clean DB error and generated tabs revert to render-only (their documents in portal_tabs are untouched). No money/licence/ledger records; LedgerService.post() owns the immutable double-entry ledger and never depended on this table. DATA LOSS: discards every record submitted into a generated tab. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0339_md_commitment_timeline.sql",
+      "down": "down/0339_down_md_commitment_timeline.sql",
+      "reverses": "Drops the md_commitment_timeline table (the append-only, hash-chained lifecycle trail of the MD commitment ledger — the living-MD organ audit spine: one immutable row per lifecycle event deferred → became_due → overdue → confirmed/done or reopened, with proof_kind + evidence_ids + a per-commitment audit_hash chain, behind FORCE RLS tenant-isolation/service-role-bypass policies on app.current_tenant_id + guarded anon REVOKE). Fail-safe: with no table the living-plan /past + /:id timeline reads degrade to empty and the timeline sink writes become honest no-ops (best-effort — a timeline fault never aborts the load-bearing commitment transition). No money/licence/ledger records; current commitment state survives in md_commitments. DATA LOSS: discards the lifecycle history. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0340_owner_governance_preferences.sql",
+      "down": "down/0340_down_owner_governance_preferences.sql",
+      "reverses": "Drops the owner_governance_preferences table (the per-tenant governance set-points the living-MD organ reads FRESH each tick: autonomy_cap, someday_review_cadence_days, evidence_requirement_enforced, confirmation_probe_mappings, behind FORCE RLS tenant-isolation/service-role-bypass policies on app.current_tenant_id + guarded anon REVOKE). Fail-safe: with no table the governance store resolves to safe in-code defaults (autonomy cap delegate, someday cadence 7d, evidence enforced) — identical to an absent row. No money/licence/ledger records. DATA LOSS: discards owner governance tuning. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0341_org_loop_runs.sql",
+      "down": "down/0341_down_org_loop_runs.sql",
+      "reverses": "Drops the org_loop_runs table (the self-running-org SPINE correlation identity: one durable row per loop run joining an md_commitments row (commitment_id, the close-the-loop back-edge) to the mining_tasks row it spawned (task_id, the dispatch forward-edge), carrying the stage machine detect→strategize→pick→assign→dispatch→deliver→report→reloop→closed, honest status open|active|closed|failed, the chosen employee + match_confidence matcher-learning inputs, and the evidence ids threaded from the commitment, behind FORCE RLS tenant-isolation/service-role-bypass policies on app.current_tenant_id + guarded anon REVOKE). Fail-safe: with no table the loop-economy dispatcher / close-the-loop edge degrade to honest no-ops — the originating commitment survives in md_commitments and is re-read by the reconcile sweep. No money/licence/ledger records. DATA LOSS: discards the loop-run history + the in-flight stage of any open run. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0342_service_role_bypass_spine_tables.sql",
+      "down": "down/0342_down_service_role_bypass_spine_tables.sql",
+      "reverses": "Drops the <tbl>_service_role_bypass policies from the 7 self-running-org spine tables (mining_tasks, employees, tasks, tab_event_log, notification_dispatch_log, ai_audit_chain, mining_escalations) plus the two structural double-create guard indexes (org_loop_runs_open_commitment_uniq partial unique on (tenant_id, commitment_id) WHERE open/active; tab_event_log_pending_nudge_uniq partial unique on (tenant_id, proposal_id) WHERE undelivered proactive_nudge). Fail-safe consequence: the out-of-band org-loop spine (withServiceRoleContext, tenant='__system__' + app.is_service_role='true') silently no-ops against these FORCE-RLS tables again (the pre-0342 RLS-dead state) — request-path tenant isolation is UNAFFECTED (each table's own tenant-isolation policy + FORCE survive). The up-migration's one-time dedupe is NOT restored (failed-marked duplicate open runs stay failed; deleted duplicate pending nudges stay deleted). No money/licence/ledger records. Dev/staging rollback only.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0343_oauth_state_nonces.sql",
+      "down": "down/0343_down_oauth_state_nonces.sql",
+      "reverses": "Drops the oauth_state_nonces table (the DURABLE cluster-wide single-use consumption ledger for connector-OAuth state nonces: nonce PRIMARY KEY consumed via INSERT ... ON CONFLICT DO NOTHING RETURNING by the api-gateway callback, with an inline 15-minute purge, behind FORCE RLS tenant-isolation/service-role-bypass policies on app.current_tenant_id + guarded anon REVOKE). Fail-safe: the callback's durable consume FAULTS and the callback rejects (fail-closed) — connector OAuth connects stop completing until the table is restored; the bounded in-process guard alone is NOT trusted on a multi-replica deploy. No money/licence/ledger records; rows are opaque random nonces (no PII, no token material). DATA LOSS: discards the consumed-nonce ledger, re-opening the replay window for any still-unexpired (<10 min) captured state. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

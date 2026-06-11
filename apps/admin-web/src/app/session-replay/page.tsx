@@ -13,9 +13,11 @@
  * The deep link to `[sessionId]/page.tsx` is untouched.
  */
 
+import { cookies } from 'next/headers';
 import { PageShell } from '@/components/migrated/PageShell';
 import { SessionReplayList } from './_filters';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
 
 interface RecentSession {
   readonly sessionId: string;
@@ -43,13 +45,18 @@ async function fetchRecentSessions(): Promise<{
       'NEXT_PUBLIC_API_BASE_URL',
       'http://localhost:3001',
     );
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(PLATFORM_SESSION_COOKIE);
+    const fetchHeaders: HeadersInit = {};
+    if (sessionCookie?.value) {
+      fetchHeaders['Cookie'] =
+        `${PLATFORM_SESSION_COOKIE}=${sessionCookie.value}`;
+    }
     const res = await fetch(
       `${base.replace(/\/$/, '')}/api/v1/session-replay/sessions`,
       {
         cache: 'no-store',
-        // The server-side caller would normally forward the cookie; in
-        // a degraded environment without a session we still want a
-        // graceful render so the operator sees a clear empty-state.
+        headers: fetchHeaders,
       },
     );
     if (!res.ok) {

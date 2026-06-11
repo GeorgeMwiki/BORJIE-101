@@ -57,6 +57,21 @@ export interface BrainCitation {
   readonly sourceFile: string | null;
 }
 
+/**
+ * cm-3 — Auditor verdict returned alongside every /brain/turn response.
+ * The `enforced` flag is true when the gateway withheld the AI answer
+ * because it carried no grounding evidence. The owner-web renders an
+ * "ungrounded answer" badge when this is true.
+ */
+export interface BrainTurnAudit {
+  readonly verdict: string;
+  readonly evidenceCount: number;
+  readonly auditLogId: string;
+  readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
+  /** True when the response was substituted with a withhold placeholder. */
+  readonly enforced: boolean;
+}
+
 /** Result of POST /api/v1/brain/turn. */
 export interface BrainTurnResult {
   readonly threadId: string;
@@ -68,6 +83,12 @@ export interface BrainTurnResult {
   readonly proposedAction: BrainProposedAction | null;
   readonly tokensUsed: number;
   readonly citations: ReadonlyArray<BrainCitation>;
+  /**
+   * cm-3 — auditor verdict from the gateway. Present on all /turn responses
+   * (both persona-path and orchestrator-path). Absent on legacy wires that
+   * pre-date the auditor field — consumers must handle `undefined`.
+   */
+  readonly audit: BrainTurnAudit | null;
 }
 
 /** Brain message as persisted in the per-tenant ThreadStore. */
@@ -97,6 +118,8 @@ interface BrainTurnRawResponse {
   readonly proposedAction?: unknown;
   readonly tokensUsed?: number;
   readonly citations?: ReadonlyArray<unknown>;
+  /** cm-3 — auditor verdict, present on responses from brain.hono.ts. */
+  readonly audit?: unknown;
 }
 
 interface BrainThreadEventRaw {
@@ -135,6 +158,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+/**
+ * cm-8 — normalise the two toolCall wire shapes:
+ *   • Orchestrator path: { name, status, latencyMs?, evidenceIds? }
+ *   • Persona path:      { tool, ok }  (tool=string, ok=boolean)
+ * Both are mapped to the canonical BrainToolCall so the badge renders
+ * correctly regardless of which kernel path answered the turn.
+ */
 function normaliseToolCall(value: unknown): BrainToolCall | null {
   if (!isRecord(value)) return null;
   const name =
@@ -146,8 +176,14 @@ function normaliseToolCall(value: unknown): BrainToolCall | null {
           ? value.junior
           : null;
   if (!name) return null;
-  const status =
-    typeof value.status === 'string' ? value.status : null;
+  // Resolve status: prefer explicit `status` string, then map `ok` boolean
+  // from the persona-path shape ({tool, ok}) to 'ok' | 'error'.
+  let status: string | null = null;
+  if (typeof value.status === 'string') {
+    status = value.status;
+  } else if (typeof value.ok === 'boolean') {
+    status = value.ok ? 'ok' : 'error';
+  }
   const latencyMs =
     typeof value.latencyMs === 'number'
       ? value.latencyMs
@@ -225,6 +261,28 @@ function normaliseProposedAction(value: unknown): BrainProposedAction | null {
   return args === undefined ? { action: value.action } : { action: value.action, args };
 }
 
+/**
+ * cm-3 — Normalise the raw `audit` field returned by brain.hono.ts.
+ * Returns null when the field is absent (older gateway wires) so callers
+ * can safely read `result.audit?.enforced` without a guard.
+ */
+function normaliseAudit(value: unknown): BrainTurnAudit | null {
+  if (!isRecord(value)) return null;
+  const verdict = typeof value.verdict === 'string' ? value.verdict : 'unknown';
+  const evidenceCount =
+    typeof value.evidenceCount === 'number' ? value.evidenceCount : 0;
+  const auditLogId =
+    typeof value.auditLogId === 'string' ? value.auditLogId : '';
+  const evidenceWarning =
+    value.evidenceWarning === 'no_evidence_cited'
+      ? 'no_evidence_cited'
+      : value.evidenceWarning === 'evidence_invalid'
+        ? 'evidence_invalid'
+        : null;
+  const enforced = Boolean(value.enforced);
+  return { verdict, evidenceCount, auditLogId, evidenceWarning, enforced };
+}
+
 function normaliseTurnResult(raw: BrainTurnRawResponse): BrainTurnResult {
   const toolCalls: BrainToolCall[] = [];
   if (Array.isArray(raw.toolCalls)) {
@@ -270,6 +328,9 @@ function normaliseTurnResult(raw: BrainTurnRawResponse): BrainTurnResult {
     proposedAction: normaliseProposedAction(raw.proposedAction),
     tokensUsed: typeof raw.tokensUsed === 'number' ? raw.tokensUsed : 0,
     citations,
+    // cm-3 — include the gateway auditor verdict so the UI can render the
+    // ungrounded-answer badge when enforced is true.
+    audit: normaliseAudit(raw.audit),
   };
 }
 
@@ -416,6 +477,11 @@ export interface BrainStreamChunk {
   readonly finalPersonaId: string;
   readonly toolCalls: ReadonlyArray<BrainToolCall>;
   readonly done: boolean;
+  /**
+   * cm-3 — auditor verdict forwarded from the /turn response.
+   * null when the gateway wire predates the auditor field.
+   */
+  readonly audit: BrainTurnAudit | null;
 }
 
 interface StreamBrainChatArgs {
@@ -453,6 +519,7 @@ export async function* streamBrainChat(
     finalPersonaId: result.finalPersonaId,
     toolCalls: result.toolCalls,
     done: true,
+    audit: result.audit,
   };
 }
 

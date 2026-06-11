@@ -11,12 +11,36 @@ export const UserRole = {
 
   // Tenant Admin Roles
   TENANT_ADMIN: 'TENANT_ADMIN',
+  /**
+   * @deprecated property-era — retained as the enum slot that the mining
+   * `site_manager`/`manager`/`property_manager` Supabase roles map onto
+   * (see auth/supabase/supabase-auth-middleware.ts). Still referenced by the
+   * authorization matrix, capability-gate, rate-limiter, and several mining
+   * routers, so it CANNOT be removed without a coordinated role rename. Treat
+   * it as the mining "site manager" role until that rename lands.
+   */
   PROPERTY_MANAGER: 'PROPERTY_MANAGER',
   ACCOUNTANT: 'ACCOUNTANT',
+  /**
+   * @deprecated property-era — retained as the enum slot that the mining
+   * `maintenance`/`driver`/field-employee Supabase roles map onto. Still
+   * referenced by the authorization matrix, capability-gate, rate-limiter,
+   * and the mining drill-holes/fuel-logs routers, so it CANNOT be removed
+   * without a coordinated role rename. Treat it as the mining "field worker"
+   * role until that rename lands.
+   */
   MAINTENANCE_STAFF: 'MAINTENANCE_STAFF',
 
   // External User Roles
   OWNER: 'OWNER',
+  /**
+   * @deprecated property-era — retained as the enum slot that the Borjie
+   * marketplace `buyer` and `resident` Supabase roles map onto (see
+   * auth/supabase/supabase-auth-middleware.ts and buyer/superpowers.hono.ts).
+   * Still referenced by the authorization matrix, capability-gate, and
+   * rate-limiter, so it CANNOT be removed without a coordinated role rename.
+   * Treat it as the mining "buyer / read-only external" role until then.
+   */
   RESIDENT: 'RESIDENT',
 } as const;
 

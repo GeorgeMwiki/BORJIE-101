@@ -15,7 +15,7 @@ describe('classifyDocType', () => {
   it('classifies an offtake application', async () => {
     const text = loadFixture('lease-application');
     const result = await classifyDocType(text);
-    expect(result.docType).toBe('lease_application');
+    expect(result.docType).toBe('licence_application');
     expect(result.confidence).toBeGreaterThan(0.5);
   });
 
@@ -54,7 +54,7 @@ describe('classifyDocType', () => {
     const result = await classifyDocType(
       'Mkataba wa madini wa mrabaha wa mwezi. Mnunuzi na mwenye madini wamekubaliana.',
     );
-    expect(result.docType).toBe('lease_contract');
+    expect(result.docType).toBe('offtake_agreement');
   });
 
   it('uses the LLM tie-breaker when heuristic confidence is low', async () => {
@@ -64,7 +64,7 @@ describe('classifyDocType', () => {
       llm: {
         async classify(input) {
           llmCalled.push(input);
-          return { docType: 'lease_contract', confidence: 0.8 };
+          return { docType: 'offtake_agreement', confidence: 0.8 };
         },
         async extract() {
           return { fields: {}, confidence: 0 };
@@ -73,7 +73,7 @@ describe('classifyDocType', () => {
     });
     expect(llmCalled.length).toBeGreaterThan(0);
     expect(result.llmUsed).toBe(true);
-    expect(result.docType).toBe('lease_contract');
+    expect(result.docType).toBe('offtake_agreement');
   });
 
   it('falls back to heuristic when LLM throws', async () => {
@@ -97,7 +97,7 @@ describe('extractEntities — offtake application', () => {
     const text = loadFixture('lease-application');
     const layout = await parseLayout({ text });
     const fields = extractEntities({
-      docType: 'lease_application',
+      docType: 'licence_application',
       text,
       layout,
     });
@@ -116,7 +116,7 @@ describe('extractEntities — offtake application', () => {
     const text = loadFixture('lease-application');
     const layout = await parseLayout({ text });
     const fields = extractEntities({
-      docType: 'lease_application',
+      docType: 'licence_application',
       text,
       layout,
     });

@@ -1,97 +1,81 @@
 /**
- * modules (migration 0216) — Piece B per-tenant module instances.
+ * modules — the per-tenant module-spawning registry (Piece B, Pass 2).
  *
- * A module is a tenant-spawned vertical slice ("HR", "Estate", "Fleet")
- * that owns its slice of core_entity (filtered by module_id), its UI
- * sections, its vector namespace, its scoped tool catalogue, and its
- * lifecycle state (DRAFT → PROPOSED → APPROVED → LIVE → DEPRECATED →
- * ARCHIVED — only PROPOSED→APPROVED requires K5 four-eye).
+ * One row per MD-authored / template-instantiated module a tenant owns. The
+ * module is the durable handle that the module-orchestrator spawns: it carries
+ * the human slug + bilingual title, the originating `template_id` / `spec_id`,
+ * the isolated `vector_namespace`, the JSONB list of `scoped_tool_ids` the
+ * module's juniors may reach, and a coarse `lifecycle_state` (DRAFT →
+ * ACTIVE → ARCHIVED). `module_specs` rows hang off this table by `module_id`.
  *
- * RLS: tenant_id = current_app_tenant_id() on SELECT and modify
- * (gold-standard pattern from 0185).
+ * Companion to migration 0323_module_spawning_registry.sql and the
+ * `services/api-gateway/src/composition/module-spawning-wiring.ts` adapters.
+ * Tenant-scoped (tenant_id TEXT, no FK — same shape as the
+ * situational_model / md_commitments families). FORCE-enables RLS in 0323 with
+ * a tenant-isolation policy on the canonical `app.current_tenant_id` GUC + a
+ * service-role bypass; a tenant can NEVER read another tenant's modules.
+ *
+ * UNIQUE(tenant_id, slug) makes the spawn idempotent — the same module is never
+ * double-created within a tenant.
  */
 
 import {
   pgTable,
   text,
-  timestamp,
   jsonb,
-  uniqueIndex,
+  timestamp,
   index,
-  check,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
-import { tenants, users } from '../tenant.schema.js';
 
-export const MODULE_LIFECYCLE_STATES = [
-  'DRAFT',
-  'PROPOSED',
-  'APPROVED',
-  'LIVE',
-  'DEPRECATED',
-  'ARCHIVED',
-] as const;
-
-export type ModuleLifecycleState = (typeof MODULE_LIFECYCLE_STATES)[number];
+// ============================================================================
+// modules — per-tenant module-spawning registry.
+// ============================================================================
 
 export const modules = pgTable(
   'modules',
   {
     id: text('id').primaryKey(),
-    tenantId: text('tenant_id')
-      .notNull()
-      .references(() => tenants.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull(),
+    /** Human-stable slug, unique within a tenant (e.g. 'tailings-register'). */
     slug: text('slug').notNull(),
+    /** Display title (EN default). */
     title: text('title').notNull(),
+    /** Swahili display title (bilingual; nullable until translated). */
     titleSw: text('title_sw'),
-    /** FK to module_templates.id — wired by migration 0218. */
+    /** Originating module_templates.id when instantiated from a built-in. */
     templateId: text('template_id'),
-    /** FK to module_specs.id — wired by migration 0217. */
+    /** Latest applied module_specs.id (the spec that shaped this module). */
     specId: text('spec_id'),
-    uiLayoutJsonb: jsonb('ui_layout_jsonb')
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default(sql`'{}'::jsonb`),
+    /** Isolated pgvector namespace for this module's corpus. */
     vectorNamespace: text('vector_namespace').notNull(),
-    scopedToolIds: text('scoped_tool_ids')
-      .array()
+    /** JSONB array of tool ids this module's juniors may reach. */
+    scopedToolIds: jsonb('scoped_tool_ids')
+      .$type<ReadonlyArray<string>>()
       .notNull()
-      .default(sql`ARRAY[]::TEXT[]`),
-    auditChainRoot: text('audit_chain_root'),
-    lifecycleState: text('lifecycle_state')
-      .$type<ModuleLifecycleState>()
-      .notNull()
-      .default('DRAFT'),
+      .default(sql`'[]'::jsonb`),
+    /** Coarse lifecycle: DRAFT | ACTIVE | ARCHIVED. */
+    lifecycleState: text('lifecycle_state').notNull().default('DRAFT'),
+    /** The user who authored / spawned this module (forensic replay). */
+    createdByUserId: text('created_by_user_id'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
-    createdByUserId: text('created_by_user_id').references(() => users.id, {
-      onDelete: 'set null',
-    }),
+    /** Soft-delete tombstone; NULL == live. */
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => ({
-    tenantIdx: index('modules_tenant_idx')
-      .on(t.tenantId)
-      .where(sql`deleted_at IS NULL`),
-    tenantLifecycleIdx: index('modules_tenant_lifecycle_idx')
-      .on(t.tenantId, t.lifecycleState)
-      .where(sql`deleted_at IS NULL`),
-    tenantSlugUnique: uniqueIndex('modules_tenant_slug_unique')
-      .on(t.tenantId, t.slug)
-      .where(sql`deleted_at IS NULL`),
-    vectorNamespaceIdx: index('modules_vector_namespace_idx').on(
-      t.vectorNamespace,
+    /** Spawn idempotency — the same slug is never double-created per tenant. */
+    tenantSlugUniq: uniqueIndex('modules_tenant_slug_uniq').on(
+      t.tenantId,
+      t.slug,
     ),
-    lifecycleCheck: check(
-      'modules_lifecycle_state_check',
-      sql`lifecycle_state IN (
-          'DRAFT', 'PROPOSED', 'APPROVED', 'LIVE', 'DEPRECATED', 'ARCHIVED'
-        )`,
-    ),
+    /** List-by-tenant is the registry read (a surface lists every module). */
+    tenantIdx: index('idx_modules_tenant').on(t.tenantId),
   }),
 );
 

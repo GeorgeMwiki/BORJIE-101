@@ -6,6 +6,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import {
   PromptId,
   asPromptId,
@@ -133,7 +134,7 @@ export class InMemoryPromptStorage implements PromptStorageBackend {
 export class PromptRegistry {
   constructor(
     private storage: PromptStorageBackend,
-    private defaultModelId: string = 'gpt-4-turbo-preview'
+    private defaultModelId: string = resolveLegacyOpenAiModelId()
   ) {}
 
   /**

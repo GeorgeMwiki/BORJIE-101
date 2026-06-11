@@ -177,9 +177,12 @@ export function JarvisConsole(): JSX.Element {
   }
 
   // R32 — wire FeedbackThumbs.onFeedback to the gateway. The endpoint
-  // is intentionally idempotent at the gateway (same turn + verdict =
+  // is intentionally idempotent at the gateway (same turn + signal =
   // overwrite) so a rapid double-tap does not double-count. Failures
   // surface to the FeedbackThumbs error toast.
+  // IMPORTANT: the gateway `turnFeedbackSchema` expects `signal` (not
+  // `verdict`). FeedbackVerdict values 'up'/'down' map directly to the
+  // schema's `signal` enum — no translation needed.
   async function submitFeedback(
     turnId: string,
     verdict: FeedbackVerdict,
@@ -187,11 +190,10 @@ export function JarvisConsole(): JSX.Element {
   ): Promise<void> {
     const url = `${DEFAULT_GATEWAY}/api/v1/feedback`;
     const body = {
-      surface: 'jarvis',
       threadId,
       turnId,
-      verdict,
-      ...(reason ? { reason } : {}),
+      signal: verdict,
+      ...(reason ? { correctionText: reason } : {}),
     };
     const res = await fetch(url, {
       method: 'POST',

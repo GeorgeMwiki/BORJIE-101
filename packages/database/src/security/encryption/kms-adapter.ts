@@ -30,7 +30,6 @@ import {
   EncryptionKeyUnavailableError,
   type DecryptArgs,
   type EncryptArgs,
-  type EncryptedBlob,
   type EncryptionPort,
   type RotateArgs,
 } from './encryption-port.js';

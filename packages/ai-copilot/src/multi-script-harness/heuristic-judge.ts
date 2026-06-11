@@ -145,7 +145,7 @@ export function scoreRubric(
   if (culturalAppropriateness < 0.6) {
     issues.push({
       dimension: 'culturalAppropriateness',
-      message: 'Register carries markers inappropriate for a landlord/tenant channel.',
+      message: 'Register carries markers inappropriate for an estate-owner/buyer channel.',
     });
   }
 

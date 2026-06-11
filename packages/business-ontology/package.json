@@ -1,0 +1,33 @@
+{
+  "name": "@borjie/business-ontology",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "REA (Resources-Events-Agents) business ontology — the UNIVERSAL accounting/operations vocabulary every Mr-Mwikila domain pack relabels. The mining pack relabels Resource=mineral-lot/royalty/licence; the operator/business pack relabels Resource=cash/AR/AP/payroll. Makes the operator-ERP layer provably vertical-agnostic: one ontology, many domain relabellings. Anchored on McCarthy's REA accounting model (the duality of every economic event).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

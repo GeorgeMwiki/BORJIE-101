@@ -485,7 +485,7 @@ describe('GET /api/v1/mining/tasks — list + filter', () => {
 // ---------------------------------------------------------------------------
 
 describe('POST /api/v1/mining/tasks/:id/complete — happy path + audit', () => {
-  it('marks the task done, stamps hashChainId, and appends an audit row', async () => {
+  it('marks the task done, stamps hashChainId, and appends an audit row when the ASSIGNEE completes', async () => {
     const db = createStubDb();
     db.store.set('mining_tasks', [
       {
@@ -507,7 +507,8 @@ describe('POST /api/v1/mining/tasks/:id/complete — happy path + audit', () => 
       {
         method: 'POST',
         headers: {
-          Authorization: bearer(UserRole.RESIDENT, { userId: 'worker-7' }),
+          // The caller IS the assignee — required by the assignee/manager gate.
+          Authorization: bearer(UserRole.RESIDENT, { userId: VALID_UUID }),
           'Content-Type': 'application/json',
         },
       },
@@ -549,7 +550,9 @@ describe('POST /api/v1/mining/tasks/:id/complete — idempotency', () => {
       `/api/v1/mining/tasks/${VALID_TASK_ID}/complete`,
       {
         method: 'POST',
-        headers: { Authorization: bearer(UserRole.RESIDENT) },
+        headers: {
+          Authorization: bearer(UserRole.RESIDENT, { userId: VALID_UUID }),
+        },
       },
     );
     expect(res.status).toBe(200);
@@ -590,7 +593,8 @@ describe('POST /api/v1/mining/tasks/:id/block — happy path', () => {
       {
         method: 'POST',
         headers: {
-          Authorization: bearer(UserRole.RESIDENT),
+          // The caller IS the assignee — required by the assignee/manager gate.
+          Authorization: bearer(UserRole.RESIDENT, { userId: VALID_UUID }),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ reason: 'Hakuna fuel kwenye genereta' }),
@@ -865,5 +869,153 @@ describe('POST /api/v1/mining/tasks/:id/assign-worker — commercial chain L4', 
       },
     );
     expect(res.status).toBe(409);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 13) complete/block authz — assignee-or-manager gate
+// ---------------------------------------------------------------------------
+//
+// Without this gate ANY tenant user could close ANY task, which (via the
+// org-loop binder) marks the originating md_commitment done. The gate
+// mirrors the requireRole(...MANAGER_ROLES) pattern but is row-level:
+// the assignee is only known after the task fetch.
+// ---------------------------------------------------------------------------
+
+function seedAssignedTask(db: ReturnType<typeof createStubDb>): void {
+  db.store.set('mining_tasks', [
+    {
+      id: VALID_TASK_ID,
+      tenantId: 'tnt-test',
+      assignedToUserId: VALID_UUID,
+      titleSw: 'Kazi A',
+      status: 'pending',
+      priority: 'normal',
+      completedAt: null,
+      blockedReason: null,
+      hashChainId: null,
+      createdAt: new Date(),
+    },
+  ]);
+}
+
+describe('POST /api/v1/mining/tasks/:id/complete — assignee/manager authz', () => {
+  it('returns 403 when a NON-assignee worker attempts to complete', async () => {
+    const db = createStubDb();
+    seedAssignedTask(db);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/complete`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.RESIDENT, { userId: 'intruder-1' }),
+        },
+      },
+    );
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as {
+      success: boolean;
+      error: { code: string };
+    };
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('FORBIDDEN');
+    // Nothing mutated, nothing audited.
+    expect(db.auditRows.length).toBe(0);
+    expect(db.store.get('mining_tasks')?.[0]?.status).toBe('pending');
+  });
+
+  it('allows a manager to complete a task assigned to someone else', async () => {
+    const db = createStubDb();
+    seedAssignedTask(db);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/complete`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.PROPERTY_MANAGER, { userId: 'mgr-9' }),
+        },
+      },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { status: string };
+    };
+    expect(body.success).toBe(true);
+    expect(body.data.status).toBe('done');
+    expect(db.auditRows.length).toBe(1);
+  });
+
+  it('returns 403 for a non-assignee worker even on an unassigned task', async () => {
+    const db = createStubDb();
+    db.store.set('mining_tasks', [
+      {
+        id: VALID_TASK_ID,
+        tenantId: 'tnt-test',
+        assignedToUserId: null,
+        titleSw: 'Kazi A',
+        status: 'pending',
+        priority: 'normal',
+        createdAt: new Date(),
+      },
+    ]);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/complete`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.RESIDENT, { userId: 'worker-2' }),
+        },
+      },
+    );
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/v1/mining/tasks/:id/block — assignee/manager authz', () => {
+  it('returns 403 when a NON-assignee worker attempts to block', async () => {
+    const db = createStubDb();
+    seedAssignedTask(db);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/block`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.RESIDENT, { userId: 'intruder-1' }),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: 'sina ruhusa' }),
+      },
+    );
+    expect(res.status).toBe(403);
+    expect(db.auditRows.length).toBe(0);
+    expect(db.store.get('mining_tasks')?.[0]?.status).toBe('pending');
+  });
+
+  it('allows a manager to block a task assigned to someone else', async () => {
+    const db = createStubDb();
+    seedAssignedTask(db);
+    const app = mount(db);
+    const res = await app.request(
+      `/api/v1/mining/tasks/${VALID_TASK_ID}/block`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: bearer(UserRole.TENANT_ADMIN, { userId: 'admin-1' }),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: 'Eneo limefungwa kwa ukaguzi' }),
+      },
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      success: boolean;
+      data: { status: string };
+    };
+    expect(body.data.status).toBe('blocked');
   });
 });

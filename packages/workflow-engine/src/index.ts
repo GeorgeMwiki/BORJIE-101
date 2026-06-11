@@ -32,6 +32,9 @@ export {
   createInMemoryAuditChainRepository,
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
+  createDrizzleAuditChainRepository,
+  createDrizzleRunEventRepository,
+  createDrizzleRunRepository,
   type ApproveInput,
   type CancelInput,
   type CoachInput,
@@ -62,3 +65,21 @@ export {
   type ElasticThresholds,
   type InMemoryApprovalRouterDeps,
 } from './approval/index.js';
+export {
+  FLOW_AUTONOMY_POSTURES,
+  FLOW_CONFIRMATION_STATES,
+  isFlowAuto,
+  createInMemoryFlowAutonomyRepository,
+  createDrizzleFlowAutonomyRepository,
+  type FlowAutonomyPosture,
+  type FlowConfirmationState,
+  type FlowAutonomyPref,
+  type FlowAutonomyRepository,
+  type RecordFlowCreationInput,
+  type SetFlowPostureInput,
+  // Capability Gap Register (Loop A, P0) — deferred-work DAG resolver.
+  resolveDependents,
+  type DeferredGapNode,
+  type ReadyGap,
+  type DependencyResolution,
+} from './autonomy/index.js';

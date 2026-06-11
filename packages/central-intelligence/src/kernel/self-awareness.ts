@@ -477,6 +477,86 @@ export function renderModuleInventoryBlock(
   return lines.join('\n');
 }
 
+// ────────────────────────────────────────────────────────────────────
+// 3. DYNAMIC body-schema inventory — kills the static BRAIN_MODULES drift.
+//
+// The MD's body schema is a LIVE, DERIVED self-model (the route table,
+// screen registries, package exports, DB schemas, MCP tools, capability
+// registry — regenerated on deploy/migration/flag-flip with listChanged
+// invalidation). When the kernel is wired with a body-schema reader it
+// renders the organ-map summary INSTEAD of the static list above; when it
+// is not (tests, bootstrap before the first derivation), it falls back to
+// the static `BRAIN_MODULES` block so behaviour never regresses.
+//
+// The graph itself lives in `@borjie/system-graph` (a leaf package). To
+// avoid a hard runtime dependency here, the kernel injects a reader port
+// that returns a pre-rendered organ-map block. This keeps self-awareness
+// pure + testable and the wiring in the composition root.
+//
+// See Docs/research/MD_AS_BODY_ARCHITECTURE.md §bodyModel RENDERING.
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * A pre-rendered organ-map self-summary + the canonical "what are you?"
+ * paragraph, both derived from the live system-graph. The composition
+ * root builds this from `@borjie/system-graph` (summariseOrganMap +
+ * renderOrganMapBlock + describeBody) and hands it to the kernel.
+ */
+export interface BodySchemaSnapshot {
+  /** The resident [BRAIN SELF-AWARENESS] block (organ-map summary). */
+  readonly inventoryBlock: string;
+  /** One-paragraph user-facing answer to "what are you?". */
+  readonly description: string;
+  /** Content revision of the body schema (for staleness reasoning). */
+  readonly revision: string;
+}
+
+/**
+ * Reader port the kernel injects. Returns the latest derived snapshot, or
+ * `null` when no derivation has run yet (fall back to the static block).
+ */
+export type BodySchemaReader = () => BodySchemaSnapshot | null;
+
+/**
+ * Render the self-awareness block, preferring the LIVE derived body
+ * schema when a reader is wired. Drift-free by construction: the block
+ * tracks the actual morphology, not a hand-edited list.
+ *
+ * Backwards compatible — callers that pass nothing get the static block
+ * (unchanged contract with kernel.ts + existing tests).
+ */
+export function renderSelfAwarenessBlock(reader?: BodySchemaReader | null): string {
+  const snapshot = reader ? safeRead(reader) : null;
+  if (snapshot && snapshot.inventoryBlock.length > 0) {
+    return snapshot.inventoryBlock;
+  }
+  return renderModuleInventoryBlock();
+}
+
+/**
+ * Canonical "what are you?" answer, preferring the live body schema.
+ */
+export function describeSelf(reader?: BodySchemaReader | null): string {
+  const snapshot = reader ? safeRead(reader) : null;
+  if (snapshot && snapshot.description.length > 0) {
+    return snapshot.description;
+  }
+  return describeCapabilities();
+}
+
+/**
+ * Defensive read — a body-schema reader must never crash the kernel turn.
+ * On any throw we fall back to the static inventory (fail-safe, never
+ * fail-open: the MD speaks from the static posture rather than nothing).
+ */
+function safeRead(reader: BodySchemaReader): BodySchemaSnapshot | null {
+  try {
+    return reader();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * User-facing canonical answer to "what are you?". One paragraph,
  * grounded in the inventory. Used by the counterparty-app and

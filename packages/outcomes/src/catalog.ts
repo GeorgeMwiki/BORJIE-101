@@ -34,7 +34,7 @@ const TICKET_RESOLVED: Outcome = {
   displayName: 'Ticket resolved within SLA',
   description:
     'AI-managed work order closed within its committed SLA window, ' +
-    'confirmed by the tenant, and not re-opened within 14 days.',
+    'confirmed by the estate owner, and not re-opened within 14 days.',
   pricing: [
     {
       kind: 'per_event',
@@ -49,20 +49,20 @@ const TICKET_RESOLVED: Outcome = {
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// #2 — Rent collected
+// #2 — Royalty collected
 //
 // 2% of total collected ABOVE the prior-12mo baseline (counterfactual
-// delta), plus 10% of recovered delinquency. Min retainer $200/mo so
+// delta), plus 10% of recovered royalty arrears. Min retainer $200/mo so
 // the floor is predictable on quiet months. 90-day clawback covers
 // chargebacks / disputes.
 // ─────────────────────────────────────────────────────────────────────
 
 const RENT_COLLECTED: Outcome = {
   kind: 'rent_collected',
-  displayName: 'Rent collected',
+  displayName: 'Royalty collected',
   description:
-    'Bank-reconciled rent above the prior-12-month baseline plus ' +
-    'recovered delinquency. Min retainer $200/property/month; 90-day ' +
+    'Bank-reconciled royalty above the prior-12-month baseline plus ' +
+    'recovered royalty arrears. Min retainer $200/site/month; 90-day ' +
     'clawback window covers chargebacks and disputes.',
   pricing: [
     {
@@ -85,23 +85,25 @@ const RENT_COLLECTED: Outcome = {
 };
 
 // ─────────────────────────────────────────────────────────────────────
-// #3 — Vacancy filled
+// #3 — Offtake secured
 //
-// Half a month's rent per executed lease + move-in. 30-day clawback
-// covers cancellations and no-shows. Mirrors the traditional letting-
-// agent commission model so landlord contracts feel familiar.
+// Half a month's offtake value per executed supply agreement + first
+// delivery. 30-day clawback covers cancellations and no-shows. Mirrors
+// the traditional broker commission model so estate-owner contracts
+// feel familiar.
 // ─────────────────────────────────────────────────────────────────────
 
 const VACANCY_FILLED: Outcome = {
   kind: 'vacancy_filled',
-  displayName: 'Vacancy filled',
+  displayName: 'Offtake secured',
   description:
-    'Lease executed and tenant moved into a previously vacant unit. ' +
-    '30-day clawback window covers cancellations and no-shows.',
+    'Supply agreement executed and buyer onboarded against previously ' +
+    'uncommitted capacity. 30-day clawback window covers cancellations ' +
+    'and no-shows.',
   pricing: [
     {
       kind: 'fraction_of_monthly_rent',
-      fraction: 0.5, // half a month's rent
+      fraction: 0.5, // half a month's offtake value
       currency: DEFAULT_CURRENCY,
     },
   ],

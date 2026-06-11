@@ -10,12 +10,16 @@
  *   POST /api/v1/regulator/requests/:id/deliver
  *   POST /api/v1/regulator/requests/:id/reject
  *
- * Bilingual sw/en strings; SLA countdown via simple Math; toasts use
- * the shared `useState` message pattern.
+ * The summary textarea renders ONLY the active-locale field — Swahili
+ * when locale=sw, English when locale=en. Both values are kept in
+ * CreatePayload so the downstream bilingual record is complete.
+ * SLA countdown via simple Math; toasts use the shared `useState`
+ * message pattern.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { useLocale } from '@/lib/locale';
 
 type Regulator = 'pccb' | 'nemc' | 'eiti' | 'tmaa' | 'other';
 type SubjectKind =
@@ -79,6 +83,7 @@ function daysUntilLabel(dueAt: string): string {
 }
 
 export function RegulatorRequestsClient() {
+  const locale = useLocale();
   const [rows, setRows] = useState<readonly RegulatorRequestRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -230,31 +235,34 @@ export function RegulatorRequestsClient() {
             />
           </label>
         </div>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <label className="text-sm">
-            Summary (Swahili)
-            <textarea
-              value={draft.summarySw ?? ''}
-              onChange={(e) =>
-                setDraft({ ...draft, summarySw: e.target.value })
-              }
-              rows={2}
-              placeholder="Muhtasari kwa Kiswahili"
-              className="mt-1 w-full rounded-md border-slate-300 text-sm"
-            />
-          </label>
-          <label className="text-sm">
-            Summary (English)
-            <textarea
-              value={draft.summaryEn ?? ''}
-              onChange={(e) =>
-                setDraft({ ...draft, summaryEn: e.target.value })
-              }
-              rows={2}
-              placeholder="Summary in English"
-              className="mt-1 w-full rounded-md border-slate-300 text-sm"
-            />
-          </label>
+        <div className="mt-3">
+          {locale === 'sw' ? (
+            <label className="text-sm">
+              Muhtasari (sw)
+              <textarea
+                value={draft.summarySw ?? ''}
+                onChange={(e) =>
+                  setDraft({ ...draft, summarySw: e.target.value })
+                }
+                rows={2}
+                placeholder="Maandishi ya muhtasari kwa Kiswahili"
+                className="mt-1 w-full rounded-md border-slate-300 text-sm"
+              />
+            </label>
+          ) : (
+            <label className="text-sm">
+              Summary (en)
+              <textarea
+                value={draft.summaryEn ?? ''}
+                onChange={(e) =>
+                  setDraft({ ...draft, summaryEn: e.target.value })
+                }
+                rows={2}
+                placeholder="English summary text"
+                className="mt-1 w-full rounded-md border-slate-300 text-sm"
+              />
+            </label>
+          )}
         </div>
         <div className="mt-4 flex justify-end gap-3">
           <button

@@ -26,10 +26,21 @@ HAS_DOWHY = _has_module("dowhy")
 HAS_TIGRAMITE = _has_module("tigramite")
 
 
+TEST_AUTH_TOKEN = "test-sidecar-token-0123456789"
+
+
 @pytest.fixture(scope="session")
 def test_settings() -> Settings:
     """Small, test-friendly settings (low simulation counts to keep
-    pytest fast even on the real engines)."""
+    pytest fast even on the real engines).
+
+    SEC-1: a non-empty `auth_token` so the inference-route guard is
+    *active* under test — the `client` fixture sends it via an auth
+    header so the existing inference tests keep passing, while the auth
+    tests assert 401 when it is absent/wrong.
+    SEC-2: `allow_local_paths=True` so the csv:// / parquet:// data-loader
+    tests still exercise those branches.
+    """
     return Settings(
         host="127.0.0.1",
         port=0,
@@ -40,13 +51,21 @@ def test_settings() -> Settings:
         pcmci_pc_alpha_default=0.05,
         max_payload_rows=10_000,
         cors_allow_origins=(),
+        auth_token=TEST_AUTH_TOKEN,
+        allow_local_paths=True,
+        max_payload_bytes=64 * 1024 * 1024,
     )
 
 
 @pytest.fixture()
 def client(test_settings: Settings) -> Iterator[TestClient]:
+    """Authenticated client — sends the bearer token on every request so
+    the inference routes accept it. Unauthenticated tests build their own
+    bare client (see test_auth.py)."""
     app = create_app(test_settings)
-    with TestClient(app) as c:
+    with TestClient(
+        app, headers={"Authorization": f"Bearer {TEST_AUTH_TOKEN}"}
+    ) as c:
         yield c
 
 

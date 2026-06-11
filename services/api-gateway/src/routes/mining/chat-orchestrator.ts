@@ -57,8 +57,76 @@ import { createLogger } from '../../utils/logger';
 // `BORJIE_ORCHESTRATOR_MAINLOOP=0|false|off` soft-disable) the
 // `createDefaultMasterBrainAgent().processInput` path runs UNCHANGED.
 import { resolveBrainOrchestratorRoutingEnabled } from '../../composition/brain-orchestrator-turn';
+// LIVING-MD organ — the per-turn commitment hooks (the felt diff). The pre-turn
+// hook RE-READS the durable plan (Magentic-One dual-ledger discipline: re-read
+// the outer task ledger every loop) and injects a single-language system context
+// block; the post-turn hook surfaces a `commitment_state` event when a
+// commitment became due (the reconciliation sweep reaching the conversation).
+// Wired ONCE at composition time via `configureLivingMdTurnHooks` (DI, not a
+// global read) so this generator stays decoupled + testable.
+import type {
+  CommitmentStateWireEvent,
+  TurnCommitmentHooks,
+} from '../../composition/living-md/turn-commitment-hooks';
 
 const orchestratorLogger = createLogger('chat-orchestrator-conformal');
+
+// ─────────────────────────────────────────────────────────────────────
+// LIVING-MD turn-hooks injection (composition-time DI, fail-safe).
+//
+// The composition root calls `configureLivingMdTurnHooks(organ.turnHooks)`
+// once at boot. When unwired (degraded boot / tests), the turn proceeds
+// EXACTLY as before (no injection, no commitment_state event) — the hooks
+// are purely additive and never on the critical path of a turn.
+// ─────────────────────────────────────────────────────────────────────
+
+let injectedTurnHooks: TurnCommitmentHooks | null = null;
+
+/** Wire the LIVING-MD turn hooks at composition time (next to the tool wires). */
+export function configureLivingMdTurnHooks(hooks: TurnCommitmentHooks): void {
+  injectedTurnHooks = hooks;
+}
+
+/** Reset the injected hooks (tests). */
+export function resetLivingMdTurnHooks(): void {
+  injectedTurnHooks = null;
+}
+
+/**
+ * Bounded lookback for the per-turn "became due / new since last turn" diff.
+ * The orchestrator has no per-session turn-timestamp store, so we re-read the
+ * ledger over a short window — recently-changed commitments surface, and the
+ * idempotent post-turn event coalesces a re-surface across rapid turns.
+ */
+const LIVING_MD_TURN_LOOKBACK_MS = 15 * 60 * 1000;
+
+/**
+ * POST-TURN effect (reconciliation sweep reaching the conversation). Re-reads
+ * the plan FRESH after the turn; yields a `commitment_state` event when a
+ * commitment became due since `sinceMs` (and, for sovereign newly-due items,
+ * the hook itself requests a safe-halt draft — never auto-executes). Fail-safe:
+ * an absent hook / a fault yields nothing. Shared by both generation paths so
+ * the felt diff is identical Master-Brain vs orchestrator.
+ */
+async function* emitLivingMdPostTurn(
+  input: OrchestratorInput,
+  sinceMs: number,
+): AsyncGenerator<CommitmentStateWireEvent, void, unknown> {
+  if (!injectedTurnHooks) return;
+  try {
+    const post = await injectedTurnHooks.postTurn({
+      tenantId: input.tenantId,
+      language: input.language === 'sw' ? 'sw' : 'en',
+      lastTurnAtMs: sinceMs,
+    });
+    if (post.event) yield post.event;
+  } catch (err) {
+    orchestratorLogger.warn(
+      { tenantId: input.tenantId, err: err instanceof Error ? err.message : String(err) },
+      'living-md: post-turn effect failed (no commitment_state event)',
+    );
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Persona lenses are classified INTERNALLY — the owner never picks a mode.
@@ -94,6 +162,7 @@ export type ChatSseEvent =
       readonly evidence_ids: ReadonlyArray<string>;
       readonly confidence: number;
     }
+  | CommitmentStateWireEvent
   | { readonly type: 'done' }
   | {
       readonly type: 'error';
@@ -116,6 +185,11 @@ export interface OrchestratorInput {
  */
 export async function* runChatOrchestrator(
   input: OrchestratorInput,
+  // Optional cancellation signal — the mining /chat SSE route aborts it on
+  // client disconnect so the kernel forwards it onto the provider request and
+  // in-flight token generation stops (mfr-3). Backward-compatible: callers that
+  // omit it behave exactly as before.
+  options?: { signal?: AbortSignal },
 ): AsyncGenerator<ChatSseEvent, void, unknown> {
   // No user-selected mode (WS-0): the brain classifies the persona lens(es)
   // from the message itself and blends them. The lens router is deterministic
@@ -187,7 +261,39 @@ export async function* runChatOrchestrator(
   } catch {
     corpusChunks = [];
   }
-  const retrievedContext = tokeniseRetrievedContext(corpusChunks);
+  const retrievedContextBase = tokeniseRetrievedContext(corpusChunks);
+
+  // ── LIVING-MD PRE-TURN re-read (Magentic-One dual-ledger discipline) ──
+  // RE-READ the durable commitment plan FRESH (never from memory between ticks)
+  // and, when there is a backlog worth surfacing, inject a SINGLE-LANGUAGE
+  // system context block into the grounding set so the brain reasons over the
+  // backlog WITHOUT the owner asking. The block carries a non-corpus id
+  // ('living-md:backlog') so it never enters the cited-evidence union
+  // (mergeAllEvidence merges corpus/brain/junior evidence only). Fail-safe: an
+  // absent hook / a read fault degrades to the un-injected path (identical to
+  // today). `lastTurnAtMs` is a bounded lookback so "became due since" is honest.
+  const livingMdSinceMs = Date.now() - LIVING_MD_TURN_LOOKBACK_MS;
+  let retrievedContext: ReadonlyArray<RetrievedContextChunk> = retrievedContextBase;
+  if (injectedTurnHooks) {
+    try {
+      const pre = await injectedTurnHooks.preTurn({
+        tenantId: input.tenantId,
+        language: input.language === 'sw' ? 'sw' : 'en',
+        lastTurnAtMs: livingMdSinceMs,
+      });
+      if (pre.contextBlock) {
+        retrievedContext = [
+          ...retrievedContextBase,
+          { id: 'living-md:backlog', text: pre.contextBlock },
+        ];
+      }
+    } catch (err) {
+      orchestratorLogger.warn(
+        { tenantId: input.tenantId, err: err instanceof Error ? err.message : String(err) },
+        'living-md: pre-turn re-read failed (un-injected fallback)',
+      );
+    }
+  }
 
   // ── Stage 3 — orchestrator main-loop (DEFAULT-ON live generator) ──
   // When ON, generate via `sov.kernel.think()` — the disciplined kernel
@@ -199,6 +305,8 @@ export async function* runChatOrchestrator(
     yield* runChatViaOrchestrator(input, {
       lensSelection,
       corpusChunks,
+      livingMdSinceMs,
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
     return;
   }
@@ -362,6 +470,8 @@ export async function* runChatOrchestrator(
     evidence_ids: merged,
     confidence: calibrated.confidence,
   };
+  // LIVING-MD POST-TURN — the reconciliation sweep reaches the conversation.
+  yield* emitLivingMdPostTurn(input, livingMdSinceMs);
   yield { type: 'done' };
 }
 
@@ -396,6 +506,9 @@ async function* runChatViaOrchestrator(
   ctx: {
     readonly lensSelection: ReturnType<typeof classifyLenses>;
     readonly corpusChunks: ReadonlyArray<CorpusEvidence>;
+    /** LIVING-MD bounded lookback for the post-turn became-due diff. */
+    readonly livingMdSinceMs: number;
+    readonly signal?: AbortSignal;
   },
 ): AsyncGenerator<ChatSseEvent, void, unknown> {
   // Resolve the live SovereignBrain for this tenant. Dynamic import keeps
@@ -427,7 +540,7 @@ async function* runChatViaOrchestrator(
       // CLAUDE.md bilingual single-language — thread the active locale so
       // the orchestrator's terminal directive renders single-language.
       language: input.language === 'sw' ? 'sw' : 'en',
-    });
+    }, ctx.signal ? { signal: ctx.signal } : undefined);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     yield { type: 'error', source: 'master-brain', message };
@@ -464,6 +577,9 @@ async function* runChatViaOrchestrator(
     evidence_ids: merged,
     confidence: calibrated.confidence,
   };
+  // LIVING-MD POST-TURN — the reconciliation sweep reaches the conversation
+  // on the orchestrator path too (identical felt diff to the Master-Brain path).
+  yield* emitLivingMdPostTurn(input, ctx.livingMdSinceMs);
   yield { type: 'done' };
 }
 

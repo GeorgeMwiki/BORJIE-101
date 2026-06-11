@@ -343,4 +343,142 @@ app.get('/kyc/me', async (c: any) => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// PATCH /profile — update the calling user's buyer profile.
+//
+// Backs the buyer-mobile Profile Save flow (apps/buyer-mobile/src/api/
+// buyers.ts → updateProfile). Resolves the buyers row via
+// linked_user_id (NOT an explicit id — the FE only knows the actor) and
+// patches the editable fields: display name (companyName), contact phone,
+// and preferred language (persisted into attributes.preferredLang so the
+// language toggle survives across sessions). Returns a BuyerUser-shaped
+// envelope the FE merges into the session.
+//
+// Tenant-scoped via auth.tenantId predicate + RLS. Immutable update:
+// attributes are rebuilt, never mutated in place.
+// ---------------------------------------------------------------------------
+
+const ProfilePatchSchema = z
+  .object({
+    companyName: z.string().min(1).max(200).optional(),
+    phone: z.string().max(40).optional(),
+    preferredLang: z.enum(['sw', 'en']).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: 'At least one field must be provided',
+  });
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+app.patch('/profile', async (c: any) => {
+  const auth = c.get('auth') as
+    | { tenantId?: string; userId?: string }
+    | undefined;
+  if (!auth?.tenantId || !auth?.userId) {
+    return c.json(
+      {
+        success: false as const,
+        error: { code: 'UNAUTHORIZED', message: 'Authentication required' },
+      },
+      401,
+    );
+  }
+  const db = c.get('db');
+  if (!db) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'DATABASE_UNAVAILABLE',
+          message: 'Database not configured',
+        },
+      },
+      503,
+    );
+  }
+
+  const body = (await c.req.json().catch(() => null)) as unknown;
+  const parsed = ProfilePatchSchema.safeParse(body);
+  if (!parsed.success) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: parsed.error.issues
+            .map((i) => `${i.path.join('.')}: ${i.message}`)
+            .join('; '),
+        },
+      },
+      400,
+    );
+  }
+
+  const [existing] = await db
+    .select()
+    .from(buyers)
+    .where(
+      and(
+        eq(buyers.tenantId, auth.tenantId),
+        eq(buyers.linkedUserId, auth.userId),
+      ),
+    )
+    .limit(1);
+  if (!existing) {
+    return c.json(
+      {
+        success: false as const,
+        error: {
+          code: 'NO_KYC_ON_FILE',
+          message: 'Submit KYC at /api/v1/mining/buyers/kyc first',
+        },
+      },
+      404,
+    );
+  }
+
+  const priorAttributes =
+    (existing.attributes as Record<string, unknown>) ?? {};
+  const nextAttributes =
+    parsed.data.preferredLang !== undefined
+      ? { ...priorAttributes, preferredLang: parsed.data.preferredLang }
+      : priorAttributes;
+
+  const [updated] = await db
+    .update(buyers)
+    .set({
+      name: parsed.data.companyName ?? existing.name,
+      contactPhone:
+        parsed.data.phone !== undefined
+          ? parsed.data.phone
+          : existing.contactPhone,
+      attributes: nextAttributes,
+    })
+    .where(
+      and(eq(buyers.id, existing.id), eq(buyers.tenantId, auth.tenantId)),
+    )
+    .returning();
+
+  const row = updated ?? existing;
+  const rowAttributes = (row.attributes as Record<string, unknown>) ?? {};
+  const preferredLang =
+    rowAttributes.preferredLang === 'en' || rowAttributes.preferredLang === 'sw'
+      ? rowAttributes.preferredLang
+      : 'en';
+  return c.json(
+    {
+      success: true as const,
+      data: {
+        id: row.id,
+        role: 'buyer' as const,
+        companyName: row.name,
+        countryCode: row.country,
+        preferredLang,
+        kycStatus: row.kycStatus,
+        phone: row.contactPhone ?? '',
+      },
+    },
+    200,
+  );
+});
+
 export const miningBuyersKycRouter = app;

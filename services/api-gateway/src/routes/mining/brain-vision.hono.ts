@@ -8,21 +8,27 @@
  *  - The mobile pipeline already calls
  *    `POST /api/v1/mining/brain/vision-turn` per the contract in
  *    `apps/workforce-mobile/src/photo-advisor/types.ts`.
- *  - The existing Brain orchestrator (`@borjie/ai-copilot`) does not yet
- *    expose a multimodal turn API. This endpoint validates the request
- *    fully and returns 503 BACKEND_VISION_UNAVAILABLE with a structured
- *    `BRAIN_MULTIMODAL_NOT_WIRED` code so the next agent / human can
- *    close the gap on the orchestrator side without changing the
- *    transport contract.
+ *  - The Brain orchestrator (`@borjie/ai-copilot`) DOES expose a multimodal
+ *    turn API: `Brain.orchestrator.startThread` accepts + validates
+ *    `mediaAttachments` (see `buildMultimodalUserMessage`). The composition
+ *    root (`composition/service-registry.ts::wireMultimodalBrainResolver`) now
+ *    calls `setBrainResolver(ctx => …)` so this router resolves a per-tenant
+ *    multimodal Brain from the SAME per-tenant `BrainRegistry` construction the
+ *    text brain path (`routes/brain.hono.ts`) uses. Honest-degrade: when
+ *    Anthropic/Supabase creds are absent the composition root leaves the
+ *    resolver UNSET, so `brainResolver` is null and the handler short-circuits
+ *    503 `BACKEND_VISION_UNAVAILABLE` / `BRAIN_NOT_CONFIGURED` — the request is
+ *    validated fully so a misconfig never silently 200s.
  *
  * Contract enforcement (per the photo-advisor agent spec):
- *  - 200 — success (currently unreachable until orchestrator is wired)
+ *  - 200 — success (once `setBrainResolver` is wired at the composition root)
  *  - 400 — invalid body (missing image / prompt, bad mime, etc.)
  *  - 401 — no auth (via shared authMiddleware)
  *  - 413 — image > 10 MB
  *  - 429 — per-tenant + per-actor rate limit
- *  - 503 — `BACKEND_VISION_UNAVAILABLE` when vision flag OFF or
- *          when orchestrator multimodal API is not yet wired
+ *  - 503 — `BACKEND_VISION_UNAVAILABLE` when the vision flag is OFF
+ *          (`VISION_CAPABILITY_DISABLED`) or the brain resolver is not yet
+ *          injected (`BRAIN_NOT_CONFIGURED`)
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
@@ -30,6 +36,22 @@ import { z } from 'zod';
 import pino from 'pino';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { rateLimiter as sharedRateLimiter } from '../../middleware/rate-limiter';
+// INPUT CONTAINMENT (CLOSE-G) — the blessed ingress prompt-injection /
+// jailbreak guard, applied to `body.prompt` BEFORE `buildVisionPrompt`
+// folds it into the persona prompt and `startThread` reaches the model.
+// CRITICAL → single-language JSON refusal envelope (the model never sees
+// it); lower severities → run on the detector-redacted prompt. Fail-OPEN.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../../composition/ingress-guard-apply.js';
+// IP-EGRESS (CLOSE-G) — the multimodal turn's model-authored prose (summary /
+// reasoning / each suggestion) is returned as JSON to the mobile Photo Advisor.
+// It MUST pass the FAIL-CLOSED egress firewall before egress so internal
+// cognition / prompts / architecture / secrets / canary / cross-tenant ids
+// never leak. DEFAULT-ON; kill-switch `BORJIE_EGRESS_FILTER`. See
+// `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../../composition/egress-filter-wiring.js';
 import type {
   Brain,
   MediaAttachment,
@@ -151,6 +173,32 @@ function buildVisionPrompt(body: VisionTurnRequest): string {
     `User prompt: ${body.prompt}`,
     locationLine,
   ].join('\n');
+}
+
+/** Generic egress fail-closed placeholder for model-authored text. */
+const VISION_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * IP-EGRESS (CLOSE-G) — guard one model-authored text leaf through the
+ * FAIL-CLOSED egress firewall before it reaches the mobile client. A thrown
+ * filter (or construction fault) yields a generic placeholder, never the raw
+ * text. Empty / non-string spans pass through unchanged.
+ */
+function guardVisionText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'mining-brain-vision: egress guard threw — failing closed',
+    );
+    return VISION_EGRESS_FAIL_CLOSED;
+  }
 }
 
 interface PersonaPhotoAdvisorPayload {
@@ -451,8 +499,39 @@ app.post('/vision-turn', async (c) => {
   }
 
   // -------------------------------------------------------------------------
+  // 8b. INPUT CONTAINMENT (CLOSE-G) — guard the free-text `prompt` BEFORE it
+  //     is folded into the persona prompt + sent to the model. CRITICAL
+  //     prompt-injection / jailbreak → single-language refusal envelope (the
+  //     model never sees it). Lower severities → continue on the detector-
+  //     redacted prompt (offending spans stripped). Fail-OPEN-but-logged.
+  // -------------------------------------------------------------------------
+  const ingress = await applyIngressGuard({
+    userText: body.prompt,
+    tenantId: auth.tenantId,
+    userId: auth.userId ?? null,
+    lang: pickIngressGuardLang(
+      c.req.header('accept-language') ?? (body.language === 'sw' ? 'sw' : 'en'),
+    ),
+  });
+  if (ingress.refused) {
+    return c.json(
+      {
+        error: 'input_guard_refused',
+        code: 'INPUT_GUARD_REFUSED',
+        message: ingress.refusalMessage,
+      },
+      403,
+    );
+  }
+  // Run the turn on the (possibly redacted) prompt — offending spans stripped.
+  const guardedBody: VisionTurnRequest =
+    ingress.text !== body.prompt ? { ...body, prompt: ingress.text } : body;
+
+  // -------------------------------------------------------------------------
   // 9. Run the multimodal turn
   // -------------------------------------------------------------------------
+  // The ingress guard only redacts the free-text `prompt`; the image bytes are
+  // untouched, so the attachment reads from the original (mime-narrowed) body.
   const attachment: MediaAttachment = {
     mediaType: body.image.mimeType,
     data: body.image.base64,
@@ -476,28 +555,41 @@ app.post('/vision-turn', async (c) => {
         teamIds: [],
         isAdmin: false,
       },
-      initialUserText: buildVisionPrompt(body),
+      initialUserText: buildVisionPrompt(guardedBody),
       mediaAttachments: [attachment],
     });
 
     if (!startResult.success) {
+      // IP-EGRESS (CLOSE-G) — the raw orchestrator error can carry the persona
+      // id / model id / provider rationale. NEVER forward it to the client. The
+      // raw `code` + `message` are logged SERVER-SIDE only; the wire envelope
+      // carries a GENERIC message + a fixed, whitelisted client code. We map
+      // ONLY the unsupported-model case to 503 (a capability signal the mobile
+      // pipeline already handles) — every other failure is an opaque 500.
       logger.error(
         {
           tenantId: auth.tenantId,
           userId: auth.userId,
+          // Raw orchestrator code + message stay here, on the server log only.
           err: startResult.error.code,
           message: startResult.error.message,
         },
         'vision-turn rejected: orchestrator returned error',
       );
-      const status = startResult.error.code === 'VISION_UNSUPPORTED_MODEL'
-        ? 503
-        : 500;
+      const isUnsupportedModel =
+        startResult.error.code === 'VISION_UNSUPPORTED_MODEL';
+      const status = isUnsupportedModel ? 503 : 500;
+      // Fixed, whitelisted client codes — no internal/provider/persona/model
+      // identity ever crosses the wire.
+      const clientCode = isUnsupportedModel
+        ? 'BACKEND_VISION_UNAVAILABLE'
+        : 'BRAIN_TURN_FAILED';
       return c.json(
         {
-          error: 'brain_turn_failed',
-          code: startResult.error.code,
-          message: startResult.error.message,
+          error: clientCode,
+          code: clientCode,
+          // Generic, identity-free copy. The mobile client renders this as-is.
+          message: 'The vision turn could not be completed. Please try again.',
         },
         status,
       );
@@ -507,6 +599,25 @@ app.post('/vision-turn', async (c) => {
     const fallbackEvidenceId = `brain-thread:${thread.id}`;
     const composed = composePhotoAdvisorResponse(turn, fallbackEvidenceId);
 
+    // IP-EGRESS (CLOSE-G) — run summary / reasoning / each suggestion through the
+    // FAIL-CLOSED egress firewall before the JSON leaves the gateway. Citations
+    // carry an `evidenceId` (pure provenance pointer the client renders) PLUS a
+    // `source` + `excerpt` that come VERBATIM from the model's parsed JSON — so
+    // those two are model-authored prose leaves and MUST be egress-filtered too;
+    // only the opaque evidence id is forwarded raw.
+    const safeComposed = {
+      summary: guardVisionText(composed.summary, auth.tenantId),
+      reasoning: guardVisionText(composed.reasoning, auth.tenantId),
+      suggestions: composed.suggestions.map((s) =>
+        guardVisionText(s, auth.tenantId),
+      ),
+      citations: composed.citations.map((cit) => ({
+        evidenceId: cit.evidenceId,
+        source: guardVisionText(cit.source, auth.tenantId),
+        excerpt: guardVisionText(cit.excerpt, auth.tenantId),
+      })),
+    };
+
     logger.info(
       {
         tenantId: auth.tenantId,
@@ -514,7 +625,7 @@ app.post('/vision-turn', async (c) => {
         threadId: thread.id,
         finalPersonaId: turn.finalPersonaId,
         tokensUsed: turn.tokensUsed,
-        sessionId: body.sessionId,
+        sessionId: guardedBody.sessionId,
         attachments: 1,
       },
       'vision-turn served',
@@ -522,7 +633,7 @@ app.post('/vision-turn', async (c) => {
 
     return c.json(
       {
-        ...composed,
+        ...safeComposed,
         sessionId: thread.id,
       },
       200,

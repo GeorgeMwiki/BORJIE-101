@@ -9,6 +9,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { PREFERENCE_PROFILE_PROMPT } from '../prompts/copilot-prompts.js';
 
@@ -89,7 +90,7 @@ export interface OnboardingData {
     specialNeeds?: string[];
   };
 
-  // Property context
+  // Mining estate context
   propertyContext?: {
     type: 'apartment' | 'house' | 'studio' | 'villa';
     location: string;
@@ -321,7 +322,7 @@ export class PreferenceProfileEngine {
 
   constructor(config: PreferenceProfileEngineConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.3;
     this.maxTokens = config.maxTokens ?? 3000;
   }
@@ -416,7 +417,7 @@ Return the updated complete profile in the same JSON format.`,
       messages: [
         {
           role: 'system',
-          content: `You are a communication personalization AI for a property management platform.
+          content: `You are a communication personalization AI for a mining-estate operations platform.
 Generate messages adapted to the tenant's preferences and communication style.
 Return a JSON object with:
 - message: The adapted message text

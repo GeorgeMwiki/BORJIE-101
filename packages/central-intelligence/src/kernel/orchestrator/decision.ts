@@ -3,7 +3,7 @@
  * each tick of the main loop. Mirrors the Claude-Code-level
  * "what does the model want to do next?" surface.
  *
- * Six terminal/transitional variants:
+ * Eight terminal/transitional variants:
  *   - `respond_to_owner`   final natural-language reply to the caller
  *   - `tool_call`          invoke a registered BrainTool / HQ tool
  *   - `spawn_sub_md`       fork a sub-MD (maintenance-dispatch, complaint-
@@ -17,6 +17,16 @@
  *   - `schedule_wake`      ask the wake-loop to revive this thread later
  *   - `monitor`            install a watcher (event predicate) and yield
  *   - `final`              graceful close — plan reached its goal
+ *   - `run_skill`          invoke a learned skill from the skill_registry
+ *                          (Voyager procedural memory). Emitted only by the
+ *                          modality arbiter (COG-07/AUT-14); each underlying
+ *                          step is re-played through the SAME 9-hook chain.
+ *   - `run_modality`       route to a higher-order output modality
+ *                          (tab/document/media/workflow/loop). Emitted only
+ *                          by the modality arbiter. The payload is a thin
+ *                          recipe/flow descriptor the dispatcher's injected
+ *                          handler actuates; absent a handler the dispatcher
+ *                          falls closed to a structured ack breadcrumb.
  *
  * Pure data — no executor coupling. The orchestrator's `dispatch()` is the
  * only thing that knows how to actuate each variant.
@@ -157,6 +167,30 @@ export type Decision =
   | {
       readonly kind: 'final';
       readonly text: string;
+    }
+  | {
+      // Modality arbiter (COG-07/AUT-14) — invoke a learned skill. The
+      // skill's templated tool sequence is re-played through the SAME
+      // 9-hook chain; each step is risk-tiered as today.
+      readonly kind: 'run_skill';
+      readonly skillId: string;
+      readonly params: Readonly<Record<string, unknown>>;
+    }
+  | {
+      // Modality arbiter (COG-07/AUT-14) — route to a higher-order output
+      // modality. `loop` is the standing/recurring sub-kind of `workflow`
+      // that routes to the loop-runner. `forecast` is a generative ARTIFACT
+      // modality (calibrated advisory time-series) routed to the forecast
+      // engine — it joins `document`/`media` as a proposal-only output.
+      readonly kind: 'run_modality';
+      readonly modality:
+        | 'tab'
+        | 'document'
+        | 'media'
+        | 'forecast'
+        | 'workflow'
+        | 'loop';
+      readonly payload: Readonly<Record<string, unknown>>;
     };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -206,4 +240,27 @@ export type DispatchResult =
   | {
       readonly kind: 'monitor_ack';
       readonly watchId: string;
+    }
+  | {
+      // Modality arbiter — a learned-skill replay ack. When a real
+      // skillHandler is wired the dispatcher returns the handler's output;
+      // absent one it returns this structured breadcrumb (same fall-closed
+      // pattern as `spawn_ack`).
+      readonly kind: 'skill_ack';
+      readonly skillId: string;
+      readonly output?: unknown;
+    }
+  | {
+      // Modality arbiter — a higher-order modality ack (tab/doc/media/
+      // forecast/workflow/loop). When a real modalityHandler is wired the
+      // dispatcher returns its output; absent one it returns this breadcrumb.
+      readonly kind: 'modality_ack';
+      readonly modality:
+        | 'tab'
+        | 'document'
+        | 'media'
+        | 'forecast'
+        | 'workflow'
+        | 'loop';
+      readonly output?: unknown;
     };

@@ -1,17 +1,20 @@
 /**
- * @borjie/module-templates — Ten platform-built-in module templates
+ * @borjie/module-templates — Nine platform-built-in module templates
  * registered as a single immutable bundle list. The orchestrator's
  * boot routine reads `ALL_TEMPLATE_BUNDLES` and UPSERTs each into the
  * `module_templates` + `module_accept_handlers` tables.
  *
- * Two handler sets ship live today:
- *   - ESTATE → `create_lease_application`, `post_receipt_draft`
+ * One handler set ships live today:
  *   - MINING → `schedule_licence_renewal`, `open_equipment_maintenance`,
  *              `bulk_mark_licences_for_renewal`
  *
  * The 3 MINING handlers replace the pre-Borjie estate stubs (the
- * historical gh-issue #34 work-item, now closed). The other nine module
- * templates register handler stubs; their wiring lands in later waves.
+ * historical gh-issue #34 work-item, now closed). The pre-Borjie
+ * property-era ESTATE template + its `create_lease_application` /
+ * `post_receipt_draft` dispatch handlers were EXCISED — a mining estate
+ * uses licences (not leases) and routes money through the real
+ * royalty/sales/ledger paths. The other eight module templates register
+ * handler stubs; their wiring lands in later waves.
  */
 
 export type {
@@ -20,7 +23,6 @@ export type {
 } from './types.js';
 
 import type { ModuleTemplateBundle } from './types.js';
-import { estateBundle } from './templates/estate/index.js';
 import { hrBundle } from './templates/hr/index.js';
 import { fleetBundle } from './templates/fleet/index.js';
 import { procurementBundle } from './templates/procurement/index.js';
@@ -32,7 +34,6 @@ import { crmBundle } from './templates/crm/index.js';
 import { inventoryBundle } from './templates/inventory/index.js';
 
 export {
-  estateBundle,
   hrBundle,
   fleetBundle,
   procurementBundle,
@@ -46,7 +47,6 @@ export {
 
 export const ALL_TEMPLATE_BUNDLES: ReadonlyArray<ModuleTemplateBundle> =
   Object.freeze([
-    estateBundle,
     hrBundle,
     fleetBundle,
     procurementBundle,
@@ -66,39 +66,6 @@ export function findBundle(
 ): ModuleTemplateBundle | undefined {
   return ALL_TEMPLATE_BUNDLES.find((b) => b.slug === slug);
 }
-
-// Re-export ESTATE handler symbols so the executor can import the live
-// implementation directly during Wave 22 development.
-export {
-  createLeaseApplicationHandler,
-  CreateLeaseApplicationPayloadSchema,
-  type CreateLeaseApplicationPayload,
-  type CreateLeaseApplicationDeps,
-  type CreateLeaseApplicationContext,
-  type CreateLeaseApplicationResult,
-} from './templates/estate/index.js';
-
-// ─── ESTATE — 2 surviving actions + cross-module registry ─────────────────
-
-export {
-  buildEstateHandlerSet,
-  ESTATE_ACTIONS,
-  createCreateLeaseApplicationAdapter,
-  createPostReceiptDraftAdapter,
-  postReceiptDraftHandler,
-  PostReceiptDraftPayloadSchema,
-  type EstateHandlerDeps,
-  type BuildEstateHandlerSet,
-} from './estate/accept-proposal-handlers.js';
-
-export type {
-  PostReceiptDraftDeps,
-  PostReceiptDraftPayload,
-  PostReceiptDraftContext,
-  PostReceiptDraftResult,
-  LedgerDraftPort,
-  ReceiptStorePort,
-} from './templates/estate/handlers/post-receipt-draft.js';
 
 // ─── MINING — 3 actions (replaces the pre-Borjie estate stubs) ────────────
 

@@ -138,7 +138,8 @@ describe('Wave-3-int2 missing_routing_rule_falls_through', () => {
       },
     );
     expect(result.tenantOverrideCount).toBeGreaterThanOrEqual(2);
-    // matrixSize includes platform defaults + overrides — at least 17.
-    expect(result.matrixSize).toBeGreaterThanOrEqual(17);
+    // matrixSize includes platform defaults (13, post-ESTATE-excision) +
+    // the 2 tenant overrides.
+    expect(result.matrixSize).toBeGreaterThanOrEqual(13);
   });
 });

@@ -296,13 +296,36 @@ export function InlineBlockRenderer({
         />
       );
     default:
+      // DEV — show the raw kind so a missing renderer is loud during
+      // integration. PRODUCTION — never leak `[unknown block: kind]` at a
+      // paying owner. Render a quiet "ask to expand" affordance that defers
+      // the unknown block to the brain (which can re-emit it as a known kind
+      // or describe it in prose). The text suggestion routes through the
+      // host's generative-fulfillment path, so a new brain-authored kind
+      // never dead-ends.
+      if (process.env.NODE_ENV === 'development') {
+        return (
+          <div
+            data-testid={`inline-block-unknown-${kind}`}
+            className="rounded-xl border border-dashed border-foreground/30 bg-surface/20 px-3 py-2 text-tiny text-foreground/60"
+          >
+            [unknown block: {kind}]
+          </div>
+        );
+      }
       return (
-        <div
-          data-testid={`inline-block-unknown-${kind}`}
-          className="rounded-xl border border-dashed border-foreground/30 bg-surface/20 px-3 py-2 text-tiny text-foreground/60"
+        <button
+          type="button"
+          data-testid="inline-block-expand-affordance"
+          onClick={() =>
+            onAction?.({ action: 'expand_block', payload: { kind } })
+          }
+          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/40 px-3 py-1.5 text-tiny text-neutral-300 transition-colors hover:bg-surface/70 hover:text-foreground"
         >
-          [unknown block: {kind}]
-        </div>
+          {locale === 'sw'
+            ? 'Mwombe Mr. Mwikila apanue hili'
+            : 'Ask Mr. Mwikila to expand this'}
+        </button>
       );
   }
 }

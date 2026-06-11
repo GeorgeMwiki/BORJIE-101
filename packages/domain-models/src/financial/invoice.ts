@@ -16,7 +16,6 @@ import type {
   SoftDeletable,
   ISOTimestamp,
 } from '../common/types';
-import { MoneySchema } from '../common/money';
 
 // ============================================================================
 // Enums and Schemas

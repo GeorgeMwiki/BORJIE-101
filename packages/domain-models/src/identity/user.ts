@@ -6,7 +6,6 @@
  */
 
 import type {
-  TenantId,
   OrganizationId,
   UserId,
   RoleId,

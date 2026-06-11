@@ -3,7 +3,7 @@
  *
  * Ports LITFIN's `judge-panel.ts` 5-rubric jury architecture
  * (source: `LITFIN PROJECT/src/core/brain/judge-panel.ts`) to the
- * property-management domain. Each juror grades the copilot synthesis
+ * mining-estate domain. Each juror grades the copilot synthesis
  * against ONE rubric and emits a normalised [0, 1] score plus a short
  * rationale; the panel aggregates the per-juror verdicts and produces
  * a `JudgePanelVerdict` with three possible outcomes:
@@ -18,18 +18,18 @@
  * This prevents a juror from gaming the rubric by recognising the
  * brand and adjusting its score.
  *
- * The 5 property-management rubrics, replacing LITFIN's financial set:
+ * The 5 mining-estate rubrics, replacing LITFIN's financial set:
  *
- *   1. factual-grounding         — claims match property / lease /
- *                                  payment records in the supplied
+ *   1. factual-grounding         — claims match licence / offtake /
+ *                                  royalty records in the supplied
  *                                  context
- *   2. compliance                — TZ / KE / UG / NG tenancy law and
+ *   2. compliance                — TZ / KE / UG / NG mining law and
  *                                  data-protection statutes
  *   3. tone-empathy              — respectful framing, especially in
- *                                  eviction / late-payment comms
+ *                                  licence-suspension / royalty-arrears comms
  *   4. cultural-appropriateness  — Swahili / Sheng / English code-switch
  *                                  fits the audience
- *   5. actionability             — concrete next step for the tenant,
+ *   5. actionability             — concrete next step for the buyer,
  *                                  owner, or manager
  *
  * Pure orchestration. Judge LLM callers are dependency-injected via
@@ -43,10 +43,10 @@
 // ─────────────────────────────────────────────────────────────────────
 
 /**
- * Built-in property-management rubrics. Each rubric is a distinct
+ * Built-in mining-estate rubrics. Each rubric is a distinct
  * dimension we want a juror to score. Callers may supply their own
  * rubric id and `systemPrompt`; the built-ins cover the five most
- * common failure modes for property-management copilot output.
+ * common failure modes for mining-estate copilot output.
  */
 export type JudgeRubric =
   | 'factual-grounding'
@@ -152,14 +152,14 @@ export interface JudgePanelVerdict {
 
 /**
  * Caller context surfaced to the panel. The panel never sees real
- * tenant identifiers — only the question and the surrounding factual
- * context the synthesis was meant to address. Keeps the panel
- * deterministically auditable across reruns.
+ * tenant identifiers (SaaS tenant ids) — only the question and the
+ * surrounding factual context the synthesis was meant to address.
+ * Keeps the panel deterministically auditable across reruns.
  */
 export interface JudgeContext {
   /** The original user question the synthesis is answering. */
   readonly question: string;
-  /** The factual context (property, lease, payment, comms records). */
+  /** The factual context (licence, offtake, royalty, comms records). */
   readonly context: string;
   /**
    * Optional jurisdiction the synthesis is targeting — surfaced to
@@ -245,7 +245,7 @@ export const BRAND_REDACT_TERMS: ReadonlyArray<string> = Object.freeze([
   'NyumbaAI',
   'NyumbaBrain',
   // internal persona codenames that would leak if shown to a juror
-  'Tatu', // internal leasing-copilot codename
+  'Tatu', // internal offtake-copilot codename
   'Amani', // internal owner-copilot codename
   'Wakili', // internal compliance-copilot codename
 ]);
@@ -262,37 +262,38 @@ export const REDACTION_PLACEHOLDER = '[PROPMGR]' as const;
 const DEFAULT_RUBRIC_PROMPTS: Readonly<Record<JudgeRubric, string>> =
   Object.freeze({
     'factual-grounding':
-      'You are the Factual-Grounding Juror on a property-management ' +
+      'You are the Factual-Grounding Juror on a mining-estate ' +
       'review panel. Score the synthesis on a 0-5 scale for grounding ' +
-      'in the supplied property, lease, and payment context: 5 = every ' +
+      'in the supplied licence, offtake, and royalty context: 5 = every ' +
       'factual claim (names, amounts, dates, balances) matches the ' +
       'context exactly; 0 = the synthesis invents or contradicts the ' +
       'supplied records. Output JSON ' +
       '{"score":N,"rationale":"...","flags":["..."]} with N in 0-5. ' +
       'Flag any unsupported claim explicitly.',
     compliance:
-      'You are the Compliance Juror on a property-management review ' +
+      'You are the Compliance Juror on a mining-estate review ' +
       'panel. Score the synthesis on a 0-5 scale for compliance with ' +
-      'the applicable tenancy and data-protection law for the named ' +
-      'jurisdiction (TZ Land Act / Tenancy Act, KE Landlord & Tenant ' +
-      'Bill / Distress for Rent Act, UG Rent Restriction Act, NG ' +
-      'Tenancy Laws; plus TZ PDPA, KE DPA 2019, UG DPPA, NG NDPA). ' +
-      '5 = legally sound, correct notice periods, no prohibited ' +
-      'phrasing; 0 = legally risky, wrong notice, prohibited language. ' +
-      'Output JSON {"score":N,"rationale":"...","flags":["..."]}. ' +
+      'the applicable mining and data-protection law for the named ' +
+      'jurisdiction (TZ Mining Act / Mining Regulations / TRA royalty ' +
+      'rules, KE Mining Act 2016, UG Mining and Minerals Act, NG ' +
+      'Minerals and Mining Act; plus TZ PDPA, KE DPA 2019, UG DPPA, ' +
+      'NG NDPA). 5 = legally sound, correct notice periods, no ' +
+      'prohibited phrasing; 0 = legally risky, wrong notice, ' +
+      'prohibited language. Output JSON ' +
+      '{"score":N,"rationale":"...","flags":["..."]}. ' +
       'Flag the specific statute or notice violation when triggered.',
     'tone-empathy':
-      'You are the Tone-and-Empathy Juror on a property-management ' +
+      'You are the Tone-and-Empathy Juror on a mining-estate ' +
       'review panel. Score the synthesis on a 0-5 scale for ' +
-      'respectful, empathetic tone, especially in eviction or ' +
-      'late-payment communications: 5 = humane framing, acknowledges ' +
-      "the tenant's situation, no shaming; 0 = aggressive, " +
+      'respectful, empathetic tone, especially in licence-suspension or ' +
+      'royalty-arrears communications: 5 = humane framing, acknowledges ' +
+      "the operator's situation, no shaming; 0 = aggressive, " +
       'patronising, or coercive. NEVER use em dashes; use commas, ' +
       'colons, periods, or semicolons. Output JSON ' +
       '{"score":N,"rationale":"...","flags":["..."]}.',
     'cultural-appropriateness':
-      'You are the Cultural-Appropriateness Juror on a property-' +
-      'management review panel. Score the synthesis on a 0-5 scale for ' +
+      'You are the Cultural-Appropriateness Juror on a mining-' +
+      'estate review panel. Score the synthesis on a 0-5 scale for ' +
       'culturally appropriate Swahili / Sheng / English code-switching ' +
       'and audience fit: 5 = natural register for the named region ' +
       '(TZ / KE / UG / NG), correct honorifics, no awkward literal ' +
@@ -300,9 +301,9 @@ const DEFAULT_RUBRIC_PROMPTS: Readonly<Record<JudgeRubric, string>> =
       'tone-deaf phrasing. Output JSON ' +
       '{"score":N,"rationale":"...","flags":["..."]}.',
     actionability:
-      'You are the Actionability Juror on a property-management review ' +
+      'You are the Actionability Juror on a mining-estate review ' +
       'panel. Score the synthesis on a 0-5 scale for whether it gives ' +
-      'the tenant, owner, or manager a concrete, single next step: ' +
+      'the buyer, owner, or manager a concrete, single next step: ' +
       '5 = one unambiguous, executable next action with deadline; ' +
       '0 = no next step, or multiple conflicting actions. Output JSON ' +
       '{"score":N,"rationale":"...","flags":["..."]}.',
@@ -310,7 +311,7 @@ const DEFAULT_RUBRIC_PROMPTS: Readonly<Record<JudgeRubric, string>> =
 
 /**
  * The default 5-rubric BORJIE panel. Mirrors LITFIN's full panel
- * in shape, adapted to property-management dimensions.
+ * in shape, adapted to mining-estate dimensions.
  */
 export const DEFAULT_PROPERTY_JUDGE_PANEL: ReadonlyArray<JudgeRubric> =
   Object.freeze([
@@ -514,7 +515,7 @@ function resolveSystemPrompt(spec: JudgeSpec): string {
   const builtin = DEFAULT_RUBRIC_PROMPTS[spec.rubric as JudgeRubric];
   if (builtin) return builtin;
   return (
-    `You are the "${spec.rubric}" Juror on a property-management review panel. ` +
+    `You are the "${spec.rubric}" Juror on a mining-estate review panel. ` +
     'Score the synthesis on a 0-5 scale for this dimension. Output JSON ' +
     '{"score":N,"rationale":"...","flags":["..."]} with N in 0-5.'
   );

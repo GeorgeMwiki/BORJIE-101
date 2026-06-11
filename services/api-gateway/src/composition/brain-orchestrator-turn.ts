@@ -90,6 +90,73 @@ export function resolveBrainOrchestratorRoutingEnabled(
 }
 
 // ---------------------------------------------------------------------------
+// Stakes derivation — the kernel's escalation gates (3-agent debate,
+// auto-judge, extended-thinking, multi-sample TTC) all require `high` or
+// `critical` stakes. Hard-coding `medium` suppressed every escalation, so a
+// licence-suspension / large-contract / succession / treasury turn silently
+// received a fast, single-shot answer. `deriveStakes` lifts the value from
+// the turn's own signals so high-stakes mining turns escalate by construction.
+// ---------------------------------------------------------------------------
+
+export type DerivedStakes = 'low' | 'medium' | 'high' | 'critical';
+
+/** Optional caller hint (e.g. owner-web CEO-mode board query → 'high'). */
+export type StakesHint = DerivedStakes | undefined;
+
+// High-stakes mining vocabulary. Any hit defaults the turn to `high`. These
+// are the domains where a medium-depth answer is materially unsafe: licence
+// lifecycle, royalty/treasury money movement, binding contracts, succession,
+// and explicit risk/legal/escalation language.
+const HIGH_STAKES_PATTERNS: ReadonlyArray<RegExp> = [
+  // Licence lifecycle (EN + SW: leseni).
+  /\b(licen[cs]e|leseni|permit|pml|renewal|suspend|revoke|revocation)\b/i,
+  // Royalty / treasury / large money movement (EN + SW: mrabaha/malipo/hazina).
+  /\b(royalty|mrabaha|treasury|hazina|payout|payment|malipo|invoice|settlement|escrow|wire|transfer)\b/i,
+  // Binding contracts / offtake / legal.
+  /\b(contract|mkataba|offtake|agreement|makubaliano|legal|sheria|litigation|dispute|mgogoro|breach)\b/i,
+  // Succession / estate / ownership change.
+  /\b(succession|urithi|inherit|estate|will|wasia|ownership|transfer of (?:title|shares))\b/i,
+  // Explicit risk / safety-critical / compliance escalation.
+  /\b(fatalit|death|kifo|critical|sovereign|kill[- ]?switch|four[- ]?eye|compliance breach|regulator)\b/i,
+];
+
+// Critical-stakes vocabulary — a strict superset escalation above `high` for
+// the most consequential, irreversible actions.
+const CRITICAL_STAKES_PATTERNS: ReadonlyArray<RegExp> = [
+  /\b(kill[- ]?switch|sovereign override|fatalit|emergency shutdown|revoke licen[cs]e|suspend licen[cs]e)\b/i,
+];
+
+// Low-stakes conversational / informational vocabulary — these DEFAULT a turn
+// to `low` when no higher signal is present (greetings, status checks, help).
+const LOW_STAKES_PATTERNS: ReadonlyArray<RegExp> = [
+  /^\s*(hi|hello|hey|habari|mambo|thanks?|asante|ok(ay)?|sawa)\b/i,
+  /\b(what is|how do i|explain|tell me about|show me|list|summar|status|help)\b/i,
+];
+
+/**
+ * Derive the kernel stakes for a turn. Precedence:
+ *   1. An explicit caller `hint` always wins (owner-web CEO-mode forces it).
+ *   2. Critical vocabulary → 'critical'.
+ *   3. High-stakes vocabulary → 'high'.
+ *   4. Purely conversational/informational text → 'low'.
+ *   5. Otherwise → 'medium' (the safe default for unclassified turns).
+ *
+ * Pure + deterministic so it is unit-testable without a route.
+ */
+export function deriveStakes(args: {
+  readonly userText: string;
+  readonly hint?: StakesHint;
+}): DerivedStakes {
+  if (args.hint) return args.hint;
+  const text = (args.userText ?? '').slice(0, 4_000);
+  if (text.trim().length === 0) return 'medium';
+  if (CRITICAL_STAKES_PATTERNS.some((re) => re.test(text))) return 'critical';
+  if (HIGH_STAKES_PATTERNS.some((re) => re.test(text))) return 'high';
+  if (LOW_STAKES_PATTERNS.some((re) => re.test(text))) return 'low';
+  return 'medium';
+}
+
+// ---------------------------------------------------------------------------
 // Normalized turn payload — shaped to the brain.hono.ts JSON/SSE contract.
 // ---------------------------------------------------------------------------
 
@@ -196,6 +263,15 @@ export interface GenerateBrainTurnArgs {
   readonly surface: 'owner-portal' | 'admin-portal' | 'tenant-app';
   /** Single-language locale directive (CLAUDE.md bilingual single-language). */
   readonly language: 'en' | 'sw';
+  /**
+   * Optional explicit stakes hint. When supplied (e.g. owner-web CEO-mode
+   * board query forwards `x-stakes-hint: high`) it OVERRIDES the text-derived
+   * stakes. When omitted, stakes are derived from the user text via
+   * `deriveStakes` so high-stakes mining turns (licence / royalty / contract /
+   * succession / treasury) escalate the kernel's debate + judge + extended-
+   * thinking gates instead of always receiving a medium-depth answer.
+   */
+  readonly stakesHint?: StakesHint;
   readonly logger: {
     readonly info: (meta: Record<string, unknown>, msg: string) => void;
     readonly warn: (meta: Record<string, unknown>, msg: string) => void;
@@ -229,6 +305,14 @@ export async function generateBrainTurnViaOrchestrator(
   args: GenerateBrainTurnArgs,
 ): Promise<OrchestratorTurnPayload> {
   const { brain, sov, ctx, userText, surface, language, logger } = args;
+
+  // Derive the kernel stakes from the turn itself (or an explicit caller
+  // hint). This is what unlocks the high-stakes escalation gates the
+  // hard-coded 'medium' used to suppress.
+  const stakes = deriveStakes({
+    userText,
+    ...(args.stakesHint ? { hint: args.stakesHint } : {}),
+  });
 
   // 1. Resolve / create the thread.
   const personaIdForNew = args.forcePersonaId ?? DEFAULT_BRAIN_PERSONA_ID;
@@ -288,7 +372,7 @@ export async function generateBrainTurnViaOrchestrator(
       personaId,
     },
     tier: 'tenant',
-    stakes: 'medium',
+    stakes,
     surface,
     // CLAUDE.md bilingual single-language: thread the active locale so the
     // orchestrator's terminal single-language directive renders correctly
@@ -336,6 +420,7 @@ export async function generateBrainTurnViaOrchestrator(
       userId: ctx.userId,
       threadId,
       decision: decision.kind,
+      stakes,
       refused: payload.refused,
       ...(payload.refusalGate ? { gate: payload.refusalGate } : {}),
     },

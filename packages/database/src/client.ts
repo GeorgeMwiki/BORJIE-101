@@ -70,7 +70,70 @@ function parsePositiveInt(raw: string | undefined, fallback: number): number {
   return n;
 }
 
-function readPoolOptions() {
+/**
+ * Pool mode — the master switch for RSS-03/RSS-04.
+ *
+ *   'session'      (DEFAULT) — TODAY's exact behaviour. Prepared statements
+ *                  stay ON (postgres-js default), `withReservedConnection`
+ *                  pins one backend per request and binds a session-scoped
+ *                  tenant GUC. Correct on a SESSION pooler / direct connection.
+ *
+ *   'transaction'  — Supabase/pgbouncer transaction-mode-safe path. Disables
+ *                  prepared statements and type-introspection (both rebind to
+ *                  a different backend mid-session under the transaction
+ *                  pooler), so every DB unit-of-work MUST bind its tenant GUC
+ *                  with `SET LOCAL` inside a short transaction
+ *                  (`withTenantContext`). The transaction pooler guarantees one
+ *                  transaction is served end-to-end by one backend, so the
+ *                  `SET LOCAL` GUC is correct by construction and is discarded
+ *                  at COMMIT — it can never bleed onto the next transaction the
+ *                  pooler routes to that backend.
+ *
+ * Read ONCE at module load (consistent with the other `client.ts` env reads;
+ * never re-read per request). The default is `'session'` so MERGING this code
+ * changes NOTHING at runtime until an operator sets DATABASE_POOL_MODE.
+ *
+ * `DATABASE_PREPARE` is an independent escape hatch: an operator on a dedicated
+ * session pooler running in transaction mode could force prepared statements
+ * back on. It only takes effect in transaction mode (session mode never
+ * touches `prepare`, preserving byte-for-byte current behaviour).
+ */
+export type DatabasePoolMode = 'session' | 'transaction';
+
+export function readPoolMode(): DatabasePoolMode {
+  return process.env.DATABASE_POOL_MODE === 'transaction'
+    ? 'transaction'
+    : 'session';
+}
+
+/**
+ * Transaction-pooler safety toggles, applied ONLY in `'transaction'` mode.
+ *
+ *   - `prepare: false` — pgbouncer/Supavisor reject named prepared statements
+ *     in transaction mode (a rebind to another backend loses the plan handle
+ *     → `prepared statement "s_x" does not exist`). The migration runner
+ *     already proves this is safe (`run-migrations.ts` sets `prepare:false`).
+ *   - `fetch_types: false` — postgres-js otherwise issues a type-introspection
+ *     round-trip on connect that also breaks under aggressive transaction
+ *     rebinding.
+ *
+ * `DATABASE_PREPARE=true` re-enables prepared statements (operator opt-in for a
+ * dedicated session pooler that still wants transaction-style GUC binding).
+ *
+ * In `'session'` mode this returns an EMPTY object so the options handed to
+ * postgres-js are byte-for-byte identical to today (no `prepare`/`fetch_types`
+ * keys at all → postgres-js defaults preserved).
+ */
+function transactionModeOptions(
+  mode: DatabasePoolMode,
+): { prepare?: boolean; fetch_types?: boolean } {
+  if (mode !== 'transaction') return {};
+  const prepare = process.env.DATABASE_PREPARE === 'true';
+  return { prepare, fetch_types: prepare };
+}
+
+export function readPoolOptions() {
+  const mode = readPoolMode();
   return {
     max: parsePositiveInt(process.env.DATABASE_POOL_MAX, 20),
     idle_timeout: parsePositiveInt(process.env.DATABASE_IDLE_TIMEOUT_SEC, 30),
@@ -82,6 +145,8 @@ function readPoolOptions() {
       process.env.DATABASE_CONNECT_TIMEOUT_SEC,
       10,
     ),
+    // Transaction-pooler safety toggles — empty (no-op) in session mode.
+    ...transactionModeOptions(mode),
     // Session-level GUCs applied on every backend connect. Both timeouts
     // are in milliseconds. Lock-timeout is shorter than statement_timeout
     // so a row-lock contention surfaces as a clean error instead of a
@@ -116,6 +181,52 @@ export function createDatabaseClient(connectionString: string) {
 export type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 
 /**
+ * RSS-04 — ONE shared bounded pool of record per process.
+ *
+ * Historically several call-sites each called `createDatabaseClient(url)` and
+ * opened an INDEPENDENT postgres-js pool (`max:20` each); multiplied by
+ * replicas this overruns the pooler's client ceiling. `getSharedDatabaseClient`
+ * memoises one Drizzle client per distinct connection string so every consumer
+ * in the process shares a single bounded pool. The composition root wires its
+ * `getDb()` accessor through this factory (see
+ * `services/api-gateway/src/composition/db-client.ts:initDbClient`).
+ *
+ * Keyed by connection string so a primary and a distinct read-replica URL each
+ * get their own (still single) pool; passing the same URL twice returns the
+ * exact same client instance — never a second pool.
+ */
+const SHARED_CLIENTS = new Map<string, DatabaseClient>();
+
+export function getSharedDatabaseClient(
+  connectionString: string,
+): DatabaseClient {
+  const existing = SHARED_CLIENTS.get(connectionString);
+  if (existing) return existing;
+  const client = createDatabaseClient(connectionString);
+  SHARED_CLIENTS.set(connectionString, client);
+  return client;
+}
+
+/**
+ * Test-only: drop the shared-client memo so a unit test can swap env (pool
+ * mode / prepare) and observe a fresh pool. Closing the underlying postgres-js
+ * sockets is the caller's concern in integration tests; unit tests that never
+ * connect can call this freely.
+ */
+export function __resetSharedDatabaseClientsForTests(): void {
+  SHARED_CLIENTS.clear();
+}
+
+/**
+ * @deprecated TRANSACTION-POOLER-UNSAFE. Retained ONLY for the session-pooler
+ * opt-in path (`DATABASE_POOL_MODE=session`, the default). On the Supabase
+ * transaction pooler (`:6543`) the reserved handle is a *client→pooler* lease,
+ * not a *pooler→backend* pin: a session-scoped GUC set on backend A can be read
+ * by a later statement the pooler routes to backend B, so this path is unsafe
+ * there. In `transaction` mode use `withTenantContext` (per-tx `SET LOCAL`)
+ * instead — its GUC is correct by construction because one transaction is
+ * served end-to-end by one backend and the `SET LOCAL` is discarded at COMMIT.
+ *
  * Run `fn` against a Drizzle client bound to a SINGLE, EXCLUSIVELY-RESERVED
  * pool connection — the foundation of request-scoped RLS connection pinning.
  *
@@ -231,18 +342,40 @@ export async function withReservedConnection<T>(
     );
     return await fn(reqDb);
   } finally {
+    // Tenant-GUC bleed defence (RSS-03). This path uses session-scoped
+    // `set_config(..., false)` GUCs bound on the reserved backend. If the
+    // reset SELECT below fails, the connection would otherwise be
+    // `release()`d back to the pool STILL CARRYING this request's tenant /
+    // service-role GUC — a later borrow of that backend could then read it
+    // and leak rows across tenants. So on reset failure we EVICT the
+    // connection from the pool via `.end()` instead of releasing it, making
+    // a stale session GUC impossible to inherit. (The happy path still
+    // `release()`s for reuse; only the failure path pays the reconnect cost.)
+    let resetOk = false;
     try {
       await reserved`SELECT
         set_config('app.current_tenant_id', '', false),
         set_config('app.tenant_id', '', false),
         set_config('app.current_person_id', '', false),
         set_config('app.is_service_role', 'false', false)`;
+      resetOk = true;
     } catch {
-      // Best-effort reset. The next reservation re-binds the tenant GUC
-      // before any read, so a failed reset cannot surface another tenant's
-      // rows; this clears the person/service GUCs as defence-in-depth.
+      resetOk = false;
     }
-    reserved.release();
+    if (resetOk) {
+      reserved.release();
+    } else {
+      // Destroy the backend rather than return a GUC-poisoned connection to
+      // the pool. `.end()` is on the Sql surface ReservedSql extends.
+      try {
+        await (reserved as unknown as { end: () => Promise<void> }).end();
+      } catch {
+        // If even eviction fails, fall back to release — better than leaking
+        // the handle; the next reservation re-binds the tenant GUC before any
+        // read so a stale value cannot surface another tenant's rows.
+        reserved.release();
+      }
+    }
   }
 }
 
@@ -255,8 +388,9 @@ export async function withReservedConnection<T>(
  * primary. When the replica vars are unset we fall back to the primary
  * pool config so existing single-DB deployments keep working unchanged.
  */
-function readReadonlyPoolOptions() {
+export function readReadonlyPoolOptions() {
   const primary = readPoolOptions();
+  const mode = readPoolMode();
   return {
     max: parsePositiveInt(
       process.env.DATABASE_READONLY_POOL_MAX,
@@ -265,6 +399,9 @@ function readReadonlyPoolOptions() {
     idle_timeout: primary.idle_timeout,
     max_lifetime: primary.max_lifetime,
     connect_timeout: primary.connect_timeout,
+    // The replica sits behind the same pooler, so it inherits the same
+    // transaction-mode toggles (empty/no-op in session mode).
+    ...transactionModeOptions(mode),
     connection: {
       statement_timeout: parsePositiveInt(
         process.env.DATABASE_READONLY_STATEMENT_TIMEOUT_MS,

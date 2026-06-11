@@ -11,9 +11,11 @@
  *     comment marker; the actual transaction must route through
  *     LedgerService.post().
  *   * The compiler refuses unsafe tenantId.
- *   * Enum fields produce a CHECK constraint with quoted values.
- *   * Generated SQL contains FORCE ROW LEVEL SECURITY + REVOKE FROM
- *     anon for every table.
+ *   * Enum fields produce a plain TEXT column (NO author CHECK — the
+ *     ddl-guard forbids author CHECK; runtime Zod enforces membership).
+ *   * The compiler emits NO RLS — RLS is injected + verified by the
+ *     orchestrator. The compiler returns the bare tenant table names so
+ *     the orchestrator can build the canonical FORCE-RLS block.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -52,10 +54,20 @@ describe('compileSpec — output structure', () => {
     expect(r.migrationSql.length).toBeGreaterThan(0);
   });
 
-  it('emits a CREATE TABLE for every declared entity', () => {
+  it('emits a CREATE TABLE for every declared entity (canonical tenant_mod_ prefix)', () => {
     const r = compileSpec(hrSpec, 'tnt_test');
-    expect(r.migrationSql).toContain('CREATE TABLE IF NOT EXISTS module_tnt_test_employee');
-    expect(r.migrationSql).toContain('CREATE TABLE IF NOT EXISTS module_tnt_test_department');
+    expect(r.migrationSql).toContain('CREATE TABLE IF NOT EXISTS tenant_mod_tnt_test_employee');
+    expect(r.migrationSql).toContain('CREATE TABLE IF NOT EXISTS tenant_mod_tnt_test_department');
+    // Legacy module_ prefix must be gone.
+    expect(r.migrationSql).not.toContain('CREATE TABLE IF NOT EXISTS module_tnt_test_');
+  });
+
+  it('returns the bare tenant table names it created', () => {
+    const r = compileSpec(hrSpec, 'tnt_test');
+    expect(r.tableNames).toEqual([
+      'tenant_mod_tnt_test_employee',
+      'tenant_mod_tnt_test_department',
+    ]);
   });
 
   it('every generated table carries tenant_id + module_id', () => {
@@ -76,24 +88,21 @@ describe('compileSpec — output structure', () => {
     expect(r.migrationSql).toMatch(/LedgerService\.post\(\)/);
   });
 
-  it('emits CHECK constraint on enum fields with quoted values', () => {
+  it('emits a plain TEXT column for enum fields (NO author CHECK)', () => {
     const r = compileSpec(hrSpec, 'tnt_test');
-    expect(r.migrationSql).toMatch(
-      /status\s+TEXT NOT NULL CHECK \(status IN \('active', 'leave', 'terminated'\)\)/,
-    );
+    expect(r.migrationSql).toMatch(/status\s+TEXT NOT NULL/);
+    // The compiler must NOT emit an author CHECK — the ddl-guard forbids
+    // it; runtime Zod enforces the closed enum value set instead.
+    expect(r.migrationSql).not.toMatch(/CHECK\s*\(status IN/);
   });
 
-  it('emits FORCE ROW LEVEL SECURITY for every generated table', () => {
+  it('emits NO RLS — RLS is the orchestrator’s responsibility', () => {
     const r = compileSpec(hrSpec, 'tnt_test');
-    const forceMatches = r.migrationSql.match(/FORCE ROW LEVEL SECURITY/g);
-    // RLS block iterates over both tables; the FORCE clause is in the
-    // EXECUTE template once but iterates twice.
-    expect(forceMatches).toBeTruthy();
-  });
-
-  it('emits REVOKE ALL FROM anon for every generated table', () => {
-    const r = compileSpec(hrSpec, 'tnt_test');
-    expect(r.migrationSql).toMatch(/REVOKE ALL ON public\.%I FROM anon/);
+    expect(r.migrationSql).not.toMatch(/ROW LEVEL SECURITY/);
+    expect(r.migrationSql).not.toMatch(/CREATE POLICY/);
+    expect(r.migrationSql).not.toMatch(/REVOKE/);
+    expect(r.migrationSql).not.toMatch(/current_app_tenant_id/);
+    expect(r.migrationSql).not.toMatch(/DO \$/);
   });
 
   it('emits Zod-validator trees keyed by entity slug', () => {

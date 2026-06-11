@@ -214,6 +214,8 @@ export const sw = {
     "masterBrain": "Akili Kuu",
     "lmbm": "LMBM",
     "ask": "Uliza Borjie",
+    "headBriefing": "Taarifa ya asubuhi",
+    "agentic": "Mipango ya wakala",
     "training": "Mafunzo",
     "portfolioMap": "Ramani ya mkusanyiko",
     "sites": "Maeneo",
@@ -276,7 +278,33 @@ export const sw = {
       "reminderSetIn": "Kikumbusho kimewekwa — {title} baada ya siku {days}",
       "reminderSnoozed": "Kikumbusho kimeahirishwa siku {days}",
       "needsConfirmation": "Inahitaji uthibitisho wako — {reason}",
-      "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako."
+      "needsConfirmationBare": "Hatua hii inahitaji uthibitisho wako.",
+      "fulfill": "Tafadhali endelea na: {action}.",
+      "fulfillDetail": "Tafadhali endelea na: {action}. Maelezo — {detail}.",
+      "promoteTab": "Tafadhali tengeneza na ufungue tab kamili ya: {label}.",
+      "expandBlock": "Tafadhali nipanulie hili."
+    },
+    "stream": {
+      "stop": "Simamisha",
+      "stopAria": "Simamisha kuzalisha",
+      "stopped": "Jibu limesimamishwa",
+      "retry": "Jaribu tena",
+      "attach": "Ambatisha faili",
+      "dropHere": "Dondosha faili kuambatisha"
+    },
+    "selfModel": {
+      "title": "Kiasi gani nina uhakika",
+      "sureAbout": "Nina uhakika kuhusu",
+      "unsureAbout": "Sina uhakika kuhusu",
+      "wouldNeed": "Kingesaidia",
+      "posture": {
+        "answering": "Nina uhakika",
+        "reasoning": "Nina uhakika",
+        "clarifying": "Inahitaji maelezo",
+        "softening": "Kwa tahadhari",
+        "refusing": "Nimejizuia",
+        "deferring": "Inahitaji uamuzi wako"
+      }
     }
   },
   "portal": {
@@ -310,5 +338,86 @@ export const sw = {
     "schedule": "Hifadhi kikumbusho",
     "empty": "Hakuna vikumbusho.",
     "cancelItem": "Futa"
+  },
+  "sandboxQueue": {
+    "committed": "Imewekwa kwenye mfumo.",
+    "commitFailed": "Imeshindikana",
+    "enterReasonFirst": "Andika sababu kwanza.",
+    "rejected": "Imekataliwa.",
+    "rejectFailed": "Imeshindikana",
+    "loading": "Inapakia…",
+    "empty": "Hakuna maandishi yaliyosubiri.",
+    "commit": "Thibitisha (weka)",
+    "rejectReason": "Sababu ya kukataa",
+    "rejectPlaceholder": "Kwa nini?",
+    "reject": "Kataa"
+  },
+  "headBriefing": {
+    "unavailable": "Taarifa ya asubuhi haipatikani kwa sasa.",
+    "noContent": "Hakuna taarifa.",
+    "overnightActivity": "Shughuli za usiku",
+    "noAutonomousActions": "Hakuna shughuli za kujiendesha.",
+    "pendingApprovals": "Idhini zinazosubiri",
+    "nothingAwaiting": "Hakuna kinachosubiri.",
+    "escalations": "Masuala yaliyopandishwa",
+    "noEscalations": "Hakuna masuala.",
+    "recommendations": "Mapendekezo",
+    "noRecommendations": "Hakuna mapendekezo.",
+    "anomalies": "Mambo yasiyo ya kawaida"
+  },
+  "ownerOsShell": {
+    "spawnNewTab": "Fungua tab mpya",
+    "newTab": "Tab mpya",
+    "recentTabs": "Tabs zilizofungwa hivi karibuni",
+    "recentlyClosed": "Zilizofungwa hivi karibuni",
+    "open": "Kubali",
+    "dismissProposal": "Ondoa pendekezo",
+    "genuiOpened": "Nimekufungulia \"{title}\" kutoka kwenye gumzo",
+    "inTabStrip": "Kipo kwenye mstari wa vichupo — endelea kuongea.",
+    "openShort": "Fungua",
+    "undo": "Tendua",
+    "dismiss": "Ondoa",
+    "artifactPrepared": "Nimekuandalia \"{title}\" kutoka kwenye gumzo",
+    "artifactTitle": {
+      "forecast": "Utabiri",
+      "document": "Hati",
+      "media": "Midia"
+    }
+  },
+  "genuiTab": {
+    "submit": "Hifadhi",
+    "submitting": "Inahifadhi…",
+    "submitSuccess": "Imehifadhiwa.",
+    "submitError": "Imeshindwa kuhifadhi. Hakiki ulichojaza kisha ujaribu tena.",
+    "requiredHint": "Jaza sehemu zinazohitajika.",
+    "recordsHeading": "Kumbukumbu zilizohifadhiwa",
+    "recordsEmpty": "Hakuna kumbukumbu bado. Wasilisha fomu kuongeza ya kwanza.",
+    "recordsLoading": "Inapakia kumbukumbu…",
+    "recordsError": "Imeshindwa kupakia kumbukumbu.",
+    "recordCreatedAt": "Imeongezwa {at}",
+    "recordsCreatedAtColumn": "Iliundwa",
+    "widgetLoading": "Inapakia…",
+    "widgetError": "Imeshindwa kupakia kifaa hiki.",
+    "widgetEmpty": "Hakuna data bado.",
+    "widgetPlaceholder": "Data ya moja kwa moja itaonekana hapa kifaa hiki kitakapounganishwa.",
+    "widgetValueLabel": "Thamani",
+    "actionRunning": "Inafanya kazi…",
+    "actionDone": "Imekamilika.",
+    "actionDeclined": "Hilo linahitaji uthibitisho: {reason}",
+    "actionHandlingIt": "Naishughulikia — ninakufanyia hilo.",
+    "actionFailed": "Kitendo hicho hakikuweza kufanyika.",
+    "fieldUploading": "Inapakia…",
+    "fieldUploaded": "Imepakiwa.",
+    "fieldReadingSignature": "Inasoma…",
+    "fieldSignatureCaptured": "Saini imerekodiwa.",
+    "fieldSignatureReadError": "Haikuweza kusoma picha ya saini. Tafadhali chagua faili sahihi ya picha.",
+    "fieldUploadPreviewDisabled": "hakikisho — upakiaji unahitaji kichupo kilichohifadhiwa",
+    "fieldUploadFailed": "Upakiaji umeshindwa",
+    "fieldAddressPlaceholder": "Anwani ya mtaa",
+    "fieldLatitude": "Latitudo",
+    "fieldLongitude": "Longitudo"
+  },
+  "cockpit": {
+    "dailyBriefTitle": "Muhtasari wa kila siku"
   }
 } as const;

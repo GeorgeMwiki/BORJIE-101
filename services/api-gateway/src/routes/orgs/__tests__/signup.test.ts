@@ -361,7 +361,10 @@ describe('POST /api/v1/orgs/signup · 400 invalid_body', () => {
     expect(r.status).toBe(400);
   });
 
-  it('returns 400 when currency is outside the allowed set', async () => {
+  it('returns 400 when currency is not ISO-4217 shaped (never a hardcoded list)', async () => {
+    // CLAUDE.md hard rule: never hard-code TZS/USD/KES/UGX/NGN in code paths.
+    // The wire contract validates SHAPE only — any ISO-4217 alpha-3 code
+    // (e.g. GBP) is wire-valid; garbage like 'euros' is rejected.
     const stubs = buildStubs();
     const app = mountApp(stubs.deps);
     const r = await post(app, {
@@ -371,7 +374,7 @@ describe('POST /api/v1/orgs/signup · 400 invalid_body', () => {
       phoneE164: '+255712345678',
       email: 'asha@example.com',
       defaultLanguage: 'sw',
-      primaryCurrency: 'GBP',
+      primaryCurrency: 'euros',
     });
     expect(r.status).toBe(400);
   });

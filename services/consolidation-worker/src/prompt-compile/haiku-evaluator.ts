@@ -76,7 +76,7 @@ export const HEURISTIC_HALF_RANGE = 0.1;
 
 export const EVALUATOR_SYSTEM_PROMPT = [
   'You are an evaluator scoring whether a candidate prompt, when applied to a',
-  'property-management AI agent, would produce an output close to the expected output.',
+  'mining-estate AI agent, would produce an output close to the expected output.',
   '',
   'Return STRICT JSON: {"score": <0..1 number>, "reasoning": "<one sentence>"}.',
   'A score of 1.0 means the candidate would almost certainly produce the expected output.',

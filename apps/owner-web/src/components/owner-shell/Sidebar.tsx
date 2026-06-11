@@ -75,6 +75,8 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { labelKey: 'nav.masterBrain', href: '/master-brain', icon: Brain },
       { labelKey: 'nav.lmbm', href: '/lmbm', icon: Network },
       { labelKey: 'nav.ask', href: '/ask', icon: MessageCircle },
+      { labelKey: 'nav.headBriefing', href: '/head-briefing', icon: Sparkles },
+      { labelKey: 'nav.agentic', href: '/agentic', icon: Brain },
       { labelKey: 'nav.training', href: '/training/scenarios', icon: GraduationCap },
     ],
   },

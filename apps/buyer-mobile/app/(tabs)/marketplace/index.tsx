@@ -6,10 +6,11 @@ import { Screen } from '@/components/Screen'
 import { SectionHeader } from '@/components/SectionHeader'
 import { EmptyState } from '@/components/EmptyState'
 import { useTranslation } from '@/hooks/useTranslation'
-import { fetchListings, type ListingFilters } from '@/api/marketplace'
+import { fetchListings, fetchSellers, type ListingFilters } from '@/api/marketplace'
 import { queryKeys } from '@/api/queryKeys'
 import { ListingCard } from '@/marketplace/ListingCard'
 import { ListingFiltersBar } from '@/marketplace/ListingFilters'
+import { SellerBrowseBar } from '@/marketplace/SellerBrowseBar'
 import { WalletBar } from '@/marketplace/WalletBar'
 import type { WalletCurrency } from '@/marketplace/walletFormat'
 import { fetchWallet } from '@/api/wallet'
@@ -39,6 +40,17 @@ export default function MarketplaceIndex() {
     staleTime: 30_000
   })
 
+  // Browse-by-mine rail — the seller orgs with buyer-visible listings.
+  // On error / empty the rail renders nothing (SellerBrowseBar guards),
+  // so the main listing browse is never blocked by it.
+  const sellersQuery = useQuery({
+    queryKey: queryKeys.marketplaceSellers(),
+    queryFn: () => fetchSellers(),
+    retry: 1,
+    staleTime: 60_000
+  })
+  const sellers = sellersQuery.data ?? []
+
   const listings = query.data ?? []
   const isInitialLoad = query.isLoading && !query.data
   // Show the bar only while the real wallet is loading or has loaded.
@@ -59,6 +71,12 @@ export default function MarketplaceIndex() {
         />
       ) : null}
       <SectionHeader title={t('marketplace.title')} subtitle={t('marketplace.subtitle')} />
+
+      <SellerBrowseBar
+        sellers={sellers}
+        onSelect={(sellerTenantId) => router.push(`/marketplace/mine/${sellerTenantId}`)}
+        translate={t}
+      />
 
       <TextInput
         value={search}

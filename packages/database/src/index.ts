@@ -7,8 +7,24 @@ export {
   createDatabaseClient,
   createReadonlyDatabaseClient,
   withReservedConnection,
+  // RSS-04 — single bounded shared pool of record (memoised per conn string).
+  getSharedDatabaseClient,
+  __resetSharedDatabaseClientsForTests,
+  // RSS-03 — pool-mode switch (default 'session' = today's exact behaviour).
+  readPoolMode,
+  readPoolOptions,
+  readReadonlyPoolOptions,
+  type DatabasePoolMode,
   type DatabaseClient,
 } from './client.js';
+// RSS-03 — require-tenant-context guard surface (runtime helpers + the static
+// ESLint rule's shared selector contract).
+export {
+  runInTenantContext,
+  assertTenantId,
+  RAW_DB_ACCESSOR_PATTERNS,
+  TENANT_CONTEXT_WRAPPER_NAMES,
+} from './rls/require-tenant-context.js';
 // RLS per-operation tenant-context helpers — `withTenantContext` (tenant
 // transaction + SET LOCAL) and `withServiceRoleContext` (cross-tenant system
 // jobs). Now used across the gateway (brain thread store, calendar store,

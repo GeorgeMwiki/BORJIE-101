@@ -87,6 +87,103 @@
   }
 }
 
+/* ============================================================
+   Home-chat streaming primitives (owner-web-local)
+   Per-word blur-in reveal, steady caret, shimmer skeleton.
+   transform / opacity / filter only · all ≤ 300ms ·
+   interruptible · reduced-motion honoured (instant, no blur).
+   ============================================================ */
+@keyframes home-chat-word-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+.home-chat-word-in {
+  animation: home-chat-word-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* `both` keeps the from-state before start and the to-state after end so a
+     revealed word stays at full opacity and is never re-animated. */
+  will-change: opacity, filter, transform;
+}
+
+/* Steady-blink caret — crisp on/off (no soft pulse). */
+@keyframes home-chat-caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.home-chat-caret {
+  display: inline-block;
+  width: 0.5rem;
+  height: 1rem;
+  margin-left: 0.125rem;
+  vertical-align: text-bottom;
+  border-radius: 1px;
+  background-color: hsl(var(--signal-500));
+  animation: home-chat-caret-blink 1s step-end infinite;
+}
+
+/* Shimmer skeleton line — a moving highlight across a muted track.
+   Replaces the "Thinking…" dots while the first token is in flight. */
+@keyframes home-chat-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.home-chat-skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: hsl(var(--foreground) / 0.08);
+}
+
+.home-chat-skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--foreground) / 0.12),
+    transparent
+  );
+  animation: home-chat-shimmer 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-chat-word-in {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+  .home-chat-caret {
+    animation: none;
+    opacity: 1;
+  }
+  .home-chat-skeleton::after {
+    animation: none;
+  }
+}
+
 /* Skip-to-main-content link — visually hidden until focused
  * (WCAG 2.1 SC 2.4.1 Bypass Blocks). Keeps the rest of the page
  * unchanged for sighted/mouse users while giving keyboard and

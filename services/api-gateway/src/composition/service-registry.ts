@@ -40,7 +40,12 @@ import { createPinoLikeLogger } from '../utils/pino-shim.js';
  * for the alias.
  */
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
-import { sql } from 'drizzle-orm';
+import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import {
+  autonomousActionAudit as headBriefingActionAudit,
+  miningApprovalItems as headBriefingApprovalItems,
+  incidents as headBriefingIncidents,
+} from '@borjie/database';
 import {
   ListingService,
   EnquiryService,
@@ -315,6 +320,12 @@ import {
   createHqToolPortBindings,
   type HqToolPortBindings,
 } from './hq-tool-port-bindings.js';
+import { createConsolidationWorkerAdapter } from './hq-tool-registry.js';
+import {
+  runConsolidationForActiveTenants,
+  discoverEpisodicScopesForTenant,
+  type AnthropicLikeClient as ConsolidationAnthropicLike,
+} from './consolidation-runner.js';
 import {
   createMarketSurveillanceWiring,
   type MarketSurveillanceWiring,
@@ -344,6 +355,7 @@ import {
   createParityCapabilityDashboard,
   type ParityCapabilityDashboardService,
 } from './parity-capability-dashboard.factory.js';
+import { createParityJudgeRunner } from './parity-judge-runner-wiring.js';
 // Central Command Phase A C6 / Phase B B2 — cross-portal Redis pubsub bus.
 // Async factory: returns `Promise<CrossPortalBus>` because the Redis-backed
 // implementation lazy-imports `ioredis`. The registry holds the promise so
@@ -463,15 +475,45 @@ import {
   type ConversationAuditRecorder,
   type PersonaRegistry,
 } from '@borjie/central-intelligence';
+// Multimodal Brain wiring for the workforce-mobile Photo Advisor
+// (`/api/v1/mining/brain/vision-turn`). The router ships a `setBrainResolver`
+// injection seam; until the composition root calls it, the route honest-503s
+// (`BRAIN_NOT_CONFIGURED`). We wire a per-tenant `BrainRegistry` here — the SAME
+// construction `routes/brain.hono.ts` uses — so the route resolves a real
+// multimodal Brain. Honest-degrade: when Anthropic/Supabase creds are absent
+// (`tryLoadBrainEnv` → null) we leave the resolver unset and the route keeps
+// its clean 503 — never a crash-on-boot.
+import {
+  createBrain,
+  BrainRegistry,
+  PostgresThreadStoreBackend,
+  tryLoadBrainEnv,
+} from '@borjie/ai-copilot';
+import { BrainThreadRepository } from '@borjie/database';
+import { getBrainExtraSkills } from './brain-extensions.js';
+import { setBrainResolver } from '../routes/mining/brain-vision.hono.js';
+// Tier-2 Capability-Composition Engine wiring. The owner chat-actions route
+// ships a `setCompositionEngine` injection seam; until the composition root
+// calls it the engine slot stays null and the unknown-verb path defers to a
+// plain brain turn UNCHANGED. We build the engine here — reusing the SAME
+// circuit-breaker + OTel-wrapped Anthropic client construction the kernel
+// debate uses — ONLY when a real Anthropic key is present (CI-inert).
+import { setCompositionEngine } from '../routes/owner/chat-actions.hono.js';
+import { buildCapabilityCompositionEngine } from './power-tools-wiring.js';
+import { wrapAnthropicWithCircuitBreaker } from './anthropic-circuit-breaker.js';
+import { wrapAnthropicWithOtelSpans } from './anthropic-otel-spans.js';
+import type { AnthropicMessagesClient } from '@borjie/central-intelligence';
 // PO-port wave-5 wiring #1 — six-layer cognitive memory (episodic, narrative,
 // procedural, reflective, topic-files, cohort cache). Lives ALONGSIDE the
 // existing single-layer `ConversationMemory` (which the streaming kernel
 // still consumes). MemoryV2 surfaces the richer cognitive substrate that
 // future sleep-pass orchestrators + reflection jobs will read/write.
-// In-memory variant ships in degraded mode + as the live-mode default until
-// pgvector-backed adapters land.
+// MEM-01 — the in-memory variant ships in degraded mode; LIVE mode now selects
+// the Drizzle-backed stores (`createDrizzleMemoryV2`, migration 0312) when a DB
+// handle is present so the substrate SURVIVES a process restart.
 import {
   createInMemoryMemoryV2,
+  createDrizzleMemoryV2,
   type MemoryV2,
 } from '@borjie/memory-v2';
 // PO-port wave-5 wiring #2 — per-tenant LLM budget cap + auto-downgrade
@@ -1439,32 +1481,124 @@ function buildOrgAwareness(eventBus: EventBus): OrgAwarenessRegistry {
   };
 }
 
+/** Domains the briefing buckets overnight autonomous actions by. */
+const HEAD_BRIEFING_DOMAINS: ReadonlyArray<string> = [
+  'finance',
+  'offtake',
+  'maintenance',
+  'compliance',
+  'communications',
+  'marketing',
+  'hr',
+  'procurement',
+  'insurance',
+  'legal_proceedings',
+  'community_welfare',
+];
+
+/** Map a free-text audit `domain` onto a known briefing domain bucket. */
+function narrowBriefingDomain(domain: string): string {
+  return HEAD_BRIEFING_DOMAINS.includes(domain) ? domain : 'finance';
+}
+
 /**
- * Build a head-briefing composer backed by in-memory stub sources.
+ * Build the head-briefing composer.
  *
- * Wave 28 ships the composer + its source-port contract only. The real
- * adapters (AutonomousActionAudit, ApprovalGrantService.listActive,
- * ExceptionInbox.listOpen, KPI warehouse, StrategicAdvisor, anomaly
- * pattern-miner) can be swapped in iteratively by overriding individual
- * dependencies on the returned composer deps shape. Until then every
- * request returns a shaped-but-empty BriefingDocument, which is the
- * pilot-acceptable behaviour for a brand-new endpoint.
+ * When a Drizzle handle is present every source is a REAL tenant-scoped
+ * read:
+ *   - overnight        ← autonomous_action_audit (last 24h, by domain)
+ *   - pending approvals ← mining_approval_items WHERE status='pending'
+ *   - escalations      ← ExceptionInbox.listOpen (Wave-13 inbox)
+ *   - anomalies        ← incidents WHERE severity in (high,critical) recent
+ *   - KPI / recommendations remain empty-shaped (see fixNote below)
+ *
+ * Without a DB handle (in-memory / test boot) the sources degrade to the
+ * shaped-but-empty briefing — the prior pilot behaviour.
+ *
+ * KNOWN RESIDUAL (recorded for the orchestrator): `KpiDeltasSection` is a
+ * property-domain shape (occupancyPct / collectionsRate / arrearsDays /
+ * maintenanceSLA / tenantSatisfaction / noi) declared in
+ * `@borjie/ai-copilot` — NOT in this file's ownership. Populating it with
+ * mining KPIs (tonnage / recovery / royalty accrual / safety) requires
+ * re-shaping that type in the ai-copilot package first, so the KPI source
+ * stays zero-valued here rather than fabricating property numbers.
  */
 function buildHeadBriefingComposer(
   exceptionInbox: ExceptionInbox | null,
+  db: DatabaseClient | null,
 ): HeadBriefing.BriefingComposer {
   const overnightSource: HeadBriefing.OvernightSource = {
-    async summarize() {
-      return {
-        totalAutonomousActions: 0,
-        byDomain: {},
-        notableActions: [],
-      };
+    async summarize(tenantId, since) {
+      if (!db) return { totalAutonomousActions: 0, byDomain: {}, notableActions: [] };
+      try {
+        const rows = await db
+          .select({
+            id: headBriefingActionAudit.id,
+            action: headBriefingActionAudit.action,
+            domain: headBriefingActionAudit.domain,
+            reasoning: headBriefingActionAudit.reasoning,
+          })
+          .from(headBriefingActionAudit)
+          .where(
+            and(
+              eq(headBriefingActionAudit.tenantId, tenantId),
+              gte(headBriefingActionAudit.createdAt, since),
+            ),
+          )
+          .orderBy(desc(headBriefingActionAudit.createdAt))
+          .limit(50);
+        const byDomain: Record<string, number> = {};
+        for (const r of rows) {
+          const d = narrowBriefingDomain(r.domain);
+          byDomain[d] = (byDomain[d] ?? 0) + 1;
+        }
+        return {
+          totalAutonomousActions: rows.length,
+          byDomain: byDomain as HeadBriefing.OvernightSection['byDomain'],
+          notableActions: rows.slice(0, 5).map((r) => ({
+            actionId: r.id,
+            domain: narrowBriefingDomain(
+              r.domain,
+            ) as HeadBriefing.NotableAutonomousAction['domain'],
+            summary: r.action,
+            confidence: 0.7,
+          })),
+        };
+      } catch {
+        return { totalAutonomousActions: 0, byDomain: {}, notableActions: [] };
+      }
     },
   };
   const pendingApprovalsSource: HeadBriefing.PendingApprovalsSource = {
-    async list() {
-      return { count: 0, items: [] };
+    async list(tenantId) {
+      if (!db) return { count: 0, items: [] };
+      try {
+        const rows = await db
+          .select({
+            id: headBriefingApprovalItems.id,
+            requestKind: headBriefingApprovalItems.requestKind,
+          })
+          .from(headBriefingApprovalItems)
+          .where(
+            and(
+              eq(headBriefingApprovalItems.tenantId, tenantId),
+              eq(headBriefingApprovalItems.status, 'pending'),
+            ),
+          )
+          .orderBy(desc(headBriefingApprovalItems.createdAt))
+          .limit(20);
+        return {
+          count: rows.length,
+          items: rows.map((r) => ({
+            approvalId: r.id,
+            kind: 'single' as const,
+            summary: r.requestKind,
+            urgency: 'medium' as const,
+          })),
+        };
+      } catch {
+        return { count: 0, items: [] };
+      }
     },
   };
   const escalationsSource: HeadBriefing.EscalationsSource = {
@@ -1495,6 +1629,9 @@ function buildHeadBriefingComposer(
   };
   const kpiSource: HeadBriefing.KpiSource = {
     async fetch() {
+      // KpiDeltasSection is a property-domain shape owned by
+      // @borjie/ai-copilot (see KNOWN RESIDUAL above). Zero-valued until
+      // that type is re-shaped to mining KPIs — honest empty, not fabricated.
       return {
         occupancyPct: { value: 0, delta7d: 0 },
         collectionsRate: { value: 0, delta7d: 0 },
@@ -1511,8 +1648,36 @@ function buildHeadBriefingComposer(
     },
   };
   const anomaliesSource: HeadBriefing.AnomaliesSource = {
-    async list() {
-      return [];
+    async list(tenantId) {
+      if (!db) return [];
+      try {
+        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const rows = await db
+          .select({
+            id: headBriefingIncidents.id,
+            kind: headBriefingIncidents.kind,
+            severity: headBriefingIncidents.severity,
+            description: headBriefingIncidents.description,
+          })
+          .from(headBriefingIncidents)
+          .where(
+            and(
+              eq(headBriefingIncidents.tenantId, tenantId),
+              gte(headBriefingIncidents.createdAt, since),
+              sql`${headBriefingIncidents.severity} in ('high','critical')`,
+            ),
+          )
+          .orderBy(desc(headBriefingIncidents.createdAt))
+          .limit(5);
+        return rows.map((r) => ({
+          area: r.kind,
+          observation: r.description ?? `A ${r.severity} ${r.kind} incident was logged.`,
+          possibleCause: 'See the incident record for root-cause detail.',
+          suggestedInvestigation: 'Review the incident and its corrective actions.',
+        }));
+      } catch {
+        return [];
+      }
     },
   };
   return HeadBriefing.createBriefingComposer({
@@ -1544,6 +1709,216 @@ function buildGraphQueryService(): GraphQueryService | null {
   } catch (err) {
     logger.warn('service-registry: graph query service init failed — returning null', { value: err instanceof Error ? err.message : err });
     return null;
+  }
+}
+
+/**
+ * Wire the per-tenant multimodal Brain resolver into the workforce-mobile
+ * Photo Advisor router (`/api/v1/mining/brain/vision-turn`).
+ *
+ * Mirrors the EXACT per-tenant `BrainRegistry` construction in
+ * `routes/brain.hono.ts`: a `PostgresThreadStoreBackend` over a per-tenant
+ * `BrainThreadRepository`, then `createBrain({ anthropic, threadStoreBackend,
+ * extraSkills })`. The same registry shape means the vision turn shares the
+ * tenant's durable thread store + skill catalog with the text brain path.
+ *
+ * Honest-degrade (never crash-on-boot):
+ *   - `tryLoadBrainEnv` returns null when Anthropic/Supabase creds are absent →
+ *     we leave the resolver UNSET so the route keeps its clean `BRAIN_NOT_
+ *     CONFIGURED` 503. (`createBrain` THROWS without a real key, so we must not
+ *     even attempt construction in that mode.)
+ *   - the per-tenant factory throw is caught inside the resolver → the route
+ *     resolves a null Brain → its own `BRAIN_NOT_AVAILABLE` 503, not a throw.
+ *   - any unexpected fault wiring the registry is swallowed (warn-once) so the
+ *     route simply stays on its 503 path; brain boot is never blocked.
+ *
+ * Idempotent: safe to call once per registry build (the resolver is a module-
+ * global setter; the last registry built wins, all share the same db handle).
+ */
+function wireMultimodalBrainResolver(db: DatabaseClient): void {
+  try {
+    const brainEnv = tryLoadBrainEnv(process.env);
+    if (!brainEnv) {
+      logger.warn(
+        { wiring: 'mining-brain-vision' },
+        'mining-brain-vision: Anthropic/Supabase creds absent (tryLoadBrainEnv → null); ' +
+          'leaving vision-turn brain resolver unset — route honest-503s BRAIN_NOT_CONFIGURED',
+      );
+      return;
+    }
+
+    const anthropic: { apiKey: string; baseUrl?: string; defaultModel?: string } = {
+      apiKey: brainEnv.ANTHROPIC_API_KEY,
+    };
+    if (brainEnv.ANTHROPIC_BASE_URL !== undefined) {
+      anthropic.baseUrl = brainEnv.ANTHROPIC_BASE_URL;
+    }
+    if (brainEnv.ANTHROPIC_MODEL_DEFAULT !== undefined) {
+      anthropic.defaultModel = brainEnv.ANTHROPIC_MODEL_DEFAULT;
+    }
+
+    const registry = new BrainRegistry((tenantId: string) => {
+      const repo = new BrainThreadRepository(db);
+      const backend = new PostgresThreadStoreBackend(repo, () => tenantId);
+      return createBrain({
+        anthropic,
+        threadStoreBackend: backend,
+        extraSkills: getBrainExtraSkills(),
+      });
+    });
+
+    setBrainResolver(({ tenantId }) => {
+      try {
+        return registry.for(tenantId);
+      } catch (err) {
+        // A per-tenant factory fault degrades to a null Brain — the route maps
+        // that to its own BRAIN_NOT_AVAILABLE 503 rather than throwing.
+        logger.warn(
+          {
+            wiring: 'mining-brain-vision',
+            tenantId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'mining-brain-vision: per-tenant Brain construction failed — vision-turn returns BRAIN_NOT_AVAILABLE',
+        );
+        return null;
+      }
+    });
+
+    logger.info(
+      { wiring: 'mining-brain-vision', resolverWired: true },
+      'mining-brain-vision: per-tenant Brain resolver wired — vision-turn reachable',
+    );
+  } catch (err) {
+    // Never break boot — leaving the resolver unset keeps the route on its
+    // honest 503.
+    logger.warn(
+      {
+        wiring: 'mining-brain-vision',
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'mining-brain-vision: resolver wiring failed; vision-turn keeps its 503 path',
+    );
+  }
+}
+
+/**
+ * Wire the Tier-2 Capability-Composition Engine into the owner chat-actions
+ * route (`setCompositionEngine`). When wired, the engine attempts to FULFILL a
+ * brain-generated unknown verb by composing the power-tool inventory into a
+ * governed, transactional chain BEFORE the route defers to a plain brain turn.
+ *
+ * CI-INERTNESS (non-negotiable): we build the engine ONLY when a real Anthropic
+ * key is present (`tryLoadBrainEnv → non-null` AND the SDK loads). When creds
+ * are absent we leave the slot UNSET, so the deferToBrain path is byte-for-byte
+ * unchanged and the central-intelligence test suite + stub-sensor CI are
+ * unaffected — the SAME discipline as kernel-debate. Construction reuses the
+ * EXACT raw → circuit-breaker → OTel composition the kernel sensors use; we
+ * never fabricate a parallel model client. Never breaks boot: any fault leaves
+ * the slot unset and the route on its unchanged deferToBrain path.
+ */
+async function wireCapabilityCompositionEngine(): Promise<void> {
+  try {
+    const brainEnv = tryLoadBrainEnv(process.env);
+    if (!brainEnv) {
+      logger.warn(
+        { wiring: 'capability-composition' },
+        'capability-composition: Anthropic creds absent (tryLoadBrainEnv → null); ' +
+          'leaving composition engine unset — unknown-verb path defers to brain unchanged (CI-inert)',
+      );
+      return;
+    }
+
+    let rawClient: AnthropicMessagesClient | null = null;
+    try {
+      const mod = await import('@anthropic-ai/sdk');
+      const Anthropic = (mod.default ?? mod) as unknown as new (cfg: {
+        apiKey: string;
+        baseURL?: string;
+      }) => AnthropicMessagesClient;
+      rawClient = new Anthropic(
+        brainEnv.ANTHROPIC_BASE_URL !== undefined
+          ? { apiKey: brainEnv.ANTHROPIC_API_KEY, baseURL: brainEnv.ANTHROPIC_BASE_URL }
+          : { apiKey: brainEnv.ANTHROPIC_API_KEY },
+      );
+    } catch (err) {
+      logger.warn(
+        {
+          wiring: 'capability-composition',
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'capability-composition: @anthropic-ai/sdk not loadable; leaving engine unset (CI-inert)',
+      );
+      return;
+    }
+
+    // Compose raw → circuit-breaker → OTel, matching the kernel sensor stack.
+    const wrapped = wrapAnthropicWithOtelSpans(
+      wrapAnthropicWithCircuitBreaker(rawClient, {
+        failureThreshold: 5,
+        recoveryTimeoutMs: 30_000,
+      }),
+    );
+
+    const engine = buildCapabilityCompositionEngine(
+      wrapped,
+      brainEnv.ANTHROPIC_MODEL_DEFAULT !== undefined
+        ? { model: brainEnv.ANTHROPIC_MODEL_DEFAULT }
+        : {},
+    );
+    setCompositionEngine(engine);
+    logger.info(
+      { wiring: 'capability-composition', engineWired: true },
+      'capability-composition: Tier-2 engine wired — unknown-verb path attempts a governed composition before deferring to brain',
+    );
+  } catch (err) {
+    // Never break boot — leaving the engine unset keeps the deferToBrain path.
+    logger.warn(
+      {
+        wiring: 'capability-composition',
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'capability-composition: engine wiring failed; unknown-verb path keeps its deferToBrain return',
+    );
+  }
+}
+
+/**
+ * MEM-01 — select the durable six-layer memory-v2 substrate.
+ *
+ * When a live DB handle is present, every layer is backed by the Drizzle
+ * stores (migration 0312) so episodes / arcs / skills / notes / topic shards /
+ * cohort cache SURVIVE a process restart. Without a DB handle (no-DATABASE_URL
+ * boot / tests) we fall back to the ephemeral in-memory substrate so the
+ * gateway still boots. Each Drizzle store implements the identical port as its
+ * in-memory counterpart, so no downstream consumer changes. Construction
+ * failures degrade to the in-memory substrate (the slot is always non-null).
+ */
+function buildMemoryV2(db: DatabaseClient | null): MemoryV2 {
+  if (db === null) {
+    logger.warn(
+      'service-registry: no db handle; memory-v2 is in-memory (volatile across restarts)',
+    );
+    return createInMemoryMemoryV2();
+  }
+  try {
+    const v2 = createDrizzleMemoryV2(db, {
+      // Adapt the structural store logger (message, meta) to the Pino
+      // (meta, message) call order so redaction works correctly.
+      logger: {
+        warn: (message, meta) => logger.warn(meta ?? {}, message),
+      },
+    });
+    logger.info(
+      'service-registry: memory-v2 backed by Drizzle (durable across restarts)',
+    );
+    return v2;
+  } catch (err) {
+    logger.warn(
+      'service-registry: memory-v2 Drizzle construction failed — falling back to in-memory',
+      { value: err instanceof Error ? err.message : String(err) },
+    );
+    return createInMemoryMemoryV2();
   }
 }
 
@@ -1678,6 +2053,8 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
       // of throwing.
       composer: buildHeadBriefingComposer(
         new ExceptionInbox({ repository: new InMemoryExceptionRepository() }),
+        // Degraded registry has no DB handle — sources stay shaped-but-empty.
+        null,
       ),
     },
     juniorAI: {
@@ -2586,6 +2963,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // the section shaped even before the Postgres adapter lands.
       composer: buildHeadBriefingComposer(
         new ExceptionInbox({ repository: new InMemoryExceptionRepository() }),
+        // LIVE mode — real Drizzle sources (overnight autonomy / pending
+        // approvals / recent critical-incident anomalies).
+        db,
       ),
     },
     juniorAI: (() => {
@@ -2607,12 +2987,15 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // NEO4J_URI is unset; the graph router degrades to 503 so live-mode
     // gateways without a Neo4j upstream still boot cleanly.
     graph: { queryService: buildGraphQueryService() },
-    // PO-port wave-5 wiring #1 — six-layer cognitive memory v2. Live mode
-    // also runs in-memory until pgvector / Drizzle store adapters land
-    // (follow-up). The slot is always non-null so downstream consumers
-    // (sleep-pass orchestrator, reflection workers) can read shapes
-    // without null-checks.
-    memoryV2: createInMemoryMemoryV2(),
+    // PO-port wave-5 wiring #1 / MEM-01 — six-layer cognitive memory v2. LIVE
+    // mode now backs every layer with the Drizzle stores (migration 0312) when
+    // a DB handle is present so episodes / arcs / skills / notes / topic shards
+    // / cohort cache SURVIVE a process restart; the in-memory variant is the
+    // no-DB fallback. The slot is always non-null so downstream consumers
+    // (sleep-pass orchestrator, reflection workers) read shapes without
+    // null-checks. Each Drizzle store implements the identical port, so no
+    // consumer changes.
+    memoryV2: buildMemoryV2(db),
     // PO-port wave-5 wiring #3 — OCSF emitter (secondary SIEM-egress
     // sink). Live mode picks up `OCSF_LOG_PATH` for the file-line sink;
     // syslog / HTTP forwarders land as follow-up sink adapters.
@@ -2675,8 +3058,59 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // through the real adapter when bound (and through the existing
       // deterministic placeholder refusal otherwise — see
       // NOT_YET_WIRED_REASON in @borjie/central-intelligence).
+      // Wave-6 closure — thread the real in-process consolidation worker
+      // into the HQ registry so `platform.run_consolidation_tick` STOPS
+      // surfacing the `notYetWiredConsolidationRunner` refusal (which
+      // THREW `NotYetWiredError` on the live brain path). The adapter
+      // delegates to `runConsolidationForActiveTenants`, which is itself
+      // resilient: when no Anthropic key is configured it returns a
+      // zeroed summary rather than throwing — so the live tick degrades
+      // to an honest no-op report instead of crashing. The `rollbackSnapshot`
+      // path is intentionally left unsupported by the in-process runner
+      // (it throws a clear "snapshot-capable worker" error which B1 maps
+      // to executor-failed) — that is acceptable, not a live-crash.
+      const consolidationWorker = createConsolidationWorkerAdapter({
+        runner: {
+          runForActiveTenants: (args) => {
+            const targetTenantId: string | null = args.tenantId;
+            const anthropic: ConsolidationAnthropicLike | null =
+              buildBudgetGuardedAnthropicClient
+                ? // Adapt the budget-guarded client's `.sdk.messages.create`
+                  // surface onto the runner's flat `.messages.create` port.
+                  (() => {
+                    const guarded = buildBudgetGuardedAnthropicClient(
+                      targetTenantId ?? '_platform',
+                      'consolidation-tick',
+                    );
+                    return {
+                      messages: {
+                        create: (req) => guarded.sdk.messages.create(req as never),
+                      },
+                    } as ConsolidationAnthropicLike;
+                  })()
+                : null;
+            return runConsolidationForActiveTenants(db, anthropic, {
+              ...(targetTenantId
+                ? {
+                    // Tenant-scoped tick: restrict the active-scope
+                    // discovery to (tenant, user) pairs that belong to
+                    // this tenant. Null-tenant ticks fall through to the
+                    // runner's default cross-tenant episodic discovery.
+                    discoverScopes: () =>
+                      discoverEpisodicScopesForTenant(db, targetTenantId, 14),
+                  }
+                : {}),
+            });
+          },
+        },
+        logger: {
+          warn: (obj, msg) =>
+            logger.warn('consolidation-worker-adapter', { arg0: msg ?? '', obj }),
+        },
+      });
       const hqPortBindings: HqToolPortBindings = createHqToolPortBindings({
         db,
+        consolidationWorker,
         callerResolver: {
           // Placeholder resolver — real per-request principal binding
           // lives in the BFF router; the central-intelligence registry
@@ -2728,19 +3162,61 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
           tenantId: '_platform',
         },
       });
-      const llmUrl = process.env.CI_LLM_URL?.trim();
-      if (!llmUrl) {
-        return {
-          agent: null,
-          memory,
-          auditReader: reader,
-          auditRecorder,
-          brainKernel,
-        };
-      }
-      // Adapter not shipped in-tree — the gateway consumes it over
-      // HTTP from a dedicated service. Slot stays null until the
-      // adapter lands; router keeps returning 503 cleanly.
+      // ── Multimodal Photo-Advisor Brain resolver injection ────────────────
+      // Wire the per-tenant `BrainRegistry` into `routes/mining/brain-vision`
+      // so `/api/v1/mining/brain/vision-turn` resolves a real multimodal Brain
+      // instead of honest-503ing `BRAIN_NOT_CONFIGURED`. This reuses the EXACT
+      // construction `routes/brain.hono.ts` uses (PostgresThreadStoreBackend +
+      // createBrain + extra skills). Honest-degrade: `tryLoadBrainEnv` returns
+      // null when Anthropic/Supabase creds are absent → we leave the resolver
+      // unset and the route keeps its clean 503 (never a crash-on-boot). The
+      // resolver's per-tenant `.for(...)` is lazy + wrapped so a tenant-level
+      // construction fault surfaces as a null Brain → the route's own
+      // `BRAIN_NOT_AVAILABLE` 503, not an unhandled throw.
+      wireMultimodalBrainResolver(db);
+
+      // ── Tier-2 Capability-Composition Engine injection ───────────────────
+      // Wire the brain's self-architect into the owner chat-actions route so a
+      // brain-generated unknown verb can be FULFILLED by a governed, composed
+      // power-tool chain BEFORE deferring to a plain brain turn. Fire-and-forget
+      // (async SDK load) — never blocks boot. CI-inert: when no Anthropic key is
+      // present the engine slot stays unset and the deferToBrain path is
+      // byte-for-byte unchanged. Any fault is swallowed internally.
+      void wireCapabilityCompositionEngine();
+
+      // CentralIntelligenceAgent slot — the `/intelligence/thread/:id/message`
+      // surface (admin-web's "Talk to the industry" cross-tenant observer
+      // chat) needs a concrete agent. The previous `CI_LLM_URL` env gate was
+      // DEAD-CODED: both branches returned `agent: null`, so setting the env
+      // var changed nothing and misled operators. We remove the misleading
+      // gate. The slot stays an HONEST null — the router degrades cleanly with
+      // a structured 503 INTELLIGENCE_SERVICE_UNAVAILABLE (never a crash or a
+      // silent dead button) — and we WARN once so the degraded posture is
+      // observable rather than hidden behind a never-true env check.
+      //
+      // Wiring the real local `createCentralIntelligenceAgent` needs four deps.
+      // THREE are constructible in this scope today:
+      //   - ConversationMemory   → `memory` above (createInMemoryConversationMemory)
+      //   - VoiceResolver        → `createDefaultVoiceResolver()` (no required args)
+      //   - agent-loop ToolRegistry → `createToolRegistry([...])`
+      // The ONE genuinely-missing adapter is the streaming `LlmAdapter` (see
+      // `@borjie/central-intelligence` agent-loop `AgentLoopDeps.llm`): it must
+      // expose `stream({system,messages,tools,extendedThinking}) =>
+      // AsyncIterable<LlmStreamChunk>` translating Anthropic's streaming +
+      // tool-use protocol into the agent-loop chunk shape. NO concrete producer
+      // of `LlmStreamChunk` exists anywhere in the repo (only the interface in
+      // `types.ts`), so a correct adapter is a NEW non-trivial file that belongs
+      // in `@borjie/central-intelligence` (NOT this composition root, and NOT
+      // fabricatable from the kernel's single-shot sensor). We therefore keep
+      // the HONEST null + 503 rather than ship a half-brain. See needsAttention.
+      // This unblocks NO owner/MD chat — owner chat already works via
+      // /mining/chat + /brain/teach and is unaffected by this slot.
+      logger.warn(
+        { wiring: 'central-intelligence-agent' },
+        'central-intelligence: agent slot is intentionally null; ' +
+          '/intelligence/thread message route degrades to 503 until the ' +
+          'local CentralIntelligenceAgent (LlmAdapter+Voice+ToolRegistry) is wired',
+      );
       return {
         agent: null,
         memory,
@@ -2922,8 +3398,22 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     }),
     // Wave-K parity-litfin Gap C — capability dashboard wired against the
     // kernel-substrate tables (`kernel_provenance`, `kernel_cot_reservoir`).
-    // Reads only; rejudge is a tier-3 stub that returns a queued verdict.
-    parityCapabilityDashboard: createParityCapabilityDashboard({ db }),
+    // Wave-6 closure: `rejudge` now threads a REAL budget-guarded judge
+    // runner that scores the run's reasoning and persists the new
+    // `judge_score` to `kernel_provenance`. When no Anthropic key is
+    // configured the runner is null and `rejudge` returns an honest
+    // `unavailable` outcome rather than a fake `queued: true` no-op.
+    parityCapabilityDashboard: createParityCapabilityDashboard({
+      db,
+      judgeRunner: createParityJudgeRunner({
+        // The budget-guarded client is structurally `{ defaultModel, sdk }`
+        // — matching the wiring's `BudgetGuardedAnthropicLike`.
+        buildBudgetGuardedAnthropicClient:
+          buildBudgetGuardedAnthropicClient as unknown as Parameters<
+            typeof createParityJudgeRunner
+          >[0]['buildBudgetGuardedAnthropicClient'],
+      }),
+    }),
     // Central Command Phase A C6 / Phase B B2 — cross-portal bus. When
     // `REDIS_URL` is set the factory wires the Redis pubsub backend (two
     // ioredis connections — publisher + subscriber, per ioredis convention).

@@ -30,39 +30,80 @@ class DataRefError(ValueError):
     """Raised when a `dataRef` is malformed or refers to a missing file."""
 
 
-def load_dataframe(data_ref: str, max_rows: int) -> pd.DataFrame:
+def load_dataframe(
+    data_ref: str,
+    max_rows: int,
+    *,
+    allow_local_paths: bool = False,
+    max_bytes: int | None = None,
+) -> pd.DataFrame:
     """Resolve a `dataRef` into a pandas DataFrame.
 
     Args:
         data_ref: One of the supported scheme prefixes above.
         max_rows: Hard cap on rows — protects the sidecar from OOM.
+        allow_local_paths: SEC-2 — when ``False`` (the prod default) the
+            file-backed schemes ``csv://`` and ``parquet://`` are
+            REJECTED. In prod the sidecar shares no data volume with any
+            tenant, so the only valid schemes are ``inline://`` and
+            ``rows://`` (data the calling, tenant-scoped gateway resolved
+            and embedded). This closes a cross-tenant / arbitrary-file
+            read vector.
+        max_bytes: SEC-2 — optional hard cap on the inline payload size in
+            bytes, applied BEFORE parsing so a giant ``inline://`` body
+            cannot OOM the process ahead of the row cap.
 
     Raises:
-        DataRefError: On any malformed input or missing file.
+        DataRefError: On any malformed input, missing file, oversized
+            payload, or a disallowed local-path scheme.
     """
     if not isinstance(data_ref, str) or not data_ref:
         raise DataRefError("dataRef must be a non-empty string")
 
     if data_ref.startswith(INLINE_PREFIX):
         body = data_ref[len(INLINE_PREFIX) :]
+        _enforce_byte_cap(body, max_bytes)
         return _load_inline_csv(body, max_rows)
 
+    if data_ref.startswith(ROWS_PREFIX):
+        body = data_ref[len(ROWS_PREFIX) :]
+        _enforce_byte_cap(body, max_bytes)
+        return _load_inline_rows(body, max_rows)
+
     if data_ref.startswith(CSV_PREFIX):
+        if not allow_local_paths:
+            raise DataRefError(_LOCAL_PATH_REJECTED.format(scheme=CSV_PREFIX))
         path = data_ref[len(CSV_PREFIX) :]
         return _load_csv_file(path, max_rows)
 
     if data_ref.startswith(PARQUET_PREFIX):
+        if not allow_local_paths:
+            raise DataRefError(_LOCAL_PATH_REJECTED.format(scheme=PARQUET_PREFIX))
         path = data_ref[len(PARQUET_PREFIX) :]
         return _load_parquet_file(path, max_rows)
-
-    if data_ref.startswith(ROWS_PREFIX):
-        body = data_ref[len(ROWS_PREFIX) :]
-        return _load_inline_rows(body, max_rows)
 
     raise DataRefError(
         f"dataRef scheme not recognised; expected one of "
         f"{INLINE_PREFIX!r}, {CSV_PREFIX!r}, {PARQUET_PREFIX!r}, {ROWS_PREFIX!r}"
     )
+
+
+_LOCAL_PATH_REJECTED = (
+    "dataRef scheme {scheme!r} is rejected: local-path schemes are disabled "
+    "(DISCOVERY_SIDECAR_ALLOW_LOCAL_PATHS=false). In production the sidecar "
+    "shares no data volume — send inline:// or rows:// instead."
+)
+
+
+def _enforce_byte_cap(body: str, max_bytes: int | None) -> None:
+    if max_bytes is None:
+        return
+    # `len(body)` counts characters; the wire size is the UTF-8 byte count.
+    size = len(body.encode("utf-8"))
+    if size > max_bytes:
+        raise DataRefError(
+            f"dataRef payload is {size} bytes, exceeds max_bytes={max_bytes}"
+        )
 
 
 def _enforce_cap(df: pd.DataFrame, max_rows: int) -> pd.DataFrame:

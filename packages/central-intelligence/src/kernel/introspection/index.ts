@@ -64,3 +64,11 @@ export {
   type RecursiveHotInput,
   type RecursiveHotResult,
 } from './recursive-hot.js';
+
+export {
+  createBodySchemaReader,
+  bodySchemaReaderFromGraph,
+  queryBodySchemaTool,
+  bodyBlastRadiusTool,
+  type SystemGraphSource,
+} from './body-schema-reader.js';

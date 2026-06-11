@@ -216,6 +216,35 @@ export {
   type SessionContext as IntentSessionContext,
 } from './policy/index.js';
 
+// Decision — continuous, per-decision autonomy controller. The frontier
+// replacement for the 1-bit gated/auto switch (ORCHESTRATION_FRONTIER_
+// ADDENDUM §"Confidence × consequence × reversibility-adaptive delegation
+// gated on conformal calibration"). ADDITIVE overlay: `composeWithRail`
+// guarantees rail-gate ALWAYS wins and the controller may only escalate.
+// `calibratedConfidenceFromConformal` reuses @borjie/conformal-calibration-
+// online / calibration-monitor to calibrate the confidence input before
+// it is allowed to drive delegation.
+export {
+  decideAutonomy,
+  moreCautious as moreCautiousAutonomyDecision,
+  isAtLeastAsCautious as isAtLeastAsCautiousAutonomyDecision,
+  DEFAULT_AUTO_CONFIDENCE_FLOORS,
+  composeWithRail,
+  calibratedConfidenceFromConformal,
+  calibratedCoverageCeiling,
+  type RailOutcome,
+  type MetaRailOutcome,
+  type ComposedAutonomyOutput,
+  type ConformalCoverageView,
+  type AutonomyDecision,
+  type ConsequenceTier as AutonomyConsequenceTier,
+  type Reversibility as AutonomyReversibility,
+  type DelegationMandate,
+  type SituationFlags as AutonomySituationFlags,
+  type DecideAutonomyInput,
+  type DecideAutonomyOutput,
+} from './decision/index.js';
+
 // Sovereign-claim — defence-in-depth on the sovereign tier-elevation
 // gate (LP-14). An HMAC-signed claim tying (userId, role, mfaVerifiedAt,
 // scope) plus a recent-MFA freshness window, so a stolen cookie or

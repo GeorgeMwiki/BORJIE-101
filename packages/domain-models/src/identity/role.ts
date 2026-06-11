@@ -7,9 +7,7 @@
  */
 
 import type {
-  TenantId,
   RoleId,
-  UserId,
   EntityMetadata,
   SoftDeletable,
   TenantScoped,
@@ -410,7 +408,7 @@ export function permissionMatches(permission: string, required: string): boolean
   }
   
   const [permResource, permAction] = permission.split(':');
-  const [reqResource, reqAction] = required.split(':');
+  const [reqResource] = required.split(':');
   
   // Resource wildcard
   if (permAction === '*' && permResource === reqResource) {

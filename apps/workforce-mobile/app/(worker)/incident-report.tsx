@@ -21,6 +21,7 @@ import { Button } from '../../src/forms/Button'
 import { miningApi } from '../../src/api/client'
 import { ApiError } from '../../src/api/errors'
 import { useLocation } from '../../src/location/useLocation'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, spacing } from '../../src/theme/spacing'
 
@@ -39,10 +40,11 @@ interface IncidentCreateResponse {
 }
 
 export default function IncidentReportScreen(): JSX.Element {
+  const { lang } = useI18n()
   return (
     <RoleGuard screenId={SCREEN_ID}>
       <ScreenShell screenId={SCREEN_ID}>
-        <ReportView lang="sw" />
+        <ReportView lang={lang} />
       </ScreenShell>
     </RoleGuard>
   )

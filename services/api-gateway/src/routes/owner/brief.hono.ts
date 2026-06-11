@@ -36,8 +36,36 @@ import {
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
+// IP-EGRESS (CLOSE-G) — the advisor slice is model-authored prose (the
+// `insight` + `action` lines come from `callBrainOnce`). It MUST pass the
+// FAIL-CLOSED egress firewall before it is returned to the owner cockpit so no
+// persona / model / provider identity, rationale or canary leaks. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../../composition/egress-filter-wiring.js';
 
 const moduleLogger = createLogger('owner-brief');
+
+/** Generic egress fail-closed placeholder for model-authored advisor text. */
+const ADVISOR_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * IP-EGRESS (CLOSE-G) — guard one model-authored advisor leaf through the
+ * FAIL-CLOSED egress firewall before it reaches the owner cockpit. A thrown
+ * filter (or construction fault) yields a generic placeholder, never the raw
+ * text. Empty / non-string spans pass through unchanged.
+ */
+function guardAdvisorText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    moduleLogger.error('advisor egress guard threw — failing closed', {
+      tenantId,
+      reason: err instanceof Error ? err.message : String(err),
+    });
+    return ADVISOR_EGRESS_FAIL_CLOSED;
+  }
+}
 
 // ----------------------------------------------------------------------------
 // OwnerBrief zod schema — pins the cached jsonb shape end-to-end.
@@ -412,15 +440,14 @@ export async function composeOwnerBrief(
   db: any,
   tenantId: string,
 ): Promise<OwnerBrief> {
-  const [
-    dailyBrief,
-    decisions,
-    cashRunway,
-    productionVsTarget,
-    cliffStatus,
-    openHighIncidents,
-    licenceHealth,
-  ] = await Promise.all([
+  // mfr-9: fan out the seven slots with Promise.allSettled so ONE
+  // transient slot failure (e.g. a flaky decisions query) degrades only
+  // that slot to its safe empty shape rather than rejecting the whole
+  // brief and 500-ing a request whose other six slots are healthy. Each
+  // rejected slot is logged and falls back to the same empty shape its
+  // own getter returns on no-data, so the OwnerBriefSchema still passes.
+  const today = dayKey(new Date());
+  const settled = await Promise.allSettled([
     getCockpitDailyBrief(db, tenantId),
     getCockpitDecisions(db, tenantId),
     getCockpitCashRunway(db, tenantId),
@@ -429,18 +456,72 @@ export async function composeOwnerBrief(
     getOpenHighIncidents(db, tenantId),
     getLicenceHealth(db, tenantId),
   ]);
+
+  function slotOr<T>(
+    index: number,
+    label: string,
+    fallback: T,
+  ): T {
+    const r = settled[index];
+    if (r && r.status === 'fulfilled') return r.value as T;
+    moduleLogger.warn('owner-brief slot degraded to fallback', {
+      tenantId,
+      slot: label,
+      reason: r && r.status === 'rejected' ? messageOf(r.reason) : 'unknown',
+    });
+    return fallback;
+  }
+
+  const dailyBrief = slotOr(0, 'dailyBrief', {
+    date: today,
+    shiftsToday: 0,
+    openIncidents: 0,
+    openGrievances: 0,
+    criticalIncidents: 0,
+  } as z.infer<typeof DailyBriefSlotSchema>);
+  const decisions = slotOr(1, 'decisions', {
+    pendingCount: 0,
+    items: [],
+  } as z.infer<typeof DecisionsSlotSchema>);
+  const cashRunway = slotOr(2, 'cashRunway', {
+    ninetyDayNetTzs: 0,
+    dailyAvgTzs: 0,
+    sampleCount: 0,
+  } as z.infer<typeof CashRunwaySlotSchema>);
+  const productionVsTarget = slotOr(3, 'productionVsTarget', {
+    window: '30d',
+    perSite: [],
+  } as z.infer<typeof ProductionSlotSchema>);
+  const cliffStatus = slotOr(4, 'cliffStatus', {
+    cliffDateIso: new Date('2026-03-27T00:00:00.000Z').toISOString(),
+    postCliffSales: 0,
+    usdDenominated: 0,
+    remediationComplete: false,
+  } as z.infer<typeof CliffStatusSlotSchema>);
+  const openHighIncidents = slotOr(5, 'openHighIncidents', {
+    count: 0,
+    items: [],
+  } as z.infer<typeof OpenHighIncidentsSlotSchema>);
+  const licenceHealth = slotOr(6, 'licenceHealth', {
+    totalCount: 0,
+    atRiskCount: 0,
+    items: [],
+  } as z.infer<typeof LicenceHealthSlotSchema>);
   // Best-effort advisor slice — Wave OWNER-OS. If the brain ladder is
   // unwired or every provider errors we surface `advisor: null` and the
   // FE simply hides the sticky note chip. Never blocks the brief.
-  const advisor = await composeAdvisorSlice({
-    dailyBrief,
-    decisions,
-    cashRunway,
-    productionVsTarget,
-    cliffStatus,
-    openHighIncidents,
-    licenceHealth,
-  }).catch((err) => {
+  const advisor = await composeAdvisorSlice(
+    {
+      dailyBrief,
+      decisions,
+      cashRunway,
+      productionVsTarget,
+      cliffStatus,
+      openHighIncidents,
+      licenceHealth,
+    },
+    tenantId,
+  ).catch((err) => {
     moduleLogger.warn('advisor slice failed', {
       tenantId,
       reason: messageOf(err),
@@ -474,7 +555,7 @@ async function composeAdvisorSlice(slots: {
   readonly cliffStatus: z.infer<typeof CliffStatusSlotSchema>;
   readonly openHighIncidents: z.infer<typeof OpenHighIncidentsSlotSchema>;
   readonly licenceHealth: z.infer<typeof LicenceHealthSlotSchema>;
-}): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
+}, tenantId: string): Promise<z.infer<typeof AdvisorSlotSchema> | null> {
   // Lazy import so the brain-call helper isn't required when this file
   // is bundled for the cron worker (which sets no API keys).
   const { callBrainOnce } = await import('./brain-call.js');
@@ -495,7 +576,14 @@ async function composeAdvisorSlice(slots: {
   const userPrompt = `Today's owner brief slots (JSON):\n${summary}`;
   let result: { text: string; provider: string; latencyMs: number };
   try {
-    result = await callBrainOnce({ systemPrompt, userPrompt, maxTokens: 280 });
+    result = await callBrainOnce({
+      systemPrompt,
+      userPrompt,
+      maxTokens: 280,
+      // LANE B5 — admin control-plane routing for this tenant's advisor slice.
+      tenantId,
+      useCase: 'casual_chat',
+    });
   } catch {
     return null;
   }
@@ -504,11 +592,16 @@ async function composeAdvisorSlice(slots: {
   const actionLine = lines.find((l) => /^action[:\s]/i.test(l)) ?? lines[1] ?? '';
   const action = actionLine.replace(/^action[:\s]+/i, '').trim();
   if (!insight || !action) return null;
+  // IP-EGRESS (CLOSE-G) — `insight` + `action` are model-authored prose: run
+  // each through the FAIL-CLOSED egress firewall before they leave the gateway.
+  // `provider` is the concrete LLM provider id — it is coarsened to a generic,
+  // non-identifying label so the model/provider identity never crosses the wire
+  // (the real provider stays in the server log via callBrainOnce).
   return {
-    insight,
-    action,
+    insight: guardAdvisorText(insight, tenantId),
+    action: guardAdvisorText(action, tenantId),
     generatedAtIso: new Date().toISOString(),
-    provider: result.provider,
+    provider: 'brain',
     latencyMs: result.latencyMs,
   };
 }

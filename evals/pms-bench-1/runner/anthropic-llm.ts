@@ -31,8 +31,39 @@ interface AnthropicResponse {
   readonly model?: string;
 }
 
+/**
+ * In-code floor — mirrors the dynamic-registry L3 sonnet baseline
+ * (`packages/brain-llm-router/src/dynamic-registry/baselines.ts`).
+ */
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 1024;
+
+function nonEmpty(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Intelligence-Elasticity: the bench tracks the DEPLOYED brain's
+ * standard tier so nightly evals exercise the same model the gateway
+ * composition resolves. This package is not workspace-linked, so we
+ * honor the SAME env knobs instead of importing the registry:
+ *
+ *   1. `explicit` (opts.model)         — programmatic pin (tests)
+ *   2. `BENCH_ANTHROPIC_MODEL`         — explicit bench override
+ *   3. `BORJIE_MODEL_TIER_STANDARD`    — the composition-root tier map
+ *   4. `BORJIE_MODEL_BASELINE_SONNET`  — the dynamic-registry L3 override
+ *   5. `DEFAULT_MODEL`                 — in-code floor (= shipped baseline)
+ */
+export function resolveBenchModel(explicit?: string): string {
+  return (
+    nonEmpty(explicit) ??
+    nonEmpty(process.env.BENCH_ANTHROPIC_MODEL) ??
+    nonEmpty(process.env.BORJIE_MODEL_TIER_STANDARD) ??
+    nonEmpty(process.env.BORJIE_MODEL_BASELINE_SONNET) ??
+    DEFAULT_MODEL
+  );
+}
 
 // Sonnet 4.6 list pricing as of 2026-04: $3/MTok input, $15/MTok output.
 // Used purely as a per-call cost estimator for the cost-efficiency scorer.
@@ -46,7 +77,7 @@ export interface AnthropicLlmOptions {
 }
 
 export function createAnthropicLlm(opts: AnthropicLlmOptions): BenchLlmPort {
-  const model = opts.model ?? process.env.BENCH_ANTHROPIC_MODEL ?? DEFAULT_MODEL;
+  const model = resolveBenchModel(opts.model);
   const endpoint = opts.endpoint ?? 'https://api.anthropic.com/v1/messages';
   const apiKey = opts.apiKey;
 

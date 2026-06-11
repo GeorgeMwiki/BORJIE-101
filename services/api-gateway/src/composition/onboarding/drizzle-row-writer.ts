@@ -78,6 +78,12 @@ export interface OnboardingWriterCtx {
    * violating the FK.
    */
   readonly defaultLicenceId: string | null;
+  /**
+   * Default site id for `drill_holes.site_id` (NOT NULL FK). Optional — a
+   * drill-hole row without a resolvable site is skipped rather than
+   * violating the FK. Absent on the worker / site / licence paths.
+   */
+  readonly defaultSiteId?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +204,29 @@ const TABLE_BINDINGS: Readonly<Record<string, TableBinding>> = Object.freeze({
       });
     },
   }),
+  // ── drill_holes → drill_holes ──────────────────────────────────────
+  drill_holes: Object.freeze({
+    physical: 'drill_holes',
+    natural_key: Object.freeze({
+      source_field: 'hole_id',
+      column: 'hole_id_external',
+    }),
+    project: (values, ctx, id) => {
+      const holeId = pick(values, 'hole_id', 'hole_id_external', 'hole', 'name');
+      const siteId = ctx.defaultSiteId ?? null;
+      // drill_holes.site_id + hole_id_external + kind are NOT NULL — skip
+      // rather than violate the constraint / FK.
+      if (holeId === null || siteId === null) return null;
+      const kind = pick(values, 'kind', 'hole_kind', 'type') ?? 'exploration';
+      return Object.freeze({
+        id,
+        tenant_id: ctx.tenantId,
+        site_id: siteId,
+        hole_id_external: holeId,
+        kind,
+      });
+    },
+  }),
 });
 
 export function isSupportedOnboardingTable(logical: string): boolean {
@@ -244,8 +273,21 @@ function buildInsert(
 
 const ONBOARDING_AUDIT_SECRET_ID = 'data_onboarding_row_persist_v1';
 
+/**
+ * The minimal slice of {@link OnboardingWriterCtx} the audit appender reads.
+ * Declaring it separately lets the company-materialisation path
+ * ({@link ensureCompanyForTenant}) reuse the same hash-chained appender
+ * without first resolving the company / licence FKs.
+ */
+interface AuditCtx {
+  readonly tx: OnboardingTxClient;
+  readonly tenantId: string;
+  readonly userId: string;
+  readonly sessionId: string;
+}
+
 interface AuditAppendArgs {
-  readonly ctx: OnboardingWriterCtx;
+  readonly ctx: AuditCtx;
   readonly physical: string;
   readonly rowId: string;
   readonly operation: 'insert' | 'update' | 'skip';
@@ -320,6 +362,121 @@ async function appendAudit(args: AuditAppendArgs): Promise<string> {
   );
 
   return thisHash;
+}
+
+// ---------------------------------------------------------------------------
+// Company materialisation — KYB → companies row (FK prerequisite)
+// ---------------------------------------------------------------------------
+
+/**
+ * Captured KYB facts for one tenant company. The `/onboarding` wizard
+ * records these in `mining_onboarding_runs.steps.kyb.payload`; the commit
+ * path reads them and hands them here so a brand-new tenant's first licence
+ * /worker commit has a real `companies` row to FK against (instead of the
+ * licence projection silently SKIPping for want of a `company_id`).
+ */
+export interface CompanyKyb {
+  readonly companyName: string;
+  readonly registrationNo: string;
+  readonly tin?: string | null;
+  readonly registeredAddress?: string | null;
+}
+
+export interface EnsureCompanyResult {
+  readonly companyId: string;
+  readonly operation: 'insert' | 'skip';
+  readonly auditHash: string;
+}
+
+/**
+ * Idempotently materialise the tenant's company row from captured KYB,
+ * INSIDE the caller's tenant-GUC-bound transaction.
+ *
+ * Natural key: `(tenant_id, registration_no)` — the existing UNIQUE index
+ * `companies_reg_no_idx` (baseline migration `drizzle/0003_mining_domain.sql`).
+ * `ON CONFLICT … DO NOTHING` makes re-commit a no-op: a second commit for
+ * the same tenant + registration number never creates a duplicate company.
+ * RLS FORCE on `companies` (baseline 0003) plus the explicit `tenant_id`
+ * column keep this tenant-isolated; the row is appended to the hash-chained
+ * `ai_audit_chain` exactly like every other onboarding insert.
+ *
+ * Returns the resolved `companyId` (whether freshly inserted or pre-existing)
+ * so the caller can resolve it as the default company for the recipe writer.
+ */
+export async function ensureCompanyForTenant(args: {
+  readonly ctx: AuditCtx;
+  readonly kyb: CompanyKyb;
+}): Promise<EnsureCompanyResult> {
+  const { ctx, kyb } = args;
+  const name = asText(kyb.companyName);
+  const registrationNo = asText(kyb.registrationNo);
+  if (name === null || registrationNo === null) {
+    throw new Error(
+      'ensureCompanyForTenant: companyName + registrationNo are required',
+    );
+  }
+  const tin = asText(kyb.tin ?? null);
+  const registeredAddress = asText(kyb.registeredAddress ?? null);
+  const id = randomUUID();
+
+  // UPSERT on the natural key — DO NOTHING so a re-commit never duplicates.
+  // RETURNING id only fires on a fresh insert; an existing row is read back
+  // by the SELECT fallback below (idempotency path).
+  const inserted = rowsOf(
+    await ctx.tx.execute(
+      sql`
+        INSERT INTO companies (
+          id, tenant_id, name, registration_no, tin, registered_address
+        ) VALUES (
+          ${id},
+          ${ctx.tenantId},
+          ${name},
+          ${registrationNo},
+          ${tin},
+          ${registeredAddress}
+        )
+        ON CONFLICT (tenant_id, registration_no) DO NOTHING
+        RETURNING id
+      `,
+    ),
+  );
+
+  if (inserted.length > 0) {
+    const companyId = String(inserted[0]!.id);
+    const auditHash = await appendAudit({
+      ctx,
+      physical: 'companies',
+      rowId: companyId,
+      operation: 'insert',
+      naturalKeyValue: registrationNo,
+    });
+    return Object.freeze({ companyId, operation: 'insert' as const, auditHash });
+  }
+
+  // Conflict → the company already exists for this (tenant, registration_no).
+  const existing = rowsOf(
+    await ctx.tx.execute(
+      sql`
+        SELECT id FROM companies
+        WHERE tenant_id = ${ctx.tenantId}
+          AND registration_no = ${registrationNo}
+        LIMIT 1
+      `,
+    ),
+  );
+  if (existing.length === 0) {
+    // Should be unreachable (conflict implies a row), but never fabricate.
+    throw new Error('ensureCompanyForTenant: conflict without resolvable row');
+  }
+  const companyId = String(existing[0]!.id);
+  const auditHash = await appendAudit({
+    ctx,
+    physical: 'companies',
+    rowId: companyId,
+    operation: 'skip',
+    naturalKeyValue: registrationNo,
+  });
+  return Object.freeze({ companyId, operation: 'skip' as const, auditHash });
 }
 
 // ---------------------------------------------------------------------------

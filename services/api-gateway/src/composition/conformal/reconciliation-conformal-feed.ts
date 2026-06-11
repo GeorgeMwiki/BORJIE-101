@@ -46,6 +46,14 @@ import {
   createConformalCalibrationLoop,
   type ConformalLoopLogger,
 } from './conformal-calibration-loop.js';
+import type {
+  CalibrationCurvePoint,
+  CalibrationDriftEvent,
+} from '../../services/calibration-monitor/index.js';
+import type { estateMind } from '@borjie/central-intelligence';
+
+type EstateProposal = estateMind.EstateProposal;
+type ProposalSink = estateMind.ProposalSink;
 
 /** Reconciliation verdicts that carry a usable coverage bit. */
 export type ReconciliationCoverageStatus = 'matched' | 'divergent';
@@ -179,4 +187,170 @@ export async function feedReconciliationToConformal(
     );
     return null;
   }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// WIN-1 — Calibrated humility. The MD trusts itself LESS on exactly the topics
+// it has recently been wrong about. Two seams, both built here:
+//
+//   (a) the confidence-gate — a pure metacognitive gate run BEFORE the MD states
+//       a confidence on a topic. It reads the per-domain calibration curve (the
+//       same `mining.calibration.score` brain-tool wraps) and, if the band the MD
+//       is about to claim has historically under-landed FOR THIS action-kind,
+//       down-shifts the SPOKEN confidence + prepends a one-line humility prefix.
+//       Turns the existing one-shot "did your last N work?" tool into a
+//       continuous gate. INV-H honest-confidence: it surfaces POSTURE (a hedge
+//       line + a softened number), never the audit math.
+//
+//   (b) the drift→proposal bridge — binds the previously UNCONSUMED
+//       `CalibrationDriftSink` to the estate-mind proposal sink, so a sustained
+//       calibration dip surfaces as a gated proactive nudge ("my recent calls on
+//       X have been shaky — I'm hedging there until they recover") instead of
+//       evaporating. Propose-only: it writes through the existing gated sink, it
+//       never actuates.
+// ───────────────────────────────────────────────────────────────────────────
+
+/** The verdict the confidence-gate returns. Immutable, posture-only. */
+export interface CalibratedConfidence {
+  /** The confidence the MD should actually SPEAK (≤ claimed). */
+  readonly adjustedConfidence: number;
+  /** True when the gate pulled the number down from what was claimed. */
+  readonly downShifted: boolean;
+  /** A short humility line to prepend, or null when the topic is well-calibrated. */
+  readonly humilityPrefix: string | null;
+  /** The historical land-rate of the claimed band for this topic (0..1), or null. */
+  readonly observedLandRate: number | null;
+}
+
+/**
+ * The minimum number of reconciled samples in a band before its land-rate is
+ * trusted enough to down-shift. Below it the curve is too thin — speak the
+ * claimed confidence (no spurious humility on one unlucky row).
+ */
+const MIN_BAND_SAMPLES = 4;
+
+/** Pick the curve band that CONTAINS the claimed confidence. */
+function bandContaining(
+  curve: readonly CalibrationCurvePoint[],
+  claimedConfidence: number,
+): CalibrationCurvePoint | null {
+  const c = Math.max(0, Math.min(1, claimedConfidence));
+  for (const point of curve) {
+    // Upper-inclusive on the top band so claimed=1.0 lands somewhere.
+    const top = point.confidenceUpper >= 1 ? point.confidenceUpper + 1e-9 : point.confidenceUpper;
+    if (c >= point.confidenceLower && c < top) return point;
+  }
+  return null;
+}
+
+/**
+ * The confidence-gate. Given the per-domain calibration curve and the confidence
+ * the MD is ABOUT to claim, return the confidence it should actually speak + an
+ * optional humility prefix. Pure + total. When the claimed band has historically
+ * only matched `landRate` of the time, the spoken confidence is pulled toward the
+ * MEASURED land-rate (never above the claim) and a one-line hedge is prepended.
+ *
+ * `topicLabel` is a human label for the domain (e.g. "cost", "compliance
+ * timing") used only in the prefix copy — never the raw action-kind slug.
+ */
+export function applyCalibratedHumility(
+  curve: readonly CalibrationCurvePoint[],
+  claimedConfidence: number,
+  topicLabel: string,
+): CalibratedConfidence {
+  const claimed = Math.max(0, Math.min(1, claimedConfidence));
+  const band = bandContaining(curve, claimed);
+  if (!band || band.count < MIN_BAND_SAMPLES) {
+    return Object.freeze({
+      adjustedConfidence: claimed,
+      downShifted: false,
+      humilityPrefix: null,
+      observedLandRate: band ? band.matchedFraction : null,
+    });
+  }
+
+  const landRate = band.matchedFraction;
+  // Well-calibrated (or better than claimed) → speak the claim, no hedge.
+  if (landRate >= claimed - 0.05) {
+    return Object.freeze({
+      adjustedConfidence: claimed,
+      downShifted: false,
+      humilityPrefix: null,
+      observedLandRate: landRate,
+    });
+  }
+
+  // Over-confident on this topic. Pull the spoken confidence toward the measured
+  // land-rate (blend, weighted to reality), and prepend a posture-only hedge.
+  const adjusted = Number((claimed * 0.35 + landRate * 0.65).toFixed(2));
+  const prefix =
+    landRate <= 0.5
+      ? `I'd hedge on ${topicLabel} — my recent calls there have been shaky.`
+      : `Slightly less sure on ${topicLabel} than usual — recent calls have run a bit off.`;
+  return Object.freeze({
+    adjustedConfidence: Math.min(claimed, adjusted),
+    downShifted: true,
+    humilityPrefix: prefix,
+    observedLandRate: landRate,
+  });
+}
+
+/**
+ * Map a `CalibrationDriftEvent` (the previously-unconsumed alerter output) to an
+ * `EstateProposal` so a sustained dip surfaces through the gated proactive sink.
+ * Pure. driveId is `royalty-currency` (a standing financial-discipline concern);
+ * the breachSeverity scales with how far accuracy fell below the floor so the
+ * homeostatic controller grades the surface. Evidence-required rail satisfied by
+ * the predictionCount as a soft evidence count (no entity ids — this is a
+ * meta-signal about the MD itself).
+ */
+export function calibrationDriftToProposal(
+  event: CalibrationDriftEvent,
+  nowMs: number = Date.now(),
+): EstateProposal {
+  // accuracy in [0,1]; the further below the 0.6 floor, the higher the severity.
+  const breachSeverity = Math.max(0, Math.min(1, (0.6 - event.accuracy) / 0.6));
+  return Object.freeze({
+    tenantId: event.tenantId,
+    id: `calibration-drift:${event.tenantId}`,
+    driveId: 'royalty-currency' as EstateProposal['driveId'],
+    title: 'My recent predictions have drifted — recalibrating',
+    rationale: `Across ${event.verdictCount} recent reconciled calls my accuracy fell to ${(
+      event.accuracy * 100
+    ).toFixed(0)}% (mean drift ${event.meanDrift.toFixed(2)}). I'm hedging affected topics until the calls land again.`,
+    urgency: breachSeverity >= 0.6 ? 'critical' : 'high',
+    breachSeverity,
+    evidenceEntityIds: [],
+    proposedAtMs: nowMs,
+  });
+}
+
+/**
+ * Bind the unconsumed `CalibrationDriftSink` to the estate-mind proposal sink.
+ * Returns a sink the composition root passes to `createCalibrationAlerter` so a
+ * crossed-floor drift event becomes a gated proactive proposal. Fail-soft: a
+ * sink fault is swallowed (a meta-signal must never break the alerter); the
+ * optional logger records it. PROPOSE-ONLY — never actuates.
+ */
+export function bindCalibrationDriftToProposalSink(
+  proposalSink: ProposalSink,
+  logger?: ConformalLoopLogger,
+  now: () => number = () => Date.now(),
+): (event: CalibrationDriftEvent) => void {
+  return (event: CalibrationDriftEvent): void => {
+    // The alerter's sink is sync; surface the proposal on a detached promise so a
+    // slow/failing sink never blocks the alerter's inspect() call.
+    void Promise.resolve()
+      .then(() => proposalSink.propose(calibrationDriftToProposal(event, now())))
+      .catch((err) => {
+        logger?.warn(
+          {
+            feed: 'calibration-drift-proposal',
+            tenantId: event.tenantId,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'calibration-drift: proposal surface failed (swallowed)',
+        );
+      });
+  };
 }

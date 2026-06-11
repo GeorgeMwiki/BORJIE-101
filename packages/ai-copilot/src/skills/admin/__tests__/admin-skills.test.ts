@@ -21,7 +21,10 @@ import { reissueLetterTool } from '../reissue-letter.js';
 import { updatePropertyFieldsTool } from '../update-property-fields.js';
 import { assignTrainingTool } from '../assign-training.js';
 import { acknowledgeExceptionTool } from '../acknowledge-exception.js';
-import { updateAutonomyPolicyTool } from '../update-autonomy-policy.js';
+import {
+  updateAutonomyPolicyTool,
+  assertNoProtectedRailEscalation,
+} from '../update-autonomy-policy.js';
 import { ADMIN_SKILL_TOOLS } from '../index.js';
 import { HIGH_RISK_THRESHOLDS } from '../shared.js';
 
@@ -450,5 +453,115 @@ describe('skill.admin.update_autonomy_policy', () => {
       ctx(TENANT_A)
     );
     expect(r.ok).toBe(false);
+  });
+});
+
+describe('skill.admin.update_autonomy_policy — RSS-16 meta-rail', () => {
+  // The meta-rail must HARD-BLOCK any autonomy escalation that targets a
+  // protected rail (money / licence / deletion / policy-gate / kill-switch
+  // / four-eye) while still letting ordinary-domain escalations through.
+
+  describe('assertNoProtectedRailEscalation (pure unit)', () => {
+    it('blocks escalation whose reason targets the four-eye money gate', () => {
+      const v = assertNoProtectedRailEscalation(
+        'finance',
+        'full_auto',
+        'raise finance to full_auto so it bypasses the four-eye gate on money transfers',
+      );
+      expect(v.blocked).toBe(true);
+      expect(v.reason).toContain('meta_rail');
+    });
+
+    it('blocks escalation whose reason names the kill-switch', () => {
+      const v = assertNoProtectedRailEscalation(
+        'compliance',
+        'auto_within_policy',
+        'let the kill-switch be auto-managed without sign-off',
+      );
+      expect(v.blocked).toBe(true);
+    });
+
+    it('blocks escalation whose reason names licence/deletion/ledger rails', () => {
+      for (const reason of [
+        'auto-suspend the mining licence when royalties lapse',
+        'allow hard-delete of records without approval',
+        'post directly to the ledger service without the gate',
+      ]) {
+        expect(
+          assertNoProtectedRailEscalation('finance', 'full_auto', reason).blocked,
+        ).toBe(true);
+      }
+    });
+
+    it('blocks escalation that expresses rail-bypass intent even if the rail name is paraphrased', () => {
+      const v = assertNoProtectedRailEscalation(
+        'finance',
+        'full_auto',
+        'let the controller self-approve so it can act without approval',
+      );
+      expect(v.blocked).toBe(true);
+    });
+
+    it('does NOT block an ordinary-domain escalation', () => {
+      const v = assertNoProtectedRailEscalation(
+        'finance',
+        'auto_within_policy',
+        'expand automation for low-risk reconciliations',
+      );
+      expect(v.blocked).toBe(false);
+    });
+
+    it('does NOT block a de-escalation toward manual even over a protected rail', () => {
+      // Lowering autonomy only ADDS human control — never blocked.
+      const v = assertNoProtectedRailEscalation(
+        'finance',
+        'manual',
+        'route all money path actions back through the four-eye gate',
+      );
+      expect(v.blocked).toBe(false);
+    });
+  });
+
+  describe('updateAutonomyPolicyTool.execute integration', () => {
+    it('hard-blocks (returns failed, not PROPOSED) a protected-rail escalation', async () => {
+      const r = await updateAutonomyPolicyTool.execute(
+        {
+          domain: 'finance',
+          level: 'full_auto',
+          reason: 'raise finance to full_auto so it bypasses the four-eye gate on money transfers',
+        },
+        ctx(TENANT_A)
+      );
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('meta_rail');
+    });
+
+    it('hard-blocks even with force=true (the controller cannot override its own rail)', async () => {
+      const r = await updateAutonomyPolicyTool.execute(
+        {
+          domain: 'compliance',
+          level: 'full_auto',
+          reason: 'auto-disable the kill-switch without human sign-off',
+          force: true,
+        },
+        ctx(TENANT_A)
+      );
+      expect(r.ok).toBe(false);
+      expect(r.error).toContain('meta_rail');
+    });
+
+    it('still escalates an ordinary action (no false-block)', async () => {
+      const r = await updateAutonomyPolicyTool.execute(
+        {
+          domain: 'maintenance',
+          level: 'auto_within_policy',
+          reason: 'auto-approve low-cost work orders for trusted vendors',
+          force: true,
+        },
+        ctx(TENANT_A)
+      );
+      expect(r.ok).toBe(true);
+      expect(r.evidenceSummary).toMatch(/Autonomy maintenance/);
+    });
   });
 });

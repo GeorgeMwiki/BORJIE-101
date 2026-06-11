@@ -12,6 +12,7 @@ on:
     paths:
       - 'packages/database/src/migrations/**'
       - 'scripts/validate-migration-safety.mjs'
+      - 'scripts/check-migration-prefix-unique.mjs'
       - '.github/workflows/migration-safety-check.yml'
   workflow_dispatch:
 
@@ -59,6 +60,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Check migration prefix uniqueness (forward-only guard)
+        run: node scripts/check-migration-prefix-unique.mjs
 
       - name: Wait for Postgres
         run: |

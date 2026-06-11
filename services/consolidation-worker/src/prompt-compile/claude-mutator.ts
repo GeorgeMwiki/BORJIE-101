@@ -90,7 +90,7 @@ const MIN_MUTATION_COUNT = 1;
 
 /** System prompt for the mutator. Stable across refactors — see test. */
 export const MUTATOR_SYSTEM_PROMPT = [
-  'You are a prompt engineer specialising in property-management AI agent prompts.',
+  'You are a prompt engineer specialising in mining-estate AI agent prompts.',
   'You will receive a CURRENT prompt and a FAILING golden-set case.',
   'Your job: emit a small number of CANDIDATE prompts that surgically fix the failure',
   'without regressing on the prompt\'s other capabilities. Make minimal edits:',

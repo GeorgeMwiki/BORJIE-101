@@ -67,7 +67,9 @@ export function MissionEvalScenarioDrillDown({
     setLoading(true);
     setError(null);
     try {
-      const path = `/api/v1/parity/capability/dashboard/scenarios/${encodeURIComponent(scenarioId)}/samples`;
+      // api.get<T> prepends the gateway base which already includes /api/v1,
+      // so the path here must be relative (no leading /api/v1).
+      const path = `/parity/capability/dashboard/scenarios/${encodeURIComponent(scenarioId)}/samples`;
       const res = await api.get<SamplesResponse>(path);
       // `api.get<T>` returns `ApiResponse<T>` — unwrap the data envelope.
       setSamples(res.data?.samples ?? []);

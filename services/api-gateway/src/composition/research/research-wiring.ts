@@ -31,12 +31,21 @@
  *   - notifications: a Pino-logging `NotificationPort` (deep-dive owner-
  *     confirm gates surface via this; durable delivery is the
  *     notifications service's job, out of scope here).
- *   - tool registry: EMPTY by default. The orchestrator ships no concrete
- *     tool adapters in-tree (they belong to `@borjie/research-tools`); a
- *     missing adapter is a CLEAN SKIP in the step-runner (returns empty
- *     artifacts, never throws), so a run still produces a valid, fully-
- *     persisted, audit-hashed "no external findings" result. This is the
- *     orchestrator's own documented degraded mode, not a stub.
+ *   - tool registry: POPULATED with real adapters via `research-adapters`
+ *     — the `@borjie/research-tools` Tavily/Brave web-search + GDELT news
+ *     adapters and an `intelligence_corpus_chunks` pgvector retrieval
+ *     adapter (recency/freshness-weighted). Each adapter degrades to `[]`
+ *     (never throws) when its API key / the DB is absent, so a run still
+ *     produces a valid, fully-persisted, audit-hashed result even in a
+ *     key-less / DB-less environment (the step-runner treats a missing
+ *     tool, or an empty adapter return, as a clean skip).
+ *   - LLM plan + synthesis: `llmPlan` / `llmSynthesize` are wired to the
+ *     gateway's brain LLM router (`callBrainOnce`, the Anthropic→OpenAI→
+ *     DeepSeek ladder over `@borjie/brain-llm-router`). The planner turns
+ *     an owner intent into a real grounded step list; the synthesizer
+ *     renders a citation-anchored markdown answer over the scored
+ *     artifacts. Both throw on a missing provider so the orchestrator's
+ *     own try/catch falls back to its rule-based path — never a crash.
  *
  * Exposure
  * --------
@@ -76,6 +85,11 @@ import {
 import { getDb } from '../db-client.js';
 import { logger } from '../../utils/logger.js';
 import researchRouter from '../../routes/research/research.router.js';
+import {
+  buildToolRegistry,
+  createBrainLlmPlan,
+  createBrainLlmSynthesize,
+} from './research-adapters.js';
 
 // ────────────────────────────────────────────────────────────────────
 // SqlLike adapter — the orchestrator's SQL repos consume a postgres-js
@@ -216,18 +230,24 @@ function buildRepos(db: ReturnType<typeof getDb>): ModeRepositories {
  */
 export function buildResearchDeps(db: ReturnType<typeof getDb> = getDb()): ModeRunDeps {
   const config = loadConfig();
+  // The corpus-retrieval adapter needs the tagged-template SQL handle for
+  // pgvector ANN; null in DB-less envs makes that one adapter a clean skip.
+  const sql = db ? getSqlClient(db) : null;
   return {
     repos: buildRepos(db),
-    // No concrete tool adapters ship in-tree; an empty registry makes every
-    // step a clean skip in the step-runner. Runs still persist + audit-hash.
-    toolRegistry: new Map(),
+    // Real adapters: Tavily/Brave web search + GDELT news + corpus pgvector
+    // retrieval. Each degrades to [] (never throws) when its key / the DB is
+    // absent, so a key-less run still persists + audit-hashes a valid result.
+    toolRegistry: buildToolRegistry(sql),
     cache: createInProcessCache(),
     audit: createDbAuditEmitter(db),
     notifications: createLoggingNotificationPort(),
     budgets: modeBudgetsFromConfig(config),
-    // llmPlan / llmSynthesize are optional — omitted here so the planner uses
-    // its rule-based templates and the synthesizer its deterministic path.
-    // Wiring the brain LLM router for these is the next increment.
+    // Real plans + synthesis via the brain LLM router. Both throw on a
+    // missing provider so the planner / synthesizer fall back to their
+    // rule-based paths — the run never fails to materialise.
+    llmPlan: createBrainLlmPlan(),
+    llmSynthesize: createBrainLlmSynthesize(),
   };
 }
 
@@ -282,8 +302,10 @@ export function buildResearchWiring(): ResearchWiring {
     {
       wiring: 'research',
       persistence: db ? 'postgres' : 'in-memory',
-      toolAdapters: 0,
-      llm: 'rule-based',
+      // web_search + web_fetch + news_scan + corpus_query.
+      toolAdapters: 4,
+      corpusRetrieval: db ? 'pgvector' : 'disabled',
+      llm: 'brain-llm-router',
     },
     'research: engine constructed',
   );

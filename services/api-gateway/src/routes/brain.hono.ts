@@ -40,6 +40,11 @@ import {
   recallSupportMemory,
   type RecallLang,
 } from '../services/support-cases/index.js';
+// NOTE: the turn's high-stakes classification is now resolved ONCE via
+// `deriveStakes` (imported below from brain-orchestrator-turn) and shared by
+// BOTH the deep-reasoning composer route AND the orchestrator kernel.think
+// path, so the standalone `isHighStakes` classifier is no longer wired here
+// (the two must never disagree for the same turn). See `resolveTurnStakes`.
 // R8 / LP-01 / LP-30 — per-turn cognitive enrichment. Reads the wired
 // cognitive bundle off the Hono context (set by `createCognitiveContextMiddleware`
 // in index.ts) and prepends a recalled-memory + (flag-gated, default-OFF)
@@ -47,6 +52,7 @@ import {
 // into the turn (see `withCognitiveEnrichment`).
 import {
   enrichBrainTurnWithCognitive,
+  observeBrainTurnMemory,
   type WiredCognitive,
 } from '../composition/cognitive-wiring.js';
 // LP-15 / LP-30 — privacy router consulted BEFORE the orchestrator (the
@@ -73,9 +79,40 @@ import { withSecurityEvents } from '@borjie/observability';
 import {
   resolveBrainOrchestratorRoutingEnabled,
   generateBrainTurnViaOrchestrator,
+  deriveStakes,
   type OrchestratorTurnPayload,
   type OrchestratorTurnContext,
+  type DerivedStakes,
+  type StakesHint,
 } from '../composition/brain-orchestrator-turn.js';
+// Latency wins — streaming first-token (smaller SSE chunks for a sooner
+// first paint) + async-offload (defer non-critical post-response work off
+// the critical path).
+import {
+  chunkTextToSse,
+  resolveStreamChunkChars,
+  deferPostResponseWork,
+} from './brain-stream-helpers.js';
+// SEC-4 — IP-egress output firewall. MANDATORY, FAIL-CLOSED last hop before
+// any agent text reaches the client / a tool / persistence. Strips internal
+// cognition / prompts / architecture / secrets / canary tokens / cross-tenant
+// ids (NOT the tenant's own business data). DEFAULT-ON; kill-switch
+// `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// Honest epistemic-state surface (Win #2 / INV-H) — the egress-safe self-model
+// payload builder, shared with the Jarvis `/stream` + admin AG-UI serializers
+// so the by-name `self_model` SSE contract is identical across every brain
+// surface (fixed posture enum + constant axis labels, NEVER the audit math).
+import { buildSelfModelEgressPayload } from '../composition/kernel-event-projector.js';
+// INPUT CONTAINMENT (GAP-1) — ingress prompt-injection / jailbreak guard run
+// on the user turn BEFORE the orchestrator. CRITICAL refuses (single-language
+// copy, never executes); HIGH / jailbreak tightens the rail (evidence-required
+// / HITL); lower severities pass the redacted text. DEFAULT-ON; kill-switch
+// `BORJIE_INPUT_CONTAINMENT`. See `composition/input-guard-wiring.ts`.
+import {
+  getInputGuard,
+  getReingestionGuard,
+} from '../composition/input-guard-wiring.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
@@ -127,6 +164,15 @@ function registry() {
     };
     if (graphToolkit !== undefined) {
       (brainConfig as unknown as { graphToolkit?: typeof graphToolkit }).graphToolkit = graphToolkit;
+    }
+    // BP-1 + BP-5 — inject the indirect-injection scanner + hash-chained audit
+    // sink so the orchestrator neutralises poisoned tool/junior results before
+    // re-ingestion. Null (kill-switch OFF) leaves the orchestrator's scan
+    // step inert — it still spotlights tool results structurally.
+    const reingestion = getReingestionGuard();
+    if (reingestion) {
+      brainConfig.indirectScanner = reingestion.indirectScanner;
+      brainConfig.onIndirectInjection = reingestion.onIndirectInjection;
     }
     return createBrain(brainConfig);
   });
@@ -294,12 +340,136 @@ function clientWantsSse(accept: string | undefined): boolean {
   return false;
 }
 
-interface PublicSseFrame {
+export interface PublicSseFrame {
   readonly event: string;
   readonly data: Record<string, unknown>;
 }
 
+// ─── SEC-4 — IP-egress guards (FAIL-CLOSED last hop) ──────────────────
+//
+// Every user-visible text span emitted by the brain — final answer chunks,
+// streaming partials, error messages, and tool-call args — passes one of
+// these guards before it leaves the gateway. The guards strip internal
+// cognition / prompts / architecture / secrets / canary tokens / cross-tenant
+// ids. They do NOT redact the tenant's OWN business data out of their OWN
+// answer (that is legitimate and handled on ingress by the privacy router).
+//
+// FAIL-CLOSED: the underlying `getEgressFilter()` returns a redacted
+// placeholder on any filter throw, so a guard NEVER returns the raw text on a
+// fault. These wrappers are additionally try/caught so a construction fault
+// also fails closed to `[redacted]` rather than raw passthrough.
+
+const EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard a STREAMING partial text chunk (fast path, no block persistence).
+ * Returns safe-to-emit text. Fail-closed to `[redacted]` on any fault.
+ *
+ * Exported for the egress-filter route test (proves the emit-path strip +
+ * fail-closed property against a real / injected filter).
+ */
+export function guardStreamText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardStream(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: egress stream-guard threw — failing closed',
+    );
+    return EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Guard a FINAL / complete text span (full strip + best-effort block
+ * persistence). Use for the final answer text, error `message` fields, and
+ * tool-call `args`. Fail-closed to `[redacted]` on any fault.
+ */
+export function guardFinalText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: egress final-guard threw — failing closed',
+    );
+    return EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Deep-guard the `args` object of a tool_call frame. Tool args are a classic
+ * leak vector (a tool name + serialized args can carry a prompt/secret). We
+ * JSON-serialize, run the FULL filter, and re-parse; if the cleaned text is no
+ * longer valid JSON (a redaction broke the shape) we drop the args entirely
+ * rather than risk emitting raw. Fail-closed: any fault drops args to null.
+ */
+export function guardToolArgs(args: unknown, tenantId: string): unknown {
+  if (args === null || args === undefined) return args ?? null;
+  try {
+    const serialized = JSON.stringify(args);
+    const cleaned = guardFinalText(serialized, tenantId);
+    if (cleaned === serialized) return args; // nothing stripped — pass intact
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // A redaction broke the JSON shape — drop args rather than emit raw.
+      return { redacted: true };
+    }
+  } catch (err) {
+    logger.error(
+      { wiring: 'egress-filter', tenantId, err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: egress tool-arg guard threw — dropping args (fail-closed)',
+    );
+    return { redacted: true };
+  }
+}
+
+/**
+ * Guard a projected SSE frame in place. Returns a NEW frame (immutability)
+ * with its user-visible text fields filtered:
+ *   - message_chunk.text  — partial answer chunk (stream guard)
+ *   - error.message       — error text (final guard; classic leak vector)
+ *   - tool_call.args      — tool args (deep final guard)
+ * Other fields pass through unchanged.
+ */
+export function guardPublicFrame(frame: PublicSseFrame, tenantId: string): PublicSseFrame {
+  if (frame.event === 'message_chunk' && typeof frame.data.text === 'string') {
+    return { event: frame.event, data: { ...frame.data, text: guardStreamText(frame.data.text, tenantId) } };
+  }
+  if (frame.event === 'error' && typeof frame.data.message === 'string') {
+    return { event: frame.event, data: { ...frame.data, message: guardFinalText(frame.data.message, tenantId) } };
+  }
+  if (frame.event === 'tool_call' && 'args' in frame.data) {
+    return { event: frame.event, data: { ...frame.data, args: guardToolArgs(frame.data.args, tenantId) } };
+  }
+  return frame;
+}
+
+/**
+ * Honest epistemic-state surface (Win #2 / INV-H) on the main brain SSE wire.
+ * The orchestrator's `StreamTurnEvent` union does not (today) carry a
+ * `self_model` frame — the kernel's additive epistemic frame rides the Jarvis
+ * `/stream` + admin AG-UI paths. But the by-name SSE contract is uniform across
+ * every brain serializer, so we detect a `self_model`-shaped event up-front and
+ * forward it as a typed `self_model` SSE frame. It is egress-SAFE by
+ * construction (fixed posture enum + constant axis labels — NEVER the audit math
+ * or model prose), and we shape-clamp it via `buildSelfModelEgressPayload`. When
+ * the orchestrator stream never yields this kind (the common case) this branch
+ * is inert. Existing consumers ignore an unknown SSE event name cleanly.
+ */
 function projectStreamEvent(evt: StreamTurnEvent, threadId: string): PublicSseFrame | null {
+  // Escape hatch — a `self_model`-shaped frame (additive, INV-H). Checked
+  // before the typed switch because it is outside the `StreamTurnEvent` union.
+  const anyEvt = evt as unknown as { readonly kind?: unknown; readonly type?: unknown };
+  if (anyEvt.kind === 'self_model' || anyEvt.type === 'self_model') {
+    return {
+      event: 'self_model',
+      data: buildSelfModelEgressPayload(evt as unknown as Record<string, unknown>),
+    };
+  }
   switch (evt.type) {
     case 'turn_start':
       return null;
@@ -611,6 +781,73 @@ function composerSurfaceForViewer(
   return 'tenant-app';
 }
 
+// ── Stakes resolution (iq-composer-stakes-low-8 + iq-stakes-hardcoded-4) ─────
+//
+// The kernel's escalation gates (3-agent debate / auto-judge / extended-
+// thinking / multi-sample TTC) and the deep-reasoning composer's route both
+// key off the turn's STAKES. Previously the composer derived its own
+// 'high'/'low' from `isHighStakes` while the orchestrator derived its own
+// stakes internally — two independent classifiers that could disagree for the
+// same turn. We now resolve the stakes ONCE, from the user's OWN turn text
+// (before the recall/cognitive preambles are prepended), and pass the SAME
+// value to BOTH paths so they stay in lock-step.
+
+/** Valid `x-stakes-hint` header values — the `DerivedStakes` union. */
+const VALID_STAKES_HINTS: ReadonlySet<DerivedStakes> = new Set([
+  'low',
+  'medium',
+  'high',
+  'critical',
+]);
+
+/**
+ * Parse + validate the optional `x-stakes-hint` request header against the
+ * `DerivedStakes` union. owner-web CEO-mode buttons forward this header (e.g.
+ * `x-stakes-hint: high` on a board-decision query) to FORCE the kernel's
+ * high-stakes escalation regardless of the turn's vocabulary. Any unknown /
+ * malformed value is ignored (returns `undefined`) — never trust raw header
+ * text into the kernel.
+ */
+function readStakesHintHeader(c: any): StakesHint {
+  const raw = c.req.header('x-stakes-hint');
+  if (typeof raw !== 'string') return undefined;
+  const normalized = raw.trim().toLowerCase();
+  return VALID_STAKES_HINTS.has(normalized as DerivedStakes)
+    ? (normalized as DerivedStakes)
+    : undefined;
+}
+
+/**
+ * Resolved turn stakes — computed ONCE per turn and threaded to both the
+ * composer enrichment and the orchestrator kernel.think path.
+ *   - `stakes`: the effective `DerivedStakes` (explicit hint preferred over the
+ *     text-derived value). This is the SINGLE value forwarded to the kernel
+ *     (as `stakesHint`) AND the basis for `composerStakes`, so the composer
+ *     route and the kernel.think stakes can never disagree for one turn.
+ *   - `hint`: the validated explicit caller hint, retained for observability
+ *     (so a log/audit can distinguish a CEO-mode-forced override from a
+ *     text-derived classification). `undefined` when no valid header was sent.
+ *   - `composerStakes`: the binary high/low the deep-reasoning composer routes
+ *     on — `high` whenever the resolved stakes is `high` or `critical`.
+ */
+interface ResolvedTurnStakes {
+  readonly stakes: DerivedStakes;
+  readonly hint: StakesHint;
+  readonly composerStakes: 'high' | 'low';
+}
+
+/**
+ * Resolve the turn stakes a single time from the user's OWN text + the
+ * validated `x-stakes-hint` header. Deterministic + LLM-free.
+ */
+function resolveTurnStakes(c: any, userText: string): ResolvedTurnStakes {
+  const hint = readStakesHintHeader(c);
+  const stakes = deriveStakes({ userText, ...(hint ? { hint } : {}) });
+  const composerStakes: 'high' | 'low' =
+    stakes === 'high' || stakes === 'critical' ? 'high' : 'low';
+  return Object.freeze({ stakes, hint, composerStakes });
+}
+
 /**
  * Read the wired cognitive bundle from the Hono context, enrich the turn,
  * and prepend any context block to `userText`. Pure on the input body
@@ -619,21 +856,42 @@ function composerSurfaceForViewer(
  */
 async function withCognitiveEnrichment<
   T extends { readonly userText: string; readonly threadId?: string },
->(c: any, ctx: TurnGateContext, body: T): Promise<T> {
+>(
+  c: any,
+  ctx: TurnGateContext,
+  body: T,
+  composerStakes: 'high' | 'low',
+): Promise<T> {
   try {
     const wired = c.get('cognitive') as WiredCognitive | undefined;
     if (!wired || !wired.isLive) return body;
+    // EN/SW continuity (iq-locale-continuity-9) — the OPEN THREADS / RECENTLY
+    // DONE continuity block is rendered single-language. Forward the ACTIVE
+    // locale (default 'en'; explicit 'sw' toggles) so a Swahili user never sees
+    // an English continuity preamble mixed into their turn (CLAUDE.md EN/SW
+    // separation is absolute). Without this the block always rendered in English.
+    const locale = pickRecallLang(c.req.header('accept-language') ?? null);
+    // Composer routing (iq-composer-stakes-low-8 + iq-stakes-hardcoded-4) — the
+    // composer's high/low route is the SAME resolved stakes the orchestrator
+    // kernel.think path uses (computed ONCE in the /turn handler from the user's
+    // own text + the validated `x-stakes-hint` header), so the two never
+    // disagree for the same turn. A hard turn (regulator / royalty / payment /
+    // hire-fire / contract / forced CEO-mode hint) earns 'high' so the deep-
+    // reasoning composer can escalate to judge / LATS instead of always taking
+    // the fast path on a hardcoded 'low'. Still gated by
+    // BORJIE_COGNITIVE_COMPOSER_ENABLED (default OFF), so this only changes the
+    // ROUTE once the composer is canaried on.
     const enrichArgs: Parameters<typeof enrichBrainTurnWithCognitive>[0] = {
       wired,
       tenantId: ctx.tenant.tenantId,
       userId: ctx.viewer.userId,
       userText: body.userText,
       personaId: 'mr-mwikila',
-      // Deep composer routing — conservative stakes; the composer slot is
-      // flag-gated (default OFF) and a low-stakes route stays on the fast
-      // path, so this is inert until the composer is enabled + a turn is
-      // routed deep. The surface mirrors the viewer's portal.
-      composer: { stakes: 'low', surface: composerSurfaceForViewer(ctx.viewer) },
+      locale,
+      composer: {
+        stakes: composerStakes,
+        surface: composerSurfaceForViewer(ctx.viewer),
+      },
       ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
       logger: {
         debug: (message, meta) => logger.debug(meta ?? {}, message),
@@ -666,6 +924,101 @@ async function withCognitiveEnrichment<
     );
     return body;
   }
+}
+
+// ─── MEM-02 — per-turn cognitive WRITER (observe) ─────────────────────
+//
+// The enrichment hook above only READS memory. This hook closes the WRITE
+// side: after a JSON turn produces an answer, it observes the exchange as one
+// memory cell so the store ACCRUES turn over turn (with the Drizzle cell repo
+// selected at the composition root, the cell is durable across a restart).
+//
+// Runs on the JSON path only (SSE deltas aren't a single cacheable body) and
+// is fully fail-safe: it clones the response (never consumes the original),
+// only fires on a 2xx, and `observeBrainTurnMemory` swallows every error so a
+// memory-write fault can NEVER affect the response the user already received.
+
+/**
+ * Run a JSON turn handler, then best-effort observe the exchange into
+ * cognitive memory. Returns the handler's ORIGINAL response untouched.
+ *
+ * ASYNC-OFFLOAD (latency win): the memory-observe WRITE (which may embed +
+ * persist) is moved OFF the critical path via `deferPostResponseWork` — the
+ * response is returned to the client immediately and the observe runs on a
+ * microtask after the turn returns. The work STILL RUNS (fire-and-forget,
+ * not dropped) and every error is swallowed so a deferred fault can never
+ * affect the reply the user already received. Only the cheap clone+parse of
+ * the response text happens inline (needed before the body stream is sent).
+ */
+async function withTurnMemoryObserve(
+  c: any,
+  ctx: TurnGateContext,
+  userText: string,
+  response: Response,
+): Promise<Response> {
+  try {
+    if (response.status < 200 || response.status >= 300) return response;
+    const wired = c.get('cognitive') as WiredCognitive | undefined;
+    if (!wired || !wired.isLive) return response;
+
+    // Clone so the original body stream is never consumed. The parse is
+    // cheap; the WRITE below is what we defer.
+    const cloned = response.clone();
+    let responseText = '';
+    try {
+      const parsed = (await cloned.json()) as { responseText?: unknown };
+      responseText =
+        typeof parsed.responseText === 'string' ? parsed.responseText : '';
+    } catch {
+      return response; // non-JSON / unparseable body — skip silently.
+    }
+    if (responseText.length === 0) return response;
+
+    // Defer the observe write off the critical path. The user gets their
+    // answer now; the memory cell is written immediately after on a
+    // microtask. Errors are swallowed (best-effort side-channel).
+    deferPostResponseWork(
+      async () => {
+        const cellId = await observeBrainTurnMemory({
+          wired,
+          tenantId: ctx.tenant.tenantId,
+          userText,
+          responseText,
+          specialisation: 'mr-mwikila',
+          logger: {
+            debug: (message, meta) => logger.debug(meta ?? {}, message),
+            info: (message, meta) => logger.info(meta ?? {}, message),
+            warn: (message, meta) => logger.warn(meta ?? {}, message),
+            error: (message, meta) => logger.error(meta ?? {}, message),
+          },
+        });
+        if (cellId !== null) {
+          logger.info(
+            {
+              wiring: 'cognitive-observe',
+              tenantId: ctx.tenant.tenantId,
+              userId: ctx.viewer.userId,
+              cellId,
+              deferred: true,
+            },
+            'brain /turn: observed turn into cognitive memory (deferred)',
+          );
+        }
+      },
+      (err) =>
+        logger.warn(
+          { err: err instanceof Error ? err.message : String(err) },
+          'brain /turn: deferred cognitive observe failed (continuing)',
+        ),
+    );
+  } catch (err) {
+    // Never let the writer break the turn — the user already has the answer.
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'brain /turn: cognitive observe failed (continuing)',
+    );
+  }
+  return response;
 }
 
 // ─── LP-15 / LP-30 — privacy-router consult on the MAIN brain turn ────
@@ -720,6 +1073,17 @@ export interface BrainTurnPrivacyDecision {
 const PRIVACY_REFUSAL_TEXTS = Object.freeze({
   en: 'I can’t process that request — it contains restricted data that must stay on-premises, and the local model is unavailable right now.',
   sw: 'Siwezi kushughulikia ombi hilo — lina taarifa zilizozuiliwa ambazo lazima zibaki ndani ya mfumo, na modeli ya ndani haipatikani kwa sasa.',
+} as const);
+
+/**
+ * Single-language input-containment refusal copy. Returned when the ingress
+ * input-guard flags a CRITICAL prompt-injection / jailbreak attempt. EN
+ * default; SW when locale toggles. No mixing (CLAUDE.md absolute-separation
+ * mandate). Deliberately generic — it never echoes the attack or leaks why.
+ */
+const INPUT_GUARD_REFUSAL_TEXTS = Object.freeze({
+  en: 'I can’t help with that request. Let me know what you’d like to do with your estate and I’ll get started.',
+  sw: 'Siwezi kusaidia na ombi hilo. Niambie unachotaka kufanya kuhusu shamba lako nami nitaanza.',
 } as const);
 
 /**
@@ -972,7 +1336,7 @@ async function auditAndEnforceJson(args: {
     verdict: string;
     evidenceCount: number;
     auditLogId: string;
-    evidenceWarning: 'no_evidence_cited' | null;
+    evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
     enforced: boolean;
   };
 }> {
@@ -1009,8 +1373,18 @@ async function auditAndEnforceJson(args: {
       'brain /turn: ungrounded response WITHHELD in HARD mode (evidence-required)',
     );
   }
+  // SEC-4 — IP-egress guard on the FINAL JSON answer text (the LAST hop
+  // before it reaches the client / is cached / is persisted). Strips internal
+  // cognition / prompts / architecture / secrets / canary / cross-tenant ids;
+  // does NOT redact the tenant's own business data. FAIL-CLOSED inside the
+  // guard. Runs AFTER the evidence-enforcement substitution so a withheld
+  // placeholder (already safe) also passes through unchanged.
+  const safeResponseText = guardFinalText(
+    decision.responseText,
+    args.ctx.tenant.tenantId,
+  );
   return {
-    responseText: decision.responseText,
+    responseText: safeResponseText,
     status: decision.status,
     audit: {
       verdict: verdict.verdict,
@@ -1069,6 +1443,7 @@ async function handleTurnJsonViaOrchestrator(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
   ctx: TurnGateContext,
+  turnStakes: ResolvedTurnStakes,
 ): Promise<Response> {
   const brain = registry().for(ctx.tenant.tenantId);
   try {
@@ -1080,6 +1455,11 @@ async function handleTurnJsonViaOrchestrator(
       userText: body.userText,
       ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
       ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+      // Forward the SINGLE resolved stakes value (computed once from the user's
+      // own text + validated `x-stakes-hint`) as the kernel stakes hint, so the
+      // orchestrator uses the EXACT value the composer route used — never a
+      // second derivation off the enrichment-preamble-prepended text.
+      stakesHint: turnStakes.stakes,
       surface: orchestratorSurfaceForViewer(ctx.viewer),
       language: pickRecallLang(c.req.header('accept-language') ?? null),
       logger: {
@@ -1096,7 +1476,8 @@ async function handleTurnJsonViaOrchestrator(
           error: 'kernel_refused',
           code: 'KERNEL_REFUSED',
           gate: payload.refusalGate,
-          responseText: payload.responseText,
+          // SEC-4 — guard the refusal text before egress (defense-in-depth).
+          responseText: guardFinalText(payload.responseText, ctx.tenant.tenantId),
         },
         403,
       );
@@ -1134,6 +1515,7 @@ async function handleTurnSseViaOrchestrator(
   c: any,
   body: { userText: string; threadId?: string; forcePersonaId?: string; teamId?: string },
   ctx: TurnGateContext,
+  turnStakes: ResolvedTurnStakes,
 ): Promise<Response> {
   const brain = registry().for(ctx.tenant.tenantId);
   return streamSSE(c, async (stream) => {
@@ -1178,6 +1560,9 @@ async function handleTurnSseViaOrchestrator(
         userText: body.userText,
         ...(body.threadId !== undefined ? { threadId: body.threadId } : {}),
         ...(body.forcePersonaId !== undefined ? { forcePersonaId: body.forcePersonaId } : {}),
+        // Same single resolved stakes value as the JSON twin — keeps the SSE
+        // path's kernel stakes in lock-step with the composer route.
+        stakesHint: turnStakes.stakes,
         surface: orchestratorSurfaceForViewer(ctx.viewer),
         language: pickRecallLang(c.req.header('accept-language') ?? null),
         logger: {
@@ -1197,7 +1582,8 @@ async function handleTurnSseViaOrchestrator(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'orchestrator_failed'),
+          // SEC-4 — error messages are a classic leak vector; guard it.
+          message: guardFinalText(scrubMessage(err, 'orchestrator_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1210,7 +1596,7 @@ async function handleTurnSseViaOrchestrator(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: payload.responseText,
+          message: guardFinalText(payload.responseText, ctx.tenant.tenantId),
           code: 'KERNEL_REFUSED',
           gate: payload.refusalGate,
           retryable: false,
@@ -1223,15 +1609,34 @@ async function handleTurnSseViaOrchestrator(
       return;
     }
     // Stream the answer text in the SAME `message_chunk` envelope the
-    // persona path emits (chunked at 80 chars), then a `done` frame, then
-    // the warn-only auditor frame (SSE cannot un-send tokens).
+    // persona path emits, then a `done` frame, then the warn-only auditor
+    // frame (SSE cannot un-send tokens). STREAMING FIRST-TOKEN: chunk at the
+    // (smaller, env-tunable) stream chunk size so the first visible paint
+    // lands sooner than the legacy 80-char chunks.
     try {
-      const text = payload.responseText ?? '';
-      const chunkSize = 80;
-      for (let i = 0; i < text.length; i += chunkSize) {
+      // EVIDENCE ENFORCEMENT (iq-sse-no-enforcement-6) — the SSE /turn path is
+      // PSEUDO-streaming: `payload.responseText` is already fully resolved here
+      // (generateBrainTurnViaOrchestrator awaited it), so we CAN run the SAME
+      // HARD evidence decision the JSON twin runs (`auditAndEnforceJson`)
+      // BEFORE the first chunk. On withhold the Auditor substitutes a safe,
+      // already-guarded, single-language placeholder, so we simply chunk THAT
+      // text — no "un-send" is ever needed and the wire format is unchanged
+      // (still `message_chunk` → `done` → `auditor`). The reused helper also
+      // applies the final IP-egress guard, so we drop the now-redundant
+      // separate guardFinalText call here.
+      const enforced = await auditAndEnforceJson({
+        c,
+        ctx,
+        threadId: payload.threadId,
+        personaId: payload.finalPersonaId,
+        responseText: payload.responseText ?? '',
+        tokensUsed: payload.tokensUsed,
+      });
+      const text = enforced.responseText;
+      for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
         await stream.writeSSE({
           event: 'message_chunk',
-          data: JSON.stringify({ text: text.slice(i, i + chunkSize), done: false }),
+          data: JSON.stringify({ text: piece, done: false }),
         });
       }
       if (payload.proposedAction) {
@@ -1261,16 +1666,12 @@ async function handleTurnSseViaOrchestrator(
           cacheReadTokens: null,
         }),
       });
-      await emitAuditorFrame(
-        stream,
-        { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
-        {
-          threadId: payload.threadId,
-          personaId: payload.finalPersonaId,
-          responseText: payload.responseText,
-          tokensUsed: payload.tokensUsed,
-        },
-      );
+      // EVIDENCE ENFORCEMENT (iq-sse-no-enforcement-6) — the auditor frame now
+      // reports the REAL enforcement outcome computed above (no longer warn-only,
+      // no second audit pass). On withhold, `enforced.audit.enforced` is true and
+      // the streamed text was the safe placeholder, so the client badge reflects
+      // that the ungrounded answer was actually withheld.
+      await emitEnforcedAuditorFrame(stream, enforced.audit);
     } catch (err) {
       logger.error(
         {
@@ -1283,7 +1684,8 @@ async function handleTurnSseViaOrchestrator(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'stream_failed'),
+          // SEC-4 — guard the error message before egress.
+          message: guardFinalText(scrubMessage(err, 'stream_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1397,6 +1799,44 @@ interface AuditorContextForStream {
   readonly userId: string;
 }
 
+/**
+ * EVIDENCE ENFORCEMENT (iq-sse-no-enforcement-6) — emit the terminal `auditor`
+ * SSE frame from an ALREADY-COMPUTED enforcement result (the orchestrator SSE
+ * path runs `auditAndEnforceJson` BEFORE chunking, because it is pseudo-
+ * streaming, so it must NOT re-audit here). The wire frame keeps the SAME field
+ * names as the warn-only path — only the `enforced` / `mode` flags reflect the
+ * real HARD-mode outcome. Best-effort: a write fault never aborts the turn.
+ */
+async function emitEnforcedAuditorFrame(
+  stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
+  audit: {
+    readonly verdict: string;
+    readonly evidenceCount: number;
+    readonly auditLogId: string;
+    readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
+    readonly enforced: boolean;
+  },
+): Promise<void> {
+  try {
+    await stream.writeSSE({
+      event: 'auditor',
+      data: JSON.stringify({
+        verdict: audit.verdict,
+        evidenceCount: audit.evidenceCount,
+        auditLogId: audit.auditLogId,
+        evidenceWarning: audit.evidenceWarning,
+        enforced: audit.enforced,
+        mode: audit.enforced ? 'hard-withheld' : 'hard',
+      }),
+    });
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'failed to emit enforced auditor frame',
+    );
+  }
+}
+
 async function emitAuditorFrame(
   stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
   auditCtx: AuditorContextForStream,
@@ -1444,6 +1884,7 @@ async function emitAuditorFrame(
 async function emitStartedTurnFrames(
   stream: { writeSSE: (data: { event: string; data: string }) => Promise<void> },
   turn: StartedTurnPayload,
+  tenantId: string,
 ): Promise<void> {
   for (const tc of turn.toolCalls) {
     await stream.writeSSE({
@@ -1457,16 +1898,20 @@ async function emitStartedTurnFrames(
       data: JSON.stringify({
         tool: `handoff:${h.from}->${h.to}`,
         status: 'ok',
-        args: { objective: h.objective },
+        // SEC-4 — tool args are a leak vector; guard the handoff objective.
+        args: { objective: guardFinalText(h.objective, tenantId) },
       }),
     });
   }
-  const text = turn.responseText ?? '';
-  const chunkSize = 80;
-  for (let i = 0; i < text.length; i += chunkSize) {
+  // STREAMING FIRST-TOKEN: chunk at the (smaller, env-tunable) stream chunk
+  // size so the first visible paint lands sooner than legacy 80-char chunks.
+  // SEC-4 — guard the FULL answer text ONCE (final guard, persists blocks)
+  // before chunking so a leak split across two chunks is still caught.
+  const text = guardFinalText(turn.responseText ?? '', tenantId);
+  for (const piece of chunkTextToSse(text, resolveStreamChunkChars())) {
     await stream.writeSSE({
       event: 'message_chunk',
-      data: JSON.stringify({ text: text.slice(i, i + chunkSize), done: false }),
+      data: JSON.stringify({ text: piece, done: false }),
     });
   }
   if (turn.proposedAction) {
@@ -1561,7 +2006,8 @@ async function handleTurnSse(
           await stream.writeSSE({
             event: 'error',
             data: JSON.stringify({
-              message: startRes.error.message,
+              // SEC-4 — error messages are a classic leak vector; guard it.
+              message: guardFinalText(startRes.error.message, ctx.tenant.tenantId),
               code: startRes.error.code,
               retryable: startRes.error.retryable,
             }),
@@ -1588,7 +2034,8 @@ async function handleTurnSse(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'orchestrator_failed'),
+          // SEC-4 — guard the error message before egress.
+          message: guardFinalText(scrubMessage(err, 'orchestrator_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1597,7 +2044,7 @@ async function handleTurnSse(
     }
     try {
       if (bootstrap.type === 'started') {
-        await emitStartedTurnFrames(stream, bootstrap.turn);
+        await emitStartedTurnFrames(stream, bootstrap.turn, ctx.tenant.tenantId);
         await emitAuditorFrame(
           stream,
           { tenantId: ctx.tenant.tenantId, userId: ctx.viewer.userId },
@@ -1625,8 +2072,11 @@ async function handleTurnSse(
       let lastPersonaId: string | null = null;
       let lastTokens = 0;
       for await (const evt of gen) {
-        const frame = projectStreamEvent(evt, bootstrap.threadId);
-        if (!frame) continue;
+        const rawFrame = projectStreamEvent(evt, bootstrap.threadId);
+        if (!rawFrame) continue;
+        // SEC-4 — IP-egress guard on every user-visible frame (message_chunk
+        // text, error message, tool_call args) BEFORE it leaves the gateway.
+        const frame = guardPublicFrame(rawFrame, ctx.tenant.tenantId);
         if (frame.event === 'message_chunk') {
           const data = frame.data as { text?: unknown };
           if (typeof data.text === 'string') accumulatedText += data.text;
@@ -1663,7 +2113,8 @@ async function handleTurnSse(
       await stream.writeSSE({
         event: 'error',
         data: JSON.stringify({
-          message: scrubMessage(err, 'stream_failed'),
+          // SEC-4 — guard the error message before egress.
+          message: guardFinalText(scrubMessage(err, 'stream_failed'), ctx.tenant.tenantId),
           code: 'INTERNAL',
           retryable: false,
         }),
@@ -1684,6 +2135,68 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
 
   const wantsSse = clientWantsSse(c.req.header('accept'));
 
+  // INPUT CONTAINMENT (GAP-1) — ingress prompt-injection / jailbreak guard.
+  // Runs on the user's OWN turn text (exactly what the user sent, before the
+  // memory/cognitive preamble) BEFORE the orchestrator. CRITICAL → refuse
+  // with single-language copy (never executes; HITL intact). HIGH /
+  // jailbreak → tighten the rail by forcing the kernel pre-flight (inviolable
+  // / policy / drift rails) to run even on the orchestrator path. Lower
+  // severities → run on the detector-redacted text (offending spans
+  // stripped). DEFAULT-ON; fails OPEN-but-logged (a guard bug never drops a
+  // legitimate owner turn — the kernel pre-flight + evidence gate + egress
+  // filter remain in force).
+  const inputGuard = await getInputGuard().guard({
+    text: body.userText,
+    tenantId: gate.ctx.tenant.tenantId,
+    userId: gate.ctx.viewer.userId ?? null,
+  });
+  if (inputGuard.action === 'refuse') {
+    const guardLang: StrictWithholdLang = pickRecallLang(
+      c.req.header('accept-language') ?? null,
+    );
+    const guardMessage = INPUT_GUARD_REFUSAL_TEXTS[guardLang];
+    if (wantsSse) {
+      return streamSSE(c, async (stream) => {
+        await stream.writeSSE({
+          event: 'error',
+          data: JSON.stringify({
+            message: guardMessage,
+            code: 'INPUT_GUARD_REFUSED',
+            retryable: false,
+          }),
+        });
+        await stream.writeSSE({
+          event: 'done',
+          data: JSON.stringify({ threadId: body.threadId ?? null, refused: true }),
+        });
+      });
+    }
+    return c.json(
+      {
+        error: 'input_guard_refused',
+        code: 'INPUT_GUARD_REFUSED',
+        responseText: guardMessage,
+      },
+      403,
+    );
+  }
+  // Run the turn on the (possibly redacted) text — offending spans stripped.
+  if (inputGuard.text !== body.userText) {
+    body = { ...body, userText: inputGuard.text };
+  }
+  // When the guard saw a HIGH-confidence jailbreak / injection, force the
+  // kernel pre-flight (the safety rail) to run even on the orchestrator path.
+  const inputGuardTightenRail = inputGuard.raiseRail;
+
+  // Stakes resolution (iq-composer-stakes-low-8 + iq-stakes-hardcoded-4).
+  // Resolve the turn stakes ONCE — from the user's OWN turn text (the
+  // input-guard-processed text, BEFORE the recall/cognitive preambles are
+  // prepended so the classifier sees exactly what the user asked) plus the
+  // validated `x-stakes-hint` header (owner-web CEO-mode buttons force high).
+  // The SAME resolution drives BOTH the composer enrichment route AND the
+  // orchestrator kernel.think stakes, so the two never disagree for one turn.
+  const turnStakes = resolveTurnStakes(c, body.userText);
+
   // Stage 2 — orchestrator main-loop routing decision (DEFAULT-ON). When
   // ON, `kernel.think()` runs the inviolable/policy/drift rails AND the
   // answer generation in ONE call, so we MUST NOT also run the separate
@@ -1702,8 +2215,12 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // preamble is prepended) so the rails see exactly what the user asked.
   // SKIPPED when the orchestrator is ON: the kernel runs these same rails
   // inside `think()` during generation, so a second pre-flight think()
-  // would be a redundant LLM call.
-  if (!orchestratorOn) {
+  // would be a redundant LLM call. EXCEPTION: when the ingress input-guard
+  // tightened the rail (HIGH-confidence jailbreak / injection) we force the
+  // pre-flight to run even on the orchestrator path so the inviolable /
+  // policy / drift rails fire on the attack turn — the rail tightens under
+  // attack, it never weakens.
+  if (!orchestratorOn || inputGuardTightenRail) {
     const preflight = await kernelPreflight(c, gate.ctx, body.userText);
     if (preflight.refused) {
       if (wantsSse) {
@@ -1749,7 +2266,7 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
   // call-site that turns the previously-dark composer ON for a live turn.
   // Best-effort + fail-safe (never throws into the turn); inert until the
   // composer flag is enabled and a turn routes to a non-fast strategy.
-  body = await withCognitiveEnrichment(c, gate.ctx, body);
+  body = await withCognitiveEnrichment(c, gate.ctx, body, turnStakes.composerStakes);
 
   // LP-15 / LP-30 — privacy-router consult BEFORE the orchestrator (the LLM
   // provider boundary). DENIED (restricted data + no local model) refuses
@@ -1811,7 +2328,7 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
       // ON; the proven persona path (`handleTurnJson`) runs UNCHANGED when
       // OFF. Idempotency caching wraps whichever handler runs.
       const response = orchestratorOn
-        ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx)
+        ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx, turnStakes)
         : await handleTurnJson(c, body, gate.ctx);
       // Cache only successful 2xx — error responses must be retryable.
       if (response.status >= 200 && response.status < 300) {
@@ -1838,14 +2355,17 @@ brainRouter.post('/turn', withSecurityEvents({ action: 'brain.create', resource:
           );
         }
       }
-      return response;
+      // MEM-02 — observe the exchange into cognitive memory (fail-safe).
+      return withTurnMemoryObserve(c, gate.ctx, body.userText, response);
     }
-    return orchestratorOn
-      ? handleTurnJsonViaOrchestrator(c, body, gate.ctx)
-      : handleTurnJson(c, body, gate.ctx);
+    const jsonResponse = orchestratorOn
+      ? await handleTurnJsonViaOrchestrator(c, body, gate.ctx, turnStakes)
+      : await handleTurnJson(c, body, gate.ctx);
+    // MEM-02 — observe the exchange into cognitive memory (fail-safe).
+    return withTurnMemoryObserve(c, gate.ctx, body.userText, jsonResponse);
   }
   return orchestratorOn
-    ? handleTurnSseViaOrchestrator(c, body, gate.ctx)
+    ? handleTurnSseViaOrchestrator(c, body, gate.ctx, turnStakes)
     : handleTurnSse(c, body, gate.ctx);
 }));
 

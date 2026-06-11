@@ -6,7 +6,7 @@
  * assets that make up an owner's operating footprint.
  */
 
-import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
+import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable } from '../common/types';
 import type { GeoNodeId } from '../geo';
 
 export type MiningSiteId = Brand<string, 'MiningSiteId'>;

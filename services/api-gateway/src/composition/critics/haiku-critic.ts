@@ -163,7 +163,7 @@ const DEFAULT_SAMPLE_CAP = 50;
 const TRACE_SUMMARY_MAX_CHARS = 300;
 
 export const HAIKU_CRITIC_SYSTEM_PROMPT = [
-  'You are a consolidation critic for an agentic property-management',
+  'You are a consolidation critic for an agentic mining-estate',
   'system. You read a cluster of similar agent traces from the last 24',
   'hours and write a structured 3-sentence reflection so the brain can',
   'learn for next time.',

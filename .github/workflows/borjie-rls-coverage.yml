@@ -1,0 +1,52 @@
+name: RLS Coverage
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# CI gate enforcing the "FORCE-RLS on every tenant-scoped table" hard rule.
+# Runs the RLS-coverage scanner via the baseline-ratchet gate: the build
+# fails when a NEW tenant-scoped table merges without `ENABLE ROW LEVEL
+# SECURITY` + a tenant-isolation policy. Pre-existing tracked gaps recorded
+# in scripts/__allowlists__/rls-coverage-baseline.json are reported but do
+# not block — and can never silently regress.
+
+permissions:
+  contents: read
+
+jobs:
+  rls-coverage:
+    name: rls-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Audit RLS coverage (machine-readable report)
+        run: node scripts/audit-rls-coverage.mjs --report .audit/rls-coverage.json --summary .audit/rls-coverage.md
+        # The raw scanner exits non-zero on ANY violation (including the
+        # pre-existing baselined ones); the blocking decision is the gate
+        # step below. `|| true` keeps this report-only step from masking the
+        # gate — it just emits the artifacts.
+        continue-on-error: true
+
+      - name: Enforce RLS-coverage gate (fail on NEW gaps only)
+        run: node scripts/audit/rls-coverage-gate.mjs
+
+      - name: Upload RLS coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rls-coverage-report
+          path: |
+            .audit/rls-coverage.json
+            .audit/rls-coverage.md
+          if-no-files-found: warn

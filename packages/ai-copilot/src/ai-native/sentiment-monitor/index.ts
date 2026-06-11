@@ -119,7 +119,7 @@ export interface SentimentMonitorDeps {
 // Prompts (global-first — no hardcoded language)
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PROMPT = `You are a multilingual sentiment + risk classifier for a property-management platform.
+const SYSTEM_PROMPT = `You are a multilingual sentiment + risk classifier for a mining-estate operations platform.
 Detect the language (ISO-639-1/-2 code). Classify the text across five dimensions.
 Return ONLY JSON matching this schema:
 {

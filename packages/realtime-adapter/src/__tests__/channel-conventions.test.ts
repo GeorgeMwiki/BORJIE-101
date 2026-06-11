@@ -46,7 +46,7 @@ describe('parseTenantChannel', () => {
 });
 
 describe('REALTIME_TOPICS', () => {
-  it('contains all seven topics in canonical order', () => {
+  it('contains all topics in canonical order', () => {
     expect(REALTIME_TOPICS).toEqual([
       'leases',
       'maintenance',
@@ -55,6 +55,17 @@ describe('REALTIME_TOPICS', () => {
       'tabs-updated',
       'reports-generated',
       'field-captures',
+      'state-bus',
     ]);
+  });
+
+  it('exposes the cross-surface state-bus topic for slot syncs/handoff', () => {
+    expect(REALTIME_TOPICS).toContain('state-bus');
+    // The state-bus channel rides the same tenant-scoped convention.
+    expect(tenantChannelName('t1', 'state-bus')).toBe('tenant.t1.state-bus');
+    expect(parseTenantChannel('tenant.t1.state-bus')).toEqual({
+      tenantId: 't1',
+      topic: 'state-bus',
+    });
   });
 });

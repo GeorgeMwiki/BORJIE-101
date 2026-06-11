@@ -28,6 +28,8 @@
 
 export * from './types.js';
 export * from './assign-task.js';
+export * from './plan-assignment.js';
+export * from './person-matcher.js';
 export * from './followup-scheduler.js';
 export * from './check-in-receiver.js';
 export * from './sentiment-analyzer.js';

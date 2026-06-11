@@ -15,6 +15,7 @@ import { describe, it, expect } from 'vitest';
 import {
   jurisdictionDiscoverTool,
   jurisdictionSwitchTool,
+  jurisdictionIngestComplianceTool,
   JURISDICTION_DISCOVERY_TOOLS,
 } from '../jurisdiction-discovery-tools';
 
@@ -127,10 +128,106 @@ describe('JC-6 — mwikila.jurisdiction.switch descriptor', () => {
   });
 });
 
+describe('JC-7c — mwikila.jurisdiction.ingest_compliance descriptor', () => {
+  it('is admin-only, HIGH stakes, write, policy-literal (mirrors promote)', () => {
+    expect(jurisdictionIngestComplianceTool.id).toBe(
+      'mwikila.jurisdiction.ingest_compliance',
+    );
+    expect(jurisdictionIngestComplianceTool.personaSlugs).toEqual([
+      'T2_admin_strategist',
+    ]);
+    expect(jurisdictionIngestComplianceTool.stakes).toBe('HIGH');
+    expect(jurisdictionIngestComplianceTool.isWrite).toBe(true);
+    expect(jurisdictionIngestComplianceTool.requiresPolicyRuleLiteral).toBe(true);
+  });
+
+  it('input schema requires title + content and validates the code', () => {
+    const ok = jurisdictionIngestComplianceTool.inputSchema.safeParse({
+      countryCode: 'US',
+      title: 'US Mining Law',
+      content: 'Royalty on gold is six percent.',
+    });
+    expect(ok.success).toBe(true);
+
+    const noContent = jurisdictionIngestComplianceTool.inputSchema.safeParse({
+      countryCode: 'US',
+      title: 'US Mining Law',
+    });
+    expect(noContent.success).toBe(false);
+
+    const badCode = jurisdictionIngestComplianceTool.inputSchema.safeParse({
+      countryCode: 'UNITEDSTATES',
+      title: 'X',
+      content: 'y',
+    });
+    expect(badCode.success).toBe(false);
+  });
+
+  it('description states it feeds the SHARED corpus + forbids private data', () => {
+    const desc = jurisdictionIngestComplianceTool.description;
+    expect(desc).toContain('SHARED');
+    expect(desc).toMatch(/never tenant-private/i);
+  });
+
+  it('handler POSTs to the ingest-compliance route via httpClient', async () => {
+    const calls: Array<{ path: string; body: any }> = [];
+    const out = await jurisdictionIngestComplianceTool.handler(
+      {
+        countryCode: 'US',
+        title: 'US Mining Law',
+        content: 'Royalty on gold is six percent.',
+        docType: 'mining_act',
+      },
+      {
+        tenantId: 't_1',
+        actorId: 'u_1',
+        personaSlug: 'T2_admin_strategist',
+        httpClient: {
+          async get() {
+            throw new Error('unexpected get');
+          },
+          async post(path: string, body: any) {
+            calls.push({ path, body });
+            return {
+              ingested: true,
+              chunks: 1,
+              country: 'US',
+              source: 'admin:jurisdiction:US',
+              embedded: false,
+              note: 'text-only',
+            };
+          },
+        },
+      } as any,
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.path).toBe('/admin/jurisdictions/US/ingest-compliance');
+    expect(calls[0]?.body.title).toBe('US Mining Law');
+    expect(calls[0]?.body.content).toContain('Royalty');
+    expect(calls[0]?.body.docType).toBe('mining_act');
+    expect(out.ingested).toBe(true);
+  });
+
+  it('handler throws without an httpClient (no silent no-op)', async () => {
+    await expect(
+      jurisdictionIngestComplianceTool.handler(
+        { countryCode: 'US', title: 'X', content: 'y' },
+        {
+          tenantId: 't_1',
+          actorId: 'u_1',
+          personaSlug: 'T2_admin_strategist',
+        } as any,
+      ),
+    ).rejects.toThrow(/httpClient/);
+  });
+});
+
 describe('JURISDICTION_DISCOVERY_TOOLS catalog', () => {
-  it('exposes both discover + switch in the frozen catalog', () => {
+  it('exposes discover + switch + promote + ingest_compliance in the frozen catalog', () => {
     const ids = JURISDICTION_DISCOVERY_TOOLS.map((d) => d.id);
     expect(ids).toContain('mwikila.jurisdiction.discover');
     expect(ids).toContain('mwikila.jurisdiction.switch');
+    expect(ids).toContain('mwikila.jurisdiction.promote');
+    expect(ids).toContain('mwikila.jurisdiction.ingest_compliance');
   });
 });

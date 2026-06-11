@@ -216,7 +216,14 @@ function detectViolations(text) {
     // Determine whether THIS line is a comment-only line.
     const isLineComment = trimmed.startsWith('//');
     const isBlockContinuation = inBlockComment || trimmed.startsWith('*');
-    const isCommentOnly = isLineComment || isBlockContinuation;
+    // A single-line block comment `/* ... */` (incl. JSDoc `/** ... */`) that
+    // opens AND closes on this line with no trailing code — documentation, not
+    // an unwired code path. Requires BOTH delimiters so `/* x */ realCode` (code
+    // after the close) is still scanned.
+    const isSingleLineBlock =
+      trimmed.startsWith('/*') && trimmed.endsWith('*/');
+    const isCommentOnly =
+      isLineComment || isBlockContinuation || isSingleLineBlock;
 
     if (!isCommentOnly) {
       for (const { class: cls, rx } of PATTERNS) {

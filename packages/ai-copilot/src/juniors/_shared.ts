@@ -19,6 +19,8 @@
 
 import { z, type ZodSchema } from 'zod';
 
+import { resolveTierModelId } from '../model-resolution.js';
+
 // ─────────────────────────────────────────────────────────────────────
 // Ports — shared across every junior
 // ─────────────────────────────────────────────────────────────────────
@@ -179,7 +181,8 @@ export async function runClaudeJunior<TSchema extends ZodSchema>(
   const response = await args.claude.complete({
     systemPrompt: args.systemPrompt,
     userPrompt: args.userPrompt,
-    model: args.model ?? 'claude-haiku-4-5',
+    // Tier intent: 'cheap' — every junior that passes no model inherits this.
+    model: args.model ?? resolveTierModelId('cheap'),
     maxTokens: args.maxTokens ?? 1500,
     temperature: args.temperature ?? 0,
   });
@@ -228,7 +231,7 @@ export function lazyClaudeClient(): ClaudeClient {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: model ?? 'claude-haiku-4-5',
+            model: model ?? resolveTierModelId('cheap'),
             max_tokens: maxTokens ?? 1500,
             temperature: temperature ?? 0,
             system: systemPrompt,

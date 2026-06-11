@@ -3,7 +3,10 @@
  * that seeds the 12 `platform.*` BrainTools onto a registry.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { createHqToolRegistry } from '../hq-tool-registry.js';
+import {
+  createHqToolRegistry,
+  createConsolidationWorkerAdapter,
+} from '../hq-tool-registry.js';
 
 const FIXED_NOW = new Date('2026-05-15T09:00:00.000Z');
 
@@ -346,3 +349,107 @@ function minimalStubAdapters(): Parameters<
     },
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Wave-6 closure — consolidation worker reachability.
+//
+// Regression guard for the `notYetWiredConsolidationRunner` BLOCKER:
+// before this wave, `platform.run_consolidation_tick` reached a stub
+// whose `runTick` THREW `NotYetWiredError` on the live brain path. The
+// composition root now threads a real `consolidationWorker` (built from
+// `createConsolidationWorkerAdapter` + `runConsolidationForActiveTenants`)
+// so the tick STOPS throwing. These tests prove the tool resolves (not
+// throws / not refuses) once the worker is bound, and that a degraded
+// runner (no Anthropic key → zeroed summary) yields a clean zeroed
+// report rather than a crash.
+// ─────────────────────────────────────────────────────────────────────
+
+describe('createHqToolRegistry — consolidation worker (Wave-6 closure)', () => {
+  const CONSOLIDATION_SCOPES = ['platform:consolidation:run'];
+
+  it('run_consolidation_tick resolves (not throws/refuses) when worker bound', async () => {
+    const runForActiveTenants = vi.fn(async () => ({
+      tenantsProcessed: 3,
+      factsUpserted: 7,
+      patternsRecorded: 2,
+      digestsWritten: 1,
+      expiredPurged: 0,
+      decayedFacts: 4,
+      errors: [],
+    }));
+    const wiring = createHqToolRegistry({
+      callerResolver: {
+        resolve: () => ({ callerId: 'admin-1', scopes: ['platform:*'] }),
+      },
+      consolidationWorker: createConsolidationWorkerAdapter({
+        runner: { runForActiveTenants },
+      }),
+      clock: fixedClock(),
+    });
+
+    const out = await wiring.registry.runTool(
+      'platform.run_consolidation_tick',
+      { dryRun: false },
+    );
+
+    expect(out.kind).toBe('ok');
+    if (out.kind !== 'ok') throw new Error('expected ok');
+    expect(out.output.factsExtracted).toBe(7);
+    expect(out.output.patternsDetected).toBe(2);
+    expect(out.output.applied).toBe(true);
+    expect(runForActiveTenants).toHaveBeenCalledTimes(1);
+  });
+
+  it('degraded worker (zeroed runner) returns a zeroed report, never throws', async () => {
+    // Mirrors the no-Anthropic-key path: the in-process runner returns
+    // an empty summary (does NOT throw) so the live tick degrades to an
+    // honest no-op report instead of NotYetWiredError.
+    const wiring = createHqToolRegistry({
+      callerResolver: {
+        resolve: () => ({ callerId: 'admin-1', scopes: CONSOLIDATION_SCOPES }),
+      },
+      consolidationWorker: createConsolidationWorkerAdapter({
+        runner: {
+          runForActiveTenants: async () => ({
+            tenantsProcessed: 0,
+            factsUpserted: 0,
+            patternsRecorded: 0,
+            digestsWritten: 0,
+            expiredPurged: 0,
+            decayedFacts: 0,
+            errors: [],
+          }),
+        },
+      }),
+      clock: fixedClock(),
+    });
+
+    const out = await wiring.registry.runTool(
+      'platform.run_consolidation_tick',
+      { dryRun: true },
+    );
+
+    expect(out.kind).toBe('ok');
+    if (out.kind !== 'ok') throw new Error('expected ok');
+    expect(out.output.factsExtracted).toBe(0);
+    expect(out.output.patternsDetected).toBe(0);
+    expect(out.output.applied).toBe(false);
+  });
+
+  it('without a worker the tick still surfaces a clean executor-failure (not a hard crash)', async () => {
+    // The legacy NOT_YET_WIRED stub remains the fallback when no worker
+    // is bound — it throws NotYetWiredError which the registry maps to a
+    // structured executor-failed outcome, never an unhandled crash.
+    const wiring = createHqToolRegistry({
+      callerResolver: {
+        resolve: () => ({ callerId: 'admin-1', scopes: CONSOLIDATION_SCOPES }),
+      },
+      clock: fixedClock(),
+    });
+    const out = await wiring.registry.runTool(
+      'platform.run_consolidation_tick',
+      { dryRun: false },
+    );
+    expect(out.kind).toBe('executor-failed');
+  });
+});

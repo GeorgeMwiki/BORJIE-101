@@ -14,6 +14,7 @@ export {
 export {
   buildGenerationSystemPrompt,
   buildGenerationUserMessage,
+  renderGenerationLanguageDirective,
 } from './prompt.js';
 
 export {
@@ -21,6 +22,12 @@ export {
   getDomainSkeleton,
   getDefaultIcon,
 } from './fallbacks.js';
+
+export {
+  localizeSkeleton,
+  localizeTitle,
+  localizeAutoDescription,
+} from './fallback-locale.js';
 
 export {
   buildCacheKey,

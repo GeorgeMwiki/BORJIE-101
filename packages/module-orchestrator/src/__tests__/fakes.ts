@@ -42,7 +42,12 @@ export interface FakeState {
     }
   >;
   readonly approvals: Map<string, { approvalId: string }>;
-  readonly appliedMigrations: { tenantId: string; moduleId: string; sql: string }[];
+  readonly appliedMigrations: {
+    tenantId: string;
+    moduleId: string;
+    specId: string;
+    sql: string;
+  }[];
   nextIdCounter: number;
   /** Toggle to force MigrationApplyPort to throw. */
   shouldFailMigration: boolean;
@@ -158,6 +163,7 @@ export function makeFakeDeps(state: FakeState): OrchestratorDeps {
       state.appliedMigrations.push({
         tenantId: args.tenantId,
         moduleId: args.moduleId,
+        specId: args.specId,
         sql: args.migrationSql,
       });
       return {

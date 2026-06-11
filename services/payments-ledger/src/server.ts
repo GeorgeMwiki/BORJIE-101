@@ -40,7 +40,7 @@ import { LedgerService } from './services/ledger.service';
 import { ReconciliationService } from './services/reconciliation.service';
 import { StatementGenerationService, GenerateStatementRequest } from './services/statement-generation.service';
 import { DisbursementService, DisbursementRequest } from './services/disbursement.service';
-import { InMemoryEventPublisher } from './events/event-publisher';
+import { createEventPublisher } from './events/event-publisher-factory';
 import { createRepositories } from './repositories/factory';
 import { ReconciliationJob } from './jobs/reconciliation.job';
 import { StatementGenerationJob } from './jobs/statement-generation.job';
@@ -313,7 +313,32 @@ const app = express();
 
 const repos = createRepositories(logger);
 const { paymentIntentRepository, accountRepository, ledgerRepository, statementRepository, disbursementRepository } = repos;
-const eventPublisher = new InMemoryEventPublisher();
+// RSS-01 — DURABLE, outbox-backed event publisher. Built on the SAME shared
+// Drizzle client the repositories use, so the money path's `event_outbox`
+// rows co-commit on the same connection family as the ledger write (the
+// co-commit happens inside `postJournalAtomic`; see LedgerService). When a
+// DB client is present the publisher is the durable, outbox-backed one.
+//
+// `isProduction` for the fail-loud guard is `NODE_ENV==='production' AND a
+// DATABASE_URL was configured`. This mirrors the REPOSITORIES factory,
+// which only *warns* (does not throw) for prod-without-DATABASE_URL and
+// degrades the WHOLE service to InMemory repos. In that already-degraded
+// boot the money ledger itself is not durable, so refusing only the
+// publisher would crash a service the repositories factory deliberately
+// allowed to start. We therefore fail loud only when a DB was EXPECTED
+// (DATABASE_URL set) but the client is null — a genuine init failure — and
+// otherwise degrade in lockstep with the repositories. The in-memory
+// fallback mirrors the same `serializeForTx` / `notifySubscribers` code
+// path so the LedgerService flow is identical either way.
+const databaseUrlConfigured = Boolean(process.env.DATABASE_URL);
+const eventPublisher = createEventPublisher({
+  db: repos.db,
+  isProduction: process.env.NODE_ENV === 'production' && databaseUrlConfigured,
+  logger: {
+    warn: (ctx, msg) => logger.warn(ctx, msg),
+    info: (ctx, msg) => logger.info(ctx, msg),
+  },
+});
 
 // Durable webhook idempotency (EDGE-HARDENING #3, migration 0163). Built
 // ONCE on the SAME Drizzle pool the repositories use. When DATABASE_URL is

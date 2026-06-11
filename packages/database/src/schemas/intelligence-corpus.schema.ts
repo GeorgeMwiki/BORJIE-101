@@ -16,6 +16,7 @@
  * pgvector type. Drizzle exposes it as a typed `customType` column.
  */
 
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   text,
@@ -75,15 +76,24 @@ export const intelligenceCorpusChunks = pgTable(
   (t) => ({
     tenantIdx: index('intelligence_corpus_chunks_tenant_idx').on(t.tenantId),
     /**
-     * Unique on `(source_file, section)` so the consolidation worker can
-     * `INSERT ... ON CONFLICT (source_file, section) DO UPDATE` keyed by
-     * the chunk's natural identity. The base migration shipped only a
-     * non-unique index — `drizzle generate` against this schema will
-     * emit a follow-up migration that promotes it to UNIQUE.
+     * EXPRESSION unique index on
+     *   (COALESCE(tenant_id,''), source_file, COALESCE(section,''))
+     * — the chunk's natural identity. NULL tenant_id (global corpus) and
+     * NULL section fold to '' so they dedupe deterministically, and the
+     * tenant is part of the key so two tenants' same-named files never
+     * collide (KI-05 / KI-06 / KI-13). Created by migration
+     * `0311_corpus_chunk_unique_upsert_key.sql`; the consolidation worker's
+     * `ON CONFLICT (COALESCE(tenant_id,''), source_file, COALESCE(section,''))`
+     * upsert targets this exact expression. Declared here so schema↔migration
+     * drift checks see the unique index.
      */
-    sourceSectionUniq: uniqueIndex(
-      'intelligence_corpus_chunks_source_section_uniq',
-    ).on(t.sourceFile, t.section),
+    tenantSourceSectionUniq: uniqueIndex(
+      'intelligence_corpus_chunks_tenant_source_section_uniq',
+    ).on(
+      sql`COALESCE(${t.tenantId}, '')`,
+      t.sourceFile,
+      sql`COALESCE(${t.section}, '')`,
+    ),
     langIdx: index('intelligence_corpus_chunks_lang_idx').on(t.language),
     supersededIdx: index('intelligence_corpus_chunks_superseded_idx').on(
       t.supersededById,

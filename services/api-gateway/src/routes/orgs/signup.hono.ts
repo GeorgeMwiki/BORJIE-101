@@ -41,8 +41,29 @@ import {
 
 // ─── Wire-level constants ────────────────────────────────────────────
 
-const COUNTRY_CODES = ['TZ', 'KE', 'UG', 'NG', 'OTHER'] as const;
-const CURRENCY_CODES = ['TZS', 'USD', 'KES', 'UGX', 'NGN'] as const;
+// Jurisdiction is DATA, never code (CLAUDE.md): the wire schema validates only
+// SHAPE (ISO-3166-1 alpha-2/3 or the legacy 'OTHER' sentinel); WHICH countries
+// may sign up is governed at runtime by the `enabled_countries` launch-market
+// registry (migration 0337, TZ-seeded) via `deps.isCountryEnabled`. Currency is
+// likewise ISO-4217 SHAPE only — never a hardcoded TZS/USD/KES/UGX/NGN list.
+const CountryCodeSchema = z
+  .string()
+  .regex(/^([A-Z]{2,3}|OTHER)$/u, 'country must be ISO-3166-1 alpha-2/3 or OTHER');
+const CurrencyCodeSchema = z
+  .string()
+  .regex(/^[A-Z]{3}$/u, 'currency must be ISO-4217 alpha-3');
+/**
+ * Legacy launch wire-set — the FAIL-SAFE gate used only when the composition
+ * root does not inject `isCountryEnabled` (DI-less tests / dev bootstrap).
+ * Production always injects the data-driven gate (TZ-only at launch).
+ */
+const LEGACY_LAUNCH_COUNTRIES: ReadonlySet<string> = new Set([
+  'TZ',
+  'KE',
+  'UG',
+  'NG',
+  'OTHER',
+]);
 const LANGUAGE_CODES = ['sw', 'en'] as const;
 
 const OWNER_PERSONA_SLUG = 'T1_owner_strategist';
@@ -59,19 +80,19 @@ const Email = z.string().email().max(254);
 
 const IndividualSignup = z.object({
   kind: z.literal('individual'),
-  country: z.enum(COUNTRY_CODES),
+  country: CountryCodeSchema,
   fullName: z.string().min(2).max(120),
   phoneE164: PhoneE164,
   email: Email,
   miningLicenceNumber: z.string().min(1).max(64).optional(),
   nationalIdNumber: z.string().min(1).max(64).optional(),
   defaultLanguage: z.enum(LANGUAGE_CODES),
-  primaryCurrency: z.enum(CURRENCY_CODES),
+  primaryCurrency: CurrencyCodeSchema,
 });
 
 const BusinessSignup = z.object({
   kind: z.literal('business'),
-  country: z.enum(COUNTRY_CODES),
+  country: CountryCodeSchema,
   orgName: z.string().min(2).max(160),
   businessRegistrationNumber: z.string().min(1).max(64),
   taxId: z.string().min(1).max(64),
@@ -81,7 +102,7 @@ const BusinessSignup = z.object({
   miningLicenceNumber: z.string().min(1).max(64).optional(),
   vatNumber: z.string().min(1).max(64).optional(),
   defaultLanguage: z.enum(LANGUAGE_CODES),
-  primaryCurrency: z.enum(CURRENCY_CODES),
+  primaryCurrency: CurrencyCodeSchema,
 });
 
 export const SignupRequestSchema = z.discriminatedUnion('kind', [
@@ -102,12 +123,12 @@ export const MarketingSignupRequestSchema = z.object({
   orgName: z.string().min(2).max(160),
   ownerEmail: z.string().email().max(254),
   ownerPassword: z.string().min(8).max(200),
-  country: z.enum(COUNTRY_CODES).default('TZ'),
+  country: CountryCodeSchema.default('TZ'),
   ownerFullName: z.string().min(2).max(120).optional(),
   phoneNumber: z.string().min(8).max(20).optional(),
   marketingConsent: z.boolean().optional(),
   defaultLanguage: z.enum(LANGUAGE_CODES).optional(),
-  primaryCurrency: z.enum(CURRENCY_CODES).optional(),
+  primaryCurrency: CurrencyCodeSchema.optional(),
 });
 export type MarketingSignupRequest = z.infer<typeof MarketingSignupRequestSchema>;
 
@@ -187,9 +208,9 @@ export interface TenantWriter {
     readonly ownerUserId: string;
     readonly supabaseUserId: string;
     readonly accountKind: 'individual' | 'business';
-    readonly country: (typeof COUNTRY_CODES)[number];
+    readonly country: string;
     readonly defaultLanguage: (typeof LANGUAGE_CODES)[number];
-    readonly primaryCurrency: (typeof CURRENCY_CODES)[number];
+    readonly primaryCurrency: string;
     readonly orgName: string;
     readonly slug: string;
     readonly ownerEmail: string;
@@ -226,7 +247,7 @@ export interface AuditChainWriter {
     readonly tenantId: string;
     readonly ownerUserId: string;
     readonly accountKind: 'individual' | 'business';
-    readonly country: (typeof COUNTRY_CODES)[number];
+    readonly country: string;
     readonly kycAtomsInitialized: ReadonlyArray<string>;
   }): Promise<void>;
 }
@@ -247,6 +268,16 @@ export interface SignupDeps {
   readonly newTenantId: () => string;
   readonly newUserId: () => string;
   readonly newSlug: (seed: string) => string;
+  /**
+   * The data-driven launch-market gate — TRUE iff the country is in the
+   * `enabled_countries` registry (migration 0337; TZ is the only seeded
+   * market). Injected by the composition root (signup-wiring.ts). When
+   * ABSENT (DI-less tests / dev bootstrap) the route falls back to the
+   * legacy launch wire-set so behaviour never silently widens. Adding a
+   * market is a governed row insert (mwikila.jurisdiction.promote) — a
+   * new country must never require touching this file.
+   */
+  readonly isCountryEnabled?: (code: string) => Promise<boolean>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -416,6 +447,32 @@ export function createSignupRouter(deps: SignupDeps): Hono {
     const ownerUserId = deps.newUserId();
     const accountKind = body.kind;
     const country = body.country;
+
+    // ── Launch-market gate (jurisdiction as DATA, never code) ────────
+    // Shape already validated; WHICH countries may sign up is decided by
+    // the enabled_countries registry (TZ-only at launch). Honest 422 —
+    // never a silent acceptance of a market we don't yet operate in.
+    let countryEnabled: boolean;
+    try {
+      countryEnabled = deps.isCountryEnabled
+        ? await deps.isCountryEnabled(country)
+        : LEGACY_LAUNCH_COUNTRIES.has(country);
+    } catch {
+      // Registry read fault → fail CLOSED to the legacy launch set (never
+      // open a market because a lookup failed; never block TZ for one).
+      countryEnabled = LEGACY_LAUNCH_COUNTRIES.has(country);
+    }
+    if (!countryEnabled) {
+      return c.json(
+        {
+          error: 'country_not_available',
+          message:
+            `Signup is not yet available in ${country}. Borjie is live in ` +
+            'Tanzania today and new markets open as they are onboarded.',
+        },
+        422,
+      );
+    }
     const defaultLanguage = body.defaultLanguage;
     const primaryCurrency = body.primaryCurrency;
 

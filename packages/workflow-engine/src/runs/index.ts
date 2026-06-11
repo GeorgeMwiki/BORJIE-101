@@ -15,3 +15,8 @@ export {
   createInMemoryRunEventRepository,
   createInMemoryRunRepository,
 } from './in-memory-repos.js';
+export {
+  createDrizzleAuditChainRepository,
+  createDrizzleRunEventRepository,
+  createDrizzleRunRepository,
+} from './drizzle-repos.js';

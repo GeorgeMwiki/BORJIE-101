@@ -32,6 +32,7 @@ export {
 export { chatTurnRoute } from './route-defs-chat';
 export {
   marketplaceListListingsRoute,
+  marketplaceListSellersRoute,
   marketplaceGetListingRoute,
 } from './route-defs-marketplace';
 export {
@@ -133,6 +134,7 @@ import {
 import { chatTurnRoute } from './route-defs-chat';
 import {
   marketplaceListListingsRoute,
+  marketplaceListSellersRoute,
   marketplaceGetListingRoute,
 } from './route-defs-marketplace';
 import {
@@ -232,6 +234,7 @@ export const migratedRoutes = [
   { mount: '/cockpit', def: cockpitCliffStatusRoute },
   { mount: '/chat', def: chatTurnRoute },
   { mount: '/marketplace', def: marketplaceListListingsRoute },
+  { mount: '/marketplace', def: marketplaceListSellersRoute },
   { mount: '/marketplace', def: marketplaceGetListingRoute },
   { mount: '/bids', def: bidsPlaceRoute },
   { mount: '/bids', def: bidsListRoute },

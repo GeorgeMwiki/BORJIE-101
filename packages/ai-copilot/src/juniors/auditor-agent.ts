@@ -24,6 +24,7 @@ import {
   withResolvedDb,
   type JuniorDeps,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Schemas
@@ -122,7 +123,7 @@ export function createAuditorAgent(deps: JuniorDeps) {
         schema: AuditorOutputSchema,
         systemPrompt: AUDITOR_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated),
-        model: 'claude-haiku-4-5',
+        model: resolveTierModelId('cheap'),
         maxTokens: 1500,
       });
 

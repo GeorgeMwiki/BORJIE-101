@@ -37,6 +37,7 @@
  */
 
 import { z } from 'zod';
+import { isKnownResource, isKnownTool } from './capabilities/registry.js';
 
 /**
  * Mirrors `PORTAL_DASHBOARD_KINDS` from `@borjie/genui/document.ts`.
@@ -87,6 +88,23 @@ export const PORTAL_DASHBOARD_KIND_NAMES = [
 export type PortalDashboardKindName = (typeof PORTAL_DASHBOARD_KIND_NAMES)[number];
 
 const PortalDashboardKindSchema = z.enum(PORTAL_DASHBOARD_KIND_NAMES);
+
+// ---------------------------------------------------------------------------
+// 0. Locale — the owner's ACTIVE render language.
+// ---------------------------------------------------------------------------
+
+/**
+ * Supported render locales for a generated tab. Mirrors the brain's
+ * `'en' | 'sw'` axis (CLAUDE.md: `en` default, `sw` toggle, ZERO
+ * mixing). The brain GENERATES every label — title, section titles,
+ * field labels, widget titles — in this locale; it does not look them
+ * up in a dictionary. When omitted, `en` is assumed (CLAUDE.md default).
+ */
+export const PORTAL_LOCALES = ['en', 'sw'] as const;
+
+export type PortalLocale = (typeof PORTAL_LOCALES)[number];
+
+export const PortalLocaleSchema = z.enum(PORTAL_LOCALES);
 
 // ---------------------------------------------------------------------------
 // 1. ISO + ids
@@ -203,6 +221,84 @@ export const PortalTabFieldSchema = z
 export type PortalTabField = z.infer<typeof PortalTabFieldSchema>;
 
 // ---------------------------------------------------------------------------
+// 2b. Widget bindings — the GENERATIVE "what it DOES" vocabulary.
+// ---------------------------------------------------------------------------
+
+/**
+ * A widget binding makes a tab ACT instead of render a baked snapshot. The LLM
+ * composes one of two shapes:
+ *
+ *   - `{ kind: 'query', resource, filters? }` — the widget resolves LIVE rows
+ *     from a vetted estate domain (licences, royalty_returns, employees, …) at
+ *     render time. `resource` MUST be a known queryable resource — validated at
+ *     PARSE time against the capability registry, exactly like a widget kind.
+ *   - `{ kind: 'tool', toolId, args? }` — the widget invokes a vetted action
+ *     (create_reminder, export_records, …). `toolId` MUST be a known tool id.
+ *
+ * `filters` / `args` are a shallow string-keyed record of JSON scalars / arrays
+ * — narrow on purpose so the LLM cannot smuggle arbitrary nested payloads, and
+ * so the binding stays pure / serializable. Resolving a binding to live data is
+ * the consumer's job; this schema only vets the SHAPE + the NAME.
+ */
+const BindingValueSchema = z.union([
+  z.string().max(500),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.array(z.union([z.string().max(500), z.number(), z.boolean()])).max(50),
+]);
+
+const BindingParamsSchema = z.record(BindingValueSchema);
+
+/**
+ * The plain discriminated union over the two binding members. Zod's
+ * `discriminatedUnion` requires `ZodObject` members (a `.superRefine` would
+ * wrap a member in `ZodEffects`, which it rejects), so the registry membership
+ * check is applied as ONE `.superRefine` on the whole union below — exactly the
+ * same split `PortalTabWidgetObjectSchema` / `PortalTabWidgetSchema` uses.
+ */
+const PortalTabWidgetBindingUnionSchema = z.discriminatedUnion('kind', [
+  z
+    .object({
+      kind: z.literal('query'),
+      /** A vetted queryable resource name — checked against the registry. */
+      resource: z.string().min(1).max(120),
+      /** Optional shallow filter map (e.g. `{ status: 'overdue' }`). */
+      filters: BindingParamsSchema.optional(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('tool'),
+      /** A vetted tool id — checked against the registry. */
+      toolId: z.string().min(1).max(120),
+      /** Optional shallow argument map passed to the tool. */
+      args: BindingParamsSchema.optional(),
+    })
+    .strict(),
+]);
+
+export const PortalTabWidgetBindingSchema =
+  PortalTabWidgetBindingUnionSchema.superRefine((binding, ctx) => {
+    if (binding.kind === 'query' && !isKnownResource(binding.resource)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `unknown query resource '${binding.resource}' — not in the capability registry`,
+        path: ['resource'],
+      });
+    }
+    if (binding.kind === 'tool' && !isKnownTool(binding.toolId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `unknown tool '${binding.toolId}' — not in the capability registry`,
+        path: ['toolId'],
+      });
+    }
+  });
+
+export type PortalTabWidgetBinding = z.infer<typeof PortalTabWidgetBindingSchema>;
+
+// ---------------------------------------------------------------------------
 // 3. Widget kinds — the dynamic widget catalog.
 // ---------------------------------------------------------------------------
 
@@ -233,7 +329,13 @@ export type PortalTabWidgetKind = (typeof PORTAL_TAB_WIDGET_KINDS)[number];
 
 export const PortalTabWidgetKindSchema = z.enum(PORTAL_TAB_WIDGET_KINDS);
 
-export const PortalTabWidgetSchema = z
+/**
+ * The plain object half of the widget schema (no `genui_part` refinement).
+ * Extracted so the incremental-patch layer can `.omit()`/`.partial()` it for
+ * `update-widget` ops — a `ZodEffects` (the refined schema below) does not
+ * expose `.omit`. The refinement is re-applied by `PortalTabWidgetSchema`.
+ */
+export const PortalTabWidgetObjectSchema = z
   .object({
     key: z.string().min(1).max(120),
     kind: PortalTabWidgetKindSchema,
@@ -255,9 +357,18 @@ export const PortalTabWidgetSchema = z
      * AG-UI primitives without re-declaring their schemas.
      */
     genuiKind: PortalDashboardKindSchema.optional(),
+    /**
+     * GENERATIVE binding — what the widget DOES. When present the widget
+     * resolves live data (`query`) or invokes a vetted action (`tool`)
+     * instead of rendering its static `config` snapshot. The resource /
+     * toolId is validated against the capability registry at parse time.
+     */
+    binding: PortalTabWidgetBindingSchema.optional(),
   })
-  .strict()
-  .superRefine((widget, ctx) => {
+  .strict();
+
+export const PortalTabWidgetSchema = PortalTabWidgetObjectSchema.superRefine(
+  (widget, ctx) => {
     if (widget.kind === 'genui_part' && !widget.genuiKind) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -266,7 +377,8 @@ export const PortalTabWidgetSchema = z
         path: ['genuiKind'],
       });
     }
-  });
+  },
+);
 
 export type PortalTabWidget = z.infer<typeof PortalTabWidgetSchema>;
 
@@ -344,6 +456,8 @@ export const PortalTabAuditEntrySchema = z
   })
   .strict();
 
+export type PortalTabAuditEntry = z.infer<typeof PortalTabAuditEntrySchema>;
+
 export const PortalTabAuditSchema = z
   .object({
     createdBy: z.string().min(1).max(120),
@@ -398,6 +512,19 @@ export const PortalTabSchema = z
     ]),
     sections: z.array(PortalTabSectionSchema).min(1).max(20),
     permissions: PortalTabPermissionsSchema,
+    /**
+     * GENERATIVE record collection. When `record.enabled` is true the tab
+     * COLLECTS records — user submissions validated against the tab's OWN
+     * fields (built generically from `PortalTabField[]`) and persisted in the
+     * generic `portal_tab_records` store (migration 0328). Absent / `false`
+     * means the tab is read-only (renders bound widgets but accepts no writes).
+     */
+    record: z
+      .object({
+        enabled: z.boolean(),
+      })
+      .strict()
+      .optional(),
     audit: PortalTabAuditSchema,
     createdAt: Iso8601Schema,
     updatedAt: Iso8601Schema,
@@ -450,6 +577,16 @@ export interface TabGenerationIntent {
    * synthesizer because heuristics were ambiguous.
    */
   readonly usedLlm: boolean;
+  /**
+   * Owner's ACTIVE render locale (`en` default, `sw` toggle). The
+   * generator threads this into the system prompt so the brain
+   * AUTHORS every label in this single language — no EN/SW mixing on
+   * the generated surface (CLAUDE.md absolute separation). Omitted ⇒
+   * `en`.
+   */
+  // `| undefined` so the zod `.optional()` parse output (present-but-undefined
+  // under exactOptionalPropertyTypes) is assignable to this interface.
+  readonly locale?: PortalLocale | undefined;
 }
 
 export const TabGenerationIntentSchema = z
@@ -473,6 +610,7 @@ export const TabGenerationIntentSchema = z
     evidence: z.array(z.string().min(1).max(200)).max(10),
     sourceMessage: z.string().min(1).max(2048),
     usedLlm: z.boolean(),
+    locale: PortalLocaleSchema.optional(),
   })
   .strict();
 
@@ -496,6 +634,23 @@ export interface GeneratorOrgContext {
     | 'owner'
     | 'customer';
   readonly existingTabKeys?: ReadonlyArray<string>;
+}
+
+/**
+ * Flatten every field across a tab's sections into a single ordered list.
+ * Field keys are unique within a tab (enforced by `PortalTabSchema`), so the
+ * flattened list is the canonical field set a record payload is validated
+ * against. Pure — never mutates the tab.
+ */
+export function collectTabFields(
+  tab: Pick<PortalTab, 'sections'>,
+): ReadonlyArray<PortalTabField> {
+  return tab.sections.flatMap((section) => section.fields);
+}
+
+/** True when the tab opts into record collection (`record.enabled`). */
+export function tabCollectsRecords(tab: Pick<PortalTab, 'record'>): boolean {
+  return tab.record?.enabled === true;
 }
 
 /** Defensive validate — returns the parsed tab or throws. */

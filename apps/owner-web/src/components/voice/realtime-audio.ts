@@ -12,10 +12,11 @@
  *      gaplessly through a single AudioContext, with a hard `stop()` for
  *      barge-in.
  *
- * The gateway voice WS is NOT live in this environment, so the wire
- * sample rate is an ASSUMPTION (24 kHz mono PCM16 little-endian — the de
- * facto realtime-speech default). It is exposed as a constant so a single
- * edit re-tunes both capture and playback once the contract is pinned.
+ * Wire sample rates are PINNED to the gateway voice bridge contract
+ * (`brain-voice.hono.ts` §audioCodec runtime flag): the client streams the
+ * mic UP at 16 kHz mono PCM16 LE (`CAPTURE_SAMPLE_RATE_HZ`), and the model's
+ * audio comes DOWN at 24 kHz (`PLAYBACK_SAMPLE_RATE_HZ`). They are separate
+ * constants so capture and playback can differ as the contract requires.
  *
  * Discipline:
  *   - Immutable frame objects; no input mutation.
@@ -26,8 +27,10 @@
  *     swap to an AudioWorklet once the endpoint + module path are real.
  */
 
-/** Assumed wire format for the gateway voice WS — re-tune in one place. */
-export const VOICE_SAMPLE_RATE_HZ = 24_000;
+/** Mic UPLINK rate the bridge expects: 16 kHz mono PCM16 LE (audio/pcm). */
+export const CAPTURE_SAMPLE_RATE_HZ = 16_000;
+/** Model DOWNLINK rate the bridge emits (Gemini/OpenAI realtime audio). */
+export const PLAYBACK_SAMPLE_RATE_HZ = 24_000;
 const CAPTURE_BUFFER_FRAMES = 2_048;
 
 /** A single captured microphone frame handed up to the transport. */
@@ -108,7 +111,7 @@ export class MicCapture {
       this.handlers.onError('mic_permission_denied');
       return;
     }
-    this.wireGraph(new Ctor({ sampleRate: VOICE_SAMPLE_RATE_HZ }));
+    this.wireGraph(new Ctor({ sampleRate: CAPTURE_SAMPLE_RATE_HZ }));
   }
 
   private wireGraph(context: AudioContext): void {
@@ -156,7 +159,7 @@ export class PcmPlayer {
     if (this.context) return this.context;
     const Ctor = resolveAudioContextCtor();
     if (!Ctor) return null;
-    this.context = new Ctor({ sampleRate: VOICE_SAMPLE_RATE_HZ });
+    this.context = new Ctor({ sampleRate: PLAYBACK_SAMPLE_RATE_HZ });
     this.nextStartAt = this.context.currentTime;
     return this.context;
   }
@@ -166,7 +169,7 @@ export class PcmPlayer {
     if (!context) return;
     const floats = pcm16ToFloat(buffer);
     if (floats.length === 0) return;
-    const audioBuffer = context.createBuffer(1, floats.length, VOICE_SAMPLE_RATE_HZ);
+    const audioBuffer = context.createBuffer(1, floats.length, PLAYBACK_SAMPLE_RATE_HZ);
     // `set` (vs copyToChannel) avoids the strict ArrayBuffer-variance check
     // on the decoded Float32 view and is equivalent for a mono channel.
     audioBuffer.getChannelData(0).set(floats);

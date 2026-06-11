@@ -110,7 +110,7 @@ export interface WriterOptions {
 }
 
 export class MigrationWriterService {
-  constructor(private readonly db: DatabaseClient) {}
+  constructor(_db: DatabaseClient) {}
 
   async write(
     _bundle: ExtractedBundle,

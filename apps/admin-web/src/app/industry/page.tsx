@@ -48,8 +48,7 @@ async function fetchSlot(slot: SlotKey, cookieHeader: string): Promise<SlotResul
     }
     const data = (await res.json()) as SlotPayload;
     return { status: 'ok', data };
-  } catch (error) {
-    console.error(`Industry slot ${slot} fetch failed:`, error);
+  } catch {
     return {
       status: 'degraded',
       reason: 'Aggregator unreachable. No mock values rendered.',

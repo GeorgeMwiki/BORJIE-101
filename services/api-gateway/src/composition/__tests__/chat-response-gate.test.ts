@@ -10,10 +10,12 @@
  *     surface (evidenceCount + auditLogId).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   auditChatResponse,
   extractEvidenceIds,
+  isResponseGrounded,
+  setEvidenceExistenceVerifier,
 } from '../chat-response-gate';
 
 const BASE_INPUT = {
@@ -62,6 +64,21 @@ describe('extractEvidenceIds', () => {
   });
 });
 
+describe('isResponseGrounded', () => {
+  it('is false when no evidence is cited', () => {
+    expect(isResponseGrounded('No citations whatsoever.')).toBe(false);
+  });
+
+  it('is true when an inline citation is present', () => {
+    expect(isResponseGrounded('Grade is high [evidence:lmbm_42].')).toBe(true);
+  });
+
+  it('is false for empty / non-string input', () => {
+    expect(isResponseGrounded('')).toBe(false);
+    expect(isResponseGrounded(undefined as unknown as string)).toBe(false);
+  });
+});
+
 describe('auditChatResponse', () => {
   it('flags violation when evidence chain is empty', async () => {
     const out = await auditChatResponse({
@@ -103,5 +120,85 @@ describe('auditChatResponse', () => {
     const out = await auditChatResponse({ ...BASE_INPUT, responseText: '' });
     expect(out.violation).toBe(true);
     expect(out.evidenceCount).toBe(0);
+  });
+});
+
+describe('auditChatResponse — Stage-2 evidence-existence verification', () => {
+  afterEach(() => {
+    // Reset the module-level verifier so other suites see Stage-1-only.
+    setEvidenceExistenceVerifier(null);
+  });
+
+  it('rejects a response that cites a non-existent (fabricated) evidence_id', async () => {
+    setEvidenceExistenceVerifier({
+      // The cited id does not exist → report it as missing.
+      async verifyEvidenceIds({ evidenceIds }) {
+        return { verified: true, missingIds: evidenceIds }; // none exist
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'The grade is high [evidence:made_up_999].',
+    });
+    expect(out.verdict).toBe('reject');
+    expect(out.violation).toBe(true);
+    expect(out.evidenceWarning).toBe('evidence_invalid');
+    expect(out.invalidEvidenceIds).toContain('made_up_999');
+    expect(out.groundingFault).toBe(false);
+  });
+
+  it('approves when every cited evidence_id resolves to a real chunk', async () => {
+    setEvidenceExistenceVerifier({
+      async verifyEvidenceIds() {
+        return { verified: true, missingIds: [] }; // all exist
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'Backed by [evidence:lmbm_42].',
+    });
+    expect(out.verdict).toBe('approve');
+    expect(out.violation).toBe(false);
+    expect(out.invalidEvidenceIds).toEqual([]);
+    expect(out.groundingFault).toBe(false);
+  });
+
+  it('fails CLOSED (treats citations as UNVERIFIED) when the corpus reports a fault', async () => {
+    setEvidenceExistenceVerifier({
+      // Corpus unreachable — the contract resolves `verified: false` instead
+      // of throwing.
+      async verifyEvidenceIds() {
+        return { verified: false, missingIds: [] };
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'Backed by [evidence:lmbm_42].',
+    });
+    // A broken corpus check must NOT bless the cited id (no silent approve).
+    // The unverified state is carried by `groundingFault` + the needs_human
+    // verdict (the warning-string union is intentionally not widened).
+    expect(out.groundingFault).toBe(true);
+    expect(out.violation).toBe(true);
+    expect(out.evidenceWarning).toBeNull();
+    expect(out.verdict).toBe('needs_human');
+    // Crucially: NOT silently valid.
+    expect(out.verdict).not.toBe('approve');
+  });
+
+  it('fails CLOSED when the verifier THROWS (contract violation still not blessed)', async () => {
+    setEvidenceExistenceVerifier({
+      async verifyEvidenceIds() {
+        throw new Error('db down');
+      },
+    });
+    const out = await auditChatResponse({
+      ...BASE_INPUT,
+      responseText: 'Backed by [evidence:lmbm_42].',
+    });
+    // A thrown verifier is treated the SAME as a reported fault — fail-CLOSED.
+    expect(out.groundingFault).toBe(true);
+    expect(out.verdict).toBe('needs_human');
+    expect(out.verdict).not.toBe('approve');
   });
 });

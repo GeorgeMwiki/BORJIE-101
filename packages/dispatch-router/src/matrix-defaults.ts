@@ -1,9 +1,18 @@
 /**
  * Piece L — Platform default routing matrix.
  *
- * 17 platform-default rows mapping (entity_type × intent) to a
+ * 13 platform-default rows mapping (entity_type × intent) to a
  * (module_template_id, action) pair. The dispatcher walks the rows for
  * each capture and emits one proposal per matching row.
+ *
+ * NOTE: the four property-era ESTATE rows (`create_lease_application`,
+ * `flag_unit_status_change`, `append_lease_event`, `amend_lease_terms`,
+ * formerly L-ROW-01..04) were EXCISED for the mining product — they
+ * routed lease/rent/tenant property actions that have no mining-estate
+ * equivalent and would otherwise leak property proposals into a mining
+ * tenant's inbox. Surviving rows KEEP their original `L-ROW-NN` ids
+ * (ids are stable identifiers, NOT positional — see the ordering note
+ * below); the first surviving row is `L-ROW-05`.
  *
  * Why hardcode in TS rather than read from a `routing_rules` table?
  *   - Piece B (claude/piece-b-dynamic-modules) owns the `routing_rules`
@@ -35,71 +44,16 @@
 import type { RoutingMatrixRow } from './types.js';
 
 /**
- * 17-row platform default. Edit history: created Piece L Wave 22.
+ * 13-row platform default. Edit history: created Piece L Wave 22; the
+ * four property-era ESTATE rows (L-ROW-01..04) were excised for the
+ * mining product.
  *
- * Ordering matters for tests + audit replay: keep the rows in canonical
- * order. New rules append; never re-order historical rows because that
- * would change the matrix_row_id (we use index-based ids).
+ * Ids are STABLE identifiers (e.g. `L-ROW-05`), not positional indices:
+ * surviving rows retain their original ids so audit replay + tenant
+ * overrides keyed on a `matrix_row_id` stay valid across the removal.
+ * New rules append a fresh id; never re-order or re-id historical rows.
  */
 export const PLATFORM_ROUTING_MATRIX: ReadonlyArray<RoutingMatrixRow> = [
-  // ─── ESTATE module — the lease / occupancy / tenancy tab ─────────────
-  {
-    id: 'L-ROW-01',
-    entity_type: 'customer',
-    intent: 'propose_action',
-    module_template_id: 'ESTATE',
-    action: 'create_lease_application',
-    min_confidence: 0.6,
-    auto_apply_threshold: 0.92,
-    hitl_required: true,
-    priority: 'high',
-    min_approver_tier: 3,
-    jurisdiction: '*',
-    tenant_scope: '*',
-  },
-  {
-    id: 'L-ROW-02',
-    entity_type: 'unit',
-    intent: 'propose_action',
-    module_template_id: 'ESTATE',
-    action: 'flag_unit_status_change',
-    min_confidence: 0.6,
-    auto_apply_threshold: 0.9,
-    hitl_required: true,
-    priority: 'medium',
-    min_approver_tier: 3,
-    jurisdiction: '*',
-    tenant_scope: '*',
-  },
-  {
-    id: 'L-ROW-03',
-    entity_type: 'lease',
-    intent: 'file_event',
-    module_template_id: 'ESTATE',
-    action: 'append_lease_event',
-    min_confidence: 0.7,
-    auto_apply_threshold: 0.85,
-    hitl_required: false,
-    priority: 'medium',
-    min_approver_tier: 4,
-    jurisdiction: '*',
-    tenant_scope: '*',
-  },
-  {
-    id: 'L-ROW-04',
-    entity_type: 'lease',
-    intent: 'propose_action',
-    module_template_id: 'ESTATE',
-    action: 'amend_lease_terms',
-    min_confidence: 0.7,
-    auto_apply_threshold: 0.95,
-    hitl_required: true,
-    priority: 'high',
-    min_approver_tier: 2,
-    jurisdiction: '*',
-    tenant_scope: '*',
-  },
-
   // ─── LITFIN module — money path / arrears / settlements ─────────────
   {
     id: 'L-ROW-05',

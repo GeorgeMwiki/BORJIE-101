@@ -32,7 +32,7 @@ export interface PlanDecomposerDeps {
 }
 
 const SYSTEM_PROMPT =
-  'You are a property-management action planner. Read the objective and the list of available tools. Return a JSON array of {description, toolName?, toolPayload?} steps. Each step is small and concrete. If a step does not need a tool (just analysis or waiting), set toolName=null. Keep the plan <=10 steps. Tools you do not need do not have to be used. Return ONLY the JSON array.';
+  'You are a mining-estate action planner. Read the objective and the list of available tools. Return a JSON array of {description, toolName?, toolPayload?} steps. Each step is small and concrete. If a step does not need a tool (just analysis or waiting), set toolName=null. Keep the plan <=10 steps. Tools you do not need do not have to be used. Return ONLY the JSON array.';
 
 const MAX_STEPS = 10;
 

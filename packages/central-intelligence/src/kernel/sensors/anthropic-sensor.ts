@@ -104,29 +104,101 @@ export interface AnthropicStreamEvent {
   };
 }
 
+/**
+ * `cache_control` marker Anthropic recognises on a system / tool / message
+ * block. `ephemeral` is the standard breakpoint; the prompt-prefix cache
+ * covers everything up to and including the marked block. We request the
+ * longest TTL the API exposes (1h) when the SDK accepts the optional `ttl`
+ * field; the field is omitted when undefined so older SDKs ignore it.
+ */
+export interface AnthropicCacheControl {
+  readonly type: 'ephemeral';
+  readonly ttl?: '5m' | '1h';
+}
+
+/**
+ * A system-prompt text block as Anthropic accepts it in the `system` array
+ * form. The stable persona + tenant-agnostic prefix block carries
+ * `cache_control` so the breakpoint sits at the END of that block (BRAIN §5).
+ */
+export interface AnthropicSystemBlock {
+  readonly type: 'text';
+  readonly text: string;
+  readonly cache_control?: AnthropicCacheControl;
+}
+
+/** System field — a plain string (legacy) or a cache-marked block array. */
+export type AnthropicSystemField = string | ReadonlyArray<AnthropicSystemBlock>;
+
 export interface AnthropicMessagesClient {
   messages: {
-    create(args: {
-      model: string;
-      max_tokens: number;
-      system?: string;
-      messages: ReadonlyArray<AnthropicRequestMessage>;
-      thinking?: { type: 'enabled'; budget_tokens: number };
-      // any other passthrough fields are ignored
-    }): Promise<AnthropicMessageResponse>;
+    create(
+      args: {
+        model: string;
+        max_tokens: number;
+        system?: AnthropicSystemField;
+        messages: ReadonlyArray<AnthropicRequestMessage>;
+        thinking?: { type: 'enabled'; budget_tokens: number };
+        // any other passthrough fields are ignored
+      },
+      // The real SDK accepts a second RequestOptions arg carrying `signal`
+      // for cancellation. Typed as the minimal duck shape; adapters that
+      // ignore it (or call without it) behave exactly as before.
+      options?: { signal?: AbortSignal },
+    ): Promise<AnthropicMessageResponse>;
     /**
      * Optional streaming entry. The SDK's `messages.stream` returns an
      * async-iterable of MessageStreamEvent. We type it as the minimal
      * duck shape so this package compiles without the SDK installed.
      */
-    stream?(args: {
-      model: string;
-      max_tokens: number;
-      system?: string;
-      messages: ReadonlyArray<AnthropicRequestMessage>;
-      thinking?: { type: 'enabled'; budget_tokens: number };
-    }): AsyncIterable<AnthropicStreamEvent>;
+    stream?(
+      args: {
+        model: string;
+        max_tokens: number;
+        system?: AnthropicSystemField;
+        messages: ReadonlyArray<AnthropicRequestMessage>;
+        thinking?: { type: 'enabled'; budget_tokens: number };
+      },
+      options?: { signal?: AbortSignal },
+    ): AsyncIterable<AnthropicStreamEvent>;
   };
+}
+
+/**
+ * Build the Anthropic `system` request field from a `SensorCallArgs`,
+ * placing a prompt-prefix cache breakpoint at the END of the stable persona +
+ * tenant-agnostic prefix (BRAIN §5).
+ *
+ * Behaviour:
+ *   - When `args.systemSegments` is present, emit a block array. The single
+ *     segment flagged `cacheBreakpoint` gets `cache_control: ephemeral` with
+ *     the longest TTL (1h) — that block is byte-stable across turns and
+ *     tenants, so the cache is reused at ~0.1x input cost. The dynamic + the
+ *     terminal security blocks follow it un-marked, preserving the security
+ *     layers as the LAST, undisplaceable blocks.
+ *   - When segments are absent, fall back to the plain `args.system` string —
+ *     byte-identical to the legacy request, zero behaviour change.
+ *
+ * The concatenation of the block texts (joined with '\n') equals `args.system`
+ * by construction (the kernel renders both from the same fragment record), so
+ * the model sees identical content either way.
+ */
+export function buildAnthropicSystemField(
+  args: SensorCallArgs,
+): AnthropicSystemField | undefined {
+  const segments = args.systemSegments;
+  if (!segments || segments.length === 0) {
+    return args.system && args.system.length > 0 ? args.system : undefined;
+  }
+  return segments.map((seg) =>
+    seg.cacheBreakpoint
+      ? {
+          type: 'text' as const,
+          text: seg.text,
+          cache_control: { type: 'ephemeral' as const, ttl: '1h' as const },
+        }
+      : { type: 'text' as const, text: seg.text },
+  );
 }
 
 export interface AnthropicSensorConfig {
@@ -165,15 +237,21 @@ export function createAnthropicSensor(
         { role: 'user' as const, content: userContent },
       ];
 
-      const response = await client.messages.create({
-        model: config.modelId,
-        max_tokens: maxTokens,
-        system: args.system,
-        messages,
-        ...(useThinking
-          ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
-          : {}),
-      });
+      // BRAIN §5 — block-array system with a cache breakpoint at the end of
+      // the stable persona + corpus prefix; falls back to the plain string.
+      const systemField = buildAnthropicSystemField(args);
+      const response = await client.messages.create(
+        {
+          model: config.modelId,
+          max_tokens: maxTokens,
+          ...(systemField !== undefined ? { system: systemField } : {}),
+          messages,
+          ...(useThinking
+            ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
+            : {}),
+        },
+        args.signal ? { signal: args.signal } : undefined,
+      );
 
       let text = '';
       let thought: string | null = null;
@@ -271,15 +349,21 @@ export function createAnthropicSensor(
         return;
       }
 
-      const stream = client.messages.stream({
-        model: config.modelId,
-        max_tokens: maxTokens,
-        system: args.system,
-        messages,
-        ...(useThinking
-          ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
-          : {}),
-      });
+      // BRAIN §5 — same stable-prefix cache breakpoint on the streaming path
+      // so an SSE turn and a buffered turn share the cacheable prefix.
+      const systemField = buildAnthropicSystemField(args);
+      const stream = client.messages.stream(
+        {
+          model: config.modelId,
+          max_tokens: maxTokens,
+          ...(systemField !== undefined ? { system: systemField } : {}),
+          messages,
+          ...(useThinking
+            ? { thinking: { type: 'enabled' as const, budget_tokens: thinkingBudget } }
+            : {}),
+        },
+        args.signal ? { signal: args.signal } : undefined,
+      );
 
       // The Anthropic SDK delivers tool_use input as a stream of partial
       // JSON deltas tied to a content_block index. Buffer them per

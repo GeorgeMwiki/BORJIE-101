@@ -13,7 +13,8 @@ import { MessageBubble } from '@/components/MessageBubble'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
 import { useDebouncedSubmit } from '@/hooks/useDebouncedSubmit'
-import { fetchBid, sendBidMessage, updateBidStatus } from '@/api/marketplace'
+import { fetchBid, updateBidStatus } from '@/api/marketplace'
+import { fetchThread, sendThreadMessage } from '@/api/bid-messaging'
 import { queryKeys } from '@/api/queryKeys'
 import { formatKg, formatTzs } from '@/components/formatters'
 import { colors } from '@/theme/colors'
@@ -40,11 +41,38 @@ export default function BidDetail() {
     queryFn: () => fetchBid(bidId)
   })
 
+  // The bid-chat thread in the WS-2 surface is keyed by the RFB *response*
+  // ID, not the marketplace bid ID. `threadResponseId` is set by mapGatewayBid
+  // only when the gateway returns `rfbResponseId` for RFB-linked bids; it is
+  // null for pure marketplace bids (which have no chat thread). We must NOT
+  // fall back to `bidId` here: the bid-messaging surface rejects marketplace
+  // bid IDs and 404s with THREAD_NOT_FOUND.
+  const threadResponseId = query.data?.threadResponseId ?? null
+  // `hasThread` gates the entire messaging section. When false the composer
+  // and thread list are hidden — the buyer sees nothing rather than a broken UI.
+  const hasThread = threadResponseId !== null
+
+  // The bid-chat thread is served by the bid-messaging surface (one
+  // thread keyed by the RFB response id), separate from the bid row itself.
+  const threadQuery = useQuery({
+    queryKey: queryKeys.thread(threadResponseId ?? ''),
+    queryFn: () => fetchThread(threadResponseId as string),
+    // Only fetch when we have the bid data AND the bid is linked to an RFB thread.
+    enabled: query.isSuccess && hasThread
+  })
+
   const messageMutation = useMutation({
-    mutationFn: sendBidMessage,
+    mutationFn: (input: { readonly body: string }) => {
+      if (!threadResponseId) {
+        return Promise.reject(new Error('no_thread'))
+      }
+      return sendThreadMessage({ responseId: threadResponseId, body: input.body })
+    },
     onSuccess: async () => {
       setDraft('')
-      await queryClient.invalidateQueries({ queryKey: queryKeys.bid(bidId) })
+      if (threadResponseId) {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.thread(threadResponseId) })
+      }
     },
     onError: () => toast.show(t('bids.bid_failed'), 'error')
   })
@@ -103,7 +131,7 @@ export default function BidDetail() {
     if (!text) {
       return
     }
-    messageMutation.mutate({ bidId, body: text })
+    messageMutation.mutate({ body: text })
   }
   // G4 — robustness 2026-05-29: belt-and-braces double-tap guard.
   // The mutation's `isPending` already gates the button while in
@@ -130,32 +158,34 @@ export default function BidDetail() {
         <KeyValueRow label={t('marketplace.quantity')} value={formatKg(bid.quantityKg)} />
       </Card>
 
-      <Card>
-        <Text style={styles.cardTitle}>{t('bids.thread')}</Text>
-        {bid.thread.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            from={msg.from}
-            body={msg.body}
-            authorLabel={msg.from === 'buyer' ? t('profile.title') : 'Seller'}
-          />
-        ))}
-        <View style={styles.composer}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t('bids.message_placeholder')}
-            placeholderTextColor={colors.inkMuted}
-            multiline
-            style={styles.input}
-          />
-          <PrimaryButton
-            label={t('bids.send_message')}
-            onPress={handleSend}
-            disabled={messageMutation.isPending || draft.trim().length === 0}
-          />
-        </View>
-      </Card>
+      {hasThread ? (
+        <Card>
+          <Text style={styles.cardTitle}>{t('bids.thread')}</Text>
+          {(threadQuery.data?.messages ?? []).map((msg) => (
+            <MessageBubble
+              key={msg.id}
+              from={msg.from}
+              body={msg.body}
+              authorLabel={msg.from === 'buyer' ? t('profile.title') : t('bids.seller_label')}
+            />
+          ))}
+          <View style={styles.composer}>
+            <TextInput
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={t('bids.message_placeholder')}
+              placeholderTextColor={colors.inkMuted}
+              multiline
+              style={styles.input}
+            />
+            <PrimaryButton
+              label={t('bids.send_message')}
+              onPress={handleSend}
+              disabled={messageMutation.isPending || draft.trim().length === 0}
+            />
+          </View>
+        </Card>
+      ) : null}
 
       <View style={styles.actionStack}>
         {bid.status === 'countered' ? (

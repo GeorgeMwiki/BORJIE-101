@@ -23,7 +23,8 @@ import { IAccountRepository } from '../repositories/account.repository';
 import { IEventPublisher, createEvent } from '../events/event-publisher';
 import {
   LedgerEntriesCreatedEvent,
-  AccountBalanceUpdatedEvent
+  AccountBalanceUpdatedEvent,
+  PaymentDomainEvent
 } from '../events/payment-events';
 import { ILogger } from './payment-orchestration.service';
 import { omitUndefined } from '../lib/omit-undefined';
@@ -492,6 +493,67 @@ export class LedgerService {
       }),
     );
 
+    // RSS-01 — build the producer's domain events BEFORE the atomic post so
+    // their serialised `event_outbox` rows can CO-COMMIT inside the same
+    // transaction as the ledger entries + balance CAS (crash-safe,
+    // at-least-once). Previously these were published AFTER the tx
+    // committed, leaving a window where a crash dropped the event while the
+    // money was already durable — the exact failure the outbox pattern
+    // exists to kill. Each event stamps `metadata.journalId` so a relay /
+    // consumer (and the producer-dedup intent) can correlate it.
+    //
+    // The events are built from the precomputed `entries` / `runState`
+    // (known before the post). For `LEDGER_ENTRIES_CREATED` the entry
+    // id/type/direction/amount are identical in `entries` and the post's
+    // returned rows (they differ only by hash-chain fields the event does
+    // not carry), so building from `entries` is correct.
+    const balanceEvents: AccountBalanceUpdatedEvent[] = Array.from(
+      runState.entries(),
+    ).map(([accountId, state]) =>
+      createEvent<AccountBalanceUpdatedEvent>(
+        'ACCOUNT_BALANCE_UPDATED',
+        'Account',
+        accountId,
+        request.tenantId,
+        {
+          previousBalance: Money.fromMinorUnits(
+            state.account.balanceMinorUnits,
+            state.currency,
+          ).toData(),
+          newBalance: state.runningBalance.toData(),
+          lastEntryId: state.lastEntryId,
+        },
+        { metadata: { journalId } },
+      ),
+    );
+    const ledgerEvent = createEvent<LedgerEntriesCreatedEvent>(
+      'LEDGER_ENTRIES_CREATED',
+      'Ledger',
+      journalId,
+      request.tenantId,
+      omitUndefined({
+        journalId,
+        entries: entries.map((e) => ({
+          entryId: e.id,
+          accountId: e.accountId,
+          type: e.type,
+          direction: e.direction,
+          amount: e.amount.toData(),
+        })),
+        paymentIntentId: request.paymentIntentId,
+      }) as LedgerEntriesCreatedEvent['payload'],
+      { metadata: { journalId } },
+    );
+    const domainEvents: PaymentDomainEvent[] = [
+      ...balanceEvents,
+      ledgerEvent,
+    ];
+    // Serialise to the co-commit row shape (no-op `[]` for a publisher that
+    // does not implement the optional co-commit surface — the events then
+    // fall through to the post-commit `notifySubscribers` only).
+    const outboxRows =
+      this.eventPublisher.serializeForTx?.(domainEvents) ?? [];
+
     const atomic = await this.ledgerRepository.postJournalAtomic(
       omitUndefined({
         tenantId: request.tenantId,
@@ -499,6 +561,7 @@ export class LedgerService {
         entries,
         balanceUpdates,
         idempotencyKey: options.idempotencyKey,
+        outboxRows: outboxRows.length > 0 ? outboxRows : undefined,
       }) as Parameters<typeof this.ledgerRepository.postJournalAtomic>[0],
     );
 
@@ -536,51 +599,27 @@ export class LedgerService {
     // ONE updated-account snapshot and ONE event carrying its COMPOSED
     // final balance. `previousBalance` is the seed (pre-post) balance.
     const updatedAccounts: Account[] = [];
-    for (const [accountId, state] of runState) {
+    for (const [, state] of runState) {
       const accountAggregate = new AccountAggregate(state.account);
       accountAggregate.updateBalance(state.runningBalance, state.lastEntryId);
-      const updatedAccount = accountAggregate.toData();
-      updatedAccounts.push(updatedAccount);
-
-      // Publish balance update event
-      await this.eventPublisher.publish(
-        createEvent<AccountBalanceUpdatedEvent>(
-          'ACCOUNT_BALANCE_UPDATED',
-          'Account',
-          accountId,
-          request.tenantId,
-          {
-            previousBalance: Money.fromMinorUnits(
-              state.account.balanceMinorUnits,
-              state.currency
-            ).toData(),
-            newBalance: state.runningBalance.toData(),
-            lastEntryId: state.lastEntryId
-          }
-        )
-      );
+      updatedAccounts.push(accountAggregate.toData());
     }
 
-    // Publish journal entries created event
-    await this.eventPublisher.publish(
-      createEvent<LedgerEntriesCreatedEvent>(
-        'LEDGER_ENTRIES_CREATED',
-        'Ledger',
-        journalId,
-        request.tenantId,
-        omitUndefined({
-          journalId,
-          entries: savedEntries.map(e => ({
-            entryId: e.id,
-            accountId: e.accountId,
-            type: e.type,
-            direction: e.direction,
-            amount: e.amount.toData()
-          })),
-          paymentIntentId: request.paymentIntentId
-        }) as LedgerEntriesCreatedEvent['payload']
-      )
-    );
+    // RSS-01 — the events' durable `event_outbox` rows already co-committed
+    // inside `postJournalAtomic` (above). Now that the tx has COMMITTED,
+    // notify the in-process subscribers so live same-process handlers fire.
+    // A rolled-back post never reaches here, so it notifies nobody AND its
+    // outbox rows were rolled back — no loss, no leak. When the publisher
+    // does not implement the co-commit surface, fall back to the legacy
+    // `publish` (still durable for the durable publisher, in-memory for the
+    // dev path) so no event is dropped.
+    if (this.eventPublisher.notifySubscribers) {
+      await this.eventPublisher.notifySubscribers(domainEvents);
+    } else {
+      for (const event of domainEvents) {
+        await this.eventPublisher.publish(event);
+      }
+    }
 
     this.logger.info('Journal entry posted', {
       journalId,
@@ -959,7 +998,13 @@ export class LedgerService {
       reason: voidReason,
     });
 
-    return this.postJournalEntry(voidRequest);
+    // Idempotent void: the UNIQUE (tenant_id, idempotency_key) guarantee makes a
+    // duplicate void of the SAME entry a no-op (returns the original reversal)
+    // instead of double-reversing the balance. A CONFLICTING second void (same
+    // entry, divergent request) throws IdempotencyMismatchError (LOUD).
+    return this.postJournalEntry(voidRequest, {
+      idempotencyKey: `void:${entryId}`,
+    });
   }
 
   /**

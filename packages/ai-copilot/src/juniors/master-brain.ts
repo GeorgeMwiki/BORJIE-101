@@ -18,6 +18,7 @@ import {
   withResolvedDb,
   type JuniorDeps,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Schemas
@@ -224,7 +225,7 @@ export function createMasterBrainAgent(deps: JuniorDeps) {
         schema: MasterBrainOutputSchema,
         systemPrompt: MASTER_BRAIN_SYSTEM_PROMPT,
         userPrompt: buildMasterBrainUserPrompt(validated),
-        model: 'claude-opus-4-8',
+        model: resolveTierModelId('deep'),
         maxTokens: 2000,
       });
 

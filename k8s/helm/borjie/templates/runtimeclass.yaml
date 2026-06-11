@@ -1,0 +1,48 @@
+{{- if .Values.runtimeClass -}}
+# =============================================================================
+# RuntimeClass — kernel-level isolation for agent code-execution workloads
+# =============================================================================
+# Rendered ONLY when .Values.runtimeClass is set (e.g. "gvisor" in the
+# hardened / prod values). With the default empty value this whole object is
+# skipped, so dev / CI / k3d clusters that have no runsc handler deploy
+# unchanged and no agent pod ever references a missing RuntimeClass.
+#
+# SOTA (2026) for multi-tenant agents that run LLM-generated code is to wrap
+# the executing pods in a hardened container runtime so a kernel exploit in
+# untrusted code cannot escape to the host. Borjie already runs model-generated
+# JS inside V8 isolates (`isolated-vm`, packages/central-intelligence/src/
+# kernel/sandbox/); this RuntimeClass adds the missing KERNEL-level layer.
+#
+#   gvisor (runsc) — userspace application kernel; intercepts + validates every
+#                    syscall. ~100ms start, no nested-virt. Default choice.
+#   kata           — lightweight microVM, separate guest kernel; needs
+#                    bare-metal / nested-virt nodes.
+#
+# Provision FIRST: install containerd-shim-runsc-v1 + a `runsc` containerd
+# handler on the node pool (GKE Sandbox / a runsc DaemonSet) and label the
+# nodes `sandbox.gke.io/runtime: gvisor`. Pods referencing an un-provisioned
+# RuntimeClass stay Pending — a safe, deliberate fail. Roll out staging first.
+#
+# Only the agent-code-executing workloads pick this up (api-gateway + the
+# wake-loop / consolidation CronJobs); payments-ledger, postgres, redis and
+# the frontends are deliberately EXCLUDED.
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: {{ .Values.runtimeClass }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+{{- if eq .Values.runtimeClass "kata" }}
+handler: kata
+scheduling:
+  nodeSelector:
+    katacontainers.io/kata-runtime: "true"
+{{- else }}
+handler: runsc
+# Schedule onto nodes labelled for gVisor so an un-provisioned node never
+# silently runs the workload under the default (shared-kernel) runtime.
+scheduling:
+  nodeSelector:
+    sandbox.gke.io/runtime: {{ .Values.runtimeClass }}
+{{- end }}
+{{- end }}

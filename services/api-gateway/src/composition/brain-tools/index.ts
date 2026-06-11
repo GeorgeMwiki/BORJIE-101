@@ -45,7 +45,23 @@ import { OWNER_MESSAGING_TOOLS } from './owner-messaging-tools';
 // HTTP client.
 import { OWNER_SAVED_SEARCH_TOOLS } from './owner-saved-search-tools';
 import { SUPERPOWERS_TOOLS } from './superpowers-tools';
+// Legacy-portal browser super-power — the MD's "remote Chrome window" for
+// no-API third-party portals (KRA iTax …), AXTree-perceived + governance-gated.
+import { LEGACY_PORTAL_TOOLS } from './legacy-portal-tools';
+// Universal integration fabric — exactly TWO generative tools
+// (integration.connector.list LOW/read + integration.connector.invoke
+// HIGH/write/policy-literal) dispatching over the 21-connector catalog
+// via /integrations/connectors. A 22nd connector needs ZERO tool changes
+// (generative seam: composition/connector-catalog.ts).
+import { INTEGRATION_TOOLS } from './integration-tools';
 import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
+// MD DEFERRAL / FOLLOW-THROUGH — Mr. Mwikila's "defer with intent + hold a
+// durable backlog + confirm it actually happened" surface (md.defer /
+// md.commitment.{create,list,update,confirm}). Persists into the durable
+// md_commitments ledger (migration 0321); the EstateMind reconcile sweep brings
+// each commitment back on its trigger and never drops a thread. See
+// Docs/research/THE_BRAIN_DEFERRAL_FOLLOWTHROUGH_CAPABILITY.md.
+import { MD_DEFER_TOOLS } from './md-defer-tools';
 import { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
 // Wave UNWIRED-LOGIC-SWEEP-2 — opportunity + risk scanner brain tools.
 // Surfaces the existing 33-rule opportunity scanner and 33-rule risk
@@ -158,6 +174,17 @@ import { SET_CHAT_MODE_TOOLS } from './set-chat-mode-tools';
 // in-memory fallback keeps the catalog complete for tests + catalog audits.
 import { DATA_ANALYSIS_TOOLS } from './data-analysis-tools';
 import { buildMemoryTools } from './memory-tools';
+// Wave-3 DARK-ORGAN closure (Docs/research/MASTER_WIRING_CLOSURE_PLAN.md) —
+// three analytics organs that shipped complete but were never reachable from
+// the brain. Each runs behind its own env flag + a wall-clock budget guard
+// (organ-budget-guard.ts) so a slow detector / estimator / query can NEVER
+// stall a turn; each is READ-only / propose-only (no sovereign rail):
+//   - anomaly.detect → @borjie/anomaly-detection statistical detectors
+//   - causal.infer   → @borjie/causal-inference treatment-effect estimators
+//   - belief.query   → @borjie/belief-engine durable world-model (read side)
+import { ANOMALY_DETECTION_TOOLS } from './anomaly-detection-tools';
+import { CAUSAL_INFERENCE_TOOLS } from './causal-inference-tools';
+import { BELIEF_ENGINE_TOOLS } from './belief-engine-tools';
 import { orchestrator } from '@borjie/central-intelligence';
 
 export type AnyPersonaToolDescriptor = PersonaToolDescriptor<
@@ -227,7 +254,10 @@ export function buildPersonaToolHandlers(
       OWNER_MESSAGING_TOOLS,
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
+      LEGACY_PORTAL_TOOLS,
+      INTEGRATION_TOOLS,
       DECISION_JOURNAL_TOOLS,
+      MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
@@ -247,6 +277,9 @@ export function buildPersonaToolHandlers(
       MD_AGENTIC_TOOLS,
       SET_CHAT_MODE_TOOLS,
       DATA_ANALYSIS_TOOLS,
+      ANOMALY_DETECTION_TOOLS,
+      CAUSAL_INFERENCE_TOOLS,
+      BELIEF_ENGINE_TOOLS,
       memoryToolDescriptors(options?.memoryTool),
     ],
     options?.onDuplicate,
@@ -295,7 +328,10 @@ export function listPersonaToolDescriptors(
       OWNER_MESSAGING_TOOLS,
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
+      LEGACY_PORTAL_TOOLS,
+      INTEGRATION_TOOLS,
       DECISION_JOURNAL_TOOLS,
+      MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
       OPPORTUNITY_SCANNER_TOOLS,
       RISK_SCANNER_TOOLS,
@@ -315,6 +351,9 @@ export function listPersonaToolDescriptors(
       MD_AGENTIC_TOOLS,
       SET_CHAT_MODE_TOOLS,
       DATA_ANALYSIS_TOOLS,
+      ANOMALY_DETECTION_TOOLS,
+      CAUSAL_INFERENCE_TOOLS,
+      BELIEF_ENGINE_TOOLS,
       memoryToolDescriptors(memoryTool),
     ],
     undefined,
@@ -374,6 +413,10 @@ export {
   DECISION_JOURNAL_TOOLS,
   configureDecisionJournalTools,
 } from './decision-journal-tools';
+export {
+  MD_DEFER_TOOLS,
+  configureMdDeferTools,
+} from './md-defer-tools';
 export { ENTITY_LEGIBILITY_TOOLS } from './entity-legibility-tools';
 export {
   OPPORTUNITY_SCANNER_TOOLS,
@@ -482,3 +525,7 @@ export {
 // FINAL NEEDS-DESIGN wave — re-exports for tests + audit walker.
 export { DATA_ANALYSIS_TOOLS, analyticsSitePerformanceTool } from './data-analysis-tools';
 export { buildMemoryTools } from './memory-tools';
+// Wave-3 DARK-ORGAN closure — re-exports for tests + audit walker.
+export { ANOMALY_DETECTION_TOOLS, anomalyDetectTool } from './anomaly-detection-tools';
+export { CAUSAL_INFERENCE_TOOLS, causalInferTool } from './causal-inference-tools';
+export { BELIEF_ENGINE_TOOLS, beliefQueryTool } from './belief-engine-tools';

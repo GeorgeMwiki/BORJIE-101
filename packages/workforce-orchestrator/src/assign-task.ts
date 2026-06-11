@@ -26,6 +26,77 @@ import {
 } from './types.js';
 
 // ─────────────────────────────────────────────────────────────────────────
+// Risk lexicon — DOMAIN-PACK DATA, not engine. A caller may inject a
+// `riskLexicon` (per vertical / per jurisdiction); the default is the
+// bilingual EN/SW mining + treasury + safety-legal set. The property-era
+// terms (evict/eviction) were dropped with the property→mining migration.
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * A bilingual domain-pack risk lexicon. Terms are matched as lowercase
+ * substrings of `title + ' ' + description`; a trailing space in a term
+ * (e.g. 'fire ') word-bounds it on the right.
+ */
+export interface RiskLexicon {
+  /** Terms that escalate to HIGH (owner approval before dispatch). */
+  readonly high: ReadonlyArray<string>;
+  /** Terms that escalate to SOVEREIGN (the highest HITL gate). */
+  readonly sovereign: ReadonlyArray<string>;
+}
+
+/** zod boundary shape for an injected lexicon (validated in AssignTaskInput). */
+export const RiskLexiconSchema = z.object({
+  high: z.array(z.string().min(1)),
+  sovereign: z.array(z.string().min(1)),
+});
+
+/**
+ * The default mining + treasury + safety-legal lexicon — EN and SW so a
+ * single-language Swahili task gates IDENTICALLY to its English twin
+ * (bilingual-absolute rule: risk never depends on the author's locale).
+ */
+export const DEFAULT_RISK_LEXICON: RiskLexicon = Object.freeze({
+  high: Object.freeze([
+    // Safety-legal (EN). 'fire ' keeps its trailing space so 'firewall' /
+    // 'misfired' never false-positive.
+    'terminate',
+    'fire ',
+    'lawsuit',
+    'court',
+    'arrest',
+    'police',
+    // Money / mining / treasury (EN). 'licence' + 'license' cover both spellings.
+    'payment',
+    'royalty',
+    'licence',
+    'license',
+    'suspend',
+    'dispute',
+    // Swahili equivalents.
+    'malipo', // payment
+    'mrabaha', // royalty
+    'leseni', // licence
+    'kusimamisha', // suspend
+    'mgogoro', // dispute
+    'mahakama', // court
+    'polisi', // police
+    'kukamatwa', // arrest
+    'kesi', // lawsuit / court case
+    'kufukuz', // kufukuza / kufukuzwa — terminate / dismissal
+  ]),
+  sovereign: Object.freeze([
+    'regulator',
+    'audit',
+    'compliance breach',
+    'fraud',
+    'mdhibiti', // regulator
+    'udanganyifu', // fraud
+    // NOTE: 'ukaguzi' (audit) is deliberately excluded — it also means a
+    // routine inspection in mining Swahili and would over-escalate.
+  ]),
+});
+
+// ─────────────────────────────────────────────────────────────────────────
 // Caller-facing input shape.
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -41,6 +112,11 @@ export const AssignTaskInputSchema = z.object({
   estimatedEffortHours: z.number().nonnegative().nullable().optional(),
   /** Caller hint; kernel may override upward (never downward). */
   riskHint: z.enum(['LOW', 'MEDIUM', 'HIGH', 'SOVEREIGN']).default('LOW'),
+  /**
+   * Optional domain-pack risk lexicon (bilingual). Defaults to the mining +
+   * treasury + safety-legal set (DEFAULT_RISK_LEXICON). DATA, not engine.
+   */
+  riskLexicon: RiskLexiconSchema.optional(),
   assetRefs: z.array(z.string()).default([]),
   createdByPersonaId: z.string().nullable().optional(),
   /** Optional explicit cadence; auto-chosen if undefined. */
@@ -60,20 +136,9 @@ export interface AssignTaskResult {
 // ─────────────────────────────────────────────────────────────────────────
 // Kernel: risk tier escalation. The caller can only suggest downward;
 // the kernel always reserves the right to escalate upward based on the
-// content of the task.
+// content of the task. The keyword lists are the injected/default
+// RiskLexicon above — DATA, not engine.
 // ─────────────────────────────────────────────────────────────────────────
-
-const RISK_KEYWORDS_HIGH = [
-  'terminate',
-  'fire ',
-  'evict',
-  'eviction',
-  'lawsuit',
-  'court',
-  'arrest',
-  'police',
-];
-const RISK_KEYWORDS_SOVEREIGN = ['regulator', 'audit', 'compliance breach', 'fraud'];
 
 const RISK_RANK: Record<RiskTier, number> = {
   LOW: 0,
@@ -87,14 +152,17 @@ export function deriveRiskTier(args: {
   title: string;
   description: string;
   priority: Priority;
+  /** Optional domain-pack lexicon; defaults to the bilingual mining set. */
+  lexicon?: RiskLexicon;
 }): RiskTier {
+  const lexicon = args.lexicon ?? DEFAULT_RISK_LEXICON;
   const haystack = `${args.title} ${args.description}`.toLowerCase();
 
   let derived: RiskTier = args.hint;
 
-  if (RISK_KEYWORDS_SOVEREIGN.some((kw) => haystack.includes(kw))) {
+  if (lexicon.sovereign.some((kw) => haystack.includes(kw.toLowerCase()))) {
     derived = 'SOVEREIGN';
-  } else if (RISK_KEYWORDS_HIGH.some((kw) => haystack.includes(kw))) {
+  } else if (lexicon.high.some((kw) => haystack.includes(kw.toLowerCase()))) {
     derived = 'HIGH';
   } else if (args.priority === 'urgent' && RISK_RANK[derived] < RISK_RANK.MEDIUM) {
     derived = 'MEDIUM';
@@ -205,6 +273,16 @@ export async function assignTask(
     title: input.title,
     description: input.description,
     priority: input.priority,
+    // Domain-pack lexicon override (validated by the schema); default bilingual.
+    // Normalized here because the zod .d.ts inference relaxes the fields.
+    ...(input.riskLexicon
+      ? {
+          lexicon: {
+            high: input.riskLexicon.high ?? [],
+            sovereign: input.riskLexicon.sovereign ?? [],
+          },
+        }
+      : {}),
   });
   const hitlRequired = riskTier === 'HIGH' || riskTier === 'SOVEREIGN';
 

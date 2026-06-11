@@ -196,6 +196,17 @@ export interface ThoughtRequest {
    * preamble), so this field is additive and back-compatible.
    */
   readonly language?: 'en' | 'sw';
+  /**
+   * Advisory model-tier preference for this turn, set by the kernel's
+   * fast-path / model-tiering policy (`./model-tiering.ts`) when
+   * `BORJIE_MODEL_TIERING` is enabled. `'cheap'` ⇒ a Haiku-class model is
+   * preferred for a trivial/fast turn; `'standard'` ⇒ the main model;
+   * `'deep'` ⇒ an Opus-class model for the heaviest reasoning. ADVISORY:
+   * the sensor selector / composition root may honour it to downshift cost
+   * on the fast lane, but the kernel never DEPENDS on it — when absent (the
+   * default) the existing model choice is used unchanged.
+   */
+  readonly preferModelTier?: 'cheap' | 'standard' | 'deep';
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -392,6 +403,22 @@ export type BrainDecision =
 // tracked externally by sensor-failover.
 // ─────────────────────────────────────────────────────────────────────
 
+/**
+ * Provider-agnostic view of one system-prompt segment. Mirrors
+ * `SystemPromptSegment` from `prompt-layers.ts` but lives here so the sensor
+ * contract does not import the assembler. Used to position the Anthropic
+ * prompt-prefix cache breakpoint (BRAIN §5) without reordering or changing
+ * the assembled content.
+ */
+export interface SystemPromptSegmentView {
+  /** Rendered text for this segment (never empty). */
+  readonly text: string;
+  /** True for the single segment after which the cache breakpoint is placed. */
+  readonly cacheBreakpoint: boolean;
+  /** True for the terminal IP-protection / security-boundary layers. */
+  readonly security: boolean;
+}
+
 export interface SensorCallArgs {
   readonly system: string;
   /**
@@ -402,6 +429,17 @@ export interface SensorCallArgs {
    * upstream contract.
    */
   readonly systemPrompt?: string;
+  /**
+   * Optional SEGMENTED view of the SAME system prompt (BRAIN §5 prompt-prefix
+   * cache). When present, the segments' `text` joined with `'\n'` is
+   * byte-identical to `system`; the adapter uses the boundaries to place an
+   * Anthropic `cache_control: ephemeral` breakpoint at the end of the STABLE
+   * persona + tenant-agnostic prefix (the segment flagged `cacheBreakpoint`)
+   * so the cacheable prefix is reused across turns at ~0.1x input cost. The
+   * terminal `security` segments never receive a marker. Adapters that ignore
+   * this field fall back to sending `system` verbatim — no behaviour change.
+   */
+  readonly systemSegments?: ReadonlyArray<SystemPromptSegmentView>;
   readonly userMessage: string;
   readonly priorTurns: ReadonlyArray<{ role: 'user' | 'assistant'; content: string }>;
   readonly extendedThinking: boolean;
@@ -413,6 +451,14 @@ export interface SensorCallArgs {
    * its capabilities for the router to pick it.
    */
   readonly attachments?: ReadonlyArray<ThoughtAttachment>;
+  /**
+   * Optional cancellation signal. When the calling surface (an SSE route
+   * whose client disconnected) aborts it, a sensor adapter that honours it
+   * forwards it to the provider SDK request so in-flight token generation
+   * stops instead of running to completion. Adapters that ignore it simply
+   * run to completion — no behaviour change.
+   */
+  readonly signal?: AbortSignal;
 }
 
 export interface SensorCallResult {
@@ -484,6 +530,11 @@ export type KernelStreamEvent =
       readonly verdict: GateVerdict;
     }
   | { readonly kind: 'confidence'; readonly vector: ConfidenceVector }
+  // Honest epistemic-state surface (INV-H). ADDITIVE — emitted just
+  // before `done` on a non-refusal turn, after `confidence`. Carries
+  // POSTURE + sure/unsure/would-need axes (NEVER the audit math).
+  // Existing consumers that switch on `kind` ignore it cleanly.
+  | { readonly kind: 'self_model'; readonly selfModel: SelfModelFrame }
   | { readonly kind: 'done'; readonly decision: BrainDecision };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -666,3 +717,81 @@ export interface BehaviorSignalSourcePort {
 }
 
 export type _BehaviorSignalSourcePortMarker = BehaviorSignalSourcePort;
+
+// ─────────────────────────────────────────────────────────────────────
+// Owner-style reader port — cross-session Theory-of-Mind (owner model).
+//
+// When wired, the kernel reads a DURABLE per-owner communication-style
+// directive at step 6 (system-prompt composition) and concatenates it
+// BESIDE the per-turn affective `mindDirective`. The two channels are
+// complementary: the affective directive carries "how the owner FEELS
+// now" (this-turn signal), the style directive carries "how this owner
+// ALWAYS wants to be spoken to" (cross-session posterior). After the
+// turn the kernel folds ONE Bayesian observation back via `refine(...)`
+// so every exchange tightens the posterior — perceive → bias → observe →
+// learn, a closed governed loop (no autonomous ACT; it only shapes voice).
+//
+// Duck-typed here so the central-intelligence package keeps NO compile-
+// time dep on `@borjie/ai-copilot`. The production adapter is
+// `createOwnerStyleService(...)` from `@borjie/ai-copilot/owner-style`;
+// the composition root binds it in `sovereign.ts`. Every method is
+// best-effort — failures collapse to '' / no-op so a missing
+// `owner_style_profiles` table never breaks a turn (honest-degrade).
+// ─────────────────────────────────────────────────────────────────────
+
+/** One post-turn observation folded back into the style posterior. */
+export interface OwnerStyleTurnObservation {
+  /** The owner's verbatim turn text (the Bayesian evidence source). */
+  readonly text: string;
+  /** Epoch millis of the turn. */
+  readonly tsMs: number;
+  /**
+   * Optional reaction to the prior MD response: +1 approve, -1 reject,
+   * 0 neutral. Amplifies the posterior shift when present.
+   */
+  readonly reaction?: number;
+}
+
+export interface OwnerStyleReaderPort {
+  /**
+   * Durable per-owner style directive for the next turn's prompt, or ''
+   * when there's no profile / the store is unavailable. The kernel
+   * concatenates it beside the per-turn affective directive.
+   */
+  getStyleHint(tenantId: string): Promise<string>;
+  /**
+   * Fold ONE turn observation back into the posterior post-turn. Returns
+   * void to the kernel (the service owns persistence + the change note);
+   * the kernel never blocks on it and swallows any rejection.
+   */
+  refine(
+    tenantId: string,
+    observations: ReadonlyArray<OwnerStyleTurnObservation>,
+  ): Promise<unknown>;
+}
+
+export type _OwnerStyleReaderPortMarker = OwnerStyleReaderPort;
+
+// ─────────────────────────────────────────────────────────────────────
+// Self-model surface — honest epistemic-state frame (INV-H).
+//
+// An ADDITIVE kernel stream frame emitted alongside the existing
+// `confidence` frame. It surfaces the MD's POSTURE + the axes it is sure
+// / unsure about + what it would need to firm up — derived from the
+// already-built `buildPerThoughtSelfModel(...)` over the final answer +
+// the confidence vector. INV-H: we surface POSTURE + AXES only, NEVER the
+// raw audit math (the four-axis numbers stay in the `confidence` frame /
+// provenance). Unknown frame kinds are ignored by existing consumers, so
+// this is back-compatible — owner-web reads frames by `kind`.
+// ─────────────────────────────────────────────────────────────────────
+
+export interface SelfModelFrame {
+  /** Stance toward the answer ('answering' | 'softening' | 'clarifying' …). */
+  readonly posture: string;
+  /** Plain-language things the answer is well-grounded on (surface, not math). */
+  readonly sureAbout: ReadonlyArray<string>;
+  /** Plain-language axes the answer is least certain along. */
+  readonly unsureAbout: ReadonlyArray<string>;
+  /** What the owner could provide to move uncertain → confident. */
+  readonly wouldNeed: ReadonlyArray<string>;
+}

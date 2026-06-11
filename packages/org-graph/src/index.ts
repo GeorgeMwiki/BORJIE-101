@@ -16,6 +16,10 @@
 export {
   EDGE_TYPES,
   EdgeTypeSchema,
+  BODY_EDGE_TYPES,
+  BodyEdgeTypeSchema,
+  BODY_NODE_KINDS,
+  BodyNodeKindSchema,
   OrgGraphEdgeSchema,
   OrgGraphNodeSchema,
   GraphHopSchema,
@@ -24,6 +28,8 @@ export {
 
 export type {
   EdgeType,
+  BodyEdgeType,
+  BodyNodeKind,
   OrgGraphEdge,
   OrgGraphNode,
   GraphHop,

@@ -340,14 +340,55 @@ const isCliEntry = (() => {
   }
 })();
 
+/**
+ * Load the repo-root `.env` for the standalone CLI path. The runner reads
+ * `process.env.DATABASE_URL`; when invoked via `pnpm -C packages/database`
+ * the working dir is the package and nothing in the import chain loads the
+ * repo-root `.env`, so `DATABASE_URL` is unset and the runner threw the
+ * opaque `[migrations] failed` (an Error serialises to `{}` because its
+ * message/stack are non-enumerable) even with zero pending work.
+ *
+ * Load the root `.env` by ABSOLUTE path, WITHOUT `override`, so it only
+ * FILLS THE GAP: an explicitly-set `DATABASE_URL` (a dev pointing at a local
+ * DB, or CI/container secrets) always wins — we never clobber it with the
+ * committed root value. No-op when the file is absent. dotenv is optional;
+ * a load failure is non-fatal and we fall back to the ambient environment.
+ *
+ * Only the CLI entry calls this — the in-process `runMigrations()` (e.g.
+ * api-gateway prestart) keeps using whatever env the host already loaded.
+ */
+async function loadCliEnv(): Promise<void> {
+  try {
+    const dotenv = await import('dotenv');
+    dotenv.config({ path: resolve(join(__dirname, '..', '..', '..', '.env')) });
+  } catch {
+    // dotenv unavailable / no root .env — rely on the ambient environment.
+  }
+}
+
 if (isCliEntry) {
-  runMigrations()
+  loadCliEnv()
+    .then(() => runMigrations())
     .then((r) => {
       logger.warn(`[migrations] applied=${r.applied} skipped=${r.skipped}`);
       process.exit(0);
     })
-    .catch((err) => {
-      logger.error('[migrations] failed', { error: err });
+    .catch((err: unknown) => {
+      // Error message/stack are non-enumerable, so `{ error: err }` serialises
+      // to `{}` — surface the real fields explicitly for a diagnosable failure.
+      const e = err as {
+        message?: string;
+        stack?: string;
+        code?: string;
+        detail?: string;
+        where?: string;
+      };
+      logger.error('[migrations] failed: ' + (e?.message ?? String(err)), {
+        code: e?.code,
+        detail: e?.detail,
+        where: e?.where,
+        stack: e?.stack,
+      });
       process.exit(1);
     });
 }

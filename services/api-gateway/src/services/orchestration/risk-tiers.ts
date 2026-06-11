@@ -77,6 +77,19 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'staff.bulk_ingest_csv', tier: 'high' },
   // MD agentic sandbox — commit lands a staged mutation on the real table.
   { prefix: 'sandbox.commit', tier: 'high' },
+  // Legacy-portal browser super-power — drives an external regulator portal
+  // and submits a real filing (requiresPolicyRuleLiteral on the descriptor).
+  { prefix: 'platform.legacy.', tier: 'high' },
+  // Integration fabric — invoking an external SaaS is an EGRESS WRITE
+  // (requiresPolicyRuleLiteral on the descriptor). Two-tap confirm.
+  { prefix: 'integration.connector.invoke', tier: 'high' },
+  // Jurisdiction promote — sovereign-grade launch-market mutation; must
+  // out-prefix the blanket `mwikila.` low rule (longest-prefix wins).
+  { prefix: 'mwikila.jurisdiction.promote', tier: 'high' },
+  // Jurisdiction compliance learn-feed — writes into the SHARED (tenant_id
+  // NULL) corpus every tenant inherits; sovereign-grade, policy-literal.
+  // Same longest-prefix carve-out from the blanket `mwikila.` low rule.
+  { prefix: 'mwikila.jurisdiction.ingest_compliance', tier: 'high' },
 
   // ── MEDIUM (preview) ─────────────────────────────────────────────
   { prefix: 'mining.production.', tier: 'medium' },
@@ -206,6 +219,8 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'admin.audit.export', tier: 'high' },
   { prefix: 'buyer.notifications.mark_read', tier: 'low' },
   { prefix: 'mwikila.', tier: 'low' },
+  // Integration fabric — catalog + connection-state read (isWrite:false).
+  { prefix: 'integration.connector.list', tier: 'low' },
   // Read-only review queues / aggregates (isWrite:false on the descriptor).
   { prefix: 'admin.superpowers.list_pending', tier: 'low' },
   { prefix: 'plan.aggregate_results', tier: 'low' },

@@ -100,14 +100,12 @@ describe('compileSpec — every field kind branch', () => {
     expect(r.migrationSql).toMatch(/parent_id_optional\s+TEXT,/);
   });
 
-  it('emits CHECK constraint for enum kind (required and optional)', () => {
+  it('emits a plain TEXT column for enum kind (required and optional) — NO CHECK', () => {
     const r = compileSpec(allKindsSpec, 'tnt_x');
-    expect(r.migrationSql).toMatch(
-      /state\s+TEXT NOT NULL CHECK \(state IN \('draft', 'live'\)\)/,
-    );
-    expect(r.migrationSql).toMatch(
-      /state_optional\s+TEXT\s+CHECK \(state_optional IN \('x', 'y'\)\)/,
-    );
+    expect(r.migrationSql).toMatch(/state\s+TEXT NOT NULL/);
+    expect(r.migrationSql).toMatch(/state_optional\s+TEXT\b/);
+    // No author CHECK is emitted (the ddl-guard forbids it).
+    expect(r.migrationSql).not.toMatch(/CHECK\s*\(state/);
   });
 
   it('emits workflow manifest with comment block', () => {
@@ -156,8 +154,8 @@ describe('compileSpec — every field kind branch', () => {
       ui_sections: [],
     };
     const r = compileSpec(specWithIndex, 'tnt_x');
-    expect(r.migrationSql).toMatch(/module_tnt_x_thing_employee_number_idx/);
-    expect(r.migrationSql).not.toMatch(/module_tnt_x_thing_plain_idx/);
+    expect(r.migrationSql).toMatch(/tenant_mod_tnt_x_thing_employee_number_idx/);
+    expect(r.migrationSql).not.toMatch(/tenant_mod_tnt_x_thing_plain_idx/);
   });
 });
 

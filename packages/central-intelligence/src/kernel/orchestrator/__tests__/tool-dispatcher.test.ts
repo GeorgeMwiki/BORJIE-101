@@ -184,4 +184,63 @@ describe('createToolDispatcher', () => {
       expect(result.handoffToken).toBe('real_handoff');
     }
   });
+
+  it('run_skill falls closed to a skill_ack breadcrumb when no skillHandler', async () => {
+    const dispatcher = createToolDispatcher({ registry: registryWithEchoTool() });
+    const result = await dispatcher.dispatch(
+      { kind: 'run_skill', skillId: 's_1', params: { a: 1 } },
+      CTX,
+    );
+    expect(result.kind).toBe('skill_ack');
+    if (result.kind === 'skill_ack') {
+      expect(result.skillId).toBe('s_1');
+      expect(result.output).toBeUndefined();
+    }
+  });
+
+  it('run_skill invokes an injected skillHandler when wired', async () => {
+    const dispatcher = createToolDispatcher({
+      registry: registryWithEchoTool(),
+      skillHandler: async ({ skillId, params }) => ({ output: { skillId, params } }),
+    });
+    const result = await dispatcher.dispatch(
+      { kind: 'run_skill', skillId: 's_2', params: { a: 2 } },
+      CTX,
+    );
+    expect(result.kind).toBe('skill_ack');
+    if (result.kind === 'skill_ack') {
+      expect(result.output).toEqual({ skillId: 's_2', params: { a: 2 } });
+    }
+  });
+
+  it('run_modality falls closed to a modality_ack breadcrumb when no modalityHandler', async () => {
+    const dispatcher = createToolDispatcher({ registry: registryWithEchoTool() });
+    const result = await dispatcher.dispatch(
+      { kind: 'run_modality', modality: 'tab', payload: { recipeId: 'r1' } },
+      CTX,
+    );
+    expect(result.kind).toBe('modality_ack');
+    if (result.kind === 'modality_ack') {
+      expect(result.modality).toBe('tab');
+    }
+  });
+
+  it('run_modality (loop) invokes an injected modalityHandler when wired', async () => {
+    let seen: { modality: string; payload: unknown } | null = null;
+    const dispatcher = createToolDispatcher({
+      registry: registryWithEchoTool(),
+      modalityHandler: async ({ modality, payload }) => {
+        seen = { modality, payload };
+        return { output: { ran: true } };
+      },
+    });
+    const result = await dispatcher.dispatch(
+      { kind: 'run_modality', modality: 'loop', payload: { loopKind: 'reactive' } },
+      CTX,
+    );
+    expect(seen).toEqual({ modality: 'loop', payload: { loopKind: 'reactive' } });
+    if (result.kind === 'modality_ack') {
+      expect(result.output).toEqual({ ran: true });
+    }
+  });
 });

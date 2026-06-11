@@ -32,6 +32,8 @@ import { z } from 'zod';
 import { API_BASE } from '@/lib/brain-api';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { pickByLocale } from '@/lib/locale-shared';
+import { superpowerChipsStrings as S } from '@/i18n/strings/superpower-chips';
 
 // ─── Schemas (mirrors services/api-gateway/src/routes/ui-navigate-parser.ts) ─
 
@@ -213,7 +215,7 @@ export function UndoChip({
   if (undone) {
     return (
       <span className="inline-flex items-center gap-1 text-tiny text-success">
-        {languagePreference === 'sw' ? 'Imeghairiwa' : 'Undone'}
+        {pickByLocale(languagePreference, S.undone)}
       </span>
     );
   }
@@ -225,7 +227,7 @@ export function UndoChip({
       className="inline-flex items-center gap-1 rounded border border-border bg-surface/60 px-2 py-0.5 text-tiny text-neutral-300 hover:bg-surface"
       data-testid="superpower-undo-chip"
     >
-      {languagePreference === 'sw' ? 'Tendua' : 'Undo'} ({formatCountdown(secsLeft)})
+      {pickByLocale(languagePreference, S.undo)} ({formatCountdown(secsLeft)})
     </button>
   );
 }
@@ -245,6 +247,8 @@ export interface SuperpowerChipsProps {
 export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | null {
   const router = useRouter();
   const [activeUndoIds, setActiveUndoIds] = useState<ReadonlyArray<string>>([]);
+  // Share feedback: null = idle, 'copied' = success, 'failed' = error.
+  const [shareStatus, setShareStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   const onNavigate = useCallback(
     (chip: UiNavigateChip) => {
@@ -258,13 +262,20 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
     [router],
   );
 
-  const onPrefill = useCallback((chip: UiPrefillChip) => {
+  const onPrefill = useCallback(async (chip: UiPrefillChip) => {
     publishFormPrefill({
       formId: chip.formId,
       values: chip.values,
       submitOnAccept: chip.submitOnAccept ?? false,
     });
-    void postJson('/api/v1/owner/superpowers/prefill', chip);
+    const data = await postJson<{ undoJournalIds?: ReadonlyArray<string> }>(
+      '/api/v1/owner/superpowers/prefill',
+      chip,
+    );
+    // Surface undo chip after a successful prefill write (same pattern as bulk).
+    if (data?.undoJournalIds && data.undoJournalIds.length > 0) {
+      setActiveUndoIds(data.undoJournalIds);
+    }
   }, []);
 
   const onHighlight = useCallback((chip: UiHighlightChip) => {
@@ -277,13 +288,25 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
   }, []);
 
   const onShare = useCallback(async (chip: UiShareChip) => {
+    setShareStatus('idle');
     const data = await postJson<{
       shareLinkId: string;
       url: string;
     }>('/api/v1/owner/share-links', chip);
-    if (data?.url && typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(data.url);
+    if (data?.url) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(data.url);
+        } catch {
+          // clipboard write failed — still show URL via alert as fallback
+        }
+      }
+      setShareStatus('copied');
+    } else {
+      setShareStatus('failed');
     }
+    // Auto-clear feedback after 4 seconds.
+    window.setTimeout(() => setShareStatus('idle'), 4000);
   }, []);
 
   const onBulk = useCallback(async (chip: UiBulkChip) => {
@@ -314,7 +337,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
     props.bookmarks.length;
   if (total === 0) return null;
 
-  const sw = props.languagePreference === 'sw';
+  const locale = props.languagePreference;
 
   return (
     <ul
@@ -330,7 +353,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
             data-testid="superpower-chip-navigate"
             title={chip.reason}
           >
-            {sw ? 'Fungua' : 'Open'} {chip.route}
+            {pickByLocale(locale, S.open)} {chip.route}
             {chip.focus ? ` (${chip.focus})` : ''}
           </button>
         </li>
@@ -339,12 +362,12 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
         <li key={`pf_${i}`}>
           <button
             type="button"
-            onClick={() => onPrefill(chip)}
+            onClick={() => void onPrefill(chip)}
             className="inline-flex items-center gap-1 rounded border border-info/40 bg-info/5 px-2.5 py-1 text-xs text-info hover:bg-info/10"
             data-testid="superpower-chip-prefill"
             title={chip.reason ?? ''}
           >
-            {sw ? 'Jaza fomu' : 'Pre-fill form'} ({chip.formId})
+            {pickByLocale(locale, S.prefillForm)} ({chip.formId})
           </button>
         </li>
       ))}
@@ -356,7 +379,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
             className="inline-flex items-center gap-1 rounded border border-border bg-surface/60 px-2.5 py-1 text-xs text-neutral-300 hover:bg-surface"
             data-testid="superpower-chip-highlight"
           >
-            {sw ? 'Onyesha kidokezo' : 'Show me'}
+            {pickByLocale(locale, S.showMe)}
           </button>
         </li>
       ))}
@@ -365,11 +388,22 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
           <button
             type="button"
             onClick={() => void onShare(chip)}
-            className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/5 px-2.5 py-1 text-xs text-warning hover:bg-warning/10"
+            className={`inline-flex items-center gap-1 rounded border px-2.5 py-1 text-xs transition-colors ${
+              shareStatus === 'copied'
+                ? 'border-success/40 bg-success/10 text-success'
+                : shareStatus === 'failed'
+                  ? 'border-destructive/40 bg-destructive/10 text-destructive'
+                  : 'border-warning/40 bg-warning/5 text-warning hover:bg-warning/10'
+            }`}
             data-testid="superpower-chip-share"
             title={chip.reason ?? ''}
+            aria-live="polite"
           >
-            {sw ? 'Tengeneza kiungo' : 'Generate share link'}
+            {shareStatus === 'copied'
+              ? pickByLocale(locale, S.linkCopied)
+              : shareStatus === 'failed'
+                ? pickByLocale(locale, S.shareFailed)
+                : pickByLocale(locale, S.generateShareLink)}
           </button>
         </li>
       ))}
@@ -383,7 +417,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
             title={chip.reason}
           >
             {chip.action} {chip.ids.length}{' '}
-            {sw ? 'vitu' : 'items'}
+            {pickByLocale(locale, S.items)}
           </button>
         </li>
       ))}
@@ -396,7 +430,7 @@ export function SuperpowerChips(props: SuperpowerChipsProps): ReactElement | nul
             data-testid="superpower-chip-bookmark"
             title={chip.reason ?? ''}
           >
-            {sw ? 'Bandika' : 'Pin'} {chip.label ?? chip.entityId}
+            {pickByLocale(locale, S.pin)} {chip.label ?? chip.entityId}
           </button>
         </li>
       ))}

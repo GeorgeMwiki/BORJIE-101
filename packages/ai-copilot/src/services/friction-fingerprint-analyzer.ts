@@ -9,6 +9,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { FRICTION_FINGERPRINT_PROMPT } from '../prompts/copilot-prompts.js';
 
@@ -329,7 +330,7 @@ export class FrictionFingerprintAnalyzer {
 
   constructor(config: FrictionFingerprintAnalyzerConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.3;
     this.maxTokens = config.maxTokens ?? 3500;
   }
@@ -435,13 +436,13 @@ Return the updated complete fingerprint.`,
       messages: [
         {
           role: 'system',
-          content: `You are an AI behavior adjustment system for property management.
-Based on the tenant's friction fingerprint, recommend how to handle the current situation.
+          content: `You are an AI behavior adjustment system for mining-estate operations.
+Based on the buyer's friction fingerprint, recommend how to handle the current situation.
 Return a JSON object with recommendations.`,
         },
         {
           role: 'user',
-          content: `Based on this tenant's friction fingerprint, how should we handle this situation?
+          content: `Based on this buyer's friction fingerprint, how should we handle this situation?
 
 Friction Fingerprint:
 ${JSON.stringify(fingerprint, null, 2)}
@@ -487,14 +488,14 @@ Provide specific, actionable recommendations.`,
       messages: [
         {
           role: 'system',
-          content: `You are a friction detection system for property management communications.
-Analyze messages before they are sent to detect potential friction based on tenant sensitivities.`,
+          content: `You are a friction detection system for mining-estate operations communications.
+Analyze messages before they are sent to detect potential friction based on buyer sensitivities.`,
         },
         {
           role: 'user',
-          content: `Analyze this proposed message for potential friction with this tenant.
+          content: `Analyze this proposed message for potential friction with this buyer.
 
-Tenant Friction Fingerprint (key sensitivities):
+Buyer Friction Fingerprint (key sensitivities):
 - Top sensitivities: ${fingerprint.sensitivityProfile.topSensitivities.join(', ')}
 - Escalation speed: ${fingerprint.escalationProfile.overallSpeed}
 - Communication adjustments: ${JSON.stringify(fingerprint.communicationAdjustments)}

@@ -58,6 +58,8 @@ def run_pcmciplus(
     *,
     max_rows: int,
     pc_alpha: float,
+    allow_local_paths: bool = False,
+    max_bytes: int | None = None,
 ) -> PcmciResponse:
     """Entry point.
 
@@ -65,8 +67,15 @@ def run_pcmciplus(
         req: Validated request.
         max_rows: Hard cap on DataFrame rows.
         pc_alpha: Significance threshold for PCMCI (default 0.05).
+        allow_local_paths: SEC-2 — pass-through to the data loader.
+        max_bytes: SEC-2 — pass-through inline-payload byte cap.
     """
-    df_full = load_dataframe(req.dataRef, max_rows=max_rows)
+    df_full = load_dataframe(
+        req.dataRef,
+        max_rows=max_rows,
+        allow_local_paths=allow_local_paths,
+        max_bytes=max_bytes,
+    )
     df = _project_and_clean(df_full, req.variables)
 
     edges = _run_tigramite(

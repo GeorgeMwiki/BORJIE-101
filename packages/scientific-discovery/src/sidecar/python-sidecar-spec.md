@@ -43,16 +43,16 @@ Request body (matches TS `SidecarRefuteRequest`):
 ```json
 {
   "dag": {
-    "nodes": ["rent", "vacancy", "season"],
+    "nodes": ["royalty_rate", "offtake_delay_days", "season"],
     "edges": [
-      {"from": "rent", "to": "vacancy", "rationale": "price elasticity"},
-      {"from": "season", "to": "vacancy"}
+      {"from": "royalty_rate", "to": "offtake_delay_days", "rationale": "price elasticity"},
+      {"from": "season", "to": "offtake_delay_days"}
     ],
     "candidateEdges": []
   },
   "dataRef": "inline://<csv-or-rows>",
-  "treatment": "rent",
-  "outcome": "vacancy",
+  "treatment": "royalty_rate",
+  "outcome": "offtake_delay_days",
   "estimator": "dowhy_linear"
 }
 ```
@@ -97,7 +97,7 @@ Request body (matches TS `SidecarPcmciRequest`):
 
 ```json
 {
-  "variables": ["rent", "vacancy", "season"],
+  "variables": ["royalty_rate", "offtake_delay_days", "season"],
   "dataRef": "inline://<csv-or-rows>",
   "tauMax": 5
 }
@@ -111,9 +111,9 @@ Response `200 OK` (matches TS `SidecarPcmciResponse`):
 ```json
 {
   "dag": {
-    "nodes": ["rent", "vacancy", "season"],
+    "nodes": ["royalty_rate", "offtake_delay_days", "season"],
     "edges": [
-      {"from": "season", "to": "vacancy", "rationale": "lag=1, p=0.012"}
+      {"from": "season", "to": "offtake_delay_days", "rationale": "lag=1, p=0.012"}
     ],
     "candidateEdges": []
   },

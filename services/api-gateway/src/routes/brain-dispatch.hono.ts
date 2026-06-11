@@ -74,11 +74,81 @@ import {
   createBrainLlmClient,
   BRAIN_LLM_MODELS,
 } from '../services/brain/llm-call';
+// SEC-4 / INV-H — IP-egress output firewall. The sub-MD chain returns
+// Anthropic-generated free text (proposal.summary / steps[].description /
+// steps[].expectedImpact / artifact.skillName) in the `c.json` body. Internal
+// cognition / secrets / cross-tenant leakage in a sub-MD chain output must NOT
+// reach the client raw, so every LLM-derived string in the response is passed
+// through the FAIL-CLOSED guard before the body is built. DEFAULT-ON;
+// kill-switch `BORJIE_EGRESS_FILTER`. See `composition/egress-filter-wiring.ts`.
+import { getEgressFilter } from '../composition/egress-filter-wiring.js';
+// INPUT CONTAINMENT (CLOSE-G) — ingress prompt-injection / jailbreak guard on
+// the free-text `instruction` BEFORE the VP orchestrate, mirroring brain.hono
+// /turn. CRITICAL → refuse with single-language copy (the VP never sees it);
+// lower severities → orchestrate on the detector-redacted text. DEFAULT-ON;
+// fail-OPEN-but-logged.
+import {
+  applyIngressGuard,
+  pickIngressGuardLang,
+} from '../composition/ingress-guard-apply.js';
 
 const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   name: 'brain-dispatch',
 });
+
+/** Fail-closed placeholder when the deep guard wrapper itself throws. */
+const DISPATCH_EGRESS_FAIL_CLOSED = '[redacted]';
+
+/**
+ * Guard one text span (final guard, persists block rows). FAIL-CLOSED: the
+ * filter returns a redacted placeholder on any internal fault, and this
+ * wrapper try/catches so a construction fault also fails closed to
+ * `[redacted]` rather than leaking the raw model text.
+ */
+function guardDispatchText(text: string, tenantId: string): string {
+  if (typeof text !== 'string' || text.length === 0) return text;
+  try {
+    return getEgressFilter().guardFinal(text, tenantId).text;
+  } catch (err) {
+    logger.error(
+      {
+        wiring: 'egress-filter',
+        tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'brain-dispatch: egress guard threw — failing closed (redacting span)',
+    );
+    return DISPATCH_EGRESS_FAIL_CLOSED;
+  }
+}
+
+/**
+ * Recursively guard EVERY string value in an arbitrary JSON-shaped value,
+ * preserving structure (objects/arrays rebuilt immutably with guarded leaves).
+ * Used over the sub-MD result + plan payload so any LLM-derived free text
+ * (proposal.summary / step.description / step.expectedImpact / artifact text /
+ * rationale / summary) is filtered without risking a JSON-shape break — values
+ * are guarded in place, keys are left untouched. Pure (immutability): returns a
+ * NEW value, never mutates the input.
+ */
+function deepGuard<T>(value: T, tenantId: string): T {
+  if (typeof value === 'string') {
+    return guardDispatchText(value, tenantId) as unknown as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((v) => deepGuard(v, tenantId)) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = deepGuard(v, tenantId);
+    }
+    return out as unknown as T;
+  }
+  // number / boolean / null / undefined — not a leak vector, pass through.
+  return value;
+}
 
 // ── role gate ──────────────────────────────────────────────────────────────
 // Tier-gate (task spec): owner / admin only. Mirrors org-admin.hono.ts and
@@ -220,8 +290,15 @@ function toScopeFilter(scope: ScopeContext): ScopeFilter {
 
 interface SubMdStepResult {
   readonly subMdId: string;
-  readonly status: 'completed' | 'failed' | 'skipped';
+  readonly status: 'completed' | 'failed' | 'skipped' | 'insufficient_context';
   readonly description?: string;
+  /**
+   * Stable machine code accompanying a non-`completed` status. For
+   * `insufficient_context` it is always `INSUFFICIENT_CONTEXT` — the
+   * observe() stage yielded ZERO in-scope events, so the redesign LLM is
+   * NOT called and no proposal is fabricated from an empty graph.
+   */
+  readonly code?: string;
   readonly proposal?: {
     readonly summary: string;
     readonly steps: ReadonlyArray<{
@@ -280,12 +357,32 @@ async function runSubMdChain(args: {
         llm,
       });
 
-      // Four-stage pipeline. With no event-bus port the observe stage yields
-      // an empty in-scope window; map produces an empty graph; redesign still
-      // calls the LLM port (real or degraded); automate compiles a DRAFT
-      // artifact — never auto-promoted.
+      // Four-stage pipeline: observe → map → redesign → automate.
       const events: ObservedEvent[] = [];
       for await (const evt of subMd.observe(ctx)) events.push(evt);
+
+      // Hard guard against fabrication from nothing. If observe() yielded ZERO
+      // in-scope events (e.g. no event-bus port wired for this sub-MD bubble),
+      // the graph is empty and any proposal the redesign LLM emits would be a
+      // hallucination with no grounding. Surface a structured
+      // `insufficient_context` result and SKIP the redesign/automate LLM call
+      // for this sub-MD — never invent proposals from an empty graph.
+      if (events.length === 0) {
+        logger.info(
+          { subMdId: spawn.subMdId, correlationId: ctx.correlationId },
+          'brain-dispatch: sub-MD observe() yielded zero events — skipping fabrication',
+        );
+        results.push(
+          Object.freeze({
+            subMdId: spawn.subMdId,
+            status: 'insufficient_context',
+            code: 'INSUFFICIENT_CONTEXT',
+            ...(spawn.description ? { description: spawn.description } : {}),
+          }),
+        );
+        continue;
+      }
+
       const graph = await subMd.map(Object.freeze(events), ctx);
       const proposal = await subMd.redesign(graph, ctx);
       const artifact = await subMd.automate(proposal, ctx);
@@ -310,6 +407,11 @@ async function runSubMdChain(args: {
         }),
       );
     } catch (err) {
+      // Log the raw cause server-side (pino) only. The per-step `error` field is
+      // returned to the client (deep-guarded, but the egress filter strips
+      // IP-classes, not generic operational error text), so we surface a STABLE
+      // machine code instead of the raw `err.message` — no DB/driver/internal
+      // detail leaks while the client still gets a renderable failed signal.
       logger.error(
         {
           subMdId: spawn.subMdId,
@@ -322,7 +424,7 @@ async function runSubMdChain(args: {
           subMdId: spawn.subMdId,
           status: 'failed',
           ...(spawn.description ? { description: spawn.description } : {}),
-          error: err instanceof Error ? err.message : String(err),
+          error: 'sub_md_pipeline_failed',
         }),
       );
     }
@@ -361,6 +463,28 @@ app.post(
         return badRequest(c, pick(COPY.unknownVp, lang));
       }
 
+      // INPUT CONTAINMENT (CLOSE-G) — run the blessed ingress guard on the
+      // free-text instruction BEFORE the VP turns it into a plan. CRITICAL
+      // prompt-injection / jailbreak → refuse with single-language copy (the VP
+      // never sees it); lower severities → orchestrate on the detector-redacted
+      // text. Fail-OPEN-but-logged inside the guard.
+      const ingress = await applyIngressGuard({
+        userText: instruction,
+        tenantId: auth.tenantId,
+        userId: auth.userId ?? null,
+        lang: pickIngressGuardLang(c.req.header('accept-language') ?? lang),
+      });
+      if (ingress.refused) {
+        return c.json(
+          {
+            success: false,
+            error: { code: 'INPUT_GUARD_REFUSED', message: ingress.refusalMessage },
+          },
+          403,
+        );
+      }
+      const guardedInstruction = ingress.text;
+
       const correlationId = threadId ?? `dispatch-${Date.now()}`;
       const scope: ScopeContext = Object.freeze({
         kind: 'tenant',
@@ -378,7 +502,9 @@ app.post(
         });
         const intent: OwnerIntent = {
           kind: kind as OwnerIntentKind,
-          text: instruction,
+          // CLOSE-G — the VP orchestrates on the ingress-guarded instruction
+          // (offending spans redacted on a lower-severity hit).
+          text: guardedInstruction,
           scope,
           correlationId,
         };
@@ -418,6 +544,23 @@ app.post(
       const completed = subMdResults.filter((r) => r.status === 'completed').length;
       const skipped = subMdResults.filter((r) => r.status === 'skipped').length;
       const failed = subMdResults.filter((r) => r.status === 'failed').length;
+      const insufficientContext = subMdResults.filter(
+        (r) => r.status === 'insufficient_context',
+      ).length;
+
+      // SEC-4 — recursively guard the LLM-derived free text before it egresses.
+      // The VP rationale/summary/gaps and the sub-MD chain results
+      // (proposal.summary / step.description / step.expectedImpact / artifact)
+      // are all model-generated, so they pass the FAIL-CLOSED filter. Static
+      // copy (vp, ids, counts, registry constants, bilingual notices) is left
+      // unguarded — it is deterministic and never carries cognition/secrets.
+      const guardedSubMdResults = deepGuard(subMdResults, auth.tenantId);
+      const guardedRationale = guardDispatchText(plan.rationale, auth.tenantId);
+      const guardedGaps = deepGuard(plan.gaps, auth.tenantId);
+      const guardedSummary =
+        plan.summary !== undefined
+          ? guardDispatchText(plan.summary, auth.tenantId)
+          : undefined;
 
       return c.json(
         {
@@ -428,17 +571,18 @@ app.post(
             plan: {
               vpName: plan.vpName,
               intentKind: plan.intentKind,
-              rationale: plan.rationale,
+              rationale: guardedRationale,
               spawnCount: plan.spawns.length,
-              ...(plan.summary ? { summary: plan.summary } : {}),
+              ...(guardedSummary !== undefined ? { summary: guardedSummary } : {}),
             },
-            gaps: plan.gaps,
-            subMdResults,
+            gaps: guardedGaps,
+            subMdResults: guardedSubMdResults,
             summary: {
               spawns: plan.spawns.length,
               completed,
               skipped,
               failed,
+              insufficientContext,
               gaps: plan.gaps.length,
             },
             knownVps: VP_REGISTRY_NAMES,

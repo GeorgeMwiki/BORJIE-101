@@ -9,7 +9,9 @@
  * UI:
  *   - Session summary (id, first/last capture, duration, chunk count)
  *   - Player frame (rrweb-player; lazy-loaded so SSR doesn't drag in
- *     the heavy DOM-mutation runtime)
+ *     the heavy DOM-mutation runtime). When rrweb-player is not
+ *     installed, an honest "replay unavailable" state is shown instead
+ *     of a silent blank div.
  *   - Chunk inventory with bytes + event count per chunk
  *
  * The events stream is read SEPARATELY from the sensorium 14-event log;
@@ -53,6 +55,7 @@ export function SessionReplayViewer({
   const [events, setEvents] = useState<unknown[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [playerUnavailable, setPlayerUnavailable] = useState<boolean>(false);
   const playerHostRef = useRef<HTMLDivElement | null>(null);
 
   const base = useMemo(
@@ -99,15 +102,16 @@ export function SessionReplayViewer({
             { credentials: 'include' },
           );
           if (!blobRes.ok) {
-            console.warn('session-replay: chunk fetch failed', c.id);
+            // Chunk fetch failed — skip silently; the chunk inventory
+            // table will still show the chunk's metadata.
             continue;
           }
           const text = await blobRes.text();
           try {
             const decoded = JSON.parse(text) as unknown[];
             if (Array.isArray(decoded)) accumulated.push(...decoded);
-          } catch (parseErr) {
-            console.warn('session-replay: chunk parse failed', c.id, parseErr);
+          } catch {
+            // Unparseable chunk — skip silently.
           }
         }
         if (!cancelled) setEvents(accumulated);
@@ -126,6 +130,9 @@ export function SessionReplayViewer({
   }, [sessionId, base]);
 
   // Lazy-load rrweb-player + render once events are available.
+  // When the package is not installed (expected until the dep is
+  // added to package.json + pnpm-installed) we surface an honest
+  // "replay unavailable" state rather than a silent blank div.
   useEffect(() => {
     if (events.length === 0) return;
     if (!playerHostRef.current) return;
@@ -134,10 +141,9 @@ export function SessionReplayViewer({
     void (async () => {
       try {
         // Indirect import so the bundler does NOT static-resolve
-        // rrweb-player at build time — the dep is added to
-        // package.json but not yet pnpm-installed.
+        // rrweb-player at build time — the dep may not be installed yet.
         const playerModuleId = 'rrweb-player';
-        // @ts-ignore — runtime-only dep; absence is expected.
+        // @ts-ignore — runtime-only dep; absence is expected until installed.
         const mod = await import(/* @vite-ignore */ playerModuleId);
         if (destroyed || !playerHostRef.current) return;
         const PlayerCtor =
@@ -174,9 +180,13 @@ export function SessionReplayViewer({
               /* swallow */
             }
           };
+        } else {
+          // Module loaded but no usable constructor found — mark unavailable.
+          if (!destroyed) setPlayerUnavailable(true);
         }
-      } catch (loadErr) {
-        console.warn('session-replay: rrweb-player unavailable', loadErr);
+      } catch {
+        // Package not installed or failed to load — show honest state.
+        if (!destroyed) setPlayerUnavailable(true);
       }
     })();
     return () => {
@@ -240,7 +250,27 @@ export function SessionReplayViewer({
         className="rounded-md border border-border bg-surface-sunken overflow-hidden"
         style={{ minHeight: 480 }}
       >
-        <div ref={playerHostRef} data-testid="session-replay-player" />
+        {playerUnavailable ? (
+          <div
+            className="flex h-full min-h-[480px] flex-col items-center justify-center gap-2 p-6 text-center"
+            data-testid="session-replay-unavailable"
+          >
+            <p className="text-sm font-medium text-neutral-300">
+              Replay player unavailable
+            </p>
+            <p className="max-w-sm text-xs text-neutral-500">
+              The rrweb-player package is not installed in this environment.
+              Raw events are captured and the chunk inventory below is
+              accurate — playback requires{' '}
+              <code className="rounded bg-neutral-800 px-1 py-0.5">
+                rrweb-player
+              </code>{' '}
+              to be added to the admin-web dependencies.
+            </p>
+          </div>
+        ) : (
+          <div ref={playerHostRef} data-testid="session-replay-player" />
+        )}
       </section>
 
       <section aria-label="Chunk inventory" className="space-y-2">

@@ -25,6 +25,17 @@ export interface MessageBubbleProps {
   readonly streaming?: boolean;
   readonly children: ReactNode;
   readonly testId?: string;
+  /**
+   * Per-message action row (copy / regenerate / voice). Rendered AFTER the
+   * text on an assistant row — hover-reveal on desktop, always-visible on
+   * mobile (the caller owns the contents; this component owns the placement).
+   */
+  readonly actions?: ReactNode;
+  /**
+   * Trailing label shown once the turn completes (e.g. "Mr. Mwikila ·
+   * <persona>"). Fades in with the action row; omitted while streaming.
+   */
+  readonly trailingLabel?: ReactNode;
 }
 
 function PersonaAvatar(): ReactElement {
@@ -71,49 +82,92 @@ export function MessageBubble({
   streaming = false,
   children,
   testId,
+  actions,
+  trailingLabel,
 }: MessageBubbleProps): ReactElement {
   const isOwner = role === 'user';
-  const label = isOwner ? 'Owner' : 'Borjie Teach';
+  const label = isOwner ? 'Owner' : 'Mr. Mwikila';
+
+  // OWNER row — keep the compact, right-aligned bubble (asymmetric corners,
+  // amber tint). ASSISTANT row — flat, full-width, no bubble chrome: a 28px
+  // avatar gutter, optional faint surface, body that reads like a document.
+  if (isOwner) {
+    return (
+      <div
+        data-testid={testId ?? `home-chat-bubble-${role}`}
+        data-streaming={streaming || undefined}
+        data-errored={errored || undefined}
+        className="group relative flex animate-fade-up justify-end gap-3"
+      >
+        <div className="max-w-[80%] rounded-2xl rounded-tr-sm bg-warning/15 px-4 py-2.5 text-sm leading-relaxed text-foreground ring-1 ring-warning/25">
+          {children}
+          <p className="mt-1.5 text-[10px] text-muted-foreground/70">
+            <span className="sr-only">{label} · </span>
+            {fmtTime(createdAt)}
+          </p>
+        </div>
+        <OwnerAvatar />
+      </div>
+    );
+  }
 
   return (
     <div
       data-testid={testId ?? `home-chat-bubble-${role}`}
       data-streaming={streaming || undefined}
       data-errored={errored || undefined}
-      className={cn('relative flex gap-3 animate-fade-up', isOwner ? 'justify-end' : 'justify-start')}
+      className="group relative flex w-full animate-fade-up justify-start gap-3"
     >
-      {!isOwner ? <PersonaAvatar /> : null}
-
-      <div
-        className={cn(
-          'max-w-[80%] text-sm leading-relaxed',
-          isOwner
-            ? 'rounded-2xl rounded-tr-sm bg-warning/15 ring-1 ring-warning/25 text-foreground px-4 py-2.5'
-            : errored
-              ? 'rounded-2xl rounded-tl-sm bg-destructive/10 ring-1 ring-destructive/30 text-foreground px-4 py-2.5'
-              : 'rounded-2xl rounded-tl-sm bg-surface/70 dark:bg-white/[0.04] text-foreground px-4 py-2.5',
-        )}
-      >
-        {children}
-        {streaming ? (
-          <span
-            aria-hidden="true"
-            data-testid="home-chat-stream-cursor"
-            className="inline-block w-1.5 h-4 ml-0.5 bg-warning animate-pulse rounded-sm align-text-bottom"
-          />
-        ) : null}
-        <p
+      <PersonaAvatar />
+      <div className="min-w-0 flex-1">
+        {/* Flat assistant register (Claude.ai / Linear): the answer reads as a
+            document in the reading spine — NO bubble, bg, or padding box. The
+            error state earns a subtle left-accent treatment, not a bubble. */}
+        <div
           className={cn(
-            'text-[10px] mt-1.5',
-            isOwner ? 'text-muted-foreground/70' : 'text-muted-foreground/60',
+            'text-foreground transition-colors',
+            errored &&
+              'rounded-lg border-l-2 border-destructive/50 bg-destructive/5 py-2 pl-3',
           )}
         >
-          <span className="sr-only">{label} · </span>
-          {fmtTime(createdAt)}
-        </p>
-      </div>
+          {children}
+          {streaming ? (
+            <span
+              aria-hidden="true"
+              data-testid="home-chat-stream-cursor"
+              className="home-chat-caret"
+            />
+          ) : null}
+        </div>
 
-      {isOwner ? <OwnerAvatar /> : null}
+        {/* Meta row — persona label (on a completed turn) or timestamp, plus
+            the per-message action row (copy / regenerate). After the text;
+            hover-reveal on desktop, always-visible on mobile. Hidden while
+            streaming (the caret carries the live state). */}
+        {!streaming ? (
+          <div className="mt-1.5 flex items-center gap-2 px-1">
+            {trailingLabel ? (
+              <span
+                data-testid="home-chat-persona-label"
+                className="animate-fade-in text-[10px] text-muted-foreground/70"
+              >
+                <span className="sr-only">{label} · </span>
+                {trailingLabel}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/60">
+                <span className="sr-only">{label} · </span>
+                {fmtTime(createdAt)}
+              </span>
+            )}
+            {actions ? (
+              <span className="flex items-center gap-1 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
+                {actions}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -123,22 +177,24 @@ export interface TypingBubbleProps {
 }
 
 export function TypingBubble({ language }: TypingBubbleProps): ReactElement {
+  const thinking = language === 'sw' ? 'Inafikiri…' : 'Thinking…';
   return (
     <div
       data-testid="home-chat-typing"
-      className="flex justify-start animate-fade-up"
+      className="flex w-full animate-fade-up justify-start gap-3"
     >
-      <div className="flex items-center gap-3">
-        <PersonaAvatar />
-        <div className="flex flex-col gap-1 px-4 py-3 rounded-2xl rounded-tl-sm bg-surface/70 dark:bg-white/[0.04]">
-          <span className="text-xs text-muted-foreground">
-            {language === 'sw' ? 'Inafikiri…' : 'Thinking…'}
-          </span>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-warning animate-pulse" style={{ animationDelay: '0ms' }} />
-            <span className="w-2 h-2 rounded-full bg-warning animate-pulse" style={{ animationDelay: '150ms' }} />
-            <span className="w-2 h-2 rounded-full bg-warning animate-pulse" style={{ animationDelay: '300ms' }} />
-          </div>
+      <PersonaAvatar />
+      <div className="min-w-0 flex-1 rounded-xl bg-surface/40 px-3 py-2.5">
+        <span className="sr-only" role="status" aria-live="polite">
+          {thinking}
+        </span>
+        {/* Shimmer skeleton lines — a premium "drafting" affordance that
+            replaces the three bouncing dots. Decorative; the SR text above
+            carries the status. */}
+        <div className="flex flex-col gap-2" aria-hidden="true">
+          <span className="home-chat-skeleton h-3 w-3/4" />
+          <span className="home-chat-skeleton h-3 w-full" />
+          <span className="home-chat-skeleton h-3 w-2/5" />
         </div>
       </div>
     </div>

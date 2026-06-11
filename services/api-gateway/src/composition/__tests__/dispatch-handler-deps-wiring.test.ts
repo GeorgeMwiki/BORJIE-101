@@ -11,16 +11,15 @@
  *   - mining bulk_mark_licences_for_renewal → INSERTs one task per EXISTING
  *                                              licence, skips unknown ids.
  *   - every write binds `app.current_tenant_id` (RLS) inside its tx.
- *   - estate lease-application + receipt stores fail loud
- *     (NotYetWiredError) instead of fabricating a fake id.
+ *
+ * The pre-Borjie property-era ESTATE dispatch handlers were excised — a
+ * mining estate's real money (royalty / sales) flows through
+ * `LedgerService.post()` in `services/payments-ledger`, not through any
+ * dispatch handler here.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import {
-  createRealMiningHandlerDeps,
-  createRealEstateHandlerDeps,
-  NotYetWiredError,
-} from '../dispatch-handler-deps-wiring.js';
+import { createRealMiningHandlerDeps } from '../dispatch-handler-deps-wiring.js';
 import {
   createInMemoryCrossPortalBus,
   tenantTopic,
@@ -244,72 +243,5 @@ describe('createRealMiningHandlerDeps — real DB writes', () => {
     const insertCount = (sql.match(/INSERT INTO tasks/gi) ?? []).length;
     expect(insertCount).toBe(2);
     expect(sql).toMatch(/INSERT INTO ai_audit_chain/i);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────
-// ESTATE — honest failure at the un-wired seams
-// ─────────────────────────────────────────────────────────────────────
-
-describe('createRealEstateHandlerDeps — honest-failure boundary', () => {
-  it('lease-application store throws NotYetWiredError (no fake id)', async () => {
-    const db = makeFakeDb();
-    const deps = createRealEstateHandlerDeps({
-      db: db as never,
-      crossPortalBus: Promise.resolve(createInMemoryCrossPortalBus()),
-    });
-
-    await expect(
-      deps.createLeaseApplication.applications.draftApplication({
-        tenantId: TENANT,
-        moduleId: 'ESTATE',
-        tenantEntityId: 'ce-1',
-        unitId: 'unit-1',
-        startDate: '2026-09-01',
-        proposedTermMonths: 12,
-        monthlyRent: { amount: 200000, currencyCode: 'TZS' },
-      }),
-    ).rejects.toBeInstanceOf(NotYetWiredError);
-  });
-
-  it('receipt stores throw NotYetWiredError (no fake id)', async () => {
-    const db = makeFakeDb();
-    const deps = createRealEstateHandlerDeps({
-      db: db as never,
-      crossPortalBus: Promise.resolve(createInMemoryCrossPortalBus()),
-    });
-
-    await expect(
-      deps.postReceiptDraft.receipts.draft({
-        tenantId: TENANT,
-        customerEntityId: 'ce-1',
-        leaseId: null,
-        amount: 200000,
-        currencyCode: 'TZS',
-        paymentDate: '2026-09-01',
-        externalRef: null,
-        ledgerDraftId: 'ld-1',
-      }),
-    ).rejects.toBeInstanceOf(NotYetWiredError);
-  });
-
-  it('estate core_entity createPerson writes a real row (tenant-bound)', async () => {
-    const db = makeFakeDb();
-    const deps = createRealEstateHandlerDeps({
-      db: db as never,
-      crossPortalBus: Promise.resolve(createInMemoryCrossPortalBus()),
-    });
-
-    const created = await deps.createLeaseApplication.coreEntity.createPerson({
-      tenantId: TENANT,
-      moduleId: 'ESTATE',
-      displayName: 'Jane Miner',
-      customFields: { contact_phone: '+255700000000' },
-    });
-
-    expect(created.id).toMatch(/^ce_/);
-    const sql = statementTexts(db);
-    expect(sql).toMatch(/INSERT INTO core_entity/i);
-    expect(sql).toMatch(/set_config\(\s*'app.current_tenant_id'/i);
   });
 });

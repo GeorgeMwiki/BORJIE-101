@@ -49,6 +49,14 @@ export {
 } from './awareness-scopes.js';
 export { checkInviolable, type InviolableVerdict } from './inviolable.js';
 export {
+  checkBodyChangeInviolable,
+  type BodyChangeDescriptor,
+  type BodyChangeInviolableVerdict,
+  type BodyChangeKind,
+  type BodyChangeCeiling,
+  type BodyChangeForbiddenCategory,
+} from './inviolable.js';
+export {
   NOT_YET_WIRED_REASON,
   NotYetWiredError,
   isNotYetWired,
@@ -76,13 +84,17 @@ export {
 export {
   checkSelfAwareness,
   renderModuleInventoryBlock,
+  renderSelfAwarenessBlock,
   describeCapabilities,
+  describeSelf,
   groupByCategory,
   BRAIN_MODULES,
   type SelfAwarenessInput,
   type SelfAwarenessOutput,
   type BrainModule,
   type BrainModuleCategory,
+  type BodySchemaReader,
+  type BodySchemaSnapshot,
 } from './self-awareness.js';
 export {
   inferMindState,
@@ -208,6 +220,12 @@ export {
 } from './continuous-grading.js';
 export {
   createBrainKernel,
+  // Honest-epistemic self-model frame builder (INV-H). Exported so a non-kernel
+  // brain surface (the owner `/brain/teach` direct-LLM stream) can emit the
+  // IDENTICAL `self_model` frame shape the kernel jarvis/admin path emits, from
+  // the honest signals it computes — never re-implementing the posture/axes
+  // surfacing logic. Surfaces POSTURE + axes only, never the audit math.
+  buildSelfModelFrame,
   type BrainKernel,
   type BrainKernelDeps,
 } from './kernel.js';
@@ -269,6 +287,7 @@ export {
 } from './proactive-nudge.js';
 export {
   createAnthropicSensor,
+  buildAnthropicSystemField,
   ANTHROPIC_SENSOR_PRESETS,
   type AnthropicSensorConfig,
   type AnthropicMessagesClient,
@@ -276,6 +295,9 @@ export {
   type AnthropicMessageResponse,
   type AnthropicRequestContentBlock,
   type AnthropicRequestMessage,
+  type AnthropicSystemBlock,
+  type AnthropicSystemField,
+  type AnthropicCacheControl,
 } from './sensors/anthropic-sensor.js';
 export {
   createAnthropicJudge,
@@ -514,6 +536,82 @@ export {
  * `/src/core/credit-mind/world-model/` borrower-trajectory pattern.
  */
 export * as worldModel from './world-model/index.js';
+
+/**
+ * Situational model (Wave 1, organ #2) — the standing, decaying, per-tenant
+ * situational-state buffer the resident `EstateMind` Slow Loop WRITES every
+ * tick and the per-request `think(req)` Fast Loop READS. Each estate entity
+ * (licence / counterparty / site / arrears / equipment / cash) carries an
+ * ACT-R activation field so "what is salient now" is a COMPUTED quantity.
+ * Additive + read-only for the Fast Loop; default behaviour is unchanged until
+ * the resident loop is enabled (flag BORJIE_ESTATE_MIND).
+ */
+export * as situationalModel from './situational-model/index.js';
+
+/**
+ * Motivational subsystem (Wave 1) — the standing estate DRIVES (cash-runway,
+ * licence-currency, safety, offtake-coverage, royalty-currency,
+ * equipment-health). Each drive evaluates its satisfaction over the
+ * situational model; an UNSATISFIED drive generates a goal with NO incoming
+ * trigger — the organ behind "loops the user has no idea about." Pure.
+ */
+export * as motivation from './motivation/index.js';
+
+/**
+ * Loop Economy — the cognitive-loop SUBSTRATE. A "loop" is no longer an
+ * implicit hand-wired worker: `LoopSpec` is a declarative, registrable,
+ * schedulable PRIMITIVE (the loop-of-loops UNIT). `createLoopRegistry` holds a
+ * bounded population (synaptic-pruning cap); `scheduleLoops` is a PURE selector
+ * that RETURNS the due loops + their decided action descriptors for the host to
+ * run through the EXISTING governed membrane — it never executes `act` itself.
+ * Side-effect-free + CI-inert; a later wave adds the loop-former that
+ * synthesises `LoopSpec`s. `createForecastSurpriseLoop` is the proof-of-concept
+ * that wraps the shipped `forecast-surprise` drive as a builtin `LoopSpec`
+ * (additive — the drive is unchanged).
+ */
+export * as loopEconomy from './loop-economy/index.js';
+
+/**
+ * EstateMind (Wave 1, organ #1) — the resident per-tenant Slow Loop:
+ * PERCEIVE → ORIENT → evaluate drives → emit goals → surface as PROPOSALS
+ * through the EXISTING gated proactive sink. Holds state between ticks (the
+ * situational model IS the state). It NEVER executes a sovereign/money/licence
+ * action (those stay HITL). Behind flag BORJIE_ESTATE_MIND (default OFF).
+ */
+export * as estateMind from './estate-mind/index.js';
+
+/**
+ * Capability Gap Register (Loop A, P0) — the metacognitive self-model. The MD
+ * durably records what it CANNOT yet do (keyed on the blocker) and
+ * auto-completes the deferred work when the blocker clears, under EXTERNAL
+ * verification. `gap-registry-watcher` is the pure blocker-clear probe folded
+ * into the EstateMind RECONCILE step; `gap-auto-completer` is the
+ * verifier-gated completion path (sovereign-parks, stale-resume-revalidates,
+ * no false-green). See Docs/research/THE_METACOGNITIVE_SELF_MODEL.md §3.
+ */
+export {
+  evaluateGapClears,
+  isTriggerSatisfied,
+  type GapKind,
+  type UnblockTriggerKind,
+  type UnblockTrigger,
+  type GapRow,
+  type CapabilitySnapshot,
+  type GapCleared,
+  type GapWatchResult,
+} from './gap-registry-watcher.js';
+export {
+  createGapAutoCompleter,
+  type GapAutoCompleter,
+  type GapAutoCompleterDeps,
+  type GapCompletionOutcome,
+  type GapCompletionResult,
+  type DeferredContinuation,
+  type ReattemptResult,
+  type ExternalVerifier,
+  type VerifierVerdict,
+  type GapStatusSink,
+} from './gap-auto-completer.js';
 
 /**
  * Introspection layer — the brain's "self-knowledge" pattern.
@@ -780,16 +878,32 @@ export {
  */
 export {
   assembleSystemPrompt,
+  assembleSystemPromptBlocks,
   systemFragmentOrderSignature,
   SYSTEM_FRAGMENT_SLOTS,
+  STABLE_PREFIX_SLOTS,
+  DYNAMIC_FRAGMENT_SLOTS,
+  STABLE_PREFIX_SLOT_COUNT,
   SYSTEM_FRAGMENT_ORDER_VERSION,
   IP_PROTECTION_LAYER,
   SECURITY_BOUNDARY_LAYER,
   SECURITY_LAYERS,
   type SystemFragmentSlot,
   type SystemFragments,
+  type SystemPromptSegment,
   type AssembleSystemPromptOptions,
 } from './prompt-layers.js';
+
+/**
+ * BP-3 — structural prompt spotlighting (datamarking). Fences untrusted
+ * retrieved / grounding / tool content in a fixed sentinel the
+ * SECURITY_BOUNDARY_LAYER names so the model treats it as data-only.
+ */
+export {
+  spotlight,
+  UNTRUSTED_OPEN,
+  UNTRUSTED_CLOSE,
+} from './prompt-spotlight.js';
 
 /**
  * LP-04 — intent verification port (post-LLM / pre-exec tool-call gate).
@@ -822,6 +936,33 @@ export {
   type SemanticCacheReadResult,
   type SemanticCacheWriteArgs,
 } from './semantic-cache-port.js';
+
+/**
+ * Latency wins — orchestrator-path semantic-cache lighting + fast-path
+ * tiered routing + model tiering. Behaviour changes (fast-path / model
+ * tiering) are env-flag gated, defaulting to CURRENT behaviour.
+ */
+export {
+  buildOrchestratorScope,
+  readOrchestratorSemanticCache,
+  writeOrchestratorSemanticCache,
+  isEvidenceBackedAnswer,
+  markCacheHit,
+  resolveTurnLocale,
+  type OrchestratorCacheReadResult,
+} from './orchestrator-fast-cache.js';
+export {
+  decideFastPath,
+  resolveFastPathEnabled,
+  type FastPathDecision,
+} from './fast-path-router.js';
+export {
+  selectModelTier,
+  resolveModelIdForTier,
+  resolveModelTieringEnabled,
+  type ModelTier,
+  type ModelTierDecision,
+} from './model-tiering.js';
 
 /**
  * LP-05 / LP-17 — learning-loop port. The live call path that turns each
@@ -861,3 +1002,48 @@ export {
   type ReflectiveStorePort,
   type ReflectiveNoteLike,
 } from './learning-loop-port.js';
+
+/**
+ * R7 — Proof-carrying membrane (the Rung-5→9 keystone). The unified,
+ * refuse-by-default verifier that EVERY higher-rung action / self-edit
+ * passes through, emitting a signed, hash-chained safety certificate. Wired
+ * in SHADOW mode (computes + emits + logs divergence; never enforces) so it
+ * changes zero allow/deny behavior — the existing scattered checks remain
+ * the sole deciders until a later validated wave flips it to enforce.
+ *
+ * See `kernel/membrane/` (certificate.ts + gatekeeper.ts + shadow.ts).
+ */
+export {
+  SAFETY_INVARIANT_NAMES,
+  InvariantResultSchema,
+  SafetyVerdictSchema,
+  SafetyCertificateSchema,
+  computeVerdict,
+  buildCertificate,
+  createGatekeeper,
+  runShadowGatekeeper,
+  type SafetyInvariantName,
+  type InvariantResult,
+  type SafetyVerdict,
+  type SafetyCertificate,
+  type BuildCertificateInput,
+  type Gatekeeper,
+  type GatekeeperDeps,
+  type GatekeeperAction,
+  type GatekeeperEvaluateOptions,
+  type PolicyGateStatusPort,
+  type InviolableStatusPort,
+  type KillswitchLevelPort,
+  type TenantScopeConsistentPort,
+  type EvidenceChainPort,
+  type LocalePurePort,
+  type EgressCleanPort,
+  type KAnonPort,
+  type NoRailMutationPort,
+  type ShadowGatekeeperDeps,
+  type RunShadowGatekeeperInput,
+  type SafetyCertificateSink,
+  type DivergenceReporter,
+  type ShadowDivergenceEvent,
+  type ExistingDecisionOutcome,
+} from './membrane/index.js';

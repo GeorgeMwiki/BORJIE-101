@@ -22,7 +22,7 @@ export interface WriteReflectionDeps {
   readonly now?: () => Date;
 }
 
-const SYSTEM_PROMPT = `You are reflecting on an autonomous action the property-management
+const SYSTEM_PROMPT = `You are reflecting on an autonomous action the mining-estate
 AI took. Given the action context + outcome, return ONLY JSON matching:
 {
   "what": string,     // one-sentence summary of what was done

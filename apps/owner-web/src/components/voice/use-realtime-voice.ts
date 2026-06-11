@@ -124,20 +124,31 @@ export function useRealtimeVoice(
     setState((prev) => reduceEvent(prev, event));
   }, []);
 
-  const handleAudio = useCallback((pcm: ArrayBuffer): void => {
-    refs.current.player?.enqueue(pcm);
+  const handleAudio = useCallback((pcm: ArrayBuffer, isFinal: boolean): void => {
+    // The backend turn-end marker is an empty `isFinal` audio frame — it
+    // carries no PCM and returns us from `speaking` to `live`.
+    if (isFinal && pcm.byteLength === 0) {
+      setState((prev) =>
+        prev.status === 'speaking' ? { ...prev, status: 'live' } : prev,
+      );
+      return;
+    }
+    if (pcm.byteLength > 0) refs.current.player?.enqueue(pcm);
     setState((prev) =>
       prev.status === 'live' ? { ...prev, status: 'speaking' } : prev,
     );
   }, []);
 
   const handleFrame = useCallback((frame: MicFrame): void => {
+    // Mic frames go up as backend-shaped JSON audio frames (base64 PCM16).
     refs.current.transport?.sendAudio(frame.pcm);
     if (statusRef.current !== 'speaking') return;
     if (frame.rms < BARGE_IN_RMS) return;
-    // Barge-in: silence playback, tell the server, return to listening.
+    // Barge-in is CLIENT-LOCAL: the backend wire has no barge_in frame, and
+    // the realtime upstream interrupts itself once fresh mic audio arrives
+    // (server-side VAD). We just silence local playback and return to
+    // listening so the owner hears themselves over Mr. Mwikila immediately.
     refs.current.player?.stop();
-    refs.current.transport?.bargeIn();
     setState((prev) => ({ ...prev, status: 'live' }));
   }, []);
 
@@ -195,25 +206,43 @@ export function useRealtimeVoice(
 
 // ─── Pure reducers / wiring helpers (kept out of the hook body) ──────────
 
-/** Fold a server control event into the immutable voice state. */
+/**
+ * Fold a backend control event into the immutable voice state. Discriminates
+ * on `kind` (the backend's `BridgeOutboundEvent` shape):
+ *   - transcript / speaker:'user'  → live ASR text, mirrored into the composer
+ *   - transcript / speaker:'agent' / isFinal → the model's final reply text
+ *     (interim agent spans update the live transcript so the owner sees the
+ *      answer forming; the final span promotes it to `lastReply`)
+ *   - error → surface the code and route the caller to fallback
+ *   - ready / tool_call → no state change (lifecycle only)
+ */
 function reduceEvent(
   prev: RealtimeVoiceState,
   event: VoiceServerEvent,
 ): RealtimeVoiceState {
-  switch (event.type) {
+  switch (event.kind) {
     case 'transcript':
-      return { ...prev, transcript: event.text };
-    case 'turn':
-      return { ...prev, lastReply: event.text, transcript: '' };
-    case 'speech_end':
-      return prev.status === 'speaking' ? { ...prev, status: 'live' } : prev;
+      return reduceTranscript(prev, event);
     case 'error':
       return { ...prev, status: 'error', error: event.code };
     case 'ready':
-    case 'speech_start':
+    case 'tool_call':
     default:
       return prev;
   }
+}
+
+/** Fold a transcript span, branching on speaker + finality. */
+function reduceTranscript(
+  prev: RealtimeVoiceState,
+  event: Extract<VoiceServerEvent, { kind: 'transcript' }>,
+): RealtimeVoiceState {
+  if (event.speaker === 'agent') {
+    return event.isFinal
+      ? { ...prev, lastReply: event.text, transcript: '' }
+      : { ...prev, transcript: event.text };
+  }
+  return { ...prev, transcript: event.text };
 }
 
 interface SessionArgs {
@@ -222,7 +251,7 @@ interface SessionArgs {
   readonly refs: React.MutableRefObject<VoiceRefs>;
   readonly handlers: {
     readonly onOpen: () => void | Promise<void>;
-    readonly onAudio: (pcm: ArrayBuffer) => void;
+    readonly onAudio: (pcm: ArrayBuffer, isFinal: boolean) => void;
     readonly onEvent: (event: VoiceServerEvent) => void;
     readonly onError: (code: string) => void;
     readonly onClose: () => void;

@@ -100,6 +100,23 @@ export interface SubagentRunRow {
   readonly error: string | null;
 }
 
+/**
+ * A pending member claimed by the executor — carries everything the brain
+ * needs to run the member's brief (role / brief / allowedTools / tokenBudget)
+ * plus the shared team brief/aggregation so the executor never re-reads.
+ */
+export interface ClaimedSubagentMember {
+  readonly id: string;
+  readonly teamRunId: string;
+  readonly role: string;
+  readonly brief: string;
+  readonly teamBrief: string;
+  readonly allowedTools: ReadonlyArray<string>;
+  readonly tokenBudget: number;
+  readonly aggregation: string;
+  readonly originSessionId: string | null;
+}
+
 export interface SandboxWriteRow {
   readonly id: string;
   readonly target_table: string;
@@ -266,6 +283,131 @@ export class MdAgenticRepository {
       memberIds.push(id);
     }
     return { ok: true, teamRunId, memberIds };
+  }
+
+  // ── executor: claim + finalize (status machine) ──────────────────────
+
+  /**
+   * Atomically claim every 'pending' member of a team and flip it to
+   * 'running'. The `UPDATE … WHERE status = 'pending' RETURNING …` is the
+   * concurrency guard: two executor invocations racing on the same team can
+   * never both claim the same row — the second sees zero rows to update.
+   *
+   * Returns the claimed members carrying the per-member brief + the shared
+   * team brief/aggregation so the caller never re-reads. Empty array means
+   * nothing to do (already claimed / terminal / unknown team).
+   */
+  async claimPendingTeamMembers(
+    tenantId: string,
+    teamRunId: string,
+  ): Promise<readonly ClaimedSubagentMember[]> {
+    const res = await this.db.execute(sql`
+      UPDATE md_subagent_runs AS r
+         SET status = 'running', updated_at = now()
+       WHERE r.tenant_id = ${tenantId}
+         AND r.team_run_id = ${teamRunId}::uuid
+         AND r.status = 'pending'
+      RETURNING r.id, r.team_run_id, r.role, r.brief, r.allowed_tools,
+                r.token_budget, r.aggregation, r.origin_session_id
+    `);
+    const rows = extractRows<{
+      id: string;
+      team_run_id: string;
+      role: string;
+      brief: string;
+      allowed_tools: unknown;
+      token_budget: number;
+      aggregation: string;
+      origin_session_id: string | null;
+    }>(res);
+
+    // The shared team brief lives on every member row (denormalised at
+    // dispatch); read it once from the team rather than the member brief.
+    const teamBrief = await this.readTeamBrief(tenantId, teamRunId);
+
+    return rows.map((r) => ({
+      id: r.id,
+      teamRunId: r.team_run_id,
+      role: r.role,
+      brief: r.brief,
+      teamBrief,
+      allowedTools: normaliseAllowedTools(r.allowed_tools),
+      tokenBudget: Number(r.token_budget ?? 0),
+      aggregation: r.aggregation,
+      originSessionId: r.origin_session_id,
+    }));
+  }
+
+  /** The team's shared brief — read from any one member row. */
+  private async readTeamBrief(
+    tenantId: string,
+    teamRunId: string,
+  ): Promise<string> {
+    const res = await this.db.execute(sql`
+      SELECT brief FROM md_subagent_runs
+       WHERE tenant_id = ${tenantId} AND team_run_id = ${teamRunId}::uuid
+       ORDER BY created_at ASC
+       LIMIT 1
+    `);
+    const row = extractRows<{ brief: string }>(res)[0];
+    return row?.brief ?? '';
+  }
+
+  /**
+   * Record a member's successful result and flip 'running' → 'completed'.
+   * Append-only audit: pushes a fresh result hash onto audit_chain_ids
+   * (never mutates the existing chain entries). Guarded on status='running'
+   * so a cancelled/failed row is never silently overwritten.
+   */
+  async completeSubagentRun(
+    tenantId: string,
+    memberId: string,
+    result: Record<string, unknown>,
+  ): Promise<boolean> {
+    const hash = auditHash({ memberId, tenantId, kind: 'subagent_result' });
+    const res = await this.db.execute(sql`
+      UPDATE md_subagent_runs
+         SET status = 'completed',
+             result = ${JSON.stringify(result)}::jsonb,
+             error = NULL,
+             audit_chain_ids =
+               COALESCE(audit_chain_ids, '[]'::jsonb) || ${JSON.stringify([hash])}::jsonb,
+             completed_at = now(),
+             updated_at = now()
+       WHERE id = ${memberId}::uuid
+         AND tenant_id = ${tenantId}
+         AND status = 'running'
+      RETURNING id
+    `);
+    return extractRows<{ id: string }>(res).length > 0;
+  }
+
+  /**
+   * Record a member failure and flip 'running' → 'failed'. The error string
+   * is truncated defensively. Same append-only audit + status guard as
+   * completeSubagentRun.
+   */
+  async failSubagentRun(
+    tenantId: string,
+    memberId: string,
+    error: string,
+  ): Promise<boolean> {
+    const hash = auditHash({ memberId, tenantId, kind: 'subagent_failure' });
+    const safeError = error.slice(0, 2_000);
+    const res = await this.db.execute(sql`
+      UPDATE md_subagent_runs
+         SET status = 'failed',
+             error = ${safeError},
+             audit_chain_ids =
+               COALESCE(audit_chain_ids, '[]'::jsonb) || ${JSON.stringify([hash])}::jsonb,
+             completed_at = now(),
+             updated_at = now()
+       WHERE id = ${memberId}::uuid
+         AND tenant_id = ${tenantId}
+         AND status = 'running'
+      RETURNING id
+    `);
+    return extractRows<{ id: string }>(res).length > 0;
   }
 
   // ── plan.aggregate_results (honest-degrade — never fabricates) ────────
@@ -790,6 +932,12 @@ export class MdAgenticRepository {
       previousStatus: row.status,
     };
   }
+}
+
+/** Coerce a jsonb allowed_tools column into a string array (defensive). */
+function normaliseAllowedTools(raw: unknown): ReadonlyArray<string> {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((t): t is string => typeof t === 'string');
 }
 
 function confidenceOf(result: unknown): number {

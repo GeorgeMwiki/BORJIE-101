@@ -11,7 +11,6 @@ import {
   PaymentStatus,
   PaymentStatusSchema,
   TenantScopedEntity,
-  CurrencyCodeSchema,
   asCustomerId,
   asLeaseId,
 } from '../common/types';

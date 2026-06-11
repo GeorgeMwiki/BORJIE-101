@@ -116,6 +116,7 @@ import {
 } from './four-eye-approval.js';
 import { createBriefingComposer } from './briefing.js';
 import { createNudgeRouter, createInMemoryNudgeDedupe, type NudgeDedupeStore } from './proactive-nudge.js';
+import type { PendingProposalReader } from './estate-mind/estate-mind.js';
 import {
   ANTHROPIC_SENSOR_PRESETS,
   type AnthropicMessagesClient,
@@ -165,7 +166,22 @@ export interface ComposeSovereignConfig {
   readonly cohortSource?: CohortSource;
   readonly groundingFacts?: GroundingFactsProvider;
   readonly approvalStore?: ApprovalStore;
+  /**
+   * Durable nudge-dedupe SEAM. When omitted, compose binds an in-memory
+   * default lost on pod restart (the volatile-dedupe defect). The gateway
+   * composition root injects a DB-backed `NudgeDedupeStore`
+   * (`createDrizzleNudgeDedupe(db)` over `proactive_nudge_sent`) so dedupe
+   * survives restarts. The router routes every emit through it.
+   */
   readonly nudgeDedupe?: NudgeDedupeStore;
+  /**
+   * Durable READ-port for the EstateMind slow loop's surfaced proposals.
+   * When wired, the kernel pulls up to N pending proposals mid-turn and
+   * mixes them into a `[proactive_context]` prompt section — so the MD is
+   * aware of its own proactive insights during a turn. Fail-safe in the
+   * kernel.
+   */
+  readonly pendingProposalReader?: PendingProposalReader;
   /** LP-03 — read-through semantic response cache. Fail-safe: a miss or a
    * null embedder falls through to the normal LLM path. */
   readonly semanticCache?: SemanticCachePort;
@@ -303,11 +319,43 @@ export interface ComposeSovereignConfig {
    */
   readonly reflexionWriter?: import('./reflexion/reflexion-writer.js').ReflexionWriterPort;
   /**
+   * Optional task-scoped Reflexion LOADER (read-back of the consolidated
+   * lessons). This is the third reflexion seam and the READ side of the
+   * compounding loop: the kernel writes reflexions on surprise, the 4-pass
+   * nightly sleep consolidates them into `reflexion_guidelines`, and this
+   * loader reads them BACK at session start (kernel step F11) so learned
+   * lessons re-enter the reasoning context. Distinct from
+   * `reflexionRetriever` (raw session-scoped recent rows) — the loader is
+   * TENANT-WIDE, userId OPTIONAL, `pruned_at IS NULL`, and folds in the
+   * consolidated `reflexion_guidelines`. Wired by the api-gateway
+   * composition root from `@borjie/database`
+   * (`createDrizzleReflexionLoader(db)`). Fail-safe in the kernel (a null
+   * loader / query error yields an empty prompt fragment).
+   */
+  readonly reflexionLoader?: import('./reflexion/reflexion-loader.js').ReflexionLoaderPort;
+  /**
    * Optional Self-RAG critic. When wired, the kernel runs IsREL /
    * IsSUP / IsUSE reflection tokens after the sensor result is
    * normalised. Same shape as the legacy judge port.
    */
   readonly selfRagJudge?: import('./self-rag/self-rag.js').SelfRagJudge;
+  // ── R7 proof-carrying membrane (SHADOW mode) coordination zone ──────
+  /**
+   * R7 — proof-carrying gatekeeper. When wired (by the api-gateway
+   * composition root), the kernel computes a signed, hash-chained
+   * SafetyCertificate alongside each already-final `think()` decision and
+   * reports any divergence between the certificate verdict and the verdict
+   * the existing scattered checks already reached — but NEVER enforces. The
+   * existing checks remain the sole deciders, so wiring this changes NO
+   * allow/deny outcome. Absent (CI / bootstrap) → the kernel hook is a pure
+   * no-op. The gateway must forward all three or the membrane stays dark.
+   */
+  readonly safetyGatekeeper?: import('./membrane/index.js').Gatekeeper;
+  /** Best-effort certificate sink (append-only audit). Absent → no emission. */
+  readonly safetyCertificateSink?: import('./membrane/index.js').SafetyCertificateSink;
+  /** Divergence reporter — fires only when the certificate disagrees with the
+   * existing decision (the signal worth watching before enforcing). */
+  readonly safetyDivergenceReporter?: import('./membrane/index.js').DivergenceReporter;
   // ── C4 (Sensorium / Brain Skin) coordination zone ──────────────────
   /**
    * Optional behaviour-signal source. When wired (production: by the
@@ -321,6 +369,25 @@ export interface ComposeSovereignConfig {
    */
   readonly behaviorSignalSource?: import('./kernel-types.js').BehaviorSignalSourcePort;
   /**
+   * Wave-C emergent cognition — cross-session owner-model (ToM) reader. When
+   * wired, the kernel folds the durable owner-style directive into the prompt
+   * and refines the posterior post-turn (close the loop).
+   */
+  readonly ownerStyleReader?: import('./kernel-types.js').OwnerStyleReaderPort;
+  /**
+   * Wave-C salience arena — optional reader of the latest SituationalSnapshot
+   * so the ACT-R activation sub-bidder can compete for the attention spotlight.
+   * Dormant (arena still runs on affect/detector/commitment bids) when unset.
+   */
+  readonly situationalSnapshotReader?: Parameters<
+    typeof createBrainKernel
+  >[0]['situationalSnapshotReader'];
+  /**
+   * Wave-C metacognition — when not explicitly false, a fast/standard-routed
+   * turn whose internal signals conflict may upshift ONCE to the debate detour.
+   */
+  readonly conflictRecruitmentEnabled?: boolean;
+  /**
    * Optional multi-LLM synthesizer port. When wired, turns carrying
    * `req.requireSynthesis === true` route through a mixture-of-agents
    * fan-out (Anthropic + OpenAI + DeepSeek by default) plus a Claude
@@ -331,6 +398,20 @@ export interface ComposeSovereignConfig {
    * `services/api-gateway/src/composition/multi-llm-synthesizer-wiring.ts`.
    */
   readonly synthesizer?: MultiLLMSynthesizerPort;
+  /**
+   * Optional internal-debate port. When wired AND a turn is high/critical
+   * stakes AND `shouldDebate(req)` returns true, the kernel replaces the
+   * single sensor call at step 7 with an N-voice debate (advocate → critic
+   * → devil's-advocate → synthesiser) and uses the synthesis as the answer.
+   * Default OFF (no port wired) so existing single-shot callers are
+   * unchanged. The api-gateway composition root constructs the port via
+   * `buildDebateKernelPort(...)` in
+   * `services/api-gateway/src/composition/debate-kernel-port-wiring.ts`
+   * (Wave-3 dark-organ closure); the binding is fail-safe (a slow/failed
+   * debate returns an empty outcome and the kernel falls back to the
+   * single-shot sensor path).
+   */
+  readonly debate?: import('./kernel.js').BrainKernelDeps['debate'];
   /**
    * Phase E.5.1 — orchestrator wire-up.
    *
@@ -502,11 +583,27 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   }
   if (config.embedder)          (kernelDeps as any).embedder = config.embedder;
   if (config.synthesizer)       (kernelDeps as any).synthesizer = config.synthesizer;
+  // Wave-3 — forward the internal-debate port the gateway constructs so the
+  // stakes-gated multi-voice debate detour actually reaches the kernel hot
+  // path. Without this the bound `mutable.debate` would be silently dropped.
+  if (config.debate)            (kernelDeps as any).debate = config.debate;
   // C5 — Progressive Intelligence.
   if (config.skillRetriever)    (kernelDeps as any).skillRetriever = config.skillRetriever;
   if (config.reflexionRetriever) (kernelDeps as any).reflexionRetriever = config.reflexionRetriever;
   if (config.reflexionWriter)   (kernelDeps as any).reflexionWriter = config.reflexionWriter;
+  // Compounding loop — forward the task-scoped reflexion LOADER so the
+  // kernel's read-back step (F11, kernel.ts ~1429) actually receives the
+  // consolidated lessons. Without this passthrough the loader is silently
+  // dropped and learned guidelines never re-enter the prompt.
+  if (config.reflexionLoader)   (kernelDeps as any).reflexionLoader = config.reflexionLoader;
   if (config.selfRagJudge)      (kernelDeps as any).selfRagJudge = config.selfRagJudge;
+  // R7 — forward the proof-carrying membrane ports (all three independent;
+  // absent → the kernel's shadow hook stays a pure no-op). Without this
+  // passthrough the gatekeeper the gateway constructs is silently dropped and
+  // the membrane never runs — the exact "non-owned seam" the audit flagged.
+  if (config.safetyGatekeeper)         (kernelDeps as any).safetyGatekeeper = config.safetyGatekeeper;
+  if (config.safetyCertificateSink)    (kernelDeps as any).safetyCertificateSink = config.safetyCertificateSink;
+  if (config.safetyDivergenceReporter) (kernelDeps as any).safetyDivergenceReporter = config.safetyDivergenceReporter;
   // LP-30 — forward the semantic-cache + intent-verifier ports the gateway
   // constructs so they actually reach the kernel hot path.
   if (config.semanticCache)     (kernelDeps as any).semanticCache = config.semanticCache;
@@ -515,6 +612,16 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   if (config.intentVerificationEnabled !== undefined) (kernelDeps as any).intentVerificationEnabled = config.intentVerificationEnabled;
   // C4 — Sensorium / Brain Skin.
   if (config.behaviorSignalSource) (kernelDeps as any).behaviorSignalSource = config.behaviorSignalSource;
+  // Wave-C emergent cognition — forward the owner-model reader, the situational
+  // snapshot reader (salience arena ACT-R sub-bidder), and the conflict-
+  // recruitment toggle so the new cognitive loops are LIVE, not dropped by the
+  // explicit-per-key forwarding (the `as any` cast would otherwise hide them).
+  if (config.ownerStyleReader) (kernelDeps as any).ownerStyleReader = config.ownerStyleReader;
+  if (config.situationalSnapshotReader) (kernelDeps as any).situationalSnapshotReader = config.situationalSnapshotReader;
+  if (config.conflictRecruitmentEnabled !== undefined) (kernelDeps as any).conflictRecruitmentEnabled = config.conflictRecruitmentEnabled;
+  // Close-the-loop — forward the EstateMind pending-proposal reader so the
+  // kernel surfaces the slow loop's own proactive insights mid-turn (step 5c).
+  if (config.pendingProposalReader) (kernelDeps as any).pendingProposalReader = config.pendingProposalReader;
   // Cognitive-load + affective accumulators are always wired so the
   // kernel can render cross-turn directives. Callers that pass their
   // own instance (e.g. tests asserting cross-call state) win;

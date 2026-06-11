@@ -15,6 +15,12 @@ export const REALTIME_TOPICS = [
   'tabs-updated',
   'reports-generated',
   'field-captures',
+  // Cross-surface state bus (MD-as-Body capstone, lane: state bus).
+  // Carries CRDT slot deltas + surface/device handoff signals so a
+  // decision the MD makes in chat lives once and re-projects onto
+  // owner-web tabs, workforce-mobile, and buyer-mobile. Tenant-scoped
+  // like every other topic, so the same RLS pattern guards it.
+  'state-bus',
 ] as const;
 
 export type RealtimeTopic = (typeof REALTIME_TOPICS)[number];

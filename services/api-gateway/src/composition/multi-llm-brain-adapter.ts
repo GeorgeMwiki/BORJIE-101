@@ -33,14 +33,19 @@
 
 import {
   AnthropicProvider,
-  ANTHROPIC_MODELS,
   OpenAIChatProvider,
   OPENAI_MODELS,
   DeepSeekProvider,
-  DEEPSEEK_MODELS,
   createMultiLLMSynthesizer,
   type SynthesizerProposerRegistration,
 } from '@borjie/ai-copilot/providers';
+// Intelligence-Elasticity: Anthropic proposer/synthesizer models resolve
+// through the composition-root tier map (standard=Sonnet-class proposer,
+// deep=Opus-class merge LLM); DeepSeek resolves through the dynamic model
+// registry. Defaults are EXACTLY the former catalog constants. GPT-4o has
+// no registry family yet, so it stays on the ai-copilot catalog constant.
+import { getModelLatest } from '@borjie/brain-llm-router/dynamic-registry';
+import { resolveTierModel } from './model-tier-map.js';
 import type { BrainPort, BrainRequest, BrainResponse, BrainCitation } from '@borjie/role-aware-advisor';
 // LP-15 / LP-30 — privacy-router consult BEFORE the LLM provider dispatch.
 // Classifies the payload by data-sensitivity tier and either strips PII
@@ -81,7 +86,7 @@ function buildProposers(env: Readonly<Record<string, string | undefined>>): Prop
       registration: {
         id: 'anthropic-sonnet',
         provider: new AnthropicProvider({ apiKey: anthropicKey }),
-        model: ANTHROPIC_MODELS.SONNET_4_6,
+        model: resolveTierModel('standard', env),
       },
     });
   }
@@ -101,7 +106,7 @@ function buildProposers(env: Readonly<Record<string, string | undefined>>): Prop
       registration: {
         id: 'deepseek-chat',
         provider: new DeepSeekProvider({ apiKey: deepseekKey }),
-        model: DEEPSEEK_MODELS.CHAT,
+        model: getModelLatest('deepseek-chat'),
       },
     });
   }
@@ -138,7 +143,7 @@ export function wireMultiLLMBrain(opts: WireMultiLLMBrainOpts = {}): BrainPort |
   const synthesizer: SynthesizerProposerRegistration = {
     id: 'anthropic-opus',
     provider: new AnthropicProvider({ apiKey: anthropicKey }),
-    model: ANTHROPIC_MODELS.OPUS_4_8,
+    model: resolveTierModel('deep', env),
   };
 
   const synth = createMultiLLMSynthesizer({
@@ -211,7 +216,7 @@ export function wireMultiLLMBrain(opts: WireMultiLLMBrainOpts = {}): BrainPort |
           templateId: 'role-aware-advisor',
           version: 1,
           modelConfig: {
-            modelId: ANTHROPIC_MODELS.SONNET_4_6,
+            modelId: resolveTierModel('standard', env),
             maxTokens: Math.min(Math.max(req.maxTokens ?? 600, 64), 4096),
             temperature: 0.2,
           },

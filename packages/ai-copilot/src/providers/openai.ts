@@ -18,6 +18,7 @@
  */
 
 import { AIResult, aiOk, aiErr, asModelId } from '../types/core.types.js';
+import { OPENAI_CATALOG_MODEL_IDS } from '../model-resolution.js';
 import {
   AIProvider,
   AICompletionRequest,
@@ -40,9 +41,9 @@ export interface OpenAIChatProviderConfig {
  * Canonical OpenAI chat model IDs used by the router.
  */
 export const OPENAI_MODELS = {
-  GPT_4O: 'gpt-4o',
-  GPT_4O_MINI: 'gpt-4o-mini',
-  GPT_4_TURBO: 'gpt-4-turbo',
+  GPT_4O: OPENAI_CATALOG_MODEL_IDS.GPT_4O,
+  GPT_4O_MINI: OPENAI_CATALOG_MODEL_IDS.GPT_4O_MINI,
+  GPT_4_TURBO: OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO,
 } as const;
 
 export type OpenAIModelId = (typeof OPENAI_MODELS)[keyof typeof OPENAI_MODELS];

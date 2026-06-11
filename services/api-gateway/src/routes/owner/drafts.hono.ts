@@ -263,7 +263,57 @@ app.post('/:id/revise', async (c: any) => {
   if (!draft) return c.json({ success: false, error: { code: 'NOT_FOUND' } }, 404);
   const list = await rp.listRevisions(auth.tenantId, id);
   const nextNo = list.length === 0 ? 1 : Math.max(...list.map((r) => r.revisionNo)) + 1;
-  const newContent = parsed.data.replacementMarkdown ?? appendInstructionFooter(draft.contentMd, parsed.data.instruction ?? '');
+
+  // owner-drafts-revise-1: when the caller supplies raw replacement
+  // markdown, use it verbatim. When they supply only an `instruction`
+  // ("add a force-majeure clause") we must ACTUALLY revise the document —
+  // route the instruction + the current content through the same brain
+  // composer the /free-form path uses, and persist the brain-generated
+  // markdown (with its citations). The old appendInstructionFooter only
+  // stapled the instruction onto the unchanged document — a stub. We fall
+  // back to that footer ONLY when the brain compose throws (honest
+  // degrade, logged), never silently.
+  let newContent: string;
+  let revisionCitations:
+    | ReadonlyArray<{ sourceKind: string; sourceRef: string; snippetUsed: string | null }>
+    | undefined;
+  if (parsed.data.replacementMarkdown) {
+    newContent = parsed.data.replacementMarkdown;
+  } else {
+    const instruction = parsed.data.instruction ?? '';
+    try {
+      const composed = await composeFreeForm({
+        tenantId: auth.tenantId,
+        ownerId: auth.userId,
+        intent: `Revise the existing document per this instruction: ${instruction}`,
+        contextDocs: [
+          {
+            id: `draft:${id}:rev:${draft.currentRevisionNo ?? nextNo - 1}`,
+            label: draft.titleEn ?? draft.titleSw ?? 'Current draft',
+            sourceKind: 'owner_doc' as const,
+            snippet: draft.contentMd.slice(0, 800),
+          },
+        ] as ReadonlyArray<FreeFormContextDoc>,
+        ...(draft.language === 'sw' || draft.language === 'en'
+          ? { language: draft.language }
+          : {}),
+      });
+      newContent = composed.markdown;
+      revisionCitations = composed.citations.map((cite) => ({
+        sourceKind: cite.sourceKind,
+        sourceRef: cite.sourceRef,
+        snippetUsed: cite.snippetUsed ?? null,
+      }));
+    } catch (e) {
+      moduleLogger.warn('drafts/:id/revise: brain compose failed, degrading to footer', {
+        tenantId: auth.tenantId,
+        draftId: id,
+        error: e instanceof Error ? e.message : String(e),
+      });
+      newContent = appendInstructionFooter(draft.contentMd, instruction);
+    }
+  }
+
   const rev = await rp.insertRevision({
     tenantId: auth.tenantId,
     draftId: id,
@@ -271,7 +321,22 @@ app.post('/:id/revise', async (c: any) => {
     contentMd: newContent,
     contentFormat: 'markdown',
     createdBy: auth.userId,
+    ...(revisionCitations ? { citations: revisionCitations } : {}),
   });
+  // Persist any brain-supplied citations so the revision's evidence chain
+  // is queryable alongside the free-form path's citations.
+  if (revisionCitations) {
+    for (const cite of revisionCitations) {
+      await rp.insertCitation({
+        tenantId: auth.tenantId,
+        draftId: id,
+        revisionId: rev.id,
+        sourceKind: cite.sourceKind,
+        sourceRef: cite.sourceRef,
+        snippetUsed: cite.snippetUsed,
+      });
+    }
+  }
   await rp.bumpDraftCurrentRevision(auth.tenantId, id, nextNo);
   await persistence.updateContent(auth.tenantId, id, {
     contentMd: newContent,

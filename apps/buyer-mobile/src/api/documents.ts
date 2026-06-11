@@ -1,16 +1,19 @@
 import { apiFetch } from './client'
+import { MINING_PREFIX } from './config'
 import type { SaleDocument } from '@/types/document'
+
+const DOCUMENTS_PREFIX = `${MINING_PREFIX}/buyers/documents`
 
 export async function fetchDocuments(): Promise<readonly SaleDocument[]> {
   const response = await apiFetch<{ readonly data: readonly SaleDocument[] }>(
-    '/api/v1/documents'
+    DOCUMENTS_PREFIX
   )
   return response.data
 }
 
 export async function fetchDocument(id: string): Promise<SaleDocument | undefined> {
   const response = await apiFetch<{ readonly data: SaleDocument }>(
-    `/api/v1/documents/${encodeURIComponent(id)}`
+    `${DOCUMENTS_PREFIX}/${encodeURIComponent(id)}`
   )
   return response.data
 }
@@ -22,7 +25,7 @@ export interface SignDocumentInput {
 
 export async function signDocument(input: SignDocumentInput): Promise<SaleDocument | undefined> {
   const response = await apiFetch<{ readonly data: SaleDocument }>(
-    `/api/v1/documents/${encodeURIComponent(input.documentId)}/sign`,
+    `${DOCUMENTS_PREFIX}/${encodeURIComponent(input.documentId)}/sign`,
     {
       method: 'POST',
       body: { biometricToken: input.biometricToken }

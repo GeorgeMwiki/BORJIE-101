@@ -7,11 +7,13 @@
  * the FX rates here are render hints only (per buyer-sota §8).
  *
  * REAL data sources:
- *   - `buyers.wallet_balance_minor` (bigint, minor units of
- *     `buyers.preferred_currency`) — the informational balance added by
- *     migration 0087. Authoritative money still lives in
- *     payments-ledger; this column is the at-a-glance mirror the mobile
- *     app reads without round-tripping the ledger.
+ *   - `accounts.balance_minor_units` (bigint, the canonical double-entry
+ *     ledger) summed over the buyer's customer-scoped accounts for the
+ *     buyer's preferred currency. This is the AUTHORITATIVE balance —
+ *     `balance_minor_units` is maintained inside the ledger's atomic post,
+ *     so it reflects every top-up / escrow release / settlement. We do NOT
+ *     read the `buyers.wallet_balance_minor` mirror column (migration 0087):
+ *     it has no write path and would always read a stale 0.
  *   - `buyers.preferred_currency` — the buyer's native render unit
  *     (USD/TZS/KES/EUR/CNY/INR per the 0087 CHECK constraint).
  *   - `fx_rates` (treasury schema) — the live BoT `TZS_USD` spot the
@@ -152,18 +154,23 @@ buyersWalletRouter.get('/wallet', async (c) => {
   fxNotes.push('FLAG: kesPerTzs has no fx_rates source — returned 0');
 
   // ---- resolve the calling user's linked buyer (tenant + user scoped) -
+  // AUTHORITATIVE balance: the buyer's balance is read from the canonical
+  // double-entry `accounts` table (balance_minor_units is maintained inside
+  // the ledger's atomic post), NOT the `buyers.wallet_balance_minor` mirror,
+  // which has no write path and would always read 0. We sum the buyer's
+  // customer-scoped account balances per the buyer's preferred currency.
   let balanceMinor = 0;
   let currency = 'USD';
   let hasBuyer = false;
+  let ledgerBalanceAvailable = false;
   try {
-    // `wallet_balance_minor` + `preferred_currency` exist in the DB
-    // (migration 0087) but are NOT declared on the canonical `buyers`
-    // Drizzle table (the buyer-extensions schema deliberately does not
-    // redeclare them), so we read them with raw parameterised SQL.
-    const row = rowsOf(
+    // `preferred_currency` exists in the DB (migration 0087) but is not
+    // declared on the canonical `buyers` Drizzle table, so we read it (and
+    // the buyer id, to scope the ledger accounts) with parameterised SQL.
+    const buyerRow = rowsOf(
       await db.execute(sql`
         SELECT
-          COALESCE(wallet_balance_minor, 0) AS wallet_balance_minor,
+          id,
           COALESCE(preferred_currency, 'USD') AS preferred_currency
           FROM buyers
          WHERE tenant_id = ${auth.tenantId}
@@ -171,10 +178,29 @@ buyersWalletRouter.get('/wallet', async (c) => {
          LIMIT 1
       `),
     )[0];
-    if (row) {
+    if (buyerRow) {
       hasBuyer = true;
-      balanceMinor = Number(row.wallet_balance_minor ?? 0);
-      currency = String(row.preferred_currency || 'USD');
+      currency = String(buyerRow.preferred_currency || 'USD');
+      const buyerId = String(buyerRow.id);
+
+      // Sum the authoritative customer-scoped balances from the ledger's
+      // `accounts` table for this buyer + currency. A positive net liability
+      // (CUSTOMER_LIABILITY / CUSTOMER_DEPOSIT) is the buyer's spendable
+      // wallet. Tenant-scoped (RLS + predicate) + customer-scoped.
+      const balRow = rowsOf(
+        await db.execute(sql`
+          SELECT COALESCE(SUM(balance_minor_units), 0) AS balance_minor
+            FROM accounts
+           WHERE tenant_id = ${auth.tenantId}
+             AND customer_id = ${buyerId}
+             AND currency = ${currency}
+             AND status = 'ACTIVE'
+        `),
+      )[0];
+      if (balRow) {
+        balanceMinor = Number(balRow.balance_minor ?? 0);
+        ledgerBalanceAvailable = true;
+      }
     }
   } catch (err) {
     moduleLogger.error(
@@ -246,6 +272,12 @@ buyersWalletRouter.get('/wallet', async (c) => {
     if (code !== currency) {
       balanceNotes.push(`FLAG: ${code.toLowerCase()} field is placeholder (0)`);
     }
+  }
+  if (!ledgerBalanceAvailable) {
+    balanceNotes.push(
+      'FLAG: no ledger account for this buyer yet — balance reads 0 from the ' +
+        'authoritative ledger until the buyer has a settled money movement',
+    );
   }
 
   const payload: WalletSnapshotPayload = {

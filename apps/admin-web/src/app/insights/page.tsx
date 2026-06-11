@@ -37,8 +37,7 @@ async function fetchPatterns(cookieHeader: string): Promise<InsightsResult> {
     }
     const data = (await res.json()) as { patterns: ReadonlyArray<InsightPattern> };
     return { status: 'ok', patterns: data.patterns };
-  } catch (error) {
-    console.error('Insights patterns fetch failed:', error);
+  } catch {
     return {
       status: 'degraded',
       reason: 'Pattern explorer unreachable. No mock correlations rendered.',

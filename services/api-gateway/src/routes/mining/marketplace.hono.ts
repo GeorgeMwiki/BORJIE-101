@@ -2,26 +2,34 @@
  * /api/v1/mining/marketplace — public listings discovery.
  *
  * Routes:
- *   GET  /listings          search (filter by mineral, region, grade,
- *                           category, visibility)
- *   GET  /listings/:id      fetch one
+ *   GET  /listings           search (filter by mineral, region, grade,
+ *                            category, visibility, sellerTenantId)
+ *   GET  /listings/sellers   distinct seller orgs with buyer-visible
+ *                            active listings (browse-by-mine)
+ *   GET  /listings/:id       fetch one
  *
  * Migrated to `@hono/zod-openapi` (issue #19).
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, desc, eq, sql } from 'drizzle-orm';
-import { marketplaceListings } from '@borjie/database';
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { marketplaceListings, tenants } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import {
   marketplaceListListingsRoute,
+  marketplaceListSellersRoute,
   marketplaceGetListingRoute,
 } from './_openapi/route-defs';
 
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
+
+// Buyer-visible visibility tiers — a private listing is NEVER exposed
+// cross-tenant. Used by the owner-scoped (`sellerTenantId`) filter and
+// the browse-by-seller endpoint so neither can leak a private parcel.
+const BUYER_VISIBLE = ['tanzania', 'regional', 'global'] as const;
 
 app.openapi(marketplaceListListingsRoute, async (c) => {
   const { tenantId } = c.get('auth');
@@ -32,6 +40,15 @@ app.openapi(marketplaceListListingsRoute, async (c) => {
   // Tenant scope is permissive — buyers from other tenants can see
   // `tanzania` / `regional` / `global` visibility listings.
   if (q.visibility === 'private') conds.push(eq(marketplaceListings.tenantId, tenantId));
+  // Owner-scoped browse ("buy from this mine"). Restrict to the seller
+  // org's listings, but NEVER bypass the private rule: unless the buyer
+  // IS that tenant, only buyer-visible tiers are exposed.
+  if (q.sellerTenantId) {
+    conds.push(eq(marketplaceListings.tenantId, q.sellerTenantId));
+    if (q.sellerTenantId !== tenantId) {
+      conds.push(inArray(marketplaceListings.visibility, [...BUYER_VISIBLE]));
+    }
+  }
   if (q.category) conds.push(eq(marketplaceListings.category, q.category));
   if (q.visibility) conds.push(eq(marketplaceListings.visibility, q.visibility));
   // mineral + grade live inside the attributes JSON
@@ -44,21 +61,67 @@ app.openapi(marketplaceListListingsRoute, async (c) => {
   if (q.region) {
     conds.push(sql`${marketplaceListings.attributes}->>'region' = ${q.region}`);
   }
+  // LEFT JOIN `tenants` so each listing carries its owning-mine name for
+  // buyer-side attribution + grouping ("from <Owner/Mine name>").
   const rows = await db
-    .select()
+    .select({
+      listing: marketplaceListings,
+      sellerName: tenants.name,
+    })
     .from(marketplaceListings)
+    .leftJoin(tenants, eq(tenants.id, marketplaceListings.tenantId))
     .where(and(...conds))
     .orderBy(desc(marketplaceListings.createdAt))
     .limit(limit);
-  return c.json({ success: true as const, data: rows }, 200);
+  const data = rows.map((r) => ({
+    ...r.listing,
+    sellerTenantId: r.listing.tenantId,
+    sellerName: r.sellerName ?? null,
+  }));
+  return c.json({ success: true as const, data }, 200);
+});
+
+// GET /listings/sellers — distinct seller orgs that have at least one
+// buyer-visible active listing, with that count. This backs a
+// "browse by mine/seller" surface. Registered BEFORE the `/listings/:id`
+// route so "sellers" is never captured as a listing id. NEVER includes
+// private listings (cross-tenant leak guard).
+app.openapi(marketplaceListSellersRoute, async (c) => {
+  const db = c.get('db');
+  const rows = await db
+    .select({
+      sellerTenantId: marketplaceListings.tenantId,
+      sellerName: tenants.name,
+      listingCount: count(marketplaceListings.id),
+    })
+    .from(marketplaceListings)
+    .leftJoin(tenants, eq(tenants.id, marketplaceListings.tenantId))
+    .where(
+      and(
+        eq(marketplaceListings.status, 'active'),
+        inArray(marketplaceListings.visibility, [...BUYER_VISIBLE]),
+      ),
+    )
+    .groupBy(marketplaceListings.tenantId, tenants.name)
+    .orderBy(desc(count(marketplaceListings.id)));
+  const data = rows.map((r) => ({
+    sellerTenantId: r.sellerTenantId,
+    sellerName: r.sellerName ?? null,
+    listingCount: Number(r.listingCount ?? 0),
+  }));
+  return c.json({ success: true as const, data }, 200);
 });
 
 app.openapi(marketplaceGetListingRoute, async (c) => {
   const db = c.get('db');
   const { id } = c.req.valid('param');
   const [row] = await db
-    .select()
+    .select({
+      listing: marketplaceListings,
+      sellerName: tenants.name,
+    })
     .from(marketplaceListings)
+    .leftJoin(tenants, eq(tenants.id, marketplaceListings.tenantId))
     .where(eq(marketplaceListings.id, id))
     .limit(1);
   if (!row) {
@@ -70,7 +133,12 @@ app.openapi(marketplaceGetListingRoute, async (c) => {
       404,
     );
   }
-  return c.json({ success: true as const, data: row }, 200);
+  const data = {
+    ...row.listing,
+    sellerTenantId: row.listing.tenantId,
+    sellerName: row.sellerName ?? null,
+  };
+  return c.json({ success: true as const, data }, 200);
 });
 
 // ---------------------------------------------------------------------------

@@ -1,0 +1,36 @@
+{
+  "name": "@borjie/media-engine",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "description": "Standalone media-generation ENGINE. ProviderPort over IMAGE (Imagen-3 / FLUX / Seedream-class), SHORT-VIDEO (Sora-2 / Veo-3 / Seedance-2-class) and GIF/animation providers; provider registry with one deterministic in-repo stub provider so it runs with zero API keys; real HTTP adapters behind injected config (keys never read from process.env). Prompt-safety gate, watermark + C2PA provenance stamp, async job model, storage PORT (signed-URL delivery), and cost guards. Typed media-request kinds for Borjie mining-estate and BN real-estate. Ports exposed for later modality-arbiter wiring; not wired into the brain.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.8.0",
+    "tsup": "^8.5.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.6"
+  }
+}

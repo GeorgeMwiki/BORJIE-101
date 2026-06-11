@@ -19,6 +19,7 @@ import {
   withResolvedDb,
   type JuniorDeps,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 export const ReportCadence = z.enum([
   'daily_owner_brief',
@@ -102,7 +103,7 @@ export function createReportWriter(deps: JuniorDeps) {
         schema: ReportWriterOutput,
         systemPrompt: REPORT_WRITER_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated) + `\nPRE-ASSIGNED document_id: ${documentId}`,
-        model: 'claude-sonnet-4-6',
+        model: resolveTierModelId('standard'),
         maxTokens: 4000,
       });
 

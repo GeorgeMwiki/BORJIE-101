@@ -27,8 +27,103 @@ import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 import { reminders, REMINDER_CHANNELS } from '@borjie/database';
+import {
+  resolveOwnerContact,
+  type OwnerIdentityResolverDb,
+  type ResolvedOwnerContact,
+} from '../../owner-identity/resolver.js';
 
 import type { ActionHandler, ExecContext, ExecResult } from '../types.js';
+
+/** Channels the reminders-dispatch worker can actually deliver. */
+type DeliverableReminderChannel = 'email' | 'sms' | 'slack';
+
+/**
+ * Map an owner contact channel to the deliverable reminder channel it backs,
+ * IFF that channel has a resolvable destination on the contact. Returns null
+ * when the channel is undeliverable or one the worker cannot send
+ * (whatsapp / calendar). Pure.
+ */
+function deliverableFor(
+  channel: string,
+  contact: ResolvedOwnerContact,
+): DeliverableReminderChannel | null {
+  if (channel === 'email') return contact.email ? 'email' : null;
+  if (channel === 'sms') return contact.phone ? 'sms' : null;
+  if (channel === 'slack') return contact.slackHandle ? 'slack' : null;
+  // 'whatsapp' / 'calendar' / anything else: the dispatch worker cannot deliver.
+  return null;
+}
+
+/**
+ * Pick a DELIVERABLE reminder channel for the owner so a chat/tab-created
+ * reminder is never scheduled on a channel with no destination (which the
+ * dispatch worker would terminally fail).
+ *
+ * GENERATIVE ordering: first honour the owner's ORDERED `channelPriority` list
+ * (highest-priority first) and return the FIRST entry with a resolvable
+ * destination. If none of the ranked channels is deliverable (or the list is
+ * empty), fall back to the legacy `preferredChannel` → email → sms → slack
+ * logic, then `email` (the worker logs the missing-address failure clearly).
+ * Pure.
+ */
+export function pickDeliverableChannel(
+  contact: ResolvedOwnerContact,
+): DeliverableReminderChannel {
+  // 1) Owner's explicit ranking wins, in order — first deliverable entry.
+  for (const channel of contact.channelPriority) {
+    const deliverable = deliverableFor(channel, contact);
+    if (deliverable) return deliverable;
+  }
+
+  // 2) Fall back to the single preferred channel when it has a destination.
+  const canEmail = Boolean(contact.email);
+  const canSms = Boolean(contact.phone);
+  const canSlack = Boolean(contact.slackHandle);
+  const pref = contact.preferredChannel;
+  if (pref === 'email' && canEmail) return 'email';
+  if (pref === 'sms' && canSms) return 'sms';
+  if (pref === 'slack' && canSlack) return 'slack';
+
+  // 3) preferred channel unset / undeliverable (incl. 'whatsapp', not a worker
+  // channel) → first channel with a real destination.
+  if (canEmail) return 'email';
+  if (canSms) return 'sms';
+  if (canSlack) return 'slack';
+  return 'email';
+}
+
+/**
+ * Resolve the channel for a new reminder. An EXPLICIT caller channel wins
+ * verbatim (the owner picked it). When absent (the common chat/tab case), the
+ * owner's deliverable channel is resolved from `owner_contact_prefs` so the
+ * reminder actually reaches them. NEVER throws — a resolver fault falls back to
+ * `email` (the prior default), so a contact-prefs read error can never drop the
+ * reminder write itself.
+ */
+async function resolveReminderChannel(
+  ctx: ExecContext,
+  explicit: (typeof REMINDER_CHANNELS)[number] | undefined,
+): Promise<(typeof REMINDER_CHANNELS)[number]> {
+  if (explicit) return explicit;
+  try {
+    const contact = await resolveOwnerContact(
+      ctx.db as unknown as OwnerIdentityResolverDb,
+      { tenantId: ctx.tenantId, ownerId: ctx.userId },
+    );
+    return pickDeliverableChannel(contact);
+  } catch (err) {
+    ctx.logger.warn?.(
+      {
+        executor: 'set_reminder',
+        tenantId: ctx.tenantId,
+        err: err instanceof Error ? err.message : String(err),
+      },
+      'action-executor: owner-contact resolve failed — defaulting reminder channel to email',
+    );
+    return 'email';
+  }
+}
 
 // ─── set_reminder ────────────────────────────────────────────────────
 
@@ -50,7 +145,12 @@ const setReminderSchema = z
         'dueAt must be a valid ISO-8601 timestamp',
       )
       .optional(),
-    channel: z.enum(REMINDER_CHANNELS).default('email'),
+    // OPTIONAL — an explicit caller channel wins; when absent the handler
+    // resolves the owner's DELIVERABLE channel from owner_contact_prefs so the
+    // reminder is never scheduled on a dead destination (see
+    // resolveReminderChannel). No `.default('email')`: that hid the
+    // "no channel chosen" case behind a possibly-undeliverable email.
+    channel: z.enum(REMINDER_CHANNELS).optional(),
   })
   .refine((d) => Boolean(d.dueInDays) !== Boolean(d.dueAt), {
     message: 'provide exactly one of dueInDays or dueAt',
@@ -85,6 +185,11 @@ export const setReminderHandler: ActionHandler = async (
     throw new Error('reminder trigger time must be a valid future timestamp');
   }
 
+  // Resolve a DELIVERABLE channel — explicit caller channel wins; otherwise the
+  // owner's preferred/deliverable channel from owner_contact_prefs, so the
+  // reminder is never scheduled on a dead destination.
+  const channel = await resolveReminderChannel(ctx, input.channel);
+
   const idempotencyKey = `reminder-${ctx.userId}-${triggerAt.getTime()}-${randomUUID().slice(0, 8)}`;
 
   const inserted = await ctx.db
@@ -95,7 +200,7 @@ export const setReminderHandler: ActionHandler = async (
       title: input.title,
       body: input.body ?? input.title,
       triggerAt,
-      channel: input.channel,
+      channel,
       status: 'scheduled',
       payload: {},
       idempotencyKey,
@@ -132,7 +237,7 @@ export const setReminderHandler: ActionHandler = async (
       reminderId: String(row.id),
       title: input.title,
       triggerAt: triggerAt.toISOString(),
-      channel: input.channel,
+      channel,
     },
   };
 };

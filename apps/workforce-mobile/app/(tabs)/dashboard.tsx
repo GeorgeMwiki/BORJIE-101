@@ -1,4 +1,5 @@
 import { View } from 'react-native'
+import { useRouter } from 'expo-router'
 import { RoleGuard } from '../../src/components/RoleGuard'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { useAuth } from '../../src/auth/useAuth'
@@ -24,6 +25,7 @@ const SCREEN_ID = 'dashboard'
  * remains chat-first.
  */
 export default function DashboardTab(): JSX.Element {
+  const router = useRouter()
   const { user } = useAuth()
   const { lang } = useI18n()
   const role = user?.role ?? 'employee'
@@ -54,14 +56,14 @@ export default function DashboardTab(): JSX.Element {
             <>
               <LitFinButton
                 label={primaryCtaLabel}
-                onPress={() => undefined}
+                onPress={() => router.push('/(tabs)/ask')}
                 variant="primary"
                 size="md"
                 leadingIcon="*"
               />
               <LitFinButton
                 label={secondaryCtaLabel}
-                onPress={() => undefined}
+                onPress={() => router.push('/(tabs)/field')}
                 variant="secondary"
                 size="md"
               />

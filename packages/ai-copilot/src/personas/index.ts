@@ -20,6 +20,11 @@ export * from './persona.js';
 export * from './system-prompts.js';
 export * from './personas.catalog.js';
 
+// ----- Cross-session owner-model (Theory-of-Mind) — persistent Bayesian
+// posterior of how THIS owner wants to be spoken to. Consumed by the kernel's
+// ownerStyleReader port (wired in the api-gateway sovereign composition root).
+export * from './owner-style/index.js';
+
 // ----- New portal-bound primary persona API -----
 export type {
   BorjiePersona,

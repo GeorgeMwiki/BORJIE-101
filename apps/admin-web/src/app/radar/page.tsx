@@ -37,8 +37,7 @@ async function fetchSignals(cookieHeader: string): Promise<RadarResult> {
     }
     const data = (await res.json()) as { signals: ReadonlyArray<RadarSignal> };
     return { status: 'ok', signals: data.signals };
-  } catch (error) {
-    console.error('Radar signals fetch failed:', error);
+  } catch {
     return {
       status: 'degraded',
       reason: 'Radar pipeline unreachable. No mock signals rendered.',

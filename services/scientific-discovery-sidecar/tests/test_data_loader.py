@@ -57,7 +57,8 @@ def test_csv_file_scheme() -> None:
         f.write("a,b\n1,2\n3,4\n")
         path = f.name
     try:
-        df = load_dataframe(f"csv://{path}", max_rows=100)
+        # SEC-2: csv:// is a local-path scheme; only valid with the flag.
+        df = load_dataframe(f"csv://{path}", max_rows=100, allow_local_paths=True)
         assert len(df) == 2
     finally:
         os.unlink(path)
@@ -65,12 +66,58 @@ def test_csv_file_scheme() -> None:
 
 def test_csv_file_scheme_requires_absolute_path() -> None:
     with pytest.raises(DataRefError):
-        load_dataframe("csv://relative/path.csv", max_rows=100)
+        load_dataframe(
+            "csv://relative/path.csv", max_rows=100, allow_local_paths=True
+        )
 
 
 def test_csv_file_scheme_missing_file() -> None:
     with pytest.raises(DataRefError):
-        load_dataframe("csv:///nonexistent/file-xyz-123.csv", max_rows=100)
+        load_dataframe(
+            "csv:///nonexistent/file-xyz-123.csv",
+            max_rows=100,
+            allow_local_paths=True,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────
+# SEC-2 — local-path schemes rejected by default; byte cap.
+# ─────────────────────────────────────────────────────────────────────
+
+
+def test_csv_scheme_rejected_when_local_paths_disabled() -> None:
+    """Default (prod) posture: csv:// is refused — no shared data volume."""
+    with pytest.raises(DataRefError) as exc:
+        load_dataframe("csv:///etc/passwd", max_rows=100)
+    assert "local-path schemes are disabled" in str(exc.value)
+
+
+def test_parquet_scheme_rejected_when_local_paths_disabled() -> None:
+    with pytest.raises(DataRefError) as exc:
+        load_dataframe("parquet:///data/secret.parquet", max_rows=100)
+    assert "local-path schemes are disabled" in str(exc.value)
+
+
+def test_inline_and_rows_allowed_without_local_paths() -> None:
+    """inline:// and rows:// remain valid in the locked-down default."""
+    df = load_dataframe("inline://a,b\n1,2\n", max_rows=100)
+    assert len(df) == 1
+    df2 = load_dataframe('rows://[{"a": 1}]', max_rows=100)
+    assert len(df2) == 1
+
+
+def test_byte_cap_enforced_on_inline() -> None:
+    big = "a\n" + "\n".join("1" for _ in range(1000))
+    with pytest.raises(DataRefError) as exc:
+        load_dataframe("inline://" + big, max_rows=100_000, max_bytes=16)
+    assert "exceeds max_bytes" in str(exc.value)
+
+
+def test_byte_cap_enforced_on_rows() -> None:
+    rows = json.dumps([{"a": i} for i in range(100)])
+    with pytest.raises(DataRefError) as exc:
+        load_dataframe("rows://" + rows, max_rows=100_000, max_bytes=16)
+    assert "exceeds max_bytes" in str(exc.value)
 
 
 def test_unknown_scheme_rejected() -> None:

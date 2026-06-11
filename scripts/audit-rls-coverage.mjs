@@ -43,6 +43,11 @@ import { RLS_ALLOWLIST } from './__allowlists__/rls-coverage-allowlist.mjs';
 const ROOT = resolve(fileURLToPath(import.meta.url), '..', '..');
 const SCHEMAS_DIR = join(ROOT, 'packages', 'database', 'src', 'schemas');
 const MIGRATIONS_DIR = join(ROOT, 'packages', 'database', 'src', 'migrations');
+// The 72-file Drizzle baseline IS part of the canonical applied chain (it
+// bootstraps the schema before the forward-only deltas in src/migrations run),
+// so RLS it installs must count as coverage. Scanning only src/migrations made
+// the scanner false-flag every table whose ENABLE/POLICY lives in the baseline.
+const DRIZZLE_DIR = join(ROOT, 'packages', 'database', 'drizzle');
 
 // Tenant-scoping column names. Match the Drizzle field declaration.
 //
@@ -120,47 +125,108 @@ function findTenantTables() {
 // ───────────────────────────────────────────────────────────────────
 
 function readAllSql() {
-  const files = [];
-  walkDir(MIGRATIONS_DIR, '.sql', files);
-  const bodies = files.map((f) => readFileSync(f, 'utf8'));
-  return bodies.join('\n\n-- file-boundary --\n\n');
+  const paths = [];
+  walkDir(MIGRATIONS_DIR, '.sql', paths);
+  walkDir(DRIZZLE_DIR, '.sql', paths);
+  const files = paths.map((f) => ({
+    rel: relative(ROOT, f),
+    body: readFileSync(f, 'utf8'),
+  }));
+  return {
+    joined: files.map((f) => f.body).join('\n\n-- file-boundary --\n\n'),
+    files,
+  };
 }
 
-function tableHasRlsEnabled(sql, table) {
+// A dynamic, array-driven RLS install — `FOREACH tbl IN ARRAY[...] LOOP
+// EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl); ...`. The
+// array variable's NAME varies across migrations (`tenant_tables`,
+// `text_key_tables`, `core_entity_tables`, …), so we must NOT key off the
+// variable name — we key off the `format('ALTER TABLE %I … ENABLE …')` shape
+// (the actual coverage instruction) and credit every quoted table literal that
+// appears inside an ARRAY[…] block in the SAME file.
+// The format() string literal may be single-quoted ('…') OR dollar-quoted
+// ($tag$…$tag$) — migration 0160 uses `format($pol$ CREATE POLICY %I …$pol$)`.
+// Match either opener so a dollar-quoted loop is not mis-read as "no policy".
+const DYN_ENABLE_RX =
+  /format\(\s*(?:'|\$[a-zA-Z_]*\$)\s*ALTER\s+TABLE\s+(?:public\.)?%I[\s\S]{0,60}?ENABLE\s+ROW\s+LEVEL\s+SECURITY/i;
+const DYN_POLICY_RX = /format\(\s*(?:'|\$[a-zA-Z_]*\$)\s*CREATE\s+POLICY/i;
+
+/** Split a migration body into its `DO $tag$ … $tag$` block bodies. */
+function doBlocks(body) {
+  const blocks = [];
+  const rx = /DO\s+(\$[a-zA-Z_]*\$)([\s\S]*?)\1/gi;
+  let m;
+  while ((m = rx.exec(body)) !== null) blocks.push(m[2]);
+  return blocks;
+}
+
+/**
+ * Table names from a table-list ARRAY[…] that drives an RLS loop, in either of
+ * the two shapes this repo uses:
+ *   1. declared:  `<var> text[] := ARRAY[ … ]`            (then FOREACH … IN ARRAY <var>)
+ *   2. inline:    `FOREACH <v> IN ARRAY ARRAY[ … ]`        (and `IN ARRAY[ … ]`)
+ * Restricting to these two openers is what keeps column-name arrays, GRANT
+ * lists, and other inline `ARRAY[…]` literals from being mistaken for the
+ * loop's table set.
+ */
+function tableListNames(block) {
+  const names = new Set();
+  const declRx =
+    /(?:text\s*\[\s*\]\s*:=\s*ARRAY\s*\[|IN\s+ARRAY\s+ARRAY\s*\[|IN\s+ARRAY\s*\[)([\s\S]*?)\]/gi;
+  let m;
+  while ((m = declRx.exec(block)) !== null) {
+    const litRx = /'([a-zA-Z_][a-zA-Z0-9_]*)'/g;
+    let lm;
+    while ((lm = litRx.exec(m[1])) !== null) names.add(lm[1]);
+  }
+  return names;
+}
+
+/**
+ * Precompute the union of table names covered by an array-driven ENABLE / POLICY
+ * loop, scoped PER `DO`-BLOCK (not per file): a table is credited only when the
+ * SAME block both declares it in a `text[]` table-list AND runs the dynamic
+ * `format(... %I ...)` ENABLE / CREATE POLICY over that list. This prevents a
+ * GRANT array or a column-name array elsewhere in the file from false-crediting
+ * a table that never actually gets RLS.
+ */
+function computeLoopCoverage(files) {
+  const enableNames = new Set();
+  const policyNames = new Set();
+  for (const f of files) {
+    for (const block of doBlocks(f.body)) {
+      const hasEnable = DYN_ENABLE_RX.test(block);
+      const hasPolicy = DYN_POLICY_RX.test(block);
+      if (!hasEnable && !hasPolicy) continue;
+      const names = tableListNames(block);
+      if (hasEnable) for (const n of names) enableNames.add(n);
+      if (hasPolicy) for (const n of names) policyNames.add(n);
+    }
+  }
+  return { enableNames, policyNames };
+}
+
+function tableHasRlsEnabled(joined, loop, table) {
   // Direct: `ALTER TABLE [IF EXISTS] [public.]<table> ENABLE ROW LEVEL SECURITY`
   const direct = new RegExp(
     `ALTER\\s+TABLE\\s+(?:IF\\s+EXISTS\\s+)?(?:public\\.|"public"\\.)?"?${table}"?\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY`,
     'i',
   );
-  if (direct.test(sql)) return true;
-  // Loop-installed: `tenant_tables[] := ARRAY[ ... '<table>', ... ];`
-  // followed by `EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', tbl);`
-  // We scan for the table name appearing inside a tenant_tables array
-  // AND the loop EXECUTE call appearing in the same file.
-  const inArrayRx = new RegExp(
-    `tenant_tables[\\s\\S]{0,4000}?'${table}'`,
-    'i',
-  );
-  const loopExecuteRx =
-    /EXECUTE\s+format\([^)]*ALTER\s+TABLE[^)]*ENABLE\s+ROW\s+LEVEL\s+SECURITY/i;
-  return inArrayRx.test(sql) && loopExecuteRx.test(sql);
+  if (direct.test(joined)) return true;
+  // Array-loop installed (any array variable name).
+  return loop.enableNames.has(table);
 }
 
-function tableHasPolicy(sql, table) {
+function tableHasPolicy(joined, loop, table) {
   // Direct CREATE POLICY ... ON <table>.
   const direct = new RegExp(
     `CREATE\\s+POLICY\\s+[^;]+\\s+ON\\s+(?:public\\.|"public"\\.)?"?${table}"?[\\s\\(]`,
     'i',
   );
-  if (direct.test(sql)) return true;
-  // Loop-installed via tenant_isolation_*.
-  const inArrayRx = new RegExp(
-    `tenant_tables[\\s\\S]{0,4000}?'${table}'`,
-    'i',
-  );
-  const loopCreatePolicyRx =
-    /CREATE\s+POLICY\s+tenant_isolation/i;
-  return inArrayRx.test(sql) && loopCreatePolicyRx.test(sql);
+  if (direct.test(joined)) return true;
+  // Array-loop installed via a dynamic `format('CREATE POLICY …', …)`.
+  return loop.policyNames.has(table);
 }
 
 // ───────────────────────────────────────────────────────────────────
@@ -186,14 +252,15 @@ function ensureDir(p) {
 function main() {
   const args = parseArgs(process.argv);
   const tables = findTenantTables();
-  const sql = readAllSql();
+  const { joined, files } = readAllSql();
+  const loop = computeLoopCoverage(files);
   const violations = [];
   const audited = [];
 
   for (const [name, schemaFile] of tables) {
     const allowReason = RLS_ALLOWLIST.get(name);
-    const rls = tableHasRlsEnabled(sql, name);
-    const policy = tableHasPolicy(sql, name);
+    const rls = tableHasRlsEnabled(joined, loop, name);
+    const policy = tableHasPolicy(joined, loop, name);
     audited.push({ table: name, schemaFile, rls, policy, allowlisted: Boolean(allowReason) });
     if (allowReason) continue;
     if (!rls) {

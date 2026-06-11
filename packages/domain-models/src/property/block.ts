@@ -5,7 +5,7 @@
  * capacity counts of the units it contains.
  */
 
-import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable, ISOTimestamp } from '../common/types';
+import type { Brand, TenantId, UserId, EntityMetadata, SoftDeletable } from '../common/types';
 
 export type BlockId = Brand<string, 'BlockId'>;
 

@@ -11,6 +11,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { CONVERSATIONAL_PERSONALIZATION_PROMPT } from '../prompts/copilot-prompts.js';
 
@@ -338,7 +339,7 @@ export class ConversationalPersonalizationService {
 
   constructor(config: ConversationalPersonalizationConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.5;
     this.maxTokens = config.maxTokens ?? 2500;
   }

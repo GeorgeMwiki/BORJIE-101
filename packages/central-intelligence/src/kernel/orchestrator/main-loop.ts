@@ -67,6 +67,23 @@ import {
   createTurnStageEmitter,
   type StageEventBus,
 } from './stage-event-bus.js';
+// COG-07/AUT-14 — the modality arbiter (the 7-way output head). Optional
+// dep; when absent the loop behaves EXACTLY as today (chat/action only).
+import { liftToModalityDecision } from './modality-arbiter.js';
+import type {
+  ModalityArbiter,
+  ModalityVerdict,
+} from './modality-arbiter-types.js';
+// K-7 (the honesty unblock) — the REAL confidence/gate/conformal-abstention
+// scorer. Computed over the finished answer so the response carries the
+// TRUE confidence instead of the hard-stamped `confidence = 1`. Default-OFF
+// at the surface (the verdict is ATTACHED for telemetry always; only the
+// answer TEXT is rewritten when `deps.honestConfidence` is on).
+import {
+  scoreHonestConfidence,
+  type HonestVerdict,
+  type HonestFloors,
+} from './honest-confidence.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Public request / response shapes
@@ -152,6 +169,16 @@ export type OrchestratorResponse =
       readonly turnsUsed: number;
       readonly citations: ReadonlyArray<Citation>;
       readonly artifacts: ReadonlyArray<Artifact>;
+      /**
+       * K-7 (honesty unblock). The REAL confidence/gate/abstention verdict
+       * computed over THIS answer. Always attached (telemetry); the answer
+       * `text` is only rewritten to a hedge/abstention when
+       * `OrchestratorDeps.honestConfidence` is on. OPTIONAL + readonly so
+       * every existing pattern-match on this union (kernel.ts translator,
+       * the streaming bridge) compiles unchanged. The CALLER must surface
+       * only `honesty.status` — never the audit reasons (INV-H/INV-D).
+       */
+      readonly honesty?: HonestVerdict;
     }
   | {
       readonly kind: 'ask-approval';
@@ -299,6 +326,38 @@ export interface OrchestratorDeps {
    * learning signal-emitter here.
    */
   readonly stageBus?: StageEventBus;
+  /**
+   * COG-07/AUT-14 — the modality arbiter (the 7-way output head). When
+   * wired, after the router emits a Decision the arbiter post-classifies
+   * the turn into one of the seven CLOSED output modalities and the loop
+   * LIFTS the Decision to `run_skill` / `run_modality` when a higher-order
+   * modality wins. The lifted Decision still flows through the SAME
+   * permission-mode + 9-hook + risk-tier gates below — NO rail is bypassed.
+   *
+   * Default-OFF: when this dep is ABSENT (the composition root constructs
+   * it only when `BORJIE_MODALITY_ARBITER` is on), the loop behaves
+   * BYTE-IDENTICALLY to today — chat/action only. The arbiter can never
+   * relax a rail; money/licence/deletion stay dual-control HITL.
+   */
+  readonly modalityArbiter?: ModalityArbiter;
+  /**
+   * K-7 (the honesty unblock). When `true`, the loop REWRITES a finished
+   * answer's surfaced TEXT to an honest abstention/hedge when the real
+   * confidence/evidence/conformal scorer says the answer is ungrounded or
+   * under-calibrated. Default-OFF / absent → the answer text is surfaced
+   * EXACTLY as today (byte-identical), but the honest verdict is STILL
+   * attached on `answer.honesty` for telemetry, so production flips this
+   * one flag (`BORJIE_HONEST_CONFIDENCE`, resolved at the composition
+   * root) to switch the surfaced persona from overconfident-by-construction
+   * to honestly-calibrated. The verdict's audit reasons are NEVER surfaced
+   * to a client frame (INV-H/INV-D) — only the hedge/abstention status.
+   */
+  readonly honestConfidence?: boolean;
+  /**
+   * K-7 — optional override of the conformal / hedge / abstain floors. When
+   * omitted the honest scorer uses its conservative defaults.
+   */
+  readonly honestFloors?: HonestFloors;
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -341,6 +400,81 @@ export function narrowToLegacyResponse(
     default:
       return response;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// K-7 (honesty unblock) — finalize an answer with the REAL confidence /
+// evidence / conformal-abstention signal. This is the structural fix for
+// the kernel translator's hard-stamp (`confidence = 1` / `gates = pass`):
+// the verdict is ALWAYS attached on `answer.honesty` (telemetry, and so a
+// downstream surface can read the TRUE confidence), and when
+// `deps.honestConfidence` is on the answer TEXT is rewritten to an honest
+// abstention / hedge so the persona stops asserting things it cannot
+// ground. Default-OFF preserves byte-identical surfaced text.
+//
+// NO LEAK (INV-H/INV-D): the rewritten text is a plain, single-language
+// caveat — it never embeds the gate reasoning, the conformal α, or the
+// confidence vector. Those live only on `honesty.auditReasons` (audit
+// plane), which the kernel translator already discards.
+// ─────────────────────────────────────────────────────────────────────
+
+/** Honest hedge / abstention copy. English-only (EN/SW purity: the locale
+ *  layer above re-renders; we never mix languages in one string). */
+const HONEST_ABSTAIN_TEXT =
+  "I'm not confident enough to answer that reliably — I don't have grounded " +
+  'evidence to stand behind a specific answer here, so I would rather not guess. ' +
+  'Let me gather the underlying records first.';
+
+const HONEST_HEDGE_PREFIX =
+  'I want to flag that I am not fully certain about this — please treat it as a ' +
+  'best read rather than a confirmed answer:\n\n';
+
+function finalizeAnswer(
+  raw: {
+    readonly text: string;
+    readonly turnsUsed: number;
+    readonly citations: ReadonlyArray<Citation>;
+    readonly artifacts: ReadonlyArray<Artifact>;
+  },
+  req: OrchestratorRequest,
+  deps: OrchestratorDeps,
+): Extract<OrchestratorResponse, { kind: 'answer' }> {
+  const honesty = scoreHonestConfidence(
+    {
+      outputText: raw.text,
+      citations: raw.citations,
+      // Only thread the flag when the caller set it — `exactOptionalProperty
+      // Types` forbids an explicit `undefined`. Absent → the scorer's
+      // evidence-required default (true).
+      ...(req.evidenceRequired !== undefined
+        ? { evidenceRequired: req.evidenceRequired }
+        : {}),
+    },
+    deps.honestFloors ?? {},
+  );
+
+  // Default-OFF: attach the verdict for telemetry but surface text as-is.
+  if (!deps.honestConfidence) {
+    return { kind: 'answer', ...raw, honesty };
+  }
+
+  // Surfaced honest mode: rewrite the text to match the honest status.
+  let text = raw.text;
+  if (honesty.status === 'abstain') {
+    text = HONEST_ABSTAIN_TEXT;
+  } else if (honesty.status === 'hedge') {
+    text = `${HONEST_HEDGE_PREFIX}${raw.text}`;
+  }
+
+  if (honesty.status !== 'answer') {
+    deps.logger?.info?.('honest-confidence: downgraded surfaced answer', {
+      threadId: req.threadId,
+      status: honesty.status,
+      overall: honesty.confidence.overall,
+    });
+  }
+
+  return { kind: 'answer', ...raw, text, honesty };
 }
 
 /**
@@ -718,6 +852,48 @@ export async function thinkExtended(
       tools,
       messages,
     });
+
+    // ───────────────────────────────────────────────────────────────────
+    // COG-07/AUT-14 — modality arbiter (the 7-way output head). Inserted
+    // AFTER `router.call` (reuses the model's computed intent, no second
+    // expensive LLM pass) and BEFORE the permission-mode + 9-hook gates so
+    // any LIFTED Decision still flows through the SAME rails — NO rail is
+    // bypassed. Default-OFF: when `deps.modalityArbiter` is absent (the
+    // composition root only constructs it under `BORJIE_MODALITY_ARBITER`)
+    // this block is skipped entirely and the loop runs as today.
+    if (deps.modalityArbiter) {
+      // The arbiter classifies + (when wired) ESCALATES autonomy. A `gate`
+      // verdict on a NEW capability turns the lifted decision into an
+      // ask-owner via the four-eye hook below (we re-use the existing
+      // permission/hook path; the arbiter never auto-runs a gated action).
+      const verdict: ModalityVerdict = await deps.modalityArbiter.classify({
+        intentText: req.userMessage,
+        decision,
+        tenantId: req.scope.kind === 'tenant' ? req.scope.tenantId : null,
+        // The orchestrator request does not carry a per-turn calibrated
+        // confidence; pass a conservative mid-band so the rail-composed
+        // decider gates anything consequential unless the flow posture and
+        // calibration upstream already earned auto. The decider clamps/
+        // treats this as fail-cautious.
+        calibratedConfidence: 0.5,
+        ...(req.languageDirective
+          ? { languageDirective: req.languageDirective }
+          : {}),
+      });
+      // Only lift for the higher-order modalities; chat/action keep the
+      // router's existing Decision (the default fast path, zero added
+      // latency for the 80% case).
+      if (verdict.modality !== 'chat' && verdict.modality !== 'action') {
+        decision = liftToModalityDecision(decision, verdict);
+      }
+      deps.logger?.info?.('modality-arbiter: classified', {
+        threadId: req.threadId,
+        modality: verdict.modality,
+        tier: verdict.tier,
+        autonomy: verdict.autonomy?.decision,
+        gatedBy: verdict.autonomy?.gatedBy ?? null,
+      });
+    }
 
     // Permission-mode pre-check for tool_call decisions. Plan mode
     // short-circuits BEFORE the hook chain runs so destructive tools
@@ -1104,13 +1280,18 @@ export async function thinkExtended(
       // LP-07 — `outcome` + `learning` stages for a clean answer.
       await stages.outcome('answer', stepIndex);
       await stages.learning('success');
-      return {
-        kind: 'answer',
-        text: toRun.text,
-        turnsUsed: budget.snapshot().usage.turns,
-        citations: citations.snapshot(),
-        artifacts: [],
-      };
+      // K-7 — finalize with the REAL confidence/evidence/conformal signal
+      // (default-OFF surface: text unchanged, verdict attached for telemetry).
+      return finalizeAnswer(
+        {
+          text: toRun.text,
+          turnsUsed: budget.snapshot().usage.turns,
+          citations: citations.snapshot(),
+          artifacts: [],
+        },
+        req,
+        deps,
+      );
     }
     if (toRun.kind === 'schedule_wake') {
       return {
@@ -1165,13 +1346,17 @@ export async function thinkExtended(
   // LP-07 — loop completed without an explicit respond/final decision.
   await stages.outcome('answer', stepIndex);
   await stages.learning(lastText.length > 0 ? 'success' : 'partial');
-  return {
-    kind: 'answer',
-    text: lastText,
-    turnsUsed: snapshot.usage.turns,
-    citations: citations.snapshot(),
-    artifacts: [],
-  };
+  // K-7 — finalize with the REAL confidence/evidence/conformal signal.
+  return finalizeAnswer(
+    {
+      text: lastText,
+      turnsUsed: snapshot.usage.turns,
+      citations: citations.snapshot(),
+      artifacts: [],
+    },
+    req,
+    deps,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────

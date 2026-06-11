@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.models.schemas import PcmciRequest, PcmciResponse
+from app.security import require_bearer_token
 from app.services.data_loader import DataRefError
 from app.services.pcmciplus_engine import PcmciEngineError, run_pcmciplus
 
-router = APIRouter(prefix="/tigramite", tags=["tigramite"])
+# SEC-1 — bearer guard at the router level (see dowhy_refute.py).
+router = APIRouter(
+    prefix="/tigramite",
+    tags=["tigramite"],
+    dependencies=[Depends(require_bearer_token)],
+)
 logger = logging.getLogger(__name__)
 
 
@@ -23,6 +29,8 @@ async def pcmciplus(req: PcmciRequest, request: Request) -> PcmciResponse:
             req,
             max_rows=settings.max_payload_rows,
             pc_alpha=settings.pcmci_pc_alpha_default,
+            allow_local_paths=settings.allow_local_paths,
+            max_bytes=settings.max_payload_bytes,
         )
     except DataRefError as exc:
         raise HTTPException(status_code=400, detail={"dataRef": str(exc)}) from exc

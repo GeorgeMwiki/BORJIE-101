@@ -92,13 +92,14 @@ describe('dispatchToTabs', () => {
       deps,
     );
     expect(proposals.length).toBeGreaterThan(0);
-    // Mr Juma + propose_action → ESTATE.create_lease_application (L-ROW-01)
-    const lease = proposals.find(
+    // Mr Juma (customer) + propose_action → TRC-EMU.enrol_consumer_account
+    // (L-ROW-09), the surviving platform row for that pair.
+    const enrol = proposals.find(
       (p) =>
-        p.module_template_id === 'ESTATE' &&
-        p.action === 'create_lease_application',
+        p.module_template_id === 'TRC-EMU' &&
+        p.action === 'enrol_consumer_account',
     );
-    expect(lease).toBeDefined();
+    expect(enrol).toBeDefined();
   });
 
   it('marks low-confidence proposal pending_hitl', async () => {
@@ -118,10 +119,10 @@ describe('dispatchToTabs', () => {
         (p) => p.status === 'pending_hitl' || p.status === 'auto_applying',
       ),
     ).toBe(true);
-    const lease = proposals.find(
-      (p) => p.action === 'create_lease_application',
+    const enrol = proposals.find(
+      (p) => p.action === 'enrol_consumer_account',
     );
-    expect(lease?.status).toBe('pending_hitl');
+    expect(enrol?.status).toBe('pending_hitl');
   });
 
   it('skips rules with min_confidence above capture confidence', async () => {
@@ -143,7 +144,7 @@ describe('dispatchToTabs', () => {
   it('auto-applies high-confidence proposals where hitl_required=false', async () => {
     const deps = setupDeps();
     const handlerRegistry = createStubHandlerRegistry();
-    // Lease event with confidence above auto-apply threshold (0.85)
+    // Payment-received event with confidence above auto-apply threshold (0.85)
     const proposals = await dispatchToTabs(
       {
         tenant_id: 'trc',
@@ -152,9 +153,9 @@ describe('dispatchToTabs', () => {
           capture_confidence: 0.95,
           entities: [
             {
-              type: 'lease',
-              canonical_id: 'le_juma_godown3',
-              raw_value: 'le_juma_godown3',
+              type: 'invoice',
+              canonical_id: 'inv_juma_1',
+              raw_value: 'inv_juma_1',
               confidence: 0.95,
               source: 'exact_name',
             },
@@ -165,11 +166,11 @@ describe('dispatchToTabs', () => {
       },
       deps,
     );
-    // ESTATE.append_lease_event (L-ROW-03) — hitl_required=false, threshold 0.85.
-    const lease = proposals.find((p) => p.action === 'append_lease_event');
-    expect(lease).toBeDefined();
+    // LITFIN.append_payment_received (L-ROW-06) — hitl_required=false, threshold 0.85.
+    const payment = proposals.find((p) => p.action === 'append_payment_received');
+    expect(payment).toBeDefined();
     // It should have flipped to accepted after auto-apply via handler.
-    const refreshed = await deps.proposalStore.findById('trc', lease!.id);
+    const refreshed = await deps.proposalStore.findById('trc', payment!.id);
     expect(refreshed?.status).toBe('accepted');
   });
 
@@ -284,14 +285,14 @@ describe('approveProposal', () => {
     const deps = setupDeps();
     const failingHandler = vi.fn().mockResolvedValue({
       ok: false,
-      error: 'unit already leased',
+      error: 'consumer already enrolled',
     });
     const handlerRegistry = createStubHandlerRegistry({
       overrides: {
-        'ESTATE.create_lease_application': failingHandler,
+        'TRC-EMU.enrol_consumer_account': failingHandler,
       },
     });
-    const [first] = await dispatchToTabs(
+    const proposals = await dispatchToTabs(
       {
         tenant_id: 'trc',
         capture: mkCapture(),
@@ -300,9 +301,11 @@ describe('approveProposal', () => {
       },
       deps,
     );
+    const enrol = proposals.find((p) => p.action === 'enrol_consumer_account');
+    expect(enrol).toBeDefined();
     const result = await approveProposal({
       tenant_id: 'trc',
-      proposal_id: first!.id,
+      proposal_id: enrol!.id,
       approver_user_id: 'u_emu_officer',
       approver_tier: 2,
       handlerRegistry,
@@ -311,7 +314,7 @@ describe('approveProposal', () => {
       eventLog: deps.eventLog,
     });
     expect(result.status).toBe('failed');
-    expect(result.failure_reason).toBe('unit already leased');
+    expect(result.failure_reason).toBe('consumer already enrolled');
   });
 });
 
