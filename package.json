@@ -32,6 +32,7 @@
     "migrate": "pnpm -C packages/database db:migrate",
     "migration-check": "node scripts/migration-apply-check.mjs --migrations-dir=packages/database/src/migrations --report=.audit/migration-apply.md",
     "migration-safety": "node scripts/validate-migration-safety.mjs --migrations-dir=packages/database/src/migrations --fail-on=fail --report=.audit/migration-safety.md",
+    "db:dryrun": "node scripts/migration-drift-dryrun.mjs --report=.audit/migration-dryrun.md",
     "verify:migrations": "tsx scripts/verify-migrations.ts",
     "verify:migrations:json": "tsx scripts/verify-migrations.ts --json",
     "refresh-fx-rates": "pnpm -s exec tsx scripts/refresh-fx-rates.ts",
@@ -41,6 +42,8 @@
     "i18n:check": "tsx scripts/i18n-generate-sw.ts --check",
     "setup-env": "node scripts/setup-borjie-env.mjs",
     "gen-secrets": "node scripts/generate-borjie-secrets.mjs",
+    "preflight": "node scripts/preflight-production.mjs",
+    "set-gh-secrets": "node scripts/set-gh-secrets.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
