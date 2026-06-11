@@ -463,7 +463,15 @@ export function createNotWiredArtifactRenderService(): ArtifactRenderService {
       return null;
     },
     async insert(): Promise<void> {
-      throw new Error('artifact render service not wired (insert)');
+      // NOT-WIRED degradation: silently drop the row (consistent with
+      // findById→null + the cache no-ops below) rather than THROW. A throw
+      // here would crash any turn that tries to persist a generated artifact
+      // in an environment where the render pipeline isn't bound (no Chromium /
+      // DB). Degrading to a no-op means the artifact simply isn't retrievable
+      // later (findById→null → the FE surfaces a clean 404), never a process
+      // crash. The real DB-backed service (createArtifactRenderService wiring)
+      // persists for real.
+      /* no-op (not wired) */
     },
   };
   const cacheRepository: ArtifactRenderCacheRepository = {
