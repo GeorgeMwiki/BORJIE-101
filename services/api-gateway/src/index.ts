@@ -526,6 +526,14 @@ import { createJurisdictionPromotionRouter } from './routes/admin/jurisdiction-p
 // integration.connector.{list,invoke} brain tools. Honest-degrades when a
 // connector is not connected or its runtime invoker is not provisioned.
 import { createConnectorsRouter } from './routes/integrations/connectors.hono';
+// LAST outward-reach seam — bind the REAL runtime invokers behind the connector
+// fabric + legacy-portal route. Both honest-degrade (credential / env-gated):
+// connectorInvokers executes a live action only when the tenant HAS connected
+// the account AND the provider env + cipher key are provisioned; legacyPortalFileKra
+// drives a live (lazy) Playwright portal only when LEGACY_PORTAL_LIVE + a vault
+// are set. Governance unchanged — both stay HIGH-gated by their brain tools upstream.
+import { createConnectorInvokers } from './composition/connector-invokers-wiring';
+import { createLegacyPortalLiveWiring } from './composition/legacy-portal-live-wiring';
 // Wave 29 — Forecasting (TGN + conformal) surface. Returns 503
 // FORECAST_SERVICE_UNAVAILABLE when the TGN inference + repo env
 // vars are unset (no mock forecasts, ever).
@@ -2106,6 +2114,30 @@ const portalGenuiWiring = buildPortalGenuiWiring();
 // this attachment getStorageAdapter(c) is undefined and the route honest-501s.
 (serviceRegistry as { portalGenUIStorageAdapter?: unknown }).portalGenUIStorageAdapter =
   portalGenuiWiring.storageAdapter;
+// LAST outward-reach seam — bind the REAL connector + legacy-portal runtime
+// invokers onto the SAME serviceRegistry the service-context middleware closed
+// over (the connectors route reads `services.connectorInvokers`; the legacy-
+// portal route reads `services.legacyPortalFileKra`). Both are credential/env
+// gated and honest-degrade: an unprovisioned connector / unset live env leaves
+// the slot empty so the routes keep their structured not-provisioned envelopes.
+{
+  const connectorInvokersWiring = createConnectorInvokers({
+    db: serviceRegistry.db as unknown as
+      | { execute(q: unknown): Promise<unknown> }
+      | null,
+    logger: createPinoLikeLogger('connector-invokers'),
+  });
+  (serviceRegistry as { connectorInvokers?: unknown }).connectorInvokers =
+    connectorInvokersWiring.connectorInvokers;
+
+  const legacyPortalWiring = createLegacyPortalLiveWiring({
+    logger: createPinoLikeLogger('legacy-portal-live'),
+  });
+  if (legacyPortalWiring.fileKra !== undefined) {
+    (serviceRegistry as { legacyPortalFileKra?: unknown }).legacyPortalFileKra =
+      legacyPortalWiring.fileKra;
+  }
+}
 // W2a — optional tenant-scoped read port for LIVE widget-data (mapped estate
 // domains). Same `$client.unsafe(sql, params)` boundary the record store uses;
 // RLS FORCE on app.current_tenant_id isolates in the DB. Unbound in dev/test →
