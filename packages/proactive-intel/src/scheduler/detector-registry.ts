@@ -6,13 +6,18 @@
  * registry to dispatch; cadences declare what runs, the registry
  * declares how.
  *
- * J5 core PR wires the 3 anomaly detectors that ship in this PR
- * (cashflow-dip, royalty-arrears-spike, churn-risk). The other 4 anomaly
- * detectors are already scaffolded under detectors/ but are wired in a
- * follow-up to keep the surface tight. Opportunity detectors land in a
- * separate PR — registry is intentionally empty until then so the
- * tick-runner's `if (!fn) continue;` cleanly skips kinds we declare
- * in cadences but haven't shipped yet.
+ * All 7 anomaly detectors that have a real, complete source file under
+ * `detectors/` are wired here: the J5 core 3 (cashflow-dip,
+ * royalty-arrears-spike, churn-risk) plus the 4 that were scaffolded as
+ * complete pure detectors but previously left commented out (cost-anomaly,
+ * slo-breach, compliance-deadline-near, vendor-reliability-drop).
+ *
+ * The 3 opportunity detectors (vendor-rate-arbitrage, policy-tightening,
+ * offtake-price-vs-market) are declared in cadences + the OpportunityKind
+ * contract but have NO source file under `detectors/` — they are unbuilt,
+ * not merely unwired. They remain commented out below so the tick-runner's
+ * `if (!fn) continue;` cleanly skips them until someone builds (or prunes)
+ * them. Do not register them without a real detector implementation.
  *
  * Keeping this map central makes it trivial to add a detector — drop a
  * file under `detectors/` (or `opportunities/`), import the function,
@@ -25,6 +30,11 @@ import type { TickContext } from './tick-context.js';
 import { detectCashflowDip } from '../detectors/cashflow-dip.detector.js';
 import { detectRoyaltyArrearsSpike } from '../detectors/royalty-arrears-spike.detector.js';
 import { detectChurnRisk } from '../detectors/churn-risk.detector.js';
+// Anomaly detectors — scaffolded-then-wired (real, complete pure detectors).
+import { detectCostAnomaly } from '../detectors/cost-anomaly.detector.js';
+import { detectSloBreach } from '../detectors/slo-breach.detector.js';
+import { detectComplianceDeadlineNear } from '../detectors/compliance-deadline-near.detector.js';
+import { detectVendorReliabilityDrop } from '../detectors/vendor-reliability-drop.detector.js';
 
 export type AnomalyDetectorFn = (ctx: TickContext) => ReadonlyArray<AnomalyEvent>;
 export type OpportunityDetectorFn = (
@@ -35,14 +45,16 @@ export const ANOMALY_DETECTORS: Readonly<Record<string, AnomalyDetectorFn>> = {
   'cashflow-dip': detectCashflowDip,
   'royalty-arrears-spike': detectRoyaltyArrearsSpike,
   'churn-risk': detectChurnRisk,
-  // Deferred to follow-up PR (already scaffolded under detectors/):
-  //   'cost-anomaly', 'slo-breach', 'compliance-deadline-near',
-  //   'vendor-reliability-drop'
+  'cost-anomaly': detectCostAnomaly,
+  'slo-breach': detectSloBreach,
+  'compliance-deadline-near': detectComplianceDeadlineNear,
+  'vendor-reliability-drop': detectVendorReliabilityDrop,
 } as const;
 
 export const OPPORTUNITY_DETECTORS: Readonly<
   Record<string, OpportunityDetectorFn>
 > = {
-  // Deferred to follow-up PR:
+  // Unbuilt — declared in cadences + OpportunityKind contract but NO source
+  // file exists under detectors/. Build a real detector before wiring:
   //   'vendor-rate-arbitrage', 'policy-tightening', 'offtake-price-vs-market'
 } as const;
