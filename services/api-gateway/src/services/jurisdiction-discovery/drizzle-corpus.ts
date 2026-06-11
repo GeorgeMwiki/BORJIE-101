@@ -1,10 +1,15 @@
 /**
  * Drizzle-backed corpus search adapter — JC-1.
  *
- * Thin keyword search over `intelligence_corpus_chunks`. Uses a
- * tsvector-style `to_tsquery` projection over the chunk text + title
- * + source metadata; falls back to LIKE matching when full-text
- * is not configured.
+ * Thin keyword (ILIKE) search over `intelligence_corpus_chunks`. The
+ * physical chunk columns are `text` (the body), `source_file`, and
+ * `metadata` (per `intelligence-corpus.schema.ts` / migration
+ * `0003_mining_domain.sql`) — there is NO `content` / `title` column,
+ * so we scan `text` + `source_file` and derive a human title from
+ * `source_file`. (An earlier revision queried phantom `content`/`title`
+ * columns; that threw "column does not exist" and the catch silently
+ * returned `[]`, leaving the corpus probe dark — and so the admin
+ * compliance learn-feed unreachable. Fixed to the real columns.)
  *
  * The corpus is tenant-AGNOSTIC (per CLAUDE.md — every tenant inherits
  * the same global ground truth) so we do NOT bind a tenant context
@@ -28,7 +33,7 @@ interface DbLike {
 interface ChunkRow {
   readonly id: string;
   readonly title: string | null;
-  readonly content: string;
+  readonly body: string;
   readonly source_file: string | null;
 }
 
@@ -39,22 +44,21 @@ export function createDrizzleCorpusSearch(
     async search({ query, limit = 6 }) {
       if (!db) return [];
       const safeLimit = Math.max(1, Math.min(20, limit));
-      // ILIKE-based scan — keeps the adapter portable across the
-      // various corpus chunk variants the codebase ships (some use
-      // chunk_text, some content). The query is short + targeted
-      // ("country mining regulator authority") so the scan stays
-      // bounded.
+      // ILIKE-based scan over the REAL columns: `text` is the chunk body
+      // and `source_file` is the provenance path (no `content` / `title`
+      // column exists). The title is derived from `source_file`. The query
+      // is short + targeted ("country mining regulator authority") so the
+      // scan stays bounded.
       try {
         const result = (await db.execute(sql`
           SELECT
-            id::text          AS id,
-            COALESCE(title, source_file, 'corpus chunk') AS title,
-            COALESCE(content, '')                        AS content,
+            id::text                                  AS id,
+            COALESCE(source_file, 'corpus chunk')     AS title,
+            COALESCE(text, '')                        AS body,
             source_file
           FROM intelligence_corpus_chunks
           WHERE (
-            content ILIKE ${`%${query}%`}
-            OR title ILIKE ${`%${query}%`}
+            text ILIKE ${`%${query}%`}
             OR source_file ILIKE ${`%${query}%`}
           )
           LIMIT ${safeLimit}
@@ -66,7 +70,7 @@ export function createDrizzleCorpusSearch(
         return rows.map((row) => ({
           evidenceId: row.id,
           title: row.title ?? row.source_file ?? 'corpus chunk',
-          snippet: (row.content ?? '').slice(0, 480),
+          snippet: (row.body ?? '').slice(0, 480),
         }));
       } catch (err) {
         logger.warn(

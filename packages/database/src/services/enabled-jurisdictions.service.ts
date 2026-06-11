@@ -46,6 +46,10 @@ export interface EnabledJurisdictionsService {
     docType?: string;
     uploadedByAdminId?: string;
     filePath?: string;
+    /** Chunks written into the shared corpus for this upload. */
+    corpusChunkCount?: number;
+    /** Lifecycle of the source→corpus extraction. Defaults to 'pending'. */
+    extractionStatus?: 'pending' | 'ingested' | 'failed';
   }): Promise<void>;
 }
 
@@ -133,7 +137,8 @@ export function createEnabledJurisdictionsService(
         docType: input.docType ?? null,
         uploadedByAdminId: input.uploadedByAdminId ?? null,
         filePath: input.filePath ?? null,
-        extractionStatus: 'pending',
+        corpusChunkCount: input.corpusChunkCount ?? 0,
+        extractionStatus: input.extractionStatus ?? 'pending',
       });
     },
   };

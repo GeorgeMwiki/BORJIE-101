@@ -255,10 +255,106 @@ export const jurisdictionPromoteTool: PersonaToolDescriptor<
   },
 };
 
+// ─── JC-7c: the compliance LEARN-FEED ─────────────────────────────────
+// Admin-only, HIGH-risk, write. Submits a country's regulatory TEXT so
+// Mr. Mwikila LEARNS it: the route chunks the content into the SHARED corpus
+// (intelligence_corpus_chunks, tenant_id = NULL — every tenant inherits it),
+// tagged by country, so the next discover(country) corpus-probe finds it and
+// `promote` can then unlock the market. This is the missing limb that makes
+// "upload USA compliance → switching to US becomes possible" real.
+//
+// DEFERRED (vision-extraction follow-on): PDF/image OCR is OUT OF SCOPE here.
+// Content arrives as TEXT — an admin or the MD extracts/pastes the regulatory
+// prose. A later tool can VLM/OCR a document into this same TEXT entrypoint.
+const IngestComplianceInput = z.object({
+  countryCode: z
+    .string()
+    .regex(/^[A-Za-z]{2,3}$/)
+    .describe('ISO-3166-1 alpha-2 code of the country to teach (e.g. "US").'),
+  title: z
+    .string()
+    .min(1)
+    .max(300)
+    .describe('Title of the source document, e.g. "US Mining Law of 1872".'),
+  content: z
+    .string()
+    .min(1)
+    .describe(
+      'The PUBLIC regulatory TEXT to learn (act / royalty schedule / EIA rules). ' +
+        'Written into the SHARED corpus — must be public regulatory ground truth, ' +
+        'NEVER tenant-private data or PII.',
+    ),
+  docType: z
+    .string()
+    .min(1)
+    .max(120)
+    .optional()
+    .describe('Classifier, e.g. "mining_act", "royalty_schedule".'),
+  sourceUrl: z
+    .string()
+    .url()
+    .optional()
+    .describe('Live citation URL (gov gazette / agency portal).'),
+  language: z
+    .string()
+    .min(2)
+    .max(5)
+    .optional()
+    .describe('ISO-639-1 language of the content. Defaults to "en".'),
+});
+const IngestComplianceOutput = z.object({
+  ingested: z.boolean(),
+  chunks: z.number(),
+  country: z.string(),
+  source: z.string(),
+  embedded: z.boolean(),
+  note: z.string(),
+});
+
+export const jurisdictionIngestComplianceTool: PersonaToolDescriptor<
+  typeof IngestComplianceInput,
+  typeof IngestComplianceOutput
+> = {
+  id: 'mwikila.jurisdiction.ingest_compliance',
+  name: 'Teach Borjie a country\'s compliance (ingest into the shared corpus)',
+  description:
+    'LEARN a new country by ingesting its regulatory TEXT into the SHARED ' +
+    'corpus so every tenant inherits it and the next discover() finds it. Use ' +
+    'when an admin/owner supplies a country\'s mining law, royalty schedule, or ' +
+    'EIA rules as TEXT. After ingesting, you can discover() the country with ' +
+    'corpus grounding and then promote() it to unlock signup. HIGH-risk, ' +
+    'platform-admin only — content must be PUBLIC regulatory ground truth, ' +
+    'never tenant-private data. Vision/PDF extraction is not supplied here; ' +
+    'paste the extracted text.',
+  personaSlugs: ['T2_admin_strategist'],
+  inputSchema: IngestComplianceInput,
+  outputSchema: IngestComplianceOutput,
+  stakes: 'HIGH',
+  isWrite: true,
+  // HIGH-risk policy prefix — feeding the shared corpus must hit literal policy rules.
+  requiresPolicyRuleLiteral: true,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client)
+      throw new Error('mwikila.jurisdiction.ingest_compliance requires httpClient');
+    return client.post<z.infer<typeof IngestComplianceOutput>>(
+      `/admin/jurisdictions/${input.countryCode}/ingest-compliance`,
+      {
+        title: input.title,
+        content: input.content,
+        ...(input.docType ? { docType: input.docType } : {}),
+        ...(input.sourceUrl ? { sourceUrl: input.sourceUrl } : {}),
+        ...(input.language ? { language: input.language } : {}),
+      },
+    );
+  },
+};
+
 export const JURISDICTION_DISCOVERY_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
   jurisdictionDiscoverTool,
   jurisdictionSwitchTool,
   jurisdictionPromoteTool,
+  jurisdictionIngestComplianceTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);
