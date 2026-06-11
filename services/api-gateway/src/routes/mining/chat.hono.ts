@@ -178,7 +178,34 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
                 status: evt.status,
                 evidence_ids: evt.evidence_ids ?? [],
                 confidence: evt.confidence ?? null,
-                error: evt.error ?? null,
+                // SEC-4 — a junior error string is a model/provider span and a
+                // classic leak vector; route it through the SAME fail-closed
+                // egress guard as message_chunk / error (single chokepoint).
+                error:
+                  evt.error !== undefined
+                    ? guardChatText(evt.error, tenantId)
+                    : null,
+              }),
+            });
+            break;
+          case 'commitment_state':
+            // LIVING-MD felt diff: the reconciliation sweep reaches the
+            // conversation. Structured, non-LLM fields (counts, ids) pass
+            // through; the human-readable titles are guarded as a leak-safety
+            // (they are owner-authored, but the egress chokepoint is absolute).
+            await stream.writeSSE({
+              event: 'commitment_state',
+              data: JSON.stringify({
+                counts: evt.counts,
+                deferredCount: evt.deferredCount,
+                nextDueAtMs: evt.nextDueAtMs,
+                becameDue: evt.becameDue.map((b) => ({
+                  id: b.id,
+                  title: guardChatText(b.title, tenantId),
+                  kind: b.kind,
+                  sovereign: b.sovereign,
+                })),
+                at: new Date().toISOString(),
               }),
             });
             break;

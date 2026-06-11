@@ -42,6 +42,7 @@ import type {
   MdCommitment,
 } from '@borjie/database/repositories';
 import type { PersonaToolDescriptor } from './types';
+import type { TimelineSink } from '../living-md/timeline-event-sink';
 
 const OWNER_AND_ADMIN: ReadonlyArray<
   'T1_owner_strategist' | 'T2_admin_strategist'
@@ -49,6 +50,13 @@ const OWNER_AND_ADMIN: ReadonlyArray<
 
 interface ToolDeps {
   readonly repo: MdCommitmentRepository;
+  /**
+   * The LIVING-MD organ's append-only lifecycle trail. Optional — when wired
+   * (composition root), confirm/reopen write the timeline IN LOCKSTEP with the
+   * ledger transition (closure-by-confirmation made forensic). Best-effort: the
+   * sink never throws, so an absent / faulting sink never breaks a tool call.
+   */
+  readonly timelineSink?: TimelineSink | null;
 }
 
 let injectedDeps: ToolDeps | null = null;
@@ -56,9 +64,19 @@ let injectedDeps: ToolDeps | null = null;
 /**
  * Wire the durable commitment repository at composition time. Called once from
  * the api-gateway composition root (next to the other `configureX` tool wires).
+ * The optional `timelineSink` lights up the LIVING-MD lifecycle trail so a
+ * confirm/reopen records an append-only, hash-chained timeline row.
  */
 export function configureMdDeferTools(deps: ToolDeps): void {
-  injectedDeps = Object.freeze({ repo: deps.repo });
+  injectedDeps = Object.freeze({
+    repo: deps.repo,
+    timelineSink: deps.timelineSink ?? null,
+  });
+}
+
+/** The timeline sink (or null) wired at composition time. */
+function timelineSink(): TimelineSink | null {
+  return injectedDeps?.timelineSink ?? null;
 }
 
 function requireRepo(): MdCommitmentRepository {
@@ -486,18 +504,43 @@ export const mdCommitmentUpdateTool: PersonaToolDescriptor<
   requiresPolicyRuleLiteral: false,
   async handler(input, ctx) {
     const repo = requireRepo();
+    // Read the prior state once so the timeline can record the from→to transition.
+    const before = await repo.get(ctx.tenantId, input.id);
     if (input.blockedReason) {
       const blocked = await repo.block(ctx.tenantId, input.id, input.blockedReason);
+      if (blocked) {
+        await timelineSink()?.record({
+          tenantId: ctx.tenantId,
+          commitmentId: blocked.id,
+          eventKind: 'blocked',
+          previousStatus: before?.status ?? null,
+          newStatus: 'blocked',
+          evidenceIds: blocked.evidenceIds,
+          actor: 'owner',
+        });
+      }
       return { commitment: blocked ? toView(blocked) : null };
     }
     if (input.status) {
       const next = await repo.transition(ctx.tenantId, input.id, {
         status: input.status,
       });
+      // LIVING-MD timeline: a reopen (closure-never-forgetting — an unconfirmed
+      // thread comes back, it never silently closes) is recorded append-only.
+      if (next && input.status === 'reopened') {
+        await timelineSink()?.record({
+          tenantId: ctx.tenantId,
+          commitmentId: next.id,
+          eventKind: 'reopened',
+          previousStatus: before?.status ?? null,
+          newStatus: 'reopened',
+          evidenceIds: next.evidenceIds,
+          actor: 'owner',
+        });
+      }
       return { commitment: next ? toView(next) : null };
     }
-    const current = await repo.get(ctx.tenantId, input.id);
-    return { commitment: current ? toView(current) : null };
+    return { commitment: before ? toView(before) : null };
   },
 };
 
@@ -539,6 +582,20 @@ export const mdCommitmentConfirmTool: PersonaToolDescriptor<
     const done = await repo.markDone(ctx.tenantId, input.id, {
       confirmationKind: input.confirmationKind,
     });
+    // LIVING-MD timeline: a positive-proof closure is recorded IN LOCKSTEP with
+    // the ledger transition (closure-by-confirmation, never by timeout). The
+    // sink is best-effort — it never throws, so it cannot break the close.
+    if (done) {
+      await timelineSink()?.record({
+        tenantId: ctx.tenantId,
+        commitmentId: done.id,
+        eventKind: 'confirmed',
+        newStatus: 'done',
+        proofKind: input.confirmationKind,
+        evidenceIds: done.evidenceIds,
+        actor: 'owner',
+      });
+    }
     return { commitment: done ? toView(done) : null };
   },
 };

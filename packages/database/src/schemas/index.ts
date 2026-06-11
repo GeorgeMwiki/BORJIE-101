@@ -1718,3 +1718,24 @@ export * from './md-commitments.schema.js';
 // snapshot). FORCE RLS on app.current_tenant_id + service-role bypass (for the
 // out-of-band sweep) per migration 0330.
 export * from './set-point-state.schema.js';
+
+// md_commitment_timeline (migration 0339) — the APPEND-ONLY, hash-chained
+// lifecycle trail of the MD commitment ledger (the living-MD organ audit
+// spine). One immutable row per lifecycle event (deferred → became_due →
+// overdue → confirmed/done, or reopened on an unconfirmed deadline);
+// proof_kind + evidence_ids carry the positive-proof closure
+// (closure-by-confirmation, never by timeout); audit_hash stitches a
+// per-commitment chain so a truncated/mutated trail is detectable. FORCE RLS on
+// app.current_tenant_id + service-role bypass (for the out-of-band reconcile
+// sweep / someday supervisor) per migration 0339.
+export * from './md-commitment-timeline.schema.js';
+
+// owner_governance_preferences (migration 0340) — the per-tenant governance
+// set-points the living-MD organ reads FRESH each tick (never cached):
+// autonomy_cap (graded-corrective ceiling, clamped ≤ delegate),
+// someday_review_cadence_days, evidence_requirement_enforced (the CLAUDE.md
+// evidence-required hard rule), confirmation_probe_mappings
+// (closure-by-confirmation config). Upsert-only; an absent row resolves to safe
+// defaults in code. FORCE RLS on app.current_tenant_id + service-role bypass
+// per migration 0340.
+export * from './owner-governance-preferences.schema.js';
