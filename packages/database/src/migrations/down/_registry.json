@@ -486,6 +486,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0344_org_membership_relationship_type.sql",
+      "down": "down/0344_down_org_membership_relationship_type.sql",
+      "reverses": "Drops the two additive columns on org_memberships (relationship_type org_membership_relationship_type NOT NULL DEFAULT 'employment' — the worker-employment vs buyer-connection vs contractor vs guest discriminator that lets ONE membership table back both the workforce and buyer surfaces; member_role text — the denormalized role-class TARGETING label, classification-only, never an authz grant) plus the two partial audience-resolver indexes (org_memberships_org_relationship_active_idx on (organization_id, relationship_type) WHERE status='ACTIVE'; org_memberships_org_member_role_active_idx on (organization_id, member_role) WHERE status='ACTIVE') and the org_membership_relationship_type enum (only when nothing else depends on it). Fail-safe consequence: the surface-completion down-cascade can no longer fan to a classified audience subset over these columns and falls back to the pre-existing per-tenant/global broadcast; request-path tenant isolation + the org_memberships RLS policies (0336, scoped on platform_tenant_id) are UNAFFECTED. No money/licence/ledger records. DATA LOSS: discards each row's relationship_type + member_role. Dev/staging rollback only.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

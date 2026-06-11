@@ -28,7 +28,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { tenants, organizations, users } from './tenant.schema.js';
 
 // ============================================================================
@@ -46,6 +46,15 @@ export const orgMembershipStatusEnum = pgEnum('org_membership_status', [
   'LEFT',
   'BLOCKED',
 ]);
+
+// Migration 0344 — discriminates the membership so ONE table backs both the
+// workforce app (employment|contractor) and the buyer app (buyer_connection),
+// plus guest. The audience resolver targets orgScope=connected (buyers) vs a
+// workforce role-class as predicates over this column.
+export const orgMembershipRelationshipTypeEnum = pgEnum(
+  'org_membership_relationship_type',
+  ['employment', 'buyer_connection', 'contractor', 'guest']
+);
 
 // ============================================================================
 // tenant_identities — cross-org identity principal
@@ -105,6 +114,14 @@ export const orgMemberships = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     status: orgMembershipStatusEnum('status').notNull().default('ACTIVE'),
+    // Migration 0344 — worker-employment vs buyer-connection discriminator.
+    relationshipType: orgMembershipRelationshipTypeEnum('relationship_type')
+      .notNull()
+      .default('employment'),
+    // Migration 0344 — denormalized role-class TARGETING label (from
+    // invite_codes.default_role_id at join). Classification only — NOT an
+    // authorization grant; authz resolves via the shadow user_id + RLS.
+    memberRole: text('member_role'),
     nickname: text('nickname'),
     joinedViaInviteCode: text('joined_via_invite_code'),
     joinedAt: timestamp('joined_at', { withTimezone: true })
@@ -129,6 +146,14 @@ export const orgMemberships = pgTable(
     ),
     userIdx: index('org_memberships_user_idx').on(table.userId),
     statusIdx: index('org_memberships_status_idx').on(table.status),
+    // Migration 0344 — audience-resolver hot paths (partial: only ACTIVE
+    // memberships are ever targeted by a role-class / relationship fan).
+    orgRelationshipActiveIdx: index('org_memberships_org_relationship_active_idx')
+      .on(table.organizationId, table.relationshipType)
+      .where(sql`status = 'ACTIVE'`),
+    orgMemberRoleActiveIdx: index('org_memberships_org_member_role_active_idx')
+      .on(table.organizationId, table.memberRole)
+      .where(sql`status = 'ACTIVE'`),
   })
 );
 
