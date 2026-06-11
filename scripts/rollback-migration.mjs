@@ -139,6 +139,9 @@ export function composePlan(appliedVersions, byVersion, count) {
 
 async function fileExists(p) {
   try {
+    // `p` is a repo-internal migration path resolved from the registry/CLI
+    // for this local-only operator CLI; no untrusted-input surface.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     await stat(p);
     return true;
   } catch {

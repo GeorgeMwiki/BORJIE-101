@@ -76,7 +76,11 @@ export function parseFlags(argv) {
 export function loadEnvSource(envPath) {
   if (!envPath) return process.env;
   const abs = isAbsolute(envPath) ? envPath : resolve(REPO_ROOT, envPath);
+  // `abs` is an operator-supplied --env path for this local-only CLI tool;
+  // there is no untrusted-input surface (no network, no request handling).
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!existsSync(abs)) throw new Error(`--env file not found: ${abs}`);
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return parseEnvFile(readFileSync(abs, 'utf8'));
 }
 

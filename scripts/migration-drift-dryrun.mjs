@@ -163,9 +163,13 @@ function printHelp() {
 
 function findMigrationFiles(dir, phase) {
   const abs = resolve(ROOT, dir);
+  // `abs` is a repo-internal migrations directory (default or --migrations-dir)
+  // for this local-only operator CLI; no untrusted-input surface.
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (!existsSync(abs)) {
     throw new Error(`Migrations dir not found: ${abs}`);
   }
+  // eslint-disable-next-line security/detect-non-literal-fs-filename
   return readdirSync(abs)
     .filter((f) => f.endsWith('.sql'))
     .sort((a, b) => a.localeCompare(b))
@@ -414,6 +418,9 @@ async function probeApplied(dbUrl) {
 
 function buildPlan(onDisk, appliedSet, connected) {
   const rows = onDisk.map((m) => {
+    // `m.path` is a repo-internal migration file discovered above; no
+    // untrusted-input surface for this local-only operator CLI.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const sqlText = readFileSync(m.path, 'utf8');
     const findings = scanHazards(sqlText);
     const classification = classify(findings);
@@ -700,8 +707,12 @@ async function main() {
 
   if (args.report) {
     const reportAbs = resolve(ROOT, args.report);
+    // `reportAbs` is an operator-supplied --report path for this local-only
+    // CLI; no untrusted-input surface.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     mkdirSync(dirname(reportAbs), { recursive: true });
     // Always write markdown to the report file even in --json mode.
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     writeFileSync(
       reportAbs,
       args.json ? renderMarkdown(plan, ctx) : output,
