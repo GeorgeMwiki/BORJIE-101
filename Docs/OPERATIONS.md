@@ -12,6 +12,7 @@ Operational handbook for running BORJIE in production. Paired with `Docs/DEPLOYM
 6. [Emergency Contacts](#6-emergency-contacts)
 7. [Data-Deletion SLA per Country](#7-data-deletion-sla-per-country)
 8. [Operational Scripts Reference](#8-operational-scripts-reference)
+9. [Cron Leader Election](#9-cron-leader-election)
 
 ---
 
@@ -299,6 +300,85 @@ shutdown: complete, exiting 0
 
 If the last line is missing OR `shutdown: forced exit after 10s drain timeout`
 appears, a request handler hung. File a KNOWN-issue entry and attach the trace.
+
+---
+
+## 9. Cron Leader Election
+
+The api-gateway starts ~28 in-process cron / worker supervisors at boot
+(daily brief, fx-feed pull, notification fan-out, LLM-spend sweep, …). It
+runs **multi-replica in production** (`minReplicas: 3` /
+`replicaCount.apiGateway: 3`). Without coordination every replica would run
+every cron, so at N replicas each fires N× — N× LLM spend, N× duplicate
+notifications, N× gov-endpoint hits (fx-feed ban risk).
+
+### 9.1 Posture — SAFE BY DEFAULT, no founder confirmation
+
+Leader election is **ON by default in prod**. It is configured, not optional:
+
+- `CRON_LEADER_ELECTION: "on"` is set in BOTH chart value files:
+  - `k8s/values.yaml` → `appConfig.CRON_LEADER_ELECTION` (root chart)
+    and `gateway.env.CRON_LEADER_ELECTION`.
+  - `k8s/helm/borjie/values.yaml` → `appConfig.CRON_LEADER_ELECTION`.
+- Exactly one replica acquires a Postgres **session-level advisory lock**
+  (`composition/cluster-lock.ts`); only that replica's gated crons run.
+  If the leader dies its session drops → Postgres auto-releases the lock →
+  another replica is promoted. No RBAC / ServiceAccount / k8s-API watch.
+
+### 9.2 The one required input — `DATABASE_SESSION_URL`
+
+The lock MUST be taken on a **session** connection. A Supabase / PgBouncer
+**transaction** pooler (`:6543`) multiplexes one backend across clients
+between statements and **silently drops** a session-level advisory lock —
+two replicas could both "hold" leadership and the crons double-fire anyway.
+
+Provide `DATABASE_SESSION_URL` = the Supabase **session-pooler (`:5432`)**
+or **direct** Postgres URL. It is wired as a SECRET reference (never a
+value in-repo):
+
+- `k8s/external-secrets/external-secret-app.yaml` /
+  `external-secret-borjie-app.yaml` → `DATABASE_SESSION_URL` remoteRef.
+- `k8s/helm/borjie/templates/secrets-external.yaml` → `DATABASE_SESSION_URL`
+  in the `app-secrets` ExternalSecret.
+- `k8s/values.yaml` → empty `secrets.inline.DATABASE_SESSION_URL`
+  placeholder for the non-external-secrets (local / kind) path.
+
+If it is unset, the cluster-lock init **falls back to `DATABASE_URL`** and
+logs a LOUD structured boot-warning
+(`event: cluster_lock_session_url_unset`, `severity: HIGH`) naming the
+double-fire risk and this fix. Behaviour is unchanged — the warning is
+observability only. **Founder step: paste the session/direct URL value
+into the secrets backend** (key `DATABASE_SESSION_URL`, or
+`borjie/database-session-url`).
+
+### 9.3 Simplest safe alternative — pin to 1 replica
+
+If you would rather not provision `DATABASE_SESSION_URL` yet, the
+fully-safe alternative is to run **api-gateway at a single replica** so
+there is no fleet to coordinate:
+
+```yaml
+# k8s/helm/borjie/values.yaml
+services:
+  apiGateway:
+    autoscaling: { enabled: false }   # disable HPA min/max
+replicaCount:
+  apiGateway: 1
+```
+
+(Root chart `k8s/values.yaml`: `gateway.autoscaling.enabled: false` +
+`gateway.replicaCount: 1`.) At 1 replica every cron fires exactly once
+regardless of the lock. This trades HA headroom for zero coordination —
+acceptable for low-traffic launch; revert to 3 + `DATABASE_SESSION_URL`
+once provisioned.
+
+### 9.4 Scale-up knob (summary)
+
+| Want | Do |
+| ---- | -- |
+| Multi-replica (HA) — recommended | Keep `CRON_LEADER_ELECTION: "on"` + set `DATABASE_SESSION_URL` (session `:5432`/direct). |
+| Simplest safe | Pin `apiGateway` to **1 replica** (disable its HPA). Lock is irrelevant. |
+| Verify it took | `kubectl logs deploy/api-gateway | grep cluster-lock` → expect `acquired leadership` on exactly one pod; the structured `severity: HIGH` warning must be ABSENT. |
 
 ---
 
