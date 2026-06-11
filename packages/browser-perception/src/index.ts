@@ -44,4 +44,38 @@ export type {
   LegacyPortalAction,
   ActionResult,
   PortalCredentials,
+  ControlCandidate,
+  BrainPort,
+  DriverLogger,
 } from './legacy-portal-driver.js';
+
+export {
+  retryAction,
+  defaultIsTransient,
+  backoffForAttempt,
+  TRANSIENT_DRIVER_ERRORS,
+  FATAL_DRIVER_REASONS,
+  DEFAULT_DRIVER_RETRY_POLICY,
+} from './retry-policy.js';
+export type {
+  RetryPolicy,
+  RetryActionOptions,
+  Sleeper,
+} from './retry-policy.js';
+
+export {
+  detectCaptcha,
+  detectMfaPrompt,
+  detectSessionExpired,
+  scanPortalGuards,
+} from './portal-guards.js';
+export type {
+  GuardHit,
+  GuardReason,
+  GuardScanResult,
+} from './portal-guards.js';
+
+export {
+  jaroSimilarity,
+  jaroWinklerSimilarity,
+} from './fuzzy-match.js';

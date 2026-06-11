@@ -36,6 +36,12 @@ import { authMiddleware } from '../../middleware/hono-auth';
  * is provisioned. Mirrors `createKraFilingBridge(...)`'s return type without
  * importing it here (keeps the route free of the Playwright/bridge graph).
  */
+export interface LegacyPortalControlCandidate {
+  readonly role: string;
+  readonly name: string;
+  readonly score: number;
+}
+
 export interface LegacyPortalFileKra {
   (input: {
     readonly tenantId: string;
@@ -47,10 +53,20 @@ export interface LegacyPortalFileKra {
     readonly filed: boolean;
     readonly confirmationText?: string;
     readonly failureReason?: string;
+    /**
+     * Halt-for-help signal — the driver loop hit a control ambiguity it
+     * cannot resolve autonomously and is asking the brain to re-plan.
+     * Surfaced as a 200 `action-requires-clarification` envelope, NOT an
+     * error, so the brain re-plans mid-flow instead of failing the task.
+     */
+    readonly askBrain?: boolean;
+    readonly candidates?: ReadonlyArray<LegacyPortalControlCandidate>;
+    readonly idempotentReplay?: boolean;
     readonly steps: ReadonlyArray<{
       readonly verb: string;
       readonly ok: boolean;
       readonly reason?: string;
+      readonly attempts?: number;
     }>;
   }>;
 }
@@ -132,6 +148,29 @@ export function createLegacyPortalRouter(): Hono {
           ? { expensesKes: parsed.data.expensesKes }
           : {}),
       });
+
+      // HALT-FOR-HELP — the driver loop hit a control ambiguity it can't
+      // resolve autonomously. This is NOT an error: return an honest 200
+      // clarification envelope so the brain re-plans mid-flow (picks a
+      // candidate / re-asks the owner) instead of failing the whole task.
+      if (outcome.askBrain) {
+        return c.json(
+          {
+            success: true,
+            data: {
+              ...outcome,
+              ok: false,
+              filed: false,
+              provisioned: true,
+              reason: 'action-requires-clarification',
+              askBrain: true,
+              candidates: outcome.candidates ?? [],
+            },
+          },
+          200,
+        );
+      }
+
       return c.json({ success: true, data: { ...outcome, provisioned: true } }, 200);
     } catch (err) {
       return c.json(

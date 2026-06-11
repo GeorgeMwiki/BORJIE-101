@@ -42,14 +42,39 @@ const FileKraInput = z.object({
     .describe('Allowable expenses for the period, in KES (optional).'),
 });
 
+const ControlCandidate = z.object({
+  role: z.string(),
+  name: z.string(),
+  score: z.number(),
+});
+
 const FileKraOutput = z.object({
   ok: z.boolean(),
   filed: z.boolean(),
   provisioned: z.boolean(),
   reason: z.string().optional(),
   confirmationText: z.string().optional(),
+  /**
+   * HALT-FOR-HELP — when the browser driver loop hits a control
+   * ambiguity it cannot resolve autonomously, the tool returns a
+   * STRUCTURED clarification request (never throws / never fails the
+   * whole task) so the kernel re-plans mid-flow: it can pick a candidate
+   * by heuristic or re-ask the owner.
+   */
+  askBrain: z.boolean().optional(),
+  clarificationRequest: z
+    .object({
+      question: z.string(),
+      candidates: z.array(ControlCandidate),
+    })
+    .optional(),
   steps: z.array(
-    z.object({ verb: z.string(), ok: z.boolean(), reason: z.string().optional() }),
+    z.object({
+      verb: z.string(),
+      ok: z.boolean(),
+      reason: z.string().optional(),
+      attempts: z.number().optional(),
+    }),
   ),
 });
 
@@ -78,18 +103,59 @@ export const fileKraViaBrowserTool: PersonaToolDescriptor<
     if (!client) {
       throw new Error('platform.legacy.file_kra_via_browser requires httpClient');
     }
-    return client.post<{
+    const raw = await client.post<{
       ok: boolean;
       filed: boolean;
       provisioned: boolean;
       reason?: string;
       confirmationText?: string;
-      steps: Array<{ verb: string; ok: boolean; reason?: string }>;
+      askBrain?: boolean;
+      candidates?: Array<{ role: string; name: string; score: number }>;
+      steps: Array<{ verb: string; ok: boolean; reason?: string; attempts?: number }>;
     }>('/mining/legacy-portal/file-kra', {
       periodYearMonth: input.periodYearMonth,
       monthlyRentalIncomeKes: input.monthlyRentalIncomeKes,
       ...(input.expensesKes !== undefined ? { expensesKes: input.expensesKes } : {}),
     });
+
+    // HALT-FOR-HELP — lift the route's ambiguity envelope into a
+    // STRUCTURED clarification request for the kernel. The tool resolves
+    // successfully (no throw) so the brain re-plans mid-flow rather than
+    // the whole filing task failing. The HIGH-stakes /
+    // requiresPolicyRuleLiteral gate upstream is untouched.
+    if (raw.askBrain) {
+      const candidates = raw.candidates ?? [];
+      const choices =
+        candidates.length > 0
+          ? candidates.map((cand) => `"${cand.name}"`).join(', ')
+          : 'no candidates were detected';
+      return {
+        ok: false,
+        filed: false,
+        provisioned: raw.provisioned,
+        reason: raw.reason ?? 'action-requires-clarification',
+        askBrain: true,
+        clarificationRequest: {
+          question:
+            'The KRA portal exposes more than one control matching this step; ' +
+            `which one should I drive? Options: ${choices}. ` +
+            'Confirm the exact control name (or re-ask the owner) before I file.',
+          candidates,
+        },
+        steps: raw.steps,
+      };
+    }
+
+    return {
+      ok: raw.ok,
+      filed: raw.filed,
+      provisioned: raw.provisioned,
+      ...(raw.reason !== undefined ? { reason: raw.reason } : {}),
+      ...(raw.confirmationText !== undefined
+        ? { confirmationText: raw.confirmationText }
+        : {}),
+      steps: raw.steps,
+    };
   },
 };
 
