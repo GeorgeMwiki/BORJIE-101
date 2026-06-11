@@ -27,11 +27,11 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/node": "^25.8.0",
+    "@types/node": "^25.9.3",
     "@types/node-cron": "^3.0.11",
     "@vitest/coverage-v8": "^4.1.7",
     "tsx": "^4.7.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.8"
   }
 }

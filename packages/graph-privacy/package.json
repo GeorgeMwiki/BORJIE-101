@@ -26,8 +26,8 @@
   },
   "devDependencies": {
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6",
-    "@types/node": "^25.8.0"
+    "vitest": "^4.1.8",
+    "@types/node": "^25.9.3"
   },
   "peerDependencies": {
     "@borjie/graph-sync": "workspace:*",

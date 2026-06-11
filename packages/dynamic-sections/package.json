@@ -56,7 +56,7 @@
     "storybook": "^10.4.0",
     "tsup": "^8.0.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "@tanstack/react-query": "^5.24.0",

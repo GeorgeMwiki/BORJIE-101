@@ -32,13 +32,13 @@
   },
   "devDependencies": {
     "@testing-library/react": "^14.1.2",
-    "@types/node": "^25.8.0",
+    "@types/node": "^25.9.3",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@vitejs/plugin-react": "^4.2.1",
     "jsdom": "^24.0.0",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.8"
   },
   "peerDependencies": {
     "react": "^18.0.0",
