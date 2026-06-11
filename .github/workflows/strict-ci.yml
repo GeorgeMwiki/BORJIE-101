@@ -54,7 +54,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build || true
+      - run: pnpm -r --filter='./packages/*' --filter='./services/*' build
       - run: pnpm typecheck
 
   unit-tests:
