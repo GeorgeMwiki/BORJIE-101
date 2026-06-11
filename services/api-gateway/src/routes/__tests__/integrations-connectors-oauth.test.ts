@@ -28,6 +28,13 @@ const state = vi.hoisted(() => ({
   deleteRows: [] as Array<Record<string, unknown>>,
   executed: [] as Array<{ text: string; params: unknown[] }>,
   failWrites: false,
+  // Cluster-wide durable single-use ledger — the test double for
+  // oauth_state_nonces (migration 0343). Tracks consumed nonces so a first
+  // callback resolves 'consumed' and a true replay resolves 'replayed',
+  // mirroring consumeOAuthStateNonceDurably's INSERT … ON CONFLICT authority
+  // without a live Postgres. Set `nonceLedgerDown` to exercise fail-closed.
+  consumedNonces: new Set<string>(),
+  nonceLedgerDown: false,
 }));
 
 vi.mock('../../middleware/hono-auth.js', () => ({
@@ -102,6 +109,26 @@ import { createConnectorsOAuthRouter } from '../integrations/connectors-oauth.ho
 import { createConnectorsRouter } from '../integrations/connectors.hono.js';
 import { createConnectorTokenCipherFromKey } from '../../composition/connector-token-cipher.js';
 import { encodeConnectorOAuthState } from '../../composition/connector-oauth-descriptors.js';
+import type { DurableNonceConsumeOutcome } from '../../composition/oauth-state-nonce-store.js';
+
+/**
+ * In-memory stand-in for the durable Postgres single-use ledger
+ * (oauth_state_nonces / consumeOAuthStateNonceDurably, migration 0343). The
+ * route always runs this CLUSTER-WIDE consume before the code exchange; the
+ * mocked middleware db cannot model ON-CONFLICT-DO-NOTHING semantics, so the
+ * test injects this faithful double: first use → 'consumed', true replay →
+ * 'replayed', ledger fault → 'failed' (fail-closed). The security path is
+ * exercised, not weakened.
+ */
+async function fakeDurableNonceConsume(
+  _db: unknown,
+  args: { readonly nonce: string },
+): Promise<DurableNonceConsumeOutcome> {
+  if (state.nonceLedgerDown) return 'failed';
+  if (state.consumedNonces.has(args.nonce)) return 'replayed';
+  state.consumedNonces = new Set([...state.consumedNonces, args.nonce]);
+  return 'consumed';
+}
 
 const ENV: NodeJS.ProcessEnv = {
   SLACK_CLIENT_ID: 'client-id-1',
@@ -142,6 +169,7 @@ function buildApp(opts: BuildOpts = {}): Hono {
             status: 200,
           })) as unknown as typeof fetch),
       cipher: opts.withCipher === false ? null : cipher,
+      durableNonceConsume: fakeDurableNonceConsume,
     }),
   );
   return app;
@@ -161,6 +189,8 @@ beforeEach(() => {
   state.deleteRows = [];
   state.executed = [];
   state.failWrites = false;
+  state.consumedNonces = new Set<string>();
+  state.nonceLedgerDown = false;
 });
 
 // ─────────────────────────────────────────────────────────────────────
