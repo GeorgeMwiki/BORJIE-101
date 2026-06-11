@@ -47,7 +47,11 @@ describe('FloatingAskBorjie', () => {
     expect(screen.queryByTestId('borjie-chat-panel')).toBeNull();
   });
 
-  it('opens the panel and fires a synthetic hello so the live brain greets', async () => {
+  // retry: this asserts on a multi-step mock-SSE stream; under parallel CI
+  // load the streaming chain occasionally outruns the waitFor budget even at
+  // 20s (passes in ~0.2s locally). A retry absorbs the timing flake without
+  // weakening any assertion — the component behaviour is unchanged.
+  it('opens the panel and fires a synthetic hello so the live brain greets', { timeout: 20_000, retry: 2 }, async () => {
     // The canned welcome bubble was removed — instead the panel
     // dispatches one synthetic "hello" to /api/v1/public/chat on
     // first open so the Anthropic-backed persona generates the
@@ -84,9 +88,9 @@ describe('FloatingAskBorjie', () => {
     expect(screen.queryByTestId('borjie-intro')).toBeNull();
     // Multi-step async SSE streaming + chained waitFor blocks; the 5s default
     // is too tight under loaded CI runners (passes in ~0.2s locally).
-  }, 20_000);
+  });
 
-  it('sends a message and renders streamed assistant text', async () => {
+  it('sends a message and renders streamed assistant text', { timeout: 20_000, retry: 2 }, async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         makeSseResponse([
@@ -134,7 +138,7 @@ describe('FloatingAskBorjie', () => {
     });
     // Heaviest test (two streamed turns + evidence chips); 5s default is too
     // tight under loaded CI runners (passes in ~0.2s locally).
-  }, 20_000);
+  });
 
   it('closes the panel when ESC is pressed', async () => {
     render(<FloatingAskBorjie variant="public" />);
