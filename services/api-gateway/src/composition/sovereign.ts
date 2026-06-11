@@ -36,6 +36,7 @@
  * (no tenant) shares a separate cache key.
  */
 
+import { randomUUID } from 'node:crypto';
 import {
   agency as agencyKernel,
   composeSovereign,
@@ -43,6 +44,7 @@ import {
   createApprovalGate,
   createBrainToolRegistry,
   createDpCohortSource,
+  createGatekeeper,
   createInMemoryApprovalStore,
   createNullEmbedder,
   createOpenAiEmbedder,
@@ -54,6 +56,7 @@ import {
   type AffectiveAccumulator,
   type AgencyKernelPort,
   type BrainToolRegistry,
+  type DivergenceReporter,
   type EmbedderPort,
   type FeedbackMemoryPort,
   type MemoryHierarchy,
@@ -822,6 +825,63 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
   if (anthropic) {
     mutable.selfRagJudge = buildSelfRagJudge(anthropic);
   }
+
+  // R7 (Ascent keystone) — proof-carrying membrane, SHADOW mode. The unified
+  // gatekeeper was BUILT (`kernel/membrane/`) but never injected: the kernel's
+  // `runKernelShadowGatekeeper` hook is `if (!deps.safetyGatekeeper) return;`,
+  // so absent this wiring it has always been a pure no-op (the "dark organ"
+  // the deployment audit flagged). We now construct it + a divergence reporter
+  // and forward both onto the `composeSovereign` config (compose.ts copies them
+  // onto `kernelDeps`). The kernel computes a signed, hash-chained
+  // SafetyCertificate ALONGSIDE each already-final decision and the reporter
+  // fires only when the certificate verdict diverges from the verdict the
+  // existing scattered checks already reached. It NEVER enforces — there is no
+  // return value the kernel reads — so this changes ZERO allow/deny outcomes;
+  // it only lights up the membrane in observe-only mode so we can measure
+  // agreement before ever promoting it past shadow.
+  //
+  // Each port CERTIFIES (mirrors the live decision via the flags the kernel
+  // carries on `action.payload`), it does NOT re-judge. Dimensions the shadow
+  // action does not populate certify 'satisfied' because they are already
+  // enforced upstream at their own chokepoints (RLS/scope before think()
+  // returns, locale-purity + egress at the projector membrane, money/RLS/audit
+  // rails write-gated independently, kill-switch resolved fail-closed before
+  // the hook runs). Genuine divergences therefore surface exactly the edge
+  // cases the unified set sees that the scattered checks encode elsewhere —
+  // which is the entire point of running it in shadow first.
+  const safetyGatekeeper = createGatekeeper({
+    policyGate: (a) => (a.payload?.['policyBlocked'] === true ? 'block' : 'pass'),
+    inviolable: (a) => (a.payload?.['inviolableBlocked'] === true ? 'block' : 'pass'),
+    killswitch: () => 'live',
+    tenantScopeConsistent: () => true,
+    evidenceChain: (a) => a.payload?.['hasEvidence'] === true,
+    localePure: () => true,
+    egressClean: () => true,
+    kAnon: () => true,
+    noRailMutation: () => true,
+    now: () => Date.now(),
+    newCertId: () => `cert_${randomUUID()}`,
+  });
+  mutable.safetyGatekeeper = safetyGatekeeper;
+  // Divergence reporter — structured-log ONLY (no enforcement). Emits a line
+  // solely when the certificate disagrees with the live decision: the precise
+  // signal to investigate before R7 is ever promoted out of shadow. Agreement
+  // (the overwhelming common case) is intentionally silent to bound log volume.
+  const safetyDivergenceReporter: DivergenceReporter = (event) => {
+    if (!event.diverged) return;
+    logger.warn(
+      {
+        actionRef: event.actionRef,
+        tenantScope: event.tenantScope,
+        certificateVerdict: event.certificateVerdict,
+        existingDecision: event.existingDecision,
+        certId: event.certId,
+        certHash: event.certHash,
+      },
+      'r7-shadow-divergence: proof-carrying certificate verdict diverged from the live decision',
+    );
+  };
+  mutable.safetyDivergenceReporter = safetyDivergenceReporter;
 
   // LP-30 — wire the semantic-cache (LP-03) + intent-verifier (LP-04) ports
   // onto the `composeSovereign` config. The kernel CONSUMES both

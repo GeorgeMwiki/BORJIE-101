@@ -339,6 +339,23 @@ export interface ComposeSovereignConfig {
    * normalised. Same shape as the legacy judge port.
    */
   readonly selfRagJudge?: import('./self-rag/self-rag.js').SelfRagJudge;
+  // ── R7 proof-carrying membrane (SHADOW mode) coordination zone ──────
+  /**
+   * R7 — proof-carrying gatekeeper. When wired (by the api-gateway
+   * composition root), the kernel computes a signed, hash-chained
+   * SafetyCertificate alongside each already-final `think()` decision and
+   * reports any divergence between the certificate verdict and the verdict
+   * the existing scattered checks already reached — but NEVER enforces. The
+   * existing checks remain the sole deciders, so wiring this changes NO
+   * allow/deny outcome. Absent (CI / bootstrap) → the kernel hook is a pure
+   * no-op. The gateway must forward all three or the membrane stays dark.
+   */
+  readonly safetyGatekeeper?: import('./membrane/index.js').Gatekeeper;
+  /** Best-effort certificate sink (append-only audit). Absent → no emission. */
+  readonly safetyCertificateSink?: import('./membrane/index.js').SafetyCertificateSink;
+  /** Divergence reporter — fires only when the certificate disagrees with the
+   * existing decision (the signal worth watching before enforcing). */
+  readonly safetyDivergenceReporter?: import('./membrane/index.js').DivergenceReporter;
   // ── C4 (Sensorium / Brain Skin) coordination zone ──────────────────
   /**
    * Optional behaviour-signal source. When wired (production: by the
@@ -580,6 +597,13 @@ export function composeSovereign(config: ComposeSovereignConfig): SovereignBrain
   // dropped and learned guidelines never re-enter the prompt.
   if (config.reflexionLoader)   (kernelDeps as any).reflexionLoader = config.reflexionLoader;
   if (config.selfRagJudge)      (kernelDeps as any).selfRagJudge = config.selfRagJudge;
+  // R7 — forward the proof-carrying membrane ports (all three independent;
+  // absent → the kernel's shadow hook stays a pure no-op). Without this
+  // passthrough the gatekeeper the gateway constructs is silently dropped and
+  // the membrane never runs — the exact "non-owned seam" the audit flagged.
+  if (config.safetyGatekeeper)         (kernelDeps as any).safetyGatekeeper = config.safetyGatekeeper;
+  if (config.safetyCertificateSink)    (kernelDeps as any).safetyCertificateSink = config.safetyCertificateSink;
+  if (config.safetyDivergenceReporter) (kernelDeps as any).safetyDivergenceReporter = config.safetyDivergenceReporter;
   // LP-30 — forward the semantic-cache + intent-verifier ports the gateway
   // constructs so they actually reach the kernel hot path.
   if (config.semanticCache)     (kernelDeps as any).semanticCache = config.semanticCache;
