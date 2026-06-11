@@ -14,12 +14,19 @@
  *
  * Every file-system screen exists; we hide unused ones via `href: null`.
  * The order shown to the user mirrors the order returned by the server.
+ *
+ * Owner-spawn → workforce bridge: the server's additive `projectedTabs[]`
+ * (role-scoped projections of the tenant's ACTIVE owner-spawned cockpit
+ * tabs) are appended AFTER the catalog tabs. Mobile renders KNOWN
+ * projected kinds only (PROJECTED_KIND_TO_SCREEN); an unknown kind is
+ * skipped with a DEV-only warning — never a crash, never a broken tab.
  */
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Tabs } from 'expo-router'
 import { useI18n } from '../../src/i18n/useI18n'
 import { tokens } from '../../src/ui-litfin'
 import { useWorkforceTabConfig } from '../../src/lib/hooks/useWorkforceTabConfig'
+import { resolveProjectedTabs } from '../../src/lib/workforce-tab-projection'
 
 /**
  * Map catalog tab ids → file-system screen names. The workforce-mobile
@@ -55,20 +62,36 @@ const ALL_SCREEN_NAMES = [
   'sites',
   'docs',
   'documents',
-  'ask'
+  'ask',
+  'marketplace'
 ] as const
 
 type ScreenName = (typeof ALL_SCREEN_NAMES)[number]
 
+const ALL_SCREEN_NAME_SET: ReadonlySet<string> = new Set(ALL_SCREEN_NAMES)
+
 export default function TabsLayout(): JSX.Element {
   const { t } = useI18n()
-  const { tabs } = useWorkforceTabConfig()
+  const { tabs, projectedTabs } = useWorkforceTabConfig()
+
+  // Owner-spawned projections → known screens (unknown kinds skipped).
+  const projection = useMemo(
+    () => resolveProjectedTabs(projectedTabs),
+    [projectedTabs]
+  )
+
+  useEffect(() => {
+    if (__DEV__ && projection.skippedKinds.length > 0) {
+      console.warn(`[workforce-tabs] skipped unknown projected tab kinds: ${projection.skippedKinds.join(', ')}`) // eslint-disable-line no-console -- reason: DEV-only diagnostic per CLAUDE.md mobile-console rule.
+    }
+  }, [projection.skippedKinds])
 
   // Resolve the server-returned catalog ids into screen-name + label
   // pairs. Deduplicate to keep expo-router happy when two catalog ids
   // alias the same screen (transitional state — see CATALOG_TO_SCREEN
   // comment). The dedupe keeps the FIRST occurrence so the server's
-  // order is honoured.
+  // order is honoured. Owner-spawned projections append AFTER the
+  // catalog tabs, labelled with the owner-given label.
   const enabled = useMemo(() => {
     const seen = new Set<string>()
     const result: Array<{ screen: ScreenName; label: string }> = []
@@ -79,8 +102,17 @@ export default function TabsLayout(): JSX.Element {
       seen.add(screen)
       result.push({ screen: screen as ScreenName, label: tab.label })
     }
+    for (const projected of projection.resolved) {
+      if (!ALL_SCREEN_NAME_SET.has(projected.screen)) continue
+      if (seen.has(projected.screen)) continue
+      seen.add(projected.screen)
+      result.push({
+        screen: projected.screen as ScreenName,
+        label: projected.label
+      })
+    }
     return result
-  }, [tabs])
+  }, [tabs, projection])
 
   const enabledScreens = useMemo(
     () => new Set<string>(enabled.map((e) => e.screen)),

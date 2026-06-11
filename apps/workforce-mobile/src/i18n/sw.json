@@ -23,7 +23,15 @@
     "people": "Watu",
     "sites": "Migodi",
     "docs": "Hati",
-    "ask": "Uliza"
+    "ask": "Uliza",
+    "marketplace": "Soko"
+  },
+  "projection": {
+    "originOwner": "Imeshirikishwa kutoka dashibodi ya mmiliki",
+    "assignedTasks": "Kazi ulizopangiwa",
+    "noTasks": "Hakuna kazi uliyopangiwa kwa sasa",
+    "due": "Tarehe ya mwisho",
+    "location": "Mahali"
   },
   "common": {
     "next": "Endelea",
@@ -443,6 +451,10 @@
     "W-M-22": {
       "title": "Msaada na Mafunzo",
       "intent": "Video za sauti, bila mtandao"
+    },
+    "W-M-MKT": {
+      "title": "Soko",
+      "intent": "Kazi za soko zilizoshirikishwa na mmiliki wako"
     },
     "photo-advisor": {
       "title": "Uliza picha · Borjie Vision",
