@@ -28,12 +28,10 @@ const OWNER_NAV_ROUTES: ReadonlyArray<{
   { route: '/compliance', labelKey: 'nav.compliance' },
   { route: '/finance', labelKey: 'nav.finance' },
   { route: '/counterparties', labelKey: 'nav.counterparties' },
-  { route: '/cooperatives', labelKey: 'nav.cooperatives' },
-  { route: '/insurance', labelKey: 'nav.insurance' },
   { route: '/documents', labelKey: 'nav.documents' },
   { route: '/estate', labelKey: 'nav.estate' },
   { route: '/chain-of-custody', labelKey: 'nav.chainOfCustody' },
-  { route: '/inbox', labelKey: 'nav.inbox' },
+  { route: '/mwikila/inbox', labelKey: 'nav.inbox' },
 ];
 
 const QUICK_ACTIONS: ReadonlyArray<{

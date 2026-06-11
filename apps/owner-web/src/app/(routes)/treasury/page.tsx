@@ -5,6 +5,7 @@ import { FxChart } from '@/components/treasury/FxChart';
 import { SellSimulator } from '@/components/treasury/SellSimulator';
 import { CliffBanner } from '@/components/treasury/CliffBanner';
 import { CommodityTrendPanel } from '@/components/treasury/CommodityTrendPanel';
+import { TreasuryAdvisorPanel } from '@/components/treasury/TreasuryAdvisorPanel';
 import { getOwnerSession } from '@/lib/session';
 
 /**
@@ -56,6 +57,7 @@ export default async function TreasuryPage() {
         </div>
       </div>
       <CommodityTrendPanel />
+      <TreasuryAdvisorPanel locale={session.languagePreference} />
     </div>
   );
 }

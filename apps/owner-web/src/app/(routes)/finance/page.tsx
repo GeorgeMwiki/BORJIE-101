@@ -4,6 +4,7 @@ import { PageHero } from '@/components/shared/PageHero';
 import { BreakEvenSlider } from '@/components/finance/BreakEvenSlider';
 import { RoyaltyDraftPanel } from '@/components/finance/RoyaltyDraftPanel';
 import { PnlTableLive } from '@/components/finance/PnlTableLive';
+import { CostEngineerPanel } from '@/components/finance/CostEngineerPanel';
 import { getOwnerSession } from '@/lib/session';
 import { SW } from '@/lib/sw-tokens';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
@@ -48,6 +49,10 @@ export default async function FinancePage() {
       />
       <RoyaltyDraftPanel locale={session.languagePreference} />
       <PnlTableLive locale={session.languagePreference} />
+      <CostEngineerPanel
+        locale={session.languagePreference}
+        {...(session.activeSiteId ? { siteId: session.activeSiteId } : {})}
+      />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <BreakEvenSlider
           initialGoldUsdOz={2384}

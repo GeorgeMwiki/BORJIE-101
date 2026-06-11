@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 type DeviceDetails = {
@@ -33,27 +34,25 @@ function gatewayBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
-const SCOPE_LABELS_EN: Readonly<Record<string, string>> = {
-  'owner:read': S.oauthConfirm.scopeOwnerRead.en,
-  'owner:write': S.oauthConfirm.scopeOwnerWrite.en,
-  'owner:draft': S.oauthConfirm.scopeOwnerDraft.en,
-  'owner:reminders': S.oauthConfirm.scopeOwnerReminders.en,
-  'owner:share': S.oauthConfirm.scopeOwnerShare.en,
-  'admin:read': S.oauthConfirm.scopeAdminRead.en,
+const SCOPE_LABELS: Readonly<Record<string, { sw: string; en: string }>> = {
+  'owner:read': S.oauthConfirm.scopeOwnerRead,
+  'owner:write': S.oauthConfirm.scopeOwnerWrite,
+  'owner:draft': S.oauthConfirm.scopeOwnerDraft,
+  'owner:reminders': S.oauthConfirm.scopeOwnerReminders,
+  'owner:share': S.oauthConfirm.scopeOwnerShare,
+  'admin:read': S.oauthConfirm.scopeAdminRead,
 };
 
-const SCOPE_LABELS_SW: Readonly<Record<string, string>> = {
-  'owner:read': S.oauthConfirm.scopeOwnerRead.sw,
-  'owner:write': S.oauthConfirm.scopeOwnerWrite.sw,
-  'owner:draft': S.oauthConfirm.scopeOwnerDraft.sw,
-  'owner:reminders': S.oauthConfirm.scopeOwnerReminders.sw,
-  'owner:share': S.oauthConfirm.scopeOwnerShare.sw,
-  'admin:read': S.oauthConfirm.scopeAdminRead.sw,
-};
+/** Resolve a scope's display label in the active locale, falling back to the raw id. */
+function scopeLabel(scope: string, locale: Locale): string {
+  const entry = SCOPE_LABELS[scope];
+  return entry ? pickByLocale(locale, entry) : scope;
+}
 
 export function OAuthConfirmPanel() {
   const router = useRouter();
   const params = useSearchParams();
+  const locale = useLocale();
   const userCode = params.get('code') ?? '';
 
   const [phase, setPhase] = useState<Phase>(
@@ -78,7 +77,10 @@ export function OAuthConfirmPanel() {
           const message =
             (json && 'error_description' in json && json.error_description) ||
             (json && 'error' in json && json.error) ||
-            S.oauthConfirm.commProblem.sw.replace('{status}', String(res.status));
+            pickByLocale(locale, S.oauthConfirm.commProblem).replace(
+              '{status}',
+              String(res.status),
+            );
           setPhase({ kind: 'error', message });
           return;
         }
@@ -90,14 +92,14 @@ export function OAuthConfirmPanel() {
           message:
             err instanceof Error
               ? err.message
-              : S.oauthConfirm.networkRetry.sw,
+              : pickByLocale(locale, S.oauthConfirm.networkRetry),
         });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [userCode]);
+  }, [userCode, locale]);
 
   useEffect(() => {
     if (phase.kind !== 'approved') return;
@@ -144,7 +146,10 @@ export function OAuthConfirmPanel() {
         const message =
           (json && 'error_description' in json && json.error_description) ||
           (json && 'error' in json && json.error) ||
-          S.oauthConfirm.httpProblem.sw.replace('{status}', String(res.status));
+          pickByLocale(locale, S.oauthConfirm.httpProblem).replace(
+            '{status}',
+            String(res.status),
+          );
         setPhase({ kind: 'error', message });
         return;
       }
@@ -153,7 +158,9 @@ export function OAuthConfirmPanel() {
       setPhase({
         kind: 'error',
         message:
-          err instanceof Error ? err.message : S.oauthConfirm.networkError.sw,
+          err instanceof Error
+            ? err.message
+            : pickByLocale(locale, S.oauthConfirm.networkError),
       });
     }
   }
@@ -184,7 +191,9 @@ export function OAuthConfirmPanel() {
       setPhase({
         kind: 'error',
         message:
-          err instanceof Error ? err.message : S.oauthConfirm.networkError.sw,
+          err instanceof Error
+            ? err.message
+            : pickByLocale(locale, S.oauthConfirm.networkError),
       });
     }
   }
@@ -194,16 +203,13 @@ export function OAuthConfirmPanel() {
       <header className="mb-6">
         <div className="text-xs font-mono text-neutral-500">OAUTH-DEVICE-CONFIRM</div>
         <h1 className="mt-1 font-display text-2xl text-foreground">
-          Authorize external agent
+          {pickByLocale(locale, S.oauthConfirm.header)}
         </h1>
-        <p className="mt-0.5 text-sm italic text-neutral-500">
-          {S.oauthConfirm.headerTagline.sw}
-        </p>
       </header>
 
       {phase.kind === 'missing-code' && (
         <p className="text-sm text-destructive">
-          {`${S.oauthConfirm.missingCode.sw} (${S.oauthConfirm.missingCode.en})`}
+          {pickByLocale(locale, S.oauthConfirm.missingCode)}
         </p>
       )}
 
@@ -211,7 +217,7 @@ export function OAuthConfirmPanel() {
         <div
           role="status"
           aria-live="polite"
-          aria-label={`${S.oauthConfirm.loadingAria.sw} / ${S.oauthConfirm.loadingAria.en}`}
+          aria-label={pickByLocale(locale, S.oauthConfirm.loadingAria)}
           className="space-y-3"
         >
           <div className="h-6 w-2/3 animate-pulse rounded bg-surface-raised" />
@@ -235,6 +241,7 @@ export function OAuthConfirmPanel() {
           }
           userCode={userCode}
           busy={phase.kind !== 'ready'}
+          locale={locale}
           onApprove={handleApprove}
           onDeny={handleDeny}
         />
@@ -243,13 +250,13 @@ export function OAuthConfirmPanel() {
       {phase.kind === 'approved' && (
         <div className="rounded border border-emerald-500/30 bg-emerald-500/5 p-4 text-sm">
           <p className="text-foreground">
-            {S.oauthConfirm.approvedTitle.sw}
+            {pickByLocale(locale, S.oauthConfirm.approvedTitle)}
           </p>
           <p className="mt-1 italic text-neutral-400">
-            {S.oauthConfirm.approvedBody.en}
+            {pickByLocale(locale, S.oauthConfirm.approvedBody)}
           </p>
           <p className="mt-2 text-xs text-neutral-500">
-            {S.oauthConfirm.approvedRedirect.sw.replace(
+            {pickByLocale(locale, S.oauthConfirm.approvedRedirect).replace(
               '{n}',
               String(Math.max(0, phase.countdown)),
             )}
@@ -259,9 +266,11 @@ export function OAuthConfirmPanel() {
 
       {phase.kind === 'denied' && (
         <div className="rounded border border-border bg-background p-4 text-sm">
-          <p className="text-foreground">{S.oauthConfirm.deniedTitle.sw}</p>
+          <p className="text-foreground">
+            {pickByLocale(locale, S.oauthConfirm.deniedTitle)}
+          </p>
           <p className="mt-1 italic text-neutral-400">
-            {S.oauthConfirm.deniedBody.en}
+            {pickByLocale(locale, S.oauthConfirm.deniedBody)}
           </p>
         </div>
       )}
@@ -273,16 +282,17 @@ function ConsentBody(props: {
   readonly details: DeviceDetails;
   readonly userCode: string;
   readonly busy: boolean;
+  readonly locale: Locale;
   readonly onApprove: () => void;
   readonly onDeny: () => void;
 }) {
-  const { details, userCode, busy, onApprove, onDeny } = props;
+  const { details, userCode, busy, locale, onApprove, onDeny } = props;
   const scopes = details.scopes ?? [];
   return (
     <div className="space-y-5">
       <section className="rounded border border-border bg-background p-4">
         <div className="text-xs text-neutral-500">
-          {`${S.oauthConfirm.agentLabel.sw} / ${S.oauthConfirm.agentLabel.en}`}
+          {pickByLocale(locale, S.oauthConfirm.agentLabel)}
         </div>
         <div className="mt-0.5 font-display text-lg text-foreground">
           {details.client_label || details.client_id || 'Agent'}
@@ -291,19 +301,19 @@ function ConsentBody(props: {
           client_id: {details.client_id}
         </div>
         <div className="mt-2 text-xs text-neutral-500">
-          {`${S.oauthConfirm.codeLabel.sw} / ${S.oauthConfirm.codeLabel.en}`}:{' '}
+          {pickByLocale(locale, S.oauthConfirm.codeLabel)}:{' '}
           <span className="font-mono text-foreground">{userCode}</span>
         </div>
       </section>
 
       <section>
         <div className="text-xs text-neutral-500">
-          {`${S.oauthConfirm.requestsPermissions.sw} / ${S.oauthConfirm.requestsPermissions.en}`}
+          {pickByLocale(locale, S.oauthConfirm.requestsPermissions)}
         </div>
         <ul className="mt-2 space-y-2">
           {scopes.length === 0 && (
             <li className="text-sm text-neutral-400">
-              {`${S.oauthConfirm.noScopes.sw} (${S.oauthConfirm.noScopes.en})`}
+              {pickByLocale(locale, S.oauthConfirm.noScopes)}
             </li>
           )}
           {scopes.map((s) => (
@@ -313,10 +323,7 @@ function ConsentBody(props: {
             >
               <div className="font-mono text-xs text-signal-500">{s}</div>
               <div className="mt-0.5 text-foreground">
-                {SCOPE_LABELS_EN[s] ?? s}
-              </div>
-              <div className="mt-0.5 text-xs italic text-neutral-500">
-                {SCOPE_LABELS_SW[s] ?? s}
+                {scopeLabel(s, locale)}
               </div>
             </li>
           ))}
@@ -324,9 +331,9 @@ function ConsentBody(props: {
       </section>
 
       <p className="text-xs text-neutral-500">
-        {S.oauthConfirm.revokeNoteSwPrefix.sw}{' '}
-        <code className="text-foreground">/settings/connected-agents</code>.{' '}
-        {S.oauthConfirm.revokeNoteEn.en}
+        {pickByLocale(locale, S.oauthConfirm.revokeNotePrefix)}{' '}
+        <code className="text-foreground">/settings/connected-agents</code>{' '}
+        {pickByLocale(locale, S.oauthConfirm.revokeNoteSuffix)}
       </p>
 
       <div className="flex gap-3">
@@ -336,7 +343,7 @@ function ConsentBody(props: {
           disabled={busy}
           className="flex-1 rounded bg-signal-500 px-4 py-2 text-sm font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
         >
-          {`${S.oauthConfirm.approve.sw} / ${S.oauthConfirm.approve.en}`}
+          {pickByLocale(locale, S.oauthConfirm.approve)}
         </button>
         <button
           type="button"
@@ -344,7 +351,7 @@ function ConsentBody(props: {
           disabled={busy}
           className="flex-1 rounded border border-border bg-background px-4 py-2 text-sm text-foreground hover:bg-surface disabled:opacity-50"
         >
-          {`${S.oauthConfirm.deny.sw} / ${S.oauthConfirm.deny.en}`}
+          {pickByLocale(locale, S.oauthConfirm.deny)}
         </button>
       </div>
     </div>

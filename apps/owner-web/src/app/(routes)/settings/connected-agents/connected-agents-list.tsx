@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { Toast } from '@/components/shared/Toast';
 
@@ -31,40 +32,37 @@ function gatewayBaseUrl(): string {
   ).replace(/\/$/, '');
 }
 
-function bilingual(sw: string, en: string): string {
-  return `${sw} / ${en}`;
-}
-
-function formatRelative(input: string | null): string {
+function formatRelative(input: string | null, locale: Locale): string {
   if (!input) return '—';
   const then = new Date(input).getTime();
   if (Number.isNaN(then)) return input;
   const diff = Date.now() - then;
   const min = Math.round(diff / 60_000);
   if (min < 1) {
-    return bilingual(S.connectedAgentsList.relNow.sw, S.connectedAgentsList.relNow.en);
+    return pickByLocale(locale, S.connectedAgentsList.relNow);
   }
   if (min < 60) {
-    return bilingual(
-      S.connectedAgentsList.relMinutesAgo.sw.replace('{n}', String(min)),
-      S.connectedAgentsList.relMinutesAgo.en.replace('{n}', String(min)),
+    return pickByLocale(locale, S.connectedAgentsList.relMinutesAgo).replace(
+      '{n}',
+      String(min),
     );
   }
   const hr = Math.round(min / 60);
   if (hr < 24) {
-    return bilingual(
-      S.connectedAgentsList.relHoursAgo.sw.replace('{n}', String(hr)),
-      S.connectedAgentsList.relHoursAgo.en.replace('{n}', String(hr)),
+    return pickByLocale(locale, S.connectedAgentsList.relHoursAgo).replace(
+      '{n}',
+      String(hr),
     );
   }
   const day = Math.round(hr / 24);
-  return bilingual(
-    S.connectedAgentsList.relDaysAgo.sw.replace('{n}', String(day)),
-    S.connectedAgentsList.relDaysAgo.en.replace('{n}', String(day)),
+  return pickByLocale(locale, S.connectedAgentsList.relDaysAgo).replace(
+    '{n}',
+    String(day),
   );
 }
 
 export function ConnectedAgentsList() {
+  const locale = useLocale();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [revoking, setRevoking] = useState<string | null>(null);
   // In-app toast for revoke failures (replaces window.alert).
@@ -84,7 +82,7 @@ export function ConnectedAgentsList() {
       if (!res.ok || !json || !('success' in json) || !json.success) {
         const message =
           (json && 'error' in json && json.error?.message) ||
-          S.connectedAgentsList.httpProblem.sw.replace(
+          pickByLocale(locale, S.connectedAgentsList.httpProblem).replace(
             '{status}',
             String(res.status),
           );
@@ -99,10 +97,10 @@ export function ConnectedAgentsList() {
         message:
           err instanceof Error
             ? err.message
-            : S.connectedAgentsList.networkError.sw,
+            : pickByLocale(locale, S.connectedAgentsList.networkError),
       });
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void load();
@@ -110,15 +108,11 @@ export function ConnectedAgentsList() {
 
   async function handleRevoke(token: AgentToken) {
     const label = token.clientLabel ?? token.clientId;
-    const swConfirm = S.connectedAgentsList.revokeConfirm.sw.replace(
-      '{label}',
-      label,
-    );
-    const enConfirm = S.connectedAgentsList.revokeConfirm.en.replace(
-      '{label}',
-      label,
-    );
-    const ok = window.confirm(`${swConfirm}\n\n${enConfirm}`);
+    const confirmMsg = pickByLocale(
+      locale,
+      S.connectedAgentsList.revokeConfirm,
+    ).replace('{label}', label);
+    const ok = window.confirm(confirmMsg);
     if (!ok) return;
     setRevoking(token.id);
     try {
@@ -137,15 +131,12 @@ export function ConnectedAgentsList() {
       if (!res.ok && res.status !== 404) {
         const text = await res.text().catch(() => '');
         const detail = text || `HTTP ${res.status}`;
-        const swFail = S.connectedAgentsList.revokeFailed.sw.replace(
-          '{detail}',
-          detail,
+        setToastMsg(
+          pickByLocale(locale, S.connectedAgentsList.revokeFailed).replace(
+            '{detail}',
+            detail,
+          ),
         );
-        const enFail = S.connectedAgentsList.revokeFailed.en.replace(
-          '{detail}',
-          detail,
-        );
-        setToastMsg(`${swFail} / ${enFail}`);
         setRevoking(null);
         return;
       }
@@ -154,10 +145,7 @@ export function ConnectedAgentsList() {
       setToastMsg(
         err instanceof Error
           ? err.message
-          : bilingual(
-              S.connectedAgentsList.networkError.sw,
-              S.connectedAgentsList.networkError.en,
-            ),
+          : pickByLocale(locale, S.connectedAgentsList.networkError),
       );
     } finally {
       setRevoking(null);
@@ -169,7 +157,7 @@ export function ConnectedAgentsList() {
       <div
         role="status"
         aria-live="polite"
-        aria-label={`${S.connectedAgentsList.loadingAria.sw} / ${S.connectedAgentsList.loadingAria.en}`}
+        aria-label={pickByLocale(locale, S.connectedAgentsList.loadingAria)}
         className="space-y-3"
       >
         {Array.from({ length: 3 }).map((_, i) => (
@@ -193,7 +181,7 @@ export function ConnectedAgentsList() {
           onClick={() => void load()}
           className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
         >
-          {`${S.connectedAgentsList.retry.sw} / ${S.connectedAgentsList.retry.en}`}
+          {pickByLocale(locale, S.connectedAgentsList.retry)}
         </button>
       </div>
     );
@@ -202,12 +190,12 @@ export function ConnectedAgentsList() {
     return (
       <div className="rounded border border-border bg-surface p-6 text-sm">
         <p className="text-foreground">
-          {S.connectedAgentsList.emptyTitle.sw}
+          {pickByLocale(locale, S.connectedAgentsList.emptyTitle)}
         </p>
         <p className="mt-1 italic text-neutral-400">
-          {S.connectedAgentsList.emptyBody.en}{' '}
-          <code className="text-foreground">/oauth/confirm</code>, it will
-          appear here.
+          {pickByLocale(locale, S.connectedAgentsList.emptyBody)}{' '}
+          <code className="text-foreground">/oauth/confirm</code>
+          {pickByLocale(locale, S.connectedAgentsList.emptyBodySuffix)}
         </p>
       </div>
     );
@@ -239,15 +227,17 @@ export function ConnectedAgentsList() {
                 ))}
               </div>
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-neutral-400">
-                <dt>{`${S.connectedAgentsList.issued.sw} / ${S.connectedAgentsList.issued.en}`}</dt>
-                <dd className="text-neutral-300">{formatRelative(token.issuedAt)}</dd>
-                <dt>{`${S.connectedAgentsList.lastUsed.sw} / ${S.connectedAgentsList.lastUsed.en}`}</dt>
+                <dt>{pickByLocale(locale, S.connectedAgentsList.issued)}</dt>
                 <dd className="text-neutral-300">
-                  {formatRelative(token.lastUsedAt)}
+                  {formatRelative(token.issuedAt, locale)}
+                </dd>
+                <dt>{pickByLocale(locale, S.connectedAgentsList.lastUsed)}</dt>
+                <dd className="text-neutral-300">
+                  {formatRelative(token.lastUsedAt, locale)}
                 </dd>
                 {token.expiresAt && (
                   <>
-                    <dt>{`${S.connectedAgentsList.expires.sw} / ${S.connectedAgentsList.expires.en}`}</dt>
+                    <dt>{pickByLocale(locale, S.connectedAgentsList.expires)}</dt>
                     <dd className="text-neutral-300">
                       {new Date(token.expiresAt).toLocaleString()}
                     </dd>
@@ -262,8 +252,8 @@ export function ConnectedAgentsList() {
               className="rounded border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
             >
               {revoking === token.id
-                ? S.connectedAgentsList.revoking.sw
-                : `${S.connectedAgentsList.revoke.sw} / ${S.connectedAgentsList.revoke.en}`}
+                ? pickByLocale(locale, S.connectedAgentsList.revoking)
+                : pickByLocale(locale, S.connectedAgentsList.revoke)}
             </button>
           </div>
         </li>

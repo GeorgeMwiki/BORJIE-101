@@ -1,20 +1,30 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowLeft, Compass } from 'lucide-react';
+import { pickByLocale } from '@/lib/locale-shared';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
-export const metadata: Metadata = {
-  title: S.notFound.metaTitle.sw,
-  description: S.notFound.metaDescription.sw,
-  robots: { index: false, follow: false },
-};
-
 /**
- * Owner cockpit not-found surface. LitFin-pattern centred card,
- * bilingual sw/en copy with the cockpit's signal-gold aurora at the
- * top of the canvas.
+ * Owner cockpit not-found surface. LitFin-pattern centred card with the
+ * cockpit's signal-gold aurora at the top of the canvas.
+ *
+ * LOCALE-PURE: both the metadata and the rendered copy read the active
+ * language from the `borjie_locale` cookie (server side) and render a
+ * SINGLE language via `pickByLocale` — never a concatenated EN/SW string
+ * (hard rule).
  */
-export default function OwnerNotFoundPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await readLocaleFromServerCookies();
+  return {
+    title: pickByLocale(locale, S.notFound.metaTitle),
+    description: pickByLocale(locale, S.notFound.metaDescription),
+    robots: { index: false, follow: false },
+  };
+}
+
+export default async function OwnerNotFoundPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <main
       id="main-content"
@@ -33,13 +43,13 @@ export default function OwnerNotFoundPage() {
           <Compass aria-hidden="true" className="h-7 w-7" />
         </div>
         <p className="font-mono text-badge uppercase tracking-eyebrow-x-wide text-signal-500">
-          {`404 · ${S.notFound.eyebrow.sw}`}
+          {`404 · ${pickByLocale(locale, S.notFound.eyebrow)}`}
         </p>
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-          {S.notFound.heading.sw}
+          {pickByLocale(locale, S.notFound.heading)}
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          {`${S.notFound.body.sw} ${S.notFound.body.en}`}
+          {pickByLocale(locale, S.notFound.body)}
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link
@@ -47,13 +57,13 @@ export default function OwnerNotFoundPage() {
             className="inline-flex items-center gap-2 rounded-xl bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            {S.notFound.backToCockpit.sw}
+            {pickByLocale(locale, S.notFound.backToCockpit)}
           </Link>
           <Link
             href="/master-brain"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            Master brain
+            {pickByLocale(locale, S.notFound.masterBrain)}
           </Link>
         </div>
       </div>

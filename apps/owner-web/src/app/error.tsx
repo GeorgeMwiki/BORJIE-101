@@ -1,13 +1,18 @@
 'use client';
 
 /**
- * Owner cockpit global error boundary (Next.js convention).
- * LitFin-pattern centred card, bilingual sw/en, primary "Jaribu tena"
- * CTA + secondary "Back to cockpit". Suppresses digest in production.
+ * Owner cockpit segment error boundary (Next.js convention).
+ * LitFin-pattern centred card with a primary retry CTA + secondary
+ * "Back to cockpit". Suppresses digest in production.
+ *
+ * LOCALE-PURE: the active language is read from the `borjie_locale`
+ * cookie via `useLocale()` and a SINGLE language is rendered through
+ * `pickByLocale` — never a concatenated EN/SW string (hard rule).
  */
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, RefreshCw, TriangleAlert } from 'lucide-react';
+import { useLocale, pickByLocale } from '@/lib/locale';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 interface ErrorPageProps {
@@ -16,6 +21,8 @@ interface ErrorPageProps {
 }
 
 export default function OwnerError({ error, reset }: ErrorPageProps) {
+  const locale = useLocale();
+
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') {
       // eslint-disable-next-line no-console -- dev-only diagnostic
@@ -41,13 +48,13 @@ export default function OwnerError({ error, reset }: ErrorPageProps) {
           <TriangleAlert aria-hidden="true" className="h-7 w-7" />
         </div>
         <p className="font-mono text-badge uppercase tracking-eyebrow-x-wide text-destructive">
-          {`${S.error.eyebrow.sw} · ${S.error.eyebrow.en}`}
+          {pickByLocale(locale, S.error.eyebrow)}
         </p>
         <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
-          That didn't load.
+          {pickByLocale(locale, S.error.heading)}
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          {S.error.body.sw}
+          {pickByLocale(locale, S.error.body)}
         </p>
         {error.digest && process.env.NODE_ENV !== 'production' ? (
           <p className="mt-3 font-mono text-tiny uppercase tracking-widest text-muted-foreground/70">
@@ -61,14 +68,14 @@ export default function OwnerError({ error, reset }: ErrorPageProps) {
             className="inline-flex items-center gap-2 rounded-xl bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <RefreshCw aria-hidden="true" className="h-4 w-4" />
-            {S.error.retry.sw}
+            {pickByLocale(locale, S.error.retry)}
           </button>
           <Link
             href="/"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <ArrowLeft aria-hidden="true" className="h-4 w-4" />
-            {S.error.backToCockpit.sw}
+            {pickByLocale(locale, S.error.backToCockpit)}
           </Link>
         </div>
       </div>

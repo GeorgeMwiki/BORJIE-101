@@ -149,7 +149,7 @@ export const routesBStrings = {
     relMinutesAgo: { sw: 'dakika {n} zilizopita', en: '{n}m ago' },
     relHoursAgo: { sw: 'saa {n} zilizopita', en: '{n}h ago' },
     relDaysAgo: { sw: 'siku {n} zilizopita', en: '{n}d ago' },
-    httpProblem: { sw: 'Tatizo (HTTP {status})', en: '' },
+    httpProblem: { sw: 'Tatizo (HTTP {status})', en: 'Problem (HTTP {status})' },
     networkError: { sw: 'Tatizo la mtandao', en: 'network error' },
     revokeConfirm: {
       sw: 'Ondoa idhini ya wakala "{label}"? Hatua hii haiwezi kutenduliwa.',
@@ -163,16 +163,20 @@ export const routesBStrings = {
     retry: { sw: 'Jaribu tena', en: 'Retry' },
     emptyTitle: {
       sw: 'Hakuna wakala wa nje walioongezwa bado.',
-      en: '',
+      en: 'No external agents are connected yet.',
     },
     emptyBody: {
-      sw: '',
-      en: 'No external agents are connected yet. When you authorize an agent via',
+      sw: 'Ukiidhinisha wakala kupitia',
+      en: 'When you authorize an agent via',
+    },
+    emptyBodySuffix: {
+      sw: ', wataonekana hapa.',
+      en: ', it will appear here.',
     },
     issued: { sw: 'Iliongezwa', en: 'Issued' },
     lastUsed: { sw: 'Imetumika mwisho', en: 'Last used' },
     expires: { sw: 'Inaisha', en: 'Expires' },
-    revoking: { sw: 'Inaondoa…', en: '' },
+    revoking: { sw: 'Inaondoa…', en: 'Revoking…' },
     revoke: { sw: 'Ondoa', en: 'Revoke' },
   },
 
@@ -335,31 +339,36 @@ export const routesBStrings = {
     },
   },
 
-  /** app/error.tsx — owner cockpit global error boundary. */
+  /** app/error.tsx — owner cockpit segment error boundary. */
   error: {
     eyebrow: { sw: 'Hitilafu', en: 'Something went wrong' },
+    heading: { sw: 'Haikupakia.', en: "That didn't load." },
     body: {
       sw: 'Tumepokea ripoti. Jaribu tena — kama itaendelea kutokea, timu yetu inaangalia tayari.',
-      en: '',
+      en: "We've captured the error. Try again — if it keeps happening, our team is already looking.",
     },
-    retry: { sw: 'Jaribu tena', en: '' },
-    backToCockpit: { sw: 'Rudi kwenye cockpit', en: '' },
+    retry: { sw: 'Jaribu tena', en: 'Try again' },
+    backToCockpit: { sw: 'Rudi kwenye cockpit', en: 'Back to cockpit' },
   },
 
   /** app/not-found.tsx — owner cockpit not-found surface. */
   notFound: {
     metaTitle: {
       sw: 'Ukurasa haupo — Borjie Owner Cockpit',
-      en: '',
+      en: 'Page not found — Borjie Owner Cockpit',
     },
-    metaDescription: { sw: 'Hatuwezi kupata ukurasa huo.', en: '' },
-    eyebrow: { sw: 'Hatuwezi kupata', en: '' },
-    heading: { sw: 'Ukurasa haupo.', en: '' },
+    metaDescription: {
+      sw: 'Hatuwezi kupata ukurasa huo.',
+      en: "We couldn't find that page.",
+    },
+    eyebrow: { sw: 'Hatuwezi kupata', en: 'Not found' },
+    heading: { sw: 'Ukurasa haupo.', en: "That page doesn't exist." },
     body: {
-      sw: 'Inawezekana umebadilishwa au kiungo ni cha zamani.',
-      en: 'Try the cockpit home or jump to the master brain.',
+      sw: 'Inawezekana umebadilishwa au kiungo ni cha zamani. Jaribu nyumbani au nenda kwenye master brain.',
+      en: 'It may have moved or the link is out of date. Try the cockpit home or jump to the master brain.',
     },
-    backToCockpit: { sw: 'Rudi kwenye cockpit', en: '' },
+    backToCockpit: { sw: 'Rudi kwenye cockpit', en: 'Back to cockpit' },
+    masterBrain: { sw: 'Master brain', en: 'Master brain' },
   },
 
   /** app/oauth/confirm/confirm-panel.tsx — device-authorize consent. */
@@ -390,15 +399,19 @@ export const routesBStrings = {
     },
     commProblem: {
       sw: 'Tatizo la mawasiliano (HTTP {status})',
-      en: '',
+      en: 'Communication problem (HTTP {status})',
     },
     networkRetry: {
       sw: 'Tatizo la mtandao — jaribu tena',
-      en: '',
+      en: 'Network problem — try again',
     },
-    httpProblem: { sw: 'Tatizo (HTTP {status})', en: '' },
-    networkError: { sw: 'Tatizo la mtandao', en: '' },
-    headerTagline: { sw: 'Idhinisha wakala wa nje', en: '' },
+    httpProblem: { sw: 'Tatizo (HTTP {status})', en: 'Problem (HTTP {status})' },
+    networkError: { sw: 'Tatizo la mtandao', en: 'Network error' },
+    header: { sw: 'Idhinisha wakala wa nje', en: 'Authorize external agent' },
+    headerTagline: {
+      sw: 'Idhinisha wakala wa nje',
+      en: 'Authorize external agent',
+    },
     missingCode: {
       sw: 'Hakuna msimbo wa mtumiaji. Hakikisha umetumia kiunganisho alichokupa wakala.',
       en: 'No user code provided — make sure you used the link the agent gave you.',
@@ -409,20 +422,20 @@ export const routesBStrings = {
     },
     approvedTitle: {
       sw: 'Imeidhinishwa. Wakala anaweza kufanya kazi sasa.',
-      en: '',
+      en: 'Approved. The agent can now act on your behalf.',
     },
     approvedBody: {
-      sw: '',
-      en: 'Approved. The agent can now act on your behalf.',
+      sw: 'Wakala sasa anaweza kutenda kwa niaba yako.',
+      en: 'The agent can now act on your behalf.',
     },
     approvedRedirect: {
       sw: 'Inaelekeza kwenye orodha ya wakala katika sekunde {n} …',
-      en: '',
+      en: 'Redirecting to the agent list in {n}s …',
     },
-    deniedTitle: { sw: 'Umekataa ombi.', en: '' },
+    deniedTitle: { sw: 'Umekataa ombi.', en: 'You denied the request.' },
     deniedBody: {
-      sw: '',
-      en: 'You denied the request. The device will not receive a token.',
+      sw: 'Kifaa hakitapokea tokeni.',
+      en: 'The device will not receive a token.',
     },
     agentLabel: { sw: 'Wakala', en: 'Agent' },
     codeLabel: { sw: 'Msimbo', en: 'Code' },
@@ -434,13 +447,13 @@ export const routesBStrings = {
       sw: 'Hakuna ruhusa maalum',
       en: 'no specific scopes requested',
     },
-    revokeNoteSwPrefix: {
+    revokeNotePrefix: {
       sw: 'Unaweza kuondoa idhini wakati wowote kutoka',
-      en: '',
+      en: 'You can revoke this at any time from',
     },
-    revokeNoteEn: {
-      sw: '',
-      en: 'You can revoke this at any time from Settings → Connected agents.',
+    revokeNoteSuffix: {
+      sw: '(Mipangilio → Wakala walioongezwa).',
+      en: '(Settings → Connected agents).',
     },
     approve: { sw: 'Idhinisha', en: 'Approve' },
     deny: { sw: 'Kataa', en: 'Deny' },
