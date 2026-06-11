@@ -144,6 +144,30 @@ export {
   type AdvanceOrgLoopRunInput,
 } from './org-loop-run-repository.js';
 
+// Org memberships (migrations 0305/0336/0344) — the WRITE-PATH + targeting
+// reads for the User⟷Membership⟷Org substrate (surface-completion SC-1). Lights
+// up the previously-dark org_memberships join: connect / redeemInvite / leave /
+// block lifecycle + listActiveForIdentity (the multi-org JWT + switcher SET),
+// verifyActiveMembership (the switch authorization), resolveAudience (the
+// surface-completion audience fan). Owns the membership graph ONLY — the shadow
+// users row is provisioned upstream (authz stays on user_id + RLS). Drizzle impl
+// runs under withServiceRoleContext (cross-org by nature); in-memory twin for tests.
+export {
+  createDrizzleOrgMembershipRepository,
+  createInMemoryOrgMembershipRepository,
+  InviteRedemptionError,
+  type OrgMembership,
+  type OrgMembershipRepository,
+  type OrgMembershipStatus,
+  type OrgMembershipRelationshipType,
+  type ConnectMembershipInput,
+  type RedeemInviteInput,
+  type RedeemInviteResult,
+  type BlockMembershipInput,
+  type AudienceQuery,
+  type InMemoryOrgMembershipSeed,
+} from './org-membership.repository.js';
+
 // Enum guards — bug fix A-BUG-DEEP #9. Property-domain enums (lease,
 // customer, document) retained as opaque type aliases until the
 // mining-domain equivalents replace them.
