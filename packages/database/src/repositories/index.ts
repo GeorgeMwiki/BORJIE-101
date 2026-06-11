@@ -144,18 +144,20 @@ export {
   type AdvanceOrgLoopRunInput,
 } from './org-loop-run-repository.js';
 
-// Org memberships (migrations 0305/0336/0344) — the WRITE-PATH + targeting
-// reads for the User⟷Membership⟷Org substrate (surface-completion SC-1). Lights
-// up the previously-dark org_memberships join: connect / redeemInvite / leave /
-// block lifecycle + listActiveForIdentity (the multi-org JWT + switcher SET),
-// verifyActiveMembership (the switch authorization), resolveAudience (the
-// surface-completion audience fan). Owns the membership graph ONLY — the shadow
-// users row is provisioned upstream (authz stays on user_id + RLS). Drizzle impl
-// runs under withServiceRoleContext (cross-org by nature); in-memory twin for tests.
+// Org memberships (migrations 0305/0336/0344/0345/0346) — the WRITE-PATH +
+// targeting reads for the User⟷Membership⟷Org substrate (surface-completion
+// SC-1, corrected in SC-3). The CORRECTED BUYER MODEL: buyer_connection rows
+// never carry a shadow user (buyer ≠ tenant-insider — structural CHECK); the
+// full pairing state machine (invite/QR redeem → ACTIVE; public request →
+// PENDING → approve/reject; revoke; re-request; block). Owns the membership
+// graph ONLY — the shadow users row is provisioned upstream (authz stays on
+// user_id + RLS). Drizzle impl runs under withServiceRoleContext (cross-org
+// by nature); in-memory twin for tests.
 export {
   createDrizzleOrgMembershipRepository,
   createInMemoryOrgMembershipRepository,
   InviteRedemptionError,
+  MembershipInvariantError,
   type OrgMembership,
   type OrgMembershipRepository,
   type OrgMembershipStatus,
@@ -163,10 +165,28 @@ export {
   type ConnectMembershipInput,
   type RedeemInviteInput,
   type RedeemInviteResult,
+  type InvitePeek,
+  type RequestPairingInput,
+  type DecideMembershipInput,
+  type ApproveMembershipInput,
   type BlockMembershipInput,
   type AudienceQuery,
   type InMemoryOrgMembershipSeed,
 } from './org-membership.repository.js';
+
+// Identity provisioning (migration 0345) — the sub↔identity bridge. Every
+// membership route resolves the caller through here, so any authenticated
+// principal (phone-OTP sub on mobile, email sub on web) lands on the SAME
+// membership graph. Drizzle impl is service-role (global spine tables);
+// in-memory twin for tests.
+export {
+  createDrizzleIdentityRepository,
+  createInMemoryIdentityRepository,
+  normalizePhoneDigits,
+  type IdentityRepository,
+  type TenantIdentityView,
+  type ProvisionIdentityInput,
+} from './identity.repository.js';
 
 // Enum guards — bug fix A-BUG-DEEP #9. Property-domain enums (lease,
 // customer, document) retained as opaque type aliases until the

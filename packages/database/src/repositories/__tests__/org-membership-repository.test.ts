@@ -18,8 +18,14 @@
  *   - resolveAudience fans ACTIVE memberships by relationship_type + role-class;
  *   - leave → LEFT (ACTIVE-only, idempotent); block → BLOCKED (org-scoped).
  *
+ * Plus the CORRECTED BUYER MODEL + pairing state machine (0345):
+ *   - buyer_connection never carries a shadow userId (forbidden both ways);
+ *   - redeemInvite derives the relationship from the INVITE (trust-direction);
+ *   - request → PENDING → approve/reject; revoke; re-request; queue ordering.
+ *
  * The Drizzle twin shares this exact surface; its RLS isolation is enforced by
- * migration 0336's FORCE policy + 0344's columns (covered by migration-apply).
+ * migration 0336's FORCE policy + 0344/0345's columns (covered by
+ * migration-apply).
  */
 
 import { describe, it, expect } from 'vitest';
@@ -27,6 +33,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createInMemoryOrgMembershipRepository,
   InviteRedemptionError,
+  MembershipInvariantError,
 } from '../org-membership.repository.js';
 
 const baseConnect = {
@@ -98,7 +105,6 @@ describe('OrgMembershipRepository (in-memory twin)', () => {
       code: 'INV-LIVE',
       tenantIdentityId: 'ident_2',
       userId: 'user_B1',
-      relationshipType: 'employment',
     });
     expect(result.organizationId).toBe('org_B');
     expect(result.platformTenantId).toBe('tenant_B');
@@ -147,7 +153,7 @@ describe('OrgMembershipRepository (in-memory twin)', () => {
       ...baseConnect,
       organizationId: 'org_D',
       platformTenantId: 'tenant_D',
-      userId: 'user_D1',
+      userId: null, // buyers never carry a shadow user (corrected model)
       relationshipType: 'buyer_connection',
       memberRole: null,
     });
@@ -167,7 +173,7 @@ describe('OrgMembershipRepository (in-memory twin)', () => {
     await repo.connect({
       ...baseConnect,
       tenantIdentityId: 'b1',
-      userId: 'ub1',
+      userId: null, // corrected buyer model
       relationshipType: 'buyer_connection',
       memberRole: null,
     });
@@ -211,5 +217,253 @@ describe('OrgMembershipRepository (in-memory twin)', () => {
     await expect(
       repo.connect({ ...baseConnect, userId: '' }),
     ).rejects.toThrow(/userId/);
+  });
+});
+
+describe('corrected buyer model (0345) — buyer ≠ tenant-insider', () => {
+  it('connect FORBIDS a shadow userId on a buyer_connection', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    await expect(
+      repo.connect({
+        ...baseConnect,
+        relationshipType: 'buyer_connection',
+        userId: 'user_A1',
+      }),
+    ).rejects.toBeInstanceOf(MembershipInvariantError);
+  });
+
+  it('connect REQUIRES a shadow userId on an ACTIVE employment membership', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    await expect(
+      repo.connect({ ...baseConnect, userId: null }),
+    ).rejects.toBeInstanceOf(MembershipInvariantError);
+  });
+
+  it('a connected buyer round-trips with userId NULL', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const buyer = await repo.connect({
+      ...baseConnect,
+      relationshipType: 'buyer_connection',
+      memberRole: 'buyer',
+      userId: null,
+    });
+    expect(buyer.status).toBe('ACTIVE');
+    expect(buyer.userId).toBeNull();
+  });
+
+  it('redeemInvite derives the relationship from the INVITE (trust-direction fix)', async () => {
+    const repo = createInMemoryOrgMembershipRepository({
+      invites: [
+        {
+          code: 'INV-BUYER',
+          organizationId: 'org_B',
+          platformTenantId: 'tenant_B',
+          defaultRoleId: 'buyer',
+          relationshipType: 'buyer_connection',
+        },
+      ],
+    });
+    // A redeemer supplying a shadow userId against a BUYER invite is the
+    // attack the fix closes: the invite's relationship wins and the shadow
+    // user is refused.
+    await expect(
+      repo.redeemInvite({
+        code: 'INV-BUYER',
+        tenantIdentityId: 'ident_b',
+        userId: 'smuggled_insider_user',
+      }),
+    ).rejects.toBeInstanceOf(MembershipInvariantError);
+
+    const result = await repo.redeemInvite({
+      code: 'INV-BUYER',
+      tenantIdentityId: 'ident_b',
+    });
+    expect(result.membership.relationshipType).toBe('buyer_connection');
+    expect(result.membership.userId).toBeNull();
+  });
+
+  it('peekInvite exposes org/tenant/relationship + liveness without consuming', async () => {
+    const repo = createInMemoryOrgMembershipRepository({
+      invites: [
+        {
+          code: 'INV-PEEK',
+          organizationId: 'org_P',
+          platformTenantId: 'tenant_P',
+          defaultRoleId: 'hauler',
+          maxRedemptions: 1,
+        },
+      ],
+    });
+    const peek = await repo.peekInvite('INV-PEEK');
+    expect(peek?.organizationId).toBe('org_P');
+    expect(peek?.relationshipType).toBe('employment');
+    expect(peek?.redeemable).toBe(true);
+    expect(await repo.peekInvite('INV-NOPE')).toBeNull();
+
+    await repo.redeemInvite({
+      code: 'INV-PEEK',
+      tenantIdentityId: 'i1',
+      userId: 'u1',
+    });
+    expect((await repo.peekInvite('INV-PEEK'))?.redeemable).toBe(false);
+  });
+});
+
+describe('pairing state machine (0345) — mode (b) public discovery', () => {
+  const requestBase = {
+    tenantIdentityId: 'ident_req',
+    organizationId: 'org_A',
+    platformTenantId: 'tenant_A',
+    relationshipType: 'employment' as const,
+    requestedNote: 'I drill.',
+  };
+
+  it('request → PENDING with NO shadow user; approve provisions it → ACTIVE', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const pending = await repo.requestPairing(requestBase);
+    expect(pending.status).toBe('PENDING');
+    expect(pending.userId).toBeNull(); // never provisioned before approval
+    expect(pending.requestedNote).toBe('I drill.');
+    // PENDING is not ACTIVE — invisible to switch auth + audience fan.
+    expect(await repo.verifyActiveMembership('ident_req', 'org_A')).toBeNull();
+    expect(await repo.resolveAudience('org_A')).toHaveLength(0);
+
+    // Employment approval REQUIRES the shadow user provisioned by the route.
+    await expect(
+      repo.approve({
+        organizationId: 'org_A',
+        membershipId: pending.id,
+        decidedBy: 'owner_user',
+      }),
+    ).rejects.toBeInstanceOf(MembershipInvariantError);
+
+    const approved = await repo.approve({
+      organizationId: 'org_A',
+      membershipId: pending.id,
+      decidedBy: 'owner_user',
+      userId: 'user_shadow_1',
+      decisionNote: 'welcome',
+    });
+    expect(approved?.status).toBe('ACTIVE');
+    expect(approved?.userId).toBe('user_shadow_1');
+    expect(approved?.decidedBy).toBe('owner_user');
+    expect(approved?.decidedAtMs).not.toBeNull();
+  });
+
+  it('a buyer request approves WITHOUT a shadow user', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const pending = await repo.requestPairing({
+      ...requestBase,
+      tenantIdentityId: 'ident_buyer',
+      relationshipType: 'buyer_connection',
+    });
+    const approved = await repo.approve({
+      organizationId: 'org_A',
+      membershipId: pending.id,
+      decidedBy: 'owner_user',
+    });
+    expect(approved?.status).toBe('ACTIVE');
+    expect(approved?.userId).toBeNull();
+  });
+
+  it('reject → REJECTED; re-request resurrects to PENDING; approve again works', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const pending = await repo.requestPairing(requestBase);
+    const rejected = await repo.reject({
+      organizationId: 'org_A',
+      membershipId: pending.id,
+      decidedBy: 'owner_user',
+      decisionNote: 'not hiring',
+    });
+    expect(rejected?.status).toBe('REJECTED');
+    // Rejecting twice finds no PENDING row.
+    expect(
+      await repo.reject({
+        organizationId: 'org_A',
+        membershipId: pending.id,
+        decidedBy: 'owner_user',
+      }),
+    ).toBeNull();
+
+    const reRequested = await repo.requestPairing({
+      ...requestBase,
+      requestedNote: 'second try',
+    });
+    expect(reRequested.id).toBe(pending.id); // same (identity, org) row
+    expect(reRequested.status).toBe('PENDING');
+    expect(reRequested.requestedNote).toBe('second try');
+    expect(reRequested.decidedBy).toBeNull(); // prior decision cleared
+  });
+
+  it('revoke ends an ACTIVE membership org-side; re-request is allowed', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const m = await repo.connect(baseConnect);
+    const revoked = await repo.revoke({
+      organizationId: 'org_A',
+      membershipId: m.id,
+      decidedBy: 'owner_user',
+      decisionNote: 'contract ended',
+    });
+    expect(revoked?.status).toBe('REVOKED');
+    // Audit keeps the shadow user reference; access is cut because only
+    // ACTIVE memberships pass switch auth / audience fan.
+    expect(revoked?.userId).toBe('user_A1');
+    expect(await repo.verifyActiveMembership('ident_1', 'org_A')).toBeNull();
+
+    const reRequested = await repo.requestPairing({
+      ...baseConnect,
+      requestedNote: 'rehire me',
+    });
+    expect(reRequested.status).toBe('PENDING');
+  });
+
+  it('request against an ACTIVE membership / BLOCKED row is returned unchanged', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const active = await repo.connect(baseConnect);
+    const requestedWhileActive = await repo.requestPairing({
+      ...requestBase,
+      tenantIdentityId: 'ident_1',
+    });
+    expect(requestedWhileActive.id).toBe(active.id);
+    expect(requestedWhileActive.status).toBe('ACTIVE'); // unchanged
+
+    await repo.block({
+      organizationId: 'org_A',
+      membershipId: active.id,
+      reason: 'fraud',
+    });
+    const requestedWhileBlocked = await repo.requestPairing({
+      ...requestBase,
+      tenantIdentityId: 'ident_1',
+    });
+    expect(requestedWhileBlocked.status).toBe('BLOCKED'); // route must 403
+  });
+
+  it('listPendingForOrg returns the approval queue oldest-first, org-scoped', async () => {
+    let t = 1_000;
+    const repo = createInMemoryOrgMembershipRepository({ now: () => (t += 1_000) });
+    await repo.requestPairing({ ...requestBase, tenantIdentityId: 'i1' });
+    await repo.requestPairing({ ...requestBase, tenantIdentityId: 'i2' });
+    await repo.requestPairing({
+      ...requestBase,
+      tenantIdentityId: 'i3',
+      organizationId: 'org_OTHER',
+    });
+    const queue = await repo.listPendingForOrg('org_A');
+    expect(queue.map((m) => m.tenantIdentityId)).toEqual(['i1', 'i2']);
+  });
+
+  it('approve/reject are org-scoped (wrong org → null, untouched)', async () => {
+    const repo = createInMemoryOrgMembershipRepository();
+    const pending = await repo.requestPairing(requestBase);
+    expect(
+      await repo.approve({
+        organizationId: 'org_OTHER',
+        membershipId: pending.id,
+        decidedBy: 'owner_user',
+        userId: 'u',
+      }),
+    ).toBeNull();
+    expect((await repo.listPendingForOrg('org_A'))).toHaveLength(1);
   });
 });

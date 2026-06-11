@@ -496,6 +496,26 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0345_corrected_buyer_model_pairing_states.sql",
+      "down": "down/0345_down_corrected_buyer_model_pairing_states.sql",
+      "reverses": "Reverses the corrected buyer model + pairing state machine: drops identity_auth_principals (the Supabase-sub↔tenant_identity bridge), invite_codes.relationship_type (the trust-direction fix — invite-declared relationship), organizations.discoverable (pairing mode-b opt-in), the approval-metadata columns (requested_note/decided_by/decided_at/decision_note), and the org_memberships_buyer_no_shadow_user CHECK; restores user_id NOT NULL by DELETING every buyer_connection row (they carry user_id IS NULL by the 0345 invariant) and every PENDING/REJECTED/REVOKED row (enum VALUES cannot be dropped in Postgres — they remain inert in org_membership_status). Fail-safe consequence: the membership graph reverts to the SC-1 insider-conflated three-state shape; pairing mode (b) and the buyer leg go dark; tenant isolation (0336) UNAFFECTED. No money/licence/ledger records.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0346_membership_unify_backfill.sql",
+      "down": "down/0346_down_membership_unify_backfill.sql",
+      "reverses": "Reverses the person_links→org_memberships unify backfill via the deterministic id prefixes ('mem_pl_'/'usr_pl_'/'org_pl_'/'iap_pl_'/'tid_pl_'): deletes exactly the backfilled memberships, shadow users, synthesized root orgs, auth principals, and (only-if-unreferenced) backfilled identities; drops the PENDING approval-queue partial index; clears the person_links deprecation comment. /me/tenants reverts to person_links (never dropped) once the read-path code is rolled back too. Organically-created rows are untouched. No money/licence/ledger records.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

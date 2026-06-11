@@ -27,6 +27,7 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  uuid,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { tenants, organizations, users } from './tenant.schema.js';
@@ -41,10 +42,19 @@ export const tenantIdentityStatusEnum = pgEnum('tenant_identity_status', [
   'DEACTIVATED',
 ]);
 
+// Migration 0345 — the pairing state machine. Two pairing modes: (a)
+// invite/QR redeem → ACTIVE immediately (org pre-authorized by issuing the
+// code); (b) public-discovery request → PENDING → org approves (ACTIVE) or
+// rejects (REJECTED). REVOKED = org-initiated end of an ACTIVE membership
+// (vs LEFT = member-initiated). Re-request: REJECTED|REVOKED → PENDING.
+// BLOCKED stays terminal until the org unblocks.
 export const orgMembershipStatusEnum = pgEnum('org_membership_status', [
   'ACTIVE',
   'LEFT',
   'BLOCKED',
+  'PENDING',
+  'REJECTED',
+  'REVOKED',
 ]);
 
 // Migration 0344 — discriminates the membership so ONE table backs both the
@@ -64,10 +74,13 @@ export const tenantIdentities = pgTable(
   'tenant_identities',
   {
     id: text('id').primaryKey(),
-    // ITU-T E.164 normalized phone (digits only, no '+')
-    phoneNormalized: text('phone_normalized').notNull(),
-    // ISO 3166-1 alpha-2 country code used for normalization
-    phoneCountryCode: text('phone_country_code').notNull(),
+    // ITU-T E.164 normalized phone (digits only, no '+'). Migration 0345:
+    // NULLABLE — owner-web principals authenticate by email and may carry no
+    // phone; the CHECK requires at least one of phone/email.
+    phoneNormalized: text('phone_normalized'),
+    // ISO 3166-1 alpha-2 country code used for normalization (0345: nullable
+    // — annotates the phone; no phone, no code)
+    phoneCountryCode: text('phone_country_code'),
     email: text('email'),
     emailVerified: boolean('email_verified').notNull().default(false),
     // UserProfile JSON — firstName, lastName, displayName, avatarUrl, phone,
@@ -110,9 +123,12 @@ export const orgMemberships = pgTable(
       .references(() => tenants.id, { onDelete: 'cascade' }),
     // Shadow user — bridges to the platform tenant's users table so RBAC /
     // audit / data-isolation continue to resolve through the existing pipeline.
-    userId: text('user_id')
-      .notNull()
-      .references(() => users.id, { onDelete: 'cascade' }),
+    // Migration 0345 (corrected buyer model): NULLABLE, with a CHECK pinning
+    // the invariant both ways — buyer_connection rows MUST be NULL (a buyer
+    // is an external counterparty and never holds a tenant-insider user);
+    // employment|contractor|guest rows MUST carry one WHEN ACTIVE (a PENDING
+    // request has none — the shadow user is provisioned at APPROVE time).
+    userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }),
     status: orgMembershipStatusEnum('status').notNull().default('ACTIVE'),
     // Migration 0344 — worker-employment vs buyer-connection discriminator.
     relationshipType: orgMembershipRelationshipTypeEnum('relationship_type')
@@ -131,6 +147,12 @@ export const orgMemberships = pgTable(
     leftAt: timestamp('left_at', { withTimezone: true }),
     blockedAt: timestamp('blocked_at', { withTimezone: true }),
     blockReason: text('block_reason'),
+    // Migration 0345 — approval metadata for pairing mode (b). decided_by is
+    // a SOFT users.id reference (no FK) so audit survives user deletion.
+    requestedNote: text('requested_note'),
+    decidedBy: text('decided_by'),
+    decidedAt: timestamp('decided_at', { withTimezone: true }),
+    decisionNote: text('decision_note'),
   },
   (table) => ({
     // One ACTIVE-era row per (identity, org). Historical LEFT/BLOCKED rows
@@ -154,6 +176,11 @@ export const orgMemberships = pgTable(
     orgMemberRoleActiveIdx: index('org_memberships_org_member_role_active_idx')
       .on(table.organizationId, table.memberRole)
       .where(sql`status = 'ACTIVE'`),
+    // Migration 0346 — the approval-queue hot path (org reads its PENDING
+    // requests oldest-first).
+    orgPendingIdx: index('org_memberships_org_pending_idx')
+      .on(table.organizationId, table.joinedAt)
+      .where(sql`status = 'PENDING'`),
   })
 );
 
@@ -181,6 +208,12 @@ export const inviteCodes = pgTable(
     maxRedemptions: integer('max_redemptions'),
     redemptionsUsed: integer('redemptions_used').notNull().default(0),
     defaultRoleId: text('default_role_id').notNull(),
+    // Migration 0345 — the relationship this invite GRANTS (org-authored).
+    // The redeem path derives the membership relationship from THIS column,
+    // never from the redeemer's input (trust-direction fix).
+    relationshipType: orgMembershipRelationshipTypeEnum('relationship_type')
+      .notNull()
+      .default('employment'),
     // InviteAttachmentHints — { propertyId?, unitId? } — optional pre-binding.
     attachmentHints: jsonb('attachment_hints'),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
@@ -197,8 +230,53 @@ export const inviteCodes = pgTable(
 );
 
 // ============================================================================
+// identity_auth_principals — Supabase-sub ↔ tenant_identity bridge (0345)
+// ============================================================================
+
+/**
+ * One human (tenant_identities, keyed on phone) may hold several Supabase
+ * auth principals — a phone-OTP sub on mobile, an email sub on web. Every
+ * principal resolves to the SAME membership graph through this table.
+ * Global cross-tenant spine (no tenant key by design): FORCE RLS with a
+ * service-role-only policy — request-scoped sessions never read it directly.
+ */
+export const identityAuthPrincipals = pgTable(
+  'identity_auth_principals',
+  {
+    id: text('id').primaryKey(),
+    tenantIdentityId: text('tenant_identity_id')
+      .notNull()
+      .references(() => tenantIdentities.id, { onDelete: 'cascade' }),
+    supabaseUserId: uuid('supabase_user_id').notNull(),
+    // phone-otp | email | sso | person-links-backfill
+    authMethod: text('auth_method').notNull().default('phone-otp'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => ({
+    subIdx: uniqueIndex('identity_auth_principals_sub_idx').on(
+      table.supabaseUserId
+    ),
+    identityIdx: index('identity_auth_principals_identity_idx').on(
+      table.tenantIdentityId
+    ),
+  })
+);
+
+// ============================================================================
 // Relations
 // ============================================================================
+
+export const identityAuthPrincipalsRelations = relations(
+  identityAuthPrincipals,
+  ({ one }) => ({
+    tenantIdentity: one(tenantIdentities, {
+      fields: [identityAuthPrincipals.tenantIdentityId],
+      references: [tenantIdentities.id],
+    }),
+  })
+);
 
 export const tenantIdentitiesRelations = relations(
   tenantIdentities,
