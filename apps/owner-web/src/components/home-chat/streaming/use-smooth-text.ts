@@ -28,7 +28,10 @@ import { useEffect, useRef, useState } from 'react';
 
 export type SmoothStatus = 'idle' | 'streaming' | 'complete' | 'stopped';
 
-const BASE_CHARS_PER_SEC = 60;
+const DEFAULT_BASE_CHARS_PER_SEC = 60;
+/** Floor / ceiling for a caller-supplied adaptive baseline (chars/sec). */
+const MIN_BASE_CHARS_PER_SEC = 24;
+const MAX_BASE_CHARS_PER_SEC = 200;
 /** Cap the catch-up multiplier so a flood never machine-guns the whole answer. */
 const MAX_CATCHUP_MULTIPLIER = 8;
 /** When the backlog exceeds this, scale speed toward draining it in ~1s. */
@@ -52,11 +55,30 @@ export interface UseSmoothTextResult {
  * @param text    The full accumulated assistant text so far.
  * @param status  Drives whether to animate (`streaming`) or snap (everything
  *                else). Pass the message's live stream state.
+ * @param baselineCharsPerSec
+ *                Optional adaptive baseline reveal rate (chars/sec). Callers
+ *                derive this from a content-complexity heuristic (e.g. ~15 wps
+ *                for medium Swahili+mining prose, ~12 technical, ~20 simple)
+ *                and pass the chars/sec equivalent. Clamped to a sane range;
+ *                omitted → the steady 60 chars/sec default.
  */
 export function useSmoothText(
   text: string,
   status: SmoothStatus,
+  baselineCharsPerSec?: number,
 ): UseSmoothTextResult {
+  // Resolve + clamp the adaptive baseline once per render. The catch-up
+  // machinery below scales relative to THIS baseline, so a slower base
+  // (technical content) still races ahead under a flood, just from a
+  // calmer floor.
+  const baseCharsPerSec =
+    typeof baselineCharsPerSec === 'number' && Number.isFinite(baselineCharsPerSec)
+      ? Math.min(
+          MAX_BASE_CHARS_PER_SEC,
+          Math.max(MIN_BASE_CHARS_PER_SEC, baselineCharsPerSec),
+        )
+      : DEFAULT_BASE_CHARS_PER_SEC;
+
   const [visibleLength, setVisibleLength] = useState(
     status === 'streaming' ? 0 : text.length,
   );
@@ -65,7 +87,7 @@ export function useSmoothText(
   // Track the source growth rate to auto-tune the reveal speed.
   const prevTextLenRef = useRef(text.length);
   const prevSampleAtRef = useRef<number | null>(null);
-  const incomingRateRef = useRef(BASE_CHARS_PER_SEC);
+  const incomingRateRef = useRef(baseCharsPerSec);
 
   // When NOT streaming (history, complete, stopped, reduced-motion) snap the
   // cursor to the end so past turns and finished answers render whole.
@@ -119,14 +141,14 @@ export function useSmoothText(
         // fast the source is feeding, clamped so it never reads as a dump.
         const ratePressure = Math.max(
           1,
-          incomingRateRef.current / BASE_CHARS_PER_SEC,
+          incomingRateRef.current / baseCharsPerSec,
         );
         const backlogPressure = Math.max(1, backlog / COMFORTABLE_BACKLOG);
         const multiplier = Math.min(
           MAX_CATCHUP_MULTIPLIER,
           Math.max(ratePressure, backlogPressure),
         );
-        const charsPerMs = (BASE_CHARS_PER_SEC * multiplier) / 1000;
+        const charsPerMs = (baseCharsPerSec * multiplier) / 1000;
         const advance = Math.max(1, Math.round(charsPerMs * elapsed));
         return Math.min(text.length, current + advance);
       });
@@ -142,7 +164,7 @@ export function useSmoothText(
       }
       lastTickRef.current = null;
     };
-  }, [shouldAnimate, text]);
+  }, [shouldAnimate, text, baseCharsPerSec]);
 
   const clampedLength = Math.min(visibleLength, text.length);
   const effectiveLength = shouldAnimate ? clampedLength : text.length;

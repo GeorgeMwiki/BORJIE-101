@@ -25,7 +25,7 @@
  * the structured Markdown render exactly once.
  */
 
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { ReactElement } from 'react';
 import { cn } from '@borjie/design-system';
 import { useSmoothText, type SmoothStatus } from './use-smooth-text';
@@ -40,6 +40,71 @@ export interface StreamedTextProps {
 interface WordToken {
   readonly text: string;
   readonly key: number;
+}
+
+/**
+ * Content-complexity tiers and their target reveal cadence (words/sec).
+ * Slower for dense content (more glance-back, more cognitive load),
+ * faster for plain prose. Mining + Swahili default prose sits at the
+ * medium tier — long agglutinative tokens read best a touch under the
+ * simple rate.
+ */
+const WPS_TECHNICAL = 12; // code / tables / dense identifiers
+const WPS_MEDIUM = 15; // default: mining prose, Swahili, mixed
+const WPS_SIMPLE = 20; // short, plain, conversational
+/** Fallback when we cannot measure word length (empty slice). */
+const ASSUMED_CHARS_PER_WORD = 6;
+
+type ComplexityTier = 'technical' | 'medium' | 'simple';
+
+/**
+ * Cheap, allocation-light classifier over a text sample. Detects
+ * code/technical density vs plain prose; everything else is medium.
+ * Pure + deterministic so it is safe to memoise on `text`.
+ */
+function classifyComplexity(sample: string): ComplexityTier {
+  if (sample.length === 0) return 'medium';
+  // Code fences / inline code / tables / heavy punctuation → technical.
+  const hasCodeFence = sample.includes('```');
+  const technicalSymbols = (sample.match(/[{}();<>|/\\=_]|`|\$\$|\|\s/g) ?? []).length;
+  const symbolDensity = technicalSymbols / sample.length;
+  if (hasCodeFence || symbolDensity > 0.06) return 'technical';
+
+  // Long average word + low symbol density reads as plain prose → simple.
+  const words = sample.split(/\s+/).filter(Boolean);
+  if (words.length >= 6) {
+    const avgWordLen =
+      words.reduce((sum, w) => sum + w.length, 0) / words.length;
+    // Very short words, little punctuation → conversational/simple.
+    if (avgWordLen <= 5 && symbolDensity < 0.02) return 'simple';
+  }
+  return 'medium';
+}
+
+function wpsForTier(tier: ComplexityTier): number {
+  if (tier === 'technical') return WPS_TECHNICAL;
+  if (tier === 'simple') return WPS_SIMPLE;
+  return WPS_MEDIUM;
+}
+
+/**
+ * Derive a chars/sec baseline for the smooth cursor from a words/sec
+ * target. We measure the *actual* average word length of the sample so
+ * Swahili's longer tokens don't read slower than intended at a given
+ * wps — a 15 wps target on 8-char words yields a higher chars/sec than
+ * on 4-char words, keeping the *word* cadence steady.
+ */
+function adaptiveCharsPerSec(sample: string): number {
+  const tier = classifyComplexity(sample);
+  const wps = wpsForTier(tier);
+  const words = sample.split(/\s+/).filter(Boolean);
+  const avgWordLen =
+    words.length > 0
+      ? words.reduce((sum, w) => sum + w.length, 0) / words.length
+      : ASSUMED_CHARS_PER_WORD - 1;
+  // +1 for the inter-word space that the cursor must also traverse.
+  const charsPerWord = avgWordLen + 1;
+  return wps * charsPerWord;
 }
 
 /**
@@ -65,7 +130,21 @@ export function StreamedText({
   status,
   className,
 }: StreamedTextProps): ReactElement {
-  const { visibleText } = useSmoothText(text, status);
+  // Adaptive cadence: recompute the reveal baseline as the content grows,
+  // but only re-classify on coarse length steps so we don't thrash the
+  // baseline every token (which would re-run the cursor effect each frame).
+  const complexitySample = useMemo(
+    () => text.slice(0, 600),
+    // Re-sample on coarse 80-char growth buckets — stable mid-stream.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [text.length === 0 ? 0 : Math.ceil(Math.min(text.length, 600) / 80)],
+  );
+  const baselineCharsPerSec = useMemo(
+    () => adaptiveCharsPerSec(complexitySample),
+    [complexitySample],
+  );
+
+  const { visibleText } = useSmoothText(text, status, baselineCharsPerSec);
   // Remember how many words were already revealed so only NEW words animate.
   const revealedCountRef = useRef(0);
 
@@ -92,6 +171,9 @@ export function StreamedText({
         className,
       )}
       data-testid="streamed-text"
+      aria-live="polite"
+      aria-atomic="false"
+      aria-busy={status === 'streaming'}
     >
       {words.map((word, idx) =>
         idx >= prevRevealed ? (
