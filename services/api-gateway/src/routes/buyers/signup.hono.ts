@@ -74,9 +74,20 @@ const PhoneE164 = z
 
 const Email = z.string().email().max(254);
 
+// Jurisdiction is DATA, never code (CLAUDE.md): wire schema validates SHAPE
+// only (ISO-3166-1 alpha-2/3, 'EU', or 'OTHER'); WHICH buyer countries are
+// accepted is decided at runtime by `deps.isBuyerCountryEnabled` — the legacy
+// international demand-side set UNION the enabled_countries launch markets
+// (migration 0337). A newly-promoted market's buyers unlock with ZERO code.
+const BuyerCountryCodeSchema = z
+  .string()
+  .regex(/^([A-Z]{2,3}|OTHER)$/u, 'country must be ISO-3166-1 alpha-2/3, EU, or OTHER');
+/** Fail-safe gate when the composition root injects nothing (DI-less tests). */
+const LEGACY_BUYER_COUNTRIES: ReadonlySet<string> = new Set(BUYER_COUNTRY_CODES);
+
 const IndividualBuyerSignup = z.object({
   kind: z.literal('individual'),
-  country: z.enum(BUYER_COUNTRY_CODES),
+  country: BuyerCountryCodeSchema,
   fullName: z.string().min(2).max(120),
   phoneE164: PhoneE164,
   email: Email,
@@ -87,7 +98,7 @@ const IndividualBuyerSignup = z.object({
 
 const BusinessBuyerSignup = z.object({
   kind: z.literal('business'),
-  country: z.enum(BUYER_COUNTRY_CODES),
+  country: BuyerCountryCodeSchema,
   orgName: z.string().min(2).max(160),
   businessKind: z.enum(BUYER_BUSINESS_KINDS),
   businessRegistrationNumber: z.string().min(1).max(64),
@@ -162,7 +173,7 @@ export interface BuyerWriter {
     readonly supabaseUserId: string;
     readonly accountKind: BuyerAccountKind;
     readonly businessKind: BuyerBusinessKind | null;
-    readonly country: BuyerCountryCode;
+    readonly country: string;
     readonly preferredCurrency: BuyerCurrencyCode;
     readonly preferredLanguage: BuyerLanguageCode;
     readonly orgName: string | null;
@@ -201,7 +212,7 @@ export interface BuyerAuditChainWriter {
     readonly userId: string;
     readonly accountKind: BuyerAccountKind;
     readonly businessKind: BuyerBusinessKind | null;
-    readonly country: BuyerCountryCode;
+    readonly country: string;
     readonly kycAtomsInitialized: ReadonlyArray<BuyerKycAtom>;
   }): Promise<void>;
 }
@@ -221,6 +232,13 @@ export interface BuyerSignupDeps {
   /** ID factories — pluggable for deterministic tests. */
   readonly newTenantId: () => string;
   readonly newBuyerOrgId: () => string;
+  /**
+   * Data-driven buyer-country gate — legacy international demand-side set
+   * UNION the enabled_countries launch markets. Injected by signup-wiring;
+   * absent (DI-less tests) the route falls back to the legacy set so
+   * behaviour never silently widens.
+   */
+  readonly isBuyerCountryEnabled?: (code: string) => Promise<boolean>;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
@@ -273,7 +291,29 @@ export function createBuyerSignupRouter(deps: BuyerSignupDeps): Hono {
     const tenantId = deps.newTenantId();
     const buyerOrgId = deps.newBuyerOrgId();
     const accountKind: BuyerAccountKind = body.kind;
-    const country: BuyerCountryCode = body.country;
+    const country: string = body.country;
+
+    // ── Buyer-country gate (jurisdiction as DATA, never code) ────────
+    let countryAllowed: boolean;
+    try {
+      countryAllowed = deps.isBuyerCountryEnabled
+        ? await deps.isBuyerCountryEnabled(country)
+        : LEGACY_BUYER_COUNTRIES.has(country);
+    } catch {
+      // Registry fault → fail CLOSED to the legacy set (never widen on error).
+      countryAllowed = LEGACY_BUYER_COUNTRIES.has(country);
+    }
+    if (!countryAllowed) {
+      return c.json(
+        {
+          error: 'country_not_available',
+          message:
+            `Buyer signup is not yet available in ${country}. New markets ` +
+            'open as they are onboarded.',
+        },
+        422,
+      );
+    }
     const preferredCurrency: BuyerCurrencyCode = body.preferredCurrency;
     const preferredLanguage: BuyerLanguageCode = body.preferredLanguage;
 
