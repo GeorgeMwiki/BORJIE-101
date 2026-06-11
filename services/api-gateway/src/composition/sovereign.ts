@@ -209,6 +209,16 @@ import {
   registerPersonaToolsOnRegistry,
   type BridgeSovereignRole,
 } from './brain-tools/persona-kernel-bridge.js';
+// R6 WORLD-MODEL un-darking — the kernel's forward-simulation organ
+// (`createWorldModelKernelTools`: world.property_trajectory /
+// world.arrears_trajectory / world.market_regime) was exported + unit-tested
+// with ZERO composition-root callers. This binds the three tools onto the
+// orchestrator's BrainToolRegistry over READ-ONLY, tenant-scoped Drizzle
+// history fetchers so the brain can forward-simulate MID-TURN; each forecast
+// carries a `forecast:world.*` citation the main loop harvests as evidence
+// (auditable deliberation). The simulator never writes — only
+// `LedgerService.post()` moves money.
+import { registerWorldModelToolsOnRegistry } from './world-model-wiring.js';
 // Wave-C SALIENCE ARENA (C1 win #3) — the two slow-loop READ ports that light
 // up the arena's drive + ACT-R activation sub-bidders. Both are built from the
 // SAME durable situational-model store + gated proactive_nudge contract the
@@ -1187,6 +1197,26 @@ function maybeWireOrchestratorBlock(args: {
       },
     });
 
+    // R6 — world-model forward simulation on the SAME registry. The three
+    // `world.*` tools are deterministic local compute over READ-ONLY history
+    // reads (scope-tenant-pinned inside the fetchers); a tenant brain asked
+    // about another estate degrades to an honest "no history" error. Their
+    // forecast citations ride the output object so the main loop's
+    // CitationAccumulator folds every mid-turn simulation into the answer's
+    // evidence chain.
+    const worldModelRegistered = registerWorldModelToolsOnRegistry({
+      registry: toolRegistry,
+      db: args.db,
+      scope: {
+        tenantId: args.scope.tenantId,
+        userId: args.scope.userId,
+        ...(args.scope.role ? { role: args.scope.role } : {}),
+      },
+      logger: {
+        warn: (meta, msg) => logger.warn(meta, msg),
+      },
+    });
+
     // (d) 9 production hook ports — PII scrub / permission / four-eye /
     // denylist / rate-limit / cost-circuit / sandbox-divert / audit /
     // ledger-seal. The hook chain is scoped to THIS brain's tenant (the cache
@@ -1254,9 +1284,13 @@ function maybeWireOrchestratorBlock(args: {
         // count is the at-boot signal that the orchestrator is no longer
         // running the degraded 5-tool seed catalog.
         personaToolsRegistered: personaRegistered,
+        // R6 proof-at-boot — 3 means the brain can forward-simulate mid-turn
+        // (world.property_trajectory / world.arrears_trajectory /
+        // world.market_regime); 0 means the organ is dark again.
+        worldModelToolsRegistered: worldModelRegistered,
         totalToolsRegistered: toolRegistry.list().length,
       },
-      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks + FULL persona catalog); DEFAULT-ON',
+      'sovereign-orchestrator: main-loop wired onto LIVE kernel (router + dispatcher + durable memory + 9 hooks + FULL persona catalog + R6 world-model simulation); DEFAULT-ON',
     );
   } catch (err) {
     // Fail-safe — never break kernel boot. Leaving `mutable.orchestrator`
