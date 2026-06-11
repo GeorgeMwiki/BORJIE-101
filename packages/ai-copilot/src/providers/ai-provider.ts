@@ -6,6 +6,10 @@
  */
 
 import { AIResult, AIError, aiOk, aiErr, ModelId, asModelId } from '../types/core.types.js';
+import {
+  OPENAI_CATALOG_MODEL_IDS,
+  resolveLegacyOpenAiModelId,
+} from '../model-resolution.js';
 import { CompiledPrompt } from '../types/prompt.types.js';
 
 /**
@@ -199,13 +203,13 @@ export interface OpenAIProviderConfig {
  */
 export class OpenAIProvider implements AIProvider {
   readonly providerId = 'openai';
-  readonly supportedModels = [
-    'gpt-4-turbo-preview',
-    'gpt-4-turbo',
-    'gpt-4',
-    'gpt-4-32k',
-    'gpt-3.5-turbo',
-    'gpt-3.5-turbo-16k',
+  readonly supportedModels: string[] = [
+    OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO_PREVIEW,
+    OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO,
+    OPENAI_CATALOG_MODEL_IDS.GPT_4,
+    OPENAI_CATALOG_MODEL_IDS.GPT_4_32K,
+    OPENAI_CATALOG_MODEL_IDS.GPT_3_5_TURBO,
+    OPENAI_CATALOG_MODEL_IDS.GPT_3_5_TURBO_16K,
   ];
 
   private config: OpenAIProviderConfig;
@@ -214,8 +218,8 @@ export class OpenAIProvider implements AIProvider {
   constructor(config: OpenAIProviderConfig) {
     this.config = config;
     this.modelInfoMap = new Map([
-      ['gpt-4-turbo-preview', {
-        id: 'gpt-4-turbo-preview',
+      [OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO_PREVIEW, {
+        id: OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO_PREVIEW,
         displayName: 'GPT-4 Turbo',
         contextWindow: 128000,
         maxOutputTokens: 4096,
@@ -225,8 +229,8 @@ export class OpenAIProvider implements AIProvider {
         costPer1kCompletionTokens: 0.03,
         tier: 'advanced',
       }],
-      ['gpt-4-turbo', {
-        id: 'gpt-4-turbo',
+      [OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO, {
+        id: OPENAI_CATALOG_MODEL_IDS.GPT_4_TURBO,
         displayName: 'GPT-4 Turbo',
         contextWindow: 128000,
         maxOutputTokens: 4096,
@@ -236,8 +240,8 @@ export class OpenAIProvider implements AIProvider {
         costPer1kCompletionTokens: 0.03,
         tier: 'advanced',
       }],
-      ['gpt-4', {
-        id: 'gpt-4',
+      [OPENAI_CATALOG_MODEL_IDS.GPT_4, {
+        id: OPENAI_CATALOG_MODEL_IDS.GPT_4,
         displayName: 'GPT-4',
         contextWindow: 8192,
         maxOutputTokens: 4096,
@@ -247,8 +251,8 @@ export class OpenAIProvider implements AIProvider {
         costPer1kCompletionTokens: 0.06,
         tier: 'advanced',
       }],
-      ['gpt-3.5-turbo', {
-        id: 'gpt-3.5-turbo',
+      [OPENAI_CATALOG_MODEL_IDS.GPT_3_5_TURBO, {
+        id: OPENAI_CATALOG_MODEL_IDS.GPT_3_5_TURBO,
         displayName: 'GPT-3.5 Turbo',
         contextWindow: 16385,
         maxOutputTokens: 4096,
@@ -263,7 +267,7 @@ export class OpenAIProvider implements AIProvider {
 
   async complete(request: AICompletionRequest): Promise<AIResult<AICompletionResponse, AIProviderError>> {
     const startTime = Date.now();
-    const modelId = request.modelOverride ?? request.prompt.modelConfig.modelId ?? this.config.defaultModel ?? 'gpt-4-turbo-preview';
+    const modelId = request.modelOverride ?? request.prompt.modelConfig.modelId ?? this.config.defaultModel ?? resolveLegacyOpenAiModelId();
     const timeoutMs = request.timeoutMs ?? this.config.defaultTimeoutMs ?? 60000;
 
     try {

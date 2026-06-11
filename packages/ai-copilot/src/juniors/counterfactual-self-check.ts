@@ -48,6 +48,7 @@ import {
   type JuniorDeps,
   type JuniorLogger,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Risk taxonomy — the signal fed to the autonomy-controller
@@ -359,7 +360,7 @@ async function runBrainCritique(
     const response = await claude.complete({
       systemPrompt: COUNTERFACTUAL_SELF_CHECK_SYSTEM_PROMPT,
       userPrompt: buildUserPrompt(input),
-      model: 'claude-haiku-4-5',
+      model: resolveTierModelId('cheap'),
       maxTokens: 700,
       temperature: 0,
     });

@@ -9,6 +9,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { FRICTION_FINGERPRINT_PROMPT } from '../prompts/copilot-prompts.js';
 
@@ -329,7 +330,7 @@ export class FrictionFingerprintAnalyzer {
 
   constructor(config: FrictionFingerprintAnalyzerConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.3;
     this.maxTokens = config.maxTokens ?? 3500;
   }

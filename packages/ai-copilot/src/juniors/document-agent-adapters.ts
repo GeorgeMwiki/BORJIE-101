@@ -18,6 +18,7 @@ import type {
   PdfReader,
   TemporalEntityWriter,
 } from './document-agent.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 /**
  * Minimum surface needed from the `@borjie/database` client: Drizzle's
@@ -100,7 +101,7 @@ export function createDefaultClaudeClient(): ClaudeClient {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: model ?? 'claude-haiku-4-5',
+          model: model ?? resolveTierModelId('cheap'),
           max_tokens: maxTokens ?? 1024,
           temperature: temperature ?? 0,
           system: systemPrompt,

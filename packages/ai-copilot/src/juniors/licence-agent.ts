@@ -45,6 +45,7 @@ import {
   withResolvedDb,
   type JuniorDeps,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 // ─────────────────────────────────────────────────────────────────────
 // Schemas — input
@@ -582,7 +583,7 @@ export function createLicenceAgent(deps: JuniorDeps) {
         schema: LicenceNarrativeSchema,
         systemPrompt: LICENCE_AGENT_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated, todayIso, schedule, next, forfeitureScore),
-        model: 'claude-haiku-4-5',
+        model: resolveTierModelId('cheap'),
         maxTokens: 2500,
       });
 

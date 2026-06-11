@@ -24,6 +24,7 @@ import {
   type ClaudeClient,
   type JuniorLogger,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 import {
   formatRetrievedContextBlock,
   type RetrievedContextChunk,
@@ -158,7 +159,7 @@ export async function synthesizeJuniorInput<TSchema extends ZodSchema>(
       const response = await args.claude.complete({
         systemPrompt: SYSTEM_PROMPT,
         userPrompt: buildSynthesizerUserPrompt(args.context, args.schema, priorError),
-        model: args.model ?? 'claude-haiku-4-5',
+        model: args.model ?? resolveTierModelId('cheap'),
         maxTokens: args.maxTokens ?? 1200,
         temperature: 0,
       });

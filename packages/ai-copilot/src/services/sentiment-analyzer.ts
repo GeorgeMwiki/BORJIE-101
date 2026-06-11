@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { SENTIMENT_ANALYSIS_PROMPT } from '../prompts/index.js';
 
@@ -148,7 +149,7 @@ export class SentimentAnalyzerService {
 
   constructor(config: SentimentAnalyzerConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.2;
     this.maxTokens = config.maxTokens ?? 1536;
   }

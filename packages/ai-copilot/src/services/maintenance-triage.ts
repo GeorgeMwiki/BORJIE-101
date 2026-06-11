@@ -4,6 +4,7 @@
  */
 
 import OpenAI from 'openai';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 import { z } from 'zod';
 import { MAINTENANCE_TRIAGE_CLASSIFICATION_PROMPT } from '../prompts/index.js';
 
@@ -105,7 +106,7 @@ export class MaintenanceTriageService {
 
   constructor(config: MaintenanceTriageConfig) {
     this.openai = new OpenAI({ apiKey: config.openaiApiKey });
-    this.model = config.model ?? 'gpt-4-turbo-preview';
+    this.model = config.model ?? resolveLegacyOpenAiModelId();
     this.temperature = config.temperature ?? 0.3;
     this.maxTokens = config.maxTokens ?? 1024;
     this.enableVision = config.enableVision ?? true;
@@ -116,7 +117,7 @@ export class MaintenanceTriageService {
     images?: MaintenanceImage[]
   ): Promise<ClassifyMaintenanceResult> {
     const hasImages = images && images.length > 0 && this.enableVision;
-    const modelToUse = hasImages ? 'gpt-4-turbo' : this.model;
+    const modelToUse = hasImages ? resolveLegacyOpenAiModelId('vision') : this.model;
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
       { role: 'system', content: MAINTENANCE_TRIAGE_CLASSIFICATION_PROMPT.system },

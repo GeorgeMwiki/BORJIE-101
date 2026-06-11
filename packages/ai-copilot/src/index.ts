@@ -43,6 +43,25 @@ export {
 } from './ai-copilot.js';
 
 // ============================================
+// Intelligence-Elasticity seam — tier-label → model-id resolution.
+// The composition root injects the live tier→id map here; defaults
+// are behavior-identical to today's production ids.
+// ============================================
+export {
+  DEFAULT_TIER_MODEL_IDS,
+  DEFAULT_LEGACY_OPENAI_MODEL_IDS,
+  OPENAI_CATALOG_MODEL_IDS,
+  resolveTierModelId,
+  resolveLegacyOpenAiModelId,
+  setModelTierMap,
+  setLegacyOpenAiModelMap,
+  type ModelTierLabel,
+  type ModelTierMap,
+  type LegacyOpenAiSlot,
+  type LegacyOpenAiModelMap,
+} from './model-resolution.js';
+
+// ============================================
 // Brain — singular-intelligence layer
 // (amplifies AICopilot; does not replace it)
 // ============================================

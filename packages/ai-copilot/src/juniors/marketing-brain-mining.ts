@@ -30,6 +30,7 @@ import {
   withResolvedDb,
   type JuniorDeps,
 } from './_shared.js';
+import { resolveTierModelId } from '../model-resolution.js';
 
 export const MarketingBrainMiningAudience = z.enum([
   'investor',
@@ -127,7 +128,7 @@ export function createMarketingBrainMiningAgent(deps: JuniorDeps) {
         schema: MarketingBrainMiningOutput,
         systemPrompt: MARKETING_BRAIN_MINING_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt(validated),
-        model: 'claude-sonnet-4-6',
+        model: resolveTierModelId('standard'),
         maxTokens: 3000,
       });
 

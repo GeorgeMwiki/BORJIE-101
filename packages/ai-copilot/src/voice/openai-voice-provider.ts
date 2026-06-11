@@ -18,6 +18,7 @@ import type {
   VoiceProviderError,
 } from './types.js';
 import { vOk, vErr } from './types.js';
+import { resolveLegacyOpenAiModelId } from '../model-resolution.js';
 
 export interface OpenAIVoiceProviderConfig {
   readonly apiKey: string;
@@ -58,7 +59,7 @@ export class OpenAIVoiceProvider implements VoiceProvider {
         retryable: false,
       });
     }
-    const sttModel = this.config.sttModel ?? 'gpt-4o-mini-transcribe';
+    const sttModel = this.config.sttModel ?? resolveLegacyOpenAiModelId('transcribe');
     const base = this.config.baseUrl ?? 'https://api.openai.com';
     const timeoutMs = this.config.timeoutMs ?? 60_000;
 
@@ -122,7 +123,7 @@ export class OpenAIVoiceProvider implements VoiceProvider {
         retryable: false,
       });
     }
-    const ttsModel = this.config.ttsModel ?? 'gpt-4o-mini-tts';
+    const ttsModel = this.config.ttsModel ?? resolveLegacyOpenAiModelId('tts');
     const voice = request.voiceId ?? this.config.defaultVoice ?? 'alloy';
     const base = this.config.baseUrl ?? 'https://api.openai.com';
     const timeoutMs = this.config.timeoutMs ?? 60_000;
