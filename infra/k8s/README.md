@@ -184,3 +184,29 @@ If you want a single-VM deployment instead of K8s, use
 `docker-compose.production.yml` at the repo root. See
 [docs/deployment/README.md](../../docs/deployment/README.md) for the
 operator runbook.
+
+## Porting to a new vertical / registry owner (hardening R-3)
+
+The container-registry owner (`ghcr.io/georgemwiki/…`) is currently baked
+into the Kustomize `images:` blocks and the `cd.yml` workflow. Kustomize
+`images:` requires an exact name match, so it has no native variable
+substitution — a fork must repoint every reference. Until a
+`replacements:`-driven indirection lands, repoint in one shot:
+
+```bash
+# 1. Repoint every Kustomize / manifest reference (72 files today).
+OLD=ghcr.io/georgemwiki
+NEW=ghcr.io/<your-org>
+grep -rl "$OLD" infra/k8s k8s --include='*.yaml' --include='*.yml' \
+  | xargs sed -i '' "s#${OLD}#${NEW}#g"   # GNU sed: drop the '' after -i
+
+# 2. Update the CD workflow registry owner.
+sed -i '' "s#${OLD}#${NEW}#g" .github/workflows/cd.yml
+```
+
+Everything else (per-service HPA, KEDA scaledobjects, the atomic Helm
+pre-upgrade migrate hook, External Secrets, network policies, the gVisor
+RuntimeClass) is owner-agnostic and ports unchanged. After the repoint, a
+new vertical is deploy-ready in the same 2 steps as the parent platform —
+(1) provision secrets (the irreducible founder gate), (2) apply the overlay
+and roll.

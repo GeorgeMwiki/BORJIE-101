@@ -411,6 +411,133 @@ function splitTopLevel(body, sep) {
 const DYNAMIC_NOT_NULL_ALLOWLIST_MARKER = '@safety: dynamic-not-null-reviewed';
 
 /**
+ * Reviewer sign-off for an `ALTER TYPE … ADD VALUE` whose new label is used
+ * later in the SAME migration file. Postgres forbids using an enum value in
+ * the same transaction it was added (error: "unsafe use of new value of
+ * enum type") — so a same-file usage is unsafe unless the migration splits
+ * the ADD VALUE and the usage into separate transactions (separate COMMITs),
+ * which the static scanner cannot prove. The marker records that a human
+ * verified the transaction boundary.
+ */
+const ENUM_ADD_VALUE_ALLOWLIST_MARKER = '@safety: alter-type-add-value-reviewed';
+
+export function hasEnumAddValueAllowlist(rawSql) {
+  if (typeof rawSql !== 'string') return false;
+  return rawSql.includes(ENUM_ADD_VALUE_ALLOWLIST_MARKER);
+}
+
+/**
+ * Detect `ALTER TYPE <t> ADD VALUE [IF NOT EXISTS] '<label>'` followed —
+ * anywhere later in the same (comment-stripped) file — by a use of that
+ * label as a STRING LITERAL (a WHERE/CAST/INSERT/UPDATE/DEFAULT reference).
+ * Returns one finding per (added label that is later referenced).
+ *
+ * Heuristic + conservative: it cannot see transaction boundaries, so a
+ * legitimately-split migration (ADD VALUE in tx1, usage in tx2) is flagged
+ * and must carry the allowlist marker after human review. False negatives
+ * are avoided by matching the quoted label anywhere downstream; the marker
+ * is the escape valve, never silent suppression.
+ */
+/**
+ * Detect destructive DROPs lacking an `IF EXISTS` guard — a re-apply / fresh
+ * apply hazard (the statement errors if the object is already gone, aborting
+ * the migration). Covers DROP TABLE, ALTER TABLE … DROP COLUMN, and DROP
+ * INDEX. Returns one finding per unguarded drop.
+ */
+export function findUnguardedDrops(sql) {
+  if (typeof sql !== 'string') return [];
+  const findings = [];
+  const patterns = [
+    { verb: 'drop table', rx: /\bdrop\s+table\s+(if\s+exists\s+)?([\w".]+)/gi },
+    { verb: 'drop column', rx: /\bdrop\s+column\s+(if\s+exists\s+)?([\w".]+)/gi },
+    {
+      verb: 'drop index',
+      rx: /\bdrop\s+index\s+(?:concurrently\s+)?(if\s+exists\s+)?([\w".]+)/gi,
+    },
+  ];
+  for (const { verb, rx } of patterns) {
+    let m;
+    while ((m = rx.exec(sql)) !== null) {
+      if (m[1]) continue; // IF EXISTS present → guarded
+      findings.push({
+        kind: 'unguarded_drop',
+        verb,
+        target: unquoteIdent(m[2] ?? ''),
+      });
+    }
+  }
+  return findings;
+}
+
+/**
+ * Detect TRUNCATE in a forward-only migration — irreversible bulk data loss.
+ * Statement-anchored so the word "truncate" inside a COMMENT/string literal
+ * does not false-positive.
+ */
+export function findTruncateStatements(sql) {
+  if (typeof sql !== 'string') return [];
+  const findings = [];
+  const rx = /(?:^|;)\s*truncate\s+(?:table\s+)?([\w".]+)/gi;
+  let m;
+  while ((m = rx.exec(sql)) !== null) {
+    findings.push({ kind: 'truncate', target: unquoteIdent(m[1] ?? '') });
+  }
+  return findings;
+}
+
+/**
+ * Detect `CREATE INDEX` (non-CONCURRENTLY) on a known-large table — it takes
+ * an ACCESS EXCLUSIVE lock and blocks writes for the build duration. The
+ * `@safety: blocking-index-reviewed` marker in the raw SQL flags the finding
+ * as allowlisted (still reported, but the caller can treat it as reviewed).
+ */
+export function findBlockingIndexCreates(sql, largeTables, rawSql) {
+  if (typeof sql !== 'string') return [];
+  const large = largeTables instanceof Set ? largeTables : new Set(largeTables ?? []);
+  const allowlisted =
+    typeof rawSql === 'string' && rawSql.includes('@safety: blocking-index-reviewed');
+  const findings = [];
+  const rx =
+    /\bcreate\s+(?:unique\s+)?index\s+(concurrently\s+)?(?:if\s+not\s+exists\s+)?[\w".]+\s+on\s+([\w".]+)/gi;
+  let m;
+  while ((m = rx.exec(sql)) !== null) {
+    if (m[1]) continue; // CONCURRENTLY → non-blocking
+    const table = unquoteIdent(m[2] ?? '');
+    if (!large.has(table)) continue;
+    findings.push({ kind: 'blocking_index', table, allowlisted });
+  }
+  return findings;
+}
+
+export function findEnumAddValueStatements(sql) {
+  if (typeof sql !== 'string') return [];
+  const findings = [];
+  const addRx =
+    /\balter\s+type\s+([\w".]+)\s+add\s+value\s+(?:if\s+not\s+exists\s+)?'([^']+)'/gi;
+  const seen = new Set();
+  let m;
+  while ((m = addRx.exec(sql)) !== null) {
+    const typeName = unquoteIdent(m[1] ?? '');
+    const label = m[2] ?? '';
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    // Does the label appear as a quoted literal AFTER this ADD VALUE?
+    const after = sql.slice(addRx.lastIndex);
+    const literalRx = new RegExp(
+      `'${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`,
+    );
+    if (literalRx.test(after)) {
+      findings.push({
+        kind: 'enum-add-value-same-file',
+        type: typeName,
+        label,
+      });
+    }
+  }
+  return findings;
+}
+
+/**
  * Does the RAW (pre-strip) SQL declare an explicit reviewer sign-off
  * for dynamic NOT NULL inside a DO block? We check against the raw
  * source because the marker lives in a `--` comment, which
@@ -765,8 +892,18 @@ async function main() {
     // level ALTER TABLE still gets scanned.
     const dynamicFindings = findDynamicNotNullStatements(sql);
     const allowlisted = hasDynamicNotNullAllowlist(rawSql);
+    // ALTER TYPE … ADD VALUE used in the same file/transaction (Postgres
+    // forbids it). Allowlist marker = human verified the tx split.
+    const enumFindings = findEnumAddValueStatements(sql);
+    const enumAllowlisted = hasEnumAddValueAllowlist(rawSql);
 
-    if (rawFindings.length === 0 && dynamicFindings.length === 0) continue;
+    if (
+      rawFindings.length === 0 &&
+      dynamicFindings.length === 0 &&
+      enumFindings.length === 0
+    ) {
+      continue;
+    }
 
     for (const finding of rawFindings) {
       const classification = classifyFinding(finding, {
@@ -816,6 +953,43 @@ async function main() {
         snippet: finding.snippet,
         ...classification,
         classification, // mutable handle for liveDbCheck demotion
+      });
+    }
+
+    for (const finding of enumFindings) {
+      // ALTER TYPE … ADD VALUE + same-file usage of the new label. Safe
+      // ONLY if the migration commits the ADD VALUE before the usage —
+      // which the static scanner cannot prove. FAIL unless human-reviewed.
+      const classification = enumAllowlisted
+        ? {
+            severity: 'pass',
+            reason:
+              'ENUM_ADD_VALUE_ALLOWLISTED: new enum value used after a verified ' +
+              'transaction split (' +
+              ENUM_ADD_VALUE_ALLOWLIST_MARKER +
+              ')',
+            needsLiveCheck: false,
+          }
+        : {
+            severity: 'fail',
+            reason:
+              `ENUM_ADD_VALUE_UNSAFE: ALTER TYPE ${finding.type} ADD VALUE '` +
+              `${finding.label}' is referenced later in the SAME migration — ` +
+              'Postgres forbids using a new enum value in the transaction that ' +
+              'added it. Split the ADD VALUE and its usage into separate ' +
+              'transactions (separate COMMITs), then add `-- ' +
+              ENUM_ADD_VALUE_ALLOWLIST_MARKER +
+              '` after review.',
+            needsLiveCheck: false,
+          };
+      flatFindings.push({
+        file: relative(ROOT, file),
+        kind: finding.kind,
+        table: finding.type,
+        column: finding.label,
+        hasDefault: false,
+        ...classification,
+        classification,
       });
     }
   }

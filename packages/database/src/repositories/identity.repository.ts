@@ -23,7 +23,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import { eq, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 
 import {
   tenantIdentities,
@@ -58,6 +58,11 @@ export interface IdentityRepository {
   provision(input: ProvisionIdentityInput): Promise<TenantIdentityView>;
   /** Direct identity read — the approve flow names the shadow user from it. */
   getById(tenantIdentityId: string): Promise<TenantIdentityView | null>;
+  /** Batch identity read (the approval-queue N+1 fix) — one query for the
+   *  whole pending page. Missing ids are simply absent from the result. */
+  getByIds(
+    tenantIdentityIds: ReadonlyArray<string>,
+  ): Promise<ReadonlyArray<TenantIdentityView>>;
 }
 
 export function normalizePhoneDigits(
@@ -178,6 +183,18 @@ export function createDrizzleIdentityRepository(
           .limit(1)) as unknown as IdentityRow[];
         const row = rows[0];
         return row ? rowToView(row) : null;
+      });
+    },
+
+    async getByIds(tenantIdentityIds) {
+      const ids = [...new Set(tenantIdentityIds.filter(Boolean))];
+      if (ids.length === 0) return [];
+      return withServiceRoleContext(db, async (tx) => {
+        const rows = (await tx
+          .select()
+          .from(tenantIdentities)
+          .where(inArray(tenantIdentities.id, ids))) as unknown as IdentityRow[];
+        return rows.map(rowToView);
       });
     },
 
@@ -304,6 +321,16 @@ export function createInMemoryIdentityRepository(): IdentityRepository {
       }
       const row = identities.get(tenantIdentityId);
       return row ? rowToView(row) : null;
+    },
+
+    async getByIds(tenantIdentityIds) {
+      const ids = new Set(tenantIdentityIds.filter(Boolean));
+      const out: TenantIdentityView[] = [];
+      for (const id of ids) {
+        const row = identities.get(id);
+        if (row) out.push(rowToView(row));
+      }
+      return out;
     },
 
     async provision(input) {

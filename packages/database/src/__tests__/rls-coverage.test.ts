@@ -91,6 +91,27 @@ const RLS_ENABLE_ONLY_KNOWN_DEBT: ReadonlySet<string> = new Set<string>([]);
 /** The three tables this task closed — must have FORCE + policy, never debt. */
 const RLS_BREACH_CLOSED = ['users', 'organizations', 'owner_skills'] as const;
 
+/**
+ * GLOBAL CROSS-TENANT SPINE TABLES — the bridges that are intentionally NOT
+ * scoped by any `tenant_id` column because they ARE the cross-tenant graph
+ * (the sub↔identity map; the phone-keyed person registry). They carry NO
+ * tenant column, so the `findTenantScopedTables` scanner above is BLIND to
+ * them — meaning a future migration that silently drops their FORCE RLS or
+ * service-role-only policy would pass the coverage guard unnoticed. This
+ * registry pins them: each MUST keep FORCE RLS + at least one policy forever
+ * (and, by code-review invariant, that policy is service-role-only — the
+ * static analyzer can confirm FORCE+policy-present but cannot prove the
+ * policy TYPE, so the service-role-only shape stays a reviewed invariant).
+ *
+ * Introduced by:
+ *   - migration 0345: identity_auth_principals (Supabase sub ↔ tenant_identity)
+ *   - earlier      : tenant_identities (phone-keyed cross-org principal)
+ */
+const GLOBAL_SPINE_TABLES = [
+  'identity_auth_principals',
+  'tenant_identities',
+] as const;
+
 /** A tenant-scoping column is `tenant_id` or any `<prefix>_tenant_id`. */
 const TENANT_COL_RE = /(?:^|\b)([a-z_]*tenant_id)\b/;
 
@@ -353,6 +374,25 @@ describe('RLS coverage guard (every tenant table is FORCE-RLS + policied)', () =
     for (const t of RLS_BREACH_CLOSED) {
       expect(RLS_NO_RLS_KNOWN_DEBT.has(t)).toBe(false);
       expect(RLS_ENABLE_ONLY_KNOWN_DEBT.has(t)).toBe(false);
+    }
+  });
+
+  // ─── Global spine tables: FORCE RLS + a policy, forever (hardening X-1) ──────
+  it('global cross-tenant spine tables keep FORCE RLS + a policy (service-role-only)', () => {
+    for (const t of GLOBAL_SPINE_TABLES) {
+      expect(
+        forced.has(t),
+        `${t} (global spine) is missing FORCE ROW LEVEL SECURITY — it must ` +
+          `stay service-role-only; a migration dropping it is a cross-tenant ` +
+          `exposure of the identity graph`,
+      ).toBe(true);
+      expect(
+        policied.has(t),
+        `${t} (global spine) is missing a CREATE POLICY — it must keep its ` +
+          `service_role_bypass policy`,
+      ).toBe(true);
+      // These are NOT tenant-scoped debt — they carry no tenant column.
+      expect(RLS_NO_RLS_KNOWN_DEBT.has(t)).toBe(false);
     }
   });
 

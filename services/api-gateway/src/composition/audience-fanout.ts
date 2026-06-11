@@ -30,6 +30,12 @@ import type { CrossPortalBus } from './cross-portal-bus.js';
 // Topic builders (sanitized exactly like tenantTopic)
 // ---------------------------------------------------------------------------
 
+// SCALING (S-1): fan-out backpressure bounds. Publish at most
+// FANOUT_BATCH_SIZE recipients concurrently, awaiting each batch, so a
+// 100k-member audience never materializes 100k concurrent promises.
+const FANOUT_BATCH_SIZE = 200;
+const FANOUT_WARN_THRESHOLD = 10_000;
+
 function sanitize(part: string, label: string): string {
   if (!part || typeof part !== 'string') {
     throw new Error(`${label}: value required`);
@@ -196,14 +202,29 @@ export function createAudienceFanout(
         return 0;
       }
       const seen = new Set<string>();
-      await Promise.all(
-        recipients
-          .filter((r) => {
-            if (seen.has(r.tenantIdentityId)) return false;
-            seen.add(r.tenantIdentityId);
-            return true;
-          })
-          .map((r) =>
+      const uniqueRecipients = recipients.filter((r) => {
+        if (seen.has(r.tenantIdentityId)) return false;
+        seen.add(r.tenantIdentityId);
+        return true;
+      });
+      // SCALING (S-1): bounded fan-out. An org with a very large audience
+      // must not build N concurrent publish promises in one tick (heap +
+      // event-loop pressure → OOM under burst). Publish in fixed-size
+      // batches with an await between them as natural backpressure.
+      if (uniqueRecipients.length > FANOUT_WARN_THRESHOLD) {
+        deps.logger?.warn?.(
+          {
+            organizationId: args.organizationId,
+            recipientCount: uniqueRecipients.length,
+            wiring: 'audience-fanout',
+          },
+          'audience-fanout: large audience — batched fan-out engaged',
+        );
+      }
+      for (let i = 0; i < uniqueRecipients.length; i += FANOUT_BATCH_SIZE) {
+        const batch = uniqueRecipients.slice(i, i + FANOUT_BATCH_SIZE);
+        await Promise.all(
+          batch.map((r) =>
             publishOne(
               identityTopic(r.tenantIdentityId),
               args.kind,
@@ -211,7 +232,8 @@ export function createAudienceFanout(
               args.emittedBy,
             ),
           ),
-      );
+        );
+      }
       await publishOne(
         audienceTopic(args.organizationId, audienceKeyOf(args.audience)),
         args.kind,

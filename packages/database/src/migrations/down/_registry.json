@@ -516,6 +516,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0347_rls_tenant_identities_closure.sql",
+      "down": "down/0347_down_rls_tenant_identities_closure.sql",
+      "reverses": "Removes FORCE ROW LEVEL SECURITY + the tenant_identities_service_role_bypass policy from tenant_identities, reverting to the pre-0347 NO-RLS posture (the latent cross-tenant PII exposure 0347 closed: the phone/email/profile registry was readable by any non-service-role session). Dev/staging only — REOPENS the exposure. No data touched (RLS is metadata). No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

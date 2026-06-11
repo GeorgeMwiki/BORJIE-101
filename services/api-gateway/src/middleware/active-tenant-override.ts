@@ -53,14 +53,25 @@ interface SwitchGrant {
 type CacheEntry = {
   readonly expiresAtMs: number;
   readonly grant: SwitchGrant | 'denied';
+  readonly gen: number;
 };
 
 const cache = new Map<string, CacheEntry>();
 
+// SCALING (S-5): invalidate via a generation counter instead of a wholesale
+// `cache.clear()`. A revoke/block/switch bumps the generation; any entry
+// stamped with an older generation is treated as a miss on read. This is
+// O(1) and avoids the cache-stampede thrash a wholesale clear causes when
+// many concurrent requests miss simultaneously under load. The Map is still
+// capped (CACHE_MAX_ENTRIES) and self-expires by TTL, so stale-generation
+// entries are reclaimed lazily on access / when the cap is hit.
+let cacheGeneration = 0;
+
 /** Test seam + revocation hook (me-tenants / membership routes bust on
- *  explicit switch and on org-side revoke/block). */
+ *  explicit switch and on org-side revoke/block). O(1) — bumps the
+ *  generation so every prior grant is treated as stale. */
 export function clearActiveTenantCache(): void {
-  cache.clear();
+  cacheGeneration += 1;
 }
 
 function readCookieValue(
@@ -140,7 +151,13 @@ export async function resolveActiveTenantOverride(args: {
   }
   const cacheKey = `${args.supabaseUserId}:${requested}`;
   const cached = cache.get(cacheKey);
-  if (cached && cached.expiresAtMs > Date.now()) {
+  // Fresh ONLY if within TTL AND stamped with the current generation (a
+  // revoke/block/switch bumps the generation → older entries are stale).
+  if (
+    cached &&
+    cached.gen === cacheGeneration &&
+    cached.expiresAtMs > Date.now()
+  ) {
     return cached.grant === 'denied'
       ? { kind: 'denied', requestedTenantId: requested }
       : { kind: 'switched', grant: cached.grant };
@@ -161,10 +178,13 @@ export async function resolveActiveTenantOverride(args: {
     // Query failure = unverifiable = fail closed, uncached (transient).
     return { kind: 'denied', requestedTenantId: requested };
   }
+  // Cap is a hard bound; when hit, drop the map wholesale (rare, not the
+  // hot path — the generation counter handles routine invalidation).
   if (cache.size >= CACHE_MAX_ENTRIES) cache.clear();
   cache.set(cacheKey, {
     expiresAtMs: Date.now() + CACHE_TTL_MS,
     grant: grant ?? 'denied',
+    gen: cacheGeneration,
   });
   return grant
     ? { kind: 'switched', grant }

@@ -532,25 +532,38 @@ export function createMembershipsRouter(
 
   const orgAdmin = requireRole(...ORG_ADMIN_ROLES);
 
-  /** The approval queue, oldest first, with requester display names. */
+  /** The approval queue, oldest first, with requester display names.
+   *  Paginated (?limit=&offset=) and bounded; identities batch-loaded
+   *  (scaling S-4: no N+1). */
   router.get('/org/:orgId/requests', orgAdmin, async (c) => {
     const db = getDb(c);
     if (!db) return c.json(fail('DATABASE_UNAVAILABLE', 'No database client'), 503);
     const org = await loadOwnOrg(c, c.req.param('orgId'));
     if (!org) return c.json(fail('ORG_NOT_FOUND', 'Organization not found'), 404);
+    const limit = Number.parseInt(c.req.query('limit') ?? '', 10);
+    const offset = Number.parseInt(c.req.query('offset') ?? '', 10);
     const idRepo = identityRepo(db);
-    const pending = await membershipRepo(db).listPendingForOrg(org.id);
-    const data = await Promise.all(
-      pending.map(async (m) => {
-        const identity = await idRepo.getById(m.tenantIdentityId);
-        return {
-          ...membershipView(m),
-          requesterName: identity?.displayName ?? null,
-          requesterPhone: identity?.phoneNormalized ?? null,
-          requesterEmail: identity?.email ?? null,
-        };
-      }),
+    const pending = await membershipRepo(db).listPendingForOrg(org.id, {
+      limit: Number.isFinite(limit) ? limit : undefined,
+      offset: Number.isFinite(offset) ? offset : undefined,
+    });
+    // One batched identity read for the whole page (no per-row N+1).
+    const identities = await idRepo.getByIds(
+      pending.map((m) => m.tenantIdentityId),
     );
+    type IdentityView = (typeof identities)[number];
+    const byId = new Map<string, IdentityView>(
+      identities.map((i) => [i.id, i] as const),
+    );
+    const data = pending.map((m) => {
+      const identity = byId.get(m.tenantIdentityId);
+      return {
+        ...membershipView(m),
+        requesterName: identity?.displayName ?? null,
+        requesterPhone: identity?.phoneNormalized ?? null,
+        requesterEmail: identity?.email ?? null,
+      };
+    });
     return c.json({ success: true, data });
   });
 
@@ -567,9 +580,8 @@ export function createMembershipsRouter(
       if (!org) return c.json(fail('ORG_NOT_FOUND', 'Organization not found'), 404);
       const membershipId = c.req.param('membershipId');
       const repo = membershipRepo(db);
-      const pending = (await repo.listPendingForOrg(org.id)).find(
-        (m) => m.id === membershipId,
-      );
+      // O(1) PK lookup — never scan the whole queue to find one row (S-3).
+      const pending = await repo.getPendingByIdAndOrg(membershipId, org.id);
       if (!pending) {
         return c.json(fail('REQUEST_NOT_FOUND', 'No pending request'), 404);
       }

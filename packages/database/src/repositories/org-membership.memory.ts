@@ -8,8 +8,13 @@ import { randomUUID } from 'node:crypto';
 import {
   assertKey,
   assertShadowUserInvariant,
+  clampLimit,
   InviteRedemptionError,
   rowToMembership,
+  ACTIVE_FOR_IDENTITY_LIMIT,
+  AUDIENCE_HARD_LIMIT,
+  PENDING_PAGE_DEFAULT,
+  PENDING_PAGE_MAX,
   type DecideMembershipInput,
   type MembershipRow,
   type OrgMembershipRelationshipType,
@@ -366,14 +371,28 @@ export function createInMemoryOrgMembershipRepository(
       return row ? rowToMembership(row) : null;
     },
 
-    async listPendingForOrg(organizationId) {
+    async getPendingByIdAndOrg(membershipId, organizationId) {
+      assertKey(membershipId, 'getPendingByIdAndOrg', 'membershipId');
+      assertKey(organizationId, 'getPendingByIdAndOrg', 'organizationId');
+      const r = rows.get(membershipId);
+      return r &&
+        r.organizationId === organizationId &&
+        r.status === 'PENDING'
+        ? rowToMembership(r)
+        : null;
+    },
+
+    async listPendingForOrg(organizationId, page) {
       assertKey(organizationId, 'listPendingForOrg', 'organizationId');
+      const limit = clampLimit(page?.limit, PENDING_PAGE_DEFAULT, PENDING_PAGE_MAX);
+      const offset = Math.max(0, Math.floor(page?.offset ?? 0));
       return [...rows.values()]
         .filter(
           (r) =>
             r.organizationId === organizationId && r.status === 'PENDING',
         )
         .sort((a, b) => a.joinedAt.getTime() - b.joinedAt.getTime())
+        .slice(offset, offset + limit)
         .map(rowToMembership);
     },
 
@@ -384,6 +403,7 @@ export function createInMemoryOrgMembershipRepository(
           (r) =>
             r.tenantIdentityId === tenantIdentityId && r.status === 'ACTIVE',
         )
+        .slice(0, ACTIVE_FOR_IDENTITY_LIMIT)
         .map(rowToMembership);
     },
 
@@ -407,6 +427,7 @@ export function createInMemoryOrgMembershipRepository(
             (roles.length === 0 ||
               (r.memberRole !== null && roles.includes(r.memberRole))),
         )
+        .slice(0, AUDIENCE_HARD_LIMIT)
         .map(rowToMembership);
     },
 

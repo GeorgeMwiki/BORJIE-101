@@ -187,9 +187,17 @@ export interface OrgMembershipRepository {
   reject(input: DecideMembershipInput): Promise<OrgMembership | null>;
   /** ACTIVE → REVOKED (org-initiated). Null when no ACTIVE row matches. */
   revoke(input: DecideMembershipInput): Promise<OrgMembership | null>;
-  /** The org's approval queue, oldest first. */
+  /** O(1) single PENDING-request lookup (the approve/reject hot path —
+   *  avoids scanning the whole queue to find one row). Null if none. */
+  getPendingByIdAndOrg(
+    membershipId: string,
+    organizationId: string,
+  ): Promise<OrgMembership | null>;
+  /** The org's approval queue, oldest first. BOUNDED: `limit` caps the page
+   *  (hard ceiling applied internally); `offset` paginates. */
   listPendingForOrg(
     organizationId: string,
+    page?: { limit?: number; offset?: number },
   ): Promise<ReadonlyArray<OrgMembership>>;
   /** The unified-home / switcher read: every ACTIVE membership of an identity. */
   listActiveForIdentity(
@@ -200,7 +208,9 @@ export interface OrgMembershipRepository {
     tenantIdentityId: string,
     organizationId: string,
   ): Promise<OrgMembership | null>;
-  /** The audience resolver: ACTIVE memberships in an org by relationship/role. */
+  /** The audience resolver: ACTIVE memberships in an org by relationship/role.
+   *  BOUNDED by an internal hard ceiling (`AUDIENCE_HARD_LIMIT`) so a single
+   *  fan never materializes an unbounded recipient set. */
   resolveAudience(
     organizationId: string,
     query?: AudienceQuery,
@@ -287,6 +297,25 @@ export function assertShadowUserInvariant(
 
 export function membershipMs(d: Date | null | undefined): number | null {
   return d ? d.getTime() : null;
+}
+
+// SCALING bounds (hardening S-2/S-3): hard ceilings so a membership read can
+// never return an unbounded set. The audience cap pairs with the batched
+// fan-out in audience-fanout.ts; the pending-page default bounds the approval
+// queue; the active cap bounds a multi-org identity's home read.
+export const AUDIENCE_HARD_LIMIT = 50_000;
+export const PENDING_PAGE_DEFAULT = 100;
+export const PENDING_PAGE_MAX = 500;
+export const ACTIVE_FOR_IDENTITY_LIMIT = 1_000;
+
+/** Clamp a requested page limit into [1, max]. */
+export function clampLimit(
+  requested: number | undefined,
+  fallback: number,
+  max: number,
+): number {
+  if (requested === undefined || !Number.isFinite(requested)) return fallback;
+  return Math.max(1, Math.min(Math.floor(requested), max));
 }
 
 export interface MembershipRow {

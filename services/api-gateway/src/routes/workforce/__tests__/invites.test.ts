@@ -362,7 +362,7 @@ describe('workforce invitations router', () => {
 
   // ------------------------- Issue happy path -------------------------
 
-  it('POST / creates an invitation, returns a 6-digit code, and persists the row', async () => {
+  it('POST / creates an invitation, returns a high-entropy code, and persists the row', async () => {
     setAuth();
     const db = createFakeDb();
     setDb(db);
@@ -389,7 +389,9 @@ describe('workforce invitations router', () => {
       };
     };
     expect(body.success).toBe(true);
-    expect(body.data.activationCode).toMatch(/^[0-9]{6}$/);
+    // SEC-1: codes are now 10 chars from an unambiguous alphabet (~49 bits),
+    // not the brute-forceable 6-digit format.
+    expect(body.data.activationCode).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
     expect(body.data.phoneE164).toBe('+255712345678');
     expect(body.data.assignedRole).toBe('employee');
     expect(body.data.assignedCertifications).toContain('haul-truck-license');
@@ -742,7 +744,7 @@ describe('workforce invitations router', () => {
       data: { smsDelivered: boolean; activationCode: string };
     };
     expect(body.data.smsDelivered).toBe(false);
-    expect(body.data.activationCode).toMatch(/^[0-9]{6}$/);
+    expect(body.data.activationCode).toMatch(/^[A-HJ-NP-Z2-9]{10}$/);
     expect(db.rows()).toHaveLength(1);
   });
 

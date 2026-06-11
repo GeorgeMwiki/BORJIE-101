@@ -38,8 +38,13 @@ import { withServiceRoleContext } from '../rls/with-tenant-context.js';
 import {
   assertKey,
   assertShadowUserInvariant,
+  clampLimit,
   InviteRedemptionError,
   rowToMembership,
+  ACTIVE_FOR_IDENTITY_LIMIT,
+  AUDIENCE_HARD_LIMIT,
+  PENDING_PAGE_DEFAULT,
+  PENDING_PAGE_MAX,
   type ApproveMembershipInput,
   type BlockMembershipInput,
   type DecideMembershipInput,
@@ -504,8 +509,30 @@ export function createDrizzleOrgMembershipRepository(
       return decide(input, 'ACTIVE', 'REVOKED', {}, 'revoke');
     },
 
-    async listPendingForOrg(organizationId) {
+    async getPendingByIdAndOrg(membershipId, organizationId) {
+      assertKey(membershipId, 'getPendingByIdAndOrg', 'membershipId');
+      assertKey(organizationId, 'getPendingByIdAndOrg', 'organizationId');
+      return withServiceRoleContext(db, async (tx) => {
+        const rows = (await tx
+          .select()
+          .from(orgMemberships)
+          .where(
+            and(
+              eq(orgMemberships.id, membershipId),
+              eq(orgMemberships.organizationId, organizationId),
+              eq(orgMemberships.status, 'PENDING'),
+            ),
+          )
+          .limit(1)) as unknown as MembershipRow[];
+        const row = rows[0];
+        return row ? rowToMembership(row) : null;
+      });
+    },
+
+    async listPendingForOrg(organizationId, page) {
       assertKey(organizationId, 'listPendingForOrg', 'organizationId');
+      const limit = clampLimit(page?.limit, PENDING_PAGE_DEFAULT, PENDING_PAGE_MAX);
+      const offset = Math.max(0, Math.floor(page?.offset ?? 0));
       return withServiceRoleContext(db, async (tx) => {
         const rows = (await tx
           .select()
@@ -516,7 +543,9 @@ export function createDrizzleOrgMembershipRepository(
               eq(orgMemberships.status, 'PENDING'),
             ),
           )
-          .orderBy(asc(orgMemberships.joinedAt))) as unknown as MembershipRow[];
+          .orderBy(asc(orgMemberships.joinedAt))
+          .limit(limit)
+          .offset(offset)) as unknown as MembershipRow[];
         return rows.map(rowToMembership);
       });
     },
@@ -532,7 +561,8 @@ export function createDrizzleOrgMembershipRepository(
               eq(orgMemberships.tenantIdentityId, tenantIdentityId),
               eq(orgMemberships.status, 'ACTIVE'),
             ),
-          )) as unknown as MembershipRow[];
+          )
+          .limit(ACTIVE_FOR_IDENTITY_LIMIT)) as unknown as MembershipRow[];
         return rows.map(rowToMembership);
       });
     },
@@ -575,7 +605,8 @@ export function createDrizzleOrgMembershipRepository(
                 ? [inArray(orgMemberships.memberRole, [...roles])]
                 : []),
             ),
-          )) as unknown as MembershipRow[];
+          )
+          .limit(AUDIENCE_HARD_LIMIT)) as unknown as MembershipRow[];
         return rows.map(rowToMembership);
       });
     },

@@ -47,6 +47,11 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { UserRole } from '../../types/user-role';
 import { createLogger } from '../../utils/logger';
+import {
+  checkActivationAllowed,
+  clearActivationAttempts,
+  recordFailedActivation,
+} from './activation-throttle';
 
 const moduleLogger = createLogger('workforce-invites');
 
@@ -95,7 +100,10 @@ const listQuerySchema = z.object({
 
 const activateSchema = z.object({
   phoneE164: z.string().regex(E164_PATTERN),
-  activationCode: z.string().regex(/^[0-9]{6}$/),
+  // SEC-1: accept the high-entropy code (10 chars, unambiguous alphabet,
+  // ~49 bits) AND the legacy 6-digit format so invites issued before the
+  // entropy bump still activate during their (short) validity window.
+  activationCode: z.string().regex(/^([0-9]{6}|[A-HJ-NP-Z2-9]{10})$/),
 });
 
 // ---------------------------------------------------------------------------
@@ -254,9 +262,18 @@ function resolveSupabasePort(): ActivationSupabasePort {
 // Utility helpers
 // ---------------------------------------------------------------------------
 
+// SEC-1: unambiguous alphabet (no 0/O/1/I/L) — typeable on a phone keypad
+// while giving ~49 bits over 10 chars, so a per-phone brute force of the
+// activation code is infeasible even without rate limiting.
+const ACTIVATION_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // eslint-disable-line no-secrets/no-secrets -- public code alphabet, not a credential
+const ACTIVATION_CODE_LENGTH = 10;
+
 function generateActivationCode(): string {
-  // 6 digits, leading zeros preserved.
-  return String(randomInt(0, 1_000_000)).padStart(6, '0');
+  let code = '';
+  for (let i = 0; i < ACTIVATION_CODE_LENGTH; i += 1) {
+    code += ACTIVATION_ALPHABET[randomInt(0, ACTIVATION_ALPHABET.length)];
+  }
+  return code;
 }
 
 function isUuid(value: string): boolean {
@@ -316,6 +333,25 @@ export function createWorkforceInvitesRouter(): Hono {
     }
     const { phoneE164, activationCode } = parsed.data;
 
+    // SEC-1: per-phone brute-force throttle (defense-in-depth on top of the
+    // ~49-bit code entropy). Refuse early once a phone has burned through its
+    // failed-attempt budget, before touching the DB.
+    const gate = checkActivationAllowed(phoneE164);
+    if (!gate.allowed) {
+      return c.json(
+        {
+          success: false,
+          error: {
+            code: 'TOO_MANY_ATTEMPTS',
+            message:
+              'Too many activation attempts. Please wait and try again.',
+          },
+        },
+        429,
+        { 'Retry-After': String(gate.retryAfterSeconds) },
+      );
+    }
+
     try {
       const [pending] = await db
         .select()
@@ -344,6 +380,23 @@ export function createWorkforceInvitesRouter(): Hono {
       }
 
       if (pending.activationCode !== activationCode) {
+        // SEC-1: record the failure; surface a lockout the moment the phone
+        // crosses the attempt threshold.
+        const decision = recordFailedActivation(phoneE164);
+        if (!decision.allowed) {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'TOO_MANY_ATTEMPTS',
+                message:
+                  'Too many activation attempts. Please wait and try again.',
+              },
+            },
+            429,
+            { 'Retry-After': String(decision.retryAfterSeconds) },
+          );
+        }
         return c.json(
           {
             success: false,
@@ -404,6 +457,9 @@ export function createWorkforceInvitesRouter(): Hono {
         })
         .where(eq(workforceInvitations.id, pending.id))
         .returning();
+
+      // SEC-1: successful activation clears the phone's failed-attempt record.
+      clearActivationAttempts(phoneE164);
 
       return c.json(
         {
