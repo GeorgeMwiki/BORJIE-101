@@ -40,14 +40,26 @@ import {
 import { sql } from 'drizzle-orm';
 import { createDatabaseClient } from '@borjie/database';
 import type pino from 'pino';
+import { resolveTierModel } from './model-tier-map.js';
 
 // `DatabaseClient` collides with a namespace that drizzle-orm/postgres-js's
 // declaration merging pulls in at this consumption site — deriving the type
 // via ReturnType sidesteps it (mirrors composition/db-client.ts).
 type DatabaseClient = ReturnType<typeof createDatabaseClient>;
 
-const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const CLAUDE_ENDPOINT = 'https://api.anthropic.com/v1/messages';
+
+/**
+ * Intelligence-Elasticity: translation runs on the standard tier
+ * (Sonnet-class). `CLAUDE_MODEL` env stays an explicit operator
+ * override layered over the composition-root tier resolution.
+ */
+function resolveTranslationModel(): string {
+  const explicit = process.env['CLAUDE_MODEL']?.trim();
+  return explicit && explicit.length > 0
+    ? explicit
+    : resolveTierModel('standard');
+}
 
 export interface TranslationWiringInput {
   readonly db: DatabaseClient | null;
@@ -170,7 +182,7 @@ export function wireTranslation(
     const claudeProvider = createClaudeProvider({
       config: {
         apiKey,
-        model: CLAUDE_MODEL,
+        model: resolveTranslationModel(),
         endpoint: CLAUDE_ENDPOINT,
         temperature: 0,
         maxTokens: 4096,

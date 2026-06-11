@@ -50,11 +50,9 @@ import {
   type InngestClientLike,
 } from './durable/inngest-client.js';
 import { createInngestScheduleAdapter } from './power-tool-schedule-adapter.js';
+import { resolveTierModel } from './model-tier-map.js';
 
 const logger = createPinoLikeLogger('power-tools-wiring');
-
-/** Default composition-planner model. Haiku-class — this is a fast pre-flight. */
-const COMPOSITION_MODEL = 'claude-haiku-4-5';
 
 // ─────────────────────────────────────────────────────────────────────
 // Lazy registry singleton.
@@ -180,9 +178,12 @@ export function createAnthropicCompositionModelPort(
   client: AnthropicMessagesClient,
   options: { readonly model?: string } = {},
 ): CompositionModelPort {
-  const model = options.model ?? COMPOSITION_MODEL;
   return {
     async complete(args): Promise<string> {
+      // Cheap tier (Haiku-class) — the composition planner is a fast
+      // pre-flight. Resolved PER-CALL via the composition-root tier map
+      // (Intelligence-Elasticity: no pinned model id).
+      const model = options.model ?? resolveTierModel('cheap');
       const response = await client.messages.create({
         model,
         max_tokens: args.maxTokens ?? 512,

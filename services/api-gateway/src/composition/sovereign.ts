@@ -219,6 +219,7 @@ import {
 // (auditable deliberation). The simulator never writes — only
 // `LedgerService.post()` moves money.
 import { registerWorldModelToolsOnRegistry } from './world-model-wiring.js';
+import { resolveTierModel } from './model-tier-map.js';
 // Wave-C SALIENCE ARENA (C1 win #3) — the two slow-loop READ ports that light
 // up the arena's drive + ACT-R activation sub-bidders. Both are built from the
 // SAME durable situational-model store + gated proactive_nudge contract the
@@ -1721,8 +1722,6 @@ function buildMarketDataPort(provider: string): MarketDataPort | null {
 // (inside runSelfRag, stakes-gated) decides whether to block, not us.
 // ---------------------------------------------------------------------------
 
-const SELF_RAG_JUDGE_MODEL = 'claude-haiku-4-5';
-
 const SELF_RAG_JUDGE_SYSTEM =
   'You are a grounding auditor. Given an AI response plus its retrieved ' +
   'evidence, emit ONLY three tokens on one line in the exact form ' +
@@ -1741,7 +1740,9 @@ function buildSelfRagJudge(
   return async (text: string) => {
     try {
       const response = (await anthropic.messages.create({
-        model: SELF_RAG_JUDGE_MODEL,
+        // Cheap tier (Haiku-class) — single grounding-critic call.
+        // Resolved per-call via the composition-root tier map.
+        model: resolveTierModel('cheap'),
         max_tokens: 64,
         system: SELF_RAG_JUDGE_SYSTEM,
         messages: [{ role: 'user', content: text.slice(0, 8_000) }],
