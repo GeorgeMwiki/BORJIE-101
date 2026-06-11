@@ -65,6 +65,7 @@ export function newMembershipId(): string {
  * Invite codes are URL/QR-friendly: 12 chars from an unambiguous alphabet
  * (no 0/O/1/I/L), sourced from crypto randomness — ~56 bits of entropy.
  */
+// eslint-disable-next-line no-secrets/no-secrets -- public Crockford-style code alphabet (no 0/O/1/I/L), not a credential
 const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 export function newInviteCode(): string {
