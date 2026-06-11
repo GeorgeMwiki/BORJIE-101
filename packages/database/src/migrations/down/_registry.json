@@ -466,6 +466,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0342_service_role_bypass_spine_tables.sql",
+      "down": "down/0342_down_service_role_bypass_spine_tables.sql",
+      "reverses": "Drops the <tbl>_service_role_bypass policies from the 7 self-running-org spine tables (mining_tasks, employees, tasks, tab_event_log, notification_dispatch_log, ai_audit_chain, mining_escalations) plus the two structural double-create guard indexes (org_loop_runs_open_commitment_uniq partial unique on (tenant_id, commitment_id) WHERE open/active; tab_event_log_pending_nudge_uniq partial unique on (tenant_id, proposal_id) WHERE undelivered proactive_nudge). Fail-safe consequence: the out-of-band org-loop spine (withServiceRoleContext, tenant='__system__' + app.is_service_role='true') silently no-ops against these FORCE-RLS tables again (the pre-0342 RLS-dead state) — request-path tenant isolation is UNAFFECTED (each table's own tenant-isolation policy + FORCE survive). The up-migration's one-time dedupe is NOT restored (failed-marked duplicate open runs stay failed; deleted duplicate pending nudges stay deleted). No money/licence/ledger records. Dev/staging rollback only.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

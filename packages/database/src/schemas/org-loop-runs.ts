@@ -35,6 +35,7 @@
  * NULL-tenant rows are never written by this store.
  */
 
+import { sql } from 'drizzle-orm';
 import {
   pgTable,
   uuid,
@@ -43,6 +44,7 @@ import {
   jsonb,
   timestamp,
   index,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 /** The stage-machine position of a loop run. */
@@ -128,6 +130,12 @@ export const orgLoopRuns = pgTable(
       t.status,
       t.stage,
     ),
+    // STRUCTURAL double-create guard (migration 0342): at most ONE open/active
+    // run per (tenant, commitment) — the repository adopts the winner on
+    // conflict instead of racing the SELECT-then-INSERT de-dupe read.
+    openCommitmentUniq: uniqueIndex('org_loop_runs_open_commitment_uniq')
+      .on(t.tenantId, t.commitmentId)
+      .where(sql`status IN ('open', 'active')`),
   }),
 );
 

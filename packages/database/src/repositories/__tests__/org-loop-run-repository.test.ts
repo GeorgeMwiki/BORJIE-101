@@ -83,6 +83,35 @@ describe('OrgLoopRunRepository (in-memory)', () => {
     expect(found?.status).toBe('active');
   });
 
+  it('adopts the winner on a double-create race — one open run per (tenant, commitment)', async () => {
+    // Mirrors migration 0342's partial unique index
+    // (org_loop_runs_open_commitment_uniq WHERE status IN ('open','active')):
+    // a second open create for the same commitment must NOT insert a duplicate
+    // — it returns the already-open run (the Drizzle twin reaches the same
+    // outcome via ON CONFLICT DO NOTHING + fetch-existing).
+    const repo = createInMemoryOrgLoopRunRepository();
+    const first = await repo.create(baseInput({ commitmentId: 'mdc-race' }));
+    const second = await repo.create(
+      baseInput({
+        commitmentId: 'mdc-race',
+        sourceData: { gap: 'a different racing tick' },
+      }),
+    );
+
+    expect(second.id).toBe(first.id);
+    // The loser's payload never overwrites the winner.
+    expect(second.sourceData).toEqual({ gap: 'workforce.shortfall' });
+    const open = await repo.listOpen(A);
+    expect(open.filter((r) => r.commitmentId === 'mdc-race')).toHaveLength(1);
+
+    // Once the open run leaves the hot set, a NEW run for the same commitment
+    // is legal again (the guard is partial — open/active only).
+    await repo.advance(A, first.id, { stage: 'closed', status: 'closed' });
+    const reopened = await repo.create(baseInput({ commitmentId: 'mdc-race' }));
+    expect(reopened.id).not.toBe(first.id);
+    expect(reopened.status).toBe('open');
+  });
+
   it('findByCommitment is the dispatcher de-dupe / resume read', async () => {
     const repo = createInMemoryOrgLoopRunRepository();
     const created = await repo.create(baseInput({ commitmentId: 'mdc-7' }));

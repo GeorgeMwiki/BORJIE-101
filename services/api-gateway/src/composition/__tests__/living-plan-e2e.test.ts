@@ -291,6 +291,36 @@ describe('LIVING-MD — someday-review supervisor', () => {
     expect(sink.captured.some((p) => p.title.includes('expired'))).toBe(true);
   });
 
+  it('never expires an item the owner was NOT notified about (surfaced gate)', async () => {
+    // The RLS-dead regression: the gated sink's propose() returned false on
+    // every call (FORCE-RLS denied the tab_event_log INSERT), yet the
+    // supervisor still expired (blocked) >1yr items — vanishing them without
+    // the owner ever seeing the notice. The gate: no surfaced notice → no
+    // expiry; the item stays live and is re-attempted next tick.
+    const item = await repo.create(
+      deferInput({
+        class: 'someday',
+        triggerKind: 'condition',
+        triggerSpec: { predicate: { horizon: 'long' } },
+        idempotencyKey: 'idem-unsurfaced-someday',
+      }),
+    );
+    now = Date.now() + 366 * 24 * 60 * 60 * 1000;
+
+    // A sink whose surfacing path is dead (the RLS-dead propose() shape).
+    const deadSink: ProposalSinkLike = { propose: async () => false };
+    const supervisor = makeSupervisor(deadSink);
+    const tick = await supervisor.tickOnce();
+
+    expect(tick.expired).toBe(0);
+    expect(tick.coalesced).toBe(1);
+    const after = await repo.get(TENANT, item.id);
+    // NOT blocked — still live, invisible-vanish is impossible.
+    expect(after?.status).not.toBe('blocked');
+    const live = await repo.listLive(TENANT);
+    expect(live.map((c) => c.id)).toContain(item.id);
+  });
+
   it('start() is INERT under the test-env / kill-switch gate', () => {
     const supervisor = createSomedayReviewSupervisor({
       repository: repo,

@@ -244,9 +244,18 @@ export function createSomedayReviewSupervisor(
       const expired = ageMs > SOMEDAY_EXPIRY_MS;
       const done = await surfaceReview(item, tenantId, expired, nowMs);
       if (expired) {
-        counters.expired += done.surfaced ? 1 : 0;
-        // Expire the item out of the live set (honest, owner-notified above).
-        await expireItem(tenantId, item, nowMs);
+        if (done.surfaced) {
+          counters.expired += 1;
+          // Expire the item out of the live set ONLY once the owner notice
+          // actually surfaced — expiring an item the owner never saw would
+          // silently vanish it (the RLS-dead sink made propose() always
+          // false; gating here keeps the item live until the notice lands).
+          await expireItem(tenantId, item, nowMs);
+        } else {
+          // Not surfaced (sink absent / pending coalesce / sink fault): the
+          // item STAYS live and is re-attempted next tick.
+          counters.coalesced += 1;
+        }
       } else if (done.surfaced) {
         counters.resurfaced += 1;
       } else {

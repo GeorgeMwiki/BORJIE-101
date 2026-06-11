@@ -119,6 +119,18 @@ export interface OrgLoopRunRepository {
 const OPEN_STATUSES: ReadonlyArray<OrgLoopRunStatus> = ['open', 'active'];
 
 /**
+ * Is this create() landing in the open hot set? Migration 0342's partial
+ * unique index (`org_loop_runs_open_commitment_uniq` on (tenant_id,
+ * commitment_id) WHERE status IN ('open','active')) makes a concurrent
+ * double-create structurally impossible — on conflict the loser ADOPTS the
+ * already-open run instead of racing the dispatcher's SELECT-then-INSERT
+ * de-dupe read.
+ */
+function isOpenStatus(status: OrgLoopRunStatus): boolean {
+  return (OPEN_STATUSES as ReadonlyArray<string>).includes(status);
+}
+
+/**
  * Defence-in-depth tenant assert. Every method runs under the service-role RLS
  * BYPASS (the out-of-band cron has no request middleware to bind the tenant
  * GUC), so a missing/empty tenantId could otherwise become a silent
@@ -198,6 +210,10 @@ export function createDrizzleOrgLoopRunRepository(
       assertTenant(input.tenantId, 'create');
       assertValidCreate(input);
       return withServiceRoleContext(db, async (tx) => {
+        // ON CONFLICT DO NOTHING (no target) absorbs the 0342 partial-unique
+        // race: when another tick already opened a run for this commitment
+        // the insert is skipped and we ADOPT the existing open run below —
+        // double-create is structurally impossible, never a thrown 23505.
         const inserted = await tx
           .insert(orgLoopRuns)
           .values({
@@ -219,12 +235,27 @@ export function createDrizzleOrgLoopRunRepository(
             sourceData: input.sourceData ?? {},
             evidenceIds: input.evidenceIds ? [...input.evidenceIds] : [],
           })
+          .onConflictDoNothing()
           .returning();
         const row = inserted[0];
-        if (!row) {
+        if (row) return rowToLoopRun(row);
+        // Conflict path — fetch the open/active run that won the race.
+        const existing = await tx
+          .select()
+          .from(orgLoopRuns)
+          .where(
+            and(
+              eq(orgLoopRuns.tenantId, input.tenantId),
+              eq(orgLoopRuns.commitmentId, input.commitmentId),
+              inArray(orgLoopRuns.status, [...OPEN_STATUSES]),
+            ),
+          )
+          .limit(1);
+        const winner = existing[0];
+        if (!winner) {
           throw new Error('org-loop-run: create failed (no row returned)');
         }
-        return rowToLoopRun(row);
+        return rowToLoopRun(winner);
       });
     },
 
@@ -369,6 +400,20 @@ export function createInMemoryOrgLoopRunRepository(opts?: {
     async create(input) {
       assertTenant(input.tenantId, 'create');
       assertValidCreate(input);
+      // Mirror the 0342 partial-unique adopt-the-winner semantics: at most ONE
+      // open/active run per (tenant, commitment) — a second open create
+      // returns the existing run instead of inserting a duplicate.
+      if (isOpenStatus(input.status ?? 'open')) {
+        for (const r of rows.values()) {
+          if (
+            r.tenantId === input.tenantId &&
+            r.commitmentId === input.commitmentId &&
+            isOpenStatus(r.status)
+          ) {
+            return memToLoopRun(r);
+          }
+        }
+      }
       seq += 1;
       const ts = new Date(now());
       const row: MemRow = {
