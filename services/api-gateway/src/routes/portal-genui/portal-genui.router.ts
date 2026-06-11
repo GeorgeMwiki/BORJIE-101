@@ -27,6 +27,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
 import {
@@ -46,7 +47,50 @@ import {
   UnknownBindingError,
   type WidgetQueryPort,
 } from '../../composition/portal-genui/widget-data-resolver.js';
+import {
+  subscribeCockpitEvents,
+  type CockpitEvent,
+} from '../../services/cockpit-events/index.js';
 import { logger } from '../../utils/logger.js';
+
+/**
+ * The four chat-driven tab-CRUD events broadcast on the cockpit bus. The
+ * `/tabs/subscribe` channel re-emits ONLY these (it is a narrow, decoupled
+ * channel — not the full 30-kind cockpit multiplex) so a cockpit tab strip
+ * stays in lockstep across every device the owner is signed in on, in
+ * <2s, INDEPENDENTLY of the chat stream.
+ */
+const TAB_EVENT_KINDS = new Set<CockpitEvent['kind']>([
+  'cockpit.tab.spawned',
+  'cockpit.tab.updated',
+  'cockpit.tab.removed',
+  'cockpit.tab.proposed',
+]);
+
+/** SSE keep-alive cadence — mirrors `/api/v1/cockpit/stream`. */
+const TAB_SUBSCRIBE_HEARTBEAT_MS = 25_000;
+
+/**
+ * The owning-user id every tab event carries. The cockpit bus is
+ * tenant-scoped; this channel adds USER-scoping on top so one owner never
+ * receives another user's (same-tenant) tab pulses.
+ */
+function eventUserId(event: CockpitEvent): string | null {
+  return 'userId' in event
+    ? (event as { userId?: unknown }).userId as string | null
+    : null;
+}
+
+/**
+ * The originating device id, when the event carries one. Proposals are
+ * always server-originated and carry none.
+ */
+function eventOriginDeviceId(event: CockpitEvent): string | null {
+  return 'originDeviceId' in event
+    ? ((event as { originDeviceId?: unknown }).originDeviceId as string | null) ??
+        null
+    : null;
+}
 
 /** Accepted MIME types for tab file/image/audio uploads. */
 const ALLOWED_UPLOAD_TYPES = new Set([
@@ -286,6 +330,19 @@ const WidgetDataBindingSchema = z.discriminatedUnion('kind', [
 const WidgetDataBodySchema = z
   .object({
     binding: WidgetDataBindingSchema,
+  })
+  .strict();
+
+/**
+ * `/tabs/subscribe` query. `deviceId` lets the server echo-filter the
+ * caller's OWN broadcasts (a device that spawns a tab already applied it
+ * optimistically; it must not receive its own pulse back). An
+ * `EventSource` cannot set custom headers, so the id rides the query
+ * string — never an auth-bearing value, only an opaque per-tab session id.
+ */
+const TabSubscribeQuerySchema = z
+  .object({
+    deviceId: z.string().min(1).max(120).optional(),
   })
   .strict();
 
@@ -582,6 +639,140 @@ router.get('/tabs', async (c: AnyCtx) => {
     ...(parsed.data.domain !== undefined ? { domain: parsed.data.domain } : {}),
   });
   return c.json({ success: true, data: { tabs } });
+});
+
+// ─── GET /v1/portal-genui/tabs/subscribe ───────────────────────────
+// DECOUPLED chat→tab live-linkage channel.
+//
+// A dedicated SSE channel that re-emits the four chat-driven tab-CRUD
+// events (`cockpit.tab.{spawned,updated,removed,proposed}`) the cockpit
+// bus broadcasts whenever the brain or owner mutates the tab strip. It is
+// INDEPENDENT of the chat stream: a stalled chat turn never stops tab
+// sync, so owner-spawned tabs reach every signed-in device in <2s (the
+// Figma/Linear decoupled-pub/sub bar).
+//
+// REGISTERED BEFORE `/tabs/:id` so Hono matches the literal `subscribe`
+// segment ahead of the `:id` param (otherwise the engine-gated `/tabs/:id`
+// handler would shadow it and answer 503 in engine-less environments).
+//
+// Why a separate channel from `/api/v1/cockpit/stream`:
+//   - It is NARROW — only the 4 tab kinds, so the cockpit tab shell
+//     subscribes to exactly what it needs (no 30-kind multiplex).
+//   - It is USER-scoped on top of the bus's tenant-scope: every frame is
+//     filtered to `auth.userId`, so one owner never sees another (same-
+//     tenant) user's tab pulses.
+//   - It echo-filters the caller's OWN device server-side (`?deviceId=`)
+//     so the spawning device — which already applied the change
+//     optimistically — never double-applies its own broadcast.
+//
+// Transport: the SAME in-process cockpit event bus
+// (`subscribeCockpitEvents`) the rest of the stack uses — NOT a parallel
+// transport. Cross-replica fan-out (Redis, when wired) rides along for
+// free because the bus is replica-aware.
+//
+// Wire shape: each tab event is translated into the SAME SSE event name +
+// `{ payload }` envelope the owner-web `handleTabSseFrame` parser already
+// understands (`tab_spawn` / `tab_update` / `tab_remove` /
+// `tab_proposal`), so the client reuses one dispatcher for both the
+// in-band fast path and this cross-device path.
+router.get('/tabs/subscribe', async (c: AnyCtx) => {
+  const auth = c.get('auth');
+  const tenantId = auth?.tenantId as string | undefined;
+  const userId = auth?.userId as string | undefined;
+  if (!tenantId || !userId) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'MISSING_TENANT_OR_USER',
+          message: 'auth context missing tenantId/userId',
+        },
+      },
+      401,
+    );
+  }
+
+  const parsedQuery = TabSubscribeQuerySchema.safeParse(c.req.query());
+  if (!parsedQuery.success) {
+    return c.json(
+      {
+        success: false,
+        error: { code: 'BAD_REQUEST', message: parsedQuery.error.message },
+      },
+      400,
+    );
+  }
+  const callerDeviceId = parsedQuery.data.deviceId ?? null;
+
+  return streamSSE(c, async (stream) => {
+    // Opening packet so the client can render a live indicator immediately.
+    await stream.writeSSE({
+      event: 'connected',
+      data: JSON.stringify({ userId, openedAt: new Date().toISOString() }),
+    });
+
+    // Bounded fan-out queue — a single slow client never blocks the bus
+    // emit loop (the bus is fire-and-forget; we own our own backpressure).
+    const queue: Array<{ readonly event: string; readonly data: string }> = [];
+    let flushScheduled = false;
+    const scheduleFlush = (): void => {
+      if (flushScheduled) return;
+      flushScheduled = true;
+      queueMicrotask(async () => {
+        flushScheduled = false;
+        while (queue.length > 0) {
+          const next = queue.shift();
+          if (!next) break;
+          try {
+            await stream.writeSSE({ event: next.event, data: next.data });
+          } catch {
+            // Client gone — drop the rest; the abort signal unsubscribes us.
+            queue.length = 0;
+            return;
+          }
+        }
+      });
+    };
+
+    const unsubscribe = subscribeCockpitEvents(tenantId, (event) => {
+      if (!TAB_EVENT_KINDS.has(event.kind)) return;
+      // USER-scope: only this owner's tab events cross the channel.
+      if (eventUserId(event) !== userId) return;
+      // Echo-filter: never replay the caller's own device's broadcast.
+      const origin = eventOriginDeviceId(event);
+      if (callerDeviceId !== null && origin !== null && origin === callerDeviceId) {
+        return;
+      }
+      const frame = toTabSseFrame(event);
+      if (!frame) return;
+      queue.push(frame);
+      scheduleFlush();
+    });
+
+    const heartbeat = setInterval(() => {
+      stream
+        .writeSSE({
+          event: 'heartbeat',
+          data: JSON.stringify({ at: new Date().toISOString() }),
+        })
+        .catch(() => {
+          // Client disconnected; the abort signal tears us down below.
+        });
+    }, TAB_SUBSCRIBE_HEARTBEAT_MS);
+
+    const cleanup = (): void => {
+      clearInterval(heartbeat);
+      unsubscribe();
+    };
+
+    // Hold the connection open until the client aborts.
+    await new Promise<void>((resolve) => {
+      stream.onAbort(() => {
+        cleanup();
+        resolve();
+      });
+    });
+  });
 });
 
 // ─── GET /v1/portal-genui/tabs/:id ─────────────────────────────
@@ -1161,5 +1352,88 @@ router.delete(
     },
   ),
 );
+
+/**
+ * Translate a `cockpit.tab.*` bus event into the SSE event-name +
+ * `{ payload }` envelope the owner-web `handleTabSseFrame` parser reads.
+ * Returns null for any non-tab event (defensive — the caller already
+ * filtered, but this keeps the mapping total). Pure + immutable.
+ */
+function toTabSseFrame(
+  event: CockpitEvent,
+): { readonly event: string; readonly data: string } | null {
+  const at = event.emittedAt;
+  switch (event.kind) {
+    case 'cockpit.tab.spawned': {
+      const ev = event as Extract<CockpitEvent, { kind: 'cockpit.tab.spawned' }>;
+      return {
+        event: 'tab_spawn',
+        data: JSON.stringify({
+          at,
+          payload: {
+            tagKind: 'tab_spawn',
+            tabId: ev.tabId,
+            tabType: ev.tabType,
+            title: ev.title,
+            config: ev.config,
+            droppedKeys: [],
+            source: ev.source,
+          },
+        }),
+      };
+    }
+    case 'cockpit.tab.updated': {
+      const ev = event as Extract<CockpitEvent, { kind: 'cockpit.tab.updated' }>;
+      return {
+        event: 'tab_update',
+        data: JSON.stringify({
+          at,
+          payload: {
+            tagKind: 'tab_update',
+            tabId: ev.tabId,
+            patch: ev.patch,
+            source: ev.source,
+          },
+        }),
+      };
+    }
+    case 'cockpit.tab.removed': {
+      const ev = event as Extract<CockpitEvent, { kind: 'cockpit.tab.removed' }>;
+      return {
+        event: 'tab_remove',
+        data: JSON.stringify({
+          at,
+          payload: {
+            tagKind: 'tab_remove',
+            tabId: ev.tabId,
+            source: ev.source,
+          },
+        }),
+      };
+    }
+    case 'cockpit.tab.proposed': {
+      const ev = event as Extract<CockpitEvent, { kind: 'cockpit.tab.proposed' }>;
+      return {
+        event: 'tab_proposal',
+        data: JSON.stringify({
+          at,
+          payload: {
+            tagKind: 'tab_proposal',
+            proposalId: ev.proposalId,
+            tabType: ev.tabType,
+            title: ev.title,
+            reasonEn: ev.reasonEn,
+            reasonSw: ev.reasonSw,
+            evidenceIds: ev.evidenceIds,
+            confidence: ev.confidence,
+            config: {},
+          },
+        }),
+      };
+    }
+    default:
+      return null;
+  }
+}
 
 export default router;

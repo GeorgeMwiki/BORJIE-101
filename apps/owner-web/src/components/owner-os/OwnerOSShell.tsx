@@ -85,6 +85,7 @@ import { OwnerOSRemindersPanel } from './OwnerOSRemindersPanel';
 import { OwnerOSDraftsPanel } from './OwnerOSDraftsPanel';
 import { OwnerOSInsightsPanel } from './OwnerOSInsightsPanel';
 import { SpawnTabMenu } from './SpawnTabMenu';
+import { useTabMultiDeviceSync } from './useTabMultiDeviceSync';
 import { PANEL_RENDERERS } from './panels';
 // Registering built-in descriptors with the singleton registry happens
 // as a top-level side-effect of importing this module.
@@ -429,6 +430,35 @@ export function OwnerOSShell({
       t,
     ],
   );
+
+  // ──────────────────────────────────────────────────────────────────
+  // PRIMARY cross-device chat→tab live linkage (decoupled from chat).
+  //
+  // `handleBrainTabFrame` above is the in-band FAST path — it applies tab
+  // frames from THIS device's own chat stream for instant responsiveness.
+  // But that path dies with the chat stream: a stalled generation stops
+  // tab sync, and it never reaches the owner's OTHER signed-in devices.
+  //
+  // This hook is the durable cross-device path. It subscribes to the
+  // dedicated `/api/v1/portal-genui/tabs/subscribe` SSE channel — user-
+  // scoped, echo-filtered, and INDEPENDENT of the chat stream — so every
+  // tab the owner spawns reaches all their devices in <2s even when the
+  // initiating chat turn hangs. Proposals feed the same accept/dismiss
+  // tray the in-band path uses, deduped by proposalId.
+  // ──────────────────────────────────────────────────────────────────
+  const onSyncProposal = useCallback((p: TabProposalPayload) => {
+    setProposals((prev) =>
+      prev.some((x) => x.proposalId === p.proposalId)
+        ? prev
+        : [...prev, p].slice(-4),
+    );
+  }, []);
+
+  useTabMultiDeviceSync({
+    userId,
+    language: languagePreference,
+    onProposal: onSyncProposal,
+  });
 
   // Accept a brain proposal → route through the same registry path as a
   // `<spawn_tabs>` chip so dedup + augment + idempotency apply, then drop
