@@ -353,6 +353,15 @@ const INGRESS_EXCLUSIONS: Readonly<Record<string, string>> = Object.freeze({
   // free text at the route seam before invoking callBrainOnce.
   'owner/brain-call.ts':
     'Shared one-shot brain seam (not a route); the calling routes guard inbound free text at their seam before invoking callBrainOnce.',
+  // The integration-fabric route matches the generic `.invoke(` token via
+  // `fabric.invoke(...)` (connector-fabric dispatch) — but that call reaches
+  // an EXTERNAL SaaS connector invoker, never an LLM / kernel / orchestrator,
+  // and no model-authored content exists in this file. Inbound input is
+  // zod-validated ({ action, input }); the governed LLM path into this route
+  // is the brain tool integration.connector.invoke (HIGH, isWrite,
+  // requiresPolicyRuleLiteral) whose chat seam is already ingress-guarded.
+  'integrations/connectors.hono.ts':
+    'fabric.invoke dispatches to external SaaS connector invokers (no model/kernel call, no model content); ingress-guarding happens at the chat seam that drives the integration.connector.invoke brain tool.',
 });
 
 /**

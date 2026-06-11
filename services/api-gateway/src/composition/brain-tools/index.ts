@@ -48,6 +48,12 @@ import { SUPERPOWERS_TOOLS } from './superpowers-tools';
 // Legacy-portal browser super-power — the MD's "remote Chrome window" for
 // no-API third-party portals (KRA iTax …), AXTree-perceived + governance-gated.
 import { LEGACY_PORTAL_TOOLS } from './legacy-portal-tools';
+// Universal integration fabric — exactly TWO generative tools
+// (integration.connector.list LOW/read + integration.connector.invoke
+// HIGH/write/policy-literal) dispatching over the 21-connector catalog
+// via /integrations/connectors. A 22nd connector needs ZERO tool changes
+// (generative seam: composition/connector-catalog.ts).
+import { INTEGRATION_TOOLS } from './integration-tools';
 import { DECISION_JOURNAL_TOOLS } from './decision-journal-tools';
 // MD DEFERRAL / FOLLOW-THROUGH — Mr. Mwikila's "defer with intent + hold a
 // durable backlog + confirm it actually happened" surface (md.defer /
@@ -249,6 +255,7 @@ export function buildPersonaToolHandlers(
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
       LEGACY_PORTAL_TOOLS,
+      INTEGRATION_TOOLS,
       DECISION_JOURNAL_TOOLS,
       MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,
@@ -322,6 +329,7 @@ export function listPersonaToolDescriptors(
       OWNER_SAVED_SEARCH_TOOLS,
       SUPERPOWERS_TOOLS,
       LEGACY_PORTAL_TOOLS,
+      INTEGRATION_TOOLS,
       DECISION_JOURNAL_TOOLS,
       MD_DEFER_TOOLS,
       ENTITY_LEGIBILITY_TOOLS,

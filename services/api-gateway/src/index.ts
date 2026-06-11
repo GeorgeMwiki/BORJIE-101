@@ -520,6 +520,12 @@ import cotQueryRouter from './routes/cot-query.router';
 // market (enabled_countries, migration 0337). Seeded TZ-only; new markets are a
 // governed row, not a deploy. Backs mwikila.jurisdiction.promote.
 import { createJurisdictionPromotionRouter } from './routes/admin/jurisdiction-promotion.hono';
+// Universal integration fabric — the ONE governed route over the 21 dormant
+// connector packages (Slack / email / calendar / CRM / devtools / social …).
+// Generic dispatch over composition/connector-catalog.ts; backs the
+// integration.connector.{list,invoke} brain tools. Honest-degrades when a
+// connector is not connected or its runtime invoker is not provisioned.
+import { createConnectorsRouter } from './routes/integrations/connectors.hono';
 // Wave 29 — Forecasting (TGN + conformal) surface. Returns 503
 // FORECAST_SERVICE_UNAVAILABLE when the TGN inference + repo env
 // vars are unset (no mock forecasts, ever).
@@ -2849,6 +2855,9 @@ api.route('/graph', graphRouter);
 api.route('/admin/cot-query', cotQueryRouter());
 // Generative jurisdiction unlock — the governed launch-market registry.
 api.route('/admin/jurisdictions', createJurisdictionPromotionRouter());
+// Universal integration fabric — un-darks the 21 connector packages behind
+// one generic, governed, honest-degrading dispatch surface.
+api.route('/integrations/connectors', createConnectorsRouter());
 // Wave 29 — Forecasting surface (TGN + conformal). Returns 503
 // FORECAST_SERVICE_UNAVAILABLE until the inference + repo adapters are
 // wired (no mock forecasts, ever).
