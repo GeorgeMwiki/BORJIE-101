@@ -852,6 +852,7 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'decision-retrospective',
   'estate-mind',
   'control-shell',
+  'loop-economy',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -889,6 +890,12 @@ import {
   createAnthropicAopExecutor,
   createAopMetaLoopCron,
 } from './composition/aop-wiring';
+// LOOP-ECONOMY — the cognitive-loop substrate (declarative LoopSpec
+// registry + pure scheduler + the forecast-surprise builtin). Composes
+// the dark loop-economy factories over the REAL estate organs
+// (situational-model snapshot reader + gated proactive proposal sink)
+// and drives FOLD → SCHEDULE → MEMBRANE → LEARN on the cron seam.
+import { createLoopEconomyCronFromDb } from './composition/loop-economy-wiring';
 import {
   setBrainExtraSkills,
   appendBrainExtraSkills,
@@ -3287,6 +3294,24 @@ const aopMetaLoopCron = createAopMetaLoopCron({
   logger: createPinoLikeLogger('aop-meta-loop'),
 });
 
+// LOOP-ECONOMY — the brain's standing cognitive loops. Registers the
+// builtin forecast-surprise loop (active inference: compare world-model
+// forecasts against actuals, surface the sharpest violations as learning
+// signals), folds the durable per-tenant situational snapshot each tick,
+// runs the substrate's PURE scheduler, and routes every decided action
+// through the GOVERNED proactive proposal sink (idempotent drive-keyed
+// proactive_nudge — never a direct write). READ+LEARN only; loop efficacy
+// is scored back onto the registry (reflexion EMA). No formed-loop
+// persistence store exists yet — builtins only, logged honestly.
+// Kill-switch: BORJIE_LOOP_ECONOMY=off. Degraded mode (no db): the loop
+// registers DORMANT and every tick is a free no-op.
+const loopEconomyCron = createLoopEconomyCronFromDb({
+  db: (serviceRegistry.db as unknown as
+    | (typeof serviceRegistry.db & { execute(q: unknown): Promise<unknown> })
+    | null) ?? null,
+  logger: createPinoLikeLogger('loop-economy'),
+});
+
 // Geo SOTA 2026-05-29 — geofencing service backed by PostGIS (migration
 // 0130). Wraps point-in-polygon / distance / regulatory-zone queries
 // behind one typed surface. The watcher worker (next) reads recent
@@ -4038,6 +4063,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: aop-meta-loop cron stop failed');
   }
   try {
+    loopEconomyCron.stop();
+    logger.info('shutdown: loop-economy cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: loop-economy cron stop failed');
+  }
+  try {
     geofenceWatcher.stop();
     logger.info('shutdown: geofence watcher stopped');
   } catch (err) {
@@ -4351,6 +4382,13 @@ if (require.main === module) {
   // fault never escapes); inert under NODE_ENV=test and when
   // BORJIE_AOP_META_LOOP=off.
   withClusterLeader(aopMetaLoopCron, lockIdFor('aop-meta-loop')).start();
+  // LOOP-ECONOMY — until this start() the cognitive-loop substrate
+  // (createLoopRegistry / scheduleLoops / createForecastSurpriseLoop) had
+  // ZERO production callers: the brain's standing loops never ran.
+  // Leader-gated; every tick is fail-safe; loops are READ+LEARN only —
+  // decided actions route through the governed proactive proposal sink.
+  // Inert under NODE_ENV=test and when BORJIE_LOOP_ECONOMY=off.
+  withClusterLeader(loopEconomyCron, lockIdFor('loop-economy')).start();
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
   withClusterLeader(geofenceWatcher, lockIdFor('geofence-watcher')).start();
