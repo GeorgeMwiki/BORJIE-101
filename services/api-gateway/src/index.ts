@@ -882,6 +882,13 @@ import {
 // nightly amplification job; the worker drives the cron tick.
 import { createLearningAmplificationWiring } from './composition/learning-amplification-wiring';
 import { createLearningAmplificationCron } from './workers/learning-amplification-cron';
+// R8 — AOP meta-learning loop (Decagon pattern). Composes the dark
+// registry/runner/regression/canary factories over the persisted AOP
+// store and drives OBSERVE→PROPOSE→REGRESSION→CANARY on the cron seam.
+import {
+  createAnthropicAopExecutor,
+  createAopMetaLoopCron,
+} from './composition/aop-wiring';
 import {
   setBrainExtraSkills,
   appendBrainExtraSkills,
@@ -3262,6 +3269,24 @@ const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger);
 createLearningAmplificationWiring({ logger });
 const learningAmplificationCron = createLearningAmplificationCron({ logger });
 
+// R8 — AOP meta-learning loop. Observes candidate AOP versions persisted
+// in the registry store (aop_specs / aop_regression_sets /
+// aop_active_versions), regression-replays each candidate against its
+// historical-transcript set through the budget-guarded Anthropic client,
+// and walks winners up the canary ladder (shadow → 1% → 5% → 25% → live)
+// ONE rung per tick — activation flips ONLY through the factories' own
+// regression+canary gate. Honest-degrade: no Anthropic key ⇒ candidates
+// HELD at their stage (no fake passes); no DB ⇒ the null store yields
+// zero candidates. Kill-switch: BORJIE_AOP_META_LOOP=off.
+const aopMetaLoopCron = createAopMetaLoopCron({
+  store: serviceRegistry.persistentStores.aopRegistryStore,
+  executor: createAnthropicAopExecutor({
+    buildBudgetGuardedAnthropicClient:
+      serviceRegistry.buildBudgetGuardedAnthropicClient,
+  }),
+  logger: createPinoLikeLogger('aop-meta-loop'),
+});
+
 // Geo SOTA 2026-05-29 — geofencing service backed by PostGIS (migration
 // 0130). Wraps point-in-polygon / distance / regulatory-zone queries
 // behind one typed surface. The watcher worker (next) reads recent
@@ -4007,6 +4032,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: learning-amplification cron stop failed');
   }
   try {
+    aopMetaLoopCron.stop();
+    logger.info('shutdown: aop-meta-loop cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: aop-meta-loop cron stop failed');
+  }
+  try {
     geofenceWatcher.stop();
     logger.info('shutdown: geofence watcher stopped');
   } catch (err) {
@@ -4314,6 +4345,12 @@ if (require.main === module) {
   // learning_observations. Interval overridable via
   // BORJIE_LEARNING_AMPLIFY_INTERVAL_MS (min 60s).
   withClusterLeader(learningAmplificationCron, lockIdFor('learning-amplification')).start();
+  // R8 — AOP meta-learning loop. Until this start() the meta-learning
+  // organ was dark: the registry/runner/regression/canary factories had
+  // ZERO production callers. Leader-gated; every tick is fail-safe (a
+  // fault never escapes); inert under NODE_ENV=test and when
+  // BORJIE_AOP_META_LOOP=off.
+  withClusterLeader(aopMetaLoopCron, lockIdFor('aop-meta-loop')).start();
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
   withClusterLeader(geofenceWatcher, lockIdFor('geofence-watcher')).start();
