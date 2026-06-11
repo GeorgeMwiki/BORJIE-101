@@ -1,6 +1,13 @@
 import { apiFetch } from './client'
 import { MINING_PREFIX } from './config'
-import type { Bid, BidMessage, BidStatus, Listing, Mineral } from '@/types/listing'
+import type {
+  Bid,
+  BidMessage,
+  BidStatus,
+  Listing,
+  MarketplaceSeller,
+  Mineral
+} from '@/types/listing'
 
 export type SortKey = 'newest' | 'price_asc' | 'price_desc' | 'grade'
 
@@ -11,6 +18,12 @@ export interface ListingFilters {
   readonly maxGradeNumeric?: number
   readonly sort?: SortKey
   readonly search?: string
+  /**
+   * Owner-scoped browse — restrict to one mine's buyer-visible active
+   * listings ("buy from this mine"). The gateway never exposes a
+   * private listing through this filter.
+   */
+  readonly sellerTenantId?: string
 }
 
 interface ListingsResponse {
@@ -21,6 +34,10 @@ interface ListingResponse {
   readonly data: Listing
 }
 
+interface SellersResponse {
+  readonly data: readonly MarketplaceSeller[]
+}
+
 export async function fetchListings(filters: ListingFilters = {}): Promise<readonly Listing[]> {
   const response = await apiFetch<ListingsResponse>(`${MINING_PREFIX}/marketplace/listings`, {
     query: {
@@ -29,9 +46,22 @@ export async function fetchListings(filters: ListingFilters = {}): Promise<reado
       minGrade: filters.minGradeNumeric,
       maxGrade: filters.maxGradeNumeric,
       sort: filters.sort,
-      search: filters.search
+      search: filters.search,
+      sellerTenantId: filters.sellerTenantId
     }
   })
+  return response.data
+}
+
+/**
+ * The distinct seller orgs (mines) that currently have buyer-visible
+ * active listings — backs the "browse by mine" entry. Private listings
+ * are never counted (gateway guard).
+ */
+export async function fetchSellers(): Promise<readonly MarketplaceSeller[]> {
+  const response = await apiFetch<SellersResponse>(
+    `${MINING_PREFIX}/marketplace/listings/sellers`
+  )
   return response.data
 }
 

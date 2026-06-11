@@ -3,6 +3,8 @@ import type { ListingFilters } from './marketplace'
 export const queryKeys = {
   listings: (filters: ListingFilters) => ['listings', filters] as const,
   listing: (id: string) => ['listing', id] as const,
+  // Browse-by-mine — distinct seller orgs with buyer-visible listings.
+  marketplaceSellers: () => ['marketplace-sellers'] as const,
   bids: () => ['bids'] as const,
   bid: (id: string) => ['bid', id] as const,
   documents: () => ['documents'] as const,
