@@ -47,6 +47,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Eval suites import workspace packages (e.g. @borjie/audit-hash-chain)
+      # whose package.json entries point at dist/ — a fresh runner has no
+      # dists, so vitest fails with packageEntryFailure. Build the dependency
+      # closure first (turbo: build dependsOn ^build).
+      - name: Build workspace dependencies
+        run: pnpm turbo run build --filter=@borjie/central-intelligence^...
+
       - name: Run trajectory scenarios
         run: |
           pnpm -C packages/central-intelligence test \
