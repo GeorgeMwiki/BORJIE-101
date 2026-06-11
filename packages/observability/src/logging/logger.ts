@@ -72,6 +72,27 @@ const DEFAULT_REDACT_FIELDS = [
   'bankAccount',
   'iban',
   'nationalId',
+  // Borjie PII log-shape fields (hardening 2026-06-11): the identifiers the
+  // gateway routes actually carry in log meta. Phone is the PRIMARY identity
+  // key in this product (phone-OTP auth, invites, identity resolution) and
+  // must never land in log sinks; activation/invite codes are credentials.
+  'phone',
+  'phoneE164',
+  'phone_e164',
+  'phoneNormalized',
+  'phone_normalized',
+  'email',
+  'nidaId',
+  'nida_id',
+  'biometricTemplateHash',
+  'biometric_template_hash',
+  'activationCode',
+  'activation_code',
+  'inviteCode',
+  'invite_code',
+  'accessToken',
+  'access_token',
+  'refresh_token',
 ];
 
 /**

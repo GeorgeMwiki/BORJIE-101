@@ -260,6 +260,81 @@ const ENTRIES: ReadonlyArray<FieldClassification> = Object.freeze([
     maskType: 'none',
     retention: '7y',
   },
+  {
+    table: 'users',
+    column: 'nida_id',
+    level: 'RESTRICTED',
+    // NOT yet enforced: the onboarding natural-key dedupe does a RAW
+    // equality lookup on nida_id (composition/onboarding/drizzle-row-writer
+    // natural_key) — encrypting UserRepository writes while raw writes stay
+    // plaintext would split the column state and break dedupe. Enforcement
+    // requires a nida_lookup_hash column first (the same pending-lookup-hash
+    // pattern documented for users.email in tenant.repository.ts).
+    encryptAtRest: false,
+    maskType: 'none',
+    retention: '7y',
+    note: 'TZ NIDA government identifier — never log, redact in DSAR per TZ DPA 2022; encryptAtRest pending nida_lookup_hash',
+  },
+  {
+    table: 'users',
+    column: 'biometric_template_hash',
+    level: 'RESTRICTED',
+    // Safe to enforce: the column is write-only today (no raw equality
+    // lookup anywhere in the gateway); reads flow through UserRepository's
+    // decrypt path.
+    encryptAtRest: true,
+    maskType: 'none',
+    retention: '7y',
+    note: 'Irreversible fingerprint template hash — biometric (special category); never log, never expose in any API or DSAR export',
+  },
+
+  // ── persons (cross-tenant human registry — Unified Personal KB) ──────
+  {
+    table: 'persons',
+    column: 'primary_phone_e164',
+    level: 'CONFIDENTIAL',
+    // NOT enforceable with non-deterministic encryption: this IS the
+    // deterministic identity-resolution JOIN key (0346 backfill + identity
+    // provisioning match on it). At-rest protection = FORCE RLS +
+    // service-role-only access; field encryption requires a deterministic
+    // lookup-hash design first.
+    encryptAtRest: false,
+    maskType: 'phone',
+    retention: '7y',
+    note: 'Identity-resolution join key — global (cross-tenant) PII; protected by RLS, encryptAtRest pending lookup-hash design',
+  },
+  {
+    table: 'persons',
+    column: 'primary_email',
+    level: 'CONFIDENTIAL',
+    encryptAtRest: false,
+    maskType: 'email',
+    retention: '7y',
+    note: 'Secondary identity key; same lookup-hash precondition as primary_phone_e164',
+  },
+
+  // ── tenant_identities (global cross-org principal registry, 0305/0347) ─
+  {
+    table: 'tenant_identities',
+    column: 'phone_normalized',
+    level: 'CONFIDENTIAL',
+    // Join key for identity provisioning (identity.repository.ts matches on
+    // it; UNIQUE index keys on it) — same lookup-hash precondition. At-rest
+    // protection = FORCE RLS service-role-only (migration 0347).
+    encryptAtRest: false,
+    maskType: 'phone',
+    retention: '7y',
+    note: 'Phone-keyed identity principal — global PII; FORCE RLS service-role-only since 0347; encryptAtRest pending lookup-hash',
+  },
+  {
+    table: 'tenant_identities',
+    column: 'email',
+    level: 'CONFIDENTIAL',
+    encryptAtRest: false,
+    maskType: 'email',
+    retention: '7y',
+    note: 'Email-keyed identity fallback (partial unique index) — same lookup-hash precondition',
+  },
 
   // ── leases ───────────────────────────────────────────────────────────
   {
