@@ -64,10 +64,14 @@ import {
   DEFAULT_INTERVAL_MS,
   DEFAULT_MAX_COMMITMENTS_PER_TENANT,
   DEFAULT_MAX_TENANTS_PER_TICK,
+  RESUME_REASON_NOT_AWAITING_APPROVAL,
+  RESUME_REASON_RUN_NOT_FOUND,
+  SKIP_REASON_AWAITING_APPROVAL,
   ZERO_TICK,
   clampInterval,
   createOrgLoopLoopSpec,
   errMsg,
+  isAwaitingApproval,
   killSwitchOff,
   needsDelegation,
   previewRequiresApproval,
@@ -80,6 +84,7 @@ import {
   type CreateOrgLoopOrchestratorDeps,
   type MdCommitment,
   type OrgLoopCockpitEvent,
+  type OrgLoopDismissOutcome,
   type OrgLoopOrchestrator,
   type OrgLoopRun,
   type OrgLoopThreadOutcome,
@@ -297,6 +302,9 @@ export function createOrgLoopOrchestrator(
           chosenEmployeeId: top.employeeId,
           trace,
           commitmentId: commitment.id,
+          // The sovereign flag rides the trace so the dispatcher derives an
+          // honest risk hint (never a hard-coded 'LOW').
+          sovereign: commitment.sovereign,
         }),
       );
     } catch (err) {
@@ -350,6 +358,121 @@ export function createOrgLoopOrchestrator(
     }
   }
 
+  // ── The HITL approval CONSUMER — the owner's decision lands here. ──
+
+  /**
+   * Read the run by id IF it is parked at the HITL gate. A parked run is
+   * status 'open' (so `listOpen` covers it). Returns the run, or the
+   * machine-readable skip reason. Never throws.
+   */
+  async function readParkedRun(
+    tenantId: string,
+    runId: string,
+  ): Promise<{ run: OrgLoopRun | null; skipReason: string | null }> {
+    try {
+      const open = await deps.runRepo.listOpen(tenantId);
+      const run = open.find((r) => r.id === runId) ?? null;
+      if (!run) return { run: null, skipReason: RESUME_REASON_RUN_NOT_FOUND };
+      if (!isAwaitingApproval(run)) {
+        return { run: null, skipReason: RESUME_REASON_NOT_AWAITING_APPROVAL };
+      }
+      return { run, skipReason: null };
+    } catch (err) {
+      logger.warn(
+        { tenantId, runId, err: errMsg(err) },
+        'org-loop: parked-run read failed (store fault — approval skipped honestly)',
+      );
+      return { run: null, skipReason: RESUME_REASON_RUN_NOT_FOUND };
+    }
+  }
+
+  /**
+   * APPROVE: execute the dispatch leg of a run parked at the HITL gate, for
+   * the ALREADY-CHOSEN employee. The full StrategyTrace is re-derived from
+   * the originating commitment by the SAME strategist (the persisted
+   * strategy_json is a projection without the dispatchable description).
+   */
+  async function resumeApprovedRun(
+    tenantId: string,
+    runId: string,
+  ): Promise<OrgLoopThreadOutcome> {
+    const parked = await readParkedRun(tenantId, runId);
+    const run = parked.run;
+    if (!run || !run.chosenEmployeeId) {
+      return Object.freeze({
+        kind: 'skipped',
+        reason: parked.skipReason ?? RESUME_REASON_NOT_AWAITING_APPROVAL,
+      });
+    }
+    let commitmentRow: MdCommitment | null;
+    try {
+      commitmentRow = await deps.commitmentRepo.get(tenantId, run.commitmentId);
+    } catch (err) {
+      return failRun(tenantId, run.id, `approval commitment read: ${errMsg(err)}`);
+    }
+    if (!commitmentRow) {
+      return failRun(tenantId, run.id, 'approval: originating commitment missing');
+    }
+    let trace: StrategyTrace;
+    try {
+      trace = await deps.strategist.strategize(tenantId, commitmentRow);
+    } catch (err) {
+      return failRun(tenantId, run.id, `approval strategize: ${errMsg(err)}`);
+    }
+    const approved: ScoredCandidate = Object.freeze({
+      employeeId: run.chosenEmployeeId,
+      score: run.matchConfidence ?? 0,
+      confidence: run.matchConfidence ?? 0,
+      reasons: [],
+    });
+    logger.info(
+      { tenantId, runId: run.id, commitmentId: run.commitmentId, chosenEmployeeId: approved.employeeId },
+      'org-loop: owner APPROVED a parked HIGH/sovereign assignment — executing the dispatch leg',
+    );
+    return dispatchAndBrief(
+      tenantId,
+      run,
+      trace,
+      approved,
+      trace.taskShape.competenceDomain,
+      commitmentRow,
+    );
+  }
+
+  /**
+   * DISMISS: close a parked run (status 'closed', stage 'reloop') with the
+   * owner's dismissal note folded into strategy_json (append-style patch —
+   * no schema change; `advance` is the only writer). Never throws.
+   */
+  async function dismissParkedRun(
+    tenantId: string,
+    runId: string,
+    note: string,
+  ): Promise<OrgLoopDismissOutcome> {
+    const parked = await readParkedRun(tenantId, runId);
+    const run = parked.run;
+    if (!run) {
+      return Object.freeze({
+        kind: 'skipped',
+        reason: parked.skipReason ?? RESUME_REASON_NOT_AWAITING_APPROVAL,
+      });
+    }
+    await advanceRun(tenantId, run.id, {
+      stage: 'reloop',
+      status: 'closed',
+      strategyJson: {
+        ...(run.strategyJson ?? {}),
+        dismissal: { note, dismissedAtMs: clock().getTime() },
+      },
+    });
+    advanceEvent(tenantId, run.id, run.commitmentId, 'dismissed', { note });
+    logger.info(
+      { tenantId, runId: run.id, commitmentId: run.commitmentId },
+      'org-loop: owner DISMISSED a parked assignment proposal (run closed at reloop — no dispatch)',
+    );
+    return Object.freeze({ kind: 'dismissed', runId: run.id });
+  }
+
   // ── The single thread — STRATEGIZE → PICK → (HITL) → DISPATCH → BRIEF ──
   async function threadCommitment(
     tenantId: string,
@@ -361,6 +484,23 @@ export function createOrgLoopOrchestrator(
       return Object.freeze({
         kind: 'skipped',
         reason: 'already dispatched (live run carries a taskId)',
+      });
+    }
+    if (existing && isAwaitingApproval(existing)) {
+      // NAG-STORM KILL: the run is parked at the HITL gate and the owner
+      // already has the brief. NEVER re-thread or re-propose — only the
+      // approval consumer (resumeApprovedRun / dismissParkedRun) moves it.
+      return Object.freeze({
+        kind: 'skipped',
+        reason: SKIP_REASON_AWAITING_APPROVAL,
+      });
+    }
+    if (existing && existing.status === 'closed') {
+      // Terminal without a task: the owner DISMISSED the proposal (or the
+      // loop closed). The owner's "no" is final — never resurrect it.
+      return Object.freeze({
+        kind: 'skipped',
+        reason: 'run closed (owner dismissed or loop completed)',
       });
     }
 
@@ -513,6 +653,8 @@ export function createOrgLoopOrchestrator(
     intervalMs,
     enabled,
     onCommitmentDue: threadCommitment,
+    resumeApprovedRun,
+    dismissParkedRun,
     tickOnce,
     start(): void {
       if (!enabled) {

@@ -236,6 +236,13 @@ import {
 import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
 import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
 import { tapCockpitEvents } from './services/cockpit-events';
+// HITL approval consumer — the owner's approve/dismiss verbs over parked
+// HIGH/sovereign org-loop runs (late-bound to the orchestrator; 503 until
+// the spine composes).
+import {
+  orgLoopApprovalsRouter,
+  registerOrgLoopApprovalActions,
+} from './routes/owner/org-loop-approvals.hono';
 // Wave-C C3 WIN-3/4 — the THREE graded-corrective + closed-loop organs that make
 // the homeostatic controller ACT: the drive-context resolver (commitment → REAL
 // drive severity from the live snapshot), the driveId → drafter registry (the
@@ -2007,9 +2014,13 @@ try {
           tapCockpitEvents((event) => {
             void taskCommitmentBinder.onMwikilaActed(event);
           });
+          // Late-bind the HITL approval consumer: the owner's approve verb
+          // resumes a parked HIGH/sovereign run through the dispatch leg;
+          // dismiss closes it. Until this registration the route 503s.
+          registerOrgLoopApprovalActions(orgLoopOrchestrator);
           orgLoopLogger.info(
             { wiring: 'org-loop', killSwitchEnv: 'BORJIE_ORG_LOOP' },
-            'org-loop: spine composed (strategize+match+dispatch+brief+binder) — assignTask write-path LIVE, propose-only/HITL',
+            'org-loop: spine composed (strategize+match+dispatch+brief+binder+approval-consumer) — assignTask write-path LIVE, propose-only/HITL',
           );
         }
         mdLogger.info(
@@ -2471,6 +2482,9 @@ api.route('/owner/mwikila-inbox', mwikilaInboxRouter);
 // the per-tenant governance set-points the someday-review cadence reads fresh.
 api.route('/owner/living-plan', livingPlanRouter);
 api.route('/owner/commitment-governance', commitmentGovernanceRouter);
+// HITL approval consumer for parked HIGH/sovereign org-loop runs — approve
+// advances the parked run through the dispatch leg; dismiss closes it.
+api.route('/owner/org-loop-approvals', orgLoopApprovalsRouter);
 api.route('/owner/delegation', delegationRouter);
 // Roadmap R7 — owner-mobile cockpit hub aggregator.
 api.route('/owner/cockpit', cockpitHubRouter);

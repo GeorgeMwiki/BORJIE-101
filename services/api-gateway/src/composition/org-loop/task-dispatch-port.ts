@@ -36,6 +36,7 @@ import { z } from 'zod';
 import {
   assignTask,
   type AssignTaskInput,
+  type RiskLexicon,
   type RiskTier,
   type WorkforceDeps,
 } from '@borjie/workforce-orchestrator';
@@ -83,6 +84,10 @@ export const StrategyTraceSchema = z.object({
   dueAt: z.string().nullable().optional(),
   /** Optional caller risk hint — the kernel may only escalate it upward. */
   riskHint: z.enum(['LOW', 'MEDIUM', 'HIGH', 'SOVEREIGN']).optional(),
+  /** The strategist's urgency band — 'critical' derives a HIGH risk hint. */
+  urgency: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+  /** The originating commitment's sovereign flag — derives a SOVEREIGN hint. */
+  sovereign: z.boolean().optional(),
   /** Optional originating commitment id (for loop close-back correlation). */
   commitmentId: z.string().optional(),
 });
@@ -111,16 +116,33 @@ export interface TaskDispatchPort {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Pure mapper — StrategyTrace → AssignTaskInput.
+// Pure mappers — risk hint derivation + StrategyTrace → AssignTaskInput.
 // ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Derive the risk HINT the kernel receives (the kernel may still escalate
+ * it upward, never downward). NEVER a hard-coded 'LOW': an explicit caller
+ * hint wins, a sovereign commitment hints SOVEREIGN, a critical urgency
+ * hints HIGH, everything else starts LOW.
+ */
+export function deriveRiskHint(
+  trace: Pick<StrategyTrace, 'riskHint' | 'urgency' | 'sovereign'>,
+): NonNullable<StrategyTrace['riskHint']> {
+  if (trace.riskHint) return trace.riskHint;
+  if (trace.sovereign) return 'SOVEREIGN';
+  return trace.urgency === 'critical' ? 'HIGH' : 'LOW';
+}
 
 /**
  * Map the validated trace to the orchestrator's `AssignTaskInput`. PURE.
  * Evidence ids ride `assetRefs` (the orchestrator's evidence/asset pointer
- * channel) so the assignment carries its evidence chain end-to-end.
+ * channel) so the assignment carries its evidence chain end-to-end. The
+ * optional `riskLexicon` is domain-pack DATA threaded into the kernel's
+ * risk derivation (defaults to the bilingual mining set downstream).
  */
 export function strategyTraceToAssignInput(
   trace: StrategyTrace,
+  riskLexicon?: RiskLexicon,
 ): AssignTaskInput {
   // `dueAt` is only spread in when it is a non-empty string — the orchestrator's
   // emitted AssignTaskInput types it as optional `string` (the nullable collapses
@@ -137,7 +159,17 @@ export function strategyTraceToAssignInput(
     assignedEmployeeId: trace.chosenEmployeeId,
     assignedByUserId: trace.assignedByUserId,
     priority: trace.taskShape.priority,
-    riskHint: trace.riskHint ?? 'LOW',
+    riskHint: deriveRiskHint(trace),
+    // Fresh mutable copies — the emitted AssignTaskInput .d.ts types the
+    // lexicon arrays as mutable (zod inference); never hand over our arrays.
+    ...(riskLexicon
+      ? {
+          riskLexicon: {
+            high: [...riskLexicon.high],
+            sovereign: [...riskLexicon.sovereign],
+          },
+        }
+      : {}),
     // Evidence-required: thread the commitment's evidence chain into the
     // assignment so it is auditable + joins back to the originating gap.
     assetRefs: [...trace.evidenceIds],
@@ -153,6 +185,11 @@ export function strategyTraceToAssignInput(
 
 export interface CreateTaskDispatchPortArgs {
   readonly workforceDeps: WorkforceDeps;
+  /**
+   * Optional domain-pack risk lexicon (bilingual EN/SW). Composition-time
+   * DATA — omit to use the kernel's default mining + treasury set.
+   */
+  readonly riskLexicon?: RiskLexicon;
   readonly logger?: PinoLikeLogger;
 }
 
@@ -184,7 +221,7 @@ export function createTaskDispatchPort(
         );
       }
 
-      const input = strategyTraceToAssignInput(trace);
+      const input = strategyTraceToAssignInput(trace, args.riskLexicon);
       const result = await assignTask(workforceDeps, input);
 
       logger.info(

@@ -184,6 +184,39 @@ export interface OrgLoopTickResult {
   readonly failed: number;
 }
 
+/** How one owner DISMISS of a parked run resolved. */
+export type OrgLoopDismissOutcome =
+  | { readonly kind: 'dismissed'; readonly runId: string }
+  | { readonly kind: 'skipped'; readonly reason: string };
+
+// ─────────────────────────────────────────────────────────────────────
+// HITL approval — machine-readable reason tokens + the parked predicate.
+// Tokens (not prose) so the route can map them to HTTP statuses and the
+// client renders its own single-language copy (no EN leaking into SW).
+// ─────────────────────────────────────────────────────────────────────
+
+/** threadCommitment skip reason: the run is parked awaiting the owner. */
+export const SKIP_REASON_AWAITING_APPROVAL = 'awaiting_approval';
+/** Approval-consumer skip reason: no open run with that id in this tenant. */
+export const RESUME_REASON_RUN_NOT_FOUND = 'run_not_found';
+/** Approval-consumer skip reason: the run is not parked at the HITL gate. */
+export const RESUME_REASON_NOT_AWAITING_APPROVAL = 'not_awaiting_approval';
+
+/**
+ * A run PARKED at the HITL gate: stage 'report', status 'open', a chosen
+ * employee recorded, and NO taskId yet (the owner has not decided). The
+ * sweep SKIPS these (never re-threads / re-proposes — the nag-storm kill)
+ * and only the approval consumer (approve / dismiss) moves them forward.
+ */
+export function isAwaitingApproval(run: OrgLoopRun): boolean {
+  return (
+    run.stage === 'report' &&
+    run.status === 'open' &&
+    run.chosenEmployeeId !== null &&
+    run.taskId === null
+  );
+}
+
 export interface OrgLoopOrchestrator {
   /** The chat/event fast-path: thread ONE commitment through the spine. */
   onCommitmentDue(
@@ -191,6 +224,24 @@ export interface OrgLoopOrchestrator {
     commitment: MdCommitment,
     driveContext?: DriveContext,
   ): Promise<OrgLoopThreadOutcome>;
+  /**
+   * The HITL approval consumer (owner APPROVE): resume a run parked at the
+   * 'report' stage and execute the dispatch leg for the already-chosen
+   * employee. Never throws — faults resolve to a 'failed' outcome.
+   */
+  resumeApprovedRun(
+    tenantId: string,
+    runId: string,
+  ): Promise<OrgLoopThreadOutcome>;
+  /**
+   * The HITL approval consumer (owner DISMISS): close a parked run
+   * (status 'closed', stage 'reloop') with a dismissal note. Never throws.
+   */
+  dismissParkedRun(
+    tenantId: string,
+    runId: string,
+    note: string,
+  ): Promise<OrgLoopDismissOutcome>;
   /** Run one sweep across active tenants immediately (tests + manual). */
   tickOnce(): Promise<OrgLoopTickResult>;
   /** Leader-gated start (ClusterCronSupervisor-compatible). */
@@ -298,12 +349,19 @@ export function toRunView(args: {
   });
 }
 
-/** The dispatch trace the ACT stage feeds the G1 dispatcher. PURE. */
+/**
+ * The dispatch trace the ACT stage feeds the G1 dispatcher. PURE. Threads
+ * the strategist's URGENCY band and the originating commitment's SOVEREIGN
+ * flag so the dispatcher derives an honest risk hint (critical→HIGH,
+ * sovereign→SOVEREIGN) instead of a hard-coded 'LOW'.
+ */
 export function toDispatchTrace(args: {
   readonly tenantId: string;
   readonly chosenEmployeeId: string;
   readonly trace: StrategyTrace;
   readonly commitmentId: string;
+  /** The originating commitment's sovereign flag (drives the risk hint). */
+  readonly sovereign?: boolean;
 }): import('./task-dispatch-port.js').StrategyTrace {
   const { tenantId, chosenEmployeeId, trace, commitmentId } = args;
   return {
@@ -316,6 +374,8 @@ export function toDispatchTrace(args: {
       priority: trace.taskShape.priority,
       competenceDomain: trace.taskShape.competenceDomain,
     },
+    urgency: trace.urgency,
+    ...(args.sovereign !== undefined ? { sovereign: args.sovereign } : {}),
     evidenceIds: [...trace.evidenceIds],
     commitmentId,
   };

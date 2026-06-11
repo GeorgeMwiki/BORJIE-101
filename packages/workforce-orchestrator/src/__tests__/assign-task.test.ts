@@ -45,14 +45,77 @@ describe('deriveRiskTier', () => {
     expect(t).toBe('SOVEREIGN');
   });
 
-  it('escalates to HIGH on eviction keyword', () => {
+  it('escalates to HIGH on a mining/treasury keyword (royalty dispute)', () => {
+    const t = deriveRiskTier({
+      hint: 'LOW',
+      title: 'Notice prep',
+      description: 'resolve the royalty payment dispute with the off-taker',
+      priority: 'medium',
+    });
+    expect(t).toBe('HIGH');
+  });
+
+  it('no longer escalates on the dropped property-era terms (evict/eviction)', () => {
     const t = deriveRiskTier({
       hint: 'LOW',
       title: 'Notice prep',
       description: 'process the eviction paperwork',
       priority: 'medium',
     });
-    expect(t).toBe('HIGH');
+    expect(t).toBe('LOW');
+  });
+
+  it('escalates a SWAHILI payment/licence task to HIGH (bilingual parity)', () => {
+    expect(
+      deriveRiskTier({
+        hint: 'LOW',
+        title: 'Fanya malipo ya mrabaha',
+        description: 'Kamilisha malipo ya leseni kabla ya mwisho wa mwezi',
+        priority: 'medium',
+      }),
+    ).toBe('HIGH');
+    expect(
+      deriveRiskTier({
+        hint: 'LOW',
+        title: 'Tatua mgogoro wa wafanyakazi',
+        description: 'Mgogoro umefika mahakamani',
+        priority: 'medium',
+      }),
+    ).toBe('HIGH');
+  });
+
+  it('treats the lexicon as DATA: an injected lexicon replaces the default', () => {
+    const lexicon = { high: ['dragline'], sovereign: ['cyanide spill'] };
+    // The custom HIGH term fires…
+    expect(
+      deriveRiskTier({
+        hint: 'LOW',
+        title: 'Move the dragline',
+        description: 'reposition before the blast window',
+        priority: 'medium',
+        lexicon,
+      }),
+    ).toBe('HIGH');
+    // …the custom SOVEREIGN term fires…
+    expect(
+      deriveRiskTier({
+        hint: 'LOW',
+        title: 'Contain the cyanide spill',
+        description: 'isolate pond 3',
+        priority: 'medium',
+        lexicon,
+      }),
+    ).toBe('SOVEREIGN');
+    // …and the DEFAULT terms do NOT (no hardcoded keywords in the engine).
+    expect(
+      deriveRiskTier({
+        hint: 'LOW',
+        title: 'Process the payment',
+        description: 'royalty payment to the regulator',
+        priority: 'medium',
+        lexicon,
+      }),
+    ).toBe('LOW');
   });
 
   it('bumps urgent low → medium', () => {
@@ -204,6 +267,51 @@ describe('buildFollowupSchedule', () => {
     });
     expect(out).toHaveLength(1);
     expect(out[0]!.scheduledAt.getTime()).toBeGreaterThan(now);
+  });
+});
+
+describe('assignTask risk gating (bilingual lexicon)', () => {
+  it('a SWAHILI payment task derives HIGH and yields hitlRequired=true', async () => {
+    const fx = makeFixture();
+    seedEmployee(fx.store, {
+      id: 'emp-sw',
+      tenantId: 't1',
+      personEntityId: 'p-sw',
+    });
+
+    const r = await assignTask(fx.deps, {
+      tenantId: 't1',
+      title: 'Fanya malipo ya mrabaha kwa serikali',
+      description: 'Kamilisha malipo ya leseni kabla ya mwisho wa mwezi',
+      assignedEmployeeId: 'emp-sw',
+      assignedByUserId: 'u-md',
+      priority: 'medium',
+    });
+
+    expect(r.assignment.riskTier).toBe('HIGH');
+    expect(r.assignment.hitlRequired).toBe(true);
+  });
+
+  it('threads an injected riskLexicon through the input boundary', async () => {
+    const fx = makeFixture();
+    seedEmployee(fx.store, {
+      id: 'emp-lx',
+      tenantId: 't1',
+      personEntityId: 'p-lx',
+    });
+
+    const r = await assignTask(fx.deps, {
+      tenantId: 't1',
+      title: 'Move the dragline',
+      description: 'reposition before the blast window',
+      assignedEmployeeId: 'emp-lx',
+      assignedByUserId: 'u-md',
+      priority: 'medium',
+      riskLexicon: { high: ['dragline'], sovereign: [] },
+    });
+
+    expect(r.assignment.riskTier).toBe('HIGH');
+    expect(r.assignment.hitlRequired).toBe(true);
   });
 });
 

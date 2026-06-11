@@ -189,13 +189,16 @@ function stubCockpit(): CockpitPublisher & { events: unknown[] } {
   return cockpit;
 }
 
-/** A minimal commitment repo whose only live method is listLive (sweep path). */
+/** A minimal commitment repo: listLive (sweep path) + get (approval resume). */
 function stubCommitmentRepo(
   live: ReadonlyArray<MdCommitment>,
 ): MdCommitmentRepository {
   return {
     async listLive() {
       return live;
+    },
+    async get(_tenantId: string, id: string) {
+      return live.find((c) => c.id === id) ?? null;
     },
   } as unknown as MdCommitmentRepository;
 }
@@ -481,6 +484,123 @@ describe('tickOnce — the sweep', () => {
       orch.start();
       orch.stop();
     }).not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// The HITL approval CONSUMER + the nag-storm kill
+// ─────────────────────────────────────────────────────────────────────
+
+describe('HITL approval consumer', () => {
+  /** Build one orchestrator whose tenant has ONE sovereign commitment. */
+  function buildParkedWorld() {
+    const sovereignCommitment = commitment({ sovereign: true });
+    const runRepo = createInMemoryOrgLoopRunRepository();
+    const sink = stubSink();
+    const dispatch = vi.fn(async () => dispatchResult());
+    const orch = createOrgLoopOrchestrator({
+      ...TEST_DEPS_BASE,
+      commitmentRepo: stubCommitmentRepo([sovereignCommitment]),
+      runRepo,
+      strategist: stubStrategist(trace()),
+      personMatcher: stubMatcher([candidate()]),
+      dispatcher: { dispatch },
+      briefer: stubBriefer(),
+      proposalSink: sink,
+      listActiveTenantIds: async () => ['tenant_1'],
+    });
+    return { orch, runRepo, sink, dispatch, sovereignCommitment };
+  }
+
+  it('a parked run does NOT re-propose on the next tick (nag-storm kill)', async () => {
+    const { orch, sink, dispatch } = buildParkedWorld();
+
+    // Tick 1: the sovereign commitment parks for approval (one brief).
+    const t1 = await orch.tickOnce();
+    expect(t1.proposedForApproval).toBe(1);
+    expect(sink.proposals).toBe(1);
+
+    // Tick 2 + 3: the parked run is SKIPPED — no re-thread, no re-propose.
+    const t2 = await orch.tickOnce();
+    expect(t2.proposedForApproval).toBe(0);
+    expect(t2.skipped).toBe(1);
+    await orch.tickOnce();
+    expect(sink.proposals).toBe(1);
+    expect(dispatch).not.toHaveBeenCalled();
+
+    // The fast-path skip carries the machine-readable reason.
+    const direct = await orch.onCommitmentDue(
+      'tenant_1',
+      commitment({ sovereign: true }),
+    );
+    expect(direct).toEqual({ kind: 'skipped', reason: 'awaiting_approval' });
+  });
+
+  it('resumeApprovedRun executes the dispatch leg for the chosen employee', async () => {
+    const { orch, runRepo, dispatch, sovereignCommitment } = buildParkedWorld();
+    await orch.onCommitmentDue('tenant_1', sovereignCommitment);
+    const parked = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+    expect(parked!.taskId).toBeNull();
+
+    const outcome = await orch.resumeApprovedRun('tenant_1', parked!.id);
+
+    expect(outcome.kind).toBe('dispatched');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    const dispatchArg = dispatch.mock.calls[0]![0];
+    // The ALREADY-CHOSEN employee is dispatched — no re-pick.
+    expect(dispatchArg.chosenEmployeeId).toBe('emp_top');
+    // The sovereign flag rides the trace (honest risk hint downstream).
+    expect(dispatchArg.sovereign).toBe(true);
+
+    const after = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+    expect(after!.taskId).toBe('task_123');
+    expect(after!.stage).toBe('deliver');
+  });
+
+  it('resumeApprovedRun skips an unknown / non-parked run', async () => {
+    const { orch, runRepo, dispatch, sovereignCommitment } = buildParkedWorld();
+
+    const missing = await orch.resumeApprovedRun('tenant_1', 'no_such_run');
+    expect(missing).toEqual({ kind: 'skipped', reason: 'run_not_found' });
+
+    // A dispatched (non-parked) run cannot be "approved" again.
+    await orch.onCommitmentDue('tenant_1', sovereignCommitment);
+    const parked = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+    await orch.resumeApprovedRun('tenant_1', parked!.id);
+    const again = await orch.resumeApprovedRun('tenant_1', parked!.id);
+    expect(again).toEqual({
+      kind: 'skipped',
+      reason: 'not_awaiting_approval',
+    });
+    expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismissParkedRun closes the run with the note and the loop never re-proposes', async () => {
+    const { orch, runRepo, sink, dispatch, sovereignCommitment } =
+      buildParkedWorld();
+    await orch.onCommitmentDue('tenant_1', sovereignCommitment);
+    const parked = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+
+    const outcome = await orch.dismissParkedRun(
+      'tenant_1',
+      parked!.id,
+      'handled offline',
+    );
+    expect(outcome).toEqual({ kind: 'dismissed', runId: parked!.id });
+
+    const closed = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+    expect(closed!.status).toBe('closed');
+    expect(closed!.stage).toBe('reloop');
+    expect(
+      (closed!.strategyJson as { dismissal?: { note?: string } }).dismissal
+        ?.note,
+    ).toBe('handled offline');
+
+    // The owner's "no" is final: the next thread SKIPS, nothing dispatches.
+    const next = await orch.onCommitmentDue('tenant_1', sovereignCommitment);
+    expect(next.kind).toBe('skipped');
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(sink.proposals).toBe(1);
   });
 });
 

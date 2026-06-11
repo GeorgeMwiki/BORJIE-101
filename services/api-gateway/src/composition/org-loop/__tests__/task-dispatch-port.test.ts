@@ -16,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createTaskDispatchPort,
+  deriveRiskHint,
   strategyTraceToAssignInput,
   type StrategyTrace,
 } from '../task-dispatch-port';
@@ -215,5 +216,77 @@ describe('task-dispatch-port — the spine ACT seam', () => {
     const port = createTaskDispatchPort({ workforceDeps: deps, logger });
 
     await expect(port.dispatch(BASE_TRACE)).rejects.toThrow(/not found/);
+  });
+});
+
+describe('task-dispatch-port — honest risk hint (never hard-coded LOW)', () => {
+  it('derives the hint from urgency/sovereign; an explicit hint wins', () => {
+    expect(deriveRiskHint({})).toBe('LOW');
+    expect(deriveRiskHint({ urgency: 'high' })).toBe('LOW');
+    expect(deriveRiskHint({ urgency: 'critical' })).toBe('HIGH');
+    expect(deriveRiskHint({ sovereign: true })).toBe('SOVEREIGN');
+    expect(deriveRiskHint({ sovereign: true, urgency: 'critical', riskHint: 'MEDIUM' })).toBe(
+      'MEDIUM',
+    );
+  });
+
+  it('a critical-urgency trace dispatches with a HIGH tier (HITL downstream)', async () => {
+    const logger = fakeLogger();
+    const { deps } = stubWorkforceDeps();
+    const port = createTaskDispatchPort({ workforceDeps: deps, logger });
+
+    const result = await port.dispatch({ ...BASE_TRACE, urgency: 'critical' });
+    expect(result.riskTier).toBe('HIGH');
+    expect(result.hitlRequired).toBe(true);
+  });
+
+  it('a sovereign commitment trace dispatches with a SOVEREIGN tier', async () => {
+    const logger = fakeLogger();
+    const { deps } = stubWorkforceDeps();
+    const port = createTaskDispatchPort({ workforceDeps: deps, logger });
+
+    const result = await port.dispatch({ ...BASE_TRACE, sovereign: true });
+    expect(result.riskTier).toBe('SOVEREIGN');
+    expect(result.hitlRequired).toBe(true);
+  });
+
+  it('a SWAHILI payment task escalates through the default bilingual lexicon', async () => {
+    const logger = fakeLogger();
+    const { deps } = stubWorkforceDeps();
+    const port = createTaskDispatchPort({ workforceDeps: deps, logger });
+
+    const result = await port.dispatch({
+      ...BASE_TRACE,
+      taskShape: {
+        title: 'Fanya malipo ya mrabaha',
+        description: 'Kamilisha malipo ya leseni kabla ya mwisho wa mwezi',
+        priority: 'medium',
+        competenceDomain: 'treasury',
+      },
+    });
+    expect(result.riskTier).toBe('HIGH');
+    expect(result.hitlRequired).toBe(true);
+  });
+
+  it('threads a composition-time riskLexicon (domain-pack DATA) into the kernel', async () => {
+    const logger = fakeLogger();
+    const { deps } = stubWorkforceDeps();
+    const port = createTaskDispatchPort({
+      workforceDeps: deps,
+      riskLexicon: { high: ['dragline'], sovereign: [] },
+      logger,
+    });
+
+    const result = await port.dispatch({
+      ...BASE_TRACE,
+      taskShape: {
+        title: 'Move the dragline',
+        description: 'reposition before the blast window',
+        priority: 'medium',
+        competenceDomain: 'operations',
+      },
+    });
+    expect(result.riskTier).toBe('HIGH');
+    expect(result.hitlRequired).toBe(true);
   });
 });
