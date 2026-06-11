@@ -8,7 +8,7 @@
     "test": "turbo run test",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
-    "test:e2e:local": "docker compose -f docker-compose.e2e.yml up -d --wait && pnpm tsx e2e/fixtures/seed-runner.ts && playwright test --config=e2e/playwright.config.ts --project=customer-app; docker compose -f docker-compose.e2e.yml down -v",
+    "test:e2e:local": "docker compose -f docker-compose.e2e.yml up -d --wait && pnpm tsx e2e/fixtures/seed-runner.ts && playwright test --config=e2e/playwright.config.ts --project=borjie; docker compose -f docker-compose.e2e.yml down -v",
     "test:e2e:stub": "E2E_USE_STUB=1 playwright test --config=e2e/playwright.config.ts",
     "test:e2e:demo": "playwright test --config=e2e/playwright.config.ts e2e/tests/live-demo.spec.ts",
     "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
