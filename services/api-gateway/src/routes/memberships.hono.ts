@@ -47,6 +47,10 @@ import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
 import { clearActiveTenantCache } from '../middleware/active-tenant-override';
 import { provisionShadowUser } from '../services/membership/shadow-user-provisioner';
+import {
+  createAudienceFanout,
+  type AudienceFanout,
+} from '../composition/audience-fanout';
 import { UserRole } from '../types/user-role';
 
 type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
@@ -70,6 +74,8 @@ export interface MembershipsRouterDeps {
   readonly membershipRepo?: OrgMembershipRepository;
   readonly identityRepo?: IdentityRepository;
   readonly provisionShadow?: typeof provisionShadowUser;
+  /** SC-6 realtime leg — defaults to the registry's cross-portal bus. */
+  readonly audienceFanout?: AudienceFanout;
 }
 
 const RelationshipSchema = z.enum([
@@ -171,6 +177,31 @@ export function createMembershipsRouter(
       )
     );
   }
+
+  /**
+   * SC-6 — the realtime cascade leg. Resolved lazily from the registry's
+   * cross-portal bus; absent (tests / degraded boot) → null, and every
+   * call site is best-effort (the membership row is the source of truth).
+   */
+  function fanout(
+    c: { get(key: 'services'): unknown },
+    repo: OrgMembershipRepository,
+  ): AudienceFanout | null {
+    if (deps.audienceFanout) return deps.audienceFanout;
+    const services = c.get('services') as
+      | { crossPortalBus?: Promise<never> }
+      | undefined;
+    if (!services?.crossPortalBus) return null;
+    return createAudienceFanout({
+      membershipResolver: repo,
+      crossPortalBus: services.crossPortalBus,
+    });
+  }
+
+  /** The org-side decider audience (role-label classes, not authz). */
+  const ADMIN_AUDIENCE = {
+    memberRoles: ['owner', 'admin', 'manager', 'site_manager'],
+  } as const;
 
   /** Resolve-or-provision the caller's identity from their JWT claims. */
   async function provisionCallerIdentity(
@@ -415,7 +446,8 @@ export function createMembershipsRouter(
       );
     }
 
-    const membership = await membershipRepo(db).requestPairing({
+    const repo = membershipRepo(db);
+    const membership = await repo.requestPairing({
       tenantIdentityId: identity.id,
       organizationId: String(org.id),
       platformTenantId: String(org.tenant_id),
@@ -432,6 +464,20 @@ export function createMembershipsRouter(
     if (membership.status === 'ACTIVE') {
       return c.json({ success: true, data: membershipView(membership) }); // already a member
     }
+    // SC-6 down-leg: the org's decider audience learns about the new
+    // request in realtime (the PENDING row is the source of truth).
+    await fanout(c, repo)?.publishToAudience({
+      organizationId: String(org.id),
+      audience: ADMIN_AUDIENCE,
+      kind: 'notification',
+      payload: {
+        type: 'membership-request-received',
+        membershipId: membership.id,
+        organizationId: String(org.id),
+        relationshipType,
+      },
+      emittedBy: 'memberships:request',
+    });
     return c.json({ success: true, data: membershipView(membership) }, 202);
   });
 
@@ -557,6 +603,18 @@ export function createMembershipsRouter(
       if (!approved) {
         return c.json(fail('REQUEST_NOT_FOUND', 'No pending request'), 404);
       }
+      // SC-6 up-leg: tell the requester instantly, on THEIR identity topic.
+      await fanout(c, repo)?.publishToIdentity({
+        tenantIdentityId: approved.tenantIdentityId,
+        kind: 'notification',
+        payload: {
+          type: 'membership-approved',
+          membershipId: approved.id,
+          organizationId: org.id,
+          relationshipType: approved.relationshipType,
+        },
+        emittedBy: 'memberships:approve',
+      });
       return c.json({ success: true, data: membershipView(approved) });
     },
   );
@@ -572,7 +630,8 @@ export function createMembershipsRouter(
       const auth = c.get('auth');
       const org = await loadOwnOrg(c, c.req.param('orgId'));
       if (!org) return c.json(fail('ORG_NOT_FOUND', 'Organization not found'), 404);
-      const rejected = await membershipRepo(db).reject({
+      const repo = membershipRepo(db);
+      const rejected = await repo.reject({
         organizationId: org.id,
         membershipId: c.req.param('membershipId'),
         decidedBy: auth.userId,
@@ -581,6 +640,16 @@ export function createMembershipsRouter(
       if (!rejected) {
         return c.json(fail('REQUEST_NOT_FOUND', 'No pending request'), 404);
       }
+      await fanout(c, repo)?.publishToIdentity({
+        tenantIdentityId: rejected.tenantIdentityId,
+        kind: 'notification',
+        payload: {
+          type: 'membership-rejected',
+          membershipId: rejected.id,
+          organizationId: org.id,
+        },
+        emittedBy: 'memberships:reject',
+      });
       return c.json({ success: true, data: membershipView(rejected) });
     },
   );
@@ -596,7 +665,8 @@ export function createMembershipsRouter(
       const auth = c.get('auth');
       const org = await loadOwnOrg(c, c.req.param('orgId'));
       if (!org) return c.json(fail('ORG_NOT_FOUND', 'Organization not found'), 404);
-      const revoked = await membershipRepo(db).revoke({
+      const repo = membershipRepo(db);
+      const revoked = await repo.revoke({
         organizationId: org.id,
         membershipId: c.req.param('membershipId'),
         decidedBy: auth.userId,
@@ -606,6 +676,16 @@ export function createMembershipsRouter(
         return c.json(fail('MEMBERSHIP_NOT_FOUND', 'No active membership'), 404);
       }
       clearActiveTenantCache(); // cut switched-in access now, not at TTL
+      await fanout(c, repo)?.publishToIdentity({
+        tenantIdentityId: revoked.tenantIdentityId,
+        kind: 'notification',
+        payload: {
+          type: 'membership-revoked',
+          membershipId: revoked.id,
+          organizationId: org.id,
+        },
+        emittedBy: 'memberships:revoke',
+      });
       return c.json({ success: true, data: membershipView(revoked) });
     },
   );
