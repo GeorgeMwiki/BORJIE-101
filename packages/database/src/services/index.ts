@@ -360,6 +360,13 @@ export {
   type UpsertSkillArgs as SkillUpsertArgs,
 } from './skill-registry.service.js';
 
+// Generative launch-market gate (migration 0337) — jurisdiction as data.
+export {
+  createEnabledJurisdictionsService,
+  type EnabledJurisdictionsService,
+  type EnableCountryInput,
+} from './enabled-jurisdictions.service.js';
+
 // Reflexion buffer (migration 0134 — C5 Phase A). Adapter for the
 // kernel's `ReflexionBufferPort`. Reads the last N reflections at
 // session start, writes one row at session end.

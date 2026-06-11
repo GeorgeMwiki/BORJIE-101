@@ -1293,6 +1293,7 @@ export * from './clock-in-events.schema.js';
 export * from './hazard-zones.schema.js';
 export * from './workforce-locations.schema.js';
 export * from './regulatory-zones.schema.js';
+export * from './enabled-jurisdictions.schema.js';
 
 // ---------------------------------------------------------------------------
 // Wave PRODUCTION-CAPTURE — supervisor tonnage capture (migration 0104)
