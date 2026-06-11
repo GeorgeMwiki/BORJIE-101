@@ -30,14 +30,28 @@ function makeSseResponse(chunks: readonly string[]): Response {
 }
 
 describe('FloatingAskBorjie', () => {
+  // The component's `baseUrl` falls back to NEXT_PUBLIC_API_GATEWAY_URL when
+  // no apiBaseUrl prop is given. CI sets that var to a placeholder
+  // (https://ci-build.borjie.invalid), which made the fetch URLs ABSOLUTE in
+  // CI but relative locally — so the exact-URL assertions below passed
+  // locally and failed deterministically in CI. Pin it empty for the suite
+  // so `${baseUrl}/api/v1/public/chat` is the relative path everywhere.
+  let savedGatewayUrl: string | undefined;
   beforeEach(() => {
     window.sessionStorage.clear();
     window.localStorage.clear();
+    savedGatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
+    delete process.env.NEXT_PUBLIC_API_GATEWAY_URL;
   });
 
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    if (savedGatewayUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_API_GATEWAY_URL;
+    } else {
+      process.env.NEXT_PUBLIC_API_GATEWAY_URL = savedGatewayUrl;
+    }
   });
 
   it('renders a floating FAB collapsed by default', async () => {
@@ -47,11 +61,9 @@ describe('FloatingAskBorjie', () => {
     expect(screen.queryByTestId('borjie-chat-panel')).toBeNull();
   });
 
-  // retry: this asserts on a multi-step mock-SSE stream; under parallel CI
-  // load the streaming chain occasionally outruns the waitFor budget even at
-  // 20s (passes in ~0.2s locally). A retry absorbs the timing flake without
-  // weakening any assertion — the component behaviour is unchanged.
-  it('opens the panel and fires a synthetic hello so the live brain greets', { timeout: 20_000, retry: 2 }, async () => {
+  // 20s timeout: multi-step mock-SSE stream + chained waitFor blocks; the 5s
+  // default is too tight under loaded CI runners (passes in ~0.2s locally).
+  it('opens the panel and fires a synthetic hello so the live brain greets', { timeout: 20_000 }, async () => {
     // The canned welcome bubble was removed — instead the panel
     // dispatches one synthetic "hello" to /api/v1/public/chat on
     // first open so the Anthropic-backed persona generates the
@@ -90,7 +102,7 @@ describe('FloatingAskBorjie', () => {
     // is too tight under loaded CI runners (passes in ~0.2s locally).
   });
 
-  it('sends a message and renders streamed assistant text', { timeout: 20_000, retry: 2 }, async () => {
+  it('sends a message and renders streamed assistant text', { timeout: 20_000 }, async () => {
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         makeSseResponse([
