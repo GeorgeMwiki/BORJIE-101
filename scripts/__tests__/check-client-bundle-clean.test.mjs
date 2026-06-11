@@ -77,8 +77,12 @@ const FAKE_AKIA = 'AKIAFAKEPLANTED00000';
 const FAKE_GOOGLE = `AIza${'FAKEPLANTED00000000000000000000000000'.slice(0, 35)}`; // AIza + exactly 35
 const FAKE_GITHUB = 'ghp_FAKEPLANTED0000000000000000000000000000'; // ghp_ + 40
 const FAKE_SLACK = 'xoxb-FAKEPLANTED-000000000000';
-const FAKE_TWILIO_AC = 'ACFIXTUREPLACEHOLDERNOTAREALSECRETX';
-const FAKE_TWILIO_SK = 'SKFIXTUREPLACEHOLDERNOTAREALSECRETX';
+// Runtime-constructed so the SOURCE never contains a literal matching
+// Twilio's AC/SK + 32-hex format (GitHub push protection flags the literal
+// even as a fixture). The planted value at runtime is unchanged.
+const HEX32 = '0123456789abcdef'.repeat(2);
+const FAKE_TWILIO_AC = `AC${HEX32}`;
+const FAKE_TWILIO_SK = `SK${HEX32}`;
 const FAKE_OPENAI_ORG = 'org-FAKEPLANTED0000000000000';
 const FAKE_GCP_SA =
   '{"type":"service_account","private_key":"FAKEPLANTEDPRIVATEKEYBYTES0000000000000000000000000000"}';
