@@ -184,6 +184,30 @@ function jsonError(
   return { status, body: { success: false as const, error: { code, message } } };
 }
 
+/**
+ * Worker-action authz for /:id/complete and /:id/block: only the task's
+ * assignee — or a manager/admin role — may transition the task. Mirrors
+ * the requireRole(...MANAGER_ROLES) gate that create/reassign/assign-worker
+ * use; expressed as a row-level check here because the assignee is only
+ * known after the task row is fetched. Without it ANY tenant user could
+ * close ANY task, which (via the org-loop binder) marks the originating
+ * md_commitment done.
+ */
+function canActOnTask(
+  role: UserRole | undefined,
+  assignedToUserId: unknown,
+  userId: string,
+): boolean {
+  if (role && (MANAGER_ROLES as ReadonlyArray<UserRole>).includes(role)) {
+    return true;
+  }
+  return (
+    typeof assignedToUserId === 'string' &&
+    assignedToUserId.length > 0 &&
+    assignedToUserId === userId
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
@@ -341,7 +365,7 @@ export function createMiningTasksRouter(): Hono {
   // POST /:id/complete — worker marks done (idempotent on already-done)
   // -------------------------------------------------------------------------
   app.post('/:id/complete', async (c: any) => {
-    const { tenantId, userId } = c.get('auth') ?? {};
+    const { tenantId, userId, role } = c.get('auth') ?? {};
     if (!tenantId || !userId) {
       const err = jsonError('UNAUTHORIZED', 'Authentication required', 401);
       return c.json(err.body, err.status);
@@ -371,6 +395,12 @@ export function createMiningTasksRouter(): Hono {
 
       if (!existing) {
         const err = jsonError('TASK_NOT_FOUND', 'Task not found', 404);
+        return c.json(err.body, err.status);
+      }
+
+      // Authz before any state read-back: assignee or manager/admin only.
+      if (!canActOnTask(role, existing.assignedToUserId, userId)) {
+        const err = jsonError('FORBIDDEN', 'Insufficient permissions', 403);
         return c.json(err.body, err.status);
       }
 
@@ -469,7 +499,7 @@ export function createMiningTasksRouter(): Hono {
   // POST /:id/block — worker marks blocked with reason
   // -------------------------------------------------------------------------
   app.post('/:id/block', zValidator('json', BlockSchema), async (c: any) => {
-    const { tenantId, userId } = c.get('auth') ?? {};
+    const { tenantId, userId, role } = c.get('auth') ?? {};
     if (!tenantId || !userId) {
       const err = jsonError('UNAUTHORIZED', 'Authentication required', 401);
       return c.json(err.body, err.status);
@@ -501,6 +531,13 @@ export function createMiningTasksRouter(): Hono {
         const err = jsonError('TASK_NOT_FOUND', 'Task not found', 404);
         return c.json(err.body, err.status);
       }
+
+      // Authz before any state read-back: assignee or manager/admin only.
+      if (!canActOnTask(role, existing.assignedToUserId, userId)) {
+        const err = jsonError('FORBIDDEN', 'Insufficient permissions', 403);
+        return c.json(err.body, err.status);
+      }
+
       if (existing.status === 'done' || existing.status === 'cancelled') {
         const err = jsonError(
           'TASK_TERMINAL',

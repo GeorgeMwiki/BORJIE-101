@@ -11,6 +11,11 @@
 
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { miningApi } from '../../api/client'
+import {
+  fetchActiveAlerts,
+  fetchTodayTasks,
+  fetchToolboxTalk
+} from './queries.adapters'
 import type {
   AttendanceShift,
   CoachSuggestion,
@@ -37,14 +42,9 @@ export function useTodayTasks(userId: string | null): UseQueryResult<ReadonlyArr
     queryKey: ['employee-home', 'tasks', userId],
     enabled: Boolean(userId),
     staleTime: STALE_60S,
-    queryFn: async () => {
-      const userQueryId = userId ?? ''
-      const data = await miningApi.get<{ readonly tasks: ReadonlyArray<WorkerTask> }>(
-        '/tasks',
-        { query: { assignedTo: userQueryId } }
-      )
-      return data.tasks
-    }
+    // GET /tasks answers the canonical { success, data: rows } envelope
+    // (same unwrap as useManagerOpenTasks) — see queries.adapters.ts.
+    queryFn: async () => fetchTodayTasks(miningApi, userId ?? '')
   })
 }
 
@@ -52,13 +52,9 @@ export function useToolboxTalk(): UseQueryResult<ToolboxTalk | null> {
   return useQuery<ToolboxTalk | null>({
     queryKey: ['employee-home', 'toolbox-talks', 'today'],
     staleTime: STALE_60S,
-    queryFn: async () => {
-      const data = await miningApi.get<{ readonly talk: ToolboxTalk | null }>(
-        '/toolbox-talks',
-        { query: { date: 'today' } }
-      )
-      return data.talk
-    }
+    // GET /toolbox-talks answers { success, data: rows } — first row is
+    // today's talk (route default-orders by scheduledFor desc).
+    queryFn: async () => fetchToolboxTalk(miningApi)
   })
 }
 
@@ -78,15 +74,13 @@ export function usePerformanceSnapshot(
 
 export function useActiveAlerts(): UseQueryResult<ReadonlyArray<IncidentAlert>> {
   return useQuery<ReadonlyArray<IncidentAlert>>({
-    queryKey: ['employee-home', 'incidents-mine'],
+    queryKey: ['employee-home', 'incidents-open'],
     staleTime: STALE_60S,
-    queryFn: async () => {
-      const data = await miningApi.get<{ readonly incidents: ReadonlyArray<IncidentAlert> }>(
-        '/incidents',
-        { query: { assignedToMe: 'true' } }
-      )
-      return data.incidents
-    }
+    // GET /incidents answers { success, data: rows }. `status=open` is the
+    // only "active" filter the route's query schema supports (the previous
+    // `assignedToMe` param was never in the schema and was silently
+    // stripped by zod).
+    queryFn: async () => fetchActiveAlerts(miningApi)
   })
 }
 
