@@ -66,6 +66,7 @@ import {
   resolveBudgetMs,
   runOrganWithBudget,
 } from './brain-tools/organ-budget-guard.js';
+import { resolveTierModel } from './model-tier-map.js';
 
 export const KERNEL_DEBATE_FLAG = 'BORJIE_KERNEL_DEBATE_ENABLED';
 export const KERNEL_DEBATE_BUDGET_MS_KEY = 'BORJIE_KERNEL_DEBATE_BUDGET_MS';
@@ -132,7 +133,11 @@ export function buildDebateKernelPort(
     args.sensor ??
     createAnthropicSensor(args.anthropic, {
       id: 'debate-sensor',
-      modelId: 'claude-sonnet-4-5',
+      // Tier-resolved (standard). The prior literal 'claude-sonnet-4-5' was a
+      // stale one-generation-behind pin — the only such id in the codebase —
+      // so the debate sensor silently ran an older model than every other
+      // standard-tier organ.
+      modelId: resolveTierModel('standard', env),
       priority: 10,
       capabilities: ['thinking'],
       maxTokens: 1024,
