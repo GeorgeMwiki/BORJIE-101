@@ -42,6 +42,11 @@ spec:
             app.kubernetes.io/component: sovereign-ledger-verify-cron
         spec:
           restartPolicy: Never
+          # Hardening M8: the image is on private ghcr — without the
+          # pull secret the CronJob ImagePullBackOffs and the loop dies
+          # silently. Same secret the Helm deployments use.
+          imagePullSecrets:
+            - name: borjie-pull
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000

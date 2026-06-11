@@ -135,7 +135,11 @@ function buildJwtVerifier(): JwtVerifier | undefined {
         // The gateway already bundles jsonwebtoken via auth middleware.
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, secret) as Record<string, unknown>;
+        // SEC (hardening H10): pin the algorithm — an unpinned verify accepts
+        // any HMAC alg and is one config slip away from alg-confusion.
+        const decoded = jwt.verify(token, secret, {
+          algorithms: ['HS256'],
+        }) as Record<string, unknown>;
         if (!decoded || typeof decoded !== 'object') return null;
         const tenantId = decoded.tenantId as string | undefined;
         const sub =

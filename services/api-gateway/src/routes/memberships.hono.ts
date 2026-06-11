@@ -198,6 +198,10 @@ export function createMembershipsRouter(
     });
   }
 
+  /** SEC (M2/M3) — abuse bounds on the pairing surface. */
+  const PAIRING_REQUESTS_PER_HOUR = 3;
+  const INVITES_PER_ADMIN_PER_HOUR = 50;
+
   /** The org-side decider audience (role-label classes, not authz). */
   const ADMIN_AUDIENCE = {
     memberRoles: ['owner', 'admin', 'manager', 'site_manager'],
@@ -444,6 +448,36 @@ export function createMembershipsRouter(
         ),
         400,
       );
+    }
+
+    // SEC (hardening M2): per-identity pairing-request rate limit. The
+    // PENDING rows themselves are the counter — replica-safe, no extra
+    // infra, and revoked the moment an org decides. Caps the PENDING-row +
+    // admin-notification spam a scripted caller could generate across the
+    // discoverable directory. Best-effort: a count failure never blocks a
+    // legitimate request (the directory itself is already auth-gated).
+    try {
+      const recent = (await withServiceRoleContext(db, (sdb) =>
+        (sdb as unknown as DbExec).execute(sql`
+          SELECT count(*)::int AS c
+            FROM org_memberships
+           WHERE tenant_identity_id = ${identity.id}
+             AND status = 'PENDING'
+             AND joined_at > now() - interval '1 hour'
+        `),
+      )) as unknown as Array<{ c: number }>;
+      if ((recent[0]?.c ?? 0) >= PAIRING_REQUESTS_PER_HOUR) {
+        return c.json(
+          fail(
+            'RATE_LIMITED',
+            'Too many pending pairing requests. Try again in an hour.',
+          ),
+          429,
+        );
+      }
+    } catch {
+      // Count unavailable (mock db in tests) — proceed; the per-org unique
+      // pair constraint still bounds abuse to one row per (identity, org).
     }
 
     const repo = membershipRepo(db);
@@ -737,6 +771,28 @@ export function createMembershipsRouter(
       const org = await loadOwnOrg(c, c.req.param('orgId'));
       if (!org) return c.json(fail('ORG_NOT_FOUND', 'Organization not found'), 404);
       const body = c.req.valid('json');
+      // SEC (hardening M3): cap invite minting per admin per hour — an
+      // unbounded mint loop becomes an SMS/WhatsApp blast through whatever
+      // delivery the org wires. The issued invites are the counter.
+      try {
+        const minted = (await withServiceRoleContext(db, (sdb) =>
+          (sdb as unknown as DbExec).execute(sql`
+            SELECT count(*)::int AS c
+              FROM invite_codes
+             WHERE issued_by = ${auth.userId}
+               AND platform_tenant_id = ${org.tenantId}
+               AND issued_at > now() - interval '1 hour'
+          `),
+        )) as unknown as Array<{ c: number }>;
+        if ((minted[0]?.c ?? 0) >= INVITES_PER_ADMIN_PER_HOUR) {
+          return c.json(
+            fail('RATE_LIMITED', 'Invite limit reached. Try again in an hour.'),
+            429,
+          );
+        }
+      } catch {
+        // Count unavailable (mock db in tests) — proceed.
+      }
       const invite = await membershipRepo(db).createInvite({
         organizationId: org.id,
         platformTenantId: org.tenantId,

@@ -59,6 +59,11 @@ spec:
             app.kubernetes.io/component: wake-loop-cron
         spec:
           restartPolicy: Never
+          # Hardening M8: the image is on private ghcr — without the
+          # pull secret the CronJob ImagePullBackOffs and the loop dies
+          # silently. Same secret the Helm deployments use.
+          imagePullSecrets:
+            - name: borjie-pull
           # Kernel-level sandbox for agent-executed code. This CronJob runs
           # the kernel wake-cycle (LLM-driven tool calls) so it belongs on the
           # hardened (gVisor) runtime alongside api-gateway. Uncomment AFTER a

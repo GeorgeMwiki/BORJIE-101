@@ -150,13 +150,15 @@ meTenantsRouter.get('/', async (c) => {
       data,
       meta: { activeTenantId },
     });
-  } catch (err) {
+  } catch {
     return c.json(
       {
         success: false,
         error: {
           code: 'TENANT_MEMBERSHIPS_QUERY_FAILED',
-          message: err instanceof Error ? err.message : 'unknown',
+          // SEC (hardening M1): never echo raw error internals (SQL, paths)
+          // to the client — the code is enough for the UI; ops read logs.
+          message: 'Unable to load your organization memberships. Please try again.',
         },
       },
       500,
@@ -206,13 +208,14 @@ meTenantsRouter.post(
           403,
         );
       }
-    } catch (err) {
+    } catch {
       return c.json(
         {
           success: false,
           error: {
             code: 'TENANT_SWITCH_CHECK_FAILED',
-            message: err instanceof Error ? err.message : 'unknown',
+            // SEC (hardening M1): generic client message; internals stay in logs.
+            message: 'Unable to verify the tenant switch. Please try again.',
           },
         },
         500,

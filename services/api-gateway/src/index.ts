@@ -1186,6 +1186,17 @@ const allowedOrigins = (() => {
   const raw = process.env.ALLOWED_ORIGINS?.trim();
   const isProd = process.env.NODE_ENV === 'production';
   if (isProd) {
+    // SEC (hardening H9): the JWT iss/aud rollback flag is an INCIDENT
+    // escape hatch only — left set in production it silently re-opens the
+    // cross-project token-acceptance hole SEC-G2 closed. Fail the boot loud
+    // rather than run a production gateway with the binding off.
+    if ((process.env.BORJIE_JWT_ISS_AUD ?? 'on').toLowerCase() === 'off') {
+      throw new Error(
+        'api-gateway: BORJIE_JWT_ISS_AUD=off is forbidden in production — ' +
+          'the iss/aud binding (SEC-G2) must stay enforced. Remove the env ' +
+          'var (it exists only for time-boxed incident rollback in staging).'
+      );
+    }
     if (!raw) {
       throw new Error(
         'api-gateway: ALLOWED_ORIGINS env var is required in production ' +

@@ -94,7 +94,10 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
           securityContext:
-            # Postgres needs to write its data dir — readOnlyRootFilesystem doesn't fit.
+            # Hardening M9: the root FS is read-only; every path postgres
+            # actually writes (data dir, unix socket dir, tmp) is its own
+            # mounted volume below — the standard hardened-postgres shape.
+            readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
             runAsNonRoot: true
             runAsUser: {{ .Values.podSecurity.runAsUser }}
@@ -102,6 +105,11 @@ spec:
               drop: [ALL]
           volumeMounts:
             - { name: data, mountPath: /var/lib/postgresql/data }
+            - { name: run, mountPath: /var/run/postgresql }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - { name: run, emptyDir: { medium: Memory, sizeLimit: 16Mi } }
+        - { name: tmp, emptyDir: { sizeLimit: 256Mi } }
   volumeClaimTemplates:
     - metadata:
         name: data

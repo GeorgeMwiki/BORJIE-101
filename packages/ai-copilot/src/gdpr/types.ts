@@ -68,6 +68,11 @@ export type DsarTableName =
   | 'kernel_memory_semantic'
   // tenant_identities — cross-org principal; anonymize email + phone.
   | 'tenant_identities'
+  // SC-2..6 identity spine (hardening H1): the subject's membership graph
+  // (which orgs, what role) and their auth-principal mappings are personal
+  // data — both export on DSAR and HARD_DELETE on RTBF.
+  | 'org_memberships'
+  | 'identity_auth_principals'
   // employees — staff PII; anonymize names + contact details.
   | 'employees';
 

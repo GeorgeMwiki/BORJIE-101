@@ -1,0 +1,32 @@
+{{- if .Values.networkPolicy.enabled -}}
+# redis (hardening H8, 2026-06-11):
+#   Redis holds sessions, token-blocklist state, rate-limit counters, and the
+#   cross-portal bus — without a NetworkPolicy ANY pod in the namespace could
+#   reach :6379 directly. INGRESS is restricted to exactly the backend
+#   consumers (api-gateway, payments-ledger, reports, notifications). This is
+#   defense-in-depth on top of the namespace default-deny; it also prepares
+#   the ground for requirepass (tracked separately — needs the secret
+#   provisioned by the founder before it can be wired).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: redis-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "borjie.labels" . | nindent 4 }}
+    app.kubernetes.io/component: redis
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "borjie.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: redis
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app.kubernetes.io/component: {{ .Values.services.apiGateway.name }} } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: {{ .Values.services.paymentsLedger.name }} } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: {{ .Values.services.reports.name }} } }
+        - podSelector: { matchLabels: { app.kubernetes.io/component: {{ .Values.services.notifications.name }} } }
+      ports:
+        - { protocol: TCP, port: 6379 }
+{{- end }}

@@ -27,7 +27,16 @@ const pinoLogger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
   base: { service: '@borjie/database' },
   redact: {
-    paths: ['password', 'token', 'secret', 'apiKey', 'authorization', '*.password', '*.token', '*.secret'],
+    paths: [
+      'password', 'token', 'secret', 'apiKey', 'authorization',
+      '*.password', '*.token', '*.secret',
+      // Identity-spine PII shapes (hardening H4): tenant_identities / persons
+      // rows flow through repository logs — phone/email must never hit sinks.
+      'phone', 'phoneE164', 'phoneNormalized', 'phone_normalized', 'email',
+      'nidaId', 'nida_id', 'profile',
+      '*.phone', '*.phoneE164', '*.phoneNormalized', '*.phone_normalized',
+      '*.email', '*.nidaId', '*.nida_id', '*.profile',
+    ],
     censor: '[REDACTED]',
   },
 });
