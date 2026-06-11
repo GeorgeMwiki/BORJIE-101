@@ -14,6 +14,14 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
     removeItem: vi.fn(async () => undefined)
   }
 }))
+// expo-secure-store (now the token store — hardening B1) transitively pulls
+// in react-native's Flow syntax (Rollup/vitest cannot parse it); mock it for
+// the same reason the async-storage module is mocked above.
+vi.mock('expo-secure-store', () => ({
+  getItemAsync: vi.fn(async () => null),
+  setItemAsync: vi.fn(async () => undefined),
+  deleteItemAsync: vi.fn(async () => undefined)
+}))
 
 import { analyzePhoto, VISION_TURN_PATH } from '../pipeline'
 import { MINING_PREFIX } from '../../api/config'
