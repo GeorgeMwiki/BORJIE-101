@@ -196,9 +196,69 @@ export const jurisdictionSwitchTool: PersonaToolDescriptor<
   },
 };
 
+// ─── JC-7b: promote a learned country into the launch market ──────────
+// Admin-only, HIGH-risk, write. This is the generative "unlock a new market"
+// action: once the MD has DISCOVERED a jurisdiction + the admin has ingested
+// its compliance corpus, this promotes the country into `enabled_countries`
+// (migration 0337) so users can select it at signup. TZ is the only seeded
+// market; every other unlock flows through here under governance.
+const PromoteInput = z.object({
+  countryCode: z
+    .string()
+    .regex(/^[A-Za-z]{2,3}$/)
+    .describe('ISO-3166-1 alpha-2 code of the country to unlock (e.g. "US").'),
+  countryName: z.string().min(1),
+  currencyCode: z.string().min(3).max(3).optional(),
+  learnedFromCorpus: z
+    .boolean()
+    .optional()
+    .describe('TRUE if the country was learned from ingested compliance docs.'),
+  evidence: z.string().optional().describe('Why this market is ready to unlock.'),
+});
+const PromoteOutput = z.object({
+  enabled: z.boolean(),
+  country: z.record(z.any()),
+});
+
+export const jurisdictionPromoteTool: PersonaToolDescriptor<
+  typeof PromoteInput,
+  typeof PromoteOutput
+> = {
+  id: 'mwikila.jurisdiction.promote',
+  name: 'Unlock a country for signup (promote learned jurisdiction)',
+  description:
+    'Promote a LEARNED jurisdiction into the launch market so users can select ' +
+    'it at signup. Use ONLY after the country has been discovered and its ' +
+    'compliance corpus ingested. HIGH-risk, platform-admin only — adds a row to ' +
+    'the enabled_countries registry (jurisdiction is data, never code).',
+  personaSlugs: ['T2_admin_strategist'],
+  inputSchema: PromoteInput,
+  outputSchema: PromoteOutput,
+  stakes: 'HIGH',
+  isWrite: true,
+  // HIGH-risk policy prefix — opening a new market must hit literal policy rules.
+  requiresPolicyRuleLiteral: true,
+  async handler(input, ctx) {
+    const client = ctx.httpClient;
+    if (!client) throw new Error('mwikila.jurisdiction.promote requires httpClient');
+    return client.post<z.infer<typeof PromoteOutput>>(
+      `/admin/jurisdictions/${input.countryCode}/enable`,
+      {
+        name: input.countryName,
+        ...(input.currencyCode ? { currencyCode: input.currencyCode } : {}),
+        ...(input.learnedFromCorpus !== undefined
+          ? { learnedFromCorpus: input.learnedFromCorpus }
+          : {}),
+        ...(input.evidence ? { evidence: input.evidence } : {}),
+      },
+    );
+  },
+};
+
 export const JURISDICTION_DISCOVERY_TOOLS: ReadonlyArray<
   PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>
 > = Object.freeze([
   jurisdictionDiscoverTool,
   jurisdictionSwitchTool,
+  jurisdictionPromoteTool,
 ] as unknown as readonly PersonaToolDescriptor<z.ZodTypeAny, z.ZodTypeAny>[]);

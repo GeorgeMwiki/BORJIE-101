@@ -516,6 +516,10 @@ import graphRouter from './routes/graph.router';
 // but never mounted — admin-web's mission-eval CoT panel had no backend. Now
 // reachable at /admin/cot-query/query.
 import cotQueryRouter from './routes/cot-query.router';
+// Generative jurisdiction unlock — promote a learned country into the launch
+// market (enabled_countries, migration 0337). Seeded TZ-only; new markets are a
+// governed row, not a deploy. Backs mwikila.jurisdiction.promote.
+import { createJurisdictionPromotionRouter } from './routes/admin/jurisdiction-promotion.hono';
 // Wave 29 — Forecasting (TGN + conformal) surface. Returns 503
 // FORECAST_SERVICE_UNAVAILABLE when the TGN inference + repo env
 // vars are unset (no mock forecasts, ever).
@@ -2843,6 +2847,8 @@ api.route('/junior-ai', juniorAIRouter);
 api.route('/graph', graphRouter);
 // Regulator-facing CoT reservoir read-back (DSAR / accountability surface).
 api.route('/admin/cot-query', cotQueryRouter());
+// Generative jurisdiction unlock — the governed launch-market registry.
+api.route('/admin/jurisdictions', createJurisdictionPromotionRouter());
 // Wave 29 — Forecasting surface (TGN + conformal). Returns 503
 // FORECAST_SERVICE_UNAVAILABLE until the inference + repo adapters are
 // wired (no mock forecasts, ever).
