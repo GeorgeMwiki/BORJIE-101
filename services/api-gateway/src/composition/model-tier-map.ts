@@ -33,9 +33,13 @@
  * core. Rationale: intelligence is CAPITAL there, not cost — the frontier
  * model does the growth/design work, it CRYSTALLIZES into the substrate, and
  * cheaper models inherit the upgraded substrate elsewhere. Compounding
- * capability growth is core; do not play with it. When the multi-provider
- * best-of-bracket router lands, the growth-critical resolver is a hard guard
- * that bypasses cost policy and stays Anthropic rank-front.
+ * capability growth is core; do not play with it. This is the DEFAULT — the
+ * owner may override the growth-core's default model per-tenant/vertical via
+ * the internal admin governance platform (a deliberate, audited setting);
+ * absent that explicit override it is always the rank-front Anthropic model.
+ * When the multi-provider best-of-bracket router lands, the growth-critical
+ * resolver is a hard guard that bypasses cost policy and stays Anthropic
+ * rank-front unless the governance override is set.
  */
 
 import { resolveModelIdForTier, type ModelTier } from '@borjie/central-intelligence';
