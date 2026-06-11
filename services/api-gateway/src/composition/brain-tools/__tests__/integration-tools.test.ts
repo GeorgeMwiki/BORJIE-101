@@ -2,10 +2,12 @@
  * Integration-fabric brain tools tests.
  *
  * Verifies:
- *   - descriptor shapes: list = LOW/read, invoke = HIGH/write +
+ *   - descriptor shapes: list = LOW/read, connect_start = LOW/read (URL
+ *     only — the human completes consent), invoke = HIGH/write +
  *     requiresPolicyRuleLiteral (egress write hard rule)
- *   - EXACTLY two tools (the generative law — never 21 per-connector tools)
- *   - both registered in the merged persona-aware catalog (index.ts)
+ *   - EXACTLY three GENERIC tools (the generative law — never 21
+ *     per-connector tools; every tool is parameterized by connectorId)
+ *   - all registered in the merged persona-aware catalog (index.ts)
  *   - handlers defer to ctx.httpClient against /integrations/connectors
  *   - fail-closed without an httpClient
  */
@@ -14,6 +16,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   INTEGRATION_TOOLS,
+  integrationConnectorConnectStartTool,
   integrationConnectorInvokeTool,
   integrationConnectorListTool,
 } from '../integration-tools.js';
@@ -35,15 +38,16 @@ const ctxWith = (
 });
 
 describe('integration-fabric tool family (generative law)', () => {
-  it('exports EXACTLY two tools — one list, one invoke', () => {
-    expect(INTEGRATION_TOOLS).toHaveLength(2);
+  it('exports EXACTLY three tools — list, connect_start, invoke', () => {
+    expect(INTEGRATION_TOOLS).toHaveLength(3);
     expect(INTEGRATION_TOOLS.map((t) => t.id)).toEqual([
       'integration.connector.list',
+      'integration.connector.connect_start',
       'integration.connector.invoke',
     ]);
   });
 
-  it('both are persona-gated to owner + admin', () => {
+  it('all are persona-gated to owner + admin', () => {
     for (const tool of INTEGRATION_TOOLS) {
       expect(tool.personaSlugs).toEqual([
         'T1_owner_strategist',
@@ -82,6 +86,68 @@ describe('integration.connector.list descriptor', () => {
   it('fails closed without an httpClient', async () => {
     await expect(
       integrationConnectorListTool.handler({}, ctxWith()),
+    ).rejects.toThrow(/requires httpClient/);
+  });
+});
+
+describe('integration.connector.connect_start descriptor', () => {
+  it('is LOW stakes, read-only (returns a URL only — the human consents)', () => {
+    expect(integrationConnectorConnectStartTool.stakes).toBe('LOW');
+    expect(integrationConnectorConnectStartTool.isWrite).toBe(false);
+    expect(
+      integrationConnectorConnectStartTool.requiresPolicyRuleLiteral,
+    ).toBe(false);
+  });
+
+  it('input schema rejects path-unsafe connector ids', () => {
+    for (const bad of ['../etc', 'Slack', 'slack/evil', '']) {
+      const parsed = integrationConnectorConnectStartTool.inputSchema.safeParse(
+        { connectorId: bad },
+      );
+      expect(parsed.success).toBe(false);
+    }
+  });
+
+  it('output schema admits the honest provisioned:false envelope', () => {
+    const parsed = integrationConnectorConnectStartTool.outputSchema.safeParse({
+      provisioned: false,
+      connectorId: 'slack',
+      reason: 'provider OAuth app not configured',
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it('defers to POST /integrations/connectors/:id/connect/start', async () => {
+    const calls: Array<{ path: string; body: unknown }> = [];
+    const client: PersonaToolHttpClient = {
+      async get<T>(): Promise<T> {
+        throw new Error('unexpected GET');
+      },
+      async post<T>(path: string, body: unknown): Promise<T> {
+        calls.push({ path, body });
+        return {
+          provisioned: true,
+          connectorId: 'slack',
+          authorizeUrl: 'https://slack.com/oauth/v2/authorize?x=1',
+        } as T;
+      },
+    };
+    const result = await integrationConnectorConnectStartTool.handler(
+      { connectorId: 'slack' },
+      ctxWith(client),
+    );
+    expect(calls).toEqual([
+      { path: '/integrations/connectors/slack/connect/start', body: {} },
+    ]);
+    expect(result.provisioned).toBe(true);
+  });
+
+  it('fails closed without an httpClient', async () => {
+    await expect(
+      integrationConnectorConnectStartTool.handler(
+        { connectorId: 'slack' },
+        ctxWith(),
+      ),
     ).rejects.toThrow(/requires httpClient/);
   });
 });
@@ -167,16 +233,17 @@ describe('integration.connector.invoke descriptor', () => {
 });
 
 describe('registration in the merged brain-tools catalog', () => {
-  it('both tools appear in listPersonaToolDescriptors()', () => {
+  it('all three tools appear in listPersonaToolDescriptors()', () => {
     const ids = listPersonaToolDescriptors().map((d) => d.id);
     expect(ids).toContain('integration.connector.list');
+    expect(ids).toContain('integration.connector.connect_start');
     expect(ids).toContain('integration.connector.invoke');
   });
 
   it('no per-connector tool ids leaked into the catalog (generative law)', () => {
     const ids = listPersonaToolDescriptors().map((d) => d.id);
     const perConnector = ids.filter((id) =>
-      /^integration\.connector\.(?!list$|invoke$)/.test(id),
+      /^integration\.connector\.(?!list$|connect_start$|invoke$)/.test(id),
     );
     expect(perConnector).toEqual([]);
   });

@@ -36,6 +36,7 @@ import {
   type ConnectorInvokerMap,
   type FabricDb,
 } from '../../composition/connector-fabric.js';
+import { createConnectorsOAuthRouter } from './connectors-oauth.hono.js';
 
 const ConnectorIdParam = z
   .string()
@@ -60,6 +61,14 @@ const unauthorized = {
 
 export function createConnectorsRouter(): Hono {
   const app = new Hono();
+
+  // OAuth CONNECT sub-flow (connectors-oauth.hono.ts) — mounted FIRST so
+  // the provider-initiated GET /connect/callback (which arrives with NO
+  // JWT and authenticates via its HMAC-signed single-use `state`) is not
+  // blocked by this router's blanket auth middleware below. The sub-router
+  // applies auth itself on /:id/connect/start and /:id/disconnect.
+  app.route('/', createConnectorsOAuthRouter());
+
   app.use('*', authMiddleware);
   app.use('*', databaseMiddleware);
 
