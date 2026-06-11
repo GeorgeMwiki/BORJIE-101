@@ -205,7 +205,20 @@ import {
   createEstateMindSupervisor,
   createMdCommitmentReconciliation,
   buildEstateMindSnapshotReader,
+  createTabEventLogProposalSink,
 } from './composition/estate-mind-wiring';
+// Living-MD organ — the felt loop that closes over the durable md_commitments
+// substrate (per-turn plan re-read + deferred resurfacing + hash-chained
+// timeline). Composed at the mdCommitmentBundle site; its someday-review
+// supervisor is leader-gated at its .start() site like every other cron.
+import {
+  createLivingMdOrgan,
+  type LivingMdOrgan,
+} from './composition/living-md/living-md-wiring';
+import { registerMdEventBridge } from './composition/living-md/event-subscriber-wiring';
+import { configureLivingMdTurnHooks } from './routes/mining/chat-orchestrator';
+import { livingPlanRouter } from './routes/owner/living-plan.hono';
+import { commitmentGovernanceRouter } from './routes/owner/commitment-governance.hono';
 // Wave-C C3 WIN-3/4 — the THREE graded-corrective + closed-loop organs that make
 // the homeostatic controller ACT: the drive-context resolver (commitment → REAL
 // drive severity from the live snapshot), the driveId → drafter registry (the
@@ -246,6 +259,12 @@ import { initLlmRoutingConfig } from './composition/llm-routing-config-wiring';
 // resident Slow Loop. Null when no db handle is present.
 let mdCommitmentBundle: ReturnType<typeof createMdCommitmentReconciliation> =
   null;
+// The living-MD organ — composed at the mdCommitmentBundle site so the chat
+// turn re-reads the durable plan, the deferred/someday work resurfaces on its
+// own clock, and every lifecycle transition lands on the hash-chained timeline.
+// Module-level so the cron seam, route mount, event-bridge, and shutdown block
+// can all reach the single composed instance. Null when no db handle is present.
+let livingMd: LivingMdOrgan | null = null;
 // Wave-C C3 WIN-3 — the graded-corrective ladder ceiling. Resolve the tenant
 // delegation cap for the md_commitments homeostatic controller from the env at
 // bootstrap (the only place process.env is read). It is CLAMPED — it can be set
@@ -861,6 +880,7 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'estate-mind',
   'control-shell',
   'loop-economy',
+  'someday-review',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -1848,10 +1868,62 @@ try {
         autonomyCap: mdAutonomyCap,
       });
       if (mdCommitmentBundle) {
-        configureMdDeferTools({ repo: mdCommitmentBundle.repository });
+        // LIVING-MD ORGAN — compose the felt loop over the durable substrate so
+        // the chat turn re-reads the plan (turnHooks), deferred/someday work
+        // resurfaces on its own leader-gated clock (somedayReviewSupervisor),
+        // and every lifecycle transition appends to the hash-chained timeline
+        // (timelineSink). Pure composition over the bundle + estate-mind sink.
+        const listActiveTenantIdsForMd = async (): Promise<
+          ReadonlyArray<string>
+        > => {
+          if (!dbForMd) return [];
+          try {
+            const res = await (
+              dbForMd as unknown as { execute(q: unknown): Promise<unknown> }
+            ).execute(
+              drizzleSqlTag`SELECT id FROM tenants WHERE status = 'active'`,
+            );
+            const rows = Array.isArray(res)
+              ? (res as readonly unknown[])
+              : ((res as { rows?: readonly unknown[] }).rows ?? []);
+            return rows
+              .map((r) => {
+                const id = (r as { id?: unknown }).id;
+                return typeof id === 'string' ? id : String(id ?? '');
+              })
+              .filter((s) => s.length > 0);
+          } catch {
+            return [];
+          }
+        };
+        livingMd = createLivingMdOrgan({
+          repository: mdCommitmentBundle.repository,
+          eventSubscriber: mdCommitmentBundle.eventSubscriber,
+          proposalSink: dbForMd
+            ? createTabEventLogProposalSink(
+                dbForMd as unknown as { execute(q: unknown): Promise<unknown> },
+                createPinoLikeLogger('living-md-proposal-sink'),
+              )
+            : null,
+          listActiveTenantIds: listActiveTenantIdsForMd,
+          db: dbForMd as unknown as Parameters<
+            typeof createLivingMdOrgan
+          >[0]['db'],
+          logger: createPinoLikeLogger('living-md'),
+        });
+        // Feed the LIVING-MD hash-chained timeline into the defer tools so
+        // confirm/reopen/block lands on the lifecycle trail the plan-tab +
+        // governance surfaces read.
+        configureMdDeferTools({
+          repo: mdCommitmentBundle.repository,
+          timelineSink: livingMd.timelineSink,
+        });
+        // Inject the per-turn re-read + post-turn commitment_state hooks into the
+        // LIVE chat seam (DI — chat-orchestrator stays import-free of the organ).
+        configureLivingMdTurnHooks(livingMd.turnHooks);
         mdLogger.info(
           { autonomyCap: mdAutonomyCap },
-          'md-commitments: graded-corrective + closed-loop set-point organs wired (drive-context resolver + drafter registry + set_point_state store) — homeostatic controller LIVE, propose-only/HITL',
+          'md-commitments: graded-corrective + closed-loop set-point organs wired (drive-context resolver + drafter registry + set_point_state store) + LIVING-MD organ composed (turn re-read + someday resurfacing + hash-chained timeline) — homeostatic controller LIVE, propose-only/HITL',
         );
       }
     }
@@ -2291,6 +2363,11 @@ api.route('/blackboard', blackboardRouter);
 api.route('/owner/saved-searches', savedSearchesRouter);
 // Mr. Mwikila autonomous-MD inbox + delegation surface.
 api.route('/owner/mwikila-inbox', mwikilaInboxRouter);
+// LIVING-MD plan surfaces — the owner's lens on the durable md_commitments
+// plan (summary / upcoming / overdue / deferred / past + per-item timeline) and
+// the per-tenant governance set-points the someday-review cadence reads fresh.
+api.route('/owner/living-plan', livingPlanRouter);
+api.route('/owner/commitment-governance', commitmentGovernanceRouter);
 api.route('/owner/delegation', delegationRouter);
 // Roadmap R7 — owner-mobile cockpit hub aggregator.
 api.route('/owner/cockpit', cockpitHubRouter);
@@ -4101,6 +4178,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: loop-economy cron stop failed');
   }
   try {
+    livingMd?.somedayReviewSupervisor.stop();
+    logger.info('shutdown: living-md someday-review stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: living-md someday-review stop failed');
+  }
+  try {
     geofenceWatcher.stop();
     logger.info('shutdown: geofence watcher stopped');
   } catch (err) {
@@ -4421,6 +4504,16 @@ if (require.main === module) {
   // decided actions route through the governed proactive proposal sink.
   // Inert under NODE_ENV=test and when BORJIE_LOOP_ECONOMY=off.
   withClusterLeader(loopEconomyCron, lockIdFor('loop-economy')).start();
+  // LIVING-MD someday-review — the deferred-resurfacing heartbeat. Leader-gated
+  // (only the elected leader sweeps), inert under NODE_ENV=test, default-ON
+  // (BORJIE_SOMEDAY_REVIEW). Resurfaces tickler/someday commitments whose time
+  // has come back into the owner's plan via the governed proposal sink.
+  if (livingMd) {
+    withClusterLeader(
+      livingMd.somedayReviewSupervisor,
+      lockIdFor('someday-review'),
+    ).start();
+  }
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
   withClusterLeader(geofenceWatcher, lockIdFor('geofence-watcher')).start();
@@ -4616,6 +4709,20 @@ if (require.main === module) {
         logger,
         arrearsService: serviceRegistry.arrears?.service ?? null,
       });
+
+      // LIVING-MD event bridge — relay the carried domain/outbox events
+      // (ledger.credit, settlement, slot.stale, …) onto the injected MD event
+      // bus so a `waiting_for` commitment flips to `due` the moment its real
+      // trigger fires (at-least-once + idempotent on tenantId:eventKey). The
+      // bridge replaces the prior `global` event-bus anti-pattern; absent the
+      // organ (no db) it is simply skipped.
+      if (livingMd) {
+        registerMdEventBridge({
+          bus: subscribableBus,
+          mdEventBus: livingMd.mdEventBus,
+          logger,
+        });
+      }
 
       // Outbound webhook delivery — subscribe the retry-worker to every
       // `WebhookDeliveryQueued` event emitted by the DLQ admin router
