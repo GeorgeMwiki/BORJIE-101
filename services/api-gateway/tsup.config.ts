@@ -25,7 +25,12 @@ export default defineConfig({
   // `external` still excludes native/optional deps esbuild can't safely walk
   // (node-pre-gyp, aws-sdk mocks, pg-native, better-sqlite3).
   skipNodeModulesBundle: true,
-  noExternal: [/^@borjie\//],
+  // `jose` (JWT verification in hono-auth) is pure ESM as of v6 — its only
+  // export condition is `default` → dist/webapi (WebCrypto, global in Node
+  // 20+), with NO `require`/`node` condition. Left external in a CJS bundle it
+  // boot-crashes with ERR_REQUIRE_ESM (`require() of ES Module jose`). Inline
+  // it so esbuild transpiles the ESM source into the CJS bundle at build time.
+  noExternal: [/^@borjie\//, 'jose'],
   external: [
     '@mapbox/node-pre-gyp',
     'mock-aws-s3',
