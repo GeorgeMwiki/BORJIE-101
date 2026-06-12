@@ -17,7 +17,12 @@
 # -----------------------------------------------------------------------------
 # Stage 1: workspace dependency install
 # -----------------------------------------------------------------------------
-FROM node:20.18.0-bookworm-slim AS deps
+# Node 22: `require()` of ES modules is unflagged/stable since 22.12. Node 20
+# CANNOT require() ESM, which boot-crashed the gateway on transitive ESM-only
+# deps (jose@6, uuid@14 — the latter pulled by node-cron AND @borjie audit
+# logging). Local dev + CI already run Node 22, so this aligns prod with where
+# the stack is validated and retires the whole ERR_REQUIRE_ESM class.
+FROM node:22.15.0-bookworm-slim AS deps
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -86,7 +91,7 @@ RUN pnpm -F @borjie/api-gateway --prod deploy /deploy
 # -----------------------------------------------------------------------------
 # Stage 3: minimal runtime image
 # -----------------------------------------------------------------------------
-FROM node:20.18.0-bookworm-slim AS runtime
+FROM node:22.15.0-bookworm-slim AS runtime
 
 ENV NODE_ENV="production"
 ENV PORT="3001"
