@@ -279,9 +279,9 @@ contract holds.
 | Predictive Interventions — prediction + opportunity persistence | LIVE | LLM port = undefined → heuristic-baseline mode. `listActiveTenants` returns `[]` until the occupancy/leases adapter lands. |
 
 The follow-up adapters (concrete Reconciliation/Statement/Disbursement
-port adapters; Anthropic-backed `VoiceBrain`; Zillow / Rentometer
-`MarketRatePort`; occupancy / lease join for `listActive*`) are flagged
-inline with `TODO` comments in each wiring file.
+port adapters; Anthropic-backed `VoiceBrain`; commodity-feed (LBMA /
+LME) `MarketRatePort`; site / licence join for `listActive*`) are
+flagged inline with `TODO` comments in each wiring file.
 
 ### Drizzle schemas + services
 
