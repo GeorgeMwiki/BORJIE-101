@@ -70,6 +70,7 @@
     "@borjie/email-templates": "workspace:*",
     "@borjie/forecast-engine": "workspace:*",
     "@borjie/media-engine": "workspace:*",
+    "@borjie/media-generation": "workspace:*",
     "@borjie/document-studio": "workspace:*",
     "@borjie/translation": "workspace:*",
     "@borjie/translation-sota": "workspace:*",
