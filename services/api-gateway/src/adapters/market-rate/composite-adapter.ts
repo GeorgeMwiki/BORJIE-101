@@ -12,11 +12,10 @@
  *     the next adapter. Useful when the upstreams cover overlapping
  *     geographies and we want to minimise quota burn.
  *
- * `createCompositeAdapterFromEnv` reads the three first-party env vars
- * (`RENTOMETER_API_KEY`, `ZILLOW_API_KEY`, `AIRBNB_API_KEY`) and returns
- * a composite spanning whichever adapters are configured. Returns
- * `null` when no env vars are set so the wiring root can drop back to
- * the existing stub adapter.
+ * `createCompositeAdapterFromEnv` reads the first-party env var
+ * (`RENTOMETER_API_KEY`) and returns a composite spanning whichever
+ * adapters are configured. Returns `null` when no env vars are set so
+ * the wiring root can drop back to the existing stub adapter.
  *
  * The aggregated `adapterId` is `composite[<a>+<b>+...]` so the
  * `MarketRateSnapshot.sourceAdapter` column tells you which providers
@@ -31,14 +30,6 @@ import {
   createRentometerAdapterFromEnv,
   type RentometerEnv,
 } from './rentometer-adapter.js';
-import {
-  createZillowAdapterFromEnv,
-  type ZillowEnv,
-} from './zillow-adapter.js';
-import {
-  createAirbnbAdapterFromEnv,
-  type AirbnbEnv,
-} from './airbnb-adapter.js';
 
 export type CompositeMode = 'merge' | 'failover';
 
@@ -52,7 +43,7 @@ export interface CompositeAdapterDeps {
   readonly logger?: CompositeAdapterLogger;
 }
 
-export type CompositeEnv = RentometerEnv & ZillowEnv & AirbnbEnv;
+export type CompositeEnv = RentometerEnv;
 
 export function createCompositeAdapter(
   deps: CompositeAdapterDeps,
@@ -91,8 +82,6 @@ export function createCompositeAdapterFromEnv(
 ): MarketRatePort | null {
   const candidates: readonly (MarketRatePort | null)[] = [
     createRentometerAdapterFromEnv(env),
-    createZillowAdapterFromEnv(env),
-    createAirbnbAdapterFromEnv(env),
   ];
   const live = candidates.filter(
     (a): a is MarketRatePort => a !== null,

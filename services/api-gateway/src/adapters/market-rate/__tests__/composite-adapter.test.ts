@@ -71,9 +71,9 @@ describe('createCompositeAdapter', () => {
 
   it('exposes a composite adapterId reflecting inner adapters', () => {
     const a = makeFakeAdapter('rentometer', []);
-    const b = makeFakeAdapter('zillow', []);
+    const b = makeFakeAdapter('other', []);
     const composite = createCompositeAdapter({ adapters: [a, b] });
-    expect(composite.adapterId).toBe('composite[rentometer+zillow]');
+    expect(composite.adapterId).toBe('composite[rentometer+other]');
   });
 });
 
@@ -160,25 +160,11 @@ describe('createCompositeAdapterFromEnv', () => {
     expect(createCompositeAdapterFromEnv({})).toBeNull();
   });
 
-  it('builds a composite spanning whichever env vars are set', () => {
+  it('builds a composite from the configured env var', () => {
     const composite = createCompositeAdapterFromEnv({
       RENTOMETER_API_KEY: 'rk_test_secret',
-      ZILLOW_API_KEY: 'zk_test_secret',
     });
     expect(composite).not.toBeNull();
-    expect(composite?.adapterId).toContain('rentometer');
-    expect(composite?.adapterId).toContain('zillow');
-    expect(composite?.adapterId).not.toContain('airbnb');
-  });
-
-  it('builds with all three when all keys present', () => {
-    const composite = createCompositeAdapterFromEnv({
-      RENTOMETER_API_KEY: 'rk',
-      ZILLOW_API_KEY: 'zk',
-      AIRBNB_API_KEY: 'ak',
-    });
-    expect(composite?.adapterId).toBe(
-      'composite[rentometer+zillow+airbnb]',
-    );
+    expect(composite?.adapterId).toBe('composite[rentometer]');
   });
 });

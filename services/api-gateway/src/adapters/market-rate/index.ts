@@ -14,22 +14,6 @@ export {
 } from './rentometer-adapter.js';
 
 export {
-  ZILLOW_ADAPTER_ID,
-  createZillowAdapter,
-  createZillowAdapterFromEnv,
-  type ZillowAdapterDeps,
-  type ZillowEnv,
-} from './zillow-adapter.js';
-
-export {
-  AIRBNB_ADAPTER_ID,
-  createAirbnbAdapter,
-  createAirbnbAdapterFromEnv,
-  type AirbnbAdapterDeps,
-  type AirbnbEnv,
-} from './airbnb-adapter.js';
-
-export {
   createCompositeAdapter,
   createCompositeAdapterFromEnv,
   type CompositeAdapterDeps,
