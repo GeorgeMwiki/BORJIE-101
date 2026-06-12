@@ -442,10 +442,14 @@ describe('dsar-rtbf-executor / per-policy mapping', () => {
     }
     // Phase D / A2b-1 added kernel_memory_episodic + kernel_memory_semantic
     // (HARD_DELETE × 2) and tenant_identities + employees (ANONYMIZE × 2).
+    // Hardening H1 (2026-06-11) added the SC identity spine:
+    // org_memberships + identity_auth_principals (HARD_DELETE × 2 — the
+    // membership graph and auth-principal mappings are the subject's own
+    // personal data with no inbound FKs).
     expect(counts.ANONYMIZE).toBe(7);
-    expect(counts.HARD_DELETE).toBe(5);
+    expect(counts.HARD_DELETE).toBe(7);
     expect(counts.RETAIN).toBe(7);
-    expect(Object.keys(RTBF_POLICY).length).toBe(19);
+    expect(Object.keys(RTBF_POLICY).length).toBe(21);
   });
 
   describe('phase-2 RTBF tables (A2b-1)', () => {

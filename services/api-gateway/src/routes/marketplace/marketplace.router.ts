@@ -151,6 +151,19 @@ export function createMarketplaceRouter(deps: MarketplaceRouterDeps): Hono {
   });
 
   // ─── PUBLIC: cross-org listing search ──────────────────────────
+  // INTENTIONALLY PUBLIC (hardening R-2): the mineral marketplace is a
+  // public-discovery surface — any buyer browses listings across ALL
+  // sellers; that cross-org reach IS the product. There is NO membership
+  // gate here BY DESIGN, and none is needed: the data port hard-filters
+  // `status = 'active'` (drizzle-data-port.ts searchListings), so only
+  // listings a seller has explicitly published are ever returned. The
+  // optional `orgId` filter is a PUBLIC narrowing to one seller's active
+  // listings — it exposes nothing a buyer couldn't already page to. Buyer
+  // ≠ tenant (corrected model): a buyer holds no tenant-insider membership
+  // to check against, so an "active membership in orgId" gate would be both
+  // wrong (breaks public browse) and impossible (buyers aren't members).
+  // Per-buyer / connected-seller scoping, when wanted, is a CLIENT-side
+  // filter over GET /memberships/me, not a server-side access gate.
   router.get('/listings', async (c) => {
     const parsed = ListingsQuerySchema.safeParse(
       Object.fromEntries(new URL(c.req.url).searchParams.entries()),

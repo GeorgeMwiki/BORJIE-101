@@ -157,6 +157,9 @@ export interface AuthContext {
   /** Token expiry epoch seconds — duplicate of `tokenExp` carried by the
    *  hono-auth variant under the name `exp`. */
   exp?: number | undefined;
+  /** E.164-ish phone claim from the Supabase token (phone-OTP principals) —
+   *  consumed by identity provisioning on the membership routes (SC-2). */
+  phone?: string | undefined;
 }
 
 export interface JWTPayload {

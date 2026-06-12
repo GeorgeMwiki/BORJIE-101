@@ -27,7 +27,11 @@
  *   - casual_chat → any model (lowest floor).
  */
 
-import { type ModelFamily, isModelFamily } from './baselines.js';
+import {
+  type ModelFamily,
+  isModelFamily,
+  FAMILY_CAPABILITY_RANK,
+} from './baselines.js';
 
 // ───────────────────────────── Types ─────────────────────────────
 
@@ -133,28 +137,12 @@ export const MODEL_REQUIREMENTS: Readonly<Record<TaskCategory, ModelRequirement>
 // ────────────────── Family rank (numeric comparison) ────────────────
 
 /**
- * Numeric rank for family comparison. Higher = more capable.
- * Only Claude families and GPT-5 family are scored — others (whisper,
- * tts, embed) are non-text-reasoning and exit the rank map.
- *
- * The rank space is intentionally sparse to leave room for future
- * tiers without renumbering everything.
+ * Numeric rank for family comparison — the canonical FAMILY_CAPABILITY_RANK
+ * from baselines (single source of truth; Fable=7 leads). Higher = more
+ * capable; non-text-reasoning families (whisper/tts/embed) are unranked → 0.
  */
-const FAMILY_RANK: Readonly<Partial<Record<ModelFamily, number>>> = Object.freeze({
-  haiku: 1,
-  'gpt-5-mini': 1,
-  'gemini-flash': 1,
-  'deepseek-chat': 1,
-  sonnet: 3,
-  'gpt-5': 3,
-  'gemini-pro': 3,
-  'deepseek-coder': 3,
-  opus: 5,
-});
-
-/** Returns the numeric rank for a family, or `0` if unranked. */
 function rankOf(family: ModelFamily): number {
-  return FAMILY_RANK[family] ?? 0;
+  return FAMILY_CAPABILITY_RANK[family] ?? 0;
 }
 
 /** True iff `candidate` meets or exceeds `floor`. */

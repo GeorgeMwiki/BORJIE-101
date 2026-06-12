@@ -182,6 +182,94 @@ const OptionalSchema = z.object({
 export const EnvSchema = CoreSchema.merge(OptionalSchema);
 export type Env = z.infer<typeof EnvSchema>;
 
+/**
+ * PRODUCTION_REQUIRED — the full credential set the gateway truly needs to
+ * BOOT AND SERVE in production. This is the single source of truth shared by
+ * the boot-time assertion below AND the standalone CLIs
+ * (`scripts/preflight-production.mjs`, `scripts/set-gh-secrets.mjs`) so the
+ * two can never drift.
+ *
+ * Each entry is one *requirement*. A requirement is satisfied when ANY of its
+ * `keys` is present (aliases). The gateway reads the Supabase URL / anon key
+ * under either the server-only name OR the `NEXT_PUBLIC_*` name (see
+ * `middleware/auth.middleware.ts`, `composition/public-auth-wiring.ts`), so a
+ * production deploy that sets only one alias is still complete.
+ *
+ * `label` is the operator-facing name used in the missing-list / preflight
+ * output. `keys[0]` is the canonical name a secret store / GH Actions secret
+ * should use.
+ */
+export interface ProductionRequirement {
+  /** Operator-facing requirement label (also the canonical secret name). */
+  readonly label: string;
+  /** Env keys that satisfy this requirement — present if ANY is non-empty. */
+  readonly keys: readonly string[];
+  /** One-line why, surfaced in CLI output. */
+  readonly why: string;
+}
+
+export const PRODUCTION_REQUIRED: readonly ProductionRequirement[] = Object.freeze([
+  {
+    label: 'DATABASE_URL',
+    keys: ['DATABASE_URL'],
+    why: 'Primary Postgres connection — gateway cannot reach the DB without it.',
+  },
+  {
+    label: 'JWT_SECRET',
+    keys: ['JWT_SECRET'],
+    why: 'HS256 access-token signing root (≥ 32 chars).',
+  },
+  {
+    label: 'SUPABASE_URL',
+    keys: ['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'],
+    why: 'Supabase project URL — server auth + storage. Either alias satisfies.',
+  },
+  {
+    label: 'SUPABASE_ANON_KEY',
+    keys: ['SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SUPABASE_ANON_KEY'],
+    why: 'Supabase anon key — public auth path. Either alias satisfies.',
+  },
+  {
+    label: 'SUPABASE_SERVICE_ROLE_KEY',
+    keys: ['SUPABASE_SERVICE_ROLE_KEY'],
+    why: 'Server-only key (bypasses RLS) — required by storage + signup wiring.',
+  },
+  {
+    label: 'SUPABASE_JWT_SECRET',
+    keys: ['SUPABASE_JWT_SECRET'],
+    why: 'Canonical auth — the verified-JWT middleware fails closed without it.',
+  },
+  {
+    label: 'ANTHROPIC_API_KEY',
+    keys: ['ANTHROPIC_API_KEY'],
+    why: 'Primary LLM provider — the brain kernel cannot think without it.',
+  },
+  {
+    label: 'SESSION_HASH_SECRET',
+    keys: ['SESSION_HASH_SECRET'],
+    why: 'Audit hash-chain HMAC root — chain degrades to forge-able SHA-256 if unset.',
+  },
+]);
+
+/**
+ * findMissingProductionKeys — pure helper. Given an env source, return the
+ * `label`s of every {@link PRODUCTION_REQUIRED} requirement NOT satisfied. A
+ * requirement is satisfied when any of its `keys` is a non-empty string.
+ *
+ * Shared by the boot assertion and the preflight CLI so the required set is
+ * computed identically in both places.
+ */
+export function findMissingProductionKeys(
+  source: Record<string, string | undefined> = process.env,
+): readonly string[] {
+  return PRODUCTION_REQUIRED.filter(
+    (req) => !req.keys.some((k) => {
+      const v = source[k];
+      return typeof v === 'string' && v.trim() !== '';
+    }),
+  ).map((req) => req.label);
+}
+
 export interface ValidatedEnv {
   readonly env: Env;
   readonly warnings: readonly string[];
@@ -207,6 +295,28 @@ export function validateEnv(source: NodeJS.ProcessEnv = process.env): ValidatedE
   const env = parsed.data;
   const warnings: string[] = [];
   if (env.NODE_ENV === 'production') {
+    // PRODUCTION-REQUIRED assertion — fail LOUD, never silent-degrade. Every
+    // credential the gateway truly needs to serve must be present; on a miss,
+    // throw ONE error that lists EVERY missing requirement by name so the
+    // operator fixes the whole set in one pass (not whack-a-mole on reboot).
+    // The required set comes from PRODUCTION_REQUIRED (shared with the
+    // preflight + set-gh-secrets CLIs) so the two never drift.
+    const missing = findMissingProductionKeys(source);
+    if (missing.length > 0) {
+      const lines = PRODUCTION_REQUIRED
+        .filter((req) => missing.includes(req.label))
+        .map((req) => `  - ${req.label}: ${req.why}`)
+        .join('\n');
+      throw new Error(
+        'Environment validation failed — gateway cannot boot in production.\n' +
+          `Missing ${missing.length} required value(s):\n${lines}\n\n` +
+          `Missing keys (copy-paste): ${missing.join(', ')}\n` +
+          'Run `node scripts/preflight-production.mjs` for a full readiness report, ' +
+          'or `node scripts/set-gh-secrets.mjs` to push present secrets to GitHub Actions.\n' +
+          'See scripts/secrets/REQUIRED_SECRETS.md for how to obtain each value.'
+      );
+    }
+
     // Production-only nudges: optional-but-strongly-recommended vars.
     const recommend = [
       'SENTRY_DSN',
@@ -221,17 +331,6 @@ export function validateEnv(source: NodeJS.ProcessEnv = process.env): ValidatedE
     if (env.JWT_SECRET.length < 64) {
       warnings.push(
         'JWT_SECRET is less than 64 chars in production — consider rotating to a 64+ char random secret.'
-      );
-    }
-    // Audit-hash-chain HMAC root — REQUIRED in production. The chain silently
-    // degrades to unkeyed SHA-256 when unset (forge-able with DB write access).
-    if (!env.SESSION_HASH_SECRET) {
-      throw new Error(
-        'Environment validation failed — gateway cannot boot.\n' +
-          '  - SESSION_HASH_SECRET: required in production (≥ 32 chars). ' +
-          'Generate with `openssl rand -base64 48`. ' +
-          'Without it, the audit hash chain falls back to unsigned SHA-256.\n\n' +
-          'See Docs/SECRETS_ROTATION.md for rotation policy.'
       );
     }
   } else if (env.NODE_ENV === 'development' && !env.DATABASE_URL.includes('localhost')) {

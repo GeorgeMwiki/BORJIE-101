@@ -441,6 +441,48 @@ const TABLE_BINDINGS: Readonly<Record<DsarTableName, TableBinding>> =
       },
       tenantScoped: false,
     },
+    // SC identity spine (hardening H1) — the subject's org-membership graph.
+    // Cross-tenant by design (one human, many orgs): subject-matched on the
+    // shadow user_id OR the tenant_identity_id; service-role read.
+    org_memberships: {
+      sqlName: 'org_memberships',
+      columns: [
+        'id',
+        'tenant_identity_id',
+        'organization_id',
+        'platform_tenant_id',
+        'user_id',
+        'status',
+        'relationship_type',
+        'member_role',
+        'nickname',
+        'joined_at',
+        'left_at',
+      ],
+      subjectColumns: {
+        customerId: ['user_id', 'tenant_identity_id'],
+        email: [],
+        tenantId: [],
+      },
+      tenantScoped: false,
+    },
+    // Supabase-sub ↔ identity bridge — the subject's auth-principal mappings.
+    identity_auth_principals: {
+      sqlName: 'identity_auth_principals',
+      columns: [
+        'id',
+        'tenant_identity_id',
+        'supabase_user_id',
+        'auth_method',
+        'created_at',
+      ],
+      subjectColumns: {
+        customerId: ['supabase_user_id', 'tenant_identity_id'],
+        email: [],
+        tenantId: [],
+      },
+      tenantScoped: false,
+    },
     employees: {
       sqlName: 'employees',
       columns: [

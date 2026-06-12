@@ -221,6 +221,10 @@ const RULES: ReadonlyArray<TierRule> = Object.freeze([
   { prefix: 'mwikila.', tier: 'low' },
   // Integration fabric — catalog + connection-state read (isWrite:false).
   { prefix: 'integration.connector.list', tier: 'low' },
+  // Mint a provider authorize URL — returns ONLY a link the owner opens and
+  // approves themselves (consent + token exchange + storage happen outside
+  // the brain). Descriptor: stakes LOW, isWrite:false, no policy literal.
+  { prefix: 'integration.connector.connect_start', tier: 'low' },
   // Read-only review queues / aggregates (isWrite:false on the descriptor).
   { prefix: 'admin.superpowers.list_pending', tier: 'low' },
   { prefix: 'plan.aggregate_results', tier: 'low' },

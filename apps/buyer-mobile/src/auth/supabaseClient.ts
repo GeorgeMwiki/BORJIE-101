@@ -5,7 +5,7 @@
  * `app.json` extras at build time, or set as `EXPO_PUBLIC_*` for `expo start`):
  *   - EXPO_PUBLIC_SUPABASE_URL          e.g. https://xyzcompany.supabase.co
  *   - EXPO_PUBLIC_SUPABASE_ANON_KEY     the `anon`/`public` key (never the
- *                                       `service_role` key — that lives only
+ *                                       service-role key — that lives only
  *                                       on the server).
  *
  * Storage: sessions are persisted in `expo-secure-store` (Keychain on iOS,

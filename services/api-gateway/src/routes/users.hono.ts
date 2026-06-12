@@ -4,7 +4,8 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import bcrypt from 'bcrypt';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../middleware/hono-auth';
+import { UserRole } from '../types/user-role';
 import { databaseMiddleware } from '../middleware/database';
 import { roles, userRoles } from '@borjie/database';
 
@@ -145,7 +146,7 @@ const USER_WRITE_ROLES = new Set(['super_admin', 'admin', 'tenant_admin']);
 // Only super_admin may create other super_admins or cross-tenant admins.
 const SUPER_ADMIN_ONLY_ROLES = new Set(['super_admin']);
 
-app.post('/', zValidator('json', CreateUserSchema), withSecurityEvents({ action: 'user.create', resource: 'user', severity: 'info' }, async (c: any) => {
+app.post('/', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TENANT_ADMIN, UserRole.OWNER), zValidator('json', CreateUserSchema), withSecurityEvents({ action: 'user.create', resource: 'user', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const repos = c.get('repos') as any;
   const db = c.get('db');
@@ -210,7 +211,7 @@ app.post('/', zValidator('json', CreateUserSchema), withSecurityEvents({ action:
   return c.json({ success: true, data: mapUser(row, roleMap.get(row.id)) }, 201);
 }));
 
-app.put('/:id', zValidator('json', UpdateUserSchema), withSecurityEvents({ action: 'user.update', resource: 'user', severity: 'info' }, async (c: any) => {
+app.put('/:id', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TENANT_ADMIN, UserRole.OWNER), zValidator('json', UpdateUserSchema), withSecurityEvents({ action: 'user.update', resource: 'user', severity: 'info' }, async (c: any) => {
   const auth = c.get('auth');
   const repos = c.get('repos') as any;
   const db = c.get('db');
@@ -228,7 +229,7 @@ app.put('/:id', zValidator('json', UpdateUserSchema), withSecurityEvents({ actio
   return c.json({ success: true, data: mapUser(row, roleMap.get(row.id)) });
 }));
 
-app.delete('/:id', withSecurityEvents({ action: 'user.delete', resource: 'user', severity: 'warn' }, async (c) => {
+app.delete('/:id', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TENANT_ADMIN, UserRole.OWNER), withSecurityEvents({ action: 'user.delete', resource: 'user', severity: 'warn' }, async (c) => {
   const auth = c.get('auth');
   const repos = c.get('repos') as any;
   await repos.users.delete(c.req.param('id'), auth.tenantId, auth.userId);

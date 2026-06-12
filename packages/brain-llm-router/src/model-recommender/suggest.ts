@@ -26,7 +26,10 @@
 
 import { getPricing } from '../cost-cascade/pricing.js';
 import { MODEL_REQUIREMENTS } from '../dynamic-registry/min-tier-policy.js';
-import type { ModelFamily } from '../dynamic-registry/baselines.js';
+import {
+  type ModelFamily,
+  FAMILY_CAPABILITY_RANK,
+} from '../dynamic-registry/baselines.js';
 
 /** A candidate model the admin could assign to a use-case. */
 export interface ModelCandidate {
@@ -85,19 +88,9 @@ export interface SuggestResult {
   readonly perUseCase: readonly UseCaseSuggestion[];
 }
 
-// Family capability rank — mirrors min-tier-policy FAMILY_RANK so the
-// recommender and the enforcement floor agree.
-const FAMILY_RANK: Readonly<Partial<Record<ModelFamily, number>>> = Object.freeze({
-  haiku: 1,
-  'gpt-5-mini': 1,
-  'gemini-flash': 1,
-  'deepseek-chat': 1,
-  sonnet: 3,
-  'gpt-5': 3,
-  'gemini-pro': 3,
-  'deepseek-coder': 3,
-  opus: 5,
-});
+// Family capability rank — THE canonical FAMILY_CAPABILITY_RANK from baselines
+// (single source; recommender + enforcement floor agree by construction).
+const FAMILY_RANK = FAMILY_CAPABILITY_RANK;
 
 // Heuristic p50 latency by capability rank when no observed metric exists.
 // Higher-capability models are slower; used only as a fallback floor.
@@ -106,6 +99,7 @@ const HEURISTIC_LATENCY_BY_RANK: Readonly<Record<number, number>> = Object.freez
   1: 700,
   3: 1500,
   5: 3200,
+  7: 4200,
 });
 
 function rankOf(family: ModelFamily): number {

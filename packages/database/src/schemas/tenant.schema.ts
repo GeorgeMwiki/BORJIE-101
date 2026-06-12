@@ -402,7 +402,11 @@ export const organizations = pgTable(
     level: integer('level').notNull().default(0),
     path: text('path').notNull(), // Materialized path for hierarchy queries
     isActive: boolean('is_active').notNull().default(true),
-    
+    // Migration 0345 — pairing mode (b) opt-in: when true the org appears in
+    // the public pairing directory and accepts membership requests
+    // (worker/buyer → PENDING → org approves/rejects). Default false.
+    discoverable: boolean('discoverable').notNull().default(false),
+
     // Timestamps
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

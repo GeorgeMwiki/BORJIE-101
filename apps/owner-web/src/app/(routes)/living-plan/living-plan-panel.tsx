@@ -4,14 +4,17 @@
  * Living-plan client panel.
  *
  * Fetches the five read endpoints, renders a calm health meter + GTD-partitioned
- * cards. Locale-PURE: every string is resolved through `pickByLocale` / a single
- * `titleFor` helper, so an `en` session shows zero Swahili and a `sw` session
- * shows zero English — never both, never a hardcoded 'en-US'.
+ * cards. Locale-PURE: NO copy is hardcoded in this component — every string is
+ * resolved through `pickByLocale(locale, …)` against the guard-exempt string
+ * table in `@/i18n/strings/living-plan-panel`, so an `en` session shows zero
+ * Swahili and a `sw` session shows zero English — never both, never a
+ * hardcoded 'en-US'.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { livingPlanPanelStrings as M } from '@/i18n/strings/living-plan-panel';
 
 // ── Wire shapes (mirror the api-gateway living-plan route) ───────────────────
 
@@ -86,64 +89,9 @@ interface PlanData {
 }
 
 // ── Locale-pure copy ─────────────────────────────────────────────────────────
-
-const COPY = {
-  eyebrow: { en: 'Mr. Mwikila', sw: 'Bw. Mwikila' },
-  heading: { en: 'Living plan', sw: 'Mpango hai' },
-  gloss: {
-    en: 'Every commitment Mr. Mwikila is holding for you — what is next, what he is waiting on, and what is already done.',
-    sw: 'Kila ahadi Bw. Mwikila anayoishikilia kwa niaba yako — kinachofuata, anachosubiri, na kilichokamilika.',
-  },
-  health: { en: 'Plan health', sw: 'Afya ya mpango' },
-  progressLabel: { en: 'Completed', sw: 'Imekamilika' },
-  open: { en: 'Open', sw: 'Wazi' },
-  done: { en: 'Done', sw: 'Imekamilika' },
-  overdue: { en: 'Overdue', sw: 'Imechelewa' },
-  deferred: { en: 'Someday', sw: 'Siku moja' },
-  blocked: { en: 'Blocked', sw: 'Imezuiwa' },
-  nextDue: { en: 'Next due', sw: 'Inayofuata' },
-  nextActions: { en: 'Next actions', sw: 'Hatua zinazofuata' },
-  waitingFor: { en: 'Waiting for', sw: 'Inasubiri' },
-  ticklerUpcoming: { en: 'Upcoming', sw: 'Zinazokuja' },
-  somedaySection: { en: 'Someday', sw: 'Siku moja' },
-  overdueSection: { en: 'Overdue', sw: 'Imechelewa' },
-  pastSection: { en: 'Completed', sw: 'Zilizokamilika' },
-  sovereign: { en: 'Owner sign-off', sw: 'Idhini ya mmiliki' },
-  proofClosed: { en: 'Closed with proof', sw: 'Imefungwa kwa uthibitisho' },
-  noTrigger: { en: 'No deadline set', sw: 'Hakuna tarehe ya mwisho' },
-  whenEvent: { en: 'When', sw: 'Wakati' },
-  dueOn: { en: 'Due', sw: 'Inastahili' },
-  errorTitle: {
-    en: 'Could not load your plan',
-    sw: 'Imeshindwa kupakia mpango wako',
-  },
-  retry: { en: 'Try again', sw: 'Jaribu tena' },
-  emptyAllClear: {
-    en: 'Mr. Mwikila is keeping your plan — nothing due right now.',
-    sw: 'Bw. Mwikila anashikilia mpango wako — hakuna kinachostahili sasa.',
-  },
-  emptySection: { en: 'Nothing here', sw: 'Hakuna chochote hapa' },
-} as const;
-
-// Friendly status + class + trigger-event labels, strictly per-locale.
-const STATUS_LABEL: Record<CommitmentStatus, { en: string; sw: string }> = {
-  open: { en: 'Open', sw: 'Wazi' },
-  scheduled: { en: 'Scheduled', sw: 'Imepangwa' },
-  overdue: { en: 'Overdue', sw: 'Imechelewa' },
-  blocked: { en: 'Blocked', sw: 'Imezuiwa' },
-  done: { en: 'Done', sw: 'Imekamilika' },
-  reopened: { en: 'Reopened', sw: 'Imefunguliwa tena' },
-  needs_approval: { en: 'Needs approval', sw: 'Inahitaji idhini' },
-  dead_letter: { en: 'Needs triage', sw: 'Inahitaji ukaguzi' },
-};
-
-// A short human gloss for the common event triggers (the rest fall back to the
-// raw key, which is itself language-neutral).
-const EVENT_LABEL: Record<string, { en: string; sw: string }> = {
-  'ledger.credit': { en: 'a payment lands', sw: 'malipo yanapokelewa' },
-  'offtake.settled': { en: 'the off-take settles', sw: 'mauzo yanapokamilika' },
-  'royalty.settled': { en: 'royalty settles', sw: 'mrabaha unapolipwa' },
-};
+//
+// All copy lives in the guard-exempt string table `M`
+// (`@/i18n/strings/living-plan-panel`); this component holds only keys.
 
 function titleFor(item: PlanItem, locale: Locale): string {
   return pickByLocale(locale, { en: item.title, sw: item.titleSw });
@@ -167,19 +115,19 @@ function formatDate(iso: string, locale: Locale): string {
 /** The human trigger line: "Due 1 Jul 2026" / "When a payment lands". */
 function triggerLine(item: PlanItem, locale: Locale): string {
   if (item.triggerKind === 'time' && item.triggerDueAt) {
-    return `${pickByLocale(locale, COPY.dueOn)} ${formatDate(item.triggerDueAt, locale)}`;
+    return `${pickByLocale(locale, M.dueOn)} ${formatDate(item.triggerDueAt, locale)}`;
   }
   if (item.triggerEventKey) {
-    const gloss = EVENT_LABEL[item.triggerEventKey];
+    const gloss = M.event[item.triggerEventKey];
     const phrase = gloss
       ? pickByLocale(locale, gloss)
       : item.triggerEventKey;
-    return `${pickByLocale(locale, COPY.whenEvent)} ${phrase}`;
+    return `${pickByLocale(locale, M.whenEvent)} ${phrase}`;
   }
   if (item.triggerDueAt) {
-    return `${pickByLocale(locale, COPY.dueOn)} ${formatDate(item.triggerDueAt, locale)}`;
+    return `${pickByLocale(locale, M.dueOn)} ${formatDate(item.triggerDueAt, locale)}`;
   }
-  return pickByLocale(locale, COPY.noTrigger);
+  return pickByLocale(locale, M.noTrigger);
 }
 
 // ── Data fetch ───────────────────────────────────────────────────────────────
@@ -237,24 +185,24 @@ function HealthMeter({
     value: number;
     warn?: boolean;
   }> = [
-    { key: 'open', label: pickByLocale(locale, COPY.open), value: health.open },
-    { key: 'done', label: pickByLocale(locale, COPY.done), value: health.done },
+    { key: 'open', label: pickByLocale(locale, M.open), value: health.open },
+    { key: 'done', label: pickByLocale(locale, M.done), value: health.done },
     {
       key: 'overdue',
-      label: pickByLocale(locale, COPY.overdue),
+      label: pickByLocale(locale, M.overdue),
       value: health.overdue,
       warn: health.overdue > 0,
     },
     {
       key: 'deferred',
-      label: pickByLocale(locale, COPY.deferred),
+      label: pickByLocale(locale, M.deferred),
       value: health.deferred,
     },
   ];
 
   return (
     <section
-      aria-label={pickByLocale(locale, COPY.health)}
+      aria-label={pickByLocale(locale, M.health)}
       className="rounded-2xl border border-border bg-surface p-6"
     >
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
@@ -294,14 +242,14 @@ function HealthMeter({
           </div>
           <div>
             <p className="text-xs uppercase tracking-wide text-neutral-400">
-              {pickByLocale(locale, COPY.health)}
+              {pickByLocale(locale, M.health)}
             </p>
             <p className="mt-0.5 text-sm text-neutral-300">
-              {pickByLocale(locale, COPY.progressLabel)}
+              {pickByLocale(locale, M.progressLabel)}
             </p>
             {nextDueAt ? (
               <p className="mt-1 text-xs text-neutral-500">
-                {pickByLocale(locale, COPY.nextDue)}:{' '}
+                {pickByLocale(locale, M.nextDue)}:{' '}
                 <span className="text-neutral-300">
                   {formatDate(nextDueAt, locale)}
                 </span>
@@ -356,7 +304,7 @@ function StatusPill({
     <span
       className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`}
     >
-      {pickByLocale(locale, STATUS_LABEL[status])}
+      {pickByLocale(locale, M.status[status])}
     </span>
   );
 }
@@ -371,7 +319,7 @@ function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
         <div className="flex shrink-0 items-center gap-1.5">
           {item.sovereign ? (
             <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-300">
-              {pickByLocale(locale, COPY.sovereign)}
+              {pickByLocale(locale, M.sovereign)}
             </span>
           ) : null}
           <StatusPill status={item.status} locale={locale} />
@@ -392,7 +340,7 @@ function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
         {item.confirmedAt ? (
           <span className="inline-flex items-center gap-1 text-emerald-400/80">
             <span aria-hidden>✓</span>
-            {pickByLocale(locale, COPY.proofClosed)}
+            {pickByLocale(locale, M.proofClosed)}
             {item.confirmationKind ? ` · ${item.confirmationKind}` : ''}
           </span>
         ) : null}
@@ -431,7 +379,7 @@ function PlanSection({
       </div>
       {items.length === 0 ? (
         <p className="py-6 text-center text-xs text-neutral-500">
-          {pickByLocale(locale, COPY.emptySection)}
+          {pickByLocale(locale, M.emptySection)}
         </p>
       ) : (
         <ul className="space-y-2.5">
@@ -472,7 +420,7 @@ function EmptyState({ locale }: { locale: Locale }) {
         ✓
       </div>
       <p className="mx-auto max-w-md text-sm text-neutral-300">
-        {pickByLocale(locale, COPY.emptyAllClear)}
+        {pickByLocale(locale, M.emptyAllClear)}
       </p>
     </div>
   );
@@ -511,27 +459,27 @@ export function LivingPlanPanel() {
     <div className="space-y-8">
       <header className="border-b border-border pb-6">
         <p className="text-xs uppercase tracking-wide text-neutral-400">
-          {pickByLocale(locale, COPY.eyebrow)}
+          {pickByLocale(locale, M.eyebrow)}
         </p>
         <h1 className="mt-2 font-display text-3xl text-foreground">
-          {pickByLocale(locale, COPY.heading)}
+          {pickByLocale(locale, M.heading)}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-neutral-400">
-          {pickByLocale(locale, COPY.gloss)}
+          {pickByLocale(locale, M.gloss)}
         </p>
       </header>
 
       {error ? (
         <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-center">
           <p className="text-sm font-medium text-destructive">
-            {pickByLocale(locale, COPY.errorTitle)}
+            {pickByLocale(locale, M.errorTitle)}
           </p>
           <button
             type="button"
             onClick={() => void refresh()}
             className="mt-4 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
           >
-            {pickByLocale(locale, COPY.retry)}
+            {pickByLocale(locale, M.retry)}
           </button>
         </div>
       ) : loading || !data ? (
@@ -548,7 +496,7 @@ export function LivingPlanPanel() {
 
           {data.overdue.length > 0 ? (
             <PlanSection
-              title={pickByLocale(locale, COPY.overdueSection)}
+              title={pickByLocale(locale, M.overdueSection)}
               items={data.overdue}
               locale={locale}
               accent="warning"
@@ -557,22 +505,22 @@ export function LivingPlanPanel() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <PlanSection
-              title={pickByLocale(locale, COPY.nextActions)}
+              title={pickByLocale(locale, M.nextActions)}
               items={data.nextActions}
               locale={locale}
             />
             <PlanSection
-              title={pickByLocale(locale, COPY.waitingFor)}
+              title={pickByLocale(locale, M.waitingFor)}
               items={data.waitingFor}
               locale={locale}
             />
             <PlanSection
-              title={pickByLocale(locale, COPY.ticklerUpcoming)}
+              title={pickByLocale(locale, M.ticklerUpcoming)}
               items={data.tickler}
               locale={locale}
             />
             <PlanSection
-              title={pickByLocale(locale, COPY.somedaySection)}
+              title={pickByLocale(locale, M.somedaySection)}
               items={data.someday}
               locale={locale}
             />
@@ -580,7 +528,7 @@ export function LivingPlanPanel() {
 
           {data.done.length > 0 ? (
             <PlanSection
-              title={pickByLocale(locale, COPY.pastSection)}
+              title={pickByLocale(locale, M.pastSection)}
               items={data.done}
               locale={locale}
             />

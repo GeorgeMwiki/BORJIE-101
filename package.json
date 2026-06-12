@@ -8,7 +8,7 @@
     "test": "turbo run test",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test --config=e2e/playwright.config.ts",
-    "test:e2e:local": "docker compose -f docker-compose.e2e.yml up -d --wait && pnpm tsx e2e/fixtures/seed-runner.ts && playwright test --config=e2e/playwright.config.ts --project=customer-app; docker compose -f docker-compose.e2e.yml down -v",
+    "test:e2e:local": "docker compose -f docker-compose.e2e.yml up -d --wait && pnpm tsx e2e/fixtures/seed-runner.ts && playwright test --config=e2e/playwright.config.ts --project=borjie; docker compose -f docker-compose.e2e.yml down -v",
     "test:e2e:stub": "E2E_USE_STUB=1 playwright test --config=e2e/playwright.config.ts",
     "test:e2e:demo": "playwright test --config=e2e/playwright.config.ts e2e/tests/live-demo.spec.ts",
     "test:e2e:ui": "playwright test --config=e2e/playwright.config.ts --ui",
@@ -32,6 +32,7 @@
     "migrate": "pnpm -C packages/database db:migrate",
     "migration-check": "node scripts/migration-apply-check.mjs --migrations-dir=packages/database/src/migrations --report=.audit/migration-apply.md",
     "migration-safety": "node scripts/validate-migration-safety.mjs --migrations-dir=packages/database/src/migrations --fail-on=fail --report=.audit/migration-safety.md",
+    "db:dryrun": "node scripts/migration-drift-dryrun.mjs --report=.audit/migration-dryrun.md",
     "verify:migrations": "tsx scripts/verify-migrations.ts",
     "verify:migrations:json": "tsx scripts/verify-migrations.ts --json",
     "refresh-fx-rates": "pnpm -s exec tsx scripts/refresh-fx-rates.ts",
@@ -41,6 +42,8 @@
     "i18n:check": "tsx scripts/i18n-generate-sw.ts --check",
     "setup-env": "node scripts/setup-borjie-env.mjs",
     "gen-secrets": "node scripts/generate-borjie-secrets.mjs",
+    "preflight": "node scripts/preflight-production.mjs",
+    "set-gh-secrets": "node scripts/set-gh-secrets.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -73,6 +76,7 @@
       "protobufjs@<7.5.5": ">=7.5.5",
       "protobufjs@>=8.0.0 <8.2.0": ">=8.2.0",
       "protobufjs@8.0.3": "8.4.0",
+      "@grpc/grpc-js@>=1.14.0 <1.14.4": ">=1.14.4",
       "@grpc/proto-loader@<0.8.1": ">=0.8.1",
       "proto3-json-serializer@<3.0.4": ">=3.0.4",
       "ws@>=8.0.0 <8.20.1": ">=8.20.1",

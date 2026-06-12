@@ -119,11 +119,15 @@ describe('dsar-data-source-drizzle / explicit column list', () => {
   });
 
   it('every binding has tenant_scoped flag set (true for tenant-scoped tables)', () => {
-    // Phase D / A2b-1 — tenant_identities is the one cross-tenant
-    // principal table (no tenant_id column); every other DSAR binding
-    // is tenant_scoped=true.
+    // Phase D / A2b-1 — tenant_identities is the cross-tenant principal
+    // table; hardening H1 (2026-06-11) added the SC identity spine:
+    // org_memberships + identity_auth_principals are cross-tenant BY DESIGN
+    // (one human, many orgs — a subject's full graph must export in one
+    // pass). Every other DSAR binding is tenant_scoped=true.
     const NON_TENANT_SCOPED: ReadonlySet<DsarTableName> = new Set([
       'tenant_identities',
+      'org_memberships',
+      'identity_auth_principals',
     ]);
     for (const name of Object.keys(DSAR_TABLE_BINDINGS) as DsarTableName[]) {
       const expected = !NON_TENANT_SCOPED.has(name);

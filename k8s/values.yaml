@@ -186,6 +186,13 @@ secrets:
     # Docs/SECRETS_ROTATION.md.
     SESSION_HASH_SECRET: "CHANGE_ME"
     SESSION_HASH_SECRET_PREV: ""
+    # Session (:5432) / direct Postgres URL backing the CRON_LEADER_ELECTION
+    # advisory lock (gateway.env above is "on"). Leave EMPTY here and set the
+    # real value out-of-band (or via externalSecrets / borjie/prod); a
+    # transaction pooler (:6543) silently drops the session lock, so the
+    # cluster-lock supervisor logs a LOUD boot-warning and falls back to
+    # DATABASE_URL until this is provided. Placeholder only — never a value.
+    DATABASE_SESSION_URL: ""
     ANTHROPIC_API_KEY: ""
     OPENAI_API_KEY: ""
     ELEVENLABS_API_KEY: ""

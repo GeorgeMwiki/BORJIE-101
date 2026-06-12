@@ -18,20 +18,23 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
-import { DEFAULT_TIER_MODEL_IDS } from '../model-resolution.js';
+import { MODELS } from '@borjie/brain-llm-router/dynamic-registry';
 
 // ---------------------------------------------------------------------------
 // Model tier constants (2026 Anthropic Messages API model IDs)
 // ---------------------------------------------------------------------------
 
 /**
- * Canonical model IDs used across the copilot. Mirrors `ANTHROPIC_MODELS` in
- * `anthropic.ts` so both modules can co-exist without drift.
+ * Canonical model IDs used across the copilot. Keyed by FAMILY off the
+ * dynamic-registry baselines (mirrors `ANTHROPIC_MODELS` in `anthropic.ts`),
+ * so the names stay semantically correct regardless of tier assignment.
+ * `FABLE` is the frontier core-reasoning family.
  */
 export const ModelTier = {
-  HAIKU: DEFAULT_TIER_MODEL_IDS.cheap,
-  SONNET: DEFAULT_TIER_MODEL_IDS.standard,
-  OPUS: DEFAULT_TIER_MODEL_IDS.deep,
+  HAIKU: MODELS.haiku,
+  SONNET: MODELS.sonnet,
+  OPUS: MODELS.opus,
+  FABLE: MODELS.fable,
 } as const;
 
 export type ModelTierId = (typeof ModelTier)[keyof typeof ModelTier];

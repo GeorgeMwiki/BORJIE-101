@@ -9,6 +9,11 @@ export {
   MODEL_FAMILIES,
   isModelFamily,
   type ModelFamily,
+  FAMILY_CAPABILITY_RANK,
+  capabilityRankOf,
+  rankedAnthropicFamilies,
+  tierFamilyByCapability,
+  type ReasoningTier,
 } from './baselines.js';
 export {
   getModelLatest,

@@ -28,3 +28,16 @@ process.env.USE_MOCK_DATA = 'true';
 
 // Ensure NODE_ENV is 'test' so database.ts skips the 503 guard.
 process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
+
+// CI injects NEXT_PUBLIC_SUPABASE_URL (and may set SUPABASE_URL) to a
+// placeholder. hono-auth.ts / supabase-auth-middleware.ts capture
+// `SUPABASE_URL || NEXT_PUBLIC_SUPABASE_URL` at MODULE LOAD to decide whether
+// to enforce the SEC-G2 iss/aud binding (ISS_AUD_ENFORCED). The general auth
+// suites mint plain test tokens with no matching iss/aud, so with the var set
+// they're rejected (401) — green locally (var unset), red in CI. Delete both
+// here, BEFORE any test-file import, so the default suite sees iss/aud
+// unenforced. The DEDICATED hono-auth-iss-aud.test.ts re-sets SUPABASE_URL in
+// its own hoisted block + dynamic-imports the middleware, so its coverage is
+// unaffected by this deletion.
+delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+delete process.env.SUPABASE_URL;

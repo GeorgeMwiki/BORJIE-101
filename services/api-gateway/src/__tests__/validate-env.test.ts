@@ -4,7 +4,33 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { validateEnv } from '../config/validate-env';
+import {
+  validateEnv,
+  findMissingProductionKeys,
+  PRODUCTION_REQUIRED,
+} from '../config/validate-env';
+
+/**
+ * A FULLY production-ready env: every PRODUCTION_REQUIRED requirement present.
+ * Individual prod tests strip one key from this to assert it surfaces.
+ */
+const PROD_COMPLETE = {
+  NODE_ENV: 'production' as const,
+  DATABASE_URL: 'postgres://user:pass@prod-db.example.com:5432/db',
+  JWT_SECRET: 'j'.repeat(64),
+  SUPABASE_URL: 'https://proj.supabase.co',
+  SUPABASE_ANON_KEY: 'anon-key-value',
+  SUPABASE_SERVICE_ROLE_KEY: 'service-role-value',
+  SUPABASE_JWT_SECRET: 's'.repeat(48),
+  ANTHROPIC_API_KEY: 'sk-ant-' + 'x'.repeat(40),
+  SESSION_HASH_SECRET: 'a'.repeat(48),
+  // Recommended (silence prod warnings so tests assert only on the throw path)
+  SENTRY_DSN: 'https://example.ingest.sentry.io/1',
+  REDIS_URL: 'redis://localhost',
+  ALLOWED_ORIGINS: 'https://borjie.com',
+  APP_VERSION: '1.0.0',
+  GIT_SHA: 'deadbeef',
+};
 
 const VALID_BASE = {
   DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
@@ -55,37 +81,25 @@ describe('validate-env', () => {
   });
 
   it('emits production-env warnings for missing recommended vars', () => {
-    const { warnings } = validateEnv({
-      ...VALID_BASE,
-      NODE_ENV: 'production',
-      SESSION_HASH_SECRET: 'a'.repeat(48),
-    } as never);
+    // Fully-required env, but strip the *recommended* SENTRY_DSN so the
+    // warning path (not the throw path) is exercised.
+    const { SENTRY_DSN: _omit, ...withoutSentry } = PROD_COMPLETE;
+    const { warnings } = validateEnv(withoutSentry as never);
     expect(warnings.length).toBeGreaterThanOrEqual(1);
     expect(warnings.some((w) => w.includes('SENTRY_DSN'))).toBe(true);
   });
 
   it('warns when JWT_SECRET is weak in production', () => {
     const { warnings } = validateEnv({
-      ...VALID_BASE,
-      NODE_ENV: 'production',
+      ...PROD_COMPLETE,
       JWT_SECRET: 'a'.repeat(40),
-      SENTRY_DSN: 'https://example.ingest.sentry.io/1',
-      REDIS_URL: 'redis://localhost',
-      ALLOWED_ORIGINS: 'https://borjie.com',
-      APP_VERSION: '1.0.0',
-      GIT_SHA: 'deadbeef',
-      SESSION_HASH_SECRET: 'a'.repeat(48),
     } as never);
     expect(warnings.some((w) => w.includes('JWT_SECRET'))).toBe(true);
   });
 
   it('throws when SESSION_HASH_SECRET is missing in production', () => {
-    expect(() =>
-      validateEnv({
-        ...VALID_BASE,
-        NODE_ENV: 'production',
-      } as never)
-    ).toThrow(/SESSION_HASH_SECRET/);
+    const { SESSION_HASH_SECRET: _omit, ...withoutHash } = PROD_COMPLETE;
+    expect(() => validateEnv(withoutHash as never)).toThrow(/SESSION_HASH_SECRET/);
   });
 
   it('rejects a too-short SESSION_HASH_SECRET when provided', () => {
@@ -149,5 +163,107 @@ describe('validate-env', () => {
     } as never);
     expect(env.OCR_PROVIDER).toBe('mock');
     expect(env.GEPG_PSP_MODE).toBe('true');
+  });
+
+  // ---------------------------------------------------------------------------
+  // PRODUCTION-REQUIRED assertion (LANE 2 — fail-loud preflight)
+  // ---------------------------------------------------------------------------
+  describe('production-required assertion', () => {
+    it('accepts a fully-provisioned production env', () => {
+      const { env, warnings } = validateEnv(PROD_COMPLETE as never);
+      expect(env.NODE_ENV).toBe('production');
+      // Fully-provisioned ⇒ no missing-key throw; recommended vars all set ⇒
+      // no warnings either.
+      expect(warnings).toEqual([]);
+    });
+
+    it('throws ONE error listing EVERY missing required key in production', () => {
+      // Strip three required values: SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY,
+      // and SUPABASE_JWT_SECRET.
+      const {
+        SUPABASE_SERVICE_ROLE_KEY: _a,
+        ANTHROPIC_API_KEY: _b,
+        SUPABASE_JWT_SECRET: _c,
+        ...partial
+      } = PROD_COMPLETE;
+      let thrown: Error | undefined;
+      try {
+        validateEnv(partial as never);
+      } catch (e) {
+        thrown = e as Error;
+      }
+      expect(thrown).toBeInstanceOf(Error);
+      const msg = thrown!.message;
+      // All three missing keys named in the single error.
+      expect(msg).toContain('SUPABASE_SERVICE_ROLE_KEY');
+      expect(msg).toContain('ANTHROPIC_API_KEY');
+      expect(msg).toContain('SUPABASE_JWT_SECRET');
+      // A copy-pasteable missing list.
+      expect(msg).toMatch(/Missing keys \(copy-paste\):/);
+      expect(msg).toMatch(/Missing 3 required value/);
+    });
+
+    it('treats either Supabase URL alias as satisfying the URL requirement', () => {
+      const { SUPABASE_URL: _omit, ...withPublicAlias } = PROD_COMPLETE;
+      expect(() =>
+        validateEnv({
+          ...withPublicAlias,
+          NEXT_PUBLIC_SUPABASE_URL: 'https://proj.supabase.co',
+        } as never)
+      ).not.toThrow();
+    });
+
+    it('treats either anon-key alias as satisfying the anon-key requirement', () => {
+      const { SUPABASE_ANON_KEY: _omit, ...withPublicAlias } = PROD_COMPLETE;
+      expect(() =>
+        validateEnv({
+          ...withPublicAlias,
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon-key-value',
+        } as never)
+      ).not.toThrow();
+    });
+
+    it('treats empty-string required values as missing in production', () => {
+      expect(() =>
+        validateEnv({ ...PROD_COMPLETE, ANTHROPIC_API_KEY: '   ' } as never)
+      ).toThrow(/ANTHROPIC_API_KEY/);
+    });
+
+    it('does NOT apply the production gate in dev/test (missing keys ok)', () => {
+      // Dev env with only the two CoreSchema keys — none of the extra prod
+      // requirements present, yet validation passes.
+      expect(() => validateEnv(VALID_BASE as never)).not.toThrow();
+      expect(() =>
+        validateEnv({ ...VALID_BASE, NODE_ENV: 'test' } as never)
+      ).not.toThrow();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // findMissingProductionKeys — pure helper shared with the preflight CLI
+  // ---------------------------------------------------------------------------
+  describe('findMissingProductionKeys', () => {
+    it('returns [] when every requirement is satisfied', () => {
+      expect(findMissingProductionKeys(PROD_COMPLETE)).toEqual([]);
+    });
+
+    it('returns the labels of every unsatisfied requirement', () => {
+      const missing = findMissingProductionKeys({
+        DATABASE_URL: 'postgres://x@localhost/db',
+      });
+      // 7 of the 8 requirements are missing (only DATABASE_URL is present).
+      expect(missing).toContain('JWT_SECRET');
+      expect(missing).toContain('SUPABASE_URL');
+      expect(missing).toContain('ANTHROPIC_API_KEY');
+      expect(missing).not.toContain('DATABASE_URL');
+      expect(missing).toHaveLength(PRODUCTION_REQUIRED.length - 1);
+    });
+
+    it('counts an alias as satisfying its requirement', () => {
+      const missing = findMissingProductionKeys({
+        NEXT_PUBLIC_SUPABASE_URL: 'https://proj.supabase.co',
+      });
+      expect(missing).not.toContain('SUPABASE_URL');
+    });
   });
 });

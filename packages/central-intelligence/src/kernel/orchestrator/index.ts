@@ -403,3 +403,19 @@ export {
   type CreateStageEventBusDeps,
   type StageEmitterContext,
 } from './stage-event-bus.js';
+
+// Multi-modal reasoning composer — intent-tier0 classification + proof-carrying
+// artifact assembly (the reasoning→GenUI-shape bridge). Public API for the
+// Composer Mind organ; surfaced here so the brain can compose multi-modal
+// answers over the orchestrator path.
+export {
+  classifyIntentTier0,
+  renderMultiModalGoal,
+  assembleMultiModalAnswer,
+  createMultiModalComposer,
+  type MultiModalIntent,
+  type ToolResultArtifact,
+  type ComposedArtifact,
+  type ToolResultWithArtifact,
+  type GenUICatalogType,
+} from './multi-modal-composer.js';

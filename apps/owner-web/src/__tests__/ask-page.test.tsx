@@ -54,6 +54,13 @@ function withClient(ui: ReactNode): JSX.Element {
 
 beforeEach(() => {
   replaceMock.mockClear();
+  // Start every test from a clean env. CI sets NEXT_PUBLIC_API_GATEWAY_URL to
+  // a placeholder, so the "unconfigured" test below (which intentionally does
+  // NOT set the var) would otherwise inherit CI's ambient value and render the
+  // CONFIGURED surface instead of the not-configured banner — green locally,
+  // red in CI. Deleting here (not just in afterEach) makes the missing-var
+  // case deterministic regardless of the runner's ambient env.
+  delete process.env.NEXT_PUBLIC_API_GATEWAY_URL;
 });
 
 afterEach(() => {

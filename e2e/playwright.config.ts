@@ -77,67 +77,30 @@ export default defineConfig({
    *     `--project=customer-app` enumerates ONLY customer-app/**.
    */
   projects: [
-    /* Setup project for authentication state */
+    /* Setup project for authentication state (no *.setup.ts today — kept as
+     * the hook for when storageState auth is reintroduced). */
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
     },
 
-    /* Estate Manager Portal */
-    {
-      name: 'estate-manager',
-      testMatch: 'estate-manager-app/**/*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.ESTATE_MANAGER_URL ?? 'http://localhost:3003',
-      },
-    },
-
-    /* Customer Mobile App / PWA */
-    {
-      name: 'customer-app',
-      testMatch: 'customer-app/**/*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.CUSTOMER_APP_URL ?? 'http://localhost:3002',
-      },
-    },
-
-    /* Customer App - Mobile viewport */
-    {
-      name: 'customer-app-mobile',
-      testMatch: 'customer-app/**/*.spec.ts',
-      use: {
-        ...devices['iPhone 13'],
-        baseURL: process.env.CUSTOMER_APP_URL ?? 'http://localhost:3002',
-      },
-    },
-
-    /* Owner Portal */
-    {
-      name: 'owner-portal',
-      testMatch: 'owner-portal/**/*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.OWNER_PORTAL_URL ?? 'http://localhost:3000',
-      },
-    },
-
-    /* Admin Portal (Internal) */
-    {
-      name: 'admin-portal',
-      testMatch: 'admin-portal/**/*.spec.ts',
-      use: {
-        ...devices['Desktop Chrome'],
-        baseURL: process.env.ADMIN_PORTAL_URL ?? 'http://localhost:3001',
-      },
-    },
+    /*
+     * MINING-ERA E2E (property→mining migration, 2026-06-12). The legacy
+     * BossNyumba property projects (estate-manager / customer-app /
+     * owner-portal / admin-portal) and their specs were pruned — they tested
+     * apps (apps/customer-app, apps/owner-portal, apps/estate-manager-app)
+     * that no longer exist post-migration, which broke `docker compose
+     * up --build` (turbo: "No package found with name
+     * '@borjie/estate-manager-app'") and reddened E2E on every commit incl.
+     * main. The surviving suites target the REAL surfaces.
+     */
 
     /*
-     * Borjie golden-path smoke (admin-web 3020 + owner-web 3010 + Expo
-     * mobile static checks + api-gateway 3001). Each spec self-skips
-     * when its target isn't reachable so a broken dev server never
-     * fails this project on PR runs.
+     * Borjie golden-path smoke — owner-web + admin-web + the Expo mobile
+     * static checks + api-gateway. Each spec reads its target URL from
+     * tests/borjie/fixtures/test-users and SELF-SKIPS when that target isn't
+     * reachable, so a stack that boots only the api-gateway stays green
+     * (the gateway smoke runs; the web smokes skip honestly).
      */
     {
       name: 'borjie',

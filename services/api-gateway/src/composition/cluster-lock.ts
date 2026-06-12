@@ -288,22 +288,60 @@ export function initClusterLock(
       connectionFactory = createSessionLockConnectionFactory(sessionUrl);
       const usingDirect = Boolean(process.env.DATABASE_SESSION_URL?.trim());
       if (!usingDirect) {
+        // LOUD, structured boot-warning. CRON_LEADER_ELECTION is on but no
+        // dedicated session/direct URL was provided, so we fell back to the
+        // request-pool DATABASE_URL. If that is a Supabase / PgBouncer
+        // TRANSACTION pooler (:6543) the session-level advisory lock backing
+        // leader election is silently dropped between statements — TWO
+        // replicas can both "hold" leadership and the ~28 in-process crons
+        // DOUBLE-FIRE cluster-wide (N× LLM spend, N× notifications, N×
+        // gov-endpoint hits / fx-feed ban risk). Default behaviour is
+        // UNCHANGED — this is observability only.
         logger.warn(
-          { hint: 'set DATABASE_SESSION_URL to a session(:5432)/direct URL' },
-          'cluster-lock: DATABASE_SESSION_URL unset — falling back to ' +
-            'DATABASE_URL. If that is a TRANSACTION pooler (:6543), session ' +
-            'advisory locks are silently dropped and leader election is ' +
-            'unreliable.',
+          {
+            event: 'cluster_lock_session_url_unset',
+            severity: 'HIGH',
+            risk:
+              'session advisory locks are SILENTLY DROPPED on a transaction ' +
+              'pooler (:6543) → leader election unreliable → the ~28 ' +
+              'in-process crons may DOUBLE-FIRE across replicas',
+            fix:
+              'set DATABASE_SESSION_URL to the Supabase session-pooler ' +
+              '(:5432) / direct Postgres URL — OR pin api-gateway to 1 ' +
+              'replica (see Docs/OPERATIONS.md > Cron leader election)',
+            usingFallback: 'DATABASE_URL',
+          },
+          'cluster-lock: CRON_LEADER_ELECTION is ON but DATABASE_SESSION_URL ' +
+            'is UNSET — falling back to DATABASE_URL. If that is a TRANSACTION ' +
+            'pooler (:6543) leader election is UNRELIABLE and crons may ' +
+            'double-fire. Provide DATABASE_SESSION_URL (:5432/direct) or pin ' +
+            'api-gateway to 1 replica.',
         );
       }
     }
   }
 
   if (enabled && !connectionFactory) {
+    // LOUD, structured boot-warning. Election was switched on but NO database
+    // URL resolved at all, so we degrade to pass-through (every replica runs
+    // every cron) — the SAME double-fire risk as above. Default behaviour is
+    // UNCHANGED — this is observability only.
     logger.warn(
-      {},
-      'cluster-lock: election enabled but no session connection configured ' +
-        '— degrading to pass-through (every replica runs its crons)',
+      {
+        event: 'cluster_lock_no_connection',
+        severity: 'HIGH',
+        risk:
+          'no session/direct DB URL resolved → election degraded to ' +
+          'pass-through → the ~28 in-process crons run on EVERY replica ' +
+          '(double-fire: N× LLM spend, N× notifications, N× gov-endpoint hits)',
+        fix:
+          'set DATABASE_SESSION_URL (:5432/direct) — OR pin api-gateway to ' +
+          '1 replica (see Docs/OPERATIONS.md > Cron leader election)',
+      },
+      'cluster-lock: CRON_LEADER_ELECTION is ON but NO session connection ' +
+        'configured — degrading to pass-through (every replica runs its ' +
+        'crons → double-fire). Provide DATABASE_SESSION_URL or pin ' +
+        'api-gateway to 1 replica.',
     );
   }
 

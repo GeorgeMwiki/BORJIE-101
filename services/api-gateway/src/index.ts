@@ -143,6 +143,7 @@ import { pnlTableRouter } from './routes/bff/pnl-table.hono';
 // Roadmap R12 — Discord-style tenant switcher backend
 // (GET /me/tenants + POST /me/tenants/active).
 import { meTenantsRouter } from './routes/me-tenants.hono';
+import { membershipsRouter } from './routes/memberships.hono';
 // JA-7 — owner-facing jurisdiction snapshot endpoint
 // (GET /me/jurisdiction) backing the settings/jurisdiction page.
 import { meJurisdictionRouter } from './routes/me-jurisdiction.hono';
@@ -371,6 +372,7 @@ import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
 // B6 — buyer-persona superpowers (bulk-action / undo-last / pinned-items /
 // search). Mirrors the owner superpowers wiring, persona-guarded to 'buyer'.
 import { buyerSuperpowersRouter } from './routes/buyer/superpowers.hono';
+import { buyerTabProjectionRouter } from './routes/buyer/tab-projection.hono';
 // Commercial chain L8 — settlement orchestrator entry point.
 // Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
 import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
@@ -1109,6 +1111,29 @@ const logger = pino({
 import { wireDynamicModelRegistry } from './composition/dynamic-model-registry-wiring';
 wireDynamicModelRegistry({ logger });
 
+// Feed the LIVE, rank-driven tier→model-id map into the ai-copilot juniors so
+// core reasoning (the DEEP tier) runs the front of the Anthropic capability
+// rank — Fable today, whatever supersedes it tomorrow — with zero code change.
+// resolveTierModel goes env-pin → registry (L2 /v1/models) → L3 baseline;
+// setModelTierMap rebinds the package's per-call resolution (not the static
+// catalog). Without this the juniors fall back to DEFAULT_TIER_MODEL_IDS,
+// which already encodes the same deep=Fable cascade.
+import { setModelTierMap } from '@borjie/ai-copilot';
+import { resolveTierModel } from './composition/model-tier-map';
+setModelTierMap({
+  cheap: resolveTierModel('cheap'),
+  standard: resolveTierModel('standard'),
+  deep: resolveTierModel('deep'),
+});
+logger.info(
+  {
+    deep: resolveTierModel('deep'),
+    standard: resolveTierModel('standard'),
+    cheap: resolveTierModel('cheap'),
+  },
+  'model-tiering: rank-driven deck bound — DEEP=core-reasoning at rank front (Fable), auto-promotes on a superior Anthropic model',
+);
+
 // Wave AGENTIC-PLATFORM — OAuth2 device-flow + capability manifest
 // (migration 0118 + Docs/RESEARCH/AGENTIC_SOTA_COMPARISON.md). Powers
 // the public MCP / CLI / SDK consumers — Claude Code, Cursor,
@@ -1161,6 +1186,17 @@ const allowedOrigins = (() => {
   const raw = process.env.ALLOWED_ORIGINS?.trim();
   const isProd = process.env.NODE_ENV === 'production';
   if (isProd) {
+    // SEC (hardening H9): the JWT iss/aud rollback flag is an INCIDENT
+    // escape hatch only — left set in production it silently re-opens the
+    // cross-project token-acceptance hole SEC-G2 closed. Fail the boot loud
+    // rather than run a production gateway with the binding off.
+    if ((process.env.BORJIE_JWT_ISS_AUD ?? 'on').toLowerCase() === 'off') {
+      throw new Error(
+        'api-gateway: BORJIE_JWT_ISS_AUD=off is forbidden in production — ' +
+          'the iss/aud binding (SEC-G2) must stay enforced. Remove the env ' +
+          'var (it exists only for time-boxed incident rollback in staging).'
+      );
+    }
     if (!raw) {
       throw new Error(
         'api-gateway: ALLOWED_ORIGINS env var is required in production ' +
@@ -2509,6 +2545,9 @@ api.route('/md', mdRouter);
 api.route('/owner/finance', pnlTableRouter);
 // Roadmap R12 — Discord-style tenant switcher backend.
 api.route('/me/tenants', meTenantsRouter);
+// Surface-completion SC-4 — the pairing surface (invite/QR redeem +
+// public-discovery request→approve + org-side lifecycle + invite minting).
+api.route('/memberships', membershipsRouter);
 // JA-7 — owner-facing jurisdiction snapshot endpoint.
 api.route('/me/jurisdiction', meJurisdictionRouter);
 // Progressive-disclosure: mastery score + ranked learned shortcuts.
@@ -2631,6 +2670,9 @@ api.route('/marketplace/rfb', rfbRouter);
 api.route('/buyer/notifications', buyerNotificationsRouter);
 // B6 — buyer-persona superpowers (bulk-action / undo / pinned / search).
 api.route('/buyer/superpowers', buyerSuperpowersRouter);
+// Surface-completion SC-6 — the buyer leg of owner-spawn tab projection
+// (per-membership-scoped, explicit buyerProjection opt-in only).
+api.route('/buyer/tabs', buyerTabProjectionRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);

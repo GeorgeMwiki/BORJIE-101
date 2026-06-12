@@ -20,22 +20,41 @@
  *
  * Tier→family policy mirrors `selectModelTier` in
  * `@borjie/central-intelligence/kernel/model-tiering`:
- * cheap=Haiku-class, standard=Sonnet-class, deep=Opus-class.
+ * cheap=Haiku-class, standard=Sonnet-class, deep=Opus/Fable-class.
+ *
+ * THE COMPOUNDING-GROWTH CARVE-OUT (NON-NEGOTIABLE). Any core path that makes
+ * the system GROW — identify/cover unknown-unknowns, self-improve, learn, the
+ * apex organs (dynamic topology, uplift detection, eval-gated autonomy,
+ * blindspot-coverage, crystallization ratchet, retrospective self-eval),
+ * meta-learning, the sentinel lattice — MUST resolve to tier `'deep'` (the
+ * rank-front Anthropic model, Fable today) and MUST NEVER be cost-downgraded.
+ * The cost-aware downshift (`selectModelTier` fast-lane → cheap,
+ * `BORJIE_MODEL_TIERING`) applies to ORDINARY work ONLY — never the growth
+ * core. Rationale: intelligence is CAPITAL there, not cost — the frontier
+ * model does the growth/design work, it CRYSTALLIZES into the substrate, and
+ * cheaper models inherit the upgraded substrate elsewhere. Compounding
+ * capability growth is core; do not play with it. This is the DEFAULT — the
+ * owner may override the growth-core's default model per-tenant/vertical via
+ * the internal admin governance platform (a deliberate, audited setting);
+ * absent that explicit override it is always the rank-front Anthropic model.
+ * When the multi-provider best-of-bracket router lands, the growth-critical
+ * resolver is a hard guard that bypasses cost policy and stays Anthropic
+ * rank-front unless the governance override is set.
  */
 
 import { resolveModelIdForTier, type ModelTier } from '@borjie/central-intelligence';
 import {
   getModelLatest,
-  type ModelFamily,
+  tierFamilyByCapability,
 } from '@borjie/brain-llm-router/dynamic-registry';
 
 export type { ModelTier } from '@borjie/central-intelligence';
 
-const TIER_FAMILY: Readonly<Record<ModelTier, ModelFamily>> = Object.freeze({
-  cheap: 'haiku',
-  standard: 'sonnet',
-  deep: 'opus',
-});
+// Tier→family is RANK-DRIVEN (intelligence-elasticity): deep = the front of
+// the Anthropic capability rank (Fable today), standard = next, cheap = floor.
+// A superior new Anthropic model (a `claude-fable-*` minor via L2, or a family
+// ranked above Fable in FAMILY_CAPABILITY_RANK / BORJIE_ANTHROPIC_RANK) takes
+// core reasoning automatically — zero call-site change.
 
 const TIER_ENV_KEY: Readonly<Record<ModelTier, string>> = Object.freeze({
   cheap: 'BORJIE_MODEL_TIER_CHEAP',
@@ -72,7 +91,7 @@ export function resolveTierModel(
   tier: ModelTier,
   env: EnvSource = process.env,
 ): string {
-  const registryDefault = getModelLatest(TIER_FAMILY[tier]);
+  const registryDefault = getModelLatest(tierFamilyByCapability(tier, env));
   return (
     resolveModelIdForTier(tier, readTierModelMap(env), registryDefault) ??
     registryDefault

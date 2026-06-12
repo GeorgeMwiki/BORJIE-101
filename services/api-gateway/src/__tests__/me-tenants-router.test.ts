@@ -10,7 +10,7 @@
  *   - cookie is set on successful switch with HttpOnly + SameSite=Lax
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { Hono } from 'hono';
 
 process.env.JWT_SECRET =
@@ -22,6 +22,7 @@ process.env.BORJIE_SKIP_DOTENV = 'true';
 import { generateToken } from '../middleware/auth';
 import { UserRole } from '../types/user-role';
 import { meTenantsRouter } from '../routes/me-tenants.hono';
+import { clearActiveTenantCache } from '../middleware/active-tenant-override';
 
 const TEST_USER = 'a0000000-0000-0000-0000-000000000001';
 const TEST_TENANT_A = 'b0000000-0000-0000-0000-00000000000a';
@@ -43,6 +44,12 @@ interface DbPlan {
   readonly switchCheck?: Array<Record<string, unknown>>;
 }
 
+/**
+ * SC-5: the rail reads org_memberships through identity_auth_principals
+ * (person_links is no longer a membership source). The switch / override
+ * query selects the shadow_user_id alias; the list query selects
+ * tenant_name — distinct enough to route the stub.
+ */
 function buildDb(plan: DbPlan): {
   execute: (q: unknown) => Promise<unknown>;
 } {
@@ -53,12 +60,12 @@ function buildDb(plan: DbPlan): {
           ? JSON.stringify((q as { queryChunks: unknown }).queryChunks)
           : JSON.stringify(q);
       if (
-        sqlText.includes('person_links') &&
+        sqlText.includes('org_memberships') &&
         sqlText.includes('tenant_name')
       ) {
         return plan.memberships ?? [];
       }
-      if (sqlText.includes('SELECT 1') && sqlText.includes('person_links')) {
+      if (sqlText.includes('shadow_user_id')) {
         return plan.switchCheck ?? [];
       }
       return [];
@@ -85,6 +92,12 @@ function mount(db: { execute: (q: unknown) => Promise<unknown> } | null) {
 
 beforeAll(() => {
   expect(process.env.JWT_SECRET?.length ?? 0).toBeGreaterThanOrEqual(32);
+});
+
+beforeEach(() => {
+  // The auth middleware's switch-grant cache is process-global with a 60s
+  // TTL — clear between tests so denials never leak across cases.
+  clearActiveTenantCache();
 });
 
 describe('GET /me/tenants', () => {
@@ -146,8 +159,13 @@ describe('GET /me/tenants', () => {
     expect(b?.active).toBe(false);
   });
 
-  it('honours the borjie-active-tenant cookie when present', async () => {
+  it('honours the borjie-active-tenant cookie when a membership grants it', async () => {
     const db = buildDb({
+      // SC-2: the cookie is honored ONLY when the membership graph grants
+      // the switch — the auth override re-validates it per request.
+      switchCheck: [
+        { tenant_id: TEST_TENANT_B, shadow_user_id: 'usr_shadow_b' },
+      ],
       memberships: [
         {
           tenant_id: TEST_TENANT_A,
@@ -225,7 +243,11 @@ describe('POST /me/tenants/active', () => {
   });
 
   it('sets HttpOnly SameSite=Lax cookie on success', async () => {
-    const db = buildDb({ switchCheck: [{ '?column?': 1 }] });
+    const db = buildDb({
+      switchCheck: [
+        { tenant_id: TEST_TENANT_B, shadow_user_id: 'usr_shadow_b' },
+      ],
+    });
     const app = mount(db);
     const res = await app.request('/me/tenants/active', {
       method: 'POST',

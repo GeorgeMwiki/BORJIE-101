@@ -164,3 +164,46 @@ describe('findBlockingIndexCreates', () => {
     expect(findings).toHaveLength(1);
   });
 });
+
+describe('findEnumAddValueStatements (hardening M-1)', () => {
+  it('flags ALTER TYPE ADD VALUE used as a literal later in the same file', () => {
+    const sql =
+      "ALTER TYPE order_status ADD VALUE 'shipped';\n" +
+      "UPDATE orders SET status = 'shipped' WHERE id = 1;";
+    const findings = validator.findEnumAddValueStatements(sql);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].kind).toBe('enum-add-value-same-file');
+    expect(findings[0].label).toBe('shipped');
+    expect(findings[0].type).toBe('order_status');
+  });
+
+  it('honors IF NOT EXISTS and detects downstream WHERE usage', () => {
+    const sql =
+      "ALTER TYPE membership_status ADD VALUE IF NOT EXISTS 'PENDING';\n" +
+      "CREATE INDEX i ON m (org) WHERE status = 'PENDING';";
+    const findings = validator.findEnumAddValueStatements(sql);
+    expect(findings).toHaveLength(1);
+    expect(findings[0].label).toBe('PENDING');
+  });
+
+  it('does NOT flag ADD VALUE with no same-file usage (the SAFE 0345 shape)', () => {
+    const sql =
+      "ALTER TYPE membership_status ADD VALUE IF NOT EXISTS 'PENDING';\n" +
+      "ALTER TYPE membership_status ADD VALUE IF NOT EXISTS 'REJECTED';\n" +
+      // The only later literal is a PRE-existing value, not a new one.
+      "ALTER TABLE m ADD CONSTRAINT c CHECK (status <> 'ACTIVE');";
+    const findings = validator.findEnumAddValueStatements(sql);
+    expect(findings).toHaveLength(0);
+  });
+
+  it('exposes the allowlist-marker helper', () => {
+    expect(
+      validator.hasEnumAddValueAllowlist(
+        '-- @safety: alter-type-add-value-reviewed\nALTER TYPE t ADD VALUE \'x\';',
+      ),
+    ).toBe(true);
+    expect(validator.hasEnumAddValueAllowlist('ALTER TYPE t ADD VALUE \'x\';')).toBe(
+      false,
+    );
+  });
+});

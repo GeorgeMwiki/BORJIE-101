@@ -366,6 +366,36 @@ export const RTBF_POLICY: Readonly<Record<DsarTableName, RtbfPolicyEntry>> =
       },
       tenantScoped: false,
     },
+    // org_memberships — the subject's membership graph (hardening H1).
+    // HARD_DELETE: the row IS the relationship; once the human is erased the
+    // membership has no lawful basis, and nothing FK-references it inbound.
+    org_memberships: {
+      sqlName: 'org_memberships',
+      action: 'HARD_DELETE',
+      reason:
+        'membership rows are the subject relationship itself; erasable, no inbound FKs',
+      piiColumns: [],
+      subjectColumns: {
+        customerId: ['user_id', 'tenant_identity_id'],
+        email: [],
+        tenantId: [],
+      },
+      tenantScoped: false,
+    },
+    // identity_auth_principals — sub↔identity mapping (hardening H1).
+    // HARD_DELETE: pure auth linkage, nothing references it.
+    identity_auth_principals: {
+      sqlName: 'identity_auth_principals',
+      action: 'HARD_DELETE',
+      reason: 'auth-principal mapping is pure personal data; fully erasable',
+      piiColumns: [],
+      subjectColumns: {
+        customerId: ['supabase_user_id', 'tenant_identity_id'],
+        email: [],
+        tenantId: [],
+      },
+      tenantScoped: false,
+    },
     // employees — staff PII. ANONYMIZE so historical assignments,
     // performance reviews, and audit trails keep their FK linkage
     // while the staff member's identity is stripped.
