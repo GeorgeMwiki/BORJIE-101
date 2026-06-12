@@ -74,3 +74,8 @@ export {
   provenanceColumn,
   type ProvenanceJson,
 } from './helpers/provenance-column.js';
+
+// ISO-4217 minor-unit table. Canonically lives in @borjie/domain-models; the
+// database barrel re-exports it so DB-layer consumers (e.g. the buyers-wallet
+// route's currency rounding) can pull it from one import surface.
+export { CURRENCY_DECIMALS } from '@borjie/domain-models';

@@ -526,6 +526,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0348_notification_dispatch_log.sql",
+      "down": "down/0348_down_notification_dispatch_log.sql",
+      "reverses": "Drops notification_dispatch_log (table + indexes + RLS policies). 0348 CREATEs the per-recipient delivery ledger that the notification rails always assumed exists (it lived on LIVE via schema-ahead drift; 0315/0342 reference it but existence-guard, so fresh DBs lacked it). Dev/staging only — DATA LOSS (deletes all dispatch history) and on a real prod rollback would re-open the same drift. No money/licence/ledger records.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

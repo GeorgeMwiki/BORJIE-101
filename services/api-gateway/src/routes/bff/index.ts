@@ -8,4 +8,4 @@
 export { ownerPortalRouter } from './owner-portal';
 export { customerAppRouter } from './customer-app';
 export { adminPortalRouter } from './admin-portal';
-export { estateManagerAppRouter } from './estate-manager-app';
+// REMOVED (borjie hard-fork): estate-manager-app BFF (property-era).

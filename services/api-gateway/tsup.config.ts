@@ -12,18 +12,21 @@ export default defineConfig({
   dts: false,
   clean: true,
   sourcemap: true,
-  // Keep node_modules + workspace packages unbundled. Node resolves them
-  // at runtime via pnpm symlinks. Avoids esbuild choking on subpath
-  // exports and dynamic requires in transitive deps (node-pre-gyp etc).
+  // Bundle the @borjie/* workspace packages INTO the api-gateway image
+  // (noExternal), but keep third-party node_modules unbundled (Node resolves
+  // them at runtime via pnpm symlinks). WHY: the api-gateway ships as a CJS
+  // leaf service (`node dist/index.js`) and many workspace packages export raw
+  // `./src/index.ts` (or ESM with `.js` specifiers that point at uncompiled
+  // `.ts`). A plain Node runtime cannot `require()` those — the production
+  // boot crashed with ERR_MODULE_NOT_FOUND on the first such import. Inlining
+  // the workspace graph at build time removes that whole resolution class:
+  // esbuild walks the real `.ts` sources and emits one self-contained bundle.
   //
-  // NOTE: a follow-up to migrate api-gateway to ESM (or to bundle
-  // workspace deps via `noExternal: [/^@borjie\//]`) is needed to
-  // unblock the chronic-flaky E2E container failure — the CJS api-gateway
-  // cannot synchronously `require()` ESM workspace packages. Bundling
-  // surfaces ~10 pre-existing export mismatches that need closing first.
+  // `external` still excludes native/optional deps esbuild can't safely walk
+  // (node-pre-gyp, aws-sdk mocks, pg-native, better-sqlite3).
   skipNodeModulesBundle: true,
+  noExternal: [/^@borjie\//],
   external: [
-    /^@borjie\//,
     '@mapbox/node-pre-gyp',
     'mock-aws-s3',
     'aws-sdk',
