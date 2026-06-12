@@ -186,6 +186,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Start E2E stack
         run: docker compose -f docker-compose.e2e.yml up -d --wait
+      - name: Run migrations on E2E database
+        # The compose stack starts a fresh postgres with no schema.
+        # Migrations must run before seed-runner.ts touches any table.
+        run: pnpm -C packages/database run db:migrate
+        env:
+          DATABASE_URL: postgresql://borjie:borjie_e2e@localhost:55432/borjie_e2e
       - name: Seed test data
         run: pnpm tsx e2e/fixtures/seed-runner.ts
         env:
