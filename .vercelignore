@@ -1,0 +1,19 @@
+# Vercel upload excludes. `vercel deploy --archive=tgz` tars the working tree
+# and does NOT fully apply .gitignore, so the ~7 GB of nested .next build
+# output ballooned the archive to ~1 GB per deploy. These are all REBUILT on
+# Vercel (install + next build), so excluding them is safe and cuts the upload
+# to source-only (~40 MB).
+#
+# NOTE: deliberately does NOT exclude `dist/` — some @borjie/* workspace
+# packages resolve their entrypoint through a built `dist/`, and Vercel runs a
+# scoped `next build` that may not rebuild every dep first. Keep dist in.
+**/node_modules
+**/.next
+**/.turbo
+**/.expo
+**/coverage
+**/playwright-report
+**/test-results
+**/.blob
+.git
+*.log
