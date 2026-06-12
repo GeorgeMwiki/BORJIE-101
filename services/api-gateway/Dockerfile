@@ -22,6 +22,13 @@ FROM node:20.18.0-bookworm-slim AS deps
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV CI="true"
+# puppeteer (a transitive workspace dep) runs a postinstall that downloads
+# chrome-headless-shell, which needs `unzip`/`tar` and network access the
+# slim build image lacks — it hard-fails `pnpm install`. The gateway does not
+# launch a browser at build time, so skip the download. Set BOTH the current
+# and legacy env names; inherited by the `build` stage (FROM deps).
+ENV PUPPETEER_SKIP_DOWNLOAD="true"
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 
 RUN corepack enable \
   && corepack prepare pnpm@8.15.0 --activate \
