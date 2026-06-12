@@ -86,11 +86,14 @@ kill_timeout = "30s"
     restart_limit = 5
 
 # -- VM sizing -----------------------------------------------------------------
+# 2 GB floor: the gateway is the whole modular monolith in one process — the
+# 18+ MB bundled service graph, ~28 in-process crons, the brain kernel and the
+# notification drain. A 512 MB machine OOM-loops before finishing boot.
 [[vm]]
-  size = "shared-cpu-1x"
-  memory = "512mb"
+  size = "shared-cpu-2x"
+  memory = "2gb"
   cpu_kind = "shared"
-  cpus = 1
+  cpus = 2
 
 # -- Persistent storage --------------------------------------------------------
 # Postgres data is managed by Fly Postgres (separate app). This mount stores

@@ -119,8 +119,11 @@ jobs:
           echo "Running health checks against ${{ vars.PRODUCTION_URL }}..."
           curl -sf --retry 5 --retry-delay 10 --retry-all-errors "${{ vars.PRODUCTION_URL }}/health" \
             || { echo "::error::gateway /health failed"; exit 1; }
-          curl -sf --retry 5 --retry-delay 10 --retry-all-errors "${{ vars.PRODUCTION_URL }}/health/deep" \
-            || { echo "::error::gateway /health/deep degraded/unhealthy"; exit 1; }
+          # NOTE: the deep cascade lives at /api/v1/health/deep and is
+          # admin-JWT-gated (403 unauthenticated), so an anonymous runner
+          # cannot probe it. /healthz is the public k8s-style liveness twin.
+          curl -sf --retry 5 --retry-delay 10 --retry-all-errors "${{ vars.PRODUCTION_URL }}/healthz" \
+            || { echo "::error::gateway /healthz failed"; exit 1; }
 
   notify:
     name: Notify Slack

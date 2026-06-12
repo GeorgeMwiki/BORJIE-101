@@ -195,7 +195,7 @@ fly releases rollback <version-number> --app borjie-api-gateway
 ```bash
 fly status --app borjie-api-gateway              # all machines must be "passing"
 curl -fsS https://borjie-api-gateway.fly.dev/health
-curl -fsS https://borjie-api-gateway.fly.dev/api/v1/meta/version
+curl -fsS https://borjie-api-gateway.fly.dev/healthz   # public liveness twin (deep cascade is admin-gated)
 fly logs   --app borjie-api-gateway              # tail until "ready on :3001"
 ```
 
