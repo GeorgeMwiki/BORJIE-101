@@ -72,7 +72,13 @@ WORKDIR /repo
 # its package.json entry — which for ~120 packages points at `dist/`. On a
 # cache-cold builder those dists only exist if the closure is built first.
 # Mirrors docker/Dockerfile.api (the CI/E2E image).
-RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/api-gateway --no-daemon
+#
+# --concurrency=1: turbo otherwise fans out one build per core, each a node
+# process allowed a 4 GB heap, which sums past the remote builder's RAM and
+# SIGKILLs a random package mid-build (exit 137 / OOM — seen on
+# payments-ledger then workflow-engine). Serialise the closure so peak memory
+# is a single 4 GB process. Slower but deterministic on a memory-bound builder.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/api-gateway --no-daemon --concurrency=1
 
 # Prune dev deps for the api-gateway shipping surface only.
 RUN pnpm -F @borjie/api-gateway --prod deploy /deploy
