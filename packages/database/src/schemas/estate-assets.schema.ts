@@ -39,14 +39,25 @@ export const ESTATE_ASSET_CLASSES = [
 ] as const;
 export type EstateAssetClass = (typeof ESTATE_ASSET_CLASSES)[number];
 
-export const ESTATE_ASSET_VALUATION_METHODS = [
-  'cost',
-  'market',
-  'income',
-  'depreciated',
+// Valuation methods. These MUST stay in lockstep with the live DB CHECK
+// constraint `estate_assets_valmethod_chk` (migration 0094) — any value the
+// route accepts but the CHECK rejects would 23514 on insert. The prior values
+// ('cost'/'market'/'income'/'depreciated') did NOT match the CHECK; corrected
+// here to the constraint's exact set.
+export const ESTATE_VALUATION_METHODS = [
+  'book_value',
+  'market_value',
+  'replacement_cost',
+  'appraised',
+  'discounted_cash_flow',
+  'other',
 ] as const;
-export type EstateAssetValuationMethod =
-  (typeof ESTATE_ASSET_VALUATION_METHODS)[number];
+export type EstateValuationMethod =
+  (typeof ESTATE_VALUATION_METHODS)[number];
+
+// Back-compat aliases (legacy import names; self-referenced only).
+export const ESTATE_ASSET_VALUATION_METHODS = ESTATE_VALUATION_METHODS;
+export type EstateAssetValuationMethod = EstateValuationMethod;
 
 export const estateAssets = pgTable(
   'estate_assets',
@@ -63,7 +74,7 @@ export const estateAssets = pgTable(
     currentValueTzs: numeric('current_value_tzs', { precision: 20, scale: 2 })
       .notNull()
       .default('0'),
-    valuationMethod: text('valuation_method').notNull().default('cost'),
+    valuationMethod: text('valuation_method').notNull().default('book_value'),
     valuationAt: timestamp('valuation_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

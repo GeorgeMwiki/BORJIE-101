@@ -57,8 +57,15 @@ FROM deps AS build
 
 WORKDIR /repo
 
-RUN pnpm -F @borjie/database build
-RUN pnpm -F @borjie/api-gateway build
+# Build the FULL @borjie/* dependency closure with turbo (`^build` topo
+# order), not raw pnpm filters. Two reasons: (1) several packages declare
+# @borjie peers that pnpm's filter graph does not topologically sort, and
+# (2) the gateway's tsup config bundles the workspace graph via
+# `noExternal: [/^@borjie\//]`, and esbuild resolves each package through
+# its package.json entry — which for ~120 packages points at `dist/`. On a
+# cache-cold builder those dists only exist if the closure is built first.
+# Mirrors docker/Dockerfile.api (the CI/E2E image).
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/api-gateway --no-daemon
 
 # Prune dev deps for the api-gateway shipping surface only.
 RUN pnpm -F @borjie/api-gateway --prod deploy /deploy

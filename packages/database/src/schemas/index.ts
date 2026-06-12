@@ -106,6 +106,9 @@ export * from './mining-workforce-extensions.schema.js';
 // Workforce Invitations — owner/admin invites + worker activation (migration 0086)
 export * from './workforce-invitations.schema.js';
 
+// Workforce Openings — owner/manager posts a role; the workforce-openings route reads it.
+export * from './workforce-openings.schema.js';
+
 // ---------------------------------------------------------------------------
 // AI-OS infra (generic)
 // ---------------------------------------------------------------------------
@@ -174,6 +177,11 @@ export * from './platform-killswitch-state.schema.js';
 export * from './platform-autonomy-settings.schema.js';
 export * from './killswitch-authorities.schema.js';
 export * from './platform-announcements.schema.js';
+// Notification dispatch log — the per-recipient delivery ledger that the
+// announcement fan-out / push rails enqueue into and the dispatch drain worker
+// sends from. Table existed live via schema-ahead drift; migration 0348 now
+// creates it on fresh DBs (idempotent).
+export * from './notification-dispatch-log.schema.js';
 
 // Currency + persona
 export * from './currency-rates.schema.js';
@@ -1264,6 +1272,8 @@ export * from './regulatory-filings.schema.js';
 export * from './estate-groups.schema.js';
 export * from './estate-entities.schema.js';
 export * from './estate-capital-movements.schema.js';
+// Back-compat alias: the capital-movements route imports the shorter name.
+export { ESTATE_CAPITAL_MOVEMENT_KINDS as ESTATE_CAPITAL_KINDS } from './estate-capital-movements.schema.js';
 export * from './succession-plans.schema.js';
 export * from './estate-assets.schema.js';
 

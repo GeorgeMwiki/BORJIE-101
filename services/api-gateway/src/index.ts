@@ -538,8 +538,8 @@ import {
   managerJarvisRouter,
   platformHqJarvisRouter,
 } from './routes/jarvis-router-factory';
-// Platform overview KPI aggregator — HQ-tier counts for /platform/overview.
-import platformOverviewRouter from './routes/platform-overview.router';
+// REMOVED (borjie hard-fork): platform-overview.router queried deleted
+// property tables (units, payments) — dead since the property→mining migration.
 // Phase B Wave 30 — Task-Agents registry + executor (narrow-scope agents)
 import taskAgentsRouter from './routes/task-agents.router';
 // Wave 27 Agent E — Tenant Branding (per-tenant AI persona identity overrides)
@@ -600,10 +600,9 @@ import intelligenceRouter from './routes/intelligence.router';
 import analyticsRouter from './routes/analytics.router';
 import portfolioRouter from './routes/portfolio.router';
 // Estate-manager-app dependency — list/create unit subdivision children,
-// and list FAR / asset-component breakdown for a unit. Mounted under
-// /api/v1/units/:id/{subdivision,components}.
-import unitSubdivisionRouter from './routes/unit-subdivision.router';
-import unitComponentsRouter from './routes/unit-components.router';
+// REMOVED (borjie hard-fork): unit-subdivision + unit-components routers
+// queried deleted property tables (units, assetComponents) — dead since the
+// property→mining migration.
 import { rateLimitMiddleware } from './middleware/rate-limit.middleware';
 import { createRateLimitMiddleware } from './middleware/rate-limit-redis.middleware';
 import { getSharedPerTenantRateBudget } from './middleware/per-tenant-rate-budget';
@@ -664,7 +663,9 @@ import { ownerPortalRouter } from './routes/bff/owner-portal';
 // `/owner/group-rollup` prefix BEFORE the broad `/owner` BFF so the
 // specific path wins Hono trie resolution.
 import { ownerGroupRollupRouter } from './routes/owner/group-rollup.hono';
-import { estateManagerAppRouter } from './routes/bff/estate-manager-app';
+// REMOVED (borjie hard-fork): estate-manager-app BFF served property-era
+// dashboards (work orders, inspections, vendors, units, arrears) over tables
+// dropped in migration 0003 — dead since the property→mining migration.
 import { adminPortalRouter } from './routes/bff/admin-portal';
 // Wave-4 D6 — owner-portal MissingBackendNotice skeletons. Each router
 // answers a precise endpoint declared by a placeholder page in
@@ -2588,7 +2589,7 @@ api.route('/customer', customerAppRouter);
 // BFF mount below so the more specific prefix wins.
 api.route('/owner/group-rollup', ownerGroupRollupRouter);
 api.route('/owner', ownerPortalRouter);
-api.route('/manager', estateManagerAppRouter);
+// REMOVED (borjie hard-fork): api.route('/manager', estateManagerAppRouter);
 api.route('/admin', adminPortalRouter);
 // admin-rest-3 — cross-tenant subscription / MRR overview. Mounted at the
 // more-specific `/admin/subscriptions` prefix so it is never shadowed by the
@@ -3112,9 +3113,8 @@ api.route('/manager/jarvis', managerJarvisRouter);
 api.route('/admin/jarvis/stream', adminJarvisStreamRouter);
 api.route('/admin/jarvis', adminJarvisRouter);          // agency admin (Nyumba Mind — Agency Brain)
 api.route('/platform/jarvis', platformHqJarvisRouter);  // Borjie HQ (Nyumba Mind sovereign)
-// Platform overview KPI aggregator — read-only, platform-tier auth, used
-// by admin-web /platform/overview KPI tiles.
-api.route('/platform/overview', platformOverviewRouter);
+// REMOVED (borjie hard-fork): api.route('/platform/overview', platformOverviewRouter)
+// — queried deleted property tables (units, payments).
 // Phase B Wave 30 — Task-Agents (narrow-scope single-job agents + manual runs)
 api.route('/task-agents', taskAgentsRouter);
 // Wave 27 Agent E — Tenant Branding (per-tenant AI persona identity)
@@ -3289,11 +3289,8 @@ api.route('/workforce', workforceTabConfigWorkerRouter);
 api.route('/internal/modules', internalModulesRouter);
 api.route('/internal', workforceTabPolicyAdminRouter);api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
-// Unit subdivision + components — Manager-app dependency. Hono mounts
-// path-param prefixes correctly: `:id` is parsed and exposed via
-// `c.req.param('id')` inside the sub-router.
-api.route('/units/:id/subdivision', unitSubdivisionRouter);
-api.route('/units/:id/components', unitComponentsRouter);
+// REMOVED (borjie hard-fork): /units/:id/{subdivision,components} — queried
+// deleted property tables (units, assetComponents).
 
 // Wave AGENTIC-PLATFORM — OAuth2 device-flow + per-agent access tokens.
 // PUBLIC endpoints (no auth): /oauth/device/code, /oauth/device/verify,
@@ -3382,7 +3379,7 @@ const openApiRouter = createOpenApiRouter({
     // REMOVED (borjie hard-fork): { prefix: '/hr', app: hrRouter, ... },
     { prefix: '/customer', app: customerAppRouter, defaultTag: 'bff-customer' },
     { prefix: '/owner', app: ownerPortalRouter, defaultTag: 'bff-owner' },
-    { prefix: '/manager', app: estateManagerAppRouter, defaultTag: 'bff-manager' },
+    // REMOVED (borjie hard-fork): { prefix: '/manager', app: estateManagerAppRouter, defaultTag: 'bff-manager' },
     { prefix: '/admin', app: adminPortalRouter, defaultTag: 'bff-admin' },
     { prefix: '/applications', app: applicationsRouter, defaultTag: 'applications' },
 // REMOVED (borjie hard-fork):     { prefix: '/arrears', app: arrearsRouter, defaultTag: 'arrears' },

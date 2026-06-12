@@ -185,11 +185,12 @@ import type {
 } from '@borjie/forecasting';
 import { AssetGrading } from '@borjie/ai-copilot';
 type AssetGradingService = import('@borjie/ai-copilot').AssetGrading.AssetGradingService;
-import {
-  createCreditRatingService,
-  type CreditRatingService,
-} from '@borjie/ai-copilot';
-import { PostgresCreditRatingRepository } from './credit-rating-repository.js';
+// The credit-rating feature was removed in the borjie hard-fork (its router is
+// gone + its DB tables were dropped). The registry keeps a `creditRating` slot
+// (its null-guarded consumers in background-wiring / service-context stay
+// valid) but it is permanently `null` — the Postgres repo queried deleted
+// credit_rating_* tables, so the factory + repo imports are removed.
+import { type CreditRatingService } from '@borjie/ai-copilot';
 // Wave-K W-Data — DSAR (Art.20/PDPA s.27) Drizzle-backed data source +
 // classification lookup. Bound here so the dsar router can pull a real
 // per-tenant data source out of the service registry.
@@ -326,10 +327,8 @@ import {
   discoverEpisodicScopesForTenant,
   type AnthropicLikeClient as ConsolidationAnthropicLike,
 } from './consolidation-runner.js';
-import {
-  createMarketSurveillanceWiring,
-  type MarketSurveillanceWiring,
-} from './market-surveillance-wiring.js';
+// REMOVED (borjie hard-fork): market-surveillance-wiring queried deleted
+// property tables (leases, properties, units) and was never read by any route.
 import {
   createPredictiveInterventionsWiring,
   type PredictiveInterventionsWiring,
@@ -1280,11 +1279,8 @@ export interface ServiceRegistry {
    *  `/task-agents` router returns a clean 503 then). */
   readonly taskAgentExecutor: TaskAgentExecutor | null;
 
-  /** Market-rate surveillance agent — Drizzle-backed snapshot
-   *  persistence + stub MarketRatePort. `listActiveUnits` returns []
-   *  until the units adapter lands (the surveillance loop no-ops
-   *  cleanly). */
-  readonly marketSurveillance: MarketSurveillanceWiring | null;
+  // REMOVED (borjie hard-fork): marketSurveillance — queried deleted property
+  // tables (leases/properties/units) and had zero route consumers.
 
   /** Predictive interventions agent — Drizzle-backed prediction +
    *  opportunity persistence. `listActiveTenants` returns [] until the
@@ -2180,7 +2176,6 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
     // Task-agents — null in degraded mode (no live services bag / ledger to
     // bind the executor against); the `/task-agents` router returns 503.
     taskAgentExecutor: null,
-    marketSurveillance: null,
     predictiveInterventions: null,
     // K7 parity-litfin Gap H — wake-loop cron is null in degraded mode
     // (no DB means no tenants to iterate, no read ports to bind).
@@ -3233,11 +3228,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // null in the live registry until follow-up batches retire it.
     assetGrading: null,
     // Tenant credit rating — FICO-scale 300-850 + CRB bands + portable
-    // certificate. Postgres-backed repository pulls real invoice /
-    // payment / tenancy data — zero mocks.
-    creditRating: createCreditRatingService({
-      repo: new PostgresCreditRatingRepository(db),
-    }),
+    // REMOVED (borjie hard-fork): credit-rating feature gone (router removed,
+    // credit_rating_* tables dropped). Slot stays for null-guarded consumers.
+    creditRating: null,
     // Wave 29 — forecasting (TGN + conformal). Only populated when
     // BOTH env vars are present. Otherwise the router returns 503
     // FORECAST_SERVICE_UNAVAILABLE. No mock / fallback forecaster
@@ -3359,7 +3352,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
     // TASK-AGENTS — the bound executor (registry + curated services bag +
     // cost ledger). Powers `/task-agents` list/get/run.
     taskAgentExecutor,
-    marketSurveillance: createMarketSurveillanceWiring({ db }),
+    // REMOVED (borjie hard-fork): marketSurveillance (property-era).
     predictiveInterventions: createPredictiveInterventionsWiring({ db }),
     // K7 parity-litfin Gap H — wake-loop cron supervisor. Inert until
     // `start()` is called in the gateway boot sequence; ticks the

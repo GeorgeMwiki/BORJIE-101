@@ -31,6 +31,9 @@ export const ESTATE_HOLDING_TYPES = [
 ] as const;
 export type EstateHoldingType = (typeof ESTATE_HOLDING_TYPES)[number];
 
+// Back-compat alias: the estate-groups route imports this longer name.
+export const ESTATE_GROUP_HOLDING_TYPES = ESTATE_HOLDING_TYPES;
+
 export const estateGroups = pgTable(
   'estate_groups',
   {

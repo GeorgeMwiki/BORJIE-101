@@ -259,6 +259,13 @@ export {
   type MarketRateSnapshotsService,
 } from './market-rate-snapshots.service.js';
 
+// Session-replay chunks — append-only per-session UI event buffer the
+// session-replay route reads/writes. Only the factory is re-exported; the
+// service's row/input types intentionally stay un-barrelled because the
+// schema already exports inferred types under the same names (e.g.
+// SessionReplayChunkRow) and the route derives its type via ReturnType<>.
+export { createSessionReplayChunksService } from './session-replay-chunks.service.js';
+
 // Tenant predictions + intervention opportunities (migration 0106) —
 // Drizzle-backed adapter for the predictive-interventions agent.
 // `listActiveTenants` is composed elsewhere from production/offtake repos.
