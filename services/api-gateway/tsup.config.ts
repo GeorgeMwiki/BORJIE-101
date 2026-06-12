@@ -30,7 +30,13 @@ export default defineConfig({
   // 20+), with NO `require`/`node` condition. Left external in a CJS bundle it
   // boot-crashes with ERR_REQUIRE_ESM (`require() of ES Module jose`). Inline
   // it so esbuild transpiles the ESM source into the CJS bundle at build time.
-  noExternal: [/^@borjie\//, 'jose'],
+  // ESM-only third-party deps that the bundled @borjie/* dists `require()` —
+  // pure ESM (or "broken dual": a require condition pointing at ESM content),
+  // so a CJS bundle boot-crashes with ERR_REQUIRE_ESM. Inline them so esbuild
+  // transpiles to CJS at build time. jose@6 (hono-auth JWT) and uuid@14
+  // (observability audit-logger) are confirmed; keep this list in sync with
+  // the ESM-only probe.
+  noExternal: [/^@borjie\//, 'jose', 'uuid'],
   external: [
     '@mapbox/node-pre-gyp',
     'mock-aws-s3',
