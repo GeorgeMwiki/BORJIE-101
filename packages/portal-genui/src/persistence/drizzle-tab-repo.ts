@@ -15,6 +15,7 @@
  */
 
 import { PortalTabSchema, type PortalTab } from '../types.js';
+import { migratePortalTabRaw, verifyMigratable } from '../migrate/index.js';
 import type {
   DeleteTabInput,
   ListTabsInput,
@@ -46,8 +47,17 @@ interface PortalTabRow {
 function rowToTab(row: PortalTabRow): PortalTab | null {
   const raw = typeof row.tab === 'string' ? safeJsonParse(row.tab) : row.tab;
   if (!raw || typeof raw !== 'object') return null;
-  const parsed = PortalTabSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
+  // Schema-evolution lane: upgrade an archived spec written under an older
+  // `version` forward before validating. `verifyMigratable` is the
+  // non-throwing gate — a spec NEWER than this binary knows (or unmigratable)
+  // is skipped fail-safe rather than crashing the read. For current-version
+  // rows the migration is identity, so behaviour is unchanged.
+  if (!verifyMigratable(raw).ok) return null;
+  try {
+    return migratePortalTabRaw(raw).tab;
+  } catch {
+    return null;
+  }
 }
 
 function safeJsonParse(text: string): unknown {
