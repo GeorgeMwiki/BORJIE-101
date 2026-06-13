@@ -408,7 +408,7 @@ describe('createNotificationDispatcher', () => {
       logger: noopLogger,
       emailProvider: createInMemoryEmailProvider(),
       smsProvider,
-      shouldDeliver: async () => false, // owner opted out of this channel
+      shouldDeliver: async () => 'suppress', // owner opted out of this channel
     });
 
     const result = await dispatcher.runOnce({});
@@ -418,6 +418,33 @@ describe('createNotificationDispatcher', () => {
     expect(result.sent).toBe(0);
     // ...and it is marked terminal with the suppression reason (not a failure).
     expect(updates.join('|')).toContain('suppressed_by_preference');
+  });
+
+  it('defers (re-queues, no send) a deferrable row inside quiet-hours', async () => {
+    const updates: string[] = [];
+    const execute = vi.fn(async (q: unknown) => {
+      updates.push(JSON.stringify(q));
+      if (updates.length === 1) return [pendingRow({ user_id: 'u3' })];
+      return [];
+    });
+    const emailProvider = createInMemoryEmailProvider();
+    const dispatcher = createNotificationDispatcher({
+      db: { execute },
+      logger: noopLogger,
+      emailProvider,
+      smsProvider: createInMemorySmsProvider(),
+      shouldDeliver: async () => 'defer', // recipient is in their quiet window
+    });
+
+    const result = await dispatcher.runOnce({});
+
+    // Not sent, not failed — re-queued (pending) with a future next_retry_at.
+    expect(emailProvider.sent).toHaveLength(0);
+    expect(result.sent).toBe(0);
+    expect(result.failed).toBe(0);
+    const deferSql = updates.join('|');
+    expect(deferSql).toContain('next_retry_at');
+    expect(deferSql).toContain("'pending'");
   });
 
   it('still delivers when the preference gate allows the channel', async () => {
@@ -431,7 +458,7 @@ describe('createNotificationDispatcher', () => {
       logger: noopLogger,
       emailProvider,
       smsProvider: createInMemorySmsProvider(),
-      shouldDeliver: async () => true,
+      shouldDeliver: async () => 'deliver',
     });
 
     const result = await dispatcher.runOnce({});

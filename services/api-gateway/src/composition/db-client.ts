@@ -80,6 +80,48 @@ export function getDb(): DrizzleClient | null {
   }
 }
 
+let cachedWorkerClient: DrizzleClient | null = null;
+let workerInitialized = false;
+
+/**
+ * Dedicated SMALL service-role connection pool for the out-of-band workers
+ * (notification dispatch drain, reminders, announcement fan-out). These run
+ * `withServiceRoleContext` transactions on a tight loop; routing them through a
+ * SEPARATE small pool isolates them from request-path bursts so their
+ * transactions reliably acquire a connection instead of racing the main pool
+ * into the Supabase session-pooler client ceiling (main pool + this worker
+ * pool + the cluster-lock supervisor connection stay under the cap by budget).
+ * Sized by DATABASE_WORKER_POOL_MAX (default 3). Falls back to the shared
+ * client when DATABASE_URL is unset or the dedicated pool can't be opened.
+ */
+export function getServiceRoleWorkerClient(): DrizzleClient | null {
+  if (workerInitialized) return cachedWorkerClient;
+  workerInitialized = true;
+
+  const url = process.env.DATABASE_URL?.trim();
+  if (!url) {
+    cachedWorkerClient = null;
+    return null;
+  }
+
+  try {
+    const parsed = Number(process.env.DATABASE_WORKER_POOL_MAX);
+    const max = Number.isInteger(parsed) && parsed > 0 ? parsed : 3;
+    // A DEDICATED pool (NOT getSharedDatabaseClient) so it is independent of
+    // the main request pool — that isolation is the whole point.
+    cachedWorkerClient = createDatabaseClient(url, max);
+    return cachedWorkerClient;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(
+      { err: message },
+      'db-client: service-role worker pool init failed — workers fall back to shared client',
+    );
+    cachedWorkerClient = null;
+    return null;
+  }
+}
+
 /**
  * Z5 HA wire — return a Drizzle client routed against the read replica.
  *

@@ -566,6 +566,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0356_mining_escalations_org_fields.sql",
+      "down": "down/0356_down_mining_escalations_org_fields.sql",
+      "reverses": "Deletes the org-origin escalations the one-time backfill lifted from org_escalations into the authoritative mining_escalations (identified by context->>'orgPath'='true') and drops the additive mining_escalations.context jsonb column. Dev/staging only — DATA LOSS: removes backfilled + agentic-writer escalations and the lossless org-field context bag (category/originalSeverity/escalatedToStaffId/relatedTaskId/relatedSubject/originSessionId); native route/UI escalations are untouched. No money/licence/ledger records.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

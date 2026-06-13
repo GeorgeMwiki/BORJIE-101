@@ -5,10 +5,18 @@
  * a row marks it read and (where applicable) deep-links to the source
  * RFB. Pull-to-refresh re-fetches the first page.
  *
+ * ── Single source of truth (SLICE TZ4) ─────────────────────────────
+ * The PERSISTED `buyer_notifications` query is the ONLY inbox state.
+ * The cockpit SSE pulse no longer maintains a parallel in-memory list
+ * with its own read-state (which used to diverge from the server
+ * record); instead `EventStreamMount` invalidates this query on every
+ * pulse, so the live "new notification" affordance and the unread badge
+ * are both derived from `read_at` on the authoritative rows.
+ *
  * Bilingual sw/en throughout.
  */
 
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useRouter } from 'expo-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -32,12 +40,6 @@ import {
   type BuyerNotificationRow,
 } from '@/api/notifications'
 import { queryKeys } from '@/api/queryKeys'
-import {
-  useInbox,
-  markRead as markLiveRead,
-  markAllRead as markAllLiveRead,
-  type InboxItem,
-} from '@/lib/notifications/inbox-store'
 
 export default function NotificationsScreen(): JSX.Element {
   const router = useRouter()
@@ -51,13 +53,21 @@ export default function NotificationsScreen(): JSX.Element {
     staleTime: 15_000,
   })
 
+  const invalidateInbox = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['buyer-notifications'] })
+  }, [queryClient])
+
   const markRead = useMutation({
     mutationFn: (id: string) => markBuyerNotificationRead(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['buyer-notifications'],
-      })
+    onSuccess: invalidateInbox,
+  })
+
+  // Batch mark-all-read over the persisted rows — the ONE read-state.
+  const markAllRead = useMutation({
+    mutationFn: async (ids: ReadonlyArray<string>) => {
+      await Promise.all(ids.map((id) => markBuyerNotificationRead(id)))
     },
+    onSuccess: invalidateInbox,
   })
 
   const onTap = useCallback(
@@ -79,7 +89,16 @@ export default function NotificationsScreen(): JSX.Element {
   )
 
   const notifications = query.data?.notifications ?? []
-  const inbox = useInbox()
+  const unreadIds = useMemo(
+    () => notifications.filter((row) => !row.read_at).map((row) => row.id),
+    [notifications],
+  )
+  const unreadCount = unreadIds.length
+
+  const onMarkAllRead = useCallback(() => {
+    if (unreadIds.length === 0 || markAllRead.isPending) return
+    markAllRead.mutate(unreadIds)
+  }, [markAllRead, unreadIds])
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -92,8 +111,13 @@ export default function NotificationsScreen(): JSX.Element {
               : 'Recent activity on your purchases'
           }
         />
-        {inbox.items.length > 0 ? (
-          <LiveEventsRibbon items={inbox.items} unreadCount={inbox.unreadCount} isSw={isSw} />
+        {unreadCount > 0 ? (
+          <UnreadBar
+            unreadCount={unreadCount}
+            isSw={isSw}
+            disabled={markAllRead.isPending}
+            onMarkAllRead={onMarkAllRead}
+          />
         ) : null}
       </View>
       <FlatList
@@ -174,57 +198,44 @@ function NotificationCard({
   )
 }
 
-interface LiveEventsRibbonProps {
-  readonly items: ReadonlyArray<InboxItem>
+interface UnreadBarProps {
   readonly unreadCount: number
   readonly isSw: boolean
+  readonly disabled: boolean
+  readonly onMarkAllRead: () => void
 }
 
-function describeKind(kind: string, isSw: boolean): string {
-  switch (kind) {
-    case 'rfb.dispatched':
-      return isSw ? 'RFB imepelekwa' : 'RFB dispatched'
-    case 'bid.placed':
-      return isSw ? 'Zabuni imewekwa' : 'Bid placed'
-    case 'settlement.initiated':
-      return isSw ? 'Malipo yameanza' : 'Settlement initiated'
-    case 'chat.handoff':
-      return isSw ? 'Mazungumzo yamepelekwa' : 'Chat handed off'
-    case 'reminder.fired':
-      return isSw ? 'Kikumbusho' : 'Reminder'
-    default:
-      return kind
-  }
-}
-
-function LiveEventsRibbon({ items, unreadCount, isSw }: LiveEventsRibbonProps): JSX.Element {
-  const recent = items.slice(0, 5)
+/**
+ * Unread summary + mark-all affordance. Derived entirely from the
+ * persisted rows' `read_at` — the single inbox read-state. The live
+ * "new notification" affordance is the refetch-on-pulse driven by
+ * EventStreamMount, so this bar updates itself when the server record
+ * changes; there is no separate in-memory list.
+ */
+function UnreadBar({
+  unreadCount,
+  isSw,
+  disabled,
+  onMarkAllRead,
+}: UnreadBarProps): JSX.Element {
   return (
-    <View style={styles.ribbonWrap}>
-      <View style={styles.ribbonHeader}>
-        <Text style={styles.ribbonTitle}>
-          {isSw ? 'Moja kwa moja' : 'Live'}{unreadCount > 0 ? ` (${unreadCount})` : ''}
-        </Text>
-        {unreadCount > 0 ? (
-          <Pressable onPress={() => markAllLiveRead()}>
-            <Text style={styles.ribbonLink}>{isSw ? 'Soma zote' : 'Mark all read'}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      {recent.map((item) => (
-        <Pressable
-          key={item.id}
-          accessibilityRole="button"
-          onPress={() => markLiveRead(item.id)}
+    <View style={styles.unreadBar}>
+      <Text style={styles.unreadBarTitle}>
+        {isSw
+          ? `Arifa mpya (${unreadCount})`
+          : `New notifications (${unreadCount})`}
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        disabled={disabled}
+        onPress={onMarkAllRead}
+      >
+        <Text
+          style={[styles.unreadBarLink, disabled && styles.unreadBarLinkDisabled]}
         >
-          <View style={styles.ribbonRow}>
-            <Text style={styles.ribbonKind}>{describeKind(item.kind, isSw)}</Text>
-            <Text style={styles.ribbonTime}>
-              {new Date(item.emittedAt).toLocaleTimeString(isSw ? 'sw-TZ' : 'en-US')}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
+          {isSw ? 'Soma zote' : 'Mark all read'}
+        </Text>
+      </Pressable>
     </View>
   )
 }
@@ -234,39 +245,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: tokens.color.bgBase,
   },
-  ribbonWrap: {
+  unreadBar: {
     marginTop: tokens.space.md,
-    padding: tokens.space.md,
+    paddingVertical: tokens.space.sm,
+    paddingHorizontal: tokens.space.md,
     borderRadius: tokens.space.sm,
     backgroundColor: tokens.color.bgRaised,
     borderWidth: 1,
     borderColor: tokens.color.bgMuted,
-  },
-  ribbonHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: tokens.space.xs,
   },
-  ribbonTitle: {
+  unreadBarTitle: {
     ...tokens.type.bodyStrong,
     color: tokens.color.gold,
   },
-  ribbonLink: {
+  unreadBarLink: {
     ...tokens.type.bodySm,
     color: tokens.color.gold,
   },
-  ribbonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: tokens.space.xs,
-  },
-  ribbonKind: {
-    ...tokens.type.body,
-    color: tokens.color.textPrimary,
-  },
-  ribbonTime: {
-    ...tokens.type.bodySm,
+  unreadBarLinkDisabled: {
     color: tokens.color.textMuted,
   },
   padded: {

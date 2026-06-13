@@ -495,6 +495,37 @@ export const en = {
   cockpit: {
     dailyBriefTitle: 'Daily brief',
   },
+
+  // Escalations closing panel (cockpit) — the authoritative
+  // manager-dispatch ladder (`mining_escalations`). Acknowledge / resolve
+  // close the loop. Distinct key set from `headBriefing.escalations`
+  // (read-only briefing) and from `reminders` (separate slice).
+  escalations: {
+    heading: 'Escalations',
+    headerOpen: 'Open escalations ({count})',
+    liveHint: 'Authoritative ladder · acknowledge or resolve to close',
+    loading: 'Loading escalations…',
+    signInRequired: 'Sign in to view escalations.',
+    loadFailed: 'Could not load escalations. Please try again.',
+    emptyTitle: 'No open escalations',
+    emptyBody:
+      'When a worker, manager, or the MD raises something to a human, it appears here.',
+    acknowledge: 'Acknowledge',
+    resolve: 'Resolve',
+    acknowledging: 'Acknowledging…',
+    resolving: 'Resolving…',
+    actionFailed: 'Action failed. Please try again.',
+    openedPrefix: 'Opened',
+    justNow: 'just now',
+    minutesAgo: '{count}m ago',
+    hoursAgo: '{count}h ago',
+    severityInfo: 'Info',
+    severityWarning: 'Warning',
+    severityCritical: 'Critical',
+    statusOpen: 'Open',
+    statusAcknowledged: 'Acknowledged',
+    statusResolved: 'Resolved',
+  },
 } as const;
 
 export type Dictionary = typeof en;

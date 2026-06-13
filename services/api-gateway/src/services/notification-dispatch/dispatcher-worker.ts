@@ -48,6 +48,9 @@ import type { PushProvider, PushProviderResult } from './push-providers/types';
 
 type DbExecutor = { execute(q: unknown): Promise<unknown> };
 
+/** Per-recipient preference-gate decision (see DispatcherDeps.shouldDeliver). */
+export type DeliveryDisposition = 'deliver' | 'suppress' | 'defer';
+
 type Logger = {
   warn(meta: Record<string, unknown>, msg: string): void;
   info?(meta: Record<string, unknown>, msg: string): void;
@@ -64,19 +67,23 @@ export type DispatcherDeps = {
   readonly pushProvider?: PushProvider;
   /**
    * Optional per-recipient preference gate. When provided AND the row carries
-   * a userId, the dispatcher consults it before sending; a `false` result
-   * suppresses the row (terminal, reason `suppressed_by_preference`) so an
-   * owner who toggled a channel/template OFF is not pinged. Decoupled from the
-   * preferences table — composition injects a notification_preferences-backed
-   * implementation. MUST fail-open (return true) on its own errors so a prefs
-   * read failure never silently drops notifications.
+   * a userId, the dispatcher consults it before sending and acts on the
+   * disposition: `'suppress'` → terminal (reason `suppressed_by_preference`,
+   * for a channel/template the owner toggled OFF); `'defer'` → re-queued for
+   * later WITHOUT consuming an attempt (the owner is in their quiet-hours
+   * window and the notification is deferrable — urgent safety alerts return
+   * `'deliver'` so they are never delayed); `'deliver'` → send now. Decoupled
+   * from the preferences table — composition injects a
+   * notification_preferences-backed implementation. MUST fail-open (return
+   * `'deliver'`) on its own errors so a prefs read failure never drops a
+   * notification.
    */
   readonly shouldDeliver?: (input: {
     readonly tenantId: string;
     readonly userId: string;
     readonly channel: string;
     readonly templateKey: string;
-  }) => Promise<boolean>;
+  }) => Promise<DeliveryDisposition>;
   /** Override clock for deterministic tests. */
   readonly now?: () => Date;
 };
@@ -132,6 +139,9 @@ const KNOWN_CHANNELS = new Set(['email', 'sms', 'whatsapp', 'app_push']);
 // A row stranded in `sending` longer than this (process crashed between the
 // pending→sending claim and markSent/markFailed) is reclaimed by a later poll.
 const STALE_SENDING_MS = 5 * 60_000; // 5 minutes
+// A row deferred for the recipient's quiet-hours is re-queued this far out and
+// re-evaluated until the window passes (no attempt consumed meanwhile).
+const QUIET_HOURS_DEFER_MS = 30 * 60_000; // 30 minutes
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -435,6 +445,34 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
+  async function markDeferred(row: PendingRow): Promise<void> {
+    const nowTs = now();
+    const retryAt = new Date(nowTs.getTime() + QUIET_HOURS_DEFER_MS);
+    try {
+      // Re-queue (pending) for re-evaluation after the quiet window — NO
+      // attempt consumed, so quiet-hours never erodes the retry budget.
+      await runStmt(sql`
+        UPDATE notification_dispatch_log
+        SET delivery_status = 'pending',
+            next_retry_at = ${retryAt},
+            updated_at = ${nowTs}
+        WHERE id = ${row.id}
+          AND tenant_id = ${row.tenantId}
+      `);
+    } catch (err) {
+      deps.logger.warn(
+        {
+          worker: 'notification-dispatch',
+          dispatch_id: row.id,
+          tenant_id: row.tenantId,
+          degraded_reason: 'mark_deferred_failed',
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'notification-dispatch: failed to defer dispatch row for quiet-hours',
+      );
+    }
+  }
+
   async function dispatchOne(row: PendingRow): Promise<{
     sent: boolean;
     failed: boolean;
@@ -459,23 +497,28 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
       return { sent: false, failed: true, skipped: false };
     }
 
-    // Per-recipient preference gate: an owner who toggled this channel/template
-    // OFF must not be pinged. Fail-open (deliver) on any gate error so a prefs
-    // read failure never silently drops a notification.
+    // Per-recipient preference gate: a channel/template the owner toggled OFF
+    // is suppressed; a deferrable notification inside the owner's quiet-hours
+    // window is re-queued for later. Fail-open (deliver) on any gate error so
+    // a prefs read failure never silently drops a notification.
     if (deps.shouldDeliver && row.userId) {
-      let allowed = true;
+      let disposition: DeliveryDisposition = 'deliver';
       try {
-        allowed = await deps.shouldDeliver({
+        disposition = await deps.shouldDeliver({
           tenantId: row.tenantId,
           userId: row.userId,
           channel: row.channel,
           templateKey: row.templateKey,
         });
       } catch {
-        allowed = true;
+        disposition = 'deliver';
       }
-      if (!allowed) {
+      if (disposition === 'suppress') {
         await markSuppressed(row);
+        return { sent: false, failed: false, skipped: false };
+      }
+      if (disposition === 'defer') {
+        await markDeferred(row);
         return { sent: false, failed: false, skipped: false };
       }
     }

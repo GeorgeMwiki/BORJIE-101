@@ -625,6 +625,7 @@ import {
   type GeofenceAlertSink,
 } from './workers/geofence-watcher.js';
 import { createLicenceExpiryAlertCron } from './workers/licence-expiry-alert-cron';
+import { isWithinQuietHours } from './workers/reminders-quiet-hours';
 // H2 deferral closure — idempotency_keys cron (mig 0154). Deletes
 // rows past `expires_at` hourly so the dedup table doesn't grow
 // forever. The partial unique index keeps duplicate requests dedup'd
@@ -866,7 +867,7 @@ import {
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
-import { getDb } from './composition/db-client';
+import { getDb, getServiceRoleWorkerClient } from './composition/db-client';
 // Scale-P0 lane wiring — each init fn reads its OWN env flag ONCE here at
 // bootstrap and DEFAULTS to today's behaviour (merging is a runtime no-op
 // until the operator flips the flag). These four are the ONLY new gateway
@@ -3913,9 +3914,16 @@ function parseQuietHoursEnv(): { startHour: number; endHour: number } | undefine
 // (Africa's Talking / Twilio composite), or Slack webhook. Disabled
 // transparently when DATABASE_URL is unset (degraded mode). Single
 // no-op tick is returned so callers can still invoke tickOnce in tests.
+// Dedicated SMALL service-role pool for the out-of-band notification workers
+// (drain / reminders / fan-out). Their withServiceRoleContext transactions run
+// on a tight loop; isolating them from the main request pool keeps both under
+// the Supabase session-pooler client ceiling (see db-client.ts). Falls back to
+// the shared client when the dedicated pool can't be opened.
+const notificationWorkerDb =
+  getServiceRoleWorkerClient() ?? serviceRegistry.db;
 const remindersDispatchWorker = serviceRegistry.db
   ? createRemindersDispatchWorker({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       emailProvider: createEmailProviderFromEnv(),
       smsProvider: resolveSmsProviderFromEnv(),
@@ -4122,23 +4130,28 @@ const kgSyncWorker = serviceRegistry.db
 const notificationDispatchAbort = new AbortController();
 const notificationDispatcher = serviceRegistry.db
   ? createNotificationDispatcher({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       emailProvider: createEmailProviderFromEnv(),
       smsProvider: resolveSmsProviderFromEnv(),
       pushProvider: resolvePushProviderFromEnv(),
-      // Per-recipient preference gate — respect the owner's saved per-channel /
-      // per-template opt-outs before sending. Reads notification_preferences
-      // under a service-role context (FORCE-RLS table); fail-open so a prefs
-      // read error never silently drops a notification. (Quiet-hours deferral
-      // is a follow-up — notification_preferences has no timezone column yet.)
+      // Per-recipient preference gate — honors the owner's saved per-channel /
+      // per-template opt-outs AND quiet-hours window before sending. Reads
+      // notification_preferences under a service-role context (FORCE-RLS
+      // table); fail-open ('deliver') so a prefs read error never drops a
+      // notification. Urgent safety alerts bypass quiet-hours (never delayed).
       shouldDeliver: async ({ tenantId, userId, channel, templateKey }) => {
         const sdb = serviceRegistry.db;
-        if (!sdb) return true;
+        if (!sdb) return 'deliver';
+        const parseHour = (v: unknown): number | null => {
+          if (typeof v !== 'string') return null;
+          const h = Number.parseInt(v.slice(0, 2), 10);
+          return Number.isInteger(h) && h >= 0 && h <= 23 ? h : null;
+        };
         try {
           return await withServiceRoleContext(sdb, async (tx) => {
             const res = await tx.execute(drizzleSqlTag`
-              SELECT channels, templates
+              SELECT channels, templates, quiet_hours_start, quiet_hours_end
                 FROM notification_preferences
                WHERE tenant_id = ${tenantId} AND user_id = ${userId}
                LIMIT 1`);
@@ -4146,15 +4159,33 @@ const notificationDispatcher = serviceRegistry.db
               (res as { rows?: Array<Record<string, unknown>> }).rows ??
               (Array.isArray(res) ? (res as Array<Record<string, unknown>>) : []);
             const row = rows[0];
-            if (!row) return true; // no saved prefs → deliver (opt-out, not opt-in)
+            if (!row) return 'deliver'; // no saved prefs → deliver (opt-out, not opt-in)
             const channels = (row.channels ?? {}) as Record<string, boolean>;
             const templates = (row.templates ?? {}) as Record<string, boolean>;
-            if (channels[channel] === false) return false;
-            if (templates[templateKey] === false) return false;
-            return true;
+            if (channels[channel] === false) return 'suppress';
+            if (templates[templateKey] === false) return 'suppress';
+            // Quiet-hours: defer DEFERRABLE notifications inside the owner's
+            // window. Urgent safety alerts (incident escalation / safety /
+            // sovereign) always deliver — they must never be delayed. Window
+            // evaluated in EAT (launch tz; covers TZ/KE/UG — per-owner tz is a
+            // refinement, NG is +1).
+            const urgent = /^(mining\.incident\.escalation|safety|sovereign)/.test(
+              templateKey,
+            );
+            const qs = parseHour(row.quiet_hours_start);
+            const qe = parseHour(row.quiet_hours_end);
+            if (
+              !urgent &&
+              qs !== null &&
+              qe !== null &&
+              isWithinQuietHours(new Date(), 'Africa/Dar_es_Salaam', qs, qe)
+            ) {
+              return 'defer';
+            }
+            return 'deliver';
           });
         } catch {
-          return true; // fail-open on delivery
+          return 'deliver'; // fail-open on delivery
         }
       },
     })
@@ -4163,7 +4194,7 @@ const notificationDispatcher = serviceRegistry.db
 // notification_dispatch_log rows (the drain worker above then sends them).
 const announcementFanoutWorker = serviceRegistry.db
   ? createAnnouncementFanoutWorker({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       resolveRecipients: createAnnouncementRecipientResolver(
         serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },

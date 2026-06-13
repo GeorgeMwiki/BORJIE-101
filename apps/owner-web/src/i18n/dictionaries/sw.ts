@@ -424,5 +424,30 @@ export const sw = {
   },
   "cockpit": {
     "dailyBriefTitle": "Muhtasari wa kila siku"
+  },
+  "escalations": {
+    "heading": "Taarifa za dharura",
+    "headerOpen": "Taarifa za dharura zilizo wazi ({count})",
+    "liveHint": "Ngazi rasmi · thibitisha au tatua ili kufunga",
+    "loading": "Inapakia taarifa za dharura…",
+    "signInRequired": "Ingia ili kuona taarifa za dharura.",
+    "loadFailed": "Imeshindwa kupakia taarifa za dharura. Tafadhali jaribu tena.",
+    "emptyTitle": "Hakuna taarifa za dharura zilizo wazi",
+    "emptyBody": "Mfanyakazi, meneja, au MD anapopandisha jambo kwa binadamu, linaonekana hapa.",
+    "acknowledge": "Thibitisha",
+    "resolve": "Tatua",
+    "acknowledging": "Inathibitisha…",
+    "resolving": "Inatatua…",
+    "actionFailed": "Hatua imeshindwa. Tafadhali jaribu tena.",
+    "openedPrefix": "Ilifunguliwa",
+    "justNow": "sasa hivi",
+    "minutesAgo": "dakika {count} zilizopita",
+    "hoursAgo": "saa {count} zilizopita",
+    "severityInfo": "Taarifa",
+    "severityWarning": "Onyo",
+    "severityCritical": "Hatari",
+    "statusOpen": "Wazi",
+    "statusAcknowledged": "Imethibitishwa",
+    "statusResolved": "Imetatuliwa"
   }
 } as const;

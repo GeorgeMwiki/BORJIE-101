@@ -132,10 +132,17 @@ function transactionModeOptions(
   return { prepare, fetch_types: prepare };
 }
 
-export function readPoolOptions() {
+export function readPoolOptions(maxOverride?: number) {
   const mode = readPoolMode();
   return {
-    max: parsePositiveInt(process.env.DATABASE_POOL_MAX, 20),
+    // `maxOverride` lets a caller open a SMALL dedicated pool (e.g. the
+    // out-of-band service-role worker pool) sized independently of the main
+    // request pool, so a fixed connection budget stays under the Supabase
+    // session-pooler client ceiling. Falls back to DATABASE_POOL_MAX.
+    max:
+      maxOverride && maxOverride > 0
+        ? maxOverride
+        : parsePositiveInt(process.env.DATABASE_POOL_MAX, 20),
     idle_timeout: parsePositiveInt(process.env.DATABASE_IDLE_TIMEOUT_SEC, 30),
     max_lifetime: parsePositiveInt(
       process.env.DATABASE_MAX_LIFETIME_SEC,
@@ -173,8 +180,11 @@ export function readPoolOptions() {
  */
 const FILTERED_SCHEMA = filterSchema(rawSchema as Record<string, unknown>);
 
-export function createDatabaseClient(connectionString: string) {
-  const client = postgres(connectionString, readPoolOptions());
+export function createDatabaseClient(
+  connectionString: string,
+  maxOverride?: number,
+) {
+  const client = postgres(connectionString, readPoolOptions(maxOverride));
   return drizzle(client, { schema: FILTERED_SCHEMA });
 }
 

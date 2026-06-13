@@ -83,9 +83,15 @@ interface NotifyRecipient {
   readonly locale: string;
 }
 
-/** Pick the best channel + address for a user row (email > sms > in-app). */
+/**
+ * Pick the best channel + address for a user row. Order: email > sms > in-app.
+ * When `allowSms` is false (non-urgent legs), the intrusive SMS rail is SKIPPED
+ * (phone-only recipients fall to the in-app queue) — the escalator's SMS "SOS"
+ * is reserved for severity >= high, so low/medium incidents never buzz a phone.
+ */
 function recipientFromRow(
   row: Record<string, unknown>,
+  allowSms: boolean,
 ): NotifyRecipient | null {
   const userId = typeof row.user_id === 'string' ? row.user_id.trim() : '';
   if (!userId) return null;
@@ -96,9 +102,9 @@ function recipientFromRow(
       ? row.locale.trim()
       : 'en';
   if (email) return { userId, address: email, channel: 'email', locale };
-  if (phone) return { userId, address: phone, channel: 'sms', locale };
-  // No external address — still deliver the in-app push so the alert is never
-  // dropped (the worker inbox + dispatcher handle `app_push`/`user:<id>`).
+  if (phone && allowSms) return { userId, address: phone, channel: 'sms', locale };
+  // No usable non-intrusive address — still deliver the in-app push so the
+  // alert is never dropped (the worker inbox + dispatcher handle `app_push`).
   return { userId, address: `user:${userId}`, channel: 'app_push', locale };
 }
 
@@ -111,6 +117,7 @@ async function resolveRoleRecipients(
   tx: { execute(q: unknown): Promise<unknown> },
   tenantId: string,
   roles: readonly string[],
+  allowSms: boolean,
 ): Promise<readonly NotifyRecipient[]> {
   if (roles.length === 0) return [];
   // Parameterised IN-list — every role is a bound placeholder (no raw
@@ -134,7 +141,7 @@ async function resolveRoleRecipients(
     : (((res as { rows?: unknown }).rows ?? []) as Record<string, unknown>[]);
   const out: NotifyRecipient[] = [];
   for (const row of rows) {
-    const recipient = recipientFromRow(row);
+    const recipient = recipientFromRow(row, allowSms);
     if (recipient) out.push(recipient);
   }
   return out;
@@ -202,9 +209,11 @@ async function fireLeg(
     readonly roles: readonly string[];
     readonly summary: EscalateResult['summary'];
     readonly severity: string;
+    /** Allow the intrusive SMS rail (reserved for urgent legs / severity>=high). */
+    readonly allowSms: boolean;
   },
 ): Promise<void> {
-  const { tenantId, incidentId, leg, roles, summary, severity } = args;
+  const { tenantId, incidentId, leg, roles, summary, severity, allowSms } = args;
   try {
     const legSummary = incidentLegSummary(leg, summary);
     const enqueued = await withServiceRoleContext(db, async (tx) => {
@@ -212,6 +221,7 @@ async function fireLeg(
         tx as unknown as { execute(q: unknown): Promise<unknown> },
         tenantId,
         roles,
+        allowSms,
       );
       for (const recipient of recipients) {
         await enqueueNotifyRow(
@@ -256,14 +266,25 @@ export async function fireEscalationLegs(
 ): Promise<void> {
   const { tenantId, incidentId, severity, escalation } = args;
   const base = { tenantId, incidentId, severity, summary: escalation.summary };
+  // The SMS "SOS" rail is reserved for urgent incidents (severity >= high →
+  // priority 'urgent'/'critical'). A 'normal'-priority (low/medium) incident
+  // still reaches managers — via email / the in-app investigation queue — but
+  // never buzzes a phone (the escalator's documented design).
+  const urgent = escalation.priority !== 'normal';
   if (escalation.notifyManager) {
-    await fireLeg(db, { ...base, leg: 'manager', roles: MANAGER_NOTIFY_ROLES });
+    await fireLeg(db, {
+      ...base,
+      leg: 'manager',
+      roles: MANAGER_NOTIFY_ROLES,
+      allowSms: urgent,
+    });
   }
   if (escalation.notifyAdminCompliance) {
     await fireLeg(db, {
       ...base,
       leg: 'admin_compliance',
       roles: ADMIN_COMPLIANCE_NOTIFY_ROLES,
+      allowSms: true,
     });
   }
   if (escalation.draftRegulatorFiling) {
@@ -271,6 +292,7 @@ export async function fireEscalationLegs(
       ...base,
       leg: 'regulator_prep',
       roles: ADMIN_COMPLIANCE_NOTIFY_ROLES,
+      allowSms: true,
     });
   }
 }
