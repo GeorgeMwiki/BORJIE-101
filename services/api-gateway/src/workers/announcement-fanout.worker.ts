@@ -272,13 +272,13 @@ export function createAnnouncementFanoutWorker(
       // re-expand the same announcement. Only email/both, due, not-yet-fanned.
       const res = await runStmt(options.db, sql`
         UPDATE platform_announcements
-           SET fanned_out_at = ${ts}
+           SET fanned_out_at = ${ts.toISOString()}
          WHERE id IN (
            SELECT id FROM platform_announcements
             WHERE fanned_out_at IS NULL
               AND channel IN ('email', 'both')
               AND status IN ('queued', 'sending', 'sent')
-              AND scheduled_for <= ${ts}
+              AND scheduled_for <= ${ts.toISOString()}
             ORDER BY scheduled_for ASC
             LIMIT ${batchSize}
             FOR UPDATE SKIP LOCKED

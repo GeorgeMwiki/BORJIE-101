@@ -291,17 +291,17 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
         SET delivery_status = 'sending',
             attempt_count = attempt_count
               + CASE WHEN delivery_status = 'sending' THEN 1 ELSE 0 END,
-            last_attempt_at = ${nowTs},
-            updated_at = ${nowTs}
+            last_attempt_at = ${nowTs.toISOString()},
+            updated_at = ${nowTs.toISOString()}
         WHERE id IN (
           SELECT id
           FROM notification_dispatch_log
           WHERE (
                   delivery_status = 'pending'
-                  OR (delivery_status = 'sending' AND last_attempt_at < ${staleBefore})
+                  OR (delivery_status = 'sending' AND last_attempt_at < ${staleBefore.toISOString()})
                 )
             AND (${tenantId ?? null}::text IS NULL OR tenant_id = ${tenantId ?? null}::text)
-            AND (next_retry_at IS NULL OR next_retry_at <= ${nowTs})
+            AND (next_retry_at IS NULL OR next_retry_at <= ${nowTs.toISOString()})
           ORDER BY created_at ASC
           LIMIT ${batchSize}
           FOR UPDATE SKIP LOCKED
@@ -345,10 +345,10 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
             provider = ${result.provider},
             provider_message_id = ${result.providerRef},
             attempt_count = attempt_count + 1,
-            last_attempt_at = ${nowTs},
-            delivery_reported_at = ${nowTs},
+            last_attempt_at = ${nowTs.toISOString()},
+            delivery_reported_at = ${nowTs.toISOString()},
             next_retry_at = NULL,
-            updated_at = ${nowTs}
+            updated_at = ${nowTs.toISOString()}
         WHERE id = ${row.id}
           AND tenant_id = ${row.tenantId}
       `);
@@ -386,11 +386,11 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
             provider_error_code = ${failure.errorCode},
             provider_error_message = ${failure.errorMessage},
             attempt_count = ${nextAttempt},
-            last_attempt_at = ${nowTs},
-            next_retry_at = ${nextRetryAt},
-            dead_lettered_at = ${isTerminal ? nowTs : null},
+            last_attempt_at = ${nowTs.toISOString()},
+            next_retry_at = ${nextRetryAt ? nextRetryAt.toISOString() : null},
+            dead_lettered_at = ${isTerminal ? nowTs.toISOString() : null},
             dead_letter_reason = ${isTerminal ? failure.errorCode : null},
-            updated_at = ${nowTs}
+            updated_at = ${nowTs.toISOString()}
         WHERE id = ${row.id}
           AND tenant_id = ${row.tenantId}
       `);
@@ -417,11 +417,11 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
             provider_error_code = 'unknown_channel',
             provider_error_message = ${`Unsupported channel: ${row.channel}`},
             attempt_count = attempt_count + 1,
-            last_attempt_at = ${nowTs},
+            last_attempt_at = ${nowTs.toISOString()},
             next_retry_at = NULL,
-            dead_lettered_at = ${nowTs},
+            dead_lettered_at = ${nowTs.toISOString()},
             dead_letter_reason = 'unknown_channel',
-            updated_at = ${nowTs}
+            updated_at = ${nowTs.toISOString()}
         WHERE id = ${row.id}
           AND tenant_id = ${row.tenantId}
       `);
@@ -449,11 +449,11 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
             provider_error_code = 'suppressed_by_preference',
             provider_error_message = ${`recipient opted out of ${row.channel}`},
             attempt_count = attempt_count + 1,
-            last_attempt_at = ${nowTs},
+            last_attempt_at = ${nowTs.toISOString()},
             next_retry_at = NULL,
-            dead_lettered_at = ${nowTs},
+            dead_lettered_at = ${nowTs.toISOString()},
             dead_letter_reason = 'suppressed_by_preference',
-            updated_at = ${nowTs}
+            updated_at = ${nowTs.toISOString()}
         WHERE id = ${row.id}
           AND tenant_id = ${row.tenantId}
       `);
@@ -480,8 +480,8 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
       await runStmt(sql`
         UPDATE notification_dispatch_log
         SET delivery_status = 'pending',
-            next_retry_at = ${retryAt},
-            updated_at = ${nowTs}
+            next_retry_at = ${retryAt.toISOString()},
+            updated_at = ${nowTs.toISOString()}
         WHERE id = ${row.id}
           AND tenant_id = ${row.tenantId}
       `);

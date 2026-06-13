@@ -262,7 +262,7 @@ export function createRemindersDispatchWorker(
          WHERE id IN (
            SELECT id FROM reminders
             WHERE status = 'scheduled'
-              AND trigger_at <= ${ts}
+              AND trigger_at <= ${ts.toISOString()}
             ORDER BY trigger_at ASC
             LIMIT ${DEFAULT_BATCH}
             FOR UPDATE SKIP LOCKED
@@ -289,7 +289,7 @@ export function createRemindersDispatchWorker(
       await runStmt(sql`
         UPDATE reminders
            SET status = 'sent',
-               dispatched_at = ${now()},
+               dispatched_at = ${now().toISOString()},
                dispatch_error = NULL
          WHERE id = ${r.id}
            AND tenant_id = ${r.tenantId}
@@ -321,7 +321,7 @@ export function createRemindersDispatchWorker(
       await runStmt(sql`
         UPDATE reminders
            SET status = 'failed',
-               dispatched_at = ${now()},
+               dispatched_at = ${now().toISOString()},
                dispatch_error = ${errorMessage.slice(0, 4000)}
          WHERE id = ${r.id}
            AND tenant_id = ${r.tenantId}
@@ -349,7 +349,7 @@ export function createRemindersDispatchWorker(
       await runStmt(sql`
         UPDATE reminders
            SET status = 'scheduled',
-               trigger_at = ${retryAt},
+               trigger_at = ${retryAt.toISOString()},
                attempt_count = ${nextAttempt},
                dispatch_error = ${errorMessage.slice(0, 4000)}
          WHERE id = ${r.id}
@@ -388,7 +388,7 @@ export function createRemindersDispatchWorker(
       await runStmt(sql`
         UPDATE reminders
            SET status = 'scheduled',
-               trigger_at = ${until}
+               trigger_at = ${until.toISOString()}
          WHERE id = ${r.id}
            AND tenant_id = ${r.tenantId}
       `);
@@ -645,7 +645,7 @@ export function createRemindersDispatchWorker(
       await runStmt(sql`
         UPDATE reminders
            SET status = 'scheduled',
-               trigger_at = ${now()},
+               trigger_at = ${now().toISOString()},
                dispatched_at = NULL,
                payload = ${JSON.stringify(nextPayload)}::jsonb
          WHERE id = ${r.id}

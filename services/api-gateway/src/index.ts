@@ -2992,7 +2992,11 @@ const notificationWebhooksRouter = createNotificationWebhookRouter({
     //    FORCE-RLS. Correlate by the REAL resolved tenant + provider_message_id.
     if (update.providerMessageId && serviceRegistry.db) {
       const pmid = update.providerMessageId;
-      const at = update.occurredAt;
+      // Bind as an ISO string, NOT a Date object — Drizzle's tx.execute (this
+      // runs inside withServiceRoleContext) rejects a raw Date param with
+      // ERR_INVALID_ARG_TYPE ("Received an instance of Date"); a timestamptz
+      // accepts the ISO string fine.
+      const at = update.occurredAt.toISOString();
       try {
         await withServiceRoleContext(serviceRegistry.db, async (tx) => {
           if (update.status === 'delivered') {
