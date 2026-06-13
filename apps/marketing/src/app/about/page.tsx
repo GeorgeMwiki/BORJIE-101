@@ -64,7 +64,7 @@ export default async function AboutPage() {
 
         <div className="mt-16 flex flex-wrap gap-3">
           <Link
-            href="/signup"
+            href="/sign-up"
             className="rounded-md bg-signal-500 px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-signal-400"
           >
             Get started

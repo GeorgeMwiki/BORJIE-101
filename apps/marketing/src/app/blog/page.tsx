@@ -84,7 +84,7 @@ export default async function BlogIndexPage() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <Link
-                href="/signup"
+                href="/sign-up"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-colors hover:bg-surface-raised"
               >
                 <Sparkles className="h-4 w-4" aria-hidden="true" />

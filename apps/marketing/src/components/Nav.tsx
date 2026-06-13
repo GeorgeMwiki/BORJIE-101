@@ -73,20 +73,20 @@ const AUDIENCE_CATEGORIES: readonly AudienceCategory[] = [
     titleKey: 'buyers',
     items: [
       { id: 'buyers', href: '/buyers', icon: Coins },
-      { id: 'smelters', href: '/for-smelters', icon: Factory },
+      { id: 'smelters', href: '/for-off-taker', icon: Factory },
     ],
   },
   {
     titleKey: 'ecosystem',
     items: [
       { id: 'cooperatives', href: '/for-cooperatives', icon: Users },
-      { id: 'regulators', href: '/for-regulators', icon: Landmark },
+      { id: 'regulators', href: '/for-regulator', icon: Landmark },
     ],
   },
   {
     titleKey: 'capital',
     items: [
-      { id: 'investors', href: '/for-investors', icon: Wallet },
+      { id: 'investors', href: '/for-investor', icon: Wallet },
     ],
   },
 ];
