@@ -153,6 +153,32 @@ function asRows(res: unknown): readonly Record<string, unknown>[] {
   return Array.isArray(r) ? (r as Record<string, unknown>[]) : [];
 }
 
+/**
+ * Surface the ROOT cause of a DB error. Drizzle wraps postgres-js errors as
+ * `DrizzleQueryError` whose `.message` is just "Failed query: <sql>" — the real
+ * postgres error (code/detail) sits on `.cause`. Logging only `.message` hid
+ * the root cause; this walks the cause chain so claim/mark failures are
+ * diagnosable in prod.
+ */
+function describeDbError(err: unknown): {
+  err: string;
+  cause?: string;
+  code?: string;
+} {
+  const e = err as {
+    message?: string;
+    code?: string;
+    cause?: { message?: string; code?: string };
+  };
+  const cause = e?.cause?.message;
+  const code = e?.cause?.code ?? e?.code;
+  return {
+    err: e?.message ? String(e.message).slice(0, 200) : String(err),
+    ...(cause ? { cause: String(cause).slice(0, 200) } : {}),
+    ...(code ? { code: String(code) } : {}),
+  };
+}
+
 function rowToPending(raw: Record<string, unknown>): PendingRow | null {
   const id = typeof raw.id === 'string' ? raw.id : null;
   const tenantId = typeof raw.tenant_id === 'string' ? raw.tenant_id : null;
@@ -296,7 +322,7 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
         {
           worker: 'notification-dispatch',
           degraded_reason: 'claim_query_failed',
-          err: err instanceof Error ? err.message : String(err),
+          ...describeDbError(err),
         },
         'notification-dispatch: failed to claim pending batch',
       );
