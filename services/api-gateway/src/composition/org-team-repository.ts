@@ -490,15 +490,21 @@ export class OrgTeamRepository {
 
     // INSERT ... RETURNING lets the DB default the uuid `id` (avoids a
     // text/uuid cast on the parameterized id) and reads the row back in one
-    // round-trip. `raised_by_user_id` is NOT NULL on the authoritative table,
-    // so fall back to the __system__ sentinel when the actor is unknown.
+    // round-trip. `raised_by_user_id` is a uuid NOT NULL on the authoritative
+    // table, so fall back to the nil-uuid sentinel when the actor is unknown
+    // (a plain '__system__' string is NOT a valid uuid and would throw —
+    // matches the nil-uuid recognizable in audit). `??` also misses empty
+    // strings, so guard on trimmed truthiness.
+    const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+    const raisedBy =
+      actorUserId && actorUserId.trim().length > 0 ? actorUserId : NIL_UUID;
     const res = await this.db.execute(sql`
       INSERT INTO mining_escalations (
         tenant_id, raised_by_user_id, to_user_id, to_role,
         source_kind, source_id, context_sw, severity, status,
         context, provenance
       ) VALUES (
-        ${tenantId}, ${actorUserId ?? '__system__'}, ${toUserId}, ${toRole},
+        ${tenantId}, ${raisedBy}, ${toUserId}, ${toRole},
         ${sourceKind}, ${sourceId}, ${contextSw}, ${severity}, 'open',
         ${JSON.stringify(contextBag)}::jsonb, ${provenanceJson(provenance)}::jsonb
       )

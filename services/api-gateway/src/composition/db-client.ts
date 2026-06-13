@@ -235,5 +235,7 @@ export function __resetDbClientForTests(): void {
   initialized = false;
   cachedReadonlyClient = null;
   readonlyInitialized = false;
+  cachedWorkerClient = null;
+  workerInitialized = false;
   resolvedPoolMode = null;
 }

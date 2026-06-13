@@ -15,7 +15,7 @@
 
 import { createMiddleware } from 'hono/factory';
 import {
-  createDatabaseClient,
+  getSharedDatabaseClient,
   withReservedConnection,
   TenantRepository,
   UserRepository,
@@ -32,7 +32,7 @@ import pino from 'pino';
  * parameter types resolve correctly through the main index but not
  * through the `/repositories` subpath.
  */
-type DatabaseClient = ReturnType<typeof createDatabaseClient>;
+type DatabaseClient = ReturnType<typeof getSharedDatabaseClient>;
 
 /**
  * EncryptionPort + FieldEncryptionAuditSink types — derived from the
@@ -90,8 +90,14 @@ function getDatabase(): DatabaseClient | null {
 
   if (!db && DATABASE_URL) {
     try {
-      db = createDatabaseClient(DATABASE_URL);
-      logger.info('Database client initialized');
+      // RSS-04 — share the ONE bounded pool of record (do NOT open a second
+      // independent pool). A separate createDatabaseClient pool here doubled
+      // the gateway's connection footprint against the Supabase session-pooler
+      // client ceiling, starving the notification workers' service-role
+      // transactions (EMAXCONNSESSION). Memoised by conn string in
+      // @borjie/database, so this returns the same client getDb() uses.
+      db = getSharedDatabaseClient(DATABASE_URL);
+      logger.info('Database client initialized (shared pool)');
     } catch (error) {
       logger.error({ error }, 'Failed to initialize database client');
       throw error;

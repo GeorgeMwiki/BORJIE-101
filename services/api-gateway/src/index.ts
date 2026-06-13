@@ -4141,7 +4141,9 @@ const notificationDispatcher = serviceRegistry.db
       // table); fail-open ('deliver') so a prefs read error never drops a
       // notification. Urgent safety alerts bypass quiet-hours (never delayed).
       shouldDeliver: async ({ tenantId, userId, channel, templateKey }) => {
-        const sdb = serviceRegistry.db;
+        // Read prefs on the dedicated worker pool (same isolation as the drain)
+        // so the per-row gate doesn't re-introduce main-pool contention.
+        const sdb = notificationWorkerDb ?? serviceRegistry.db;
         if (!sdb) return 'deliver';
         const parseHour = (v: unknown): number | null => {
           if (typeof v !== 'string') return null;
@@ -4162,7 +4164,11 @@ const notificationDispatcher = serviceRegistry.db
             if (!row) return 'deliver'; // no saved prefs → deliver (opt-out, not opt-in)
             const channels = (row.channels ?? {}) as Record<string, boolean>;
             const templates = (row.templates ?? {}) as Record<string, boolean>;
-            if (channels[channel] === false) return 'suppress';
+            // The prefs UI stores the human channel name 'push'; dispatch rows
+            // carry the rail name 'app_push'. Normalize so the push opt-out
+            // actually suppresses app_push (otherwise it was a dead toggle).
+            const prefChannel = channel === 'app_push' ? 'push' : channel;
+            if (channels[prefChannel] === false) return 'suppress';
             if (templates[templateKey] === false) return 'suppress';
             // Quiet-hours: defer DEFERRABLE notifications inside the owner's
             // window. Urgent safety alerts (incident escalation / safety /
