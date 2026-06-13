@@ -38,9 +38,12 @@
 import {
   isKnownResource,
   isKnownTool,
+  attemptHeal,
   type PortalQueryResource,
   type PortalToolId,
   type RecordStore,
+  type RepairOutcome,
+  type BlockerSignal,
 } from '@borjie/portal-genui';
 
 import {
@@ -127,6 +130,15 @@ export interface WidgetDataResolverDeps {
    */
   readonly toolPort?: ReadOnlyToolPort;
   readonly logger: WidgetResolverLogger;
+  /**
+   * Self-healing escalation sink. A resource that is KNOWN to the registry but
+   * has no table mapping AND is not in the deliberately-unmapped set is a real
+   * wiring gap. The read still degrades to honest empty rows, but we recognise
+   * it as an `unmapped-binding` blocker and escalate a human-gated
+   * `RepairProposal` to the internal-admin self-healing console. When omitted,
+   * the read still proceeds.
+   */
+  readonly onBlocker?: (outcome: RepairOutcome, signal: BlockerSignal) => void;
 }
 
 export interface WidgetDataResolver {
@@ -344,7 +356,25 @@ export function createWidgetDataResolver(
     }
     const table = RESOURCE_TABLE[resource];
     if (!table) {
-      // Known-but-unmapped — honest empty rows, never a 500.
+      // Known-but-unmapped — honest empty rows, never a 500. If this resource is
+      // NOT deliberately unmapped, it is a genuine wiring gap: run the
+      // self-healing loop to recognise it as an `unmapped-binding` blocker and
+      // escalate a human-gated proposal to the internal-admin console, then
+      // PROCEED with empty rows so the customer is still served in the moment.
+      if (
+        deps.onBlocker &&
+        !INTENTIONALLY_UNMAPPED_RESOURCES.has(resource as PortalQueryResource)
+      ) {
+        attemptHeal(
+          {
+            kind: 'unmapped-binding',
+            locus: `widget.resource/${resource}`,
+            detail:
+              'resource is known but has no table mapping and is not deliberately unmapped',
+          },
+          { report: deps.onBlocker },
+        );
+      }
       return { rows: [] };
     }
     // Resolve the recency column: the per-resource override when present

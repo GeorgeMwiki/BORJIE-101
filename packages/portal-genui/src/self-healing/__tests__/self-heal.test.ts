@@ -47,13 +47,49 @@ describe('attemptHeal — the bounded safe class auto-repairs', () => {
     expect(out.proceed).toBe(true);
     expect(out.class).toBe('reroute-degrade');
     expect(remember).toHaveBeenCalledTimes(1); // crystallized
-    expect(out.proposal).toBeUndefined();
+    // Always carries the observation record (admin visibility), never auto-applied.
+    expect(out.proposal).toBeDefined();
+    expect(out.proposal.autoApplicable).toBe(false);
+    expect(out.proposal.insight.length).toBeGreaterThan(0);
+    expect(out.proposal.actionPlan.length).toBeGreaterThan(0);
   });
 
   it('auto-repairs an unmapped binding by re-binding to the generic resolver', () => {
     const out = attemptHeal(sig({ kind: 'unmapped-binding' }));
     expect(out.status).toBe('auto-repaired');
     expect(out.class).toBe('rebind-generic');
+    expect(out.proceed).toBe(true);
+  });
+});
+
+describe('attemptHeal — the report sink gives the admin FULL visibility', () => {
+  it('reports the auto-healed OBSERVATION (not just escalations)', () => {
+    const report = vi.fn();
+    const escalate = vi.fn();
+    const out = attemptHeal(sig({ kind: 'unknown-render-kind' }), { report, escalate });
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(escalate).not.toHaveBeenCalled(); // auto-repair is NOT human-gated
+    const [outcome, signal] = report.mock.calls[0];
+    expect(outcome.status).toBe('auto-repaired');
+    expect(outcome.proposal.insight.length).toBeGreaterThan(0);
+    expect(signal.kind).toBe('unknown-render-kind');
+    expect(out.proposal.actionPlan.length).toBeGreaterThan(0);
+  });
+
+  it('reports AND escalates a code-gated blocker (both fire)', () => {
+    const report = vi.fn();
+    const escalate = vi.fn();
+    attemptHeal(sig({ kind: 'corrupt-spec', locus: 'portal_tabs/abc' }), { report, escalate });
+    expect(escalate).toHaveBeenCalledTimes(1);
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0][0].status).toBe('escalated');
+  });
+
+  it('a failing report sink never breaks the loop', () => {
+    const boom = () => {
+      throw new Error('report sink down');
+    };
+    const out = attemptHeal(sig({ kind: 'unknown-render-kind' }), { report: boom });
     expect(out.proceed).toBe(true);
   });
 });

@@ -207,6 +207,14 @@ export const INTERNAL_SCREENS: ReadonlyArray<InternalScreen> = [
       'Read-first view of the persistent four-eyes workflow engine: your open runs plus each flow’s auto|gated posture and the pending auto-vs-gated confirmation queue.',
     group: 'ops',
   },
+  {
+    id: 'I-W-27',
+    slug: 'self-healing',
+    title: 'Self-healing console',
+    intent:
+      'Triage every UI/wiring blocker the MAPE-K loop reported — needs-approval code-gated repairs plus auto-healed observations (crystallization candidates), each with insight + action plan. Approve a fix or accept the degrade. Platform-internal; owners never see it.',
+    group: 'ops',
+  },
 ];
 
 export interface ScreenGroupDescriptor {

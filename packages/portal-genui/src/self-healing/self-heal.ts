@@ -101,6 +101,13 @@ export interface RepairProposal {
   readonly title: string;
   readonly locus: string;
   readonly suggestedFix: string;
+  /**
+   * WHY this blocker happened + its blast radius, for the INTERNAL-ADMIN
+   * triaging it (never shown to the owner). One honest sentence.
+   */
+  readonly insight: string;
+  /** Ordered, human-actionable steps to resolve it. */
+  readonly actionPlan: ReadonlyArray<string>;
   /** Code repairs are NEVER auto-applied — this is structurally always false. */
   readonly autoApplicable: false;
 }
@@ -112,8 +119,14 @@ export interface RepairOutcome {
   readonly action: string;
   /** The flow ALWAYS proceeds — the user keeps being served. */
   readonly proceed: true;
-  /** Present on escalation — the human-gated repair proposal. */
-  readonly proposal?: RepairProposal;
+  /**
+   * The structured record for this blocker. On `escalated` it is the
+   * human-gated repair proposal that needs approve/deny; on `auto-repaired` it
+   * is the same shape carried as an OBSERVATION (the customer was already
+   * served — recurrence is the crystallization signal). Always present so the
+   * admin console has full visibility either way.
+   */
+  readonly proposal: RepairProposal;
 }
 
 export interface HealDeps {
@@ -121,6 +134,14 @@ export interface HealDeps {
   readonly remember?: (signal: BlockerSignal, cls: RepairClass) => void;
   /** Escalate: surface a structured proposal to humans (ticket / telemetry). */
   readonly escalate?: (proposal: RepairProposal, signal: BlockerSignal) => void;
+  /**
+   * Report EVERY outcome (auto-repaired OR escalated) to a platform sink — the
+   * INTERNAL-ADMIN self-healing console + telemetry, never the owner. Unlike
+   * `escalate` (the human-gated subset), this fires on every heal so the admin
+   * has full visibility: needs-approval proposals AND auto-healed observations
+   * (the crystallization-candidate signal).
+   */
+  readonly report?: (outcome: RepairOutcome, signal: BlockerSignal) => void;
 }
 
 /** A leak-safe, kind-specific fix hint for the human-gated proposal. */
@@ -137,6 +158,95 @@ function suggestFix(signal: BlockerSignal): string {
     default:
       return `unrecognised blocker at '${signal?.locus ?? 'unknown'}' — investigate and add a recognised kind + repair strategy`;
   }
+}
+
+/**
+ * WHY it happened + blast radius, written for the internal-admin triaging it
+ * (never the owner). Honest, no model CoT leaked — only the structural fact.
+ */
+function deriveInsight(signal: BlockerSignal): string {
+  switch (signal?.kind) {
+    case 'unknown-render-kind':
+      return `The brain emitted a render kind with no first-class renderer; the open-grammar renderer degraded it to an honest fallback card, so the customer was served. Recurrence is the signal to crystallize a real renderer for this kind.`;
+    case 'unmapped-binding':
+      return `A widget bound to a resource/tool with no table/port mapping; it degraded to honest empty rows. If the resource is known, a developer added the enum but not the binding — a latent wiring gap, not a customer-facing outage.`;
+    case 'admission-violation':
+      return `A tab failed the admission chokepoint (a closed-law violation) and was rerouted to the safe fallback rather than rendered. The customer was served; the spec SOURCE (generator/prompt) needs correction.`;
+    case 'render-error':
+      return `A renderer threw at runtime — a code defect in that section. The section degraded, but the renderer must be fixed and guarded by a per-section error boundary.`;
+    case 'unwired-rule':
+      return `A registered rule is not reached on the production persist path — it exists in the registry but the composition root never threads it. The law is dark until wired.`;
+    case 'dead-export':
+      return `An exported capability has zero callers — born-dark. Wire it into a real caller or remove it; until then it is latent risk, not a working feature.`;
+    case 'corrupt-spec':
+      return `A persisted spec no longer migrates/validates; the read skipped the row so the rest of the view still served. The stored data is corrupt and must be back-filled or migrated — never auto-rewritten.`;
+    default:
+      return `An unrecognised blocker was made known rather than swallowed (residual doctrine). The customer was served degraded; a recognised kind + repair strategy must be added.`;
+  }
+}
+
+/** Ordered, human-actionable steps for the internal-admin console. */
+function deriveActionPlan(signal: BlockerSignal): ReadonlyArray<string> {
+  const where = signal?.locus ?? 'unknown';
+  switch (signal?.kind) {
+    case 'unknown-render-kind':
+      return [
+        `Inspect the degraded kind at '${where}' and how often it recurs.`,
+        `If recurring/valuable, add a first-class renderer + zod schema (open-contract widen, closed-law gate).`,
+        `Register it in the projector catalog + a generativity test; ship.`,
+      ];
+    case 'unmapped-binding':
+      return [
+        `Confirm '${where}' is a real resource (not a typo) intended to render data.`,
+        `Add its table mapping in widget-data-resolver RESOURCE_TABLE — or add it to INTENTIONALLY_UNMAPPED_RESOURCES if it is empty-by-design.`,
+        `Add a resolver test asserting non-empty rows; ship.`,
+      ];
+    case 'admission-violation':
+      return [
+        `Read the admission rule that rejected '${where}'.`,
+        `Fix the spec SOURCE (the brain prompt / generator) so it stops emitting the violating shape.`,
+        `Keep the chokepoint as-is — it correctly protected the customer.`,
+      ];
+    case 'render-error':
+      return [
+        `Reproduce the throw at '${where}'.`,
+        `Add the missing case + wrap the renderer in a per-section error boundary.`,
+        `Add a regression test for the throwing payload; ship.`,
+      ];
+    case 'unwired-rule':
+      return [
+        `Thread the rule at '${where}' into the composition root on the production persist path.`,
+        `Add a reachability test proving it fires on the live path (not just the registry).`,
+      ];
+    case 'dead-export':
+      return [
+        `Decide: wire the export at '${where}' into a real caller, or delete it.`,
+        `If wiring, add a test exercising the caller path; if deleting, run knip to confirm no hidden users.`,
+      ];
+    case 'corrupt-spec':
+      return [
+        `Inspect the persisted spec at '${where}' — it no longer migrates/validates.`,
+        `Back-fill the row or write a forward migration; never edit a shipped migration.`,
+        `The read already skips it, so there is no customer-facing outage to rush.`,
+      ];
+    default:
+      return [
+        `Investigate the unrecognised blocker at '${where}'.`,
+        `Add a recognised BlockerKind + repair strategy so the next occurrence is classified.`,
+      ];
+  }
+}
+
+/** Build the structured proposal/observation record for a classified blocker. */
+function buildProposal(signal: BlockerSignal, cls: RepairClass): RepairProposal {
+  return {
+    title: `${cls === 'escalate-novel' ? 'NOVEL ' : ''}blocker: ${String(signal?.kind ?? 'unknown')}`,
+    locus: signal?.locus ?? 'unknown',
+    suggestedFix: suggestFix(signal),
+    insight: deriveInsight(signal),
+    actionPlan: deriveActionPlan(signal),
+    autoApplicable: false,
+  };
 }
 
 /** Run a sink without letting it break the loop (the healer stays total). */
@@ -160,10 +270,11 @@ export function attemptHeal(
   deps: HealDeps = {},
 ): RepairOutcome {
   const cls = classifyBlocker(signal);
+  const proposal = buildProposal(signal, cls);
 
   if (cls === 'reroute-degrade' || cls === 'rebind-generic') {
     safely(() => deps.remember?.(signal, cls)); // Knowledge: crystallize
-    return {
+    const outcome: RepairOutcome = {
       status: 'auto-repaired',
       class: cls,
       proceed: true,
@@ -171,21 +282,23 @@ export function attemptHeal(
         cls === 'reroute-degrade'
           ? `served via honest fallback for '${signal?.kind}' at ${signal?.locus ?? 'unknown'}`
           : `re-bound '${signal?.locus ?? 'unknown'}' to the generic resolver`,
+      proposal,
     };
+    // Report the auto-healed OBSERVATION (full admin visibility; no approval).
+    safely(() => deps.report?.(outcome, signal));
+    return outcome;
   }
 
-  const proposal: RepairProposal = {
-    title: `${cls === 'escalate-novel' ? 'NOVEL ' : ''}blocker: ${String(signal?.kind ?? 'unknown')}`,
-    locus: signal?.locus ?? 'unknown',
-    suggestedFix: suggestFix(signal),
-    autoApplicable: false,
-  };
+  // Escalation: human-gated. Notify both the escalate subset (back-compat) and
+  // the unified report sink.
   safely(() => deps.escalate?.(proposal, signal));
-  return {
+  const outcome: RepairOutcome = {
     status: 'escalated',
     class: cls,
     action: 'filed human-gated repair proposal; user served degraded',
     proceed: true,
     proposal,
   };
+  safely(() => deps.report?.(outcome, signal));
+  return outcome;
 }

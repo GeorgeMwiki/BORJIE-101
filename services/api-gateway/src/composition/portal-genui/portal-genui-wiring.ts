@@ -51,8 +51,6 @@ import {
   createInMemoryRecordStore,
   DEFAULT_ALLOWED_MEDIA_HOSTS,
   type UrlEgressPolicy,
-  type RepairProposal,
-  type BlockerSignal,
   type GenUIEngine,
   type GenUIEngineBrainPort,
   type DbExecutor,
@@ -72,6 +70,11 @@ import {
   createLocaleImpurityDetector,
   resolveRequireEvidence,
 } from './genui-admission-policy.js';
+import {
+  escalateToInternalAdmin,
+  registerSelfHealingStore,
+} from './internal-admin-sink.js';
+import { createSelfHealingStore } from './self-healing-store.js';
 
 // ────────────────────────────────────────────────────────────────────
 // DbExecutor adapter — postgres-js `$client.unsafe(sql, params)` returns
@@ -282,35 +285,22 @@ function resolveUrlEgressPolicy(): UrlEgressPolicy {
  * durable. That keeps the gateway booting in test/dev/smoke environments,
  * matching every other wiring in this directory.
  */
-/**
- * The self-healing escalation sink — INTERNAL-ADMIN / platform-scoped, never the
- * owner. A code/wiring blocker (corrupt-spec, render-error, unwired-rule, …) is
- * a Borjie engineering issue; the owner runs their estate and must never see or
- * approve the platform healing its own wiring. We emit a structured, platform-
- * audience log (`audience: 'internal-admin'`) the admin observability surfaces;
- * the tenant is included only for the admin's triage, never routed to the owner.
- */
-const escalateToInternalAdmin = (
-  proposal: RepairProposal,
-  signal: BlockerSignal,
-): void => {
-  logger.warn(
-    {
-      audience: 'internal-admin',
-      selfHealing: true,
-      blockerKind: signal?.kind,
-      locus: signal?.locus,
-      autoApplicable: proposal?.autoApplicable,
-      suggestedFix: proposal?.suggestedFix,
-      tenantId: signal?.tenantId,
-    },
-    `self-healing escalation → internal admin: ${proposal?.title}`,
-  );
-};
-
 export function buildPortalGenuiWiring(): PortalGenuiWiring {
   const db = getDb();
   const brain = buildBrainPort();
+
+  // Wire DURABLE persistence for the internal-admin self-healing console. The
+  // `escalateToInternalAdmin` sink (read-path, resolver, beacon) logs always;
+  // once this store is registered it ALSO persists every heal outcome to the
+  // service-role-only `self_healing_proposals` queue the admin console reads.
+  // No DB ⇒ log-only (the sink stays a safe no-op for persistence).
+  if (db) {
+    registerSelfHealingStore(
+      createSelfHealingStore({
+        db: db as unknown as Parameters<typeof createSelfHealingStore>[0]['db'],
+      }).record,
+    );
+  }
 
   const persistence = db
     ? createDrizzleTabRegistry({

@@ -19,7 +19,7 @@ import { migratePortalTabRaw, verifyMigratable } from '../migrate/index.js';
 import {
   attemptHeal,
   type BlockerSignal,
-  type RepairProposal,
+  type RepairOutcome,
 } from '../self-healing/self-heal.js';
 import type {
   DeleteTabInput,
@@ -74,12 +74,13 @@ function rowToTab(row: PortalTabRow, onBlocker?: BlockerSink): PortalTab | null 
   }
 }
 
-/** A sink the composition can wire to telemetry/ticketing for escalations. */
-export type BlockerSink = (proposal: RepairProposal, signal: BlockerSignal) => void;
+/** A sink the composition wires to telemetry + the internal-admin console.
+ *  Receives EVERY heal outcome (auto-healed observation OR escalation). */
+export type BlockerSink = (outcome: RepairOutcome, signal: BlockerSignal) => void;
 
 /** Run the self-healing loop for a read-path blocker; never throws. */
 function heal(signal: BlockerSignal, onBlocker?: BlockerSink): void {
-  attemptHeal(signal, onBlocker ? { escalate: onBlocker } : {});
+  attemptHeal(signal, onBlocker ? { report: onBlocker } : {});
 }
 
 function safeJsonParse(text: string): unknown {

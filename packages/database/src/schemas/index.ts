@@ -1762,3 +1762,12 @@ export * from './owner-governance-preferences.schema.js';
 // on app.current_tenant_id + service-role bypass for the out-of-band
 // loop-economy cron per migration 0341.
 export * from './org-loop-runs.js';
+
+// self_healing_proposals (migration 0349) — the INTERNAL-ADMIN self-healing
+// console queue. Every UI/wiring blocker the MAPE-K loop processes
+// (packages/portal-genui self-heal.ts) is recorded for the Borjie PLATFORM
+// team: needs-approval code-gated proposals AND auto-healed observations (the
+// crystallization-candidate signal). Platform-internal — the OWNER never sees
+// it; tenant_id is nullable triage context, not an access boundary. FORCE RLS
+// + service-role-only bypass (pinned in rls-coverage GLOBAL_SPINE_TABLES).
+export * from './self-healing-proposals.schema.js';

@@ -80,6 +80,7 @@ import { notificationsRouter } from './routes/notifications';
 import { onboardingRouter } from './routes/onboarding';
 import { onboardingFlowRouter } from './routes/onboarding.router';
 import { feedbackRouter } from './routes/feedback';
+import { genuiTelemetryRouter } from './routes/genui-telemetry.hono';
 import { complaintsRouter } from './routes/complaints';
 // Piece C — MD Executive Brief routes (briefs + briefing subscriptions).
 import {
@@ -2491,6 +2492,10 @@ api.route('/notifications', notificationsRouter);
 api.route('/onboarding', onboardingFlowRouter);
 api.route('/onboarding', onboardingRouter);
 api.route('/feedback', feedbackRouter);
+// Client-side self-healing beacon — the genui renderer reports an unknown-kind
+// / schema-validation fallback here; it closes the projector seam to the
+// internal-admin console + returns the customer-loop-closure contract.
+api.route('/genui-telemetry', genuiTelemetryRouter);
 api.route('/complaints', complaintsRouter);
 // Piece C — Executive briefs (T1-T3 only) + subscription cadence registry.
 api.route('/briefs', executiveBriefRouter);
