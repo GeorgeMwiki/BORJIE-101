@@ -151,34 +151,41 @@ describe('admitTab — evidence-presence rule', () => {
   });
 });
 
-describe('admitTab — locale-purity rule', () => {
-  // Treat any string containing "Mshahara" (Swahili) as impure under `en`.
+describe('admitTab — locale-purity rule (zero-mixing)', () => {
+  // detector(text,'en') flags a Swahili intrusion; detector(text,'sw') flags
+  // an English intrusion — exactly how the mixing rule probes each string.
   const policy: AdmissionPolicy = {
-    locale: 'en',
-    localeDetector: (text, locale) =>
-      locale === 'en' && /mshahara/i.test(text),
+    localeDetector: (text, locale) => {
+      if (locale === 'en') return /\bmshahara\b/i.test(text);
+      if (locale === 'sw') return /\bpayroll\b/i.test(text);
+      return false;
+    },
   };
 
-  it('flags a wrong-language user-visible string', () => {
+  it('flags a tab that MIXES en + sw', () => {
     const tab = cleanTab();
-    const dirty = withFirstSection(tab, {
-      ...tab.sections[0]!,
-      title: 'Mshahara wa wafanyakazi',
-    });
-    const result = admitTab(dirty, policy);
+    const mixed: PortalTab = {
+      ...tab,
+      title: 'Payroll overview',
+      sections: tab.sections.map((s, i) =>
+        i === 0
+          ? ({ ...s, title: 'Mshahara wa wafanyakazi' } as PortalTabSection)
+          : s,
+      ),
+    };
+    const result = admitTab(mixed, policy);
     expect(result.ok).toBe(false);
-    const v = result.violations.find((x) => x.rule === 'locale-purity');
-    expect(v).toBeDefined();
-    expect(v!.path).toBe('sections[0].title');
+    expect(result.violations.some((x) => x.rule === 'locale-purity')).toBe(true);
+  });
+
+  it('passes a single-language tab (no mixing)', () => {
+    // cleanTab() is single-language — no Swahili intrusion is added, so the
+    // mixing rule sees at most one language and does not flag.
+    expect(admitTab(cleanTab(), policy).ok).toBe(true);
   });
 
   it('is a no-op when no detector is supplied', () => {
-    const tab = cleanTab();
-    const dirty = withFirstSection(tab, {
-      ...tab.sections[0]!,
-      title: 'Mshahara',
-    });
-    expect(admitTab(dirty, { locale: 'en' }).ok).toBe(true);
+    expect(admitTab(cleanTab(), {}).ok).toBe(true);
   });
 });
 

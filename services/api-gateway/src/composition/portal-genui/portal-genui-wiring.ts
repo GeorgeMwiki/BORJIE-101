@@ -66,6 +66,10 @@ import { createSupabaseAdminClient } from '@borjie/supabase-client';
 import { getDb } from '../db-client.js';
 import { logger } from '../../utils/logger.js';
 import portalGenUIRouter from '../../routes/portal-genui/portal-genui.router.js';
+import {
+  createLocaleImpurityDetector,
+  resolveRequireEvidence,
+} from './genui-admission-policy.js';
 
 // ────────────────────────────────────────────────────────────────────
 // DbExecutor adapter — postgres-js `$client.unsafe(sql, params)` returns
@@ -299,11 +303,15 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
   }
 
   const urlEgressPolicy = resolveUrlEgressPolicy();
+  const localeDetector = createLocaleImpurityDetector();
+  const requireEvidence = resolveRequireEvidence();
 
   const engine = createGenUIEngine({
     ...(brain !== undefined ? { brain } : {}),
     ...(persistence !== undefined ? { persistence } : {}),
     urlEgressPolicy,
+    localeDetector,
+    requireEvidence,
   });
 
   logger.info(
@@ -312,6 +320,8 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
       brain: brain ? 'live' : 'heuristic-only',
       persistence: persistence ? 'postgres' : 'in-memory',
       egressAllowedHosts: urlEgressPolicy.allowedHosts.length,
+      localePurity: 'enforced',
+      requireEvidence,
     },
     'portal-genui: engine constructed',
   );
