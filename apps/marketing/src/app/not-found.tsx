@@ -55,7 +55,7 @@ export default function NotFoundPage() {
             Back to home
           </Link>
           <Link
-            href="/signup"
+            href="/sign-up"
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             Get started
