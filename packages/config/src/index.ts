@@ -12,7 +12,6 @@ function loadEnv(): EnvSchema {
     JWT_SECRET: process.env.JWT_SECRET,
     JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET,
     JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN,
-    CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     MPESA_CONSUMER_KEY: process.env.MPESA_CONSUMER_KEY,
     MPESA_CONSUMER_SECRET: process.env.MPESA_CONSUMER_SECRET,
     MPESA_PASSKEY: process.env.MPESA_PASSKEY,
@@ -100,7 +99,6 @@ export const redis = () => ({
 export const auth = () => ({
   jwtSecret: getConfig().JWT_SECRET,
   jwtExpiresIn: getConfig().JWT_EXPIRES_IN,
-  clerkSecretKey: getConfig().CLERK_SECRET_KEY,
 });
 
 /**

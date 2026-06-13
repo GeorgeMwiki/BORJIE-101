@@ -1,10 +1,15 @@
 /**
  * AI image generator — natural-language prompts in, PNG out.
  *
- * Wave UNIVERSAL-DOC-DRAFTER. Wraps the cross-provider dispatcher in
- * `@borjie/media-generation` when available, otherwise falls back to a
- * deterministic 1x1 PNG so callers in test / brownout still receive a
- * well-formed payload.
+ * Wave UNIVERSAL-DOC-DRAFTER. Wraps the cross-provider dispatcher
+ * (`createMediaDispatcher`) in `@borjie/media-generation`. When at least
+ * one image provider key (FLUX_API_KEY / IDEOGRAM_API_KEY / RECRAFT_API_KEY
+ * / GOOGLE_API_KEY / SD35_API_KEY) is configured, the real provider ladder
+ * runs and the result carries that provider's label. When NO provider key
+ * is set the dispatcher throws `PROVIDER_NOT_AVAILABLE`, and we fall back to
+ * a deterministic 1x1 PNG so callers in test / brownout still receive a
+ * well-formed payload (labelled `fallback-1x1`, never masquerading as a
+ * real render).
  *
  * The api-gateway uses this for: inline chat-image cards, draft
  * cover-page imagery, infographic background plates.
@@ -33,14 +38,22 @@ const FALLBACK_PNG_1X1 = Buffer.from(
 
 let dispatcherSingleton: unknown = null;
 
-async function getDispatcher(): Promise<unknown> {
+/**
+ * Resolve (and cache) the cross-provider media dispatcher from
+ * `@borjie/media-generation`. A literal dynamic import keeps the heavy
+ * provider package out of the gateway's hot path until the first image
+ * request, while staying statically analysable so the bundler inlines it
+ * (the package is a real workspace dependency, not optional).
+ *
+ * Returns `null` only if the package or its factory is unavailable, in
+ * which case `generateImage` degrades to the 1x1 fallback.
+ *
+ * Exported for tests; production callers go through `generateImage`.
+ */
+export async function getDispatcher(): Promise<unknown> {
   if (dispatcherSingleton !== null) return dispatcherSingleton;
   try {
-    // Resolve the package id dynamically so the bundler does not
-    // hard-require the optional dependency at compile time.
-    const pkg = '@borjie' + '/media-generation';
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mod: any = await import(/* @vite-ignore */ pkg).catch(() => null);
+    const mod = await import('@borjie/media-generation').catch(() => null);
     if (mod && typeof mod.createMediaDispatcher === 'function') {
       dispatcherSingleton = mod.createMediaDispatcher();
     }
@@ -48,6 +61,11 @@ async function getDispatcher(): Promise<unknown> {
     dispatcherSingleton = null;
   }
   return dispatcherSingleton;
+}
+
+/** Reset the cached dispatcher. Test-only — keeps suites isolated. */
+export function __resetDispatcherForTests(): void {
+  dispatcherSingleton = null;
 }
 
 export async function generateImage(

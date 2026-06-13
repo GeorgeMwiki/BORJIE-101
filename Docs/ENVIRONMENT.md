@@ -112,7 +112,6 @@ Last scrubbed: 2026-05-21.
 | `MPESA_SANDBOX_CERT` | REQ-FEAT | — | payments/mpesa/security-credential | PEM inline |
 | `MPESA_PRODUCTION_CERT` | REQ-FEAT | — | payments/mpesa/security-credential | PEM inline |
 | `MPESA_CERT_PATH` | OPT | — | payments-ledger + payments | path alt to PEM inline |
-| `TANZANIA_PAYMENT_BACKEND` | OPT | factory-selected | payments/tanzania-payment-factory | |
 
 ## H. Payments — GePG
 

@@ -1,207 +1,183 @@
 'use client';
 
 /**
- * NotificationPreferencesPanel — owner-settings-3.
+ * NotificationPreferencesPanel — owner-settings delivery preferences.
  *
- * Surfaces the owner's notification channel-priority ranking and
- * contact details so Mr. Mwikila knows HOW to reach them (email vs SMS
- * vs Slack vs WhatsApp), and in which language.
+ * Drives the dispatcher-consulted preference table over
+ *   GET /api/v1/me/notification-preferences  — seed on mount
+ *   PUT /api/v1/me/notification-preferences  — upsert on save
+ * (see services/api-gateway/src/routes/notification-preferences.router.ts).
  *
- * Wires to:
- *   GET /api/v1/owner/contact-prefs  — seed current values on mount
- *   PUT /api/v1/owner/contact-prefs  — upsert on save
+ * What an owner controls here is EXACTLY what the notification dispatcher's
+ * `shouldDeliver` gate honors (services/api-gateway/src/index.ts):
+ *   - per-channel on/off (email / sms / push / whatsapp) — opt-OUT: a channel
+ *     blocks delivery only when explicitly turned off;
+ *   - per-template opt-outs keyed by `template_key`;
+ *   - a quiet-hours window (HH:MM start + end, sent together).
  *
- * The channelPriority field is an ORDERED list (highest-priority first).
- * The owner ranks channels by clicking "Move up" / "Move down" arrows or
- * by removing a channel from the active ranking entirely. The remote
- * backend derives preferred_channel from the head of the list.
- *
- * Channels are data-driven from OWNER_CONTACT_CHANNELS so adding a new
- * channel to the backend constant automatically surfaces it here.
+ * The save is optimistic: the on-screen toggle state updates immediately; the
+ * confirmed server snapshot replaces it on success, and the prior snapshot is
+ * restored on failure. All Swahili copy lives in the guard-exempt i18n strings
+ * module — no Swahili literal appears in this component.
  */
 
-import { useCallback, useEffect, useState } from 'react';
-import { z } from 'zod';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getCsrfHeaders } from '@/lib/csrf';
 import { notificationPreferencesPanelStrings as S } from '@/i18n/strings/notification-preferences-panel';
 import { useLocale, pickByLocale } from '@/lib/locale';
 
-// Mirror the backend constant locally so this file has no cross-package
-// import. If a new channel is added to the backend, add it here too.
-const OWNER_CONTACT_CHANNELS = ['email', 'sms', 'slack', 'whatsapp'] as const;
-type OwnerContactChannel = (typeof OWNER_CONTACT_CHANNELS)[number];
+import {
+  NOTIFICATION_CHANNELS,
+  type NotifPrefs,
+  type NotificationChannel,
+  type PutPreferencesBody,
+  fetchNotificationPreferences,
+  isEnabled,
+  resolveTemplateKeys,
+  saveNotificationPreferences,
+} from './notification-preferences-client';
 
-// Zod schema — mirrors putSchema in contact-prefs.hono.ts.
-const putSchema = z
-  .object({
-    channelPriority: z.array(z.enum(OWNER_CONTACT_CHANNELS)).max(4),
-    emailOverride: z.string().email().max(320).optional().or(z.literal('')),
-    phone: z.string().trim().max(32).optional(),
-    slackHandle: z.string().trim().max(80).optional(),
-    locale: z.enum(['sw', 'en']).optional(),
-    timezone: z.string().trim().max(64).optional(),
-  })
-  .strict();
+const TIME_HHMM = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
-type PutPayload = z.infer<typeof putSchema>;
-
-interface ContactPrefs {
-  readonly channelPriority: ReadonlyArray<OwnerContactChannel>;
-  readonly preferredChannel: OwnerContactChannel;
-  readonly emailOverride: string | null;
-  readonly phone: string | null;
-  readonly slackHandle: string | null;
-  readonly locale: string;
-  readonly timezone: string;
-}
-
-type LoadState =
-  | { kind: 'loading' }
-  | { kind: 'ready'; prefs: ContactPrefs }
-  | { kind: 'error'; message: string };
-
-const CHANNEL_LABEL_EN: Record<OwnerContactChannel, string> = {
+const CHANNEL_LABEL_EN: Record<NotificationChannel, string> = {
   email: 'Email',
   sms: 'SMS',
-  slack: 'Slack',
+  push: S.channelPushEn,
   whatsapp: 'WhatsApp',
 };
 
-// Swahili channel labels are sourced from the guard-exempt i18n strings
-// module so no Swahili literal lives in this component.
-const CHANNEL_LABEL_SW: Record<OwnerContactChannel, string> = S.channelLabelSw;
+const CHANNEL_LABEL_SW: Record<NotificationChannel, string> = {
+  email: S.channelLabelSw.email,
+  sms: S.channelLabelSw.sms,
+  push: S.channelPushSw,
+  whatsapp: S.channelLabelSw.whatsapp,
+};
+
+type LoadState =
+  | { kind: 'loading' }
+  | { kind: 'ready'; prefs: NotifPrefs }
+  | { kind: 'error'; message: string };
+
+const EMPTY_MAP: Readonly<Record<string, boolean>> = {};
 
 export function NotificationPreferencesPanel() {
   const locale = useLocale();
   const [loadState, setLoadState] = useState<LoadState>({ kind: 'loading' });
-  const [channelPriority, setChannelPriority] = useState<OwnerContactChannel[]>([]);
-  const [emailOverride, setEmailOverride] = useState('');
-  const [phone, setPhone] = useState('');
-  const [slackHandle, setSlackHandle] = useState('');
-  const [timezone, setTimezone] = useState('Africa/Dar_es_Salaam');
+
+  // Working draft, seeded from the loaded snapshot and edited locally.
+  const [channels, setChannels] = useState<Readonly<Record<string, boolean>>>(EMPTY_MAP);
+  const [templates, setTemplates] = useState<Readonly<Record<string, boolean>>>(EMPTY_MAP);
+  const [quietStart, setQuietStart] = useState('');
+  const [quietEnd, setQuietEnd] = useState('');
+
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  const seedFrom = useCallback((p: NotifPrefs) => {
+    setChannels(p.channels);
+    setTemplates(p.templates);
+    setQuietStart(p.quietHoursStart ?? '');
+    setQuietEnd(p.quietHoursEnd ?? '');
+  }, []);
+
   const load = useCallback(async () => {
     setLoadState({ kind: 'loading' });
     try {
-      const res = await fetch('/api/v1/owner/contact-prefs', {
-        credentials: 'include',
-      });
-      const json = (await res.json().catch(() => null)) as
-        | { success: true; data: { prefs: ContactPrefs } }
-        | { success?: false; error?: { message: string } }
-        | null;
-      if (!res.ok || !json?.success) {
-        const msg =
-          (json && 'error' in json && json.error?.message) ||
-          `HTTP ${res.status}`;
-        setLoadState({ kind: 'error', message: msg });
-        return;
-      }
-      const p = json.data.prefs;
-      setLoadState({ kind: 'ready', prefs: p });
-      setChannelPriority([...p.channelPriority] as OwnerContactChannel[]);
-      setEmailOverride(p.emailOverride ?? '');
-      setPhone(p.phone ?? '');
-      setSlackHandle(p.slackHandle ?? '');
-      setTimezone(p.timezone ?? 'Africa/Dar_es_Salaam');
+      const prefs = await fetchNotificationPreferences();
+      setLoadState({ kind: 'ready', prefs });
+      seedFrom(prefs);
     } catch (err) {
       setLoadState({
         kind: 'error',
         message: err instanceof Error ? err.message : 'Network error',
       });
     }
-  }, []);
+  }, [seedFrom]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
-  const moveUp = useCallback((idx: number) => {
-    if (idx === 0) return;
-    setChannelPriority((prev) => {
-      const next = [...prev];
-      const tmp = next[idx - 1]!;
-      next[idx - 1] = next[idx]!;
-      next[idx] = tmp;
-      return next;
-    });
+  const toggleChannel = useCallback((ch: NotificationChannel) => {
+    setSaved(false);
+    setChannels((prev) => ({ ...prev, [ch]: !isEnabled(prev, ch) }));
   }, []);
 
-  const moveDown = useCallback((idx: number) => {
-    setChannelPriority((prev) => {
-      if (idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      const tmp = next[idx + 1]!;
-      next[idx + 1] = next[idx]!;
-      next[idx] = tmp;
-      return next;
-    });
+  const toggleTemplate = useCallback((key: string) => {
+    setSaved(false);
+    setTemplates((prev) => ({ ...prev, [key]: !isEnabled(prev, key) }));
   }, []);
 
-  const removeChannel = useCallback((ch: OwnerContactChannel) => {
-    setChannelPriority((prev) => prev.filter((c) => c !== ch));
+  const clearQuietHours = useCallback(() => {
+    setSaved(false);
+    setQuietStart('');
+    setQuietEnd('');
   }, []);
 
-  const addChannel = useCallback((ch: OwnerContactChannel) => {
-    setChannelPriority((prev) => (prev.includes(ch) ? prev : [...prev, ch]));
-  }, []);
+  const templateKeys = useMemo(
+    () => resolveTemplateKeys(templates),
+    [templates],
+  );
+
+  // Only the four contract channels are sent; the draft map may carry stray
+  // keys from a previous server snapshot, so we project onto the known set.
+  const buildBody = useCallback((): PutPreferencesBody => {
+    const channelsBody: NonNullable<PutPreferencesBody['channels']> = {};
+    for (const ch of NOTIFICATION_CHANNELS) {
+      channelsBody[ch] = isEnabled(channels, ch);
+    }
+    const templatesBody: Record<string, boolean> = {};
+    for (const key of templateKeys) {
+      templatesBody[key] = isEnabled(templates, key);
+    }
+    const hasQuiet = quietStart.trim() !== '' && quietEnd.trim() !== '';
+    return {
+      channels: channelsBody,
+      templates: templatesBody,
+      ...(hasQuiet
+        ? { quietHoursStart: quietStart.trim(), quietHoursEnd: quietEnd.trim() }
+        : {}),
+    };
+  }, [channels, templates, templateKeys, quietStart, quietEnd]);
 
   const save = useCallback(async () => {
     setSaving(true);
     setSaveError(null);
     setSaved(false);
 
-    const payload: PutPayload = {
-      channelPriority,
-      ...(emailOverride.trim() ? { emailOverride: emailOverride.trim() } : {}),
-      ...(phone.trim() ? { phone: phone.trim() } : {}),
-      ...(slackHandle.trim() ? { slackHandle: slackHandle.trim() } : {}),
-      locale: locale as 'en' | 'sw',
-      ...(timezone.trim() ? { timezone: timezone.trim() } : {}),
-    };
-
-    const parsed = putSchema.safeParse(payload);
-    if (!parsed.success) {
-      setSaveError(
-        parsed.error.issues.map((i) => i.message).join('; '),
-      );
+    // Quiet-hours must be a complete pair or fully cleared; mirror the router.
+    const startSet = quietStart.trim() !== '';
+    const endSet = quietEnd.trim() !== '';
+    if (startSet !== endSet) {
+      setSaveError(pickByLocale(locale, S.quietHoursPairError));
+      setSaving(false);
+      return;
+    }
+    if (
+      (startSet && !TIME_HHMM.test(quietStart.trim())) ||
+      (endSet && !TIME_HHMM.test(quietEnd.trim()))
+    ) {
+      setSaveError(pickByLocale(locale, S.quietHoursPairError));
       setSaving(false);
       return;
     }
 
+    const prior =
+      loadState.kind === 'ready' ? loadState.prefs : undefined;
     try {
-      const res = await fetch('/api/v1/owner/contact-prefs', {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-        body: JSON.stringify(parsed.data),
-      });
-      const json = (await res.json().catch(() => null)) as
-        | { success: true }
-        | { success?: false; error?: { message: string } }
-        | null;
-      if (!res.ok || !json?.success) {
-        const msg =
-          (json && 'error' in json && json.error?.message) ||
-          `HTTP ${res.status}`;
-        setSaveError(msg);
-      } else {
-        setSaved(true);
-      }
+      const confirmed = await saveNotificationPreferences(buildBody());
+      setLoadState({ kind: 'ready', prefs: confirmed });
+      seedFrom(confirmed);
+      setSaved(true);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : 'Network error');
+      // Roll the optimistic draft back to the last confirmed snapshot.
+      if (prior) seedFrom(prior);
     } finally {
       setSaving(false);
     }
-  }, [channelPriority, emailOverride, phone, slackHandle, locale, timezone]);
-
-  const unavailableChannels = OWNER_CONTACT_CHANNELS.filter(
-    (ch) => !channelPriority.includes(ch),
-  );
+  }, [buildBody, loadState, locale, quietStart, quietEnd, seedFrom]);
 
   if (loadState.kind === 'loading') {
     return (
@@ -227,158 +203,146 @@ export function NotificationPreferencesPanel() {
   }
 
   return (
-    <section className="rounded-md border border-border bg-surface p-5 space-y-5">
+    <section className="rounded-md border border-border bg-surface p-5 space-y-6">
       <div>
         <h2 className="font-display text-lg text-foreground">
-          {pickByLocale(locale, S.channelsHeading)}
+          {pickByLocale(locale, S.deliveryHeading)}
         </h2>
         <p className="mt-0.5 text-xs italic text-neutral-500">
-          {pickByLocale(locale, S.channelsSubtitle)}
+          {pickByLocale(locale, S.deliverySubtitle)}
         </p>
       </div>
 
-      {/* Ranked active channels */}
-      <div className="space-y-1.5">
+      {/* Per-channel on/off */}
+      <div className="space-y-2">
         <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-          {pickByLocale(locale, S.priorityOrder)}
+          {pickByLocale(locale, S.channelOnOffSection)}
         </p>
-        {channelPriority.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            {pickByLocale(locale, S.noChannelsRanked)}
-          </p>
-        ) : (
-          <ol className="space-y-1.5">
-            {channelPriority.map((ch, idx) => {
-              // Localize the channel label once, then feed it into the
-              // interpolated aria-label strings so the EN/SW label
-              // distinction is preserved without any Swahili literal here.
-              const label = pickByLocale(locale, {
-                en: CHANNEL_LABEL_EN[ch],
-                sw: CHANNEL_LABEL_SW[ch],
-              });
-              return (
-                <li
-                  key={ch}
-                  className="flex items-center gap-2 rounded border border-border bg-background px-3 py-2"
+        <ul className="space-y-1.5">
+          {NOTIFICATION_CHANNELS.map((ch) => {
+            const on = isEnabled(channels, ch);
+            const label = pickByLocale(locale, {
+              en: CHANNEL_LABEL_EN[ch],
+              sw: CHANNEL_LABEL_SW[ch],
+            });
+            return (
+              <li
+                key={ch}
+                className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2"
+              >
+                <span className="text-sm text-foreground">{label}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={pickByLocale(locale, S.channelToggleAria(label))}
+                  onClick={() => toggleChannel(ch)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                    on ? 'bg-success' : 'bg-neutral-600'
+                  }`}
                 >
-                  <span className="w-5 shrink-0 text-center text-xs font-bold text-neutral-500">
-                    {idx + 1}
-                  </span>
-                  <span className="flex-1 text-sm text-foreground">{label}</span>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => moveUp(idx)}
-                      disabled={idx === 0}
-                      aria-label={pickByLocale(locale, S.moveUpAria(label))}
-                      className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-30"
-                    >
-                      ↑
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => moveDown(idx)}
-                      disabled={idx === channelPriority.length - 1}
-                      aria-label={pickByLocale(locale, S.moveDownAria(label))}
-                      className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-30"
-                    >
-                      ↓
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => removeChannel(ch)}
-                      aria-label={pickByLocale(locale, S.removeAria(label))}
-                      className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:text-destructive"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      on ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-xs text-neutral-500">
+          {pickByLocale(locale, S.channelInAppNote)}
+        </p>
       </div>
 
-      {/* Unavailable / add channels */}
-      {unavailableChannels.length > 0 ? (
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
-            {pickByLocale(locale, S.addChannel)}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {unavailableChannels.map((ch) => (
-              <button
-                key={ch}
-                type="button"
-                onClick={() => addChannel(ch)}
-                className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:bg-surface"
+      {/* Per-template opt-outs */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+          {pickByLocale(locale, S.templatesSection)}
+        </p>
+        <p className="text-xs text-neutral-500">
+          {pickByLocale(locale, S.templatesSubtitle)}
+        </p>
+        <ul className="space-y-1.5">
+          {templateKeys.map((key) => {
+            const on = isEnabled(templates, key);
+            const label = pickByLocale(locale, S.templateLabel(key));
+            return (
+              <li
+                key={key}
+                className="flex items-center justify-between gap-3 rounded border border-border bg-background px-3 py-2"
               >
-                +{' '}
-                {pickByLocale(locale, {
-                  en: CHANNEL_LABEL_EN[ch],
-                  sw: CHANNEL_LABEL_SW[ch],
-                })}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
+                <span className="text-sm text-foreground">{label}</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={on}
+                  aria-label={pickByLocale(locale, S.templateToggleAria(label))}
+                  onClick={() => toggleTemplate(key)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                    on ? 'bg-success' : 'bg-neutral-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      on ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
-      {/* Contact details */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="block text-sm">
-          <span className="text-neutral-300">
-            {pickByLocale(locale, S.emailOverride)}
-          </span>
-          <input
-            type="email"
-            maxLength={320}
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
-            value={emailOverride}
-            onChange={(e) => setEmailOverride(e.target.value)}
-            placeholder={pickByLocale(locale, S.emailOverridePlaceholder)}
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="text-neutral-300">
-            {pickByLocale(locale, S.phoneLabel)}
-          </span>
-          <input
-            type="tel"
-            maxLength={32}
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+255 712 000 000"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="text-neutral-300">
-            {pickByLocale(locale, S.slackHandle)}
-          </span>
-          <input
-            type="text"
-            maxLength={80}
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
-            value={slackHandle}
-            onChange={(e) => setSlackHandle(e.target.value)}
-            placeholder="@yourname"
-          />
-        </label>
-        <label className="block text-sm">
-          <span className="text-neutral-300">
-            {pickByLocale(locale, S.timeZone)}
-          </span>
-          <input
-            type="text"
-            maxLength={64}
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
-            value={timezone}
-            onChange={(e) => setTimezone(e.target.value)}
-            placeholder="Africa/Dar_es_Salaam"
-          />
-        </label>
+      {/* Quiet-hours window */}
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+          {pickByLocale(locale, S.quietHoursSection)}
+        </p>
+        <p className="text-xs text-neutral-500">
+          {pickByLocale(locale, S.quietHoursSubtitle)}
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="block text-sm">
+            <span className="text-neutral-300">
+              {pickByLocale(locale, S.quietHoursStartLabel)}
+            </span>
+            <input
+              type="time"
+              className="mt-1 block rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              value={quietStart}
+              onChange={(e) => {
+                setSaved(false);
+                setQuietStart(e.target.value);
+              }}
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-neutral-300">
+              {pickByLocale(locale, S.quietHoursEndLabel)}
+            </span>
+            <input
+              type="time"
+              className="mt-1 block rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              value={quietEnd}
+              onChange={(e) => {
+                setSaved(false);
+                setQuietEnd(e.target.value);
+              }}
+            />
+          </label>
+          {quietStart || quietEnd ? (
+            <button
+              type="button"
+              onClick={clearQuietHours}
+              className="rounded border border-border px-3 py-2 text-xs text-neutral-300 hover:bg-surface"
+            >
+              {pickByLocale(locale, S.quietHoursClear)}
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex items-center gap-3">

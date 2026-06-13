@@ -8,9 +8,7 @@
 import { z } from 'zod';
 import type { ToolHandler } from '../../orchestrator/tool-dispatcher.js';
 import {
-  HIGH_RISK_THRESHOLDS,
   assertSameTenant,
-  committed,
   failed,
   proposed,
   safeParse,
@@ -66,7 +64,7 @@ export function planReminderBatch(params: SendRentReminderParams): SendRentRemin
 export const sendRentReminderTool: ToolHandler = {
   name: 'skill.admin.send_rent_reminder',
   description:
-    'Trigger rent reminders for one or more tenants. If recipient count exceeds the broadcast threshold, returns a PROPOSED action so the user explicitly confirms the batch.',
+    'Plan reminders for one or more recipients and return a PROPOSED batch for confirmation. This skill does NOT send — dispatch runs through the reminders pipeline (owner reminders + notification_dispatch_log).',
   parameters: {
     type: 'object',
     required: ['recipients'],
@@ -85,19 +83,18 @@ export const sendRentReminderTool: ToolHandler = {
     const iso = assertSameTenant(context, parsed.data.tenantId);
     if (iso) return failed(iso);
 
+    // This skill PLANS a reminder batch. The skill-execution context exposes
+    // NO delivery port, so it never claims a send — the prior
+    // committed('Queued …') was a false-green (nothing was dispatched). It
+    // returns a PROPOSAL; the confirming surface routes the batch through the
+    // real reminders pipeline (owner reminders + notification_dispatch_log),
+    // which is what actually delivers. (Follow-up: thread a notifications port
+    // into ToolExecutionContext so the brain can enqueue dispatch rows itself.)
     const result = planReminderBatch(parsed.data);
-    const needsApproval =
-      !parsed.data.force && result.total > HIGH_RISK_THRESHOLDS.broadcastRecipients;
-
-    if (needsApproval) {
-      return proposed(
-        result,
-        `${result.total} reminders (KES ${result.totalOwedKes.toLocaleString()}) — above ${HIGH_RISK_THRESHOLDS.broadcastRecipients} recipient cap`
-      );
-    }
-    return committed(
+    const plural = result.total === 1 ? '' : 's';
+    return proposed(
       result,
-      `Queued ${result.total} rent reminders (batch ${result.batchId})`
+      `Prepared ${result.total} reminder${plural} for review — dispatch runs through the reminders pipeline`,
     );
   },
 };

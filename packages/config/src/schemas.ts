@@ -41,10 +41,6 @@ export const authSchema = z.object({
     .string()
     .default('7d')
     .describe('JWT token expiration time'),
-  CLERK_SECRET_KEY: z
-    .string()
-    .optional()
-    .describe('Clerk authentication secret key'),
 });
 
 // -----------------------------------------------------------------------------

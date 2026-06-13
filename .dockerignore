@@ -1,6 +1,15 @@
 # BORJIE - Docker ignore patterns
+#
+# IMPORTANT: BuildKit/Docker .dockerignore patterns are matched against the
+# path RELATIVE TO THE BUILD CONTEXT ROOT. A bare `node_modules/` therefore
+# matches ONLY the top-level dir, NOT nested `apps/*/node_modules`,
+# `packages/*/dist`, `apps/*/.next`, etc. In this monorepo those nested
+# artifacts total ~7+ GB, which ballooned the Fly build context to ~1 GB+ and
+# wedged the remote upload. Every artifact pattern below MUST use the `**/`
+# prefix so it matches at any depth. The multi-stage Dockerfile rebuilds
+# everything from source (turbo build), so shipping local builds is pure waste.
 
-node_modules/
+**/node_modules/
 .git/
 .gitignore
 .env
@@ -13,23 +22,24 @@ node_modules/
 **/*.spec.tsx
 **/__tests__/
 **/__mocks__/
-coverage/
-e2e/
-e2e-report/
-test-results/
-playwright-report/
-.blob/
-dist/
-.next/
-*.tsbuildinfo
-.turbo/
+**/coverage/
+**/e2e/
+**/e2e-report/
+**/test-results/
+**/playwright-report/
+**/.blob/
+**/dist/
+**/.next/
+**/.expo/
+**/*.tsbuildinfo
+**/.turbo/
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
 Thumbs.db
-*.log
+**/*.log
 npm-debug.log*
 Docs/
 # api-sdk's `generate` script reads Docs/api/openapi.generated.json

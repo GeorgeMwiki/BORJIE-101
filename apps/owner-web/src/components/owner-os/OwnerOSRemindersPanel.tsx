@@ -16,18 +16,26 @@ import {
   type ReactElement,
   type FormEvent,
 } from 'react';
-import { Bell, Mail, MessageCircle, Trash2 } from 'lucide-react';
+import { Bell, Check, Mail, MessageCircle, Trash2 } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
+
+type ReminderChannel = 'email' | 'sms' | 'slack' | 'whatsapp';
 
 interface Reminder {
   readonly id: string;
   readonly title: string;
   readonly body: string;
   readonly triggerAt: string;
-  readonly channel: 'email' | 'sms' | 'slack';
-  readonly status: 'scheduled' | 'sent' | 'failed' | 'cancelled';
+  readonly channel: ReminderChannel;
+  readonly status:
+    | 'scheduled'
+    | 'sending'
+    | 'sent'
+    | 'acknowledged'
+    | 'failed'
+    | 'cancelled';
   readonly dispatchedAt: string | null;
   readonly dispatchError: string | null;
 }
@@ -50,7 +58,7 @@ export function OwnerOSRemindersPanel({
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [triggerAt, setTriggerAt] = useState(inOneHour());
-  const [channel, setChannel] = useState<'email' | 'sms' | 'slack'>('email');
+  const [channel, setChannel] = useState<ReminderChannel>('email');
   const [creating, setCreating] = useState(false);
   const t = useMemo(
     () => makeT(dictionaries[languagePreference]),
@@ -111,6 +119,17 @@ export function OwnerOSRemindersPanel({
     }
   }
 
+  async function acknowledge(id: string): Promise<void> {
+    try {
+      await apiRequest(`/api/v1/owner/reminders/${id}/acknowledge`, {
+        method: 'POST',
+      });
+      await reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Acknowledge failed');
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4" data-testid="owner-os-reminders-panel">
       <header className="flex items-center justify-between">
@@ -162,12 +181,13 @@ export function OwnerOSRemindersPanel({
           {t('reminders.channel')}
           <select
             value={channel}
-            onChange={(e) => setChannel(e.target.value as 'email' | 'sms' | 'slack')}
+            onChange={(e) => setChannel(e.target.value as ReminderChannel)}
             className="rounded border border-border bg-background px-2 py-1 text-sm"
           >
-            <option value="email">Email</option>
-            <option value="sms">SMS</option>
-            <option value="slack">Slack</option>
+            <option value="email">{t('reminders.channelEmail')}</option>
+            <option value="sms">{t('reminders.channelSms')}</option>
+            <option value="whatsapp">{t('reminders.channelWhatsapp')}</option>
+            <option value="slack">{t('reminders.channelSlack')}</option>
           </select>
         </label>
         <div className="md:col-span-2">
@@ -221,6 +241,15 @@ export function OwnerOSRemindersPanel({
                 >
                   <Trash2 aria-hidden="true" className="h-3 w-3" />
                   {t('reminders.cancelItem')}
+                </button>
+              ) : r.status === 'sent' ? (
+                <button
+                  type="button"
+                  onClick={() => void acknowledge(r.id)}
+                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-tiny hover:border-success hover:text-success"
+                >
+                  <Check aria-hidden="true" className="h-3 w-3" />
+                  {t('reminders.acknowledge')}
                 </button>
               ) : null}
             </li>

@@ -80,6 +80,7 @@ import { notificationsRouter } from './routes/notifications';
 import { onboardingRouter } from './routes/onboarding';
 import { onboardingFlowRouter } from './routes/onboarding.router';
 import { feedbackRouter } from './routes/feedback';
+import { genuiTelemetryRouter } from './routes/genui-telemetry.hono';
 import { complaintsRouter } from './routes/complaints';
 // Piece C — MD Executive Brief routes (briefs + briefing subscriptions).
 import {
@@ -236,6 +237,7 @@ import {
 } from './composition/org-loop/org-loop-orchestrator';
 import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
 import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
+import { withServiceRoleContext } from '@borjie/database';
 import { tapCockpitEvents } from './services/cockpit-events';
 // HITL approval consumer — the owner's approve/dismiss verbs over parked
 // HIGH/sovereign org-loop runs (late-bound to the orchestrator; 503 until
@@ -373,6 +375,7 @@ import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
 // search). Mirrors the owner superpowers wiring, persona-guarded to 'buyer'.
 import { buyerSuperpowersRouter } from './routes/buyer/superpowers.hono';
 import { buyerTabProjectionRouter } from './routes/buyer/tab-projection.hono';
+import { buyerInquiriesRouter } from './routes/mining/flows/inquiry-flow.hono';
 // Commercial chain L8 — settlement orchestrator entry point.
 // Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
 import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
@@ -621,15 +624,13 @@ import {
   createGeofenceWatcher,
   type GeofenceAlertSink,
 } from './workers/geofence-watcher.js';
-import { createLeaseExpiryAlertCron } from './workers/lease-expiry-alert-cron';
+import { createLicenceExpiryAlertCron } from './workers/licence-expiry-alert-cron';
+import { isWithinQuietHours } from './workers/reminders-quiet-hours';
 // H2 deferral closure — idempotency_keys cron (mig 0154). Deletes
 // rows past `expires_at` hourly so the dedup table doesn't grow
 // forever. The partial unique index keeps duplicate requests dedup'd
 // even between sweeps.
 import { registerIdempotencySweeperCron } from './composition/idempotency-sweeper';
-import type {
-  NotificationSender as LeaseExpiryNotificationSender,
-} from './workers/lease-expiry-alert-cron';
 import { createExecutiveBriefCron } from './workers/executive-brief-cron';
 import { createExecutiveBriefActionRunner } from './workers/executive-brief-action-runner';
 // Wave OWNER-OS DAILY-BRIEF rebuild. Mining-native replacement for the
@@ -866,7 +867,7 @@ import {
 import { createEmailProviderFromEnv } from './services/notification-dispatch/email-provider';
 import { resolveSmsProviderFromEnv } from './services/notification-dispatch/sms-provider';
 import { buildServices, type ServiceRegistry } from './composition/service-registry';
-import { getDb } from './composition/db-client';
+import { getDb, getServiceRoleWorkerClient } from './composition/db-client';
 // Scale-P0 lane wiring — each init fn reads its OWN env flag ONCE here at
 // bootstrap and DEFAULTS to today's behaviour (merging is a runtime no-op
 // until the operator flips the flag). These four are the ONLY new gateway
@@ -898,7 +899,7 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'cases-sla',
   'learning-amplification',
   'geofence-watcher',
-  'lease-expiry',
+  'licence-expiry',
   'executive-brief',
   'daily-brief',
   'ica-cert-expiry',
@@ -2491,6 +2492,10 @@ api.route('/notifications', notificationsRouter);
 api.route('/onboarding', onboardingFlowRouter);
 api.route('/onboarding', onboardingRouter);
 api.route('/feedback', feedbackRouter);
+// Client-side self-healing beacon — the genui renderer reports an unknown-kind
+// / schema-validation fallback here; it closes the projector seam to the
+// internal-admin console + returns the customer-loop-closure contract.
+api.route('/genui-telemetry', genuiTelemetryRouter);
 api.route('/complaints', complaintsRouter);
 // Piece C — Executive briefs (T1-T3 only) + subscription cadence registry.
 api.route('/briefs', executiveBriefRouter);
@@ -2674,6 +2679,7 @@ api.route('/buyer/superpowers', buyerSuperpowersRouter);
 // Surface-completion SC-6 — the buyer leg of owner-spawn tab projection
 // (per-membership-scoped, explicit buyerProjection opt-in only).
 api.route('/buyer/tabs', buyerTabProjectionRouter);
+api.route('/buyer/inquiries', buyerInquiriesRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);
@@ -2938,15 +2944,108 @@ const notificationPreferencesRouter = ((): ReturnType<
 // Webhooks terminate here and forward deliveries via the same event bus
 // the rest of the services use, so a downstream subscriber in the
 // notifications service can persist status updates.
+// Redis-backed webhook idempotency so a duplicate delivery callback (Twilio
+// retries; at-least-once webhooks) never double-applies. Without it the
+// idempotency middleware fails-loud (503) for any keyed callback — so a real
+// Twilio receipt could never reach onDeliveryStatus. Mirror the rate-limit
+// redis bootstrap. When REDIS_URL is unset (dev/test) keyed callbacks 503 by
+// design; keyless providers (AT / Meta) still pass through.
+const webhookIdempotencyRedis = (() => {
+  if (!process.env.REDIS_URL) {
+    logger.info(
+      'notification-webhooks: REDIS_URL unset — keyed delivery callbacks 503 (fail-loud) in dev',
+    );
+    return null;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ioredisMod = require('ioredis');
+    const RedisCtor = ioredisMod?.default ?? ioredisMod?.Redis ?? ioredisMod;
+    const client = new RedisCtor(process.env.REDIS_URL, {
+      maxRetriesPerRequest: 2,
+      enableOfflineQueue: false,
+      lazyConnect: false,
+    });
+    client.on?.('error', (err: Error) => {
+      logger.warn(
+        { err: err.message },
+        'notification-webhooks: redis client error (idempotency degraded)',
+      );
+    });
+    logger.info('notification-webhooks: Redis-backed idempotency enabled');
+    return client;
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err) },
+      'notification-webhooks: failed to init idempotency redis',
+    );
+    return null;
+  }
+})();
 const notificationWebhooksRouter = createNotificationWebhookRouter({
+  idempotencyRedis: webhookIdempotencyRedis,
+  logger: { error: (meta, msg) => logger.error(meta as object, msg) },
   onDeliveryStatus: async (update) => {
+    // 1) CLOSE THE LOOP — persist the provider-confirmed receipt onto the
+    //    matching dispatch-log row so tracking/closing actually closes (was a
+    //    born-dark event with zero subscribers). Service-role: the table is
+    //    FORCE-RLS. Correlate by the REAL resolved tenant + provider_message_id.
+    if (update.providerMessageId && serviceRegistry.db) {
+      const pmid = update.providerMessageId;
+      // Bind as an ISO string, NOT a Date object — Drizzle's tx.execute (this
+      // runs inside withServiceRoleContext) rejects a raw Date param with
+      // ERR_INVALID_ARG_TYPE ("Received an instance of Date"); a timestamptz
+      // accepts the ISO string fine.
+      const at = update.occurredAt.toISOString();
+      try {
+        await withServiceRoleContext(serviceRegistry.db, async (tx) => {
+          if (update.status === 'delivered') {
+            await tx.execute(drizzleSqlTag`
+              UPDATE notification_dispatch_log
+                 SET delivered_at = ${at}, updated_at = now()
+               WHERE tenant_id = ${update.tenantId} AND provider_message_id = ${pmid}`);
+          } else if (update.status === 'read') {
+            await tx.execute(drizzleSqlTag`
+              UPDATE notification_dispatch_log
+                 SET read_at = ${at},
+                     delivered_at = COALESCE(delivered_at, ${at}),
+                     updated_at = now()
+               WHERE tenant_id = ${update.tenantId} AND provider_message_id = ${pmid}`);
+          } else if (update.status === 'failed') {
+            await tx.execute(drizzleSqlTag`
+              UPDATE notification_dispatch_log
+                 SET bounced_at = ${at},
+                     bounce_reason = ${`${update.provider}:${update.status}`},
+                     delivery_status = 'failed',
+                     updated_at = now()
+               WHERE tenant_id = ${update.tenantId} AND provider_message_id = ${pmid}`);
+          } else if (update.status === 'sent') {
+            await tx.execute(drizzleSqlTag`
+              UPDATE notification_dispatch_log
+                 SET delivery_reported_at = COALESCE(delivery_reported_at, ${at}),
+                     updated_at = now()
+               WHERE tenant_id = ${update.tenantId} AND provider_message_id = ${pmid}`);
+          }
+        });
+      } catch (err) {
+        logger.error(
+          {
+            err: err instanceof Error ? err.message : String(err),
+            providerMessageId: pmid,
+          },
+          'notification-webhook: failed to persist delivery receipt',
+        );
+      }
+    }
+    // 2) Fan the receipt onto the event bus (SSE / other listeners) with the
+    //    REAL tenant (was hard-coded 'system').
     try {
       await serviceRegistry.eventBus.publish({
         event: {
           eventId: `webhook_${Date.now()}`,
           eventType: 'NotificationDeliveryStatus',
           timestamp: new Date().toISOString(),
-          tenantId: 'system',
+          tenantId: update.tenantId,
           correlationId: `wh_${Date.now()}`,
           causationId: null,
           metadata: {},
@@ -3622,38 +3721,35 @@ const geofenceWatcher =
       })
     : { start() {}, stop() {}, async tickOnce() {} };
 
-// Wave 15 — TRC pilot. Daily scan of `leases.end_date` against the
-// 60/30/7/1-day warning windows. Dispatches via the existing notifications
-// infrastructure (whatsapp → sms → email → in_app priority). Skipped in
-// degraded mode (no DB) and in tests.
-const leaseExpiryNotificationSender: LeaseExpiryNotificationSender = {
-  // Pino-friendly placeholder sender — once the WhatsApp/SMS providers
-  // have tenant-scoped credentials wired, swap this for a thin adapter
-  // around `notificationService.sendNotification(recipient, channel, ...)`
-  // (services/notifications/src/services/notification.service.ts).
-  // Wave 15 deliberately leaves this stub-shaped so the cron is testable
-  // and the dispatch_log row is written even when no provider is reachable.
-  async send(args) {
-    logger.info(
-      {
-        tenantId: args.tenantId,
-        leaseId: args.lease.id,
-        leaseNumber: args.lease.leaseNumber,
-        window: args.window,
-        channel: args.channel,
-        idempotencyKey: args.idempotencyKey,
+// DETECTION (mining licence-expiry). Daily scan of the mining `licences`
+// table against the 60/30/7/1-day expiry windows: enqueues one pending
+// notification_dispatch_log row per (licence, window) (channel=email,
+// template=licence.expiry_warning), idempotent via idempotency_key, wrapped
+// in withServiceRoleContext. The dispatch drain worker delivers them. This
+// replaces the BossNyumba lease no-op (leases/customers tables were excised
+// in the mining hard-fork) AND its dead silent-success sender stub — the
+// time-based reminder DETECTION leg was previously dark. No-op in degraded
+// mode (no DB).
+const licenceExpiryCron = serviceRegistry.db
+  ? createLicenceExpiryAlertCron({
+      db: serviceRegistry.db as Parameters<
+        typeof createLicenceExpiryAlertCron
+      >[0]['db'],
+      logger,
+    })
+  : {
+      start() {},
+      stop() {},
+      async tickOnce() {
+        return {
+          scanned: 0,
+          enqueued: 0,
+          skippedAlreadySent: 0,
+          failed: 0,
+          byWindow: {},
+        };
       },
-      'lease-expiry-cron: dispatch (stub provider — Wave 15)',
-    );
-    return { delivered: true, providerMessageId: `stub-${args.idempotencyKey}` };
-  },
-};
-
-// DISABLED — BossNyumba leases/customers tables no longer exist in the
-// mining hard-fork. Queries against `leases` + `customers` were crashing
-// the process every tick. Re-enable when a mining-domain replacement is
-// designed (e.g. licence-expiry-alert-cron against `licences`).
-const leaseExpiryCron = { start() {}, stop() {}, async tickOnce() { return { scanned: 0, dispatched: 0, skippedAlreadySent: 0, failed: 0, byWindow: {} }; } };
+    };
 
 // Piece C — executive brief cron. Scans `briefing_subscriptions` every
 // EXECUTIVE_BRIEF_CRON_INTERVAL_MS (default 5 min) and generates briefs
@@ -3822,9 +3918,16 @@ function parseQuietHoursEnv(): { startHour: number; endHour: number } | undefine
 // (Africa's Talking / Twilio composite), or Slack webhook. Disabled
 // transparently when DATABASE_URL is unset (degraded mode). Single
 // no-op tick is returned so callers can still invoke tickOnce in tests.
+// Dedicated SMALL service-role pool for the out-of-band notification workers
+// (drain / reminders / fan-out). Their withServiceRoleContext transactions run
+// on a tight loop; isolating them from the main request pool keeps both under
+// the Supabase session-pooler client ceiling (see db-client.ts). Falls back to
+// the shared client when the dedicated pool can't be opened.
+const notificationWorkerDb =
+  getServiceRoleWorkerClient() ?? serviceRegistry.db;
 const remindersDispatchWorker = serviceRegistry.db
   ? createRemindersDispatchWorker({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       emailProvider: createEmailProviderFromEnv(),
       smsProvider: resolveSmsProviderFromEnv(),
@@ -3850,9 +3953,17 @@ const remindersDispatchWorker = serviceRegistry.db
       ),
       ...(parseQuietHoursEnv() ? { quietHours: parseQuietHoursEnv()! } : {}),
       intervalMs: Number(process.env.BORJIE_REMINDERS_INTERVAL_MS ?? 30_000) || 30_000,
+      // No-reminder-slips sweep: a 'sent' but un-acknowledged reminder is
+      // re-fired after this window (bounded by maxNudges), then escalated — so
+      // an owner who misses a single fired deadline reminder still gets a
+      // second nudge and a loud escalation (the SOTA follow-up/closing
+      // guarantee). Default ON at 24h; the owner acks to stop. Set
+      // BORJIE_REMINDERS_RE_REMIND_MS=0 to disable the sweep.
+      reRemindAfterMs: Number(process.env.BORJIE_REMINDERS_RE_REMIND_MS ?? 86_400_000) || 0,
+      maxNudges: Number(process.env.BORJIE_REMINDERS_MAX_NUDGES ?? 2) || 2,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_REMINDERS_WORKER_DISABLED !== 'true',
     })
-  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 }; } };
+  : { start() {}, stop() {}, async tickOnce() { return { claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0, reRemindNudged: 0, escalated: 0 }; } };
 
 // ── Wave-C C4 — proactive-intel regulation readers (owner-resolver + posture) ─
 // Both built from EXISTING services: the `users(tenant_id, is_owner)` SELECT the
@@ -4023,18 +4134,77 @@ const kgSyncWorker = serviceRegistry.db
 const notificationDispatchAbort = new AbortController();
 const notificationDispatcher = serviceRegistry.db
   ? createNotificationDispatcher({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       emailProvider: createEmailProviderFromEnv(),
       smsProvider: resolveSmsProviderFromEnv(),
       pushProvider: resolvePushProviderFromEnv(),
+      // Per-recipient preference gate — honors the owner's saved per-channel /
+      // per-template opt-outs AND quiet-hours window before sending. Reads
+      // notification_preferences under a service-role context (FORCE-RLS
+      // table); fail-open ('deliver') so a prefs read error never drops a
+      // notification. Urgent safety alerts bypass quiet-hours (never delayed).
+      shouldDeliver: async ({ tenantId, userId, channel, templateKey }) => {
+        // Read prefs on the dedicated worker pool (same isolation as the drain)
+        // so the per-row gate doesn't re-introduce main-pool contention.
+        const sdb = notificationWorkerDb ?? serviceRegistry.db;
+        if (!sdb) return 'deliver';
+        const parseHour = (v: unknown): number | null => {
+          if (typeof v !== 'string') return null;
+          const h = Number.parseInt(v.slice(0, 2), 10);
+          return Number.isInteger(h) && h >= 0 && h <= 23 ? h : null;
+        };
+        try {
+          return await withServiceRoleContext(sdb, async (tx) => {
+            const res = await tx.execute(drizzleSqlTag`
+              SELECT channels, templates, quiet_hours_start, quiet_hours_end
+                FROM notification_preferences
+               WHERE tenant_id = ${tenantId} AND user_id = ${userId}
+               LIMIT 1`);
+            const rows =
+              (res as { rows?: Array<Record<string, unknown>> }).rows ??
+              (Array.isArray(res) ? (res as Array<Record<string, unknown>>) : []);
+            const row = rows[0];
+            if (!row) return 'deliver'; // no saved prefs → deliver (opt-out, not opt-in)
+            const channels = (row.channels ?? {}) as Record<string, boolean>;
+            const templates = (row.templates ?? {}) as Record<string, boolean>;
+            // The prefs UI stores the human channel name 'push'; dispatch rows
+            // carry the rail name 'app_push'. Normalize so the push opt-out
+            // actually suppresses app_push (otherwise it was a dead toggle).
+            const prefChannel = channel === 'app_push' ? 'push' : channel;
+            if (channels[prefChannel] === false) return 'suppress';
+            if (templates[templateKey] === false) return 'suppress';
+            // Quiet-hours: defer DEFERRABLE notifications inside the owner's
+            // window. Urgent safety alerts (incident escalation / safety /
+            // sovereign) always deliver — they must never be delayed. Window
+            // evaluated in EAT (launch tz; covers TZ/KE/UG — per-owner tz is a
+            // refinement, NG is +1).
+            const urgent = /^(mining\.incident\.escalation|safety|sovereign)/.test(
+              templateKey,
+            );
+            const qs = parseHour(row.quiet_hours_start);
+            const qe = parseHour(row.quiet_hours_end);
+            if (
+              !urgent &&
+              qs !== null &&
+              qe !== null &&
+              isWithinQuietHours(new Date(), 'Africa/Dar_es_Salaam', qs, qe)
+            ) {
+              return 'defer';
+            }
+            return 'deliver';
+          });
+        } catch {
+          return 'deliver'; // fail-open on delivery
+        }
+      },
     })
   : null;
 // Broadcast fan-out — expands operator announcements into per-recipient
 // notification_dispatch_log rows (the drain worker above then sends them).
 const announcementFanoutWorker = serviceRegistry.db
   ? createAnnouncementFanoutWorker({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       resolveRecipients: createAnnouncementRecipientResolver(
         serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
@@ -4352,10 +4522,10 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: geofence watcher stop failed');
   }
   try {
-    leaseExpiryCron.stop();
-    logger.info('shutdown: lease-expiry cron stopped');
+    licenceExpiryCron.stop();
+    logger.info('shutdown: licence-expiry cron stopped');
   } catch (err) {
-    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: lease-expiry cron stop failed');
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: licence-expiry cron stop failed');
   }
   try {
     idempotencySweeperStop?.();
@@ -4688,10 +4858,10 @@ if (require.main === module) {
   // Geo SOTA 2026-05-29 — start the geofence watcher (no-op when DB
   // is absent or BORJIE_GEOFENCE_WATCHER_DISABLED=true).
   withClusterLeader(geofenceWatcher, lockIdFor('geofence-watcher')).start();
-  // Wave 15 — start the lease-expiry alert cron. Ticks daily, scans
-  // for leases at 60/30/7/1-day expiry windows, idempotent via
-  // notification_dispatch_log.idempotency_key.
-  withClusterLeader(leaseExpiryCron, lockIdFor('lease-expiry')).start();
+  // DETECTION — start the mining licence-expiry alert cron. Ticks daily,
+  // scans `licences` at 60/30/7/1-day expiry windows, enqueues pending
+  // notification_dispatch_log rows, idempotent via idempotency_key.
+  withClusterLeader(licenceExpiryCron, lockIdFor('licence-expiry')).start();
   // H2 deferral closure — idempotency_keys sweeper. Hourly DELETE of
   // rows past expires_at. Module-scoped `idempotencySweeperStop` is
   // set here so the gracefulShutdown handler above can stop it.
@@ -4750,6 +4920,12 @@ if (require.main === module) {
   // email/SMS/push). The drain runs as a long-lived runForever loop bounded
   // by an AbortController that graceful-shutdown trips.
   withClusterLeader(announcementFanoutWorker, lockIdFor('announcement-fanout')).start();
+  // The DRAIN is deliberately NOT cluster-leader-gated (unlike the fan-out and
+  // every sibling above): its claim is an atomic `UPDATE ... FOR UPDATE SKIP
+  // LOCKED` (dispatcher-worker.ts), so running it on every replica is safe AND
+  // desirable — no two replicas can claim the same row, and N replicas drain
+  // the queue N× faster. Leader-gating here would throttle delivery for no
+  // correctness gain. (Audit finding: intentional, not an oversight.)
   if (notificationDispatcher && process.env.NODE_ENV !== 'test' && process.env.BORJIE_NOTIFICATION_DISPATCH_DISABLED !== 'true') {
     void notificationDispatcher
       .runForever({ signal: notificationDispatchAbort.signal })

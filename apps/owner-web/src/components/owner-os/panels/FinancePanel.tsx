@@ -86,7 +86,11 @@ export const FINANCE_PANEL_DESCRIPTOR = FINANCE_DESCRIPTOR;
 // once rates arrive — they are never displayed to the owner as live numbers.
 const FALLBACK_GOLD_USD_OZ = 2384;
 const FALLBACK_TZS_USD = 2585;
-const FALLBACK_UNIT_COST_TZS_PER_G = 104_000;
+// Simulator starting unit cost — defaults to the slider minimum so it obviously
+// reads as "set me", never a plausible owner-specific cost basis the owner
+// might mistake for their real figure. (Gold price / TZS-USD above are market
+// FX fallbacks, overridden by the live feed.)
+const FALLBACK_UNIT_COST_TZS_PER_G = 60_000;
 
 export function FinancePanel({
   locale,

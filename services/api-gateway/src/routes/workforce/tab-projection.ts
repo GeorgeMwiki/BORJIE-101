@@ -65,6 +65,9 @@ export const PROJECTABLE_TAB_KINDS = [
   'compliance',
   'safety',
   'reports',
+  // Compiled-flow projection (business-process compiler): the worker leg of the
+  // golden buyer-inquiry flow (the response queue).
+  'inquiry_respond',
 ] as const;
 
 export type ProjectableTabKind = (typeof PROJECTABLE_TAB_KINDS)[number];

@@ -28,6 +28,7 @@ import type {
   EmailProviderInput,
   EmailProviderResult,
 } from '../email-provider';
+import { renderEmailHtml, renderEmailSubject } from './email-render';
 
 const HTTP_TIMEOUT_MS = 15_000;
 const PROVIDER_NAME = 'sendgrid';
@@ -65,9 +66,8 @@ export function createSendGridEmailProvider(
 ): EmailProvider {
   const baseUrl = config.apiBaseUrl ?? 'https://api.sendgrid.com';
   const fetchImpl = deps.fetch ?? fetch;
-  const renderSubject =
-    deps.renderSubject ?? defaultRenderSubject;
-  const renderHtml = deps.renderHtml ?? defaultRenderHtml;
+  const renderSubject = deps.renderSubject ?? renderEmailSubject;
+  const renderHtml = deps.renderHtml ?? renderEmailHtml;
 
   return {
     name: PROVIDER_NAME,
@@ -153,23 +153,6 @@ export function createSendGridEmailProvider(
       }
     },
   };
-}
-
-function defaultRenderSubject(input: EmailProviderInput): string {
-  return `BORJIE: ${input.templateKey}`;
-}
-
-function defaultRenderHtml(input: EmailProviderInput): string {
-  return `<p>Notification ${escapeHtml(input.templateKey)} (${escapeHtml(input.locale)})</p>`;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 async function safeReadBody(response: Response): Promise<string> {

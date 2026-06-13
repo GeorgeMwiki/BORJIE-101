@@ -126,6 +126,15 @@ const ALLOWLIST = [
     tracked_in: 'Docs/DEP_HYGIENE.md (expo-router @remix-run turbo-stream)',
     next_review: '2026-Q3',
   },
+  {
+    package: 'esbuild',
+    severity: ['high'],
+    fix: '>=0.28.1',
+    reason:
+      'GHSA-gv7w-rqvm-qjhr: esbuild "Missing binary integrity verification in Deno module enables RCE via NPM_CONFIG_REGISTRY". The RCE vector is DENO-SPECIFIC: esbuild\'s Deno module downloads its native binary from a registry URL without integrity verification, so a malicious NPM_CONFIG_REGISTRY can serve a trojaned binary. BORJIE runs on Node + pnpm, NOT Deno — esbuild\'s binary is resolved through pnpm against pnpm-lock.yaml SHA-512 integrity hashes, never via the Deno fetch path, so the vector does not exist here. esbuild is BUILD-TIME-ONLY dev tooling (transitive via tsup / vite / vitest); it is never present in any production runtime bundle. The fix (>=0.28.1) requires a coordinated bump of the tsup/vite/vitest esbuild pin across the workspace, deferred to a dedicated dependency-bump PR (cannot be verified without a full monorepo build).',
+    tracked_in: 'Docs/DEP_HYGIENE.md (esbuild >=0.28.1 build-tooling bump)',
+    next_review: '2026-Q3',
+  },
 ];
 
 function isAllowlisted(advisory) {

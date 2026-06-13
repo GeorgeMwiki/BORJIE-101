@@ -1,13 +1,13 @@
 /**
  * Market data cache (migration 0120).
  *
- * Caches results from external market-data adapters (Zillow, Airbnb,
- * Rentometer, regional comparable-rent feeds, etc.) so that repeated
+ * Caches results from external market-data adapters (LBMA, LME,
+ * regional commodity price feeds, etc.) so that repeated
  * kernel queries within a TTL do not hammer the upstream provider.
  *
  * Schema:
  *   - `cache_key`  TEXT PK    sha256(provider | normalised query)
- *   - `provider`   TEXT       'zillow' | 'airbnb' | future codes
+ *   - `provider`   TEXT       'lbma' | 'lme' | future codes
  *   - `query_json` JSONB      the normalised query the key was built from
  *   - `result_json` JSONB     the upstream's response (typed at read time
  *                             by the calling adapter)

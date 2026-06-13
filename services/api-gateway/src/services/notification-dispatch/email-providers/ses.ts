@@ -32,6 +32,7 @@ import type {
   EmailProviderInput,
   EmailProviderResult,
 } from '../email-provider';
+import { renderEmailHtml, renderEmailSubject } from './email-render';
 
 const HTTP_TIMEOUT_MS = 15_000;
 const PROVIDER_NAME = 'ses';
@@ -79,8 +80,8 @@ export function createSesEmailProvider(
 ): EmailProvider {
   const fetchImpl = deps.fetch ?? fetch;
   const now = deps.now ?? (() => new Date());
-  const renderSubject = deps.renderSubject ?? defaultRenderSubject;
-  const renderHtml = deps.renderHtml ?? defaultRenderHtml;
+  const renderSubject = deps.renderSubject ?? renderEmailSubject;
+  const renderHtml = deps.renderHtml ?? renderEmailHtml;
   const baseUrl =
     config.apiBaseUrl ?? `https://email.${config.region}.amazonaws.com`;
   const host = new URL(baseUrl).host;
@@ -199,23 +200,6 @@ function encodeForm(params: FormParams): string {
         `${encodeURIComponent(k)}=${encodeURIComponent(v)}`,
     )
     .join('&');
-}
-
-function defaultRenderSubject(input: EmailProviderInput): string {
-  return `BORJIE: ${input.templateKey}`;
-}
-
-function defaultRenderHtml(input: EmailProviderInput): string {
-  return `<p>Notification ${escapeHtml(input.templateKey)} (${escapeHtml(input.locale)})</p>`;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 async function safeReadBody(response: Response): Promise<string> {

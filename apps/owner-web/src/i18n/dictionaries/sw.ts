@@ -329,15 +329,20 @@ export const sw = {
   },
   "reminders": {
     "heading": "Vikumbusho",
-    "channelHint": "Email default · SMS / Slack zinapatikana",
+    "channelHint": "Barua pepe ndiyo chaguo-msingi · SMS / WhatsApp / Slack zinapatikana",
     "title": "Kichwa",
     "body": "Ujumbe",
     "triggerAt": "Tarehe",
     "channel": "Njia",
+    "channelEmail": "Barua pepe",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSlack": "Slack",
     "saving": "Inahifadhi…",
     "schedule": "Hifadhi kikumbusho",
     "empty": "Hakuna vikumbusho.",
-    "cancelItem": "Futa"
+    "cancelItem": "Futa",
+    "acknowledge": "Thibitisha"
   },
   "sandboxQueue": {
     "committed": "Imewekwa kwenye mfumo.",
@@ -419,5 +424,30 @@ export const sw = {
   },
   "cockpit": {
     "dailyBriefTitle": "Muhtasari wa kila siku"
+  },
+  "escalations": {
+    "heading": "Taarifa za dharura",
+    "headerOpen": "Taarifa za dharura zilizo wazi ({count})",
+    "liveHint": "Ngazi rasmi · thibitisha au tatua ili kufunga",
+    "loading": "Inapakia taarifa za dharura…",
+    "signInRequired": "Ingia ili kuona taarifa za dharura.",
+    "loadFailed": "Imeshindwa kupakia taarifa za dharura. Tafadhali jaribu tena.",
+    "emptyTitle": "Hakuna taarifa za dharura zilizo wazi",
+    "emptyBody": "Mfanyakazi, meneja, au MD anapopandisha jambo kwa binadamu, linaonekana hapa.",
+    "acknowledge": "Thibitisha",
+    "resolve": "Tatua",
+    "acknowledging": "Inathibitisha…",
+    "resolving": "Inatatua…",
+    "actionFailed": "Hatua imeshindwa. Tafadhali jaribu tena.",
+    "openedPrefix": "Ilifunguliwa",
+    "justNow": "sasa hivi",
+    "minutesAgo": "dakika {count} zilizopita",
+    "hoursAgo": "saa {count} zilizopita",
+    "severityInfo": "Taarifa",
+    "severityWarning": "Onyo",
+    "severityCritical": "Hatari",
+    "statusOpen": "Wazi",
+    "statusAcknowledged": "Imethibitishwa",
+    "statusResolved": "Imetatuliwa"
   }
 } as const;

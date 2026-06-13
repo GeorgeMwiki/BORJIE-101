@@ -15,10 +15,8 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import {
-  createRemindersDispatchWorker,
-  isWithinQuietHours,
-} from '../reminders-dispatch.worker.js';
+import { createRemindersDispatchWorker } from '../reminders-dispatch.worker.js';
+import { isWithinQuietHours } from '../reminders-quiet-hours.js';
 
 function makeStubDb(initialRows: ReadonlyArray<Record<string, unknown>>) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
@@ -139,7 +137,15 @@ describe('reminders-dispatch worker', () => {
       enabled: true,
     });
     const res = await w.tickOnce();
-    expect(res).toEqual({ claimed: 0, sent: 0, failed: 0, retried: 0, deferred: 0 });
+    expect(res).toEqual({
+      claimed: 0,
+      sent: 0,
+      failed: 0,
+      retried: 0,
+      deferred: 0,
+      reRemindNudged: 0,
+      escalated: 0,
+    });
   });
 
   it('RETRIES a retryable provider failure (re-queues with backoff, bumps attempt_count)', async () => {
@@ -347,5 +353,177 @@ describe('reminders-dispatch — quiet hours (SMS only)', () => {
     expect(res.deferred).toBe(0);
     expect(res.sent).toBe(1);
     expect(smsSpy.send).toHaveBeenCalledOnce();
+  });
+});
+
+describe('reminders-dispatch — whatsapp channel', () => {
+  it('dispatches a whatsapp row via the SMS provider with channel="whatsapp"', async () => {
+    const db = makeStubDb([
+      {
+        id: 'reminder-wa',
+        tenant_id: 't-1',
+        owner_id: 'u-1',
+        title: 'Renewal due',
+        body: 'PML renews in 7 days',
+        channel: 'whatsapp',
+        payload: {},
+        idempotency_key: 'idem-wa',
+        attempt_count: 0,
+      },
+    ]);
+    const waSms = {
+      name: 'sms',
+      configured: true,
+      send: vi.fn(async () => ({
+        status: 'sent' as const,
+        provider: 'sms',
+        providerRef: 'wa-1',
+      })),
+    };
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: waSms,
+      phoneForOwner: async () => '+255700000000',
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.sent).toBe(1);
+    expect(res.failed).toBe(0);
+    expect(waSms.send).toHaveBeenCalledOnce();
+    expect(waSms.send.mock.calls[0][0].channel).toBe('whatsapp');
+  });
+});
+
+// A sweep-aware stub: the FIRST 'sent'-claim sweep query returns the seeded
+// unacknowledged rows; the delivery claim ('scheduled') returns nothing. This
+// lets the no-reminder-slips sweep be exercised in isolation.
+function makeSweepStubDb(unackedRows: ReadonlyArray<Record<string, unknown>>) {
+  const calls: Array<{ sql: string; values: unknown[] }> = [];
+  let sweepReturned = false;
+  return {
+    calls,
+    execute: vi.fn(async (q: unknown) => {
+      const sqlObj = q as {
+        strings?: ReadonlyArray<string>;
+        queryChunks?: ReadonlyArray<{ value?: string }>;
+        values?: unknown[];
+      };
+      const text =
+        sqlObj?.strings?.join(' ') ??
+        sqlObj?.queryChunks?.map((c) => c.value ?? '').join(' ') ??
+        '';
+      calls.push({ sql: text, values: sqlObj?.values ?? [] });
+      // The sweep claim selects status = 'sent'; the delivery claim selects
+      // status = 'scheduled'. Only the sweep claim yields rows here.
+      if (
+        text.includes('UPDATE reminders') &&
+        text.includes('RETURNING') &&
+        text.includes("status = 'sent'") &&
+        !sweepReturned
+      ) {
+        sweepReturned = true;
+        return { rows: unackedRows };
+      }
+      return { rows: [] };
+    }),
+  };
+}
+
+describe('reminders-dispatch — no-reminder-slips sweep (re-remind + escalate)', () => {
+  function sentUnackedRow(
+    id: string,
+    payload: Record<string, unknown> = {},
+  ) {
+    return {
+      id,
+      tenant_id: 't-1',
+      owner_id: 'u-1',
+      title: 'Royalty filing due',
+      body: 'File the monthly royalty return',
+      channel: 'email',
+      payload,
+      idempotency_key: `idem-${id}`,
+      attempt_count: 0,
+    };
+  }
+
+  it('does NOT sweep when reRemindAfterMs is unset (dormant by default)', async () => {
+    const db = makeSweepStubDb([sentUnackedRow('s0')]);
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: stubSmsProvider,
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.reRemindNudged).toBe(0);
+    expect(res.escalated).toBe(0);
+    // No sweep claim was issued (no 'sent'-status claim query).
+    expect(
+      db.calls.some(
+        (c) => c.sql.includes('RETURNING') && c.sql.includes("status = 'sent'"),
+      ),
+    ).toBe(false);
+  });
+
+  it('RE-FIRES a sent-but-unacknowledged row (second nudge, bumps counter)', async () => {
+    const db = makeSweepStubDb([sentUnackedRow('s1')]);
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: stubSmsProvider,
+      reRemindAfterMs: 60_000,
+      maxNudges: 2,
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.reRemindNudged).toBe(1);
+    expect(res.escalated).toBe(0);
+    // Re-queued for immediate re-delivery (status back to 'scheduled').
+    const requeue = db.calls.find(
+      (c) =>
+        c.sql.includes("SET status = 'scheduled'") &&
+        c.sql.includes('dispatched_at = NULL'),
+    );
+    expect(requeue).toBeDefined();
+    // No escalation cockpit-mark (would set status = 'acknowledged').
+    expect(
+      db.calls.some((c) => c.sql.includes("SET status = 'acknowledged'")),
+    ).toBe(false);
+  });
+
+  it('ESCALATES once the nudge cap is reached (terminal, no further re-fire)', async () => {
+    // Payload already at the cap → escalate instead of re-firing.
+    const db = makeSweepStubDb([
+      sentUnackedRow('s2', { __reminderNudges: 2 }),
+    ]);
+    const w = createRemindersDispatchWorker({
+      db,
+      logger: stubLogger,
+      emailProvider: okEmailProvider,
+      smsProvider: stubSmsProvider,
+      reRemindAfterMs: 60_000,
+      maxNudges: 2,
+      enabled: true,
+    });
+    const res = await w.tickOnce();
+    expect(res.escalated).toBe(1);
+    expect(res.reRemindNudged).toBe(0);
+    // Escalation lands the row terminally (status = 'acknowledged').
+    expect(
+      db.calls.some((c) => c.sql.includes("SET status = 'acknowledged'")),
+    ).toBe(true);
+    // It is NOT re-fired again.
+    expect(
+      db.calls.some(
+        (c) =>
+          c.sql.includes("SET status = 'scheduled'") &&
+          c.sql.includes('dispatched_at = NULL'),
+      ),
+    ).toBe(false);
   });
 });

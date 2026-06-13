@@ -60,6 +60,7 @@ import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { withServiceRoleContext } from '@borjie/database';
 
 import {
   registerWorker,
@@ -186,6 +187,29 @@ function asRows(res: unknown): readonly Record<string, unknown>[] {
   return Array.isArray(r) ? (r as Record<string, unknown>[]) : [];
 }
 
+// The db param type withServiceRoleContext expects (deriving it avoids the
+// TS2709 namespace clash on `DatabaseClient` under NodeNext).
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
+
+/**
+ * Run a statement under a service-role RLS context when the db supports
+ * transactions (the real Drizzle client). Both `platform_announcements` and
+ * `notification_dispatch_log` have FORCE ROW LEVEL SECURITY + a service-role
+ * bypass — without `app.is_service_role='true'` bound the claim UPDATE matches
+ * zero rows and the INSERT is rejected, so the fan-out silently does nothing.
+ * Tests inject a transaction-less mock and fall through to a direct execute.
+ */
+function runStmt(db: DbLike, q: unknown): Promise<unknown> {
+  const dbAny = db as { transaction?: unknown };
+  if (typeof dbAny.transaction === 'function') {
+    return withServiceRoleContext(
+      db as unknown as ServiceRoleDb,
+      (tx) => (tx as unknown as DbLike).execute(q),
+    );
+  }
+  return db.execute(q);
+}
+
 /**
  * Per-recipient idempotency key. Shape:
  *   `announcement::<announcementId>::<userId>::<channel>`
@@ -246,15 +270,15 @@ export function createAnnouncementFanoutWorker(
     try {
       // Atomic claim: stamp fanned_out_at so a second worker / restart cannot
       // re-expand the same announcement. Only email/both, due, not-yet-fanned.
-      const res = await options.db.execute(sql`
+      const res = await runStmt(options.db, sql`
         UPDATE platform_announcements
-           SET fanned_out_at = ${ts}
+           SET fanned_out_at = ${ts.toISOString()}
          WHERE id IN (
            SELECT id FROM platform_announcements
             WHERE fanned_out_at IS NULL
               AND channel IN ('email', 'both')
               AND status IN ('queued', 'sending', 'sent')
-              AND scheduled_for <= ${ts}
+              AND scheduled_for <= ${ts.toISOString()}
             ORDER BY scheduled_for ASC
             LIMIT ${batchSize}
             FOR UPDATE SKIP LOCKED
@@ -310,7 +334,7 @@ export function createAnnouncementFanoutWorker(
       body: announcement.body,
     });
     try {
-      await options.db.execute(sql`
+      await runStmt(options.db, sql`
         INSERT INTO notification_dispatch_log (
           id, tenant_id, user_id, channel, recipient_address,
           template_key, locale, payload, correlation_id, idempotency_key,

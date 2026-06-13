@@ -35,6 +35,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 
 import { publishCockpitEvent } from '../services/cockpit-events';
 import {
@@ -46,9 +47,23 @@ import {
   workerHeartbeat,
   workerHeartbeatFailure,
 } from './worker-heartbeat';
+import {
+  DEFAULT_TIMEZONE,
+  QUIET_RECHECK_MS,
+  asRows,
+  isWithinQuietHours,
+} from './reminders-quiet-hours';
 
 const DEFAULT_INTERVAL_MS = 30_000;
 const DEFAULT_BATCH = 25;
+
+// No-reminder-slips sweep: a delivered-but-unacknowledged reminder is re-fired
+// up to DEFAULT_MAX_NUDGES times (counter tracked on the row payload), then
+// escalated. OFF unless `reRemindAfterMs` is wired in composition.
+const DEFAULT_MAX_NUDGES = 2;
+const ESCALATION_SWEEP_BATCH = 25;
+/** Reserved payload key holding the bounded nudge counter. */
+const NUDGE_COUNT_KEY = '__reminderNudges';
 
 // Retry policy — mirrors the notification-dispatch worker so both delivery
 // paths back off identically. A RETRYABLE failure re-queues the row (status
@@ -64,51 +79,12 @@ function computeNextRetryAt(from: Date, attempt: number): Date {
   return new Date(from.getTime() + delayMs);
 }
 
-// Quiet-hours: SMS is the one intrusive channel here (it buzzes a phone), so
-// only SMS is gated — email/Slack still deliver immediately. When the owner's
-// LOCAL time falls in the quiet window the row is DEFERRED (re-queued, not
-// failed, and WITHOUT consuming a retry attempt) and re-checked shortly after.
-const DEFAULT_TIMEZONE = 'Africa/Dar_es_Salaam';
-const QUIET_RECHECK_MS = 30 * 60_000; // 30m — re-evaluate until outside the window
-
-/** Hour-of-day (0–23) at `instant` in the given IANA time zone. Pure. */
-function hourInZone(instant: Date, timeZone: string): number {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      hour: 'numeric',
-      hour12: false,
-    }).formatToParts(instant);
-    const raw = parts.find((p) => p.type === 'hour')?.value ?? '0';
-    const n = Number.parseInt(raw, 10);
-    return Number.isFinite(n) ? n % 24 : 0; // some engines render midnight as 24
-  } catch {
-    // Unknown/invalid time zone → treat as 0 so we never crash the dispatch.
-    return 0;
-  }
-}
-
-/**
- * True when `instant` is inside the quiet window `[startHour, endHour)` in
- * `timeZone`. Supports midnight-wrapping windows (e.g. 21→7). An empty window
- * (start === end) is treated as "no quiet hours". Pure.
- */
-export function isWithinQuietHours(
-  instant: Date,
-  timeZone: string,
-  startHour: number,
-  endHour: number,
-): boolean {
-  if (startHour === endHour) return false;
-  const h = hourInZone(instant, timeZone);
-  return startHour < endHour
-    ? h >= startHour && h < endHour
-    : h >= startHour || h < endHour;
-}
-
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
+
+// withServiceRoleContext's db param type (derived to dodge the TS2709 clash).
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 interface PendingReminder {
   readonly id: string;
@@ -116,7 +92,7 @@ interface PendingReminder {
   readonly ownerId: string;
   readonly title: string;
   readonly body: string;
-  readonly channel: 'email' | 'sms' | 'slack';
+  readonly channel: 'email' | 'sms' | 'slack' | 'whatsapp';
   readonly payload: Record<string, unknown>;
   readonly idempotencyKey: string;
   /** Delivery attempts so far (0 on a fresh row). Drives the retry cap. */
@@ -154,6 +130,16 @@ export interface RemindersDispatchOptions {
   /** Resolver from owner_id → IANA time zone (owner_contact_prefs.timezone).
    *  Falls back to Africa/Dar_es_Salaam when absent. Drives quiet-hours. */
   readonly timezoneForOwner?: (tenantId: string, ownerId: string) => Promise<string | null>;
+  /**
+   * No-reminder-slips guarantee. A reminder delivered (status 'sent') but
+   * never acknowledged by the owner is RE-FIRED after this window — a second
+   * nudge — up to `maxNudges` times, after which it ESCALATES (a cockpit pulse
+   * the owner cannot miss). Defaults keep the loop conservative; set to 0 /
+   * omit `reRemindAfterMs` to disable the sweep entirely.
+   */
+  readonly reRemindAfterMs?: number;
+  /** Max re-remind nudges before escalation. Default 2. Bounded + small. */
+  readonly maxNudges?: number;
 }
 
 export interface RemindersDispatchHandle {
@@ -172,12 +158,12 @@ export interface DispatchTickResult {
   /** SMS rows deferred because the owner is in quiet hours (re-queued for
    *  later, no delivery attempt made, no retry attempt consumed). */
   readonly deferred: number;
-}
-
-function asRows(res: unknown): readonly Record<string, unknown>[] {
-  if (Array.isArray(res)) return res as Record<string, unknown>[];
-  const r = (res as { rows?: unknown }).rows;
-  return Array.isArray(r) ? (r as Record<string, unknown>[]) : [];
+  /** 'sent'-but-unacknowledged rows re-fired as a second nudge this tick
+   *  (the no-reminder-slips sweep). */
+  readonly reRemindNudged: number;
+  /** 'sent'-but-unacknowledged rows that hit the nudge cap and escalated
+   *  to a cockpit alert pulse this tick. */
+  readonly escalated: number;
 }
 
 function rowToReminder(r: Record<string, unknown>): PendingReminder | null {
@@ -191,12 +177,23 @@ function rowToReminder(r: Record<string, unknown>): PendingReminder | null {
   if (!id || !tenantId || !ownerId || !title || !body || !channelRaw || !idempotencyKey) {
     return null;
   }
-  if (channelRaw !== 'email' && channelRaw !== 'sms' && channelRaw !== 'slack') {
+  if (
+    channelRaw !== 'email' &&
+    channelRaw !== 'sms' &&
+    channelRaw !== 'slack' &&
+    channelRaw !== 'whatsapp'
+  ) {
     return null;
   }
+  // Strip html/bodyHtml so owner free-text can't reach the email renderer's
+  // verbatim-HTML path (defense-in-depth vs self-injected HTML in email).
   const payload =
     r.payload && typeof r.payload === 'object'
-      ? (r.payload as Record<string, unknown>)
+      ? Object.fromEntries(
+          Object.entries(r.payload as Record<string, unknown>).filter(
+            ([k]) => k !== 'html' && k !== 'bodyHtml',
+          ),
+        )
       : {};
   const attemptCountRaw = r.attempt_count;
   const attemptCount =
@@ -227,6 +224,21 @@ export function createRemindersDispatchWorker(
   let timer: ReturnType<typeof setInterval> | null = null;
   let bootWarned = false;
 
+  // `reminders` has FORCE RLS + a service-role bypass (migration 0354); this
+  // worker drains CROSS-TENANT over the shared pool, so every statement must
+  // bind `app.is_service_role='true'` or the claim matches ZERO rows (loop
+  // goes dark). Wrap when transactional; the unit-test mock executes directly.
+  function runStmt(q: unknown): Promise<unknown> {
+    const dbAny = options.db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(
+        options.db as unknown as ServiceRoleDb,
+        (tx) => (tx as unknown as DbLike).execute(q),
+      );
+    }
+    return options.db.execute(q);
+  }
+
   function warnBootOnce(): void {
     if (bootWarned) return;
     bootWarned = true;
@@ -244,13 +256,13 @@ export function createRemindersDispatchWorker(
       // Atomic claim: flip ready rows from 'scheduled' to 'sending' so a
       // second worker / restart cannot grab the same row. We return the
       // full row so the dispatcher has everything it needs.
-      const res = await options.db.execute(sql`
+      const res = await runStmt(sql`
         UPDATE reminders
            SET status = 'sending'
          WHERE id IN (
            SELECT id FROM reminders
             WHERE status = 'scheduled'
-              AND trigger_at <= ${ts}
+              AND trigger_at <= ${ts.toISOString()}
             ORDER BY trigger_at ASC
             LIMIT ${DEFAULT_BATCH}
             FOR UPDATE SKIP LOCKED
@@ -274,24 +286,27 @@ export function createRemindersDispatchWorker(
 
   async function markSent(r: PendingReminder): Promise<void> {
     try {
-      await options.db.execute(sql`
+      await runStmt(sql`
         UPDATE reminders
            SET status = 'sent',
-               dispatched_at = ${now()},
+               dispatched_at = ${now().toISOString()},
                dispatch_error = NULL
          WHERE id = ${r.id}
            AND tenant_id = ${r.tenantId}
            AND dispatched_at IS NULL
       `);
       // R6 — cockpit SSE notify. Emit only AFTER the DB row flipped to
-      // 'sent' so the toast cannot show before the channel acks.
+      // 'sent' so the toast cannot show before the channel acks. The cockpit
+      // event's `channel` field is a display hint typed to the original three
+      // rails; WhatsApp is a phone rail like SMS, so it maps to 'sms' for the
+      // toast (the row itself records the true 'whatsapp' channel).
       publishCockpitEvent({
         kind: 'reminder.fired',
         tenantId: r.tenantId,
         emittedAt: now().toISOString(),
         reminderId: r.id,
         title: r.title,
-        channel: r.channel,
+        channel: r.channel === 'whatsapp' ? 'sms' : r.channel,
       });
     } catch (err) {
       options.logger.warn(
@@ -303,10 +318,10 @@ export function createRemindersDispatchWorker(
 
   async function markFailed(r: PendingReminder, errorMessage: string): Promise<void> {
     try {
-      await options.db.execute(sql`
+      await runStmt(sql`
         UPDATE reminders
            SET status = 'failed',
-               dispatched_at = ${now()},
+               dispatched_at = ${now().toISOString()},
                dispatch_error = ${errorMessage.slice(0, 4000)}
          WHERE id = ${r.id}
            AND tenant_id = ${r.tenantId}
@@ -331,10 +346,10 @@ export function createRemindersDispatchWorker(
   ): Promise<void> {
     const retryAt = computeNextRetryAt(now(), nextAttempt);
     try {
-      await options.db.execute(sql`
+      await runStmt(sql`
         UPDATE reminders
            SET status = 'scheduled',
-               trigger_at = ${retryAt},
+               trigger_at = ${retryAt.toISOString()},
                attempt_count = ${nextAttempt},
                dispatch_error = ${errorMessage.slice(0, 4000)}
          WHERE id = ${r.id}
@@ -370,10 +385,10 @@ export function createRemindersDispatchWorker(
   // (a deferral is not a failure). It will deliver once outside the window.
   async function markDeferred(r: PendingReminder, until: Date): Promise<void> {
     try {
-      await options.db.execute(sql`
+      await runStmt(sql`
         UPDATE reminders
            SET status = 'scheduled',
-               trigger_at = ${until}
+               trigger_at = ${until.toISOString()}
          WHERE id = ${r.id}
            AND tenant_id = ${r.tenantId}
       `);
@@ -457,8 +472,12 @@ export function createRemindersDispatchWorker(
       }
     }
 
-    if (r.channel === 'sms') {
-      // Quiet-hours: defer the SMS rather than buzz the owner's phone at night.
+    // SMS + WhatsApp share the SMS provider seam: both resolve the owner's
+    // E.164 phone and dispatch via `options.smsProvider`, differing ONLY in
+    // the `channel` flag the Twilio adapter routes on (whatsapp: prefix vs
+    // bare number). Both buzz the owner's phone, so quiet-hours gates both.
+    if (r.channel === 'sms' || r.channel === 'whatsapp') {
+      // Quiet-hours: defer rather than buzz the owner's phone at night.
       if (await deferredForQuietHours(r)) {
         return { outcome: 'deferred' };
       }
@@ -478,7 +497,7 @@ export function createRemindersDispatchWorker(
           locale: 'en',
           payload: { title: r.title, body: r.body, ...r.payload },
           idempotencyKey: r.idempotencyKey,
-          channel: 'sms',
+          channel: r.channel,
         });
         if (result.status === 'sent') {
           await markSent(r);
@@ -556,6 +575,144 @@ export function createRemindersDispatchWorker(
     }
   }
 
+  // ───────────────────────────────────────────────────────────────────
+  // No-reminder-slips sweep: re-remind + escalate.
+  //
+  // A reminder that was DELIVERED ('sent') but never ACKNOWLEDGED by the
+  // owner (POST /:id/acknowledge moves it to terminal 'acknowledged') is a
+  // potential slip. After `reRemindAfterMs` we re-fire it (a second nudge)
+  // by flipping it back to 'scheduled' with trigger_at = now() so the normal
+  // claim re-delivers it. The bounded nudge counter lives on the row's
+  // payload (`__reminderNudges`) so no schema change is needed. Once the
+  // counter reaches `maxNudges` the row instead ESCALATES: an
+  // 'incident.escalated' cockpit pulse the owner cannot miss, and the row is
+  // marked 'acknowledged' so it leaves the sweep (escalation IS the terminal
+  // resolution — Mr. Mwikila has now surfaced it loudly). Bounded + idempotent.
+  // ───────────────────────────────────────────────────────────────────
+
+  /** Read the bounded nudge counter off a payload jsonb. Pure. */
+  function nudgeCountOf(payload: Record<string, unknown>): number {
+    const raw = payload[NUDGE_COUNT_KEY];
+    if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+      return Math.floor(raw);
+    }
+    return 0;
+  }
+
+  // Claim 'sent'-but-unacknowledged rows whose dispatched_at is older than the
+  // window. Flips them to 'sending' under SKIP LOCKED so a second worker /
+  // restart cannot double-sweep, mirroring the delivery claim.
+  async function claimUnacknowledged(
+    olderThan: Date,
+  ): Promise<readonly PendingReminder[]> {
+    try {
+      const res = await runStmt(sql`
+        UPDATE reminders
+           SET status = 'sending'
+         WHERE id IN (
+           SELECT id FROM reminders
+            WHERE status = 'sent'
+              AND dispatched_at IS NOT NULL
+              AND dispatched_at <= ${olderThan.toISOString()}
+            ORDER BY dispatched_at ASC
+            LIMIT ${ESCALATION_SWEEP_BATCH}
+            FOR UPDATE SKIP LOCKED
+         )
+         RETURNING id, tenant_id, owner_id, title, body, channel, payload, idempotency_key, attempt_count
+      `);
+      const out: PendingReminder[] = [];
+      for (const row of asRows(res)) {
+        const r = rowToReminder(row);
+        if (r) out.push(r);
+      }
+      return out;
+    } catch (err) {
+      options.logger.warn(
+        { worker: 'reminders-dispatch', err: err instanceof Error ? err.message : String(err) },
+        'reminders-dispatch: unacknowledged claim failed',
+      );
+      return [];
+    }
+  }
+
+  // Re-fire an unacknowledged row: bump the nudge counter on its payload and
+  // re-queue it for immediate re-delivery (status 'scheduled', trigger_at now).
+  // dispatched_at is cleared so the next markSent records a fresh delivery and
+  // the row is eligible for a future sweep window.
+  async function reRemind(r: PendingReminder, nextNudge: number): Promise<void> {
+    const nextPayload = { ...r.payload, [NUDGE_COUNT_KEY]: nextNudge };
+    try {
+      await runStmt(sql`
+        UPDATE reminders
+           SET status = 'scheduled',
+               trigger_at = ${now().toISOString()},
+               dispatched_at = NULL,
+               payload = ${JSON.stringify(nextPayload)}::jsonb
+         WHERE id = ${r.id}
+           AND tenant_id = ${r.tenantId}
+      `);
+    } catch (err) {
+      options.logger.warn(
+        { worker: 'reminders-dispatch', reminderId: r.id, err: err instanceof Error ? err.message : String(err) },
+        'reminders-dispatch: reRemind failed',
+      );
+    }
+  }
+
+  // Escalate an unacknowledged row that has exhausted its nudges: emit a
+  // cockpit alert pulse and land the row in the terminal 'acknowledged' state
+  // (the escalation is now the resolution — it has been surfaced loudly).
+  async function escalateUnacknowledged(r: PendingReminder): Promise<void> {
+    try {
+      await runStmt(sql`
+        UPDATE reminders
+           SET status = 'acknowledged'
+         WHERE id = ${r.id}
+           AND tenant_id = ${r.tenantId}
+      `);
+      publishCockpitEvent({
+        kind: 'incident.escalated',
+        tenantId: r.tenantId,
+        emittedAt: now().toISOString(),
+        incidentId: r.id,
+        fromLevel: 'reminder',
+        toLevel: 'escalated',
+        escalatedBy: 'reminders-dispatch',
+      });
+    } catch (err) {
+      options.logger.warn(
+        { worker: 'reminders-dispatch', reminderId: r.id, err: err instanceof Error ? err.message : String(err) },
+        'reminders-dispatch: escalate failed',
+      );
+    }
+  }
+
+  // One pass of the no-reminder-slips sweep. Returns the per-tick counts.
+  async function sweepUnacknowledged(): Promise<{
+    readonly nudged: number;
+    readonly escalated: number;
+  }> {
+    if (!options.reRemindAfterMs || options.reRemindAfterMs <= 0) {
+      return { nudged: 0, escalated: 0 };
+    }
+    const maxNudges = options.maxNudges ?? DEFAULT_MAX_NUDGES;
+    const olderThan = new Date(now().getTime() - options.reRemindAfterMs);
+    const rows = await claimUnacknowledged(olderThan);
+    let nudged = 0;
+    let escalated = 0;
+    for (const r of rows) {
+      const count = nudgeCountOf(r.payload);
+      if (count < maxNudges) {
+        await reRemind(r, count + 1);
+        nudged += 1;
+      } else {
+        await escalateUnacknowledged(r);
+        escalated += 1;
+      }
+    }
+    return { nudged, escalated };
+  }
+
   async function tickOnce(): Promise<DispatchTickResult> {
     warnBootOnce();
     try {
@@ -571,15 +728,33 @@ export function createRemindersDispatchWorker(
         else if (outcome === 'deferred') deferred += 1;
         else failed += 1;
       }
-      if (claimed.length > 0) {
+      const { nudged: reRemindNudged, escalated } = await sweepUnacknowledged();
+      if (claimed.length > 0 || reRemindNudged > 0 || escalated > 0) {
         options.logger.info(
-          { worker: 'reminders-dispatch', claimed: claimed.length, sent, failed, retried, deferred },
+          {
+            worker: 'reminders-dispatch',
+            claimed: claimed.length,
+            sent,
+            failed,
+            retried,
+            deferred,
+            reRemindNudged,
+            escalated,
+          },
           'reminders-dispatch: tick done',
         );
       }
       // G6 — heartbeat on the success path.
       workerHeartbeat('reminders-dispatch');
-      return { claimed: claimed.length, sent, failed, retried, deferred };
+      return {
+        claimed: claimed.length,
+        sent,
+        failed,
+        retried,
+        deferred,
+        reRemindNudged,
+        escalated,
+      };
     } catch (err) {
       workerHeartbeatFailure('reminders-dispatch', err);
       throw err;

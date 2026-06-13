@@ -38,6 +38,7 @@ import {
 } from '@borjie/portal-genui';
 import { AdaptiveRenderer } from '@borjie/genui';
 import type { AgUiUiPart } from '@borjie/genui';
+import { reportGenuiUnknownKind } from '../../lib/genui-telemetry';
 import type { TFn } from '@/i18n/resolve';
 import { confirmAction } from '@/lib/queries/chat-actions';
 
@@ -260,7 +261,10 @@ function GenUiPartView({
 
   return (
     <div data-testid={`genui-widget-${widget.key}-adaptive`}>
-      <AdaptiveRenderer uiPart={uiPart} />
+      <AdaptiveRenderer
+        uiPart={uiPart}
+        onUnknownKind={(detail) => reportGenuiUnknownKind(detail, 'owner-cockpit')}
+      />
     </div>
   );
 }

@@ -69,4 +69,89 @@ export const notificationPreferencesPanelStrings = {
     en: `Remove ${label}`,
     sw: `Ondoa ${label}`,
   }),
+
+  // --- Dispatcher-gate UI (TZ5): per-channel on/off, template opt-outs, and a
+  // quiet-hours window. These drive /api/v1/me/notification-preferences, the
+  // table the notification dispatcher's shouldDeliver gate consults. Keys are
+  // scoped under explicit names so they never collide with the legacy
+  // channel-priority copy above (or with reminders/escalations panels).
+  deliveryHeading: {
+    en: 'Delivery preferences',
+    sw: 'Mapendeleo ya utumaji',
+  },
+  deliverySubtitle: {
+    en: 'Turn channels off to stop delivery on them. Off everywhere stops a notification entirely.',
+    sw: 'Zima njia ili kuacha kutuma kupitia kwazo. Zikizimwa zote, arifa haitumwi kabisa.',
+  },
+  channelOnOffSection: {
+    en: 'Channels',
+    sw: 'Njia',
+  },
+  channelEnabled: { en: 'On', sw: 'Imewashwa' },
+  channelDisabled: { en: 'Off', sw: 'Imezimwa' },
+  channelToggleAria: (label: string) => ({
+    en: `Toggle delivery on ${label}`,
+    sw: `Geuza utumaji kwenye ${label}`,
+  }),
+
+  // Push is the fourth dispatcher channel (the legacy priority list does not
+  // include it, so its label lives here too).
+  channelPushEn: 'Push',
+  channelPushSw: 'Arifa za papo (push)',
+  channelInAppNote: {
+    en: 'In-app notifications are always delivered and cannot be turned off.',
+    sw: 'Arifa za ndani ya programu hutumwa kila wakati na haziwezi kuzimwa.',
+  },
+
+  templatesSection: {
+    en: 'Notification types',
+    sw: 'Aina za arifa',
+  },
+  templatesSubtitle: {
+    en: 'Mute specific notification types across every channel.',
+    sw: 'Nyamazisha aina maalum za arifa kwenye kila njia.',
+  },
+  templateToggleAria: (label: string) => ({
+    en: `Toggle the ${label} notification type`,
+    sw: `Geuza aina ya arifa ya ${label}`,
+  }),
+  templateLabel: (key: string) => {
+    const map: Record<string, { en: string; sw: string }> = {
+      'licence.expiry_warning': {
+        en: 'Licence expiry warning',
+        sw: 'Onyo la kuisha kwa leseni',
+      },
+      'licence.renewal_status_changed': {
+        en: 'Licence renewal status change',
+        sw: 'Mabadiliko ya hali ya kuhuisha leseni',
+      },
+      'escalation.manager': {
+        en: 'Escalation to manager',
+        sw: 'Kupandisha kwa meneja',
+      },
+      'invoice.sent': { en: 'Invoice sent', sw: 'Ankara imetumwa' },
+      'invoice.paid': { en: 'Invoice paid', sw: 'Ankara imelipwa' },
+      'marketplace.inquiry.create': {
+        en: 'Marketplace inquiry',
+        sw: 'Ulizo la sokoni',
+      },
+    };
+    return map[key] ?? { en: key, sw: key };
+  },
+
+  quietHoursSection: {
+    en: 'Quiet hours',
+    sw: 'Saa za utulivu',
+  },
+  quietHoursSubtitle: {
+    en: 'A window when non-urgent notifications are held. Set both ends, or clear both to disable.',
+    sw: 'Kipindi ambacho arifa zisizo za dharura zinazuiliwa. Weka pande zote mbili, au futa zote ili kuzima.',
+  },
+  quietHoursStartLabel: { en: 'Start', sw: 'Mwanzo' },
+  quietHoursEndLabel: { en: 'End', sw: 'Mwisho' },
+  quietHoursClear: { en: 'Clear quiet hours', sw: 'Futa saa za utulivu' },
+  quietHoursPairError: {
+    en: 'Set both the start and end of quiet hours, or clear both.',
+    sw: 'Weka mwanzo na mwisho wa saa za utulivu, au futa zote mbili.',
+  },
 } as const;

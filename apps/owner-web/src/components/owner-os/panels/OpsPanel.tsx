@@ -71,26 +71,28 @@ export const OPS_PANEL_DESCRIPTOR = OPS_DESCRIPTOR;
 
 export function OpsPanel({ locale }: OwnerOSPanelProps): ReactElement {
   const isSw = locale === 'sw';
-  // Operating snapshot tiles — bridge live KPIs above the dense surfaces.
+  // Operating snapshot tiles. The KPI values are not yet wired to a live source,
+  // so they render an honest '—' placeholder (never fabricated numbers) — a
+  // fresh tenant with no sites/incidents/workforce sees an empty KPI strip
+  // consistent with the empty surfaces below. Wire to the real
+  // sites/incidents/workforce counts when the brief slices feed in.
+  const PENDING = '—';
   const tiles: ReadonlyArray<MetricTile> = [
     {
       label: isSw ? S.ops.tileProducingSites.sw : S.ops.tileProducingSites.en,
-      value: '4 / 6',
-      sub: isSw ? S.ops.tileProducingSitesSub.sw : S.ops.tileProducingSitesSub.en,
+      value: PENDING,
       icon: Mountain,
-      tone: 'success',
+      tone: 'default',
     },
     {
       label: isSw ? S.ops.tileOpenIncidents.sw : S.ops.tileOpenIncidents.en,
-      value: '3',
-      sub: isSw ? S.ops.tileOpenIncidentsSub.sw : S.ops.tileOpenIncidentsSub.en,
+      value: PENDING,
       icon: AlertTriangle,
-      tone: 'warning',
+      tone: 'default',
     },
     {
       label: isSw ? S.ops.tileOnShift.sw : S.ops.tileOnShift.en,
-      value: '42',
-      sub: isSw ? S.ops.tileOnShiftSub.sw : S.ops.tileOnShiftSub.en,
+      value: PENDING,
       icon: HardHat,
       tone: 'default',
     },

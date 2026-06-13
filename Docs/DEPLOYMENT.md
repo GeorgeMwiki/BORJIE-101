@@ -164,7 +164,6 @@ fly deploy \
 | `OPENAI_API_KEY`          | Fly secret | Optional fallback model.                            |
 | `LIVEBLOCKS_SECRET_KEY`   | Fly secret | Server-side realtime rooms.                         |
 | `API_KEY_REGISTRY`        | Fly secret | Comma-separated allowlist of inbound API keys.      |
-| `TANZANIA_PAYMENT_BACKEND`| Fly env    | `clickpesa` / `azampay` / `selcom` / `gepg-direct`. |
 | `OCR_PROVIDER`            | Fly env    | `mock` for staging, real provider in production.    |
 | `LOG_LEVEL`               | Fly env    | `info` default; `debug` for triage.                 |
 | `NODE_ENV`                | Fly env    | Hard-coded to `production` in `fly.toml`.           |

@@ -33,12 +33,20 @@ import {
 } from 'drizzle-orm/pg-core';
 import { provenanceColumn } from '../helpers/provenance-column.js';
 
-export const REMINDER_CHANNELS = ['email', 'sms', 'slack', 'calendar'] as const;
+export const REMINDER_CHANNELS = [
+  'email',
+  'sms',
+  'slack',
+  'calendar',
+  'whatsapp',
+] as const;
 export type ReminderChannel = (typeof REMINDER_CHANNELS)[number];
 
 export const REMINDER_STATUSES = [
   'scheduled',
+  'sending',
   'sent',
+  'acknowledged',
   'failed',
   'cancelled',
 ] as const;

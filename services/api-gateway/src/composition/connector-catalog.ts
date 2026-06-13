@@ -134,18 +134,20 @@ export const CONNECTOR_CATALOG: ReadonlyArray<ConnectorDescriptor> =
           id: 'whatsapp',
           displayName: 'WhatsApp Business',
           category: 'communication',
+          // HONESTY (M3): the @borjie/connector-whatsapp package implements
+          // ONLY inbound webhook ingest — it ships no outbound-message client.
+          // The `message.send` capability previously advertised here was a
+          // claimed-but-fake action (no code backs it), so it has been removed
+          // to honour the catalog's "no claimed-but-fake actions" rule.
+          // Outbound WhatsApp delivery is served separately by the Twilio SMS
+          // provider (channel:'whatsapp') wired into the reminders-dispatch +
+          // notification-dispatch workers — NOT by this connector package.
           description:
-            'WhatsApp Business Cloud API — inbound webhook ingest + outbound messages.',
+            'WhatsApp Business Cloud API — inbound webhook ingest only ' +
+            '(no outbound-message client in this connector).',
           packageName: '@borjie/connector-whatsapp',
           credentialKinds: ['whatsapp'],
-          actions: freezeActions([
-            {
-              id: 'message.send',
-              description:
-                'Send an outbound WhatsApp Business message to an opted-in recipient.',
-              isWrite: true,
-            },
-          ]),
+          actions: freezeActions(),
         },
         {
           id: 'voice',

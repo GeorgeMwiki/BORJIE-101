@@ -64,6 +64,14 @@ export {
 
 export { composeMedia, type ComposeMediaArgs } from './composer.js';
 
+export {
+  createMediaDispatcher,
+  type GenerateMediaArgs,
+  type GenerateMediaResult,
+  type MediaDispatcher,
+  type MediaDispatcherConfig,
+} from './media-dispatcher.js';
+
 // ---------------------------------------------------------------------------
 // Brand-lock
 // ---------------------------------------------------------------------------

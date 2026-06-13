@@ -47,6 +47,7 @@ import {
   UnknownBindingError,
   type WidgetQueryPort,
 } from '../../composition/portal-genui/widget-data-resolver.js';
+import { escalateToInternalAdmin } from '../../composition/portal-genui/internal-admin-sink.js';
 import {
   subscribeCockpitEvents,
   type CockpitEvent,
@@ -494,6 +495,19 @@ router.post(
           },
         });
       } catch (err) {
+        if ((err as { code?: unknown })?.code === 'TAB_ADMISSION_FAILED') {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'TAB_ADMISSION_FAILED',
+                message: err instanceof Error ? err.message : 'admission failed',
+                violations: (err as { violations?: unknown }).violations ?? [],
+              },
+            },
+            422,
+          );
+        }
         return c.json(
           {
             success: false,
@@ -576,6 +590,20 @@ router.post(
         return c.json({ success: true, data: saved }, 201);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'unknown';
+        if ((err as { code?: unknown })?.code === 'TAB_ADMISSION_FAILED') {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'TAB_ADMISSION_FAILED',
+                message: msg,
+                violations:
+                  (err as { violations?: unknown }).violations ?? [],
+              },
+            },
+            422,
+          );
+        }
         if (msg.includes('tab_key_already_exists')) {
           return c.json(
             {
@@ -1056,6 +1084,7 @@ router.post('/tabs/:id/widget-data', async (c: AnyCtx) => {
     recordStore: store,
     ...(queryPort !== undefined ? { query: queryPort } : {}),
     logger,
+    onBlocker: escalateToInternalAdmin,
   });
   try {
     const data = await resolver.resolve(parsed.data.binding, {

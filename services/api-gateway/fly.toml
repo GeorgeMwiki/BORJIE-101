@@ -1,20 +1,22 @@
 # =============================================================================
 # Fly.io configuration for @borjie/api-gateway
 # =============================================================================
-# Region: jnb (Johannesburg) — closest Fly region to Tanzania.
-# Database: managed Fly Postgres cluster; attach via `fly pg attach`.
-# Build context: this file lives in services/api-gateway/, but we build from
-# the monorepo root via `fly deploy --config services/api-gateway/fly.toml
-# --dockerfile services/api-gateway/Dockerfile .` (see docs/DEPLOYMENT.md).
+# Region: lhr (London) — colocated with the live Supabase cluster
+# (aws-1-eu-west-2). The gateway makes many sequential DB round trips per
+# request; users pay ONE RTT to the gateway, so gateway↔DB latency dominates.
+# Database: live Supabase (NOT Fly Postgres — do not `fly pg attach`).
+# Build context: monorepo root. Deploy with
+#   fly deploy . -c services/api-gateway/fly.toml --remote-only
+# (dockerfile below resolves relative to THIS file's directory).
 # =============================================================================
 
 app = "borjie-api-gateway"
-primary_region = "jnb"
+primary_region = "lhr"
 kill_signal = "SIGTERM"
 kill_timeout = "30s"
 
 [build]
-  dockerfile = "services/api-gateway/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [deploy]
   strategy = "rolling"
@@ -50,40 +52,6 @@ kill_timeout = "30s"
     method = "GET"
     timeout = "5s"
     path = "/health"
-
-# -- Internal service (sidecar wiring) -----------------------------------------
-[[services]]
-  protocol = "tcp"
-  internal_port = 3001
-  processes = ["app"]
-
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-    force_https = true
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
-
-  [services.concurrency]
-    type = "connections"
-    hard_limit = 250
-    soft_limit = 200
-
-  [[services.tcp_checks]]
-    interval = "15s"
-    timeout = "2s"
-    grace_period = "30s"
-
-  [[services.http_checks]]
-    interval = "30s"
-    timeout = "5s"
-    grace_period = "30s"
-    method = "get"
-    path = "/health"
-    protocol = "http"
-    restart_limit = 5
 
 # -- VM sizing -----------------------------------------------------------------
 # 2 GB floor: the gateway is the whole modular monolith in one process — the

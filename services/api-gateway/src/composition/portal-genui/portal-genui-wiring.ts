@@ -49,6 +49,8 @@ import {
   createDrizzleTabRegistry,
   createDrizzleRecordStore,
   createInMemoryRecordStore,
+  DEFAULT_ALLOWED_MEDIA_HOSTS,
+  type UrlEgressPolicy,
   type GenUIEngine,
   type GenUIEngineBrainPort,
   type DbExecutor,
@@ -64,6 +66,15 @@ import { createSupabaseAdminClient } from '@borjie/supabase-client';
 import { getDb } from '../db-client.js';
 import { logger } from '../../utils/logger.js';
 import portalGenUIRouter from '../../routes/portal-genui/portal-genui.router.js';
+import {
+  createLocaleImpurityDetector,
+  resolveRequireEvidence,
+} from './genui-admission-policy.js';
+import {
+  escalateToInternalAdmin,
+  registerSelfHealingStore,
+} from './internal-admin-sink.js';
+import { createSelfHealingStore } from './self-healing-store.js';
 
 // ────────────────────────────────────────────────────────────────────
 // DbExecutor adapter — postgres-js `$client.unsafe(sql, params)` returns
@@ -236,6 +247,35 @@ export interface PortalGenuiWiring {
 }
 
 /**
+ * Resolve the render-egress URL allowlist for generated tabs. Combines the
+ * package defaults with the live Supabase storage host (so first-party uploads
+ * render) and any comma-separated extras in `BORJIE_GENUI_MEDIA_ALLOWLIST`.
+ * Read at the composition bootstrap seam, mirroring the rest of this file.
+ */
+function resolveUrlEgressPolicy(): UrlEgressPolicy {
+  const hosts = new Set<string>(DEFAULT_ALLOWED_MEDIA_HOSTS);
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (supabaseUrl) {
+    try {
+      hosts.add(new URL(supabaseUrl).hostname.toLowerCase());
+    } catch {
+      /* malformed URL — ignore, defaults still apply */
+    }
+  }
+
+  const extra = process.env.BORJIE_GENUI_MEDIA_ALLOWLIST?.trim();
+  if (extra) {
+    for (const h of extra.split(',')) {
+      const host = h.trim().toLowerCase();
+      if (host) hosts.add(host);
+    }
+  }
+
+  return { allowedHosts: Object.freeze([...hosts]) };
+}
+
+/**
  * Construct the portal-genui engine + return it together with its router for
  * the orchestrator to mount. Pure factory — no side effects, never touches
  * `index.ts`, never starts a server.
@@ -249,7 +289,25 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
   const db = getDb();
   const brain = buildBrainPort();
 
-  const persistence = db ? createDrizzleTabRegistry({ db: makeDbExecutor(db) }) : undefined;
+  // Wire DURABLE persistence for the internal-admin self-healing console. The
+  // `escalateToInternalAdmin` sink (read-path, resolver, beacon) logs always;
+  // once this store is registered it ALSO persists every heal outcome to the
+  // service-role-only `self_healing_proposals` queue the admin console reads.
+  // No DB ⇒ log-only (the sink stays a safe no-op for persistence).
+  if (db) {
+    registerSelfHealingStore(
+      createSelfHealingStore({
+        db: db as unknown as Parameters<typeof createSelfHealingStore>[0]['db'],
+      }).record,
+    );
+  }
+
+  const persistence = db
+    ? createDrizzleTabRegistry({
+        db: makeDbExecutor(db),
+        onBlocker: escalateToInternalAdmin,
+      })
+    : undefined;
 
   // K1a — the generated-tab record store. Postgres-backed when a DB is wired,
   // else an in-memory store so the records endpoints stay usable in dev/test.
@@ -267,9 +325,16 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
     );
   }
 
+  const urlEgressPolicy = resolveUrlEgressPolicy();
+  const localeDetector = createLocaleImpurityDetector();
+  const requireEvidence = resolveRequireEvidence();
+
   const engine = createGenUIEngine({
     ...(brain !== undefined ? { brain } : {}),
     ...(persistence !== undefined ? { persistence } : {}),
+    urlEgressPolicy,
+    localeDetector,
+    requireEvidence,
   });
 
   logger.info(
@@ -277,6 +342,9 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
       wiring: 'portal-genui',
       brain: brain ? 'live' : 'heuristic-only',
       persistence: persistence ? 'postgres' : 'in-memory',
+      egressAllowedHosts: urlEgressPolicy.allowedHosts.length,
+      localePurity: 'enforced',
+      requireEvidence,
     },
     'portal-genui: engine constructed',
   );

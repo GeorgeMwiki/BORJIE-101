@@ -15,6 +15,8 @@
  *   POST   /                          create a reminder
  *   GET    /                          list the caller's reminders
  *   PATCH  /:id                       cancel or reschedule a reminder
+ *   POST   /:id/acknowledge           owner acks a fired reminder (stops
+ *                                     the re-remind / escalation sweep)
  *
  * Auth: Supabase JWT via `authMiddleware`. Tenant scope bound by
  *       `databaseMiddleware`'s `app.tenant_id` GUC for RLS.
@@ -286,6 +288,83 @@ app.patch('/:id', async (c: any) => {
     userId: auth.userId,
     reminderId: id,
     set,
+  });
+
+  return c.json({ success: true, data: { reminder: row } });
+});
+
+// ---------------------------------------------------------------------------
+// POST /:id/acknowledge — owner confirms they have seen a fired reminder.
+//
+// The re-remind / escalation sweep in reminders-dispatch.worker.ts only
+// re-fires rows that are still 'sent' (delivered but never acked) after a
+// window. Acknowledging moves the row to the terminal 'acknowledged' state
+// so the sweep leaves it alone — this is the "no reminder slips" guarantee's
+// stop signal. Only a 'sent' reminder can be acknowledged (you cannot ack a
+// scheduled / failed / cancelled / already-acknowledged row). Tenant- AND
+// owner-scoped exactly like PATCH so a caller can only ack their own rows.
+// ---------------------------------------------------------------------------
+
+app.post('/:id/acknowledge', async (c: any) => {
+  const auth = c.get('auth') as { tenantId: string; userId: string };
+  const db = c.get('db');
+  const id = c.req.param('id');
+  if (!db) {
+    return c.json(
+      { success: false, error: { code: 'REMINDERS_DB_UNAVAILABLE', message: 'Database not configured' } },
+      503,
+    );
+  }
+
+  const [existing] = await db
+    .select()
+    .from(reminders)
+    .where(
+      and(
+        eq(reminders.tenantId, auth.tenantId),
+        eq(reminders.ownerId, auth.userId),
+        eq(reminders.id, id),
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Reminder not found' } }, 404);
+  }
+  if (existing.status === 'acknowledged') {
+    // Idempotent: acking an already-acked row is a no-op success.
+    return c.json({ success: true, data: { reminder: existing } });
+  }
+  if (existing.status !== 'sent') {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'NOT_ACKNOWLEDGEABLE',
+          message: `Only a sent reminder can be acknowledged (got ${existing.status})`,
+        },
+      },
+      409,
+    );
+  }
+
+  const [row] = await db
+    .update(reminders)
+    .set({ status: 'acknowledged' })
+    .where(
+      and(
+        eq(reminders.tenantId, auth.tenantId),
+        eq(reminders.ownerId, auth.userId),
+        eq(reminders.id, id),
+        eq(reminders.status, 'sent'),
+      ),
+    )
+    .returning();
+
+  moduleLogger.info('owner-reminders: acknowledged', {
+    tenantId: auth.tenantId,
+    userId: auth.userId,
+    reminderId: id,
   });
 
   return c.json({ success: true, data: { reminder: row } });

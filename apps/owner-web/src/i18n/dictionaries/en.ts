@@ -381,15 +381,20 @@ export const en = {
   // Owner-OS reminders panel (list + create).
   reminders: {
     heading: 'Reminders',
-    channelHint: 'Email default · SMS / Slack available',
+    channelHint: 'Email default · SMS / WhatsApp / Slack available',
     title: 'Title',
     body: 'Body',
     triggerAt: 'Trigger at',
     channel: 'Channel',
+    channelEmail: 'Email',
+    channelSms: 'SMS',
+    channelWhatsapp: 'WhatsApp',
+    channelSlack: 'Slack',
     saving: 'Saving…',
     schedule: 'Schedule reminder',
     empty: 'No reminders yet.',
     cancelItem: 'Cancel',
+    acknowledge: 'Acknowledge',
   },
 
   // MD-Agentic sandbox-writes review queue (O-W-33).
@@ -489,6 +494,37 @@ export const en = {
   // Daily brief card (cockpit).
   cockpit: {
     dailyBriefTitle: 'Daily brief',
+  },
+
+  // Escalations closing panel (cockpit) — the authoritative
+  // manager-dispatch ladder (`mining_escalations`). Acknowledge / resolve
+  // close the loop. Distinct key set from `headBriefing.escalations`
+  // (read-only briefing) and from `reminders` (separate slice).
+  escalations: {
+    heading: 'Escalations',
+    headerOpen: 'Open escalations ({count})',
+    liveHint: 'Authoritative ladder · acknowledge or resolve to close',
+    loading: 'Loading escalations…',
+    signInRequired: 'Sign in to view escalations.',
+    loadFailed: 'Could not load escalations. Please try again.',
+    emptyTitle: 'No open escalations',
+    emptyBody:
+      'When a worker, manager, or the MD raises something to a human, it appears here.',
+    acknowledge: 'Acknowledge',
+    resolve: 'Resolve',
+    acknowledging: 'Acknowledging…',
+    resolving: 'Resolving…',
+    actionFailed: 'Action failed. Please try again.',
+    openedPrefix: 'Opened',
+    justNow: 'just now',
+    minutesAgo: '{count}m ago',
+    hoursAgo: '{count}h ago',
+    severityInfo: 'Info',
+    severityWarning: 'Warning',
+    severityCritical: 'Critical',
+    statusOpen: 'Open',
+    statusAcknowledged: 'Acknowledged',
+    statusResolved: 'Resolved',
   },
 } as const;
 

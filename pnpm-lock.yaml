@@ -3914,6 +3914,9 @@ importers:
 
   packages/portal-genui:
     dependencies:
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
       zod:
         specifier: ^3.25.76
         version: 3.25.76
@@ -4972,6 +4975,9 @@ importers:
       '@borjie/media-engine':
         specifier: workspace:*
         version: link:../../packages/media-engine
+      '@borjie/media-generation':
+        specifier: workspace:*
+        version: link:../../packages/media-generation
       '@borjie/memory-tool-wire-adapter':
         specifier: workspace:*
         version: link:../../packages/memory-tool-wire-adapter

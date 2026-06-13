@@ -181,7 +181,7 @@ describe('skill.admin.approve_offtake_renewal', () => {
 });
 
 describe('skill.admin.send_rent_reminder', () => {
-  it('commits a small batch', async () => {
+  it('proposes (never claims a send) for a small batch — no delivery port in context', async () => {
     const r = await sendRentReminderTool.execute(
       {
         recipients: [
@@ -196,10 +196,13 @@ describe('skill.admin.send_rent_reminder', () => {
       ctx(TENANT_A)
     );
     expect(r.ok).toBe(true);
-    expect(r.evidenceSummary).toContain('Queued');
+    // Honest: it PROPOSES a plan, never a false-green "Queued"/"sent".
+    expect(r.evidenceSummary).toMatch(/^PROPOSED/);
+    expect(r.evidenceSummary).toContain('Prepared');
+    expect(r.evidenceSummary).not.toContain('Queued');
   });
 
-  it('proposes when recipient count above broadcast threshold', async () => {
+  it('proposes a larger batch too (always a plan, never a fake completion)', async () => {
     const recipients = Array.from(
       { length: HIGH_RISK_THRESHOLDS.broadcastRecipients + 5 },
       (_, i) => ({

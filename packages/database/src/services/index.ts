@@ -112,7 +112,7 @@ export {
 } from './currency-preferences.service.js';
 
 // Market data cache — Drizzle-backed TTL cache for external market-
-// data adapter responses (Zillow, Airbnb, Rentometer, etc.). Composed
+// data adapter responses (LBMA, LME, commodity feeds, etc.). Composed
 // at the api-gateway sovereign composition root and handed to the
 // adapter factories so repeated kernel queries within the TTL window
 // don't hammer the upstream provider. Migration 0120.

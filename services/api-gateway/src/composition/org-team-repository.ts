@@ -137,6 +137,48 @@ function provenanceJson(p: ProvenanceLike | undefined): string {
   return JSON.stringify(safe);
 }
 
+/**
+ * Map the org-path 4-level severity (low|normal|high|critical) onto the
+ * authoritative mining_escalations 3-level scale (info|warning|critical).
+ * Unknown values degrade to 'warning' (the table default). Kept in lockstep
+ * with the migration 0356 backfill CASE.
+ */
+function mapOrgSeverityToMining(severity: string): 'info' | 'warning' | 'critical' {
+  switch (severity) {
+    case 'low':
+      return 'info';
+    case 'high':
+    case 'critical':
+      return 'critical';
+    case 'normal':
+    default:
+      return 'warning';
+  }
+}
+
+/**
+ * Derive a valid mining_escalations.source_kind (one of
+ * incident|task|crew|production|safety, enforced by a CHECK) from the org-path
+ * category + the optional related task. A related task always implies 'task';
+ * otherwise the category maps onto the allowed vocabulary. Kept in lockstep
+ * with the migration 0356 backfill CASE.
+ */
+function deriveMiningSourceKind(
+  category: string,
+  relatedTaskId: string | null,
+): 'incident' | 'task' | 'crew' | 'production' | 'safety' {
+  if (relatedTaskId !== null) return 'task';
+  switch (category) {
+    case 'safety_incident':
+      return 'safety';
+    case 'compliance_breach':
+    case 'payment_default':
+      return 'incident';
+    default:
+      return 'task';
+  }
+}
+
 export class OrgTeamRepository {
   constructor(private readonly db: DbExec) {}
 
@@ -382,6 +424,38 @@ export class OrgTeamRepository {
     return extractRows<TaskRow>(res)[0] ?? null;
   }
 
+  /**
+   * Raise an escalation from the MD agentic `escalate` tool path.
+   *
+   * TZ3 consolidation: this writer targets the AUTHORITATIVE
+   * `mining_escalations` table (migration 0081) — the single place the
+   * escalations route + UI read, acknowledge and resolve — rather than the
+   * legacy divergent `org_escalations` table whose rows were invisible and
+   * unclosable. The org-path's richer payload is mapped onto the
+   * mining-escalation columns and preserved losslessly in the additive
+   * `context` jsonb column (migration 0356):
+   *
+   *   title + reason             -> context_sw  ("<title>\n\n<reason>"; the UI
+   *                                 narrative field, guaranteed non-empty).
+   *   severity scale             -> mapSeverity (low->info, normal->warning,
+   *                                 high|critical->critical).
+   *   relatedTaskId present      -> source_kind='task', source_id=relatedTaskId.
+   *   else derived from category -> deriveSourceKind (always one of the 5
+   *                                 allowed kinds).
+   *   escalatedToStaffId set     -> to_user_id (addressee); else to_role
+   *                                 ('manager' broadcast) to satisfy the
+   *                                 exclusive addressee CHECK.
+   *   category/originalSeverity/escalatedToStaffId/relatedTaskId/
+   *   relatedSubject/originSessionId -> context jsonb (lossless).
+   *
+   * The returned EscalationRow shape is reconstructed from the persisted row +
+   * the context bag so callers (org-admin route) keep working unchanged.
+   *
+   * Runs on the tenant-bound request `db`: the mining_escalations
+   * tenant-isolation policy is on the canonical `app.current_tenant_id` GUC
+   * (migration 0157) which the database middleware binds, so this request-path
+   * write passes RLS WITH CHECK — no service-role context required.
+   */
   async raiseEscalation(
     tenantId: string,
     input: {
@@ -397,27 +471,48 @@ export class OrgTeamRepository {
     originSessionId: string | null,
     provenance?: ProvenanceLike,
   ): Promise<RepoResult<{ readonly escalation: EscalationRow }>> {
-    const id = randomUUID();
-    await this.db.execute(sql`
-      INSERT INTO org_escalations (
-        id, tenant_id, title, reason, category, severity, status,
-        escalated_to_staff_id, related_task_id, related_subject,
-        raised_by_user_id, origin_session_id, metadata, provenance
-      ) VALUES (
-        ${id}, ${tenantId}, ${input.title}, ${input.reason},
-        ${input.category}, ${input.severity}, 'open',
-        ${input.escalatedToStaffId === null ? null : sql`${input.escalatedToStaffId}::uuid`},
-        ${input.relatedTaskId === null ? null : sql`${input.relatedTaskId}::uuid`},
-        ${input.relatedSubject}, ${actorUserId}, ${originSessionId},
-        '{}'::jsonb, ${provenanceJson(provenance)}::jsonb
-      )
-    `);
+    const severity = mapOrgSeverityToMining(input.severity);
+    const sourceKind = deriveMiningSourceKind(input.category, input.relatedTaskId);
+    const contextSw = `${input.title}\n\n${input.reason}`;
+    const toUserId = input.escalatedToStaffId;
+    const toRole = input.escalatedToStaffId === null ? 'manager' : null;
+    const sourceId = input.relatedTaskId;
+    const contextBag = {
+      orgPath: true,
+      category: input.category,
+      originalSeverity: input.severity,
+      title: input.title,
+      escalatedToStaffId: input.escalatedToStaffId,
+      relatedTaskId: input.relatedTaskId,
+      relatedSubject: input.relatedSubject,
+      originSessionId,
+    };
+
+    // INSERT ... RETURNING lets the DB default the uuid `id` (avoids a
+    // text/uuid cast on the parameterized id) and reads the row back in one
+    // round-trip. `raised_by_user_id` is a uuid NOT NULL on the authoritative
+    // table, so fall back to the nil-uuid sentinel when the actor is unknown
+    // (a plain '__system__' string is NOT a valid uuid and would throw —
+    // matches the nil-uuid recognizable in audit). `??` also misses empty
+    // strings, so guard on trimmed truthiness.
+    const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+    const raisedBy =
+      actorUserId && actorUserId.trim().length > 0 ? actorUserId : NIL_UUID;
     const res = await this.db.execute(sql`
-      SELECT id, title, category, severity, status,
-             escalated_to_staff_id, related_task_id
-        FROM org_escalations
-       WHERE id = ${id}::uuid AND tenant_id = ${tenantId}
-       LIMIT 1
+      INSERT INTO mining_escalations (
+        tenant_id, raised_by_user_id, to_user_id, to_role,
+        source_kind, source_id, context_sw, severity, status,
+        context, provenance
+      ) VALUES (
+        ${tenantId}, ${raisedBy}, ${toUserId}, ${toRole},
+        ${sourceKind}, ${sourceId}, ${contextSw}, ${severity}, 'open',
+        ${JSON.stringify(contextBag)}::jsonb, ${provenanceJson(provenance)}::jsonb
+      )
+      RETURNING id, severity, status,
+                context ->> 'title'              AS title,
+                context ->> 'category'           AS category,
+                context ->> 'escalatedToStaffId' AS escalated_to_staff_id,
+                context ->> 'relatedTaskId'      AS related_task_id
     `);
     const escalation = extractRows<EscalationRow>(res)[0];
     if (!escalation) {

@@ -17,11 +17,23 @@
 # -----------------------------------------------------------------------------
 # Stage 1: workspace dependency install
 # -----------------------------------------------------------------------------
-FROM node:20.18.0-bookworm-slim AS deps
+# Node 22: `require()` of ES modules is unflagged/stable since 22.12. Node 20
+# CANNOT require() ESM, which boot-crashed the gateway on transitive ESM-only
+# deps (jose@6, uuid@14 — the latter pulled by node-cron AND @borjie audit
+# logging). Local dev + CI already run Node 22, so this aligns prod with where
+# the stack is validated and retires the whole ERR_REQUIRE_ESM class.
+FROM node:22.15.0-bookworm-slim AS deps
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 ENV CI="true"
+# puppeteer (a transitive workspace dep) runs a postinstall that downloads
+# chrome-headless-shell, which needs `unzip`/`tar` and network access the
+# slim build image lacks — it hard-fails `pnpm install`. The gateway does not
+# launch a browser at build time, so skip the download. Set BOTH the current
+# and legacy env names; inherited by the `build` stage (FROM deps).
+ENV PUPPETEER_SKIP_DOWNLOAD="true"
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD="true"
 
 RUN corepack enable \
   && corepack prepare pnpm@8.15.0 --activate \
@@ -65,7 +77,13 @@ WORKDIR /repo
 # its package.json entry — which for ~120 packages points at `dist/`. On a
 # cache-cold builder those dists only exist if the closure is built first.
 # Mirrors docker/Dockerfile.api (the CI/E2E image).
-RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/api-gateway --no-daemon
+#
+# --concurrency=1: turbo otherwise fans out one build per core, each a node
+# process allowed a 4 GB heap, which sums past the remote builder's RAM and
+# SIGKILLs a random package mid-build (exit 137 / OOM — seen on
+# payments-ledger then workflow-engine). Serialise the closure so peak memory
+# is a single 4 GB process. Slower but deterministic on a memory-bound builder.
+RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm exec turbo run build --filter=@borjie/api-gateway --no-daemon --concurrency=1
 
 # Prune dev deps for the api-gateway shipping surface only.
 RUN pnpm -F @borjie/api-gateway --prod deploy /deploy
@@ -73,7 +91,7 @@ RUN pnpm -F @borjie/api-gateway --prod deploy /deploy
 # -----------------------------------------------------------------------------
 # Stage 3: minimal runtime image
 # -----------------------------------------------------------------------------
-FROM node:20.18.0-bookworm-slim AS runtime
+FROM node:22.15.0-bookworm-slim AS runtime
 
 ENV NODE_ENV="production"
 ENV PORT="3001"

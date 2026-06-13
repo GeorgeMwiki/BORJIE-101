@@ -61,6 +61,9 @@ export const BUYER_PROJECTABLE_TAB_KINDS = [
   'compliance',
   'reports',
   'documents',
+  // Compiled-flow projection (business-process compiler): the buyer leg of the
+  // golden buyer-inquiry flow (their inquiry + response tab).
+  'inquiry_respond',
 ] as const;
 
 export type BuyerProjectableTabKind =

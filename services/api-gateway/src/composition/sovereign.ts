@@ -19,16 +19,13 @@
  *                        Postgres-backed sovereign_approvals store;
  *                        otherwise in-memory sinks. Also enables the
  *                        market_data_cache TTL store (migration 0120).
- *   MARKET_DATA_PROVIDER  → 'zillow' | 'airbnb' (etc.) — wires that
- *                        adapter as the platform's MarketDataPort. When
+ *   MARKET_DATA_PROVIDER  → selects a commodity/market-data adapter to
+ *                        wire as the platform's MarketDataPort. When
  *                        unset no adapter is wired; the kernel runs
- *                        without external market-data tools.
- *   ZILLOW_API_KEY     → real upstream credential for the Zillow
- *                        adapter. Without it the adapter resolves every
- *                        call to `{ kind: 'unconfigured' }` (it never
- *                        throws); the kernel tool surfaces a friendly
- *                        hint to the operator.
- *   AIRBNB_API_KEY     → ditto for the Airbnb adapter.
+ *                        without external market-data tools. No mining
+ *                        adapter is implemented yet — see gh-issue #29
+ *                        (`@borjie/commodity-intelligence`) — so the
+ *                        port is currently always null.
  *
  * This module is the single source of truth for how the api-gateway
  * boots the sovereign AI. It returns one cached SovereignBrain per
@@ -76,7 +73,6 @@ import {
   createKernelSubstrateService,
   createKernelMemoryService,
   createKernelGroundingProvider,
-  createMarketDataCacheService,
   createPersonaBrandingService,
   createPgApprovalStore,
   createPgAutonomyPolicyService,
@@ -142,18 +138,12 @@ import {
 // budget so a slow debate can never stall a turn (fail-safe → single-shot).
 import { buildDebateKernelPort } from './debate-kernel-port-wiring.js';
 // See gh-issue #29: `@borjie/market-intelligence` was a property-vertical
-// package (Zillow / Airbnb rental comps). Mining equivalents (LME spot
-// prices, Argus DRC tin index, etc.) will live under a new
-// `@borjie/commodity-intelligence` package. Until that lands the
-// MarketDataPort is stubbed and `buildMarketDataPort` always returns
-// null so the kernel tools singleton becomes a no-op.
+// package (since removed). Mining equivalents (LME spot prices, Argus DRC
+// tin index, etc.) will live under a new `@borjie/commodity-intelligence`
+// package. Until that lands the MarketDataPort is stubbed and
+// `buildMarketDataPort` always returns null so the kernel tools singleton
+// becomes a no-op.
 type MarketDataPort = unknown;
-function createAirbnbMarketDataAdapter(_opts: unknown): MarketDataPort | null {
-  return null;
-}
-function createZillowMarketDataAdapter(_opts: unknown): MarketDataPort | null {
-  return null;
-}
 import { logger } from '../utils/logger.js';
 
 // Visibility role — mirrored locally so this composition root doesn't
@@ -1616,15 +1606,13 @@ function maybeBuildDpAggregator(
 // ---------------------------------------------------------------------------
 // External market-data adapter wiring (env-gated).
 //
-// `MARKET_DATA_PROVIDER` selects which adapter is wired:
-//   - 'zillow'  → Zillow listings + Bridge-RESO vacancy
-//   - 'airbnb'  → Airbnb market-insights (short-let, coerced monthly)
+// `MARKET_DATA_PROVIDER` selects which commodity/market-data adapter is
+// wired. No mining-domain adapter is implemented yet (gh-issue #29 —
+// `@borjie/commodity-intelligence`), so `buildMarketDataPort` always
+// returns null and no provider value currently resolves to an adapter.
 //
 // Without `MARKET_DATA_PROVIDER` no adapter is wired and the kernel has
 // no market-data tools (calls to market.* surface as 'unknown tool').
-// Without the corresponding `*_API_KEY` the adapter is wired but every
-// call resolves to `{ kind: 'unconfigured' }` — the kernel tool surfaces
-// a friendly operator hint instead of failing.
 //
 // The kernel itself does NOT execute tools (it's single-shot). The
 // streaming agent-loop is the right place to register these. The
@@ -1683,31 +1671,12 @@ export function getMarketDataKernelTools():
   return marketDataKernelToolsSingleton;
 }
 
-function buildMarketDataPort(provider: string): MarketDataPort | null {
-  // Cache layer is only available when the DB is up. Without it the
-  // adapter still works — it just hits the upstream every call and
-  // serves whatever the upstream returns.
-  const db = getDb();
-  const cache = db ? createMarketDataCacheService(db) : undefined;
-
-  switch (provider) {
-    case 'zillow':
-      return createZillowMarketDataAdapter({
-        ...(process.env.ZILLOW_API_KEY?.trim()
-          ? { apiKey: process.env.ZILLOW_API_KEY.trim() }
-          : {}),
-        ...(cache ? { cache } : {}),
-      });
-    case 'airbnb':
-      return createAirbnbMarketDataAdapter({
-        ...(process.env.AIRBNB_API_KEY?.trim()
-          ? { apiKey: process.env.AIRBNB_API_KEY.trim() }
-          : {}),
-        ...(cache ? { cache } : {}),
-      });
-    default:
-      return null;
-  }
+function buildMarketDataPort(_provider: string): MarketDataPort | null {
+  // No commodity/market-data adapter is implemented yet (gh-issue #29 —
+  // `@borjie/commodity-intelligence`). The cache layer + TTL store remain
+  // wired in `market_data_cache` (migration 0120) ready for the future
+  // mining adapter; until then every provider resolves to null.
+  return null;
 }
 
 // ---------------------------------------------------------------------------

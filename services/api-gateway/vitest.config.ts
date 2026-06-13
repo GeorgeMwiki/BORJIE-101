@@ -45,6 +45,14 @@ export default defineConfig({
         find: /^@borjie\/ai-copilot$/,
         replacement: path.resolve(__dirname, '../../packages/ai-copilot/src/index.ts'),
       },
+      // Media generation — route the barrel through source so the image
+      // dispatcher (`createMediaDispatcher`, consumed by the brain image
+      // tool) is visible in tests without a `pnpm --filter
+      // @borjie/media-generation build` round-trip.
+      {
+        find: /^@borjie\/media-generation$/,
+        replacement: path.resolve(__dirname, '../../packages/media-generation/src/index.ts'),
+      },
       // Central-Command Phase A — AG-UI emitter / types live in
       // packages/central-intelligence/src and must resolve from source
       // for tests to see the latest streaming surface without a

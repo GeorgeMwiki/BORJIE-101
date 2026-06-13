@@ -4,6 +4,7 @@ import { useOwnerBrief } from '@/lib/queries/owner-brief';
 import { fmtTime } from '@/lib/format';
 import { AiDailyBriefPanel } from './AiDailyBriefPanel';
 import { AlertQueuePanel } from './AlertQueuePanel';
+import { EscalationsPanel } from './EscalationsPanel';
 import { KpiStripPanel } from './KpiStripPanel';
 import { ProductionVsTargetTable } from './ProductionVsTargetTable';
 import { CashRunwayCard } from './CashRunwayCard';
@@ -67,6 +68,11 @@ export function OwnerDashboardSurface(): JSX.Element {
           incidents={brief.openHighIncidents}
         />
       </section>
+
+      {/* Escalations closing surface — reads the authoritative
+          mining_escalations ladder and exposes Acknowledge / Resolve so
+          the closing stage is reachable for a real owner. */}
+      <EscalationsPanel />
 
       <KpiStripPanel brief={brief} />
 
