@@ -31,13 +31,33 @@ import {
   withServiceRoleContext,
 } from '@borjie/database';
 import { isFlowAuto } from '@borjie/workflow-engine';
-import { authMiddleware } from '../../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
+import { UserRole } from '../../../types/user-role';
 import { getWorkflowEngine } from '../../../composition/workflow-engine-wiring';
 import {
   installFlow,
   GOLDEN_INQUIRY_FLOW,
 } from '../../../composition/surface-completion/flow-binder';
+
+// Role groups for the flow actions. The buyer-facing routes (raise inquiry,
+// read my inquiries) stay open to any authenticated principal; the seller-side
+// actions are gated so a low-privileged member can't act as worker/owner —
+// critically, only an owner/admin can APPROVE (the human gate) or INSTALL.
+const WORKER_PLUS = [
+  UserRole.PROPERTY_MANAGER,
+  UserRole.MAINTENANCE_STAFF,
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+] as const;
+const OWNER_PLUS = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 type Auth = { tenantId: string; userId: string };
 type AnyDb = any;
@@ -79,7 +99,7 @@ app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
 /** Owner installs the golden flow → materializes all three surface tabs. */
-app.post('/install', async (c) => {
+app.post('/install', requireRole(...OWNER_PLUS), async (c) => {
   const auth = getAuth(c);
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
@@ -93,7 +113,7 @@ app.post('/install', async (c) => {
 });
 
 /** Owner: installed flows + their open-run counts. */
-app.get('/', async (c) => {
+app.get('/', requireRole(...OWNER_PLUS), async (c) => {
   const auth = getAuth(c);
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
@@ -184,7 +204,7 @@ app.post('/inquiries', async (c) => {
 });
 
 /** Worker/owner: the open inquiry queue for this (seller) tenant. */
-app.get('/inquiries/queue', async (c) => {
+app.get('/inquiries/queue', requireRole(...WORKER_PLUS), async (c) => {
   const auth = getAuth(c);
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
@@ -205,7 +225,7 @@ const respondSchema = z.object({ message: z.string().min(1).max(4000) });
  * AUTO (flow_autonomy, confirmed) the response delivers immediately; otherwise
  * (default — fail-closed) it parks awaiting owner approval.
  */
-app.post('/inquiries/:id/respond', async (c) => {
+app.post('/inquiries/:id/respond', requireRole(...WORKER_PLUS), async (c) => {
   const auth = getAuth(c);
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
@@ -247,7 +267,7 @@ app.post('/inquiries/:id/respond', async (c) => {
 });
 
 /** Owner: responses parked awaiting approval (the gated path). */
-app.get('/inquiries/pending', async (c) => {
+app.get('/inquiries/pending', requireRole(...OWNER_PLUS), async (c) => {
   const auth = getAuth(c);
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
@@ -261,8 +281,8 @@ app.get('/inquiries/pending', async (c) => {
   return c.json({ success: true as const, data: (rows as Array<Record<string, unknown>>).map(runView) }, 200);
 });
 
-/** Owner: approve a parked response → deliver to the buyer. */
-app.post('/inquiries/:id/approve', async (c) => {
+/** Owner: approve a parked response → deliver to the buyer (the human gate). */
+app.post('/inquiries/:id/approve', requireRole(...OWNER_PLUS), async (c) => {
   const auth = getAuth(c);
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
@@ -298,6 +318,9 @@ buyerApp.get('/', async (c) => {
   const db = c.get('db') as AnyDb;
   if (!auth) return unauth(c);
   if (!db) return noDb(c);
+  // Defense-in-depth: this read is service-role (tenant-bypassing) and keyed
+  // SOLELY on the buyer's userId, so a falsy userId must never run the query.
+  if (!auth.userId) return unauth(c);
   const rows = await withServiceRoleContext(db as SvcDb, async (tx) =>
     (tx as AnyDb)
       .select()
