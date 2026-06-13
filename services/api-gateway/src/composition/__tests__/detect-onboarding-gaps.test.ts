@@ -179,6 +179,36 @@ describe('detectOnboardingGaps', () => {
     expect(insertedActionKinds).toEqual([]);
   });
 
+  it('binds tenant_id as TEXT — never casts ::uuid (regression: 22P02)', async () => {
+    // mwikila_actions_inbox.tenant_id is TEXT (FKs tenants.id, a TEXT PK), and
+    // tenant ids like "borjie-demo" are not UUID-shaped. The original code cast
+    // `${tenantId}::uuid`, which threw `22P02 invalid input syntax for type
+    // uuid` on EVERY tick. Guard the SQL so the cast can never silently return.
+    const seenSql: string[] = [];
+    const db = {
+      execute: vi.fn(async (q: unknown) => {
+        seenSql.push(sqlText(q));
+        const text = sqlText(q);
+        if (text.includes('FROM users') && text.includes('is_owner')) {
+          return { rows: [{ id: 'owner-1' }] };
+        }
+        if (text.includes('INSERT INTO mwikila_actions_inbox')) {
+          return { rows: [{ id: 'row-x' }] };
+        }
+        return { rows: [] }; // every presence probe → empty → gap exists
+      }),
+    };
+    await detectOnboardingGaps({ db, tenantId: TENANT, logger: fakeLogger() });
+    const insertSql = seenSql.filter((s) =>
+      s.includes('INSERT INTO mwikila_actions_inbox'),
+    );
+    expect(insertSql.length).toBeGreaterThan(0);
+    for (const s of insertSql) {
+      expect(s).not.toContain('::uuid');
+      expect(s).toContain('tenant_id');
+    }
+  });
+
   it('never throws on a per-gap DB error', async () => {
     const db = {
       execute: vi.fn(async (q: unknown) => {

@@ -23,11 +23,18 @@
  * is a single guarded `INSERT ... SELECT ... WHERE NOT EXISTS` so two
  * overlapping ticks cannot double-write either.
  *
- * Tenant-scoping: the caller binds the tenant GUC; every query also carries
- * `tenant_id`. RLS FORCE holds on the out-of-band scheduler path.
+ * Tenant-scoping: the background scheduler hands us the raw shared client with
+ * NO tenant GUC bound, so each DB unit runs inside `withTenantContext(db,
+ * tenantId, …)` — that SET-LOCALs `app.current_tenant_id` so the FORCE-RLS
+ * `tenant_isolation` policy (USING + WITH CHECK) passes for both the SELECT
+ * probes and the guarded INSERT. Without it the SELECTs saw zero rows (always
+ * "gap exists") and the INSERT failed `WITH CHECK`. Each gap gets its OWN
+ * short transaction so a per-gap failure rolls back only that gap and the next
+ * is still attempted (a single shared tx would poison the rest on first error).
  *
- * Pino only; never throws — a per-gap failure is logged and the next gap is
- * still attempted. Returns the number of nudge rows written this tick.
+ * Pino only; never throws — a per-gap failure is logged (with the postgres
+ * cause-chain via `describeDbError`) and the next gap is still attempted.
+ * Returns the number of nudge rows written this tick.
  *
  * NOTE on category mapping: `mwikila_actions_inbox.category` has a CHECK
  * constraint limited to the 12 delegation categories, so each gap is mapped
@@ -35,13 +42,55 @@
  * missing-licences gap genuinely belongs to `license-renewal-reminders`,
  * missing-workers to `worker-hires`, missing-sites to `capex` (site
  * stand-up is the foundational capital step).
+ *
+ * NOTE on `tenant_id` type: `mwikila_actions_inbox.tenant_id` is TEXT (it FKs
+ * `tenants.id`, a TEXT PK from the 0000 bootstrap), so the value is bound as a
+ * plain string — NEVER cast `::uuid` (postgres has no uuid→text assignment
+ * cast; the cast threw "column tenant_id is of type text but expression is of
+ * type uuid" at plan time on every tick).
  */
 
 import { sql } from 'drizzle-orm';
+import { withTenantContext } from '@borjie/database';
 import type { Logger } from 'pino';
+
+/**
+ * The transaction-capable client `withTenantContext` expects. Derived from the
+ * helper's own signature rather than importing the barrel `DatabaseClient`
+ * (which collides with a namespace export — same workaround as
+ * `middleware/database.ts`).
+ */
+type TenantContextClient = Parameters<typeof withTenantContext>[0];
 
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
+}
+
+/**
+ * Surface the ROOT cause of a DB error. Drizzle wraps postgres-js errors as
+ * `DrizzleQueryError` whose `.message` is just "Failed query: <sql>" — the real
+ * postgres error (code/detail) sits on `.cause`. Logging only `.message` hid
+ * the root cause (this worker was failing every tick with an opaque "Failed
+ * query"); this walks the cause chain so the failure is diagnosable in prod.
+ * Mirrors the dispatcher-worker helper.
+ */
+function describeDbError(err: unknown): {
+  err: string;
+  cause?: string;
+  code?: string;
+} {
+  const e = err as {
+    message?: string;
+    code?: string;
+    cause?: { message?: string; code?: string };
+  };
+  const cause = e?.cause?.message;
+  const code = e?.cause?.code ?? e?.code;
+  return {
+    err: e?.message ? String(e.message).slice(0, 200) : String(err),
+    ...(cause ? { cause: String(cause).slice(0, 200) } : {}),
+    ...(code ? { code: String(code) } : {}),
+  };
 }
 
 /** One core-entity gap the detector knows how to nudge. */
@@ -160,16 +209,23 @@ export async function detectOnboardingGaps(
   input: DetectOnboardingGapsInput,
 ): Promise<number> {
   const { db, tenantId, logger } = input;
+  // The scheduler hands us the raw shared client; bind the tenant GUC so
+  // FORCE-RLS passes. `withTenantContext` runs the callback directly when the
+  // handle is a bare `{ execute }` test stub (no `.transaction`), so unit
+  // tests are unaffected.
+  const client = db as unknown as TenantContextClient;
 
   let ownerUserId: string | null;
   try {
-    ownerUserId = await resolveOwnerUserId(db, tenantId);
+    ownerUserId = await withTenantContext(client, tenantId, (tx) =>
+      resolveOwnerUserId(tx as unknown as DbLike, tenantId),
+    );
   } catch (err) {
     logger.warn(
       {
         worker: 'detect-onboarding-gaps',
         tenantId,
-        err: err instanceof Error ? err.message : String(err),
+        ...describeDbError(err),
       },
       'onboarding-gaps: owner lookup failed; skipping tenant',
     );
@@ -186,22 +242,26 @@ export async function detectOnboardingGaps(
   let written = 0;
   for (const gap of ONBOARDING_GAPS) {
     try {
-      const present = await tableHasRows(db, tenantId, gap.table);
-      if (present) continue; // entity exists → no gap → no nudge.
+      // Own short transaction per gap (tenant GUC bound) so a per-gap failure
+      // rolls back only this gap — a shared tx would poison the rest.
+      const didWrite = await withTenantContext(client, tenantId, async (txc) => {
+        const tx = txc as unknown as DbLike;
+        const present = await tableHasRows(tx, tenantId, gap.table);
+        if (present) return false; // entity exists → no gap → no nudge.
 
-      // Guarded insert: writes the nudge ONLY when no OPEN (proposed) row
-      // with the same action_kind already exists for this tenant. This is
-      // the "one nudge per gap per cadence" idempotency guarantee — two
-      // overlapping ticks cannot double-write because the NOT EXISTS is
-      // evaluated inside the same statement.
-      const inserted = rowsOf(
-        await db.execute(sql`
+        // Guarded insert: writes the nudge ONLY when no OPEN (proposed) row
+        // with the same action_kind already exists for this tenant. This is
+        // the "one nudge per gap per cadence" idempotency guarantee — two
+        // overlapping ticks cannot double-write because the NOT EXISTS is
+        // evaluated inside the same statement.
+        const inserted = rowsOf(
+          await tx.execute(sql`
           INSERT INTO mwikila_actions_inbox (
             tenant_id, acting_on_user_id, action_kind, category,
             delegation_tier, status, summary, summary_sw, rationale,
             payload, proposed_at, provenance
           )
-          SELECT ${tenantId}::uuid,
+          SELECT ${tenantId},
                  ${ownerUserId},
                  ${gap.actionKind},
                  ${gap.category},
@@ -215,14 +275,16 @@ export async function detectOnboardingGaps(
                  ${JSON.stringify({ via: 'detect_onboarding_gaps' })}::jsonb
           WHERE NOT EXISTS (
             SELECT 1 FROM mwikila_actions_inbox
-             WHERE tenant_id   = ${tenantId}::uuid
+             WHERE tenant_id   = ${tenantId}
                AND action_kind = ${gap.actionKind}
                AND status      = 'proposed'
           )
           RETURNING id
         `),
-      );
-      if (inserted.length > 0) {
+        );
+        return inserted.length > 0;
+      });
+      if (didWrite) {
         written += 1;
         logger.info(
           {
@@ -240,7 +302,7 @@ export async function detectOnboardingGaps(
           worker: 'detect-onboarding-gaps',
           tenantId,
           gap: gap.actionKind,
-          err: err instanceof Error ? err.message : String(err),
+          ...describeDbError(err),
         },
         'onboarding-gaps: failed to evaluate/write one gap',
       );
