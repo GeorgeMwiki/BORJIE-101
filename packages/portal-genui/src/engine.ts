@@ -50,6 +50,7 @@ import {
   assertSpecUrlsAllowed,
   type UrlEgressPolicy,
 } from './security/url-egress.js';
+import { sealAuditChain } from './audit/audit-chain.js';
 
 export interface GenUIEngineBrainPort {
   /** Intent classification call — `text` is JSON. */
@@ -136,17 +137,23 @@ export function createGenUIEngine(
   const persistence = deps.persistence ?? createInMemoryTabRegistry();
   const egressPolicy = deps.urlEgressPolicy;
 
-  /** Egress chokepoint: every tab is screened before it can be stored. */
-  const guardEgress = (tab: SaveTabInput['tab']): void => {
-    if (egressPolicy) assertSpecUrlsAllowed(tab, egressPolicy);
+  /**
+   * Persist chokepoint: seal the audit chain (tamper-evident, append-only) and
+   * screen every URL against the egress policy before a tab can be stored.
+   * Returns the sealed tab so the stored record always carries chain hashes.
+   */
+  const guardForPersist = (tab: SaveTabInput['tab']): SaveTabInput['tab'] => {
+    const sealed = { ...tab, audit: sealAuditChain(tab.audit) };
+    if (egressPolicy) assertSpecUrlsAllowed(sealed, egressPolicy);
+    return sealed;
   };
 
   return {
     detectIntent: (input) => detectTabGenerationIntent(input, detectorDeps),
     generate: (input) => generator.generate(input),
     persist: async (input) => {
-      guardEgress(input.tab);
-      return persistence.save(input);
+      const tab = guardForPersist(input.tab);
+      return persistence.save({ ...input, tab });
     },
     list: (input) => persistence.list(input),
     get: (id) => persistence.get(id),
@@ -163,8 +170,8 @@ export function createGenUIEngine(
       }
       const result = applyTabPatch(target, input.patch, input.options);
       if (result.ok && input.persist !== false) {
-        guardEgress(result.tab);
-        await persistence.save({ tab: result.tab, parentTabId: target.id });
+        const tab = guardForPersist(result.tab);
+        await persistence.save({ tab, parentTabId: target.id });
       }
       return result;
     },

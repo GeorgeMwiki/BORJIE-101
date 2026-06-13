@@ -50,3 +50,6 @@ export * from './engine.js';
 
 // Render-egress URL allowlist (membrane against zero-click exfil via spec URLs)
 export * from './security/url-egress.js';
+
+// Hash-chained, append-only tab audit (tamper-evident provenance)
+export * from './audit/audit-chain.js';

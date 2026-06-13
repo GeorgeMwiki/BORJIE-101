@@ -453,6 +453,13 @@ export const PortalTabAuditEntrySchema = z
     action: z.enum(['created', 'edited', 'imported', 'reset', 'deleted']),
     at: Iso8601Schema,
     note: z.string().max(500).optional(),
+    /**
+     * Tamper-evident chain hash — `sha256(prevHash ‖ canonical(entry))`,
+     * stamped at the persist chokepoint (`sealAuditChain`). Optional so legacy
+     * v1 rows (written before chaining) still validate; they are treated as
+     * "unsealed" by `verifyAuditChain` and sealed on their next write.
+     */
+    hash: z.string().min(1).max(128).optional(),
   })
   .strict();
 

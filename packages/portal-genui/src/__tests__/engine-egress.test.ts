@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { createGenUIEngine } from '../engine.js';
 import { PortalGenUiEgressError } from '../security/url-egress.js';
+import { verifyAuditChain } from '../audit/audit-chain.js';
 
 const POLICY = { allowedHosts: ['supabase.co', 'borjie.app'] };
 
@@ -51,5 +52,16 @@ describe('engine egress chokepoint', () => {
 
     const result = await engine.persist({ tab: poisoned });
     expect(result.id).toBeTruthy();
+  });
+
+  it('seals the audit chain on persist (stored tab is tamper-evident)', async () => {
+    const engine = createGenUIEngine();
+    const tab = await generateTab(engine);
+    const { id } = await engine.persist({ tab });
+
+    const stored = await engine.get(id);
+    expect(stored).toBeTruthy();
+    expect((stored!.audit.history[0] as { hash?: string }).hash).toBeTruthy();
+    expect(verifyAuditChain(stored!.audit).ok).toBe(true);
   });
 });
