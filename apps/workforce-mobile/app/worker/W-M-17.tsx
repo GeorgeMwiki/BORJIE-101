@@ -19,12 +19,7 @@ export default function Screen(): JSX.Element {
           </View>
         </Section>
         <Section title="Alama">
-          <PlaceholderList
-            items={[
-              { id: 'gps', primary: 'GPS', secondary: '-3.4287, 32.9183' },
-              { id: 'tag', primary: 'Tag', secondary: 'Pit 2 / wall east' }
-            ]}
-          />
+          <PlaceholderList items={[]} emptyLabel="Hakuna alama bado" />
         </Section>
       </ScreenShell>
     </RoleGuard>

@@ -62,3 +62,6 @@ export * from './verify/render-effect.js';
 
 // Schema-evolution lane — persisted specs migrate or fail loud (future-proof)
 export * from './migrate/index.js';
+
+// Self-healing MAPE-K loop — recognize → make-known → solve|escalate → proceed
+export * from './self-healing/self-heal.js';

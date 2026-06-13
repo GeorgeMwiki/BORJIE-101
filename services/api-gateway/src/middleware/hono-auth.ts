@@ -230,8 +230,15 @@ export const authMiddleware = createMiddleware(async (c, next) => {
         phone?: string;
         email?: string;
       };
+      // A signature-valid token with no `sub` must NOT flow downstream as an
+      // empty userId — some reads (e.g. the buyer ReBAC inquiry read) key
+      // authorization on userId, so an empty one is a privilege hole. Reject it
+      // here exactly as the HS256 path does.
+      if (!sp.sub || String(sp.sub).length === 0) {
+        throw new Error('jwt payload missing sub claim');
+      }
       decoded = {
-        userId: String(sp.sub ?? ''),
+        userId: String(sp.sub),
         tenantId: appTenantId ?? '',
         role: mapSupabaseRolesToUserRole(
           sp.app_metadata?.mining_role ? [sp.app_metadata.mining_role] : [],

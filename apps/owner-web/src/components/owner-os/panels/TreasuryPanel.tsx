@@ -88,7 +88,11 @@ export const TREASURY_PANEL_DESCRIPTOR = TREASURY_DESCRIPTOR;
 // FxChart above makes the real rates visible.
 const FALLBACK_GOLD_USD_OZ = 2384;
 const FALLBACK_TZS_USD = 2585;
-const FALLBACK_GRAMMES = 12_000;
+// Simulator starting QUANTITY — defaults to the slider minimum so it obviously
+// reads as "set me", never a plausible owner-specific position the owner might
+// mistake for their real stockpile. (Gold price / TZS-USD above are market FX
+// fallbacks, overridden by the live feed.)
+const FALLBACK_GRAMMES = 500;
 
 // ── quick-action button ───────────────────────────────────────────────────────
 

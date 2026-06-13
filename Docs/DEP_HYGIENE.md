@@ -92,6 +92,33 @@ constrained to compile-time-known strings.
 **Next review**: 2026-Q2 — schedule the 0.36 → 0.45 migration as a
 focused PR with schema diffing + test sweep.
 
+### 3. `esbuild` (high)
+
+**Advisory ID**: GHSA-gv7w-rqvm-qjhr — missing binary integrity
+verification in esbuild's Deno module enables RCE via
+`NPM_CONFIG_REGISTRY`.
+
+**Vulnerable**: `>=0.17.0 <0.28.1` (transitive via `tsup` / `vite` /
+`vitest` build tooling). **Patched version**: `>=0.28.1`.
+
+**Codebase audit (2026-06-13)**:
+- The RCE vector is DENO-SPECIFIC: esbuild's Deno module fetches its
+  native binary from a registry URL with no integrity check, so a
+  malicious `NPM_CONFIG_REGISTRY` can serve a trojaned binary. BORJIE
+  runs on Node + pnpm — the binary is resolved through pnpm against
+  `pnpm-lock.yaml` SHA-512 integrity hashes, never the Deno fetch path,
+  so the vector does not exist here.
+- esbuild is build-time-only dev tooling; it is never present in any
+  production runtime bundle.
+
+**Mitigation**: Node/pnpm install path + lockfile integrity; dev-only.
+
+**Tracked in**: this document + `scripts/audit-with-allowlist.mjs`.
+
+**Next review**: 2026-Q3 — bump the tsup/vite/vitest esbuild pin to
+`>=0.28.1` in a dedicated dependency PR (needs a full monorepo build to
+verify).
+
 ## Removing an entry
 
 Once an upstream patch is consumable (e.g. drizzle-orm 0.45 migration

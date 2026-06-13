@@ -16,6 +16,11 @@
 
 import { PortalTabSchema, type PortalTab } from '../types.js';
 import { migratePortalTabRaw, verifyMigratable } from '../migrate/index.js';
+import {
+  attemptHeal,
+  type BlockerSignal,
+  type RepairOutcome,
+} from '../self-healing/self-heal.js';
 import type {
   DeleteTabInput,
   ListTabsInput,
@@ -44,7 +49,7 @@ interface PortalTabRow {
   readonly updated_at: Date | string;
 }
 
-function rowToTab(row: PortalTabRow): PortalTab | null {
+function rowToTab(row: PortalTabRow, onBlocker?: BlockerSink): PortalTab | null {
   const raw = typeof row.tab === 'string' ? safeJsonParse(row.tab) : row.tab;
   if (!raw || typeof raw !== 'object') return null;
   // Schema-evolution lane: upgrade an archived spec written under an older
@@ -52,12 +57,30 @@ function rowToTab(row: PortalTabRow): PortalTab | null {
   // non-throwing gate — a spec NEWER than this binary knows (or unmigratable)
   // is skipped fail-safe rather than crashing the read. For current-version
   // rows the migration is identity, so behaviour is unchanged.
-  if (!verifyMigratable(raw).ok) return null;
+  //
+  // Self-healing: a spec that no longer loads is a real wiring/data blocker.
+  // Rather than DROP it silently, we run the MAPE-K loop — recognise it as a
+  // `corrupt-spec`, make it known (escalate, human-gated — corrupt data is
+  // never auto-rewritten), and PROCEED (skip the row so the read still serves).
+  if (!verifyMigratable(raw).ok) {
+    heal({ kind: 'corrupt-spec', locus: `portal_tabs/${row.id}`, detail: 'stored spec is unmigratable' }, onBlocker);
+    return null;
+  }
   try {
     return migratePortalTabRaw(raw).tab;
   } catch {
+    heal({ kind: 'corrupt-spec', locus: `portal_tabs/${row.id}`, detail: 'stored spec failed to migrate/validate' }, onBlocker);
     return null;
   }
+}
+
+/** A sink the composition wires to telemetry + the internal-admin console.
+ *  Receives EVERY heal outcome (auto-healed observation OR escalation). */
+export type BlockerSink = (outcome: RepairOutcome, signal: BlockerSignal) => void;
+
+/** Run the self-healing loop for a read-path blocker; never throws. */
+function heal(signal: BlockerSignal, onBlocker?: BlockerSink): void {
+  attemptHeal(signal, onBlocker ? { report: onBlocker } : {});
 }
 
 function safeJsonParse(text: string): unknown {
@@ -71,6 +94,13 @@ function safeJsonParse(text: string): unknown {
 export interface DrizzleTabRegistryDeps {
   readonly db: DbExecutor;
   readonly clock?: () => Date;
+  /**
+   * Self-healing escalation sink. When a stored spec no longer loads, the
+   * read-path recognises it as a `corrupt-spec` blocker and escalates a
+   * human-gated `RepairProposal` here (composition wires it to telemetry /
+   * ticketing). When omitted, the row is still skipped and the read proceeds.
+   */
+  readonly onBlocker?: BlockerSink;
 }
 
 export function createDrizzleTabRegistry(
@@ -129,7 +159,7 @@ export function createDrizzleTabRegistry(
       );
       const tabs: PortalTab[] = [];
       for (const row of rows) {
-        const tab = rowToTab(row);
+        const tab = rowToTab(row, deps.onBlocker);
         if (!tab) continue;
         if (input.personaId && !tab.permissions.visibleToPersonas.includes(input.personaId)) {
           continue;
@@ -152,7 +182,7 @@ export function createDrizzleTabRegistry(
         [id],
       );
       const row = rows[0];
-      return row ? rowToTab(row) : null;
+      return row ? rowToTab(row, deps.onBlocker) : null;
     },
 
     async delete(input: DeleteTabInput): Promise<{ deleted: boolean }> {

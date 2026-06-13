@@ -47,6 +47,7 @@ import {
   UnknownBindingError,
   type WidgetQueryPort,
 } from '../../composition/portal-genui/widget-data-resolver.js';
+import { escalateToInternalAdmin } from '../../composition/portal-genui/internal-admin-sink.js';
 import {
   subscribeCockpitEvents,
   type CockpitEvent,
@@ -1083,6 +1084,7 @@ router.post('/tabs/:id/widget-data', async (c: AnyCtx) => {
     recordStore: store,
     ...(queryPort !== undefined ? { query: queryPort } : {}),
     logger,
+    onBlocker: escalateToInternalAdmin,
   });
   try {
     const data = await resolver.resolve(parsed.data.binding, {

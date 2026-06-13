@@ -25,6 +25,7 @@ import {
 // `(t as any).uiParts` cast becomes a typed read.
 import { AdaptiveRenderer } from '@/lib/genui';
 import type { AgUiUiPart } from '@/lib/genui';
+import type { GenUiUnknownKindEventDetail } from '@borjie/genui';
 import { FeedbackThumbs, type FeedbackVerdict } from '@/components/FeedbackThumbs';
 
 // Build-time guard: production deployments MUST set
@@ -211,6 +212,29 @@ export function JarvisConsole(): JSX.Element {
     }
   }
 
+  // Self-healing beacon: when the renderer degrades to UnknownKindCard the
+  // admin was already served the fallback. Make it known to the internal-admin
+  // self-healing console (best-effort; never blocks the surface).
+  function reportUnknownKind(detail: GenUiUnknownKindEventDetail): void {
+    void fetch(`${DEFAULT_GATEWAY}/api/v1/genui-telemetry/unknown-kind`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'content-type': 'application/json',
+        Authorization: `Bearer ${readBearerFromCookie()}`,
+        ...getCsrfHeaders(),
+      },
+      body: JSON.stringify({
+        kind: detail.kind,
+        reason: detail.reason,
+        ...(detail.message ? { message: detail.message } : {}),
+        surface: 'jarvis',
+      }),
+    }).catch(() => {
+      /* best-effort beacon — the customer was already served the fallback */
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
@@ -290,7 +314,11 @@ export function JarvisConsole(): JSX.Element {
                   // the spec before handing it to react-vega.
                   <div className="mt-2 flex flex-col gap-2">
                     {uiParts.map((part, idx) => (
-                      <AdaptiveRenderer key={`${t.id}-uip-${idx}`} uiPart={part} />
+                      <AdaptiveRenderer
+                        key={`${t.id}-uip-${idx}`}
+                        uiPart={part}
+                        onUnknownKind={reportUnknownKind}
+                      />
                     ))}
                   </div>
                 ) : null}

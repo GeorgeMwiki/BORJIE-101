@@ -80,6 +80,7 @@ import { notificationsRouter } from './routes/notifications';
 import { onboardingRouter } from './routes/onboarding';
 import { onboardingFlowRouter } from './routes/onboarding.router';
 import { feedbackRouter } from './routes/feedback';
+import { genuiTelemetryRouter } from './routes/genui-telemetry.hono';
 import { complaintsRouter } from './routes/complaints';
 // Piece C — MD Executive Brief routes (briefs + briefing subscriptions).
 import {
@@ -373,6 +374,7 @@ import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
 // search). Mirrors the owner superpowers wiring, persona-guarded to 'buyer'.
 import { buyerSuperpowersRouter } from './routes/buyer/superpowers.hono';
 import { buyerTabProjectionRouter } from './routes/buyer/tab-projection.hono';
+import { buyerInquiriesRouter } from './routes/mining/flows/inquiry-flow.hono';
 // Commercial chain L8 — settlement orchestrator entry point.
 // Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
 import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
@@ -2491,6 +2493,10 @@ api.route('/notifications', notificationsRouter);
 api.route('/onboarding', onboardingFlowRouter);
 api.route('/onboarding', onboardingRouter);
 api.route('/feedback', feedbackRouter);
+// Client-side self-healing beacon — the genui renderer reports an unknown-kind
+// / schema-validation fallback here; it closes the projector seam to the
+// internal-admin console + returns the customer-loop-closure contract.
+api.route('/genui-telemetry', genuiTelemetryRouter);
 api.route('/complaints', complaintsRouter);
 // Piece C — Executive briefs (T1-T3 only) + subscription cadence registry.
 api.route('/briefs', executiveBriefRouter);
@@ -2674,6 +2680,7 @@ api.route('/buyer/superpowers', buyerSuperpowersRouter);
 // Surface-completion SC-6 — the buyer leg of owner-spawn tab projection
 // (per-membership-scoped, explicit buyerProjection opt-in only).
 api.route('/buyer/tabs', buyerTabProjectionRouter);
+api.route('/buyer/inquiries', buyerInquiriesRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);

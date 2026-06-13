@@ -41,7 +41,10 @@ import {
   type UrlEgressPolicy,
 } from '../security/url-egress.js';
 import { sealAuditChain } from '../audit/audit-chain.js';
-import { verifyRenderEffect } from '../verify/render-effect.js';
+import {
+  verifyRenderEffect,
+  checkChartTruth,
+} from '../verify/render-effect.js';
 
 // ---------------------------------------------------------------------------
 // Result shape.
@@ -54,6 +57,7 @@ export const ADMISSION_RULE_IDS = [
   'locale-purity',
   'action-label-binding',
   'render-effect',
+  'chart-truth',
 ] as const;
 
 export type AdmissionRuleId = (typeof ADMISSION_RULE_IDS)[number];
@@ -303,12 +307,26 @@ function sectionVisibleStrings(
   return out;
 }
 
-/** Locale purity — no wrong-language user-visible strings under the active locale. */
+/**
+ * Locale purity — enforces the absolute EN/SW zero-mixing law on generated UI.
+ *
+ * A stored `PortalTab` does not carry its own active locale (locale lives on the
+ * generation intent), so the rule cannot check "every string is pure `en`".
+ * What it CAN enforce — and what the law's core forbids ("no 'Habari! Hello
+ * there' mixing — ever") — is that a single tab must not contain BOTH a
+ * Swahili-marked and an English-marked visible string. `detector(text, 'en')`
+ * flags a Swahili intrusion; `detector(text, 'sw')` flags an English intrusion.
+ * When both appear, the tab mixes languages; we report the MINORITY-language
+ * strings as the intrusions. (Full single-language-toggle enforcement — "en
+ * selected ⇒ zero Swahili" — additionally needs the tab to record its authored
+ * locale: a documented follow-on.)
+ */
 const localePurityRule: AdmissionRule = {
   id: 'locale-purity',
   check: (tab, policy) => {
-    const { locale, localeDetector } = policy;
-    if (!locale || !localeDetector) return [];
+    const { localeDetector } = policy;
+    if (!localeDetector) return [];
+
     const strings: { path: string; text: string }[] = [
       { path: 'title', text: tab.title },
       { path: 'description', text: tab.description },
@@ -318,13 +336,18 @@ const localePurityRule: AdmissionRule = {
         strings.push(item);
       }
     });
-    return strings
-      .filter((item) => localeDetector(item.text, locale))
-      .map((item) => ({
-        rule: 'locale-purity' as const,
-        path: item.path,
-        detail: `user-visible string is not pure '${locale}'`,
-      }));
+
+    const swahili = strings.filter((s) => localeDetector(s.text, 'en'));
+    const english = strings.filter((s) => localeDetector(s.text, 'sw'));
+    if (swahili.length === 0 || english.length === 0) return []; // single-language ⇒ pure
+
+    const minority = swahili.length <= english.length ? swahili : english;
+    return minority.map((item) => ({
+      rule: 'locale-purity' as const,
+      path: item.path,
+      detail:
+        'tab mixes en + sw (absolute zero-mixing law) — this string is the minority language',
+    }));
   },
 };
 
@@ -345,6 +368,63 @@ const actionLabelBindingRule: AdmissionRule = {
           detail: `label '${label}' implies read but binds mutating tool '${binding.toolId}'`,
         });
       }
+    });
+    return out;
+  },
+};
+
+/**
+ * Chart-truth — drives the lying-chart detector (`checkChartTruth`) at the
+ * persist chokepoint over a chart widget's BAKED series. Scope is deliberately
+ * narrow and honest: only `chart_bar` carries an admission-checkable lie in the
+ * current schema — a series whose value count ≠ the category count → bars would
+ * be mislabeled (`length-mismatch`). `chart_line` points are `{x,y}` (no
+ * currency/unit fields), so currency/unit confusion is not expressible there and
+ * is intentionally NOT claimed. The full rendered-vs-LIVE-query diff needs a
+ * renderer field-map the schema does not yet carry — a documented follow-on —
+ * so we never guess a mapping and risk false-blocking.
+ *
+ * A bar chart with `categories: []` is skipped (a label-less chart is not a lie
+ * — it may be mid-stream or label-from-render-hook), avoiding a false-RED.
+ */
+const chartTruthRule: AdmissionRule = {
+  id: 'chart-truth',
+  check: (tab) => {
+    const out: AdmissionViolation[] = [];
+    forEachWidget(tab, (_section, si, widget, wi) => {
+      if (widget.kind !== 'chart_bar') return;
+      const cfg = widget.config;
+      if (!cfg || typeof cfg !== 'object') return;
+      const c = cfg as Record<string, unknown>;
+      const base = `sections[${si}].widgets[${wi}].config.series`;
+
+      const categories = Array.isArray(c.categories) ? c.categories : [];
+      if (categories.length === 0) return; // label-less ⇒ nothing to mislabel
+      const seriesList = Array.isArray(c.series) ? c.series : [];
+      const expected = categories.map(() => ({ value: 0 }));
+
+      seriesList.forEach((s, sidx) => {
+        const values =
+          typeof s === 'object' &&
+          s !== null &&
+          Array.isArray((s as { values?: unknown }).values)
+            ? (s as { values: unknown[] }).values
+            : [];
+        const rendered = values.map((v) => ({
+          value: typeof v === 'number' ? v : Number(v) || 0,
+        }));
+        for (const f of checkChartTruth(rendered, expected).findings) {
+          if (f.kind === 'chart-truth.length-mismatch') {
+            out.push({
+              rule: 'chart-truth',
+              path: `${base}[${sidx}]`,
+              detail:
+                `bar series has ${rendered.length} values but ` +
+                `${categories.length} categories — bars would be mislabeled`,
+            });
+          }
+        }
+      });
     });
     return out;
   },
@@ -380,6 +460,7 @@ export const ADMISSION_RULES: ReadonlyArray<AdmissionRule> = Object.freeze([
   localePurityRule,
   actionLabelBindingRule,
   renderEffectRule,
+  chartTruthRule,
 ]);
 
 // ---------------------------------------------------------------------------

@@ -30,7 +30,8 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
-import { authMiddleware } from '../../middleware/hono-auth.js';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth.js';
+import { UserRole } from '../../types/user-role.js';
 import { safeInternalError } from '../../utils/safe-error.js';
 import { getWorkflowEngine } from '../../composition/workflow-engine-wiring.js';
 
@@ -122,8 +123,16 @@ flowAutonomyRouter.get('/:flowId', async (c: AnyCtx) => {
 });
 
 // ── POST /:flowId/posture — set the posture (the auto-vs-gated decision).
+// Owner/admin only: flipping a flow to AUTO defeats the per-run human gate, so
+// a low-privileged member must not be able to set it.
 flowAutonomyRouter.post(
   '/:flowId/posture',
+  requireRole(
+    UserRole.OWNER,
+    UserRole.TENANT_ADMIN,
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN,
+  ),
   zValidator('json', SetPostureSchema),
   withSecurityEvents(
     {

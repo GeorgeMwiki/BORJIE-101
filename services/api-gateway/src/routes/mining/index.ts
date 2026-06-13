@@ -164,6 +164,8 @@ import { miningInternalPromotionsRouter } from './internal/promotions.hono';
 import { miningInternalRegulatorPipelineRouter } from './internal/regulator-pipeline.hono';
 import { miningInternalCitationsRouter } from './internal/citations.hono';
 import { miningInternalComplianceQueueRouter } from './internal/compliance-queue.hono';
+import { miningInternalSelfHealingRouter } from './internal/self-healing.hono';
+import { miningFlowsRouter } from './flows/inquiry-flow.hono';
 // R31 — admin-web internal-form endpoints (FlagRolloutForm /
 // JuniorActions / TicketAck parent screens previously rendered stubs).
 import { miningInternalFeatureFlagsRouter } from './internal/feature-flags.hono';
@@ -384,6 +386,8 @@ mining.route('/internal/promotions', miningInternalPromotionsRouter);
 mining.route('/internal/regulator-pipeline', miningInternalRegulatorPipelineRouter);
 mining.route('/internal/citations', miningInternalCitationsRouter);
 mining.route('/internal/compliance-queue', miningInternalComplianceQueueRouter);
+mining.route('/internal/self-healing', miningInternalSelfHealingRouter);
+mining.route('/flows', miningFlowsRouter);
 // R31 — admin-web parent screens stop rendering stubs.
 mining.route('/internal/feature-flags', miningInternalFeatureFlagsRouter);
 mining.route('/internal/juniors', miningInternalJuniorsRouter);

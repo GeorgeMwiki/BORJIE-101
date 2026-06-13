@@ -110,6 +110,11 @@ const RLS_BREACH_CLOSED = ['users', 'organizations', 'owner_skills'] as const;
 const GLOBAL_SPINE_TABLES = [
   'identity_auth_principals',
   'tenant_identities',
+  // Platform-internal self-healing console queue (migration 0349). Proposals
+  // originate cross-tenant and only Borjie internal-admins read them, so it is
+  // service-role-only (no tenant-isolation policy) — an owner must never see
+  // the platform healing its own wiring. `tenant_id` is nullable triage context.
+  'self_healing_proposals',
 ] as const;
 
 /** A tenant-scoping column is `tenant_id` or any `<prefix>_tenant_id`. */

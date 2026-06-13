@@ -18,12 +18,7 @@ export default function Screen(): JSX.Element {
           <BigNumber value={String(queue)} label="Inangoja" caption={online ? 'Mtandaoni' : 'Bila mtandao'} />
         </Section>
         <Section title="Upatanisho">
-          <PlaceholderList
-            items={[
-              { id: 's1', primary: 'Shift report · 2026-05-24' },
-              { id: 's2', primary: 'Fuel log · 2026-05-24' }
-            ]}
-          />
+          <PlaceholderList items={[]} emptyLabel="Hakuna upatanisho bado" />
         </Section>
       </ScreenShell>
     </RoleGuard>
