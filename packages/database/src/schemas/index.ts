@@ -1771,3 +1771,10 @@ export * from './org-loop-runs.js';
 // it; tenant_id is nullable triage context, not an access boundary. FORCE RLS
 // + service-role-only bypass (pinned in rls-coverage GLOBAL_SPINE_TABLES).
 export * from './self-healing-proposals.schema.js';
+
+// business_flows + flow_runs (migration 0351) — the BUSINESS-PROCESS COMPILER
+// substrate. business_flows = the compiled FlowSpec template; flow_runs = a
+// running instance (the durable cross-surface state machine raised→
+// task_assigned→awaiting_owner_approval→delivered). Tenant-scoped (FORCE RLS);
+// flow_runs adds a service-role bypass for the membership-bounded buyer read.
+export * from './business-flows.schema.js';

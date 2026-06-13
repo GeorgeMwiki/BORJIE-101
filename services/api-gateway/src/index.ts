@@ -374,6 +374,7 @@ import { buyerNotificationsRouter } from './routes/buyer/notifications.hono';
 // search). Mirrors the owner superpowers wiring, persona-guarded to 'buyer'.
 import { buyerSuperpowersRouter } from './routes/buyer/superpowers.hono';
 import { buyerTabProjectionRouter } from './routes/buyer/tab-projection.hono';
+import { buyerInquiriesRouter } from './routes/mining/flows/inquiry-flow.hono';
 // Commercial chain L8 — settlement orchestrator entry point.
 // Drives LedgerService.post() + M-Pesa B2C payout on buyer sign-delivery.
 import { rfbResponsesRouter } from './routes/marketplace/rfb-responses.hono';
@@ -2679,6 +2680,7 @@ api.route('/buyer/superpowers', buyerSuperpowersRouter);
 // Surface-completion SC-6 — the buyer leg of owner-spawn tab projection
 // (per-membership-scoped, explicit buyerProjection opt-in only).
 api.route('/buyer/tabs', buyerTabProjectionRouter);
+api.route('/buyer/inquiries', buyerInquiriesRouter);
 // Commercial chain L8 — sign-delivery → ledger → payout. Mounted at
 // /api/v1/marketplace/rfb-responses to match the spec.
 api.route('/marketplace/rfb-responses', rfbResponsesRouter);
