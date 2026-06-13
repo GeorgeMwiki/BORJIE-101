@@ -49,6 +49,8 @@ import {
   createDrizzleTabRegistry,
   createDrizzleRecordStore,
   createInMemoryRecordStore,
+  DEFAULT_ALLOWED_MEDIA_HOSTS,
+  type UrlEgressPolicy,
   type GenUIEngine,
   type GenUIEngineBrainPort,
   type DbExecutor,
@@ -236,6 +238,35 @@ export interface PortalGenuiWiring {
 }
 
 /**
+ * Resolve the render-egress URL allowlist for generated tabs. Combines the
+ * package defaults with the live Supabase storage host (so first-party uploads
+ * render) and any comma-separated extras in `BORJIE_GENUI_MEDIA_ALLOWLIST`.
+ * Read at the composition bootstrap seam, mirroring the rest of this file.
+ */
+function resolveUrlEgressPolicy(): UrlEgressPolicy {
+  const hosts = new Set<string>(DEFAULT_ALLOWED_MEDIA_HOSTS);
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (supabaseUrl) {
+    try {
+      hosts.add(new URL(supabaseUrl).hostname.toLowerCase());
+    } catch {
+      /* malformed URL — ignore, defaults still apply */
+    }
+  }
+
+  const extra = process.env.BORJIE_GENUI_MEDIA_ALLOWLIST?.trim();
+  if (extra) {
+    for (const h of extra.split(',')) {
+      const host = h.trim().toLowerCase();
+      if (host) hosts.add(host);
+    }
+  }
+
+  return { allowedHosts: Object.freeze([...hosts]) };
+}
+
+/**
  * Construct the portal-genui engine + return it together with its router for
  * the orchestrator to mount. Pure factory — no side effects, never touches
  * `index.ts`, never starts a server.
@@ -267,9 +298,12 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
     );
   }
 
+  const urlEgressPolicy = resolveUrlEgressPolicy();
+
   const engine = createGenUIEngine({
     ...(brain !== undefined ? { brain } : {}),
     ...(persistence !== undefined ? { persistence } : {}),
+    urlEgressPolicy,
   });
 
   logger.info(
@@ -277,6 +311,7 @@ export function buildPortalGenuiWiring(): PortalGenuiWiring {
       wiring: 'portal-genui',
       brain: brain ? 'live' : 'heuristic-only',
       persistence: persistence ? 'postgres' : 'in-memory',
+      egressAllowedHosts: urlEgressPolicy.allowedHosts.length,
     },
     'portal-genui: engine constructed',
   );

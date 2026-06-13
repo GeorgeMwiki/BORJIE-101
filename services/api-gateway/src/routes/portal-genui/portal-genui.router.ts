@@ -494,6 +494,18 @@ router.post(
           },
         });
       } catch (err) {
+        if ((err as { code?: unknown })?.code === 'EGRESS_URL_DISALLOWED') {
+          return c.json(
+            {
+              success: false,
+              error: {
+                code: 'EGRESS_URL_DISALLOWED',
+                message: err instanceof Error ? err.message : 'disallowed url',
+              },
+            },
+            422,
+          );
+        }
         return c.json(
           {
             success: false,
@@ -576,6 +588,15 @@ router.post(
         return c.json({ success: true, data: saved }, 201);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'unknown';
+        if ((err as { code?: unknown })?.code === 'EGRESS_URL_DISALLOWED') {
+          return c.json(
+            {
+              success: false,
+              error: { code: 'EGRESS_URL_DISALLOWED', message: msg },
+            },
+            422,
+          );
+        }
         if (msg.includes('tab_key_already_exists')) {
           return c.json(
             {

@@ -46,6 +46,10 @@ import {
   type ApplyTabPatchOptions,
 } from './patch/index.js';
 import type { PortalTab, TabGenerationIntent } from './types.js';
+import {
+  assertSpecUrlsAllowed,
+  type UrlEgressPolicy,
+} from './security/url-egress.js';
 
 export interface GenUIEngineBrainPort {
   /** Intent classification call — `text` is JSON. */
@@ -59,6 +63,15 @@ export interface CreateGenUIEngineDeps {
   readonly persistence?: TabRegistry;
   readonly detector?: Omit<DetectorDeps, 'brain'>;
   readonly generator?: Omit<GeneratorDeps, 'brain'>;
+  /**
+   * Render-egress URL allowlist. When supplied, every tab routed through
+   * `persist`/`patch` is walked for URL-typed values and rejected
+   * (`PortalGenUiEgressError`) if any fails the policy — the membrane that
+   * stops a poisoned spec from smuggling an attacker URL the renderer would
+   * auto-fetch. Injected by the composition root so the package stays
+   * `process.env`-free. When omitted, no egress check runs (test/stub mode).
+   */
+  readonly urlEgressPolicy?: UrlEgressPolicy;
 }
 
 /** Input for the incremental-patch path (the MD edits a live surface). */
@@ -121,11 +134,20 @@ export function createGenUIEngine(
 
   const generator = createTabGenerator(generatorDeps);
   const persistence = deps.persistence ?? createInMemoryTabRegistry();
+  const egressPolicy = deps.urlEgressPolicy;
+
+  /** Egress chokepoint: every tab is screened before it can be stored. */
+  const guardEgress = (tab: SaveTabInput['tab']): void => {
+    if (egressPolicy) assertSpecUrlsAllowed(tab, egressPolicy);
+  };
 
   return {
     detectIntent: (input) => detectTabGenerationIntent(input, detectorDeps),
     generate: (input) => generator.generate(input),
-    persist: (input) => persistence.save(input),
+    persist: async (input) => {
+      guardEgress(input.tab);
+      return persistence.save(input);
+    },
     list: (input) => persistence.list(input),
     get: (id) => persistence.get(id),
     delete: (input) => persistence.delete(input),
@@ -141,6 +163,7 @@ export function createGenUIEngine(
       }
       const result = applyTabPatch(target, input.patch, input.options);
       if (result.ok && input.persist !== false) {
+        guardEgress(result.tab);
         await persistence.save({ tab: result.tab, parentTabId: target.id });
       }
       return result;
