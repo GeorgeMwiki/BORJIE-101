@@ -13,11 +13,7 @@ export default function Screen(): JSX.Element {
     <RoleGuard screenId={SCREEN_ID}>
       <ScreenShell screenId={SCREEN_ID}>
         <Section title="Shifti ya hivi karibuni">
-          <PlaceholderList
-            items={[
-              { id: 'sh', primary: 'Shifti A · 06:00-18:00', secondary: 'Watu 24 · loads 18' }
-            ]}
-          />
+          <PlaceholderList items={[]} emptyLabel="Hakuna shifti za hivi karibuni" />
         </Section>
         <Section title="Picha za leo">
           <View style={styles.row}>
