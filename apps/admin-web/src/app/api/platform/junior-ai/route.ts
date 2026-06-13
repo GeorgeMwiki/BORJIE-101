@@ -5,7 +5,7 @@
  *   POST /api/platform/junior-ai   -> gateway POST /api/v1/junior-ai/provision
  *
  * Thin pass-through. The gateway enforces the team-lead role gate
- * (TENANT_ADMIN / PROPERTY_MANAGER / SUPER_ADMIN), the policy-subset
+ * (TENANT_ADMIN / SUPER_ADMIN), the policy-subset
  * guard, and the lifecycle caps. This proxy only forwards auth + body.
  */
 

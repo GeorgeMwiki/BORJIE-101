@@ -53,7 +53,7 @@ export const portalLayouts = pgTable(
       .references(() => tenants.id, { onDelete: 'cascade' }),
     /**
      * Persona key — matches the TRC seed roles
-     * (`internal_admin` | `property_manager` | `estate_manager` |
+     * (`internal_admin` | `site-manager` | `estate_manager` |
      * `owner` | `customer`). CHECK constraint in migration 0164.
      */
     personaId: text('persona_id').notNull(),

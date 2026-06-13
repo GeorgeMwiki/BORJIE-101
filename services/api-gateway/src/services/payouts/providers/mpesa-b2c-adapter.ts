@@ -3,8 +3,9 @@
  *
  * Inverse direction to `packages/connectors/src/adapters/mpesa-adapter.ts`,
  * which handles C2B (customer-to-business) STK push collections. This
- * file handles B2C (business-to-customer) payouts — landlord rent
- * remittances, owner-distribution settlements, vendor reimbursements.
+ * file handles B2C (business-to-customer) payouts — estate-owner
+ * distribution settlements, owner royalty remittances, vendor
+ * reimbursements.
  *
  * Daraja flow (synchronous part)
  * ------------------------------

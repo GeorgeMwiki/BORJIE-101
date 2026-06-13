@@ -1,5 +1,5 @@
 /**
- * owner-payout-workflow — Temporal workflow for landlord payouts.
+ * owner-payout-workflow — Temporal workflow for estate-owner payouts.
  *
  * Why Temporal here? Exactly-once money transfer is the canonical
  * Temporal use case. The workflow:

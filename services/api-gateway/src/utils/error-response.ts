@@ -69,7 +69,7 @@
  * Remaining follow-ups (not in this pass — owned by other agents or lower priority):
  *  - K-followup: agent-certifications, ai-chat, admin-jarvis, admin-jarvis-stream,
  *    ai-costs, applications
- *  - M: eviction, payment-reversal/refund, account-deletion/gdpr/delete-account
+ *  - M: licence-suspension, payment-reversal/refund, account-deletion/gdpr/delete-account
  *  - Other agents: file-ingest, dynamic-sections, payouts, webhook routers
  *  - Lower-traffic routers: head-briefing, voice, prompt-rollout, training,
  *    liveblocks-auth, maintenance-taxonomy, lpms, classroom, gamification,

@@ -141,7 +141,7 @@ async function seed() {
       ownerId: adminUserId,
       propertyCode: `${tenantSlug.toUpperCase()}-001`,
       name: propertyName,
-      type: 'apartment_complex',
+      type: 'mining_site',
       status: 'active',
       addressLine1: propertyAddress,
       city: propertyCity,
