@@ -65,8 +65,9 @@ console.log('       tenantId  =', principal.tenantId);
 console.log('       roles     =', principal.roles);
 console.log('       env       =', principal.environment);
 
-if (principal.tenantId !== 'tnt_dev_landlord_001') {
-  console.error('[smoke] FAIL — unexpected tenant_id');
+const EXPECTED_TENANT = process.env.SMOKE_TENANT_ID || 'tnt_demo_estate_001';
+if (principal.tenantId !== EXPECTED_TENANT) {
+  console.error(`[smoke] FAIL — unexpected tenant_id (got ${principal.tenantId}, want ${EXPECTED_TENANT})`);
   process.exit(1);
 }
 if (!principal.roles.includes('OWNER')) {

@@ -165,7 +165,7 @@ export let DEMO_PROPERTIES: Property[] = [
   {
     id: 'property-001',
     tenantId: 'tenant-001',
-    name: 'Oyster Bay Apartments',
+    name: 'Oyster Bay Mining Estate',
     type: 'RESIDENTIAL',
     status: PropertyStatus.ACTIVE,
     address: {
@@ -175,7 +175,7 @@ export let DEMO_PROPERTIES: Property[] = [
       country: 'Tanzania',
       coordinates: { latitude: -6.7694, longitude: 39.2712 },
     },
-    description: 'Premium waterfront apartments with ocean views',
+    description: 'Premium coastal mining estate with active extraction sites',
     amenities: ['Swimming Pool', 'Gym', '24/7 Security', 'Parking', 'Generator Backup'],
     images: [],
     managerId: 'user-002',

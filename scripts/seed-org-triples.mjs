@@ -1,15 +1,23 @@
 #!/usr/bin/env node
 /**
- * seed-org-triples.mjs — 6 orgs (tenants), each with a LINKED triple:
- * one owner + one worker + one customer sharing the same tenant_id. 18 users,
- * idempotent, each login-verified.
+ * seed-org-triples.mjs — 6 mining estates (tenants), each with a LINKED
+ * trading triple: one owner + one field worker (miner) + one buyer (off-taker)
+ * sharing the same tenant_id. 18 users, idempotent, each login-verified.
  *
- *   org{i}-owner@borjie.test     → OWNER             (owns org {i})
- *   org{i}-worker@borjie.test    → MAINTENANCE_STAFF (field worker in org {i})
- *   org{i}-customer@borjie.test  → RESIDENT          (marketplace customer of org {i})
+ *   org{i}-owner@borjie.test     → owner        (owns mining estate {i})
+ *   org{i}-worker@borjie.test    → field worker (miner / driver in estate {i})
+ *   org{i}-customer@borjie.test  → buyer        (mineral off-taker for estate {i})
  *
- * Linkage = a shared `tenant_id` in server-managed app_metadata + a shared
- * tenant row + app `users` rows. Env from .env.local.
+ * This is Mr. Mwikila's actor trio — owner · workforce · counterparty (the
+ * counterparty is a marketplace BUYER, never a renter). Each estate is fully
+ * isolated: a shared `tenant_id` in server-managed app_metadata + a shared
+ * tenant row + app `users` rows, so estate {i} can never see estate {j}'s data.
+ *
+ * Role strings are mining-native — the gateway's Supabase role mapper
+ * (auth/supabase/supabase-auth-middleware.ts) accepts `owner`, `site_manager`,
+ * `driver`/`maintenance`, and `buyer` and maps each onto the current enum slot.
+ *
+ * Env from .env.local.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -38,10 +46,12 @@ for (const [k, v] of Object.entries({ SUPABASE_URL, SERVICE_ROLE, ANON_KEY, DATA
 
 const PASSWORD = process.env.BORJIE_TEST_USER_PASSWORD ?? 'BorjieTest!2026';
 const ORG_COUNT = 6;
+// Mr. Mwikila actor trio. `label`/`firstName` are mining-native; `roles[]`
+// carries mining role strings the gateway mapper understands.
 const MEMBERS = [
-  { role: 'owner', roles: ['OWNER', 'owner'], isOwner: true },
-  { role: 'worker', roles: ['MAINTENANCE_STAFF', 'worker', 'employee'], isOwner: false },
-  { role: 'customer', roles: ['RESIDENT', 'buyer', 'customer'], isOwner: false },
+  { slot: 'owner', label: 'Estate Owner', firstName: 'Owner', roles: ['owner'], isOwner: true },
+  { slot: 'worker', label: 'Field Worker', firstName: 'Miner', roles: ['miner', 'driver'], isOwner: false },
+  { slot: 'customer', label: 'Buyer', firstName: 'Buyer', roles: ['buyer'], isOwner: false },
 ];
 
 async function adminApi(suffix, init = {}) {
@@ -95,26 +105,32 @@ async function main() {
   try {
     for (let i = 1; i <= ORG_COUNT; i += 1) {
       const tenantId = `tnt_test_org_${i}`;
-      const slug = `test-org-${i}`;
-      // org tenant
+      const slug = `test-mining-estate-${i}`;
+      // Estate tenant — upsert on the stable PK so an estate seeded under the
+      // old property-era name ("Test Org {i}", slug "test-org-{i}") is RENAMED
+      // in place to its mining identity, preserving its existing data/history.
       await sql`INSERT INTO tenants (id, name, slug, status, primary_email, country, settings, created_at, updated_at, created_by)
-        VALUES (${tenantId}, ${`Test Org ${i}`}, ${slug}, 'active', ${`org${i}-owner@borjie.test`}, 'TZ',
-        ${JSON.stringify({ currency: 'TZS', timezone: 'Africa/Dar_es_Salaam', dev: true })}::jsonb, NOW(), NOW(), 'seed-org-triples')
-        ON CONFLICT (slug) DO NOTHING`;
-      const t = await sql`SELECT id FROM tenants WHERE slug = ${slug} AND deleted_at IS NULL LIMIT 1`;
-      const realTenantId = t.length ? t[0].id : tenantId;
+        VALUES (${tenantId}, ${`Test Mining Estate ${i}`}, ${slug}, 'active', ${`org${i}-owner@borjie.test`}, 'TZ',
+        ${sql.json({ currency: 'TZS', timezone: 'Africa/Dar_es_Salaam', sector: 'mining', dev: true })}, NOW(), NOW(), 'seed-org-triples')
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          slug = EXCLUDED.slug,
+          settings = EXCLUDED.settings,
+          deleted_at = NULL,
+          updated_at = NOW()`;
+      const realTenantId = tenantId;
 
       for (const m of MEMBERS) {
-        const email = `org${i}-${m.role}@borjie.test`;
-        const supaId = await upsertUser(email, m.roles, realTenantId, `Org${i}${m.role}`);
+        const email = `org${i}-${m.slot}@borjie.test`;
+        const supaId = await upsertUser(email, m.roles, realTenantId, `${m.firstName}${i}`);
         const ex = await sql`SELECT id FROM users WHERE tenant_id = ${realTenantId} AND email = ${email} AND deleted_at IS NULL LIMIT 1`;
         if (!ex.length) {
           await sql`INSERT INTO users (id, tenant_id, email, phone, first_name, last_name, status, is_owner, created_at, updated_at, created_by)
-            VALUES (${`usr_${randomUUID()}`}, ${realTenantId}, ${email}, NULL, ${m.role}, ${`Org${i}`}, 'active', ${m.isOwner}, NOW(), NOW(), 'seed-org-triples')
+            VALUES (${`usr_${randomUUID()}`}, ${realTenantId}, ${email}, NULL, ${m.firstName}, ${`Estate${i}`}, 'active', ${m.isOwner}, NOW(), NOW(), 'seed-org-triples')
             ON CONFLICT DO NOTHING`;
         }
-        rows.push({ org: i, role: m.role, email, supaId });
-        process.stdout.write(`  org${i} ${m.role.padEnd(9)} ${email}\n`);
+        rows.push({ org: i, label: m.label, email, supaId });
+        process.stdout.write(`  estate${i} ${m.label.padEnd(13)} ${email}\n`);
       }
     }
   } finally {
@@ -128,9 +144,9 @@ async function main() {
     if (pass) ok += 1; else console.log(`  ✗ ${r.email}`);
   }
   console.log(`\n  ${ok}/${rows.length} users logged in ✓`);
-  console.log('\nOrg groupings (linked by tenant):');
+  console.log('\nMining estates (each fully isolated by tenant):');
   for (let i = 1; i <= ORG_COUNT; i += 1) {
-    console.log(`  Org ${i} (tnt_test_org_${i}): org${i}-owner + org${i}-worker + org${i}-customer`);
+    console.log(`  Estate ${i} (tnt_test_org_${i}): owner + field worker + buyer`);
   }
 }
 
