@@ -613,7 +613,7 @@ export function createRemindersDispatchWorker(
            SELECT id FROM reminders
             WHERE status = 'sent'
               AND dispatched_at IS NOT NULL
-              AND dispatched_at <= ${olderThan}
+              AND dispatched_at <= ${olderThan.toISOString()}
             ORDER BY dispatched_at ASC
             LIMIT ${ESCALATION_SWEEP_BATCH}
             FOR UPDATE SKIP LOCKED
