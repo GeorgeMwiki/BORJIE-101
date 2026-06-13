@@ -18,7 +18,8 @@
  * @module @borjie/portal-genui/audit/audit-chain
  */
 
-import { createHash } from 'node:crypto';
+import { sha256 } from '@noble/hashes/sha2';
+import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 import type { PortalTabAudit, PortalTabAuditEntry } from '../types.js';
 
 /** First link's predecessor — a fixed, well-known anchor. */
@@ -42,11 +43,11 @@ export function hashAuditEntry(
   prevHash: string,
   entry: PortalTabAuditEntry,
 ): string {
-  return createHash('sha256')
-    .update(prevHash)
-    .update('\n')
-    .update(canonicalizeEntry(entry))
-    .digest('hex');
+  // Isomorphic sha256 (works in browser + Node) — the package barrel is
+  // imported by the web apps' client bundles, where `node:crypto` is
+  // unbundlable. @noble/hashes is byte-identical to node's sha256, so chain
+  // hashes are unchanged. Input bytes: `prevHash\n<canonical entry>`.
+  return bytesToHex(sha256(utf8ToBytes(`${prevHash}\n${canonicalizeEntry(entry)}`)));
 }
 
 /**

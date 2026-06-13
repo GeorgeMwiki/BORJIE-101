@@ -22,6 +22,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@noble/hashes": "^1.8.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
