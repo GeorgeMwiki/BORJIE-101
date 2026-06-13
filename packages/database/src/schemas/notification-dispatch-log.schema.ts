@@ -93,6 +93,18 @@ export const notificationDispatchLog = pgTable(
     deadLetteredAt: timestamp('dead_lettered_at', { withTimezone: true }),
     /** Why the row was dead-lettered. */
     deadLetterReason: text('dead_letter_reason'),
+    /** When the provider acked the send (set by the drain's markSent). */
+    deliveryReportedAt: timestamp('delivery_reported_at', {
+      withTimezone: true,
+    }),
+    /** Provider-confirmed delivery, from a delivery-status receipt webhook. */
+    deliveredAt: timestamp('delivered_at', { withTimezone: true }),
+    /** Provider-confirmed read/open (WhatsApp read receipt, email open). */
+    readAt: timestamp('read_at', { withTimezone: true }),
+    /** Provider-confirmed bounce; pair with bounceReason for suppression. */
+    bouncedAt: timestamp('bounced_at', { withTimezone: true }),
+    /** Provider-supplied bounce reason. */
+    bounceReason: text('bounce_reason'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -110,6 +122,12 @@ export const notificationDispatchLog = pgTable(
     tenantStatusIdx: index('notification_dispatch_log_tenant_status_idx').on(
       table.tenantId,
       table.deliveryStatus,
+    ),
+    // The receipt subscriber correlates inbound delivery-status webhooks by
+    // provider_message_id within a tenant — index that closing-loop lookup.
+    providerMsgIdx: index('notification_dispatch_log_provider_msg_idx').on(
+      table.tenantId,
+      table.providerMessageId,
     ),
   }),
 );

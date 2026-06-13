@@ -107,6 +107,44 @@ describe('createResendEmailProvider', () => {
     });
   });
 
+  it('honors pre-rendered payload.subject and payload.html (no placeholder)', async () => {
+    const fetchSpy = vi.fn(async () => ok('re-1'));
+    const provider = createResendEmailProvider(
+      { apiKey: FAKE_KEY, fromEmail: 'from@borjie.io' },
+      { fetch: fetchSpy as unknown as typeof fetch },
+    );
+
+    const subject = 'Mr. Mwikila — daily brief for 2026-06-13';
+    const html = '<html><body><h1>Daily brief</h1></body></html>';
+    await provider.send(
+      input({
+        templateKey: 'owner.daily_brief',
+        payload: { subject, html, summary: 'gold 62oz' },
+      }),
+    );
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.subject).toBe(subject);
+    expect(body.html).toBe(html);
+    // The old default placeholder must never leak through.
+    expect(body.subject).not.toMatch(/^BORJIE: /);
+    expect(body.html).not.toContain('<p>Notification');
+  });
+
+  it('honors payload.bodyHtml (the daily-brief producer HTML field)', async () => {
+    const fetchSpy = vi.fn(async () => ok('re-2'));
+    const provider = createResendEmailProvider(
+      { apiKey: FAKE_KEY, fromEmail: 'from@borjie.io' },
+      { fetch: fetchSpy as unknown as typeof fetch },
+    );
+
+    const bodyHtml = '<div>Today: gold 62oz, 3 actions.</div>';
+    await provider.send(input({ payload: { subject: 'S', bodyHtml } }));
+
+    const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(body.html).toBe(bodyHtml);
+  });
+
   it('renders "Name <email>" when fromName is set', async () => {
     const fetchSpy = vi.fn(async () => ok());
     const provider = createResendEmailProvider(

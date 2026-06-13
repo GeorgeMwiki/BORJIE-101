@@ -16,17 +16,25 @@
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { incidents, regulatoryFilings } from '@borjie/database';
+import { incidents, regulatoryFilings, withServiceRoleContext } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
+import { createPinoLikeLogger } from '../../utils/pino-shim';
 import {
   escalateIncident,
   canInvestigate,
   canEscalateToRegulator,
+  buildIncidentNotifyIdempotencyKey,
+  incidentNotifyTemplateKey,
+  incidentLegSummary,
+  MANAGER_NOTIFY_ROLES,
+  ADMIN_COMPLIANCE_NOTIFY_ROLES,
+  type EscalateResult,
+  type EscalationLeg,
   type IncidentKind,
   type IncidentSeverity,
 } from '../../services/safety-incident/escalator';
@@ -34,6 +42,238 @@ import {
   incidentsListRoute,
   incidentsCreateRoute,
 } from './_openapi/route-defs';
+
+// Boot-proof structured logger — guaranteed present (the request-context
+// logger is optional on this route). Pino-only; never console.* (CLAUDE.md).
+const escalationLogger = createPinoLikeLogger('safety-incident-escalation');
+
+// ---------------------------------------------------------------------------
+// Escalation-notify fan-out — turn each decided escalator flag into a durable
+// `notification_dispatch_log` row so the dispatcher-worker delivers it.
+//
+// Without this the create handler computed manager-SOS / admin-compliance /
+// regulator-draft decisions and acted on NONE of them — a real safety
+// incident silently failed to alert the people who must act. Each leg:
+//   - resolves its recipients by mining_role (tenant-scoped),
+//   - enqueues one `pending` row per recipient (mirrors the announcement-
+//     fanout INSERT shape exactly — same 14 columns + ON CONFLICT
+//     (tenant_id, idempotency_key) DO NOTHING),
+//   - runs under `withServiceRoleContext` (notification_dispatch_log is
+//     FORCE-RLS with a service-role bypass; without the bound GUC the INSERT
+//     matches zero rows),
+//   - is failure-isolated: one failing leg never blocks the others or the
+//     cockpit pulse.
+//
+// The regulator leg NEVER auto-files to a regulator — it enqueues an internal
+// PREPARE notification to the compliance desk (human-gated, CLAUDE.md). The
+// actual `regulatory_filings` row is created only by POST /:id/escalate-
+// regulator, on an explicit owner/admin action.
+// ---------------------------------------------------------------------------
+
+/** The db param type withServiceRoleContext expects (derived to dodge the
+ *  TS2709 `DatabaseClient` namespace clash under NodeNext — same trick the
+ *  announcement-fanout worker uses). */
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
+
+/** A resolved escalation-notify recipient (tenant-scoped). */
+interface NotifyRecipient {
+  readonly userId: string;
+  readonly address: string;
+  readonly channel: 'email' | 'sms' | 'app_push';
+  readonly locale: string;
+}
+
+/** Pick the best channel + address for a user row (email > sms > in-app). */
+function recipientFromRow(
+  row: Record<string, unknown>,
+): NotifyRecipient | null {
+  const userId = typeof row.user_id === 'string' ? row.user_id.trim() : '';
+  if (!userId) return null;
+  const email = typeof row.email === 'string' ? row.email.trim() : '';
+  const phone = typeof row.phone === 'string' ? row.phone.trim() : '';
+  const locale =
+    typeof row.locale === 'string' && row.locale.trim().length > 0
+      ? row.locale.trim()
+      : 'en';
+  if (email) return { userId, address: email, channel: 'email', locale };
+  if (phone) return { userId, address: phone, channel: 'sms', locale };
+  // No external address — still deliver the in-app push so the alert is never
+  // dropped (the worker inbox + dispatcher handle `app_push`/`user:<id>`).
+  return { userId, address: `user:${userId}`, channel: 'app_push', locale };
+}
+
+/**
+ * Resolve active users in a tenant whose mining_role is in `roles`. Returns
+ * [] on any fault (never throws into the fan-out). Runs under the bound
+ * service-role context the caller already established.
+ */
+async function resolveRoleRecipients(
+  tx: { execute(q: unknown): Promise<unknown> },
+  tenantId: string,
+  roles: readonly string[],
+): Promise<readonly NotifyRecipient[]> {
+  if (roles.length === 0) return [];
+  // Parameterised IN-list — every role is a bound placeholder (no raw
+  // interpolation). The roles are frozen module constants, but binding them
+  // keeps the query injection-proof by construction.
+  const roleList = sql.join(
+    roles.map((r) => sql`${r}`),
+    sql`, `,
+  );
+  const res = await tx.execute(sql`
+    SELECT id AS user_id, email, phone, locale
+      FROM users
+     WHERE tenant_id = ${tenantId}
+       AND status = 'active'
+       AND deleted_at IS NULL
+       AND mining_role IN (${roleList})
+     LIMIT 500
+  `);
+  const rows = Array.isArray(res)
+    ? (res as Record<string, unknown>[])
+    : (((res as { rows?: unknown }).rows ?? []) as Record<string, unknown>[]);
+  const out: NotifyRecipient[] = [];
+  for (const row of rows) {
+    const recipient = recipientFromRow(row);
+    if (recipient) out.push(recipient);
+  }
+  return out;
+}
+
+/** INSERT one `pending` dispatch-log row (mirrors announcement-fanout). */
+async function enqueueNotifyRow(
+  tx: { execute(q: unknown): Promise<unknown> },
+  args: {
+    readonly tenantId: string;
+    readonly incidentId: string;
+    readonly leg: EscalationLeg;
+    readonly recipient: NotifyRecipient;
+    readonly summary: EscalateResult['summary'];
+    readonly severity: string;
+  },
+): Promise<void> {
+  const { tenantId, incidentId, leg, recipient, summary, severity } = args;
+  const id = `ndl_${randomUUID()}`;
+  const idempotencyKey = buildIncidentNotifyIdempotencyKey(
+    incidentId,
+    leg,
+    recipient.userId,
+  );
+  // Surface the leg summary as the email subject + body in the recipient's
+  // OWN locale (single-language). The dispatch email renderer reads
+  // payload.subject / payload.body — without these it would emit the generic
+  // placeholder and the computed escalation detail would never reach anyone.
+  const body = recipient.locale === 'sw' ? summary.sw : summary.en;
+  const subject =
+    recipient.locale === 'sw'
+      ? 'BORJIE: arifa ya kupandishwa kwa tukio la usalama'
+      : 'BORJIE: safety incident escalation alert';
+  const payload = JSON.stringify({
+    incidentId,
+    leg,
+    severity,
+    summary,
+    subject,
+    body,
+    humanGated: leg === 'regulator_prep',
+  });
+  await tx.execute(sql`
+    INSERT INTO notification_dispatch_log (
+      id, tenant_id, user_id, channel, recipient_address,
+      template_key, locale, payload, correlation_id, idempotency_key,
+      attempt_count, delivery_status, created_at, updated_at
+    ) VALUES (
+      ${id}, ${tenantId}, ${recipient.userId}, ${recipient.channel}, ${recipient.address},
+      ${incidentNotifyTemplateKey(leg)}, ${recipient.locale}, ${payload}::jsonb,
+      ${`incident-${incidentId}`}, ${idempotencyKey},
+      0, 'pending', NOW(), NOW()
+    )
+    ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+  `);
+}
+
+/** Fire ONE leg: resolve recipients, enqueue a row each. Failure-isolated. */
+async function fireLeg(
+  db: ServiceRoleDb,
+  args: {
+    readonly tenantId: string;
+    readonly incidentId: string;
+    readonly leg: EscalationLeg;
+    readonly roles: readonly string[];
+    readonly summary: EscalateResult['summary'];
+    readonly severity: string;
+  },
+): Promise<void> {
+  const { tenantId, incidentId, leg, roles, summary, severity } = args;
+  try {
+    const legSummary = incidentLegSummary(leg, summary);
+    const enqueued = await withServiceRoleContext(db, async (tx) => {
+      const recipients = await resolveRoleRecipients(
+        tx as unknown as { execute(q: unknown): Promise<unknown> },
+        tenantId,
+        roles,
+      );
+      for (const recipient of recipients) {
+        await enqueueNotifyRow(
+          tx as unknown as { execute(q: unknown): Promise<unknown> },
+          { tenantId, incidentId, leg, recipient, summary: legSummary, severity },
+        );
+      }
+      return recipients.length;
+    });
+    escalationLogger.info(
+      { incidentId, tenantId, leg, recipients: enqueued },
+      enqueued > 0
+        ? 'incident-escalation: leg enqueued'
+        : 'incident-escalation: leg had no eligible recipients',
+    );
+  } catch (err) {
+    // Per-leg isolation — one failing leg must never block the others or the
+    // cockpit pulse. Log + swallow (best-effort fan-out off the request path).
+    escalationLogger.error(
+      { incidentId, tenantId, leg, err: err instanceof Error ? err.message : String(err) },
+      'incident-escalation: leg failed',
+    );
+  }
+}
+
+/**
+ * Act on every escalation flag the escalator decided. Each leg is independent
+ * + failure-isolated. Best-effort — runs off the request response path.
+ *
+ * Exported for unit testing (the create handler invokes it inside a
+ * fire-and-forget `setImmediate`, which is awkward to await in an HTTP-level
+ * test; the direct call asserts the enqueue contract deterministically).
+ */
+export async function fireEscalationLegs(
+  db: ServiceRoleDb,
+  args: {
+    readonly tenantId: string;
+    readonly incidentId: string;
+    readonly severity: string;
+    readonly escalation: EscalateResult;
+  },
+): Promise<void> {
+  const { tenantId, incidentId, severity, escalation } = args;
+  const base = { tenantId, incidentId, severity, summary: escalation.summary };
+  if (escalation.notifyManager) {
+    await fireLeg(db, { ...base, leg: 'manager', roles: MANAGER_NOTIFY_ROLES });
+  }
+  if (escalation.notifyAdminCompliance) {
+    await fireLeg(db, {
+      ...base,
+      leg: 'admin_compliance',
+      roles: ADMIN_COMPLIANCE_NOTIFY_ROLES,
+    });
+  }
+  if (escalation.draftRegulatorFiling) {
+    await fireLeg(db, {
+      ...base,
+      leg: 'regulator_prep',
+      roles: ADMIN_COMPLIANCE_NOTIFY_ROLES,
+    });
+  }
+}
 
 const app = new OpenAPIHono();
 app.use('*', authMiddleware);
@@ -99,6 +339,12 @@ app.openapi(
           severity: row.severity as IncidentSeverity,
           kind: row.kind as IncidentKind,
         });
+        // Capture the incident id BEFORE the async hop so the closure never
+        // races a reassigned `row`.
+        const incidentId = row.id;
+        const severity = row.severity;
+        const siteId = row.siteId ?? null;
+        const description = row.description ?? '';
         setImmediate(() => {
           try {
             // Owner cockpit pulse only when severity warrants it.
@@ -107,16 +353,31 @@ app.openapi(
                 kind: 'safety.incident_reported',
                 tenantId,
                 emittedAt: new Date().toISOString(),
-                incidentId: row.id,
-                siteId: row.siteId ?? null,
-                severity: row.severity as 'low' | 'medium' | 'high' | 'critical',
+                incidentId,
+                siteId,
+                severity: severity as 'low' | 'medium' | 'high' | 'critical',
                 reportedBy: userId,
                 summary:
-                  `${escalation.summary.en} ${(row.description ?? '').slice(0, 200)}`.trim(),
+                  `${escalation.summary.en} ${description.slice(0, 200)}`.trim(),
               });
             }
           } catch {
             // bus failures must never leak to the request response.
+          }
+          // Act on each computed escalation flag — enqueue a durable
+          // notification_dispatch_log row per leg so the dispatcher delivers
+          // the manager SOS / admin-compliance alert / regulator-prep notice.
+          // Best-effort, off the response path; each leg is failure-isolated
+          // inside fireEscalationLegs. Skipped when no transactional client is
+          // wired (mock/unit-test mode without `.transaction`).
+          const txDb = db as { transaction?: unknown } | null;
+          if (txDb && typeof txDb.transaction === 'function') {
+            void fireEscalationLegs(db as unknown as ServiceRoleDb, {
+              tenantId,
+              incidentId,
+              severity,
+              escalation,
+            });
           }
         });
       }

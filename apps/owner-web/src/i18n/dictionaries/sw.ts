@@ -329,15 +329,20 @@ export const sw = {
   },
   "reminders": {
     "heading": "Vikumbusho",
-    "channelHint": "Email default · SMS / Slack zinapatikana",
+    "channelHint": "Barua pepe ndiyo chaguo-msingi · SMS / WhatsApp / Slack zinapatikana",
     "title": "Kichwa",
     "body": "Ujumbe",
     "triggerAt": "Tarehe",
     "channel": "Njia",
+    "channelEmail": "Barua pepe",
+    "channelSms": "SMS",
+    "channelWhatsapp": "WhatsApp",
+    "channelSlack": "Slack",
     "saving": "Inahifadhi…",
     "schedule": "Hifadhi kikumbusho",
     "empty": "Hakuna vikumbusho.",
-    "cancelItem": "Futa"
+    "cancelItem": "Futa",
+    "acknowledge": "Thibitisha"
   },
   "sandboxQueue": {
     "committed": "Imewekwa kwenye mfumo.",

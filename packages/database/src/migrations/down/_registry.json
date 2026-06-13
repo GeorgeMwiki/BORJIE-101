@@ -536,6 +536,36 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0352_notification_delivery_receipts.sql",
+      "down": "down/0352_down_notification_delivery_receipts.sql",
+      "reverses": "Drops the additive notification_dispatch_log receipt columns (delivery_reported_at, delivered_at, read_at, bounced_at, bounce_reason) + the provider_message_id lookup index. Dev/staging only — discards provider-confirmed delivery/read/bounce history and re-opens the markSent 42703 false-green that left sent rows stuck at 'sending'. No money/licence/ledger records.",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0353_owner_reminders_acknowledged.sql",
+      "down": "down/0353_down_owner_reminders_acknowledged.sql",
+      "reverses": "Re-narrows the reminders status + channel CHECK constraints to the original 0089 sets (drops 'sending'/'acknowledged' statuses + 'calendar'/'whatsapp' channels). Dev/staging only — FAILS if rows already hold a widened value, and re-breaks the worker claim (which writes 'sending') on live. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0354_reminders_service_role_bypass.sql",
+      "down": "down/0354_down_reminders_service_role_bypass.sql",
+      "reverses": "Drops the reminders_service_role_bypass RLS policy, reverting `reminders` to tenant-isolation-only. Dev/staging only — re-darkens the cross-tenant reminders-dispatch worker (claim matches zero rows). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

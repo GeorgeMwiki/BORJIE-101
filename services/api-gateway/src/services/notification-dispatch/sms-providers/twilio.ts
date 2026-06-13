@@ -24,8 +24,12 @@
  *   TWILIO_SMS_NUMBER     (alias accepted as the SMS from-number when
  *                          TWILIO_FROM_NUMBER is unset — matches the
  *                          var name populated in the deployed env)
- *   TWILIO_WHATSAPP_FROM  (required for WhatsApp; falls back to the
- *                          resolved SMS from-number)
+ *   TWILIO_WHATSAPP_FROM  (required for WhatsApp; falls back to
+ *                          TWILIO_WHATSAPP_NUMBER, then the resolved SMS
+ *                          from-number)
+ *   TWILIO_WHATSAPP_NUMBER (alias accepted as the WhatsApp from-number when
+ *                          TWILIO_WHATSAPP_FROM is unset — matches the var
+ *                          name documented in .env.example + the helm chart)
  *
  * Error model:
  *   - HTTP 4xx (except 429) -> failed, retryable=false
@@ -74,7 +78,12 @@ export function readTwilioConfigFromEnv(
     accountSid,
     authToken,
     fromNumber,
-    whatsappFrom: env.TWILIO_WHATSAPP_FROM ?? fromNumber,
+    // Alias chain mirrors the SMS from-number resolution above:
+    // TWILIO_WHATSAPP_FROM (canonical) → TWILIO_WHATSAPP_NUMBER (the var
+    // documented in .env.example + the helm chart) → the resolved SMS
+    // from-number (sandbox / shared-number setups).
+    whatsappFrom:
+      env.TWILIO_WHATSAPP_FROM ?? env.TWILIO_WHATSAPP_NUMBER ?? fromNumber,
   };
 }
 

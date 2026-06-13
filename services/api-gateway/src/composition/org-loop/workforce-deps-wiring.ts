@@ -60,6 +60,7 @@ import {
 } from './workforce-degraded-deps.js';
 import { createWorkforceStore } from './workforce-store-adapter.js';
 import {
+  asNullableString,
   cryptoRandomId,
   errMsg,
   rowsOf,
@@ -167,25 +168,65 @@ export function createDispatchLogNotificationsPort(args: {
   const { db, logger } = args;
   return {
     async enqueueAppPush(input) {
-      const id = `ndl_${cryptoRandomId()}`;
       try {
+        let enqueued = 0;
         await withCtx(db, async (tx) => {
-          await (tx as unknown as DbExecLike).execute(sql`
-            INSERT INTO notification_dispatch_log (
-              id, tenant_id, user_id, channel, recipient_address,
-              template_key, locale, payload, correlation_id, idempotency_key,
-              attempt_count, delivery_status, created_at, updated_at
-            ) VALUES (
-              ${id}, ${input.tenantId}, ${input.userId}, 'app_push',
-              ${input.userId ? `user:${input.userId}` : 'unaddressed'},
-              ${input.templateKey}, 'en',
-              ${JSON.stringify(input.payload)}::jsonb,
-              ${input.correlationId}, ${input.idempotencyKey},
-              0, 'pending', NOW(), NOW()
-            )
-            ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+          const exec = (tx as unknown as DbExecLike).execute.bind(
+            tx as unknown as DbExecLike,
+          );
+          if (!input.userId) return;
+          // Resolve the user's ACTIVE Expo device tokens. The push rail must
+          // deliver to a real ExponentPushToken[...] — NOT 'user:<id>', which
+          // Expo rejects as DeviceNotRegistered → non-retryable dead-letter
+          // (so app_push could NEVER be delivered before this fix). Emit one
+          // dispatch row per registered device. tenant_id is uuid here, so
+          // compare as text to avoid a cast failure on the resolved id.
+          const res = await exec(sql`
+            SELECT expo_push_token
+              FROM device_push_tokens
+             WHERE tenant_id::text = ${input.tenantId}
+               AND user_id = ${input.userId}
+               AND expo_push_token IS NOT NULL
+               AND revoked_at IS NULL
           `);
+          const tokens = Array.from(
+            new Set(
+              rowsOf(res)
+                .map((r) => asNullableString(r.expo_push_token))
+                .filter((t): t is string => !!t && t.length > 0),
+            ),
+          );
+          for (const token of tokens) {
+            const id = `ndl_${cryptoRandomId()}`;
+            // Per-device idempotency: one dedupe slot per (key, token) so a
+            // user with N devices gets N rows without colliding.
+            const idem = `${input.idempotencyKey}::${token}`;
+            await exec(sql`
+              INSERT INTO notification_dispatch_log (
+                id, tenant_id, user_id, channel, recipient_address,
+                template_key, locale, payload, correlation_id, idempotency_key,
+                attempt_count, delivery_status, created_at, updated_at
+              ) VALUES (
+                ${id}, ${input.tenantId}, ${input.userId}, 'app_push', ${token},
+                ${input.templateKey}, 'en',
+                ${JSON.stringify(input.payload)}::jsonb,
+                ${input.correlationId}, ${idem},
+                0, 'pending', NOW(), NOW()
+              )
+              ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
+            `);
+            enqueued += 1;
+          }
         });
+        if (enqueued === 0) {
+          // No registered device — nothing to deliver. Honest: not accepted
+          // (the prior code claimed acceptance then dead-lettered silently).
+          logger.info(
+            { tenantId: input.tenantId, userId: input.userId },
+            'workforce-notifications: no active device token — app_push not enqueued',
+          );
+          return { accepted: false };
+        }
         return { accepted: true };
       } catch (err) {
         logger.warn(

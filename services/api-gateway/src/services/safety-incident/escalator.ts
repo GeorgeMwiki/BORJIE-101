@@ -122,6 +122,89 @@ export function escalateIncident(input: EscalateInput): EscalateResult {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Escalation-notify legs — pure descriptors the incidents route acts on.
+//
+// `escalateIncident` only DECIDES which actors must be told. The create
+// route turns each decided flag into a durable `notification_dispatch_log`
+// row (so the dispatcher delivers it). Everything below is still pure — no
+// DB I/O — so the route's enqueue path stays trivially testable and the
+// recipient role-sets / idempotency keys / template keys live next to the
+// decision they serve. The route owns the I/O.
+// ---------------------------------------------------------------------------
+
+/** The escalation legs the route enqueues one notification per. */
+export type EscalationLeg = 'manager' | 'admin_compliance' | 'regulator_prep';
+
+/**
+ * On-call manager roles (the worker-safety SOS recipients). `site_manager`
+ * + `supervisor` are the mining-domain on-site command roles
+ * (borjie_user_role enum). Frozen so a caller can never mutate the set.
+ */
+export const MANAGER_NOTIFY_ROLES: readonly string[] = Object.freeze([
+  'site_manager',
+  'supervisor',
+]);
+
+/**
+ * Admin / compliance recipient roles. The tenant `admin` plus the Borjie
+ * `borjie_team` compliance officer (per the GMG guideline — Borjie's admin
+ * compliance officer is told on >= critical). `regulator_prep` reuses the
+ * same recipients: the compliance desk PREPARES the regulator filing — the
+ * platform NEVER auto-files to a regulator (human-gated, CLAUDE.md).
+ */
+export const ADMIN_COMPLIANCE_NOTIFY_ROLES: readonly string[] = Object.freeze([
+  'admin',
+  'borjie_team',
+]);
+
+/** Dispatch-log `template_key` per leg (drives the render). */
+export function incidentNotifyTemplateKey(leg: EscalationLeg): string {
+  switch (leg) {
+    case 'manager':
+      return 'mining.incident.escalation.manager';
+    case 'admin_compliance':
+      return 'mining.incident.escalation.admin_compliance';
+    case 'regulator_prep':
+    default:
+      return 'mining.incident.escalation.regulator_prep';
+  }
+}
+
+/**
+ * Stable per-(incident, leg, recipient) idempotency key. Keyed by user (not
+ * address) so an address change never re-sends, and per leg so the same
+ * recipient can hold a manager AND a regulator-prep row without colliding.
+ * Shape: `incident-escalate::<incidentId>::<leg>::<userId>`.
+ */
+export function buildIncidentNotifyIdempotencyKey(
+  incidentId: string,
+  leg: EscalationLeg,
+  userId: string,
+): string {
+  return `incident-escalate::${incidentId}::${leg}::${userId}`;
+}
+
+/**
+ * Bilingual headline for a leg. The base `summary` already carries the
+ * single-language-per-locale CLAUDE.md contract (both sw + en present, the
+ * renderer picks one by the recipient locale). The regulator-prep leg adds
+ * an explicit human-gated PREPARE instruction so no reader mistakes it for
+ * an auto-file.
+ */
+export function incidentLegSummary(
+  leg: EscalationLeg,
+  base: EscalateResult['summary'],
+): EscalateResult['summary'] {
+  if (leg === 'regulator_prep') {
+    return {
+      sw: `${base.sw} Andaa kuwasilisha kwa mdhibiti (hakuna kuwasilisha kiotomatiki).`,
+      en: `${base.en} Prepare the regulator filing (no auto-file).`,
+    };
+  }
+  return base;
+}
+
 /**
  * Role gates — manager can investigate; owner can escalate to a
  * regulator. Workers can only report (route guards that elsewhere).

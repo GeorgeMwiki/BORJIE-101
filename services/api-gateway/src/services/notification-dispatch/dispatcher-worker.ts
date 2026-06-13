@@ -37,6 +37,7 @@
  *     intentionally stubbed (e.g. dev environments).
  */
 import { sql } from 'drizzle-orm';
+import { withServiceRoleContext } from '@borjie/database';
 import type { EmailProvider, EmailProviderResult } from './email-provider';
 import type { SmsProvider, SmsProviderResult } from './sms-provider';
 import type { PushProvider, PushProviderResult } from './push-providers/types';
@@ -61,6 +62,21 @@ export type DispatcherDeps = {
    *  fail non-retryably with `push_not_configured` (so they dead-letter rather
    *  than spin). Resolve via resolvePushProviderFromEnv() in composition. */
   readonly pushProvider?: PushProvider;
+  /**
+   * Optional per-recipient preference gate. When provided AND the row carries
+   * a userId, the dispatcher consults it before sending; a `false` result
+   * suppresses the row (terminal, reason `suppressed_by_preference`) so an
+   * owner who toggled a channel/template OFF is not pinged. Decoupled from the
+   * preferences table — composition injects a notification_preferences-backed
+   * implementation. MUST fail-open (return true) on its own errors so a prefs
+   * read failure never silently drops notifications.
+   */
+  readonly shouldDeliver?: (input: {
+    readonly tenantId: string;
+    readonly userId: string;
+    readonly channel: string;
+    readonly templateKey: string;
+  }) => Promise<boolean>;
   /** Override clock for deterministic tests. */
   readonly now?: () => Date;
 };
@@ -94,6 +110,7 @@ export type Dispatcher = {
 type PendingRow = {
   readonly id: string;
   readonly tenantId: string;
+  readonly userId: string | null;
   readonly channel: string;
   readonly recipientAddress: string;
   readonly templateKey: string;
@@ -112,6 +129,9 @@ const DEFAULT_IDLE_SLEEP_MS = 1_000;
 const MAX_ATTEMPTS = 5;
 const BASE_BACKOFF_MS = 30_000; // 30s; doubles per attempt
 const KNOWN_CHANNELS = new Set(['email', 'sms', 'whatsapp', 'app_push']);
+// A row stranded in `sending` longer than this (process crashed between the
+// pending→sending claim and markSent/markFailed) is reclaimed by a later poll.
+const STALE_SENDING_MS = 5 * 60_000; // 5 minutes
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -126,6 +146,7 @@ function asRows(res: unknown): readonly Record<string, unknown>[] {
 function rowToPending(raw: Record<string, unknown>): PendingRow | null {
   const id = typeof raw.id === 'string' ? raw.id : null;
   const tenantId = typeof raw.tenant_id === 'string' ? raw.tenant_id : null;
+  const userId = typeof raw.user_id === 'string' ? raw.user_id : null;
   const channel = typeof raw.channel === 'string' ? raw.channel : null;
   const recipientAddress =
     typeof raw.recipient_address === 'string' ? raw.recipient_address : null;
@@ -152,6 +173,7 @@ function rowToPending(raw: Record<string, unknown>): PendingRow | null {
   return {
     id,
     tenantId,
+    userId,
     channel,
     recipientAddress,
     templateKey,
@@ -171,8 +193,28 @@ function computeNextRetryAt(now: Date, attempt: number): Date {
 // Dispatcher
 // ---------------------------------------------------------------------------
 
+// The db param type withServiceRoleContext expects (deriving it avoids the
+// TS2709 namespace clash on the `DatabaseClient` name under NodeNext).
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
+
 export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
-  const exec = deps.db.execute.bind(deps.db);
+  // notification_dispatch_log has FORCE ROW LEVEL SECURITY + a service-role
+  // bypass policy (migration 0348). Every drain statement MUST run with
+  // `app.is_service_role='true'` bound or BOTH RLS policies evaluate false and
+  // the claim matches ZERO rows in production — silently draining nothing while
+  // pending rows pile up. So we wrap each statement in a service-role context
+  // when the db supports transactions (the real Drizzle client). Unit tests
+  // inject a transaction-less mock and fall through to a direct execute.
+  function runStmt(q: unknown): Promise<unknown> {
+    const dbAny = deps.db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(
+        deps.db as unknown as ServiceRoleDb,
+        (tx) => (tx as unknown as DbExecutor).execute(q),
+      );
+    }
+    return deps.db.execute(q);
+  }
   const now = deps.now ?? (() => new Date());
   let bootWarningEmitted = false;
 
@@ -199,26 +241,36 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
     tenantId: string | undefined,
     batchSize: number,
   ): Promise<readonly PendingRow[]> {
-    // Atomic claim: flip rows from `pending` to `sending` and return
-    // them. Two competing workers cannot both claim the same row.
+    // Atomic claim: flip rows from `pending` (or stale `sending`) to
+    // `sending` and return them. Two competing workers cannot both claim the
+    // same row (FOR UPDATE SKIP LOCKED). Rows stranded in `sending` past
+    // STALE_SENDING_MS (a crash between claim and mark) are reclaimed and their
+    // attempt_count bumped so they still honour MAX_ATTEMPTS rather than
+    // re-sending forever.
     const nowTs = now();
+    const staleBefore = new Date(nowTs.getTime() - STALE_SENDING_MS);
     try {
-      const res = await exec(sql`
+      const res = await runStmt(sql`
         UPDATE notification_dispatch_log
         SET delivery_status = 'sending',
+            attempt_count = attempt_count
+              + CASE WHEN delivery_status = 'sending' THEN 1 ELSE 0 END,
             last_attempt_at = ${nowTs},
             updated_at = ${nowTs}
         WHERE id IN (
           SELECT id
           FROM notification_dispatch_log
-          WHERE delivery_status = 'pending'
+          WHERE (
+                  delivery_status = 'pending'
+                  OR (delivery_status = 'sending' AND last_attempt_at < ${staleBefore})
+                )
             AND (${tenantId ?? null}::text IS NULL OR tenant_id = ${tenantId ?? null}::text)
             AND (next_retry_at IS NULL OR next_retry_at <= ${nowTs})
           ORDER BY created_at ASC
           LIMIT ${batchSize}
           FOR UPDATE SKIP LOCKED
         )
-        RETURNING id, tenant_id, channel, recipient_address,
+        RETURNING id, tenant_id, user_id, channel, recipient_address,
                   template_key, locale, payload, idempotency_key,
                   attempt_count
       `);
@@ -251,7 +303,7 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
   ): Promise<void> {
     const nowTs = now();
     try {
-      await exec(sql`
+      await runStmt(sql`
         UPDATE notification_dispatch_log
         SET delivery_status = 'sent',
             provider = ${result.provider},
@@ -291,7 +343,7 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
     const nextStatus = isTerminal ? 'failed' : 'pending';
     const nextRetryAt = isTerminal ? null : computeNextRetryAt(nowTs, nextAttempt);
     try {
-      await exec(sql`
+      await runStmt(sql`
         UPDATE notification_dispatch_log
         SET delivery_status = ${nextStatus},
             provider = ${failure.provider},
@@ -323,7 +375,7 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
   async function markUnknownChannel(row: PendingRow): Promise<void> {
     const nowTs = now();
     try {
-      await exec(sql`
+      await runStmt(sql`
         UPDATE notification_dispatch_log
         SET delivery_status = 'failed',
             provider_error_code = 'unknown_channel',
@@ -351,6 +403,38 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
     }
   }
 
+  async function markSuppressed(row: PendingRow): Promise<void> {
+    const nowTs = now();
+    try {
+      await runStmt(sql`
+        UPDATE notification_dispatch_log
+        SET delivery_status = 'failed',
+            provider = 'none',
+            provider_error_code = 'suppressed_by_preference',
+            provider_error_message = ${`recipient opted out of ${row.channel}`},
+            attempt_count = attempt_count + 1,
+            last_attempt_at = ${nowTs},
+            next_retry_at = NULL,
+            dead_lettered_at = ${nowTs},
+            dead_letter_reason = 'suppressed_by_preference',
+            updated_at = ${nowTs}
+        WHERE id = ${row.id}
+          AND tenant_id = ${row.tenantId}
+      `);
+    } catch (err) {
+      deps.logger.warn(
+        {
+          worker: 'notification-dispatch',
+          dispatch_id: row.id,
+          tenant_id: row.tenantId,
+          degraded_reason: 'mark_suppressed_failed',
+          err: err instanceof Error ? err.message : String(err),
+        },
+        'notification-dispatch: failed to mark dispatch row as suppressed',
+      );
+    }
+  }
+
   async function dispatchOne(row: PendingRow): Promise<{
     sent: boolean;
     failed: boolean;
@@ -359,6 +443,41 @@ export function createNotificationDispatcher(deps: DispatcherDeps): Dispatcher {
     if (!KNOWN_CHANNELS.has(row.channel)) {
       await markUnknownChannel(row);
       return { sent: false, failed: false, skipped: true };
+    }
+
+    // A row reclaimed by the stale-`sending` reaper past MAX_ATTEMPTS (a send
+    // that crashes the process mid-dispatch every time) is dead-lettered rather
+    // than retried forever — terminal failure bounds the loop.
+    if (row.attemptCount >= MAX_ATTEMPTS) {
+      await markFailed(row, {
+        status: 'failed',
+        provider: 'none',
+        errorCode: 'max_attempts_exceeded',
+        errorMessage: `exceeded ${MAX_ATTEMPTS} delivery attempts`,
+        retryable: false,
+      });
+      return { sent: false, failed: true, skipped: false };
+    }
+
+    // Per-recipient preference gate: an owner who toggled this channel/template
+    // OFF must not be pinged. Fail-open (deliver) on any gate error so a prefs
+    // read failure never silently drops a notification.
+    if (deps.shouldDeliver && row.userId) {
+      let allowed = true;
+      try {
+        allowed = await deps.shouldDeliver({
+          tenantId: row.tenantId,
+          userId: row.userId,
+          channel: row.channel,
+          templateKey: row.templateKey,
+        });
+      } catch {
+        allowed = true;
+      }
+      if (!allowed) {
+        await markSuppressed(row);
+        return { sent: false, failed: false, skipped: false };
+      }
     }
 
     try {

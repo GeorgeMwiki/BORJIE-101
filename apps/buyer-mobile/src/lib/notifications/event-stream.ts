@@ -6,10 +6,26 @@
  * When the app backgrounds we close the socket; out-of-app delivery
  * happens via push notifications (`device_push_tokens`).
  *
- * Buyer-relevant event kinds focus on the marketplace + RFB +
- * settlement chain. Other kinds (payroll, safety, etc.) are filtered
- * out so the in-memory ring doesn't fill with noise the buyer
- * cannot act on.
+ * ── Which kinds actually reach a buyer (SLICE B2) ───────────────────
+ * The cockpit bus partitions strictly per-tenant — `channelFor` is
+ * `cockpit:<tenantId>` and NEVER cross-broadcasts (see
+ * services/api-gateway/src/services/cockpit-events/bus.ts). buyer-mobile
+ * opens the stream scoped to the buyer's OWN tenantId, so the only kinds
+ * that can ever land here are ones published under the buyer's tenant:
+ *   - `bid.placed`     — emitted in routes/mining/bids.hono.ts under the
+ *                        bidder's (buyer's) tenant, so it arrives.
+ *   - `reminder.fired` — buyer-scoped reminders.
+ * The previously-listed `rfb.dispatched`, `settlement.initiated` and
+ * `chat.handoff` are published under the SELLER / initiator tenant (or
+ * never published at all), so they were BORN DARK on the buyer channel —
+ * the ribbon advertised them but they never arrived. They are dropped
+ * here. The authoritative buyer-facing record for the marketplace chain
+ * (e.g. `rfb_fulfilled`) is the PERSISTED `buyer_notifications` inbox,
+ * which the ribbon refreshes via react-query on any pulse rather than a
+ * divergent in-memory list (see EventStreamMount).
+ *
+ * Other kinds (payroll, safety, etc.) are filtered out so the in-memory
+ * ring doesn't fill with noise the buyer cannot act on.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -20,13 +36,7 @@ import EventSourceImpl from 'react-native-sse'
 import { apiConfig } from '@/api/config'
 import { getAuthToken } from '@/auth/token'
 
-export const BUYER_EVENT_KINDS = [
-  'rfb.dispatched',
-  'bid.placed',
-  'settlement.initiated',
-  'chat.handoff',
-  'reminder.fired'
-] as const
+export const BUYER_EVENT_KINDS = ['bid.placed', 'reminder.fired'] as const
 
 export type BuyerEventKind = (typeof BUYER_EVENT_KINDS)[number]
 

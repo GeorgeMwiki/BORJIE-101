@@ -319,6 +319,127 @@ describe('createNotificationDispatcher', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('binds a service-role RLS context for every statement when the db is transactional (prod path)', async () => {
+    // The PRODUCTION regression: notification_dispatch_log has FORCE RLS + a
+    // service-role bypass. A transaction-capable db (the real Drizzle client)
+    // MUST run the drain inside withServiceRoleContext, which binds
+    // app.is_service_role='true' — otherwise the claim matches zero rows and
+    // nothing is ever delivered. The old code ran raw execute and silently
+    // drained nothing in prod; the prior tests (transaction-less mocks) sailed
+    // over it. This fake provides .transaction so the real wrap engages.
+    const executed: string[] = [];
+    let claimReturned = false;
+    const execute = vi.fn(async (q: unknown) => {
+      const s = JSON.stringify(q);
+      executed.push(s);
+      if (s.includes('set_config')) return []; // GUC binding statements
+      if (s.includes('RETURNING') && !claimReturned) {
+        claimReturned = true;
+        return [pendingRow()];
+      }
+      return [];
+    });
+    const db = {
+      execute,
+      transaction: async (fn: (tx: { execute: typeof execute }) => Promise<unknown>) =>
+        fn({ execute }),
+    };
+    const emailProvider = createInMemoryEmailProvider();
+    const dispatcher = createNotificationDispatcher({
+      db,
+      logger: noopLogger,
+      emailProvider,
+      smsProvider: createInMemorySmsProvider(),
+    });
+
+    const result = await dispatcher.runOnce({});
+
+    // Delivery still works through the wrap...
+    expect(result.sent).toBe(1);
+    expect(emailProvider.sent).toHaveLength(1);
+    // ...and EVERY claimed/marked statement ran inside a service-role context.
+    expect(executed.some((s) => s.includes('app.is_service_role'))).toBe(true);
+    expect(executed.some((s) => s.includes('app.current_tenant_id'))).toBe(true);
+  });
+
+  it('dead-letters a row that has already hit MAX_ATTEMPTS without calling the provider (reaper bound)', async () => {
+    const updates: string[] = [];
+    const execute = vi.fn(async (q: unknown) => {
+      updates.push(JSON.stringify(q));
+      if (updates.length === 1) return [pendingRow({ attempt_count: 5 })];
+      return [];
+    });
+    const emailProvider = createInMemoryEmailProvider();
+    const dispatcher = createNotificationDispatcher({
+      db: { execute },
+      logger: noopLogger,
+      emailProvider,
+      smsProvider: createInMemorySmsProvider(),
+    });
+
+    const result = await dispatcher.runOnce({});
+
+    expect(result.failed).toBe(1);
+    expect(result.sent).toBe(0);
+    // The provider is never invoked for an over-limit row.
+    expect(emailProvider.sent).toHaveLength(0);
+    // It is dead-lettered with the bound reason.
+    expect(updates.join('|')).toContain('max_attempts_exceeded');
+  });
+
+  it('suppresses a row when the preference gate denies the channel (no provider call)', async () => {
+    const updates: string[] = [];
+    const execute = vi.fn(async (q: unknown) => {
+      updates.push(JSON.stringify(q));
+      if (updates.length === 1) {
+        return [
+          pendingRow({
+            user_id: 'u1',
+            channel: 'sms',
+            recipient_address: '+255700000000',
+          }),
+        ];
+      }
+      return [];
+    });
+    const smsProvider = createInMemorySmsProvider();
+    const dispatcher = createNotificationDispatcher({
+      db: { execute },
+      logger: noopLogger,
+      emailProvider: createInMemoryEmailProvider(),
+      smsProvider,
+      shouldDeliver: async () => false, // owner opted out of this channel
+    });
+
+    const result = await dispatcher.runOnce({});
+
+    // The provider is never called for a suppressed row...
+    expect(smsProvider.sent).toHaveLength(0);
+    expect(result.sent).toBe(0);
+    // ...and it is marked terminal with the suppression reason (not a failure).
+    expect(updates.join('|')).toContain('suppressed_by_preference');
+  });
+
+  it('still delivers when the preference gate allows the channel', async () => {
+    const { db } = makeDb([
+      [pendingRow({ user_id: 'u2' })], // claim
+      [], // markSent
+    ]);
+    const emailProvider = createInMemoryEmailProvider();
+    const dispatcher = createNotificationDispatcher({
+      db,
+      logger: noopLogger,
+      emailProvider,
+      smsProvider: createInMemorySmsProvider(),
+      shouldDeliver: async () => true,
+    });
+
+    const result = await dispatcher.runOnce({});
+
+    expect(result.sent).toBe(1);
+    expect(emailProvider.sent).toHaveLength(1);
+  });
+
   it('passes tenantId scope into the claim query (tenant isolation)', async () => {
     const captured: unknown[] = [];
     const execute = vi.fn(async (q: unknown) => {

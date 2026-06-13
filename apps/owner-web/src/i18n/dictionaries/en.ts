@@ -381,15 +381,20 @@ export const en = {
   // Owner-OS reminders panel (list + create).
   reminders: {
     heading: 'Reminders',
-    channelHint: 'Email default · SMS / Slack available',
+    channelHint: 'Email default · SMS / WhatsApp / Slack available',
     title: 'Title',
     body: 'Body',
     triggerAt: 'Trigger at',
     channel: 'Channel',
+    channelEmail: 'Email',
+    channelSms: 'SMS',
+    channelWhatsapp: 'WhatsApp',
+    channelSlack: 'Slack',
     saving: 'Saving…',
     schedule: 'Schedule reminder',
     empty: 'No reminders yet.',
     cancelItem: 'Cancel',
+    acknowledge: 'Acknowledge',
   },
 
   // MD-Agentic sandbox-writes review queue (O-W-33).

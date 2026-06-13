@@ -138,7 +138,14 @@ app.openapi(
           status: 'pending',
         })
         .returning();
-      // RT-1: pulse the seller's cockpit "Incoming Offers" tile.
+      // RT-1 / SLICE B2: `tenantId` here is the authenticated BIDDER's
+      // (buyer's) tenant, and the cockpit bus partitions strictly per
+      // tenant (`cockpit:<tenantId>`), so this pulse lands on the BUYER's
+      // OWN channel. That makes it the one marketplace kind buyer-mobile's
+      // Live ribbon genuinely receives — buyer-mobile drops the
+      // seller/initiator-scoped kinds (rfb.dispatched / settlement.initiated
+      // / chat.handoff) that never reach the buyer channel and refreshes the
+      // persisted buyer_notifications inbox on this pulse instead.
       if (bid) {
         setImmediate(() => {
           try {

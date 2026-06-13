@@ -1,175 +1,174 @@
 "use client";
 
 /**
- * EscalationsTabContent — lazy-loaded Escalations projection (iter-30).
+ * EscalationsTabContent — the human-closing surface for the
+ * manager-dispatch escalation ladder.
  *
- * Shows open/acknowledged/in_progress org_escalations for the
- * caller's tenant, sorted by severity then recency. Realtime updates
- * as the MD raises new escalations or operators acknowledge them.
+ * SLICE B1 unification: this tab now reads the AUTHORITATIVE
+ * `mining_escalations` table (the never-drop ladder rung-4 dispatcher
+ * and the `/api/v1/mining/escalations` route both write it) through the
+ * mounted gateway GET — replacing the previous `org_escalations`
+ * Supabase subscription that the ladder never touched. It also wires
+ * the Acknowledge / Resolve closing calls (`POST /:id/acknowledge`,
+ * `/:id/resolve`) that previously had ZERO frontend callers, making the
+ * CLOSING stage of the escalation flow reachable for the first time.
+ *
+ * Single language per render (en default · sw toggle); no en/sw mixing.
+ * `org_escalations` consolidation is tracked as a follow-up — its rows
+ * still exist and are still written; this slice does not delete data.
  *
  * @module features/central-command/md/escalations/ui/EscalationsTabContent
  */
 
-import { useTenantIdentity } from "@/features/central-command/md/shared/useTenantIdentity";
-import { useTenantRealtime } from "@/features/central-command/md/shared/useTenantRealtime";
+import { useEscalations } from "./useEscalations";
+import {
+  escalationsCopy,
+  type EscalationsLocale,
+} from "./escalations-copy";
+import {
+  formatAge,
+  severityBadge,
+  statusBadge,
+} from "./escalations-presentation";
+import type { MiningEscalationRow } from "./escalations-client";
 
-interface EscalationRow {
-  readonly id: string;
-  readonly title: string;
-  readonly reason: string;
-  readonly severity: "low" | "normal" | "high" | "critical";
-  readonly status:
-    | "open"
-    | "acknowledged"
-    | "in_progress"
-    | "resolved"
-    | "cancelled";
-  readonly escalated_to_employee_id: string | null;
-  readonly related_task_id: string | null;
-  readonly related_subject: string | null;
-  readonly created_at: string;
-  readonly acknowledged_at: string | null;
+export interface EscalationsTabContentProps {
+  /** Active UI locale; single-language render. Defaults to `en`. */
+  readonly locale?: EscalationsLocale;
+  /**
+   * When false the tab does not query (e.g. signed-out / no tenant
+   * resolved yet). Defaults to true; the gateway enforces tenant scope.
+   */
+  readonly enabled?: boolean;
 }
 
-function severityBadge(s: EscalationRow["severity"]): string {
-  switch (s) {
-    case "critical":
-      return "rounded bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-800";
-    case "high":
-      return "rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-800";
-    case "low":
-      return "rounded bg-slate-50 px-1.5 py-0.5 text-xs font-medium text-slate-500";
-    case "normal":
-    default:
-      return "rounded bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-600";
-  }
+function Banner(props: {
+  readonly tone: "error" | "status";
+  readonly children: React.ReactNode;
+}): React.JSX.Element {
+  const cls =
+    props.tone === "error"
+      ? "rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+      : "rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600";
+  return (
+    <div role={props.tone === "error" ? "alert" : "status"} className={cls}>
+      {props.children}
+    </div>
+  );
 }
 
-function statusBadge(s: EscalationRow["status"]): string {
-  switch (s) {
-    case "acknowledged":
-      return "rounded bg-blue-50 px-1.5 py-0.5 text-xs font-medium text-blue-700";
-    case "in_progress":
-      return "rounded bg-violet-50 px-1.5 py-0.5 text-xs font-medium text-violet-700";
-    case "open":
-    default:
-      return "rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-medium text-emerald-700";
-  }
-}
+export default function EscalationsTabContent({
+  locale = "en",
+  enabled = true,
+}: EscalationsTabContentProps): React.JSX.Element {
+  const copy = escalationsCopy(locale);
+  const {
+    rows,
+    isLoading,
+    loadError,
+    actionError,
+    pendingId,
+    pendingAction,
+    act,
+  } = useEscalations(enabled);
 
-function formatAge(iso: string): string {
-  try {
-    const ms = Date.now() - new Date(iso).getTime();
-    if (ms < 60_000) return "just now";
-    if (ms < 60 * 60_000) return `${Math.round(ms / 60_000)}m ago`;
-    if (ms < 24 * 60 * 60_000) return `${Math.round(ms / 3_600_000)}h ago`;
-    return new Date(iso).toLocaleDateString();
-  } catch {
-    return iso;
-  }
-}
-
-export default function EscalationsTabContent(): React.JSX.Element {
-  const { identity, error: identityError } = useTenantIdentity();
-  const { rows, hasData, isLoading, loadError } =
-    useTenantRealtime<EscalationRow>({
-      tenantId: identity?.tenantId ?? null,
-      table: "org_escalations",
-      columns:
-        "id, title, reason, severity, status, escalated_to_employee_id, related_task_id, related_subject, created_at, acknowledged_at",
-      initialStatusIn: ["open", "acknowledged", "in_progress"],
-      orderColumn: "created_at",
-      orderAscending: false,
-      shouldDropOnInsert: (r) =>
-        r.status === "resolved" || r.status === "cancelled",
-      shouldDropOnUpdate: (r) =>
-        r.status === "resolved" || r.status === "cancelled",
-    });
-
-  if (identityError) {
-    return (
-      <div
-        role="alert"
-        className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-      >
-        {identityError}
-      </div>
-    );
-  }
-  if (!identity || isLoading) {
-    return (
-      <div
-        role="status"
-        className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
-      >
-        Loading escalations…
-      </div>
-    );
-  }
-  if (loadError) {
-    return (
-      <div
-        role="alert"
-        className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
-      >
-        {loadError}
-      </div>
-    );
-  }
-  if (!hasData) {
+  if (!enabled) return <Banner tone="status">{copy.signInRequired}</Banner>;
+  if (isLoading) return <Banner tone="status">{copy.loading}</Banner>;
+  if (loadError) return <Banner tone="error">{copy.loadFailed}</Banner>;
+  if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-6 text-center">
         <h2 className="text-base font-medium text-slate-800">
-          No open escalations
+          {copy.emptyTitle}
         </h2>
-        <p className="mt-2 text-sm text-slate-600">
-          When the MD raises something to a human (compliance, owner attention),
-          it appears here in real time.
-        </p>
+        <p className="mt-2 text-sm text-slate-600">{copy.emptyBody}</p>
       </div>
     );
   }
 
   return (
     <section
-      aria-label="Escalations"
+      aria-label={copy.headerOpen(rows.length)}
       data-testid="md-escalations-tab"
       className="space-y-3"
     >
       <header className="flex items-center justify-between">
         <h2 className="text-base font-medium text-slate-800">
-          Open escalations ({rows.length})
+          {copy.headerOpen(rows.length)}
         </h2>
-        <p className="text-xs text-slate-500">Live · auto-updates from chat</p>
+        <p className="text-xs text-slate-500">{copy.liveHint}</p>
       </header>
+      {actionError ? (
+        <Banner tone="error">{copy.actionFailed}</Banner>
+      ) : null}
       <ul className="space-y-2">
         {rows.map((row) => (
-          <li
+          <EscalationListItem
             key={row.id}
-            data-testid={`md-escalation-row-${row.id}`}
-            className="rounded-lg border border-slate-200 bg-white px-4 py-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-medium text-slate-900">{row.title}</p>
-              <div className="flex shrink-0 items-center gap-1">
-                <span className={severityBadge(row.severity)}>
-                  {row.severity}
-                </span>
-                <span className={statusBadge(row.status)}>{row.status}</span>
-              </div>
-            </div>
-            <p className="mt-1 text-xs text-slate-600">{row.reason}</p>
-            {row.related_subject ? (
-              <p className="mt-1 text-[11px] text-slate-500">
-                Re: {row.related_subject}
-              </p>
-            ) : null}
-            <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">
-              Opened {formatAge(row.created_at)}
-            </p>
-          </li>
+            row={row}
+            copy={copy}
+            busy={pendingId === row.id}
+            busyAction={pendingId === row.id ? pendingAction : null}
+            anyPending={pendingId !== null}
+            onAct={act}
+          />
         ))}
       </ul>
     </section>
+  );
+}
+
+function EscalationListItem(props: {
+  readonly row: MiningEscalationRow;
+  readonly copy: ReturnType<typeof escalationsCopy>;
+  readonly busy: boolean;
+  readonly busyAction: "acknowledge" | "resolve" | null;
+  readonly anyPending: boolean;
+  readonly onAct: (id: string, action: "acknowledge" | "resolve") => void;
+}): React.JSX.Element {
+  const { row, copy, busy, busyAction, anyPending, onAct } = props;
+  const ackLabel = busyAction === "acknowledge" ? copy.acknowledging : copy.acknowledge;
+  const resolveLabel = busyAction === "resolve" ? copy.resolving : copy.resolve;
+  return (
+    <li
+      data-testid={`md-escalation-row-${row.id}`}
+      className="rounded-lg border border-slate-200 bg-white px-4 py-3"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-slate-900">{row.contextSw}</p>
+        <div className="flex shrink-0 items-center gap-1">
+          <span className={severityBadge(row.severity)}>
+            {copy.severity[row.severity]}
+          </span>
+          <span className={statusBadge(row.status)}>
+            {copy.status[row.status]}
+          </span>
+        </div>
+      </div>
+      <p className="mt-1 text-[10px] uppercase tracking-wider text-slate-400">
+        {copy.openedPrefix} {formatAge(row.createdAt, copy)}
+      </p>
+      <div className="mt-2 flex items-center justify-end gap-2">
+        {row.status === "open" ? (
+          <button
+            type="button"
+            disabled={anyPending}
+            onClick={() => onAct(row.id, "acknowledge")}
+            className="rounded border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 disabled:opacity-50"
+          >
+            {ackLabel}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          disabled={anyPending}
+          onClick={() => onAct(row.id, "resolve")}
+          className="rounded border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 disabled:opacity-50"
+        >
+          {resolveLabel}
+        </button>
+      </div>
+      {busy ? <span className="sr-only">{copy.liveHint}</span> : null}
+    </li>
   );
 }
