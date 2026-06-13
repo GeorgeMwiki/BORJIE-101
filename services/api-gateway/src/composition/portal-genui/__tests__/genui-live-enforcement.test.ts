@@ -49,6 +49,9 @@ describe('genui LIVE-PATH admission enforcement', () => {
 
     await expect(engine.persist({ tab: mixed })).rejects.toMatchObject({
       code: 'TAB_ADMISSION_FAILED',
+      violations: expect.arrayContaining([
+        expect.objectContaining({ rule: 'locale-purity' }),
+      ]),
     });
   });
 
@@ -85,6 +88,9 @@ describe('genui LIVE-PATH admission enforcement', () => {
 
     await expect(engine.persist({ tab: lying })).rejects.toMatchObject({
       code: 'TAB_ADMISSION_FAILED',
+      violations: expect.arrayContaining([
+        expect.objectContaining({ rule: 'chart-truth' }),
+      ]),
     });
   });
 

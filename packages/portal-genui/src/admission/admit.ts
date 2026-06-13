@@ -44,7 +44,6 @@ import { sealAuditChain } from '../audit/audit-chain.js';
 import {
   verifyRenderEffect,
   checkChartTruth,
-  type ChartSeriesPoint,
 } from '../verify/render-effect.js';
 
 // ---------------------------------------------------------------------------
@@ -374,91 +373,58 @@ const actionLabelBindingRule: AdmissionRule = {
   },
 };
 
-/** Map a chart_line series' `points` to ChartSeriesPoint[] (value + unit/currency). */
-function lineSeriesPoints(series: unknown): ReadonlyArray<ChartSeriesPoint> {
-  if (typeof series !== 'object' || series === null) return [];
-  const points = (series as { points?: unknown }).points;
-  if (!Array.isArray(points)) return [];
-  return points.map((p) => {
-    const o = (p ?? {}) as Record<string, unknown>;
-    const num = typeof o.value === 'number' ? o.value : Number(o.value);
-    return {
-      value: Number.isFinite(num) ? num : 0,
-      ...(typeof o.unit === 'string' ? { unit: o.unit } : {}),
-      ...(typeof o.currencyCode === 'string'
-        ? { currencyCode: o.currencyCode }
-        : {}),
-    };
-  });
-}
-
 /**
  * Chart-truth — drives the lying-chart detector (`checkChartTruth`) at the
- * persist chokepoint over each chart widget's BAKED series. Catches the
- * spec-detectable classes with zero false-positive risk:
- *   - chart_bar: a series whose value count ≠ the category count → bars would be
- *     mislabeled (`length-mismatch`).
- *   - chart_line: a single series mixing currencies / units across its points →
- *     incommensurable, unit-confused (`mixed-currency` / `unit-confusion`).
- * Only HIGH-confidence findings block. The full rendered-vs-LIVE-query diff
- * additionally needs a renderer field-map the schema does not yet carry — a
- * documented follow-on — so we never guess a mapping and risk false-blocking.
+ * persist chokepoint over a chart widget's BAKED series. Scope is deliberately
+ * narrow and honest: only `chart_bar` carries an admission-checkable lie in the
+ * current schema — a series whose value count ≠ the category count → bars would
+ * be mislabeled (`length-mismatch`). `chart_line` points are `{x,y}` (no
+ * currency/unit fields), so currency/unit confusion is not expressible there and
+ * is intentionally NOT claimed. The full rendered-vs-LIVE-query diff needs a
+ * renderer field-map the schema does not yet carry — a documented follow-on —
+ * so we never guess a mapping and risk false-blocking.
+ *
+ * A bar chart with `categories: []` is skipped (a label-less chart is not a lie
+ * — it may be mid-stream or label-from-render-hook), avoiding a false-RED.
  */
 const chartTruthRule: AdmissionRule = {
   id: 'chart-truth',
   check: (tab) => {
     const out: AdmissionViolation[] = [];
     forEachWidget(tab, (_section, si, widget, wi) => {
+      if (widget.kind !== 'chart_bar') return;
       const cfg = widget.config;
       if (!cfg || typeof cfg !== 'object') return;
-      const base = `sections[${si}].widgets[${wi}].config.series`;
       const c = cfg as Record<string, unknown>;
+      const base = `sections[${si}].widgets[${wi}].config.series`;
 
-      if (widget.kind === 'chart_line') {
-        const seriesList = Array.isArray(c.series) ? c.series : [];
-        seriesList.forEach((s, sidx) => {
-          const points = lineSeriesPoints(s);
-          if (points.length === 0) return;
-          for (const f of checkChartTruth(points, points).findings) {
-            if (f.confidence === 'high') {
-              out.push({
-                rule: 'chart-truth',
-                path: `${base}[${sidx}]`,
-                detail: `${f.kind}: ${f.detail}`,
-              });
-            }
-          }
-        });
-        return;
-      }
+      const categories = Array.isArray(c.categories) ? c.categories : [];
+      if (categories.length === 0) return; // label-less ⇒ nothing to mislabel
+      const seriesList = Array.isArray(c.series) ? c.series : [];
+      const expected = categories.map(() => ({ value: 0 }));
 
-      if (widget.kind === 'chart_bar') {
-        const categories = Array.isArray(c.categories) ? c.categories : [];
-        const seriesList = Array.isArray(c.series) ? c.series : [];
-        const expected = categories.map(() => ({ value: 0 }));
-        seriesList.forEach((s, sidx) => {
-          const values =
-            typeof s === 'object' &&
-            s !== null &&
-            Array.isArray((s as { values?: unknown }).values)
-              ? (s as { values: unknown[] }).values
-              : [];
-          const rendered = values.map((v) => ({
-            value: typeof v === 'number' ? v : Number(v) || 0,
-          }));
-          for (const f of checkChartTruth(rendered, expected).findings) {
-            if (f.kind === 'chart-truth.length-mismatch') {
-              out.push({
-                rule: 'chart-truth',
-                path: `${base}[${sidx}]`,
-                detail:
-                  `bar series has ${rendered.length} values but ` +
-                  `${categories.length} categories — bars would be mislabeled`,
-              });
-            }
+      seriesList.forEach((s, sidx) => {
+        const values =
+          typeof s === 'object' &&
+          s !== null &&
+          Array.isArray((s as { values?: unknown }).values)
+            ? (s as { values: unknown[] }).values
+            : [];
+        const rendered = values.map((v) => ({
+          value: typeof v === 'number' ? v : Number(v) || 0,
+        }));
+        for (const f of checkChartTruth(rendered, expected).findings) {
+          if (f.kind === 'chart-truth.length-mismatch') {
+            out.push({
+              rule: 'chart-truth',
+              path: `${base}[${sidx}]`,
+              detail:
+                `bar series has ${rendered.length} values but ` +
+                `${categories.length} categories — bars would be mislabeled`,
+            });
           }
-        });
-      }
+        }
+      });
     });
     return out;
   },
