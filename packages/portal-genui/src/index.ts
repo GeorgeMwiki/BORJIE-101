@@ -53,3 +53,12 @@ export * from './security/url-egress.js';
 
 // Hash-chained, append-only tab audit (tamper-evident provenance)
 export * from './audit/audit-chain.js';
+
+// Unified admission control — the one pre-persist chokepoint (Law 1)
+export * from './admission/admit.js';
+
+// Independent render-effect verifier — intent-vs-effect (Law 3)
+export * from './verify/render-effect.js';
+
+// Schema-evolution lane — persisted specs migrate or fail loud (future-proof)
+export * from './migrate/index.js';

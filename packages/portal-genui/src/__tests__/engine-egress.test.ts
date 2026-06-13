@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { createGenUIEngine } from '../engine.js';
-import { PortalGenUiEgressError } from '../security/url-egress.js';
+import { PortalGenUiAdmissionError } from '../admission/admit.js';
 import { verifyAuditChain } from '../audit/audit-chain.js';
 
 const POLICY = { allowedHosts: ['supabase.co', 'borjie.app'] };
@@ -32,8 +32,13 @@ describe('engine egress chokepoint', () => {
     const poisoned = { ...tab, title: 'https://evil.example/exfil?d=secret' };
 
     await expect(engine.persist({ tab: poisoned })).rejects.toBeInstanceOf(
-      PortalGenUiEgressError,
+      PortalGenUiAdmissionError,
     );
+    await engine
+      .persist({ tab: poisoned })
+      .catch((err: PortalGenUiAdmissionError) => {
+        expect(err.violations.some((v) => v.rule === 'url-egress')).toBe(true);
+      });
   });
 
   it('allows persisting a tab whose URLs are all allowlisted', async () => {

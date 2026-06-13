@@ -494,13 +494,14 @@ router.post(
           },
         });
       } catch (err) {
-        if ((err as { code?: unknown })?.code === 'EGRESS_URL_DISALLOWED') {
+        if ((err as { code?: unknown })?.code === 'TAB_ADMISSION_FAILED') {
           return c.json(
             {
               success: false,
               error: {
-                code: 'EGRESS_URL_DISALLOWED',
-                message: err instanceof Error ? err.message : 'disallowed url',
+                code: 'TAB_ADMISSION_FAILED',
+                message: err instanceof Error ? err.message : 'admission failed',
+                violations: (err as { violations?: unknown }).violations ?? [],
               },
             },
             422,
@@ -588,11 +589,16 @@ router.post(
         return c.json({ success: true, data: saved }, 201);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'unknown';
-        if ((err as { code?: unknown })?.code === 'EGRESS_URL_DISALLOWED') {
+        if ((err as { code?: unknown })?.code === 'TAB_ADMISSION_FAILED') {
           return c.json(
             {
               success: false,
-              error: { code: 'EGRESS_URL_DISALLOWED', message: msg },
+              error: {
+                code: 'TAB_ADMISSION_FAILED',
+                message: msg,
+                violations:
+                  (err as { violations?: unknown }).violations ?? [],
+              },
             },
             422,
           );
