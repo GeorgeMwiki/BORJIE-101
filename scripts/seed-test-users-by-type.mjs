@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 /**
- * seed-test-users-by-type.mjs — create 6 test users PER user-type in the live
- * Supabase project, idempotently, then VERIFY each can log in.
+ * seed-test-users-by-type.mjs — 6 ISOLATED mining estates, each with a FULL
+ * role cast, created idempotently in the live Supabase project, then verified.
  *
- * Types (Supabase `app_metadata.roles` → gateway UserRole, enum-key first so it
- * maps correctly under both the F6 mapper and the richer supabase middleware):
- *   owner    → OWNER
- *   admin    → ADMIN              (Borjie-internal platform admin)
- *   manager  → PROPERTY_MANAGER   (mining site/estate manager slot)
- *   employee → MAINTENANCE_STAFF  (mining field-worker slot)
- *   buyer    → RESIDENT           (marketplace buyer slot)
+ * Each index N is its OWN tenant (`tnt_estate_{N}` = "Mining Estate {N}"), so
+ * every estate owns its own data — estate 1 can never see estate 2's. Within
+ * each estate the five role-types let you exercise every permission tier:
+ *
+ *   owner{N}@borjie.test     → owner         (owns Mining Estate {N})
+ *   admin{N}@borjie.test     → admin         (Borjie-internal platform admin)
+ *   manager{N}@borjie.test   → site manager  (estate / site manager)
+ *   employee{N}@borjie.test  → field worker  (miner / driver / equipment op)
+ *   buyer{N}@borjie.test     → buyer         (mineral off-taker / counterparty)
+ *
+ * Role strings are mining-native — the gateway's Supabase role mapper accepts
+ * `owner`, `admin`, `site_manager`, `driver`/`maintenance`, and `buyer`.
  *
  * Each user: auth.users row (email+password, auto-confirmed) with server-managed
  * app_metadata { tenant_id, roles, environment }, mirrored into the app `users`
- * table, then a real password-grant login is performed to prove the credential
- * works end-to-end. Idempotent: re-runs converge (find-or-update).
+ * table, then a real password-grant login proves the credential end-to-end.
+ * Idempotent: re-runs converge (find-or-update, including re-homing a user that
+ * was previously seeded into the old shared tenant).
  *
  * Env (from .env.local): SUPABASE_URL|NEXT_PUBLIC_SUPABASE_URL,
  * SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY.
@@ -51,17 +57,17 @@ for (const [k, v] of Object.entries({ SUPABASE_URL, SERVICE_ROLE, ANON_KEY, DATA
   if (!v) { console.error(`missing env: ${k}`); process.exit(2); }
 }
 
-const TENANT_ID = process.env.BORJIE_DEV_TENANT_ID ?? 'tnt_dev_landlord_001';
-const TENANT_SLUG = 'dev-landlord';
 const PASSWORD = process.env.BORJIE_TEST_USER_PASSWORD ?? 'BorjieTest!2026';
-const PER_TYPE = 6;
+const ESTATE_COUNT = 6;
 
-const TYPES = [
-  { type: 'owner', roles: ['OWNER', 'owner'], isOwner: true },
-  { type: 'admin', roles: ['ADMIN', 'admin'], isOwner: false },
-  { type: 'manager', roles: ['PROPERTY_MANAGER', 'site_manager', 'manager'], isOwner: false },
-  { type: 'employee', roles: ['MAINTENANCE_STAFF', 'employee', 'worker'], isOwner: false },
-  { type: 'buyer', roles: ['RESIDENT', 'buyer'], isOwner: false },
+// The five role-types every estate carries. `roles[]` is mining-native; the
+// gateway mapper resolves each to the current enum slot.
+const ROLE_TYPES = [
+  { type: 'owner', label: 'Owner', firstName: 'Owner', roles: ['owner'], isOwner: true },
+  { type: 'admin', label: 'Admin', firstName: 'Admin', roles: ['admin'], isOwner: false },
+  { type: 'manager', label: 'Site Manager', firstName: 'SiteManager', roles: ['site_manager', 'manager'], isOwner: false },
+  { type: 'employee', label: 'Field Worker', firstName: 'FieldWorker', roles: ['miner', 'driver'], isOwner: false },
+  { type: 'buyer', label: 'Buyer', firstName: 'Buyer', roles: ['buyer'], isOwner: false },
 ];
 
 async function adminApi(suffix, init = {}) {
@@ -74,16 +80,19 @@ async function adminApi(suffix, init = {}) {
   return { ok: res.ok, status: res.status, body };
 }
 
+let _allUsers = null;
 async function findByEmail(email) {
-  const { ok, body } = await adminApi('/auth/v1/admin/users?page=1&per_page=2000');
-  if (!ok) return null;
-  return (body?.users ?? []).find((u) => u.email?.toLowerCase() === email.toLowerCase()) ?? null;
+  if (!_allUsers) {
+    const { body } = await adminApi('/auth/v1/admin/users?page=1&per_page=4000');
+    _allUsers = body?.users ?? [];
+  }
+  return _allUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase()) ?? null;
 }
 
-async function upsertUser(email, roles, first, last) {
+async function upsertUser(email, roles, tenantId, first, last) {
   const payload = {
     email, password: PASSWORD, email_confirm: true,
-    app_metadata: { tenant_id: TENANT_ID, roles, environment: 'development' },
+    app_metadata: { tenant_id: tenantId, roles, environment: 'development' },
     user_metadata: { first_name: first, last_name: last },
   };
   const existing = await findByEmail(email);
@@ -106,55 +115,49 @@ async function verifyLogin(email) {
 }
 
 async function main() {
-  console.log(`target: ${SUPABASE_URL}  tenant: ${TENANT_ID}  password: ${PASSWORD}\n`);
+  console.log(`target: ${SUPABASE_URL}  password: ${PASSWORD}\n`);
   const all = [];
-  for (const { type, roles, isOwner } of TYPES) {
-    for (let n = 1; n <= PER_TYPE; n += 1) {
-      const email = `${type}${n}@borjie.test`;
-      const { id, existed } = await upsertUser(email, roles, type, `Test${n}`);
-      all.push({ type, email, id, existed, isOwner });
-      process.stdout.write(`  ${existed ? 'exists ' : 'created'} ${email}\n`);
-    }
-  }
-
-  // Mirror into app `users` table (tenant-scoped, idempotent by email).
-  const sql = postgres(DATABASE_URL, { max: 4, onnotice: () => {} });
+  const sql = postgres(DATABASE_URL, { max: 2, onnotice: () => {} });
   try {
-    await sql.begin(async (tx) => {
-      const t = await tx`SELECT id FROM tenants WHERE slug = ${TENANT_SLUG} AND deleted_at IS NULL LIMIT 1`;
-      const tenantId = t.length ? t[0].id : TENANT_ID;
-      if (!t.length) {
-        await tx`INSERT INTO tenants (id, name, slug, status, primary_email, country, settings, created_at, updated_at, created_by)
-          VALUES (${tenantId}, 'Dev Landlord (BORJIE)', ${TENANT_SLUG}, 'active', 'owner1@borjie.test', 'TZ',
-          ${JSON.stringify({ currency: 'TZS', timezone: 'Africa/Dar_es_Salaam', dev: true })}::jsonb, NOW(), NOW(), 'seed-by-type')
-          ON CONFLICT (slug) DO NOTHING`;
-      }
-      for (const u of all) {
-        const ex = await tx`SELECT id FROM users WHERE tenant_id = ${tenantId} AND email = ${u.email} AND deleted_at IS NULL LIMIT 1`;
+    for (let n = 1; n <= ESTATE_COUNT; n += 1) {
+      const tenantId = `tnt_estate_${n}`;
+      const slug = `mining-estate-${n}`;
+      await sql`INSERT INTO tenants (id, name, slug, status, primary_email, country, settings, created_at, updated_at, created_by)
+        VALUES (${tenantId}, ${`Mining Estate ${n}`}, ${slug}, 'active', ${`owner${n}@borjie.test`}, 'TZ',
+        ${sql.json({ currency: 'TZS', timezone: 'Africa/Dar_es_Salaam', sector: 'mining', dev: true })}, NOW(), NOW(), 'seed-by-type')
+        ON CONFLICT (slug) DO NOTHING`;
+      const t = await sql`SELECT id FROM tenants WHERE slug = ${slug} AND deleted_at IS NULL LIMIT 1`;
+      const realTenantId = t.length ? t[0].id : tenantId;
+
+      for (const r of ROLE_TYPES) {
+        const email = `${r.type}${n}@borjie.test`;
+        const { existed } = await upsertUser(email, r.roles, realTenantId, r.firstName, `Estate${n}`);
+        // Mirror into app users table (idempotent by email within tenant).
+        const ex = await sql`SELECT id FROM users WHERE tenant_id = ${realTenantId} AND email = ${email} AND deleted_at IS NULL LIMIT 1`;
         if (!ex.length) {
-          await tx`INSERT INTO users (id, tenant_id, email, phone, first_name, last_name, status, is_owner, created_at, updated_at, created_by)
-            VALUES (${`usr_${randomUUID()}`}, ${tenantId}, ${u.email}, NULL, ${u.type}, 'Test', 'active', ${u.isOwner}, NOW(), NOW(), 'seed-by-type')
+          await sql`INSERT INTO users (id, tenant_id, email, phone, first_name, last_name, status, is_owner, created_at, updated_at, created_by)
+            VALUES (${`usr_${randomUUID()}`}, ${realTenantId}, ${email}, NULL, ${r.firstName}, ${`Estate${n}`}, 'active', ${r.isOwner}, NOW(), NOW(), 'seed-by-type')
             ON CONFLICT DO NOTHING`;
         }
+        all.push({ estate: n, type: r.type, label: r.label, email });
+        process.stdout.write(`  ${existed ? 'exists ' : 'created'} estate${n} ${r.label.padEnd(13)} ${email}\n`);
       }
-    });
-    console.log('\napp users table mirrored ✓');
+    }
   } finally {
     await sql.end({ timeout: 5 });
   }
 
   // Verify login for every user.
   console.log('\nLogin verification:');
-  const results = {};
+  let ok = 0;
   for (const u of all) {
     const r = await verifyLogin(u.email);
-    results[u.type] = results[u.type] ?? { ok: 0, fail: 0 };
-    if (r.ok) results[u.type].ok += 1; else { results[u.type].fail += 1; console.log(`  ✗ ${u.email} (status ${r.status})`); }
+    if (r.ok) ok += 1; else console.log(`  ✗ ${u.email} (status ${r.status})`);
   }
-  console.log('\nSummary (login OK / total per type):');
-  for (const { type } of TYPES) {
-    const r = results[type];
-    console.log(`  ${type.padEnd(9)} ${r.ok}/${r.ok + r.fail} ✓`);
+  console.log(`\n  ${ok}/${all.length} users logged in ✓`);
+  console.log('\nMining estates (each fully isolated by tenant, full role cast):');
+  for (let n = 1; n <= ESTATE_COUNT; n += 1) {
+    console.log(`  Mining Estate ${n} (tnt_estate_${n}): owner${n} + admin${n} + manager${n} + employee${n} + buyer${n}`);
   }
 }
 

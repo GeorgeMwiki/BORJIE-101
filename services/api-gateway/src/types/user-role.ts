@@ -65,7 +65,13 @@ export function isTenantAdmin(role: UserRole): boolean {
 }
 
 /**
- * Get human-readable role name
+ * Get human-readable role name.
+ *
+ * NOTE: the enum KEYS (`PROPERTY_MANAGER`, `MAINTENANCE_STAFF`, `RESIDENT`) are
+ * property-era slots retained until the coordinated role rename (INT-5) lands —
+ * see the per-key @deprecated notes above. The user-FACING labels below,
+ * however, are the mining-native terms, so nothing a user reads says
+ * "Property Manager" / "Maintenance Staff" / "Resident".
  */
 export function getRoleName(role: UserRole): string {
   const names: Record<UserRole, string> = {
@@ -73,11 +79,11 @@ export function getRoleName(role: UserRole): string {
     ADMIN: 'Admin',
     SUPPORT: 'Support',
     TENANT_ADMIN: 'Tenant Admin',
-    PROPERTY_MANAGER: 'Property Manager',
+    PROPERTY_MANAGER: 'Site Manager',
     ACCOUNTANT: 'Accountant',
-    MAINTENANCE_STAFF: 'Maintenance Staff',
+    MAINTENANCE_STAFF: 'Field Worker',
     OWNER: 'Owner',
-    RESIDENT: 'Resident',
+    RESIDENT: 'Buyer',
   };
   return names[role] || role;
 }

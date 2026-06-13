@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * seed-live-test-users.mjs — create the BORJIE dev tenant + 3 dev
+ * seed-live-test-users.mjs — create the BORJIE demo mining estate + 3 demo
  * users in the live Supabase project, idempotently.
  *
  * Use this once after `pnpm db:migrate` against a fresh Supabase project
@@ -8,28 +8,33 @@
  *
  * What it does (all idempotent — re-runs cleanly converge):
  *
- *   1. INSERT the dev tenant row directly into `tenants` via DATABASE_URL.
- *      Slug = "dev-landlord", id stable, settings carry default currency.
+ *   1. INSERT the demo mining-estate tenant directly into `tenants` via
+ *      DATABASE_URL. Slug = "borjie-demo-estate", id stable, mining settings.
  *
- *   2. For each of three dev users (owner, manager, tenant):
+ *   2. For each of three demo users (owner, site manager, field worker):
  *
  *      a. Call Supabase Auth Admin API `POST /auth/v1/admin/users` to
  *         create an `auth.users` row with email + password + auto-confirm.
  *
  *      b. Set `app_metadata` to:
- *           { tenant_id: <dev tenant id>,
- *             roles:     [<role>],
+ *           { tenant_id: <demo estate id>,
+ *             roles:     [<mining role string>],
  *             environment: 'development' }
  *
  *         This is the **server-managed** metadata that
  *         `verifySupabaseJwt` trusts — F6 hardening rejects any
- *         tenant_id sourced from `user_metadata`.
+ *         tenant_id sourced from `user_metadata`. The role strings are
+ *         mining-native (owner / site_manager / driver|miner); the gateway
+ *         role mapper resolves each onto the current enum slot.
  *
  *      c. Mirror the user into the app-level `users` table so app code
  *         that joins on user_id resolves correctly.
  *
- *   3. Print a summary table with user IDs and login commands a developer
- *      can paste into curl / Postman / the gateway smoke test.
+ *   3. Legacy cleanup: retire the old property-era demo tenant
+ *      (`tnt_dev_landlord_001`) + the renter-named `tenant@borjie.dev` user
+ *      if they linger from a previous seed (idempotent — no-op once gone).
+ *
+ *   4. Print a summary with user IDs and a login command.
  *
  * Required environment (read from .env.local — already in repo gitignore):
  *
@@ -47,12 +52,12 @@
  *   1 — fatal error (network / auth / SQL)
  *   2 — missing required env var
  *
- * Security note: this script writes only to the BORJIE dev Supabase
+ * Security note: this script writes only to the BORJIE demo Supabase
  * project (resolved from SUPABASE_URL). It will REFUSE to run if the URL
  * looks like a production hostname — see `assertNotProduction` below.
  */
 
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -106,12 +111,16 @@ function requiredOneOf(names) {
 const SUPABASE_URL = requiredOneOf(['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL']).replace(/\/+$/, '');
 const SERVICE_ROLE = required('SUPABASE_SERVICE_ROLE_KEY');
 const DATABASE_URL = required('DATABASE_URL');
-const TENANT_ID = process.env.BORJIE_DEV_TENANT_ID ?? 'tnt_dev_landlord_001';
-const TENANT_SLUG = 'dev-landlord';
+const TENANT_ID = process.env.BORJIE_DEV_TENANT_ID ?? 'tnt_demo_estate_001';
+const TENANT_SLUG = 'borjie-demo-estate';
 const PASSWORD = process.env.BORJIE_BOOTSTRAP_PASSWORD ?? 'DevPass!Secure-2026';
 
+// Property-era artefacts retired on re-run (idempotent no-op once gone).
+const LEGACY_TENANT_ID = 'tnt_dev_landlord_001';
+const LEGACY_RENTER_EMAIL = 'tenant@borjie.dev';
+
 function assertNotProduction() {
-  // Belt-and-braces: refuse to seed dev users into a prod-looking project.
+  // Belt-and-braces: refuse to seed demo users into a prod-looking project.
   if (/prod|production|live/i.test(SUPABASE_URL)) {
     console.error(
       `[seed-live-test-users] REFUSING to run — SUPABASE_URL looks like production: ${SUPABASE_URL}`,
@@ -122,29 +131,29 @@ function assertNotProduction() {
 assertNotProduction();
 
 // ---------------------------------------------------------------------------
-// 2. The three dev users. Roles map onto UserRole in the gateway.
+// 2. The three demo users. Mining roles map onto UserRole in the gateway.
 // ---------------------------------------------------------------------------
 
 const USERS = [
   {
     email: 'owner@borjie.dev',
-    firstName: 'Dev',
+    firstName: 'Demo',
     lastName: 'Owner',
-    roles: ['OWNER', 'admin'],
+    roles: ['owner', 'admin'],
     isOwner: true,
   },
   {
     email: 'manager@borjie.dev',
-    firstName: 'Dev',
+    firstName: 'Site',
     lastName: 'Manager',
-    roles: ['MANAGER', 'manager'],
+    roles: ['site_manager', 'manager'],
     isOwner: false,
   },
   {
-    email: 'tenant@borjie.dev',
-    firstName: 'Dev',
-    lastName: 'Tenant',
-    roles: ['TENANT', 'employee'],
+    email: 'worker@borjie.dev',
+    firstName: 'Field',
+    lastName: 'Worker',
+    roles: ['miner', 'driver'],
     isOwner: false,
   },
 ];
@@ -169,8 +178,7 @@ async function adminApi(pathSuffix, init = {}) {
 }
 
 async function findUserByEmail(email) {
-  // The list endpoint paginates — for the dev set (3 users) page 1 is
-  // sufficient. Server-side filtering on email isn't supported.
+  // The list endpoint paginates — for the demo set page 1 is sufficient.
   const { ok, body, status } = await adminApi('/auth/v1/admin/users?page=1&per_page=200');
   if (!ok) throw new Error(`list users failed (${status}): ${JSON.stringify(body)}`);
   const users = Array.isArray(body?.users) ? body.users : [];
@@ -213,8 +221,15 @@ async function createSupabaseUser(user) {
   return { id: body?.id ?? body?.user?.id, alreadyExisted: false };
 }
 
+async function retireLegacyRenterUser() {
+  const existing = await findUserByEmail(LEGACY_RENTER_EMAIL);
+  if (!existing) return false;
+  await adminApi(`/auth/v1/admin/users/${encodeURIComponent(existing.id)}`, { method: 'DELETE' });
+  return true;
+}
+
 // ---------------------------------------------------------------------------
-// 4. SQL helpers — tenant insert + app-level users row mirror.
+// 4. SQL helpers — tenant insert + app-level users row mirror + legacy retire.
 // ---------------------------------------------------------------------------
 
 async function ensureTenantAndAppUsers(sql, createdUsers) {
@@ -231,12 +246,12 @@ async function ensureTenantAndAppUsers(sql, createdUsers) {
           created_at, updated_at, created_by
         ) VALUES (
           ${tenantId},
-          'Dev Landlord (BORJIE local)',
+          'Borjie Demo Mining Estate',
           ${TENANT_SLUG},
           'active',
           'owner@borjie.dev',
           'TZ',
-          ${JSON.stringify({ currency: 'TZS', timezone: 'Africa/Dar_es_Salaam', dev: true })}::jsonb,
+          ${sql.json({ currency: 'TZS', timezone: 'Africa/Dar_es_Salaam', sector: 'mining', dev: true })},
           NOW(),
           NOW(),
           'seed-live-test-users'
@@ -245,9 +260,7 @@ async function ensureTenantAndAppUsers(sql, createdUsers) {
       `;
     }
     // App-level users — one row per Supabase user, idempotent by
-    // (tenant_id, email). The link to Supabase auth.users is by email
-    // match (the schema does not carry a separate supabase_user_id column;
-    // gateway middleware joins app users on email after verifying the JWT).
+    // (tenant_id, email). The link to Supabase auth.users is by email match.
     for (const { email, firstName, lastName, isOwner } of createdUsers) {
       const existing = await tx`
         SELECT id FROM users
@@ -268,6 +281,12 @@ async function ensureTenantAndAppUsers(sql, createdUsers) {
         `;
       }
     }
+    // Legacy retire — soft-delete the property-era demo tenant husk so it no
+    // longer appears as an active "Dev Landlord" estate. Idempotent.
+    await tx`
+      UPDATE tenants SET deleted_at = NOW(), updated_at = NOW()
+       WHERE id = ${LEGACY_TENANT_ID} AND deleted_at IS NULL
+    `;
     return tenantId;
   });
 }
@@ -292,7 +311,12 @@ async function main() {
     console.log(`  ${alreadyExisted ? 'exists' : 'created'}: ${u.email}  →  auth.users id = ${id}`);
   }
 
-  // Mirror into app DB.
+  // Retire the legacy renter-named user.
+  if (await retireLegacyRenterUser()) {
+    console.log(`  retired legacy renter user: ${LEGACY_RENTER_EMAIL}`);
+  }
+
+  // Mirror into app DB + retire legacy tenant husk.
   const sql = postgres(DATABASE_URL, { max: 4, onnotice: () => {} });
   try {
     const finalTenantId = await ensureTenantAndAppUsers(sql, created);
