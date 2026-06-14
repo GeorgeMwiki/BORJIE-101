@@ -576,6 +576,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0357_dark_worker_service_role_bypass.sql",
+      "down": "down/0357_down_dark_worker_service_role_bypass.sql",
+      "reverses": "Drops the five <tbl>_service_role_bypass RLS policies (workforce_cert_expiry_reminders, regulatory_filings, workforce_locations, entity_index, entity_cross_references), reverting each table to tenant-isolation-only RLS. Dev/staging only — re-darkens the cross-tenant ica-cert-expiry / compliance-deadline-scan / geofence-watcher / entity-indexer workers (their scans again match zero rows under FORCE RLS). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

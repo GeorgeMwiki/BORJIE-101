@@ -22,10 +22,21 @@
  * The watcher is idempotent — each alert key includes the
  * (tenantId, employeeId, hazardId|expectedSiteId, capturedAt) tuple
  * so retries do not double-emit.
+ *
+ * RLS NOTE: the cross-tenant workforce_locations scan binds service-role
+ * context (the workforce_locations_service_role_bypass policy, migration
+ * 0357) so FORCE ROW LEVEL SECURITY does not silently filter it to zero
+ * rows on the shared pool. RESIDUAL (not closed here): the geofencing
+ * predicate service (services/geofencing/predicates.ts) runs its hazard/
+ * site polygon queries on its OWN non-context-bound handle, so those
+ * still read 0 rows under FORCE RLS when invoked from this worker —
+ * alerts are not fully restored until that service is also invoked under
+ * service-role (or per-tenant) context. Tracked as a follow-up.
  */
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 import type { GeofencingService, Point } from '../services/geofencing/index.js';
 
 const DEFAULT_INTERVAL_MS = 30 * 1000;
@@ -143,7 +154,10 @@ export function createGeofenceWatcher(
   async function listRecentFixes(): Promise<ReadonlyArray<WorkerFixRow>> {
     const since = new Date(now().getTime() - fixFreshnessMs).toISOString();
     try {
-      const result = await db.execute(sql`
+      const result = await withServiceRoleContext(
+        db as unknown as Parameters<typeof withServiceRoleContext>[0],
+        (txDb) =>
+          (txDb as unknown as DbLike).execute(sql`
         SELECT DISTINCT ON (wl.tenant_id, wl.employee_id)
           wl.tenant_id   AS tenant_id,
           wl.employee_id AS employee_id,
@@ -155,7 +169,8 @@ export function createGeofenceWatcher(
         WHERE wl.captured_at >= ${since}::timestamptz
         ORDER BY wl.tenant_id, wl.employee_id, wl.captured_at DESC
         LIMIT 5000
-      `);
+      `),
+      );
       return rowsOf(result).map((row) => ({
         tenantId: String(row.tenant_id),
         employeeId: String(row.employee_id),

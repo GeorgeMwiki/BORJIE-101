@@ -21,6 +21,7 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 import {
   registerWorker,
   workerHeartbeat,
@@ -300,7 +301,26 @@ export function createIcaCertExpiryCron(
     const started = Date.now();
     try {
       const ts = now();
-      const expiring = await fetchExpiringCerts(options.db, ts, options.logger);
+      // Cross-tenant scan binds app.is_service_role='true' (the
+      // workforce_certifications + reminders bypass policies) so FORCE RLS
+      // does not silently filter this multi-tenant read to zero rows on the
+      // shared pool. The scan runs in its OWN short service-role tx.
+      let expiring: readonly ExpiringCert[] = [];
+      try {
+        expiring = await withServiceRoleContext(
+          options.db as unknown as Parameters<typeof withServiceRoleContext>[0],
+          (txDb) =>
+            fetchExpiringCerts(txDb as unknown as DbLike, ts, options.logger),
+        );
+      } catch (err) {
+        options.logger.warn(
+          {
+            worker: 'ica-cert-expiry-cron',
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'ica-cert-expiry-cron: scan tx failed',
+        );
+      }
       counters.scanned = expiring.length;
       for (const cert of expiring) {
         for (const daysBefore of REMINDER_OFFSETS_DAYS) {
@@ -308,12 +328,34 @@ export function createIcaCertExpiryCron(
           // Skip offsets that are already in the past (or coincident
           // with now) — the dispatcher will not run a backdated row.
           if (daysLeft < daysBefore) continue;
-          const result = await createReminderForCert(options.db, {
-            cert,
-            daysBefore,
-            now: ts,
-            logger: options.logger,
-          });
+          // Each reminder write gets its OWN short service-role tx so one
+          // bad row (e.g. a NOT NULL/FK violation) cannot poison the rest
+          // of the batch (Postgres aborts the whole tx on any error).
+          let result: 'created' | 'dedup' | 'failed';
+          try {
+            result = await withServiceRoleContext(
+              options.db as unknown as Parameters<typeof withServiceRoleContext>[0],
+              (txDb) =>
+                createReminderForCert(txDb as unknown as DbLike, {
+                  cert,
+                  daysBefore,
+                  now: ts,
+                  logger: options.logger,
+                }),
+            );
+          } catch (err) {
+            options.logger.warn(
+              {
+                worker: 'ica-cert-expiry-cron',
+                tenantId: cert.tenantId,
+                certId: cert.id,
+                daysBefore,
+                err: err instanceof Error ? err.message : String(err),
+              },
+              'ica-cert-expiry-cron: reminder tx failed',
+            );
+            result = 'failed';
+          }
           if (result === 'created') counters.remindersCreated += 1;
           else if (result === 'dedup') counters.dedupSkipped += 1;
           else counters.failed += 1;
