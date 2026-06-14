@@ -13,10 +13,24 @@
 import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
-import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
+import { UserRole } from '../types/user-role';
 
 import { withSecurityEvents } from '@borjie/observability';
+
+// ── role gate ────────────────────────────────────────────────────────────
+// Publishing a tender, awarding it (picks the winning bid → binds the owner),
+// and cancelling it are owner / admin acts. WITHOUT this gate ANY authenticated
+// tenant member could publish or award. Bid SUBMISSION + the GET reads stay
+// broad — a vendor user legitimately submits a bid. The role gate is the
+// load-bearing control.
+const TENDER_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+] as const;
 const PublishTenderSchema = z
   .object({
     scope: z.string().min(1).max(2000),
@@ -84,7 +98,7 @@ function notImplemented(c: any, what: string) {
   );
 }
 
-app.post('/', zValidator('json', PublishTenderSchema), withSecurityEvents({ action: 'tender.create', resource: 'tender', severity: 'info' }, async (c) => {
+app.post('/', requireRole(...TENDER_WRITE_ROLES), zValidator('json', PublishTenderSchema), withSecurityEvents({ action: 'tender.create', resource: 'tender', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const svc = tenderService(c);
@@ -151,7 +165,7 @@ app.get('/:id/bids', async (c) => {
   return c.json({ success: true, data: bids });
 });
 
-app.post('/:id/award', zValidator('json', AwardSchema), withSecurityEvents({ action: 'tender.create', resource: 'tender', severity: 'info' }, async (c) => {
+app.post('/:id/award', requireRole(...TENDER_WRITE_ROLES), zValidator('json', AwardSchema), withSecurityEvents({ action: 'tender.create', resource: 'tender', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const svc = tenderService(c);
@@ -175,7 +189,7 @@ app.post('/:id/award', zValidator('json', AwardSchema), withSecurityEvents({ act
   return c.json({ success: true, data: result.value });
 }));
 
-app.post('/:id/cancel', zValidator('json', CancelSchema), withSecurityEvents({ action: 'tender.create', resource: 'tender', severity: 'info' }, async (c) => {
+app.post('/:id/cancel', requireRole(...TENDER_WRITE_ROLES), zValidator('json', CancelSchema), withSecurityEvents({ action: 'tender.create', resource: 'tender', severity: 'info' }, async (c) => {
   const auth = c.get('auth');
   const body = c.req.valid('json');
   const svc = tenderService(c);
