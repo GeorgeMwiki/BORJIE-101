@@ -105,7 +105,8 @@
       "pending": "Pending",
       "accepted": "Accepted",
       "rejected": "Rejected",
-      "countered": "Counter offer"
+      "countered": "Counter offer",
+      "withdrawn": "Withdrawn"
     },
     "your_offer": "Your offer",
     "thread": "Conversation",
@@ -113,6 +114,7 @@
     "empty": "You haven't placed any bids yet",
     "place_title": "Place bid",
     "bid_price": "Bid price (TZS/kg)",
+    "bid_price_invalid": "Enter a valid bid price",
     "payment_terms": "Payment terms",
     "payment_instant": "Instant",
     "payment_30": "Net 30 days",

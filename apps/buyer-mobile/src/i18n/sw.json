@@ -105,7 +105,8 @@
       "pending": "Inasubiri",
       "accepted": "Imekubaliwa",
       "rejected": "Imekataliwa",
-      "countered": "Pendekezo jipya"
+      "countered": "Pendekezo jipya",
+      "withdrawn": "Imeondolewa"
     },
     "your_offer": "Toleo lako",
     "thread": "Mazungumzo",
@@ -113,6 +114,7 @@
     "empty": "Bado hujaweka zabuni yoyote",
     "place_title": "Weka zabuni",
     "bid_price": "Bei ya zabuni (TZS/kg)",
+    "bid_price_invalid": "Weka bei sahihi ya zabuni",
     "payment_terms": "Masharti ya malipo",
     "payment_instant": "Mara moja",
     "payment_30": "Siku 30",

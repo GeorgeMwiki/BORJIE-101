@@ -18,7 +18,8 @@ export function summarisePipeline(bids: readonly Bid[]): PipelineCounts {
     pending: 0,
     countered: 0,
     accepted: 0,
-    rejected: 0
+    rejected: 0,
+    withdrawn: 0
   }
   for (const bid of bids) {
     counters[bid.status] += 1
@@ -26,7 +27,7 @@ export function summarisePipeline(bids: readonly Bid[]): PipelineCounts {
   return {
     negotiating: counters.pending + counters.countered,
     accepted: counters.accepted,
-    closed: counters.rejected,
+    closed: counters.rejected + counters.withdrawn,
     total: bids.length
   }
 }

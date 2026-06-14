@@ -25,7 +25,8 @@ const toneByStatus: Record<BidStatus, PillTone> = {
   pending: 'warning',
   accepted: 'success',
   rejected: 'danger',
-  countered: 'gold'
+  countered: 'gold',
+  withdrawn: 'neutral'
 }
 
 export default function BidDetail() {
