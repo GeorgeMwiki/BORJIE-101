@@ -61,7 +61,10 @@ describe('POST /v1/field/capture/photo', () => {
     expect(res.statusCode).toBe(400);
   });
 
-  it('accepts a photo with explicit GPS location', async () => {
+  // KI-012: the service wires the default (stub) inference provider, so a
+  // captured photo must be honestly marked `pending_analysis` — NOT
+  // `processed` with fabricated detections — until a real provider is wired.
+  it('accepts a photo with explicit GPS location and marks it pending_analysis (no fabricated values)', async () => {
     const res = await app.inject({
       method: 'POST',
       url: '/v1/field/capture/photo',
@@ -76,7 +79,10 @@ describe('POST /v1/field/capture/photo', () => {
     expect(res.statusCode).toBe(201);
     const body = res.json();
     expect(body.captures[0].kind).toBe('photo');
-    expect(body.captures[0].status).toBe('processed');
+    expect(body.captures[0].status).toBe('pending_analysis');
+    const inf = body.captures[0].aiInferences ?? {};
+    expect(inf.detectedObjects).toBeUndefined();
+    expect(inf.buildingGuess).toBeUndefined();
   });
 
   it('rejects a photo without GPS', async () => {
@@ -190,7 +196,10 @@ describe('GET /v1/field/queue/:surveyorId', () => {
     expect(res.json().queued).toEqual([]);
   });
 
-  it('returns processed captures after submission', async () => {
+  // KI-012: with the default (stub) provider the capture is honestly
+  // bucketed as pending_analysis, and must still be visible in the queue
+  // read (its own bucket) rather than silently vanishing.
+  it('returns pending_analysis captures after submission (default stub provider)', async () => {
     await app.inject({
       method: 'POST',
       url: '/v1/field/capture/audio',
@@ -199,7 +208,12 @@ describe('GET /v1/field/queue/:surveyorId', () => {
     });
     const res = await app.inject({ method: 'GET', url: '/v1/field/queue/u1' });
     expect(res.statusCode).toBe(200);
-    expect(res.json().processed.length).toBe(1);
+    const body = res.json();
+    // Not fabricated-as-processed.
+    expect(body.processed.length).toBe(0);
+    // Surfaced honestly in its own bucket.
+    expect(body.pendingAnalysis.length).toBe(1);
+    expect(body.pendingAnalysis[0].status).toBe('pending_analysis');
   });
 });
 
