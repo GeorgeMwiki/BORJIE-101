@@ -13,7 +13,14 @@ const ENDPOINT_OVERRIDES: Readonly<Partial<Record<EntityType, string>>> = {
   drill_hole: 'drill-holes',
   fuel_log: 'fuel-logs',
   attendance: 'attendance',
-  weighbridge_capture: 'samples'
+  weighbridge_capture: 'samples',
+  // CONVERGENCE — offline `inventory_move` retries land on the SAME mounted
+  // route the online W-M-10 flow already posts to (`POST /inventory/movements`,
+  // backed by `inventory_stock_movements`). Without this override the default
+  // rule would compute `inventory-moves`, an UNMOUNTED path → 404 → silent
+  // data loss. `bodyFor()` in flush.ts maps the queued payload onto the
+  // gateway's `MovementSchema` so offline and online hit one route + one table.
+  inventory_move: 'inventory/movements'
 }
 
 /**

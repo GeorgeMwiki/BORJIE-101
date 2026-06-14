@@ -124,7 +124,13 @@ export async function queryEntityIndex(
   // personas the brain tools use).
   const kindClause =
     input.kindFilter && input.kindFilter.length > 0
-      ? sql`AND entity_kind = ANY(${input.kindFilter as string[]}::text[])`
+      ? // Bind the filter as an explicit `ARRAY[...]::text[]` — a bare
+        // `${input.kindFilter}::text[]` makes drizzle spread it into the
+        // invalid record cast `($1, $2)::text[]`, returning empty silently.
+        sql`AND entity_kind = ANY(ARRAY[${sql.join(
+          input.kindFilter.map((k) => sql`${k}`),
+          sql`, `,
+        )}]::text[])`
       : sql``;
   const queryClause = input.query
     ? sql`AND (display_name ILIKE ${'%' + input.query + '%'} OR summary ILIKE ${'%' + input.query + '%'})`

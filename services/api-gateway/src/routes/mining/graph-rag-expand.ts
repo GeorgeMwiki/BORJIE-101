@@ -118,6 +118,13 @@ export async function expandGraphEvidence(
     if (newChunkRefs.length === 0) return [];
 
     // Resolve REAL text for the reachable chunks (citable evidence ids).
+    // Bind the JS array as an explicit `ARRAY[...]::text[]` — a bare
+    // `ANY(${newChunkRefs})` makes drizzle spread it into the invalid record
+    // constructor `ANY(($1, $2))`, which throws and zeroes corpus evidence.
+    const newChunkRefsArray = sql`ARRAY[${sql.join(
+      newChunkRefs.map((r) => sql`${r}`),
+      sql`, `,
+    )}]::text[]`;
     const rows = extractRows<{
       id: string;
       chunk_text: string;
@@ -127,7 +134,7 @@ export async function expandGraphEvidence(
       await args.db.execute(sql`
         SELECT id, text AS chunk_text, source_file, url
           FROM intelligence_corpus_chunks
-         WHERE id = ANY(${newChunkRefs})
+         WHERE id = ANY(${newChunkRefsArray})
       `),
     );
 

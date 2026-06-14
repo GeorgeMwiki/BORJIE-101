@@ -46,6 +46,17 @@ interface SovereignApprovalRow {
 
 const TOOL_NAME_LIST = [...MODULE_SPAWN_TOOL_NAMES];
 
+/**
+ * `ARRAY['a','b']::text[]` fragment for the `tool_name = ANY(...)` predicate.
+ * A bare `ANY(${TOOL_NAME_LIST})` makes drizzle spread the JS array into the
+ * invalid record constructor `ANY(($1, $2))`; the ARRAY form binds each
+ * element as its own param.
+ */
+const TOOL_NAME_LIST_SQL = sql`ARRAY[${sql.join(
+  TOOL_NAME_LIST.map((name) => sql`${name}`),
+  sql`, `,
+)}]::text[]`;
+
 /** Build the ApprovalPort the orchestrator's apply pre-check consumes. */
 export function createApprovalPort(
   db: DatabaseClient,
@@ -111,7 +122,7 @@ async function fetchApprovedRows(
                payload, status, signatures, executed
         FROM sovereign_approvals
         WHERE tenant_id = ${tenantId}
-          AND tool_name = ANY(${TOOL_NAME_LIST})
+          AND tool_name = ANY(${TOOL_NAME_LIST_SQL})
           AND payload->>'moduleId' = ${moduleId}
           AND expires_at > now()
         ORDER BY proposed_at DESC

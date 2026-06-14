@@ -233,17 +233,29 @@ export function createMembershipsRouter(
     const orgNames = new Map<string, string>();
     try {
       if (tenantIds.length > 0) {
+        // Bind the id list as an explicit `ARRAY[...]::text[]` — a bare
+        // `ANY(${[...tenantIds]})` makes drizzle spread it into the invalid
+        // record constructor `ANY(($1, $2))`, which throws and the catch
+        // below leaves the display names blank.
+        const tenantIdsArray = sql`ARRAY[${sql.join(
+          tenantIds.map((id) => sql`${id}`),
+          sql`, `,
+        )}]::text[]`;
         const rows = (await withServiceRoleContext(db, (sdb) =>
           (sdb as unknown as DbExec).execute(sql`
-            SELECT id, name FROM tenants WHERE id = ANY(${[...tenantIds]})
+            SELECT id, name FROM tenants WHERE id = ANY(${tenantIdsArray})
           `),
         )) as unknown as Array<{ id: string; name: string }>;
         for (const r of rows) tenantNames.set(String(r.id), String(r.name));
       }
       if (orgIds.length > 0) {
+        const orgIdsArray = sql`ARRAY[${sql.join(
+          orgIds.map((id) => sql`${id}`),
+          sql`, `,
+        )}]::text[]`;
         const rows = (await withServiceRoleContext(db, (sdb) =>
           (sdb as unknown as DbExec).execute(sql`
-            SELECT id, name FROM organizations WHERE id = ANY(${[...orgIds]})
+            SELECT id, name FROM organizations WHERE id = ANY(${orgIdsArray})
           `),
         )) as unknown as Array<{ id: string; name: string }>;
         for (const r of rows) orgNames.set(String(r.id), String(r.name));

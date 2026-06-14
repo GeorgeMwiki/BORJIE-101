@@ -14,7 +14,7 @@
  * the whole purpose of the table.
  */
 import { randomUUID } from 'crypto';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import {
 
   kernelPromptRegistry,
@@ -207,7 +207,7 @@ export function createKernelPromptRegistryService(
     capability: string,
     status: KernelPromptStatus | ReadonlyArray<KernelPromptStatus>,
   ): Promise<ReadonlyArray<PromptVersionRow>> {
-    const statuses = Array.isArray(status) ? status : [status];
+    const statuses = Array.isArray(status) ? [...status] : [status];
     try {
       const rows = await db
         .select(selectCols)
@@ -215,8 +215,11 @@ export function createKernelPromptRegistryService(
         .where(
           and(
             eq(kernelPromptRegistry.capability, capability),
-            // OR list of statuses — emit via SQL `IN`.
-            sql`${kernelPromptRegistry.status} = ANY(${statuses as string[]})`,
+            // OR list of statuses — emit via drizzle `inArray` so the JS
+            // array binds as a real `IN ($1, $2)` predicate. A bare
+            // `ANY(${statuses})` would spread into the invalid record
+            // constructor `ANY(($1, $2))`.
+            inArray(kernelPromptRegistry.status, statuses),
           ),
         )
         .orderBy(desc(kernelPromptRegistry.promotedAt));

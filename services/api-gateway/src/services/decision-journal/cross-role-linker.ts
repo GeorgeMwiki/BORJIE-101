@@ -202,7 +202,10 @@ async function resolveAssignees(
         FROM mining_tasks
        WHERE tenant_id = ${tenantId}
          AND status IN ('open', 'in_progress', 'blocked')
-         AND scope_id = ANY(${scopeIds as string[]}::text[])
+         AND scope_id = ANY(ARRAY[${sql.join(
+           scopeIds.map((s) => sql`${s}`),
+           sql`, `,
+         )}]::text[])
          AND assignee_id IS NOT NULL
          AND assignee_role IS NOT NULL
     `),

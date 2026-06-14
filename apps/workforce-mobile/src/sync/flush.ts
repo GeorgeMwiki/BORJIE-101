@@ -6,6 +6,7 @@ import {
   listQueued,
   recordAttempt,
   removeFromQueue,
+  quarantineToDeadLetter,
   type QueuedWrite
 } from './queue'
 
@@ -98,40 +99,120 @@ async function prepareShiftReportBody(
 }
 
 /**
+ * Map a queued `inventory_move` payload onto the gateway's `MovementSchema`
+ * (the body the ONLINE W-M-10 flow already posts to `POST
+ * /inventory/movements`). Offline and online thus converge on one mounted
+ * route + one table (`inventory_stock_movements`) — no divergent
+ * `/inventory-moves` endpoint, no 404, no silent loss.
+ *
+ * If the stored payload already carries a `type` (i.e. it was captured in the
+ * gateway shape) it passes through unchanged. Otherwise a worker-friendly
+ * shape ({ skuId, direction|action, quantity, locationId?, fromLocationId?,
+ * reference?, notes? }) is normalised: `direction`/`action` of
+ * `in|receipt|received` → receipt, `out|issue|issued` → issue, anything else
+ * → adjustment (signed `delta`).
+ */
+function prepareInventoryMoveBody(payload: unknown): Record<string, unknown> {
+  if (typeof payload !== 'object' || payload === null) {
+    return {}
+  }
+  const p = payload as Record<string, unknown>
+  if (typeof p.type === 'string') {
+    // Already in the gateway shape — pass through.
+    return p
+  }
+  const direction = String(p.direction ?? p.action ?? 'adjustment').toLowerCase()
+  const base: Record<string, unknown> = {
+    skuId: p.skuId,
+    ...(p.reference !== undefined ? { reference: p.reference } : {}),
+    ...(p.notes !== undefined ? { notes: p.notes } : {})
+  }
+  if (direction === 'in' || direction === 'receipt' || direction === 'received') {
+    return {
+      ...base,
+      type: 'receipt',
+      locationId: p.locationId ?? p.toLocationId,
+      quantity: p.quantity
+    }
+  }
+  if (direction === 'out' || direction === 'issue' || direction === 'issued') {
+    return {
+      ...base,
+      type: 'issue',
+      fromLocationId: p.fromLocationId ?? p.locationId,
+      quantity: p.quantity
+    }
+  }
+  return {
+    ...base,
+    type: 'adjustment',
+    locationId: p.locationId,
+    delta: p.delta
+  }
+}
+
+/**
  * Resolve the POST body for a queued entry. Most entities POST their
  * stored payload verbatim; `shift_report` is transformed so its captured
- * media is uploaded and the body matches the gateway schema.
+ * media is uploaded and the body matches the gateway schema, and
+ * `inventory_move` is normalised onto the online movement schema so offline
+ * and online converge on one route.
  */
 async function bodyFor(entry: QueuedWrite): Promise<unknown> {
   if (entry.entityType === 'shift_report' && isShiftReportPayload(entry.payload)) {
     return prepareShiftReportBody(entry.payload)
   }
+  if (entry.entityType === 'inventory_move') {
+    return prepareInventoryMoveBody(entry.payload)
+  }
   return entry.payload
 }
 
+/**
+ * Statuses that mean the WORKER'S OWN PAYLOAD is genuinely rejected — the
+ * record can never succeed no matter how many times it is retried, so it is
+ * safe to drop it from the live queue.
+ *
+ *   400 Bad Request          — malformed body / failed validation
+ *   409 Conflict             — already-applied / duplicate (idempotent reject)
+ *   422 Unprocessable Entity — semantically invalid input
+ *
+ * EVERYTHING ELSE IS RETRYABLE and must NEVER drop a record:
+ *   - 404 Not Found          — the SINK ROUTE is not (yet) mounted. This is a
+ *                              SERVER/deploy problem, not a bad payload. The
+ *                              record's evidence is intact; dropping it here is
+ *                              exactly the data-loss root cause this fixes.
+ *   - 401/403                — auth/token not ready; retry after re-auth.
+ *   - 408/429                — timeout / rate-limited; back off and retry.
+ *   - any 5xx                — transient server fault; retry.
+ *   - status 0 (network)     — offline; retry on the next flush.
+ *
+ * A record is removed without a server 2xx ONLY on a genuine payload
+ * rejection. Irreplaceable offline mine evidence is never silently deleted.
+ */
+const TERMINAL_REJECTION_STATUSES: ReadonlySet<number> = new Set([400, 409, 422])
+
 function shouldDrop(error: unknown): boolean {
-  // 4xx errors (except 408/429) mean the payload itself is wrong — drop it
-  // rather than loop forever. Server-side 5xx and network errors get retried.
   if (!(error instanceof ApiError)) {
     return false
   }
-  if (error.status === 0) {
-    return false
-  }
-  if (error.status === 408 || error.status === 429) {
-    return false
-  }
-  return error.status >= 400 && error.status < 500
+  return TERMINAL_REJECTION_STATUSES.has(error.status)
 }
 
 /**
  * Drain the queue once. For each entry: POST to
  * `${API_BASE_URL}/api/v1/mining/<endpoint>`, where `<endpoint>` is derived
  * from the entity type via `endpointFor`. On 2xx the entry is treated as
- * synced and removed from local storage. On retryable failure the attempt
- * counter increments and the entry stays. On terminal failure (4xx other
- * than 408/429, or exhausted attempts) the entry is dropped with a logged
- * error so we never loop forever on a poisoned payload.
+ * synced and removed from local storage.
+ *
+ * Failure handling preserves irreplaceable field evidence:
+ *   - GENUINE payload rejection (400/409/422): the worker's own input can
+ *     never succeed, so the entry is dropped.
+ *   - Retryable failure (404 unmounted-route / 5xx / network / auth): the
+ *     attempt counter increments and the entry STAYS. A 404 is treated as a
+ *     server/deploy problem, never as a reason to delete the evidence.
+ *   - Retry budget exhausted: the entry is QUARANTINED to the durable
+ *     dead-letter store, never silently deleted.
  *
  * Accepts an optional `apiClient` so tests can inject a stub. Defaults to
  * the real `miningApi` wrapper.
@@ -159,17 +240,38 @@ export async function flushQueue(
       continue
     }
     try {
-      await apiClient.post(path, body)
+      // The queue entry's stable id is the natural idempotency key: an
+      // at-least-once re-flush (e.g. after a crash between POST and
+      // removeFromQueue) carries the SAME key, so the sink can no-op the
+      // replay instead of double-recording the worker's evidence.
+      await apiClient.post(path, body, {
+        headers: { 'Idempotency-Key': entry.id }
+      })
       await removeFromQueue(entry.id)
       succeeded += 1
     } catch (error) {
       failed += 1
       const message = error instanceof Error ? error.message : 'Unknown error'
-      if (shouldDrop(error) || entry.attempts + 1 >= MAX_ATTEMPTS) {
+      // GENUINE payload rejection (400/409/422) — the body is the worker's
+      // own malformed/duplicate input; it can never succeed, so drop it.
+      // A 404 is NOT a rejection (it means the sink route is unmounted) and
+      // is handled by the retryable branch below — never dropped here.
+      if (shouldDrop(error)) {
         console.error(
-          `Dropping queued ${entry.entityType} ${entry.id}: ${message}`
+          `Rejecting queued ${entry.entityType} ${entry.id} (payload rejected): ${message}`
         )
         await removeFromQueue(entry.id)
+        continue
+      }
+      // Retryable failure (404 / 5xx / network / auth-not-ready). On budget
+      // exhaustion the record is QUARANTINED to the durable dead-letter store,
+      // never silently deleted — irreplaceable field evidence is preserved so
+      // it can be re-driven once the sink route is live again.
+      if (entry.attempts + 1 >= MAX_ATTEMPTS) {
+        console.error(
+          `Quarantining queued ${entry.entityType} ${entry.id} after ${MAX_ATTEMPTS} attempts: ${message}`
+        )
+        await quarantineToDeadLetter(entry.id, message)
         continue
       }
       await recordAttempt(entry.id, message)

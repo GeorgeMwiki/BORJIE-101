@@ -453,8 +453,14 @@ export class CoreEntityRepository {
       sql`ce.deleted_at IS NULL`,
     ];
     if (params.entityTypes && params.entityTypes.length > 0) {
+      // Bind the list as an explicit `ARRAY[...]::text[]` — a bare
+      // `${[...entityTypes]}::text[]` makes drizzle spread the array into the
+      // invalid record cast `($1, $2)::text[]`.
       conditions.push(
-        sql`ce.entity_type = ANY(${[...params.entityTypes]}::text[])`,
+        sql`ce.entity_type = ANY(ARRAY[${sql.join(
+          params.entityTypes.map((t) => sql`${t}`),
+          sql`, `,
+        )}]::text[])`,
       );
     }
     if (params.customFieldsContains) {

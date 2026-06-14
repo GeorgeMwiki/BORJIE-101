@@ -272,9 +272,13 @@ app.post(
       if (!db) return unavailable(c);
       const intervalId = c.req.param('intervalId');
       const body = c.req.valid('json');
+      const photoIdsArray = sql`ARRAY[${sql.join(
+        body.photoIds.map((id) => sql`${id}`),
+        sql`, `,
+      )}]::uuid[]`;
       const updated = await db.execute(sql`
         UPDATE drill_hole_intervals
-           SET log_photo_ids = log_photo_ids || ${body.photoIds}::uuid[]
+           SET log_photo_ids = log_photo_ids || ${photoIdsArray}
          WHERE id = ${intervalId}::uuid
            AND tenant_id = ${auth.tenantId}::uuid
          RETURNING *

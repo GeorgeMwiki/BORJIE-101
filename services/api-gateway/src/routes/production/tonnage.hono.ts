@@ -119,6 +119,10 @@ app.post(
         source: body.source,
       });
 
+      const evidencePhotoIdsArray = sql`ARRAY[${sql.join(
+        body.evidencePhotoIds.map((p) => sql`${p}`),
+        sql`, `,
+      )}]::uuid[]`;
       await db.execute(sql`
         INSERT INTO production_tonnage_events (
           id, tenant_id, site_id, shift_id, recorded_by_id,
@@ -132,7 +136,7 @@ app.post(
           ${body.stripRatio ?? null},
           ${capturedAt}::timestamptz,
           ${body.source},
-          ${body.evidencePhotoIds}::uuid[],
+          ${evidencePhotoIdsArray},
           'pending',
           ${prov}::jsonb, ${hash}
         )
