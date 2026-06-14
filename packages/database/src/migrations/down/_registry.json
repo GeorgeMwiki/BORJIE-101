@@ -586,6 +586,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0358_dark_worker_source_table_bypass.sql",
+      "down": "down/0358_down_dark_worker_source_table_bypass.sql",
+      "reverses": "Drops the four <tbl>_service_role_bypass policies on the dark-worker READ-SOURCE tables (workforce_certifications, licences, sites, document_drafts), reverting each to tenant-isolation-only RLS. Dev/staging only — re-darkens the READ path of ica-cert-expiry + entity-indexer (cross-tenant scans match zero rows under FORCE RLS). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }
