@@ -303,6 +303,134 @@ describe('mining approvals router', () => {
     expect(res.status).toBe(404);
   });
 
+  // ───────────────────────────────────────────────────────────────────────
+  // CONCURRENCY: the compare-and-set guard (status='pending' in the UPDATE
+  // WHERE) is the load-bearing single-writer control — NOT the optimistic
+  // loadOwned() pre-check. A racing winner that flips the row to 'approved'
+  // AFTER this caller read it 'pending' but BEFORE its UPDATE commits must
+  // lose: the CAS matches zero rows → 409, no fabricated success.
+  // ───────────────────────────────────────────────────────────────────────
+
+  /**
+   * A fake-db that simulates a concurrent winner: loadOwned() reads the row
+   * as 'pending', but a competing transition commits between the read and the
+   * UPDATE, flipping the stored row to `raceWinnerStatus`. Only the
+   * status='pending' CAS guard can catch this — the optimistic pre-check has
+   * already passed.
+   */
+  function createRacingFakeDb(initial: any[], raceWinnerStatus: string) {
+    let rows: any[] = [...initial];
+    let firstReadDone = false;
+    return {
+      rows: () => rows,
+      select() {
+        return {
+          from() {
+            return {
+              where(condition: any) {
+                const filterFn = (condition as any).__filter ?? (() => true);
+                const settle = () => {
+                  const snapshot = rows.filter(filterFn);
+                  // After loadOwned() observes 'pending' once, a concurrent
+                  // winner commits — the stored row is now decided.
+                  if (!firstReadDone) {
+                    firstReadDone = true;
+                    rows = rows.map((r) => ({ ...r, status: raceWinnerStatus }));
+                  }
+                  return Promise.resolve(snapshot);
+                };
+                return {
+                  orderBy() {
+                    return { limit: () => settle() };
+                  },
+                  limit: () => settle(),
+                };
+              },
+            };
+          },
+        };
+      },
+      update() {
+        return {
+          set(patch: any) {
+            return {
+              where(condition: any) {
+                const filterFn = (condition as any).__filter ?? (() => true);
+                return {
+                  returning() {
+                    const updated: any[] = [];
+                    rows = rows.map((row) => {
+                      if (filterFn(row)) {
+                        const merged = { ...row, ...patch };
+                        updated.push(merged);
+                        return merged;
+                      }
+                      return row;
+                    });
+                    return Promise.resolve(updated);
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+  }
+
+  it('CAS: concurrent approve loses with 409 INVALID_STATE when the row was decided between read and write', async () => {
+    setAuth();
+    // loadOwned() will see 'pending'; the racing winner flips it to 'approved'
+    // before our UPDATE runs, so the status='pending' CAS guard matches zero.
+    setDb(createRacingFakeDb([makePending()], 'approved'));
+    const app = buildApp();
+    const res = await app.request(`/${VALID_UUID}/approve`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ reason: 'too late' }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as {
+      success: boolean;
+      error: { code: string };
+    };
+    expect(body.success).toBe(false);
+    expect(body.error.code).toBe('INVALID_STATE');
+  });
+
+  it('CAS: two concurrent transitions on the same pending item — exactly one wins (200) and one 409s', async () => {
+    setAuth();
+    // A shared store both requests transact against. The first commits the
+    // pending→approved flip; the second sees a non-pending row at its UPDATE
+    // and the CAS rejects it with 409 — never two successful decisions.
+    const shared = createFakeDb([makePending()]);
+    setDb(shared);
+    const app = buildApp();
+
+    const fire = (decision: 'approve' | 'reject') =>
+      app.request(`/${VALID_UUID}/${decision}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(
+          decision === 'reject' ? { reason: 'crew shortage' } : {},
+        ),
+      });
+
+    const [a, b] = await Promise.all([fire('approve'), fire('reject')]);
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual([200, 409]);
+
+    const winner = a.status === 200 ? a : b;
+    const loser = a.status === 409 ? a : b;
+    const winnerBody = (await winner.json()) as { data: { status: string } };
+    expect(['approved', 'rejected']).toContain(winnerBody.data.status);
+    const loserBody = (await loser.json()) as { error: { code: string } };
+    expect(loserBody.error.code).toBe('INVALID_STATE');
+
+    // The shared store ended in a single decided state (no double-write).
+    expect(shared.rows()[0].status).toBe(winnerBody.data.status);
+  });
+
   it('RLS: GET / hides approvals belonging to a different tenant', async () => {
     setAuth();
     setDb(

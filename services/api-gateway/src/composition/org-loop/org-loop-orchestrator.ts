@@ -396,14 +396,36 @@ export function createOrgLoopOrchestrator(
     tenantId: string,
     runId: string,
   ): Promise<OrgLoopThreadOutcome> {
-    const parked = await readParkedRun(tenantId, runId);
-    const run = parked.run;
-    if (!run || !run.chosenEmployeeId) {
+    // ATOMIC CLAIM (not a pure read): the CAS flips the parked run
+    // 'report'/'open' → 'dispatch'/'active' and returns the row ONLY to the
+    // caller that won the transition. Two concurrent owner approves race here
+    // — the loser gets null and is skipped, so the parked run dispatches at
+    // most ONCE (no double dispatch, no second task spawned).
+    let claimed: OrgLoopRun | null;
+    try {
+      claimed = await deps.runRepo.claimForDispatch(tenantId, runId);
+    } catch (err) {
+      logger.warn(
+        { tenantId, runId, err: errMsg(err) },
+        'org-loop: dispatch claim failed (store fault — approval skipped honestly)',
+      );
       return Object.freeze({
         kind: 'skipped',
-        reason: parked.skipReason ?? RESUME_REASON_NOT_AWAITING_APPROVAL,
+        reason: RESUME_REASON_RUN_NOT_FOUND,
       });
     }
+    if (!claimed || !claimed.chosenEmployeeId) {
+      // The claim was lost (already dispatched / not parked) or the run is
+      // missing / has no chosen employee — never dispatch on a lost claim.
+      // Resolve the HONEST machine-readable reason without re-claiming:
+      // absent → run_not_found; present-but-not-parked → not_awaiting_approval.
+      const probe = await readParkedRun(tenantId, runId);
+      return Object.freeze({
+        kind: 'skipped',
+        reason: probe.skipReason ?? RESUME_REASON_NOT_AWAITING_APPROVAL,
+      });
+    }
+    const run = claimed;
     let commitmentRow: MdCommitment | null;
     try {
       commitmentRow = await deps.commitmentRepo.get(tenantId, run.commitmentId);
@@ -418,6 +440,9 @@ export function createOrgLoopOrchestrator(
       trace = await deps.strategist.strategize(tenantId, commitmentRow);
     } catch (err) {
       return failRun(tenantId, run.id, `approval strategize: ${errMsg(err)}`);
+    }
+    if (!run.chosenEmployeeId) {
+      return failRun(tenantId, run.id, 'approval: parked run has no chosen employee');
     }
     const approved: ScoredCandidate = Object.freeze({
       employeeId: run.chosenEmployeeId,

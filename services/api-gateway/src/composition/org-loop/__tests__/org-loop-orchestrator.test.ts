@@ -557,6 +557,30 @@ describe('HITL approval consumer', () => {
     expect(after!.stage).toBe('deliver');
   });
 
+  it('two concurrent approves dispatch the parked run AT MOST ONCE (atomic claim)', async () => {
+    const { orch, runRepo, dispatch, sovereignCommitment } = buildParkedWorld();
+    await orch.onCommitmentDue('tenant_1', sovereignCommitment);
+    const parked = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+    expect(parked!.taskId).toBeNull();
+
+    // Two owners approve the SAME parked run concurrently. The compare-and-set
+    // claim (claimForDispatch) is the load-bearing guard: exactly one wins the
+    // dispatch leg, the other is skipped — never two tasks spawned.
+    const [a, b] = await Promise.all([
+      orch.resumeApprovedRun('tenant_1', parked!.id),
+      orch.resumeApprovedRun('tenant_1', parked!.id),
+    ]);
+
+    const kinds = [a.kind, b.kind].sort();
+    expect(kinds).toEqual(['dispatched', 'skipped']);
+    // The dispatcher fired exactly once — the loser never reached dispatch.
+    expect(dispatch).toHaveBeenCalledTimes(1);
+
+    const after = await runRepo.findByCommitment('tenant_1', 'cmt_1');
+    expect(after!.taskId).toBe('task_123');
+    expect(after!.stage).toBe('deliver');
+  });
+
   it('resumeApprovedRun skips an unknown / non-parked run', async () => {
     const { orch, runRepo, dispatch, sovereignCommitment } = buildParkedWorld();
 
