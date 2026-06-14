@@ -9,8 +9,9 @@ import { PrimaryButton } from '@/components/PrimaryButton'
 import { EmptyState } from '@/components/EmptyState'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
-import { fetchBids, fetchBid, sendBidMessage } from '@/api/marketplace'
+import { fetchBids, fetchBid } from '@/api/marketplace'
 import { fetchThread, sendThreadMessage } from '@/api/bid-messaging'
+import { pickActiveBidId, resolveBidThread } from '@/marketplace/resolveBidThread'
 import { queryKeys } from '@/api/queryKeys'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
@@ -134,38 +135,28 @@ function ResponseThread({ responseId }: { readonly responseId: string }) {
   )
 }
 
-// ───────────────────────── legacy bid thread ────────────────────────
-
+// ───────────────────── bid entry → canonical thread ─────────────────
+//
+// Reached from the bottom nav / deep link with an optional `bidId` (no
+// `responseId`). The legacy `/bids/:id/messages` route never existed on the
+// gateway, so the old composer here always failed. We now resolve the bid
+// and, when it carries a live RFB-response thread (`threadResponseId`),
+// delegate to the SAME canonical `ResponseThread` the deep link uses
+// (backed by /bid-messaging/threads/:responseId/messages). Marketplace bids
+// with no thread show an honest empty-state instead of a dead composer.
 function BidThread({ bidId }: { readonly bidId?: string }) {
   const { t } = useTranslation()
-  const toast = useToast()
-  const queryClient = useQueryClient()
-  const [draft, setDraft] = useState('')
 
   const bidsQuery = useQuery({ queryKey: queryKeys.bids(), queryFn: fetchBids, enabled: !bidId })
-  const activeBidId = useMemo<string | null>(() => {
-    if (bidId) {
-      return bidId
-    }
-    const first = bidsQuery.data?.find((b) => b.status === 'pending' || b.status === 'countered')
-    return first?.id ?? bidsQuery.data?.[0]?.id ?? null
-  }, [bidId, bidsQuery.data])
+  const activeBidId = useMemo<string | null>(
+    () => pickActiveBidId(bidId, bidsQuery.data),
+    [bidId, bidsQuery.data]
+  )
 
   const bidQuery = useQuery({
     queryKey: activeBidId ? queryKeys.bid(activeBidId) : ['bid', 'none'],
     queryFn: () => (activeBidId ? fetchBid(activeBidId) : Promise.resolve(undefined)),
     enabled: Boolean(activeBidId)
-  })
-
-  const sendMutation = useMutation({
-    mutationFn: sendBidMessage,
-    onSuccess: async () => {
-      setDraft('')
-      if (activeBidId) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.bid(activeBidId) })
-      }
-    },
-    onError: () => toast.show(t('bids.bid_failed'), 'error')
   })
 
   if (bidsQuery.isLoading || bidQuery.isLoading) {
@@ -201,7 +192,17 @@ function BidThread({ bidId }: { readonly bidId?: string }) {
     )
   }
 
-  if (!activeBidId || !bidQuery.data) {
+  const resolution = activeBidId
+    ? resolveBidThread(bidQuery.data)
+    : ({ kind: 'empty' } as const)
+
+  // Live RFB-response thread → reuse the working canonical thread surface.
+  if (resolution.kind === 'thread') {
+    return <ResponseThread responseId={resolution.responseId} />
+  }
+
+  // No active bid at all → generic empty-state.
+  if (resolution.kind === 'empty') {
     return (
       <Screen>
         <SectionHeader title={t('chat.title')} />
@@ -210,52 +211,12 @@ function BidThread({ bidId }: { readonly bidId?: string }) {
     )
   }
 
-  const bid = bidQuery.data
-
-  function handleSend(): void {
-    const text = draft.trim()
-    if (!text || !activeBidId) {
-      return
-    }
-    sendMutation.mutate({ bidId: activeBidId, body: text })
-  }
-
+  // Pure marketplace bid with no chat thread — honest empty-state, no dead
+  // composer (the seller must respond before a thread exists).
   return (
-    <Screen scroll={false}>
-      <SectionHeader title={t('chat.title')} subtitle={bid.listingTitle} />
-
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.list}>
-          {bid.thread.length === 0 ? (
-            <Text style={styles.empty}>{t('chat.empty')}</Text>
-          ) : (
-            bid.thread.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                from={msg.from}
-                body={msg.body}
-                authorLabel={msg.from === 'buyer' ? t('profile.title') : 'Seller'}
-              />
-            ))
-          )}
-        </ScrollView>
-
-        <View style={styles.composer}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t('chat.placeholder')}
-            placeholderTextColor={colors.inkMuted}
-            style={styles.input}
-            multiline
-          />
-          <PrimaryButton
-            label={t('chat.send')}
-            onPress={handleSend}
-            disabled={sendMutation.isPending || draft.trim().length === 0}
-          />
-        </View>
-      </KeyboardAvoidingView>
+    <Screen>
+      <SectionHeader title={t('chat.title')} subtitle={bidQuery.data?.listingTitle} />
+      <EmptyState message={t('chat.no_thread')} />
     </Screen>
   )
 }

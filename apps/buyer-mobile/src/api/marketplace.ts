@@ -2,7 +2,6 @@ import { apiFetch } from './client'
 import { MINING_PREFIX } from './config'
 import type {
   Bid,
-  BidMessage,
   BidStatus,
   Listing,
   MarketplaceSeller,
@@ -238,21 +237,12 @@ export async function fetchBid(id: string): Promise<Bid | undefined> {
   return mapGatewayBid(response.data.bid, response.data.listing)
 }
 
-export interface SendBidMessageInput {
-  readonly bidId: string
-  readonly body: string
-}
-
-export async function sendBidMessage(input: SendBidMessageInput): Promise<BidMessage> {
-  const response = await apiFetch<{ readonly data: BidMessage }>(
-    `${MINING_PREFIX}/bids/${encodeURIComponent(input.bidId)}/messages`,
-    {
-      method: 'POST',
-      body: { body: input.body }
-    }
-  )
-  return response.data
-}
+// NOTE: bid messaging is served exclusively by the canonical
+// /api/v1/mining/bid-messaging/threads/:responseId/messages surface
+// (see src/api/bid-messaging.ts → sendThreadMessage). The legacy
+// /bids/:id/messages route never existed on the gateway, so the old
+// `sendBidMessage` here always 404'd; it has been removed. The chat
+// screen resolves a bid's `threadResponseId` and uses the thread surface.
 
 export type BidAction = 'accept' | 'withdraw'
 

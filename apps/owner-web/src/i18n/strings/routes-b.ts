@@ -100,6 +100,21 @@ export const routesBStrings = {
       sw: 'Toolbox ya leo',
       en: 'Toolbox brief',
     },
+    /**
+     * Incident kind labels — MUST stay in lock-step with the gateway
+     * `IncidentKindEnum`
+     * (services/api-gateway/src/routes/mining/_openapi/sales-incidents-schemas.ts):
+     * safety | environmental | community | near_miss | equipment_failure | fatality.
+     * Used by safety/incidents/new/page.tsx.
+     */
+    incidentKind: {
+      safety: { sw: 'Usalama', en: 'Safety' },
+      environmental: { sw: 'Mazingira', en: 'Environmental' },
+      community: { sw: 'Jamii', en: 'Community' },
+      near_miss: { sw: 'Karibu ajali', en: 'Near miss' },
+      equipment_failure: { sw: 'Hitilafu ya mtambo', en: 'Equipment failure' },
+      fatality: { sw: 'Kifo', en: 'Fatality' },
+    },
   },
 
   /** app/(routes)/people/page.tsx — O-W-08 People & roles. */

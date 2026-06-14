@@ -224,7 +224,8 @@
     "send": "Tuma",
     "empty": "Anzisha mazungumzo",
     "loading": "Inapakia mazungumzo",
-    "load_failed": "Imeshindwa kupakia mazungumzo"
+    "load_failed": "Imeshindwa kupakia mazungumzo",
+    "no_thread": "Zabuni hii bado haina mazungumzo. Mazungumzo yatafunguka pindi muuzaji atakapojibu ofa yako."
   },
   "auth": {
     "login_title": "Karibu Borjie Buyers",

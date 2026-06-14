@@ -26,7 +26,7 @@ export default function KycWizard() {
   const [state, setState] = useState<KycWizardState>(initialKycState)
 
   const submitMutation = useMutation({
-    mutationFn: submitKyc,
+    mutationFn: (submission: KycWizardState) => submitKyc(submission),
     onSuccess: (record) => {
       toast.show(t('kyc.submit_success'), 'success')
       router.push({ pathname: '/kyc/verify', params: { id: record.id } })

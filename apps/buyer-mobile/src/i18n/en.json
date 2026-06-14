@@ -224,7 +224,8 @@
     "send": "Send",
     "empty": "Start the conversation",
     "loading": "Loading chat",
-    "load_failed": "Could not load chat"
+    "load_failed": "Could not load chat",
+    "no_thread": "This bid has no message thread yet. A chat opens once the seller responds to your offer."
   },
   "auth": {
     "login_title": "Welcome to Borjie Buyers",
