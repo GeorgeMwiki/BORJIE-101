@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { getCsrfHeaders } from '@/lib/csrf';
+import { apiRequest } from '@/lib/api-client';
 
 interface InboxRow {
   readonly id: string;
@@ -116,16 +116,13 @@ export function MwikilaInboxPanel() {
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (categoryFilter !== 'all') params.set('category', categoryFilter);
       params.set('limit', '50');
-      const res = await fetch(
+      // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+      // and unwraps the {success,data} envelope — so this is the rows array.
+      const data = await apiRequest<ReadonlyArray<InboxRow>>(
         `/api/v1/owner/mwikila-inbox?${params.toString()}`,
-        { credentials: 'include' },
+        { method: 'GET' },
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: ReadonlyArray<InboxRow>;
-      };
-      setItems(json.data ?? []);
+      setItems(data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -140,18 +137,14 @@ export function MwikilaInboxPanel() {
   const runAction = useCallback(
     async (id: string, verb: 'approve' | 'deny' | 'reverse', body?: unknown) => {
       try {
-        const res = await fetch(`/api/v1/owner/mwikila-inbox/${id}/${verb}`, {
+        // apiRequest throws ApiError on non-2xx; its message carries the
+        // gateway error body, preserving the prior server-message surface.
+        // Always send a JSON body (empty object when none) to match the
+        // prior `'{}'` default.
+        await apiRequest(`/api/v1/owner/mwikila-inbox/${id}/${verb}`, {
           method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-          body: body ? JSON.stringify(body) : '{}',
+          body: body ?? {},
         });
-        if (!res.ok) {
-          const json = (await res.json().catch(() => null)) as {
-            error?: { message?: string };
-          } | null;
-          throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-        }
         await refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));

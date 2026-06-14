@@ -226,6 +226,7 @@ export const sw = {
     "documentIntelligence": "Akili ya hati",
     "people": "Watu",
     "workforceTabs": "Vichupo vya wafanyakazi",
+    "flows": "Mtiririko",
     "fleet": "Magari",
     "inventory": "Hesabu ya mali",
     "geology": "Jiolojia",

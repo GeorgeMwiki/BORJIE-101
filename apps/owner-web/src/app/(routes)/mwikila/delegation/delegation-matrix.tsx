@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { getCsrfHeaders } from '@/lib/csrf';
+import { apiRequest } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface MatrixEntry {
@@ -69,15 +69,13 @@ export function DelegationMatrix() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/owner/delegation', {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: ReadonlyArray<MatrixEntry>;
-      };
-      setMatrix(json.data ?? []);
+      // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+      // and unwraps the {success,data} envelope — so this is the matrix array.
+      const data = await apiRequest<ReadonlyArray<MatrixEntry>>(
+        '/api/v1/owner/delegation',
+        { method: 'GET' },
+      );
+      setMatrix(data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -94,21 +92,12 @@ export function DelegationMatrix() {
       setSaving(`${category}:${tier}`);
       setError(null);
       try {
-        const res = await fetch('/api/v1/owner/delegation', {
+        // apiRequest throws ApiError on non-2xx; its message carries the
+        // gateway's error body, preserving the prior server-message surface.
+        await apiRequest('/api/v1/owner/delegation', {
           method: 'PATCH',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            ...getCsrfHeaders(),
-          },
-          body: JSON.stringify({ category, tier }),
+          body: { category, tier },
         });
-        if (!res.ok) {
-          const json = (await res.json().catch(() => null)) as {
-            error?: { message?: string };
-          } | null;
-          throw new Error(json?.error?.message ?? `HTTP ${res.status}`);
-        }
         await refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));

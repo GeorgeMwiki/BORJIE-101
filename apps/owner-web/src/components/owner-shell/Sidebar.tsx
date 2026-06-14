@@ -30,6 +30,7 @@ import {
   Link as LinkIcon,
   Scale,
   GraduationCap,
+  Workflow,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Logomark } from '@borjie/design-system';
@@ -95,6 +96,7 @@ const SECTIONS: ReadonlyArray<NavSection> = [
   {
     headingKey: 'nav.sectionOperations',
     items: [
+      { labelKey: 'nav.flows', href: '/flows', icon: Workflow },
       { labelKey: 'nav.fleet', href: '/fleet', icon: Truck },
       { labelKey: 'nav.inventory', href: '/inventory', icon: Package },
       { labelKey: 'nav.geology', href: '/geology', icon: TestTubes },

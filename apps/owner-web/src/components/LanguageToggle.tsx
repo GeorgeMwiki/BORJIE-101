@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { LOCALE_COOKIE, readLocaleFromDocument, type Locale } from '@/lib/locale';
-import { getCsrfHeaders } from '@/lib/csrf';
+import { apiRequest } from '@/lib/api-client';
 
 interface LanguageToggleProps {
   readonly initial: Locale;
@@ -39,11 +39,11 @@ export function LanguageToggle({ initial }: LanguageToggleProps) {
     // email digests, and voice replies honour the owner's UI language choice.
     // Never block the reload on this — a network failure must not prevent the
     // toggle from working. channelPriority [] means "don't change the ranking".
-    void fetch('/api/v1/owner/contact-prefs', {
+    // apiRequest routes through the gateway base with the Supabase Bearer; the
+    // result is ignored, so swallow any ApiError.
+    void apiRequest('/api/v1/owner/contact-prefs', {
       method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-      body: JSON.stringify({ channelPriority: [], locale: next }),
+      body: { channelPriority: [], locale: next },
     }).catch(() => undefined);
     window.location.reload();
   }

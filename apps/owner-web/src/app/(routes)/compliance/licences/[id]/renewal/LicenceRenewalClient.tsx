@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { apiRequest, ApiError } from '@/lib/api-client';
 import {
   routesAStrings as S,
   renewalStartSummary,
@@ -76,20 +77,27 @@ async function gatewayFetch<T>(
   body?: unknown,
 ): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(`/api/v1${path}`, {
+    // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+    // and unwraps the {success,data} envelope — so `data` here is the inner
+    // payload. Re-wrap into the local ApiResponse contract callers expect.
+    // Conditional spread keeps `body` absent rather than `undefined` under
+    // `exactOptionalPropertyTypes: true` (tsconfig.base.json).
+    const data = await apiRequest<T>(`/api/v1${path}`, {
       method,
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      // Conditional spread keeps `body` absent rather than `undefined`
-      // under `exactOptionalPropertyTypes: true` (tsconfig.base.json).
-      ...(body ? { body: JSON.stringify(body) } : {}),
+      ...(body ? { body } : {}),
     });
-    const json = (await res.json()) as ApiResponse<T>;
-    return json;
+    return { success: true, data };
   } catch (err) {
+    // apiRequest throws ApiError (with .status) on any non-2xx; its message
+    // carries the gateway error body, matching the prior `res.error` surface.
     return {
       success: false,
-      error: err instanceof Error ? err.message : 'Network error',
+      error:
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : 'Network error',
     };
   }
 }
