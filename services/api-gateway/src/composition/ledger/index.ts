@@ -76,6 +76,8 @@ import {
   createSettlementPayoutAdapter,
   isSettlementPayoutEnabled,
 } from './settlement-payout-adapter';
+import { productionCooperativeDistributionLedgerPort } from './cooperative-distribution';
+import { __setCooperativeDistributionProductionLedgerPort } from '../../services/cooperative-settlement/distribution-ledger-port';
 import type {
   PayrollLedgerPort,
   PayrollPostInput,
@@ -501,6 +503,17 @@ export function registerProductionLedgerPorts(
   const ledger = buildLedgerService(db);
   __setSettlementProductionLedgerPort(createSettlementLedgerAdapter(db, ledger));
   __setPayrollProductionLedgerPort(createPayrollLedgerAdapter(db, ledger));
+
+  // Cooperative member-distribution money path (FIX: coop-distribute-no-ledger).
+  // The adapter builds its own request-scoped LedgerService per post (the
+  // distribute route runs the per-member posts inside one db.transaction on the
+  // request's reserved connection), so register the production port directly.
+  // With no db (the no-op branch above) the distribute route 503s in the
+  // database middleware before the port is reached, so it stays unregistered
+  // and `resolveCooperativeDistributionLedgerPort` fails loud if ever hit.
+  __setCooperativeDistributionProductionLedgerPort(
+    productionCooperativeDistributionLedgerPort,
+  );
 
   // Settlement PAYOUT rail (FIX 1). Ship-dark behind a kill-switch:
   // registered ONLY when `BORJIE_SETTLEMENT_PAYOUT_ENABLED` is truthy AND a

@@ -108,11 +108,69 @@ export class SettlementOrchestrator {
         feeTzs: Number(existing.fee_tzs ?? 0),
         netTzs: Number(existing.net_tzs ?? 0),
       };
+      const existingId = String(existing.id);
+      const existingStatus = (existing.status ?? 'pending') as SettlementStatus;
+      const existingLedgerTxnId =
+        (existing.ledger_txn_id as string | null) ?? null;
+
+      // SELF-HEAL a stranded settlement: a prior attempt that posted the
+      // settlements row but then failed (or never reached) the ledger post
+      // leaves status IN ('failed','pending') AND ledger_txn_id IS NULL —
+      // money owed with NO journal. Re-drive the ledger post here instead of
+      // returning the stranded row as a terminal replay. This is SAFE: the
+      // ledger idempotencyKey is the pure money key (settlementMoneyKey is a
+      // hash of responseId + the four integer legs), so a re-post collides on
+      // the same key and the hardened ledger replays the ORIGINAL journal
+      // (atomic dedupe) — never a double-post. If a journal already committed
+      // under that key, we simply adopt its id and flip status='posted'.
+      const isStranded =
+        (existingStatus === 'failed' || existingStatus === 'pending') &&
+        existingLedgerTxnId === null;
+      if (isStranded) {
+        try {
+          const ledgerRes = await this.ledgerPort.post({
+            tenantId,
+            responseId,
+            idempotencyKey: coCStepChecksum,
+            math,
+          });
+          await this.db.execute(sql`
+            UPDATE settlements
+               SET status = 'posted', ledger_txn_id = ${ledgerRes.journalId}
+             WHERE id = ${existingId}::uuid
+          `);
+          moduleLogger.info(
+            { tenantId, settlementId: existingId, responseId, journalId: ledgerRes.journalId },
+            'settlement_self_healed_stranded_ledger_post',
+          );
+          return {
+            settlementId: existingId,
+            status: 'posted',
+            math,
+            ledgerTxnId: ledgerRes.journalId,
+            payoutProvider:
+              (existing.payout_provider as PayoutProvider | null) ?? null,
+            payoutProviderRef:
+              (existing.payout_provider_ref as string | null) ?? null,
+            idempotent: true,
+          };
+        } catch (err) {
+          moduleLogger.error(
+            { err, tenantId, settlementId: existingId, responseId },
+            'settlement_self_heal_ledger_post_failed',
+          );
+          throw new SettlementError(
+            'LEDGER_POST_FAILED',
+            err instanceof Error ? err.message : 'ledger.post threw on self-heal',
+          );
+        }
+      }
+
       return {
-        settlementId: String(existing.id),
-        status: (existing.status ?? 'pending') as SettlementStatus,
+        settlementId: existingId,
+        status: existingStatus,
         math,
-        ledgerTxnId: (existing.ledger_txn_id as string | null) ?? null,
+        ledgerTxnId: existingLedgerTxnId,
         payoutProvider:
           (existing.payout_provider as PayoutProvider | null) ?? null,
         payoutProviderRef:
