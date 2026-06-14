@@ -110,30 +110,36 @@ export async function queryEntityIndex(
   });
 
   const limit = Math.min(Math.max(input.limit ?? 10, 1), 50);
+  // NOTE: the physical `entity_index` columns are `entity_kind` / `entity_id`
+  // (migration 0115) — there is NO `kind` / `id` / `scope_id` / `metadata`
+  // column. We alias `entity_kind`/`entity_id` to the `kind`/`id` the row
+  // mapper expects and emit NULL placeholders for the (not-yet-modelled)
+  // `scope_id` / `metadata`. An earlier revision SELECTed the phantom
+  // `kind`/`id`/`scope_id`/`metadata` columns, which threw "column does not
+  // exist" and left every wired entity-legibility loopback route returning a
+  // 500 — i.e. born-dark. The kind-filter below therefore predicates on the
+  // real `entity_kind` column. Per-row scope clipping over `scope_id` is a
+  // registered follow-on (the column is unmodelled today, so the persona
+  // filter's null-scope rows are treated as in-scope for the owner/admin
+  // personas the brain tools use).
   const kindClause =
     input.kindFilter && input.kindFilter.length > 0
-      ? sql`AND kind = ANY(${input.kindFilter as string[]}::text[])`
+      ? sql`AND entity_kind = ANY(${input.kindFilter as string[]}::text[])`
       : sql``;
   const queryClause = input.query
     ? sql`AND (display_name ILIKE ${'%' + input.query + '%'} OR summary ILIKE ${'%' + input.query + '%'})`
     : sql``;
-  const scopeClause =
-    projection.scopeIdsAllowed && projection.scopeIdsAllowed.length > 0
-      ? sql`AND scope_id = ANY(${projection.scopeIdsAllowed as string[]}::text[])`
-      : projection.scopeIdsAllowed !== null
-        ? // Explicit empty allowlist means "no scope" — return nothing.
-          sql`AND scope_id IS NULL`
-        : sql``;
 
   const rawRows = rowsOf(
     await db.execute(sql`
-      SELECT kind, id, display_name, summary, tags, lifecycle_stage,
-             refreshed_at, scope_id, metadata
+      SELECT entity_kind AS kind, entity_id AS id, display_name, summary, tags,
+             lifecycle_stage, refreshed_at,
+             NULL::text  AS scope_id,
+             NULL::jsonb AS metadata
         FROM entity_index
        WHERE tenant_id = ${input.tenantId}
          ${queryClause}
          ${kindClause}
-         ${scopeClause}
        ORDER BY refreshed_at DESC
        LIMIT ${limit}
     `),

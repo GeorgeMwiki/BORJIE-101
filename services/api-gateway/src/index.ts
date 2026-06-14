@@ -808,6 +808,15 @@ import { createKgSyncWorker } from './workers/kg-sync.worker';
 // (gap→spec→generate→propose) operator-gated route.
 import { createTickInputsProvider } from './composition/proactive/tick-inputs-provider.js';
 import { internalModulesRouter } from './routes/internal/modules.hono';
+// Wave ENTITY-LEGIBILITY-WIRE — the six entity.* brain tools POST to
+// /internal/entity-legibility/* over the loopback client but NO router was
+// mounted there, so every call 404'd and the tools fell to their empty stub.
+import { internalEntityLegibilityRouter } from './routes/internal/entity-legibility.hono';
+// Wave BRAIN-LOOPBACK-WIRE — borjie.ask / borjie.cite / documents.* /
+// jurisdiction-discovery.discover brain tools likewise POSTed to unmounted
+// /internal/* routes. These routers light them up.
+import { internalBrainLoopbackRouter } from './routes/internal/brain-loopback.hono';
+import { internalJurisdictionDiscoveryRouter } from './routes/internal/jurisdiction-discovery.hono';
 // Wave NOTIFICATION-DISPATCH-WIRE — turn on the already-built notification
 // rails: the dispatch drain worker (delivers notification_dispatch_log
 // pending rows via email/SMS/push with retry+backoff+DLQ), its push
@@ -3386,6 +3395,14 @@ api.route('/workforce', workforceTabConfigWorkerRouter);
 // propose-only — never auto-applies). Mounted BEFORE the broad /internal route
 // so the more-specific /internal/modules prefix wins.
 api.route('/internal/modules', internalModulesRouter);
+// Brain-tool loopback routers — MUST mount BEFORE the broad `/internal` route
+// below so their more-specific prefixes win first-match lookup (the
+// route-shadow law). Each is the backing endpoint for a previously born-dark
+// persona-tool whose handler POSTs to `/internal/...` over the loopback client.
+api.route('/internal/entity-legibility', internalEntityLegibilityRouter);
+api.route('/internal/brain', internalBrainLoopbackRouter);
+api.route('/internal/documents', internalBrainLoopbackRouter);
+api.route('/internal/jurisdiction-discovery', internalJurisdictionDiscoveryRouter);
 api.route('/internal', workforceTabPolicyAdminRouter);api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // REMOVED (borjie hard-fork): /units/:id/{subdivision,components} — queried
