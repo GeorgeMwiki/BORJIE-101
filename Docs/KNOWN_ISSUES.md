@@ -7,12 +7,26 @@ precise `file:line`, reproduction steps, root cause, and proposed fix.
 
 Fixes marked inline in `git log` are NOT listed here.
 
-**Open KI count: 12** (KI-005…KI-016) — registered 2026-06-14 from the
-Mode-C review. The ~28 inline-fixable findings from that review were
-driven to zero (fixed **and** structurally guarded) on branch
-`fix/mode-c-review-drive-to-zero`; the entries below are the residue that
-genuinely exceeds ~1-hour scope or needs an owner decision. Each carries
-`file:line` + the exact fix.
+**Open KI count: 3** (KI-005, KI-010, KI-015).
+
+Registered 2026-06-14 from the Mode-C review (KI-005…KI-016). The same
+"cover-all" session then drove NINE of the twelve to zero on branch
+`fix/mode-c-review-drive-to-zero` — each fixed **and** guarded + cold-verified:
+KI-006/007 (buyer cross-tenant inquiry loop), KI-008/009 (server↔mobile
+tab-kind lockstep + project-on-spawn), KI-011 (persona-drift `/events`
+route), KI-012 (field-capture honest pending-analysis), KI-013 (marketing
+`/contact`+`/subscribe` sinks, migration 0359), KI-014 (geofencing predicate
+un-darkened, migration 0360), KI-016 (cleanups). Those entries are kept below
+as the record, prefixed **[CLOSED]**.
+
+**Three remain open BY DESIGN — each needs an owner decision, not more code:**
+- **KI-005** chat `/chat` streaming-Auditor — the enforcement model
+  (surface-only vs delayed-withhold) is a design call on the primary chat.
+- **KI-010** self-extension cron — ⛔ enabling AUTONOMOUS SELF-MODIFICATION;
+  the exact governed wiring recipe is in the entry; OFF pending explicit
+  owner authorization.
+- **KI-015** flipping the `apps/**` CI test gate may surface pre-existing
+  app-test debt — triage before enabling.
 
 Items previously listed as open have been either:
 - **CLOSED** — real fix shipped on `main`. Trailer below.
@@ -46,7 +60,7 @@ streaming enforcement model — surface-only vs delayed-withhold-of-the-final-
 block — is an owner/design decision; primary chat surface, do not ship
 half-baked.
 
-### KI-006 — Cross-tenant marketplace bid dead-end — **OPEN — HIGH (model decision)**
+### KI-006 — Cross-tenant marketplace bid dead-end — **[CLOSED 2026-06-14] was OPEN — HIGH (model decision)**
 
 `services/api-gateway/src/routes/mining/bids.hono.ts:82-100,132` +
 `marketplace.hono.ts:35-53`. **Repro:** buyer browses a listing from
@@ -63,7 +77,7 @@ cross-tenant listings, hide the bid CTA + route to the INQUIRY flow (POST
 `/api/v1/mining/flows/inquiries` — the built cross-tenant mechanism, KI-007).
 Recommend (b) as the honest interim (cross-tenant bidding isn't built).
 
-### KI-007 — Buyer-mobile has no inquiry consumer / no 'raise inquiry' entry — **OPEN — HIGH (feature)**
+### KI-007 — Buyer-mobile has no inquiry consumer / no 'raise inquiry' entry — **[CLOSED 2026-06-14] was OPEN — HIGH (feature)**
 
 `apps/buyer-mobile` (no caller) vs gateway `index.ts:2681` (`/buyer/tabs`),
 `:2682` (`/buyer/inquiries`), `routes/mining/flows/inquiry-flow.hono.ts:154`
@@ -77,7 +91,7 @@ fix:** add a buyer-mobile inquiry client (POST flows/inquiries, GET
 inquiries list screen, and a `/buyer/tabs` projection consumer in
 `app/(tabs)/_layout.tsx` (mirror workforce `useWorkforceTabConfig`).
 
-### KI-008 — workforce-mobile drops 6/7 owner-spawnable projected tab kinds — **OPEN — MEDIUM**
+### KI-008 — workforce-mobile drops 6/7 owner-spawnable projected tab kinds — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
 
 `services/api-gateway/src/routes/workforce/tab-projection.ts:61-71` (7
 kinds) vs `apps/workforce-mobile/src/lib/workforce-tab-projection.ts:41-43`
@@ -89,7 +103,7 @@ compliance/safety/reports/treasury/procurement, OR (interim) narrow the
 SERVER allowlist to the kinds mobile renders so the owner isn't promised
 materialization the worker drops.
 
-### KI-009 — Surface-completion projection bags written only by the golden flow — **OPEN — MEDIUM (architectural)**
+### KI-009 — Surface-completion projection bags written only by the golden flow — **[CLOSED 2026-06-14] was OPEN — MEDIUM (architectural)**
 
 `services/api-gateway/src/composition/surface-completion/flow-binder.ts:135-136`
 (only `GOLDEN_INQUIRY_FLOW` writes `workforceProjection`/`buyerProjection`);
@@ -116,7 +130,7 @@ SELF-MODIFICATION — do NOT switch on without explicit owner authorization +
 the four-eye/HITL governance verified live. Registered deliberately
 un-enabled.
 
-### KI-011 — persona-drift-cron born-dark + no `/events` read route — **OPEN — MEDIUM**
+### KI-011 — persona-drift-cron born-dark + no `/events` read route — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
 
 `services/api-gateway/src/composition/persona-drift-cron.ts:117`
 (`createPersonaDriftCron`, zero importers, never started); `apps/admin-web`
@@ -130,7 +144,7 @@ sink=`PersonaDriftSink`) + add a gateway `GET /persona-drift/events`
 returning the persisted `kernel_persona_drift_events`. Lower-risk than
 KI-010 (detection only, no self-modification).
 
-### KI-012 — Field-capture stub AI inference rendered as live data — **OPEN — MEDIUM**
+### KI-012 — Field-capture stub AI inference rendered as live data — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
 
 `services/field-capture-service` — the deterministic STUB inference is
 wired as live `processed` data (every photo gets fabricated values). **Root
@@ -139,7 +153,7 @@ no-mock production-real). **Proposed fix:** wire real inference OR mark the
 output honestly (a 'pending analysis'/'demo' state) so fabricated values
 never render as live.
 
-### KI-013 — Marketing `/contact` + `/subscribe` gateway routes + tables missing (BE leg) — **OPEN — MEDIUM**
+### KI-013 — Marketing `/contact` + `/subscribe` gateway routes + tables missing (BE leg) — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
 
 `apps/marketing/src/app/api/{contact,subscribe}/route.ts` forward to
 `${GATEWAY}/api/v1/marketing/{contact,subscribe}`;
@@ -152,7 +166,7 @@ cause:** the gateway routes + persistence tables were never created.
 `marketing_contact_submissions` + `marketing_subscriptions` tables
 (migration 0358) + the two routes persisting to them.
 
-### KI-014 — geofencing predicate service RLS-dark from the worker (0357 residual) — **OPEN — MEDIUM**
+### KI-014 — geofencing predicate service RLS-dark from the worker (0357 residual) — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
 
 `services/api-gateway/src/services/geofencing/predicates.ts:99,142,182,224,261`
 (hazard/site/distance queries on a non-context-bound db). **Root cause:**
@@ -177,7 +191,7 @@ tsx}` to the root vitest include, OR give each app its own
 no-bare-fetch guard DOES run). **Caution:** flipping it may surface
 pre-existing app-test debt — triage before enabling.
 
-### KI-016 — Minor cleanups (batch) — **OPEN — LOW**
+### KI-016 — Minor cleanups (batch) — **[CLOSED 2026-06-14] was OPEN — LOW**
 
 - admin `/platform/overview` StaffNav link + BFF target a gateway route
   removed in the hard-fork (`index.ts:3215`) → 'Active tenants' KPI
