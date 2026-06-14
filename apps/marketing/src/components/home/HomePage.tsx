@@ -34,15 +34,9 @@
 import type { Locale } from '@/lib/i18n';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
 import { LazyVisible } from '@/components/LazyVisible';
-import { FrontierBanner } from '@/components/sections/FrontierBanner';
 import { ProblemSolution } from '@/components/sections/ProblemSolution';
-import { EcosystemSection } from '@/components/sections/EcosystemSection';
 import { UniversalAccessSection } from '@/components/sections/UniversalAccessSection';
-import { MwikilaModesSection } from '@/components/sections/MwikilaModesSection';
-import { InteractiveModesSection } from '@/components/sections/InteractiveModesSection';
 import { PlatformShowcaseSection } from '@/components/sections/PlatformShowcaseSection';
-import { BentoGrid } from '@/components/sections/BentoGrid';
-import { InsightsAndScaleSection } from '@/components/sections/InsightsAndScaleSection';
 import { RoadmapCTASection } from '@/components/sections/RoadmapCTASection';
 import { Pricing } from '@/components/Pricing';
 
@@ -50,11 +44,30 @@ export interface HomePageProps {
   readonly locale: Locale;
 }
 
+/**
+ * HomePage — the below-the-hero fold of the marketing home.
+ *
+ * Condensed to the doctrine-9b canonical shape (capability-led, one
+ * scroll): the hero + capability grid live in page.tsx; this file holds
+ * the spine that earns its place —
+ *
+ *   ProblemSolution        — the "why": the real operator pains Borjie closes
+ *   UniversalAccessSection — Swahili-first, phone/tablet/desktop (real edge)
+ *   PlatformShowcaseSection — the one show-don't-tell product moment
+ *   Pricing                — real plans
+ *   RoadmapCTASection      — the single closing CTA
+ *
+ * The earlier build stacked thirteen sections (frontier banner, ecosystem
+ * logo wall, seven-mode tabs, "three doors" meta-section, bento grid, and
+ * an insights band carrying invented telemetry + named-operator quotes).
+ * Those restated the hero, buried the message, or made unsourced claims,
+ * so they were cut from the scroll. The deep per-segment detail now lives
+ * on the /for-* audience pages, not stacked here.
+ */
 export function HomePage({ locale }: HomePageProps): JSX.Element {
   return (
     <div className="overflow-x-hidden">
       {/* ABOVE-FOLD of HomePage — eager */}
-      <FrontierBanner locale={locale} />
       <ProblemSolution locale={locale} />
 
       {/* ──────────────────────────────────────────────────────────
@@ -67,35 +80,7 @@ export function HomePage({ locale }: HomePageProps): JSX.Element {
         placeholderClassName="min-h-[520px]"
         fallback={<SectionSkeleton minHeight={520} cards={3} />}
       >
-        <EcosystemSection locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[520px]"
-        fallback={<SectionSkeleton minHeight={520} cards={3} />}
-      >
         <UniversalAccessSection locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[560px]"
-        fallback={<SectionSkeleton minHeight={560} cards={3} />}
-      >
-        <MwikilaModesSection locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[520px]"
-        fallback={<SectionSkeleton minHeight={520} cards={3} />}
-      >
-        <InteractiveModesSection locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[420px]"
-        fallback={<SectionSkeleton minHeight={420} cards={4} />}
-      >
-        <BentoGrid locale={locale} />
       </LazyVisible>
 
       <LazyVisible
@@ -103,13 +88,6 @@ export function HomePage({ locale }: HomePageProps): JSX.Element {
         fallback={<SectionSkeleton minHeight={480} cards={3} />}
       >
         <PlatformShowcaseSection locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[520px]"
-        fallback={<SectionSkeleton minHeight={520} cards={3} />}
-      >
-        <InsightsAndScaleSection locale={locale} />
       </LazyVisible>
 
       <LazyVisible

@@ -3,13 +3,13 @@
     "skipToContent": "Skip to main content"
   },
   "seo": {
-    "title": "Borjie — AI-native mining estate operating system",
-    "description": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, asset register. Multi-tenant. Multi-lingual.",
-    "ogTitle": "Borjie — AI-native mining estate operating system",
-    "ogDescription": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Run your entire mining estate on autopilot.",
-    "twitterTitle": "Borjie — AI-native mining estate operating system",
-    "twitterDescription": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. One sign-off, every workflow drafted, hedged, supervised, filed.",
-    "ogAlt": "Borjie — AI-native mining estate operating system"
+    "title": "Borjie: software for Tanzanian mining estates",
+    "description": "Run your licences, royalty, workforce and treasury from one screen. Borjie drafts your Mining Commission and TMAA filings, runs your crew, and sells your ore to verified buyers. Built for Tanzanian mining, in Swahili and English.",
+    "ogTitle": "Borjie: software for Tanzanian mining estates",
+    "ogDescription": "Run your licences, royalty, crew and gold from one screen. Borjie does the paperwork so you just sign. Built for Tanzanian mining.",
+    "twitterTitle": "Borjie: software for Tanzanian mining estates",
+    "twitterDescription": "Track every licence, file royalty in minutes, run your crew, and sell ore to verified buyers. Built for Tanzanian mining, in Swahili and English.",
+    "ogAlt": "Borjie: software for Tanzanian mining estates"
   },
   "nav": {
     "owners": "Owners",
@@ -78,14 +78,14 @@
     }
   },
   "hero": {
-    "kicker": "AI-native mining estate operating system",
+    "kicker": "Built for Tanzanian mining",
     "swahiliFirstBadge": "English-first · Swahili",
-    "pill": "Starting in Tanzania · Expanding across Sub-Saharan Africa · Built for the world",
-    "headline": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer.",
-    "sub": "Purpose-built for markets where mining operating systems do not exist yet. Borjie connects licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses (transport, catering, fuel, equipment rental), family office, succession, and the full asset register. Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system — drafts, hedges, supervises, files. You sign once.",
+    "pill": "Starting in Tanzania · Built for African mining",
+    "headline": "Run your licences, royalty, crew and gold from one screen",
+    "sub": "Borjie keeps your licences, royalty filings, workforce and treasury in one place. Mr. Mwikila drafts the paperwork and you sign. In Swahili and English.",
     "ctaPilot": "Get started",
-    "ctaDemo": "Watch a 60s demo",
-    "trustline": "BRELA · TRA · NEMC · LBMA · M-Pesa",
+    "ctaDemo": "See how it works",
+    "trustline": "Works with BRELA · TRA · Mining Commission · TMAA · M-Pesa",
     "chat": {
       "assistant": "Mr. Mwikila",
       "role": "AI Mining Managing Director",
@@ -103,7 +103,7 @@
       "turns": [
         {
           "role": "ai",
-          "body": "Hi, I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. What brings you here today?"
+          "body": "Hi, I'm Mr. Mwikila, the AI that runs the day-to-day on Borjie. What kind of mine do you run?"
         },
         {
           "role": "user",
@@ -111,7 +111,7 @@
         },
         {
           "role": "ai",
-          "body": "Eight workers, three hours every month on royalty paperwork. That's the Mining Commission of Tanzania format eating your week. Borjie drafts it in two minutes, cites every line, and you sign once. Want to see how a real Wednesday at 06:00 looks?"
+          "body": "Then your monthly royalty return in the Mining Commission format is probably eating a few hours. I draft it for you, cite every line, and you just sign. Want to see your first morning brief?"
         }
       ]
     },
@@ -187,41 +187,41 @@
   },
   "finalCta": {
     "kicker": "Ready when you are",
-    "heading": "Stop chasing the dashboard. Start running the mine.",
-    "sub": "Sign up and stand up your estate in minutes. You set the autonomy pace, we ship the brain that handles overnight ops and the cryptographic audit chain that keeps every action on the record. Built for a Tanzanian PML on day one, ready for an SML holding company on day one thousand.",
+    "heading": "Spend your time on the mine, not the admin.",
+    "sub": "Sign up and set your mine up in minutes. You decide how much Mr. Mwikila handles, and every action is kept on the record. Built for a single PML on day one, ready for an SML holding company as you grow.",
     "ctaPrimary": "Sign up",
     "ctaSecondary": "Log in",
-    "microcopy": "Stand up your estate today. Already have an account? Log in."
+    "microcopy": "Set up your mine today. Already have an account? Log in."
   },
   "capabilities": {
-    "kicker": "01 · What Borjie is, concretely",
-    "heading": "An AI-native mining estate operating system.",
-    "sub": "Not a dashboard bolted onto a spreadsheet. Six interlocking systems, every one shipping in production. Each capability ties into your mine's knowledge graph and writes to an immutable audit chain.",
+    "kicker": "What you can do with Borjie",
+    "heading": "The work of running a mine, in one place.",
+    "sub": "Six things every mining operator has to get right, all on one screen and kept up to date for you.",
     "learnMore": "Learn more",
     "cards": {
       "licence": {
-        "title": "Licence calendar",
-        "blurb": "PML, ML, and SML on one calendar. 90-, 60-, 30-day expiry warnings. Aware of Mining Commission renewal workflow."
-      },
-      "brief": {
-        "title": "Daily brief",
-        "blurb": "Every morning at 06:00 the Master Brain shows overnight actions, decisions that need you, and gold-window treasury position."
-      },
-      "drillhole": {
-        "title": "Drill-hole logger",
-        "blurb": "Field logger for drill holes and grade-control. Cores photographed, assayed, linked to a pit segment, written to the chain."
-      },
-      "treasury": {
-        "title": "FX & treasury",
-        "blurb": "TZS · USD · gold ounces. Hedge proposals against live BoT and LBMA spot. Off-take projections by week."
-      },
-      "marketplace": {
-        "title": "Marketplace",
-        "blurb": "Artisanal miners, registered traders, licensed smelters. KYC for every participant. One-click off-take agreements."
+        "title": "Track every licence",
+        "blurb": "All your PML, ML and SML licences on one calendar, with 90, 60 and 30-day renewal warnings so you never miss a deadline."
       },
       "compliance": {
-        "title": "Compliance pack",
-        "blurb": "NEMC EIA, royalty returns, OSHA logs, audit chain. Ready for submission to Mining Commission and TRA."
+        "title": "File royalty in minutes",
+        "blurb": "Mr. Mwikila drafts your monthly royalty return in the Mining Commission and TMAA format. Check it, sign it, file it."
+      },
+      "treasury": {
+        "title": "See your money clearly",
+        "blurb": "A double-entry treasury that tracks cash in TZS, gold on hand and M-Pesa payments, so you always know where you stand."
+      },
+      "marketplace": {
+        "title": "Sell ore to real buyers",
+        "blurb": "List your gold or gemstone parcels to verified buyers, take bids, and lock an offtake agreement, all on the record."
+      },
+      "drillhole": {
+        "title": "Run your crew",
+        "blurb": "Roster, attendance, payroll, shifts and certifications in one place. Your supervisor runs it from a phone at the pit."
+      },
+      "brief": {
+        "title": "Stay compliant",
+        "blurb": "Inspections, regulatory filings and your audit trail kept in order and ready whenever the Mining Commission, NEMC or TRA ask."
       }
     }
   },
@@ -592,50 +592,50 @@
       "sub": "Purpose-built for markets where mining operating systems do not exist yet. Borjie ships the operating system that turns a Tanzanian mining licence into an entire calm, audited, AI-managed Mining Estate, covering subsidiaries, holdings, family office, succession, asset register and every ancillary business; bilingual on day one."
     },
     "problemSolution": {
-      "kicker": "Why a Mining Estate OS",
-      "title": "Mining estates run on the margin.",
-      "titleAccent": "Borjie closes that gap end-to-end.",
-      "subOne": "Tanzanian mining estates still run on Excel, WhatsApp and physical compliance binders across the licence, the royalty book, the workforce, the treasury, the marketplace, the subsidiaries, the family office and every ancillary business. The deposit is world-class. The infrastructure around it is not.",
-      "subTwo": "Borjie is the world's first AI-native Mining Estate operating system, creating an entirely new category: one intelligent platform connecting operators, regulators, capital, and the entire mineral ecosystem through adaptive AI.",
+      "kicker": "Why Borjie",
+      "title": "Running a mine is mostly paperwork.",
+      "titleAccent": "Borjie does that part.",
+      "subOne": "Most Tanzanian mines still run on Excel, WhatsApp and a binder of compliance forms, spread across the licence, the royalty book, the crew, the cash and the buyers. The deposit is world-class. The tools around it are not.",
+      "subTwo": "Borjie puts all of it on one screen and lets Mr. Mwikila handle the routine work, so you spend your time on the mine, not the admin.",
       "problem": {
-        "title": "Mining at the margin",
+        "title": "How it works today",
         "items": [
           {
-            "title": "Royalty filings are manual",
-            "desc": "Owners file Mining Commission returns in Excel and miss the 47-day renewal window 18% of the time. Every missed window costs a re-filing fee and burns goodwill with the regulator."
+            "title": "Royalty returns are done by hand",
+            "desc": "You rebuild the Mining Commission and TMAA return in a spreadsheet every month. Miss the renewal window and you pay a re-filing fee and lose standing with the regulator."
           },
           {
-            "title": "The gold window swings 2.4% a day",
-            "desc": "Small miners hedge with WhatsApp messages to brokers in Dubai. They lose 4-6% of margin to spread, timing, and information asymmetry on every off-take."
+            "title": "The gold price moves while you wait",
+            "desc": "Small operators sell through WhatsApp messages to brokers, with no clear view of the LBMA price at the time of the deal."
           },
           {
-            "title": "Compliance is fragmented",
-            "desc": "Mining Commission, NEMC, Bank of Tanzania, and TRA all want different artifacts on different cadences. The owner becomes a part-time compliance officer instead of a miner."
+            "title": "Compliance is scattered",
+            "desc": "The Mining Commission, NEMC, Bank of Tanzania and TRA each want different documents on different dates. You end up a part-time compliance officer instead of a miner."
           },
           {
-            "title": "Workforce visibility ends at the gate",
-            "desc": "Owners can't see who clocked in, what fuel was burned, or what incidents happened on Wednesday's B-shift. Payroll leakage and safety blindspots compound week-over-week."
+            "title": "You can't see the pit from the office",
+            "desc": "Who clocked in, how much fuel was burned, what happened on the night shift. Without that, payroll leaks and safety gaps build up week after week."
           }
         ]
       },
       "solution": {
-        "title": "Borjie does the work",
+        "title": "How it works on Borjie",
         "items": [
           {
-            "title": "Royalty drafts in Mining Commission format",
-            "desc": "Mr. Mwikila drafts your monthly royalty in the official Mining Commission format the day after each gold parcel window closes. One-tap signature, cited line-by-line."
+            "title": "Royalty drafted for you",
+            "desc": "Mr. Mwikila drafts your monthly royalty return in the Mining Commission and TMAA format. You check it, sign once, and file. Every line is cited."
           },
           {
-            "title": "Gold-window hedge at LBMA fix",
-            "desc": "The treasury desk hedges the BoT USD/gold window automatically — every hedge cited to the LBMA AM-fix. Pilot saving of 1.4% versus walk-in spot."
+            "title": "Sell with the price in front of you",
+            "desc": "List a parcel to verified buyers, take bids against the live LBMA reference, and lock the deal on the record instead of over WhatsApp."
           },
           {
-            "title": "Compliance pack on every cadence",
-            "desc": "Borjie files Mining Commission, NEMC, BoT, and TRA on each authority's own cadence. Hash-chain audited so the regulator can verify offline without trusting us."
+            "title": "Every filing in one place",
+            "desc": "Mining Commission, NEMC, Bank of Tanzania and TRA filings tracked on each authority's own schedule, with an audit trail the regulator can verify."
           },
           {
-            "title": "Workforce console on the supervisor's phone",
-            "desc": "Run shifts, attendance, fuel logs, and incidents from the foreman's pocket. Biometric clock-in at the pit gate lifts shift productivity by 18% on pilot sites."
+            "title": "The pit on the supervisor's phone",
+            "desc": "Shifts, attendance, fuel logs and incidents run from the foreman's pocket, with clock-in at the gate so payroll matches who actually worked."
           }
         ]
       }
@@ -712,22 +712,22 @@
       ]
     },
     "universalAccess": {
-      "kicker": "Bilingual · multi-device · multi-role",
-      "title": "Every artifact in Swahili first.",
-      "titleAccent": "English on toggle.",
-      "sub": "Every supervisor on a phone. Every owner on a tablet. Every regulator on a desktop. Borjie is the only mining OS that ships in Tanzania's working languages from line one of every screen.",
+      "kicker": "Swahili first · phone, tablet, desktop",
+      "title": "In Swahili by default.",
+      "titleAccent": "English on a tap.",
+      "sub": "Borjie works in Swahili and English on every screen. The supervisor uses a phone at the pit, the owner uses a tablet in the office, the regulator uses a desktop. Same data, the right screen for each.",
       "cards": [
         {
-          "title": "Swahili-first by default",
-          "body": "Every label, every brief, every regulator artifact ships in Swahili. English is one tap away. No translation lag — the language flag flips and the entire UI follows, including signed PDFs."
+          "title": "Swahili first, English on a tap",
+          "body": "Every label, brief and filing reads in Swahili by default. Switch to English with one tap and the whole screen follows, no mixed languages."
         },
         {
           "title": "Phone for the pit, tablet for the office",
-          "body": "Supervisors run shifts from a phone — biometric clock-in, fuel logs, incident reports. Owners review on tablet — daily brief, treasury, licence calendar. The same data, the right surface."
+          "body": "Supervisors run shifts from a phone, with clock-in, fuel logs and incident reports. Owners review the daily brief, treasury and licence calendar on a tablet."
         },
         {
           "title": "Desktop for the regulator",
-          "body": "Mining Commission, NEMC, TRA, and audit-pack consumers get a desktop console with one-click export to NDJSON, cryptographically signed and verifiable offline."
+          "body": "The Mining Commission, NEMC and TRA get a clean desktop view, with one-click export of the filings and audit trail they can check on their own."
         }
       ]
     },
@@ -855,15 +855,15 @@
       ]
     },
     "platformShowcase": {
-      "kicker": "Three product surfaces, one OS",
+      "kicker": "Three apps, one system",
       "title": "Where Borjie lives.",
       "titleAccent": "On every screen the mine needs.",
-      "sub": "The Owner Cockpit, the Workforce Mobile app, and the Buyer Marketplace are three windows into the same audited data fabric. The owner runs the business. The supervisor runs the shift. The buyer sources the parcel.",
+      "sub": "The owner's cockpit, the workforce app and the buyer marketplace all read from the same data. The owner runs the business, the supervisor runs the shift, the buyer sources the parcel.",
       "tiles": [
         {
-          "title": "Owner Cockpit",
-          "subtitle": "Tablet · desktop · 22 screens",
-          "desc": "Daily brief, licence calendar, treasury, drill-hole logger, compliance pack. The strategic command surface for the mining owner.",
+          "title": "Owner cockpit",
+          "subtitle": "Tablet and desktop",
+          "desc": "Daily brief, licence calendar, treasury, workforce and compliance, all in one place for the owner.",
           "mockType": "kpi",
           "kpis": [
             {
@@ -881,9 +881,9 @@
           ]
         },
         {
-          "title": "Workforce Mobile",
-          "subtitle": "Phone · 47 screens · role-gated",
-          "desc": "Biometric clock-in, shift log, fuel ledger, incident report. The pit-floor app the supervisor uses every shift.",
+          "title": "Workforce app",
+          "subtitle": "Phone · role-gated",
+          "desc": "Clock-in, shift log, fuel ledger and incident reports. The app the supervisor uses at the pit every shift.",
           "mockType": "shift",
           "rows": [
             {
@@ -904,9 +904,9 @@
           ]
         },
         {
-          "title": "Buyer Marketplace",
-          "subtitle": "Web · mobile · 12 screens",
-          "desc": "KYB-verified sellers, LBMA-grade assays, biometric off-take signatures. The marketplace for buyers sourcing verified Tanzanian minerals.",
+          "title": "Buyer marketplace",
+          "subtitle": "Web and mobile",
+          "desc": "Verified sellers, lab assays and signed offtake agreements. Where buyers source verified Tanzanian minerals.",
           "mockType": "market",
           "listings": [
             {
@@ -1015,10 +1015,10 @@
       ]
     },
     "roadmap": {
-      "kicker": "Roadmap · what's next",
-      "title": "Run your mine on autopilot.",
+      "kicker": "What's next",
+      "title": "Set your mine up on Borjie.",
       "titleAccent": "Here's the year ahead.",
-      "sub": "Borjie ships in waves. We're expanding operations across 2026 with four new capabilities. Each pill below maps to a quarter; each is shipping into the same hash-chained audit fabric.",
+      "sub": "Borjie ships in waves. Here is what we are building through 2026, one item per quarter.",
       "pills": [
         {
           "label": "Q1 2026",
@@ -1042,12 +1042,12 @@
         }
       ],
       "ctaPrimary": "Get started",
-      "ctaSecondary": "Talk to a human",
-      "microcopy": "Sign up and set your estate live today. You keep your data."
+      "ctaSecondary": "Talk to us",
+      "microcopy": "Set up your mine today. Your data stays yours."
     }
   },
   "footer": {
-    "tagline": "An AI-native mining estate operating system. Mr. Mwikila is its brain layer.",
+    "tagline": "Run your licences, royalty, crew and gold from one screen. Built for Tanzanian mining.",
     "product": "Product",
     "company": "Company",
     "resources": "Resources",
@@ -1730,7 +1730,7 @@
   },
   "audiencePages": {
     "pml": {
-      "metaTitle": "Borjie for PML holders — artisanal mining OS",
+      "metaTitle": "Borjie for PML holders: artisanal mining software",
       "metaDescription": "Borjie for Primary Mining Licence holders. Daily brief, royalty calendar, drill-hole logger, M-Pesa payouts. Built for Tanzanian artisanal miners. 90-day free pilot.",
       "heroKicker": "For PML holders",
       "heroHeadline": "Run your PML site like a",
@@ -1828,7 +1828,7 @@
       "ctaPrimary": "Get started"
     },
     "ml": {
-      "metaTitle": "Borjie for ML operators — mid-tier mining OS",
+      "metaTitle": "Borjie for ML operators: mid-tier mining software",
       "metaDescription": "Borjie for Mining Licence operators across gold and gemstones. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
       "heroKicker": "For ML operators",
       "heroHeadline": "Mid-tier mines deserve",
@@ -1926,7 +1926,7 @@
       "ctaPrimary": "Get started"
     },
     "sml": {
-      "metaTitle": "Borjie for SML operators — large-format mining OS",
+      "metaTitle": "Borjie for SML operators: large-format mining software",
       "metaDescription": "Borjie for Special Mining Licence holders. Multi-site consolidation, environmental compliance, community relations ledger, board governance, regulator-grade audit chains. 90-day free pilot.",
       "heroKicker": "For SML operators",
       "heroHeadline": "Special licences deserve",
@@ -2024,7 +2024,7 @@
       "ctaPrimary": "Get started"
     },
     "cooperatives": {
-      "metaTitle": "Borjie for cooperatives — AMCOS-style mining OS",
+      "metaTitle": "Borjie for cooperatives: AMCOS-style mining software",
       "metaDescription": "Borjie for artisanal mining cooperatives and AMCOS. Member roster, pooled production ledger, bulk advances, and federated payouts. Built for federated mining groups across Tanzania. 90-day free pilot.",
       "heroKicker": "For cooperatives",
       "heroHeadline": "Cooperative discipline,",
@@ -2215,7 +2215,7 @@
           "desc": "If a member is unreachable, the next-in-line picks up the same brief on the same screen."
         }
       ],
-      "ctaHeading": "Run the estate on autopilot.",
+      "ctaHeading": "Run the family estate as one.",
       "ctaSub": "Schedule a private brief. We map your structure, configure your policy, and show you the daily brief running on safe demo data.",
       "ctaPrimary": "Brief our team"
     },
