@@ -1468,6 +1468,12 @@ export * from './regulator-jurisdictions.schema.js';
 // SUPER_ADMIN-read via the `pilot_app_select_super_admin` RLS policy.
 export * from './marketing-pilot-applications.schema.js';
 
+// Public-write surfaces bound to `POST /api/v1/marketing/{contact,subscribe}`
+// (KI-013, migration 0359). SUPER_ADMIN-read via the `*_select_super_admin`
+// RLS policies — same shape as marketing_pilot_applications.
+export * from './marketing-contact-submissions.schema.js';
+export * from './marketing-subscriptions.schema.js';
+
 // Wave ROYALTY-DRAFT — `royalty_return_drafts` (migration 0159). The
 // backing table for the confirm-required, NON-MONEY `draft_royalty_return`
 // chat verb (sibling of draft_payroll_run / payroll_runs draft, 0134 §4).
