@@ -903,6 +903,15 @@ import {
 } from './composition/cluster-lock';
 import { initRedisTokenBucket } from './middleware/rate-limiter';
 import { initCockpitBus, publishCockpitEvent } from './services/cockpit-events';
+// KI-010 — the governed, PROPOSE-ONLY self-extension cron. Born-dark (zero
+// importers) until this wire. `createSelfExtensionCron` only PROPOSES new
+// sub-MDs to the owner four-eye inbox + drives a self-build dry-run; it NEVER
+// auto-deploys (the runtime-apply primitive stays UNMOUNTED — see
+// self-extension-cron-wiring.ts). Composed unconditionally below (so it is
+// reachable + tested), but only .start()ed behind the default-OFF
+// BORJIE_SELF_EXTENSION_CRON_ENABLED flag.
+import { createSelfExtensionCron } from './composition/self-extension-cron';
+import { buildSelfExtensionCronDeps } from './composition/self-extension-cron-wiring';
 
 // Stable cron names wrapped with withClusterLeader(...) at their .start()
 // sites below. Single source of truth so gracefulShutdown releases exactly
@@ -934,6 +943,10 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'loop-economy',
   'someday-review',
   'org-loop',
+  // KI-010 — governed, propose-only self-extension cron. Listed so
+  // gracefulShutdown releases its lock; only .start()ed behind the
+  // default-OFF BORJIE_SELF_EXTENSION_CRON_ENABLED flag (see listen block).
+  'self-extension',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -4383,6 +4396,62 @@ const outcomeReconciliationWorker = serviceRegistry.db
       },
     };
 
+// KI-010 — the governed, PROPOSE-ONLY self-extension cron. Constructed
+// UNCONDITIONALLY here (so the keystone is composed + reachable + covered by the
+// cron-wiring test) but kept INERT-by-default two ways:
+//   1. `enabled` is wired to the default-OFF env flag below — even the elected
+//      leader's .start() is a no-op until BORJIE_SELF_EXTENSION_CRON_ENABLED.
+//   2. The terminal action is a four-eye PENDING proposal + a self-build
+//      dry-run. The runtime-apply / sub-MD register() path stays UNMOUNTED
+//      (fail-closed thrower) — see self-extension-cron-wiring.ts. This closes
+//      the born-dark defect WITHOUT enabling autonomous self-modification.
+const selfExtensionEnabled =
+  process.env.BORJIE_SELF_EXTENSION_CRON_ENABLED === 'true';
+const selfExtensionCron = serviceRegistry.db
+  ? createSelfExtensionCron(
+      buildSelfExtensionCronDeps({
+        db: serviceRegistry.db as unknown as Parameters<
+          typeof buildSelfExtensionCronDeps
+        >[0]['db'],
+        // Bind the service-role GUC for every out-of-band read (RLS FORCE has
+        // no request-bound tenant here). SAME audited platform-scope path the
+        // resident estate-mind / proactive workers use.
+        withServiceRole: <T,>(
+          fn: (tx: { execute(q: unknown): Promise<unknown> }) => Promise<T>,
+        ): Promise<T> =>
+          withServiceRoleContext(
+            serviceRegistry.db as Parameters<typeof withServiceRoleContext>[0],
+            fn as never,
+          ) as Promise<T>,
+        logger: createPinoLikeLogger('self-extension-cron'),
+        // Default-OFF: the cron is composed but inert until the owner flips the
+        // flag. NODE_ENV==='test' is also implicitly off via the cron default.
+        enabled: selfExtensionEnabled,
+      }),
+    )
+  : { start() {}, stop() {}, async tickOnce() {
+      return {
+        tenantsScanned: 0,
+        diagnosed: 0,
+        proposalsEnqueued: 0,
+        buildProposalsDriven: 0,
+        errored: 0,
+      };
+    } };
+// Boot-proof: log the composed-but-disabled / enabled state EITHER way so a
+// reader of the boot log can confirm the keystone is wired and know exactly how
+// to turn it on. Proposals are four-eye/HITL gated; nothing auto-deploys.
+logger.info(
+  {
+    enabled: selfExtensionEnabled,
+    dbPresent: Boolean(serviceRegistry.db),
+    flag: 'BORJIE_SELF_EXTENSION_CRON_ENABLED',
+  },
+  selfExtensionEnabled
+    ? 'self-extension cron: composed and ENABLED — proposals are four-eye/HITL gated; runtime-apply stays UNMOUNTED'
+    : 'self-extension cron: composed, disabled by default — set BORJIE_SELF_EXTENSION_CRON_ENABLED=true to enable; proposals are four-eye/HITL gated',
+);
+
 // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Fires
 // every 15 min by default, scans every active tenant, runs all 5
 // handlers (license-renewal, shift-scheduler, royalty-filing, payroll,
@@ -4667,6 +4736,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: outcome-reconciliation worker stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: outcome-reconciliation stop failed');
+  }
+  // KI-010 — self-extension cron. stop() is a safe no-op when it was never
+  // started (flag off), but called for lifecycle symmetry with the other crons.
+  try {
+    selfExtensionCron.stop();
+    logger.info('shutdown: self-extension cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: self-extension cron stop failed');
   }
   try {
     mwikilaAutonomousWorker.stop();
@@ -5014,6 +5091,13 @@ if (require.main === module) {
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.
   withClusterLeader(outcomeReconciliationWorker, lockIdFor('outcome-reconciliation')).start();
+  // KI-010 — governed, propose-only self-extension cron. Leader-gated like the
+  // other resident workers. The cron's own .start() is a NO-OP unless
+  // BORJIE_SELF_EXTENSION_CRON_ENABLED=true (the flag is bound to `enabled` at
+  // construction above), so calling start() here is safe + inert by default.
+  // Even when enabled it only PROPOSES (four-eye/HITL); runtime-apply is
+  // UNMOUNTED. Composed unconditionally so the keystone is reachable + tested.
+  withClusterLeader(selfExtensionCron, lockIdFor('self-extension')).start();
   // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Every
   // 15 min by default, walks every active tenant, runs all 5 handlers
   // through the runtime (kill-switch + inviolable rails enforced) so
