@@ -579,6 +579,104 @@ describe('manage_tab → persists tab structure to owner_tabs_structural', () =>
     expect(shim.updates[0]!.set.status).toBe('active');
   });
 
+  // ─── KI-009 completion law: spawn injects the worker projection bag ──
+  it('spawn of a PROJECTABLE kind injects config.workforceProjection (completes the worker leg)', async () => {
+    const shim = makeShim({
+      selectRowsByTable: { owner_tabs_structural: [] },
+      insertReturn: { id: 'tab-row-1', tabId: 'gold-mkt' },
+    });
+    const out = await dispatchAction(
+      'manage_tab',
+      { op: 'spawn', tabId: 'gold-mkt', label: 'Gold marketplace', config: { kind: 'marketplace' } },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    expect(shim.inserts).toHaveLength(1);
+    expect(shim.inserts[0]!.values.config).toEqual({
+      kind: 'marketplace',
+      workforceProjection: { kind: 'marketplace' },
+    });
+  });
+
+  it('spawn of a NON-projectable kind leaves config untouched (honest no-op, no guessing)', async () => {
+    const shim = makeShim({
+      selectRowsByTable: { owner_tabs_structural: [] },
+      insertReturn: { id: 'tab-row-1', tabId: 'blueprint' },
+    });
+    const out = await dispatchAction(
+      'manage_tab',
+      { op: 'spawn', tabId: 'blueprint', label: 'Blueprint', config: { kind: 'blueprint' } },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    expect(shim.inserts[0]!.values.config).toEqual({ kind: 'blueprint' });
+    expect(
+      Object.prototype.hasOwnProperty.call(
+        shim.inserts[0]!.values.config as Record<string, unknown>,
+        'workforceProjection',
+      ),
+    ).toBe(false);
+  });
+
+  it('spawn with NO config gets the empty default (no projection bag forced)', async () => {
+    const shim = makeShim({
+      selectRowsByTable: { owner_tabs_structural: [] },
+      insertReturn: { id: 'tab-row-1', tabId: 'bare' },
+    });
+    const out = await dispatchAction(
+      'manage_tab',
+      { op: 'spawn', tabId: 'bare', label: 'Bare' },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    expect(shim.inserts[0]!.values.config).toEqual({});
+  });
+
+  it('spawn NEVER clobbers an explicit workforceProjection bag (owner-set roles preserved)', async () => {
+    const shim = makeShim({
+      selectRowsByTable: { owner_tabs_structural: [] },
+      insertReturn: { id: 'tab-row-1', tabId: 'mkt-mgr' },
+    });
+    const explicit = { kind: 'marketplace', roles: ['manager'] };
+    const out = await dispatchAction(
+      'manage_tab',
+      {
+        op: 'spawn',
+        tabId: 'mkt-mgr',
+        label: 'Manager marketplace',
+        config: { kind: 'marketplace', workforceProjection: explicit },
+      },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    expect(shim.inserts[0]!.values.config).toMatchObject({
+      workforceProjection: { kind: 'marketplace', roles: ['manager'] },
+    });
+  });
+
+  it('re-spawn (idempotent reactivate) of a projectable kind ALSO injects the projection bag', async () => {
+    const shim = makeShim({
+      selectRowsByTable: {
+        owner_tabs_structural: [
+          { id: 'tab-row-1', tabId: 'gold-mkt', label: 'Old', kind: 'custom', status: 'removed' },
+        ],
+      },
+      updateReturnByTable: { owner_tabs_structural: [{ id: 'tab-row-1', tabId: 'gold-mkt' }] },
+    });
+    const out = await dispatchAction(
+      'manage_tab',
+      { op: 'spawn', tabId: 'gold-mkt', label: 'Gold marketplace', config: { kind: 'marketplace' } },
+      makeCtx(shim.client),
+    );
+    expect(out.executed).toBe(true);
+    expect(shim.inserts).toHaveLength(0);
+    expect(shim.updates).toHaveLength(1);
+    expect(shim.updates[0]!.set.config).toEqual({
+      kind: 'marketplace',
+      workforceProjection: { kind: 'marketplace' },
+    });
+  });
+
   it('reorder UPDATEs the position, tenant+user scoped', async () => {
     const shim = makeShim({
       updateReturnByTable: { owner_tabs_structural: [{ id: 'tab-row-1', position: 3 }] },

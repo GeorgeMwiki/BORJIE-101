@@ -53,22 +53,26 @@ import { WORKFORCE_ROLE_IDS } from '@borjie/persona-runtime';
 
 /**
  * Owner-cockpit semantic tab kinds the workforce surface can act on.
+ *
+ * LOCKSTEP INVARIANT (KI-008): every kind listed here MUST have a real
+ * renderer entry in the mobile app's `PROJECTED_KIND_TO_SCREEN`
+ * (apps/workforce-mobile/src/lib/workforce-tab-projection.ts). A kind the
+ * server promises but mobile cannot render is SILENTLY dropped on the
+ * worker device (collected into `skippedKinds`) — so the owner is told a
+ * capability materialized that the worker never sees. That is a broken
+ * completion promise, not honest-degrade.
+ *
+ * Therefore this set is the INTERSECTION with the mobile screen-map, NOT a
+ * superset. Today the worker app ships exactly one projection screen
+ * (`marketplace`). To add another projectable kind you MUST land its
+ * expo-router screen + `PROJECTED_KIND_TO_SCREEN` entry in the SAME change,
+ * then add the kind here — the lockstep unit test
+ * (__tests__/tab-projection.lockstep.test.ts) fails red otherwise.
+ *
  * Mirrors the workforce-actionable subset of owner-web's `OwnerTabKind`
- * (apps/owner-web/src/lib/owner-tabs-store.ts). Mobile renders the kinds
- * it knows and SKIPS the rest with a logged warning, so growing this set
- * is additive and non-breaking.
+ * (apps/owner-web/src/lib/owner-tabs-store.ts).
  */
-export const PROJECTABLE_TAB_KINDS = [
-  'marketplace',
-  'procurement',
-  'treasury',
-  'compliance',
-  'safety',
-  'reports',
-  // Compiled-flow projection (business-process compiler): the worker leg of the
-  // golden buyer-inquiry flow (the response queue).
-  'inquiry_respond',
-] as const;
+export const PROJECTABLE_TAB_KINDS = ['marketplace'] as const;
 
 export type ProjectableTabKind = (typeof PROJECTABLE_TAB_KINDS)[number];
 

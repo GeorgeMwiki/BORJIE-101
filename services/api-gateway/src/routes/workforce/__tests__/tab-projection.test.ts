@@ -309,7 +309,9 @@ describe('resolveProjectedKind', () => {
   it('prefers the explicit workforceProjection.kind', () => {
     expect(
       resolveProjectedKind({
-        kind: 'treasury',
+        // A non-projectable structural kind overridden by an explicit
+        // projectable workforceProjection.kind.
+        kind: 'blueprint',
         workforceProjection: { kind: 'marketplace' },
       }),
     ).toBe('marketplace');
@@ -317,8 +319,10 @@ describe('resolveProjectedKind', () => {
 
   it('falls back through config.kind / type / template', () => {
     expect(resolveProjectedKind({ kind: 'marketplace' })).toBe('marketplace');
-    expect(resolveProjectedKind({ type: 'procurement' })).toBe('procurement');
-    expect(resolveProjectedKind({ template: 'safety' })).toBe('safety');
+    expect(resolveProjectedKind({ type: 'marketplace' })).toBe('marketplace');
+    expect(resolveProjectedKind({ template: 'marketplace' })).toBe(
+      'marketplace',
+    );
   });
 
   it('normalizes case + whitespace', () => {
@@ -330,6 +334,14 @@ describe('resolveProjectedKind', () => {
     expect(resolveProjectedKind({})).toBeNull();
     expect(resolveProjectedKind(null)).toBeNull();
     expect(resolveProjectedKind('marketplace')).toBeNull();
+  });
+
+  it('KI-008: kinds with no mobile renderer are NOT projectable (lockstep)', () => {
+    // These owner-cockpit kinds have no expo-router screen on workforce-mobile
+    // today, so they must NOT project (else the worker silently drops them).
+    for (const orphan of ['procurement', 'treasury', 'compliance', 'safety', 'reports', 'inquiry_respond']) {
+      expect(resolveProjectedKind({ kind: orphan })).toBeNull();
+    }
   });
 });
 
