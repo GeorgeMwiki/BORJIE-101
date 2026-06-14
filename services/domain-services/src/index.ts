@@ -83,9 +83,11 @@ export * from './messaging/index.js';
 // cases/ submodule shadows; expose under namespace.
 export * as Compliance from './compliance/index.js';
 
-// Case management services. Defines local branded CustomerId,
-// InvoiceId that shadow customer/invoice; namespace.
-export * as Cases from './cases/index.js';
+// REMOVED (borjie hard-fork): the top-level `Cases` namespace re-export —
+// residential-property residue; the `cases` table was dropped in
+// 0003_mining_domain.sql. The co-located Sublease + DamageDeduction
+// sub-modules survive and are reached directly via the
+// `@borjie/domain-services/cases` subpath (Sublease.* / DamageDeduction.*).
 
 // Vendor management services. Defines vendor surface that overlaps
 // maintenance/vendor; namespace.

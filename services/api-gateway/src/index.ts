@@ -87,7 +87,8 @@ import {
   executiveBriefRouter,
   briefingSubscriptionRouter,
 } from './routes/executive-brief.hono';
-import { casesRouter } from './routes/cases.hono';
+// REMOVED (borjie hard-fork): casesRouter — residential-property residue;
+// the `cases` table was dropped in 0003_mining_domain.sql.
 // Mining-domain backends (Wave MINING-BACKENDS) — six new scopes shipped
 // as siblings to the existing /mining surface. Each carries chat-as-OS
 // parity (both explicit tab + chat reach same backend) via persona tool
@@ -621,7 +622,8 @@ import {
   stopOutboxWorker,
   type OutboxRunnerLike,
 } from './workers/outbox-worker';
-import { createCaseSLASupervisor } from './workers/cases-sla-supervisor';
+// REMOVED (borjie hard-fork): createCaseSLASupervisor — residential-property
+// residue; the `cases` table was dropped in 0003_mining_domain.sql.
 // Geo SOTA 2026-05-29 — geofencing service + watcher worker. Backed by
 // PostGIS (migration 0130). Watcher ticks every 30s, emits
 // worker_offsite_alert + worker_in_hazard_alert. See
@@ -921,7 +923,6 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'heartbeat',
   'background-supervisor',
   'intelligence-history',
-  'cases-sla',
   'learning-amplification',
   'geofence-watcher',
   'licence-expiry',
@@ -2580,7 +2581,7 @@ api.route('/complaints', complaintsRouter);
 // Piece C — Executive briefs (T1-T3 only) + subscription cadence registry.
 api.route('/briefs', executiveBriefRouter);
 api.route('/briefing-subscriptions', briefingSubscriptionRouter);
-api.route('/cases', casesRouter);
+// REMOVED (borjie hard-fork): api.route('/cases', casesRouter) — residential-property residue.
 // Mining-domain backends — Wave MINING-BACKENDS.
 api.route('/geology', geologyRouter);
 api.route('/production', productionRouter);
@@ -3564,7 +3565,7 @@ const openApiRouter = createOpenApiRouter({
     // REMOVED (borjie hard-fork): { prefix: '/documents', app: documentsHonoRouter, defaultTag: 'documents' },
     // REMOVED (borjie hard-fork): { prefix: '/scheduling', app: schedulingRouter, defaultTag: 'scheduling' },
     // REMOVED (borjie hard-fork): { prefix: '/messaging', app: messagingRouter, defaultTag: 'messaging' },
-    { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
+    // REMOVED (borjie hard-fork): { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
     { prefix: '/brain', app: brainRouter, defaultTag: 'brain' },
     // REMOVED (borjie hard-fork): { prefix: '/maintenance', app: maintenanceRouter, ... },
     // REMOVED (borjie hard-fork): { prefix: '/hr', app: hrRouter, ... },
@@ -3665,7 +3666,6 @@ app.get('/api/v1', (_req, res) => {
       '/api/v1/documents',
       '/api/v1/scheduling',
       '/api/v1/messaging',
-      '/api/v1/cases',
       '/api/v1/brain',
       '/api/v1/maintenance',
       '/api/v1/hr',
@@ -3717,21 +3717,11 @@ const intelligenceHistorySupervisor = createIntelligenceHistorySupervisor(
     warn: (meta, msg) => logger.warn(meta, msg),
   },
 );
-// Wave 26 — Cases SLA worker supervisor. Wraps the per-tenant
-// CaseSLAWorker (domain-services/cases/sla-worker.ts) in a multi-tenant
-// supervisor that ticks active tenants every 5 minutes.
-//
-// PARKED (2026-06-14): the `cases` table was removed in the mining-domain
-// fork (0003_mining_domain.sql) and PostgresCaseRepository now carries only a
-// structural placeholder, so every tick issued a malformed scan against a
-// non-existent table (level-50 log spam, zero functional effect). `cases`
-// (rent-arrears / eviction / deposit-dispute) is residential-property residue;
-// per the domain-purity law we do not run it. Stays disabled until a real
-// mining-domain cases/grievance table + repo exist. Full residue removal is a
-// tracked follow-up.
-const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger, {
-  enabled: false,
-});
+// REMOVED (borjie hard-fork): the Cases SLA worker supervisor. The `cases`
+// table (rent-arrears / eviction / deposit-dispute) is residential-property
+// residue dropped in 0003_mining_domain.sql; mining uses the `grievances`
+// subsystem as its equivalent. The supervisor, worker, repo, route and
+// domain module were fully removed on 2026-06-14.
 
 // Learning Amplification (LitFin port) — boot the wiring once so
 // recordObservation()/runAmplification() can resolve the Supabase
@@ -4663,12 +4653,6 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: intelligence-history stop failed');
   }
   try {
-    casesSlaSupervisor.stop();
-    logger.info('shutdown: cases SLA supervisor stopped');
-  } catch (err) {
-    logger.warn({ err }, 'shutdown: cases SLA supervisor stop failed');
-  }
-  try {
     learningAmplificationCron.stop();
     logger.info('shutdown: learning-amplification cron stopped');
   } catch (err) {
@@ -5007,9 +4991,7 @@ if (require.main === module) {
   withClusterLeader(heartbeatSupervisor, lockIdFor('heartbeat')).start();
   withClusterLeader(backgroundSupervisor, lockIdFor('background-supervisor')).start();
   withClusterLeader(intelligenceHistorySupervisor, lockIdFor('intelligence-history')).start();
-  // Wave 26 — start the Cases SLA supervisor alongside the other
-  // background workers. Skipped in tests + when disabled by env.
-  withClusterLeader(casesSlaSupervisor, lockIdFor('cases-sla')).start();
+  // REMOVED (borjie hard-fork): the Cases SLA supervisor start() — residential-property residue.
   // Learning Amplification (LitFin port) — nightly Bayesian roll-up of
   // learning_observations. Interval overridable via
   // BORJIE_LEARNING_AMPLIFY_INTERVAL_MS (min 60s).

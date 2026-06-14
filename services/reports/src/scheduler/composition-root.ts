@@ -90,23 +90,15 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
       }
     : shim('runRenewalSweep', shimmed, 'DATABASE_URL missing');
 
-  const slaWorker = hasDb
-    ? async () => {
-        const { CaseSLAWorker } = (await import(
-          '../../../../domain-services/src/cases/sla-worker.js' as string
-        ).catch(() => ({ CaseSLAWorker: null }))) as { CaseSLAWorker: unknown };
-        if (!CaseSLAWorker) {
-          logger.warn('[scheduler] CaseSLAWorker not reachable — shimming');
-          return;
-        }
-        interface SlaWorkerInstance {
-          tick?: () => Promise<void> | void;
-        }
-        type SlaWorkerNew = new (opts: { config: unknown }) => SlaWorkerInstance;
-        const w = new (CaseSLAWorker as SlaWorkerNew)({ config });
-        await (w.tick ? w.tick() : Promise.resolve());
-      }
-    : shim('runSlaWorker', shimmed, 'DATABASE_URL missing');
+  // REMOVED (borjie hard-fork): the cases SLA worker. The residential-property
+  // `cases` table was dropped in 0003_mining_domain.sql and mining uses the
+  // `grievances` subsystem; CaseSLAWorker no longer exists. The `sla-worker`
+  // job stays registered as a benign no-op (NOT a shim — there is no missing
+  // input to recover, so health stays 'healthy') until a mining-domain SLA
+  // worker replaces it. Reference: `void config` to keep the binding typed.
+  const slaWorker = async () => {
+    void config;
+  };
 
   const vendorRating = hasDb
     ? async () => {

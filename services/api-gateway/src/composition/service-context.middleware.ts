@@ -130,18 +130,9 @@ export function createServiceContextMiddleware(registry: ServiceRegistry) {
         c.set('arrearsEntryLoader', registry.arrears.entryLoader);
       }
 
-      // Wave 26 — Cases router reads `caseService` / `caseRepo` off
-      // the context when it wants the domain aggregate (timeline +
-      // notices + evidence + resolution rolled together) instead of
-      // the raw SQL row shape the legacy handlers return. Both keys
-      // stay absent in degraded mode so the legacy raw-SQL path
-      // continues to serve a 2xx response.
-      if (registry.cases?.service) {
-        c.set('caseService', registry.cases.service);
-      }
-      if (registry.cases?.repo) {
-        c.set('caseRepo', registry.cases.repo);
-      }
+      // REMOVED (borjie hard-fork): the `caseService` / `caseRepo` context
+      // wiring — residential-property residue; the `cases` table was dropped
+      // in 0003_mining_domain.sql.
       // Wave 9 — feature flags, GDPR, AI cost ledger pulled via
       // `services.featureFlags`, `services.gdpr`, `services.aiCostLedger`
       // — the routers read those keys off `c.get('services')` already.

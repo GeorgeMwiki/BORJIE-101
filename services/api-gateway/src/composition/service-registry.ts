@@ -143,10 +143,10 @@ import {
   MigrationService,
   PostgresMigrationRepository,
 } from '@borjie/domain-services/migration';
-import {
-  CaseService,
-  PostgresCaseRepository,
-} from '@borjie/domain-services/cases';
+// REMOVED (borjie hard-fork): CaseService + PostgresCaseRepository — the
+// residential-property `cases` table was dropped in 0003_mining_domain.sql;
+// mining uses `grievances`. (The Sublease + DamageDeduction namespaces from
+// the same subpath survive — imported below.)
 import { InMemoryEventBus, type EventBus } from '@borjie/domain-services';
 
 // Wave 8 — Warehouse inventory (S7), Maintenance taxonomy (S7), IoT (S3).
@@ -822,16 +822,8 @@ export interface ServiceRegistry {
     readonly entryLoader: ArrearsEntryLoader | null;
   };
 
-  /** Cases — dispute / legal / maintenance case lifecycle. Wave 26 wiring
-   *  of the previously-dark PostgresCaseRepository + CaseService +
-   *  CaseSLAWorker triad. `service` is the domain service (used by
-   *  routers + SLA worker); `repo` is the Postgres adapter (exposed for
-   *  routers that need raw reads without the service overhead). Both
-   *  null in degraded mode. */
-  readonly cases: {
-    readonly service: CaseService | null;
-    readonly repo: PostgresCaseRepository | null;
-  };
+  // REMOVED (borjie hard-fork): the `cases` registry slot — residential-property
+  // residue; the `cases` table was dropped in 0003_mining_domain.sql.
 
   /** Wave 12 — AI copilot subsystems wired into the composition root. */
   readonly mcp: BorjieMcpServer | null;
@@ -2020,10 +2012,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
       ledgerPort: null,
       entryLoader: null,
     },
-    cases: {
-      service: null,
-      repo: null,
-    },
+    // REMOVED (borjie hard-fork): the `cases` degraded-mode slot.
     mcp: null,
     agentCertification: null,
     training: null,
@@ -2489,23 +2478,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   });
   const arrearsEntryLoader = createPostgresArrearsEntryLoader(db);
 
-  // Wave 26 — Cases domain service + Postgres repo. The repo implements
-  // `Partial<CaseRepository>` with the surface the SLA worker + service
-  // need (createCase/findById/update/findOverdue/appendTimelineEvent)
-  // backed by the real `cases` table. The service publishes the
-  // CaseCreated/Escalated/Resolved event stream through the shared
-  // composition-root bus so downstream subscribers (notifications,
-  // autonomy audit) see them without any extra wiring.
-  //
-  // The Postgres adapter advertises `Partial<CaseRepository>` but
-  // implements every method actually invoked by the service + worker
-  // (verified in postgres-case-repository.test.ts). We cast to the
-  // full interface at the composition-root boundary only.
-  const caseRepo = new PostgresCaseRepository(db as unknown as never);
-  const caseService = new CaseService(
-    caseRepo as unknown as Parameters<typeof CaseService['prototype']['attachRepository']>[0],
-    eventBus,
-  );
+  // REMOVED (borjie hard-fork): the Cases domain service + Postgres repo —
+  // residential-property residue; the `cases` table was dropped in
+  // 0003_mining_domain.sql and mining uses the `grievances` subsystem.
 
   // Wave 9 — Feature flags (per-tenant gating of platform capabilities).
   const featureFlagsRepo = new DrizzleFeatureFlagsRepository(db);
@@ -2832,7 +2807,6 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   // run on every execution.
   const taskAgentServicesBag: Record<string, unknown> = {
     arrearsService,
-    caseService,
     renewalService,
     migrationService,
     occupancyTimelineService,
@@ -2920,10 +2894,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       ledgerPort: arrearsLedgerPort,
       entryLoader: arrearsEntryLoader,
     },
-    cases: {
-      service: caseService,
-      repo: caseRepo,
-    },
+    // REMOVED (borjie hard-fork): the `cases` registry assignment.
     // `mcp` is filled in by `buildServices` after the registry is
     // constructed, because the MCP server takes the populated registry
     // as input. We place a `null` here and patch it post-return.
