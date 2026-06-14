@@ -158,7 +158,7 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
   return { state, send, abort, resetTranscript };
 }
 
-function applyEvent(
+export function applyEvent(
   event: string,
   payload: unknown,
   onDelta: (text: string) => void,
@@ -184,15 +184,40 @@ function applyEvent(
   return event === 'done';
 }
 
-function normaliseLiveEvent(name: string): string {
-  if (name === 'message_chunks') return 'delta';
+export function normaliseLiveEvent(name: string): string {
+  // The live gateway emits the SINGULAR contract names
+  // (`message_chunk` / `junior_call` — see chat-schemas.ts). The plural
+  // aliases are kept only for back-compat with older stream replays.
+  if (name === 'message_chunk' || name === 'message_chunks') return 'delta';
   if (name === 'junior_calls' || name === 'junior_call') return 'breadcrumb';
   if (name === 'evidence_ids' || name === 'evidence_id') return 'evidence';
   return name;
 }
 
-function remapLiveData(name: string, data: unknown): unknown {
+export function remapLiveData(name: string, data: unknown): unknown {
   if (!isRecord(data)) return data;
+  // Live (singular) contract — see services/api-gateway .../chat-schemas.ts:
+  //   message_chunk → { text, evidence_ids, confidence, done }
+  //   junior_call   → { junior, intent, status, evidence_ids, confidence }
+  if (name === 'message_chunk') {
+    return {
+      text: typeof data.text === 'string' ? data.text : '',
+      ids: Array.isArray(data.evidence_ids) ? data.evidence_ids : [],
+    };
+  }
+  if (name === 'junior_call') {
+    return {
+      agent: typeof data.junior === 'string' ? data.junior : 'agent',
+      action:
+        typeof data.intent === 'string'
+          ? data.intent
+          : typeof data.status === 'string'
+            ? data.status
+            : 'run',
+      latencyMs: 0,
+    };
+  }
+  // Back-compat (plural) aliases for older stream replays.
   if (name === 'message_chunks') {
     return { text: typeof data.chunk === 'string' ? data.chunk : '' };
   }

@@ -57,6 +57,27 @@ describe('sealAuditChain', () => {
     sealAuditChain(original);
     expect((original.history[0] as { hash?: string }).hash).toBeUndefined();
   });
+
+  it('fails CLOSED on a malformed audit (missing/non-array history) instead of throwing', () => {
+    // A malformed tab body reaches the persist chokepoint with no well-formed
+    // `audit.history`. sealAuditChain must NOT throw a raw TypeError (it would
+    // leak a stack-shaped error and surface as a 500); it returns an empty,
+    // hashless history so the downstream admission rules can reject cleanly.
+    expect(() =>
+      sealAuditChain(undefined as unknown as PortalTabAudit),
+    ).not.toThrow();
+    expect(() =>
+      sealAuditChain({} as unknown as PortalTabAudit),
+    ).not.toThrow();
+    expect(() =>
+      sealAuditChain({ history: null } as unknown as PortalTabAudit),
+    ).not.toThrow();
+
+    const sealed = sealAuditChain({
+      history: 'not-an-array',
+    } as unknown as PortalTabAudit);
+    expect(sealed.history).toEqual([]);
+  });
 });
 
 describe('verifyAuditChain', () => {
