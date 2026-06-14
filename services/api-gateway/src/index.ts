@@ -237,7 +237,7 @@ import {
 } from './composition/org-loop/org-loop-orchestrator';
 import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
 import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
-import { withServiceRoleContext } from '@borjie/database';
+import { withServiceRoleContext, withTenantContext } from '@borjie/database';
 import { tapCockpitEvents } from './services/cockpit-events';
 // HITL approval consumer — the owner's approve/dismiss verbs over parked
 // HIGH/sovereign org-loop runs (late-bound to the orchestrator; 503 until
@@ -569,6 +569,13 @@ import graphRouter from './routes/graph.router';
 // but never mounted — admin-web's mission-eval CoT panel had no backend. Now
 // reachable at /admin/cot-query/query.
 import cotQueryRouter from './routes/cot-query.router';
+// Persona-drift events read surface (KI-011). admin-web's persona-drift screen
+// polls GET /api/v1/persona-drift/events; the route was never mounted, so the
+// screen showed a permanent "Could not load" alert. Admin-role + tenant-scoped
+// (RLS-bound) read of the persisted kernel_persona_drift_events breaches.
+import createPersonaDriftRouter, {
+  type PersonaDriftEventRow,
+} from './routes/persona-drift.router';
 // Generative jurisdiction unlock — promote a learned country into the launch
 // market (enabled_countries, migration 0337). Seeded TZ-only; new markets are a
 // governed row, not a deploy. Backs mwikila.jurisdiction.promote.
@@ -2371,6 +2378,57 @@ const portalGenuiWiring = buildPortalGenuiWiring();
       legacyPortalWiring.fileKra;
   }
 }
+// KI-011 — bind the Drizzle-backed persona-drift event source onto the SAME
+// serviceRegistry the service-context middleware closed over (the persona-drift
+// route reads `services.personaDriftEventSource`). The read is RLS-bound: it
+// runs inside `withTenantContext(db, tenantId)` so the tenant-isolation policy
+// on `kernel_persona_drift_events` (migration 0305, FORCE RLS on
+// app.current_tenant_id) returns exactly that tenant's breaches. Tenant-scoped
+// read, NOT a cross-tenant scan — no service-role bypass. When DATABASE_URL is
+// unset the slot stays empty and the route returns an honest `{ data: [] }`.
+{
+  const driftDb = serviceRegistry.db;
+  if (driftDb) {
+    (serviceRegistry as { personaDriftEventSource?: unknown }).personaDriftEventSource =
+      {
+        async list(args: {
+          readonly tenantId: string;
+          readonly limit: number;
+        }): Promise<ReadonlyArray<PersonaDriftEventRow>> {
+          return withTenantContext(driftDb, args.tenantId, async (tx) => {
+            const res = await tx.execute(drizzleSqlTag`
+              SELECT id, persona_id, violation_type, severity, excerpt, detected_at
+                FROM kernel_persona_drift_events
+               WHERE tenant_id = ${args.tenantId}
+               ORDER BY detected_at DESC
+               LIMIT ${args.limit}`);
+            const rows =
+              (res as { rows?: Array<Record<string, unknown>> }).rows ??
+              (Array.isArray(res) ? (res as Array<Record<string, unknown>>) : []);
+            return rows.map((r): PersonaDriftEventRow => {
+              const excerpt = String(r.excerpt ?? '');
+              // The excerpt is shaped `…drift: dim <name> drifted by …` by the
+              // emitter (persona-drift/alert.ts). Surface the worst-dim hint when
+              // the marker is present; the client renders '—' when absent.
+              const dimMatch = excerpt.match(/dim ([a-z0-9_]+) drifted/i);
+              return {
+                id: String(r.id ?? ''),
+                personaId: String(r.persona_id ?? ''),
+                violationType: String(r.violation_type ?? ''),
+                excerpt,
+                severity: (r.severity as 'low' | 'medium' | 'high') ?? 'low',
+                detectedAt:
+                  r.detected_at instanceof Date
+                    ? r.detected_at.toISOString()
+                    : String(r.detected_at ?? ''),
+                ...(dimMatch ? { worstDim: dimMatch[1] } : {}),
+              };
+            });
+          });
+        },
+      };
+  }
+}
 // W2a — optional tenant-scoped read port for LIVE widget-data (mapped estate
 // domains). Same `$client.unsafe(sql, params)` boundary the record store uses;
 // RLS FORCE on app.current_tenant_id isolates in the DB. Unbound in dev/test →
@@ -3243,6 +3301,10 @@ api.route('/junior-ai', juniorAIRouter);
 api.route('/graph', graphRouter);
 // Regulator-facing CoT reservoir read-back (DSAR / accountability surface).
 api.route('/admin/cot-query', cotQueryRouter());
+// KI-011 — persona-drift events read surface for admin-web. Mounted at
+// /api/v1/persona-drift/events (the literal the client polls). Admin-role +
+// tenant-scoped (RLS-bound) read of persisted kernel_persona_drift_events.
+api.route('/persona-drift', createPersonaDriftRouter());
 // Generative jurisdiction unlock — the governed launch-market registry.
 api.route('/admin/jurisdictions', createJurisdictionPromotionRouter());
 // Universal integration fabric — un-darks the 21 connector packages behind
