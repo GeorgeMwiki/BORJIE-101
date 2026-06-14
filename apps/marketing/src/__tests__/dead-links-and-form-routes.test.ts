@@ -77,3 +77,46 @@ describe('status board fails loud instead of same-origining', () => {
     expect(src).not.toMatch(/return\s*'';/);
   });
 });
+
+describe('KI-016 — audience pages are reachable (no orphan landing pages)', () => {
+  const nav = read('components/Nav.tsx');
+  // The 3 previously-orphaned (built-but-unlinked) audience pages.
+  const NEWLY_LINKED = ['/for-csr-community', '/for-bank', '/for-family-office'];
+
+  it('each newly-linked audience page appears in the "Who we serve" Nav', () => {
+    for (const href of NEWLY_LINKED) {
+      expect(nav, `${href} should be a Nav audience href`).toContain(
+        `href: '${href}'`,
+      );
+    }
+  });
+
+  it('each newly-linked audience page appears in the sitemap', () => {
+    const sitemap = read('app/sitemap.ts');
+    for (const href of NEWLY_LINKED) {
+      expect(sitemap, `${href} should be in sitemap`).toContain(`${href}\``);
+    }
+  });
+
+  it('every Nav audience href resolves to a real page.tsx (no dead links)', () => {
+    const re = /href:\s*'(\/(?:for-[a-z-]+|buyers))'/g;
+    const hrefs = new Set<string>();
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(nav)) !== null) {
+      if (m[1]) hrefs.add(m[1]);
+    }
+    // Guard against the regex silently matching nothing.
+    expect(hrefs.size).toBeGreaterThanOrEqual(NEWLY_LINKED.length);
+    for (const href of hrefs) {
+      const pageFile = join(SRC, 'app', href.replace(/^\//, ''), 'page.tsx');
+      expect(existsSync(pageFile), `${href} → ${pageFile}`).toBe(true);
+    }
+  });
+
+  it('the /for-buyer duplicate of /buyers was deleted', () => {
+    expect(existsSync(join(SRC, 'app/for-buyer/page.tsx'))).toBe(false);
+    // ...and nothing links to the removed route.
+    expect(nav).not.toContain("'/for-buyer'");
+    expect(read('app/sitemap.ts')).not.toContain('/for-buyer`');
+  });
+});

@@ -12,10 +12,21 @@ import { requirePublicBaseUrl } from '@/lib/env-guard';
  * cookie + Authorization header so HQ-tier auth can be enforced
  * upstream.
  *
- * If the gateway is unreachable (network error, ECONNREFUSED, timeout),
- * we still return 200 with `success: false` + `code = 'GATEWAY_UNREACHABLE'`
- * so the KpiTiles fetcher's em-dash fallback renders cleanly instead of
- * the user seeing a generic "failed to fetch" surface.
+ * NOTE (KI-016): the upstream `/api/v1/platform/overview` aggregator was
+ * removed in the Borjie hard-fork (it queried a deleted property-era
+ * table). Until a mining-native activeTenants source is wired, this
+ * route's only consumer is the Control Tower KPI strip
+ * (`control-tower/ControlTowerClient.tsx`), which degrades its 'Active
+ * tenants' tile to an honest em-dash when this proxy returns
+ * `success: false`. The orphaned `/platform/overview` page + its dead
+ * StaffNav link were deleted in the same cleanup. This stays an
+ * honest-degrade shim rather than 404-ing the live caller.
+ *
+ * If the gateway is unreachable (network error, ECONNREFUSED, timeout)
+ * or the upstream route is absent, we still return 200 with
+ * `success: false` + `code = 'GATEWAY_UNREACHABLE'` so the caller's
+ * em-dash fallback renders cleanly instead of the user seeing a generic
+ * "failed to fetch" surface.
  *
  * `API_GATEWAY_URL` is required in production — `requirePublicBaseUrl`
  * throws at request time when NODE_ENV === 'production' and the env var

@@ -53,7 +53,13 @@
       "investors": "Wawekezaji na wakopeshaji",
       "investorsDesc": "Mtaji wa madini ukiwa na taarifa za kila siku.",
       "regulators": "Wadhibiti na wizara",
-      "regulatorsDesc": "Tumemadini, NEMC, BoT, TRA usimamizi."
+      "regulatorsDesc": "Tumemadini, NEMC, BoT, TRA usimamizi.",
+      "csrCommunity": "Washirika wa CSR na jamii",
+      "csrCommunityDesc": "Jamii zinazokaribisha, ustawi wa AMCOS, maudhui ya ndani.",
+      "bank": "Benki na wakopeshaji",
+      "bankDesc": "Mikopo midogo na benki zinazodhamini dhamana za migodi.",
+      "familyOffice": "Familia za biashara",
+      "familyOfficeDesc": "Utajiri wa migodi kwa vizazi na urithi."
     }
   },
   "audienceSwitcher": {

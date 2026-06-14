@@ -15,6 +15,8 @@ import {
   Landmark,
   Users,
   Wallet,
+  Briefcase,
+  HeartHandshake,
   Menu,
   X,
   FileText,
@@ -80,6 +82,7 @@ const AUDIENCE_CATEGORIES: readonly AudienceCategory[] = [
     titleKey: 'ecosystem',
     items: [
       { id: 'cooperatives', href: '/for-cooperatives', icon: Users },
+      { id: 'csrCommunity', href: '/for-csr-community', icon: HeartHandshake },
       { id: 'regulators', href: '/for-regulator', icon: Landmark },
     ],
   },
@@ -87,6 +90,8 @@ const AUDIENCE_CATEGORIES: readonly AudienceCategory[] = [
     titleKey: 'capital',
     items: [
       { id: 'investors', href: '/for-investor', icon: Wallet },
+      { id: 'bank', href: '/for-bank', icon: Building2 },
+      { id: 'familyOffice', href: '/for-family-office', icon: Briefcase },
     ],
   },
 ];
