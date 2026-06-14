@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
-import { ActivityIndicator, StyleSheet, Text, TextInput, View } from 'react-native'
-import { useMutation } from '@tanstack/react-query'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { RoleGuard } from '../../src/components/RoleGuard'
@@ -15,15 +15,16 @@ import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-18'
-const MISSING_LIST_ENDPOINT = 'GET /api/v1/mining/documents'
 
 const COPY = {
   loading: 'Inasaini... · Signing...',
+  listLoading: 'Inapakia hati... · Loading documents...',
   errorPrefix: 'Hitilafu: ',
-  missing: `Endpoint ya orodha haijaundwa: ${MISSING_LIST_ENDPOINT}`,
+  listError: 'Imeshindwa kupakia hati. · Failed to load documents.',
+  empty: 'Hakuna hati za kusaini. · No documents to sign.',
   signOk: 'Hati imesainiwa kwenye seva.',
   signQueued: 'Sahihi imehifadhiwa offline kwa sync.',
-  hint: 'Weka rejeleo la hati uliyopewa na meneja, kisha bonyeza saini.'
+  hint: 'Chagua hati uliyopewa na meneja, kisha bonyeza saini.'
 } as const
 
 interface DocumentRow {
@@ -32,6 +33,11 @@ interface DocumentRow {
   readonly status: string
   readonly verifiedAt: string | null
   readonly verifiedBy: string | null
+}
+
+interface DocumentsListResponse {
+  readonly success: true
+  readonly data: ReadonlyArray<DocumentRow>
 }
 
 interface SignResponse {
@@ -57,9 +63,18 @@ export default function Screen(): JSX.Element {
 function DocumentSigning(): JSX.Element {
   const { user } = useAuth()
   const { online } = useOnlineStatus()
+  const queryClient = useQueryClient()
   const [docId, setDocId] = useState<string>('')
   const [signedDocId, setSignedDocId] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<'idle' | 'ok' | 'queued'>('idle')
+
+  const docsQuery = useQuery<ReadonlyArray<DocumentRow>, ApiError>({
+    queryKey: ['mining', 'documents', 'signable'],
+    queryFn: async ({ signal }) => {
+      const resp = await miningApi.get<DocumentsListResponse>('/documents', { signal })
+      return resp.data ?? []
+    }
+  })
 
   const mutation = useMutation<DocumentRow, ApiError, SignPayload>({
     mutationFn: async (input) => {
@@ -70,10 +85,11 @@ function DocumentSigning(): JSX.Element {
       })
       return resp.data
     },
-    onSuccess: (row) => {
+    onSuccess: async (row) => {
       setSignedDocId(row.id)
       setConfirmation('ok')
       setDocId('')
+      await queryClient.invalidateQueries({ queryKey: ['mining', 'documents', 'signable'] })
     },
     onError: async (error, input) => {
       if (error.status === 0 || !online) {
@@ -102,24 +118,38 @@ function DocumentSigning(): JSX.Element {
   const submitError = mutation.error
   const networkError = submitError?.status === 0 || submitError?.status === 503
   const notFound = submitError?.status === 404
+  const docs = docsQuery.data ?? []
 
   return (
     <View>
       <Section title="Hati za rasmi">
-        <PreviewBanner kind="env-missing" />
-        <Text style={styles.missing}>{COPY.missing}</Text>
         <Text style={styles.muted}>{COPY.hint}</Text>
-        <Text style={styles.label}>Rejeleo la hati (Document ID)</Text>
-        <TextInput
-          accessibilityLabel="Document ID"
-          value={docId}
-          onChangeText={setDocId}
-          placeholder="mfano: 9f6d2c..."
-          placeholderTextColor={colors.textMuted}
-          autoCapitalize="none"
-          autoCorrect={false}
-          style={styles.input}
-        />
+        {docsQuery.isPending ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.muted}>{COPY.listLoading}</Text>
+          </View>
+        ) : docsQuery.isError ? (
+          <Text style={styles.errorText}>{COPY.listError}</Text>
+        ) : docs.length === 0 ? (
+          <Text style={styles.empty}>{COPY.empty}</Text>
+        ) : (
+          docs.map((doc) => {
+            const selected = docId === doc.id
+            return (
+              <Pressable
+                key={doc.id}
+                accessibilityRole="button"
+                accessibilityLabel={doc.fileName}
+                onPress={() => setDocId(doc.id)}
+                style={[styles.docRow, selected ? styles.docRowSelected : null]}
+              >
+                <Text style={styles.docTitle}>{doc.fileName}</Text>
+                <Text style={styles.docMeta}>{doc.status}</Text>
+              </Pressable>
+            )
+          })
+        )}
       </Section>
       <Section title="Saini kwa kidole">
         {confirmation === 'ok' && signedDocId ? (
@@ -138,7 +168,7 @@ function DocumentSigning(): JSX.Element {
             <Text style={styles.muted}>{COPY.loading}</Text>
           </View>
         ) : docId.trim().length === 0 ? (
-          <FingerprintPlaceholder label="Weka Document ID kwanza" />
+          <FingerprintPlaceholder label="Chagua hati kwanza" />
         ) : (
           <FingerprintPlaceholder label="Saini kwa kidole" onSign={onSign} />
         )}
@@ -158,27 +188,31 @@ const styles = StyleSheet.create({
     fontSize: fontSize.body,
     marginTop: spacing.sm
   },
-  missing: {
-    color: colors.warn,
-    fontSize: fontSize.caption,
-    fontWeight: '700',
+  empty: {
+    color: colors.textMuted,
+    fontSize: fontSize.body,
     marginTop: spacing.sm
   },
-  label: {
-    color: colors.text,
-    fontSize: fontSize.body,
-    fontWeight: '600',
-    marginTop: spacing.md,
-    marginBottom: spacing.xs
-  },
-  input: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
+  docRow: {
     padding: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginTop: spacing.sm
+  },
+  docRowSelected: {
+    borderColor: colors.gold
+  },
+  docTitle: {
     color: colors.text,
-    backgroundColor: colors.surface,
-    fontSize: fontSize.body
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  docMeta: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    marginTop: spacing.xs
   },
   preview: {
     padding: spacing.lg,

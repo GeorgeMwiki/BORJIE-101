@@ -94,21 +94,17 @@ function describeBody(item: InboxItem, sw: boolean): string {
 }
 
 function deepLinkFor(item: InboxItem): DeepLink | null {
-  const payload = item.payload as Record<string, unknown>
   if (item.kind === 'task.assigned') {
-    const id = typeof payload.taskId === 'string' ? payload.taskId : null
-    if (id) return { href: `/(worker)/task/${id}` }
+    return { href: `/(tabs)/field` }
   }
   if (item.kind === 'safety.incident_reported' || item.kind === 'incident.escalated') {
-    const id = typeof payload.incidentId === 'string' ? payload.incidentId : null
-    if (id) return { href: `/(worker)/incident-report` }
+    return { href: `/(worker)/incident-report` }
   }
   if (item.kind === 'payroll.committed') {
     return { href: `/(worker)/payslip` }
   }
   if (item.kind === 'rfb.dispatched') {
-    const id = typeof payload.rfbId === 'string' ? payload.rfbId : null
-    if (id) return { href: `/(manager)/rfb/${id}` }
+    return { href: `/(manager)/tasks` }
   }
   return null
 }

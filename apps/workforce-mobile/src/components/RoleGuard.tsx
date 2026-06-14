@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Redirect } from 'expo-router'
 import { useAuth } from '../auth/useAuth'
+import { useI18n } from '../i18n/useI18n'
 import { canSee } from '../roles/access'
 import { colors } from '../theme/colors'
 import { fontSize, spacing } from '../theme/spacing'
@@ -18,6 +19,7 @@ export interface RoleGuardProps {
  */
 export function RoleGuard({ screenId, children }: RoleGuardProps): JSX.Element {
   const { user, ready } = useAuth()
+  const { t } = useI18n()
 
   if (!ready) {
     return <View style={styles.bg} />
@@ -26,24 +28,25 @@ export function RoleGuard({ screenId, children }: RoleGuardProps): JSX.Element {
     return <Redirect href="/onboarding/role" />
   }
   if (!canSee(screenId, user.role)) {
+    // Owner-area screens (O-M-*, M-*) are scoped to owner / manager; the
+    // worker (W-*) screens to worker / manager. Pick the matching message
+    // so the card reads naturally in the active locale.
+    const message = isOwnerAreaScreen(screenId)
+      ? t.roleGuard.messageOwnerManager
+      : t.roleGuard.messageWorkerManager
     return (
       <View style={styles.forbidden}>
         <Text style={styles.code}>{screenId}</Text>
-        <Text style={styles.title}>Hauruhusiwi</Text>
-        <Text style={styles.message}>
-          Skrini hii inaonekana kwa {accessLabel(screenId)} pekee.
-        </Text>
+        <Text style={styles.title}>{t.roleGuard.title}</Text>
+        <Text style={styles.message}>{message}</Text>
       </View>
     )
   }
   return <>{children}</>
 }
 
-function accessLabel(screenId: string): string {
-  if (screenId.startsWith('O-M-')) {
-    return 'mmiliki / meneja'
-  }
-  return 'mfanyakazi / meneja'
+function isOwnerAreaScreen(screenId: string): boolean {
+  return screenId.startsWith('O-M-') || screenId.startsWith('M-')
 }
 
 const styles = StyleSheet.create({

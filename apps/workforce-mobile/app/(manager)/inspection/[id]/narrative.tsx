@@ -17,6 +17,7 @@ import { useLocalSearchParams } from 'expo-router'
 
 import { ScreenShell } from '../../../../src/components/ScreenShell'
 import { Section } from '../../../../src/components/Section'
+import { RoleGuard } from '../../../../src/components/RoleGuard'
 import { Button } from '../../../../src/forms/Button'
 import { useI18n } from '../../../../src/i18n/useI18n'
 import { colors } from '../../../../src/theme/colors'
@@ -51,6 +52,14 @@ interface NarrativeRow {
 }
 
 export default function InspectionNarrativeScreen(): JSX.Element {
+  return (
+    <RoleGuard screenId={SCREEN_ID}>
+      <InspectionNarrativeView />
+    </RoleGuard>
+  )
+}
+
+function InspectionNarrativeView(): JSX.Element {
   const params = useLocalSearchParams<{ id: string }>()
   const inspectionId = String(params.id ?? '')
   const { lang } = useI18n()

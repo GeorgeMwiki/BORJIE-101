@@ -18,6 +18,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native'
 import { router, useLocalSearchParams } from 'expo-router'
 import { ScreenShell } from '../../../../src/components/ScreenShell'
 import { Section } from '../../../../src/components/Section'
+import { RoleGuard } from '../../../../src/components/RoleGuard'
 import { Button } from '../../../../src/forms/Button'
 import { useAssignTaskToWorker } from '../../../../src/manager/useManagerTasks'
 import { useI18n } from '../../../../src/i18n/useI18n'
@@ -29,6 +30,14 @@ const SCREEN_ID = 'M-M-02'
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export default function AssignTaskScreen(): JSX.Element {
+  return (
+    <RoleGuard screenId={SCREEN_ID}>
+      <AssignTaskView />
+    </RoleGuard>
+  )
+}
+
+function AssignTaskView(): JSX.Element {
   const params = useLocalSearchParams<{ id: string }>()
   const taskId = String(params.id ?? '')
   const assign = useAssignTaskToWorker()

@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 
 /**
@@ -73,6 +75,31 @@ describe('workforce-mobile superpowers/navigate', () => {
     navigateToTarget({ route: '/(owner)/secret', label: 'Nope' })
     unsub()
     expect(handler).not.toHaveBeenCalled()
+  })
+
+  // Regression guard (Mode-C): SearchFab default targets must (a) pass the
+  // worker persona gate and (b) resolve to a real Expo route file. The
+  // earlier `/(worker)/tasks` + `/(worker)/safety` targets 404'd because no
+  // such screen existed under app/(worker)/.
+  it('every default worker target is allowed and resolves to a real route', async () => {
+    const { DEFAULT_WORKER_TARGETS, isWorkerAllowedRoute } = await import('../navigate')
+    // Map a route string to candidate on-disk Expo route files.
+    const appDir = resolve(__dirname, '../../../app')
+    const routeExists = (route: string): boolean => {
+      // Strip a leading slash; group segments like "(tabs)" are real dirs.
+      const rel = route.replace(/^\//, '')
+      const base = resolve(appDir, rel)
+      return (
+        existsSync(`${base}.tsx`) ||
+        existsSync(resolve(base, 'index.tsx')) ||
+        // Group-only route (e.g. "/(tabs)") resolves via its _layout.
+        existsSync(resolve(base, '_layout.tsx'))
+      )
+    }
+    for (const target of DEFAULT_WORKER_TARGETS) {
+      expect(isWorkerAllowedRoute(target.route), `${target.route} not allowed`).toBe(true)
+      expect(routeExists(target.route), `${target.route} missing on disk`).toBe(true)
+    }
   })
 })
 
