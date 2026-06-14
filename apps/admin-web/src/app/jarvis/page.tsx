@@ -1,5 +1,5 @@
 /**
- * /jarvis — Nyumba Mind for the Borjie HQ operator.
+ * /jarvis — Mr. Mwikila for the Borjie HQ operator.
  *
  * Every internal admin gets their own first-person AI counterpart
  * sitting on top of the central-intelligence brain kernel. This page
@@ -11,7 +11,7 @@
 import { JarvisConsole } from './JarvisConsole';
 
 export const metadata = {
-  title: 'Nyumba Mind · Borjie HQ',
+  title: 'Mr. Mwikila · Borjie HQ',
 };
 
 /**
@@ -27,7 +27,7 @@ export default function JarvisPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="border-b border-border bg-surface px-6 py-4">
-        <h1 className="text-xl font-semibold text-foreground">Nyumba Mind</h1>
+        <h1 className="text-xl font-semibold text-foreground">Mr. Mwikila</h1>
         <p className="text-sm text-muted-foreground">
           Your personal AI counterpart for the Borjie platform.
         </p>

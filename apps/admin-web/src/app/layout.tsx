@@ -17,6 +17,7 @@ import { AdminShellGate } from '@/components/admin-shell/AdminShellGate';
 import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export const metadata: Metadata = {
   title: {
@@ -51,13 +52,17 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Single source of truth for the active language — the `borjie_locale`
+  // cookie (default 'en'). The always-on chrome (feedback pill) reads from
+  // this so the console never leaks the inactive language onto a page.
+  const locale = await readLocaleFromServerCookies();
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         {/* Inline FOUC defeat — read borjie-theme localStorage and stamp
             the correct class on <html> before React hydrates. */}
@@ -103,8 +108,11 @@ export default function RootLayout({
                   `public/offline.html`. */}
               <ServiceWorkerRegister />
               {/* Pilot feedback widget — fixed bottom-right pill for the
-                  admin console. POSTs to /api/v1/pilot/feedback. */}
-              <FeedbackButton />
+                  admin console. POSTs to /api/v1/pilot/feedback. Language
+                  follows the resolved `borjie_locale` (default 'en') — same
+                  source as the chrome so the pill never leaks the inactive
+                  language. */}
+              <FeedbackButton lang={locale} />
             </SensoriumProvider>
           </SessionReplayProvider>
         </ThemeProvider>
