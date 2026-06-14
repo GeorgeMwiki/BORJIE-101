@@ -3,9 +3,11 @@
  *
  * Mounted under `/api/v1/public/status`. Powers the marketing status
  * page. Reads the last 90 days of samples from `service_status_history`
- * (RLS disabled, public-readable). Falls back to deterministic
- * placeholder data when DATABASE_URL is unset so the marketing site
- * keeps rendering even in degraded dev environments.
+ * (RLS disabled, public-readable). When DATABASE_URL is unset (or the
+ * query fails) there is no data to report, so it falls back to an
+ * HONEST all-`unknown` board (0% uptime, overall `unknown`) — never a
+ * fabricated all-green — so the marketing site keeps rendering without
+ * lying about uptime in degraded/dev environments.
  *
  * Response shape is intentionally narrow — the page only needs the
  * current rollup per component and a 90-day timeline of daily worst-status.
@@ -86,16 +88,24 @@ function emptyHistory(): HistoryDay[] {
   return out;
 }
 
-function placeholderResponse(): StatusResponse {
+/**
+ * Honest no-data response. When we cannot read `service_status_history`
+ * (DATABASE_URL unset, or the query failed) we have ZERO measurements —
+ * so every component reports `unknown`, the 90-day strip is all-unknown,
+ * and uptime is 0 (not a fabricated 100%). Claiming "All systems
+ * operational / 100% uptime" off no data is a lie; `unknown` tells the
+ * truth and the UI already renders it with a neutral state + label.
+ */
+function unknownResponse(): StatusResponse {
   const components = COMPONENTS.map<ComponentSummary>((component) => ({
     component,
-    current: 'ok',
+    current: 'unknown',
     lastChangedAt: null,
-    history: emptyHistory().map((d) => ({ ...d, status: 'ok' })),
-    uptimePct: 100,
+    history: emptyHistory(),
+    uptimePct: 0,
   }));
   return {
-    overall: 'ok',
+    overall: 'unknown',
     components,
     generatedAt: new Date().toISOString(),
     windowDays: WINDOW_DAYS,
@@ -212,18 +222,22 @@ app.get('/', async (c) => {
   const databaseUrl = process.env.DATABASE_URL?.trim();
   let payload: StatusResponse;
   if (!databaseUrl) {
-    payload = placeholderResponse();
+    // No data source configured — we cannot assert any component is up,
+    // so report an honest all-`unknown` board rather than a fake all-green.
+    payload = unknownResponse();
   } else {
     try {
       payload = await loadFromDb(databaseUrl);
     } catch {
-      // On DB failure, surface a degraded "database" component so the
-      // page still tells the truth, without erroring the route.
-      payload = placeholderResponse();
+      // On DB failure, surface a degraded "database" component and leave
+      // every other component `unknown` (we just lost our only data
+      // source — we cannot claim the rest are healthy). The page still
+      // tells the truth without erroring the route.
+      const base = unknownResponse();
       payload = {
-        ...payload,
+        ...base,
         overall: 'degraded',
-        components: payload.components.map((comp) =>
+        components: base.components.map((comp) =>
           comp.component === 'database'
             ? { ...comp, current: 'degraded', uptimePct: 0 }
             : comp

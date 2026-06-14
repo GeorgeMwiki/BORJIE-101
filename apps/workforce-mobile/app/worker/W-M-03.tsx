@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { ScreenShell } from '../../src/components/ScreenShell'
 import { Section } from '../../src/components/Section'
 import { FingerprintPlaceholder } from '../../src/components/FingerprintPlaceholder'
@@ -11,20 +11,33 @@ import { ApiError } from '../../src/api/errors'
 import { useOnlineStatus } from '../../src/offline/useOnlineStatus'
 import { useAuth } from '../../src/auth/useAuth'
 import { enqueueWrite } from '../../src/sync/queue'
+import { useI18n } from '../../src/i18n/useI18n'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
 const SCREEN_ID = 'W-M-03'
-const MISSING_ENDPOINT = 'GET /api/v1/mining/attendance/toolbox-topics'
 
 const COPY = {
   loading: 'Inapakia mada za toolbox... · Loading briefing topics...',
   empty: 'Hakuna mada za toolbox bado. · No toolbox topics yet.',
+  loadError: 'Imeshindwa kupakia mada. · Failed to load topics.',
   errorPrefix: 'Hitilafu: ',
-  missing: `Endpoint haijaundwa: ${MISSING_ENDPOINT}`,
   ackOk: 'Briefing imethibitishwa kwenye seva.',
   ackQueued: 'Briefing imehifadhiwa kwa sync ya baadaye.'
 } as const
+
+interface ToolboxTopicRow {
+  readonly id: string
+  readonly topicSw: string
+  readonly topicEn: string | null
+  readonly briefingNotesSw: string | null
+  readonly scheduledFor: string | null
+}
+
+interface ToolboxTopicsResponse {
+  readonly success: true
+  readonly data: { readonly items: ReadonlyArray<ToolboxTopicRow> }
+}
 
 interface CheckInRequest {
   readonly employeeId: string
@@ -54,7 +67,19 @@ export default function Screen(): JSX.Element {
 function BriefingView(): JSX.Element {
   const { user } = useAuth()
   const { online } = useOnlineStatus()
+  const { lang } = useI18n()
+  const isSw = lang === 'sw'
   const [signedFlag, setSignedFlag] = useState<'idle' | 'ok' | 'queued'>('idle')
+
+  const topicsQuery = useQuery<ReadonlyArray<ToolboxTopicRow>, ApiError>({
+    queryKey: ['mining', 'attendance', 'toolbox-topics'],
+    queryFn: async ({ signal }) => {
+      const resp = await miningApi.get<ToolboxTopicsResponse>('/attendance/toolbox-topics', {
+        signal
+      })
+      return resp.data?.items ?? []
+    }
+  })
 
   const mutation = useMutation<AttendanceRow, ApiError, CheckInRequest>({
     mutationFn: async (input) =>
@@ -95,12 +120,33 @@ function BriefingView(): JSX.Element {
     return null
   }, [signedFlag])
 
+  const topics = topicsQuery.data ?? []
+
   return (
     <View>
       <Section title="Mada za toolbox">
-        <PreviewBanner kind="env-missing" />
-        <Text style={styles.missing}>{COPY.missing}</Text>
-        <Text style={styles.empty}>{COPY.empty}</Text>
+        {topicsQuery.isPending ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color={colors.gold} />
+            <Text style={styles.loadingText}>{COPY.loading}</Text>
+          </View>
+        ) : topicsQuery.isError ? (
+          <Text style={styles.empty}>{COPY.loadError}</Text>
+        ) : topics.length === 0 ? (
+          <Text style={styles.empty}>{COPY.empty}</Text>
+        ) : (
+          topics.map((topic) => {
+            const heading = isSw ? topic.topicSw : (topic.topicEn ?? topic.topicSw)
+            return (
+              <View key={topic.id} style={styles.topicRow}>
+                <Text style={styles.topicTitle}>{heading}</Text>
+                {isSw && topic.briefingNotesSw ? (
+                  <Text style={styles.topicNotes}>{topic.briefingNotesSw}</Text>
+                ) : null}
+              </View>
+            )
+          })
+        )}
       </Section>
       <Section title="Thibitisha kwa kidole">
         {signedFlag === 'idle' ? (
@@ -133,15 +179,25 @@ function BriefingView(): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  missing: {
-    color: colors.warn,
-    fontSize: fontSize.caption,
-    fontWeight: '700',
-    marginBottom: spacing.sm
-  },
   empty: {
     color: colors.textMuted,
     fontSize: fontSize.body
+  },
+  topicRow: {
+    padding: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    marginBottom: spacing.sm
+  },
+  topicTitle: {
+    color: colors.text,
+    fontSize: fontSize.lead,
+    fontWeight: '700'
+  },
+  topicNotes: {
+    color: colors.textMuted,
+    fontSize: fontSize.caption,
+    marginTop: spacing.xs
   },
   loadingRow: {
     flexDirection: 'row',

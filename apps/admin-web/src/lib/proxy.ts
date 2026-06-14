@@ -21,6 +21,28 @@ import { cookies, headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { PLATFORM_SESSION_COOKIE } from './session';
+import { createSupabaseServerClient } from './supabase/server';
+
+/**
+ * Read the canonical Supabase access token from the server session.
+ *
+ * Browser fetches to the `/api/platform/*` BFF routes use
+ * `credentials:'include'` and carry NO `Authorization` header, and the
+ * scaffold `borjie_platform_session` cookie is never minted — so without
+ * this the gateway (which accepts ONLY a Supabase Bearer or its own
+ * `borjie-session` cookie) 401s every wave9 governance call. Returns null
+ * when there is no session (the proxy then forwards unauthenticated and
+ * the gateway returns its normal 401).
+ */
+async function readServerBearer(): Promise<string | null> {
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Resolve the api-gateway base URL. Throws in production if unset so
@@ -71,7 +93,15 @@ async function buildForwardHeaders(
   const auth = incomingHeaders.get('authorization');
   const requestId = incomingHeaders.get('x-request-id');
   const traceId = incomingHeaders.get('x-trace-id');
-  if (auth) out.set('Authorization', auth);
+  if (auth) {
+    // Explicit service-to-service Authorization wins when present.
+    out.set('Authorization', auth);
+  } else {
+    // Browser-originated BFF call: mint the canonical Supabase Bearer from
+    // the server session so the gateway's JWT auth is satisfied.
+    const bearer = await readServerBearer();
+    if (bearer) out.set('Authorization', `Bearer ${bearer}`);
+  }
   if (requestId) out.set('x-request-id', requestId);
   if (traceId) out.set('x-trace-id', traceId);
   if (sessionCookie?.value) {

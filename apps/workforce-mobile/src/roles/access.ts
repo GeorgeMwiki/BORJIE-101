@@ -73,6 +73,15 @@ export const SCREEN_ROLE_ACCESS: Readonly<Record<string, ReadonlyArray<Role>>> =
   'W-LEAVE': ['employee', 'manager', 'owner'],
   'W-INC': ['employee', 'manager'],
 
+  // Manager screens under app/(manager)/ — manager + owner only. Without
+  // these ids canSee() returns false and the RoleGuard renders the
+  // forbidden card, keeping employees out of the manager task/inspection
+  // surfaces. M-M-01 = task queue; M-M-02 = assign task to worker;
+  // M-INS-01 = inspection narrative review.
+  'M-M-01': ['owner', 'manager'],
+  'M-M-02': ['owner', 'manager'],
+  'M-INS-01': ['owner', 'manager'],
+
   // Cross-role feature screens (no W-M / O-M prefix).
   'photo-advisor': ['owner', 'manager', 'employee'],
   // Chat-first home tab — single surface for all three roles. The persona

@@ -18,12 +18,25 @@
  */
 
 import { Hono } from 'hono';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
+import { UserRole } from '../../types/user-role';
 import { getOperatorAccessStore } from '../../break-glass/store-singleton';
 import { GrantNotFoundError } from '../../break-glass/operator-access-store';
 import { createLogger } from '../../utils/logger';
 
 const logger = createLogger('owner-break-glass');
+
+// Consenting to / denying / revoking Borjie break-glass access is an
+// owner-level governance act — it decides whether Borjie staff may touch the
+// tenant's data. Only the tenant's owner / admin (or a platform super-admin)
+// may exercise it. WITHOUT this gate ANY authenticated tenant member (incl. a
+// field worker or buyer login) could consent to staff access. The role gate is
+// the load-bearing control; reads stay broad so every member can see the log.
+const BREAK_GLASS_DECISION_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 const app = new Hono();
 app.use('*', authMiddleware);
@@ -96,9 +109,21 @@ async function lifecycle(
   }
 }
 
-app.post('/grants/:id/consent', (c: any) => lifecycle(c, 'consent'));
-app.post('/grants/:id/deny', (c: any) => lifecycle(c, 'deny'));
-app.post('/grants/:id/revoke', (c: any) => lifecycle(c, 'revoke'));
+app.post(
+  '/grants/:id/consent',
+  requireRole(...BREAK_GLASS_DECISION_ROLES),
+  (c: any) => lifecycle(c, 'consent'),
+);
+app.post(
+  '/grants/:id/deny',
+  requireRole(...BREAK_GLASS_DECISION_ROLES),
+  (c: any) => lifecycle(c, 'deny'),
+);
+app.post(
+  '/grants/:id/revoke',
+  requireRole(...BREAK_GLASS_DECISION_ROLES),
+  (c: any) => lifecycle(c, 'revoke'),
+);
 
 app.get('/access-log', async (c: any) => {
   const { tenantId } = tenantOf(c);

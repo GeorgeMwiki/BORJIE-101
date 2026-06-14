@@ -13,6 +13,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Link } from 'expo-router'
 import { ScreenShell } from '../../../src/components/ScreenShell'
 import { Section } from '../../../src/components/Section'
+import { RoleGuard } from '../../../src/components/RoleGuard'
 import { useManagerOpenTasks } from '../../../src/manager/useManagerTasks'
 import { useI18n } from '../../../src/i18n/useI18n'
 import { colors } from '../../../src/theme/colors'
@@ -21,6 +22,14 @@ import { fontSize, radius, spacing } from '../../../src/theme/spacing'
 const SCREEN_ID = 'M-M-01'
 
 export default function ManagerTasksScreen(): JSX.Element {
+  return (
+    <RoleGuard screenId={SCREEN_ID}>
+      <ManagerTasksView />
+    </RoleGuard>
+  )
+}
+
+function ManagerTasksView(): JSX.Element {
   const tasksQuery = useManagerOpenTasks()
   const { lang } = useI18n()
   const isSw = lang === 'sw'

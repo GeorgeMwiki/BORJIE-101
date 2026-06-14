@@ -2,15 +2,26 @@ import { apiFetch } from './client'
 import { MINING_PREFIX } from './config'
 import type { BuyerUser } from '@/types/auth'
 import type { KycRecord, KycSubmission } from '@/types/kyc'
+import { toSubmitKycBody, type BuyerKind } from '@/kyc/toSubmitKycBody'
 
 interface KycResponse {
   readonly data: KycRecord
 }
 
-export async function submitKyc(submission: KycSubmission): Promise<KycRecord> {
+/**
+ * Submit buyer KYC. The wizard holds NESTED step state, but the gateway
+ * `SubmitKycSchema` is FLAT — posting the nested shape straight through
+ * 422'd and left onboarding dead. `toSubmitKycBody` is the single
+ * translation point (see src/kyc/toSubmitKycBody.ts). `kind` defaults to
+ * 'trader' until the wizard captures a buyer-kind step.
+ */
+export async function submitKyc(
+  submission: KycSubmission,
+  kind?: BuyerKind
+): Promise<KycRecord> {
   const response = await apiFetch<KycResponse>(`${MINING_PREFIX}/buyers/kyc`, {
     method: 'POST',
-    body: submission
+    body: toSubmitKycBody(submission, kind)
   })
   return response.data
 }

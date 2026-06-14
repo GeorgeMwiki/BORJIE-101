@@ -13,6 +13,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { apiRequest } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface PersonLink {
@@ -61,15 +62,13 @@ export function PersonalKbPanel() {
       setLoadingLinks(true);
       setLinkError(null);
       try {
-        const res = await fetch('/api/v1/me/persons/links', {
-          credentials: 'include',
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = (await res.json()) as {
-          success: boolean;
-          data?: ReadonlyArray<PersonLink>;
-        };
-        if (!cancelled) setLinks(json.data ?? []);
+        // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+        // and unwraps the {success,data} envelope — so this is the links array.
+        const data = await apiRequest<ReadonlyArray<PersonLink>>(
+          '/api/v1/me/persons/links',
+          { method: 'GET' },
+        );
+        if (!cancelled) setLinks(data ?? []);
       } catch (err) {
         if (!cancelled) {
           setLinkError(err instanceof Error ? err.message : String(err));
@@ -92,16 +91,13 @@ export function PersonalKbPanel() {
     setSearching(true);
     setSearchError(null);
     try {
-      const res = await fetch(
+      // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+      // and unwraps the {success,data} envelope — so this is the cells array.
+      const data = await apiRequest<ReadonlyArray<MemoryCell>>(
         `/api/v1/brain/personal-kb/search?q=${encodeURIComponent(query)}&limit=20`,
-        { credentials: 'include' },
+        { method: 'GET' },
       );
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: ReadonlyArray<MemoryCell>;
-      };
-      setSearchResults(json.data ?? []);
+      setSearchResults(data ?? []);
     } catch (err) {
       setSearchError(err instanceof Error ? err.message : String(err));
     } finally {

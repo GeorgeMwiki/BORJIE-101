@@ -241,7 +241,11 @@ describe('capture — pipeline', () => {
     expect(out[0]?.status).toBe('processed');
   });
 
-  it('attaches AI inferences from defaultAiInference()', async () => {
+  // KI-012 regression: with NO real inference provider configured, the
+  // default stub must NOT fabricate values and present them as a
+  // completed `processed` analysis. The record is marked
+  // `pending_analysis` with an honest marker instead.
+  it('marks pending_analysis (no fabricated values) when no real provider configured', async () => {
     const store = createInMemoryCaptureStore();
     const pipeline = createCapturePipeline({ store, aiInference: defaultAiInference() });
     const out = await pipeline.submitFieldCapture({
@@ -252,8 +256,58 @@ describe('capture — pipeline', () => {
         capturedLocation: { lat: -1.28, lng: 36.82 },
       }],
     });
-    expect(out[0]?.aiInferences).toBeDefined();
-    expect((out[0]?.aiInferences as { detectedObjects?: string[] }).detectedObjects).toContain('building');
+    // Honest status — NOT 'processed'.
+    expect(out[0]?.status).toBe('pending_analysis');
+    // No fabricated detections / guesses.
+    const inf = out[0]?.aiInferences as Record<string, unknown> | undefined;
+    expect(inf?.detectedObjects).toBeUndefined();
+    expect(inf?.buildingGuess).toBeUndefined();
+    // Carries an honest "awaiting analysis" marker explaining why.
+    expect(inf?.status).toBe('pending_analysis');
+    expect(String(inf?.reason)).toMatch(/no real inference provider/i);
+  });
+
+  // The real-provider path stays unchanged: a callable WITHOUT
+  // `live: false` runs and the capture is `processed` with real values.
+  it('runs a real provider (live) and marks processed with real inferences', async () => {
+    const store = createInMemoryCaptureStore();
+    const realProvider = Object.assign(
+      () => Object.freeze({ detectedObjects: ['ore-stockpile'], confidence: 0.91 }),
+      { live: true as const },
+    );
+    const pipeline = createCapturePipeline({ store, aiInference: realProvider });
+    const out = await pipeline.submitFieldCapture({
+      surveyorUserId: 'u1',
+      tenantId: 't1',
+      captures: [{
+        kind: 'photo',
+        capturedLocation: { lat: -1.28, lng: 36.82 },
+      }],
+    });
+    expect(out[0]?.status).toBe('processed');
+    const inf = out[0]?.aiInferences as { detectedObjects?: string[] } | undefined;
+    expect(inf?.detectedObjects).toContain('ore-stockpile');
+  });
+
+  // Fail-CLOSED: a live provider that throws degrades to
+  // `pending_analysis`, never a fabricated `processed`.
+  it('degrades to pending_analysis when a live provider errors', async () => {
+    const store = createInMemoryCaptureStore();
+    const throwing = Object.assign(
+      () => { throw new Error('vision backend down'); },
+      { live: true as const },
+    );
+    const pipeline = createCapturePipeline({ store, aiInference: throwing });
+    const out = await pipeline.submitFieldCapture({
+      surveyorUserId: 'u1',
+      tenantId: 't1',
+      captures: [{
+        kind: 'photo',
+        capturedLocation: { lat: -1.28, lng: 36.82 },
+      }],
+    });
+    expect(out[0]?.status).toBe('pending_analysis');
+    expect((out[0]?.aiInferences as { status?: string }).status).toBe('inference_failed');
   });
 
   it('store lists captures for a surveyor', async () => {

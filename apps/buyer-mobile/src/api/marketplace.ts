@@ -2,7 +2,6 @@ import { apiFetch } from './client'
 import { MINING_PREFIX } from './config'
 import type {
   Bid,
-  BidMessage,
   BidStatus,
   Listing,
   MarketplaceSeller,
@@ -74,6 +73,21 @@ export async function fetchListing(id: string): Promise<Listing | undefined> {
 
 export type PaymentTerms = 'instant' | '30d' | '60d'
 
+/**
+ * Wire vocabulary the api-gateway `PaymentTermsEnum`
+ * (services/api-gateway/src/routes/mining/_openapi/bid-schemas.ts) accepts.
+ * The buyer UI speaks `'30d' | '60d'`; the gateway speaks `'net_30' |
+ * 'net_60'`. This is the single translation point — never POST the UI
+ * vocabulary straight through.
+ */
+type WirePaymentTerms = 'instant' | 'net_30' | 'net_60'
+
+const WIRE_PAYMENT_TERMS: Readonly<Record<PaymentTerms, WirePaymentTerms>> = {
+  instant: 'instant',
+  '30d': 'net_30',
+  '60d': 'net_60'
+}
+
 export interface PlaceBidInput {
   readonly listingId: string
   readonly offerTzsPerKg: number
@@ -96,7 +110,7 @@ interface BidResponse {
 interface GatewayBidPayload {
   readonly listingId: string
   readonly bidPriceTzs: number
-  readonly paymentTerms: PaymentTerms
+  readonly paymentTerms: WirePaymentTerms
   readonly notes?: string
 }
 
@@ -104,7 +118,7 @@ function toGatewayBidPayload(input: PlaceBidInput): GatewayBidPayload {
   return {
     listingId: input.listingId,
     bidPriceTzs: input.offerTzsPerKg * input.quantityKg,
-    paymentTerms: input.paymentTerms,
+    paymentTerms: WIRE_PAYMENT_TERMS[input.paymentTerms],
     notes: input.notes && input.notes.length > 0 ? input.notes : undefined
   }
 }
@@ -147,7 +161,7 @@ interface GatewayBidListing {
   readonly attributes: Record<string, unknown> | null
 }
 
-const BID_STATUSES: readonly BidStatus[] = ['pending', 'accepted', 'rejected', 'countered']
+const BID_STATUSES: readonly BidStatus[] = ['pending', 'accepted', 'rejected', 'countered', 'withdrawn']
 
 function coerceStatus(raw: string): BidStatus {
   return BID_STATUSES.includes(raw as BidStatus) ? (raw as BidStatus) : 'pending'
@@ -223,21 +237,12 @@ export async function fetchBid(id: string): Promise<Bid | undefined> {
   return mapGatewayBid(response.data.bid, response.data.listing)
 }
 
-export interface SendBidMessageInput {
-  readonly bidId: string
-  readonly body: string
-}
-
-export async function sendBidMessage(input: SendBidMessageInput): Promise<BidMessage> {
-  const response = await apiFetch<{ readonly data: BidMessage }>(
-    `${MINING_PREFIX}/bids/${encodeURIComponent(input.bidId)}/messages`,
-    {
-      method: 'POST',
-      body: { body: input.body }
-    }
-  )
-  return response.data
-}
+// NOTE: bid messaging is served exclusively by the canonical
+// /api/v1/mining/bid-messaging/threads/:responseId/messages surface
+// (see src/api/bid-messaging.ts → sendThreadMessage). The legacy
+// /bids/:id/messages route never existed on the gateway, so the old
+// `sendBidMessage` here always 404'd; it has been removed. The chat
+// screen resolves a bid's `threadResponseId` and uses the thread surface.
 
 export type BidAction = 'accept' | 'withdraw'
 

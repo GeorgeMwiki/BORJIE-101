@@ -97,7 +97,7 @@ export function Footer({ locale }: { readonly locale: Locale }) {
       title: t.product,
       links: [
         { label: t.links.capabilities, href: '/#product' },
-        { label: t.links.masterBrain, href: '/#brief' },
+        { label: t.links.masterBrain, href: '/#product' },
         { label: t.links.autonomy, href: '/#product' },
         { label: t.links.auditChain, href: '/#product' },
         { label: t.links.pricing, href: '/pricing' },

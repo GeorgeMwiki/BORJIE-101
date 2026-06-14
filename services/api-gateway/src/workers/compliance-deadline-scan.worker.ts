@@ -13,10 +13,15 @@
  * the cockpit being read-only — duplicate toasts are at worst
  * noisy, never wrong.
  *
- * Tenant isolation: the worker reads the canonical
- * `regulatory_filings.tenant_id` column directly (no
- * `app.tenant_id` GUC needed for service-role connections); every
- * emitted event is stamped with the row's tenant_id.
+ * Tenant isolation: the cross-tenant scan runs inside
+ * `withServiceRoleContext` (binds `app.is_service_role='true'`) so the
+ * `regulatory_filings_service_role_bypass` RLS policy (migration 0357)
+ * lets it read every tenant's due filings under FORCE ROW LEVEL
+ * SECURITY. Without that context the shared pooled connection has
+ * `is_service_role='false'` + an empty `app.current_tenant_id`, so FORCE
+ * RLS silently filters the scan to ZERO rows (the reminders-class
+ * dark-worker bug closed by 0354). Each emitted event is still stamped
+ * with the row's own tenant_id.
  *
  * Failure containment:
  *   - DB unwired → no-op + warn once on boot.
@@ -26,6 +31,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 
 import { publishCockpitEvent } from '../services/cockpit-events';
 
@@ -92,7 +98,10 @@ export function createComplianceDeadlineScan(
       const nowDate = now();
       let rows: ReadonlyArray<FilingRow> = [];
       try {
-        const raw = await options.db.execute(sql`
+        const raw = await withServiceRoleContext(
+          options.db as unknown as Parameters<typeof withServiceRoleContext>[0],
+          (txDb) =>
+            (txDb as unknown as DbLike).execute(sql`
           SELECT id::text AS id,
                  tenant_id::text AS tenant_id,
                  filing_type,
@@ -103,7 +112,8 @@ export function createComplianceDeadlineScan(
              AND (status IS NULL OR status IN ('open','in_progress'))
            ORDER BY due_at ASC
            LIMIT 200
-        `);
+        `),
+        );
         rows = rowsOf(raw);
       } catch (err) {
         options.logger.warn(

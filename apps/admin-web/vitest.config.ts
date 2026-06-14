@@ -1,15 +1,20 @@
 /**
  * Vitest config for @borjie/admin-web.
  *
- * The root vitest.config restricts include to `packages/**` and
- * `services/**`, so apps need their own. We use jsdom because the
- * sensorium bus + handlers (Central Command Phase A C4) reach into
- * `document` / `window` to install DOM listeners.
+ * The root vitest.config restricts include to `packages/**`,
+ * `services/**`, and `scripts/**` — it deliberately excludes `apps/**`,
+ * so this app needs its own. We use jsdom because the sensorium bus +
+ * handlers (Central Command Phase A C4) reach into `document` /
+ * `window` to install DOM listeners and the component suites mount
+ * React via `@testing-library/react`.
  *
- * Initial scope: sensorium + lib helpers. Other surfaces (genui,
- * ag-ui-client, etc.) require optional deps that aren't always
- * installed; their tests opt in via their own include patterns once
- * a dev installs the matching package set.
+ * Include is the general `src/**` test glob (mirroring
+ * apps/owner-web/vitest.config.ts) rather than a curated per-directory
+ * allowlist. The allowlist previously stranded
+ * `src/app/persona-drift/__tests__/page.test.tsx` (no `src/app/**`
+ * entry) — a silently-dark suite (KI-015). The broad glob discovers
+ * every `__tests__` directory under `src` so a newly-added suite can
+ * never go dark by living in an un-allowlisted folder.
  */
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
@@ -55,27 +60,14 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     include: [
-      'src/lib/sensorium/__tests__/**/*.test.ts',
-      'src/lib/sensorium/__tests__/**/*.test.tsx',
-      // Central-Command Phase A — AG-UI client hook + helpers.
-      'src/lib/__tests__/**/*.test.ts',
-      // Central-Command Phase A — generative-UI primitive schemas (C3).
-      // Schema tests run without optional UI deps installed; component
-      // smoke-tests opt in once react-vega / react-leaflet / etc. land.
-      'src/lib/genui/__tests__/**/*.test.ts',
-      // Central-Command Phase B B5 — session-replay recorder + uploader
-      // + PII mask. rrweb itself is dynamically imported; tests inject
-      // their own factory so they pass without `pnpm install`.
-      'src/lib/session-replay/__tests__/**/*.test.ts',
-      // Wave PILOT-HITL — FeedbackButton (pilot in-app feedback widget)
-      // smoke tests. jsdom render; submitter is injected so the test
-      // never reaches the Supabase auth client.
-      'src/components/__tests__/**/*.test.tsx',
-      // Chat-first home Wave — HomeChat surface + brain-api unit tests.
-      // Lives under src/__tests__ so the chat-home test bundle is grouped
-      // away from the central-command and sensorium test families.
-      'src/__tests__/**/*.test.ts',
-      'src/__tests__/**/*.test.tsx',
+      // Every `__tests__` suite anywhere under `src` (sensorium, genui
+      // schemas, session-replay, FeedbackButton, superpowers, HomeChat,
+      // brain-api, the persona-drift page, etc.). All current suites run
+      // without optional UI deps (react-vega / react-leaflet / rrweb):
+      // schema tests cover contracts not components, and the dynamic-dep
+      // suites inject their own factories. A future component smoke-test
+      // that needs an uninstalled dep must guard its own import.
+      'src/**/__tests__/**/*.test.{ts,tsx}',
     ],
     testTimeout: 10000,
   },

@@ -60,7 +60,7 @@ export interface MarketplaceSeller {
   readonly listingCount: number
 }
 
-export type BidStatus = 'pending' | 'accepted' | 'rejected' | 'countered'
+export type BidStatus = 'pending' | 'accepted' | 'rejected' | 'countered' | 'withdrawn'
 
 export interface BidMessage {
   readonly id: string

@@ -36,8 +36,9 @@ import {
   FOUR_EYE_ACTION_TYPES,
   FOUR_EYE_STATUSES,
 } from '@borjie/database';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { UserRole } from '../../types/user-role';
 import { createLogger } from '../../utils/logger';
 
 const moduleLogger = createLogger('owner-four-eye');
@@ -288,6 +289,13 @@ interface DispatchOutcome {
 async function dispatchActionForRequest(args: {
   readonly actionType: string;
   readonly payload: Record<string, unknown>;
+  /**
+   * Stable idempotency key (`four-eye:<requestId>`) threaded into the real
+   * brain-tool / LedgerService dispatcher so a money mutation dedupes on
+   * retry — the CAS already guarantees a single approval winner, this guards
+   * the side-effect leg if the same winner is replayed.
+   */
+  readonly idempotencyKey: string;
 }): Promise<DispatchOutcome> {
   // Default behaviour: record the dispatch but do not perform the
   // side-effect. The brain-tool dispatcher injects the real handler at
@@ -322,6 +330,7 @@ const dispatcherRef: {
     | ((args: {
         readonly actionType: string;
         readonly payload: Record<string, unknown>;
+        readonly idempotencyKey: string;
       }) => Promise<Record<string, unknown>>)
     | null;
 } = { current: null };
@@ -329,12 +338,15 @@ const dispatcherRef: {
 /**
  * Composition hook — wire the real brain-tool dispatcher at bootstrap.
  * Keeps the route file free of LedgerService / brain imports so we
- * avoid a cycle at module-init time.
+ * avoid a cycle at module-init time. The handler receives a stable
+ * `idempotencyKey` (`four-eye:<requestId>`) so the money path can route
+ * it into `LedgerService.post`'s idempotency guard.
  */
 export function setFourEyeDispatcher(
   handler: (args: {
     readonly actionType: string;
     readonly payload: Record<string, unknown>;
+    readonly idempotencyKey: string;
   }) => Promise<Record<string, unknown>>,
 ): void {
   dispatcherRef.current = handler;
@@ -489,11 +501,56 @@ function isExpired(row: { expiresAt: Date | string | null }, now: Date): boolean
   return Number.isFinite(ts) && ts <= now.getTime();
 }
 
+/**
+ * Owner / tenant-admin-class principals authorised to resolve a four-eye
+ * request. The token proves WHICH request; this gate + {@link assertSecondApprover}
+ * prove WHO may resolve it. Workforce field roles (MAINTENANCE_STAFF) and
+ * external read-only roles (RESIDENT/buyer) can never sign off a high-stakes
+ * action even if they somehow hold a token.
+ */
+const FOUR_EYE_APPROVER_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.PROPERTY_MANAGER,
+] as const;
+
+/**
+ * Dual-control identity check. Returns an error envelope (caller maps it to
+ * 403) when the caller is NOT permitted to resolve this request, or `null`
+ * when they are:
+ *   - A designated second approver was set → the caller MUST be exactly that
+ *     principal. The token is not authorization; whoever holds it is rejected
+ *     unless they are the named designee.
+ *   - No designee was set → fall back to forbidding self-approval so the
+ *     requester can never sign off their own action.
+ */
+function assertSecondApprover(
+  row: { requesterId: string; secondApproverId: string | null },
+  callerUserId: string,
+): { code: string; message: string } | null {
+  if (row.secondApproverId !== null && row.secondApproverId !== undefined) {
+    if (callerUserId !== row.secondApproverId) {
+      return {
+        code: 'NOT_DESIGNATED_APPROVER',
+        message: 'Only the designated second approver may resolve this request',
+      };
+    }
+    return null;
+  }
+  if (row.requesterId === callerUserId) {
+    return {
+      code: 'SELF_APPROVAL_FORBIDDEN',
+      message: 'Requester cannot resolve their own action',
+    };
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // POST /approve/:token — second approver approves, executes brain tool
 // ---------------------------------------------------------------------------
 
-app.post('/approve/:token', async (c: any) => {
+app.post('/approve/:token', requireRole(...FOUR_EYE_APPROVER_ROLES), async (c: any) => {
   const auth = c.get('auth') as { tenantId: string; userId: string };
   const db = c.get('db');
   if (!db) {
@@ -512,11 +569,13 @@ app.post('/approve/:token', async (c: any) => {
   if (!row) {
     return c.json(err('NOT_FOUND', 'Approval request not found'), 404);
   }
-  if (row.requesterId === auth.userId) {
-    return c.json(
-      err('SELF_APPROVAL_FORBIDDEN', 'Requester cannot approve their own action'),
-      403,
-    );
+  // Dual-control identity gate. When a second approver was designated at
+  // request time, ONLY that principal may resolve it — the token alone is
+  // not authorization. When no designee was set, fall back to the
+  // self-approval block so the requester can never approve their own action.
+  const designeeCheck = assertSecondApprover(row, auth.userId);
+  if (designeeCheck) {
+    return c.json(err(designeeCheck.code, designeeCheck.message), 403);
   }
   const now = new Date();
   if (isExpired(row, now)) {
@@ -537,6 +596,38 @@ app.post('/approve/:token', async (c: any) => {
       409,
     );
   }
+  // Compare-and-set: flip pending→approved ONLY if the row is still pending,
+  // and act exclusively on the returned row. Two concurrent approves race
+  // here; the loser's UPDATE matches zero rows → 409 NOT_PENDING and it never
+  // dispatches, never appends an audit entry. Only the CAS winner proceeds.
+  const claimed = await db
+    .update(fourEyeRequests)
+    .set({
+      status: 'approved',
+      decisionNote: parsedNote.data.note ?? null,
+      secondApproverId: row.secondApproverId ?? auth.userId,
+      decidedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(fourEyeRequests.tenantId, auth.tenantId),
+        eq(fourEyeRequests.id, row.id),
+        eq(fourEyeRequests.status, 'pending'),
+      ),
+    )
+    .returning({ id: fourEyeRequests.id });
+
+  if (!Array.isArray(claimed) || claimed.length === 0) {
+    // Lost the race (or status moved under us) — do NOT dispatch.
+    return c.json(
+      err('NOT_PENDING', 'Request is already approved'),
+      409,
+    );
+  }
+
+  // CAS won — append the decision audit entry and persist its id. Only the
+  // winner reaches here, so the hash-chain records exactly one approval.
   const decideAuditId = await appendAuditEntry(db, {
     action: 'four_eye.request.approve',
     tenantId: auth.tenantId,
@@ -548,23 +639,17 @@ app.post('/approve/:token', async (c: any) => {
       note: parsedNote.data.note ?? null,
     },
   });
-
-  await db
-    .update(fourEyeRequests)
-    .set({
-      status: 'approved',
-      decisionNote: parsedNote.data.note ?? null,
-      secondApproverId: row.secondApproverId ?? auth.userId,
-      decidedAt: now,
-      auditDecideId: decideAuditId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(fourEyeRequests.tenantId, auth.tenantId),
-        eq(fourEyeRequests.id, row.id),
-      ),
-    );
+  if (decideAuditId) {
+    await db
+      .update(fourEyeRequests)
+      .set({ auditDecideId: decideAuditId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(fourEyeRequests.tenantId, auth.tenantId),
+          eq(fourEyeRequests.id, row.id),
+        ),
+      );
+  }
 
   // Execute the original action through the registered brain-tool
   // dispatcher. Failures are captured into the row but do NOT roll
@@ -572,6 +657,7 @@ app.post('/approve/:token', async (c: any) => {
   const dispatchResult = await dispatchActionForRequest({
     actionType: row.actionType,
     payload: (row.payload as Record<string, unknown>) ?? {},
+    idempotencyKey: `four-eye:${row.id}`,
   });
 
   const executeAuditId = await appendAuditEntry(db, {
@@ -629,7 +715,7 @@ app.post('/approve/:token', async (c: any) => {
 // POST /reject/:token — second approver rejects with note
 // ---------------------------------------------------------------------------
 
-app.post('/reject/:token', async (c: any) => {
+app.post('/reject/:token', requireRole(...FOUR_EYE_APPROVER_ROLES), async (c: any) => {
   const auth = c.get('auth') as { tenantId: string; userId: string };
   const db = c.get('db');
   if (!db) {
@@ -648,11 +734,12 @@ app.post('/reject/:token', async (c: any) => {
   if (!row) {
     return c.json(err('NOT_FOUND', 'Approval request not found'), 404);
   }
-  if (row.requesterId === auth.userId) {
-    return c.json(
-      err('SELF_REJECTION_FORBIDDEN', 'Requester cannot reject their own action'),
-      403,
-    );
+  // Same dual-control identity gate as /approve — a designated second
+  // approver is the ONLY principal who may reject; otherwise fall back to
+  // forbidding self-rejection.
+  const designeeCheck = assertSecondApprover(row, auth.userId);
+  if (designeeCheck) {
+    return c.json(err(designeeCheck.code, designeeCheck.message), 403);
   }
   const now = new Date();
   if (isExpired(row, now)) {
@@ -673,6 +760,32 @@ app.post('/reject/:token', async (c: any) => {
       409,
     );
   }
+  // Compare-and-set: only the caller that flips pending→rejected wins; a
+  // concurrent reject (or an approve that already moved the row) matches zero
+  // rows → 409. The loser appends no audit entry.
+  const claimed = await db
+    .update(fourEyeRequests)
+    .set({
+      status: 'rejected',
+      decisionNote: parsedNote.data.note ?? null,
+      secondApproverId: row.secondApproverId ?? auth.userId,
+      decidedAt: now,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(fourEyeRequests.tenantId, auth.tenantId),
+        eq(fourEyeRequests.id, row.id),
+        eq(fourEyeRequests.status, 'pending'),
+      ),
+    )
+    .returning({ id: fourEyeRequests.id });
+  if (!Array.isArray(claimed) || claimed.length === 0) {
+    return c.json(
+      err('NOT_PENDING', 'Request is already resolved'),
+      409,
+    );
+  }
   const decideAuditId = await appendAuditEntry(db, {
     action: 'four_eye.request.reject',
     tenantId: auth.tenantId,
@@ -684,22 +797,17 @@ app.post('/reject/:token', async (c: any) => {
       note: parsedNote.data.note ?? null,
     },
   });
-  await db
-    .update(fourEyeRequests)
-    .set({
-      status: 'rejected',
-      decisionNote: parsedNote.data.note ?? null,
-      secondApproverId: row.secondApproverId ?? auth.userId,
-      decidedAt: now,
-      auditDecideId: decideAuditId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(fourEyeRequests.tenantId, auth.tenantId),
-        eq(fourEyeRequests.id, row.id),
-      ),
-    );
+  if (decideAuditId) {
+    await db
+      .update(fourEyeRequests)
+      .set({ auditDecideId: decideAuditId, updatedAt: new Date() })
+      .where(
+        and(
+          eq(fourEyeRequests.tenantId, auth.tenantId),
+          eq(fourEyeRequests.id, row.id),
+        ),
+      );
+  }
   moduleLogger.info('four-eye: request rejected', {
     tenantId: auth.tenantId,
     approverId: auth.userId,

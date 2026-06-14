@@ -174,6 +174,11 @@ app.post('/:id/defer', async (c) => {
     );
   }
 
+  // Atomic compare-and-set: the status='pending' guard closes the
+  // read-then-write window between loadOwned() above and this update. Two
+  // concurrent defers (or a defer racing an approve/reject) resolve to a
+  // single winner; the loser matches zero rows and gets 409 (no second
+  // cockpit push, no fabricated success).
   const [updated] = await db
     .update(miningApprovalItems)
     .set({
@@ -186,9 +191,17 @@ app.post('/:id/defer', async (c) => {
       and(
         eq(miningApprovalItems.tenantId, tenantId),
         eq(miningApprovalItems.id, id),
+        eq(miningApprovalItems.status, 'pending'),
       ),
     )
     .returning();
+
+  if (!updated) {
+    return c.json(
+      { success: false, error: { code: 'INVALID_STATE', message: 'Approval already decided' } },
+      409,
+    );
+  }
 
   // RT-1: pulse the originating actor's surface.
   if (updated) {
@@ -237,6 +250,11 @@ async function transition(
       409,
     );
   }
+  // Atomic compare-and-set: the status='pending' guard makes the decision
+  // a single-writer transition. Two concurrent approve/reject calls race on
+  // THIS update — exactly one flips the row (RETURNING yields it); the loser
+  // matches zero rows and is rejected with 409 (never a fabricated success,
+  // never a second cockpit push).
   const [updated] = await db
     .update(miningApprovalItems)
     .set({
@@ -248,9 +266,17 @@ async function transition(
       and(
         eq(miningApprovalItems.tenantId, tenantId),
         eq(miningApprovalItems.id, id),
+        eq(miningApprovalItems.status, 'pending'),
       ),
     )
     .returning();
+
+  if (!updated) {
+    return c.json(
+      { success: false, error: { code: 'INVALID_STATE', message: 'Approval already decided' } },
+      409,
+    );
+  }
 
   // RT-1: pulse the originating actor's surface so they see the
   // decision flip without polling.

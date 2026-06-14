@@ -272,26 +272,85 @@ async function loadState(
   return { state: readState(row.state), updatedAt: row.updatedAt };
 }
 
+/** Sentinel returned by writeState when the optimistic-concurrency precondition
+ *  fails — a concurrent writer moved `updated_at` since the caller's loadState,
+ *  so applying this whole-blob write would silently clobber that write. The
+ *  route maps it to 409 OWNER_TABS_CONFLICT and the FE re-reads + retries. */
+const WRITE_CONFLICT = Symbol('owner-tabs-write-conflict');
+
+function rowCountOf(result: unknown): number {
+  // postgres.js / drizzle execute() shapes: `.count`, `.rowCount`, or an
+  // array/`.rows` of returned rows. We RETURNING a sentinel column so a
+  // successful conditional write yields exactly one row.
+  if (Array.isArray(result)) return result.length;
+  const r = result as { rows?: unknown; count?: number; rowCount?: number };
+  if (Array.isArray(r.rows)) return r.rows.length;
+  if (typeof r.count === 'number') return r.count;
+  if (typeof r.rowCount === 'number') return r.rowCount;
+  return 0;
+}
+
+/**
+ * Persist the whole `state` blob under optimistic concurrency.
+ *
+ * `expectedUpdatedAt` is the `updated_at` the caller read via loadState:
+ *   - null  → the row did not exist at read time. Insert it, but ONLY if no row
+ *             exists now (ON CONFLICT DO NOTHING). A row that appeared in the
+ *             gap is a concurrent create → WRITE_CONFLICT.
+ *   - Date  → conditional UPDATE guarded by `updated_at = expectedUpdatedAt`.
+ *             If a concurrent writer bumped it, 0 rows match → WRITE_CONFLICT,
+ *             so the lost-update is refused rather than silently overwritten.
+ */
 async function writeState(
   db: any,
   tenantId: string,
   userId: string,
   state: PersistedState | Record<string, unknown>,
-): Promise<Date> {
+  expectedUpdatedAt: Date | null,
+): Promise<Date | typeof WRITE_CONFLICT> {
   const now = new Date();
-  // Upsert by composite PK (tenant_id, user_id). The DEFAULT for `state` is
-  // overridden by the supplied jsonb document; updatedAt is bumped on every
-  // save so the FE can sort tab history conservatively and cross-device
-  // clients detect a newer write on focus.
-  await db.execute(
+  const stateJson = JSON.stringify(state);
+
+  if (expectedUpdatedAt === null) {
+    // First write for this (tenant, user). Insert-if-absent; a row created
+    // concurrently in the read→write gap wins and we report a conflict.
+    const inserted = await db.execute(
+      sql`
+        INSERT INTO owner_tabs (tenant_id, user_id, state, updated_at)
+        VALUES (${tenantId}, ${userId}, ${stateJson}::jsonb, ${now})
+        ON CONFLICT (tenant_id, user_id) DO NOTHING
+        RETURNING tenant_id
+      `,
+    );
+    return rowCountOf(inserted) > 0 ? now : WRITE_CONFLICT;
+  }
+
+  // Subsequent write. CAS on updated_at — act ONLY on the returned row.
+  const updated = await db.execute(
     sql`
-      INSERT INTO owner_tabs (tenant_id, user_id, state, updated_at)
-      VALUES (${tenantId}, ${userId}, ${JSON.stringify(state)}::jsonb, ${now})
-      ON CONFLICT (tenant_id, user_id)
-      DO UPDATE SET state = EXCLUDED.state, updated_at = EXCLUDED.updated_at
+      UPDATE owner_tabs
+      SET state = ${stateJson}::jsonb, updated_at = ${now}
+      WHERE tenant_id = ${tenantId}
+        AND user_id = ${userId}
+        AND updated_at = ${expectedUpdatedAt}
+      RETURNING tenant_id
     `,
   );
-  return now;
+  return rowCountOf(updated) > 0 ? now : WRITE_CONFLICT;
+}
+
+function conflict(c: any) {
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: 'OWNER_TABS_CONFLICT',
+        message:
+          'Tab state changed since it was read. Reload and retry the change.',
+      },
+    },
+    409,
+  );
 }
 
 // ─── GET / — load current state ─────────────────────────────────────────
@@ -320,12 +379,22 @@ app.put('/', async (c: any) => {
   if (!parsed.success) {
     return validationError(c, 'Invalid tabs payload', parsed.error.issues);
   }
-  const updatedAt = await writeState(
+  // Read the current row version so the whole-blob replace CAS-guards against a
+  // concurrent write rather than blindly clobbering it.
+  const { updatedAt: expectedUpdatedAt } = await loadState(
+    db,
+    auth.tenantId,
+    auth.userId,
+  );
+  const result = await writeState(
     db,
     auth.tenantId,
     auth.userId,
     parsed.data.state,
+    expectedUpdatedAt,
   );
+  if (result === WRITE_CONFLICT) return conflict(c);
+  const updatedAt = result;
   moduleLogger.info('owner-tabs: legacy PUT state saved', {
     tenantId: auth.tenantId,
     userId: auth.userId,
@@ -348,7 +417,11 @@ app.post('/', async (c: any) => {
     return validationError(c, 'Invalid tab payload', parsed.error.issues);
   }
   const { tab, setActive } = parsed.data;
-  const { state } = await loadState(db, auth.tenantId, auth.userId);
+  const { state, updatedAt: expectedUpdatedAt } = await loadState(
+    db,
+    auth.tenantId,
+    auth.userId,
+  );
 
   const projected = projectTab(tab);
   const existingIndex = state.tabs.findIndex((t) => t.id === tab.id);
@@ -384,7 +457,15 @@ app.post('/', async (c: any) => {
     );
   }
 
-  const updatedAt = await writeState(db, auth.tenantId, auth.userId, nextState);
+  const result = await writeState(
+    db,
+    auth.tenantId,
+    auth.userId,
+    nextState,
+    expectedUpdatedAt,
+  );
+  if (result === WRITE_CONFLICT) return conflict(c);
+  const updatedAt = result;
   moduleLogger.info('owner-tabs: tab upserted', {
     tenantId: auth.tenantId,
     userId: auth.userId,
@@ -415,14 +496,26 @@ app.patch('/:id', async (c: any) => {
   if (!parsed.success) {
     return validationError(c, 'Invalid patch payload', parsed.error.issues);
   }
-  const { state } = await loadState(db, auth.tenantId, auth.userId);
+  const { state, updatedAt: expectedUpdatedAt } = await loadState(
+    db,
+    auth.tenantId,
+    auth.userId,
+  );
   const existingIndex = state.tabs.findIndex((t) => t.id === id);
   if (existingIndex < 0) return notFound(c);
   const prev = state.tabs[existingIndex]!;
   const next = patchTab(prev, parsed.data);
   const nextTabs = state.tabs.map((t, i) => (i === existingIndex ? next : t));
   const nextState: PersistedState = { ...state, tabs: nextTabs };
-  const updatedAt = await writeState(db, auth.tenantId, auth.userId, nextState);
+  const result = await writeState(
+    db,
+    auth.tenantId,
+    auth.userId,
+    nextState,
+    expectedUpdatedAt,
+  );
+  if (result === WRITE_CONFLICT) return conflict(c);
+  const updatedAt = result;
   moduleLogger.info('owner-tabs: tab patched', {
     tenantId: auth.tenantId,
     userId: auth.userId,
@@ -441,7 +534,11 @@ async function closeTab(c: any) {
   if (!db) return dbUnavailable(c);
   const id = c.req.param('id');
   if (!id) return validationError(c, 'Missing tab id');
-  const { state } = await loadState(db, auth.tenantId, auth.userId);
+  const { state, updatedAt: expectedUpdatedAt } = await loadState(
+    db,
+    auth.tenantId,
+    auth.userId,
+  );
   const existing = state.tabs.find((t) => t.id === id);
   if (!existing) return notFound(c);
   if (existing.pinned) {
@@ -460,7 +557,15 @@ async function closeTab(c: any) {
   const nextActive =
     state.activeTabId === id ? nextTabs[0]?.id ?? null : state.activeTabId;
   const nextState: PersistedState = { tabs: nextTabs, activeTabId: nextActive };
-  const updatedAt = await writeState(db, auth.tenantId, auth.userId, nextState);
+  const result = await writeState(
+    db,
+    auth.tenantId,
+    auth.userId,
+    nextState,
+    expectedUpdatedAt,
+  );
+  if (result === WRITE_CONFLICT) return conflict(c);
+  const updatedAt = result;
   moduleLogger.info('owner-tabs: tab closed', {
     tenantId: auth.tenantId,
     userId: auth.userId,
@@ -492,7 +597,22 @@ app.post('/sync', async (c: any) => {
     tabs: parsed.data.state.tabs.map(projectTab),
     activeTabId: parsed.data.state.activeTabId,
   };
-  const updatedAt = await writeState(db, auth.tenantId, auth.userId, nextState);
+  // Read the current row version so the bulk replace CAS-guards a concurrent
+  // write rather than blindly clobbering it.
+  const { updatedAt: expectedUpdatedAt } = await loadState(
+    db,
+    auth.tenantId,
+    auth.userId,
+  );
+  const result = await writeState(
+    db,
+    auth.tenantId,
+    auth.userId,
+    nextState,
+    expectedUpdatedAt,
+  );
+  if (result === WRITE_CONFLICT) return conflict(c);
+  const updatedAt = result;
   moduleLogger.info('owner-tabs: bulk sync applied', {
     tenantId: auth.tenantId,
     userId: auth.userId,
@@ -522,14 +642,26 @@ app.post('/:id/update', async (c: any) => {
   if (!parsed.success) {
     return validationError(c, 'Invalid patch payload', parsed.error.issues);
   }
-  const { state } = await loadState(db, auth.tenantId, auth.userId);
+  const { state, updatedAt: expectedUpdatedAt } = await loadState(
+    db,
+    auth.tenantId,
+    auth.userId,
+  );
   const existingIndex = state.tabs.findIndex((t) => t.id === id);
   if (existingIndex < 0) return notFound(c);
   const prev = state.tabs[existingIndex]!;
   const next = patchTab(prev, parsed.data);
   const nextTabs = state.tabs.map((t, i) => (i === existingIndex ? next : t));
   const nextState: PersistedState = { ...state, tabs: nextTabs };
-  const updatedAt = await writeState(db, auth.tenantId, auth.userId, nextState);
+  const result = await writeState(
+    db,
+    auth.tenantId,
+    auth.userId,
+    nextState,
+    expectedUpdatedAt,
+  );
+  if (result === WRITE_CONFLICT) return conflict(c);
+  const updatedAt = result;
   moduleLogger.info('owner-tabs: tab patched via chat tool', {
     tenantId: auth.tenantId,
     userId: auth.userId,

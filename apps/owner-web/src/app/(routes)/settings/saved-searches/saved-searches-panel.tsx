@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { getCsrfHeaders } from '@/lib/csrf';
+import { apiRequest } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { useLocale, pickByLocale } from '@/lib/locale';
 
@@ -67,17 +67,13 @@ export function SavedSearchesPanel() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/owner/saved-searches', {
-        credentials: 'include',
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: ReadonlyArray<SavedSearch>;
-      };
-      setItems(json.data ?? []);
+      // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+      // and unwraps the {success,data} envelope — so this is the list array.
+      const data = await apiRequest<ReadonlyArray<SavedSearch>>(
+        '/api/v1/owner/saved-searches',
+        { method: 'GET' },
+      );
+      setItems(data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -101,20 +97,15 @@ export function SavedSearchesPanel() {
       return;
     }
     try {
-      const res = await fetch('/api/v1/owner/saved-searches', {
+      await apiRequest('/api/v1/owner/saved-searches', {
         method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-        body: JSON.stringify({
+        body: {
           label,
           queryJson: parsedQuery,
           frequency,
           source,
-        }),
+        },
       });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
       setLabel('');
       setQueryText('{}');
       setFrequency('daily');
@@ -130,14 +121,9 @@ export function SavedSearchesPanel() {
   const remove = useCallback(
     async (id: string) => {
       try {
-        const res = await fetch(`/api/v1/owner/saved-searches/${id}`, {
+        await apiRequest(`/api/v1/owner/saved-searches/${id}`, {
           method: 'DELETE',
-          credentials: 'include',
-          headers: { ...getCsrfHeaders() },
         });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
         await refresh();
       } catch (err) {
         setError(err instanceof Error ? err.message : String(err));

@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { createBorjieClient, createJarvisClient } from '@borjie/api-sdk';
 import {
   MicButton,
@@ -68,7 +69,7 @@ export function JarvisConsole(): JSX.Element {
           // Bearer comes from the existing Supabase auth session in the
           // page wrapper; the gateway middleware also accepts an
           // X-API-Key for service-to-service in dev.
-          bearerToken: () => readBearerFromCookie(),
+          bearerToken: () => readBearerToken(),
         }),
         'platform',
       ),
@@ -201,7 +202,7 @@ export function JarvisConsole(): JSX.Element {
       credentials: 'include',
       headers: {
         'content-type': 'application/json',
-        Authorization: `Bearer ${readBearerFromCookie()}`,
+        Authorization: `Bearer ${await readBearerToken()}`,
         ...getCsrfHeaders(),
       },
       body: JSON.stringify(body),
@@ -216,21 +217,24 @@ export function JarvisConsole(): JSX.Element {
   // admin was already served the fallback. Make it known to the internal-admin
   // self-healing console (best-effort; never blocks the surface).
   function reportUnknownKind(detail: GenUiUnknownKindEventDetail): void {
-    void fetch(`${DEFAULT_GATEWAY}/api/v1/genui-telemetry/unknown-kind`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${readBearerFromCookie()}`,
-        ...getCsrfHeaders(),
-      },
-      body: JSON.stringify({
-        kind: detail.kind,
-        reason: detail.reason,
-        ...(detail.message ? { message: detail.message } : {}),
-        surface: 'jarvis',
-      }),
-    }).catch(() => {
+    void (async () => {
+      const token = await readBearerToken();
+      await fetch(`${DEFAULT_GATEWAY}/api/v1/genui-telemetry/unknown-kind`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'content-type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          ...getCsrfHeaders(),
+        },
+        body: JSON.stringify({
+          kind: detail.kind,
+          reason: detail.reason,
+          ...(detail.message ? { message: detail.message } : {}),
+          surface: 'jarvis',
+        }),
+      });
+    })().catch(() => {
       /* best-effort beacon — the customer was already served the fallback */
     });
   }
@@ -275,7 +279,7 @@ export function JarvisConsole(): JSX.Element {
       <div className="flex min-h-console-pane flex-col gap-3 rounded border border-border bg-surface p-4 overflow-y-auto">
         {turns.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Ask Nyumba Mind anything about the platform — royalty collection trends,
+            Ask Mr. Mwikila anything about the platform — royalty collection trends,
             available-capacity drift, outstanding-royalty patterns. Every claim is
             grounded in DP-aggregate evidence.
           </p>
@@ -396,7 +400,7 @@ export function JarvisConsole(): JSX.Element {
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder={isListening ? 'Listening…' : 'Ask Nyumba Mind…'}
+          placeholder={isListening ? 'Listening…' : 'Ask Mr. Mwikila…'}
           disabled={isThinking}
           className="flex-1 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
         />
@@ -463,8 +467,15 @@ export function JarvisConsole(): JSX.Element {
   );
 }
 
-function readBearerFromCookie(): string {
-  if (typeof document === 'undefined') return '';
-  const m = document.cookie.match(/sb-access-token=([^;]+)/);
-  return m ? decodeURIComponent(m[1] ?? '') : '';
+async function readBearerToken(): Promise<string> {
+  // The Supabase session is stored by @supabase/ssr under
+  // `sb-<project-ref>-auth-token` (often chunked), NEVER `sb-access-token`,
+  // so read the access token through the SDK rather than a hand-rolled
+  // cookie regex (which always returned '' → every gateway call 401'd).
+  try {
+    const { data } = await createSupabaseBrowserClient().auth.getSession();
+    return data.session?.access_token ?? '';
+  } catch {
+    return '';
+  }
 }

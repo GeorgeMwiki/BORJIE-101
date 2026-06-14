@@ -576,6 +576,46 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0357_dark_worker_service_role_bypass.sql",
+      "down": "down/0357_down_dark_worker_service_role_bypass.sql",
+      "reverses": "Drops the five <tbl>_service_role_bypass RLS policies (workforce_cert_expiry_reminders, regulatory_filings, workforce_locations, entity_index, entity_cross_references), reverting each table to tenant-isolation-only RLS. Dev/staging only — re-darkens the cross-tenant ica-cert-expiry / compliance-deadline-scan / geofence-watcher / entity-indexer workers (their scans again match zero rows under FORCE RLS). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0358_dark_worker_source_table_bypass.sql",
+      "down": "down/0358_down_dark_worker_source_table_bypass.sql",
+      "reverses": "Drops the four <tbl>_service_role_bypass policies on the dark-worker READ-SOURCE tables (workforce_certifications, licences, sites, document_drafts), reverting each to tenant-isolation-only RLS. Dev/staging only — re-darkens the READ path of ica-cert-expiry + entity-indexer (cross-tenant scans match zero rows under FORCE RLS). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0359_marketing_contact_subscribe.sql",
+      "down": "down/0359_down_marketing_contact_subscribe.sql",
+      "reverses": "Drops the marketing_contact_submissions + marketing_subscriptions tables (the gateway /api/v1/marketing/{contact,subscribe} sinks). Dev/staging only — DATA LOSS: removes all captured contact + newsletter-subscription rows. No money/licence/ledger records (public marketing prospect data only).",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0360_geofencing_zones_service_role_bypass.sql",
+      "down": "down/0360_down_geofencing_zones_service_role_bypass.sql",
+      "reverses": "Drops the hazard_zones_service_role_bypass policy, reverting it to tenant-isolation-only RLS. Dev/staging only — re-darkens the geofence-watcher's hazard-zone predicate scan (worker_in_hazard_alert stops firing under FORCE RLS). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

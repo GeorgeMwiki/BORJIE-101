@@ -48,7 +48,9 @@ export type LedgerAccountKey =
   | 'platform_billing_receivable' // DR — SaaS subscription owed to Borjie
   | 'platform_subscription_revenue' // CR — Borjie SaaS subscription revenue
   | 'cash_clearing' // DR — funds received pending settlement (deposits/receipts)
-  | 'tenant_deposits'; // CR — refundable counterparty deposit liability
+  | 'tenant_deposits' // CR — refundable counterparty deposit liability
+  | 'cooperative_clearing' // DR — cooperative pool drawn down on member distribution
+  | 'member_payable'; // CR — net owed to a cooperative member on distribution
 
 interface AccountSpec {
   readonly key: LedgerAccountKey;
@@ -114,6 +116,22 @@ const ACCOUNT_SPECS: ReadonlyArray<AccountSpec> = [
     key: 'tenant_deposits',
     type: 'CUSTOMER_DEPOSIT',
     name: 'Tenant Deposits',
+  },
+  {
+    // DR side of a cooperative member distribution: the cooperative's
+    // distributable pool is drawn down as each member is paid out.
+    // PLATFORM_HOLDING is the closest fit (direction is carried by the
+    // journal line, not the account type).
+    key: 'cooperative_clearing',
+    type: 'PLATFORM_HOLDING',
+    name: 'Cooperative Clearing',
+  },
+  {
+    // CR side: the net amount owed to the cooperative member once their
+    // share is distributed.
+    key: 'member_payable',
+    type: 'CUSTOMER_LIABILITY',
+    name: 'Cooperative Member Payable',
   },
 ];
 

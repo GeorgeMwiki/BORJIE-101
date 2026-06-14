@@ -57,7 +57,13 @@ export function hashAuditEntry(
  */
 export function sealAuditChain(audit: PortalTabAudit): PortalTabAudit {
   let prev = GENESIS_HASH;
-  const history = audit.history.map((entry) => {
+  // Fail-CLOSED on a null/malformed audit: a tab body that arrives without a
+  // well-formed `history` array must NOT throw a raw TypeError here (it would
+  // leak a stack-shaped error out of the persist chokepoint). Treat a missing
+  // or non-array history as empty; the downstream admission rules then reject
+  // the malformed tab with a clean validation error instead of a 500.
+  const entries = Array.isArray(audit?.history) ? audit.history : [];
+  const history = entries.map((entry) => {
     const e = entry as EntryWithHash;
     if (e.hash) {
       prev = e.hash;
@@ -88,8 +94,11 @@ export interface AuditChainVerdict {
 export function verifyAuditChain(audit: PortalTabAudit): AuditChainVerdict {
   let prev = GENESIS_HASH;
   let unsealed = 0;
-  for (let i = 0; i < audit.history.length; i += 1) {
-    const e = audit.history[i] as EntryWithHash;
+  // Mirror sealAuditChain: a malformed/empty history verifies clean rather
+  // than throwing — an absent chain is "nothing sealed", not "broken".
+  const entries = Array.isArray(audit?.history) ? audit.history : [];
+  for (let i = 0; i < entries.length; i += 1) {
+    const e = entries[i] as EntryWithHash;
     if (!e.hash) {
       unsealed += 1;
       continue;

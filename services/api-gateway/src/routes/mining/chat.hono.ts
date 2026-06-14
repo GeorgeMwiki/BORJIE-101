@@ -221,6 +221,25 @@ app.openapi(chatTurnRoute, (async (c) => {  const { tenantId, userId } = c.get('
               }),
             });
             break;
+          case 'auditor':
+            // KI-005 — the evidence-chain Auditor verdict for the final
+            // answer. A stream cannot un-send tokens already flushed, so the
+            // verdict is SURFACED (never withholds): the client renders a
+            // grounding badge/warning when `groundingFault` or
+            // `evidenceWarning` is set. All fields are structured non-LLM
+            // verdict metadata (counts, enums, booleans) — no model text — so
+            // there is nothing to route through the egress guard.
+            await stream.writeSSE({
+              event: 'auditor',
+              data: JSON.stringify({
+                verdict: evt.verdict,
+                evidence_count: evt.evidenceCount,
+                evidence_warning: evt.evidenceWarning,
+                grounding_fault: evt.groundingFault,
+                at: new Date().toISOString(),
+              }),
+            });
+            break;
           case 'done':
             await stream.writeSSE({
               event: 'done',

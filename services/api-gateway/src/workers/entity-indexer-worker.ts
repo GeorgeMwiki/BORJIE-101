@@ -26,15 +26,23 @@
  *   - Per-kind errors isolated (one missing table cannot poison the tick).
  *   - All errors logged via Pino — NO console.log in services.
  *
- * Tenant isolation: each `UPDATE` / `INSERT` carries the source row's
- * `tenant_id` literally; RLS at the api-gateway is bypassed here
- * because the worker runs as the platform identity (no
- * `app.tenant_id` GUC set). RLS still enforces tenant scope on every
- * read from the brain tools that consume the index.
+ * Tenant isolation: the source scan + the entity_index /
+ * entity_cross_references writes run inside `withServiceRoleContext`
+ * (binds `app.is_service_role='true'`) so the FORCE-RLS bypass policies
+ * (migration 0357) let this cross-tenant worker read+write every
+ * tenant's rows; each write still carries the source row's `tenant_id`
+ * literally. Without that context the shared pool has
+ * `is_service_role='false'` + an empty `app.current_tenant_id`, so FORCE
+ * ROW LEVEL SECURITY silently filters every read/write to ZERO rows (the
+ * reminders-class dark-worker bug closed by 0354). Embedding (OpenAI)
+ * runs OUTSIDE any transaction so a service-role connection is never held
+ * across the network call. RLS still enforces tenant scope on every read
+ * from the brain tools that consume the index.
  */
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 import { discoverEdges, type DiscovererDb } from '../services/cross-reference-discovery';
 import {
   registerWorker,
@@ -447,9 +455,17 @@ export function createEntityIndexerWorker(
       perKindCounts: Record<string, number>;
     },
   ): Promise<void> {
+    const svcDb = options.db as unknown as Parameters<
+      typeof withServiceRoleContext
+    >[0];
     let rows: readonly Record<string, unknown>[];
     try {
-      const res = await options.db.execute(kindSpec.sourceQuery(batchPerKind));
+      // Cross-tenant scan in a short service-role tx (binds
+      // app.is_service_role='true' so the FORCE-RLS bypass policies on the
+      // source + index tables apply and the read is not filtered to 0).
+      const res = await withServiceRoleContext(svcDb, (txDb) =>
+        (txDb as unknown as DbLike).execute(kindSpec.sourceQuery(batchPerKind)),
+      );
       rows = rowsOf(res);
     } catch (err) {
       options.logger.warn(
@@ -470,23 +486,21 @@ export function createEntityIndexerWorker(
         continue;
       }
       try {
+        // Embed OUTSIDE any tx — never hold a service-role connection
+        // across the (slow) OpenAI embedding call.
         const embedding = await embedText(parsed.textForEmbedding);
-        await upsertEntityIndexRow(
-          options.db,
-          parsed,
-          kindSpec.entityKind,
-          embedding,
-          nowTs,
+        // Index upsert in its OWN short service-role tx.
+        await withServiceRoleContext(svcDb, (txDb) =>
+          upsertEntityIndexRow(
+            txDb as unknown as DbLike,
+            parsed,
+            kindSpec.entityKind,
+            embedding,
+            nowTs,
+          ),
         );
         counters.indexedCount += 1;
         kindCount += 1;
-        const edgeCount = await upsertCrossReferences(options.db, {
-          tenantId: parsed.tenantId,
-          kind: kindSpec.entityKind,
-          id: parsed.entityId,
-          now: nowTs,
-        });
-        counters.edgesUpserted += edgeCount;
       } catch (err) {
         counters.failedRows += 1;
         options.logger.warn(
@@ -497,6 +511,31 @@ export function createEntityIndexerWorker(
             err: err instanceof Error ? err.message : String(err),
           },
           'entity-indexer: upsert failed',
+        );
+        continue;
+      }
+      // Cross-references in a SEPARATE short service-role tx so a bad edge
+      // cannot roll back the already-indexed row (edges are best-effort and
+      // are refreshed on the next tick).
+      try {
+        const edgeCount = await withServiceRoleContext(svcDb, (txDb) =>
+          upsertCrossReferences(txDb as unknown as DbLike, {
+            tenantId: parsed.tenantId,
+            kind: kindSpec.entityKind,
+            id: parsed.entityId,
+            now: nowTs,
+          }),
+        );
+        counters.edgesUpserted += edgeCount;
+      } catch (err) {
+        options.logger.warn(
+          {
+            worker: 'entity-indexer',
+            kind: kindSpec.entityKind,
+            entityId: parsed.entityId,
+            err: err instanceof Error ? err.message : String(err),
+          },
+          'entity-indexer: cross-references failed',
         );
       }
     }

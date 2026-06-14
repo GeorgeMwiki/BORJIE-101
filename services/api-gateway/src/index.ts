@@ -237,7 +237,7 @@ import {
 } from './composition/org-loop/org-loop-orchestrator';
 import { createTaskCommitmentBinder } from './composition/org-loop/task-commitment-binder';
 import { createDrizzleOrgLoopRunRepository } from '@borjie/database';
-import { withServiceRoleContext } from '@borjie/database';
+import { withServiceRoleContext, withTenantContext } from '@borjie/database';
 import { tapCockpitEvents } from './services/cockpit-events';
 // HITL approval consumer — the owner's approve/dismiss verbs over parked
 // HIGH/sovereign org-loop runs (late-bound to the orchestrator; 503 until
@@ -569,6 +569,13 @@ import graphRouter from './routes/graph.router';
 // but never mounted — admin-web's mission-eval CoT panel had no backend. Now
 // reachable at /admin/cot-query/query.
 import cotQueryRouter from './routes/cot-query.router';
+// Persona-drift events read surface (KI-011). admin-web's persona-drift screen
+// polls GET /api/v1/persona-drift/events; the route was never mounted, so the
+// screen showed a permanent "Could not load" alert. Admin-role + tenant-scoped
+// (RLS-bound) read of the persisted kernel_persona_drift_events breaches.
+import createPersonaDriftRouter, {
+  type PersonaDriftEventRow,
+} from './routes/persona-drift.router';
 // Generative jurisdiction unlock — promote a learned country into the launch
 // market (enabled_countries, migration 0337). Seeded TZ-only; new markets are a
 // governed row, not a deploy. Backs mwikila.jurisdiction.promote.
@@ -808,6 +815,15 @@ import { createKgSyncWorker } from './workers/kg-sync.worker';
 // (gap→spec→generate→propose) operator-gated route.
 import { createTickInputsProvider } from './composition/proactive/tick-inputs-provider.js';
 import { internalModulesRouter } from './routes/internal/modules.hono';
+// Wave ENTITY-LEGIBILITY-WIRE — the six entity.* brain tools POST to
+// /internal/entity-legibility/* over the loopback client but NO router was
+// mounted there, so every call 404'd and the tools fell to their empty stub.
+import { internalEntityLegibilityRouter } from './routes/internal/entity-legibility.hono';
+// Wave BRAIN-LOOPBACK-WIRE — borjie.ask / borjie.cite / documents.* /
+// jurisdiction-discovery.discover brain tools likewise POSTed to unmounted
+// /internal/* routes. These routers light them up.
+import { internalBrainLoopbackRouter } from './routes/internal/brain-loopback.hono';
+import { internalJurisdictionDiscoveryRouter } from './routes/internal/jurisdiction-discovery.hono';
 // Wave NOTIFICATION-DISPATCH-WIRE — turn on the already-built notification
 // rails: the dispatch drain worker (delivers notification_dispatch_log
 // pending rows via email/SMS/push with retry+backoff+DLQ), its push
@@ -887,6 +903,15 @@ import {
 } from './composition/cluster-lock';
 import { initRedisTokenBucket } from './middleware/rate-limiter';
 import { initCockpitBus, publishCockpitEvent } from './services/cockpit-events';
+// KI-010 — the governed, PROPOSE-ONLY self-extension cron. Born-dark (zero
+// importers) until this wire. `createSelfExtensionCron` only PROPOSES new
+// sub-MDs to the owner four-eye inbox + drives a self-build dry-run; it NEVER
+// auto-deploys (the runtime-apply primitive stays UNMOUNTED — see
+// self-extension-cron-wiring.ts). Composed unconditionally below (so it is
+// reachable + tested), but only .start()ed behind the default-OFF
+// BORJIE_SELF_EXTENSION_CRON_ENABLED flag.
+import { createSelfExtensionCron } from './composition/self-extension-cron';
+import { buildSelfExtensionCronDeps } from './composition/self-extension-cron-wiring';
 
 // Stable cron names wrapped with withClusterLeader(...) at their .start()
 // sites below. Single source of truth so gracefulShutdown releases exactly
@@ -918,6 +943,10 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'loop-economy',
   'someday-review',
   'org-loop',
+  // KI-010 — governed, propose-only self-extension cron. Listed so
+  // gracefulShutdown releases its lock; only .start()ed behind the
+  // default-OFF BORJIE_SELF_EXTENSION_CRON_ENABLED flag (see listen block).
+  'self-extension',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -2362,6 +2391,57 @@ const portalGenuiWiring = buildPortalGenuiWiring();
       legacyPortalWiring.fileKra;
   }
 }
+// KI-011 — bind the Drizzle-backed persona-drift event source onto the SAME
+// serviceRegistry the service-context middleware closed over (the persona-drift
+// route reads `services.personaDriftEventSource`). The read is RLS-bound: it
+// runs inside `withTenantContext(db, tenantId)` so the tenant-isolation policy
+// on `kernel_persona_drift_events` (migration 0305, FORCE RLS on
+// app.current_tenant_id) returns exactly that tenant's breaches. Tenant-scoped
+// read, NOT a cross-tenant scan — no service-role bypass. When DATABASE_URL is
+// unset the slot stays empty and the route returns an honest `{ data: [] }`.
+{
+  const driftDb = serviceRegistry.db;
+  if (driftDb) {
+    (serviceRegistry as { personaDriftEventSource?: unknown }).personaDriftEventSource =
+      {
+        async list(args: {
+          readonly tenantId: string;
+          readonly limit: number;
+        }): Promise<ReadonlyArray<PersonaDriftEventRow>> {
+          return withTenantContext(driftDb, args.tenantId, async (tx) => {
+            const res = await tx.execute(drizzleSqlTag`
+              SELECT id, persona_id, violation_type, severity, excerpt, detected_at
+                FROM kernel_persona_drift_events
+               WHERE tenant_id = ${args.tenantId}
+               ORDER BY detected_at DESC
+               LIMIT ${args.limit}`);
+            const rows =
+              (res as { rows?: Array<Record<string, unknown>> }).rows ??
+              (Array.isArray(res) ? (res as Array<Record<string, unknown>>) : []);
+            return rows.map((r): PersonaDriftEventRow => {
+              const excerpt = String(r.excerpt ?? '');
+              // The excerpt is shaped `…drift: dim <name> drifted by …` by the
+              // emitter (persona-drift/alert.ts). Surface the worst-dim hint when
+              // the marker is present; the client renders '—' when absent.
+              const dimMatch = excerpt.match(/dim ([a-z0-9_]+) drifted/i);
+              return {
+                id: String(r.id ?? ''),
+                personaId: String(r.persona_id ?? ''),
+                violationType: String(r.violation_type ?? ''),
+                excerpt,
+                severity: (r.severity as 'low' | 'medium' | 'high') ?? 'low',
+                detectedAt:
+                  r.detected_at instanceof Date
+                    ? r.detected_at.toISOString()
+                    : String(r.detected_at ?? ''),
+                ...(dimMatch ? { worstDim: dimMatch[1] } : {}),
+              };
+            });
+          });
+        },
+      };
+  }
+}
 // W2a — optional tenant-scoped read port for LIVE widget-data (mapped estate
 // domains). Same `$client.unsafe(sql, params)` boundary the record store uses;
 // RLS FORCE on app.current_tenant_id isolates in the DB. Unbound in dev/test →
@@ -3234,6 +3314,10 @@ api.route('/junior-ai', juniorAIRouter);
 api.route('/graph', graphRouter);
 // Regulator-facing CoT reservoir read-back (DSAR / accountability surface).
 api.route('/admin/cot-query', cotQueryRouter());
+// KI-011 — persona-drift events read surface for admin-web. Mounted at
+// /api/v1/persona-drift/events (the literal the client polls). Admin-role +
+// tenant-scoped (RLS-bound) read of persisted kernel_persona_drift_events.
+api.route('/persona-drift', createPersonaDriftRouter());
 // Generative jurisdiction unlock — the governed launch-market registry.
 api.route('/admin/jurisdictions', createJurisdictionPromotionRouter());
 // Universal integration fabric — un-darks the 21 connector packages behind
@@ -3386,6 +3470,14 @@ api.route('/workforce', workforceTabConfigWorkerRouter);
 // propose-only — never auto-applies). Mounted BEFORE the broad /internal route
 // so the more-specific /internal/modules prefix wins.
 api.route('/internal/modules', internalModulesRouter);
+// Brain-tool loopback routers — MUST mount BEFORE the broad `/internal` route
+// below so their more-specific prefixes win first-match lookup (the
+// route-shadow law). Each is the backing endpoint for a previously born-dark
+// persona-tool whose handler POSTs to `/internal/...` over the loopback client.
+api.route('/internal/entity-legibility', internalEntityLegibilityRouter);
+api.route('/internal/brain', internalBrainLoopbackRouter);
+api.route('/internal/documents', internalBrainLoopbackRouter);
+api.route('/internal/jurisdiction-discovery', internalJurisdictionDiscoveryRouter);
 api.route('/internal', workforceTabPolicyAdminRouter);api.route('/support', supportRouter);
 api.route('/admin', adminUsersRouter);
 // REMOVED (borjie hard-fork): /units/:id/{subdivision,components} — queried
@@ -4304,6 +4396,62 @@ const outcomeReconciliationWorker = serviceRegistry.db
       },
     };
 
+// KI-010 — the governed, PROPOSE-ONLY self-extension cron. Constructed
+// UNCONDITIONALLY here (so the keystone is composed + reachable + covered by the
+// cron-wiring test) but kept INERT-by-default two ways:
+//   1. `enabled` is wired to the default-OFF env flag below — even the elected
+//      leader's .start() is a no-op until BORJIE_SELF_EXTENSION_CRON_ENABLED.
+//   2. The terminal action is a four-eye PENDING proposal + a self-build
+//      dry-run. The runtime-apply / sub-MD register() path stays UNMOUNTED
+//      (fail-closed thrower) — see self-extension-cron-wiring.ts. This closes
+//      the born-dark defect WITHOUT enabling autonomous self-modification.
+const selfExtensionEnabled =
+  process.env.BORJIE_SELF_EXTENSION_CRON_ENABLED === 'true';
+const selfExtensionCron = serviceRegistry.db
+  ? createSelfExtensionCron(
+      buildSelfExtensionCronDeps({
+        db: serviceRegistry.db as unknown as Parameters<
+          typeof buildSelfExtensionCronDeps
+        >[0]['db'],
+        // Bind the service-role GUC for every out-of-band read (RLS FORCE has
+        // no request-bound tenant here). SAME audited platform-scope path the
+        // resident estate-mind / proactive workers use.
+        withServiceRole: <T,>(
+          fn: (tx: { execute(q: unknown): Promise<unknown> }) => Promise<T>,
+        ): Promise<T> =>
+          withServiceRoleContext(
+            serviceRegistry.db as Parameters<typeof withServiceRoleContext>[0],
+            fn as never,
+          ) as Promise<T>,
+        logger: createPinoLikeLogger('self-extension-cron'),
+        // Default-OFF: the cron is composed but inert until the owner flips the
+        // flag. NODE_ENV==='test' is also implicitly off via the cron default.
+        enabled: selfExtensionEnabled,
+      }),
+    )
+  : { start() {}, stop() {}, async tickOnce() {
+      return {
+        tenantsScanned: 0,
+        diagnosed: 0,
+        proposalsEnqueued: 0,
+        buildProposalsDriven: 0,
+        errored: 0,
+      };
+    } };
+// Boot-proof: log the composed-but-disabled / enabled state EITHER way so a
+// reader of the boot log can confirm the keystone is wired and know exactly how
+// to turn it on. Proposals are four-eye/HITL gated; nothing auto-deploys.
+logger.info(
+  {
+    enabled: selfExtensionEnabled,
+    dbPresent: Boolean(serviceRegistry.db),
+    flag: 'BORJIE_SELF_EXTENSION_CRON_ENABLED',
+  },
+  selfExtensionEnabled
+    ? 'self-extension cron: composed and ENABLED — proposals are four-eye/HITL gated; runtime-apply stays UNMOUNTED'
+    : 'self-extension cron: composed, disabled by default — set BORJIE_SELF_EXTENSION_CRON_ENABLED=true to enable; proposals are four-eye/HITL gated',
+);
+
 // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Fires
 // every 15 min by default, scans every active tenant, runs all 5
 // handlers (license-renewal, shift-scheduler, royalty-filing, payroll,
@@ -4588,6 +4736,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: outcome-reconciliation worker stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: outcome-reconciliation stop failed');
+  }
+  // KI-010 — self-extension cron. stop() is a safe no-op when it was never
+  // started (flag off), but called for lifecycle symmetry with the other crons.
+  try {
+    selfExtensionCron.stop();
+    logger.info('shutdown: self-extension cron stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: self-extension cron stop failed');
   }
   try {
     mwikilaAutonomousWorker.stop();
@@ -4935,6 +5091,13 @@ if (require.main === module) {
   // outcome_predictions whose horizon has elapsed and writes back
   // outcome_observations + outcome_reconciliations, hash-chained.
   withClusterLeader(outcomeReconciliationWorker, lockIdFor('outcome-reconciliation')).start();
+  // KI-010 — governed, propose-only self-extension cron. Leader-gated like the
+  // other resident workers. The cron's own .start() is a NO-OP unless
+  // BORJIE_SELF_EXTENSION_CRON_ENABLED=true (the flag is bound to `enabled` at
+  // construction above), so calling start() here is safe + inert by default.
+  // Even when enabled it only PROPOSES (four-eye/HITL); runtime-apply is
+  // UNMOUNTED. Composed unconditionally so the keystone is reachable + tested.
+  withClusterLeader(selfExtensionCron, lockIdFor('self-extension')).start();
   // Wave AUTONOMY-CRON-WIRE — Mr. Mwikila autonomous-MD worker. Every
   // 15 min by default, walks every active tenant, runs all 5 handlers
   // through the runtime (kill-switch + inviolable rails enforced) so

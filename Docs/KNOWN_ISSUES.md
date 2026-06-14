@@ -7,12 +7,226 @@ precise `file:line`, reproduction steps, root cause, and proposed fix.
 
 Fixes marked inline in `git log` are NOT listed here.
 
-**Open KI count: 0.**
+**Open KI count: 0.** All twelve 2026-06-14 Mode-C-review KIs (KI-005…KI-016)
+were driven to zero on branch `fix/mode-c-review-drive-to-zero` — each fixed,
+guarded, and cold-verified. Entries are kept below as the record, prefixed
+**[CLOSED]**.
+
+Two carry a residual that is a deliberate posture, NOT an open bug:
+- **KI-005** — the streaming-Auditor is WIRED (the `/chat` orchestrator now
+  surfaces an `auditor` SSE verdict after the final answer in both paths, the
+  owner-web client consumes it onto `ChatMessage.grounding`, tests red→green).
+  The only remnant is the optional grounding-**badge JSX** in `ChatPanel.tsx`
+  (a renderer over the now-present `grounding` data — trivial, deferred to a UI
+  polish pass). Surface-not-withhold was the chosen model (streamed tokens
+  can't be un-sent).
+- **KI-010** — the born-dark cron is composed + leader-gated + tested behind a
+  **default-OFF** `BORJIE_SELF_EXTENSION_CRON_ENABLED` flag, propose-only
+  (four-eye/HITL gated, fail-closed registry). Flipping the flag to allow
+  autonomous gap-detection → proposal generation is an ⛔ owner choice, not a
+  bug. See the [CLOSED] KI-010 entry for the recipe.
+
+The "cover-all" session drove the full set to zero: KI-005 (chat streaming-
+Auditor), KI-006/007 (buyer cross-tenant inquiry loop), KI-008/009 (server↔
+mobile tab-kind lockstep + project-on-spawn), KI-010 (self-extension governed
+default-OFF), KI-011 (persona-drift `/events` route), KI-012 (field-capture
+honest pending-analysis), KI-013 (marketing `/contact`+`/subscribe` sinks,
+migration 0359), KI-014 (geofencing predicate un-darkened, migration 0360),
+KI-015 (marketing + admin-web vitest configs — dark web-app tests now run,
+0 quarantines), KI-016 (cleanups).
 
 Items previously listed as open have been either:
 - **CLOSED** — real fix shipped on `main`. Trailer below.
 - **MOVED TO ROADMAP** — deferred behind a wave-scale effort; see
   `Docs/ROADMAP.md` for the corresponding `R*` entry.
+
+---
+
+## Open entries (2026-06-14 Mode-C review residue)
+
+### KI-005 — Mining `/chat` SSE bypasses the evidence-chain Auditor — **[CLOSED 2026-06-14] was OPEN — HIGH**
+
+`services/api-gateway/src/routes/mining/chat.hono.ts` (whole file) +
+`chat-orchestrator.ts:446-472,561-579`. **Repro:** ask the owner cockpit
+chat anything that yields a low/empty-evidence answer; it streams with a
+calibrated `confidence` but ZERO grounding/Auditor signal — an ungrounded
+answer ships looking authoritative. **Root cause:** chat.hono.ts runs the
+ingress/egress guards but never calls `auditChatResponse` /
+`decideStrictResponse` (grep of `routes/mining` = zero refs); the
+orchestrator emits `message_chunk` with `evidence_ids:merged` + confidence
+but no auditor verdict. The non-stream `brain.hono.ts /turn` path DOES
+audit + withhold; the streaming path was never wired. **Proposed fix:**
+after computing `merged` in both emit paths, call `auditChatResponse({…})`;
+add an `auditor` variant to the `ChatSseEvent` union
+(`chat-orchestrator.ts:144`) carrying `{verdict,evidenceCount,
+evidenceWarning,groundingFault}`; yield it after the final `message_chunk`
+(streamed tokens can't be un-sent → surface-not-withhold). The owner-web
+chat client must consume it (the `T_auditor` i18n + `brain-api.ts` withhold
+UI exist to mirror). **DESIGN NOTE (why registered, not inline):** the
+streaming enforcement model — surface-only vs delayed-withhold-of-the-final-
+block — is an owner/design decision; primary chat surface, do not ship
+half-baked.
+
+### KI-006 — Cross-tenant marketplace bid dead-end — **[CLOSED 2026-06-14] was OPEN — HIGH (model decision)**
+
+`services/api-gateway/src/routes/mining/bids.hono.ts:82-100,132` +
+`marketplace.hono.ts:35-53`. **Repro:** buyer browses a listing from
+another mine (the cross-tenant marketplace shows them, migration 0350
+public-read), opens it, fills PlaceBidSheet, Submit → 404 'Listing not
+found' → 'Bid could not be placed' toast. **Root cause:** the marketplace
+READ is cross-tenant but place-bid requires the listing in the buyer's OWN
+tenant and stamps the bid with the buyer's tenant — bids are structurally
+intra-tenant, so a buyer can SEE but not BID on cross-tenant listings.
+**Proposed fix — DECISION REQUIRED:** (a) make place-bid look the listing
+up cross-tenant (same BUYER_VISIBLE guard as the read) + stamp buyer-tenant
+& seller-tenant separately; or (b) keep bids intra-tenant and, on
+cross-tenant listings, hide the bid CTA + route to the INQUIRY flow (POST
+`/api/v1/mining/flows/inquiries` — the built cross-tenant mechanism, KI-007).
+Recommend (b) as the honest interim (cross-tenant bidding isn't built).
+
+### KI-007 — Buyer-mobile has no inquiry consumer / no 'raise inquiry' entry — **[CLOSED 2026-06-14] was OPEN — HIGH (feature)**
+
+`apps/buyer-mobile` (no caller) vs gateway `index.ts:2681` (`/buyer/tabs`),
+`:2682` (`/buyer/inquiries`), `routes/mining/flows/inquiry-flow.hono.ts:154`
+(POST inquiries). **Repro:** the backend buyer-projection + inquiry
+endpoints are mounted + built; grep `apps/buyer-mobile/src` for
+`buyer/tabs|/buyer/inquiries|raiseInquiry` = ZERO — a buyer can never raise
+an inquiry or see a projected tab. **Root cause:** the buyer leg of the
+surface-completion loop was never built on the mobile client. **Proposed
+fix:** add a buyer-mobile inquiry client (POST flows/inquiries, GET
+/buyer/inquiries), an 'Ask the seller' CTA on `app/marketplace/[id].tsx`, an
+inquiries list screen, and a `/buyer/tabs` projection consumer in
+`app/(tabs)/_layout.tsx` (mirror workforce `useWorkforceTabConfig`).
+
+### KI-008 — workforce-mobile drops 6/7 owner-spawnable projected tab kinds — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
+
+`services/api-gateway/src/routes/workforce/tab-projection.ts:61-71` (7
+kinds) vs `apps/workforce-mobile/src/lib/workforce-tab-projection.ts:41-43`
+(maps only `marketplace`). **Root cause:** the mobile screen-map is out of
+lockstep with the server allowlist; `resolveProjectedTabs` routes the other
+6 kinds into `skippedKinds` → silently dropped. **Proposed fix:** keep the
+allowlist + screen-map in lockstep — add screens for `inquiry_respond`/
+compliance/safety/reports/treasury/procurement, OR (interim) narrow the
+SERVER allowlist to the kinds mobile renders so the owner isn't promised
+materialization the worker drops.
+
+### KI-009 — Surface-completion projection bags written only by the golden flow — **[CLOSED 2026-06-14] was OPEN — MEDIUM (architectural)**
+
+`services/api-gateway/src/composition/surface-completion/flow-binder.ts:135-136`
+(only `GOLDEN_INQUIRY_FLOW` writes `workforceProjection`/`buyerProjection`);
+`services/api-gateway/src/services/action-executor/handlers/tabs.ts:191`
+(`spawnTab` persists config verbatim, never injects a projection bag).
+**Root cause:** a general owner-spawned tab orphans its complementary
+worker/buyer legs by construction — only the one hard-coded golden flow
+completes (violates the completion law). **Proposed fix:** in `spawnTab()`,
+when config lacks `workforceProjection` and the resolved kind ∈
+`PROJECTABLE_TAB_KINDS`, derive + inject `config.workforceProjection={kind}`
+(+ `buyerProjection` where applicable) so EVERY spawned capability completes
+its multi-surface legs. Account for the `owner_tabs_structural` table split.
+
+### KI-010 — self-extension-cron born-dark — **[CLOSED 2026-06-14] born-dark defect fixed; autonomous-enable still ⛔ owner-gated**
+
+`services/api-gateway/src/composition/self-extension-cron.ts:359`
+(`createSelfExtensionCron`) — WAS ZERO non-test importers; not in `index.ts`,
+not in `CLUSTER_LEADER_CRON_NAMES`, never `.start()`'d. **Root cause:** the
+self-developing-MD keystone had no autonomous driver wired.
+
+**Fix (2026-06-14):** the born-dark *composition* defect is closed WITHOUT
+enabling autonomous self-modification. New composition helper
+`services/api-gateway/src/composition/self-extension-cron-wiring.ts`
+(`buildSelfExtensionCronDeps`) composes the full propose-only dep bundle
+(`fourEye` → the single `enqueueFourEyeRequest` path; `selfBuild` →
+`createSelfBuildWiring` propose-only dry-run; `subMdRegistry` → **fail-closed**:
+`list()`→`[]`, `register()` THROWS so the runtime-apply path stays UNMOUNTED;
+`llmRouter` → a deterministic diagnosis-derived `read`-tier spec, no model id).
+`index.ts` now constructs the cron UNCONDITIONALLY in the leader-gated
+db-present block, adds `'self-extension'` to `CLUSTER_LEADER_CRON_NAMES`, and
+leader-gates its `.start()` — but the cron's `enabled` is bound to the
+default-OFF `BORJIE_SELF_EXTENSION_CRON_ENABLED` flag, so `.start()` is a
+no-op until an owner flips it. A boot-proof structured log is emitted either
+way. The terminal action is ALWAYS a four-eye/HITL PENDING proposal — nothing
+auto-deploys. Tests: `self-extension-cron-wiring.test.ts` (6, incl. a
+red-proven fail-closed `register()` assertion) + the pre-existing
+`self-extension-cron.test.ts` (6). **⛔ STILL OWNER-GATED:** flipping
+`BORJIE_SELF_EXTENSION_CRON_ENABLED=true` turns on autonomous gap-detection →
+proposal generation; do NOT enable in any environment without explicit owner
+authorization + the four-eye/HITL governance verified live. Even when enabled
+it only PROPOSES; the runtime-apply / sub-MD activation path remains a
+separate, maximally-governed wave.
+
+### KI-011 — persona-drift-cron born-dark + no `/events` read route — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
+
+`services/api-gateway/src/composition/persona-drift-cron.ts:117`
+(`createPersonaDriftCron`, zero importers, never started); `apps/admin-web`
+persona-drift screen calls `/api/v1/persona-drift/events` which the gateway
+never mounts (only the cron) → permanent 'Could not load' alert. **Root
+cause:** cadence drift detection never runs (only inline post-think), and
+the admin read route was never added. **Proposed fix:** construct
+`createPersonaDriftCron` in the leader-gated supervisor block
+(sampleSource=`cot_reservoir`, assess=`assessPersonaDrift`,
+sink=`PersonaDriftSink`) + add a gateway `GET /persona-drift/events`
+returning the persisted `kernel_persona_drift_events`. Lower-risk than
+KI-010 (detection only, no self-modification).
+
+### KI-012 — Field-capture stub AI inference rendered as live data — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
+
+`services/field-capture-service` — the deterministic STUB inference is
+wired as live `processed` data (every photo gets fabricated values). **Root
+cause:** a stub stands in for real inference but renders as real (violates
+no-mock production-real). **Proposed fix:** wire real inference OR mark the
+output honestly (a 'pending analysis'/'demo' state) so fabricated values
+never render as live.
+
+### KI-013 — Marketing `/contact` + `/subscribe` gateway routes + tables missing (BE leg) — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
+
+`apps/marketing/src/app/api/{contact,subscribe}/route.ts` forward to
+`${GATEWAY}/api/v1/marketing/{contact,subscribe}`;
+`services/api-gateway/src/routes/marketing.hono.ts` mounts only
+`/pilot-application`. **Repro:** submit the contact/subscribe form → the FE
+handler 303-redirects with `?…=error` because the gateway route 503s. The
+FE 404 was fixed inline (dbe46cd3); the delivery leg is not built. **Root
+cause:** the gateway routes + persistence tables were never created.
+**Proposed fix:** mirror `/pilot-application` + migration 0146 — add
+`marketing_contact_submissions` + `marketing_subscriptions` tables
+(migration 0358) + the two routes persisting to them.
+
+### KI-014 — geofencing predicate service RLS-dark from the worker (0357 residual) — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
+
+`services/api-gateway/src/services/geofencing/predicates.ts:99,142,182,224,261`
+(hazard/site/distance queries on a non-context-bound db). **Root cause:**
+migration 0357 + the geofence-watcher wrap un-darkened the
+`workforce_locations` scan, but the downstream geofencing predicate service
+runs its own queries on an uncontextualized handle → still 0 rows under
+FORCE RLS when invoked from the worker, so geofence ALERTS are not fully
+restored. **Proposed fix:** run the predicate queries under service-role (or
+per-tenant) context when invoked from the worker, OR add bypass policies for
+the hazard/site tables + bind context in the predicate service.
+(Request-path invocations are fine — they carry the tenant GUC.)
+
+### KI-015 — App-level vitest tests excluded by the root config — **[CLOSED 2026-06-14] was OPEN — MEDIUM (CI/meta)**
+
+`vitest.config.ts` include = `packages/** services/** scripts/**` — EXCLUDES
+`apps/**`; each app's `test` script runs `vitest run --passWithNoTests`
+against that root config. **Root cause:** app-level guards (the new
+marketing dead-links test, etc.) + any pre-existing app tests never run in
+CI — a false-green coverage gap. **Proposed fix:** add `apps/**/*.test.{ts,
+tsx}` to the root vitest include, OR give each app its own
+`vitest.config.ts` (owner-web already has one — which is why its
+no-bare-fetch guard DOES run). **Caution:** flipping it may surface
+pre-existing app-test debt — triage before enabling.
+
+### KI-016 — Minor cleanups (batch) — **[CLOSED 2026-06-14] was OPEN — LOW**
+
+- admin `/platform/overview` StaffNav link + BFF target a gateway route
+  removed in the hard-fork (`index.ts:3215`) → 'Active tenants' KPI
+  permanently em-dash; remove the dead link or re-point at a live source.
+- marketing 4 orphan audience pages (`for-bank`, `for-buyer` [dup of
+  `/buyers`], `for-csr-community`, `for-family-office`) — add nav/sitemap
+  links or delete.
+- `services/api-gateway/.../mounted-routers.ts` dead catalog (docstring
+  claims source-of-truth but nothing consumes it) — delete or wire.
+- marketing status page fabricates 100% uptime when `DATABASE_URL` unset —
+  make it an honest degrade.
 
 ---
 

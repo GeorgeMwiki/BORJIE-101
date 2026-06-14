@@ -65,8 +65,8 @@ export function subscribeNavigateRequest(handler: (e: NavigateRequestEvent) => v
  */
 export const DEFAULT_WORKER_TARGETS: ReadonlyArray<NavigateTarget> = [
   { route: '/(tabs)', label: 'Home' },
-  { route: '/(worker)/tasks', label: 'My tasks' },
-  { route: '/(worker)/safety', label: 'Safety check' },
+  { route: '/(tabs)/field', label: 'My tasks' },
+  { route: '/(worker)/incident-report', label: 'Safety check' },
   { route: '/photo-advisor', label: 'Photo advisor' },
   { route: '/notifications', label: 'Notifications' }
 ]

@@ -24,6 +24,7 @@ const OWNER_NAV_ROUTES: ReadonlyArray<{
 }> = [
   { route: '/', labelKey: 'nav.home' },
   { route: '/dashboard', labelKey: 'nav.dashboard' },
+  { route: '/flows', labelKey: 'nav.flows' },
   { route: '/licences', labelKey: 'nav.licences' },
   { route: '/compliance', labelKey: 'nav.compliance' },
   { route: '/finance', labelKey: 'nav.finance' },

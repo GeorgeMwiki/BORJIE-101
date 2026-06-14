@@ -6,9 +6,13 @@
  * appends to the in-memory store. Offline-first: callers can persist
  * the queue locally on mobile and bulk-sync via the field-capture-service.
  *
- * The AI inference hook is pluggable — by default we attach a tiny rule-
- * based stub that suggests a "buildingGuess" based on the EXIF heading.
- * Production wires this to a real vision model in the service tier.
+ * The AI inference hook is pluggable. The DEFAULT provider is flagged
+ * `live: false`: it is NOT a real model and never fabricates results.
+ * When no real provider is configured, captures are marked
+ * `pending_analysis` (honest "awaiting analysis" state) instead of being
+ * stamped `processed` with mock values (KI-012 / no-mock-in-production).
+ * Production wires a real vision model in the service tier, which takes
+ * the unchanged `processed` path.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -49,6 +53,16 @@ export interface AiInferenceFn {
   (capture: FieldCapture, bytes?: ArrayBuffer | Uint8Array):
     | Promise<Readonly<Record<string, unknown>>>
     | Readonly<Record<string, unknown>>;
+  /**
+   * `false` ⇒ no REAL inference provider is configured (deterministic
+   * stub / demo). Mirrors the `live` flag on the imagery providers in
+   * `imagery/providers.ts`. When `false`, the pipeline marks captures
+   * `pending_analysis` instead of `processed`, and does NOT attach
+   * fabricated inference values — honest empty state, never mock-as-real
+   * (KI-012). Omit (or set `true`) for a real provider to keep the
+   * `processed` path unchanged.
+   */
+  readonly live?: boolean;
 }
 
 export interface CaptureStore {
@@ -186,21 +200,45 @@ export function createCapturePipeline(deps: CapturePipelineDeps) {
         createdAt: clock().toISOString(),
       });
 
-      // AI inference (best-effort).
+      // AI inference. A provider explicitly flagged `live === false` is
+      // the deterministic stub / unconfigured case: we must NOT run it
+      // and present fabricated values as a completed analysis (KI-012).
+      // Instead the capture is marked `pending_analysis` and carries an
+      // honest marker so the consuming UI renders "awaiting analysis"
+      // rather than mock-as-real. Fail-CLOSED: any inference error also
+      // degrades to `pending_analysis` (never a fabricated `processed`).
+      const providerLive = !deps.aiInference || deps.aiInference.live !== false;
+
       let inferences: Readonly<Record<string, unknown>> | undefined;
-      if (deps.aiInference) {
+      let inferenceFailed = false;
+      if (deps.aiInference && providerLive) {
         try {
           inferences = await deps.aiInference(base, input.bytes);
         } catch {
+          inferenceFailed = true;
           inferences = { error: 'inference_failed' };
         }
       }
 
-      const finalCapture: FieldCapture = Object.freeze({
-        ...base,
-        ...(inferences ? { aiInferences: inferences } : {}),
-        status: 'processed',
-      });
+      const analyzed = providerLive && !inferenceFailed;
+      const finalCapture: FieldCapture = analyzed
+        ? Object.freeze({
+            ...base,
+            ...(inferences ? { aiInferences: inferences } : {}),
+            status: 'processed',
+          })
+        : Object.freeze({
+            ...base,
+            // Honest, non-fabricated marker. Carries WHY it is pending so
+            // the UI can explain it; no detected objects / guesses.
+            aiInferences: Object.freeze({
+              status: inferenceFailed ? 'inference_failed' : 'pending_analysis',
+              reason: inferenceFailed
+                ? 'real inference provider errored — no result fabricated'
+                : 'no real inference provider configured — awaiting analysis',
+            }),
+            status: 'pending_analysis',
+          });
       deps.store.add(finalCapture);
       out.push(finalCapture);
     }
@@ -214,16 +252,26 @@ export function createCapturePipeline(deps: CapturePipelineDeps) {
 // Default AI inference stub — deterministic, no network
 // ============================================================================
 
+/**
+ * Default inference provider — DELIBERATELY NOT a real vision model.
+ *
+ * Historically this returned fabricated detections (`detectedObjects:
+ * ['building']`, `buildingGuess: 1`) that the pipeline then stamped as a
+ * completed `processed` analysis — fake values rendered as real (KI-012,
+ * no-mock-in-production invariant).
+ *
+ * It is now flagged `live: false`. The pipeline reads that flag, skips
+ * the stub entirely, and marks captures `pending_analysis` with an
+ * honest "awaiting analysis" marker instead of fabricating results.
+ * Production wires a real provider (a callable WITHOUT `live: false`, or
+ * `live: true`) via `createCapturePipeline({ aiInference })`, which keeps
+ * the `processed` path unchanged.
+ */
 export function defaultAiInference(): AiInferenceFn {
-  return (capture: FieldCapture, _bytes?: ArrayBuffer | Uint8Array) => {
-    if (capture.kind !== 'photo') return Object.freeze({});
-    const inferred: Record<string, unknown> = {
-      detectedObjects: ['building'],
-      buildingGuess: 1,
-    };
-    if (capture.capturedLocation) {
-      inferred.note = 'inferred-from-stub';
-    }
-    return Object.freeze(inferred);
-  };
+  // The callable body is never invoked while `live === false` (the
+  // pipeline short-circuits), but we return an honest empty object so
+  // any direct caller also gets no fabricated values.
+  const fn: AiInferenceFn = (_capture: FieldCapture, _bytes?: ArrayBuffer | Uint8Array) =>
+    Object.freeze({});
+  return Object.assign(fn, { live: false as const });
 }

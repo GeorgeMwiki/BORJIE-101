@@ -53,7 +53,13 @@
       "investors": "Investors and lenders",
       "investorsDesc": "Mining capital with daily evidence-cited telemetry.",
       "regulators": "Regulators and ministries",
-      "regulatorsDesc": "Mining Commission, NEMC, BoT, TRA oversight surfaces."
+      "regulatorsDesc": "Mining Commission, NEMC, BoT, TRA oversight surfaces.",
+      "csrCommunity": "CSR and community partners",
+      "csrCommunityDesc": "Host communities, AMCOS welfare, local-content programmes.",
+      "bank": "Banks and lenders",
+      "bankDesc": "Microfinance and banks underwriting mining collateral.",
+      "familyOffice": "Family offices",
+      "familyOfficeDesc": "Multi-generational mining wealth and succession."
     }
   },
   "audienceSwitcher": {

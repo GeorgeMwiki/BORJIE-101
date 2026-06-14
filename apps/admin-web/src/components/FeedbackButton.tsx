@@ -21,7 +21,11 @@
  * it sits inside the navy cockpit instead of breaking out into a
  * white sheet.
  *
- * Bilingual: Swahili-first labels per CLAUDE.md.
+ * Bilingual: every label resolves off the ACTIVE locale passed in via
+ * `lang` (default 'en'). The widget is always-on chrome, so it must never
+ * default to Swahili — that would leak SW onto an EN console (and
+ * vice-versa). The root layout drives `lang` from the `borjie_locale`
+ * cookie so the pill matches the rest of the surface.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -112,7 +116,7 @@ async function defaultSubmit(input: FeedbackSubmission): Promise<void> {
 export function FeedbackButton({
   screenId,
   sessionContext,
-  lang = 'sw',
+  lang = 'en',
   onSubmit,
 }: FeedbackButtonProps): JSX.Element {
   const [open, setOpen] = useState(false);

@@ -47,6 +47,10 @@ import { ownerTabsStructural } from '@borjie/database';
 
 import { appendExecAudit } from '../audit.js';
 import type { ActionHandler, ExecContext, ExecResult } from '../types.js';
+import {
+  resolveProjectedKind,
+  type ProjectableTabKind,
+} from '../../../routes/workforce/tab-projection.js';
 
 // ─── Schemas (discriminated by `op`) ─────────────────────────────────
 
@@ -133,6 +137,41 @@ function chatProvenance(ctx: ExecContext) {
   };
 }
 
+/**
+ * THE COMPLETION LAW (KI-009). A general owner tab-spawn persists `config`
+ * verbatim, so a tab of a projectable kind (e.g. a `marketplace` cockpit
+ * tab) lands with NO `workforceProjection` bag — and the live worker read
+ * leg (routes/workforce/tab-projection.ts → fetchProjectedTabs) projects
+ * NOTHING, orphaning the worker side of the capability. Only the hard-coded
+ * GOLDEN_INQUIRY_FLOW used to write that bag.
+ *
+ * This closes the gap generically: when the spawned config does NOT already
+ * declare a `workforceProjection` AND its resolved semantic kind is in the
+ * (mobile-lockstep) projectable set, we inject
+ * `workforceProjection = { kind }` — visible to EVERY workforce role (the
+ * documented v1 default; the owner can later restrict via a roles array).
+ * So every general owner-spawned capability completes its complementary
+ * worker leg, exactly as the flow-binder does.
+ *
+ * Pure + non-mutating: returns a NEW config object, never edits the input.
+ * Leaves config untouched when (a) it already carries a workforceProjection,
+ * or (b) the kind is not projectable (honest no-op — no guessing).
+ */
+function withWorkforceProjection(
+  config: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (config === undefined) return config;
+  if (
+    Object.prototype.hasOwnProperty.call(config, 'workforceProjection') &&
+    config.workforceProjection !== undefined
+  ) {
+    return config;
+  }
+  const kind: ProjectableTabKind | null = resolveProjectedKind(config);
+  if (!kind) return config;
+  return { ...config, workforceProjection: { kind } };
+}
+
 // ─── Op handlers ─────────────────────────────────────────────────────
 
 async function spawnTab(
@@ -145,6 +184,9 @@ async function spawnTab(
   // of failing the UNIQUE(tenant,user,tab_id) index.
   const existing = await findTab(ctx, tabId);
   if (existing) {
+    // Completion law (KI-009): inject the worker projection bag on re-spawn too,
+    // so re-activating a projectable-kind tab lights up its worker leg.
+    const reactivatedConfig = withWorkforceProjection(input.config);
     const reactivated = await ctx.db
       .update(ownerTabsStructural)
       .set({
@@ -152,7 +194,7 @@ async function spawnTab(
         status: 'active',
         ...(input.position !== undefined ? { position: input.position } : {}),
         ...(input.pinned !== undefined ? { pinned: input.pinned } : {}),
-        ...(input.config !== undefined ? { config: input.config } : {}),
+        ...(reactivatedConfig !== undefined ? { config: reactivatedConfig } : {}),
         provenance: chatProvenance(ctx),
         updatedAt: new Date(),
       })
@@ -176,6 +218,10 @@ async function spawnTab(
     };
   }
 
+  // Completion law (KI-009): a projectable-kind config gains a
+  // `workforceProjection` bag so the worker read leg materializes the
+  // complementary tab. A bare / non-projectable config is left as `{}`.
+  const config = withWorkforceProjection(input.config) ?? {};
   const id = randomUUID();
   const inserted = await ctx.db
     .insert(ownerTabsStructural)
@@ -188,7 +234,7 @@ async function spawnTab(
       position: input.position ?? 0,
       pinned: input.pinned ?? false,
       kind: 'custom',
-      config: input.config ?? {},
+      config,
       status: 'active',
       provenance: chatProvenance(ctx),
     })

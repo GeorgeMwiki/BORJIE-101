@@ -23,6 +23,9 @@ export function ChipGroup<T extends string>({ options, value, onChange, allowCle
           <Pressable
             key={option.value}
             onPress={() => onChange(selected && allowClear ? null : option.value)}
+            accessibilityRole="button"
+            accessibilityState={{ selected }}
+            accessibilityLabel={option.label}
             style={[styles.chip, selected ? styles.chipActive : undefined]}
           >
             <Text style={[styles.label, selected ? styles.labelActive : undefined]}>{option.label}</Text>

@@ -38,15 +38,23 @@ const COPY = Object.freeze({
 })
 
 const DOC_CHAT_BASE = `${API_BASE_URL}/api/v1/doc-chat`
-const DOCUMENTS_BASE = `${API_BASE_URL}/api/v1/documents`
+const DOCUMENTS_BASE = `${API_BASE_URL}/api/v1/mining/documents`
 
 interface DocRow {
   readonly id: string
+  // Mining documents store the display name under `fileName`; older callers
+  // used `name`. Accept either so the list renders a real title.
   readonly name?: string | null
+  readonly fileName?: string | null
   readonly mimeType?: string | null
   readonly size?: number | null
+  readonly status?: string | null
   readonly verificationStatus?: string | null
   readonly createdAt?: string | null
+}
+
+function docName(doc: DocRow): string {
+  return doc.name ?? doc.fileName ?? doc.id
 }
 
 interface DocumentsListResponse {
@@ -310,9 +318,7 @@ function DocumentChatView(): JSX.Element {
                   <Text style={styles.sourcesLabel}>{COPY.sourcesLabel}</Text>
                   {turn.citations.map((citation, index) => {
                     const doc = docLookup[citation.documentId]
-                    const filename = doc?.name && doc.name.length > 0
-                      ? doc.name
-                      : citation.documentId
+                    const filename = doc ? docName(doc) : citation.documentId
                     const page = citation.page
                       ? ` · ${COPY.pageLabel} ${citation.page}`
                       : ''
@@ -335,7 +341,7 @@ function DocumentChatView(): JSX.Element {
       <Section title={`${COPY.sectionDocs} (${docs.length})`}>
         {docs.map((doc) => (
           <View key={doc.id} style={styles.docRow}>
-            <Text style={styles.docTitle}>{doc.name ?? doc.id}</Text>
+            <Text style={styles.docTitle}>{docName(doc)}</Text>
             <Text style={styles.docMeta}>{describeDoc(doc)}</Text>
           </View>
         ))}
@@ -350,6 +356,7 @@ function describeDoc(doc: DocRow): string {
     parts.push(`${Math.round(doc.size / 1024)} KB`)
   }
   if (doc.mimeType) parts.push(doc.mimeType)
+  if (doc.status) parts.push(doc.status)
   if (doc.verificationStatus) parts.push(doc.verificationStatus)
   if (doc.createdAt) {
     const parsed = Date.parse(doc.createdAt)

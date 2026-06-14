@@ -410,7 +410,12 @@ export async function registerCaptureRoutes(
     }
     const queued = deps.store.listForSurveyor(surveyorId, 'queued');
     const processed = deps.store.listForSurveyor(surveyorId, 'processed');
-    return { surveyorId, queued, processed };
+    // Captures stored + signed but awaiting REAL AI analysis (no real
+    // inference provider configured). Surfaced as its own bucket so the
+    // field worker sees them honestly as "awaiting analysis" — without
+    // this they would appear in neither queued nor processed (KI-012).
+    const pendingAnalysis = deps.store.listForSurveyor(surveyorId, 'pending_analysis');
+    return { surveyorId, queued, processed, pendingAnalysis };
   });
 
   // ------------------------------------------------------------------

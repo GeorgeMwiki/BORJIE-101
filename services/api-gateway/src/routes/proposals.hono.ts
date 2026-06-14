@@ -19,9 +19,40 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
+import { UserRole } from '../types/user-role';
 import { parseListPagination, buildListResponse } from './pagination';
+
+// ── role gate ────────────────────────────────────────────────────────────
+// Approving / editing / declining a proposal promotes (or rejects) a brain-
+// authored module change into the owner's live cockpit — an owner / admin act.
+// WITHOUT this gate ANY authenticated tenant member could approve a brain
+// proposal. The GET reads stay broad. The role gate is the load-bearing
+// control.
+const PROPOSAL_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+] as const;
+
+// The approver tier the route STAMPS is derived from the caller's actual
+// authenticated role — NEVER trusted from the request body (a TENANT_ADMIN
+// must not be able to self-attest a sovereign tier-5 approval). The clamp maps
+// each authorized role to the maximum tier it may certify; the effective tier
+// is min(requested, roleMax).
+const ROLE_MAX_APPROVER_TIER: Readonly<Record<string, number>> = {
+  [UserRole.SUPER_ADMIN]: 5,
+  [UserRole.OWNER]: 4,
+  [UserRole.TENANT_ADMIN]: 3,
+  [UserRole.ADMIN]: 3,
+};
+
+function clampApproverTier(role: string, requested: number): number {
+  const roleMax = ROLE_MAX_APPROVER_TIER[role] ?? 1;
+  return Math.min(requested, roleMax);
+}
 
 const ProposalStatusFilter = z.enum([
   'pending_hitl',
@@ -159,11 +190,16 @@ app.get('/:id', async (c) => {
 
 // ─── POST /proposals/:id/approve ──────────────────────────────────────
 
-app.post('/:id/approve', zValidator('json', ApproveSchema), async (c) => {
+app.post('/:id/approve', requireRole(...PROPOSAL_WRITE_ROLES), zValidator('json', ApproveSchema), async (c) => {
   const auth = c.get('auth');
   const db = c.get('db');
   const id = c.req.param('id');
   const body = c.req.valid('json');
+
+  // The effective approver tier is clamped to what the CALLER's authenticated
+  // role may certify — never the raw body value (a tenant admin must not be
+  // able to self-attest a sovereign tier-5 approval by sending approver_tier:5).
+  const effectiveTier = clampApproverTier(auth.role, body.approver_tier);
 
   // Verify the proposal exists + is pending_hitl.
   const existing = await db.execute(sql`
@@ -195,7 +231,7 @@ app.post('/:id/approve', zValidator('json', ApproveSchema), async (c) => {
     UPDATE module_update_proposals
     SET status = 'accepted',
         approver_user_id = ${auth.userId},
-        approver_tier = ${body.approver_tier},
+        approver_tier = ${effectiveTier},
         resolved_at = NOW(),
         updated_at = NOW()
     WHERE tenant_id = ${auth.tenantId} AND id = ${id}
@@ -211,13 +247,19 @@ app.post('/:id/approve', zValidator('json', ApproveSchema), async (c) => {
 
 // ─── POST /proposals/:id/decline ──────────────────────────────────────
 
-app.post('/:id/decline', zValidator('json', DeclineSchema), async (c) => {
+app.post('/:id/decline', requireRole(...PROPOSAL_WRITE_ROLES), zValidator('json', DeclineSchema), async (c) => {
   const auth = c.get('auth');
   const db = c.get('db');
   const id = c.req.param('id');
   const body = c.req.valid('json');
 
-  await db.execute(sql`
+  // The prior implementation issued the UPDATE unconditionally and ALWAYS
+  // returned success:true even when zero rows matched — so a missing /
+  // cross-tenant / already-resolved proposal was reported as "declined".
+  // Drive the state machine off the actual returned row: act ONLY on the
+  // row the CAS UPDATE returns, and otherwise distinguish 404 (missing /
+  // cross-tenant) from 409 (wrong state), mirroring /approve.
+  const updated = await db.execute(sql`
     UPDATE module_update_proposals
     SET status = 'declined',
         approver_user_id = ${auth.userId},
@@ -227,14 +269,47 @@ app.post('/:id/decline', zValidator('json', DeclineSchema), async (c) => {
     WHERE tenant_id = ${auth.tenantId}
       AND id = ${id}
       AND status = 'pending_hitl'
+    RETURNING id
   `);
+  const declinedRow =
+    (updated as { rows?: Array<Record<string, unknown>> }).rows?.[0] ??
+    (Array.isArray(updated) ? (updated as Array<Record<string, unknown>>)[0] : undefined);
+  if (declinedRow) {
+    return c.json({ success: true, data: { id, status: 'declined' } }, 200);
+  }
 
-  return c.json({ success: true, data: { id, status: 'declined' } }, 200);
+  // No row transitioned. Re-read within the tenant to tell apart a missing /
+  // cross-tenant proposal (404) from one that exists but is in the wrong state
+  // (409) — never report a phantom success.
+  const existing = await db.execute(sql`
+    SELECT id, status FROM module_update_proposals
+    WHERE tenant_id = ${auth.tenantId} AND id = ${id}
+    LIMIT 1
+  `);
+  const row =
+    (existing as { rows?: Array<Record<string, unknown>> }).rows?.[0] ??
+    (Array.isArray(existing) ? (existing as Array<Record<string, unknown>>)[0] : undefined);
+  if (!row) {
+    return c.json(
+      { success: false, error: { code: 'NOT_FOUND', message: 'Proposal not found' } },
+      404
+    );
+  }
+  return c.json(
+    {
+      success: false,
+      error: {
+        code: 'INVALID_STATE',
+        message: `Cannot decline from status=${row.status}`,
+      },
+    },
+    409
+  );
 });
 
 // ─── POST /proposals/:id/edit ─────────────────────────────────────────
 
-app.post('/:id/edit', zValidator('json', EditSchema), async (c) => {
+app.post('/:id/edit', requireRole(...PROPOSAL_WRITE_ROLES), zValidator('json', EditSchema), async (c) => {
   const auth = c.get('auth');
   const db = c.get('db');
   const id = c.req.param('id');

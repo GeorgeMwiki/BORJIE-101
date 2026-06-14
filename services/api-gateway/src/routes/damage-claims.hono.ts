@@ -37,14 +37,28 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
 
-import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
+import { UserRole } from '../types/user-role';
 import { routeCatch } from '../utils/safe-error';
 import { resolveProvenance } from '../services/provenance';
 import {
   DamageClaimRepository,
   ClaimStateError,
 } from '../composition/damage-claim-repository';
+
+// ── role gate ────────────────────────────────────────────────────────────
+// Filing / responding to / settling / approving a damage claim moves money
+// state (a settled claim is the agreed deduction) and binds the owner — it is
+// an owner / admin act. WITHOUT this gate ANY authenticated tenant member
+// (incl. a field worker or buyer login) could file or settle a claim. The role
+// gate is the load-bearing control; the GET reads stay broad.
+const WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ADMIN,
+  UserRole.SUPER_ADMIN,
+] as const;
 
 // ─── Schemas ─────────────────────────────────────────────────────────
 
@@ -131,6 +145,7 @@ app.use('*', databaseMiddleware);
 
 app.post(
   '/',
+  requireRole(...WRITE_ROLES),
   zValidator('json', FileClaimSchema),
   withSecurityEvents(
     {
@@ -224,6 +239,7 @@ app.get('/:id', async (c: any) => {
 
 app.post(
   '/:id/respond',
+  requireRole(...WRITE_ROLES),
   zValidator('json', RespondSchema),
   withSecurityEvents(
     {
@@ -264,6 +280,7 @@ app.post(
 
 app.post(
   '/:id/settle',
+  requireRole(...WRITE_ROLES),
   zValidator('json', SettleSchema),
   withSecurityEvents(
     {
@@ -304,6 +321,7 @@ app.post(
 
 app.post(
   '/rehabilitation-plans/:planId/action-plans/:actionPlanId/approve',
+  requireRole(...WRITE_ROLES),
   zValidator('json', ApprovePlanSchema),
   withSecurityEvents(
     {

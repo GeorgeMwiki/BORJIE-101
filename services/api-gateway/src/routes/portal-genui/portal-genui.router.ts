@@ -32,6 +32,7 @@ import { z } from 'zod';
 import { withSecurityEvents } from '@borjie/observability';
 import {
   TabGenerationIntentSchema,
+  PortalTabSchema,
   RecordValidationError,
   type GenUIEngine,
   type RecordStore,
@@ -580,9 +581,31 @@ router.post(
         ...tabAny,
         tenantId: auth.tenantId,
       };
+      // Revalidate the tab against the closed-catalog PortalTabSchema here
+      // (the SaveTabBodySchema only proves it's an object). A structurally
+      // malformed tab (e.g. missing `sections`/`audit`) must bounce with a
+      // clean VALIDATION 400 — NOT reach the persist chokepoint and surface a
+      // raw TypeError as a 500. Fail-CLOSED at the route boundary.
+      const tabParsed = PortalTabSchema.safeParse(enforced);
+      if (!tabParsed.success) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'VALIDATION',
+              message: 'malformed tab body',
+              violations: tabParsed.error.issues.map((i) => ({
+                path: i.path.join('.'),
+                detail: i.message,
+              })),
+            },
+          },
+          400,
+        );
+      }
       try {
         const saved = await engine.persist({
-          tab: enforced as never,
+          tab: tabParsed.data as never,
           ...(parsed.data.parentTabId !== undefined
             ? { parentTabId: parsed.data.parentTabId }
             : {}),

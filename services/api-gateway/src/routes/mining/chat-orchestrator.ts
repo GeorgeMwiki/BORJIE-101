@@ -47,6 +47,13 @@ import {
 import { expandGraphEvidence } from './graph-rag-expand';
 import type { KgDbExec } from '../../composition/knowledge-graph/postgres-kg-store';
 import { applyChatConformalConfidence } from '../../composition/conformal/chat-conformal-confidence';
+// KI-005 — the evidence-chain Auditor gate. The non-stream brain.hono.ts
+// path already calls `auditChatResponse` to enforce the CLAUDE.md
+// evidence-required hard rule (withhold ungrounded JSON answers). A stream
+// cannot un-send tokens already flushed, so on this SSE surface we SURFACE
+// the verdict as a terminal `auditor` event instead of withholding — the
+// grounding signal is never silently dropped.
+import { auditChatResponse } from '../../composition/chat-response-gate';
 import { createLogger } from '../../utils/logger';
 // Stage 3 — orchestrator main-loop as the DEFAULT-ON live generator for
 // the mining chat surface. When ON, generation flows through
@@ -128,6 +135,49 @@ async function* emitLivingMdPostTurn(
   }
 }
 
+/**
+ * KI-005 — POST-ANSWER auditor verdict (the evidence-chain grounding signal).
+ * Runs `auditChatResponse` over the FINAL answer text and yields a single
+ * terminal `auditor` event carrying the verdict. A stream cannot un-send the
+ * tokens already flushed, so the verdict is SURFACED (never withholds) — the
+ * client renders a grounding badge/warning when the answer was ungrounded.
+ *
+ * Fail-safe: the gate itself is best-effort (it never throws), but we still
+ * try/catch + log here so a construction fault can never crash the turn. On
+ * any fault NO `auditor` event is emitted (the turn proceeds exactly as
+ * before — the verdict is purely additive). Shared by both generation paths
+ * so the grounding signal is identical Master-Brain vs orchestrator.
+ *
+ * `personaId` mirrors the non-stream brain.hono.ts call: the mining /chat
+ * surface speaks as the head persona (`mr-mwikila-head`).
+ */
+async function* emitAuditorVerdict(
+  input: OrchestratorInput,
+  finalAnswerText: string,
+): AsyncGenerator<ChatSseEvent, void, unknown> {
+  try {
+    const verdict = await auditChatResponse({
+      tenantId: input.tenantId,
+      threadId: input.sessionId,
+      userId: input.userId,
+      personaId: 'mr-mwikila-head',
+      responseText: finalAnswerText,
+    });
+    yield {
+      type: 'auditor',
+      verdict: verdict.verdict,
+      evidenceCount: verdict.evidenceCount,
+      evidenceWarning: verdict.evidenceWarning,
+      groundingFault: verdict.groundingFault,
+    };
+  } catch (err) {
+    orchestratorLogger.warn(
+      { tenantId: input.tenantId, err: err instanceof Error ? err.message : String(err) },
+      'chat auditor: verdict surfacing failed (no auditor event)',
+    );
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Persona lenses are classified INTERNALLY — the owner never picks a mode.
 // `classifyLenses(message)` (from @borjie/ai-copilot) maps the message to
@@ -161,6 +211,18 @@ export type ChatSseEvent =
       readonly text: string;
       readonly evidence_ids: ReadonlyArray<string>;
       readonly confidence: number;
+    }
+  | {
+      // KI-005 — the evidence-chain Auditor verdict for the final answer.
+      // Streamed tokens can't be un-sent, so we SURFACE the verdict as the
+      // LAST event before `done` (never withhold). Mirrors the
+      // `auditChatResponse` contract used by the non-stream brain.hono.ts
+      // path so both surfaces carry the same grounding signal.
+      readonly type: 'auditor';
+      readonly verdict: 'approve' | 'reject' | 'needs_human';
+      readonly evidenceCount: number;
+      readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
+      readonly groundingFault: boolean;
     }
   | CommitmentStateWireEvent
   | { readonly type: 'done' }
@@ -472,6 +534,9 @@ export async function* runChatOrchestrator(
   };
   // LIVING-MD POST-TURN — the reconciliation sweep reaches the conversation.
   yield* emitLivingMdPostTurn(input, livingMdSinceMs);
+  // KI-005 — surface the evidence-chain Auditor verdict as the LAST event
+  // before `done` (streamed tokens can't be un-sent → surface, never withhold).
+  yield* emitAuditorVerdict(input, brainOut.one_line_answer);
   yield { type: 'done' };
 }
 
@@ -580,6 +645,9 @@ async function* runChatViaOrchestrator(
   // LIVING-MD POST-TURN — the reconciliation sweep reaches the conversation
   // on the orchestrator path too (identical felt diff to the Master-Brain path).
   yield* emitLivingMdPostTurn(input, ctx.livingMdSinceMs);
+  // KI-005 — surface the evidence-chain Auditor verdict as the LAST event
+  // before `done` (identical grounding signal on the orchestrator path).
+  yield* emitAuditorVerdict(input, decision.text);
   yield { type: 'done' };
 }
 

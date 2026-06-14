@@ -20,7 +20,8 @@ const STATUS_TONE: Readonly<Record<BidStatus, PillTone>> = {
   pending: 'warning',
   countered: 'gold',
   accepted: 'success',
-  rejected: 'danger'
+  rejected: 'danger',
+  withdrawn: 'neutral'
 }
 
 export function ActiveBidsSection({ bids, translate, onPressBid, onOpenChatSession }: ActiveBidsSectionProps) {

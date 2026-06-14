@@ -24,13 +24,20 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { INCIDENT_KINDS } from '@/safety/incidentKinds';
 
 // ---------------------------------------------------------------------------
 // Validation schema (mirrors gateway incidentsCreateRoute body)
 // ---------------------------------------------------------------------------
 
+// `INCIDENT_KINDS` is kept byte-aligned with the gateway IncidentKindEnum
+// (services/api-gateway/src/routes/mining/_openapi/sales-incidents-schemas.ts).
+// 'security' is NOT a server value (it 422'd); near_miss / equipment_failure /
+// fatality were previously missing.
 const IncidentCreateSchema = z.object({
-  kind: z.enum(['safety', 'environmental', 'community', 'security']),
+  kind: z.enum(INCIDENT_KINDS),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
   occurredAt: z.string().min(1, 'Date and time required'),
   description: z.string().min(5, 'Describe the incident (min 5 characters)').max(2000),
@@ -41,17 +48,6 @@ const IncidentCreateSchema = z.object({
 });
 
 type IncidentCreateInput = z.infer<typeof IncidentCreateSchema>;
-
-// ---------------------------------------------------------------------------
-// Option lists
-// ---------------------------------------------------------------------------
-
-const KIND_OPTIONS = [
-  { value: 'safety', label: 'Safety' },
-  { value: 'environmental', label: 'Environmental' },
-  { value: 'community', label: 'Community' },
-  { value: 'security', label: 'Security' },
-] as const;
 
 const SEVERITY_OPTIONS = [
   { value: 'low', label: 'Low', class: 'text-neutral-300 border-border' },
@@ -65,6 +61,14 @@ const SEVERITY_OPTIONS = [
 // ---------------------------------------------------------------------------
 
 export default function NewIncidentPage() {
+  const locale = useLocale();
+  // Locale-correct kind labels, sourced from the owner-web dict and kept in
+  // lock-step with the gateway IncidentKindEnum via INCIDENT_KINDS.
+  const kindOptions = INCIDENT_KINDS.map((value) => ({
+    value,
+    label: pickByLocale(locale, S.safety.incidentKind[value]),
+  }));
+
   const [form, setForm] = useState<{
     kind: IncidentCreateInput['kind'];
     severity: IncidentCreateInput['severity'];
@@ -230,7 +234,7 @@ export default function NewIncidentPage() {
               Incident kind
             </legend>
             <div className="flex flex-wrap gap-2">
-              {KIND_OPTIONS.map((opt) => (
+              {kindOptions.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"

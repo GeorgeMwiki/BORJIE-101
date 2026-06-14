@@ -289,6 +289,32 @@ describe('portal-genui router — tabs CRUD', () => {
     expect(body.data.id).toBe(gen.tab.id);
   });
 
+  it('POST /tabs returns a clean 4xx (not a 500/TypeError) for a malformed tab body', async () => {
+    // Regression: a tab record with no well-formed `audit` used to reach
+    // sealAuditChain and throw a raw `Cannot read properties of undefined`
+    // TypeError, leaking a stack-shaped error out of the persist chokepoint.
+    // It must instead be rejected with a clean validation status.
+    const { app } = appWithEngine();
+    const res = await app.request('/portal-genui/tabs', {
+      method: 'POST',
+      body: JSON.stringify({ tab: { id: 'tab_malformed', title: 'x' } }),
+      headers: {
+        'content-type': 'application/json',
+        authorization: bearer(),
+      },
+    });
+    // Never a 500, and never a TypeError-shaped message.
+    expect(res.status).toBeLessThan(500);
+    expect([400, 422]).toContain(res.status);
+    const body = (await res.json()) as {
+      success: boolean;
+      error?: { code?: string; message?: string };
+    };
+    expect(body.success).toBe(false);
+    expect(body.error?.code).toBeTruthy();
+    expect(body.error?.message ?? '').not.toMatch(/Cannot read propert/i);
+  });
+
   it('POST /tabs returns 409 on tab_key conflict', async () => {
     const { app, engine } = appWithEngine();
     const intent = (await engine.detectIntent({

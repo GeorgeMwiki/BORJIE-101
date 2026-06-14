@@ -18,7 +18,8 @@ const STATUS_TONE: Readonly<Record<Bid['status'], PillTone>> = {
   pending: 'warning',
   countered: 'gold',
   accepted: 'success',
-  rejected: 'danger'
+  rejected: 'danger',
+  withdrawn: 'neutral'
 }
 
 // `bids.active` tool. Picks the buyer's most recent pending/countered

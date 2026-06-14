@@ -58,6 +58,16 @@ describe('FeedbackButton (Admin)', () => {
     expect(screen.queryByTestId('feedback-button-modal')).toBeNull();
   });
 
+  it('defaults to English chrome (never Swahili) when no lang prop is passed', () => {
+    // Regression guard: the widget is always-on chrome mounted in the root
+    // layout. Defaulting to 'sw' leaked Swahili onto an EN console. The
+    // default MUST be English; the layout drives the real locale via `lang`.
+    render(<FeedbackButton onSubmit={vi.fn()} />);
+    // English open-label is "Tell Borjie"; Swahili is "Niarifu Borjie".
+    expect(screen.getByText('Tell Borjie')).toBeTruthy();
+    expect(screen.queryByText('Niarifu Borjie')).toBeNull();
+  });
+
   it('refuses to submit when message is empty and surfaces an inline error', () => {
     const onSubmit = vi.fn();
     render(<FeedbackButton lang="sw" onSubmit={onSubmit} />);

@@ -22,11 +22,31 @@
  * The watcher is idempotent — each alert key includes the
  * (tenantId, employeeId, hazardId|expectedSiteId, capturedAt) tuple
  * so retries do not double-emit.
+ *
+ * RLS NOTE: the cross-tenant workforce_locations scan binds service-role
+ * context (the workforce_locations_service_role_bypass policy, migration
+ * 0357) so FORCE ROW LEVEL SECURITY does not silently filter it to zero
+ * rows on the shared pool. The downstream geofencing predicate service
+ * (services/geofencing/predicates.ts) runs its hazard / site / distance
+ * polygon queries on the SAME shared service-role pool, so those would
+ * also read 0 rows under FORCE RLS — `evaluateFix` therefore re-builds a
+ * per-tick geofencing service from a service-role-bound transaction handle
+ * (`withServiceRoleContext`) before invoking the predicates. The bypass
+ * policies that honour that GUC live in migrations 0358 (sites / licences)
+ * and 0360 (hazard_zones); `regulatory_zones` is tenant-agnostic with no
+ * RLS, so it needs none. Request-path predicate callers (the geo brain
+ * tools' HTTP routes + regulatory routes) are NOT routed through this
+ * wrapper and keep their per-request tenant GUC. (KI-014.)
  */
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
-import type { GeofencingService, Point } from '../services/geofencing/index.js';
+import { withServiceRoleContext } from '@borjie/database';
+import {
+  createGeofencingService,
+  type GeofencingService,
+  type Point,
+} from '../services/geofencing/index.js';
 
 const DEFAULT_INTERVAL_MS = 30 * 1000;
 const DEFAULT_OFFSITE_TOLERANCE_MS = 5 * 60 * 1000;
@@ -88,7 +108,22 @@ export type GeofenceWatcherAlert =
 
 export interface GeofenceWatcherOptions {
   readonly db: DbLike;
+  /**
+   * Geofencing service for the pure (DB-free) helpers (`haversineMeters`).
+   * The DB-touching predicates (`pointInHazard` / `pointInSite` /
+   * `distanceToNearestSite`) are NOT called on this instance — they are
+   * re-built from a service-role-bound transaction handle per tick (see
+   * `geofencingFactory`) so they see rows under FORCE RLS. KI-014.
+   */
   readonly geofencing: GeofencingService;
+  /**
+   * Builds a geofencing service from a (service-role-bound) db handle.
+   * Defaults to `createGeofencingService`. Injected by tests that drive the
+   * predicates with an in-memory double. Production wires the default so the
+   * predicates run on the transaction handle that carries
+   * `app.is_service_role='true'`.
+   */
+  readonly geofencingFactory?: (db: DbLike) => GeofencingService;
   readonly alertSink: GeofenceAlertSink;
   readonly logger: Logger;
   readonly intervalMs?: number;
@@ -114,6 +149,12 @@ export function createGeofenceWatcher(
   const {
     db,
     geofencing,
+    geofencingFactory = (scopedDb) =>
+      createGeofencingService({
+        db: scopedDb as unknown as Parameters<
+          typeof createGeofencingService
+        >[0]['db'],
+      }),
     alertSink,
     logger,
     intervalMs = DEFAULT_INTERVAL_MS,
@@ -143,7 +184,10 @@ export function createGeofenceWatcher(
   async function listRecentFixes(): Promise<ReadonlyArray<WorkerFixRow>> {
     const since = new Date(now().getTime() - fixFreshnessMs).toISOString();
     try {
-      const result = await db.execute(sql`
+      const result = await withServiceRoleContext(
+        db as unknown as Parameters<typeof withServiceRoleContext>[0],
+        (txDb) =>
+          (txDb as unknown as DbLike).execute(sql`
         SELECT DISTINCT ON (wl.tenant_id, wl.employee_id)
           wl.tenant_id   AS tenant_id,
           wl.employee_id AS employee_id,
@@ -155,7 +199,8 @@ export function createGeofenceWatcher(
         WHERE wl.captured_at >= ${since}::timestamptz
         ORDER BY wl.tenant_id, wl.employee_id, wl.captured_at DESC
         LIMIT 5000
-      `);
+      `),
+      );
       return rowsOf(result).map((row) => ({
         tenantId: String(row.tenant_id),
         employeeId: String(row.employee_id),
@@ -173,6 +218,24 @@ export function createGeofenceWatcher(
     }
   }
 
+  /**
+   * Run a geofencing predicate under SERVICE-ROLE context so its
+   * hazard / site / distance scans see rows under FORCE RLS on the shared
+   * pool (the predicate service reads FORCE-RLS tenant tables — sites /
+   * licences via 0358, hazard_zones via 0360 — which only honour the
+   * `app.is_service_role` GUC). Mirrors `listRecentFixes`: we bind the GUC
+   * via `withServiceRoleContext`, build a service from the tx-bound handle,
+   * and call the predicate on it. KI-014.
+   */
+  function withScopedGeofencing<T>(
+    run: (scoped: GeofencingService) => Promise<T>,
+  ): Promise<T> {
+    return withServiceRoleContext(
+      db as unknown as Parameters<typeof withServiceRoleContext>[0],
+      (txDb) => run(geofencingFactory(txDb as unknown as DbLike)),
+    );
+  }
+
   async function evaluateFix(fix: WorkerFixRow): Promise<void> {
     const point: Point = { lat: fix.lat, lon: fix.lon };
     const capturedAtMs = fix.capturedAt.getTime();
@@ -180,7 +243,9 @@ export function createGeofenceWatcher(
 
     // §1 — hazard predicate: emit one alert per hazard the worker is in.
     try {
-      const hazards = await geofencing.pointInHazard(fix.tenantId, point);
+      const hazards = await withScopedGeofencing((scoped) =>
+        scoped.pointInHazard(fix.tenantId, point),
+      );
       for (const hazard of hazards) {
         if (hazard.severity === 'work_zone') continue;
         const key = `hazard:${fix.tenantId}:${fix.employeeId}:${hazard.hazardId}:${capturedAtMs}`;
@@ -210,14 +275,14 @@ export function createGeofenceWatcher(
     //      the worker is more than the radius from any site polygon.
     if (!fix.expectedSiteId || !offsiteWindowOk) return;
     try {
-      const inside = await geofencing.pointInSite(fix.tenantId, point);
+      const inside = await withScopedGeofencing((scoped) =>
+        scoped.pointInSite(fix.tenantId, point),
+      );
       if (inside && inside.siteId === fix.expectedSiteId) {
         return; // worker is at the assigned site — all good.
       }
-      const distances = await geofencing.distanceToNearestSite(
-        fix.tenantId,
-        point,
-        1,
+      const distances = await withScopedGeofencing((scoped) =>
+        scoped.distanceToNearestSite(fix.tenantId, point, 1),
       );
       const nearest = distances[0];
       if (!nearest) return; // tenant has no sites — nothing to compare.

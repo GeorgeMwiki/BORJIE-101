@@ -244,7 +244,19 @@ export type CaptureKind =
   | 'drone'
   | 'pano';
 
-export type CaptureStatus = 'queued' | 'processed' | 'rejected';
+export type CaptureStatus =
+  | 'queued'
+  | 'processed'
+  | 'rejected'
+  /**
+   * Captured + stored + signed, but no REAL AI inference provider is
+   * configured, so the record is intentionally NOT presented as a
+   * completed `processed` analysis. The consuming UI renders this as
+   * "awaiting analysis / demo" rather than rendering fabricated values
+   * as real. See `defaultAiInference()` in `capture/capture-pipeline.ts`
+   * and KI-012 (no-mock-in-production invariant).
+   */
+  | 'pending_analysis';
 
 export interface FieldCapture {
   readonly captureId: CaptureId;

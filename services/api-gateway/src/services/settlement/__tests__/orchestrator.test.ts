@@ -299,6 +299,82 @@ describe('SettlementOrchestrator.signDelivery — L8', () => {
     expect(payout.payouts.length).toBe(0);
   });
 
+  it('self-heals a stranded settlement: re-drives the ledger post when status=failed and ledger_txn_id is NULL', async () => {
+    // A prior attempt inserted the settlements row but failed the ledger post,
+    // leaving status='failed', ledger_txn_id=NULL — money owed with NO
+    // journal. The idempotency replay must re-drive the ledger post (safe: the
+    // money key is pure, so a re-post replays the original journal) and flip
+    // status='posted', rather than returning the stranded row as terminal.
+    const strandedRow = {
+      id: 'stranded-stl',
+      status: 'failed',
+      gross_tzs: '5000000000',
+      royalty_tzs: '350000000',
+      fee_tzs: '75000000',
+      net_tzs: '4575000000',
+      ledger_txn_id: null,
+      payout_provider: null,
+      payout_provider_ref: null,
+    };
+    const { db, calls } = makeDb(() => ({ rows: [strandedRow] }));
+    const ledger = stubLedgerPort();
+    const payout = stubPayoutPort();
+    const orch = new SettlementOrchestrator({
+      db,
+      ledgerPort: ledger.port,
+      payoutPort: payout.port,
+    });
+    const res = await orch.signDelivery({
+      tenantId: TENANT,
+      buyerUserId: BUYER_ID,
+      responseId: RESPONSE_ID,
+      coCStepChecksum: 'coc-stranded',
+    });
+
+    // The ledger post WAS re-driven (exactly once) on the stranded replay.
+    expect(ledger.posts.length).toBe(1);
+    expect(res.status).toBe('posted');
+    expect(res.settlementId).toBe('stranded-stl');
+    expect(res.ledgerTxnId).toMatch(/^jrn-/);
+    expect(res.idempotent).toBe(true);
+    // The row was flipped to status='posted' with the recovered journal id.
+    const allFragments = calls.flatMap((c) => c.fragments).join('');
+    expect(allFragments).toContain("status = 'posted'");
+  });
+
+  it('does NOT re-drive the ledger when the replay row already has a ledger_txn_id', async () => {
+    // A healthy replay (status='posted', ledger_txn_id set) must stay a pure
+    // terminal replay — no second ledger post.
+    const healthyRow = {
+      id: 'healthy-stl',
+      status: 'posted',
+      gross_tzs: '1000000',
+      royalty_tzs: '70000',
+      fee_tzs: '15000',
+      net_tzs: '915000',
+      ledger_txn_id: 'jrn-already',
+      payout_provider: null,
+      payout_provider_ref: null,
+    };
+    const { db } = makeDb(() => ({ rows: [healthyRow] }));
+    const ledger = stubLedgerPort();
+    const orch = new SettlementOrchestrator({
+      db,
+      ledgerPort: ledger.port,
+      payoutPort: stubPayoutPort().port,
+    });
+    const res = await orch.signDelivery({
+      tenantId: TENANT,
+      buyerUserId: BUYER_ID,
+      responseId: RESPONSE_ID,
+      coCStepChecksum: 'coc-healthy',
+    });
+    expect(ledger.posts.length).toBe(0);
+    expect(res.status).toBe('posted');
+    expect(res.ledgerTxnId).toBe('jrn-already');
+    expect(res.idempotent).toBe(true);
+  });
+
   it('blocks a cross-tenant attempt (response belongs to another tenant)', async () => {
     let call = 0;
     const otherTenant = '99999999-9999-9999-9999-999999999999';

@@ -249,6 +249,7 @@ export const en = {
     documentIntelligence: 'Document intelligence',
     people: 'People',
     workforceTabs: 'Workforce tabs',
+    flows: 'Flows',
     fleet: 'Fleet',
     inventory: 'Inventory',
     geology: 'Geology',

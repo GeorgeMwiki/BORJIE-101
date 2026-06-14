@@ -31,10 +31,23 @@ import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { withSecurityEvents } from '@borjie/observability';
+import {
+  resolveCooperativeDistributionLedgerPort,
+  CooperativeDistributionLedgerNotWiredError,
+} from '../../services/cooperative-settlement/distribution-ledger-port';
 
 // Four-eye threshold: net distributable above this requires a
 // second-approver gate. Same threshold as the four_eye_requests rule
 // (migration 0099) for payment actions.
+//
+// CURRENCY NOTE (deferred): cooperatives are a TANZANIA-ONLY surface today —
+// FEMATA / REMATA / AMRI etc. all settle in TZS — so this threshold is in TZS
+// minor units (== shillings, a 0-decimal currency). When the cooperative
+// surface expands to a KE/UG/NG jurisdiction, resolve this per-tenant from
+// the tenant's primary currency (mirroring `resolveTenantCurrency` in
+// `composition/ledger/cooperative-distribution.ts`) instead of the hard-coded
+// constant. The distribution LEDGER leg already resolves currency per-tenant;
+// only this approval-gate threshold remains TZS-pinned.
 const FOUR_EYE_NET_THRESHOLD_TZS = 5_000_000;
 
 const CreatePeriodSchema = z.object({
@@ -70,6 +83,9 @@ const ApproveSchema = z.object({
 });
 
 const DistributeSchema = z.object({
+  // Accepted for backward-compat but NO LONGER used to derive the payment
+  // reference: the member row's `payment_ref` is now the REAL ledger journal
+  // id from `LedgerService.post()`, never a fabricated client-supplied prefix.
   paymentRefPrefix: z.string().max(64).optional(),
 });
 
@@ -84,6 +100,52 @@ function provenance(actorId: string, source: 'web' | 'mobile' | 'chat'): string 
 
 function auditHash(input: Record<string, unknown>): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
+}
+
+/**
+ * Allocate the net distributable across members in INTEGER minor units
+ * (the `amount_tzs` column is `numeric(18,2)`, so the minor unit is a cent).
+ *
+ * Each member's share is floored to whole minor units; the FINAL member
+ * absorbs the exact remainder `netCents - sum(others)` so the allocation
+ * provably sums to the net to the last minor unit — no float drift, no
+ * sub-unit leakage (mirrors the seller-net remainder plug in
+ * `computeSettlementMath`). When the share total is < 100% the unallocated
+ * residual is NOT folded into the last member — only the rounding remainder
+ * of the allocated shares is — so an intentional retention (e.g. a held-back
+ * reserve) is preserved.
+ */
+function allocateShareMinorUnits(
+  net: number,
+  members: ReadonlyArray<{ sharePct: number }>,
+): number[] {
+  const netCents = Math.round(net * 100);
+  // Each member's exact (un-rounded) minor-unit entitlement.
+  const exact = members.map((m) => (m.sharePct / 100) * netCents);
+  // Floor every member to whole minor units first.
+  const floored = exact.map((v) => Math.floor(v));
+  const allocated = floored.reduce((s, v) => s + v, 0);
+  // The total the members are ENTITLED to (rounded), so we only redistribute
+  // the rounding residual, never an intentional sub-100% retention.
+  const targetCents = Math.round(exact.reduce((s, v) => s + v, 0));
+  let remainder = targetCents - allocated;
+  // Hand the leftover minor units out one-by-one, largest fractional part
+  // first, so the allocation is deterministic and fair. Ties broken by index.
+  const order = members
+    .map((_, i) => i)
+    .sort((a, b) => {
+      const fracA = exact[a]! - floored[a]!;
+      const fracB = exact[b]! - floored[b]!;
+      if (fracB !== fracA) return fracB - fracA;
+      return a - b;
+    });
+  const result = [...floored];
+  for (let k = 0; k < order.length && remainder > 0; k += 1) {
+    const idx = order[k]!;
+    result[idx] = (result[idx] ?? 0) + 1;
+    remainder -= 1;
+  }
+  return result;
 }
 
 function unavailable(c: { json: (b: unknown, s: number) => Response }) {
@@ -271,14 +333,26 @@ app.post(
 
       const net = Number(period.net_distributable_tzs);
 
+      // Per-member share in INTEGER minor units so SUM(shares) provably
+      // equals net (no float drift / sub-unit leakage). Each member except
+      // the LAST is floored to whole minor units; the FINAL member absorbs
+      // the exact remainder `netCents - sum(others)` — the same
+      // remainder-plug discipline as `splitSettlementMinorUnits` /
+      // `computeSettlementMath`. Amounts are then rendered back to the
+      // `numeric(18,2)` MAJOR-unit `amount_tzs` column. The members keep
+      // their request order so the remainder lands on a stable row.
+      const amounts = allocateShareMinorUnits(net, body.members);
+
       // Wipe + reinsert to keep snapshot deterministic.
       await db.execute(sql`
         DELETE FROM cooperative_member_distributions
          WHERE period_id = ${id}::uuid AND tenant_id = ${auth.tenantId}::uuid
       `);
-      for (const m of body.members) {
+      for (let i = 0; i < body.members.length; i += 1) {
+        const m = body.members[i];
         const distId = randomUUID();
-        const amount = Number(((m.sharePct / 100) * net).toFixed(2));
+        // minor units → major (2-decimal) for the numeric column.
+        const amount = amounts[i]! / 100;
         const distHash = auditHash({
           distId,
           periodId: id,
@@ -459,7 +533,28 @@ app.post(
         );
       }
 
-      // Pull pending distributions, stamp payment_ref for each.
+      // Resolve the ledger port up-front so a missing wiring FAILS LOUD
+      // before any row is touched (the original defect posted NOTHING to the
+      // ledger while marking members paid). With no production adapter wired
+      // this throws COOP_DISTRIBUTION_LEDGER_NOT_WIRED → 503, never a silent
+      // no-op.
+      let ledgerPort;
+      try {
+        ledgerPort = resolveCooperativeDistributionLedgerPort();
+      } catch (err) {
+        if (err instanceof CooperativeDistributionLedgerNotWiredError) {
+          return c.json(
+            {
+              success: false,
+              error: { code: err.code, message: err.message },
+            },
+            503,
+          );
+        }
+        throw err;
+      }
+
+      // Pull pending distributions.
       const distRows = await db.execute(sql`
         SELECT id, member_party_id, amount_tzs, paid_at
           FROM cooperative_member_distributions
@@ -467,7 +562,6 @@ app.post(
       `);
       const distributions =
         (distRows as unknown as Record<string, unknown>[]) ?? [];
-      const refPrefix = body.paymentRefPrefix ?? `COOP-${id.slice(0, 8)}`;
       const paidAt = new Date().toISOString();
       const ledgerRefs: Array<{
         distributionId: string;
@@ -476,38 +570,78 @@ app.post(
         paymentRef: string;
       }> = [];
 
-      for (const d of distributions) {
-        if (d.paid_at) continue;
-        const distId = String(d.id);
-        const paymentRef = `${refPrefix}-${distId.slice(0, 8)}`;
-        // Money path: real implementation hands off to LedgerService.post().
-        // Here we record the post-ledger handle so the row carries it
-        // for forensic replay and the payments-ledger worker can
-        // reconcile.
-        await db.execute(sql`
-          UPDATE cooperative_member_distributions
-             SET paid_at = ${paidAt}::timestamptz,
-                 payment_ref = ${paymentRef}
-           WHERE id = ${distId}::uuid AND tenant_id = ${auth.tenantId}::uuid
-        `);
-        ledgerRefs.push({
-          distributionId: distId,
-          memberPartyId: String(d.member_party_id),
-          amountTzs: String(d.amount_tzs),
-          paymentRef,
+      // Money path: ONE balanced double-entry per member through the REAL
+      // LedgerService (CLAUDE.md hard rule). The whole distribution runs
+      // inside ONE db.transaction so a failure on ANY member rolls back the
+      // entire payout — never a partial paid state, never a fabricated
+      // success. Each post is idempotency-keyed `coop-dist:<distributionId>`
+      // (in the adapter) so a retry replays the original journal. The REAL
+      // ledger journal id is stored as the member row's `payment_ref` — we
+      // NEVER fabricate a reference.
+      try {
+        await (
+          db as unknown as {
+            transaction: <T>(cb: (tx: unknown) => Promise<T>) => Promise<T>;
+          }
+        ).transaction(async (txRaw) => {
+          const tx = txRaw as typeof db;
+          for (const d of distributions) {
+            if (d.paid_at) continue;
+            const distId = String(d.id);
+            const memberPartyId = String(d.member_party_id);
+            const amountMajor = Number(d.amount_tzs);
+
+            const posted = await ledgerPort.post({
+              db: tx,
+              tenantId: auth.tenantId,
+              distributionId: distId,
+              memberPartyId,
+              amountMajor,
+            });
+            const paymentRef = posted.journalId;
+
+            await tx.execute(sql`
+              UPDATE cooperative_member_distributions
+                 SET paid_at = ${paidAt}::timestamptz,
+                     payment_ref = ${paymentRef}
+               WHERE id = ${distId}::uuid AND tenant_id = ${auth.tenantId}::uuid
+            `);
+            ledgerRefs.push({
+              distributionId: distId,
+              memberPartyId,
+              amountTzs: String(d.amount_tzs),
+              paymentRef,
+            });
+          }
+
+          await tx.execute(sql`
+            UPDATE cooperative_settlement_periods
+               SET status         = 'distributed',
+                   distributed_at = ${paidAt}::timestamptz,
+                   updated_at     = now()
+             WHERE id = ${id}::uuid AND tenant_id = ${auth.tenantId}::uuid
+          `);
         });
+      } catch (err) {
+        // The transaction rolled back — NO member was marked paid, NO ledger
+        // journal committed (or all committed atomically). Fail closed.
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'DISTRIBUTION_FAILED',
+              message:
+                err instanceof Error
+                  ? err.message
+                  : 'cooperative distribution failed to post to the ledger',
+            },
+          },
+          502,
+        );
       }
 
-      await db.execute(sql`
-        UPDATE cooperative_settlement_periods
-           SET status         = 'distributed',
-               distributed_at = ${paidAt}::timestamptz,
-               updated_at     = now()
-         WHERE id = ${id}::uuid AND tenant_id = ${auth.tenantId}::uuid
-      `);
-
       // RT-1: pulse cooperative-mobile + owner cockpit. Amount is the
-      // sum of distributable rows we just stamped.
+      // sum of distributable rows we just posted.
       const amountTotalTzs = ledgerRefs.reduce(
         (sum, r) => sum + Number(r.amountTzs),
         0,

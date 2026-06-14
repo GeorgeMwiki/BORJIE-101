@@ -12,8 +12,8 @@ export const metadata: Metadata = {
  * /404 — LitFin-pattern not-found surface for the marketing site.
  *
  * Centered single column on a soft aurora canvas. Tinted icon container,
- * display heading, bilingual sub, and one primary CTA back to home plus
- * a secondary CTA to sign up.
+ * display heading, a single-locale (default-English) sub, and one
+ * primary CTA back to home plus a secondary CTA to sign up.
  *
  * Intentionally minimal — no marketing chrome (Nav/Footer) so the
  * surface reads as a system page, not a navigation dead end.
@@ -43,8 +43,8 @@ export default function NotFoundPage() {
           We can't find that page.
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Ukurasa hauonekani. The link may be old, mistyped, or the
-          page has moved. Try one of these instead.
+          The link may be old, mistyped, or the page has moved. Try one
+          of these instead.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Link

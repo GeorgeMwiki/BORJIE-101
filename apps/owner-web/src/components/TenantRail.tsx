@@ -14,7 +14,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { getCsrfHeaders } from '@/lib/csrf';
+import { apiRequest } from '@/lib/api-client';
 
 interface TenantMembership {
   readonly tenantId: string;
@@ -52,13 +52,13 @@ export function TenantRail() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/v1/me/tenants', { credentials: 'include' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: ReadonlyArray<TenantMembership>;
-      };
-      setItems(json.data ?? []);
+      // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+      // and unwraps the {success,data} envelope — so this is the rows array.
+      const data = await apiRequest<ReadonlyArray<TenantMembership>>(
+        '/api/v1/me/tenants',
+        { method: 'GET' },
+      );
+      setItems(data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -74,13 +74,10 @@ export function TenantRail() {
     async (tenantId: string) => {
       setSwitching(tenantId);
       try {
-        const res = await fetch('/api/v1/me/tenants/active', {
+        await apiRequest('/api/v1/me/tenants/active', {
           method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
-          body: JSON.stringify({ tenantId }),
+          body: { tenantId },
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         // Force a hard reload so the auth context picks up the new
         // active tenant on every component.
         window.location.reload();

@@ -19,11 +19,12 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { StyleSheet, Text, TextInput } from 'react-native'
 
 import { Screen } from '@/components/Screen'
 import { SectionHeader } from '@/components/SectionHeader'
 import { Card } from '@/components/Card'
+import { ChipGroup, type ChipOption } from '@/components/ChipGroup'
 import { PrimaryButton } from '@/components/PrimaryButton'
 import { useToast } from '@/components/Toast'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -60,6 +61,13 @@ function parsePositiveNumber(input: string): number | null {
   if (!Number.isFinite(n) || n <= 0) return null
   return n
 }
+
+// The mineral picker reuses the shared ChipGroup (Pressable + a11y). The
+// raw enum key is the label, matching the gateway vocabulary the buyer
+// already sees on the listings surface.
+const MINERAL_OPTIONS: readonly ChipOption<RfbMineralKind>[] = RFB_MINERAL_KINDS.map(
+  (kind) => ({ value: kind, label: kind })
+)
 
 export default function RfbCreate() {
   const router = useRouter()
@@ -120,24 +128,14 @@ export default function RfbCreate() {
       <SectionHeader title={t('rfb.create_title')} subtitle={t('rfb.subtitle')} />
       <Card>
         <Text style={styles.label}>{t('rfb.mineral_label')}</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipRow}
-        >
-          {RFB_MINERAL_KINDS.map((k) => {
-            const active = form.mineralKind === k
-            return (
-              <View
-                key={k}
-                onTouchEnd={() => setForm((prev) => ({ ...prev, mineralKind: k }))}
-                style={[styles.chip, active && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, active && styles.chipTextActive]}>{k}</Text>
-              </View>
-            )
-          })}
-        </ScrollView>
+        <ChipGroup<RfbMineralKind>
+          options={MINERAL_OPTIONS}
+          value={form.mineralKind}
+          onChange={(next) =>
+            setForm((prev) => ({ ...prev, mineralKind: next ?? prev.mineralKind }))
+          }
+          allowClear={false}
+        />
 
         <Text style={styles.label}>{t('rfb.tonnage_min_label')}</Text>
         <TextInput
@@ -226,30 +224,6 @@ const styles = StyleSheet.create({
   notes: {
     minHeight: 80,
     textAlignVertical: 'top'
-  },
-  chipRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingVertical: spacing.xs
-  },
-  chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-    borderColor: colors.steel,
-    borderWidth: 1
-  },
-  chipActive: {
-    backgroundColor: colors.forest,
-    borderColor: colors.forest
-  },
-  chipText: {
-    color: colors.ink,
-    fontSize: 13
-  },
-  chipTextActive: {
-    color: colors.bone,
-    fontWeight: '600'
   },
   error: {
     color: colors.danger,

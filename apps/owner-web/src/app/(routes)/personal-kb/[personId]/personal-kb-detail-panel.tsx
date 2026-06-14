@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { apiRequest, ApiError } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface MemoryCell {
@@ -53,29 +54,35 @@ export function PersonalKbDetailPanel({
   const load = useCallback(async () => {
     setState({ kind: 'loading' });
     try {
-      const res = await fetch(`/api/v1/me/persons/${personId}/cells`, {
-        credentials: 'include',
-      });
-      if (res.status === 403) {
-        const json = (await res.json()) as {
-          error?: { code?: string };
-        };
-        if (json.error?.code === 'CONSENT_REQUIRED') {
+      // apiRequest prepends the gateway base, attaches the Supabase Bearer,
+      // and unwraps the {success,data} envelope — so this is the cells array.
+      const data = await apiRequest<ReadonlyArray<MemoryCell>>(
+        `/api/v1/me/persons/${personId}/cells`,
+        { method: 'GET' },
+      );
+      setState({ kind: 'ok', cells: data ?? [] });
+    } catch (err) {
+      // apiRequest throws ApiError on non-2xx. The 403 branch distinguishes
+      // CONSENT_REQUIRED (opt-in banner) from a generic forbidden person.
+      // The error body is the raw response text on `.message`; parse it for
+      // the `error.code` the gateway sends.
+      if (err instanceof ApiError && err.status === 403) {
+        let code: string | undefined;
+        try {
+          const parsed = JSON.parse(err.message) as {
+            error?: { code?: string };
+          };
+          code = parsed.error?.code;
+        } catch {
+          code = undefined;
+        }
+        if (code === 'CONSENT_REQUIRED') {
           setState({ kind: 'consent-required' });
         } else {
           setState({ kind: 'forbidden' });
         }
         return;
       }
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const json = (await res.json()) as {
-        success: boolean;
-        data?: ReadonlyArray<MemoryCell>;
-      };
-      setState({ kind: 'ok', cells: json.data ?? [] });
-    } catch (err) {
       setState({
         kind: 'error',
         message: err instanceof Error ? err.message : String(err),

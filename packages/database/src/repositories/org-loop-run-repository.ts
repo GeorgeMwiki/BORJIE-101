@@ -107,6 +107,16 @@ export interface OrgLoopRunRepository {
     id: string,
     patch: AdvanceOrgLoopRunInput,
   ): Promise<OrgLoopRun | null>;
+  /**
+   * Atomically CLAIM a run parked at the HITL gate for dispatch. A single-
+   * writer compare-and-set: flips stage 'report' → 'dispatch' + status 'open'
+   * → 'active' ONLY when the run is still parked (stage='report',
+   * status='open'). Returns the claimed row when this caller won (exactly one
+   * row updated), or null when the run was already claimed / not parked /
+   * absent. The approval consumer dispatches ONLY when the claim wins, so two
+   * concurrent owner approves cannot both dispatch the same parked run.
+   */
+  claimForDispatch(tenantId: string, id: string): Promise<OrgLoopRun | null>;
   /** The cron's hot read: all open/active runs for a tenant. */
   listOpen(tenantId: string): Promise<ReadonlyArray<OrgLoopRun>>;
 }
@@ -325,6 +335,30 @@ export function createDrizzleOrgLoopRunRepository(
       });
     },
 
+    async claimForDispatch(tenantId, id) {
+      assertTenant(tenantId, 'claimForDispatch');
+      return withServiceRoleContext(db, async (tx) => {
+        // The CAS: the WHERE pins the parked-gate state (stage='report',
+        // status='open') so two concurrent approves race on THIS update —
+        // exactly one transitions the row and RETURNING yields it; the loser
+        // matches zero rows. RETURNING + the row count IS the claim token.
+        const claimed = await tx
+          .update(orgLoopRuns)
+          .set({ stage: 'dispatch', status: 'active', updatedAt: new Date() })
+          .where(
+            and(
+              eq(orgLoopRuns.tenantId, tenantId),
+              eq(orgLoopRuns.id, id),
+              eq(orgLoopRuns.stage, 'report'),
+              eq(orgLoopRuns.status, 'open'),
+            ),
+          )
+          .returning();
+        const row = claimed[0];
+        return row ? rowToLoopRun(row) : null;
+      });
+    },
+
     async listOpen(tenantId) {
       assertTenant(tenantId, 'listOpen');
       return withServiceRoleContext(db, async (tx) => {
@@ -477,6 +511,23 @@ export function createInMemoryOrgLoopRunRepository(opts?: {
         ...(patch.strategyJson !== undefined && {
           strategyJson: patch.strategyJson,
         }),
+        updatedAt: new Date(now()),
+      };
+      rows.set(key(tenantId, id), next);
+      return memToLoopRun(next);
+    },
+
+    async claimForDispatch(tenantId, id) {
+      assertTenant(tenantId, 'claimForDispatch');
+      const r = rows.get(key(tenantId, id));
+      // Mirror the Drizzle CAS: only a still-parked run (stage 'report',
+      // status 'open') can be claimed; a second concurrent claim sees the
+      // already-flipped row and returns null (the loser does NOT dispatch).
+      if (!r || r.stage !== 'report' || r.status !== 'open') return null;
+      const next: MemRow = {
+        ...r,
+        stage: 'dispatch',
+        status: 'active',
         updatedAt: new Date(now()),
       };
       rows.set(key(tenantId, id), next);

@@ -166,6 +166,58 @@ describe('OrgLoopRunRepository (in-memory)', () => {
     expect(await repo.advance(A, 'olr-absent', { stage: 'pick' })).toBeNull();
   });
 
+  it('claimForDispatch is a single-writer CAS: only a parked report/open run flips, and only once', async () => {
+    const repo = createInMemoryOrgLoopRunRepository();
+    const created = await repo.create(baseInput());
+    // Park the run at the HITL gate (stage 'report', status 'open', a pick).
+    await repo.advance(A, created.id, {
+      stage: 'report',
+      status: 'open',
+      chosenEmployeeId: 'emp-42',
+      matchConfidence: 0.9,
+    });
+
+    // First claim WINS: the CAS flips report/open → dispatch/active and
+    // returns the freshly-claimed row.
+    const won = await repo.claimForDispatch(A, created.id);
+    expect(won).not.toBeNull();
+    expect(won!.stage).toBe('dispatch');
+    expect(won!.status).toBe('active');
+    expect(won!.chosenEmployeeId).toBe('emp-42');
+
+    // Second claim LOSES: the run is no longer parked → null (never a second
+    // dispatch). This is the double-approve guard.
+    const lost = await repo.claimForDispatch(A, created.id);
+    expect(lost).toBeNull();
+  });
+
+  it('claimForDispatch refuses a run that is not parked (status open but stage != report)', async () => {
+    const repo = createInMemoryOrgLoopRunRepository();
+    const created = await repo.create(baseInput());
+    // A pick-stage run is open but NOT at the HITL gate — it must not be claimable.
+    await repo.advance(A, created.id, { stage: 'pick', status: 'open' });
+    expect(await repo.claimForDispatch(A, created.id)).toBeNull();
+  });
+
+  it('claimForDispatch returns null for an unknown id and is tenant-scoped', async () => {
+    const repo = createInMemoryOrgLoopRunRepository();
+    const created = await repo.create(baseInput({ tenantId: A }));
+    await repo.advance(A, created.id, { stage: 'report', status: 'open' });
+    // Absent id → null.
+    expect(await repo.claimForDispatch(A, 'olr-absent')).toBeNull();
+    // Wrong tenant cannot claim A's parked run.
+    expect(await repo.claimForDispatch(B, created.id)).toBeNull();
+    // A's run is still parked + claimable (the cross-tenant attempt was a no-op).
+    expect((await repo.claimForDispatch(A, created.id))?.stage).toBe('dispatch');
+  });
+
+  it('claimForDispatch asserts a non-empty tenantId', async () => {
+    const repo = createInMemoryOrgLoopRunRepository();
+    await expect(repo.claimForDispatch('', 'olr-1')).rejects.toThrow(
+      /non-empty tenantId/,
+    );
+  });
+
   it('isolates tenants — A never sees B runs', async () => {
     const repo = createInMemoryOrgLoopRunRepository();
     const aRun = await repo.create(baseInput({ tenantId: A }));
