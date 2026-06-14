@@ -11,4 +11,12 @@ export interface BuyerUser {
   readonly preferredLang: LanguageCode
   readonly kycStatus: 'pending' | 'submitted' | 'approved' | 'rejected'
   readonly phone: string
+  /**
+   * The buyer's own platform tenant, from the JWT `app_metadata.tenant_id`
+   * claim (UI-routing only — never authorisation). Drives cross-tenant
+   * detection on a listing (KI-006): a listing whose seller tenant differs
+   * from this is biddable only via an inquiry, not a place-bid. Null when
+   * the token carried no tenant claim.
+   */
+  readonly tenantId: string | null
 }

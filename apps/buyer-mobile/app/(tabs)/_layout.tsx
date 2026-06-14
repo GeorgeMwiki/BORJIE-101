@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Redirect, Tabs } from 'expo-router'
 import { Text } from 'react-native'
 import { useTranslation } from '@/hooks/useTranslation'
 import { ensureBootstrapped, isAuthenticated, useSession } from '@/auth/session'
+import { useBuyerTabProjection } from '@/hooks/useBuyerTabProjection'
+import { resolveProjectedBuyerTabs } from '@/marketplace/buyerTabProjection'
 import { LitFinSplash, tokens } from '@/ui-litfin'
 
 function TabIcon({ glyph, color }: { glyph: string; color: string }) {
@@ -17,6 +19,28 @@ export default function TabsLayout() {
   // redirect until the stored session has been loaded by bootstrap.
   const user = useSession()
   const [ready, setReady] = useState<boolean>(false)
+  // Owner-spawn → buyer projection (KI-007). Hooks must run unconditionally
+  // (before the early returns below) per the rules-of-hooks.
+  const { projectedTabs } = useBuyerTabProjection()
+  const projection = useMemo(
+    () => resolveProjectedBuyerTabs(projectedTabs),
+    [projectedTabs]
+  )
+  useEffect(() => {
+    if (__DEV__ && projection.skippedKinds.length > 0) {
+      console.warn(`[buyer-tabs] skipped unknown projected tab kinds: ${projection.skippedKinds.join(', ')}`) // eslint-disable-line no-console -- reason: DEV-only diagnostic per CLAUDE.md mobile-console rule.
+    }
+  }, [projection.skippedKinds])
+  // The set of `(tabs)/` screen names the server projected onto.
+  const projectedScreens = useMemo(
+    () => new Set(projection.resolved.map((p) => p.screen)),
+    [projection]
+  )
+  const projectedLabelByScreen = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const p of projection.resolved) map.set(p.screen, p.label)
+    return map
+  }, [projection])
   useEffect(() => {
     let cancelled = false
     void ensureBootstrapped().finally(() => {
@@ -71,6 +95,20 @@ export default function TabsLayout() {
         options={{
           title: t('tabs.bids'),
           tabBarIcon: ({ color }) => <TabIcon glyph="B" color={color} />
+        }}
+      />
+      {/*
+        KI-007 — the inquiries screen is always navigable (deep-linked from
+        the "Ask the seller" sheet) but only appears in the tab strip when an
+        owner projected the buyer inquiry-respond tab onto this buyer
+        (href: null hides it otherwise). The owner-given label wins when present.
+      */}
+      <Tabs.Screen
+        name="inquiries"
+        options={{
+          title: projectedLabelByScreen.get('inquiries') ?? t('tabs.inquiries'),
+          href: projectedScreens.has('inquiries') ? '/(tabs)/inquiries' : null,
+          tabBarIcon: ({ color }) => <TabIcon glyph="I" color={color} />
         }}
       />
       <Tabs.Screen

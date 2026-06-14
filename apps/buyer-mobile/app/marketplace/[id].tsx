@@ -12,7 +12,10 @@ import { EmptyState } from '@/components/EmptyState'
 import { PdfViewer } from '@/components/PdfViewer'
 import { Timeline } from '@/components/Timeline'
 import { PlaceBidSheet } from '@/components/PlaceBidSheet'
+import { AskSellerSheet } from '@/components/AskSellerSheet'
 import { useTranslation } from '@/hooks/useTranslation'
+import { useSession } from '@/auth/session'
+import { isCrossTenantListing } from '@/marketplace/crossTenant'
 import { fetchListing } from '@/api/marketplace'
 import { queryKeys } from '@/api/queryKeys'
 import { formatKg, formatTzs } from '@/components/formatters'
@@ -24,7 +27,9 @@ import { radius, spacing, typography } from '@/theme/spacing'
 export default function MarketplaceDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { t } = useTranslation()
+  const session = useSession()
   const [bidVisible, setBidVisible] = useState(false)
+  const [inquiryVisible, setInquiryVisible] = useState(false)
   const listingId = String(id)
 
   const query = useQuery({
@@ -76,6 +81,11 @@ export default function MarketplaceDetail() {
     id: `step-${idx}`,
     title: step
   }))
+
+  // KI-006 — a cross-tenant listing is browse-only for bids (place-bid is
+  // intra-tenant and would 404). Offer the inquiry path instead. Fail-closed
+  // when either tenant is unknown (see isCrossTenantListing).
+  const crossTenant = isCrossTenantListing(listing, session.tenantId)
 
   return (
     <>
@@ -133,15 +143,34 @@ export default function MarketplaceDetail() {
         </Card>
 
         <View style={styles.bottomCta}>
-          <PrimaryButton
-            label={t('marketplace.place_bid')}
-            variant="primary"
-            onPress={() => setBidVisible(true)}
-          />
+          {crossTenant ? (
+            <>
+              <Text style={styles.crossTenantNote}>{t('inquiry.cross_tenant_note')}</Text>
+              <PrimaryButton
+                label={t('inquiry.ask_seller')}
+                variant="primary"
+                onPress={() => setInquiryVisible(true)}
+              />
+            </>
+          ) : (
+            <PrimaryButton
+              label={t('marketplace.place_bid')}
+              variant="primary"
+              onPress={() => setBidVisible(true)}
+            />
+          )}
         </View>
       </Screen>
 
-      <PlaceBidSheet visible={bidVisible} onClose={() => setBidVisible(false)} listing={listing} />
+      {crossTenant ? (
+        <AskSellerSheet
+          visible={inquiryVisible}
+          onClose={() => setInquiryVisible(false)}
+          listing={listing}
+        />
+      ) : (
+        <PlaceBidSheet visible={bidVisible} onClose={() => setBidVisible(false)} listing={listing} />
+      )}
     </>
   )
 }
@@ -160,5 +189,6 @@ const styles = StyleSheet.create({
   sellerName: { ...typography.bodyStrong, color: colors.ink },
   meta: { ...typography.caption, color: colors.inkMuted, marginTop: spacing.xs },
   bottomCta: { marginTop: spacing.lg, marginBottom: spacing.xxl },
+  crossTenantNote: { ...typography.caption, color: colors.inkMuted, marginBottom: spacing.sm },
   loader: { paddingTop: spacing.xxxl, alignItems: 'center' }
 })

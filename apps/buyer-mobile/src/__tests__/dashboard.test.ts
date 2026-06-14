@@ -65,7 +65,8 @@ const authedUser: BuyerUser = {
   countryCode: 'TZ',
   preferredLang: 'sw',
   kycStatus: 'approved',
-  phone: '+255712345678'
+  phone: '+255712345678',
+  tenantId: 'tnt_test_org_1'
 }
 
 describe('dashboard i18n', () => {

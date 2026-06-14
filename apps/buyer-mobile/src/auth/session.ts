@@ -23,7 +23,8 @@ const GUEST_USER: BuyerUser = {
   countryCode: 'TZ',
   preferredLang: 'en',
   kycStatus: 'pending',
-  phone: ''
+  phone: '',
+  tenantId: null
 }
 
 type Listener = (user: BuyerUser | null) => void
@@ -59,7 +60,8 @@ function projectSession(session: Session | null): BuyerUser | null {
     countryCode: 'TZ',
     preferredLang: 'en',
     kycStatus: 'pending',
-    phone: phoneFormatted
+    phone: phoneFormatted,
+    tenantId: claims.tenantId
   }
 }
 
@@ -118,7 +120,11 @@ export function isAuthenticated(): boolean {
 }
 
 export function setCurrentUser(user: BuyerUser): void {
-  currentUser = user
+  // The tenant claim is JWT-derived (the profile-update response does not
+  // carry it). Preserve the known tenant when the incoming user omits one
+  // so cross-tenant detection (KI-006) stays stable across a profile save.
+  const tenantId = user.tenantId ?? currentUser?.tenantId ?? null
+  currentUser = { ...user, tenantId }
   emit()
 }
 
