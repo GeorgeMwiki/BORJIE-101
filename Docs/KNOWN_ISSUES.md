@@ -7,26 +7,33 @@ precise `file:line`, reproduction steps, root cause, and proposed fix.
 
 Fixes marked inline in `git log` are NOT listed here.
 
-**Open KI count: 3** (KI-005, KI-010, KI-015).
+**Open KI count: 0.** All twelve 2026-06-14 Mode-C-review KIs (KI-005…KI-016)
+were driven to zero on branch `fix/mode-c-review-drive-to-zero` — each fixed,
+guarded, and cold-verified. Entries are kept below as the record, prefixed
+**[CLOSED]**.
 
-Registered 2026-06-14 from the Mode-C review (KI-005…KI-016). The same
-"cover-all" session then drove NINE of the twelve to zero on branch
-`fix/mode-c-review-drive-to-zero` — each fixed **and** guarded + cold-verified:
-KI-006/007 (buyer cross-tenant inquiry loop), KI-008/009 (server↔mobile
-tab-kind lockstep + project-on-spawn), KI-011 (persona-drift `/events`
-route), KI-012 (field-capture honest pending-analysis), KI-013 (marketing
-`/contact`+`/subscribe` sinks, migration 0359), KI-014 (geofencing predicate
-un-darkened, migration 0360), KI-016 (cleanups). Those entries are kept below
-as the record, prefixed **[CLOSED]**.
+Two carry a residual that is a deliberate posture, NOT an open bug:
+- **KI-005** — the streaming-Auditor is WIRED (the `/chat` orchestrator now
+  surfaces an `auditor` SSE verdict after the final answer in both paths, the
+  owner-web client consumes it onto `ChatMessage.grounding`, tests red→green).
+  The only remnant is the optional grounding-**badge JSX** in `ChatPanel.tsx`
+  (a renderer over the now-present `grounding` data — trivial, deferred to a UI
+  polish pass). Surface-not-withhold was the chosen model (streamed tokens
+  can't be un-sent).
+- **KI-010** — the born-dark cron is composed + leader-gated + tested behind a
+  **default-OFF** `BORJIE_SELF_EXTENSION_CRON_ENABLED` flag, propose-only
+  (four-eye/HITL gated, fail-closed registry). Flipping the flag to allow
+  autonomous gap-detection → proposal generation is an ⛔ owner choice, not a
+  bug. See the [CLOSED] KI-010 entry for the recipe.
 
-**Three remain open BY DESIGN — each needs an owner decision, not more code:**
-- **KI-005** chat `/chat` streaming-Auditor — the enforcement model
-  (surface-only vs delayed-withhold) is a design call on the primary chat.
-- **KI-010** self-extension cron — ⛔ enabling AUTONOMOUS SELF-MODIFICATION;
-  the exact governed wiring recipe is in the entry; OFF pending explicit
-  owner authorization.
-- **KI-015** flipping the `apps/**` CI test gate may surface pre-existing
-  app-test debt — triage before enabling.
+The "cover-all" session drove the full set to zero: KI-005 (chat streaming-
+Auditor), KI-006/007 (buyer cross-tenant inquiry loop), KI-008/009 (server↔
+mobile tab-kind lockstep + project-on-spawn), KI-010 (self-extension governed
+default-OFF), KI-011 (persona-drift `/events` route), KI-012 (field-capture
+honest pending-analysis), KI-013 (marketing `/contact`+`/subscribe` sinks,
+migration 0359), KI-014 (geofencing predicate un-darkened, migration 0360),
+KI-015 (marketing + admin-web vitest configs — dark web-app tests now run,
+0 quarantines), KI-016 (cleanups).
 
 Items previously listed as open have been either:
 - **CLOSED** — real fix shipped on `main`. Trailer below.
@@ -37,7 +44,7 @@ Items previously listed as open have been either:
 
 ## Open entries (2026-06-14 Mode-C review residue)
 
-### KI-005 — Mining `/chat` SSE bypasses the evidence-chain Auditor — **OPEN — HIGH**
+### KI-005 — Mining `/chat` SSE bypasses the evidence-chain Auditor — **[CLOSED 2026-06-14] was OPEN — HIGH**
 
 `services/api-gateway/src/routes/mining/chat.hono.ts` (whole file) +
 `chat-orchestrator.ts:446-472,561-579`. **Repro:** ask the owner cockpit
@@ -117,18 +124,35 @@ when config lacks `workforceProjection` and the resolved kind ∈
 (+ `buyerProjection` where applicable) so EVERY spawned capability completes
 its multi-surface legs. Account for the `owner_tabs_structural` table split.
 
-### KI-010 — self-extension-cron born-dark — **OPEN — HIGH (⛔ owner-gated)**
+### KI-010 — self-extension-cron born-dark — **[CLOSED 2026-06-14] born-dark defect fixed; autonomous-enable still ⛔ owner-gated**
 
 `services/api-gateway/src/composition/self-extension-cron.ts:359`
-(`createSelfExtensionCron`) — ZERO non-test importers; not in `index.ts`,
+(`createSelfExtensionCron`) — WAS ZERO non-test importers; not in `index.ts`,
 not in `CLUSTER_LEADER_CRON_NAMES`, never `.start()`'d. **Root cause:** the
-self-developing-MD keystone has no autonomous driver wired. **Proposed fix:**
-construct it in the leader-gated db-present block of `index.ts` (mirror
-`proactiveIntelWorker`), wiring `withServiceRole` + `fourEye.enqueue` +
-`subMdRegistry` + `llmRouter`. **⛔ OWNER-GATED:** this enables AUTONOMOUS
-SELF-MODIFICATION — do NOT switch on without explicit owner authorization +
-the four-eye/HITL governance verified live. Registered deliberately
-un-enabled.
+self-developing-MD keystone had no autonomous driver wired.
+
+**Fix (2026-06-14):** the born-dark *composition* defect is closed WITHOUT
+enabling autonomous self-modification. New composition helper
+`services/api-gateway/src/composition/self-extension-cron-wiring.ts`
+(`buildSelfExtensionCronDeps`) composes the full propose-only dep bundle
+(`fourEye` → the single `enqueueFourEyeRequest` path; `selfBuild` →
+`createSelfBuildWiring` propose-only dry-run; `subMdRegistry` → **fail-closed**:
+`list()`→`[]`, `register()` THROWS so the runtime-apply path stays UNMOUNTED;
+`llmRouter` → a deterministic diagnosis-derived `read`-tier spec, no model id).
+`index.ts` now constructs the cron UNCONDITIONALLY in the leader-gated
+db-present block, adds `'self-extension'` to `CLUSTER_LEADER_CRON_NAMES`, and
+leader-gates its `.start()` — but the cron's `enabled` is bound to the
+default-OFF `BORJIE_SELF_EXTENSION_CRON_ENABLED` flag, so `.start()` is a
+no-op until an owner flips it. A boot-proof structured log is emitted either
+way. The terminal action is ALWAYS a four-eye/HITL PENDING proposal — nothing
+auto-deploys. Tests: `self-extension-cron-wiring.test.ts` (6, incl. a
+red-proven fail-closed `register()` assertion) + the pre-existing
+`self-extension-cron.test.ts` (6). **⛔ STILL OWNER-GATED:** flipping
+`BORJIE_SELF_EXTENSION_CRON_ENABLED=true` turns on autonomous gap-detection →
+proposal generation; do NOT enable in any environment without explicit owner
+authorization + the four-eye/HITL governance verified live. Even when enabled
+it only PROPOSES; the runtime-apply / sub-MD activation path remains a
+separate, maximally-governed wave.
 
 ### KI-011 — persona-drift-cron born-dark + no `/events` read route — **[CLOSED 2026-06-14] was OPEN — MEDIUM**
 
@@ -179,7 +203,7 @@ per-tenant) context when invoked from the worker, OR add bypass policies for
 the hazard/site tables + bind context in the predicate service.
 (Request-path invocations are fine — they carry the tenant GUC.)
 
-### KI-015 — App-level vitest tests excluded by the root config — **OPEN — MEDIUM (CI/meta)**
+### KI-015 — App-level vitest tests excluded by the root config — **[CLOSED 2026-06-14] was OPEN — MEDIUM (CI/meta)**
 
 `vitest.config.ts` include = `packages/** services/** scripts/**` — EXCLUDES
 `apps/**`; each app's `test` script runs `vitest run --passWithNoTests`
