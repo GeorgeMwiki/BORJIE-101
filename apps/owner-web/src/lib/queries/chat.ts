@@ -7,6 +7,7 @@ import { streamSse } from '@/lib/sse-stream';
 import type {
   ChatBreadcrumb,
   ChatEvidence,
+  ChatGroundingSignal,
   ChatMessage,
 } from '@/lib/types/chat';
 
@@ -93,6 +94,10 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
       let acc = '';
       const breadcrumbs: ChatBreadcrumb[] = [];
       let evidenceIds: ReadonlyArray<string> = [];
+      // KI-005 — the terminal Auditor grounding verdict for this turn, if the
+      // gateway surfaced one. Stays null on legacy wires that predate the
+      // `auditor` frame (the brain message simply carries no grounding badge).
+      let grounding: ChatGroundingSignal | null = null;
       let sawAny = false;
 
       try {
@@ -121,6 +126,9 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
             (ids) => {
               evidenceIds = ids;
             },
+            (signal) => {
+              grounding = signal;
+            },
           );
         }
 
@@ -135,6 +143,8 @@ export function useChatSession(language: Locale = DEFAULT_LOCALE): {
           evidenceIds,
           breadcrumbs,
           createdAt: new Date().toISOString(),
+          // Attach the grounding verdict only when the gateway surfaced one.
+          ...(grounding ? { grounding } : {}),
         };
         setState((prev) => ({
           ...prev,
@@ -164,6 +174,9 @@ export function applyEvent(
   onDelta: (text: string) => void,
   onBreadcrumb: (bc: ChatBreadcrumb) => void,
   onEvidence: (ids: ReadonlyArray<string>) => void,
+  // KI-005 — optional grounding-verdict sink. Optional so existing callers
+  // (and tests) that pass only the first five callbacks keep compiling.
+  onAuditor?: (signal: ChatGroundingSignal) => void,
 ): boolean {
   if (event === 'delta' && isRecord(payload) && typeof payload.text === 'string') {
     onDelta(payload.text);
@@ -181,6 +194,13 @@ export function applyEvent(
     onEvidence(payload.ids.map(String));
     return true;
   }
+  // KI-005 — the terminal Auditor verdict. `remapLiveData` has already
+  // projected the wire frame into a `ChatGroundingSignal`. Surface it so the
+  // chat panel can render a grounding badge / warning; never withholds.
+  if (event === 'auditor' && isChatGroundingSignal(payload)) {
+    onAuditor?.(payload);
+    return true;
+  }
   return event === 'done';
 }
 
@@ -191,6 +211,10 @@ export function normaliseLiveEvent(name: string): string {
   if (name === 'message_chunk' || name === 'message_chunks') return 'delta';
   if (name === 'junior_calls' || name === 'junior_call') return 'breadcrumb';
   if (name === 'evidence_ids' || name === 'evidence_id') return 'evidence';
+  // KI-005 — the gateway's terminal grounding verdict frame. Kept as its own
+  // internal event (not folded into delta/breadcrumb/evidence) so the chat
+  // surface can render a distinct grounding badge / warning.
+  if (name === 'auditor') return 'auditor';
   return name;
 }
 
@@ -217,6 +241,30 @@ export function remapLiveData(name: string, data: unknown): unknown {
       latencyMs: 0,
     };
   }
+  // KI-005 — the terminal Auditor verdict frame. The gateway writes
+  // snake_case wire fields ({verdict, evidence_count, evidence_warning,
+  // grounding_fault}); project them onto the camelCase `ChatGroundingSignal`
+  // the chat surface consumes. Defensive defaults keep an unexpected frame
+  // from crashing the stream (it degrades to an `approve`/no-warning signal).
+  if (name === 'auditor') {
+    const verdict =
+      data.verdict === 'reject' || data.verdict === 'needs_human'
+        ? data.verdict
+        : 'approve';
+    const evidenceWarning =
+      data.evidence_warning === 'no_evidence_cited' ||
+      data.evidence_warning === 'evidence_invalid'
+        ? data.evidence_warning
+        : null;
+    const signal: ChatGroundingSignal = {
+      verdict,
+      evidenceCount:
+        typeof data.evidence_count === 'number' ? data.evidence_count : 0,
+      evidenceWarning,
+      groundingFault: data.grounding_fault === true,
+    };
+    return signal;
+  }
   // Back-compat (plural) aliases for older stream replays.
   if (name === 'message_chunks') {
     return { text: typeof data.chunk === 'string' ? data.chunk : '' };
@@ -233,4 +281,23 @@ export function remapLiveData(name: string, data: unknown): unknown {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
+}
+
+/**
+ * KI-005 — narrow an already-remapped payload to a `ChatGroundingSignal`.
+ * `remapLiveData('auditor', …)` produces exactly this camelCase shape, so the
+ * guard checks the discriminating fields the renderer relies on.
+ */
+function isChatGroundingSignal(value: unknown): value is ChatGroundingSignal {
+  return (
+    isRecord(value) &&
+    (value.verdict === 'approve' ||
+      value.verdict === 'reject' ||
+      value.verdict === 'needs_human') &&
+    typeof value.evidenceCount === 'number' &&
+    typeof value.groundingFault === 'boolean' &&
+    (value.evidenceWarning === null ||
+      value.evidenceWarning === 'no_evidence_cited' ||
+      value.evidenceWarning === 'evidence_invalid')
+  );
 }

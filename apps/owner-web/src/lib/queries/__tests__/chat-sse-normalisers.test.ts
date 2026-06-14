@@ -42,6 +42,10 @@ describe('normaliseLiveEvent', () => {
     expect(normaliseLiveEvent('error')).toBe('error');
     expect(normaliseLiveEvent('turn.accepted')).toBe('turn.accepted');
   });
+
+  it('KI-005: maps the terminal auditor grounding frame to its own event', () => {
+    expect(normaliseLiveEvent('auditor')).toBe('auditor');
+  });
 });
 
 describe('remapLiveData — message_chunk (singular)', () => {
@@ -82,6 +86,117 @@ describe('remapLiveData — junior_call (singular)', () => {
       action: 'assess-grade',
       latencyMs: 0,
     });
+  });
+});
+
+describe('remapLiveData — auditor (KI-005 grounding verdict)', () => {
+  it('projects the snake_case wire frame into a ChatGroundingSignal', () => {
+    // Exactly the body chat.hono.ts writes for an `auditor` frame.
+    const frame = {
+      verdict: 'reject',
+      evidence_count: 0,
+      evidence_warning: 'no_evidence_cited',
+      grounding_fault: false,
+      at: '2026-06-14T00:00:00.000Z',
+    };
+    expect(remapLiveData('auditor', frame)).toEqual({
+      verdict: 'reject',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited',
+      groundingFault: false,
+    });
+  });
+
+  it('projects a grounding-fault verdict (needs_human, unverified corpus)', () => {
+    const frame = {
+      verdict: 'needs_human',
+      evidence_count: 2,
+      evidence_warning: null,
+      grounding_fault: true,
+    };
+    expect(remapLiveData('auditor', frame)).toEqual({
+      verdict: 'needs_human',
+      evidenceCount: 2,
+      evidenceWarning: null,
+      groundingFault: true,
+    });
+  });
+
+  it('degrades an unexpected frame to a safe approve/no-warning signal', () => {
+    expect(remapLiveData('auditor', { verdict: 'weird', evidence_count: 'x' })).toEqual({
+      verdict: 'approve',
+      evidenceCount: 0,
+      evidenceWarning: null,
+      groundingFault: false,
+    });
+  });
+});
+
+describe('end-to-end: an auditor frame surfaces a grounding signal', () => {
+  it('KI-005: maps a gateway auditor frame to onAuditor (not dropped)', () => {
+    // Simulate the hook's per-event pipeline: normalise → remap → apply.
+    const rawEventName = 'auditor';
+    const rawData = {
+      verdict: 'reject',
+      evidence_count: 0,
+      evidence_warning: 'no_evidence_cited',
+      grounding_fault: false,
+    };
+
+    const event = normaliseLiveEvent(rawEventName);
+    const data = remapLiveData(rawEventName, rawData);
+
+    let acc = '';
+    const breadcrumbs: ChatBreadcrumb[] = [];
+    let evidenceIds: ReadonlyArray<string> = [];
+    let grounding: unknown = null;
+
+    const handled = applyEvent(
+      event,
+      data,
+      (text) => {
+        acc += text;
+      },
+      (bc) => {
+        breadcrumbs.push(bc);
+      },
+      (ids) => {
+        evidenceIds = ids;
+      },
+      (signal) => {
+        grounding = signal;
+      },
+    );
+
+    // The auditor verdict was recognised and surfaced — NOT dropped.
+    expect(handled).toBe(true);
+    expect(acc).toBe('');
+    expect(breadcrumbs).toHaveLength(0);
+    expect(evidenceIds).toEqual([]);
+    expect(grounding).toEqual({
+      verdict: 'reject',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited',
+      groundingFault: false,
+    });
+  });
+
+  it('does not crash when no onAuditor sink is passed (back-compat)', () => {
+    const data = remapLiveData('auditor', {
+      verdict: 'approve',
+      evidence_count: 3,
+      evidence_warning: null,
+      grounding_fault: false,
+    });
+    // Older callers pass only the first five callbacks — must still return true.
+    const handled = applyEvent(
+      'auditor',
+      data,
+      () => {},
+      () => {},
+      () => {},
+    );
+    expect(handled).toBe(true);
   });
 });
 
