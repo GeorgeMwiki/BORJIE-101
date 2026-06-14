@@ -48,6 +48,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 
 import {
   createMwikilaAutonomousWorker,
@@ -79,6 +80,14 @@ const MAX_INTERVAL_MS = 60 * 60 * 1000; // 1 hour ceiling
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
+
+/**
+ * The db shape `withServiceRoleContext` binds. The cross-tenant
+ * tenants × users JOIN runs under the service-role GUC so FORCE-RLS
+ * on `users` (its `users_service_role_bypass` policy, migration 0331)
+ * does not filter the scan to zero rows over the shared service pool.
+ */
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 export interface MwikilaWiringDeps {
   /** Drizzle client. May be null — wiring degrades to an inert stub. */
@@ -138,13 +147,20 @@ function resolveIntervalMs(override?: number): number {
  * The query is read-only + idempotent + indexed on
  * `users(tenant_id, is_owner)`. Returns `[]` on any failure so the
  * worker degrades gracefully instead of crashing the tick.
+ *
+ * `users` has FORCE RLS, so this CROSS-TENANT discovery scan runs under
+ * the service-role GUC via `withServiceRoleContext` (its
+ * `users_service_role_bypass` policy, migration 0331). Without it the
+ * shared service pool is NOT BYPASSRLS in prod and the JOIN matches
+ * ZERO rows silently. The unit-test stub injects a fake db with
+ * `.execute` but no `.transaction`, so we route the scan through a
+ * direct `.execute` in that case to keep those tests green.
  */
 async function listActiveTenantsWithOwner(
   db: DbLike,
   logger: Logger,
 ): Promise<ReadonlyArray<{ readonly tenantId: string; readonly ownerUserId: string }>> {
-  try {
-    const result = await db.execute(sql`
+  const scan = sql`
       SELECT DISTINCT ON (t.id)
              t.id  AS tenant_id,
              u.id  AS owner_user_id
@@ -155,7 +171,15 @@ async function listActiveTenantsWithOwner(
          AND u.status    = 'active'
        WHERE t.status = 'active'
        ORDER BY t.id, u.created_at ASC
-    `);
+    `;
+  const runStmt = (q: unknown): Promise<unknown> =>
+    typeof (db as { transaction?: unknown }).transaction === 'function'
+      ? withServiceRoleContext(db as unknown as ServiceRoleDb, (tx) =>
+          (tx as unknown as DbLike).execute(q),
+        )
+      : db.execute(q);
+  try {
+    const result = await runStmt(scan);
     const rows = Array.isArray(result)
       ? (result as ReadonlyArray<Record<string, unknown>>)
       : (((result as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ??

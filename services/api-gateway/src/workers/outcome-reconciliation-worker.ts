@@ -50,6 +50,7 @@ import {
   workerHeartbeatFailure,
 } from './worker-heartbeat';
 import { withWorkerTenantContext } from './with-tenant-context.js';
+import { withServiceRoleContext } from '@borjie/database';
 import { feedReconciliationToConformal } from '../composition/conformal/reconciliation-conformal-feed.js';
 import { reflexion as kernelReflexion } from '@borjie/central-intelligence';
 
@@ -63,6 +64,14 @@ const DIVERGENT_DRIFT_BAND = 0.40;
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
+
+/**
+ * The db type accepted by `withServiceRoleContext`. The worker's `db` satisfies
+ * both this and the lightweight `DbLike.execute` shim; the cross-tenant claim
+ * scan binds `app.is_service_role='true'` through this port so FORCE-RLS does
+ * not silently filter the discovery SELECT to zero rows over the shared pool.
+ */
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 interface PendingPrediction {
   readonly id: string;
@@ -474,10 +483,28 @@ export function createOutcomeReconciliationWorker(
   const enabled = options.enabled !== false;
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  // The claim() scan is CROSS-TENANT (NOT EXISTS across all tenants, no tenant
+  // filter) over the shared service pool. `outcome_predictions` /
+  // `outcome_reconciliations` carry FORCE RLS, so every statement must bind
+  // `app.is_service_role='true'` or the scan matches ZERO rows and the loop goes
+  // dark. Wrap when the db is transactional; the unit-test mock injects a fake
+  // db with `.execute` but no `.transaction`, so fall through to a direct
+  // execute to keep those tests green.
+  function runStmt(q: unknown): Promise<unknown> {
+    const dbAny = options.db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(
+        options.db as unknown as ServiceRoleDb,
+        (tx) => (tx as unknown as DbLike).execute(q),
+      );
+    }
+    return options.db.execute(q);
+  }
+
   async function claim(): Promise<readonly PendingPrediction[]> {
     const ts = now().toISOString();
     try {
-      const res = await options.db.execute(sql`
+      const res = await runStmt(sql`
         SELECT id, tenant_id, actor_kind, action_kind,
                action_target_entity_type, action_target_entity_id,
                predicted_outcome, predicted_value_tzs,

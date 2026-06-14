@@ -74,14 +74,21 @@ function rowsOf(raw: unknown): ReadonlyArray<Record<string, unknown>> {
 }
 
 /**
- * Bind a readonly string array to a Postgres `text[]` parameter. postgres-js
- * maps a plain (mutable) JS string array onto an array param natively (same
- * idiom as `executive-brief.composition.ts`), and an empty array binds to
- * `'{}'::text[]` correctly — no manual `ARRAY[...]` construction or
- * empty-array edge case. Use as `${textArray(xs)}::text[]`.
+ * Build a Postgres `ARRAY[...]` SQL fragment for a readonly string array.
+ *
+ * drizzle's `sql` template SPREADS a bare JS array into a parenthesized
+ * param list, so `${xs}::text[]` renders `($1, $2)::text[]` (an invalid
+ * record-to-text[] cast) and `${[]}::text[]` renders `()::text[]` (a
+ * syntax error). The `ARRAY[...]` form is required: each element is its
+ * own param and an empty array yields the valid literal `ARRAY[]`.
+ * Use as `${textArray(xs)}::text[]`, which renders `ARRAY[$1, $2]::text[]`
+ * (or `ARRAY[]::text[]` when empty).
  */
-function textArray(xs: ReadonlyArray<string>): string[] {
-  return [...xs];
+function textArray(xs: ReadonlyArray<string>) {
+  return sql`ARRAY[${sql.join(
+    xs.map((x) => sql`${x}`),
+    sql`, `,
+  )}]`;
 }
 
 /**
@@ -366,7 +373,7 @@ export function createRealMiningHandlerDeps(
               await tx.execute(sql`
                 SELECT id FROM licences
                  WHERE tenant_id = ${args.tenantId}
-                   AND id = ANY(${[...args.licenceIds]}::text[])
+                   AND id = ANY(${textArray(args.licenceIds)}::text[])
               `),
             );
             const existing = new Set(
@@ -385,7 +392,7 @@ export function createRealMiningHandlerDeps(
                   ${taskId}, ${args.tenantId}, NULL,
                   ${`Licence renewal — ${licenceId}`}, 'licence_renewal', 3,
                   NULL, ${licenceId}, ${args.dueDate}::date,
-                  ${[]}::text[], ${args.reason}, 'open',
+                  ${textArray([])}::text[], ${args.reason}, 'open',
                   ${args.followupCadence},
                   ${JSON.stringify({ ...args.attributes, licence_id: licenceId })}::jsonb,
                   now()

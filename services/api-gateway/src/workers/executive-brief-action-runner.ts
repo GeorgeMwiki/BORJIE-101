@@ -32,7 +32,10 @@ import {
   type ExecuteJuniorsArgs,
   type JuniorExecutionResult,
 } from '@borjie/ai-copilot';
+import { withServiceRoleContext } from '@borjie/database';
 import { withWorkerTenantContext } from './with-tenant-context.js';
+
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 // ─────────────────────────────────────────────────────────────────────
 // Public types
@@ -234,7 +237,7 @@ async function dispatchOne(
     });
     const first = results[0];
     if (!first) {
-      await markFailed(deps.db, row.id, 'executor returned empty result set', row.attempts);
+      await markFailed(deps.db, tenantId, row.id, 'executor returned empty result set', row.attempts);
       await auditDispatch(deps.db, {
         tenantId,
         actionId: row.id,
@@ -249,6 +252,7 @@ async function dispatchOne(
     if (first.error || first.skipped) {
       await markFailed(
         deps.db,
+        tenantId,
         row.id,
         first.error ?? 'junior skipped',
         row.attempts,
@@ -265,7 +269,7 @@ async function dispatchOne(
       });
       return first.skipped ? 'skipped' : 'failed';
     }
-    await markExecuted(deps.db, row.id, first, deps.now());
+    await markExecuted(deps.db, tenantId, row.id, first, deps.now());
     await auditDispatch(deps.db, {
       tenantId,
       actionId: row.id,
@@ -278,7 +282,7 @@ async function dispatchOne(
     return 'executed';
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    await markFailed(deps.db, row.id, message, row.attempts);
+    await markFailed(deps.db, tenantId, row.id, message, row.attempts);
     await auditDispatch(deps.db, {
       tenantId,
       actionId: row.id,
@@ -306,14 +310,26 @@ async function fetchApprovedBatch(
   limit: number,
 ): Promise<ReadonlyArray<QueueRow>> {
   try {
-    const res = await db.execute(sql`
+    // CROSS-TENANT discovery scan: no tenant filter, so bind the
+    // service-role GUC (app.is_service_role='true') to satisfy the
+    // executive_brief_actions_service_role_bypass policy. Without it
+    // FORCE-RLS silently filters this scan to zero rows in prod.
+    // The unit-test stub injects a db with .execute but no .transaction;
+    // fall back to a bare execute there to keep those tests green.
+    const query = sql`
       SELECT id, tenant_id, brief_id, junior_name, intent, payload_jsonb, attempts
         FROM executive_brief_actions
        WHERE status = 'approved'
          AND executed_at IS NULL
        ORDER BY approved_at ASC NULLS LAST, created_at ASC
        LIMIT ${limit}
-    `);
+    `;
+    const res =
+      typeof (db as { transaction?: unknown }).transaction === 'function'
+        ? await withServiceRoleContext(db as ServiceRoleDb, (tx) =>
+            tx.execute(query),
+          )
+        : await db.execute(query);
     return fetchRows(res)
       .map((r) => QueueRowSchema.safeParse(r))
       .filter((p): p is z.SafeParseSuccess<QueueRow> => p.success)
@@ -325,6 +341,7 @@ async function fetchApprovedBatch(
 
 async function markExecuted(
   db: DbLike,
+  tenantId: string,
   id: string,
   result: JuniorExecutionResult,
   now: Date,
@@ -334,7 +351,11 @@ async function markExecuted(
     evidence_ids: result.evidence_ids ?? [],
     confidence: result.confidence ?? 0,
   });
-  await db.execute(sql`
+  // PER-TENANT update on a known tenant id: bind app.current_tenant_id
+  // (and app.tenant_id) so the table's tenant-isolation policy permits
+  // the write under FORCE-RLS. The unit-test stub has no .transaction;
+  // fall back to a bare execute to keep those tests green.
+  const query = sql`
     UPDATE executive_brief_actions
        SET status      = 'executed',
            executed_at = ${now.toISOString()},
@@ -343,11 +364,17 @@ async function markExecuted(
            error_text  = NULL,
            updated_at  = ${now.toISOString()}
      WHERE id = ${id}
-  `);
+  `;
+  if (typeof (db as { transaction?: unknown }).transaction === 'function') {
+    await withWorkerTenantContext(db, tenantId, (tx) => tx.execute(query));
+  } else {
+    await db.execute(query);
+  }
 }
 
 async function markFailed(
   db: DbLike,
+  tenantId: string,
   id: string,
   errorText: string,
   attempts: number,
@@ -355,14 +382,23 @@ async function markFailed(
   // After 3 attempts the row stays at status='failed' and the runner
   // skips it on subsequent ticks (status filter is 'approved' only).
   const nextStatus = attempts + 1 >= 3 ? 'failed' : 'approved';
-  await db.execute(sql`
+  // PER-TENANT update on a known tenant id: bind app.current_tenant_id
+  // (and app.tenant_id) so the table's tenant-isolation policy permits
+  // the write under FORCE-RLS. The unit-test stub has no .transaction;
+  // fall back to a bare execute to keep those tests green.
+  const query = sql`
     UPDATE executive_brief_actions
        SET status     = ${nextStatus},
            attempts   = attempts + 1,
            error_text = ${errorText},
            updated_at = now()
      WHERE id = ${id}
-  `);
+  `;
+  if (typeof (db as { transaction?: unknown }).transaction === 'function') {
+    await withWorkerTenantContext(db, tenantId, (tx) => tx.execute(query));
+  } else {
+    await db.execute(query);
+  }
 }
 
 interface AuditDispatchArgs {

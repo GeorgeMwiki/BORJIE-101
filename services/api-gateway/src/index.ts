@@ -2721,7 +2721,7 @@ api.route('/compliance-plugins', compliancePluginsRouter);
   // Background watcher — opens reminder events on the 90/60/30/14/7/1
   // ladder so the cockpit pulses without the owner having to poll.
   const watcher = startLicenceRenewalWatcher({
-    db: getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+    db: getDb() as unknown as never,
     logger,
   });
   watcher.start();
@@ -3719,10 +3719,19 @@ const intelligenceHistorySupervisor = createIntelligenceHistorySupervisor(
 );
 // Wave 26 — Cases SLA worker supervisor. Wraps the per-tenant
 // CaseSLAWorker (domain-services/cases/sla-worker.ts) in a multi-tenant
-// supervisor that ticks active tenants every 5 minutes, auto-escalating
-// overdue cases and emitting CaseSLABreached events once the ceiling is
-// hit. No-op in degraded mode.
-const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger);
+// supervisor that ticks active tenants every 5 minutes.
+//
+// PARKED (2026-06-14): the `cases` table was removed in the mining-domain
+// fork (0003_mining_domain.sql) and PostgresCaseRepository now carries only a
+// structural placeholder, so every tick issued a malformed scan against a
+// non-existent table (level-50 log spam, zero functional effect). `cases`
+// (rent-arrears / eviction / deposit-dispute) is residential-property residue;
+// per the domain-purity law we do not run it. Stays disabled until a real
+// mining-domain cases/grievance table + repo exist. Full residue removal is a
+// tracked follow-up.
+const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger, {
+  enabled: false,
+});
 
 // Learning Amplification (LitFin port) — boot the wiring once so
 // recordObservation()/runAmplification() can resolve the Supabase
@@ -3983,7 +3992,7 @@ const fxFeedCron = serviceRegistry.db
 // each dispatch is hash-chained into ai_audit_chain.
 const executiveBriefActionRunner = serviceRegistry.db
   ? createExecutiveBriefActionRunner({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: serviceRegistry.db as unknown as never,
       logger,
     })
   : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, executed: 0, failed: 0, skipped: 0 }; } };
@@ -4150,22 +4159,46 @@ const proactiveIntelWorker = serviceRegistry.db
       // the same tenant-scoped $client.unsafe port the record store uses (RLS
       // FORCE backstops). A missing/empty source → neutral default (detector
       // self-skips), never a fabricated signal.
+      // Each slice query is per-tenant (tenantId is params[0]); the worker
+      // bypasses databaseMiddleware so it carries NO ambient GUC. Pin ONE
+      // connection via $client.begin and bind the tenant GUC (txn-local, both
+      // names) on it before the raw read, else FORCE-RLS zeroes
+      // cash_balances/forecasts/sales/buyers silently. Empty tenantId →
+      // neutral [] (the detector self-skips), never a fabricated signal.
       inputsForTenant: createTickInputsProvider({
         query: {
-          query: <Row = Record<string, unknown>>(
+          query: async <Row = Record<string, unknown>>(
             sql: string,
             params?: ReadonlyArray<unknown>,
-          ): Promise<ReadonlyArray<Row>> =>
-            (
+          ): Promise<ReadonlyArray<Row>> => {
+            const client = (
               serviceRegistry.db as unknown as {
                 $client: {
-                  unsafe<R = Record<string, unknown>>(
-                    sql: string,
-                    params?: ReadonlyArray<unknown>,
-                  ): Promise<ReadonlyArray<R>>;
+                  begin<T>(
+                    fn: (tx: {
+                      unsafe<R = Record<string, unknown>>(
+                        s: string,
+                        p?: ReadonlyArray<unknown>,
+                      ): Promise<ReadonlyArray<R>>;
+                    }) => Promise<T>,
+                  ): Promise<T>;
                 };
               }
-            ).$client.unsafe<Row>(sql, params ?? []),
+            ).$client;
+            const tenantId = String((params ?? [])[0] ?? '');
+            if (tenantId.length === 0) return [] as ReadonlyArray<Row>;
+            return client.begin(async (tx) => {
+              await tx.unsafe(
+                "SELECT set_config('app.current_tenant_id', $1, true)",
+                [tenantId],
+              );
+              await tx.unsafe(
+                "SELECT set_config('app.tenant_id', $1, true)",
+                [tenantId],
+              );
+              return tx.unsafe<Row>(sql, (params ?? []) as ReadonlyArray<unknown>);
+            });
+          },
         },
         logger,
       }),
@@ -4299,7 +4332,9 @@ const announcementFanoutWorker = serviceRegistry.db
       db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       resolveRecipients: createAnnouncementRecipientResolver(
-        serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        serviceRegistry.db as unknown as Parameters<
+          typeof createAnnouncementRecipientResolver
+        >[0],
       ),
       intervalMs: Number(process.env.BORJIE_ANNOUNCEMENT_FANOUT_INTERVAL_MS ?? 60_000) || 60_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_ANNOUNCEMENT_FANOUT_DISABLED !== 'true',

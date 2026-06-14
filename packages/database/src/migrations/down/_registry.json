@@ -616,6 +616,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0361_dark_worker_brain_table_bypass.sql",
+      "down": "down/0361_down_dark_worker_brain_table_bypass.sql",
+      "reverses": "Drops the eight <tbl>_service_role_bypass policies on the dark-worker brain/owner tables (owner_contact_prefs, decisions, decision_outcomes, outcome_observations, outcome_reconciliations, outcome_predictions, executive_brief_actions, licence_events), reverting each to tenant-isolation-only RLS. Dev/staging only — re-darkens the cross-tenant scans of announcement-recipient-resolver / decision-retrospective / outcome-reconciliation / executive-brief-action-runner / licence-renewal-watcher (scans match zero rows under FORCE RLS). Pure RLS metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

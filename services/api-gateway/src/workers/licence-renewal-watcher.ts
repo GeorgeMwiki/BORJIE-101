@@ -25,6 +25,7 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 
 import {
   registerWorker,
@@ -43,8 +44,22 @@ export interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
 
+/**
+ * The db handle this watcher binds. Must satisfy BOTH the lightweight `execute`
+ * shim used by the scan/insert helpers AND the `withServiceRoleContext`
+ * signature so cross-tenant statements run under the service-role GUC.
+ */
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
+
+/**
+ * Runs one statement under the service-role GUC when the db is transactional
+ * (prod / a real Drizzle client), or directly when it is the test stub that
+ * exposes `.execute` but no `.transaction`. See reminders-dispatch.worker.ts.
+ */
+type RunStmt = (query: unknown) => Promise<unknown>;
+
 export interface LicenceRenewalWatcherOptions {
-  readonly db: DbLike;
+  readonly db: ServiceRoleDb;
   readonly logger: Logger;
   readonly intervalMs?: number;
   readonly enabled?: boolean;
@@ -116,13 +131,16 @@ function crossedThreshold(days: number): number | null {
 }
 
 async function fetchExpiringLicences(
-  db: DbLike,
+  runStmt: RunStmt,
   now: Date,
   logger: Logger,
 ): Promise<readonly ExpiringLicence[]> {
   const horizon = new Date(now.getTime() + SCAN_HORIZON_DAYS * ONE_DAY_MS);
   try {
-    const res = await db.execute(
+    // CROSS-TENANT discovery scan over the shared pool: must run under the
+    // service-role GUC or FORCE-RLS filters `licences` to zero rows (worker
+    // goes dark). `licences` carries its bypass policy (migration 0358).
+    const res = await runStmt(
       sql`
         SELECT id, tenant_id, "number", kind, expiry_date
           FROM licences
@@ -153,7 +171,7 @@ async function fetchExpiringLicences(
 }
 
 async function openReminderEvent(
-  db: DbLike,
+  runStmt: RunStmt,
   args: {
     readonly licence: ExpiringLicence;
     readonly daysBefore: number;
@@ -165,9 +183,11 @@ async function openReminderEvent(
   const eventId = `le_${randomUUID()}`;
   // Idempotency: at most one OPEN renewal_due event per (tenant, licence,
   // daysBefore). We encode `daysBefore` into payload->>'reminderOffset'
-  // and dedup with NOT EXISTS.
+  // and dedup with NOT EXISTS. The INSERT + dedup SELECT touch `licence_events`
+  // cross-tenant over the shared pool, so they MUST run under the service-role
+  // GUC or FORCE-RLS matches zero rows and the dedup/claim silently no-ops.
   try {
-    const claim = await db.execute(
+    const claim = await runStmt(
       sql`
         INSERT INTO licence_events
           (id, tenant_id, licence_id, kind, summary, due_date, status,
@@ -234,6 +254,20 @@ export function startLicenceRenewalWatcher(
   } = options;
   const now = options.now ?? (() => new Date());
 
+  // Bind every statement to the service-role GUC when the db is transactional
+  // (prod / real Drizzle); fall through to a direct execute for the unit-test
+  // stub that exposes `.execute` but no `.transaction`. Mirrors
+  // reminders-dispatch.worker.ts:231-240.
+  const runStmt: RunStmt = (query) => {
+    const dbAny = db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(db, (tx) =>
+        (tx as unknown as DbLike).execute(query),
+      );
+    }
+    return (db as unknown as DbLike).execute(query);
+  };
+
   let timer: NodeJS.Timeout | null = null;
 
   const tickOnce = async (): Promise<TickResult> => {
@@ -241,7 +275,7 @@ export function startLicenceRenewalWatcher(
       return { scanned: 0, remindersOpened: 0, dedupSkipped: 0, failed: 0 };
     }
     const tNow = now();
-    const licences = await fetchExpiringLicences(db, tNow, logger);
+    const licences = await fetchExpiringLicences(runStmt, tNow, logger);
     let opened = 0;
     let dedup = 0;
     let failed = 0;
@@ -249,7 +283,7 @@ export function startLicenceRenewalWatcher(
       const days = daysBetween(licence.expiryDate, tNow);
       const threshold = crossedThreshold(days);
       if (threshold == null) continue;
-      const outcome = await openReminderEvent(db, {
+      const outcome = await openReminderEvent(runStmt, {
         licence,
         daysBefore: threshold,
         now: tNow,
