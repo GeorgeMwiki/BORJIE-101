@@ -10,6 +10,10 @@
  *   - Worker inside work_zone hazard → no alert (severity skipped).
  *   - One tenant errors → other tenants' fixes still processed.
  *   - Disabled by env → inert handle.
+ *
+ * The predicate calls are routed through a service-role-bound transaction
+ * (KI-014), so the stub geofencing service is injected via `geofencingFactory`
+ * (the worker re-builds the predicate service from the scoped db handle).
  */
 
 import { describe, it, expect, vi } from 'vitest';
@@ -86,6 +90,7 @@ describe('createGeofenceWatcher', () => {
     const handle = createGeofenceWatcher({
       db,
       geofencing,
+      geofencingFactory: () => geofencing,
       alertSink: { emit },
       logger: makeLogger() as never,
       enabled: true,
@@ -121,6 +126,7 @@ describe('createGeofenceWatcher', () => {
     const handle = createGeofenceWatcher({
       db,
       geofencing,
+      geofencingFactory: () => geofencing,
       alertSink: { emit },
       logger: makeLogger() as never,
       enabled: true,
@@ -170,6 +176,7 @@ describe('createGeofenceWatcher', () => {
     const handle = createGeofenceWatcher({
       db,
       geofencing,
+      geofencingFactory: () => geofencing,
       alertSink: { emit },
       logger: makeLogger() as never,
       enabled: true,
@@ -219,6 +226,7 @@ describe('createGeofenceWatcher', () => {
     const handle = createGeofenceWatcher({
       db,
       geofencing,
+      geofencingFactory: () => geofencing,
       alertSink: { emit },
       logger: makeLogger() as never,
       enabled: true,
@@ -275,6 +283,7 @@ describe('createGeofenceWatcher', () => {
     const handle = createGeofenceWatcher({
       db,
       geofencing,
+      geofencingFactory: () => geofencing,
       alertSink: { emit },
       logger: makeLogger() as never,
       enabled: true,
@@ -300,5 +309,117 @@ describe('createGeofenceWatcher', () => {
     handle.stop();
     await handle.tickOnce();
     expect(db.execute).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// KI-014 regression — the DOWNSTREAM predicate scan must bind service-role
+// context (not just the workforce_locations fix scan). Mirrors the dark-worker
+// behavioural test: proves WITHOUT a Postgres that the worker re-builds the
+// predicate service from a service-role-bound transaction handle, so the
+// hazard_zones / sites scans see rows under FORCE RLS (migrations 0358/0360).
+// A regression to a bare, un-contextualised predicate handle fails this test.
+// ---------------------------------------------------------------------------
+
+/** Flatten a drizzle `sql` object to text so we can detect the GUC + table. */
+function sqlText(q: unknown): string {
+  const chunks = (q as { queryChunks?: unknown[] })?.queryChunks;
+  if (Array.isArray(chunks)) {
+    return chunks
+      .map((c) => {
+        const v = (c as { value?: unknown }).value;
+        if (Array.isArray(v)) return v.join('');
+        if (typeof v === 'string') return v;
+        return '';
+      })
+      .join(' ');
+  }
+  return JSON.stringify(q ?? '');
+}
+
+/**
+ * Transaction-capable db double. The fix scan + every predicate scan run
+ * inside `db.transaction(...)`; we record both the fix-scan rows and the
+ * tx queries so we can assert the service-role GUC is bound for the
+ * predicate scan and that nothing leaks onto the bare `execute`.
+ */
+function makeRecordingDb(fixRows: ReadonlyArray<Record<string, unknown>>) {
+  const txQueries: unknown[] = [];
+  const bareExecute = vi.fn(async () => ({ rows: [] }));
+  const transaction = vi.fn(
+    async (fn: (tx: unknown) => Promise<unknown>) => {
+      const tx = {
+        execute: vi.fn(async (q: unknown) => {
+          txQueries.push(q);
+          const text = sqlText(q);
+          // The first non-set_config query in the worker's flow is the
+          // workforce_locations fix scan — hand it the seeded fixes.
+          if (text.includes('workforce_locations')) return { rows: fixRows };
+          return { rows: [] };
+        }),
+      };
+      return fn(tx);
+    },
+  );
+  return { db: { execute: bareExecute, transaction }, txQueries, bareExecute, transaction };
+}
+
+const KI014_NOW = new Date('2026-05-29T12:00:00Z');
+const KI014_TEN_MIN_AGO = new Date(
+  KI014_NOW.getTime() - 10 * 60 * 1000,
+).toISOString();
+
+describe('geofence-watcher predicate scan binds service-role context (KI-014)', () => {
+  it('runs the hazard predicate scan inside a service-role-bound transaction', async () => {
+    const rec = makeRecordingDb([
+      {
+        tenant_id: 't1',
+        employee_id: 'e1',
+        expected_site_id: null, // skip the off-site leg; isolate the hazard scan
+        lat: -6.8,
+        lon: 39.2,
+        captured_at: KI014_TEN_MIN_AGO,
+      },
+    ]);
+    const handle = createGeofenceWatcher({
+      db: rec.db as never,
+      // pure-helper-only seam; the DB predicates go through the DEFAULT
+      // factory which re-builds the real predicate service from the tx db.
+      geofencing: makeGeofencing({}),
+      alertSink: { emit: vi.fn() },
+      logger: makeLogger() as never,
+      enabled: true,
+      now: () => KI014_NOW,
+    });
+
+    await handle.tickOnce();
+
+    // 1. The worker only ever talks to the DB through a transaction.
+    expect(rec.transaction, 'worker did not enter a transaction').toHaveBeenCalled();
+    expect(
+      rec.bareExecute,
+      'worker issued a predicate query on the bare (un-contextualised) db.execute',
+    ).not.toHaveBeenCalled();
+
+    // 2. The hazard predicate scan actually ran (proves the predicate path,
+    //    not just the workforce_locations fix scan, reached the DB).
+    const hazardScan = rec.txQueries.find((q) =>
+      sqlText(q).includes('hazard_zones'),
+    );
+    expect(
+      hazardScan,
+      'hazard_zones predicate scan never reached the db',
+    ).toBeDefined();
+
+    // 3. A service-role GUC bind precedes work inside the tx — the bypass
+    //    policies (0358 sites/licences, 0360 hazard_zones) only open rows
+    //    when app.is_service_role='true' is set.
+    const bound = rec.txQueries.some((q) =>
+      sqlText(q).includes('is_service_role'),
+    );
+    expect(
+      bound,
+      'predicate scan did not bind app.is_service_role inside its tx',
+    ).toBe(true);
   });
 });
