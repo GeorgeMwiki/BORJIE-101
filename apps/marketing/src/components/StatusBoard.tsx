@@ -10,6 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import { getMessages, type Locale } from '@/lib/i18n';
+import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 type SimpleStatus = 'ok' | 'degraded' | 'outage' | 'unknown';
 
@@ -55,12 +56,20 @@ const STATUS_TEXT: Record<SimpleStatus, string> = {
   unknown: 'text-foreground/70',
 };
 
+/**
+ * Resolve the api-gateway origin the status grid polls. We refuse the
+ * silent same-origin '' fallback: an unset var same-origins the fetch
+ * to the marketing host, which has no /api/v1/public/status route, so
+ * the card would degrade to a permanent error. `requirePublicBaseUrl`
+ * throws loud in production (forcing the deployer to set the var) and
+ * only uses the localhost dev fallback under `next dev` — same pattern
+ * as Nav/Footer/sitemap.
+ */
 function getApiBase(): string {
-  if (typeof process !== 'undefined') {
-    const fromEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (fromEnv && fromEnv.length > 0) return fromEnv;
-  }
-  return '';
+  return requirePublicBaseUrl(
+    'NEXT_PUBLIC_API_BASE_URL',
+    'http://127.0.0.1:4001',
+  ).replace(/\/$/, '');
 }
 
 async function fetchStatus(signal: AbortSignal): Promise<StatusResponse> {
