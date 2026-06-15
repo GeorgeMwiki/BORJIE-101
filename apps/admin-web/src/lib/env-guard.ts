@@ -5,6 +5,12 @@
  * through `requirePublicBaseUrl()` so production builds fail loud when a
  * deployer forgets to set the env var. The localhost fallback exists
  * only for `next dev` — it never silently runs in production.
+ *
+ * FAIL-LOUD ONLY ON THE SERVER/BUILD — NEVER ON THE CLIENT. A throw in a
+ * root-mounted client component over a missing inlined `NEXT_PUBLIC_*` value
+ * bubbles to `global-error` and white-screens the entire app; so we throw
+ * only when `typeof window === 'undefined'` (build + SSR) and degrade to the
+ * fallback on the client.
  */
 
 export function requirePublicBaseUrl(
@@ -20,7 +26,8 @@ export function requirePublicBaseUrl(
 
   if (
     typeof process !== 'undefined' &&
-    process.env?.NODE_ENV === 'production'
+    process.env?.NODE_ENV === 'production' &&
+    typeof window === 'undefined'
   ) {
     throw new Error(
       `${envName} is required in production builds of admin-web.`,
