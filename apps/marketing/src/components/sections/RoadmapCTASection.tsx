@@ -40,24 +40,14 @@ export function RoadmapCTASection({
       aria-labelledby="roadmap-cta-heading"
       className="relative overflow-hidden bg-background py-20 md:py-28"
     >
-      {/* Aurora behind the band */}
+      {/* Background — one restrained copper aurora over the faint
+          survey-paper grid (same recipe as the hero, token-driven so
+          it tracks light/dark). No competing orb layers. */}
+      <div className="hero-aurora" aria-hidden="true" />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
+        className="cinematic-grid pointer-events-none absolute inset-0 opacity-30"
         style={{
-          background:
-            'radial-gradient(ellipse 70% 60% at 50% 40%, oklch(0.78 0.17 78 / 0.16) 0%, transparent 60%), radial-gradient(ellipse 40% 30% at 30% 70%, oklch(0.58 0.12 65 / 0.10) 0%, transparent 70%)',
-          filter: 'blur(40px)',
-        }}
-      />
-      {/* Hairline grid overlay */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 opacity-30"
-        style={{
-          backgroundImage:
-            'linear-gradient(oklch(0.24 0.02 260 / 0.5) 1px, transparent 1px), linear-gradient(90deg, oklch(0.24 0.02 260 / 0.5) 1px, transparent 1px)',
-          backgroundSize: '48px 48px',
           maskImage:
             'radial-gradient(ellipse 80% 60% at 50% 50%, black 30%, transparent 80%)',
         }}
@@ -75,7 +65,7 @@ export function RoadmapCTASection({
           </span>
           <h2
             id="roadmap-cta-heading"
-            className="mt-3 font-display text-4xl font-medium tracking-tighter text-foreground md:text-5xl lg:text-6xl"
+            className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl lg:text-6xl"
           >
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>

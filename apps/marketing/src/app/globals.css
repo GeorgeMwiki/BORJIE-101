@@ -9,10 +9,13 @@
 
 @import '../../../../packages/design-system/src/styles/globals.css';
 
-/* Load Borjie fonts at the app root — Fraunces (display) + Geist (UI)
-   + JetBrains Mono (numerics). Same triad as the rest of the suite so
-   marketing reads as one product. */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Numeric face — JetBrains Mono (tabular figures, IDs, timestamps).
+   The DISPLAY face (Syne) and UI face (Inter) are self-hosted and
+   subset via `next/font/google` in src/app/layout.tsx, so only the
+   mono face is fetched here. (The earlier build also pulled Fraunces +
+   Geist over this render-blocking @import; neither is applied anywhere
+   — Syne/Inter won the stack — so they were dropped as dead weight.) */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* Tailwind directives — declared locally so Tailwind's @layer validator
    resolves them in this file (PostCSS does not follow the @import above

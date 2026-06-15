@@ -10,8 +10,13 @@
  * layout above it.
  *
  * Visual is intentionally minimal — inline styles only, no Tailwind —
- * because we cannot assume the stylesheet loaded. Tone still maps to
- * the LitFin DNA (navy canvas, gold accent, hairline border).
+ * because we cannot assume the stylesheet loaded. The fallback colours
+ * are literal brand hex (the ONE place literals are correct: the
+ * stylesheet that defines the tokens may not have loaded), tuned to the
+ * copper-on-warm-charcoal IGNITION palette so a root crash still reads
+ * on-brand. Colour tokens hold HSL *triplets* (e.g. `24 68% 58%`), not
+ * ready colours, so they cannot be used raw as a `background` value —
+ * the literal hex carries this surface.
  */
 import { useEffect } from 'react';
 
@@ -36,8 +41,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           minHeight: '100vh',
           fontFamily:
             "var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif)",
-          background: 'var(--background, #0B0F19)',
-          color: 'var(--foreground, #F5F5F0)',
+          background: '#141210',
+          color: '#F5F1EC',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -50,9 +55,9 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               width: 'var(--space-eb-icon, 64px)',
               height: 'var(--space-eb-icon, 64px)',
               borderRadius: 'var(--radius-eb-icon, 16px)',
-              background: 'var(--destructive-soft, rgba(225, 75, 75, 0.10))',
-              border: '1px solid var(--destructive-strong, rgba(225, 75, 75, 0.30))',
-              color: 'var(--destructive, #E14B4B)',
+              background: 'rgba(205, 83, 64, 0.12)',
+              border: '1px solid rgba(205, 83, 64, 0.30)',
+              color: '#CD5340',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -68,7 +73,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               fontSize: 'var(--space-eb-eyebrow, 11px)',
               letterSpacing: 'var(--space-eb-tracking, 0.22em)',
               textTransform: 'uppercase',
-              color: 'var(--destructive, #E14B4B)',
+              color: '#CD5340',
               margin: 0,
               fontFamily: "var(--font-mono, 'JetBrains Mono', ui-monospace, monospace)",
             }}
@@ -78,7 +83,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
           <h1
             style={{
               fontSize: 'var(--space-eb-h1, 36px)',
-              fontWeight: 500,
+              fontWeight: 600,
               letterSpacing: 'var(--space-eb-h1-tracking, -0.02em)',
               margin: 'var(--space-eb-h1-margin, 16px 0 12px)',
             }}
@@ -89,7 +94,7 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
             style={{
               fontSize: 'var(--space-eb-body, 14px)',
               lineHeight: 'var(--lh-eb, 1.6)',
-              color: 'var(--muted-foreground, #A0A4B0)',
+              color: '#B4ADA4',
               margin: 'var(--space-eb-body-margin, 0 0 32px)',
             }}
           >
@@ -107,8 +112,8 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               gap: 'var(--space-eb-btn-gap, 8px)',
               padding: 'var(--space-eb-btn-pad, 10px 20px)',
               borderRadius: 'var(--radius-eb-btn, 12px)',
-              background: 'var(--signal-500, #FFC857)',
-              color: 'var(--background, #0B0F19)',
+              background: '#D9824E',
+              color: '#141210',
               fontSize: 'var(--space-eb-body, 14px)',
               fontWeight: 600,
               border: 'none',

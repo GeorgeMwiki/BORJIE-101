@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Compass } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Page not found — Borjie',
+  title: 'Page not found · Borjie',
   description: 'The page you requested could not be found.',
   robots: { index: false, follow: false },
 };
@@ -39,7 +39,7 @@ export default function NotFoundPage() {
         <p className="font-mono text-badge uppercase tracking-eyebrow-x-wide text-signal-500">
           404 · Page not found
         </p>
-        <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+        <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           We can't find that page.
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">

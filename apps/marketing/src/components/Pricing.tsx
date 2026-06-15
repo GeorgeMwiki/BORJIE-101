@@ -23,7 +23,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
         </p>
         <h2
           id="pricing-heading"
-          className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl"
+          className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
         >
           {t.heading}
         </h2>
@@ -50,7 +50,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
             >
               <header className="min-h-stat">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-display text-xl font-medium tracking-tight">
+                  <h3 className="font-display text-xl font-semibold tracking-tight">
                     {tier.name}
                   </h3>
                   {tier.highlighted && (
@@ -64,7 +64,7 @@ export function Pricing({ locale }: { readonly locale: Locale }) {
               </header>
 
               <div className="mt-6 border-t border-border pt-6">
-                <p className="font-display text-4xl font-medium leading-none tracking-tight tabular-nums">
+                <p className="font-display text-4xl font-semibold leading-none tracking-tight tabular-nums">
                   {tier.price === 'TZS 0' ? (
                     <span>
                       TZS 0

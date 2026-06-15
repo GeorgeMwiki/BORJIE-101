@@ -29,7 +29,7 @@ export function FinalCta({ locale }: { readonly locale: Locale }) {
         </p>
         <h2
           id="final-cta-heading"
-          className="mx-auto mt-5 max-w-4xl font-display text-4xl font-medium leading-tight tracking-tight text-balance text-foreground sm:text-5xl lg:text-6xl"
+          className="mx-auto mt-5 max-w-4xl font-display text-4xl font-semibold leading-tight tracking-tight text-balance text-foreground sm:text-5xl lg:text-6xl"
         >
           {t.heading}
         </h2>

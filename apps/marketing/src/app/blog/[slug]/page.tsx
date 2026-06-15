@@ -81,7 +81,7 @@ export default async function BlogPostPage({
             <p className="mt-8 font-mono text-xs uppercase tracking-widest text-signal-500">
               {t.featuredKicker}
             </p>
-            <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
+            <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
               Post title
             </h1>
             <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-foreground/60">
@@ -137,7 +137,7 @@ export default async function BlogPostPage({
             </p>
             <h2
               id="related-posts"
-              className="mt-3 font-display text-3xl font-medium tracking-tight text-balance"
+              className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance"
             >
               {locale === 'sw' ? 'Yanayohusiana' : 'Related posts'}
             </h2>
@@ -163,7 +163,7 @@ export default async function BlogPostPage({
         {/* Final CTA band routing to /sign-up */}
         <section className="border-t border-border px-5 py-16 md:py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               {t.subscribeHeading}
             </h2>
             <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">

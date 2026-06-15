@@ -47,7 +47,7 @@ export default async function BlogIndexPage() {
             </p>
             <h1
               id="blog-heading"
-              className="mt-5 font-display text-5xl font-medium tracking-tight text-balance sm:text-6xl"
+              className="mt-5 font-display text-5xl font-semibold tracking-tight text-balance sm:text-6xl"
             >
               {t.heading}
             </h1>
@@ -68,7 +68,7 @@ export default async function BlogIndexPage() {
             </div>
             <h2
               id="blog-empty-heading"
-              className="font-display text-3xl font-medium tracking-tight text-balance"
+              className="font-display text-3xl font-semibold tracking-tight text-balance"
             >
               {t.emptyHeading}
             </h2>
@@ -102,7 +102,7 @@ export default async function BlogIndexPage() {
           <div className="mx-auto max-w-2xl text-center">
             <h2
               id="blog-subscribe-heading"
-              className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl"
+              className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
             >
               {t.subscribeHeading}
             </h2>

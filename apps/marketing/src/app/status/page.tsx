@@ -33,7 +33,7 @@ export default async function StatusPage() {
         <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
           {c.kicker}
         </p>
-        <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
+        <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           {c.heading}
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-foreground/70">

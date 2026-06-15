@@ -121,7 +121,7 @@ export function BusinessBuyerStep({
             autoComplete="organization"
             value={draft.orgName}
             onChange={(e) => update('orgName', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -137,7 +137,7 @@ export function BusinessBuyerStep({
             onChange={(e) =>
               update('country', e.currentTarget.value as BuyerCountryCode)
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_COUNTRY_CODES.map((c) => (
               <option key={c} value={c}>
@@ -163,7 +163,7 @@ export function BusinessBuyerStep({
                 e.currentTarget.value as BuyerBusinessKind,
               )
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_BUSINESS_KINDS.map((kind) => (
               <option key={kind} value={kind}>
@@ -188,7 +188,7 @@ export function BusinessBuyerStep({
             onChange={(e) =>
               update('businessRegistrationNumber', e.currentTarget.value)
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -203,7 +203,7 @@ export function BusinessBuyerStep({
             data-testid="buyer-business-tin"
             value={draft.taxId}
             onChange={(e) => update('taxId', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -221,7 +221,7 @@ export function BusinessBuyerStep({
             autoComplete="name"
             value={draft.contactFullName}
             onChange={(e) => update('contactFullName', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -243,7 +243,7 @@ export function BusinessBuyerStep({
             onChange={(e) =>
               update('contactPhoneE164', e.currentTarget.value)
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -260,7 +260,7 @@ export function BusinessBuyerStep({
             autoComplete="email"
             value={draft.contactEmail}
             onChange={(e) => update('contactEmail', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -279,7 +279,7 @@ export function BusinessBuyerStep({
                 e.currentTarget.value as BuyerLanguageCode,
               )
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_LANGUAGE_CODES.map((code) => (
               <option key={code} value={code}>
@@ -304,7 +304,7 @@ export function BusinessBuyerStep({
                 e.currentTarget.value as BuyerCurrencyCode,
               )
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_CURRENCY_CODES.map((c) => (
               <option key={c} value={c}>

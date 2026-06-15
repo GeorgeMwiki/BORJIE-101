@@ -58,7 +58,7 @@ export default async function BuyersPage() {
               </p>
               <h1
                 id="buyers-hero-heading"
-                className="mt-5 font-display text-5xl font-medium tracking-tight text-balance sm:text-6xl lg:text-7xl"
+                className="mt-5 font-display text-5xl font-semibold tracking-tight text-balance sm:text-6xl lg:text-7xl"
               >
                 {t.heading}
               </h1>
@@ -104,7 +104,7 @@ export default async function BuyersPage() {
             </p>
             <h2
               id="buyers-valueprops-heading"
-              className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl"
+              className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
             >
               {t.valueProps.heading}
             </h2>
@@ -123,7 +123,7 @@ export default async function BuyersPage() {
                   <ShieldCheck className="h-5 w-5" />
                 </span>
                 <div>
-                  <h3 className="font-display text-xl font-medium tracking-tight">
+                  <h3 className="font-display text-xl font-semibold tracking-tight">
                     {card.title}
                   </h3>
                   <p className="mt-2 text-sm leading-relaxed text-foreground/70">
@@ -149,7 +149,7 @@ export default async function BuyersPage() {
             </p>
             <h2
               id="buyers-usecases-heading"
-              className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl"
+              className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
             >
               {t.useCases.heading}
             </h2>
@@ -167,7 +167,7 @@ export default async function BuyersPage() {
                 <span className="inline-flex w-fit items-center gap-1 rounded-full border border-signal-500/30 bg-signal-500/5 px-2 py-0.5 font-mono text-micro-num uppercase tracking-widest text-signal-500">
                   {u.tag}
                 </span>
-                <h3 className="font-display text-xl font-medium tracking-tight">
+                <h3 className="font-display text-xl font-semibold tracking-tight">
                   {u.buyer}
                 </h3>
                 <p className="inline-flex items-center gap-1 font-mono text-caption-lg uppercase tracking-widest text-foreground/60">
@@ -188,7 +188,7 @@ export default async function BuyersPage() {
           <div className="mx-auto max-w-3xl text-center">
             <h2
               id="buyers-regions-heading"
-              className="font-display text-3xl font-medium tracking-tight"
+              className="font-display text-3xl font-semibold tracking-tight"
             >
               {t.regionsHeading}
             </h2>
@@ -216,7 +216,7 @@ export default async function BuyersPage() {
             </p>
             <h2
               id="buyers-pricing-heading"
-              className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl"
+              className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
             >
               {t.pricing.heading}
             </h2>
@@ -230,7 +230,7 @@ export default async function BuyersPage() {
               <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
                 {t.marketplaceFeeKicker}
               </p>
-              <p className="mt-3 font-display text-6xl font-medium leading-none tracking-tight tabular-nums">
+              <p className="mt-3 font-display text-6xl font-semibold leading-none tracking-tight tabular-nums">
                 2.5%
               </p>
               <p className="mt-3 text-sm text-foreground/70">{t.marketplaceFeeBody}</p>
@@ -258,7 +258,7 @@ export default async function BuyersPage() {
           <div className="relative mx-auto max-w-5xl px-6 py-24 text-center lg:px-8">
             <h2
               id="buyers-final-cta-heading"
-              className="font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl"
+              className="font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
             >
               {t.downloadCta.heading}
             </h2>

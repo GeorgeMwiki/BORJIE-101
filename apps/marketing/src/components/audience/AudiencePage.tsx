@@ -106,7 +106,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
 
             <h1
               id="audience-hero-headline"
-              className="mt-6 font-display text-5xl font-medium leading-display tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
+              className="mt-6 font-display text-5xl font-semibold leading-display tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
             >
               {copy.heroHeadline}{' '}
               <span className="italic text-signal-500">
@@ -140,10 +140,10 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
               {copy.trustline.map((line, i) => {
                 const dotTone =
                   i === 0
-                    ? 'bg-emerald-500'
+                    ? 'bg-success'
                     : i === 1
                       ? 'bg-signal-500'
-                      : 'bg-amber-400';
+                      : 'bg-warning';
                 return (
                   <li
                     key={line}
@@ -171,7 +171,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
           <div className="max-w-2xl">
             <h2
               id="audience-stats-heading"
-              className="font-display text-4xl font-medium tracking-tight text-foreground text-balance md:text-5xl"
+              className="font-display text-4xl font-semibold tracking-tight text-foreground text-balance md:text-5xl"
             >
               {copy.statsHeading}
             </h2>
@@ -186,7 +186,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
                 key={s.label}
                 className="h-full rounded-lg border border-border bg-surface p-8 transition-colors duration-fast hover:border-signal-500/40"
               >
-                <p className="font-display text-5xl font-medium tabular-nums tracking-tight text-foreground">
+                <p className="font-display text-5xl font-semibold tabular-nums tracking-tight text-foreground">
                   {s.value}
                 </p>
                 <p className="mt-3 text-sm font-semibold text-foreground">
@@ -214,7 +214,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
             </p>
             <h2
               id="audience-steps-heading"
-              className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground text-balance md:text-5xl"
+              className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground text-balance md:text-5xl"
             >
               {copy.stepsHeading}
             </h2>
@@ -253,7 +253,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
             </p>
             <h2
               id="audience-problem-heading"
-              className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground text-balance md:text-5xl"
+              className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground text-balance md:text-5xl"
             >
               {copy.problemHeading}{' '}
               <span className="text-signal-500">{copy.problemHeadingAccent}</span>
@@ -344,7 +344,7 @@ export function AudiencePage({ copy, kickerIcon: KickerIcon }: AudiencePageProps
         <div className="mx-auto max-w-4xl text-center">
           <h2
             id="audience-cta-heading"
-            className="font-display text-4xl font-medium tracking-tight text-foreground text-balance md:text-5xl"
+            className="font-display text-4xl font-semibold tracking-tight text-foreground text-balance md:text-5xl"
           >
             {copy.ctaHeading}
           </h2>

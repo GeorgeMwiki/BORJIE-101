@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, Check, Sparkles } from 'lucide-react';
+import { ArrowRight, Check, Minus, Sparkles } from 'lucide-react';
 import { Pricing } from '@/components/Pricing';
 import { FinalCta } from '@/components/FinalCta';
 import { FaqAccordion } from '@/components/shared/FaqAccordion';
@@ -10,9 +10,9 @@ import { getMessages } from '@/lib/i18n';
 import { TIERS, tierFeatures } from '@/lib/pricing';
 
 export const metadata: Metadata = {
-  title: 'Pricing , Borjie',
+  title: 'Pricing · Borjie',
   description:
-    'Borjie pricing , Mwanzo (free), Mkulima, Mfanyabiashara, Kampuni, Group. All tiers in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.',
+    'Borjie pricing: Mwanzo (free), Mkulima, Mfanyabiashara, Kampuni, Group. All tiers in TZS. Payable via M-Pesa, Tigo Pesa, Airtel Money, or bank transfer.',
 };
 
 /**
@@ -50,7 +50,7 @@ export default async function PricingPage() {
             </p>
             <h1
               id="pricing-page-heading"
-              className="mt-5 font-display text-5xl font-medium tracking-tight text-balance sm:text-6xl"
+              className="mt-5 font-display text-5xl font-semibold tracking-tight text-balance sm:text-6xl"
             >
               {t.heading}
             </h1>
@@ -80,7 +80,7 @@ export default async function PricingPage() {
           <div className="mx-auto max-w-3xl text-center">
             <h2
               id="pricing-compare-heading"
-              className="font-display text-3xl font-medium tracking-tight"
+              className="font-display text-3xl font-semibold tracking-tight"
             >
               {t.compareHeading}
             </h2>
@@ -117,7 +117,7 @@ export default async function PricingPage() {
                           {has ? (
                             <Check className="mx-auto h-4 w-4 text-signal-500" aria-label="included" />
                           ) : (
-                            <span className="text-foreground/60" aria-label="not included">,</span>
+                            <Minus className="mx-auto h-3.5 w-3.5 text-foreground/30" aria-label="not included" />
                           )}
                         </td>
                       );
@@ -140,7 +140,7 @@ export default async function PricingPage() {
             </p>
             <h2
               id="pricing-faq-heading"
-              className="mt-3 font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl"
+              className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
             >
               {t.faqHeading}
             </h2>
@@ -161,7 +161,7 @@ export default async function PricingPage() {
           <div className="mx-auto max-w-3xl text-center">
             <h2
               id="pricing-closing-cta"
-              className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl lg:text-5xl"
+              className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl"
             >
               {t.ctaHeading}
             </h2>

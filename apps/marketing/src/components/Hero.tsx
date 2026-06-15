@@ -14,8 +14,6 @@ import {
 import { motion } from 'framer-motion';
 import { getMessages, type Locale } from '@/lib/i18n';
 import { BorjieLogo } from '@borjie/design-system';
-import { MeshGradient } from './effects/MeshGradient';
-import { NeonGlow } from './effects/NeonGlow';
 
 /**
  * Hero — Borjie's Live Fabric hero (LitFin IgnitionHero pattern, ported
@@ -92,8 +90,8 @@ function ChatTurn({
             className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ring-1"
             style={{
               background:
-                'radial-gradient(circle at 30% 30%, oklch(0.78 0.17 78 / 0.55), oklch(0.58 0.12 65 / 0.25) 60%, transparent 85%)',
-              boxShadow: 'inset 0 0 0 1px oklch(0.78 0.17 78 / 0.2)',
+                'radial-gradient(circle at 30% 30%, oklch(0.72 0.14 47 / 0.55), oklch(0.58 0.14 30 / 0.25) 60%, transparent 85%)',
+              boxShadow: 'inset 0 0 0 1px oklch(0.72 0.14 47 / 0.2)',
             }}
           >
             <BorjieMark size={22} />
@@ -113,7 +111,7 @@ function ChatTurn({
                 className="absolute inset-x-0 top-0 h-hairline rounded-t-2xl opacity-70"
                 style={{
                   background:
-                    'linear-gradient(90deg, oklch(0.86 0.16 80) 0%, oklch(0.78 0.17 78) 55%, oklch(0.58 0.12 65) 100%)',
+                    'linear-gradient(90deg, oklch(0.79 0.15 60) 0%, oklch(0.72 0.14 47) 55%, oklch(0.58 0.14 30) 100%)',
                 }}
               />
             )}
@@ -126,7 +124,7 @@ function ChatTurn({
           >
             <span>{timestamp}</span>
             {!isUser && (
-              <Volume2 size={11} className="text-foreground/60/70" aria-hidden="true" />
+              <Volume2 size={11} className="text-foreground/60" aria-hidden="true" />
             )}
           </div>
         </div>
@@ -146,7 +144,7 @@ function MiniWaveform({ reducedMotion }: { readonly reducedMotion: boolean }) {
           key={i}
           aria-hidden="true"
           className="w-hairline rounded-full"
-          style={{ background: 'oklch(0.78 0.17 78 / 0.6)' }}
+          style={{ background: 'oklch(0.72 0.14 47 / 0.6)' }}
           animate={
             reducedMotion
               ? { height: 6, opacity: 0.7 }
@@ -289,11 +287,12 @@ export function Hero({ locale }: { readonly locale: Locale }) {
       className="relative isolate overflow-hidden"
       aria-labelledby="hero-headline"
     >
-      {/* R-FUTURE-5 — Stripe-inspired animated mesh background. Sits
-          behind the legacy aurora so the brand pass is purely additive
-          and reverts cleanly by deleting these two lines. */}
-      <MeshGradient speed={0.6} />
-      <NeonGlow tone="gold" size="lg" position="top-right" intensity={0.4} />
+      {/* Background — ONE restrained copper aurora over a faint
+          survey-paper grid. (The earlier build stacked an animated
+          mesh-gradient + a pulsing neon orb on top of this aurora —
+          three competing glow systems behind one hero. That is the
+          gradient-orb anti-slop the design system explicitly forbids,
+          so it was subtracted: type + space carry the hero now.) */}
       <div className="hero-aurora" aria-hidden="true" />
       <div
         className="absolute inset-0 cinematic-grid opacity-40"
@@ -310,7 +309,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
 
           <h1
             id="hero-headline"
-            className="mt-6 font-display text-5xl font-medium leading-display tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
+            className="mt-6 font-display text-5xl font-semibold leading-display tracking-tighter text-foreground text-balance md:text-6xl lg:text-7xl"
           >
             {t.headline.split(' ').slice(0, -2).join(' ')}{' '}
             <span className="relative inline-block">
@@ -374,7 +373,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
               className="flex items-center justify-between border-b border-white/10 px-4 py-3 text-primary-foreground"
               style={{
                 background:
-                  'linear-gradient(135deg, oklch(0.78 0.17 78) 0%, oklch(0.58 0.12 65) 100%)',
+                  'linear-gradient(135deg, oklch(0.72 0.14 47) 0%, oklch(0.58 0.14 30) 100%)',
               }}
             >
               <div className="flex items-center gap-2">
@@ -393,7 +392,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-tiny font-medium uppercase tracking-wide">
                   <span
                     aria-hidden="true"
-                    className="h-1 w-1 rounded-full bg-emerald-300"
+                    className="h-1 w-1 rounded-full bg-success"
                     style={
                       reducedMotion
                         ? undefined
@@ -429,7 +428,7 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 className="pointer-events-none absolute inset-x-0 top-0 h-px"
                 style={{
                   background:
-                    'linear-gradient(90deg, transparent, oklch(0.78 0.17 78 / 0.4), transparent)',
+                    'linear-gradient(90deg, transparent, oklch(0.72 0.14 47 / 0.4), transparent)',
                 }}
               />
               <ShieldCheck
@@ -456,14 +455,14 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                 <button
                   type="button"
                   aria-label={chat.voice}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-foreground/70 transition-colors hover:bg-surface text-foreground/80 focus:outline-none focus:ring-2 focus:ring-signal-500"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-foreground/70 transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus:ring-2 focus:ring-signal-500"
                 >
                   <Mic className="h-4 w-4" />
                 </button>
                 <button
                   type="button"
                   aria-label={chat.attach}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-foreground/70 transition-colors hover:bg-surface text-foreground/80 focus:outline-none focus:ring-2 focus:ring-signal-500"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-surface-raised text-foreground/70 transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus:ring-2 focus:ring-signal-500"
                 >
                   <Camera className="h-4 w-4" />
                 </button>
@@ -478,9 +477,9 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary-foreground transition-all hover:scale-[1.04] active:scale-[0.96] focus:outline-none focus:ring-2 focus:ring-signal-500 focus:ring-offset-2 focus:ring-offset-background"
                   style={{
                     background:
-                      'linear-gradient(135deg, oklch(0.86 0.16 80) 0%, oklch(0.78 0.17 78) 50%, oklch(0.58 0.12 65) 100%)',
+                      'linear-gradient(135deg, oklch(0.79 0.15 60) 0%, oklch(0.72 0.14 47) 50%, oklch(0.58 0.14 30) 100%)',
                     boxShadow:
-                      '0 8px 20px -4px oklch(0.58 0.12 65 / 0.45), 0 2px 6px oklch(0.32 0.08 60 / 0.25)',
+                      '0 8px 20px -4px oklch(0.58 0.14 30 / 0.45), 0 2px 6px oklch(0.32 0.08 35 / 0.25)',
                   }}
                   aria-label={chat.send}
                 >
