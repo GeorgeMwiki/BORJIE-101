@@ -15,6 +15,10 @@ import {
   MR_MWIKILA_ALIAS,
   type BrandingCapableTenant,
 } from '../tenant-branding.service.js';
+import {
+  TenantBrandingService,
+  InMemoryTenantBrandingRepository,
+} from '../tenant-branding.store.js';
 
 describe('TenantBrandingService — defaults', () => {
   it('returns country-neutral default when branding is absent', () => {
@@ -120,5 +124,62 @@ describe('TenantBrandingService — template rendering', () => {
   it('leaves unknown template tokens untouched', () => {
     const out = renderBrandedTemplate('Hello {{unknown_token}}', { id: 't1' });
     expect(out).toBe('Hello {{unknown_token}}');
+  });
+});
+
+// O-M-23 org-settings toggles must survive the updateConfig round-trip and
+// be echoed by getConfig — otherwise every toggle snaps back in the UI.
+describe('TenantBrandingService — O-M-23 org-settings toggles persist', () => {
+  function newService() {
+    return new TenantBrandingService(new InMemoryTenantBrandingRepository());
+  }
+
+  it('persists and echoes the 4 toggle fields', async () => {
+    const svc = newService();
+    const cfg = await svc.updateConfig('t1', {
+      multiTenant: true,
+      brandLock: true,
+      primaryCurrency: 'TZS',
+      defaultLang: 'sw',
+    });
+    expect(cfg.overrides).toMatchObject({
+      multiTenant: true,
+      brandLock: true,
+      primaryCurrency: 'TZS',
+      defaultLang: 'sw',
+    });
+    const read = await svc.getConfig('t1');
+    expect(read.overrides).toMatchObject({
+      multiTenant: true,
+      brandLock: true,
+      primaryCurrency: 'TZS',
+      defaultLang: 'sw',
+    });
+  });
+
+  it('persists a legitimate `false` toggle (not dropped by truthiness)', async () => {
+    const svc = newService();
+    const cfg = await svc.updateConfig('t1', {
+      multiTenant: false,
+      brandLock: false,
+      primaryCurrency: 'USD',
+      defaultLang: 'en',
+    });
+    expect(cfg.overrides.multiTenant).toBe(false);
+    expect(cfg.overrides.brandLock).toBe(false);
+    expect(cfg.overrides.primaryCurrency).toBe('USD');
+    expect(cfg.overrides.defaultLang).toBe('en');
+  });
+
+  it('merges toggles with persona overrides without clobbering either', async () => {
+    const svc = newService();
+    await svc.updateConfig('t1', { aiPersonaDisplayName: 'Mr. Smith' });
+    const cfg = await svc.updateConfig('t1', {
+      multiTenant: false,
+      primaryCurrency: 'KES',
+    });
+    expect(cfg.overrides.aiPersonaDisplayName).toBe('Mr. Smith');
+    expect(cfg.overrides.multiTenant).toBe(false);
+    expect(cfg.overrides.primaryCurrency).toBe('KES');
   });
 });

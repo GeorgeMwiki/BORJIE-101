@@ -2259,6 +2259,9 @@ importers:
       ioredis:
         specifier: ^5.10.1
         version: 5.10.1
+      undici:
+        specifier: ^6.26.0
+        version: 6.26.0
       zod:
         specifier: ^3.25.76
         version: 3.25.76

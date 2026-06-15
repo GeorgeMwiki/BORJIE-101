@@ -16,8 +16,22 @@ import { describe, it, expect } from 'vitest';
 import type { LookupAddress } from 'node:dns';
 import {
   safeHttpFetch,
+  pinnedSafeDispatcher,
+  pinnedConnectLookup,
   SafeHttpFetchError,
 } from './safe-http-fetch';
+
+/** Drive a connect-time lookup callback and capture its result. */
+const dial = (
+  lookup: ReturnType<typeof pinnedConnectLookup>,
+  hostname: string,
+): Promise<{ address: string; family: number }> =>
+  new Promise((resolve, reject) => {
+    lookup(hostname, {}, (err, address, family) => {
+      if (err) reject(err);
+      else resolve({ address, family });
+    });
+  });
 
 const okFetch = async () =>
   new Response('ok', { status: 200, headers: { 'content-type': 'text/plain' } });
@@ -91,16 +105,15 @@ describe('safeHttpFetch — DNS-resolved IP screening', () => {
     expect(r.status).toBe(200);
   });
 
-  it('pins the resolution — calls the DNS lookup at most once per request', async () => {
+  it('screens the host with a single DNS round-trip per request', async () => {
     const dns = lookup([{ address: '93.184.216.34', family: 4 }]);
     await safeHttpFetch('https://example.com/', {
       fetchImpl: okFetch as typeof fetch,
       dnsLookup: dns.fn,
     });
-    // Exactly one DNS round-trip — the fetch layer must reuse the same
-    // resolution rather than calling lookup() again (which is how a
-    // DNS-rebinding attack would land a second resolution that points
-    // to an internal IP).
+    // The screen path resolves exactly once; the dispatch then PINS that
+    // resolution (see the connect-time pin regression below) rather than
+    // letting the kernel re-resolve.
     expect(dns.callCount()).toBe(1);
   });
 
@@ -128,28 +141,45 @@ describe('safeHttpFetch — DNS-resolved IP screening', () => {
     expect(dns.callCount()).toBe(0);
   });
 
-  it('simulates DNS rebinding — only the FIRST resolution is honoured', async () => {
-    // Rebinding mock: first call returns a public IP (passes), second
-    // call would return 127.0.0.1. Because safeHttpFetch only calls
-    // lookup once per request, the second resolution never lands.
-    const sequence: ReadonlyArray<LookupAddress>[] = [
-      [{ address: '93.184.216.34', family: 4 }],
-      [{ address: '127.0.0.1', family: 4 }],
-    ];
-    let n = 0;
-    const dnsLookup = async (
-      _host: string,
-    ): Promise<ReadonlyArray<LookupAddress>> => {
-      const entry = sequence[Math.min(n, sequence.length - 1)];
-      n += 1;
-      return entry;
-    };
-    const r = await safeHttpFetch('https://rebinding.example/', {
-      fetchImpl: okFetch as typeof fetch,
-      dnsLookup,
+  it('CONNECT-TIME PIN: the connect lookup returns the screened IP, ignoring the requested hostname (rebind regression)', async () => {
+    // The real DNS-rebinding defence: undici calls this connect-time lookup
+    // in place of the kernel resolver. It returns ONLY the screened address,
+    // so the socket dials EXACTLY what we screened — even when the requested
+    // hostname would now rebind to an internal IP, there is no second
+    // resolution to poison.
+    const lookup = pinnedConnectLookup([{ address: '93.184.216.34', family: 4 }]);
+    const dialed = await dial(lookup, 'rebinding.example');
+    expect(dialed.address).toBe('93.184.216.34');
+    expect(dialed.family).toBe(4);
+  });
+
+  it('CONNECT-TIME PIN: belt-and-braces — a poisoned internal pin set errors at connect, never dials', async () => {
+    // Even if a caller hands in a poisoned pinned set (all-internal), the
+    // connect lookup re-screens and refuses to dial.
+    const lookup = pinnedConnectLookup([{ address: '127.0.0.1', family: 4 }]);
+    await expect(dial(lookup, 'attacker.example')).rejects.toThrow(/no safe pinned address/);
+  });
+
+  it('pinnedSafeDispatcher screens then returns a dispatcher pinned to the screened set', async () => {
+    const dns = lookup([{ address: '93.184.216.34', family: 4 }]);
+    const dispatcher = await pinnedSafeDispatcher('https://example.com/', {
+      dnsLookup: dns.fn,
     });
-    expect(r.status).toBe(200);
-    expect(n).toBe(1);
+    expect(dispatcher).toBeDefined();
+    expect(dns.callCount()).toBe(1);
+    await (dispatcher as unknown as { close: () => Promise<void> }).close();
+  });
+
+  it('pinnedSafeDispatcher denies a host that resolves internal (rebind on the screening leg)', async () => {
+    const dns = lookup([{ address: '169.254.169.254', family: 4 }]);
+    await expect(
+      pinnedSafeDispatcher('https://hacker.example/', { dnsLookup: dns.fn }),
+    ).rejects.toThrow(/denied-internal-ip/);
+  });
+
+  it('pinnedSafeDispatcher returns undefined for a literal IP (already pinned)', async () => {
+    const dispatcher = await pinnedSafeDispatcher('https://8.8.8.8/');
+    expect(dispatcher).toBeUndefined();
   });
 
   it('does not crash when the resolver throws (degrades to network-error downstream)', async () => {

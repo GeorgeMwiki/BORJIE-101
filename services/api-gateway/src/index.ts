@@ -804,6 +804,12 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 // geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave 3 (R2) — owner saved-search alert worker. The pure worker was built +
+// tested but never composed/started, so saved-search alerts never fired. The
+// wiring module builds the three real ports (DbLike / SearchExecutor /
+// OwnerAlertSender) over the live Drizzle client.
+import { createSavedSearchWorker } from './workers/saved-search-worker';
+import { buildSavedSearchWorkerPorts } from './composition/saved-search-worker-wiring';
 // Wave 2 — self-acting-MD workers: proactive-intel insight loop + KG auto-sync.
 import {
   createProactiveIntelWorker,
@@ -947,6 +953,14 @@ const CLUSTER_LEADER_CRON_NAMES = [
   // gracefulShutdown releases its lock; only .start()ed behind the
   // default-OFF BORJIE_SELF_EXTENSION_CRON_ENABLED flag (see listen block).
   'self-extension',
+  // Wave 2 self-acting-MD loops — acquired via withClusterLeader(...).start()
+  // in the listen block (aop-meta-loop, proactive-intel, kg-sync) but were
+  // absent here, so gracefulShutdown leaked their advisory locks on shutdown.
+  'aop-meta-loop',
+  'proactive-intel',
+  'kg-sync',
+  // Wave 3 (R2) — owner saved-search alert worker, cluster-leader gated.
+  'saved-search',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -3646,24 +3660,10 @@ app.get('/api/v1', (_req, res) => {
       '/api/v1/auth/mfa',
       '/api/v1/tenants',
       '/api/v1/users',
-      '/api/v1/properties',
-      '/api/v1/units',
-      '/api/v1/customers',
-      '/api/v1/leases',
-      '/api/v1/invoices',
-      '/api/v1/payments',
-      '/api/v1/work-orders',
-      '/api/v1/vendors',
       '/api/v1/notifications',
-      '/api/v1/reports',
-      '/api/v1/dashboard',
       '/api/v1/onboarding',
       '/api/v1/feedback',
       '/api/v1/complaints',
-      '/api/v1/inspections',
-      '/api/v1/documents',
-      '/api/v1/scheduling',
-      '/api/v1/messaging',
       '/api/v1/brain',
       '/api/v1/maintenance',
       '/api/v1/hr',
@@ -4240,6 +4240,22 @@ const kgSyncWorker = serviceRegistry.db
     })
   : { start() {}, stop() {}, async tickOnce() { return { tenantsScanned: 0, tenantsIngested: 0, tenantsFailed: 0, nodes: 0, edges: 0 }; } };
 
+// Wave 3 (R2) — owner saved-search alert worker. Composes the three real ports
+// over the live Drizzle client and ticks every 60s (configurable via
+// SAVED_SEARCH_WORKER_INTERVAL_MS). The worker honors SAVED_SEARCH_WORKER_DISABLED
+// =true to no-op when a k8s CronJob owns the cadence. Same serviceRegistry.db
+// guard as the sibling workers so the no-DB path degrades to a quiet noop.
+const savedSearchWorker = serviceRegistry.db
+  ? createSavedSearchWorker({
+      ...buildSavedSearchWorkerPorts(
+        getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+        { logger },
+      ),
+      logger,
+      intervalMs: Number(process.env.SAVED_SEARCH_WORKER_INTERVAL_MS ?? 60_000) || 60_000,
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, alerted: 0 }; } };
+
 // Notification-dispatch drain — delivers notification_dispatch_log
 // (pending) rows via email/SMS/push with retry+backoff+DLQ. The
 // announcement fan-out + push rails enqueue rows that THIS worker sends.
@@ -4746,6 +4762,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: reminders-dispatch stop failed');
   }
+  try {
+    savedSearchWorker.stop();
+    logger.info('shutdown: saved-search worker stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: saved-search stop failed');
+  }
   try { announcementFanoutWorker.stop(); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: announcement-fanout stop failed'); }
   try { notificationDispatchAbort.abort(); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: notification-dispatch abort failed'); }
   try {
@@ -5086,6 +5108,10 @@ if (require.main === module) {
   withClusterLeader(proactiveIntelWorker, lockIdFor('proactive-intel')).start();
   // Wave 2 (W2d) — KG auto-sync so GraphRAG stays fresh across every domain.
   withClusterLeader(kgSyncWorker, lockIdFor('kg-sync')).start();
+  // Wave 3 (R2) — owner saved-search alert worker (cluster-leader gated so only
+  // one instance ticks). Counts each saved search's live corpus and enqueues a
+  // reminders row when the match-count grows, delivered via the reminders pipeline.
+  withClusterLeader(savedSearchWorker, lockIdFor('saved-search')).start();
   // Wave NOTIFICATION-DISPATCH-WIRE — start the broadcast fan-out (enqueues
   // per-recipient dispatch-log rows) and the dispatch drain (sends them via
   // email/SMS/push). The drain runs as a long-lived runForever loop bounded
