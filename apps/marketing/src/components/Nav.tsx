@@ -2,65 +2,46 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
-  ArrowRight,
   ChevronDown,
+  Menu,
   Pickaxe,
   Mountain,
   Gem,
   Coins,
-  Building2,
   Factory,
   Landmark,
   Users,
   Wallet,
+  Building2,
   Briefcase,
   HeartHandshake,
-  Menu,
-  X,
-  FileText,
-  HelpCircle,
-  type LucideIcon,
 } from 'lucide-react';
 import { LanguageToggle } from './LanguageToggle';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { getMessages, type Locale } from '@/lib/i18n';
 import { BorjieLogo, ThemeToggle } from '@borjie/design-system';
+import { useScrolled } from './nav/useScrolled';
+import { AudienceMenu } from './nav/AudienceMenu';
+import { MobileDrawer } from './nav/MobileDrawer';
+import type { AudienceCategory, PrimaryLink } from './nav/types';
 
 /**
- * Marketing-site top navigation — LitFin MainNav parity, ported to the
- * Borjie navy + gold palette and the Tanzanian-mining audience set.
+ * Marketing-site top navigation.
  *
- * Composition:
- *   - Scroll-aware shell with a subtle backdrop-blur transition once the
- *     user scrolls past 20px (mirrors LitFin's `scrolled` state).
- *   - Brand wordmark on the left.
- *   - Inline "Who we serve" mega-menu with 4 audience columns
- *     (operators, buyers, ecosystem, capital). Each column shows the
- *     mining-audience entries with a lucide icon tile and a one-line
- *     description.
- *   - Always-visible: Pricing, Docs.
- *   - Right-side: Locale toggle, Sign-in, primary CTA "Get started".
- *   - Mobile drawer with the full audience matrix collapsed.
+ * A lean flagship header in the Stripe / Linear / Vercel mould: the
+ * Borjie lockup on the left, a small set of primary links, and one
+ * filled primary CTA on the right. Auth and locale controls sit in a
+ * compact right cluster; the dense audience matrix is progressively
+ * disclosed behind a single "Who we serve" panel (desktop) or the
+ * mobile drawer.
  *
- * Stays bilingual — every label resolves through `getMessages(locale).nav`.
+ * The structural pieces — scroll state, focus-trap, the audience panel,
+ * and the mobile sheet — live in `./nav/*` so this file stays the lean
+ * composition root. Every label resolves through `getMessages(locale)`
+ * so the nav is single-language per active locale.
  */
-
-interface AudienceItem {
-  readonly id: string;
-  readonly href: string;
-  readonly icon: LucideIcon;
-}
-
-interface AudienceCategory {
-  readonly titleKey:
-    | 'operators'
-    | 'buyers'
-    | 'ecosystem'
-    | 'capital';
-  readonly items: readonly AudienceItem[];
-}
 
 const AUDIENCE_CATEGORIES: readonly AudienceCategory[] = [
   {
@@ -96,30 +77,27 @@ const AUDIENCE_CATEGORIES: readonly AudienceCategory[] = [
   },
 ];
 
-const RESOURCE_LINKS = [
-  { labelKey: 'blog', href: '/blog', icon: FileText },
-  { labelKey: 'support', href: '/docs', icon: HelpCircle },
-] as const;
-
 const ALL_AUDIENCE_HREFS = AUDIENCE_CATEGORIES.flatMap((c) =>
   c.items.map((i) => i.href),
 );
 
-interface WordmarkProps {
-  readonly premium?: boolean;
-}
+const PRIMARY_LINKS: readonly PrimaryLink[] = [
+  { href: '/pricing', labelKey: 'pricing' },
+  { href: '/buyers', labelKey: 'buyers' },
+  { href: '/docs', labelKey: 'docs' },
+];
+
 /**
- * Local wordmark wrapper — delegates to the canonical `BorjieLogo`
- * horizontal lockup so the nav stays in sync with every other surface.
- * The `premium` prop maps to the full-colour tone; non-premium uses
- * the warm mono-cream tone for the contrast-tight context.
+ * Still, deliberate lockup — the nav mark never breathes (the warm
+ * bloom pulse is reserved for the hero). `pulse={false}` freezes it.
  */
-function Wordmark({ premium = true }: WordmarkProps) {
+function NavLockup() {
   return (
     <BorjieLogo
       variant="lockup-horizontal"
-      size={22}
-      tone={premium ? 'full' : 'mono-cream'}
+      size={28}
+      tone="full"
+      pulse={false}
     />
   );
 }
@@ -127,182 +105,138 @@ function Wordmark({ premium = true }: WordmarkProps) {
 export function Nav({ locale }: { readonly locale: Locale }) {
   const pathname = usePathname() ?? '/';
   const t = getMessages(locale).nav;
-  const cats = t.categories;
-  const items = t.items;
 
-  const [scrolled, setScrolled] = useState(false);
+  const scrolled = useScrolled(8);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [audienceOpen, setAudienceOpen] = useState(false);
   const audienceRef = useRef<HTMLDivElement>(null);
+  const audienceButtonRef = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
 
-  useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handler, { passive: true });
-    handler();
-    return () => window.removeEventListener('scroll', handler);
-  }, []);
+  const closeAudience = useCallback(() => setAudienceOpen(false), []);
 
-  // Close audience dropdown on outside click
+  // Audience panel: close on outside click + Escape, return focus to
+  // the trigger so a keyboard user is never stranded.
   useEffect(() => {
-    if (!audienceOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (
-        audienceRef.current &&
-        !audienceRef.current.contains(e.target as Node)
-      ) {
+    if (!audienceOpen) return undefined;
+    const onPointer = (e: MouseEvent) => {
+      if (audienceRef.current && !audienceRef.current.contains(e.target as Node)) {
         setAudienceOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setAudienceOpen(false);
+        audienceButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [audienceOpen]);
+
+  // Close any open panel when the route changes.
+  useEffect(() => {
+    setAudienceOpen(false);
+    setMobileOpen(false);
+  }, [pathname]);
 
   const isOnAudiencePage = ALL_AUDIENCE_HREFS.includes(pathname);
 
-  // Owner cockpit lives on a different origin (port 3010 in dev). The
-  // marketing site never owns auth — Sign In bounces to owner-web's
-  // canonical /sign-in. requirePublicBaseUrl throws in prod when
-  // NEXT_PUBLIC_OWNER_WEB_ORIGIN is unset so the deployed marketing
-  // site cannot link to localhost.
+  // The marketing site never owns auth — Sign in bounces to owner-web's
+  // canonical /sign-in. `requirePublicBaseUrl` throws in production when
+  // the origin is unset so the deployed site can never link to localhost.
   const ownerWebUrl = requirePublicBaseUrl(
     'NEXT_PUBLIC_OWNER_WEB_ORIGIN',
     'http://localhost:3010',
   );
   const signInHref = `${ownerWebUrl}/sign-in`;
-  // Self-serve owner sign-up is a real marketing-owned route (this app),
-  // so it stays an internal <Link> — no cross-origin hop. It is the
-  // canonical, end-to-end-working signup entry; owner-web /signup
-  // redirects back here.
-  const signUpHref = '/sign-up';
-  const pilotHref = '/pilot';
+  // Self-serve sign-up is a real marketing-owned route, so it stays an
+  // internal <Link>. It is the single primary CTA.
+  const ctaHref = '/sign-up';
+
+  const linkBase =
+    'rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background';
+
+  function linkClass(active: boolean) {
+    return [
+      linkBase,
+      active
+        ? 'text-signal-500'
+        : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
+    ].join(' ');
+  }
 
   return (
-    <nav
+    <header
       className={[
-        'fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out',
+        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow] duration-200 ease-out',
         scrolled
-          ? 'border-b border-border/70 bg-background/85 shadow-[0_18px_50px_-12px_oklch(0.16_0.025_260/0.6)] backdrop-blur-2xl'
-          : 'border-b border-border/30 bg-background/60 backdrop-blur-xl',
+          ? 'border-b border-border bg-background/80 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-background/70'
+          : 'border-b border-transparent bg-background/50 backdrop-blur-md',
       ].join(' ')}
     >
-      <div className="mx-auto flex h-16 max-w-container items-center justify-between gap-2 px-4 sm:px-6">
+      <nav
+        aria-label="Primary"
+        className="mx-auto flex h-16 max-w-container items-center justify-between gap-4 px-4 sm:px-6"
+      >
+        {/* Brand */}
         <Link
           href="/"
           aria-label="Borjie home"
-          className="-ml-1 shrink-0 rounded-sm p-1 transition-opacity duration-fast hover:opacity-90"
+          className="-ml-1 inline-flex shrink-0 items-center rounded-md p-1 transition-opacity duration-150 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <Wordmark premium />
+          <NavLockup />
         </Link>
 
-        {/* Desktop nav — center cluster */}
+        {/* Desktop primary links */}
         <div className="hidden items-center gap-1 lg:flex">
-          {/* Who we serve mega-menu */}
           <div className="relative" ref={audienceRef}>
             <button
+              ref={audienceButtonRef}
               type="button"
               onClick={() => setAudienceOpen((v) => !v)}
-              className={[
-                'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isOnAudiencePage
-                  ? 'bg-signal-500/10 text-signal-500'
-                  : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
-              ].join(' ')}
               aria-expanded={audienceOpen}
               aria-haspopup="true"
+              aria-controls={panelId}
+              className={[
+                linkBase,
+                'inline-flex items-center gap-1',
+                isOnAudiencePage || audienceOpen
+                  ? 'text-signal-500'
+                  : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
+              ].join(' ')}
             >
               {t.whoWeServe}
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${audienceOpen ? 'rotate-180' : ''}`}
+                className={[
+                  'h-3.5 w-3.5 transition-transform duration-200 ease-out',
+                  audienceOpen ? 'rotate-180' : '',
+                ].join(' ')}
                 aria-hidden
               />
             </button>
-            {audienceOpen && (
-              <div
-                role="menu"
-                className="absolute left-1/2 top-full mt-2 w-cmd -translate-x-1/2 rounded-2xl border border-border/60 bg-card/95 p-4 shadow-lift-medium backdrop-blur-2xl"
-              >
-                <div className="grid grid-cols-4 gap-3">
-                  {AUDIENCE_CATEGORIES.map((cat) => (
-                    <div key={cat.titleKey}>
-                      <div className="mb-2.5 px-2 font-mono text-tiny font-semibold uppercase tracking-widest text-foreground/60">
-                        {cats[cat.titleKey]}
-                      </div>
-                      <div className="space-y-0.5">
-                        {cat.items.map((item) => {
-                          const Icon = item.icon;
-                          const isActive = pathname === item.href;
-                          const titleKey =
-                            item.id as keyof typeof items;
-                          const descKey =
-                            `${item.id}Desc` as keyof typeof items;
-                          return (
-                            <Link
-                              key={item.id}
-                              href={item.href}
-                              onClick={() => setAudienceOpen(false)}
-                              className={[
-                                'flex items-start gap-2.5 rounded-xl p-2.5 transition-colors',
-                                isActive
-                                  ? 'bg-signal-500/10 text-signal-500'
-                                  : 'hover:bg-surface-raised',
-                              ].join(' ')}
-                            >
-                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-signal-500/10 text-signal-500">
-                                <Icon
-                                  className="h-3.5 w-3.5"
-                                  strokeWidth={1.75}
-                                  aria-hidden
-                                />
-                              </span>
-                              <span className="min-w-0">
-                                <span className="block text-sm font-medium leading-tight text-foreground">
-                                  {items[titleKey]}
-                                </span>
-                                <span className="mt-0.5 block text-badge leading-tight text-foreground/70">
-                                  {items[descKey]}
-                                </span>
-                              </span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            <AudienceMenu
+              id={panelId}
+              open={audienceOpen}
+              onClose={closeAudience}
+              categories={AUDIENCE_CATEGORIES}
+              messages={t}
+              pathname={pathname}
+            />
           </div>
 
-          <Link
-            href="/pricing"
-            className={[
-              'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              pathname === '/pricing'
-                ? 'bg-signal-500/10 text-signal-500'
-                : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
-            ].join(' ')}
-          >
-            {t.pricing}
-          </Link>
-
-          {RESOURCE_LINKS.map((link) => {
-            const Icon = link.icon;
-            const labelKey = link.labelKey as keyof typeof t;
-            const label = (t[labelKey] as string) ?? link.labelKey;
-            const isActive = pathname.startsWith(link.href);
+          {PRIMARY_LINKS.map((link) => {
+            const active =
+              link.href === '/'
+                ? pathname === '/'
+                : pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={[
-                  'flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'bg-signal-500/10 text-signal-500'
-                    : 'text-foreground/70 hover:bg-surface-raised hover:text-foreground',
-                ].join(' ')}
-              >
-                <Icon className="h-4 w-4" aria-hidden />
-                {label}
+              <Link key={link.href} href={link.href} className={linkClass(active)}>
+                {t[link.labelKey]}
               </Link>
             );
           })}
@@ -310,131 +244,45 @@ export function Nav({ locale }: { readonly locale: Locale }) {
 
         {/* Right cluster */}
         <div className="flex shrink-0 items-center gap-2">
-          <span className="hidden items-center rounded-full border border-border/60 bg-background/60 px-3 py-1 text-tiny font-medium uppercase tracking-widest text-foreground/70 xl:inline-flex">
-            Tanzania · TZS-first
-          </span>
-          <LanguageToggle current={locale} />
-          <ThemeToggle locale={locale} />
+          <div className="hidden items-center gap-2 md:flex">
+            <LanguageToggle current={locale} />
+            <ThemeToggle locale={locale} />
+          </div>
           <a
             href={signInHref}
-            className="hidden rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-surface-raised hover:text-foreground sm:inline-block"
+            className="hidden rounded-lg px-3 py-2 text-sm font-medium text-foreground/70 transition-colors duration-150 ease-out hover:bg-surface-raised hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-block"
           >
             {t.signIn}
           </a>
           <Link
-            href={signUpHref}
-            className="hidden rounded-xl px-3 py-2 text-sm font-medium text-foreground/70 transition-colors hover:bg-surface-raised hover:text-foreground sm:inline-block"
-          >
-            {t.signUp}
-          </Link>
-          <Link
-            href={pilotHref}
-            className="hidden h-9 items-center gap-1.5 rounded-xl bg-signal-500 px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-md active:scale-[0.98] sm:inline-flex"
+            href={ctaHref}
+            className="hidden h-9 items-center rounded-lg bg-signal-500 px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors duration-150 ease-out hover:bg-signal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:inline-flex"
           >
             {t.requestPilot}
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
           <button
             type="button"
-            onClick={() => setMobileOpen((v) => !v)}
-            className="rounded-xl border border-border/60 bg-background/70 p-2 transition-colors hover:bg-surface-raised lg:hidden"
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            onClick={() => setMobileOpen(true)}
+            aria-label={t.openMenu}
             aria-expanded={mobileOpen}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-surface text-foreground transition-colors duration-150 ease-out hover:bg-surface-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:hidden"
           >
-            {mobileOpen ? (
-              <X className="h-5 w-5 text-foreground" />
-            ) : (
-              <Menu className="h-5 w-5 text-foreground" />
-            )}
+            <Menu className="h-5 w-5" aria-hidden />
           </button>
         </div>
-      </div>
+      </nav>
 
-      {/* Mobile drawer */}
-      {mobileOpen && (
-        <div className="max-h-dialog overflow-y-auto border-t border-border/60 bg-card/95 backdrop-blur-2xl lg:hidden">
-          <div className="mx-auto max-w-7xl space-y-4 px-4 py-4">
-            {AUDIENCE_CATEGORIES.map((cat) => (
-              <div key={cat.titleKey}>
-                <div className="mb-2 px-4 font-mono text-tiny font-semibold uppercase tracking-widest text-foreground/60">
-                  {cats[cat.titleKey]}
-                </div>
-                <div className="grid grid-cols-2 gap-1">
-                  {cat.items.map((item) => {
-                    const Icon = item.icon;
-                    const titleKey = item.id as keyof typeof items;
-                    return (
-                      <Link
-                        key={item.id}
-                        href={item.href}
-                        onClick={() => setMobileOpen(false)}
-                        className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm text-foreground/75 transition-colors hover:bg-surface-raised hover:text-foreground"
-                      >
-                        <Icon className="h-4 w-4" aria-hidden />
-                        <span>{items[titleKey]}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-
-            <div className="border-t border-border/60 pt-2" />
-
-            <Link
-              href="/pricing"
-              onClick={() => setMobileOpen(false)}
-              className="block rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-raised"
-            >
-              {t.pricing}
-            </Link>
-
-            {RESOURCE_LINKS.map((link) => {
-              const Icon = link.icon;
-              const labelKey = link.labelKey as keyof typeof t;
-              const label = (t[labelKey] as string) ?? link.labelKey;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-surface-raised"
-                >
-                  <Icon className="h-4 w-4" aria-hidden />
-                  {label}
-                </Link>
-              );
-            })}
-
-            <div className="border-t border-border/60 pt-2" />
-
-            <div className="grid gap-2">
-              <Link
-                href={pilotHref}
-                onClick={() => setMobileOpen(false)}
-                className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-signal-500 px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all duration-fast hover:bg-signal-400 hover:shadow-md active:scale-[0.98]"
-              >
-                {t.requestPilot}
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-              </Link>
-              <a
-                href={signInHref}
-                onClick={() => setMobileOpen(false)}
-                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-border/60 px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-raised"
-              >
-                {t.signIn}
-              </a>
-              <Link
-                href={signUpHref}
-                onClick={() => setMobileOpen(false)}
-                className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-border/60 px-4 text-sm font-medium text-foreground transition-colors hover:bg-surface-raised"
-              >
-                {t.signUp}
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-    </nav>
+      <MobileDrawer
+        open={mobileOpen}
+        onClose={() => setMobileOpen(false)}
+        categories={AUDIENCE_CATEGORIES}
+        primaryLinks={PRIMARY_LINKS}
+        messages={t}
+        locale={locale}
+        pathname={pathname}
+        signInHref={signInHref}
+        ctaHref={ctaHref}
+      />
+    </header>
   );
 }

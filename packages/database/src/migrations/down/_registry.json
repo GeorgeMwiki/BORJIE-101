@@ -656,6 +656,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0365_rls_enforcement_cross_tenant_closure.sql",
+      "down": "down/0365_down_rls_enforcement_cross_tenant_closure.sql",
+      "reverses": "Drops the five additive RLS-enforcement closure policies: rfb_open_public_read (request_for_bids), rfb_responses_seller_insert + rfb_responses_seller_read (request_for_bid_responses), and the service_role_bypass policies on owner_tabs_structural / saved_searches / marketplace_listings. Dev/staging only — once FORCE RLS is enforced this RE-DARKENS the intentional cross-tenant feeds (RFB /nearby seller discovery + seller write-back, the buyer cross-tenant tab projection, the saved-search alert drain, and the HQ marketplace moderation queue all go to zero rows). Pure RLS metadata, no data touched, table-guarded + idempotent. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

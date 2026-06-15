@@ -27,7 +27,7 @@
 import { Hono } from 'hono';
 import { desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { marketplaceListings } from '@borjie/database';
+import { marketplaceListings, withServiceRoleContext } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware, requireRole } from '../../../middleware/hono-auth';
 import { databaseMiddleware } from '../../../middleware/database';
@@ -35,6 +35,9 @@ import { UserRole } from '../../../types/user-role';
 import { createLogger } from '../../../utils/logger';
 
 const moduleLogger = createLogger('admin-marketplace-moderation');
+
+// withServiceRoleContext's db param type (derived to dodge the TS2709 clash).
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 const IdParamSchema = z.object({ id: z.string().min(1).max(200) });
 
@@ -93,11 +96,21 @@ export function createMiningInternalMarketplaceRouter(): Hono {
         503,
       );
     }
-    const rows = await db
-      .select()
-      .from(marketplaceListings)
-      .orderBy(desc(marketplaceListings.createdAt))
-      .limit(200);
+    // Cross-tenant moderation read: SUPER_ADMIN/ADMIN must see EVERY listing
+    // across every tenant regardless of status/visibility — the private /
+    // paused / removed rows that 0350's active+public-tier read does NOT
+    // expose. Under FORCE RLS this must bind `app.is_service_role='true'`
+    // (migration 0365's `marketplace_listings_service_role_bypass`) or the
+    // scan collapses to the admin's own tenant + the active/public feed.
+    const rows = await withServiceRoleContext(
+      db as unknown as ServiceRoleDb,
+      (tx) =>
+        (tx as unknown as typeof db)
+          .select()
+          .from(marketplaceListings)
+          .orderBy(desc(marketplaceListings.createdAt))
+          .limit(200),
+    );
     const data = (rows as ReadonlyArray<Record<string, unknown>>).map(
       projectRow,
     );
@@ -174,11 +187,20 @@ async function transitionStatus(
   const id = parsed.data.id;
 
   try {
-    const [row] = await db
-      .update(marketplaceListings)
-      .set({ status: nextStatus, updatedAt: new Date() })
-      .where(eq(marketplaceListings.id, id))
-      .returning();
+    // Cross-tenant moderation write: the targeted listing belongs to ANOTHER
+    // tenant, so under FORCE RLS the own-tenant tenant_isolation WITH CHECK
+    // would reject the UPDATE. Bind the service-role context (migration 0365's
+    // `marketplace_listings_service_role_bypass`) so hide/restore reaches the
+    // cross-tenant row. SUPER_ADMIN/ADMIN is already enforced at router level.
+    const [row] = await withServiceRoleContext(
+      db as unknown as ServiceRoleDb,
+      (tx) =>
+        (tx as unknown as typeof db)
+          .update(marketplaceListings)
+          .set({ status: nextStatus, updatedAt: new Date() })
+          .where(eq(marketplaceListings.id, id))
+          .returning(),
+    );
     if (!row) {
       return c.json(
         {

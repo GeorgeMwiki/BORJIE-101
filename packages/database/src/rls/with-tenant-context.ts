@@ -17,10 +17,36 @@
  * Both settings use `set_config(..., true)` — the `true` third
  * argument scopes the binding to the current transaction, so the
  * GUC cannot leak across requests on a pooled connection.
+ *
+ * RLS ENFORCEMENT SWITCH (default-off). The prod gateway connects as a
+ * `rolbypassrls=t` role, so FORCE ROW LEVEL SECURITY is INERT — the GUCs are
+ * bound but never actually filter. When `BORJIE_ENFORCE_RLS === 'true'` this
+ * helper additionally issues `SET LOCAL ROLE authenticated` AFTER binding the
+ * GUCs. The `authenticated` role is `rolbypassrls=f` and carries the table
+ * GRANTs, so RLS policies (tenant_isolation + the service_role_bypass /
+ * public-read admits) genuinely enforce for the wrapped callback. `SET LOCAL`
+ * is transaction-scoped — it auto-resets at COMMIT/ROLLBACK exactly like the
+ * `set_config(..., true)` GUCs, so it never leaks across pooled requests.
+ *
+ * The flag is read at call time (not module-init) so it can be flipped without
+ * a redeploy. UNSET / any-non-'true' value → byte-for-byte today's behaviour
+ * (no role switch, the bypass role keeps passing RLS). It is read here, in the
+ * same shared helper the GUC-binding lives in — not via a service bootstrap —
+ * because the enforcement decision is inseparable from the GUC binding it
+ * gates (mirrors `seed.ts`'s runtime `SEED_DEMO` read in this package).
  */
 
 import { sql } from 'drizzle-orm';
 import type { DatabaseClient } from '../client.js';
+
+/**
+ * Whether RLS enforcement (SET LOCAL ROLE authenticated) is active. Default-off:
+ * only the exact string `'true'` enables it; unset / anything else is today's
+ * inert-RLS behaviour. Read per-call so the switch can flip without a redeploy.
+ */
+function rlsEnforcementEnabled(): boolean {
+  return process.env.BORJIE_ENFORCE_RLS === 'true';
+}
 
 export interface WithTenantContextOpts {
   /** Set when the caller legitimately needs cross-tenant access. */
@@ -98,6 +124,16 @@ export async function withTenantContext<T>(
       await tx.execute(
         sql`SELECT set_config('app.current_person_id', ${personId}, true)`,
       );
+    }
+    // RLS enforcement switch (default-off). Issued LAST — after every GUC is
+    // bound — so the policies evaluate against the fully-populated context.
+    // `SET LOCAL ROLE authenticated` drops to a `rolbypassrls=f` role inside
+    // this transaction only (auto-reset at COMMIT/ROLLBACK). Unset/false leaves
+    // the connection on its current (bypass) role: today's exact behaviour.
+    // `ROLE` cannot be parameterised, but `authenticated` is a fixed literal
+    // (never user input), so there is no injection surface.
+    if (rlsEnforcementEnabled()) {
+      await tx.execute(sql`SET LOCAL ROLE authenticated`);
     }
     return await fn(tx as unknown as DatabaseClient);
   });
