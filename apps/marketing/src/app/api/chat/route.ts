@@ -216,6 +216,10 @@ export async function POST(req: Request): Promise<Response> {
   const upstreamBody = {
     sessionId: parsed.sessionId,
     message: parsed.message,
+    // Forward the active locale so the gateway pins Mr. Mwikila's REPLY to it.
+    // Without this the gateway defaults to 'en' and answers a Swahili visitor
+    // in English (zero-mix canon violation in the chat content itself).
+    language: parsed.language ?? 'en',
   };
 
   let serviceToken: string;
