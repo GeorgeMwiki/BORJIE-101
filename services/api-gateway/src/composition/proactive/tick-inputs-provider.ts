@@ -35,8 +35,21 @@
  * `customerOwners`). A neutral default never fabricates a signal and never
  * crashes the tick; a query fault degrades that ONE slice + emits a pino warn,
  * the rest of the tenant's inputs still assemble. No `process.env`, pino-shaped
- * logger injected, RLS FORCE (`app.current_tenant_id`) is the DB-side backstop —
- * the tenant predicate here is defence-in-depth, never the only guard.
+ * logger injected.
+ *
+ * RLS CONTRACT (load-bearing): every slice SELECT passes `tenantId` as its first
+ * bound param (`params[0]`) AND assumes the injected `query` port binds
+ * `app.current_tenant_id = tenantId` for that statement. The worker bypasses the
+ * gateway's per-request databaseMiddleware, so the shared service pool carries NO
+ * tenant GUC. `cash_balances` / `forecasts` / `sales` / `buyers` are FORCE RLS;
+ * the `WHERE tenant_id = $1` predicate is app-side only and does NOT satisfy that
+ * policy on its own. With no GUC bound, FORCE RLS filters every slice to ZERO
+ * rows (silent darkness, green tests). The per-tenant binding therefore happens
+ * at the integration adapter (`index.ts`, where the transaction-capable
+ * `serviceRegistry.db` / `$client` lives) by pinning one connection and running
+ * `set_config('app.current_tenant_id', params[0], true)` before the slice SQL.
+ * This satisfies tenant isolation with NO new bypass policy. The unit stub binds
+ * nothing (no real RLS), so the contract is exercised only against live PG.
  */
 
 import { z } from 'zod';
@@ -61,6 +74,13 @@ import type { ProactiveIntelInputsProvider } from '../../workers/proactive-intel
  * `portal-genui-wiring.ts` builds from Drizzle's `$client.unsafe`. Re-declared
  * here (rather than importing `DbExecutor`) so this module depends on nothing
  * heavier than this signature; the integration site adapts `$client.unsafe`.
+ *
+ * BINDING CONTRACT: `params[0]` is ALWAYS the tenant id, and the adapter behind
+ * this port MUST bind `app.current_tenant_id = params[0]` on the connection that
+ * runs the statement (the portal-genui store gets this for free from the
+ * request-scoped middleware connection; the proactive WORKER does not, so its
+ * adapter pins a connection and `set_config`s the GUC itself). Without that, the
+ * FORCE-RLS financial tables return zero rows even though the SQL is correct.
  */
 export interface TickInputsQueryPort {
   query<Row = Record<string, unknown>>(

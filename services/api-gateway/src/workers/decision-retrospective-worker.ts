@@ -35,6 +35,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 
 import type { DecisionRecorder } from '../services/decision-journal/index.js';
 import type { RetrospectiveGrade } from '../services/decision-journal/index.js';
@@ -52,6 +53,8 @@ const DEFAULT_SOFT_GRADE_WAIT_DAYS = 60;
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
+
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 interface PendingDecision {
   readonly id: string;
@@ -201,6 +204,23 @@ export function createDecisionRetrospectiveWorker(
 
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  // `decisions`, `outcome_reconciliations`, `outcome_observations` and
+  // `decision_outcomes` all carry FORCE RLS; this fetch is a CROSS-TENANT
+  // discovery scan over the shared pool, so it must bind
+  // `app.is_service_role='true'` or the join matches ZERO rows (the worker
+  // goes silently dark). Wrap when transactional; the unit-test mock injects
+  // a bare `execute` with no `transaction`, so route through directly.
+  function runStmt(q: unknown): Promise<unknown> {
+    const dbAny = options.db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(
+        options.db as unknown as ServiceRoleDb,
+        (tx) => (tx as unknown as DbLike).execute(q),
+      );
+    }
+    return options.db.execute(q);
+  }
+
   async function fetchPending(): Promise<readonly PendingDecision[]> {
     const softCutoff = new Date(
       clock().getTime() - softWaitDays * 24 * 60 * 60 * 1000,
@@ -214,7 +234,7 @@ export function createDecisionRetrospectiveWorker(
     // (Same root cause family as the recorder text[] bug — see
     //  services/api-gateway/src/utils/pg-array.ts for the helper used
     //  on array binds elsewhere in this worker family.)
-    const result = await options.db.execute(sql`
+    const result = await runStmt(sql`
       SELECT d.id, d.tenant_id, d.decision_subject, d.related_prediction_id,
              d.decided_at,
              r.status                  AS reconciliation_status,

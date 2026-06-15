@@ -85,10 +85,12 @@ import {
   normaliseDebateBadge,
   normaliseBrainStateBadge,
   normaliseAutoAuthorized,
+  normaliseAuditor,
   type DebateBadge,
   type BrainStateBadge,
   type AutoAuthorizedBadge,
 } from './teach-sse-normalisers';
+import type { ChatGroundingSignal } from '@/lib/types/chat';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
 import { pickByLocale } from '@/lib/locale';
@@ -190,6 +192,10 @@ interface TeachMessage {
   readonly debate: DebateBadge | null;
   readonly brainState: BrainStateBadge | null;
   readonly autoAuthorized: AutoAuthorizedBadge | null;
+  // KI-005 — the Auditor grounding verdict for this answer, from the terminal
+  // `auditor` SSE frame. Null until the frame lands; a withheld / warn-only /
+  // ungrounded verdict renders a caution badge above the bubble.
+  readonly grounding: ChatGroundingSignal | null;
   // Wave SUPERPOWERS - 6 chip families the brain may emit per turn.
   readonly navigates: ReadonlyArray<UiNavigateChip>;
   readonly prefills: ReadonlyArray<UiPrefillChip>;
@@ -244,6 +250,7 @@ function makeAssistantNote(text: string): TeachMessage {
     debate: null,
     brainState: null,
     autoAuthorized: null,
+    grounding: null,
     streaming: false,
     errored: false,
     errorMessage: null,
@@ -481,6 +488,7 @@ export function HomeChatTeach({
         debate: null,
         brainState: null,
         autoAuthorized: null,
+        grounding: null,
         streaming: false,
         errored: false,
         errorMessage: null,
@@ -509,6 +517,7 @@ export function HomeChatTeach({
         debate: null,
         brainState: null,
         autoAuthorized: null,
+        grounding: null,
         streaming: true,
         errored: false,
         errorMessage: null,
@@ -794,6 +803,20 @@ export function HomeChatTeach({
                 setMessages((prev) =>
                   prev.map((m) =>
                     m.id === assistantId ? { ...m, brainState: badge } : m,
+                  ),
+                );
+              }
+            } else if (frame.event === 'auditor') {
+              // KI-005 — the terminal evidence-chain Auditor verdict for the
+              // final answer. A stream cannot un-send flushed tokens, so the
+              // verdict is SURFACED (never withheld): render a caution badge
+              // above the bubble when the answer was ungrounded / unverified /
+              // flagged. Approved + grounded answers carry no badge.
+              const signal = normaliseAuditor(payload);
+              if (signal) {
+                setMessages((prev) =>
+                  prev.map((m) =>
+                    m.id === assistantId ? { ...m, grounding: signal } : m,
                   ),
                 );
               }
@@ -1230,6 +1253,7 @@ export function HomeChatTeach({
               {messages.length === 0 ? (
                 <AskEmptyState
                   kind={emptyKind}
+                  locale={languagePreference}
                   detail={emptyKind === 'error' ? lastError : null}
                 />
               ) : (
@@ -1378,6 +1402,19 @@ function TeachBubble({
     message.text.trim().length > 0;
   const personaLabel = pickByLocale(languagePreference, S.personaLabel);
 
+  // KI-005 — resolve the Auditor caution copy for this turn (single-language
+  // per locale). Null on owner turns and on grounded / approved answers.
+  const g = isOwner ? null : message.grounding;
+  const groundingWarn = g?.groundingFault
+    ? pickByLocale(languagePreference, S.groundingFault)
+    : g?.evidenceWarning === 'no_evidence_cited'
+      ? pickByLocale(languagePreference, S.groundingNoEvidence)
+      : g?.evidenceWarning === 'evidence_invalid'
+        ? pickByLocale(languagePreference, S.groundingEvidenceInvalid)
+        : g?.verdict === 'needs_human'
+          ? pickByLocale(languagePreference, S.groundingNeedsHuman)
+          : null;
+
   return (
     <div className="space-y-2">
       {!isOwner && message.inlineMetrics.length > 0 ? (
@@ -1394,7 +1431,7 @@ function TeachBubble({
         </ul>
       ) : null}
 
-      {!isOwner && (message.debate || message.brainState) ? (
+      {!isOwner && (message.debate || message.brainState || groundingWarn) ? (
         <div
           data-testid="teach-trust-badges"
           className="flex flex-wrap items-center gap-1.5 pl-10"
@@ -1421,6 +1458,15 @@ function TeachBubble({
             >
               <AlertTriangle aria-hidden="true" className="h-3 w-3" />
               {message.brainState.label}
+            </span>
+          ) : null}
+          {groundingWarn ? (
+            <span
+              data-testid="teach-badge-grounding"
+              className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-tiny font-medium text-warning"
+            >
+              <AlertTriangle aria-hidden="true" className="h-3 w-3" />
+              {groundingWarn}
             </span>
           ) : null}
         </div>

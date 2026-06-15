@@ -24,6 +24,7 @@ import { BorjieMark } from './BorjieMark';
 import { MESSAGES, t } from './messages';
 import type {
   BorjieDebateMetadata,
+  BorjieGroundingSignal,
   BorjieLanguage,
   BorjieMessage,
 } from './useBorjieChat';
@@ -100,6 +101,9 @@ export function BorjieChatBubble({
       >
         {!isUser && message.debate?.verified ? (
           <DebateBadge debate={message.debate} language={language} />
+        ) : null}
+        {!isUser ? (
+          <GroundingBadge grounding={message.grounding} language={language} />
         ) : null}
         <div
           style={{
@@ -305,6 +309,63 @@ function ThinkingDots({
       <span style={{ fontSize: 11, fontStyle: 'italic' }}>
         {t(MESSAGES.thinking, language)}…
       </span>
+    </span>
+  );
+}
+
+/**
+ * GroundingBadge — KI-005 caution badge shown above an assistant bubble
+ * when the Auditor flagged the answer as ungrounded / unverified / needs-
+ * human. Mirrors the owner-web master-brain ChatBubble grounding affordance
+ * so both surfaces carry an identical signal. Approved + grounded answers
+ * render nothing (no clutter). Single-language per locale.
+ */
+function GroundingBadge({
+  grounding,
+  language,
+}: {
+  readonly grounding: BorjieGroundingSignal | undefined;
+  readonly language: BorjieLanguage;
+}): JSX.Element | null {
+  if (!grounding) return null;
+  const sw = language === 'sw';
+  const warn = grounding.groundingFault
+    ? sw
+      ? 'Ukaguzi wa uthibitisho haupatikani. Tahadhari.'
+      : 'Grounding check unavailable. Treat with caution.'
+    : grounding.evidenceWarning === 'no_evidence_cited'
+      ? sw
+        ? 'Haijathibitishwa: hakuna ushahidi uliotajwa.'
+        : 'Unverified: no evidence cited.'
+      : grounding.evidenceWarning === 'evidence_invalid'
+        ? sw
+          ? 'Ushahidi haukuweza kuthibitishwa.'
+          : 'Evidence could not be verified.'
+        : grounding.verdict === 'needs_human'
+          ? sw
+            ? 'Mkaguzi ameashiria jibu hili kwa ukaguzi.'
+            : 'Auditor flagged this answer for review.'
+          : null;
+  if (!warn) return null;
+  return (
+    <span
+      data-testid="borjie-grounding-badge"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        background: 'rgba(245, 178, 62, 0.12)',
+        color: '#7A5A12',
+        border: '1px solid rgba(245, 178, 62, 0.45)',
+        padding: '3px 9px',
+        borderRadius: 999,
+        fontSize: 10.5,
+        fontWeight: 600,
+        letterSpacing: '0.01em',
+      }}
+    >
+      <span aria-hidden="true">⚠</span>
+      {warn}
     </span>
   );
 }

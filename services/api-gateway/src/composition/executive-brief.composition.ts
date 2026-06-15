@@ -47,6 +47,14 @@ import type { GraphTraversalPort, GraphHop, EdgeType } from '@borjie/org-graph';
 import { sql } from 'drizzle-orm';
 import { resolveTierModel } from './model-tier-map.js';
 
+// drizzle spreads a bare JS array into `($1, $2)`, an invalid record cast;
+// `ARRAY[...]` is required so each element is its own param (empty -> `ARRAY[]`).
+const sqlTextArray = (xs: ReadonlyArray<string>) =>
+  sql`ARRAY[${sql.join(
+    xs.map((x) => sql`${x}`),
+    sql`, `,
+  )}]`;
+
 // ─────────────────────────────────────────────────────────────────────
 // Public surface
 // ─────────────────────────────────────────────────────────────────────
@@ -508,7 +516,7 @@ function buildGraphTraversal(db: DbLike): GraphTraversalPort {
                    1 AS depth, ARRAY[e.id]::text[] AS path
               FROM org_graph_edges e
              WHERE e.tenant_id = ${tenantId}
-               AND e.edge_type = ANY(${edgeTypes}::text[])
+               AND e.edge_type = ANY(${sqlTextArray(edgeTypes)}::text[])
                AND e.valid_to IS NULL
                AND e.src_entity_id = ${entityId}
             UNION ALL
@@ -517,7 +525,7 @@ function buildGraphTraversal(db: DbLike): GraphTraversalPort {
               JOIN org_graph_edges e
                 ON e.tenant_id = ${tenantId}
                AND e.src_entity_id = c.entity_id
-               AND e.edge_type = ANY(${edgeTypes}::text[])
+               AND e.edge_type = ANY(${sqlTextArray(edgeTypes)}::text[])
                AND e.valid_to IS NULL
              WHERE c.depth < ${maxHops}
                AND NOT (e.id = ANY(c.path))

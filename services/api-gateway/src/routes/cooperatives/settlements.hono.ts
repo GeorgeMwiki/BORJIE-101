@@ -27,6 +27,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
+import { CURRENCY_DECIMALS } from '@borjie/domain-models';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
@@ -102,14 +103,81 @@ function auditHash(input: Record<string, unknown>): string {
   return createHash('sha256').update(JSON.stringify(input)).digest('hex');
 }
 
+interface DbExecutor {
+  execute(query: unknown): Promise<unknown>;
+}
+
+function rowsOf(raw: unknown): ReadonlyArray<Record<string, unknown>> {
+  if (Array.isArray(raw)) return raw as ReadonlyArray<Record<string, unknown>>;
+  if (raw && typeof raw === 'object' && 'rows' in raw) {
+    const r = (raw as { rows: unknown }).rows;
+    if (Array.isArray(r)) return r as ReadonlyArray<Record<string, unknown>>;
+  }
+  return [];
+}
+
 /**
- * Allocate the net distributable across members in INTEGER minor units
- * (the `amount_tzs` column is `numeric(18,2)`, so the minor unit is a cent).
+ * Resolve the tenant's primary currency so the allocation precision matches
+ * the LEDGER leg (no hard-coded decimals — CLAUDE.md). Mirrors
+ * `resolveTenantCurrency` in `composition/ledger/cooperative-distribution.ts`.
+ * The cooperative surface is TZS-pinned today, so an unresolved currency
+ * falls back to TZS (0-decimal): the allocation stays whole-shilling, which is
+ * exactly the precision the distribution ledger posts at.
+ */
+async function resolveTenantCurrency(
+  db: DbExecutor,
+  tenantId: string,
+): Promise<string> {
+  const rows = rowsOf(
+    await db.execute(sql`
+      SELECT primary_currency
+        FROM tenants
+       WHERE id = ${tenantId}::uuid
+       LIMIT 1
+    `),
+  );
+  const currency = rows[0]?.primary_currency;
+  return typeof currency === 'string' && currency.trim().length > 0
+    ? currency.trim().toUpperCase()
+    : 'TZS';
+}
+
+/**
+ * The TZS minor-unit scale — TZS is a 0-decimal currency (whole shillings),
+ * so its minor unit IS the major unit. Resolved per-tenant in `calculate`
+ * via `CURRENCY_DECIMALS`; this constant is only the fail-closed default for
+ * the TZS-pinned cooperative surface when a currency cannot be resolved.
+ */
+const TZS_MINOR_FACTOR = 1;
+
+/**
+ * Currency-aware MAJOR → integer-minor scale (no hard-coded decimals). For a
+ * 0-decimal currency (TZS / UGX / RWF) the factor is 1 so the allocation is
+ * whole-unit and lands at exactly the precision the ledger posts at; for a
+ * 2-decimal currency the factor is 100 (cents). Mirrors `majorToMinor` in
+ * `composition/ledger/cooperative-distribution.ts` so `calculate` and the
+ * ledger leg agree on precision.
+ */
+function minorUnitFactor(currency: string): number {
+  const decimals = CURRENCY_DECIMALS[currency] ?? 2;
+  return decimals === 0 ? 1 : Math.pow(10, decimals);
+}
+
+/**
+ * Allocate the net distributable across members in INTEGER minor units of the
+ * TENANT'S TRUE currency precision (`factor`), NOT fixed cents. The
+ * cooperative surface is TZS-pinned today (a 0-decimal currency, factor=1), so
+ * the split is whole-shilling — which is exactly the precision the TZS ledger
+ * leg posts at. This makes `SUM(member amount) == net` at LEDGER precision:
+ * the remainder-plug below lands on the largest-fraction member at the same
+ * unit the ledger rounds to, so no shillings leak when `distribute`'s
+ * `majorToMinor` scales each member amount (the prior fixed-cent allocation
+ * left sub-shilling residue that the 0-decimal ledger floored away).
  *
- * Each member's share is floored to whole minor units; the FINAL member
- * absorbs the exact remainder `netCents - sum(others)` so the allocation
- * provably sums to the net to the last minor unit — no float drift, no
- * sub-unit leakage (mirrors the seller-net remainder plug in
+ * Each member's share is floored to whole minor units; the leftover minor
+ * units are handed out one-by-one (largest fractional part first) so the
+ * allocation provably sums to the entitled total to the last minor unit — no
+ * float drift, no sub-unit leakage (mirrors the seller-net remainder plug in
  * `computeSettlementMath`). When the share total is < 100% the unallocated
  * residual is NOT folded into the last member — only the rounding remainder
  * of the allocated shares is — so an intentional retention (e.g. a held-back
@@ -118,8 +186,9 @@ function auditHash(input: Record<string, unknown>): string {
 function allocateShareMinorUnits(
   net: number,
   members: ReadonlyArray<{ sharePct: number }>,
+  factor: number,
 ): number[] {
-  const netCents = Math.round(net * 100);
+  const netCents = Math.round(net * factor);
   // Each member's exact (un-rounded) minor-unit entitlement.
   const exact = members.map((m) => (m.sharePct / 100) * netCents);
   // Floor every member to whole minor units first.
@@ -333,15 +402,24 @@ app.post(
 
       const net = Number(period.net_distributable_tzs);
 
+      // Resolve the tenant's true minor-unit precision so the allocation
+      // matches the LEDGER leg. TZS is 0-decimal (factor=1, whole shillings);
+      // allocating in whole shillings here means SUM(member amount) == net at
+      // the SAME precision the distribution ledger posts at, so no remainder
+      // leaks when `distribute`'s `majorToMinor` scales each amount. The prior
+      // fixed-cent allocation (*100) left sub-shilling residue the 0-decimal
+      // ledger floored away.
+      const currency = await resolveTenantCurrency(db, auth.tenantId);
+      const factor = minorUnitFactor(currency) || TZS_MINOR_FACTOR;
+
       // Per-member share in INTEGER minor units so SUM(shares) provably
-      // equals net (no float drift / sub-unit leakage). Each member except
-      // the LAST is floored to whole minor units; the FINAL member absorbs
-      // the exact remainder `netCents - sum(others)` — the same
-      // remainder-plug discipline as `splitSettlementMinorUnits` /
-      // `computeSettlementMath`. Amounts are then rendered back to the
-      // `numeric(18,2)` MAJOR-unit `amount_tzs` column. The members keep
-      // their request order so the remainder lands on a stable row.
-      const amounts = allocateShareMinorUnits(net, body.members);
+      // equals net (no float drift / sub-unit leakage). Each member is floored
+      // to whole minor units; the leftover units are handed out largest-
+      // fraction-first — the same remainder-plug discipline as
+      // `splitSettlementMinorUnits` / `computeSettlementMath`. Amounts are
+      // then rendered back to the MAJOR-unit `amount_tzs` column at the
+      // currency's precision (whole shillings for TZS).
+      const amounts = allocateShareMinorUnits(net, body.members, factor);
 
       // Wipe + reinsert to keep snapshot deterministic.
       await db.execute(sql`
@@ -351,8 +429,9 @@ app.post(
       for (let i = 0; i < body.members.length; i += 1) {
         const m = body.members[i];
         const distId = randomUUID();
-        // minor units → major (2-decimal) for the numeric column.
-        const amount = amounts[i]! / 100;
+        // minor units → major for the numeric column, at the tenant
+        // currency's precision (factor=1 for 0-decimal TZS == whole shillings).
+        const amount = amounts[i]! / factor;
         const distHash = auditHash({
           distId,
           periodId: id,

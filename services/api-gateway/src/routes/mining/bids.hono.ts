@@ -34,6 +34,7 @@ import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
+import { enqueueBidOutcomeNotification } from '../../services/buyer-notifications';
 import {
   bidsPlaceRoute,
   bidsListRoute,
@@ -273,8 +274,8 @@ async function crystallizeOfftakeAgreement(
     paymentTerms: string | null;
   },
   listingAttributes: unknown,
-): Promise<void> {
-  await tx
+): Promise<string | null> {
+  const [inserted] = await tx
     .insert(offtakeAgreements)
     .values({
       id: randomUUID(),
@@ -288,7 +289,42 @@ async function crystallizeOfftakeAgreement(
       paymentTerms: bid.paymentTerms,
       status: 'pending_signature',
     })
-    .onConflictDoNothing({ target: offtakeAgreements.bidId });
+    .onConflictDoNothing({ target: offtakeAgreements.bidId })
+    .returning({ id: offtakeAgreements.id });
+  // On a conflict (re-accept of the same bid) the insert returns no row;
+  // re-read the existing agreement so the buyer notification deep-link
+  // still resolves the contract awaiting signature.
+  if (inserted?.id) return inserted.id;
+  const [existing] = await tx
+    .select({ id: offtakeAgreements.id })
+    .from(offtakeAgreements)
+    .where(
+      and(
+        eq(offtakeAgreements.bidId, bid.id),
+        eq(offtakeAgreements.tenantId, tenantId),
+      ),
+    )
+    .limit(1);
+  return existing?.id ?? null;
+}
+
+/**
+ * Resolve the linked user_id of a buyer row so the buyer notification +
+ * cockpit pulse can target the bid's BUYER (not the seller actioning it).
+ * Returns null when the buyer was never linked to a user (KYC-only row).
+ */
+async function resolveBuyerUserId(
+  db: DrizzleDb,
+  tenantId: string,
+  buyerId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ linkedUserId: buyers.linkedUserId })
+    .from(buyers)
+    .where(and(eq(buyers.id, buyerId), eq(buyers.tenantId, tenantId)))
+    .limit(1);
+  const linked = row?.linkedUserId;
+  return typeof linked === 'string' && linked.length > 0 ? linked : null;
 }
 
 app.openapi(
@@ -309,6 +345,7 @@ app.openapi(
       // NOTE: money is NOT moved here. agreed_price_tzs / quantity_kg are
       // CONTRACT TERMS; settlement still routes through LedgerService.post().
       let updated: Record<string, unknown> | null = null;
+      let offtakeAgreementId: string | null = null;
       try {
         updated = await db.transaction(async (tx: DrizzleDb) => {
           const flipped = await setBidStatus(tx, tenantId, id, 'accepted', {
@@ -329,7 +366,7 @@ app.openapi(
             )
             .limit(1);
 
-          await crystallizeOfftakeAgreement(
+          offtakeAgreementId = await crystallizeOfftakeAgreement(
             tx,
             tenantId,
             {
@@ -341,6 +378,30 @@ app.openapi(
             },
             listing?.attributes ?? {},
           );
+
+          // Notify the buyer that their bid was accepted (the binding
+          // offtake was just created and now awaits THEIR signature). The
+          // bid is intra-tenant (buyer + seller share tenantId), so the row
+          // commits in the same tenant context inside this transaction so
+          // the contract + the notification are atomic. Best-effort on the
+          // buyer-user resolution: a KYC-only buyer with no linked user can
+          // still settle, they just get no inbox row.
+          const buyerUserId = await resolveBuyerUserId(
+            tx,
+            tenantId,
+            flipped.buyerId,
+          );
+          if (buyerUserId) {
+            await enqueueBidOutcomeNotification(tx, {
+              buyerTenantId: tenantId,
+              buyerUserId,
+              sellerTenantId: tenantId,
+              outcome: 'accepted',
+              bidId: flipped.id,
+              listingId: flipped.listingId,
+              offtakeAgreementId,
+            });
+          }
           return flipped;
         });
       } catch (error) {
@@ -369,6 +430,26 @@ app.openapi(
           404,
         );
       }
+      // Pulse the buyer's own cockpit:<tenantId> channel so buyer-mobile
+      // invalidates the buyer_notifications inbox and surfaces the accepted
+      // bid immediately. Best-effort, never blocks the response — the
+      // persisted notification row above is the durable truth.
+      const acceptedBid = updated;
+      setImmediate(() => {
+        try {
+          publishCockpitEvent({
+            kind: 'bid.accepted',
+            tenantId,
+            emittedAt: new Date().toISOString(),
+            bidId: String(acceptedBid.id),
+            listingId: (acceptedBid.listingId as string | null) ?? null,
+            offtakeAgreementId,
+            buyerId: String(acceptedBid.buyerId),
+          });
+        } catch {
+          // bus failures must never leak to the request response.
+        }
+      });
       return c.json({ success: true as const, data: updated }, 200);
     },
   ),
@@ -383,9 +464,32 @@ app.openapi(
       const db = c.get('db') as DrizzleDb;
       const { id } = c.req.valid('param');
       const body = c.req.valid('json');
-      const updated = await setBidStatus(db, tenantId, id, 'rejected', {
-        rejectionReason: body.reason,
-        rejectedAt: new Date().toISOString(),
+      // Flip the status AND write the buyer notification in ONE tenant-bound
+      // transaction so the buyer reliably learns the outcome the moment the
+      // bid is declined (the bid is intra-tenant, so the buyer's own
+      // cockpit:<tenantId> channel + inbox both receive it).
+      const updated = await db.transaction(async (tx: DrizzleDb) => {
+        const flipped = await setBidStatus(tx, tenantId, id, 'rejected', {
+          rejectionReason: body.reason,
+          rejectedAt: new Date().toISOString(),
+        });
+        if (!flipped) return null;
+        const buyerUserId = await resolveBuyerUserId(
+          tx,
+          tenantId,
+          flipped.buyerId,
+        );
+        if (buyerUserId) {
+          await enqueueBidOutcomeNotification(tx, {
+            buyerTenantId: tenantId,
+            buyerUserId,
+            sellerTenantId: tenantId,
+            outcome: 'rejected',
+            bidId: flipped.id,
+            listingId: flipped.listingId,
+          });
+        }
+        return flipped;
       });
       if (!updated) {
         return c.json(
@@ -396,6 +500,21 @@ app.openapi(
           404,
         );
       }
+      const rejectedBid = updated;
+      setImmediate(() => {
+        try {
+          publishCockpitEvent({
+            kind: 'bid.rejected',
+            tenantId,
+            emittedAt: new Date().toISOString(),
+            bidId: String(rejectedBid.id),
+            listingId: (rejectedBid.listingId as string | null) ?? null,
+            buyerId: String(rejectedBid.buyerId),
+          });
+        } catch {
+          // bus failures must never leak to the request response.
+        }
+      });
       return c.json({ success: true as const, data: updated }, 200);
     },
   ),

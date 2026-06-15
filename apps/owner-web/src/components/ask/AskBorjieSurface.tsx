@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useLocale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
+import { askEmptyStateStrings as S } from '@/i18n/strings/ask-empty-state';
 import { isBrainConfigured } from '@/lib/brain-api';
 import { useAskBorjie } from '@/lib/queries/brain';
 import { ApiError } from '@/lib/api-client';
@@ -76,17 +78,17 @@ export function AskBorjieSurface() {
       <header className="flex items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-xl text-foreground">
-            Ask Borjie Brain
+            {pickByLocale(locale, S.surfaceTitle)}
           </h2>
           <p className="mt-0.5 text-xs text-neutral-400">
-            Live wire to{' '}
+            {pickByLocale(locale, S.surfaceLiveWire)}{' '}
             <code className="rounded bg-surface px-1 py-0.5 font-mono text-tiny">
               POST /api/v1/brain/turn
             </code>
             {threadId ? (
               <>
                 {' '}
-                · thread{' '}
+                · {pickByLocale(locale, S.surfaceThread)}{' '}
                 <code className="rounded bg-surface px-1 py-0.5 font-mono text-tiny">
                   {threadId.slice(0, 8)}
                 </code>
@@ -106,7 +108,7 @@ export function AskBorjieSurface() {
             className="rounded border border-border bg-surface px-3 py-1.5 text-xs text-neutral-400 hover:bg-surface/60"
             data-testid="ask-reset"
           >
-            New thread
+            {pickByLocale(locale, S.surfaceNewThread)}
           </button>
         ) : null}
       </header>
@@ -123,6 +125,7 @@ export function AskBorjieSurface() {
           {messages.length === 0 ? (
             <AskEmptyState
               kind={emptyKind}
+              locale={locale}
               detail={
                 emptyKind === 'error' && error ? error.message : null
               }
@@ -137,7 +140,7 @@ export function AskBorjieSurface() {
               data-testid="ask-hydrating"
               className="text-center text-xs text-neutral-500"
             >
-              Loading thread history…
+              {pickByLocale(locale, S.surfaceLoadingHistory)}
             </p>
           ) : null}
           {error && messages.length > 0 ? (

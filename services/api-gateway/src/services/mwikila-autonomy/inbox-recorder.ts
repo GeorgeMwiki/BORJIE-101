@@ -21,6 +21,7 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 
+import { withWorkerTenantContext } from '../../workers/with-tenant-context.js';
 import { publishCockpitEvent } from '../cockpit-events/index.js';
 import { autonomy } from '@borjie/central-intelligence';
 import {
@@ -44,6 +45,32 @@ function rowsOf(result: unknown): ReadonlyArray<ExecRow> {
   if (Array.isArray(result)) return result as ReadonlyArray<ExecRow>;
   const wrapped = result as { rows?: ReadonlyArray<ExecRow> };
   return wrapped?.rows ?? [];
+}
+
+/**
+ * Run a single-known-tenant statement inside a worker tenant-context
+ * transaction so app.current_tenant_id is bound and the FORCE-RLS
+ * tenant-isolation policy on mwikila_actions_inbox matches the rows.
+ * Workers bypass the gateway databaseMiddleware, so without this
+ * binding the bare execute carries no tenant GUC and matches zero rows
+ * silently.
+ *
+ * Unit tests inject a fake `db` that has `.execute` but no
+ * `.transaction`; in that case we fall through to the bare execute so
+ * the stub affordance is preserved.
+ */
+function runTenant(
+  db: DbLike,
+  tenantId: string,
+  query: unknown,
+): Promise<unknown> {
+  return typeof (db as { transaction?: unknown }).transaction === 'function'
+    ? withWorkerTenantContext(
+        db as never,
+        tenantId,
+        (tx) => (tx as DbLike).execute(query),
+      )
+    : db.execute(query);
 }
 
 function rowToInbox(row: ExecRow): MwikilaInboxRow {
@@ -149,11 +176,15 @@ export function createMwikilaInboxRecorder(
     id: string,
   ): Promise<MwikilaInboxRow | null> {
     const rows = rowsOf(
-      await deps.db.execute(sql`
+      await runTenant(
+        deps.db,
+        tenantId,
+        sql`
         SELECT * FROM mwikila_actions_inbox
          WHERE tenant_id = ${tenantId} AND id = ${id}
          LIMIT 1
-      `),
+      `,
+      ),
     );
     if (rows.length === 0) return null;
     return rowToInbox(rows[0] as ExecRow);
@@ -200,7 +231,10 @@ export function createMwikilaInboxRecorder(
       let rows: ReadonlyArray<ExecRow>;
       try {
         rows = rowsOf(
-          await deps.db.execute(sql`
+          await runTenant(
+            deps.db,
+            value.tenantId,
+            sql`
             INSERT INTO mwikila_actions_inbox (
               tenant_id, acting_on_user_id, action_kind, category,
               delegation_tier, status, summary, summary_sw, rationale,
@@ -225,7 +259,8 @@ export function createMwikilaInboxRecorder(
               ${JSON.stringify(provenance)}::jsonb
             )
             RETURNING *
-          `),
+          `,
+          ),
         );
       } catch (err) {
         throw new MwikilaError(
@@ -259,7 +294,10 @@ export function createMwikilaInboxRecorder(
       let rows: ReadonlyArray<ExecRow>;
       try {
         rows = rowsOf(
-          await deps.db.execute(sql`
+          await runTenant(
+            deps.db,
+            input.tenantId,
+            sql`
             INSERT INTO mwikila_actions_inbox (
               tenant_id, acting_on_user_id, action_kind, category,
               delegation_tier, status, summary, summary_sw, rationale,
@@ -280,7 +318,8 @@ export function createMwikilaInboxRecorder(
               ${JSON.stringify(input.provenance ?? { via: 'mwikila' })}::jsonb
             )
             RETURNING *
-          `),
+          `,
+          ),
         );
       } catch (err) {
         throw new MwikilaError(
@@ -315,7 +354,10 @@ export function createMwikilaInboxRecorder(
       }
       const nowIso = now().toISOString();
       const rows = rowsOf(
-        await deps.db.execute(sql`
+        await runTenant(
+          deps.db,
+          tenantId,
+          sql`
           UPDATE mwikila_actions_inbox
              SET status = 'owner_approved',
                  owner_reviewed_at = ${nowIso}::timestamptz,
@@ -323,7 +365,8 @@ export function createMwikilaInboxRecorder(
                  updated_at = ${nowIso}::timestamptz
            WHERE tenant_id = ${tenantId} AND id = ${id}
            RETURNING *
-        `),
+        `,
+        ),
       );
       return rowToInbox(rows[0] as ExecRow);
     },
@@ -341,7 +384,10 @@ export function createMwikilaInboxRecorder(
       }
       const nowIso = now().toISOString();
       const rows = rowsOf(
-        await deps.db.execute(sql`
+        await runTenant(
+          deps.db,
+          tenantId,
+          sql`
           UPDATE mwikila_actions_inbox
              SET status = 'owner_denied',
                  owner_reviewed_at = ${nowIso}::timestamptz,
@@ -349,7 +395,8 @@ export function createMwikilaInboxRecorder(
                  updated_at = ${nowIso}::timestamptz
            WHERE tenant_id = ${tenantId} AND id = ${id}
            RETURNING *
-        `),
+        `,
+        ),
       );
       return rowToInbox(rows[0] as ExecRow);
     },
@@ -385,7 +432,10 @@ export function createMwikilaInboxRecorder(
       }
       const nowIso = now().toISOString();
       const rows = rowsOf(
-        await deps.db.execute(sql`
+        await runTenant(
+          deps.db,
+          tenantId,
+          sql`
           UPDATE mwikila_actions_inbox
              SET status = 'reversed',
                  reversed_at = ${nowIso}::timestamptz,
@@ -394,20 +444,25 @@ export function createMwikilaInboxRecorder(
                  updated_at = ${nowIso}::timestamptz
            WHERE tenant_id = ${tenantId} AND id = ${id}
            RETURNING *
-        `),
+        `,
+        ),
       );
       return rowToInbox(rows[0] as ExecRow);
     },
 
     async listPending({ tenantId, limit = 50 }) {
       const rows = rowsOf(
-        await deps.db.execute(sql`
+        await runTenant(
+          deps.db,
+          tenantId,
+          sql`
           SELECT * FROM mwikila_actions_inbox
            WHERE tenant_id = ${tenantId}
              AND status IN ('proposed','executed','blocked_by_inviolable')
            ORDER BY proposed_at DESC
            LIMIT ${limit}
-        `),
+        `,
+        ),
       );
       return rows.map(rowToInbox);
     },
@@ -427,14 +482,18 @@ export function createMwikilaInboxRecorder(
       readonly status?: ActionStatus;
     }) {
       const rows = rowsOf(
-        await deps.db.execute(sql`
+        await runTenant(
+          deps.db,
+          tenantId,
+          sql`
           SELECT * FROM mwikila_actions_inbox
            WHERE tenant_id = ${tenantId}
              AND (${category ?? null}::text IS NULL OR category = ${category ?? null})
              AND (${status ?? null}::text IS NULL OR status = ${status ?? null})
            ORDER BY proposed_at DESC
            LIMIT ${limit}
-        `),
+        `,
+        ),
       );
       return rows.map(rowToInbox);
     },

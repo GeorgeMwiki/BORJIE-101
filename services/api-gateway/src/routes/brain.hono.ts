@@ -68,6 +68,7 @@ import {
 } from '../composition/privacy-router-wiring.js';
 import { scrubMessage } from '../utils/safe-error';
 import { rateLimiter as sharedRateLimiter } from '../middleware/rate-limiter';
+import { tokenBlocklist } from '../middleware/token-blocklist';
 import { withSecurityEvents } from '@borjie/observability';
 // Stage 2 — orchestrator main-loop as the DEFAULT-ON live generator for
 // the main brain chat surface. When ON, `kernel.think()` runs the rails +
@@ -186,6 +187,16 @@ async function authenticate(c) {
     jwtSecret: env().SUPABASE_JWT_SECRET,
     defaultEnvironment: 'production',
   });
+  // SEC-G3 — token-revocation blocklist. The canonical authMiddleware
+  // (hono-auth.ts) gates every other route on this; the brain /turn paid
+  // LLM write path previously skipped it, leaving a logout/refresh-rotation
+  // replay window open. `isRevokedAsync` consults the shared Redis store
+  // when wired (a logout on ANY replica revokes here) and falls back to the
+  // local Map otherwise — never fails open silently.
+  const jti = typeof principal.raw.jti === 'string' ? principal.raw.jti : undefined;
+  if (jti && (await tokenBlocklist.isRevokedAsync(jti))) {
+    throw new SupabaseAuthError('token_revoked', 401);
+  }
   return {
     principal,
     ...principalToBrainContexts(principal),

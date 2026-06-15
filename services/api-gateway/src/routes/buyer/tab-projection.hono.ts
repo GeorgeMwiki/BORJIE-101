@@ -231,6 +231,14 @@ export function createBuyerTabProjectionRouter(
     const connectedTenantIds = [
       ...new Set(memberships.map((m) => m.platformTenantId)),
     ];
+    // Bind the id list as an explicit `ARRAY[...]::text[]` — a bare
+    // `ANY(${connectedTenantIds})` makes drizzle spread it into the invalid
+    // record constructor `ANY(($1, $2))`, which throws and the catch below
+    // silently degrades the whole projection to empty.
+    const connectedTenantIdsArray = sql`ARRAY[${sql.join(
+      connectedTenantIds.map((id) => sql`${id}`),
+      sql`, `,
+    )}]::text[]`;
 
     // Cross-tenant structural read, BOUNDED to exactly the connected
     // tenants (the membership graph is the permission); buyer opt-in rows
@@ -242,7 +250,7 @@ export function createBuyerTabProjectionRouter(
         (sdb as unknown as DbExec).execute(sql`
           SELECT tab_id, tenant_id, label, position, config
             FROM owner_tabs_structural
-           WHERE tenant_id = ANY(${connectedTenantIds})
+           WHERE tenant_id = ANY(${connectedTenantIdsArray})
              AND status = 'active'
              AND kind = 'custom'
              AND config ? 'buyerProjection'
@@ -262,7 +270,7 @@ export function createBuyerTabProjectionRouter(
       }));
       const names = (await withServiceRoleContext(db, (sdb) =>
         (sdb as unknown as DbExec).execute(sql`
-          SELECT id, name FROM tenants WHERE id = ANY(${connectedTenantIds})
+          SELECT id, name FROM tenants WHERE id = ANY(${connectedTenantIdsArray})
         `),
       )) as unknown as Array<Record<string, unknown>>;
       for (const n of names) tenantNames.set(String(n.id), String(n.name));

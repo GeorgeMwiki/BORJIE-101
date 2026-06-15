@@ -13,10 +13,13 @@
  *     or a Drizzle client). A single parameterised SELECT keeps this resolver
  *     on that same port and trivially testable with the SQL-capturing stub the
  *     worker tests use.
- *   - The fan-out reads cross-tenant for `scope='global'`; it runs on the
- *     service-role pool (RLS-bypassing) and re-attaches each recipient's own
- *     `tenant_id` onto every dispatch-log row it later writes, so downstream
- *     RLS reads stay clean (same pattern as lease-expiry-alert-cron.ts).
+ *   - The fan-out reads cross-tenant for `scope='global'`. `users` +
+ *     `owner_contact_prefs` are FORCE-RLS and the service pool is NOT
+ *     BYPASSRLS in prod, so the global scan binds `app.is_service_role='true'`
+ *     via `withServiceRoleContext` (else it matches ZERO rows). The per-tenant
+ *     scan binds the tenant GUCs via `withWorkerTenantContext`. Each recipient
+ *     keeps its own `tenant_id` so downstream dispatch-log RLS reads stay clean
+ *     (same pattern as licence-expiry-alert-cron.ts).
  *
  * Preferred channel normalisation: `owner_contact_prefs.preferred_channel` may
  * be 'email' | 'sms' | 'slack' | 'whatsapp'. The dispatch-log fan-out only
@@ -24,13 +27,29 @@
  */
 
 import { sql } from 'drizzle-orm';
+import { withServiceRoleContext } from '@borjie/database';
 
 import type {
   BroadcastRecipient,
   RecipientResolverPort,
 } from './announcement-fanout.worker';
+import { withWorkerTenantContext } from './with-tenant-context.js';
 
-interface DbLike {
+/**
+ * The db this resolver binds. Both scans run inside a real transaction
+ * (`withServiceRoleContext` for the cross-tenant global scan,
+ * `withWorkerTenantContext` for the per-tenant scan), so the port must be
+ * transaction-capable. The unit-test stub injects an `execute`-only fake with
+ * NO `.transaction`; those helpers detect that and run the statement directly.
+ */
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
+
+type DbLike = ServiceRoleDb & {
+  execute(query: unknown): Promise<unknown>;
+};
+
+/** The execute-only shim the bound transaction handle satisfies. */
+interface ExecLike {
   execute(query: unknown): Promise<unknown>;
 }
 
@@ -85,8 +104,36 @@ function tenantIdFromScope(scope: AnnouncementScope): string | null {
 export function createAnnouncementRecipientResolver(
   db: DbLike,
 ): RecipientResolverPort {
+  // `users` + `owner_contact_prefs` are FORCE-RLS; the global fan-out reads
+  // CROSS-TENANT over the shared service pool, so the scan must bind
+  // `app.is_service_role='true'` or it matches ZERO rows (resolver goes dark).
+  // The unit-test stub injects an execute-only fake with no `.transaction`;
+  // detect that and run the statement directly so those tests stay green.
+  function runServiceRole(query: unknown): Promise<unknown> {
+    const dbAny = db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(db, (tx) =>
+        (tx as unknown as ExecLike).execute(query),
+      );
+    }
+    return db.execute(query);
+  }
+
+  // The per-tenant scan has the tenant id, so bind BOTH tenant GUCs; this
+  // satisfies the table's tenant-isolation policy with NO new bypass policy.
+  // Same stub affordance as above.
+  function runTenant(tenantId: string, query: unknown): Promise<unknown> {
+    const dbAny = db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withWorkerTenantContext(db, tenantId, (tx) =>
+        (tx as unknown as ExecLike).execute(query),
+      );
+    }
+    return db.execute(query);
+  }
+
   async function resolveGlobal(): Promise<readonly BroadcastRecipient[]> {
-    const res = await db.execute(sql`
+    const res = await runServiceRole(sql`
       SELECT
         u.tenant_id          AS tenant_id,
         u.id                 AS user_id,
@@ -111,7 +158,7 @@ export function createAnnouncementRecipientResolver(
   async function resolveTenant(
     tenantId: string,
   ): Promise<readonly BroadcastRecipient[]> {
-    const res = await db.execute(sql`
+    const res = await runTenant(tenantId, sql`
       SELECT
         u.tenant_id          AS tenant_id,
         u.id                 AS user_id,

@@ -143,10 +143,10 @@ import {
   MigrationService,
   PostgresMigrationRepository,
 } from '@borjie/domain-services/migration';
-import {
-  CaseService,
-  PostgresCaseRepository,
-} from '@borjie/domain-services/cases';
+// REMOVED (borjie hard-fork): CaseService + PostgresCaseRepository — the
+// residential-property `cases` table was dropped in 0003_mining_domain.sql;
+// mining uses `grievances`. (The Sublease + DamageDeduction namespaces from
+// the same subpath survive — imported below.)
 import { InMemoryEventBus, type EventBus } from '@borjie/domain-services';
 
 // Wave 8 — Warehouse inventory (S7), Maintenance taxonomy (S7), IoT (S3).
@@ -219,7 +219,16 @@ import {
   createPrivacyBudgetComposerService,
   createSensorRoutingService,
   createPersonaRegistryService,
+  createPlatformUsersService,
 } from '@borjie/database';
+/**
+ * `PlatformUsersService` re-exported through the `@borjie/database` barrel
+ * resolves as a namespace (TS2709 namespace-as-type widening under the
+ * `export *` chains) — same hazard as the `DatabaseClient` /
+ * `PrivacyBudgetComposerService` aliases above. Derive the type from the
+ * factory return value instead of importing the alias.
+ */
+type PlatformUsersService = ReturnType<typeof createPlatformUsersService>;
 import { createPersonaRegistry } from '@borjie/central-intelligence';
 type PrivacyBudgetComposerService = ReturnType<typeof createPrivacyBudgetComposerService>;
 import {
@@ -822,16 +831,8 @@ export interface ServiceRegistry {
     readonly entryLoader: ArrearsEntryLoader | null;
   };
 
-  /** Cases — dispute / legal / maintenance case lifecycle. Wave 26 wiring
-   *  of the previously-dark PostgresCaseRepository + CaseService +
-   *  CaseSLAWorker triad. `service` is the domain service (used by
-   *  routers + SLA worker); `repo` is the Postgres adapter (exposed for
-   *  routers that need raw reads without the service overhead). Both
-   *  null in degraded mode. */
-  readonly cases: {
-    readonly service: CaseService | null;
-    readonly repo: PostgresCaseRepository | null;
-  };
+  // REMOVED (borjie hard-fork): the `cases` registry slot — residential-property
+  // residue; the `cases` table was dropped in 0003_mining_domain.sql.
 
   /** Wave 12 — AI copilot subsystems wired into the composition root. */
   readonly mcp: BorjieMcpServer | null;
@@ -858,6 +859,15 @@ export interface ServiceRegistry {
   readonly branding: {
     readonly service: TenantBrandingService;
   };
+
+  /** Platform users (Central Command Phase B — B1). Paginated tenant-user
+   *  list + invite/create over the `users` table. Backs the owner-portal +
+   *  owner-mobile O-M-23 'Your team' roster (GET /admin/users) and 'Send
+   *  invite' button (POST /admin/users). Postgres-backed in live mode; `null`
+   *  in degraded mode (DATABASE_URL unset) so the admin-users router keeps
+   *  its honest 501 rather than fabricating an empty roster. Same service the
+   *  HQ `platform.list_users` / `platform.create_user` tool surface uses. */
+  readonly platformUsers: PlatformUsersService | null;
 
   /** Head briefing (Wave 28) — cohesive morning screen composer. Pulls
    *  from overnight-autonomy / pending-approvals / escalations / KPI /
@@ -2020,10 +2030,7 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
       ledgerPort: null,
       entryLoader: null,
     },
-    cases: {
-      service: null,
-      repo: null,
-    },
+    // REMOVED (borjie hard-fork): the `cases` degraded-mode slot.
     mcp: null,
     agentCertification: null,
     training: null,
@@ -2042,6 +2049,9 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
       // degraded mode; overrides don't persist across restarts.
       service: new TenantBrandingService(new InMemoryTenantBrandingRepository()),
     },
+    // No DB handle in degraded mode → leave platformUsers null so the
+    // admin-users router returns its honest 501 instead of a fake roster.
+    platformUsers: null,
     headBriefing: {
       // Wave 28 — head briefing composer with in-memory source stubs.
       // Degraded mode uses a fresh ExceptionInbox backed by an empty
@@ -2489,23 +2499,9 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   });
   const arrearsEntryLoader = createPostgresArrearsEntryLoader(db);
 
-  // Wave 26 — Cases domain service + Postgres repo. The repo implements
-  // `Partial<CaseRepository>` with the surface the SLA worker + service
-  // need (createCase/findById/update/findOverdue/appendTimelineEvent)
-  // backed by the real `cases` table. The service publishes the
-  // CaseCreated/Escalated/Resolved event stream through the shared
-  // composition-root bus so downstream subscribers (notifications,
-  // autonomy audit) see them without any extra wiring.
-  //
-  // The Postgres adapter advertises `Partial<CaseRepository>` but
-  // implements every method actually invoked by the service + worker
-  // (verified in postgres-case-repository.test.ts). We cast to the
-  // full interface at the composition-root boundary only.
-  const caseRepo = new PostgresCaseRepository(db as unknown as never);
-  const caseService = new CaseService(
-    caseRepo as unknown as Parameters<typeof CaseService['prototype']['attachRepository']>[0],
-    eventBus,
-  );
+  // REMOVED (borjie hard-fork): the Cases domain service + Postgres repo —
+  // residential-property residue; the `cases` table was dropped in
+  // 0003_mining_domain.sql and mining uses the `grievances` subsystem.
 
   // Wave 9 — Feature flags (per-tenant gating of platform capabilities).
   const featureFlagsRepo = new DrizzleFeatureFlagsRepository(db);
@@ -2832,7 +2828,6 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
   // run on every execution.
   const taskAgentServicesBag: Record<string, unknown> = {
     arrearsService,
-    caseService,
     renewalService,
     migrationService,
     occupancyTimelineService,
@@ -2920,10 +2915,7 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       ledgerPort: arrearsLedgerPort,
       entryLoader: arrearsEntryLoader,
     },
-    cases: {
-      service: caseService,
-      repo: caseRepo,
-    },
+    // REMOVED (borjie hard-fork): the `cases` registry assignment.
     // `mcp` is filled in by `buildServices` after the registry is
     // constructed, because the MCP server takes the populated registry
     // as input. We place a `null` here and patch it post-return.
@@ -2947,6 +2939,10 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // (defaults resolve cleanly) so data loss on restart is acceptable.
       service: new TenantBrandingService(new InMemoryTenantBrandingRepository()),
     },
+    // Central Command Phase B B1 — Drizzle-backed platform users service.
+    // Backs the owner-mobile O-M-23 'Your team' roster + 'Send invite'
+    // (GET/POST /admin/users). Same factory the HQ tool surface uses.
+    platformUsers: createPlatformUsersService(db),
     headBriefing: {
       // Wave 28 — head briefing composer. Live mode still uses in-memory
       // sources for now; the composer's port-based design lets us swap

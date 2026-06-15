@@ -24,6 +24,7 @@ import { Redirect } from 'expo-router'
 import { ScreenShell } from '../../../src/components/ScreenShell'
 import { Section } from '../../../src/components/Section'
 import { useAuth } from '../../../src/auth/useAuth'
+import { useI18n } from '../../../src/i18n/useI18n'
 import { colors } from '../../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../../src/theme/spacing'
 import {
@@ -45,13 +46,14 @@ const SCREEN_ID = 'O-M-01'
 
 export default function CockpitHubScreen(): JSX.Element {
   const { user, ready } = useAuth()
+  const isSw = (user?.preferredLang ?? 'en') === 'sw'
   if (!ready) return <View style={{ flex: 1 }} />
   if (!user) return <Redirect href="/onboarding/role" />
   if (user.role !== 'owner') {
     return (
       <View style={styles.loading}>
         <Text style={styles.error}>
-          Cockpit hub is owner-only / Cockpit ni kwa mmiliki tu
+          {isSw ? 'Cockpit ni kwa mmiliki tu' : 'Cockpit hub is owner-only'}
         </Text>
       </View>
     )
@@ -64,6 +66,8 @@ export default function CockpitHubScreen(): JSX.Element {
 }
 
 function CockpitHubView(): JSX.Element {
+  const { lang } = useI18n()
+  const isSw = lang === 'sw'
   const query = useCockpitHub()
   const [refreshing, setRefreshing] = useState<boolean>(false)
 
@@ -80,7 +84,7 @@ function CockpitHubView(): JSX.Element {
     return (
       <View style={styles.loading}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.muted}>Loading cockpit… / Inapakia…</Text>
+        <Text style={styles.muted}>{isSw ? 'Inapakia…' : 'Loading cockpit…'}</Text>
       </View>
     )
   }
@@ -88,7 +92,7 @@ function CockpitHubView(): JSX.Element {
     return (
       <View style={styles.loading}>
         <Text style={styles.error}>
-          Cockpit failed to load / Cockpit imeshindwa kupakia
+          {isSw ? 'Cockpit imeshindwa kupakia' : 'Cockpit failed to load'}
         </Text>
       </View>
     )
@@ -109,34 +113,42 @@ function CockpitHubView(): JSX.Element {
       {empty ? (
         <View style={styles.bannerEmpty}>
           <Text style={styles.bannerText}>
-            No fresh cockpit data yet — pull down to refresh.
-          </Text>
-          <Text style={styles.bannerHint}>
-            Hakuna data mpya bado — vuta chini kuburudisha.
+            {isSw
+              ? 'Hakuna data mpya bado — vuta chini kuburudisha.'
+              : 'No fresh cockpit data yet — pull down to refresh.'}
           </Text>
         </View>
       ) : null}
 
-      <Section title="Brief">
+      <Section title={isSw ? 'Muhtasari' : 'Brief'}>
         <View style={styles.briefCard}>
-          <Text style={styles.briefHeadline}>{data.brief.headlineEn}</Text>
-          <Text style={styles.briefHeadlineSw}>{data.brief.headlineSw}</Text>
+          <Text style={styles.briefHeadline}>
+            {isSw ? data.brief.headlineSw : data.brief.headlineEn}
+          </Text>
         </View>
       </Section>
 
-      <Section title={`Recent decisions (${data.decisions.length})`}>
+      <Section
+        title={`${isSw ? 'Maamuzi ya hivi karibuni' : 'Recent decisions'} (${data.decisions.length})`}
+      >
         {data.decisions.length === 0 ? (
-          <Text style={styles.muted}>No pending decisions / Hakuna maamuzi yaliyosubiri</Text>
+          <Text style={styles.muted}>
+            {isSw ? 'Hakuna maamuzi yaliyosubiri' : 'No pending decisions'}
+          </Text>
         ) : (
           data.decisions.slice(0, 5).map((decision) => (
-            <DecisionRow key={decision.id} decision={decision} />
+            <DecisionRow key={decision.id} decision={decision} isSw={isSw} />
           ))
         )}
       </Section>
 
-      <Section title={`Opportunities (${data.opportunities.length})`}>
+      <Section
+        title={`${isSw ? 'Fursa' : 'Opportunities'} (${data.opportunities.length})`}
+      >
         {data.opportunities.length === 0 ? (
-          <Text style={styles.muted}>No fresh opportunities / Hakuna fursa mpya</Text>
+          <Text style={styles.muted}>
+            {isSw ? 'Hakuna fursa mpya' : 'No fresh opportunities'}
+          </Text>
         ) : (
           data.opportunities.slice(0, 5).map((opportunity) => (
             <OpportunityRow
@@ -147,9 +159,11 @@ function CockpitHubView(): JSX.Element {
         )}
       </Section>
 
-      <Section title={`Risks (${data.risks.length})`}>
+      <Section title={`${isSw ? 'Hatari' : 'Risks'} (${data.risks.length})`}>
         {data.risks.length === 0 ? (
-          <Text style={styles.muted}>No active risks / Hakuna hatari za sasa</Text>
+          <Text style={styles.muted}>
+            {isSw ? 'Hakuna hatari za sasa' : 'No active risks'}
+          </Text>
         ) : (
           data.risks.slice(0, 5).map((risk) => (
             <RiskRow key={risk.id} risk={risk} />
@@ -157,12 +171,16 @@ function CockpitHubView(): JSX.Element {
         )}
       </Section>
 
-      <Section title={`Reminders (${data.reminders.length})`}>
+      <Section
+        title={`${isSw ? 'Vikumbusho' : 'Reminders'} (${data.reminders.length})`}
+      >
         {data.reminders.length === 0 ? (
-          <Text style={styles.muted}>No reminders / Hakuna ukumbusho</Text>
+          <Text style={styles.muted}>
+            {isSw ? 'Hakuna ukumbusho' : 'No reminders'}
+          </Text>
         ) : (
           data.reminders.slice(0, 5).map((reminder) => (
-            <ReminderRow key={reminder.id} reminder={reminder} />
+            <ReminderRow key={reminder.id} reminder={reminder} isSw={isSw} />
           ))
         )}
       </Section>
@@ -172,8 +190,10 @@ function CockpitHubView(): JSX.Element {
 
 function DecisionRow({
   decision,
+  isSw,
 }: {
   readonly decision: CockpitDecisionSummary
+  readonly isSw: boolean
 }): JSX.Element {
   return (
     <Pressable style={styles.row}>
@@ -182,7 +202,7 @@ function DecisionRow({
         <Text style={styles.severity}>{decision.severity.toUpperCase()}</Text>
       </View>
       <Text style={styles.muted}>
-        Raised {new Date(decision.raisedAt).toLocaleString()}
+        {isSw ? 'Imeibuliwa' : 'Raised'} {new Date(decision.raisedAt).toLocaleString()}
       </Text>
     </Pressable>
   )
@@ -218,14 +238,16 @@ function RiskRow({ risk }: { readonly risk: CockpitRisk }): JSX.Element {
 
 function ReminderRow({
   reminder,
+  isSw,
 }: {
   readonly reminder: CockpitReminder
+  readonly isSw: boolean
 }): JSX.Element {
   return (
     <Pressable style={styles.row}>
       <Text style={styles.rowTitle}>{reminder.text}</Text>
       <Text style={styles.muted}>
-        Due {new Date(reminder.dueAt).toLocaleString()}
+        {isSw ? 'Inahitajika' : 'Due'} {new Date(reminder.dueAt).toLocaleString()}
       </Text>
     </Pressable>
   )
@@ -259,12 +281,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.body,
   },
-  bannerHint: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    marginTop: spacing.xs,
-    fontStyle: 'italic',
-  },
   briefCard: {
     backgroundColor: colors.surface,
     padding: spacing.md,
@@ -274,12 +290,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.h3,
     fontWeight: '600',
-  },
-  briefHeadlineSw: {
-    color: colors.textMuted,
-    fontSize: fontSize.body,
-    fontStyle: 'italic',
-    marginTop: spacing.xs,
   },
   row: {
     backgroundColor: colors.surface,

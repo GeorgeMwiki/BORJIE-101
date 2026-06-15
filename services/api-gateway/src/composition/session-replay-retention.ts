@@ -377,10 +377,16 @@ export function createDrizzlePurgeDb(
           (id) => typeof id === 'string' && id.length > 0,
         );
         if (idList.length === 0) return 0;
-        // `ANY(${idList})` is the standard Drizzle pattern for an IN
-        // clause over a parameter array.
+        // Bind the id list as an explicit `ARRAY[...]::text[]`. A bare
+        // `ANY(${idList})` makes drizzle spread the array into the invalid
+        // record constructor `ANY(($1, $2))`, so the DELETE throws every
+        // tick and can never purge an expired chunk.
+        const idListArray = sql`ARRAY[${sql.join(
+          idList.map((id) => sql`${id}`),
+          sql`, `,
+        )}]::text[]`;
         const result = (await db.execute(
-          sql`DELETE FROM session_replay_chunks WHERE id = ANY(${idList})`,
+          sql`DELETE FROM session_replay_chunks WHERE id = ANY(${idListArray})`,
         )) as unknown;
         // postgres-js returns an object with `count`; the underlying
         // pg `rowCount` is also surfaced via `.rowCount`. Prefer

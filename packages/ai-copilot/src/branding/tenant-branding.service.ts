@@ -43,6 +43,22 @@ export interface TenantBrandingOverrides {
   readonly aiGreeting?: string;
   /** Assistant pronoun — he / she / they. */
   readonly aiPronoun?: 'he' | 'she' | 'they';
+  /**
+   * Org-settings toggles the owner-mobile O-M-23 screen persists. They
+   * live in the same overrides bag so a single GET/PUT round-trip echoes
+   * them back to the toggle UI (otherwise every switch snaps back).
+   */
+  /** Whether the org operates in multi-tenant mode. */
+  readonly multiTenant?: boolean;
+  /** Whether tenant branding is locked from further edits. */
+  readonly brandLock?: boolean;
+  /**
+   * Org primary currency code (TZS / USD / KES / UGX / NGN — never
+   * hard-code a single currency). Kept as a free string.
+   */
+  readonly primaryCurrency?: string;
+  /** Single-language locale toggle for the org (sw | en). */
+  readonly defaultLang?: 'sw' | 'en';
 }
 
 /** Neutral defaults — NEVER Kenya-branded. */

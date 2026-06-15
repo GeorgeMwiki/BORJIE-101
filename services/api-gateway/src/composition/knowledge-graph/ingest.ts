@@ -592,11 +592,18 @@ async function ingestCorpusChunks(
   // We pull the chunk text once and do the substring match in app code so the
   // edge carries a real, explainable basis (no fuzzy guessing).
   const chunkIds = chunkRows.map((r) => r.entity_ref);
+  // Bind the JS array as an explicit `ARRAY[...]::text[]` so drizzle does NOT
+  // spread it into the invalid record constructor `ANY(($1, $2))` (empty →
+  // `ANY(())`, a syntax error). The ARRAY form binds each id as its own param.
+  const chunkIdsArray = sql`ARRAY[${sql.join(
+    chunkIds.map((id) => sql`${id}`),
+    sql`, `,
+  )}]::text[]`;
   const textRows = extractRows<{ id: string; chunk_text: string }>(
     await db.execute(sql`
       SELECT id, text AS chunk_text
         FROM intelligence_corpus_chunks
-       WHERE id = ANY(${chunkIds})
+       WHERE id = ANY(${chunkIdsArray})
     `),
   );
   // Only consider entity labels long enough to avoid spurious matches.

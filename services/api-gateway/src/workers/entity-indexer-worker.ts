@@ -338,6 +338,23 @@ function embeddingLiteral(vec: number[] | null): string | null {
   return `[${vec.join(',')}]`;
 }
 
+/**
+ * Build an `ARRAY['a','b']::text[]` SQL fragment for the tags column.
+ *
+ * A bare `${jsArray}::text[]` makes drizzle SPREAD the array into
+ * `($1, $2, $3)::text[]` — a record-to-array cast PostgreSQL rejects with
+ * "cannot cast type record to text[]". That upsert never ran while the
+ * cross-tenant scan was RLS-dark (0 rows), so the bug stayed latent until the
+ * 0357/0358 bypass un-darkened the scan and rows started flowing. Using an
+ * explicit ARRAY constructor (empty tags → `ARRAY[]::text[]`) is the fix.
+ */
+function tagsArrayLiteral(tags: ReadonlyArray<string>) {
+  return sql`ARRAY[${sql.join(
+    tags.map((t) => sql`${t}`),
+    sql`, `,
+  )}]::text[]`;
+}
+
 async function upsertEntityIndexRow(
   db: DbLike,
   row: IndexableRow,
@@ -356,7 +373,7 @@ async function upsertEntityIndexRow(
       ${row.entityId},
       ${row.displayName},
       ${embLit}::vector,
-      ${row.tags as unknown as string[]}::text[],
+      ${tagsArrayLiteral(row.tags)},
       ${row.summary},
       ${row.lifecycleStage}::entity_lifecycle_stage,
       ${row.sourceUpdatedAt.toISOString()}::timestamptz,

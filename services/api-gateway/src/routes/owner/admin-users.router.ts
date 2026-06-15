@@ -29,10 +29,49 @@
  */
 
 import { Hono } from 'hono';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { requireRole } from '../../middleware/authorization';
 import { UserRole } from '../../types/user-role';
 import { buildDegradedList, isFlagOn, markDegraded, notImplementedFlagged } from './degraded-shape';
+
+/**
+ * Invite payload the owner-mobile O-M-23 'Send invite' button sends:
+ * `{ name, phone, role }` where role is one of the workforce roles
+ * (owner | manager | employee). Email is NOT collected on mobile — the
+ * `users` table requires a non-null, per-tenant-unique email, so we derive
+ * a stable placeholder address from the phone for the invited row. The
+ * real email is captured when the invitee activates via the invite link.
+ */
+const InviteUserSchema = z
+  .object({
+    name: z.string().min(1).max(160),
+    phone: z.string().min(3).max(40),
+    role: z.enum(['owner', 'manager', 'employee']),
+  })
+  .strict();
+
+/** Map a workforce role onto the platform-users HQ role taxonomy. */
+const WORKFORCE_TO_HQ_ROLE: Readonly<
+  Record<'owner' | 'manager' | 'employee', 'owner' | 'manager' | 'tenant_resident'>
+> = {
+  owner: 'owner',
+  manager: 'manager',
+  employee: 'tenant_resident',
+};
+
+/**
+ * Build the placeholder email for a phone-only invite. Strips every
+ * non-digit from the phone so the local-part is deterministic and the
+ * per-tenant unique index (tenantId, email) stays collision-free for
+ * distinct phones. Domain is a reserved non-routable invite namespace.
+ */
+function placeholderEmailFromPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  const local = digits.length > 0 ? digits : 'invite';
+  return `${local}@invite.borjie.local`;
+}
 
 const NEXT_STEP =
   'add repos.users.findManyForAdmin(tenantId, filters) returning paginated user rows + replace this skeleton with real CRUD';
@@ -103,6 +142,80 @@ app.get('/users', async (c) => {
   }
   markDegraded(c);
   return c.json(buildDegradedList(auth.tenantId, NEXT_STEP));
+});
+
+// POST /users — invite/create a tenant user. Backs the owner-mobile O-M-23
+// 'Send invite' button (previously a silent 404). Tenant-scoped to the
+// caller's tenant; gated by the router-wide requireRole above. Returns
+// `{ success:true, data:{ id, name, role, phone } }` so the FE's
+// `response.data.id` resolves and the queued-invite copy shows.
+app.post('/users', zValidator('json', InviteUserSchema), async (c) => {
+  const auth = c.get('auth');
+  const body = c.req.valid('json');
+  const services = c.get('services') as
+    | {
+        platformUsers?: {
+          createUser: (input: {
+            tenantId: string;
+            email: string;
+            role: 'owner' | 'manager' | 'tenant_resident';
+            sendInvite: boolean;
+            displayName: string | null;
+          }) => Promise<{ userId: string; role: string }>;
+        };
+      }
+    | undefined;
+  const usersSvc = services?.platformUsers as
+    | {
+        createUser: (input: {
+          tenantId: string;
+          email: string;
+          role: 'owner' | 'manager' | 'tenant_resident';
+          sendInvite: boolean;
+          displayName: string | null;
+        }) => Promise<{ userId: string; role: string }>;
+      }
+    | undefined;
+
+  // Degraded mode (no DB → no platformUsers service): keep the honest 501
+  // contract rather than fabricating a created user.
+  if (!usersSvc || typeof usersSvc.createUser !== 'function') {
+    if (!(await isFlagOn(c, FLAG_KEY))) {
+      return notImplementedFlagged(c, FLAG_KEY, NEXT_STEP);
+    }
+    markDegraded(c);
+    return c.json(buildDegradedList(auth.tenantId, NEXT_STEP));
+  }
+
+  const name = body.name.trim();
+  const hqRole = WORKFORCE_TO_HQ_ROLE[body.role];
+  try {
+    const created = await usersSvc.createUser({
+      tenantId: auth.tenantId,
+      email: placeholderEmailFromPhone(body.phone),
+      role: hqRole,
+      sendInvite: true,
+      displayName: name,
+    });
+    return c.json(
+      {
+        success: true,
+        data: {
+          id: created.userId,
+          name,
+          role: body.role,
+          phone: body.phone,
+        },
+      },
+      201,
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'invite failed';
+    return c.json(
+      { success: false, error: { code: 'USER_INVITE_FAILED', message } },
+      503,
+    );
+  }
 });
 
 export const adminUsersRouter = app;

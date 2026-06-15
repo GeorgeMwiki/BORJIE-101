@@ -1,27 +1,18 @@
 /**
- * Marketing home — LitFin canonical 4-component composition.
+ * Marketing home — condensed to the capability-led canonical shape:
  *
- * Source of pattern: LITFIN_PATH/src/app/(marketing)/page.tsx
+ *   <IgnitionHero />        — one value prop + supporting line + one CTA
+ *   <CapabilitiesSection /> — the six real capabilities, verb+object
+ *   <HomePage />            — problem/solution, bilingual edge, product
+ *                            moment, pricing, single closing CTA
  *
- * Borjie's marketing was previously a single page.tsx with 24 inline
- * imports. LitFin's actual page.tsx is a 4-line RSC wrapper:
- *
- *   <IgnitionHero />        — hero + Live Fabric chat (above-fold)
- *   <BrainClaimsBanner />   — evidence-backed claims band
- *   <CapabilitiesSection /> — six capabilities tilt-grid
- *   <HomePage />            — everything below (lazy-loaded chunks)
- *
- * This file is now an RSC parent — `'use client'` lives inside each
- * child component. The wrapper itself doesn't ship as JS; only the
- * client islands do. ~5KB smaller initial bundle.
- *
- * The four children are client components (each has its own
- * 'use client' directive). Next.js mounts client children from an RSC
- * parent without issue.
+ * This file is an RSC parent — `'use client'` lives inside each child
+ * component, so only the client islands ship JS. The earlier build also
+ * rendered a BrainClaimsBanner here; it carried unsourced figures and was
+ * removed.
  */
 
 import { IgnitionHero } from '@/components/marketing/IgnitionHero';
-import { BrainClaimsBanner } from '@/components/BrainClaimsBanner';
 import { CapabilitiesSection } from '@/components/marketing/CapabilitiesSection';
 import { HomePage } from '@/components/home/HomePage';
 import { getLocale } from '@/lib/locale';
@@ -31,7 +22,6 @@ export default async function MarketingPage() {
   return (
     <>
       <IgnitionHero locale={locale} />
-      <BrainClaimsBanner locale={locale} />
       <CapabilitiesSection locale={locale} audience="platform" />
       <HomePage locale={locale} />
     </>

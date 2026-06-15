@@ -36,7 +36,10 @@ export function OpenInChatButton({
   compact = false,
 }: OpenInChatButtonProps) {
   const prefill = encodeURIComponent(`@${entityRef} `);
-  const href = `/dashboard/chat?prefill=${prefill}&context=${encodeURIComponent(entityRef)}`;
+  // O-W-23 — the live Ask-Borjie surface is the canonical owner chat route.
+  // (The legacy `/dashboard/chat` target never existed and 404'd.) The
+  // prefill/context params ride along for the surface to consume.
+  const href = `/ask?prefill=${prefill}&context=${encodeURIComponent(entityRef)}`;
   return (
     <Link
       href={href}

@@ -234,6 +234,7 @@ export function HomeChat({
             {messages.length === 0 ? (
               <AskEmptyState
                 kind={emptyKind}
+                locale={languagePreference}
                 detail={
                   emptyKind === 'error' && error ? error.message : null
                 }

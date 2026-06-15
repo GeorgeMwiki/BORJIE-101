@@ -1,6 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 const QUEUE_KEY = 'borjie.sync.queue.v1'
+/**
+ * Dead-letter store. A queued field-evidence record is moved HERE — never
+ * deleted — when the flush loop exhausts its retry budget. The record stays
+ * durably on-device with the failure reason so it can be inspected, re-driven,
+ * or surfaced to the worker. The contract: irreplaceable offline mine evidence
+ * is NEVER silently dropped; the only thing that removes a record from the live
+ * queue without a server 2xx is a genuine payload rejection (400/409/422),
+ * which is the worker's own malformed input, not lost evidence.
+ */
+const DEAD_LETTER_KEY = 'borjie.sync.deadletter.v1'
 
 export type EntityType =
   | 'shift_report'
@@ -130,4 +140,71 @@ export async function recordAttempt(id: string, errorMessage: string): Promise<v
     }
   })
   await writeQueue(next)
+}
+
+/**
+ * A queued write that exhausted its live-queue retry budget. It is preserved
+ * with the terminal failure reason and the time it was quarantined so the
+ * evidence can be re-driven or surfaced — it is NOT deleted.
+ */
+export interface DeadLetteredWrite extends QueuedWrite {
+  deadLetteredAt: number
+  reason: string
+}
+
+async function readDeadLetters(): Promise<ReadonlyArray<DeadLetteredWrite>> {
+  try {
+    const raw = await AsyncStorage.getItem(DEAD_LETTER_KEY)
+    if (!raw) {
+      return []
+    }
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+    return parsed as ReadonlyArray<DeadLetteredWrite>
+  } catch {
+    return []
+  }
+}
+
+async function writeDeadLetters(
+  next: ReadonlyArray<DeadLetteredWrite>
+): Promise<void> {
+  try {
+    await AsyncStorage.setItem(DEAD_LETTER_KEY, JSON.stringify(next))
+  } catch (error) {
+    console.error('Failed to persist sync dead-letter store:', error)
+  }
+}
+
+export async function listDeadLettered(): Promise<
+  ReadonlyArray<DeadLetteredWrite>
+> {
+  return readDeadLetters()
+}
+
+/**
+ * Move a queued entry to the dead-letter store. The entry is appended to the
+ * durable dead-letter store FIRST, then removed from the live queue, so a
+ * crash between the two writes leaves the record duplicated (re-driveable)
+ * rather than lost. Irreplaceable evidence is preserved, never deleted.
+ */
+export async function quarantineToDeadLetter(
+  id: string,
+  reason: string
+): Promise<void> {
+  const current = await readQueue()
+  const entry = current.find((item) => item.id === id)
+  if (!entry) {
+    return
+  }
+  const existing = await readDeadLetters()
+  const deadLettered: DeadLetteredWrite = {
+    ...entry,
+    deadLetteredAt: Date.now(),
+    reason
+  }
+  await writeDeadLetters([...existing, deadLettered])
+  await removeFromQueue(id)
 }

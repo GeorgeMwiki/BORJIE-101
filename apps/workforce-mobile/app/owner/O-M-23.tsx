@@ -52,7 +52,9 @@ const COPY = Object.freeze({
   toggleCurrency: 'Sarafu ya msingi TZS',
   toggleCurrencyHint: 'Kataa mikataba ya USD ya ndani',
   toggleLang: 'Kiswahili-Kwanza',
-  toggleLangHint: 'UI inaanza na lugha ya Kiswahili'
+  toggleLangHint: 'UI inaanza na lugha ya Kiswahili',
+  brandingError: 'Imeshindwa kuhifadhi mipangilio. Jaribu tena.',
+  inviteError: 'Imeshindwa kutuma mwaliko. Jaribu tena.'
 })
 
 type RoleValue = 'owner' | 'manager' | 'employee'
@@ -354,6 +356,9 @@ function SettingsAndBilling(): JSX.Element {
           value={swFirst}
           onChange={(next) => flipBranding('defaultLang', next ? 'sw' : 'en')}
         />
+        {updateBranding.isError ? (
+          <Text style={styles.errorLine}>{COPY.brandingError}</Text>
+        ) : null}
       </Section>
 
       <Section title={COPY.inviteSection} hint={COPY.inviteHint}>
@@ -386,6 +391,9 @@ function SettingsAndBilling(): JSX.Element {
         />
         {lastQueuedId ? (
           <Text style={styles.queued}>{COPY.inviteQueued(lastQueuedId)}</Text>
+        ) : null}
+        {invite.isError ? (
+          <Text style={styles.errorLine}>{COPY.inviteError}</Text>
         ) : null}
       </Section>
 
@@ -503,6 +511,12 @@ const styles = StyleSheet.create({
   queued: {
     color: colors.success,
     fontSize: fontSize.caption,
+    marginTop: spacing.sm
+  },
+  errorLine: {
+    color: colors.danger,
+    fontSize: fontSize.caption,
+    fontWeight: '600',
     marginTop: spacing.sm
   },
   memberRow: {

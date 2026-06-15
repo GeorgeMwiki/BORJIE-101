@@ -214,6 +214,33 @@ function validateNonEmpty(value: string | undefined, field: string): void {
 }
 
 /**
+ * Detect a Postgres unique_violation (SQLSTATE 23505). Two concurrent
+ * same-tenant appends both read the same `getLatest()` head, compute the
+ * same `sequenceId`, and one collides on the `(tenant_id, sequence_id)`
+ * unique index. Postgres tags 23505 as `code`; drizzle / postgres-js
+ * re-throw with that field. We also message-match for adapters that
+ * scrub the code (mirrors the decision-journal recorder's detection).
+ */
+export function isAuditChainUniqueViolation(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null | undefined;
+  if (e?.code === '23505') return true;
+  const msg = typeof e?.message === 'string' ? e.message : '';
+  return (
+    msg.includes('unique constraint') ||
+    msg.includes('duplicate key value') ||
+    msg.includes('sequence_id')
+  );
+}
+
+/**
+ * Bounded retry budget for `append()` on a 23505 sequence-id collision.
+ * Each retry re-reads the head and recomputes the hash off the fresh
+ * predecessor, so the chain stays contiguous. Bounded so a persistent
+ * non-collision failure (or a true invariant breakage) still surfaces.
+ */
+export const APPEND_MAX_ATTEMPTS = 5;
+
+/**
  * Result of verifying a single row against the rotation pair. Carries the
  * role of the secret that validated so the verifier can attribute reads
  * during a key-rotation soak window:
@@ -485,40 +512,70 @@ export function createAuditHashChain(deps: AuditHashChainDeps): AuditHashChain {
       validateNonEmpty(input.action, 'action');
 
       const secrets = resolveSecrets(deps.secret);
-      const latest = await deps.repo.getLatest(input.tenantId);
-      const sequenceId = (latest?.sequenceId ?? 0) + 1;
-      const prevHash = latest?.thisHash ?? GENESIS_PREV_HASH;
-      const timestamp = now().toISOString();
       const payload = input.payload ? { ...input.payload } : {};
 
-      const thisHash = hashAuditPayload(
-        {
-          sequenceId,
-          prevHash,
+      // Race-safe append. `getLatest() -> insertEntry()` is not atomic, so
+      // two concurrent same-tenant appends both read the same head, compute
+      // the same sequenceId, and one trips the (tenant_id, sequence_id)
+      // unique index (23505), gapping the chain. On collision we re-read the
+      // head and recompute the sequence / prev-hash / this-hash off the fresh
+      // predecessor, so the surviving chain stays contiguous and the
+      // hash-chain invariant is preserved. Bounded so a persistent
+      // non-collision failure still surfaces to the caller. Storage adapters
+      // that need stricter ordering (e.g. a per-tenant advisory xact lock)
+      // can layer it inside insertEntry; this loop is the portable fallback.
+      let lastErr: unknown = null;
+      for (let attempt = 1; attempt <= APPEND_MAX_ATTEMPTS; attempt += 1) {
+        const latest = await deps.repo.getLatest(input.tenantId);
+        const sequenceId = (latest?.sequenceId ?? 0) + 1;
+        const prevHash = latest?.thisHash ?? GENESIS_PREV_HASH;
+        const timestamp = now().toISOString();
+
+        const thisHash = hashAuditPayload(
+          {
+            sequenceId,
+            prevHash,
+            tenantId: input.tenantId,
+            turnId: input.turnId,
+            action: input.action,
+            payload,
+            timestamp,
+          },
+          secrets.active,
+        );
+
+        const entry: HashedAuditEntry = {
+          id: genId(),
           tenantId: input.tenantId,
+          sequenceId,
           turnId: input.turnId,
+          sessionId: input.sessionId ?? null,
           action: input.action,
+          prevHash,
+          thisHash,
+          payloadRef: input.payloadRef ?? null,
           payload,
-          timestamp,
-        },
-        secrets.active,
+          createdAt: timestamp,
+        };
+
+        try {
+          return await deps.repo.insertEntry(entry);
+        } catch (err) {
+          lastErr = err;
+          if (attempt < APPEND_MAX_ATTEMPTS && isAuditChainUniqueViolation(err)) {
+            // A concurrent writer chained off the same head and landed
+            // first. Loop to re-read the new head and recompute.
+            continue;
+          }
+          throw err;
+        }
+      }
+      // Exhausted the retry budget on repeated collisions.
+      throw new Error(
+        `audit-hash-chain: append failed after ${APPEND_MAX_ATTEMPTS} attempts: ${
+          lastErr instanceof Error ? lastErr.message : String(lastErr)
+        }`,
       );
-
-      const entry: HashedAuditEntry = {
-        id: genId(),
-        tenantId: input.tenantId,
-        sequenceId,
-        turnId: input.turnId,
-        sessionId: input.sessionId ?? null,
-        action: input.action,
-        prevHash,
-        thisHash,
-        payloadRef: input.payloadRef ?? null,
-        payload,
-        createdAt: timestamp,
-      };
-
-      return deps.repo.insertEntry(entry);
     },
 
     verify: verifyChain,
@@ -618,6 +675,20 @@ export function createInMemoryAuditChainRepo(): AuditChainRepository & {
       return rows.map((r) => ({ ...r, payload: { ...r.payload } }));
     },
     async insertEntry(entry) {
+      // Enforce the same (tenant_id, sequence_id) uniqueness the production
+      // table's index does, so concurrent appends that collide on a stale
+      // head surface a 23505-shaped error rather than silently double-
+      // inserting. This makes append()'s race-safe retry path testable.
+      const collides = rows.some(
+        (r) => r.tenantId === entry.tenantId && r.sequenceId === entry.sequenceId,
+      );
+      if (collides) {
+        const err = new Error(
+          `duplicate key value violates unique constraint "ai_audit_chain_tenant_seq" (tenant=${entry.tenantId}, sequence_id=${entry.sequenceId})`,
+        ) as Error & { code?: string };
+        err.code = '23505';
+        throw err;
+      }
       rows.push({ ...entry, payload: { ...entry.payload } });
       return { ...entry, payload: { ...entry.payload } };
     },

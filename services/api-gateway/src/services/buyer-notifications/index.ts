@@ -137,6 +137,154 @@ export async function enqueueRfbFulfillmentNotification(
   return id;
 }
 
+export interface EnqueueRfbResponseInput {
+  readonly buyerTenantId: string;
+  readonly buyerUserId: string;
+  readonly sellerTenantId: string;
+  readonly rfbId: string;
+  readonly responseId: string;
+  readonly mineralKind?: string | null;
+  readonly offeredPriceTzs?: number | string | null;
+  readonly extraPayload?: Record<string, unknown>;
+}
+
+/**
+ * Insert an `rfb_response_received` notification row for the buyer.
+ *
+ * Fired when a seller posts a counter-offer (POST /marketplace/rfb/:id/
+ * respond). Runs in the SELLER's RLS context — the migration 0132 policy
+ * admits the insert because `seller_tenant_id = current_setting(...)`, and
+ * the buyer reads it later in their own tenant context. Best-effort: the
+ * caller must never roll back the response insert if this throws.
+ */
+export async function enqueueRfbResponseNotification(
+  db: DbExecutor,
+  input: EnqueueRfbResponseInput,
+): Promise<string> {
+  const id = randomUUID();
+  const titleSw = 'Muuzaji amejibu RFB yako';
+  const titleEn = 'A seller responded to your RFB';
+  const bodySw =
+    'Muuzaji ametuma pendekezo kwa RFB yako. ' +
+    'Fungua RFB ili kuona bei na masharti ya muuzaji.';
+  const bodyEn =
+    'A seller has sent a counter-offer on your RFB. ' +
+    'Open the RFB to review the seller’s price and terms.';
+  const payload = {
+    rfbId: input.rfbId,
+    responseId: input.responseId,
+    ...(input.mineralKind != null ? { mineralKind: input.mineralKind } : {}),
+    ...(input.offeredPriceTzs != null
+      ? { offeredPriceTzs: String(input.offeredPriceTzs) }
+      : {}),
+    ...(input.extraPayload ?? {}),
+  };
+
+  await db.execute(sql`
+    INSERT INTO buyer_notifications (
+      id, buyer_tenant_id, buyer_user_id, seller_tenant_id,
+      rfb_id, response_id, task_id, kind,
+      title_sw, title_en, body_sw, body_en,
+      payload, created_at
+    ) VALUES (
+      ${id}::uuid,
+      ${input.buyerTenantId}::uuid,
+      ${input.buyerUserId},
+      ${input.sellerTenantId}::uuid,
+      ${input.rfbId}::uuid,
+      ${input.responseId}::uuid,
+      ${null},
+      'rfb_response_received',
+      ${titleSw},
+      ${titleEn},
+      ${bodySw},
+      ${bodyEn},
+      ${JSON.stringify(payload)}::jsonb,
+      NOW()
+    )
+    ON CONFLICT DO NOTHING
+  `);
+  return id;
+}
+
+export interface EnqueueBidOutcomeInput {
+  readonly buyerTenantId: string;
+  readonly buyerUserId: string;
+  readonly sellerTenantId: string;
+  readonly outcome: 'accepted' | 'rejected';
+  readonly bidId: string;
+  readonly listingId?: string | null;
+  readonly offtakeAgreementId?: string | null;
+  readonly extraPayload?: Record<string, unknown>;
+}
+
+/**
+ * Insert a `bid_accepted` / `bid_rejected` notification row for the buyer
+ * after a seller resolves a marketplace bid.
+ *
+ * A marketplace bid is INTRA-tenant (the buyer and seller share the same
+ * `tenant_id`), so `buyer_tenant_id === seller_tenant_id` here — the
+ * migration 0132 policy admits the insert (seller_tenant_id WITH CHECK)
+ * and the buyer reads it later in the same tenant context. `rfb_id` is
+ * NULL because a marketplace bid is not tied to an RFB (the migration that
+ * adds the two kinds also relaxes rfb_id to nullable — see migrationsNeeded).
+ *
+ * Best-effort: the caller commits the row inside the accept transaction but
+ * must not let a notification failure void an already-committed contract.
+ */
+export async function enqueueBidOutcomeNotification(
+  db: DbExecutor,
+  input: EnqueueBidOutcomeInput,
+): Promise<string> {
+  const id = randomUUID();
+  const accepted = input.outcome === 'accepted';
+  const kind = accepted ? 'bid_accepted' : 'bid_rejected';
+  const titleSw = accepted
+    ? 'Zabuni yako imekubaliwa'
+    : 'Zabuni yako imekataliwa';
+  const titleEn = accepted ? 'Your bid was accepted' : 'Your bid was declined';
+  const bodySw = accepted
+    ? 'Muuzaji amekubali zabuni yako. Mkataba unasubiri saini yako — fungua ili kusaini.'
+    : 'Muuzaji amekataa zabuni yako. Unaweza kuweka zabuni nyingine kwenye soko.';
+  const bodyEn = accepted
+    ? 'The seller accepted your bid. A contract awaits your signature — open it to sign.'
+    : 'The seller declined your bid. You can place another bid on the marketplace.';
+  const payload = {
+    bidId: input.bidId,
+    ...(input.listingId != null ? { listingId: input.listingId } : {}),
+    ...(input.offtakeAgreementId != null
+      ? { offtakeAgreementId: input.offtakeAgreementId }
+      : {}),
+    ...(input.extraPayload ?? {}),
+  };
+
+  await db.execute(sql`
+    INSERT INTO buyer_notifications (
+      id, buyer_tenant_id, buyer_user_id, seller_tenant_id,
+      rfb_id, response_id, task_id, kind,
+      title_sw, title_en, body_sw, body_en,
+      payload, created_at
+    ) VALUES (
+      ${id}::uuid,
+      ${input.buyerTenantId}::uuid,
+      ${input.buyerUserId},
+      ${input.sellerTenantId}::uuid,
+      ${null},
+      ${null},
+      ${null},
+      ${kind},
+      ${titleSw},
+      ${titleEn},
+      ${bodySw},
+      ${bodyEn},
+      ${JSON.stringify(payload)}::jsonb,
+      NOW()
+    )
+    ON CONFLICT DO NOTHING
+  `);
+  return id;
+}
+
 export interface ListBuyerNotificationsInput {
   readonly buyerTenantId: string;
   readonly buyerUserId: string;

@@ -44,6 +44,7 @@ import {
   workerHeartbeat,
   workerHeartbeatFailure,
 } from './worker-heartbeat';
+import { withServiceRoleContext } from '@borjie/database';
 import { withWorkerTenantContext } from './with-tenant-context.js';
 import type {
   EmailProvider,
@@ -68,6 +69,46 @@ const DEFAULT_TZ = 'Africa/Dar_es_Salaam';
 
 export interface DbLike {
   execute(query: unknown): Promise<unknown>;
+}
+
+// Service-role port type for the CROSS-TENANT discovery scan of `tenants`.
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
+
+// The cross-tenant `tenants` scan (which tenants are due) runs over the
+// shared pool with no tenant GUC. Bind `app.is_service_role='true'` so the
+// discovery read is not RLS-filtered. The unit-test mock injects a `db` with
+// `.execute` but no `.transaction`; in that case run the statement directly
+// so the real-transaction path stays prod-only (mirrors reminders-dispatch).
+async function runScan(
+  db: DbLike,
+  query: unknown,
+): Promise<unknown> {
+  const dbAny = db as { transaction?: unknown };
+  if (typeof dbAny.transaction === 'function') {
+    return withServiceRoleContext(
+      db as unknown as ServiceRoleDb,
+      (tx) => (tx as unknown as DbLike).execute(query),
+    );
+  }
+  return db.execute(query);
+}
+
+// A per-tenant leg operates on ONE known tenant id. Bind BOTH tenant GUCs via
+// withWorkerTenantContext so the FORCE-RLS tenant-isolation policies on
+// owner_brief_snapshots / daily_brief_dispatches / the slot tables match. The
+// unit-test mock has no `.transaction`, so run the body's `db.execute` direct.
+async function runForTenantCtx<T>(
+  db: DbLike,
+  tenantId: string,
+  body: (tx: DbLike) => Promise<T>,
+): Promise<T> {
+  const dbAny = db as { transaction?: unknown };
+  if (typeof dbAny.transaction === 'function') {
+    return withWorkerTenantContext(db, tenantId, (tx) =>
+      body(tx as unknown as DbLike),
+    );
+  }
+  return body(db);
 }
 
 export interface DailyBriefRecipient {
@@ -289,8 +330,12 @@ async function runForTenant(
   const { tenant, db, logger, now } = args;
   const snapshotDate = isoDateInTz(now, tenant.localTimezone);
 
-  // Step 1 — compose the seven-slot brief (single composition path).
-  const briefBase = await composeOwnerBrief(db, tenant.tenantId);
+  // Step 1 — compose the seven-slot brief (single composition path). The
+  // slot reads (incidents/shift_reports/sales/grievances/...) + owner_brief
+  // tables are FORCE-RLS tenant-isolated, so bind the tenant GUC for the read.
+  const briefBase = await runForTenantCtx(db, tenant.tenantId, (tx) =>
+    composeOwnerBrief(tx, tenant.tenantId),
+  );
 
   // Step 2 — overlay the warm Mr. Mwikila greeting via the brain ladder.
   const advisor = await composeMwikilaGreeting({
@@ -330,12 +375,14 @@ async function runForTenant(
   // Step 3 — persist with source='daily_cron'. The widened CHECK in
   // migration 0092 admits the third value so the operator can tell the
   // rebuilt cron from the legacy 06:00 EAT consolidation cron.
-  const persisted = await persistSnapshot(db, {
-    tenantId: tenant.tenantId,
-    brief: finalBrief,
-    source: 'daily_cron',
-    now,
-  });
+  const persisted = await runForTenantCtx(db, tenant.tenantId, (tx) =>
+    persistSnapshot(tx, {
+      tenantId: tenant.tenantId,
+      brief: finalBrief,
+      source: 'daily_cron',
+      now,
+    }),
+  );
 
   // Step 4 — dispatch on each channel × recipient. Idempotent via UNIQUE
   // constraint on the dispatch ledger.
@@ -870,19 +917,22 @@ async function fetchDueTenants(
     // every 5 min so the per-tenant local-time check is done in JS
     // against the cadence regex — cheap and keeps the SQL portable
     // across timezones.
-    const res = await db.execute(sql`
+    const res = await runScan(
+      db,
+      sql`
       SELECT id::text                 AS tenant_id,
              daily_brief_cadence      AS cadence,
              daily_brief_channels     AS channels,
              daily_brief_recipients   AS recipients,
-             COALESCE(timezone, ${DEFAULT_TZ}) AS tz
+             ${DEFAULT_TZ} AS tz
         FROM tenants
        WHERE status = 'active'
          AND daily_brief_cadence <> 'off'
          AND daily_brief_recipients IS NOT NULL
          AND jsonb_array_length(daily_brief_recipients) > 0
        LIMIT 1000
-    `);
+    `,
+    );
     const rows = rowsOf(res);
     const out: DueTenant[] = [];
     for (const r of rows) {
@@ -930,16 +980,19 @@ async function fetchTenantPrefs(
   logger: Logger,
 ): Promise<DueTenant | null> {
   try {
-    const res = await db.execute(sql`
+    const res = await runScan(
+      db,
+      sql`
       SELECT id::text                 AS tenant_id,
              daily_brief_cadence      AS cadence,
              daily_brief_channels     AS channels,
              daily_brief_recipients   AS recipients,
-             COALESCE(timezone, ${DEFAULT_TZ}) AS tz
+             ${DEFAULT_TZ} AS tz
         FROM tenants
        WHERE id::text = ${tenantId}
        LIMIT 1
-    `);
+    `,
+    );
     const rows = rowsOf(res);
     if (rows.length === 0) return null;
     const r = rows[0] as Record<string, unknown>;
@@ -969,14 +1022,16 @@ async function alreadyHasDispatchToday(
   snapshotDate: string,
 ): Promise<boolean> {
   try {
-    const res = await db.execute(sql`
+    const res = await runForTenantCtx(db, tenantId, (tx) =>
+      tx.execute(sql`
       SELECT 1
         FROM daily_brief_dispatches
        WHERE tenant_id = ${tenantId}::uuid
          AND snapshot_date = ${snapshotDate}::date
          AND status = 'sent'
        LIMIT 1
-    `);
+    `),
+    );
     return rowsOf(res).length > 0;
   } catch {
     return false;
@@ -992,7 +1047,8 @@ async function claimDispatchRow(args: {
   readonly recipient: string;
 }): Promise<{ readonly id: string } | null> {
   try {
-    const res = await args.db.execute(sql`
+    const res = await runForTenantCtx(args.db, args.tenantId, (tx) =>
+      tx.execute(sql`
       INSERT INTO daily_brief_dispatches
         (id, tenant_id, snapshot_date, channel, recipient, status)
       VALUES
@@ -1005,7 +1061,8 @@ async function claimDispatchRow(args: {
       ON CONFLICT (tenant_id, snapshot_date, channel, recipient)
       DO NOTHING
       RETURNING id::text
-    `);
+    `),
+    );
     const rows = rowsOf(res);
     if (rows.length === 0) return null;
     return { id: String((rows[0] as Record<string, unknown>).id ?? '') };
@@ -1034,7 +1091,8 @@ async function finaliseDispatch(args: {
   readonly result: DispatchResult;
 }): Promise<void> {
   try {
-    await args.db.execute(sql`
+    await runForTenantCtx(args.db, args.tenantId, (tx) =>
+      tx.execute(sql`
       UPDATE daily_brief_dispatches
          SET status              = ${args.result.status},
              provider_message_id = ${args.result.providerMessageId ?? null},
@@ -1042,7 +1100,8 @@ async function finaliseDispatch(args: {
              error_message       = ${args.result.errorMessage ?? null},
              dispatched_at       = now()
        WHERE id = ${args.dispatchId}::uuid
-    `);
+    `),
+    );
   } catch (err) {
     args.logger.warn(
       {
@@ -1139,7 +1198,8 @@ async function recordDispatch(args: {
   readonly errorMessage?: string;
 }): Promise<void> {
   try {
-    await args.db.execute(sql`
+    await runForTenantCtx(args.db, args.tenantId, (tx) =>
+      tx.execute(sql`
       INSERT INTO daily_brief_dispatches
         (id, tenant_id, snapshot_date, channel, recipient, status, error_code, error_message)
       VALUES
@@ -1153,7 +1213,8 @@ async function recordDispatch(args: {
          ${args.errorMessage ?? null})
       ON CONFLICT (tenant_id, snapshot_date, channel, recipient)
       DO NOTHING
-    `);
+    `),
+    );
   } catch (err) {
     args.logger.warn(
       {

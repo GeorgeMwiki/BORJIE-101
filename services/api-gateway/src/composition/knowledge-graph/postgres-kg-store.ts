@@ -90,6 +90,21 @@ function assertTenantId(tid: string): void {
   }
 }
 
+/**
+ * Build an `ARRAY['a','b']::text[]` SQL fragment for an `= ANY(...)` predicate.
+ *
+ * A bare `ANY(${jsArray})` makes drizzle SPREAD the array into a record
+ * constructor `ANY(($1, $2))` (and `ANY(())` when empty) which PostgreSQL
+ * rejects. The explicit ARRAY constructor binds each element as its own
+ * param and is empty-safe (`ARRAY[]::text[]`).
+ */
+function textArray(xs: ReadonlyArray<string>) {
+  return sql`ARRAY[${sql.join(
+    xs.map((x) => sql`${x}`),
+    sql`, `,
+  )}]::text[]`;
+}
+
 /** Postgres jsonb may arrive already-parsed (object) or as a string. */
 function asProps(raw: Record<string, unknown> | null | string): Readonly<Record<string, unknown>> {
   if (raw == null) return {};
@@ -249,7 +264,7 @@ export function createPostgresKgStore(db: KgDbExec): KGStorePort {
     const labels =
       args.edgeLabels && args.edgeLabels.length > 0 ? args.edgeLabels : null;
     const labelPred = labels
-      ? sql`AND relation = ANY(${labels})`
+      ? sql`AND relation = ANY(${textArray(labels)})`
       : sql``;
     // Collect edges touching the node in the requested direction(s).
     const dirPred = wantOut && wantIn
@@ -282,8 +297,8 @@ export function createPostgresKgStore(db: KgDbExec): KGStorePort {
       query.nodeClasses && query.nodeClasses.length > 0 ? query.nodeClasses : null;
     const seeds =
       query.seedNodeIds && query.seedNodeIds.length > 0 ? query.seedNodeIds : null;
-    const classPred = classes ? sql`AND kind = ANY(${classes})` : sql``;
-    const seedPred = seeds ? sql`AND id = ANY(${seeds})` : sql``;
+    const classPred = classes ? sql`AND kind = ANY(${textArray(classes)})` : sql``;
+    const seedPred = seeds ? sql`AND id = ANY(${textArray(seeds)})` : sql``;
 
     const seedRows = extractRows<NodeRow>(
       await db.execute(sql`
@@ -371,7 +386,7 @@ export function createPostgresKgStore(db: KgDbExec): KGStorePort {
       await db.execute(sql`
         SELECT id, tenant_id, kind, entity_ref, label, props
           FROM kg_nodes
-         WHERE tenant_id = ${tenantId} AND id = ANY(${ids})
+         WHERE tenant_id = ${tenantId} AND id = ANY(${textArray([...ids])})
       `),
     );
     return rows.map(rowToNode);
@@ -383,13 +398,14 @@ export function createPostgresKgStore(db: KgDbExec): KGStorePort {
     labels: ReadonlyArray<string> | null,
   ): Promise<ReadonlyArray<Edge>> {
     if (nodeIds.length === 0) return [];
-    const labelPred = labels ? sql`AND relation = ANY(${labels})` : sql``;
+    const labelPred = labels ? sql`AND relation = ANY(${textArray(labels)})` : sql``;
+    const nodeIdArr = textArray([...nodeIds]);
     const rows = extractRows<EdgeRow>(
       await db.execute(sql`
         SELECT id, tenant_id, src_node_id, dst_node_id, relation, weight, props
           FROM kg_edges
          WHERE tenant_id = ${tenantId}
-           AND (src_node_id = ANY(${nodeIds}) OR dst_node_id = ANY(${nodeIds}))
+           AND (src_node_id = ANY(${nodeIdArr}) OR dst_node_id = ANY(${nodeIdArr}))
            ${labelPred}
       `),
     );
@@ -402,14 +418,15 @@ export function createPostgresKgStore(db: KgDbExec): KGStorePort {
     labels: ReadonlyArray<string> | null,
   ): Promise<ReadonlyArray<Edge>> {
     if (nodeIds.length === 0) return [];
-    const labelPred = labels ? sql`AND relation = ANY(${labels})` : sql``;
+    const labelPred = labels ? sql`AND relation = ANY(${textArray(labels)})` : sql``;
+    const nodeIdArr = textArray([...nodeIds]);
     const rows = extractRows<EdgeRow>(
       await db.execute(sql`
         SELECT id, tenant_id, src_node_id, dst_node_id, relation, weight, props
           FROM kg_edges
          WHERE tenant_id = ${tenantId}
-           AND src_node_id = ANY(${nodeIds})
-           AND dst_node_id = ANY(${nodeIds})
+           AND src_node_id = ANY(${nodeIdArr})
+           AND dst_node_id = ANY(${nodeIdArr})
            ${labelPred}
       `),
     );

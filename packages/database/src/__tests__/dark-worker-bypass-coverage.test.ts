@@ -36,6 +36,20 @@ const WORKER_BYPASS_TABLES = [
   'document_drafts', // read source (0358)
   'entity_index', // write (0357)
   'entity_cross_references', // write (0357)
+  // --- 2026-06-14 live-readiness audit: 8 more dark workers (0361) ---
+  // announcement-recipient-resolver (global recipient scan)
+  'owner_contact_prefs', // read source (0361)  [users already 0331]
+  // decision-retrospective-worker (pending-grade cross-tenant join)
+  'decisions', // read source (0361)
+  'decision_outcomes', // read source (0361)
+  'outcome_observations', // read source (0361; also outcome-reconciliation)
+  'outcome_reconciliations', // read source (0361; also outcome-reconciliation)
+  // outcome-reconciliation-worker (claim scan)
+  'outcome_predictions', // read source (0361)
+  // executive-brief-action-runner (approved-batch scan)
+  'executive_brief_actions', // read source = write-target (0361)
+  // licence-renewal-watcher (reminder-event dedup + insert)
+  'licence_events', // read source = write-target (0361)  [licences already 0358]
 ] as const
 
 const MIGRATIONS_DIR = join(process.cwd(), 'packages/database/src/migrations')

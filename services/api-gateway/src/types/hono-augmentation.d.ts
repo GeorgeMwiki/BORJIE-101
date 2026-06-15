@@ -83,9 +83,7 @@ declare module 'hono' {
     approvalWorkflowService: unknown;
     moveOutChecklistService: unknown;
 
-    // Cases (Wave 26)
-    caseService: unknown;
-    caseRepo: unknown;
+    // REMOVED (borjie hard-fork): caseService / caseRepo — residential-property residue.
 
     // Station master
     stationMasterCoverageRepo: unknown;

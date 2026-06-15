@@ -36,11 +36,10 @@ export function loadSchedulerConfig(env: NodeJS.ProcessEnv = process.env): Sched
 /**
  * Minimal deps bag mirrored here so the composition root can be type-checked
  * without depending on the worker-registry module directly. Keys correspond
- * to the 7 workers registered in worker-registry.ts.
+ * to the workers registered in worker-registry.ts.
  */
 export interface WorkerRegistryDeps {
   readonly runRenewalSweep: () => Promise<void>;
-  readonly runSlaWorker: () => Promise<void>;
   readonly runVendorRating: () => Promise<void>;
   readonly runIntelligenceHistory: () => Promise<void>;
   readonly runFarScheduler: () => Promise<void>;
@@ -90,24 +89,12 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
       }
     : shim('runRenewalSweep', shimmed, 'DATABASE_URL missing');
 
-  const slaWorker = hasDb
-    ? async () => {
-        const { CaseSLAWorker } = (await import(
-          '../../../../domain-services/src/cases/sla-worker.js' as string
-        ).catch(() => ({ CaseSLAWorker: null }))) as { CaseSLAWorker: unknown };
-        if (!CaseSLAWorker) {
-          logger.warn('[scheduler] CaseSLAWorker not reachable — shimming');
-          return;
-        }
-        interface SlaWorkerInstance {
-          tick?: () => Promise<void> | void;
-        }
-        type SlaWorkerNew = new (opts: { config: unknown }) => SlaWorkerInstance;
-        const w = new (CaseSLAWorker as SlaWorkerNew)({ config });
-        await (w.tick ? w.tick() : Promise.resolve());
-      }
-    : shim('runSlaWorker', shimmed, 'DATABASE_URL missing');
-
+  // REMOVED (borjie hard-fork): the cases SLA worker. The residential-property
+  // `cases` table was dropped in 0003_mining_domain.sql and mining uses the
+  // `grievances` subsystem; CaseSLAWorker no longer exists. The `sla-worker`
+  // job (a permanent no-op carrying the stale "Case SLA" residue) has been
+  // dropped entirely rather than left registered. When a mining-domain SLA
+  // worker is built, add it back as its own descriptor + binding.
   const vendorRating = hasDb
     ? async () => {
         try {
@@ -175,7 +162,6 @@ export function buildWorkerDeps(config: SchedulerConfig): CompositionResult {
 
   const deps: WorkerRegistryDeps = {
     runRenewalSweep: renewalSweep,
-    runSlaWorker: slaWorker,
     runVendorRating: vendorRating,
     runIntelligenceHistory: intelligenceHistory,
     runFarScheduler: farScheduler,
@@ -208,7 +194,6 @@ export function buildNoopDeps(): WorkerRegistryDeps {
   const noop = async () => {};
   return {
     runRenewalSweep: noop,
-    runSlaWorker: noop,
     runVendorRating: noop,
     runIntelligenceHistory: noop,
     runFarScheduler: noop,

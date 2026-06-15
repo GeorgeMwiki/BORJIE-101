@@ -9,10 +9,11 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 const CASH_LINKS: ReadonlyArray<string> = ['O-M-07', 'O-M-10', 'O-M-14', 'O-M-17', 'O-M-18']
 
 export default function CashTab(): JSX.Element {
-  const { screen } = useI18n()
+  const { screen, lang } = useI18n()
+  const isSw = lang === 'sw'
   return (
     <ScreenShell screenId="O-M-07">
-      <Section title="Hela kwa muhtasari">
+      <Section title={isSw ? 'Hela kwa muhtasari' : 'Cash at a glance'}>
         <View style={styles.grid}>
           {CASH_LINKS.map((id) => (
             <Link key={id} href={`/owner/${id}`} asChild>

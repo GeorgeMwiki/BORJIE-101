@@ -184,9 +184,16 @@ export function createDefaultCrossRoleInsertPort(
 }
 
 /**
- * Resolve the manager / worker / buyer assignees touching the
- * decision's scope ids. Reads `mining_tasks` (managers + workers)
- * + `marketplace_bids` (buyers + vendors).
+ * Resolve the manager / worker assignees touching the decision's scope
+ * ids. Reads `mining_tasks`, whose real schema (migration
+ * `0080_mining_tasks_toolbox.sql`) has no role column — instead the
+ * assigned worker (`assigned_to_user_id`) is by definition a
+ * `T4_field_employee` and the assigning manager (`assigned_by_user_id`)
+ * is a `T3_module_manager`. We derive both role classes from those two
+ * columns via a UNION so the cross-role fan-out still reaches every
+ * human attached to an unfinished task under the affected sites, while
+ * staying faithful to the actual columns + status vocabulary
+ * (unstarted = `pending`, not `open`).
  */
 async function resolveAssignees(
   db: CrossRoleLinkerDb,
@@ -195,16 +202,32 @@ async function resolveAssignees(
 ): Promise<ReadonlyArray<AffectedAssignee>> {
   if (scopeIds.length === 0) return [];
 
-  // Managers + workers from open mining_tasks under the affected scopes.
+  const siteIdArray = sql`ARRAY[${sql.join(
+    scopeIds.map((s) => sql`${s}`),
+    sql`, `,
+  )}]::uuid[]`;
+
+  // Workers (T4, the assigned_to user) + managers (T3, the assigned_by
+  // user) on every unfinished mining_task under the affected sites.
   const taskRows = rowsOf(
     await db.execute(sql`
-      SELECT DISTINCT assignee_id, assignee_role
-        FROM mining_tasks
-       WHERE tenant_id = ${tenantId}
-         AND status IN ('open', 'in_progress', 'blocked')
-         AND scope_id = ANY(${scopeIds as string[]}::text[])
-         AND assignee_id IS NOT NULL
-         AND assignee_role IS NOT NULL
+      SELECT DISTINCT assignee_id, assignee_role FROM (
+        SELECT assigned_to_user_id AS assignee_id,
+               'T4_field_employee'::text AS assignee_role
+          FROM mining_tasks
+         WHERE tenant_id = ${tenantId}
+           AND status IN ('pending', 'in_progress', 'blocked')
+           AND site_id = ANY(${siteIdArray})
+           AND assigned_to_user_id IS NOT NULL
+        UNION
+        SELECT assigned_by_user_id AS assignee_id,
+               'T3_module_manager'::text AS assignee_role
+          FROM mining_tasks
+         WHERE tenant_id = ${tenantId}
+           AND status IN ('pending', 'in_progress', 'blocked')
+           AND site_id = ANY(${siteIdArray})
+           AND assigned_by_user_id IS NOT NULL
+      ) AS affected
     `),
   );
 

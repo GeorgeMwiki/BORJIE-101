@@ -41,14 +41,14 @@ describe('buildWorkerDeps', () => {
     const cfg = loadSchedulerConfig({});
     const { deps } = buildWorkerDeps(cfg);
     await expect(deps.runRenewalSweep()).resolves.toBeUndefined();
-    await expect(deps.runSlaWorker()).resolves.toBeUndefined();
+    await expect(deps.runVendorRating()).resolves.toBeUndefined();
   });
 });
 
 describe('buildNoopDeps', () => {
-  it('produces 7 no-op handlers', async () => {
+  it('produces 6 no-op handlers', async () => {
     const deps = buildNoopDeps();
-    expect(Object.keys(deps)).toHaveLength(7);
+    expect(Object.keys(deps)).toHaveLength(6);
     for (const fn of Object.values(deps)) {
       await expect(fn()).resolves.toBeUndefined();
     }

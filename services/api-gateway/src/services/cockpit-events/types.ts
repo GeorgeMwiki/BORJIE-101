@@ -34,6 +34,8 @@ export const COCKPIT_EVENT_KINDS = [
   'chat.handoff',
   'manager.approved',
   'bid.placed',
+  'bid.accepted',
+  'bid.rejected',
   'incident.escalated',
   // ── CT-3/CT-5 (2026-05-29) chat-driven dynamic tab CRUD ─────────
   // Per-user cockpit bus pulses so multi-device sessions reconcile the
@@ -78,6 +80,8 @@ export type CockpitEvent =
   | ChatHandoffEvent
   | ManagerApprovedEvent
   | BidPlacedEvent
+  | BidAcceptedEvent
+  | BidRejectedEvent
   | IncidentEscalatedEvent
   | CockpitTabSpawnedEvent
   | CockpitTabUpdatedEvent
@@ -321,6 +325,29 @@ export interface BidPlacedEvent extends BaseEvent {
   readonly parcelId: string | null;
   readonly amountTzs: number;
   readonly bidderId: string;
+}
+
+/**
+ * Seller accepted a marketplace bid — buyer surface pulse. The bid is
+ * intra-tenant (buyer + seller share `tenantId`), so this lands on the
+ * buyer's own `cockpit:<tenantId>` channel and triggers the buyer-mobile
+ * buyer_notifications refetch. `offtakeAgreementId` deep-links to the
+ * pending-signature contract awaiting the buyer's signature.
+ */
+export interface BidAcceptedEvent extends BaseEvent {
+  readonly kind: 'bid.accepted';
+  readonly bidId: string;
+  readonly listingId: string | null;
+  readonly offtakeAgreementId: string | null;
+  readonly buyerId: string;
+}
+
+/** Seller rejected a marketplace bid — buyer surface pulse. */
+export interface BidRejectedEvent extends BaseEvent {
+  readonly kind: 'bid.rejected';
+  readonly bidId: string;
+  readonly listingId: string | null;
+  readonly buyerId: string;
 }
 
 /** Incident escalated up the chain — owner cockpit alert pulse. */

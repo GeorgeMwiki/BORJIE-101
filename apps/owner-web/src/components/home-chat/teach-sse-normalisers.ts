@@ -12,6 +12,7 @@
  */
 
 import type { BorjieAffectiveProfile } from './BorjieDynamicHints';
+import type { ChatGroundingSignal } from '@/lib/types/chat';
 
 /**
  * Trust badge — emitted (`debate_metadata`) when a high-stakes turn ran
@@ -138,4 +139,33 @@ export function normaliseAutoAuthorized(
         ? inner.reason
         : null;
   return { action, rationale };
+}
+
+/**
+ * KI-005 — map the gateway's terminal `auditor` frame onto the
+ * `ChatGroundingSignal` shape the teach bubble renders. The gateway writes
+ * snake_case wire fields ({verdict, evidence_count, evidence_warning,
+ * grounding_fault}); project them onto the camelCase signal. Returns null for
+ * a non-record payload; otherwise always a signal, defaulting an unexpected
+ * frame to an `approve` / no-warning verdict so a wire drift never surfaces a
+ * false caution badge.
+ */
+export function normaliseAuditor(value: unknown): ChatGroundingSignal | null {
+  if (!isRecord(value)) return null;
+  const verdict =
+    value.verdict === 'reject' || value.verdict === 'needs_human'
+      ? value.verdict
+      : 'approve';
+  const evidenceWarning =
+    value.evidence_warning === 'no_evidence_cited' ||
+    value.evidence_warning === 'evidence_invalid'
+      ? value.evidence_warning
+      : null;
+  return {
+    verdict,
+    evidenceCount:
+      typeof value.evidence_count === 'number' ? value.evidence_count : 0,
+    evidenceWarning,
+    groundingFault: value.grounding_fault === true,
+  };
 }

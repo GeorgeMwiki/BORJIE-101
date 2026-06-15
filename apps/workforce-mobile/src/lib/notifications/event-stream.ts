@@ -37,6 +37,15 @@ import { getAuthToken } from '../../api/session'
  * Mirror of the api-gateway cockpit event kinds. Kept in lockstep with
  * `services/api-gateway/src/services/cockpit-events/types.ts` so the
  * types stay accurate without a runtime cross-package dependency.
+ *
+ * NOTE on `rfb.dispatched`: it is a declared server cockpit-event kind
+ * (cockpit-events/types.ts), so the mirror retains it for lockstep AND the
+ * notifications inbox renders it. But the RFB-dispatch surface
+ * (routes/marketplace/rfb.hono.ts) intentionally publishes `task.assigned`
+ * (not `rfb.dispatched`) as the manager-reachable live pulse, because
+ * `task.assigned` is the kind the worker app already acts on. So the live
+ * pulse on RFB dispatch arrives under `task.assigned`; `rfb.dispatched`
+ * stays a mirrored-but-currently-unemitted kind, not a fabricated one.
  */
 export const WORKFORCE_EVENT_KINDS = [
   'task.assigned',

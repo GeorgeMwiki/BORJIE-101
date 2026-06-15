@@ -87,7 +87,8 @@ import {
   executiveBriefRouter,
   briefingSubscriptionRouter,
 } from './routes/executive-brief.hono';
-import { casesRouter } from './routes/cases.hono';
+// REMOVED (borjie hard-fork): casesRouter — residential-property residue;
+// the `cases` table was dropped in 0003_mining_domain.sql.
 // Mining-domain backends (Wave MINING-BACKENDS) — six new scopes shipped
 // as siblings to the existing /mining surface. Each carries chat-as-OS
 // parity (both explicit tab + chat reach same backend) via persona tool
@@ -464,7 +465,6 @@ import sessionReplayRouter from './routes/session-replay.router';
 // Wave 12 — MCP server + agent platform
 import mcpRouter, { agentCardRouter } from './routes/mcp.router';
 // Wave 11 — public marketing (Mr. Mwikila), workflows
-import publicSandboxRouter from './routes/public-sandbox.router';
 import publicLeadsRouter from './routes/public-leads.router';
 // Borjie marketing-widget public chat — unauthenticated SSE stream of
 // curated Borjie-about-Borjie responses, consumed by FloatingAskBorjie
@@ -621,7 +621,8 @@ import {
   stopOutboxWorker,
   type OutboxRunnerLike,
 } from './workers/outbox-worker';
-import { createCaseSLASupervisor } from './workers/cases-sla-supervisor';
+// REMOVED (borjie hard-fork): createCaseSLASupervisor — residential-property
+// residue; the `cases` table was dropped in 0003_mining_domain.sql.
 // Geo SOTA 2026-05-29 — geofencing service + watcher worker. Backed by
 // PostGIS (migration 0130). Watcher ticks every 30s, emits
 // worker_offsite_alert + worker_in_hazard_alert. See
@@ -803,6 +804,12 @@ import { regulatoryFilingsRouter as opsRegulatoryFilingsRouter } from './routes/
 // geofencing service. See Docs/RESEARCH/GEO_SOTA_2026-05-29.md §5.
 import { regulatoryZonesRouter } from './routes/regulatory/zones.hono.js';
 import { createRemindersDispatchWorker } from './workers/reminders-dispatch.worker';
+// Wave 3 (R2) — owner saved-search alert worker. The pure worker was built +
+// tested but never composed/started, so saved-search alerts never fired. The
+// wiring module builds the three real ports (DbLike / SearchExecutor /
+// OwnerAlertSender) over the live Drizzle client.
+import { createSavedSearchWorker } from './workers/saved-search-worker';
+import { buildSavedSearchWorkerPorts } from './composition/saved-search-worker-wiring';
 // Wave 2 — self-acting-MD workers: proactive-intel insight loop + KG auto-sync.
 import {
   createProactiveIntelWorker,
@@ -921,7 +928,6 @@ const CLUSTER_LEADER_CRON_NAMES = [
   'heartbeat',
   'background-supervisor',
   'intelligence-history',
-  'cases-sla',
   'learning-amplification',
   'geofence-watcher',
   'licence-expiry',
@@ -947,6 +953,14 @@ const CLUSTER_LEADER_CRON_NAMES = [
   // gracefulShutdown releases its lock; only .start()ed behind the
   // default-OFF BORJIE_SELF_EXTENSION_CRON_ENABLED flag (see listen block).
   'self-extension',
+  // Wave 2 self-acting-MD loops — acquired via withClusterLeader(...).start()
+  // in the listen block (aop-meta-loop, proactive-intel, kg-sync) but were
+  // absent here, so gracefulShutdown leaked their advisory locks on shutdown.
+  'aop-meta-loop',
+  'proactive-intel',
+  'kg-sync',
+  // Wave 3 (R2) — owner saved-search alert worker, cluster-leader gated.
+  'saved-search',
 ] as const;
 import { createServiceContextMiddleware } from './composition/service-context.middleware';
 import {
@@ -2580,7 +2594,7 @@ api.route('/complaints', complaintsRouter);
 // Piece C — Executive briefs (T1-T3 only) + subscription cadence registry.
 api.route('/briefs', executiveBriefRouter);
 api.route('/briefing-subscriptions', briefingSubscriptionRouter);
-api.route('/cases', casesRouter);
+// REMOVED (borjie hard-fork): api.route('/cases', casesRouter) — residential-property residue.
 // Mining-domain backends — Wave MINING-BACKENDS.
 api.route('/geology', geologyRouter);
 api.route('/production', productionRouter);
@@ -2721,7 +2735,7 @@ api.route('/compliance-plugins', compliancePluginsRouter);
   // Background watcher — opens reminder events on the 90/60/30/14/7/1
   // ladder so the cockpit pulses without the owner having to poll.
   const watcher = startLicenceRenewalWatcher({
-    db: getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+    db: getDb() as unknown as never,
     logger,
   });
   watcher.start();
@@ -3206,7 +3220,6 @@ api.route('/.well-known/agent.json', agentCardRouter);
 // the marketing chat to canned property text), and its /pricing-advice +
 // /demo-estate + /waitlist routes were unreferenced by any app.
 api.route('/public', publicChatRouter);
-api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);
 api.route('/public/status', publicStatusRouter);
 // SAFE-LIST tools surface for the unauthenticated marketing widget.
@@ -3564,7 +3577,7 @@ const openApiRouter = createOpenApiRouter({
     // REMOVED (borjie hard-fork): { prefix: '/documents', app: documentsHonoRouter, defaultTag: 'documents' },
     // REMOVED (borjie hard-fork): { prefix: '/scheduling', app: schedulingRouter, defaultTag: 'scheduling' },
     // REMOVED (borjie hard-fork): { prefix: '/messaging', app: messagingRouter, defaultTag: 'messaging' },
-    { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
+    // REMOVED (borjie hard-fork): { prefix: '/cases', app: casesRouter, defaultTag: 'cases' },
     { prefix: '/brain', app: brainRouter, defaultTag: 'brain' },
     // REMOVED (borjie hard-fork): { prefix: '/maintenance', app: maintenanceRouter, ... },
     // REMOVED (borjie hard-fork): { prefix: '/hr', app: hrRouter, ... },
@@ -3647,25 +3660,10 @@ app.get('/api/v1', (_req, res) => {
       '/api/v1/auth/mfa',
       '/api/v1/tenants',
       '/api/v1/users',
-      '/api/v1/properties',
-      '/api/v1/units',
-      '/api/v1/customers',
-      '/api/v1/leases',
-      '/api/v1/invoices',
-      '/api/v1/payments',
-      '/api/v1/work-orders',
-      '/api/v1/vendors',
       '/api/v1/notifications',
-      '/api/v1/reports',
-      '/api/v1/dashboard',
       '/api/v1/onboarding',
       '/api/v1/feedback',
       '/api/v1/complaints',
-      '/api/v1/inspections',
-      '/api/v1/documents',
-      '/api/v1/scheduling',
-      '/api/v1/messaging',
-      '/api/v1/cases',
       '/api/v1/brain',
       '/api/v1/maintenance',
       '/api/v1/hr',
@@ -3717,12 +3715,11 @@ const intelligenceHistorySupervisor = createIntelligenceHistorySupervisor(
     warn: (meta, msg) => logger.warn(meta, msg),
   },
 );
-// Wave 26 — Cases SLA worker supervisor. Wraps the per-tenant
-// CaseSLAWorker (domain-services/cases/sla-worker.ts) in a multi-tenant
-// supervisor that ticks active tenants every 5 minutes, auto-escalating
-// overdue cases and emitting CaseSLABreached events once the ceiling is
-// hit. No-op in degraded mode.
-const casesSlaSupervisor = createCaseSLASupervisor(serviceRegistry, logger);
+// REMOVED (borjie hard-fork): the Cases SLA worker supervisor. The `cases`
+// table (rent-arrears / eviction / deposit-dispute) is residential-property
+// residue dropped in 0003_mining_domain.sql; mining uses the `grievances`
+// subsystem as its equivalent. The supervisor, worker, repo, route and
+// domain module were fully removed on 2026-06-14.
 
 // Learning Amplification (LitFin port) — boot the wiring once so
 // recordObservation()/runAmplification() can resolve the Supabase
@@ -3983,7 +3980,7 @@ const fxFeedCron = serviceRegistry.db
 // each dispatch is hash-chained into ai_audit_chain.
 const executiveBriefActionRunner = serviceRegistry.db
   ? createExecutiveBriefActionRunner({
-      db: serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+      db: serviceRegistry.db as unknown as never,
       logger,
     })
   : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, executed: 0, failed: 0, skipped: 0 }; } };
@@ -4150,22 +4147,46 @@ const proactiveIntelWorker = serviceRegistry.db
       // the same tenant-scoped $client.unsafe port the record store uses (RLS
       // FORCE backstops). A missing/empty source → neutral default (detector
       // self-skips), never a fabricated signal.
+      // Each slice query is per-tenant (tenantId is params[0]); the worker
+      // bypasses databaseMiddleware so it carries NO ambient GUC. Pin ONE
+      // connection via $client.begin and bind the tenant GUC (txn-local, both
+      // names) on it before the raw read, else FORCE-RLS zeroes
+      // cash_balances/forecasts/sales/buyers silently. Empty tenantId →
+      // neutral [] (the detector self-skips), never a fabricated signal.
       inputsForTenant: createTickInputsProvider({
         query: {
-          query: <Row = Record<string, unknown>>(
+          query: async <Row = Record<string, unknown>>(
             sql: string,
             params?: ReadonlyArray<unknown>,
-          ): Promise<ReadonlyArray<Row>> =>
-            (
+          ): Promise<ReadonlyArray<Row>> => {
+            const client = (
               serviceRegistry.db as unknown as {
                 $client: {
-                  unsafe<R = Record<string, unknown>>(
-                    sql: string,
-                    params?: ReadonlyArray<unknown>,
-                  ): Promise<ReadonlyArray<R>>;
+                  begin<T>(
+                    fn: (tx: {
+                      unsafe<R = Record<string, unknown>>(
+                        s: string,
+                        p?: ReadonlyArray<unknown>,
+                      ): Promise<ReadonlyArray<R>>;
+                    }) => Promise<T>,
+                  ): Promise<T>;
                 };
               }
-            ).$client.unsafe<Row>(sql, params ?? []),
+            ).$client;
+            const tenantId = String((params ?? [])[0] ?? '');
+            if (tenantId.length === 0) return [] as ReadonlyArray<Row>;
+            return client.begin(async (tx) => {
+              await tx.unsafe(
+                "SELECT set_config('app.current_tenant_id', $1, true)",
+                [tenantId],
+              );
+              await tx.unsafe(
+                "SELECT set_config('app.tenant_id', $1, true)",
+                [tenantId],
+              );
+              return tx.unsafe<Row>(sql, (params ?? []) as ReadonlyArray<unknown>);
+            });
+          },
         },
         logger,
       }),
@@ -4218,6 +4239,22 @@ const kgSyncWorker = serviceRegistry.db
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_KG_SYNC_WORKER_DISABLED !== 'true',
     })
   : { start() {}, stop() {}, async tickOnce() { return { tenantsScanned: 0, tenantsIngested: 0, tenantsFailed: 0, nodes: 0, edges: 0 }; } };
+
+// Wave 3 (R2) — owner saved-search alert worker. Composes the three real ports
+// over the live Drizzle client and ticks every 60s (configurable via
+// SAVED_SEARCH_WORKER_INTERVAL_MS). The worker honors SAVED_SEARCH_WORKER_DISABLED
+// =true to no-op when a k8s CronJob owns the cadence. Same serviceRegistry.db
+// guard as the sibling workers so the no-DB path degrades to a quiet noop.
+const savedSearchWorker = serviceRegistry.db
+  ? createSavedSearchWorker({
+      ...buildSavedSearchWorkerPorts(
+        getDb() as unknown as { execute(q: unknown): Promise<unknown> },
+        { logger },
+      ),
+      logger,
+      intervalMs: Number(process.env.SAVED_SEARCH_WORKER_INTERVAL_MS ?? 60_000) || 60_000,
+    })
+  : { start() {}, stop() {}, async tickOnce() { return { scanned: 0, alerted: 0 }; } };
 
 // Notification-dispatch drain — delivers notification_dispatch_log
 // (pending) rows via email/SMS/push with retry+backoff+DLQ. The
@@ -4299,7 +4336,9 @@ const announcementFanoutWorker = serviceRegistry.db
       db: notificationWorkerDb as unknown as { execute(q: unknown): Promise<unknown> },
       logger,
       resolveRecipients: createAnnouncementRecipientResolver(
-        serviceRegistry.db as unknown as { execute(q: unknown): Promise<unknown> },
+        serviceRegistry.db as unknown as Parameters<
+          typeof createAnnouncementRecipientResolver
+        >[0],
       ),
       intervalMs: Number(process.env.BORJIE_ANNOUNCEMENT_FANOUT_INTERVAL_MS ?? 60_000) || 60_000,
       enabled: process.env.NODE_ENV !== 'test' && process.env.BORJIE_ANNOUNCEMENT_FANOUT_DISABLED !== 'true',
@@ -4628,12 +4667,6 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: intelligence-history stop failed');
   }
   try {
-    casesSlaSupervisor.stop();
-    logger.info('shutdown: cases SLA supervisor stopped');
-  } catch (err) {
-    logger.warn({ err }, 'shutdown: cases SLA supervisor stop failed');
-  }
-  try {
     learningAmplificationCron.stop();
     logger.info('shutdown: learning-amplification cron stopped');
   } catch (err) {
@@ -4728,6 +4761,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     logger.info('shutdown: reminders-dispatch worker stopped');
   } catch (err) {
     logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: reminders-dispatch stop failed');
+  }
+  try {
+    savedSearchWorker.stop();
+    logger.info('shutdown: saved-search worker stopped');
+  } catch (err) {
+    logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: saved-search stop failed');
   }
   try { announcementFanoutWorker.stop(); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: announcement-fanout stop failed'); }
   try { notificationDispatchAbort.abort(); } catch (err) { logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'shutdown: notification-dispatch abort failed'); }
@@ -4972,9 +5011,7 @@ if (require.main === module) {
   withClusterLeader(heartbeatSupervisor, lockIdFor('heartbeat')).start();
   withClusterLeader(backgroundSupervisor, lockIdFor('background-supervisor')).start();
   withClusterLeader(intelligenceHistorySupervisor, lockIdFor('intelligence-history')).start();
-  // Wave 26 — start the Cases SLA supervisor alongside the other
-  // background workers. Skipped in tests + when disabled by env.
-  withClusterLeader(casesSlaSupervisor, lockIdFor('cases-sla')).start();
+  // REMOVED (borjie hard-fork): the Cases SLA supervisor start() — residential-property residue.
   // Learning Amplification (LitFin port) — nightly Bayesian roll-up of
   // learning_observations. Interval overridable via
   // BORJIE_LEARNING_AMPLIFY_INTERVAL_MS (min 60s).
@@ -5071,6 +5108,10 @@ if (require.main === module) {
   withClusterLeader(proactiveIntelWorker, lockIdFor('proactive-intel')).start();
   // Wave 2 (W2d) — KG auto-sync so GraphRAG stays fresh across every domain.
   withClusterLeader(kgSyncWorker, lockIdFor('kg-sync')).start();
+  // Wave 3 (R2) — owner saved-search alert worker (cluster-leader gated so only
+  // one instance ticks). Counts each saved search's live corpus and enqueues a
+  // reminders row when the match-count grows, delivered via the reminders pipeline.
+  withClusterLeader(savedSearchWorker, lockIdFor('saved-search')).start();
   // Wave NOTIFICATION-DISPATCH-WIRE — start the broadcast fan-out (enqueues
   // per-recipient dispatch-log rows) and the dispatch drain (sends them via
   // email/SMS/push). The drain runs as a long-lived runForever loop bounded

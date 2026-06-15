@@ -12,7 +12,7 @@
  *   - services/api-gateway/src/services/geofencing/
  *   - Docs/RESEARCH/GEO_SOTA_2026-05-29.md §2
  *
- * Worker shape mirrors `cases-sla-supervisor.ts`:
+ * Worker shape (the standard multi-tenant supervisor pattern):
  *   - Multi-tenant loop, sequential per tenant.
  *   - Failures logged + swallowed so one bad tenant cannot stall the
  *     rest.

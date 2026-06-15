@@ -263,15 +263,22 @@ describe('POST /settlement-periods/:id/distribute — money path', () => {
 });
 
 describe('POST /settlement-periods/:id/calculate — share allocation', () => {
-  it('allocates per-member shares in integer minor units so SUM equals net exactly', async () => {
-    // net = 100.10 with shares [33.33, 33.33, 33.34] is a PROVABLE float-drift
-    // case: the OLD `Number(((sharePct/100)*net).toFixed(2))` formula sums to
-    // 10009 cents (off by 1 from the 10010-cent net). The integer allocation
-    // here must sum to the net to the last cent — red-then-green.
-    const net = '100.10';
-    const insertedAmounts: number[] = [];
-    const { db } = makeDb((rec) => {
+  /**
+   * Mock responder for the calculate path. The tenant resolves to TZS
+   * (a 0-decimal currency), so the allocation must be WHOLE SHILLINGS — the
+   * same precision the distribution ledger posts at. Returning no row for the
+   * `tenants.primary_currency` lookup also exercises the TZS fail-closed
+   * default; we additionally answer it explicitly for clarity.
+   */
+  function calculateResponder(
+    net: string,
+    insertedAmounts: number[],
+  ): (rec: Recorded) => unknown {
+    return (rec: Recorded) => {
       const sqlText = rec.fragments.join('');
+      if (sqlText.includes('SELECT primary_currency')) {
+        return [{ primary_currency: 'TZS' }];
+      }
       if (
         sqlText.includes('SELECT net_distributable_tzs') &&
         sqlText.includes('cooperative_settlement_periods')
@@ -286,11 +293,21 @@ describe('POST /settlement-periods/:id/calculate — share allocation', () => {
         if (typeof amount === 'number') insertedAmounts.push(amount);
         return [];
       }
-      if (sqlText.includes('SELECT * FROM cooperative_member_distributions')) {
-        return [];
-      }
       return [];
-    });
+    };
+  }
+
+  it('allocates per-member shares at TZS (0-decimal) precision so SUM equals net in WHOLE shillings (no remainder leak)', async () => {
+    // net = 1,000,000 TZS with shares [33.33, 33.33, 33.34]. TZS is 0-decimal,
+    // so the allocation must be whole shillings that SUM to the net exactly —
+    // the precision the distribution ledger's majorToMinor posts at. The OLD
+    // fixed-cent allocation produced 333333.00 / 333333.00 / 333400.00 (sub-
+    // shilling residue the 0-decimal ledger floored away → a leaked shilling);
+    // the fix lands the remainder on the largest-fraction member at ledger
+    // precision.
+    const net = '1000000';
+    const insertedAmounts: number[] = [];
+    const { db } = makeDb(calculateResponder(net, insertedAmounts));
 
     const app = buildApp(db);
     const res = await app.request(`/settlement-periods/${PERIOD_ID}/calculate`, {
@@ -307,11 +324,13 @@ describe('POST /settlement-periods/:id/calculate — share allocation', () => {
 
     expect(res.status).toBe(200);
 
-    // The three inserted amounts must sum to the net EXACTLY (in cents).
-    const sumCents = insertedAmounts.reduce(
-      (s, v) => s + Math.round(v * 100),
-      0,
-    );
-    expect(sumCents).toBe(Math.round(Number(net) * 100));
+    // Every allocated amount is a whole shilling (no sub-unit precision the
+    // 0-decimal ledger would floor away).
+    for (const v of insertedAmounts) {
+      expect(Number.isInteger(v)).toBe(true);
+    }
+    // The members sum to the net EXACTLY at ledger (whole-shilling) precision.
+    const sumShillings = insertedAmounts.reduce((s, v) => s + v, 0);
+    expect(sumShillings).toBe(Math.round(Number(net)));
   });
 });

@@ -36,6 +36,17 @@ const OWNER_AND_ADMIN: ReadonlyArray<
   'T1_owner_strategist' | 'T2_admin_strategist'
 > = ['T1_owner_strategist', 'T2_admin_strategist'];
 
+// drizzle spreads a bare JS array into `($1, $2)`, an invalid record cast;
+// `ARRAY[...]` is required so each element is its own param. A null array
+// renders `NULL` (the boolean guard short-circuits before it is touched).
+const sqlTextArrayOrNull = (xs: ReadonlyArray<string> | null) =>
+  xs == null
+    ? sql`NULL`
+    : sql`ARRAY[${sql.join(
+        xs.map((x) => sql`${x}`),
+        sql`, `,
+      )}]`;
+
 interface DbLike {
   execute(query: unknown): Promise<unknown>;
 }
@@ -183,7 +194,7 @@ export const decisionsRecentTool: PersonaToolDescriptor<
            AND (${kind}::text IS NULL OR decided_by_kind = ${kind}::text)
            AND (
              ${scopeIds === null}::boolean
-             OR scope_ids && ${scopeIds as unknown as string[]}::text[]
+             OR scope_ids && ${sqlTextArrayOrNull(scopeIds)}::text[]
            )
          ORDER BY decided_at DESC
          LIMIT ${limit}

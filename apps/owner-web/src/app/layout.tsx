@@ -9,6 +9,7 @@ import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 export const metadata: Metadata = {
   title: 'Borjie — Owner Cockpit',
@@ -62,7 +63,10 @@ export default async function RootLayout({
       </head>
       <body className="bg-background text-foreground antialiased min-h-screen">
         <a href="#main-content" className="skip-link">
-          Skip to main content
+          {pickByLocale(locale, {
+            en: 'Skip to main content',
+            sw: 'Ruka hadi maudhui makuu',
+          })}
         </a>
         <ThemeProvider defaultTheme="dark" enableSystem>
           <AppProviders>

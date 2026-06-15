@@ -23,7 +23,7 @@ import Link from 'next/link';
  *   - unknown     → hidden (no pill rendered)
  *
  * The component is a self-contained `next/link` that opens
- * `/dashboard/chat?session=<sessionId>&turn=<turnId>` when via=chat.
+ * `/ask?session=<sessionId>&turn=<turnId>` when via=chat.
  */
 
 export interface ProvenanceEnvelope {
@@ -62,7 +62,9 @@ const LABEL: Record<ProvenanceEnvelope['via'], string> = {
 
 function defaultUrl(sessionId: string, turnId?: string | null): string {
   const t = turnId ? `&turn=${encodeURIComponent(turnId)}` : '';
-  return `/dashboard/chat?session=${encodeURIComponent(sessionId)}${t}`;
+  // O-W-23 — the live Ask-Borjie surface is the canonical owner chat route.
+  // (The legacy `/dashboard/chat` target never existed and 404'd.)
+  return `/ask?session=${encodeURIComponent(sessionId)}${t}`;
 }
 
 export function ProvenancePill({

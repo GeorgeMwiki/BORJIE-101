@@ -113,11 +113,32 @@ export class TenantBrandingService {
         ? merged.aiGreeting.trim()
         : undefined;
     const pronoun = merged.aiPronoun ?? undefined;
+    // Org-settings toggles (O-M-23) — booleans/strings, NO trim. Use a
+    // `!== undefined` gate so a legitimate `false` toggle is persisted
+    // rather than dropped by a truthiness check. `primaryCurrency` is a
+    // free string (never hard-code a single currency); `defaultLang` is
+    // the single-language locale toggle.
+    const multiTenant =
+      typeof merged.multiTenant === 'boolean' ? merged.multiTenant : undefined;
+    const brandLock =
+      typeof merged.brandLock === 'boolean' ? merged.brandLock : undefined;
+    const primaryCurrency =
+      typeof merged.primaryCurrency === 'string' && merged.primaryCurrency.length > 0
+        ? merged.primaryCurrency
+        : undefined;
+    const defaultLang =
+      merged.defaultLang === 'sw' || merged.defaultLang === 'en'
+        ? merged.defaultLang
+        : undefined;
     const clean: TenantBrandingOverrides = {
       ...(displayName ? { aiPersonaDisplayName: displayName } : {}),
       ...(honorific ? { aiPersonaHonorific: honorific } : {}),
       ...(greeting ? { aiGreeting: greeting } : {}),
       ...(pronoun ? { aiPronoun: pronoun } : {}),
+      ...(multiTenant !== undefined ? { multiTenant } : {}),
+      ...(brandLock !== undefined ? { brandLock } : {}),
+      ...(primaryCurrency !== undefined ? { primaryCurrency } : {}),
+      ...(defaultLang !== undefined ? { defaultLang } : {}),
     };
     await this.repository.set(tenantId, clean);
     return this.getConfig(tenantId);

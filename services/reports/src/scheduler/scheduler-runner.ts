@@ -199,7 +199,6 @@ export function makeNoopDeps(): WorkerRegistryDeps {
   const noop = async (): Promise<void> => undefined;
   return {
     runRenewalScheduler: noop,
-    runSlaWorker: noop,
     runVendorRatingWorker: noop,
     runIntelligenceHistoryWorker: noop,
     runFarScheduler: noop,

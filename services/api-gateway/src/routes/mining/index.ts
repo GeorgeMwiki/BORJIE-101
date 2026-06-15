@@ -118,6 +118,20 @@ import { miningToolboxRouter } from './toolbox.hono';
 // talk_ack → toolbox-talks acknowledge. Idempotent. Backs the workforce-mobile
 // offline write queue's `toolbox_ack` entity (endpointFor → 'toolbox-acks').
 import { miningToolboxAcksRouter } from './toolbox-acks.hono';
+// Field-capture offline-sync sinks (offline-field-capture BLOCKER). Five
+// workforce-mobile sync entity types previously flushed to UNMOUNTED routes →
+// 404 → the sync layer dropped the queued record on the first reconnect flush,
+// silently losing irreplaceable mine evidence. These sinks mirror the
+// toolbox-acks pattern (auth + db middleware, idempotent via Idempotency-Key,
+// hash-chained audit, tenant-scoped). `inventory_move` converges on the ONLINE
+// `/inventory/movements` route in flush.ts and is NOT mounted here.
+import {
+  ppeReceiptsRouter,
+  excavatorCountsRouter,
+  fingerprintSignsRouter,
+  photoUploadsRouter,
+  driverLetterAcksRouter,
+} from './field-capture.hono';
 // Legacy-portal browser super-power — the MD drives no-API third-party portals
 // (KRA iTax …) via AXTree perception. Reachable at /mining/legacy-portal/*.
 import { createLegacyPortalRouter } from './legacy-portal.hono';
@@ -313,6 +327,15 @@ mining.route('/toolbox-talks', miningToolboxRouter);
 // task_complete → mining_tasks done, talk_ack → toolbox-talks acknowledge.
 // Distinct prefix from `/toolbox-talks` so neither shadows the other.
 mining.route('/toolbox-acks', miningToolboxAcksRouter);
+// Field-capture offline-sync sinks — each backed by an existing tenant-scoped
+// table (ppe_issues / ore_parcels / fingerprint_events / document_uploads).
+// `/driver-letter-acks` has no table yet and degrades to an audit-only accept
+// so the worker's offline ack is durably recorded and never silently dropped.
+mining.route('/ppe-receipts', ppeReceiptsRouter);
+mining.route('/excavator-counts', excavatorCountsRouter);
+mining.route('/fingerprint-signs', fingerprintSignsRouter);
+mining.route('/photo-uploads', photoUploadsRouter);
+mining.route('/driver-letter-acks', driverLetterAcksRouter);
 mining.route('/legacy-portal', createLegacyPortalRouter());
 mining.route('/causal', miningCausalInterventionRouter);
 

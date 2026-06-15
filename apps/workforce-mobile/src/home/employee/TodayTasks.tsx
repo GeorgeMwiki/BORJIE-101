@@ -68,8 +68,14 @@ export function TodayTasks({
     return [...tasks].sort((a, b) => a.sequence - b.sequence)
   }, [tasks])
 
+  const isSw = lang === 'sw'
+
   if (loading) {
-    return <Text style={styles.lead}>Inapakia kazi za leo… / Loading today's tasks…</Text>
+    return (
+      <Text style={styles.lead}>
+        {isSw ? 'Inapakia kazi za leo…' : "Loading today's tasks…"}
+      </Text>
+    )
   }
   if (error) {
     return <PreviewBanner kind="env-missing" />
@@ -85,13 +91,19 @@ export function TodayTasks({
         const title = lang === 'sw' ? task.titleSw : task.titleEn
         const location =
           (lang === 'sw' ? task.locationLabelSw : task.locationLabelEn) ?? ''
-        const parallelTag = task.parallelGroupId ? ' · Sambamba / Parallel' : ''
+        const parallelTag = task.parallelGroupId
+          ? isSw
+            ? ' · Sambamba'
+            : ' · Parallel'
+          : ''
+        const doneLabel = isSw ? 'Imekamilika' : 'Done'
+        const blockedLabel = isSw ? 'Shida' : 'Blocked'
         return (
           <View key={task.id} style={styles.card} testID={`employee-home-task-${task.id}`}>
             <View style={styles.cardHeader}>
               <View style={[styles.chip, { backgroundColor: chip.bg }]}>
                 <Text style={[styles.chipText, { color: chip.fg }]}>
-                  {chip.sw} / {chip.en}
+                  {isSw ? chip.sw : chip.en}
                 </Text>
               </View>
               <Text style={styles.sequence}>#{task.sequence}</Text>
@@ -107,7 +119,7 @@ export function TodayTasks({
               <Pressable
                 onPress={() => onDone(task.id)}
                 accessibilityRole="button"
-                accessibilityLabel="Imekamilika / Done"
+                accessibilityLabel={doneLabel}
                 style={({ pressed }) => [
                   styles.action,
                   styles.actionDone,
@@ -115,12 +127,12 @@ export function TodayTasks({
                 ]}
                 testID={`employee-home-task-done-${task.id}`}
               >
-                <Text style={styles.actionDoneText}>Imekamilika / Done</Text>
+                <Text style={styles.actionDoneText}>{doneLabel}</Text>
               </Pressable>
               <Pressable
                 onPress={() => onBlocked(task.id)}
                 accessibilityRole="button"
-                accessibilityLabel="Shida / Blocked"
+                accessibilityLabel={blockedLabel}
                 style={({ pressed }) => [
                   styles.action,
                   styles.actionBlock,
@@ -128,7 +140,7 @@ export function TodayTasks({
                 ]}
                 testID={`employee-home-task-block-${task.id}`}
               >
-                <Text style={styles.actionBlockText}>Shida / Blocked</Text>
+                <Text style={styles.actionBlockText}>{blockedLabel}</Text>
               </Pressable>
             </View>
           </View>

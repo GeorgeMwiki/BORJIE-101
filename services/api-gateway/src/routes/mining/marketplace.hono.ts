@@ -12,7 +12,7 @@
  */
 
 import { OpenAPIHono } from '@hono/zod-openapi';
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { marketplaceListings, tenants } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -113,8 +113,14 @@ app.openapi(marketplaceListSellersRoute, async (c) => {
 });
 
 app.openapi(marketplaceGetListingRoute, async (c) => {
+  const { tenantId } = c.get('auth');
   const db = c.get('db');
   const { id } = c.req.valid('param');
+  // App-layer authorization: RLS is the documented backstop but the
+  // gateway connects under a role for which FORCE-RLS is inert, so this
+  // predicate is the ACTUAL cross-tenant guard. Return the row only when
+  // the caller owns it OR it is an active buyer-visible listing. A private
+  // cross-tenant listing therefore 404s, matching the `/listings` guard.
   const [row] = await db
     .select({
       listing: marketplaceListings,
@@ -122,7 +128,18 @@ app.openapi(marketplaceGetListingRoute, async (c) => {
     })
     .from(marketplaceListings)
     .leftJoin(tenants, eq(tenants.id, marketplaceListings.tenantId))
-    .where(eq(marketplaceListings.id, id))
+    .where(
+      and(
+        eq(marketplaceListings.id, id),
+        or(
+          eq(marketplaceListings.tenantId, tenantId),
+          and(
+            inArray(marketplaceListings.visibility, [...BUYER_VISIBLE]),
+            eq(marketplaceListings.status, 'active'),
+          ),
+        ),
+      ),
+    )
     .limit(1);
   if (!row) {
     return c.json(

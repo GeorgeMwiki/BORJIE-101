@@ -38,7 +38,8 @@ import type {
   ThoughtRequest,
 } from '@borjie/central-intelligence';
 import { createFeedbackService } from '@borjie/database';
-import { authMiddleware } from '../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../middleware/hono-auth';
+import { UserRole } from '../types/user-role';
 
 // Local mirror of `GroundingViewRole` from `@borjie/database`. The
 // barrel re-export is currently misread by the workspace resolver as a
@@ -495,6 +496,19 @@ export function createJarvisRouter(config: JarvisRouterConfig): Hono {
 
   const app = new Hono();
   app.use('*', authMiddleware);
+
+  // PLATFORM-ADMIN GATE — the `platform-hq` surface serves the sovereign
+  // PLATFORM_ADMIN persona (cross-tenant, no tenant scope). It MUST be
+  // restricted to Borjie HQ staff (SUPER_ADMIN / ADMIN) so an ordinary
+  // authenticated tenant user cannot reach the sovereign brain. The gate
+  // lives HERE — per-surface, NOT globally — because createJarvisRouter is
+  // shared across every consumer/owner/manager/admin surface; only
+  // platform-hq carries the sovereign persona. Mirrors the
+  // requireRole(SUPER_ADMIN, ADMIN) gate on
+  // routes/mining/internal/audit-pack.hono.ts (the other HQ-only surface).
+  if (config.surface === 'platform-hq') {
+    app.use('*', requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN));
+  }
 
   app.post('/think', zValidator('json', ThinkSchema), withSecurityEvents({ action: 'jarvis.create', resource: 'jarvis', severity: 'info' }, async (c) => {
     const body = c.req.valid('json');

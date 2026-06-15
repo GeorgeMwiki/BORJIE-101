@@ -249,3 +249,90 @@ describe('audit-hash-chain — verifyWithRotation integration', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Finding n=22 — append() race-safety. getLatest()->insertEntry() is not
+// atomic, so concurrent same-tenant appends collide on (tenant_id,
+// sequence_id) (23505) and gap the chain. append() must retry on the
+// collision with a re-read of the head so the surviving chain stays
+// contiguous and the hash-chain invariant holds.
+// ---------------------------------------------------------------------------
+
+describe('audit-hash-chain — append race-safety (n=22)', () => {
+  it('in-memory repo rejects a duplicate (tenantId, sequenceId) with a 23505-shaped error', async () => {
+    const repo = createInMemoryAuditChainRepo();
+    const base = {
+      id: 'aud_dup',
+      tenantId: 't1',
+      sequenceId: 1,
+      turnId: 'a',
+      sessionId: null,
+      action: 'x',
+      prevHash: GENESIS_PREV_HASH,
+      thisHash: 'a'.repeat(64),
+      payloadRef: null,
+      payload: {},
+      createdAt: '2024-01-01T00:00:00.000Z',
+    };
+    await repo.insertEntry(base);
+    await expect(
+      repo.insertEntry({ ...base, id: 'aud_dup2', thisHash: 'b'.repeat(64) }),
+    ).rejects.toMatchObject({ code: '23505' });
+  });
+
+  it('recovers a contiguous chain when the head read is stale (simulated concurrent writer)', async () => {
+    let clockMs = 1_700_000_000_000;
+    let seq = 0;
+    const repo = createInMemoryAuditChainRepo();
+
+    // Seed one row so there is a real head to chain off.
+    const chainSeed = createChainImpl({
+      repo,
+      now: () => new Date(clockMs++),
+      idGenerator: () => `aud_${++seq}`,
+    });
+    await chainSeed.append({ tenantId: 't1', turnId: 'seed', action: 'x' });
+
+    // Wrap the repo so the NEXT append's first getLatest returns a STALE
+    // head (the seed row), even though a concurrent writer has already
+    // appended a second row. The first insertEntry then collides on
+    // sequence_id=2 (23505); append() must re-read and recover to seq=3.
+    const seedHead = await repo.getLatest('t1');
+    let serveStaleOnce = false;
+    const racingRepo = {
+      ...repo,
+      async getLatest(tenantId: string) {
+        if (serveStaleOnce && tenantId === 't1') {
+          serveStaleOnce = false;
+          return seedHead;
+        }
+        return repo.getLatest(tenantId);
+      },
+    };
+    const racingChain = createChainImpl({
+      repo: racingRepo,
+      now: () => new Date(clockMs++),
+      idGenerator: () => `aud_${++seq}`,
+    });
+
+    // Concurrent writer lands row #2 first.
+    await racingChain.append({ tenantId: 't1', turnId: 'concurrent', action: 'y' });
+
+    // Now the racing append reads a stale head (seq=1) on its first try,
+    // collides on seq=2, then re-reads (seq=2) and lands at seq=3.
+    serveStaleOnce = true;
+    const recovered = await racingChain.append({
+      tenantId: 't1',
+      turnId: 'recovered',
+      action: 'z',
+    });
+    expect(recovered.sequenceId).toBe(3);
+
+    // The chain is contiguous (1,2,3), no gap, no orphan, and verifies.
+    const entries = await racingChain.listEntries('t1');
+    expect(entries.map((e) => e.sequenceId)).toEqual([1, 2, 3]);
+    const res = await racingChain.verifyChain('t1');
+    expect(res.valid).toBe(true);
+    expect(res.entriesChecked).toBe(3);
+  });
+});

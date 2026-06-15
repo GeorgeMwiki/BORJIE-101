@@ -15,6 +15,7 @@ import {
   normaliseDebateBadge,
   normaliseBrainStateBadge,
   normaliseAutoAuthorized,
+  normaliseAuditor,
 } from '../teach-sse-normalisers';
 
 describe('normaliseAffectiveProfile', () => {
@@ -167,5 +168,55 @@ describe('normaliseAutoAuthorized', () => {
   it('returns null when no action is present', () => {
     expect(normaliseAutoAuthorized({ payload: { rationale: 'x' } })).toBeNull();
     expect(normaliseAutoAuthorized(null)).toBeNull();
+  });
+});
+
+describe('normaliseAuditor (KI-005 grounding verdict)', () => {
+  it('projects the snake_case gateway frame onto the camelCase signal', () => {
+    // Shape mirrors mining/chat.hono.ts auditor frame:
+    //   { verdict, evidence_count, evidence_warning, grounding_fault, at }
+    const frame = {
+      verdict: 'needs_human',
+      evidence_count: 0,
+      evidence_warning: 'no_evidence_cited',
+      grounding_fault: false,
+      at: '2026-06-14T10:00:00.000Z',
+    };
+    expect(normaliseAuditor(frame)).toEqual({
+      verdict: 'needs_human',
+      evidenceCount: 0,
+      evidenceWarning: 'no_evidence_cited',
+      groundingFault: false,
+    });
+  });
+
+  it('surfaces a grounding fault', () => {
+    expect(
+      normaliseAuditor({
+        verdict: 'approve',
+        evidence_count: 2,
+        evidence_warning: null,
+        grounding_fault: true,
+      }),
+    ).toEqual({
+      verdict: 'approve',
+      evidenceCount: 2,
+      evidenceWarning: null,
+      groundingFault: true,
+    });
+  });
+
+  it('degrades an unexpected frame to approve / no-warning (never a false caution)', () => {
+    expect(normaliseAuditor({ verdict: 'gibberish' })).toEqual({
+      verdict: 'approve',
+      evidenceCount: 0,
+      evidenceWarning: null,
+      groundingFault: false,
+    });
+  });
+
+  it('returns null for a non-record payload', () => {
+    expect(normaliseAuditor(null)).toBeNull();
+    expect(normaliseAuditor('nope')).toBeNull();
   });
 });

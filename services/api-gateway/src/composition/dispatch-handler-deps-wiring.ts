@@ -74,14 +74,21 @@ function rowsOf(raw: unknown): ReadonlyArray<Record<string, unknown>> {
 }
 
 /**
- * Bind a readonly string array to a Postgres `text[]` parameter. postgres-js
- * maps a plain (mutable) JS string array onto an array param natively (same
- * idiom as `executive-brief.composition.ts`), and an empty array binds to
- * `'{}'::text[]` correctly — no manual `ARRAY[...]` construction or
- * empty-array edge case. Use as `${textArray(xs)}::text[]`.
+ * Build a Postgres `ARRAY[...]` SQL fragment for a readonly string array.
+ *
+ * drizzle's `sql` template SPREADS a bare JS array into a parenthesized
+ * param list, so `${xs}::text[]` renders `($1, $2)::text[]` (an invalid
+ * record-to-text[] cast) and `${[]}::text[]` renders `()::text[]` (a
+ * syntax error). The `ARRAY[...]` form is required: each element is its
+ * own param and an empty array yields the valid literal `ARRAY[]`.
+ * Use as `${textArray(xs)}::text[]`, which renders `ARRAY[$1, $2]::text[]`
+ * (or `ARRAY[]::text[]` when empty).
  */
-function textArray(xs: ReadonlyArray<string>): string[] {
-  return [...xs];
+function textArray(xs: ReadonlyArray<string>) {
+  return sql`ARRAY[${sql.join(
+    xs.map((x) => sql`${x}`),
+    sql`, `,
+  )}]`;
 }
 
 /**
@@ -115,10 +122,20 @@ async function withTenantTx<T>(
  * `ai_audit_chain_tenant_iso` (migration 0152) — both the `getLatest` read
  * and the `insertEntry` WITH CHECK require `app.current_tenant_id` to be
  * bound on the connection. The chain's read-then-insert MUST therefore run
- * inside ONE tenant-bound transaction (also making the sequence read +
- * insert race-consistent against the `(tenant_id, sequence_id)` unique
- * index). We construct the chain per-append over a repo pinned to that
- * transaction's `tx` rather than the bare boot pool.
+ * inside ONE tenant-bound transaction. We construct the chain per-append
+ * over a repo pinned to that transaction's `tx` rather than the bare boot
+ * pool.
+ *
+ * Concurrency (critical): the read-then-insert is NOT race-consistent on
+ * its own — two concurrent same-tenant appends both read the same
+ * `MAX(sequence_id)`, compute the same next sequence, and collide on the
+ * `(tenant_id, sequence_id)` unique index (23505). Because the originating
+ * task/temporal writes commit in their OWN transactions, a collision here
+ * would orphan an already-committed domain row and gap the tamper-evident
+ * chain. We therefore take `pg_advisory_xact_lock(hashtext(tenantId))` as
+ * the FIRST statement after the GUC bind so same-tenant appends serialize
+ * within the tx; the lock auto-releases at commit/rollback and is keyed
+ * per-tenant so different tenants never contend.
  *
  * The handler's `parentHash` (the source capture/document audit id) is
  * carried INTO the payload + used as the `turnId` correlation; the chain
@@ -139,6 +156,13 @@ function makeAuditChainPort(db: SqlExecutor): {
   return {
     async append(args) {
       return withTenantTx(db, args.tenantId, async (tx) => {
+        // Serialize concurrent same-tenant appends so the chain's
+        // read-then-insert (getLatest → insertEntry) cannot race the
+        // (tenant_id, sequence_id) unique index and orphan the already
+        // committed task/temporal rows. Auto-released at commit/rollback.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext(${args.tenantId}))`,
+        );
         const txRepo = createDrizzleAiAuditChainRepo(tx);
         if (!txRepo) {
           throw new Error(
@@ -366,7 +390,7 @@ export function createRealMiningHandlerDeps(
               await tx.execute(sql`
                 SELECT id FROM licences
                  WHERE tenant_id = ${args.tenantId}
-                   AND id = ANY(${[...args.licenceIds]}::text[])
+                   AND id = ANY(${textArray(args.licenceIds)}::text[])
               `),
             );
             const existing = new Set(
@@ -385,7 +409,7 @@ export function createRealMiningHandlerDeps(
                   ${taskId}, ${args.tenantId}, NULL,
                   ${`Licence renewal — ${licenceId}`}, 'licence_renewal', 3,
                   NULL, ${licenceId}, ${args.dueDate}::date,
-                  ${[]}::text[], ${args.reason}, 'open',
+                  ${textArray([])}::text[], ${args.reason}, 'open',
                   ${args.followupCadence},
                   ${JSON.stringify({ ...args.attributes, licence_id: licenceId })}::jsonb,
                   now()

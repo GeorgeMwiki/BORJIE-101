@@ -115,9 +115,22 @@ const EntriesQuerySchema = z
 
 const app = new Hono();
 app.use('*', authMiddleware);
+// Read access (GET /verify, /bundle, /entries) is granted to the org OWNER
+// (and ACCOUNTANT) in addition to platform/tenant admins: every read path is
+// tenant-scoped via auth.tenantId + RLS, so an owner reading their own
+// tenant's hash-chain is correct. Write/append (POST /record) stays
+// admin-only via a per-route gate on the handler below. This un-darkens the
+// owner-mobile O-M-25 Regulator-Pack / Audit-Trail screen, which was 403ing
+// for UserRole.OWNER.
 app.use(
   '*',
-  requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TENANT_ADMIN),
+  requireRole(
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.TENANT_ADMIN,
+    UserRole.OWNER,
+    UserRole.ACCOUNTANT,
+  ),
 );
 
 function slot(c: any): any {
@@ -159,7 +172,13 @@ function parseIntClamped(
 // ---------------------------------------------------------------------------
 // POST /record — append an entry to the chain.
 // ---------------------------------------------------------------------------
-app.post('/record', zValidator('json', RecordSchema), async (c: any) => {
+app.post(
+  '/record',
+  // Write/append is admin-only — the owner read-gate above must NOT grant
+  // append rights into the hash-chained, append-only ledger.
+  requireRole(UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.TENANT_ADMIN),
+  zValidator('json', RecordSchema),
+  async (c: any) => {
   const pipeline = slot(c);
   if (!pipeline?.recorder) return notConfigured(c);
   const auth = c.get('auth');

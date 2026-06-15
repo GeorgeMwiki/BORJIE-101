@@ -27,6 +27,11 @@ import { createIcaCertExpiryCron } from '../ica-cert-expiry-cron.js';
 import { createComplianceDeadlineScan } from '../compliance-deadline-scan.worker.js';
 import { createGeofenceWatcher } from '../geofence-watcher.js';
 import { createEntityIndexerWorker } from '../entity-indexer-worker.js';
+// 2026-06-14 live-readiness audit — 4 more cross-tenant service-role workers.
+import { createDecisionRetrospectiveWorker } from '../decision-retrospective-worker.js';
+import { createOutcomeReconciliationWorker } from '../outcome-reconciliation-worker.js';
+import { createExecutiveBriefActionRunner } from '../executive-brief-action-runner.js';
+import { startLicenceRenewalWatcher } from '../licence-renewal-watcher.js';
 
 function makeLogger() {
   return {
@@ -151,6 +156,54 @@ describe('dark cross-tenant workers bind service-role context for their scans', 
       enabled: true,
       now: () => NOW,
       embedText: async () => null,
+    });
+    await handle.tickOnce();
+    expectBoundServiceRole(rec);
+  });
+
+  it('decision-retrospective-worker binds service-role for its pending-grade scan', async () => {
+    const rec = makeRecordingDb();
+    const handle = createDecisionRetrospectiveWorker({
+      db: rec.db as never,
+      logger: makeLogger(),
+      enabled: true,
+      now: () => NOW,
+    });
+    await handle.tickOnce();
+    expectBoundServiceRole(rec);
+  });
+
+  it('outcome-reconciliation-worker binds service-role for its claim scan', async () => {
+    const rec = makeRecordingDb();
+    const handle = createOutcomeReconciliationWorker({
+      db: rec.db as never,
+      logger: makeLogger(),
+      enabled: true,
+      now: () => NOW,
+    });
+    await handle.tickOnce();
+    expectBoundServiceRole(rec);
+  });
+
+  it('executive-brief-action-runner binds service-role for its approved-batch scan', async () => {
+    const rec = makeRecordingDb();
+    const handle = createExecutiveBriefActionRunner({
+      db: rec.db as never,
+      logger: makeLogger(),
+      enabled: true,
+      now: () => NOW,
+    });
+    await handle.tickOnce();
+    expectBoundServiceRole(rec);
+  });
+
+  it('licence-renewal-watcher binds service-role for its expiry + reminder-event scans', async () => {
+    const rec = makeRecordingDb();
+    const handle = startLicenceRenewalWatcher({
+      db: rec.db as never,
+      logger: makeLogger(),
+      enabled: true,
+      now: () => NOW,
     });
     await handle.tickOnce();
     expectBoundServiceRole(rec);

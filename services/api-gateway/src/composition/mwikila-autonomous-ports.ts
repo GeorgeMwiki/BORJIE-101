@@ -23,6 +23,7 @@
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 
+import { withWorkerTenantContext } from '../workers/with-tenant-context.js';
 import type { LicenseRow } from '../services/mwikila-autonomy/index.js';
 import type {
   PayrollWorkerRow,
@@ -59,6 +60,31 @@ function toNum(v: unknown): number {
   return 0;
 }
 
+/**
+ * Run a single-known-tenant query inside a worker tenant-context
+ * transaction so app.current_tenant_id is bound and the table's
+ * FORCE-RLS tenant-isolation policy matches the rows. Workers bypass
+ * the gateway databaseMiddleware, so without this binding the bare
+ * execute carries no tenant GUC and matches zero rows silently.
+ *
+ * Unit tests inject a fake `db` that has `.execute` but no
+ * `.transaction`; in that case we fall through to the bare execute so
+ * the stub affordance is preserved.
+ */
+function runTenant(
+  db: DbLike,
+  tenantId: string,
+  query: unknown,
+): Promise<unknown> {
+  return typeof (db as { transaction?: unknown }).transaction === 'function'
+    ? withWorkerTenantContext(
+        db as never,
+        tenantId,
+        (tx) => (tx as DbLike).execute(query),
+      )
+    : db.execute(query);
+}
+
 // ─── LICENSE-RENEWAL PORTS ────────────────────────────────────────────
 
 /**
@@ -75,7 +101,10 @@ export function buildLicenseRenewalPorts(db: DbLike, logger: Logger) {
     }): Promise<ReadonlyArray<LicenseRow>> {
       const maxWindow = Math.max(...args.windowDays);
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT id, kind, number, mineral, expiry_date
             FROM licences
            WHERE tenant_id = ${args.tenantId}
@@ -85,7 +114,8 @@ export function buildLicenseRenewalPorts(db: DbLike, logger: Logger) {
              AND expiry_date >= ${args.nowIso}::date
            ORDER BY expiry_date ASC
            LIMIT 50
-        `);
+        `,
+        );
         const out: LicenseRow[] = [];
         for (const r of rowsOf(result)) {
           const id = toStr(r.id);
@@ -122,7 +152,10 @@ export function buildLicenseRenewalPorts(db: DbLike, logger: Logger) {
       readonly windowDay: number;
     }): Promise<boolean> {
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM mwikila_actions_inbox
            WHERE tenant_id = ${args.tenantId}
@@ -130,7 +163,8 @@ export function buildLicenseRenewalPorts(db: DbLike, logger: Logger) {
              AND payload->>'licenseId' = ${args.licenseId}
              AND (payload->>'windowDay')::int = ${args.windowDay}
            LIMIT 1
-        `);
+        `,
+        );
         return rowsOf(result).length > 0;
       } catch (err) {
         // Fail-closed: assume already fired so the worker does NOT spam.
@@ -176,14 +210,18 @@ export function buildShiftSchedulerPorts(db: DbLike, logger: Logger) {
       readonly tenantId: string;
     }): Promise<ReadonlyArray<WorkforceMember>> {
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT id, full_name, attributes
             FROM employees
            WHERE tenant_id = ${args.tenantId}
              AND status = 'active'
            ORDER BY full_name ASC
            LIMIT 500
-        `);
+        `,
+        );
         const out: WorkforceMember[] = [];
         for (const r of rowsOf(result)) {
           const id = toStr(r.id);
@@ -212,14 +250,18 @@ export function buildShiftSchedulerPorts(db: DbLike, logger: Logger) {
       readonly tenantId: string;
     }): Promise<ReadonlyArray<SiteCapacity>> {
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT s.id, s.name, s.attributes
             FROM sites s
            WHERE s.tenant_id = ${args.tenantId}
              AND s.status = 'active'
            ORDER BY s.name ASC
            LIMIT 100
-        `);
+        `,
+        );
         const out: SiteCapacity[] = [];
         for (const r of rowsOf(result)) {
           const siteId = toStr(r.id);
@@ -260,14 +302,18 @@ export function buildShiftSchedulerPorts(db: DbLike, logger: Logger) {
       readonly toIso: string;
     }): Promise<boolean> {
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM attendance
            WHERE tenant_id = ${args.tenantId}
              AND work_date >= ${args.fromIso}::date
              AND work_date <= ${args.toIso}::date
            LIMIT 1
-        `);
+        `,
+        );
         return rowsOf(result).length > 0;
       } catch (err) {
         // Fail-closed: skip when we cannot prove the window is empty.
@@ -302,7 +348,10 @@ export function buildRoyaltyFilingPorts(db: DbLike, logger: Logger) {
     }): Promise<boolean> {
       try {
         const periodMonth = args.periodStartIso.slice(0, 7);
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM regulatory_filings
            WHERE tenant_id = ${args.tenantId}
@@ -311,17 +360,22 @@ export function buildRoyaltyFilingPorts(db: DbLike, logger: Logger) {
              AND to_char(due_at, 'YYYY-MM') = ${periodMonth}
              AND status NOT IN ('cancelled', 'rejected')
            LIMIT 1
-        `);
+        `,
+        );
         if (rowsOf(result).length > 0) return true;
         // Also dedupe against a prior mwikila proposal for the same period.
-        const proposed = await db.execute(sql`
+        const proposed = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM mwikila_actions_inbox
            WHERE tenant_id = ${args.tenantId}
              AND action_kind = 'royalty.monthly_filing_prep'
              AND payload->>'periodStartIso' = ${args.periodStartIso}
            LIMIT 1
-        `);
+        `,
+        );
         return rowsOf(proposed).length > 0;
       } catch (err) {
         logger.warn(
@@ -344,7 +398,10 @@ export function buildRoyaltyFilingPorts(db: DbLike, logger: Logger) {
         // mineral by gross to drive the filing (the regulator files by
         // mineral kind, not blended). Sites carry the mineral; sales
         // link to parcels which link to sites.
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           WITH parcel_mineral AS (
             SELECT p.id AS parcel_id, s.mineral
               FROM ore_parcels p
@@ -363,7 +420,8 @@ export function buildRoyaltyFilingPorts(db: DbLike, logger: Logger) {
            GROUP BY pm.mineral
            ORDER BY gross_tzs DESC
            LIMIT 1
-        `);
+        `,
+        );
         const rows = rowsOf(result);
         if (rows.length === 0) return null;
         const r = rows[0]!;
@@ -373,7 +431,10 @@ export function buildRoyaltyFilingPorts(db: DbLike, logger: Logger) {
         if (gross <= 0) return null;
         // Region + royalty rate: pull the active licence covering the
         // tenant's primary mineral. Fees jsonb holds royalty_rate_pct.
-        const rateRow = await db.execute(sql`
+        const rateRow = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT fees, attributes
             FROM licences
            WHERE tenant_id = ${args.tenantId}
@@ -381,7 +442,8 @@ export function buildRoyaltyFilingPorts(db: DbLike, logger: Logger) {
              AND status = 'active'
            ORDER BY grant_date DESC NULLS LAST
            LIMIT 1
-        `);
+        `,
+        );
         const fees =
           (rowsOf(rateRow)[0]?.fees as
             | { royalty_rate_pct?: number | string }
@@ -418,23 +480,31 @@ export function buildPayrollPorts(db: DbLike, logger: Logger) {
     }): Promise<boolean> {
       try {
         const periodStartDate = args.periodStartIso.slice(0, 10);
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM payroll_runs
            WHERE tenant_id = ${args.tenantId}
              AND period_start = ${periodStartDate}::date
              AND status IN ('draft', 'previewed', 'committed', 'paid')
            LIMIT 1
-        `);
+        `,
+        );
         if (rowsOf(result).length > 0) return true;
-        const proposed = await db.execute(sql`
+        const proposed = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM mwikila_actions_inbox
            WHERE tenant_id = ${args.tenantId}
              AND action_kind = 'payroll.monthly_batch_prep'
              AND payload->>'periodStartIso' = ${args.periodStartIso}
            LIMIT 1
-        `);
+        `,
+        );
         return rowsOf(proposed).length > 0;
       } catch (err) {
         logger.warn(
@@ -453,7 +523,10 @@ export function buildPayrollPorts(db: DbLike, logger: Logger) {
       readonly periodEndIso: string;
     }): Promise<ReadonlyArray<PayrollWorkerRow>> {
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT e.id            AS employee_id,
                  e.full_name,
                  e.wage_rate_tzs,
@@ -470,7 +543,8 @@ export function buildPayrollPorts(db: DbLike, logger: Logger) {
              AND e.status    = 'active'
         GROUP BY e.id, e.full_name, e.wage_rate_tzs, e.wage_basis
           HAVING COALESCE(SUM(COALESCE(a.hours_worked, 0)), 0) > 0
-        `);
+        `,
+        );
         const out: PayrollWorkerRow[] = [];
         for (const r of rowsOf(result)) {
           const userId = toStr(r.employee_id);
@@ -517,7 +591,10 @@ export function buildMarketplaceCounterPorts(db: DbLike, logger: Logger) {
       readonly tenantId: string;
     }): Promise<ReadonlyArray<OpenOfferRow>> {
       try {
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT mb.id              AS offer_id,
                  ml.title            AS title,
                  ml.attributes       AS listing_attrs,
@@ -531,7 +608,8 @@ export function buildMarketplaceCounterPorts(db: DbLike, logger: Logger) {
              AND mb.status    = 'pending'
            ORDER BY mb.created_at ASC
            LIMIT 25
-        `);
+        `,
+        );
         const out: OpenOfferRow[] = [];
         for (const r of rowsOf(result)) {
           const offerId = toStr(r.offer_id);
@@ -568,7 +646,10 @@ export function buildMarketplaceCounterPorts(db: DbLike, logger: Logger) {
       try {
         // Pull seller floor prices + uplift from active marketplace
         // listings. floor = listing.price_tzs (per unit), uplift = 5%.
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT ml.attributes->>'mineral' AS mineral,
                  MIN(ml.price_tzs)         AS floor_tzs
             FROM marketplace_listings ml
@@ -577,7 +658,8 @@ export function buildMarketplaceCounterPorts(db: DbLike, logger: Logger) {
              AND ml.price_tzs IS NOT NULL
              AND ml.attributes ? 'mineral'
            GROUP BY ml.attributes->>'mineral'
-        `);
+        `,
+        );
         const targetFloorByMineral: Record<string, number> = {};
         for (const r of rowsOf(result)) {
           const mineral = toStr(r.mineral);
@@ -609,24 +691,32 @@ export function buildMarketplaceCounterPorts(db: DbLike, logger: Logger) {
         // The handler writes a 'marketplace.counter_offer' inbox row
         // on each counter — that row is the source of truth for
         // dedup so we do not double-counter the same buyer offer.
-        const result = await db.execute(sql`
+        const result = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM mwikila_actions_inbox
            WHERE tenant_id = ${args.tenantId}
              AND action_kind = 'marketplace.counter_offer'
              AND payload->>'offerId' = ${args.offerId}
            LIMIT 1
-        `);
+        `,
+        );
         if (rowsOf(result).length > 0) return true;
         // Also dedup against a real counter recorded on the bid row.
-        const bid = await db.execute(sql`
+        const bid = await runTenant(
+          db,
+          args.tenantId,
+          sql`
           SELECT 1
             FROM marketplace_bids
            WHERE tenant_id = ${args.tenantId}
              AND id = ${args.offerId}
              AND status = 'countered'
            LIMIT 1
-        `);
+        `,
+        );
         return rowsOf(bid).length > 0;
       } catch (err) {
         logger.warn(

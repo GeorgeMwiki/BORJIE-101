@@ -10,9 +10,6 @@ import {
   Sparkles,
   Briefcase,
   LayoutGrid,
-  BarChart3,
-  Radar,
-  Network,
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
@@ -49,12 +46,11 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { href: '/jarvis', icon: Sparkles, label: 'Brain', labelSw: 'Akili' },
   { href: '/control-tower', icon: Briefcase, label: 'Control tower', labelSw: 'Mnara wa Udhibiti' },
   { href: '/internal', icon: LayoutGrid, label: 'Console', labelSw: 'Konsoli' },
-  // Industry hero views — these four pages used to render their own
-  // StaffNav (AD-6 double-sidebar bug). With StaffNav removed they would
-  // otherwise be reachable only via Cmd-K, so the four links live here.
-  { href: '/industry', icon: BarChart3, label: 'Industry', labelSw: 'Sekta' },
-  { href: '/radar', icon: Radar, label: 'Radar', labelSw: 'Rada' },
-  { href: '/insights', icon: Network, label: 'Insights', labelSw: 'Maarifa' },
+  // Forecasts hero view. The Industry / Radar / Insights links were
+  // removed: their platform aggregators (/api/v1/platform/{industry,
+  // radar,insights}/*) are not yet mounted in the gateway, so the pages
+  // render permanent empty shells. Re-add each link when its aggregator
+  // is wired, rather than advertise a born-dark surface in the nav.
   { href: '/forecasts', icon: TrendingUp, label: 'Forecasts', labelSw: 'Utabiri' },
 ];
 
