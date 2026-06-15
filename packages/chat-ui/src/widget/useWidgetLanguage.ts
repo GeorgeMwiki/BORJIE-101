@@ -26,6 +26,14 @@ function writeCookie(name: string, value: string): void {
   document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
 }
 
+/**
+ * App-wide page-locale cookie (single source of truth set by every Borjie
+ * Next app's layout). The widget must FOLLOW it so it never renders English
+ * UI on a Swahili page (the zero-mix canon) — an explicit per-widget toggle
+ * (COOKIE_KEY below) still wins, but absent one the widget inherits the page.
+ */
+const PAGE_LOCALE_COOKIE = 'borjie_locale';
+
 function readStoredLanguage(fallback: Language): Language {
   if (typeof window === 'undefined') return fallback;
   try {
@@ -36,6 +44,10 @@ function readStoredLanguage(fallback: Language): Language {
   }
   const cookie = readCookie(COOKIE_KEY);
   if (cookie === 'en' || cookie === 'sw') return cookie;
+  // Inherit the active PAGE locale before the hardcoded default, so a fresh
+  // visitor on an SW page sees an SW widget (never EN-widget-on-SW-page mixing).
+  const pageLocale = readCookie(PAGE_LOCALE_COOKIE);
+  if (pageLocale === 'en' || pageLocale === 'sw') return pageLocale;
   return fallback;
 }
 
