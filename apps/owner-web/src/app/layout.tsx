@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { headers } from 'next/headers';
 import './globals.css';
 import { OwnerShell } from '@/components/OwnerShell';
 import { AppProviders } from './providers';
@@ -52,6 +53,13 @@ export default async function RootLayout({
   // and every downstream surface all read from this so the cockpit never
   // mixes EN and SW on one page.
   const locale = await readLocaleFromServerCookies();
+  // Public/auth routes (the sign-in form) must render OUTSIDE the
+  // session-gated `OwnerShell` — the shell resolves the owner session and
+  // `redirect('/sign-in')`s when unauthenticated, so wrapping `/sign-in`
+  // itself in it is an infinite redirect loop. The middleware forwards the
+  // active pathname as `x-borjie-pathname` so this server layout can branch.
+  const pathname = (await headers()).get('x-borjie-pathname') ?? '';
+  const isAuthRoute = pathname === '/sign-in' || pathname.startsWith('/sign-in/');
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
@@ -70,6 +78,11 @@ export default async function RootLayout({
         </a>
         <ThemeProvider defaultTheme="dark" enableSystem>
           <AppProviders>
+            {isAuthRoute ? (
+              // Sign-in: bare page, NO session-gated shell/chrome (would loop).
+              children
+            ) : (
+              <>
             <OwnerShell>{children}</OwnerShell>
             <BorjieWidgetMount />
             {/* Wave SUPERPOWERS - universal Cmd-K palette. Mounted at
@@ -77,6 +90,8 @@ export default async function RootLayout({
                 follows the resolved `borjie_locale` (default 'en') — the
                 same source the layout chrome and dashboard read. */}
             <OwnerCommandPalette languagePreference={locale} />
+              </>
+            )}
             {/* SOTA lazy-load Wave — Web Vitals side-channel reporter.
                 Lazy-loads web-vitals v5 on the client, ships LCP/INP/CLS/
                 TTFB/FCP via sendBeacon to /api/perf/web-vitals. Pure side
