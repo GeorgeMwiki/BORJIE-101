@@ -1,5 +1,12 @@
 'use client';
 
+/* eslint-disable borjie/no-non-token-style -- This boundary renders before
+   the app stylesheet loads (root layout itself threw), so design-system
+   tokens are unavailable and the colour tokens hold HSL triplets, not ready
+   values. Literal brand hex is the ONE correct place here — see the header
+   note below. Layer-3 brand enforcement is intentionally suspended for this
+   single self-contained crash surface. */
+
 /**
  * Marketing site root-level error boundary.
  *
