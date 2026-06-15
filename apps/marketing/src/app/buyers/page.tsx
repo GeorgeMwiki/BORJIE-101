@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, Check, MapPin, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
 import { TrustStrip } from '@/components/TrustStrip';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
@@ -19,8 +19,8 @@ export const metadata: Metadata = {
  *   - TrustStrip (shared component) anchors the regulator wall
  *   - Four-up value-prop grid (provenance, KYB, assay, biometric)
  *   - Region grid (currently sourced from) in mono-caption tiles
- *   - Use-case stories (2-up) for buyers already on the platform
- *   - Pricing card — single fee structure, generous whitespace
+ *   - Built-for-buyers band (pre-launch): credential-led cards + pilot CTA
+ *   - Pricing card (single fee structure, generous whitespace)
  *   - Final CTA band — waitlist + sourcing team
  *
  * All visible strings flow through i18n (en / sw) so the bilingual
@@ -31,11 +31,7 @@ export default async function BuyersPage() {
   const t = getMessages(locale).buyersPage;
   const valueProps = t.valueProps.shortCards;
   const regions = t.regions;
-  const useCases = [
-    t.useCases.cards.gold,
-    t.useCases.cards.tanzanite,
-    t.useCases.cards.coltan,
-  ];
+  const builtForCards = t.builtFor.cards;
 
   return (
     <>
@@ -138,46 +134,52 @@ export default async function BuyersPage() {
           </ul>
         </section>
 
-        {/* Use-case stories */}
+        {/* Built for verified buyers — pre-launch, credential-led */}
         <section
           className="relative mx-auto max-w-7xl px-6 pb-24 lg:px-8"
-          aria-labelledby="buyers-usecases-heading"
+          aria-labelledby="buyers-builtfor-heading"
         >
           <div className="mx-auto max-w-3xl text-center">
             <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
-              {t.useCases.kicker}
+              {t.builtFor.kicker}
             </p>
             <h2
-              id="buyers-usecases-heading"
+              id="buyers-builtfor-heading"
               className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
             >
-              {t.useCases.heading}
+              {t.builtFor.heading}
             </h2>
             <p className="mx-auto mt-5 max-w-prose-wider text-lg leading-relaxed text-foreground/70">
-              {t.useCases.sub}
+              {t.builtFor.sub}
             </p>
           </div>
 
           <ul className="mt-14 grid gap-5 md:grid-cols-3">
-            {useCases.map((u) => (
+            {builtForCards.map((c) => (
               <li
-                key={u.buyer}
+                key={c.title}
                 className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-6"
               >
-                <span className="inline-flex w-fit items-center gap-1 rounded-full border border-signal-500/30 bg-signal-500/5 px-2 py-0.5 font-mono text-micro-num uppercase tracking-widest text-signal-500">
-                  {u.tag}
+                <span className="flex h-10 w-10 items-center justify-center rounded-md border border-signal-500/25 bg-signal-500/5 text-signal-500">
+                  <ShieldCheck className="h-5 w-5" />
                 </span>
                 <h3 className="font-display text-xl font-semibold tracking-tight">
-                  {u.buyer}
+                  {c.title}
                 </h3>
-                <p className="inline-flex items-center gap-1 font-mono text-caption-lg uppercase tracking-widest text-foreground/60">
-                  <MapPin className="h-3 w-3" />
-                  {u.location}
-                </p>
-                <p className="text-sm leading-relaxed text-foreground/70">{u.blurb}</p>
+                <p className="text-sm leading-relaxed text-foreground/70">{c.body}</p>
               </li>
             ))}
           </ul>
+
+          <div className="mt-12 flex justify-center">
+            <Link
+              href="/pilot"
+              className="group inline-flex h-12 items-center justify-center gap-2 rounded-md bg-signal-500 px-6 text-sm font-semibold text-primary-foreground shadow-md transition-all duration-base ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.98]"
+            >
+              {t.builtFor.cta}
+              <ArrowRight className="h-4 w-4 transition-transform duration-fast group-hover:translate-x-0.5" />
+            </Link>
+          </div>
         </section>
 
         {/* Region grid */}

@@ -53,14 +53,18 @@ interface DbExec {
 
 /**
  * The buyer-actionable semantic tab kinds — the "other side of the coin"
- * surface: see + bid + transact + comply. Growing this set is additive.
+ * surface: see + bid + transact + comply.
+ *
+ * LOCKSTEP LAW: this set MUST equal what `buyer-mobile` can actually render
+ * (`BUYER_PROJECTED_KIND_TO_SCREEN` in
+ * `apps/buyer-mobile/src/marketplace/buyerTabProjection.ts`). Admitting a kind
+ * the device has no screen for makes the owner believe a buyer-facing
+ * capability materialised that the buyer never sees — a broken half-loop.
+ * Growing this set is a TWO-PART change: add the buyer-mobile screen + this
+ * entry together (guarded by the buyer lockstep test).
  */
 export const BUYER_PROJECTABLE_TAB_KINDS = [
   'marketplace',
-  'procurement',
-  'compliance',
-  'reports',
-  'documents',
   // Compiled-flow projection (business-process compiler): the buyer leg of the
   // golden buyer-inquiry flow (their inquiry + response tab).
   'inquiry_respond',

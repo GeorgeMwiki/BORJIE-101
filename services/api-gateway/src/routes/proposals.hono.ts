@@ -227,7 +227,12 @@ app.post('/:id/approve', requireRole(...PROPOSAL_WRITE_ROLES), zValidator('json'
     );
   }
 
-  await db.execute(sql`
+  // Atomic compare-and-set: the SELECT above is read-then-write, so two
+  // concurrent approvers (or a double-click) could both pass it. Gate the
+  // transition on status INSIDE the UPDATE and act only on the returned row,
+  // so exactly one approve wins and the loser gets a clean 409 — matching the
+  // /decline + four-eye CAS this review wave introduced.
+  const updated = await db.execute(sql`
     UPDATE module_update_proposals
     SET status = 'accepted',
         approver_user_id = ${auth.userId},
@@ -235,7 +240,24 @@ app.post('/:id/approve', requireRole(...PROPOSAL_WRITE_ROLES), zValidator('json'
         resolved_at = NOW(),
         updated_at = NOW()
     WHERE tenant_id = ${auth.tenantId} AND id = ${id}
+      AND status IN ('pending_hitl', 'edited')
+    RETURNING id
   `);
+  const updatedRow =
+    (updated as { rows?: Array<Record<string, unknown>> }).rows?.[0] ??
+    (Array.isArray(updated) ? updated[0] : null);
+  if (!updatedRow) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'INVALID_STATE',
+          message: 'Proposal already resolved by a concurrent action',
+        },
+      },
+      409
+    );
+  }
 
   // The actual handler invocation is wired in the composition root —
   // this route writes the state transition; a downstream worker (see

@@ -3,13 +3,13 @@
  * BorjieWidgetMount — marketing-site (anonymous) wrapper around the
  * @borjie/chat-ui LitFin-style floating widget.
  *
- * Renders the floating "Mr. Mwikila — Borjie's AI Estate-Management
- * Director" bubble across every marketing page. Uses the `public`
+ * Renders the floating "Mr. Mwikila, AI Mining Managing Director"
+ * bubble across every marketing page. Uses the `public`
  * portal — talks to /api/chat (a Next route handler that adapts the
  * widget shape to the Borjie api-gateway's /api/v1/public/chat
  * endpoint).
  *
- * Persona: "Mr. Mwikila — Borjie's AI Estate-Management Director"
+ * Persona: "Mr. Mwikila, AI Mining Managing Director"
  * (the mining-estate brain layer: licences, royalty, workforce,
  * compliance, offtake).
  *
@@ -51,7 +51,7 @@ interface BorjieWidgetMountProps {
 const BORJIE_DISCLAIMER_EN =
   'AI-generated. Not legal advice. Decisions are made by the mine owner.';
 const BORJIE_DISCLAIMER_SW =
-  'AI-iliyotengenezwa . Si ushauri wa kisheria . Maamuzi yanafanywa na mmiliki wa mgodi';
+  'AI-iliyotengenezwa. Si ushauri wa kisheria. Maamuzi yanafanywa na mmiliki wa mgodi.';
 
 export function BorjieWidgetMount(
   _props: BorjieWidgetMountProps = {},

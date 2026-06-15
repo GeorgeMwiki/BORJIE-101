@@ -105,7 +105,7 @@ describe('buildBuyerProjectedTabs', () => {
       tenantId: SELLER_TENANT,
       label: tabId,
       position,
-      config: { buyerProjection: { kind: 'reports' } },
+      config: { buyerProjection: { kind: 'marketplace' } },
     });
     const tabs = buildBuyerProjectedTabs(
       [row('b', 2), row('a', 1), row('a', 1)],

@@ -51,7 +51,7 @@
       "cooperativesDesc": "Vikundi vya AMCOS na vya wachimbaji wadogo.",
       "buyers": "Wanunuzi na wauzaji nje",
       "buyersDesc": "Wanunuzi wa madini waliothibitishwa, daraja la LBMA.",
-      "smelters": "Wayeyushaji na warekebishaji",
+      "smelters": "Off-takers na warekebishaji",
       "smeltersDesc": "Wachakataji walioleseniwa na warekebishaji wa dore.",
       "investors": "Wawekezaji na wakopeshaji",
       "investorsDesc": "Mtaji wa madini ukiwa na taarifa za kila siku.",
@@ -91,7 +91,7 @@
     "trustline": "Inafanya kazi na BRELA · TRA · Tume ya Madini · TMAA · M-Pesa",
     "chat": {
       "assistant": "Mwl. Mwikila",
-      "role": "Mkurugenzi Mtendaji wa AI wa Madini",
+      "role": "Mkurugenzi Mtendaji wa Madini wa AI",
       "live": "Hai",
       "ask": "Uliza Borjie chochote…",
       "timestamp": "Sasa hivi",
@@ -1025,22 +1025,22 @@
       "pills": [
         {
           "label": "Q1 2026",
-          "title": "Waendeshaji wa mapema — migodi kumi hai",
+          "title": "Waendeshaji wa mapema: migodi kumi hai",
           "tone": "active"
         },
         {
           "label": "Q2 2026",
-          "title": "Radar ya leseni — pre-fill ya siku 47",
+          "title": "Radar ya leseni: pre-fill ya siku 47",
           "tone": "next"
         },
         {
           "label": "Q3 2026",
-          "title": "Vendor wallet — M-Pesa · Tigo · Airtel",
+          "title": "Vendor wallet: M-Pesa · Tigo · Airtel",
           "tone": "later"
         },
         {
           "label": "Q4 2026",
-          "title": "Buyer soko — public beta",
+          "title": "Buyer soko: public beta",
           "tone": "later"
         }
       ],
@@ -1142,7 +1142,7 @@
     "faqs": [
       {
         "q": "Borjie ni nini?",
-        "a": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Borjie inaunganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, na daftari kamili la mali — vyote vikiongozwa na Mr. Mwikila, safu ya akili ndani ya Borjie."
+        "a": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Borjie inaunganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, na daftari kamili la mali, vyote vikiongozwa na Mr. Mwikila, safu ya akili ndani ya Borjie."
       },
       {
         "q": "Mwanzo ni bure kweli?",
@@ -1154,7 +1154,7 @@
       },
       {
         "q": "Mnakubali njia zipi za malipo?",
-        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, na uhamisho wa benki wa TZS. Bili za kila mwaka zinaweza kutolewa kwa ankara. Sarafu nyingi (TZS, USD, KES) inasaidiwa kwenye Kampuni na juu."
+        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, na uhamisho wa benki wa TZS. Bili za kila mwaka zinaweza kutolewa kwa ankara. Ripoti za hazina kwa TZS, USD na KES zinasaidiwa kwenye Kampuni na juu."
       },
       {
         "q": "Naweza kubadilisha kiwango baadaye?",
@@ -1189,7 +1189,7 @@
     "sections": [
       {
         "title": "1. Tunakusanya nini",
-        "body": "Borjie inakusanya data ya biashara yako ya mgodi — leseni za PML/ML/SML, ramani za pit, drill-hole logs, shughuli za off-take, mrabaha returns, na ujumbe wa watumiaji wako. Hatukusanyi data za kibinafsi za wachimbaji binafsi isipokuwa ikiwa wameipakia wenyewe au mmiliki ametuagiza."
+        "body": "Borjie inakusanya data ya biashara yako ya mgodi: leseni za PML/ML/SML, ramani za pit, drill-hole logs, shughuli za off-take, mrabaha returns, na ujumbe wa watumiaji wako. Hatukusanyi data za kibinafsi za wachimbaji binafsi isipokuwa ikiwa wameipakia wenyewe au mmiliki ametuagiza."
       },
       {
         "title": "2. Kwa nini",
@@ -1197,7 +1197,7 @@
       },
       {
         "title": "3. Wapi inaishi",
-        "body": "Data yako iko kwenye database iliyo Tanzania (Dar es Salaam region kwenye Fly.io fra1 kama backup). Audit chain ipo per-tenant — tenant yako haiwezi kusoma chain ya tenant mwingine, hata kama wewe ni admin."
+        "body": "Data yako iko kwenye database iliyo Tanzania (Dar es Salaam region kwenye Fly.io fra1 kama backup). Audit chain ipo per-tenant. Tenant yako haiwezi kusoma chain ya tenant mwingine, hata kama wewe ni admin."
       },
       {
         "title": "4. Haki zako",
@@ -1224,7 +1224,7 @@
       },
       {
         "title": "2. Tiers na malipo",
-        "body": "Tiers tano: Mwanzo (bure), Mkulima (TZS 150,000/mwezi), Mfanyabiashara (TZS 500,000/mwezi), Kampuni (TZS 1,500,000/mwezi), Group (bespoke). Malipo kwa mwezi, mbele. Kushindwa kulipa kwa siku 14 kunazima kazi za autonomous (lakini huzima audit chain — historia yako inabaki yako milele)."
+        "body": "Tiers tano: Mwanzo (bure), Mkulima (TZS 150,000/mwezi), Mfanyabiashara (TZS 500,000/mwezi), Kampuni (TZS 1,500,000/mwezi), Group (bespoke). Malipo kwa mwezi, mbele. Kushindwa kulipa kwa siku 14 kunazima kazi za autonomous (lakini huzima audit chain, historia yako inabaki yako milele)."
       },
       {
         "title": "3. Data yako ni yako",
@@ -1251,7 +1251,7 @@
   "ownersPage": {
     "kicker": "Kwa wamiliki wa migodi",
     "heading": "Endesha mgodi wako kama wabora duniani.",
-    "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/hazina, soko na utii — yote kwenye operator mmoja mtulivu.",
+    "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/hazina, soko na utii, yote kwenye operator mmoja mtulivu.",
     "ctaPilot": "Anza sasa",
     "ctaPricing": "Ona bei"
   },
@@ -1294,7 +1294,7 @@
         },
         {
           "title": "Mikataba ya kidijitali",
-          "body": "Sahihi za alama ya kidole zisizoweza kupingwa — mikataba inashikamana mahakamani."
+          "body": "Sahihi za alama ya kidole zisizoweza kupingwa, mikataba inashikamana mahakamani."
         }
       ],
       "cards": {
@@ -1316,30 +1316,25 @@
         }
       }
     },
-    "useCases": {
-      "kicker": "02 · Hadithi za matumizi",
-      "heading": "Wanunuzi tayari kwenye platform.",
-      "sub": "Mahusiano ya pilot yameonyeshwa — biashara halisi bado zinaingia. Itabadilishwa na case studies zilizothibitishwa baadaye.",
-      "cards": {
-        "gold": {
-          "tag": "Gold doré",
-          "buyer": "Pamoja Refinery",
-          "location": "Dar es Salaam",
-          "blurb": "Inapata kg 40-60/mwezi za doré kutoka clusters za PML za Geita na Kahama. Mnyororo wa Borjie unairuhusu refinery kuruka due diligence yake ya field."
+    "builtFor": {
+      "kicker": "02 · Imejengwa kwa wanunuzi waliothibitishwa",
+      "heading": "Imejengwa kwa wanunuzi waliothibitishwa.",
+      "sub": "Borjie inaingiza kundi lake la kwanza la refineries, nyumba za vito na off-takers. Kila muuzaji amethibitishwa kwa KYB, kila bidhaa ina njia ya mnyororo wa ulinzi, na kila mkataba unasainiwa kwa biometriki. Omba kujiunga na buyer pilot.",
+      "cards": [
+        {
+          "title": "Wenzako waliothibitishwa kwa KYB",
+          "body": "Kila leseni ya PML, PL na ML, NIDA ya mmiliki na hadhi ya TRA inakaguliwa kabla muuzaji hajaorodhesha. Unashiriki bid dhidi ya bidhaa zilizothibitishwa, si bidhaa zisizojulikana."
         },
-        "tanzanite": {
-          "tag": "Tanzanite rough",
-          "buyer": "Heritage TZ Gemstones",
-          "location": "Arusha",
-          "blurb": "Inashiriki kwenye bidding ya Mererani Block-D rough kila Jumanne. Cheti cha gemmological cha Borjie pamoja na biometric off-take huleta lot ndani ya saa 48."
+        {
+          "title": "Mnyororo wa ulinzi kwa kila bidhaa",
+          "body": "Kila lot ya ore ina njia inayothibitishwa kutoka drill-hole hadi weighbridge, ili uruke due diligence yako ya field na ununue kwa uhakika."
         },
-        "coltan": {
-          "tag": "Coltan concentrate",
-          "buyer": "Dar Gold Traders",
-          "location": "Dar es Salaam",
-          "blurb": "Coltan iliyopimwa kwa ICP-MS kutoka maeneo madogo ya Kigoma. Audit chain inatoa njia ya OECD due diligence ambayo wanunuzi wa EU wanahitaji."
+        {
+          "title": "Mikataba ya biometriki, inayotekelezeka",
+          "body": "Mikataba ya off-take inasainiwa kwa saini za alama za vidole zisizokataliwa na inarekodiwa kwenye audit chain kwa kila tenant, inayotekelezeka mahakamani."
         }
-      }
+      ],
+      "cta": "Omba kujiunga na buyer pilot"
     },
     "pricing": {
       "kicker": "03 · Bei",

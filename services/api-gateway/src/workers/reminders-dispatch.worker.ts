@@ -36,6 +36,7 @@
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import { withServiceRoleContext } from '@borjie/database';
+import { assertUrlSafe } from '@borjie/enterprise-hardening';
 
 import { publishCockpitEvent } from '../services/cockpit-events';
 import {
@@ -541,6 +542,11 @@ export function createRemindersDispatchWorker(
       ? `<${slackHandle.startsWith('@') ? slackHandle : `@${slackHandle}`}> `
       : '';
     try {
+      // SSRF pre-flight — `webhook` may be a per-tenant value
+      // (slackWebhookForTenant); screen it before dispatch so an internal /
+      // metadata target can never be reached. A blocked URL throws and is
+      // handled by the catch below as a send failure (never an actual fetch).
+      await assertUrlSafe(webhook);
       const res = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -23,6 +23,12 @@ export interface LogomarkProps extends React.HTMLAttributes<HTMLSpanElement> {
   readonly variant?: LogomarkVariant;
   readonly withBackdrop?: boolean;
   readonly tone?: BorjieLogoTone;
+  /**
+   * Whether the mark breathes at rest. Forwarded to `BorjieLogo` so callers
+   * can freeze the mark on still surfaces (e.g. a fixed nav) — omitting it
+   * keeps the default living breath (honours `prefers-reduced-motion`).
+   */
+  readonly pulse?: boolean;
 }
 
 function resolveLegacyTone(
@@ -46,6 +52,7 @@ export const Logomark = React.forwardRef<HTMLSpanElement, LogomarkProps>(
       // would double up. We accept the prop for API parity but ignore it.
       withBackdrop: _withBackdrop = false,
       tone,
+      pulse,
       style,
       ...rest
     },
@@ -69,6 +76,7 @@ export const Logomark = React.forwardRef<HTMLSpanElement, LogomarkProps>(
           size={typeof size === 'number' ? size : 24}
           tone={resolvedTone}
           title={title}
+          {...(pulse !== undefined ? { pulse } : {})}
         />
       </span>
     );

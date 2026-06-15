@@ -13,7 +13,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
-import { Logomark } from '@borjie/design-system';
+import { BorjieLogo, Logomark } from '@borjie/design-system';
 
 /**
  * Sidebar — dense left rail for the Borjie admin console.
@@ -72,9 +72,12 @@ export function Sidebar({ bilingual = false }: SidebarProps = {}): JSX.Element {
         className="flex items-center gap-3 border-b border-border px-5 py-5 transition-colors hover:bg-surface"
       >
         <Logomark size={28} variant="premium" />
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-display text-foreground">Borjie</span>
-          <span className="text-tiny font-mono uppercase tracking-widest text-signal-500">
+        <div className="flex flex-col leading-tight text-foreground">
+          {/* Canonical wordmark — Fraunces display, not hand-set text.
+              `currentColor` lets it follow the foreground in light/dark,
+              mirroring how the marketing Nav consumes BorjieLogo. */}
+          <BorjieLogo variant="wordmark" size={20} wordmarkColor="currentColor" />
+          <span className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-signal-500">
             Console
           </span>
         </div>

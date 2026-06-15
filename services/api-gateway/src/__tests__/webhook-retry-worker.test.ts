@@ -239,6 +239,32 @@ describe('webhook retry worker', () => {
     expect(repo.attempts).toHaveLength(0);
   });
 
+  it('SSRF-blocks an internal target URL before any fetch (permanent)', async () => {
+    const repo = makeRepo();
+    let fetched = false;
+    const fetchFn = (async () => {
+      fetched = true;
+      return new Response('{"ok":true}', { status: 200 });
+    }) as typeof fetch;
+    const worker = createWebhookRetryWorker({
+      repository: repo,
+      fetchFn,
+      logger: silentLogger,
+      backoffSecondsForAttempt: () => 0,
+    });
+
+    // A retry/DLQ-replay must re-screen the operator URL the canonical first
+    // delivery screened — a cloud-metadata / internal target can never be
+    // dispatched. Literal internal IP → blocked by the string/IP gate (no DNS).
+    const result = await worker.processDelivery(
+      makeEvent({ targetUrl: 'http://169.254.169.254/latest/meta-data/' })
+    );
+
+    expect(result.status).toBe('dead_lettered');
+    expect(fetched).toBe(false); // never left the cluster
+    expect(repo.dlq).toHaveLength(1);
+  });
+
   it('records statusCode and attemptNumber on each attempt', async () => {
     const repo = makeRepo();
     const responses = [503, 200];

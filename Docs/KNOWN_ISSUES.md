@@ -389,4 +389,29 @@ from the bug register entirely:
   required — per-domain squads own the swap as their target package
   matures.
 
-End of register. **Open KI count: 0.**
+### KI-017 — Owner two-way calendar sync is born-dark (backend-only, NO UI entry) — **REGISTERED 2026-06-15 — LOW (incomplete feature, not user-reachable)**
+
+`services/api-gateway/src/composition/calendar-wiring.ts` (`createCalendarWiring`)
+and `services/api-gateway/src/workers/calendar-sync.worker.ts`
+(`createCalendarSyncWorker`) have **zero callers** — `index.ts` never imports the
+wiring, so the sync worker never `.start()`s. The owner calendar OAuth route
+(`services/api-gateway/src/routes/owner/calendar.hono.ts`, migration 0171) IS
+mounted (connect / callback / status / disconnect), but no writer ever creates a
+`channel='calendar'` reminder, the reminders-dispatch worker drops that channel,
+and the action-executor refuses to schedule it — so the two-way sync is dark end
+to end.
+
+**Why this is REGISTERED, not a shipped bug:** a repo-wide sweep finds **no
+front-end caller** of `/owner/calendar/*` in any surface (owner-web,
+workforce-mobile, buyer-mobile) — there is no "Connect Google Calendar" CTA, so
+no user is shown a dead-end promise. This is an **incomplete backend feature**
+(skeleton present, loop not closed), not a regression in any shipped behaviour.
+
+**Proposed fix (a feature, owner-prioritised):** compose `createCalendarWiring`
+in `index.ts`, add a `channel='calendar'` writer + reminders-dispatch handler
+that pushes reminders/deadlines to the linked provider via the stored OAuth
+connection (with token refresh + event dedup), then surface a connect entry on
+the owner cockpit. Until then the route stays mounted-but-unconsumed (harmless,
+OWNER-auth + OAuth gated).
+
+End of register. **Open KI count: 0 user-reachable; 1 registered incomplete feature (KI-017).**

@@ -33,7 +33,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { Logomark } from '@borjie/design-system';
+import { BorjieLogo, Logomark } from '@borjie/design-system';
 import { cn } from '@borjie/design-system';
 import { useT } from '@/i18n/t.client';
 
@@ -169,9 +169,12 @@ export function Sidebar({ tenantName }: SidebarProps) {
       <div className="flex h-16 items-center gap-3 border-b border-border/60 px-5">
         <Link href="/" className="flex items-center gap-3">
           <Logomark className="h-8 w-8" />
-          <div className="leading-tight">
-            <div className="text-sm font-semibold text-foreground">Borjie</div>
-            <div className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
+          <div className="leading-tight text-foreground">
+            {/* Canonical wordmark — Fraunces display, not hand-set text.
+                `currentColor` lets it follow the foreground in light/dark,
+                mirroring how the marketing Nav consumes BorjieLogo. */}
+            <BorjieLogo variant="wordmark" size={20} wordmarkColor="currentColor" />
+            <div className="mt-0.5 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
               {t('nav.ownerCockpit')}
             </div>
           </div>
