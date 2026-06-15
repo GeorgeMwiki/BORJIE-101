@@ -92,12 +92,15 @@ export function MobileDrawer({
             exit={reduceMotion ? { opacity: 0 } : { x: '100%' }}
             transition={{ duration: reduceMotion ? 0.15 : 0.28, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4">
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4 text-foreground">
               <BorjieLogo
                 variant="lockup-horizontal"
                 size={26}
                 tone="full"
                 pulse={false}
+                // Wordmark follows the drawer foreground so it stays legible on
+                // the light card surface; the gold mark keeps its tone.
+                wordmarkColor="currentColor"
               />
               <button
                 type="button"

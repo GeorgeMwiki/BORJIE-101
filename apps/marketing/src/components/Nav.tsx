@@ -98,6 +98,10 @@ function NavLockup() {
       size={28}
       tone="full"
       pulse={false}
+      // Wordmark follows the surface foreground so it stays legible on the
+      // light nav (the full-tone cream wordmark is built for dark backdrops);
+      // the gold mark keeps its tone.
+      wordmarkColor="currentColor"
     />
   );
 }
@@ -187,7 +191,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
         <Link
           href="/"
           aria-label="Borjie home"
-          className="-ml-1 inline-flex shrink-0 items-center rounded-md p-1 transition-opacity duration-150 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className="-ml-1 inline-flex shrink-0 items-center rounded-md p-1 text-foreground transition-opacity duration-150 hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           <NavLockup />
         </Link>

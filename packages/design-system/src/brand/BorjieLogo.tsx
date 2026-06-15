@@ -73,6 +73,11 @@ export interface BorjieLogoProps extends React.HTMLAttributes<HTMLSpanElement> {
    *  on for the gradient tone; pass false to freeze. Honours
    *  prefers-reduced-motion. */
   readonly pulse?: boolean;
+  /** Override the WORDMARK text colour only (the mark keeps its tone).
+   *  Use `'currentColor'` on a themed/light surface so the wordmark follows
+   *  the surface foreground — a tone built for dark backgrounds (cream
+   *  wordmark) is unreadable on a light nav/footer/sidebar otherwise. */
+  readonly wordmarkColor?: string;
 }
 
 /**
@@ -313,10 +318,12 @@ function BorjieWordmarkText({
   size,
   tone,
   label,
+  wordmarkColor,
 }: {
   readonly size: number;
   readonly tone: BorjieLogoTone;
   readonly label: string;
+  readonly wordmarkColor?: string;
 }): JSX.Element {
   const palette = resolveTone(tone);
   const fontPx = Math.round(size * 0.72);
@@ -334,7 +341,7 @@ function BorjieWordmarkText({
         fontSize: `${fontPx}px`,
         letterSpacing: '-0.018em',
         lineHeight: 1,
-        color: palette.wordmarkColor,
+        color: wordmarkColor ?? palette.wordmarkColor,
         display: 'inline-flex',
         alignItems: 'baseline',
         whiteSpace: 'nowrap',
@@ -356,6 +363,7 @@ export function BorjieLogo({
   label = 'Borjie',
   title = 'Borjie',
   pulse,
+  wordmarkColor,
   style,
   ...rest
 }: BorjieLogoProps): JSX.Element {
@@ -389,7 +397,7 @@ export function BorjieLogo({
         aria-label={title}
         {...rest}
       >
-        <BorjieWordmarkText size={size} tone={tone} label={label} />
+        <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
       </span>
     );
   }
@@ -408,7 +416,7 @@ export function BorjieLogo({
         {...rest}
       >
         <BorjieMarkSvg size={Math.round(size * 1.35)} tone={tone} title={title} pulse={pulse} />
-        <BorjieWordmarkText size={size} tone={tone} label={label} />
+        <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
       </span>
     );
   }
@@ -426,7 +434,7 @@ export function BorjieLogo({
       {...rest}
     >
       <BorjieMarkSvg size={size} tone={tone} title={title} />
-      <BorjieWordmarkText size={size} tone={tone} label={label} />
+      <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
     </span>
   );
 }
