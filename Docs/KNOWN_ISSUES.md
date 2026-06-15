@@ -414,4 +414,31 @@ connection (with token refresh + event dedup), then surface a connect entry on
 the owner cockpit. Until then the route stays mounted-but-unconsumed (harmless,
 OWNER-auth + OAuth gated).
 
-End of register. **Open KI count: 0 user-reachable; 1 registered incomplete feature (KI-017).**
+### KI-018 — admin-web console uses a "bilingual show-BOTH" pattern (EN+SW together) — **PARTIAL FIX 2026-06-15 — MEDIUM (canon violation, internal surface)**
+
+The internal admin console was built to render English AND Swahili side-by-side
+(a deliberate "bilingual" design), which violates the **single-language-per-locale
+canon** (one active locale → ZERO tokens of the other language anywhere). Live
+proof (authed admin console): the nav read `Cockpit Dashibodi · Tenants
+Wapangaji · Audit Ukaguzi · Health Afya · Brain Akili · Control tower Mnara wa
+Udhibiti`, and the SSR/client split of the show-both flag drove a React #418
+hydration-text mismatch.
+
+**FIXED (this session, commit 55e6add1):** the **Sidebar** (the nav, on every
+admin page — the highest-impact, most-repeated element) now threads the
+server-resolved locale (RootLayout → AdminShell → Sidebar) and renders ONE label
+per active locale via `pickByLocale`. No hydration mismatch on the nav.
+
+**STILL OPEN (registered for a focused admin-i18n pass):** the same show-both
+pattern remains in other admin surfaces — `DashboardMetricStrip.tsx` (KPI cards
+render `{m.label}` AND `{m.labelSw}`), hardcoded `EN · SW` page eyebrows (e.g.
+`app/dashboard/page.tsx` "Cockpit · Dashibodi"), and the `PersonaGreeting` chat
+chips. PLUS a likely-separate React #418 from PersonaGreeting's time-of-day
+greeting (SSR time ≠ client time). **Scope:** convert every admin surface to a
+server-resolved locale + `pickByLocale` single-label (the Sidebar is the
+template), and make the persona greeting time-stable across hydration. INTERNAL
+staff surface, fully functional — this is a canon/polish defect, not a
+customer-facing or fatal one. Owner/marketing surfaces are single-locale
+(verified live).
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 1 internal-console canon residual (KI-018, nav fixed).**
