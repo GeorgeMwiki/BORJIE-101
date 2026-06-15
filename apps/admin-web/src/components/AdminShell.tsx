@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Locale } from '@/lib/locale-shared';
 import { Sidebar } from './admin-shell/Sidebar';
 import { TopBar } from './admin-shell/TopBar';
 import { StaffIdentityStrip } from './StaffIdentityStrip';
@@ -28,6 +29,8 @@ import { requirePublicBaseUrl } from '@/lib/env-guard';
 
 interface AdminShellProps {
   readonly children: ReactNode;
+  /** Active locale (server-resolved) so the nav renders ONE language. */
+  readonly locale?: Locale;
 }
 
 /**
@@ -49,11 +52,14 @@ function resolveSuiteOrigins(): { ownerUrl: string; adminUrl: string } {
   };
 }
 
-export function AdminShell({ children }: AdminShellProps): JSX.Element {
+export function AdminShell({
+  children,
+  locale = 'en',
+}: AdminShellProps): JSX.Element {
   const { ownerUrl, adminUrl } = resolveSuiteOrigins();
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar bilingual />
+      <Sidebar locale={locale} />
       <div className="flex flex-1 min-w-0 flex-col">
         <TopBar
           identity={<StaffIdentityStrip />}

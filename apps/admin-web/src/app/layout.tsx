@@ -94,7 +94,7 @@ export default async function RootLayout({
                   AdminShellGate so they render bare. */}
               <AdminShellGate
                 bare={children}
-                shell={<AdminShell>{children}</AdminShell>}
+                shell={<AdminShell locale={locale}>{children}</AdminShell>}
               />
               <BorjieWidgetMount />
               {/* Wave SUPERPOWERS - universal Cmd-K palette for the

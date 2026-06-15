@@ -14,22 +14,28 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { BorjieLogo, Logomark } from '@borjie/design-system';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
 
 /**
  * Sidebar — dense left rail for the Borjie admin console.
  *
  * Mirrors the LitFin admin/officer sidebar shape (logo at top, grouped
- * nav, active-route highlight) while staying bilingual (sw/en) and
- * using Borjie navy/gold tokens. Items map to the eight admin-web
- * primary surfaces called out in the parity brief; deeper screens
- * still live under /internal/* and are reachable from the cockpit.
+ * nav, active-route highlight), using Borjie navy/gold tokens. Items map
+ * to the eight admin-web primary surfaces called out in the parity brief;
+ * deeper screens still live under /internal/* and are reachable from the
+ * cockpit.
+ *
+ * SINGLE LANGUAGE PER LOCALE (canon): each item renders ONE label, chosen
+ * by the server-resolved active locale — never English AND Swahili together.
+ * Showing both (the old `bilingual` mode) violates single-language-per-locale
+ * and caused EN/SW to render side-by-side in the live nav.
  */
 
 interface NavItem {
   readonly href: string;
   readonly icon: LucideIcon;
   readonly label: string;
-  /** Swahili label — shown when locale flag is set. */
+  /** Swahili label — rendered when the active locale is `sw`. */
   readonly labelSw: string;
 }
 
@@ -55,11 +61,11 @@ const NAV_ITEMS: ReadonlyArray<NavItem> = [
 ];
 
 export interface SidebarProps {
-  /** Show Swahili labels next to English. Default false. */
-  readonly bilingual?: boolean;
+  /** Active locale (server-resolved). Each nav item renders ONE label. */
+  readonly locale?: Locale;
 }
 
-export function Sidebar({ bilingual = false }: SidebarProps = {}): JSX.Element {
+export function Sidebar({ locale = 'en' }: SidebarProps = {}): JSX.Element {
   const pathname = usePathname() ?? '';
 
   return (
@@ -105,13 +111,8 @@ export function Sidebar({ bilingual = false }: SidebarProps = {}): JSX.Element {
                 }`}
                 aria-hidden="true"
               />
-              <span className="flex flex-col leading-tight">
-                <span className="font-medium">{item.label}</span>
-                {bilingual ? (
-                  <span className="text-tiny uppercase tracking-widest text-neutral-500">
-                    {item.labelSw}
-                  </span>
-                ) : null}
+              <span className="font-medium">
+                {pickByLocale(locale, { en: item.label, sw: item.labelSw })}
               </span>
             </Link>
           );
