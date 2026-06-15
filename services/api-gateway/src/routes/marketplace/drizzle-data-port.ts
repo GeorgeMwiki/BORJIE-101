@@ -40,8 +40,14 @@
  * read from the row — never hard-coded.
  */
 
-import { and, desc, eq, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { marketplaceListings } from '@borjie/database';
+
+// Public-tier visibilities a buyer may discover cross-tenant — mirrors the
+// BUYER_VISIBLE filter on the live GET /mining/marketplace/listings/:id
+// endpoint (routes/mining/marketplace.hono.ts). A private/draft/paused/removed
+// listing from another tenant must never be fetchable by id.
+const PUBLIC_VISIBILITIES = ['tanzania', 'regional', 'global'] as const;
 import type {
   ApplicationRecord,
   InquiryRecord,
@@ -248,11 +254,23 @@ export function drizzleMarketplaceDataPort(
     async findListing(
       listingId: string,
     ): Promise<MarketplaceListingDetail | null> {
+      // Defence-in-depth: this is the public listing-detail port, so it must
+      // only ever surface ACTIVE, public-tier listings — exactly like its
+      // sibling searchListings() and the live mining listing-detail endpoint.
+      // Without the status/visibility guard a buyer could fetch a draft /
+      // paused / removed / PRIVATE listing across tenants by guessing its id
+      // (the same class of leak already fixed on GET /mining/.../listings/:id).
       const rows = rowsOf(
         await db
           .select()
           .from(marketplaceListings)
-          .where(eq(marketplaceListings.id, listingId))
+          .where(
+            and(
+              eq(marketplaceListings.id, listingId),
+              eq(marketplaceListings.status, 'active'),
+              inArray(marketplaceListings.visibility, [...PUBLIC_VISIBILITIES]),
+            ),
+          )
           .limit(1),
       );
       const row = rows[0];

@@ -32,6 +32,7 @@
 
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { withServiceRoleContext } from '@borjie/database';
 import type {
   DbLike,
   OwnerAlertSender,
@@ -39,6 +40,10 @@ import type {
   SavedSearchRow,
   SearchExecutor,
 } from '../workers/saved-search-worker.js';
+
+// withServiceRoleContext's db param type (derived to dodge the TS2709 clash
+// between the @borjie/database DatabaseClient and the local DrizzleLike port).
+type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 
 // ---------------------------------------------------------------------------
 // Drizzle client port — only `execute` is needed.
@@ -109,12 +114,35 @@ function isUpdateAfterRunOp(op: unknown): op is UpdateAfterRunOp {
  * Build the worker's `DbLike` port over the real Drizzle client. Reads
  * only ENABLED rows (`disabled_at IS NULL`) so a paused saved search
  * never re-fires.
+ *
+ * The `select_due` drain scans `saved_searches` CROSS-TENANT (no tenant
+ * predicate) over the shared pool, so under FORCE ROW LEVEL SECURITY it must
+ * bind `app.is_service_role='true'` (migration 0365's
+ * `saved_searches_service_role_bypass`) or the scan matches ZERO rows and the
+ * entire owner-alert loop goes silently dark. Wrap when the client is
+ * transaction-capable; the unit-test mock (a bare `{ execute }` stub) executes
+ * directly. The `update_after_run` op is tenant-keyed (`WHERE tenant_id = …`)
+ * and stays on the request-shaped predicate — it never needs the bypass.
  */
 export function createSavedSearchDbAdapter(db: DrizzleLike): DbLike {
+  // Run a statement under a service-role context so the cross-tenant
+  // `select_due` drain survives FORCE RLS. Mirrors the reminders-dispatch
+  // worker's runStmt: only the transaction-capable production client gets the
+  // wrap; the test stub (no `.transaction`) executes directly.
+  function runServiceRole(query: unknown): Promise<unknown> {
+    const dbAny = db as { transaction?: unknown };
+    if (typeof dbAny.transaction === 'function') {
+      return withServiceRoleContext(db as unknown as ServiceRoleDb, (tx) =>
+        (tx as unknown as DrizzleLike).execute(query),
+      );
+    }
+    return db.execute(query);
+  }
+
   return Object.freeze({
     async execute(query: unknown): Promise<unknown> {
       if (isSelectDueOp(query)) {
-        const result = await db.execute(sql`
+        const result = await runServiceRole(sql`
           SELECT id, tenant_id, user_id, label, query_json,
                  frequency, source, last_run_at, last_match_count
             FROM saved_searches

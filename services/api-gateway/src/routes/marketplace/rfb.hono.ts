@@ -599,9 +599,11 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
   }
   // Notify the buyer of the counter-offer through the pre-reserved
   // `rfb_response_received` buyer_notifications kind. Without this the buyer
-  // only learns of a seller response by polling GET /mine. The insert runs in
-  // the SELLER's RLS context (migration 0132 admits it via the
-  // seller_tenant_id WITH CHECK). Best-effort: a notification failure must
+  // only learns of a seller response by polling GET /mine. The response INSERT
+  // above runs in the SELLER's RLS context but stamps tenant_id = the BUYER's
+  // tenant; under FORCE RLS migration 0365's `rfb_responses_seller_insert`
+  // admits it via the provenance.sellerTenantId = app.current_tenant_id WITH
+  // CHECK (the seller's bound GUC). Best-effort: a notification failure must
   // NEVER roll back the already-committed response row.
   const buyerId = rfb.buyer_id != null ? String(rfb.buyer_id) : null;
   if (buyerId) {
