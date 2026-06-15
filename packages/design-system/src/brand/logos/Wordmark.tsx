@@ -10,9 +10,9 @@ import { BorjieLogo } from '../BorjieLogo';
  *   - `WordmarkStacked`   mark above wordmark
  *   - `WordmarkOnly`      wordmark, no mark
  *
- * Each now forwards to `BorjieLogo` with the matching variant. The
- * compound-label "Bor·jie" mid-dot accent comes from BorjieLogo's
- * canonical text renderer; the legacy "Boss·Nyumba" path is retired.
+ * Each now forwards to `BorjieLogo` with the matching variant, which
+ * renders "Borjie" as one clean word; the legacy compound-label
+ * mid-dot accent (a "Boss·Nyumba"-era artifact) is retired.
  */
 
 export type WordmarkSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';

@@ -37,8 +37,8 @@ import * as React from 'react';
  *   - 'mono-cream' single warm off-white (#F5EBD8)
  *
  * The wordmark sets "Borjie" in Fraunces display medium with a -0.018em
- * tracking value and a subtle warm-gold dot accent between "Bor" and
- * "jie" — the brand glyph the existing system already established.
+ * tracking value — one clean word, no separator or mid-dot between
+ * "Bor" and "jie".
  *
  * All paths and colours are deterministic: no Math.random, no Date,
  * no env reads. Server-rendered SVGs identical to client renders.
@@ -290,11 +290,10 @@ function BorjieMarkSvg({
 }
 
 /**
- * Wordmark "Borjie" — Fraunces display medium with the canonical
- * warm-gold mid-dot accent between "Bor" and "jie". Set in the
- * wordmark's own colour rather than inheriting so tone='knockout' on
- * dark photo backdrops still renders correctly without a parent
- * `color` cascade.
+ * Wordmark "Borjie" — Fraunces display medium, rendered as one clean
+ * word (no separator or mid-dot). Set in the wordmark's own colour
+ * rather than inheriting so tone='knockout' on dark photo backdrops
+ * still renders correctly without a parent `color` cascade.
  */
 function BorjieWordmarkText({
   size,
@@ -308,9 +307,10 @@ function BorjieWordmarkText({
   const palette = resolveTone(tone);
   const fontPx = Math.round(size * 0.72);
   const trimmed = label.trim();
-  const isCanonical = trimmed === 'Borjie';
-  const dotSize = Math.max(2, Math.round(fontPx * 0.1));
 
+  // Canonical brand name renders as one clean word: "Borjie". No stray
+  // separator, mid-dot, or split between "Bor" and "jie" (the old
+  // compound-label accent — a Boss·Nyumba-era artifact — is retired).
   return (
     <span
       style={{
@@ -326,29 +326,7 @@ function BorjieWordmarkText({
         whiteSpace: 'nowrap',
       }}
     >
-      {isCanonical ? (
-        <>
-          <span>Bor</span>
-          <span
-            aria-hidden="true"
-            style={{
-              display: 'inline-block',
-              width: dotSize,
-              height: dotSize,
-              borderRadius: '50%',
-              backgroundColor:
-                tone === 'full' || tone === 'mono-cream'
-                  ? '#E5B26B'
-                  : palette.wordmarkColor,
-              margin: `0 ${Math.max(1, Math.round(fontPx * 0.04))}px`,
-              transform: `translateY(-${Math.max(1, Math.round(fontPx * 0.18))}px)`,
-            }}
-          />
-          <span>jie</span>
-        </>
-      ) : (
-        trimmed
-      )}
+      {trimmed}
     </span>
   );
 }

@@ -9,9 +9,8 @@
  * Borjie keeps each inner section as its own polished impl (already
  * LitFin-cloned in prior waves — sibling #75 / #82 / #117 / #122). This
  * shell:
- *   1. Opens with the FrontierBanner (above-fold of HomePage — eager).
- *   2. Renders the "Why a Mining OS?" Problem/Solution duo (eager).
- *   3. Wraps below-fold sections in `LazyVisible` (IntersectionObserver
+ *   1. Renders the "Why a Mining OS?" Problem/Solution duo (eager).
+ *   2. Wraps below-fold sections in `LazyVisible` (IntersectionObserver
  *      gate, 400px ahead) so framer-motion-heavy sections never enter
  *      the first-paint payload.
  *
