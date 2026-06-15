@@ -45,7 +45,7 @@ export default async function BuyersSignInPage() {
             <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
               {t.kicker}
             </p>
-            <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
+            <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
               {t.heading}
             </h1>
             <p className="mx-auto mt-5 max-w-prose-wider text-base leading-relaxed text-foreground/70">

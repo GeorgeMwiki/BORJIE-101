@@ -15,7 +15,7 @@ import { getLocale } from '@/lib/locale';
  */
 
 export const metadata: Metadata = {
-  title: 'Contact , Borjie',
+  title: 'Contact · Borjie',
   description:
     'Talk to the Borjie team. Demo requests, partnerships, support, press. Tanzania office address.',
 };
@@ -47,7 +47,7 @@ export default async function ContactPage() {
             <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
               {isSw ? 'Wasiliana nasi' : 'Get in touch'}
             </p>
-            <h1 className="mt-5 font-display text-5xl font-medium tracking-tight text-balance sm:text-6xl">
+            <h1 className="mt-5 font-display text-5xl font-semibold tracking-tight text-balance sm:text-6xl">
               {isSw
                 ? 'Hebu tuzungumze kuhusu mgodi wako.'
                 : "Let's talk about your operation."}
@@ -107,12 +107,12 @@ export default async function ContactPage() {
                   type="text"
                 />
                 <label className="block text-sm">
-                  <span className="block text-tiny font-medium text-foreground/80">
+                  <span className="block text-xs font-medium text-foreground/80">
                     {isSw ? 'Aina ya swali' : 'Inquiry type'}
                   </span>
                   <select
                     name="kind"
-                    className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
+                    className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
                   >
                     {INQUIRY_CHIPS.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -122,14 +122,14 @@ export default async function ContactPage() {
                   </select>
                 </label>
                 <label className="block text-sm">
-                  <span className="block text-tiny font-medium text-foreground/80">
+                  <span className="block text-xs font-medium text-foreground/80">
                     {isSw ? 'Ujumbe' : 'Message'}
                   </span>
                   <textarea
                     name="message"
                     rows={5}
                     required
-                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
+                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-base text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
                   />
                 </label>
               </div>
@@ -188,7 +188,7 @@ export default async function ContactPage() {
         {/* Final CTA */}
         <section className="border-t border-border bg-surface/40 px-5 py-16 md:py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               {isSw
                 ? 'Au panga simu ya dakika 15.'
                 : 'Or schedule a 15-minute call.'}
@@ -228,7 +228,7 @@ function Field({
 }) {
   return (
     <label htmlFor={id} className="block text-sm">
-      <span className="block text-tiny font-medium text-foreground/80">
+      <span className="block text-xs font-medium text-foreground/80">
         {label}
       </span>
       <input
@@ -236,7 +236,7 @@ function Field({
         name={name}
         type={type}
         required={required}
-        className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
+        className="mt-1 h-11 w-full rounded-md border border-border bg-background px-3 text-base text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
       />
     </label>
   );

@@ -42,17 +42,22 @@ interface StatusResponse {
   readonly windowDays: number;
 }
 
+// Status dots/text resolve to the design-system SEMANTIC tokens
+// (muted emerald success · copper-family warning · burnt-red danger),
+// not raw Tailwind palette colours, so the board reads institutional
+// and tracks light/dark. Hue is always paired with a text label, never
+// the sole signal.
 const STATUS_COLOR: Record<SimpleStatus, string> = {
-  ok: 'bg-emerald-500',
-  degraded: 'bg-amber-500',
-  outage: 'bg-red-500',
-  unknown: 'bg-neutral-700',
+  ok: 'bg-success',
+  degraded: 'bg-warning',
+  outage: 'bg-danger',
+  unknown: 'bg-neutral-400',
 };
 
 const STATUS_TEXT: Record<SimpleStatus, string> = {
-  ok: 'text-emerald-400',
-  degraded: 'text-amber-400',
-  outage: 'text-red-400',
+  ok: 'text-success',
+  degraded: 'text-warning',
+  outage: 'text-danger',
   unknown: 'text-foreground/70',
 };
 

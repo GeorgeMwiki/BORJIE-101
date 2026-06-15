@@ -55,7 +55,7 @@ export function PilotForm({ locale }: { readonly locale: Locale }) {
     return (
       <div className="flex flex-col items-start gap-4 rounded-2xl border border-signal-500/40 bg-signal-500/5 p-8">
         <CheckCircle2 className="h-10 w-10 text-signal-500" aria-hidden="true" />
-        <p className="font-display text-2xl font-medium tracking-tight">{t.success}</p>
+        <p className="font-display text-2xl font-semibold tracking-tight">{t.success}</p>
         <p className="text-sm text-foreground/70">pilot@borjie.co.tz</p>
       </div>
     );
@@ -81,9 +81,11 @@ export function PilotForm({ locale }: { readonly locale: Locale }) {
           name="mineralFocus"
           required
           defaultValue=""
-          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none"
+          className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/30"
         >
-          <option value="" disabled>—</option>
+          <option value="" disabled>
+            {t.fields.mineralFocusPlaceholder}
+          </option>
           {t.minerals.map((m) => (
             <option key={m} value={m}>{m}</option>
           ))}
@@ -151,7 +153,7 @@ function Field({
         min={min}
         placeholder={placeholder}
         required={required}
-        className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/60 focus:border-signal-500 focus:outline-none"
+        className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/60 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/30"
       />
     </div>
   );

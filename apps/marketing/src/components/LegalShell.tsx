@@ -51,7 +51,7 @@ export function LegalShell({
             <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
               {kicker}
             </p>
-            <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
+            <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
               {heading}
             </h1>
             <p className="mt-3 font-mono text-xs uppercase tracking-widest text-foreground/60">

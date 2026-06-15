@@ -110,7 +110,7 @@ export function IndividualBuyerStep({
             autoComplete="name"
             value={draft.fullName}
             onChange={(e) => update('fullName', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -126,7 +126,7 @@ export function IndividualBuyerStep({
             onChange={(e) =>
               update('country', e.currentTarget.value as BuyerCountryCode)
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_COUNTRY_CODES.map((c) => (
               <option key={c} value={c}>
@@ -150,7 +150,7 @@ export function IndividualBuyerStep({
             placeholder="+255712345678"
             value={draft.phoneE164}
             onChange={(e) => update('phoneE164', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -167,7 +167,7 @@ export function IndividualBuyerStep({
             autoComplete="email"
             value={draft.email}
             onChange={(e) => update('email', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
 
@@ -186,7 +186,7 @@ export function IndividualBuyerStep({
                 e.currentTarget.value as BuyerLanguageCode,
               )
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_LANGUAGE_CODES.map((code) => (
               <option key={code} value={code}>
@@ -211,7 +211,7 @@ export function IndividualBuyerStep({
                 e.currentTarget.value as BuyerCurrencyCode,
               )
             }
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           >
             {BUYER_CURRENCY_CODES.map((c) => (
               <option key={c} value={c}>
@@ -230,7 +230,7 @@ export function IndividualBuyerStep({
             data-testid="buyer-individual-nationalId"
             value={draft.nationalIdNumber}
             onChange={(e) => update('nationalIdNumber', e.currentTarget.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+            className="w-full rounded-md border border-border bg-background px-3 py-2.5 text-base text-foreground placeholder:text-foreground/40 focus:border-signal-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
           />
         </Field>
       </div>

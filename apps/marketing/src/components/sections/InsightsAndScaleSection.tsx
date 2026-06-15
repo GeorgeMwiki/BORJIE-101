@@ -49,7 +49,7 @@ export function InsightsAndScaleSection({
           </span>
           <h2
             id="insights-heading"
-            className="mt-3 font-display text-4xl font-medium tracking-tighter text-foreground md:text-5xl"
+            className="mt-3 font-display text-4xl font-semibold tracking-tighter text-foreground md:text-5xl"
           >
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>

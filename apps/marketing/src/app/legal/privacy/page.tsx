@@ -11,7 +11,7 @@ import { getLocale } from '@/lib/locale';
  */
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy , Borjie',
+  title: 'Privacy Policy · Borjie',
   description:
     'Borjie Privacy Policy. Tanzania Personal Data Protection Act 2022. Per-tenant audit chain, scope-separated data, regional storage.',
 };

@@ -90,7 +90,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
         </p>
         <h2
           id="capabilities-heading"
-          className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl"
+          className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl"
         >
           {t.heading}
         </h2>
@@ -110,7 +110,7 @@ export function CapabilitiesGrid({ locale }: { readonly locale: Locale }) {
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
                   <div className="flex-1">
-                    <h3 className="font-display text-xl font-medium tracking-tight">
+                    <h3 className="font-display text-xl font-semibold tracking-tight">
                       {c.title}
                     </h3>
                     <p className="mt-2 text-sm leading-relaxed text-foreground/70">

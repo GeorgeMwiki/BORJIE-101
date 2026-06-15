@@ -12,7 +12,7 @@ import { getLocale } from '@/lib/locale';
  */
 
 export const metadata: Metadata = {
-  title: 'Terms of Service , Borjie',
+  title: 'Terms of Service · Borjie',
   description:
     'Borjie terms of service. Tanzania jurisdiction. Mining-domain specific (Mining Commission, NEMC, TRA, FIU).',
 };

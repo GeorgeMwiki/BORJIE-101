@@ -25,7 +25,9 @@ const ContactSchema = z.object({
 });
 
 const GATEWAY_URL =
-  process.env.BORJIE_API_GATEWAY_URL ?? 'http://localhost:3000';
+  process.env.BORJIE_API_GATEWAY_URL ??
+  process.env.NEXT_PUBLIC_API_GATEWAY_URL ??
+  'http://localhost:3000';
 
 function redirectBack(req: Request, status: 'ok' | 'invalid' | 'error') {
   return NextResponse.redirect(

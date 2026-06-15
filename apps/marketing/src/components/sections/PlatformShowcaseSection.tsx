@@ -57,7 +57,7 @@ export function PlatformShowcaseSection({
           </span>
           <h2
             id="platform-showcase-heading"
-            className="mt-3 font-display text-4xl font-medium tracking-tighter text-foreground md:text-5xl"
+            className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground md:text-5xl"
           >
             {t.title}{' '}
             <span className="text-signal-500">{t.titleAccent}</span>

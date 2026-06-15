@@ -26,7 +26,7 @@ import { getLocale } from '@/lib/locale';
  */
 
 export const metadata: Metadata = {
-  title: 'Support , Borjie',
+  title: 'Support · Borjie',
   description:
     'Borjie support hub. FAQ, office hours, and direct channels for owners, buyers, and regulators.',
 };
@@ -158,7 +158,7 @@ export default async function SupportPage() {
             <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
               {isSw ? 'Msaada' : 'Support'}
             </p>
-            <h1 className="mt-5 font-display text-5xl font-medium tracking-tight text-balance sm:text-6xl">
+            <h1 className="mt-5 font-display text-5xl font-semibold tracking-tight text-balance sm:text-6xl">
               {isSw ? 'Tuko hapa kukusaidia.' : "We're here to help."}
             </h1>
             <p className="mx-auto mt-6 max-w-prose-widest text-lg leading-relaxed text-foreground/70 sm:text-xl">
@@ -222,7 +222,7 @@ export default async function SupportPage() {
             </p>
             <h2
               id="support-faq"
-              className="mt-3 font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl"
+              className="mt-3 font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl"
             >
               {isSw ? 'Maswali ya mara kwa mara' : 'Frequently asked questions'}
             </h2>
@@ -283,7 +283,7 @@ export default async function SupportPage() {
         {/* Status + final CTA */}
         <section className="border-t border-border bg-surface/40 px-5 py-16 md:py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="font-display text-3xl font-medium tracking-tight text-balance sm:text-4xl">
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
               {isSw ? 'Panga saa za ofisi.' : 'Schedule office hours.'}
             </h2>
             <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">

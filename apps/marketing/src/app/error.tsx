@@ -49,12 +49,13 @@ export default function MarketingError({ error, reset }: ErrorPageProps) {
         <p className="font-mono text-badge uppercase tracking-eyebrow-x-wide text-destructive">
           Something went wrong
         </p>
-        <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
+        <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           That didn't load.
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Kuna tatizo la muda. We've captured the error. Try again — if
-          it keeps happening, our team is already looking.
+          A temporary problem stopped this from loading. We've captured the
+          error. Try again, and if it keeps happening our team is already
+          looking into it.
         </p>
         {error.digest && process.env.NODE_ENV !== 'production' ? (
           <p className="mt-3 font-mono text-tiny uppercase tracking-widest text-muted-foreground/70">

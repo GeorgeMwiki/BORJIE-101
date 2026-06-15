@@ -7,7 +7,7 @@ import { getLocale } from '@/lib/locale';
  */
 
 export const metadata: Metadata = {
-  title: 'Cookie Policy , Borjie',
+  title: 'Cookie Policy · Borjie',
   description:
     'Borjie cookie policy. Strictly necessary cookies, analytics opt-in, lifetimes documented per category.',
 };

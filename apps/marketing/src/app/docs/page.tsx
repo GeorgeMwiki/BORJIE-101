@@ -87,7 +87,7 @@ export default async function DocsPage() {
         <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
           Documentation
         </p>
-        <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-balance sm:text-5xl">
+        <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
           Build on Borjie.
         </h1>
         <p className="mt-6 text-lg leading-relaxed text-foreground/75">

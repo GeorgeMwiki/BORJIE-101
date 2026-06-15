@@ -12,7 +12,7 @@ import { getLocale } from '@/lib/locale';
  */
 
 export const metadata: Metadata = {
-  title: 'Sub-processors , Borjie',
+  title: 'Sub-processors · Borjie',
   description:
     'Borjie sub-processor list. Vendor, role, region, contract reference. Updated 30 days before any change.',
 };

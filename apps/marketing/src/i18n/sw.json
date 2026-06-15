@@ -1090,7 +1090,8 @@
       "email": "Anwani ya barua pepe",
       "phone": "Namba ya simu",
       "portfolioSize": "Idadi ya sites unazomiliki",
-      "mineralFocus": "Madini yako kuu"
+      "mineralFocus": "Madini yako kuu",
+      "mineralFocusPlaceholder": "Chagua madini"
     },
     "minerals": [
       "Dhahabu",
