@@ -17,15 +17,25 @@
  * behave identically when an env var is missing.
  */
 
+/**
+ * STATIC references so Next inlines each `NEXT_PUBLIC_*` into the CLIENT
+ * bundle — a dynamic `process.env[name]` inlines to `undefined` on the client
+ * and made the guard throw + white-screen the app. Literal access here is what
+ * makes `requirePublicBaseUrl(name)` resolve in the browser.
+ */
+const PUBLIC_ENV: Readonly<Record<string, string | undefined>> = {
+  NEXT_PUBLIC_OWNER_WEB_ORIGIN: process.env.NEXT_PUBLIC_OWNER_WEB_ORIGIN,
+  NEXT_PUBLIC_ADMIN_WEB_ORIGIN: process.env.NEXT_PUBLIC_ADMIN_WEB_ORIGIN,
+  NEXT_PUBLIC_MARKETING_ORIGIN: process.env.NEXT_PUBLIC_MARKETING_ORIGIN,
+  NEXT_PUBLIC_API_GATEWAY_URL: process.env.NEXT_PUBLIC_API_GATEWAY_URL,
+};
+
 export function requirePublicBaseUrl(
   envName: string,
   devFallback: string,
 ): string {
-  const fromEnv =
-    typeof process !== 'undefined'
-      ? // eslint-disable-next-line security/detect-object-injection -- envName is a compile-time literal from trusted call sites
-        process.env?.[envName]?.trim()
-      : undefined;
+  // eslint-disable-next-line security/detect-object-injection -- envName is a compile-time literal from trusted call sites
+  const fromEnv = PUBLIC_ENV[envName]?.trim();
   if (fromEnv && fromEnv.length > 0) return fromEnv;
 
   if (
