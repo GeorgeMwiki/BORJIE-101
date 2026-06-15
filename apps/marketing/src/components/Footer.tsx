@@ -40,6 +40,9 @@ function Wordmark({ size = 'md', premium = false }: WordmarkProps) {
       variant="lockup-horizontal"
       size={px}
       tone={premium ? 'full' : 'mono-cream'}
+      // Wordmark follows the footer foreground so it stays legible on the
+      // light surface; the gold mark keeps its tone.
+      wordmarkColor="currentColor"
     />
   );
 }

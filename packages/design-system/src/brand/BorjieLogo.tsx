@@ -73,6 +73,11 @@ export interface BorjieLogoProps extends React.HTMLAttributes<HTMLSpanElement> {
    *  on for the gradient tone; pass false to freeze. Honours
    *  prefers-reduced-motion. */
   readonly pulse?: boolean;
+  /** Override the WORDMARK text colour only (the mark keeps its tone).
+   *  Use `'currentColor'` on a themed/light surface so the wordmark follows
+   *  the surface foreground — a tone built for dark backgrounds (cream
+   *  wordmark) is unreadable on a light nav/footer/sidebar otherwise. */
+  readonly wordmarkColor?: string;
 }
 
 /**
@@ -163,15 +168,24 @@ function BorjieMarkSvg({
   const uid = React.useId().replace(/:/g, '');
   const palette = resolveTone(tone);
 
-  // The "lit" pulse rides on the warm bloom, so it only exists for the
-  // gradient tone. Default-on there; salted class + keyframes avoid any
-  // cross-mark clash; reduced-motion pins it to a calm static glow.
-  const shouldPulse = (pulse ?? true) && palette.useGradient;
+  // The mark is "alive at rest". Two synchronised breaths at one calm
+  // 3.4s tempo: (1) the warm bloom behind the glyph swells — gradient
+  // tone only, that's where the bloom exists — and (2) the glyph itself
+  // carries a gentle opacity breath so the life reads at ANY size and on
+  // EVERY tone, including the mono marks used in dense sidebars where the
+  // faint bloom alone was imperceptible. Salted class names avoid cross-
+  // mark clashes; reduced-motion pins both to a calm static state.
+  const motionOn = pulse ?? true;
+  const shouldPulse = motionOn && palette.useGradient;
+  const shouldBreathe = motionOn;
   const litClass = `borjie-lit-${uid}`;
-  const litCss =
-    `@keyframes ${litClass}{0%,100%{opacity:.42}50%{opacity:1}}` +
+  const breatheClass = `borjie-breathe-${uid}`;
+  const motionCss =
+    `@keyframes ${litClass}{0%,100%{opacity:.5}50%{opacity:1}}` +
     `.${litClass}{animation:${litClass} 3.4s ease-in-out infinite}` +
-    `@media(prefers-reduced-motion:reduce){.${litClass}{animation:none;opacity:.85}}`;
+    `@keyframes ${breatheClass}{0%,100%{opacity:.8}50%{opacity:1}}` +
+    `.${breatheClass}{animation:${breatheClass} 3.4s ease-in-out infinite}` +
+    `@media(prefers-reduced-motion:reduce){.${litClass}{animation:none;opacity:.85}.${breatheClass}{animation:none;opacity:1}}`;
 
   const spineId = `borjie-spine-${uid}`;
   const upperId = `borjie-upper-${uid}`;
@@ -196,7 +210,9 @@ function BorjieMarkSvg({
       style={{ display: 'block', flexShrink: 0 }}
     >
       <title>{title}</title>
-      {shouldPulse ? <style dangerouslySetInnerHTML={{ __html: litCss }} /> : null}
+      {shouldPulse || shouldBreathe ? (
+        <style dangerouslySetInnerHTML={{ __html: motionCss }} />
+      ) : null}
       {palette.useGradient ? (
         <defs>
           <linearGradient id={spineId} x1="32" y1="8" x2="32" y2="56" gradientUnits="userSpaceOnUse">
@@ -234,6 +250,8 @@ function BorjieMarkSvg({
         />
       ) : null}
 
+      {/* The glyph proper — grouped so it breathes as one body. */}
+      <g className={shouldBreathe ? breatheClass : undefined}>
       {/* Spine of the B — left vertical bar, full-height with rounded
           terminals. Width 8u so it stays solid at favicon scale. */}
       <rect x="14" y="12" width="8" height="40" rx="2" fill={spine} />
@@ -285,6 +303,7 @@ function BorjieMarkSvg({
           opacity="0.55"
         />
       ) : null}
+      </g>
     </svg>
   );
 }
@@ -299,10 +318,12 @@ function BorjieWordmarkText({
   size,
   tone,
   label,
+  wordmarkColor,
 }: {
   readonly size: number;
   readonly tone: BorjieLogoTone;
   readonly label: string;
+  readonly wordmarkColor?: string;
 }): JSX.Element {
   const palette = resolveTone(tone);
   const fontPx = Math.round(size * 0.72);
@@ -320,7 +341,7 @@ function BorjieWordmarkText({
         fontSize: `${fontPx}px`,
         letterSpacing: '-0.018em',
         lineHeight: 1,
-        color: palette.wordmarkColor,
+        color: wordmarkColor ?? palette.wordmarkColor,
         display: 'inline-flex',
         alignItems: 'baseline',
         whiteSpace: 'nowrap',
@@ -342,6 +363,7 @@ export function BorjieLogo({
   label = 'Borjie',
   title = 'Borjie',
   pulse,
+  wordmarkColor,
   style,
   ...rest
 }: BorjieLogoProps): JSX.Element {
@@ -375,7 +397,7 @@ export function BorjieLogo({
         aria-label={title}
         {...rest}
       >
-        <BorjieWordmarkText size={size} tone={tone} label={label} />
+        <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
       </span>
     );
   }
@@ -394,7 +416,7 @@ export function BorjieLogo({
         {...rest}
       >
         <BorjieMarkSvg size={Math.round(size * 1.35)} tone={tone} title={title} pulse={pulse} />
-        <BorjieWordmarkText size={size} tone={tone} label={label} />
+        <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
       </span>
     );
   }
@@ -412,7 +434,7 @@ export function BorjieLogo({
       {...rest}
     >
       <BorjieMarkSvg size={size} tone={tone} title={title} />
-      <BorjieWordmarkText size={size} tone={tone} label={label} />
+      <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
     </span>
   );
 }
