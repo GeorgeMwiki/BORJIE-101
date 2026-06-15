@@ -4,7 +4,6 @@
 
 import { ThreadList } from '@/components/ask/ThreadList';
 import { AskChat } from '@/components/ask/AskChat';
-import { PrivacyBudgetCard } from '@/components/ask/PrivacyBudgetCard';
 import { AuditTrailPanel } from '@/components/ask/AuditTrailPanel';
 
 export const dynamic = 'force-dynamic';
@@ -41,9 +40,6 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
       </main>
 
       <aside className="hidden w-thread-wide shrink-0 flex-col gap-4 border-l border-border bg-surface lg:flex">
-        <div className="px-5 pt-5">
-          <PrivacyBudgetCard />
-        </div>
         <div className="min-h-0 flex-1">
           <AuditTrailPanel
             threadId={threadId}

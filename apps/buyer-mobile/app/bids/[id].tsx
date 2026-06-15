@@ -139,9 +139,6 @@ export default function BidDetail() {
   // flight; the debounce window catches a sub-microsecond second tap
   // before the state flips on flaky mobile networks.
   const handleSend = useDebouncedSubmit(handleSendRaw)
-  const handleAccept = useDebouncedSubmit(() =>
-    statusMutation.mutate({ bidId, action: 'accept' })
-  )
   const handleWithdraw = useDebouncedSubmit(() =>
     statusMutation.mutate({ bidId, action: 'withdraw' })
   )
@@ -189,23 +186,21 @@ export default function BidDetail() {
       ) : null}
 
       <View style={styles.actionStack}>
-        {bid.status === 'countered' ? (
+        {/*
+          The 'Accept counter' CTA was removed: no seller counter-offer write
+          path exists, so a `countered` bid never carries a counter price and
+          the button would settle the offtake at the ORIGINAL bid price — a
+          silent mispricing. Re-add it only once a seller counter route writes
+          counter_price_tzs and the gateway surfaces it on the bid row, so the
+          counter price can be shown next to the CTA and used at settlement.
+        */}
+        {bid.status === 'pending' ? (
           <PrimaryButton
-            label={t('bids.accept_counter')}
-            variant="gold"
-            onPress={handleAccept}
+            label={t('bids.withdraw_bid')}
+            variant="ghost"
+            onPress={handleWithdraw}
             disabled={statusMutation.isPending}
           />
-        ) : null}
-        {bid.status === 'pending' || bid.status === 'countered' ? (
-          <View style={{ marginTop: spacing.sm }}>
-            <PrimaryButton
-              label={t('bids.withdraw_bid')}
-              variant="ghost"
-              onPress={handleWithdraw}
-              disabled={statusMutation.isPending}
-            />
-          </View>
         ) : null}
       </View>
     </Screen>

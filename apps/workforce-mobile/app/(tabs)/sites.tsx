@@ -12,23 +12,54 @@ import { ApiError, isNetworkError } from '../../src/api/errors'
 import { colors } from '../../src/theme/colors'
 import { fontSize, radius, spacing } from '../../src/theme/spacing'
 
-const COPY = Object.freeze({
-  sectionAll: 'Migodi yote',
-  loading: 'Inapakia migodi…',
-  errorInline: 'Ombi la migodi limeshindwa kuthibitishwa.',
-  emptyHint: 'Hakuna migodi iliyosajiliwa kwenye akaunti yako bado.',
-  sectionRelated: 'Skrini zinazohusiana',
-  unknownMineral: 'Madini hayajulikani'
-})
+type Lang = 'sw' | 'en'
+
+interface SitesCopy {
+  readonly sectionAll: string
+  readonly loading: string
+  readonly errorInline: string
+  readonly emptyHint: string
+  readonly sectionRelated: string
+  readonly unknownMineral: string
+}
+
+// Per-locale copy. The active language follows the worker's preference
+// (default `en`); the toggle is absolute — when `en` is active zero
+// Swahili appears on this screen, and vice versa.
+const COPY: Readonly<Record<Lang, SitesCopy>> = {
+  sw: {
+    sectionAll: 'Migodi yote',
+    loading: 'Inapakia migodi…',
+    errorInline: 'Ombi la migodi limeshindwa kuthibitishwa.',
+    emptyHint: 'Hakuna migodi iliyosajiliwa kwenye akaunti yako bado.',
+    sectionRelated: 'Skrini zinazohusiana',
+    unknownMineral: 'Madini hayajulikani'
+  },
+  en: {
+    sectionAll: 'All sites',
+    loading: 'Loading sites…',
+    errorInline: 'The sites request could not be verified.',
+    emptyHint: 'No sites are registered on your account yet.',
+    sectionRelated: 'Related screens',
+    unknownMineral: 'Mineral unknown'
+  }
+}
 
 // Map the site `status` enum (active|paused|abandoned|under_rehab) onto a
-// short Swahili label for the secondary line. Locale-pure: this screen is
-// Swahili-first; English never appears.
-const STATUS_LABEL: Readonly<Record<string, string>> = {
-  active: 'hai',
-  paused: 'imesimama',
-  abandoned: 'imeachwa',
-  under_rehab: 'inakarabatiwa'
+// short label for the secondary line, keyed by the active locale.
+const STATUS_LABEL: Readonly<Record<Lang, Readonly<Record<string, string>>>> = {
+  sw: {
+    active: 'hai',
+    paused: 'imesimama',
+    abandoned: 'imeachwa',
+    under_rehab: 'inakarabatiwa'
+  },
+  en: {
+    active: 'active',
+    paused: 'paused',
+    abandoned: 'abandoned',
+    under_rehab: 'under rehab'
+  }
 }
 
 interface SiteRow {
@@ -45,16 +76,16 @@ interface SitesListResponse {
   readonly error?: { code?: string; message?: string }
 }
 
-function statusLabel(status: string): string {
-  return STATUS_LABEL[status] ?? status
+function statusLabel(status: string, lang: Lang): string {
+  return STATUS_LABEL[lang][status] ?? status
 }
 
-function toPlaceholderItem(site: SiteRow): PlaceholderItem {
-  const mineral = site.mineral.length > 0 ? site.mineral : COPY.unknownMineral
+function toPlaceholderItem(site: SiteRow, lang: Lang): PlaceholderItem {
+  const mineral = site.mineral.length > 0 ? site.mineral : COPY[lang].unknownMineral
   return {
     id: site.id,
     primary: `${site.name} · ${mineral}`,
-    secondary: `${site.phase} · ${statusLabel(site.status)}`
+    secondary: `${site.phase} · ${statusLabel(site.status, lang)}`
   }
 }
 
@@ -66,15 +97,15 @@ function isBackendUnavailable(error: unknown): boolean {
 
 export default function SitesTab(): JSX.Element {
   const { user } = useAuth()
-  const { screen } = useI18n()
+  const { screen, lang } = useI18n()
   const screenId = user?.role === 'owner' ? 'O-M-04' : 'W-M-19'
 
   return (
     <ScreenShell screenId={screenId}>
-      <Section title={COPY.sectionAll}>
-        <SitesList />
+      <Section title={COPY[lang].sectionAll}>
+        <SitesList lang={lang} />
       </Section>
-      <Section title={COPY.sectionRelated}>
+      <Section title={COPY[lang].sectionRelated}>
         <View style={styles.grid}>
           {['O-M-05', 'O-M-06', 'W-M-02', 'W-M-19'].map((id) => (
             <Link key={id} href={hrefFor(id)} asChild>
@@ -92,13 +123,13 @@ export default function SitesTab(): JSX.Element {
   )
 }
 
-function SitesList(): JSX.Element {
+function SitesList({ lang }: { readonly lang: Lang }): JSX.Element {
   const query = useQuery<ReadonlyArray<SiteRow>, Error>({
     queryKey: ['mining', 'sites'],
     queryFn: async ({ signal }) => {
       const response = await miningApi.get<SitesListResponse>('/sites', { signal })
       if (!response.success || !response.data) {
-        throw new Error(response.error?.message ?? COPY.errorInline)
+        throw new Error(response.error?.message ?? COPY[lang].errorInline)
       }
       return response.data
     }
@@ -108,7 +139,7 @@ function SitesList(): JSX.Element {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.gold} />
-        <Text style={styles.loadingLabel}>{COPY.loading}</Text>
+        <Text style={styles.loadingLabel}>{COPY[lang].loading}</Text>
       </View>
     )
   }
@@ -117,7 +148,7 @@ function SitesList(): JSX.Element {
     return isBackendUnavailable(query.error) ? (
       <PreviewBanner kind="env-missing" />
     ) : (
-      <Text style={styles.errorInline}>{COPY.errorInline}</Text>
+      <Text style={styles.errorInline}>{COPY[lang].errorInline}</Text>
     )
   }
 
@@ -125,12 +156,12 @@ function SitesList(): JSX.Element {
     return (
       <View>
         <PreviewBanner kind="no-data" />
-        <Text style={styles.emptyHint}>{COPY.emptyHint}</Text>
+        <Text style={styles.emptyHint}>{COPY[lang].emptyHint}</Text>
       </View>
     )
   }
 
-  return <PlaceholderList items={query.data.map(toPlaceholderItem)} />
+  return <PlaceholderList items={query.data.map((site) => toPlaceholderItem(site, lang))} />
 }
 
 function hrefFor(id: string): string {

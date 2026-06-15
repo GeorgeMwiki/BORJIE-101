@@ -9,10 +9,11 @@ import { fontSize, radius, spacing } from '../../src/theme/spacing'
 const DOC_LINKS: ReadonlyArray<string> = ['O-M-08', 'O-M-09', 'O-M-19', 'O-M-25', 'W-M-20']
 
 export default function DocsTab(): JSX.Element {
-  const { screen } = useI18n()
+  const { screen, lang } = useI18n()
+  const isSw = lang === 'sw'
   return (
     <ScreenShell screenId="O-M-08">
-      <Section title="Hati na ripoti">
+      <Section title={isSw ? 'Hati na ripoti' : 'Documents and reports'}>
         <View style={styles.grid}>
           {DOC_LINKS.map((id) => (
             <Link key={id} href={hrefFor(id)} asChild>

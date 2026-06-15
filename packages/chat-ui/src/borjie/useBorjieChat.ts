@@ -81,6 +81,20 @@ export interface BorjieDebateMetadata {
 }
 
 /**
+ * KI-005 — the evidence-chain Auditor verdict the gateway surfaces as the
+ * terminal `auditor` SSE frame for a turn. Mirrors the owner-web
+ * `ChatGroundingSignal`. The widget renders a caution badge when the answer
+ * was ungrounded (`groundingFault` or a non-null `evidenceWarning`); an
+ * `approve` verdict with no warning renders nothing.
+ */
+export interface BorjieGroundingSignal {
+  readonly verdict: 'approve' | 'reject' | 'needs_human';
+  readonly evidenceCount: number;
+  readonly evidenceWarning: 'no_evidence_cited' | 'evidence_invalid' | null;
+  readonly groundingFault: boolean;
+}
+
+/**
  * Bilingual message cache. `originalLang` records the language the turn
  * was authored in (user message) or generated in (assistant); `content`
  * holds whatever translations have been resolved so far.
@@ -97,6 +111,12 @@ export interface BorjieChatMessage {
   readonly createdAt: string;
   /** Optional 3-model debate metadata when accuracy mode ran the turn. */
   readonly debate?: BorjieDebateMetadata;
+  /**
+   * KI-005 — the Auditor grounding verdict, when the gateway surfaced the
+   * terminal `auditor` frame. Absent on user messages and on legacy wires
+   * that predate the frame — consumers must handle `undefined`.
+   */
+  readonly grounding?: BorjieGroundingSignal;
 }
 
 /**
@@ -496,6 +516,33 @@ function parseDebateMetadata(raw: Record<string, unknown>): BorjieDebateMetadata
   };
 }
 
+/**
+ * KI-005 — project the gateway's snake_case `auditor` frame onto the
+ * camelCase BorjieGroundingSignal the bubble renders. Defensive: an
+ * unexpected payload degrades to an `approve` / no-warning signal rather
+ * than crashing the stream.
+ */
+function parseGroundingSignal(
+  raw: Record<string, unknown>,
+): BorjieGroundingSignal {
+  const verdict =
+    raw.verdict === 'reject' || raw.verdict === 'needs_human'
+      ? raw.verdict
+      : 'approve';
+  const evidenceWarning =
+    raw.evidence_warning === 'no_evidence_cited' ||
+    raw.evidence_warning === 'evidence_invalid'
+      ? raw.evidence_warning
+      : null;
+  return {
+    verdict,
+    evidenceCount:
+      typeof raw.evidence_count === 'number' ? raw.evidence_count : 0,
+    evidenceWarning,
+    groundingFault: raw.grounding_fault === true,
+  };
+}
+
 function applyFrame(
   setMessages: React.Dispatch<React.SetStateAction<readonly BorjieChatMessage[]>>,
   assistantId: string,
@@ -551,6 +598,19 @@ function applyFrame(
     if (!debate) return;
     setMessages((prev) =>
       prev.map((m) => (m.id === assistantId ? { ...m, debate } : m)),
+    );
+    return;
+  }
+
+  // KI-005 — the terminal Auditor grounding verdict. The gateway writes
+  // snake_case wire fields ({verdict, evidence_count, evidence_warning,
+  // grounding_fault}); project them onto the camelCase BorjieGroundingSignal
+  // so BorjieChatBubble can render a grounding badge. Defensive defaults keep
+  // an unexpected frame from crashing the stream.
+  if (frame.event === 'auditor') {
+    const grounding = parseGroundingSignal(parsed);
+    setMessages((prev) =>
+      prev.map((m) => (m.id === assistantId ? { ...m, grounding } : m)),
     );
     return;
   }

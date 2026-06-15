@@ -256,6 +256,9 @@ export * from './a2a-tasks.schema.js';
 // Document drafts registry (contracts/RFPs/letters/notices/memos)
 export * from './drafts.schema.js';
 
+// Driver letter acknowledgements (offline-field-capture sink)
+export * from './driver-letter-acks.schema.js';
+
 // Carbon-market book
 export * from './carbon-market-book.schema.js';
 

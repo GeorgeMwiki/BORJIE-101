@@ -465,7 +465,6 @@ import sessionReplayRouter from './routes/session-replay.router';
 // Wave 12 — MCP server + agent platform
 import mcpRouter, { agentCardRouter } from './routes/mcp.router';
 // Wave 11 — public marketing (Mr. Mwikila), workflows
-import publicSandboxRouter from './routes/public-sandbox.router';
 import publicLeadsRouter from './routes/public-leads.router';
 // Borjie marketing-widget public chat — unauthenticated SSE stream of
 // curated Borjie-about-Borjie responses, consumed by FloatingAskBorjie
@@ -3207,7 +3206,6 @@ api.route('/.well-known/agent.json', agentCardRouter);
 // the marketing chat to canned property text), and its /pricing-advice +
 // /demo-estate + /waitlist routes were unreferenced by any app.
 api.route('/public', publicChatRouter);
-api.route('/public/sandbox', publicSandboxRouter);
 api.route('/public/leads', publicLeadsRouter);
 api.route('/public/status', publicStatusRouter);
 // SAFE-LIST tools surface for the unauthenticated marketing widget.

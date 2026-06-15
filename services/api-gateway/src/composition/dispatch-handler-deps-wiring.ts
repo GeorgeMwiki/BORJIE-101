@@ -122,10 +122,20 @@ async function withTenantTx<T>(
  * `ai_audit_chain_tenant_iso` (migration 0152) — both the `getLatest` read
  * and the `insertEntry` WITH CHECK require `app.current_tenant_id` to be
  * bound on the connection. The chain's read-then-insert MUST therefore run
- * inside ONE tenant-bound transaction (also making the sequence read +
- * insert race-consistent against the `(tenant_id, sequence_id)` unique
- * index). We construct the chain per-append over a repo pinned to that
- * transaction's `tx` rather than the bare boot pool.
+ * inside ONE tenant-bound transaction. We construct the chain per-append
+ * over a repo pinned to that transaction's `tx` rather than the bare boot
+ * pool.
+ *
+ * Concurrency (critical): the read-then-insert is NOT race-consistent on
+ * its own — two concurrent same-tenant appends both read the same
+ * `MAX(sequence_id)`, compute the same next sequence, and collide on the
+ * `(tenant_id, sequence_id)` unique index (23505). Because the originating
+ * task/temporal writes commit in their OWN transactions, a collision here
+ * would orphan an already-committed domain row and gap the tamper-evident
+ * chain. We therefore take `pg_advisory_xact_lock(hashtext(tenantId))` as
+ * the FIRST statement after the GUC bind so same-tenant appends serialize
+ * within the tx; the lock auto-releases at commit/rollback and is keyed
+ * per-tenant so different tenants never contend.
  *
  * The handler's `parentHash` (the source capture/document audit id) is
  * carried INTO the payload + used as the `turnId` correlation; the chain
@@ -146,6 +156,13 @@ function makeAuditChainPort(db: SqlExecutor): {
   return {
     async append(args) {
       return withTenantTx(db, args.tenantId, async (tx) => {
+        // Serialize concurrent same-tenant appends so the chain's
+        // read-then-insert (getLatest → insertEntry) cannot race the
+        // (tenant_id, sequence_id) unique index and orphan the already
+        // committed task/temporal rows. Auto-released at commit/rollback.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtext(${args.tenantId}))`,
+        );
         const txRepo = createDrizzleAiAuditChainRepo(tx);
         if (!txRepo) {
           throw new Error(

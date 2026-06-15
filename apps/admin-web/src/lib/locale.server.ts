@@ -16,7 +16,7 @@
  */
 
 import { cookies } from 'next/headers';
-import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from './locale';
+import { DEFAULT_LOCALE, LOCALE_COOKIE, type Locale } from './locale-shared';
 
 export async function readLocaleFromServerCookies(): Promise<Locale> {
   const jar = await cookies();

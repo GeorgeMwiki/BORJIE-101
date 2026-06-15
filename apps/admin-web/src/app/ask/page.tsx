@@ -11,7 +11,6 @@
 
 import { ThreadList } from '@/components/ask/ThreadList';
 import { AskChat } from '@/components/ask/AskChat';
-import { PrivacyBudgetCard } from '@/components/ask/PrivacyBudgetCard';
 
 export const metadata = {
   title: 'Talk to the industry · Borjie HQ',
@@ -46,7 +45,6 @@ export default function IndustryAskLandingPage() {
       </main>
 
       <aside className="hidden w-thread-medium shrink-0 flex-col gap-4 border-l border-border bg-surface px-5 py-5 lg:flex">
-        <PrivacyBudgetCard />
         <div className="rounded-lg border border-border bg-background p-4">
           <p className="font-mono text-caption uppercase tracking-widest text-neutral-500">
             Observer note

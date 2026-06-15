@@ -24,6 +24,20 @@ interface AskBubbleProps {
  */
 export function AskBubble({ message, onCitationClick }: AskBubbleProps) {
   const isOwner = message.role === 'user';
+  // KI-005 — the evidence-chain Auditor verdict (surfaced on the brain /turn
+  // response) rides on message.audit; show a caution badge when the answer was
+  // withheld / ungrounded / unverified / flagged. Approved, grounded answers
+  // get no badge (no clutter). Mirrors master-brain/ChatBubble.
+  const a = isOwner ? undefined : message.audit;
+  const groundingWarn = a?.enforced
+    ? 'Grounding check unavailable. Treat with caution.'
+    : a?.evidenceWarning === 'no_evidence_cited'
+      ? 'Unverified: no evidence cited.'
+      : a?.evidenceWarning === 'evidence_invalid'
+        ? 'Evidence could not be verified.'
+        : a?.verdict === 'needs_human'
+          ? 'Auditor flagged this answer for review.'
+          : null;
   return (
     <div
       data-testid={`ask-bubble-${message.role}`}
@@ -82,6 +96,14 @@ export function AskBubble({ message, onCitationClick }: AskBubbleProps) {
                 {...(onCitationClick ? { onClick: onCitationClick } : {})}
               />
             ))}
+          </div>
+        ) : null}
+        {groundingWarn ? (
+          <div
+            data-testid="ask-grounding-badge"
+            className="mt-2 inline-flex items-center gap-1 rounded border border-warning/60 bg-warning-subtle/40 px-1.5 py-0.5 text-tiny font-medium text-warning"
+          >
+            <span aria-hidden>⚠</span> {groundingWarn}
           </div>
         ) : null}
       </div>

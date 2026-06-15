@@ -11,7 +11,7 @@
  * The flush layer (apps/workforce-mobile/src/sync/flush.ts) computes each path
  * via `endpointFor()` (snake → kebab + 's'):
  *   ppe_receipt       → ppe-receipts        → ppe_issues
- *   driver_letter_ack → driver-letter-acks  → (no table yet — degrades safely)
+ *   driver_letter_ack → driver-letter-acks  → driver_letter_acks
  *   excavator_count   → excavator-counts    → ore_parcels
  *   photo_upload      → photo-uploads       → document_uploads
  *   fingerprint_sign  → fingerprint-signs   → fingerprint_events
@@ -29,10 +29,10 @@
  *   - tenant-scoped predicate on auth.tenantId (belt-and-braces vs the WITH
  *     CHECK) on every insert.
  *
- * Where a target table does not yet exist (driver_letter_ack), the handler
- * DEGRADES SAFELY: it still 2xx-accepts and writes the hash-chained audit row,
- * so the worker's offline record is durably acknowledged server-side and is
- * never the cause of a silent delete. The needed table is reported separately.
+ * Every entity type now persists a real domain row (driver_letter_ack lands in
+ * driver_letter_acks, created by migration 0362), atomic with the hash-chained
+ * audit append in ONE tx, so the worker's offline record is durably captured
+ * server-side and is never the cause of a silent delete.
  */
 
 import { Hono } from 'hono';
@@ -43,6 +43,7 @@ import {
   fingerprintEvents,
   oreParcels,
   documentUploads,
+  driverLetterAcks,
 } from '@borjie/database';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
@@ -556,74 +557,57 @@ export function createPhotoUploadsRouter(): Hono {
 }
 
 // ---------------------------------------------------------------------------
-// /driver-letter-acks → NO TABLE YET. Degrades safely: audit-only accept so
-// the worker's offline ack is durably recorded server-side and never the cause
-// of a silent delete. The needed table (driver_letter_acks) is reported.
+// /driver-letter-acks → driver_letter_acks (durable acknowledgement row)
 // ---------------------------------------------------------------------------
 
 export function createDriverLetterAcksRouter(): Hono {
   const app = new Hono();
   app.use('*', authMiddleware);
   app.use('*', databaseMiddleware);
-  app.post('/', async (c: any) => {
-    const ctx = resolveContext(c);
-    if (!ctx.ok) {
-      return c.json(ctx.error.body, ctx.error.status);
-    }
-    const { auth, db } = ctx;
-    let body: Record<string, unknown> = {};
-    try {
-      const parsed = (await c.req.json()) as unknown;
-      if (parsed && typeof parsed === 'object') {
-        body = parsed as Record<string, unknown>;
-      }
-    } catch {
-      body = {};
-    }
-    const idempotencyKey = readIdempotencyKey(c);
-    const id = rowId(auth.tenantId, idempotencyKey);
-    try {
-      // Audit-only durable accept. The hash-chained row IS the persisted
-      // record of the acknowledgement until a dedicated table is migrated.
-      const auditId = await db.transaction(async (tx: any) =>
-        appendAuditEntry(tx, {
-          action: 'mining.driver_letter.ack',
-          tenantId: auth.tenantId,
-          turnId: id,
-          userId: auth.userId,
-          details: {
-            ackId: id,
+  app.post('/', async (c: any) =>
+    runSink(c, {
+      action: 'mining.driver_letter.ack',
+      existsById: async (db, tenantId, id) => {
+        const [row] = await db
+          .select()
+          .from(driverLetterAcks)
+          .where(
+            and(
+              eq(driverLetterAcks.id, id),
+              eq(driverLetterAcks.tenantId, tenantId),
+            ),
+          )
+          .limit(1);
+        return row ?? null;
+      },
+      insert: async (tx, tenantId, userId, id, body) => {
+        const [row] = await tx
+          .insert(driverLetterAcks)
+          .values({
+            id,
+            tenantId,
+            userId,
             letterId: asString(body.letterId),
             driverId: asString(body.driverId),
-            via: 'field-capture',
-            degraded: 'no_driver_letter_acks_table',
-          },
-        }),
-      );
-      return c.json(
-        {
-          success: true as const,
-          data: { id, auditId },
-          meta: { degraded: true as const },
-        },
-        201,
-      );
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'ack failed';
-      moduleLogger.error('driver letter ack sink failed', {
-        evt: 'driver_letter_ack_failed',
-        tenantId: auth.tenantId,
-        id,
-        reason: message,
-      });
-      const e = jsonError(
-        'FIELD_CAPTURE_FAILED',
-        'Failed to record acknowledgement',
-        500,
-      );
-      return c.json(e.body, e.status);
-    }
-  });
+            siteId: asString(body.siteId),
+            geo: asString(body.geo),
+            attributes:
+              body.attributes && typeof body.attributes === 'object'
+                ? (body.attributes as Record<string, unknown>)
+                : { via: 'field-capture' },
+          })
+          .onConflictDoNothing({ target: driverLetterAcks.id })
+          .returning();
+        return row ?? { id };
+      },
+      auditDetails: (id, body) => ({
+        driverLetterAckId: id,
+        letterId: asString(body.letterId),
+        driverId: asString(body.driverId),
+        via: 'field-capture',
+      }),
+    }),
+  );
   return app;
 }
 

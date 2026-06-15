@@ -1,11 +1,14 @@
 'use client';
 
-import { AlertTriangle, MessageSquare, PlugZap, Sparkles } from 'lucide-react';
+import { AlertTriangle, PlugZap, Sparkles } from 'lucide-react';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
+import { askEmptyStateStrings as S } from '@/i18n/strings/ask-empty-state';
 
 export type AskEmptyKind = 'unconfigured' | 'unauthenticated' | 'fresh' | 'error';
 
 interface AskEmptyStateProps {
   readonly kind: AskEmptyKind;
+  readonly locale: Locale;
   readonly detail?: string | null;
 }
 
@@ -22,26 +25,25 @@ interface AskEmptyStateProps {
  * body. Variants tint by intent (warning, destructive, signal) rather
  * than slamming a solid panel.
  */
-export function AskEmptyState({ kind, detail }: AskEmptyStateProps) {
+export function AskEmptyState({ kind, locale, detail }: AskEmptyStateProps) {
   if (kind === 'unconfigured') {
     return (
       <StatePanel
         testId="brain-not-configured"
         tone="warning"
         icon={<PlugZap className="h-5 w-5" aria-hidden="true" />}
-        title="Connect to Borjie backend"
+        title={pickByLocale(locale, S.unconfiguredTitle)}
       >
         <p className="text-neutral-300">
-          The owner cockpit is not pointed at a Borjie api-gateway yet.
-          Set the
+          {pickByLocale(locale, S.unconfiguredBodyBefore)}
           <code className="mx-1 rounded bg-surface px-1 py-0.5 font-mono text-xs">
             NEXT_PUBLIC_API_GATEWAY_URL
           </code>
-          environment variable to the gateway base URL (e.g.
+          {pickByLocale(locale, S.unconfiguredBodyMiddle)}
           <code className="mx-1 rounded bg-surface px-1 py-0.5 font-mono text-xs">
             https://api.borjie.app
           </code>
-          ) and reload to start chatting with the Brain.
+          {pickByLocale(locale, S.unconfiguredBodyAfter)}
         </p>
       </StatePanel>
     );
@@ -52,12 +54,10 @@ export function AskEmptyState({ kind, detail }: AskEmptyStateProps) {
         testId="brain-needs-signin"
         tone="destructive"
         icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}
-        title="Sign in required"
+        title={pickByLocale(locale, S.unauthenticatedTitle)}
       >
         <p className="text-neutral-300">
-          Borjie Brain needs an authenticated Supabase session. Sign in
-          again from the top-right to refresh your token, then come
-          back to this page.
+          {pickByLocale(locale, S.unauthenticatedBody)}
         </p>
       </StatePanel>
     );
@@ -68,11 +68,10 @@ export function AskEmptyState({ kind, detail }: AskEmptyStateProps) {
         testId="brain-unreachable"
         tone="destructive"
         icon={<AlertTriangle className="h-5 w-5" aria-hidden="true" />}
-        title="Brain unreachable"
+        title={pickByLocale(locale, S.errorTitle)}
       >
         <p className="text-neutral-300">
-          The gateway returned an error. Try again, or contact your
-          Borjie operator if it persists.
+          {pickByLocale(locale, S.errorBody)}
         </p>
         {detail ? (
           <pre
@@ -90,20 +89,17 @@ export function AskEmptyState({ kind, detail }: AskEmptyStateProps) {
       testId="brain-fresh-intro"
       tone="signal"
       icon={<Sparkles className="h-5 w-5" aria-hidden="true" />}
-      title="Ask Borjie Brain"
+      title={pickByLocale(locale, S.freshTitle)}
       titleClassName="text-foreground"
       iconClassName="text-signal-500"
     >
       <p className="text-neutral-300">
-        Ask anything about your mining portfolio. Replies cite the
-        corpus chunk they came from (mineral code · section · score)
-        so you can trace the answer back to source. Swahili and
-        English are both fine.
+        {pickByLocale(locale, S.freshBody)}
       </p>
       <ul className="mt-3 space-y-1.5 text-xs text-neutral-400">
-        <li>· "Show me sites running below the gold target this week."</li>
-        <li>· "Which licences expire within 30 days?"</li>
-        <li>· "What did the auditor flag yesterday?"</li>
+        <li>{pickByLocale(locale, S.freshExample1)}</li>
+        <li>{pickByLocale(locale, S.freshExample2)}</li>
+        <li>{pickByLocale(locale, S.freshExample3)}</li>
       </ul>
     </StatePanel>
   );

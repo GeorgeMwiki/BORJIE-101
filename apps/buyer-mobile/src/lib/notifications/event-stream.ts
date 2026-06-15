@@ -14,6 +14,12 @@
  * that can ever land here are ones published under the buyer's tenant:
  *   - `bid.placed`     — emitted in routes/mining/bids.hono.ts under the
  *                        bidder's (buyer's) tenant, so it arrives.
+ *   - `bid.accepted` / `bid.rejected` — emitted in the seller's accept /
+ *                        reject handlers. A marketplace bid is intra-tenant
+ *                        (buyer + seller share tenantId), so the pulse lands
+ *                        on the buyer's OWN channel and triggers the
+ *                        buyer_notifications refetch (accept deep-links the
+ *                        pending-signature offtake).
  *   - `reminder.fired` — buyer-scoped reminders.
  * The previously-listed `rfb.dispatched`, `settlement.initiated` and
  * `chat.handoff` are published under the SELLER / initiator tenant (or
@@ -36,7 +42,12 @@ import EventSourceImpl from 'react-native-sse'
 import { apiConfig } from '@/api/config'
 import { getAuthToken } from '@/auth/token'
 
-export const BUYER_EVENT_KINDS = ['bid.placed', 'reminder.fired'] as const
+export const BUYER_EVENT_KINDS = [
+  'bid.placed',
+  'bid.accepted',
+  'bid.rejected',
+  'reminder.fired',
+] as const
 
 export type BuyerEventKind = (typeof BUYER_EVENT_KINDS)[number]
 

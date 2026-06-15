@@ -25,6 +25,13 @@ function expectedTestId(kind: PreviewBannerKind): string {
   return `preview-banner-${kind}`
 }
 
+// Mirrors the component's single-language selection (`BANNER_COPY[kind][lang]`).
+// The banner now renders ONE line for the active locale — never both — so the
+// absolute EN/SW toggle is honoured on a fresh worker's most-hit screens.
+function rendered(kind: PreviewBannerKind, lang: 'sw' | 'en'): string {
+  return BANNER_COPY[kind][lang]
+}
+
 describe('PreviewBanner — env-missing', () => {
   it('renders the env-missing copy and testID preview-banner-env-missing', () => {
     expect(BANNER_COPY['env-missing'].sw).toBe(
@@ -48,5 +55,20 @@ describe('PreviewBanner — offline', () => {
     expect(BANNER_COPY.offline.sw).toBe('Uko nje ya mtandao. Tutasync ukirudi.')
     expect(BANNER_COPY.offline.en).toBe("You are offline. We'll sync when you reconnect.")
     expect(expectedTestId('offline')).toBe('preview-banner-offline')
+  })
+})
+
+describe('PreviewBanner — single-language toggle (no EN/SW mixing)', () => {
+  const kinds: ReadonlyArray<PreviewBannerKind> = ['env-missing', 'no-data', 'offline']
+
+  it('renders exactly the active locale string, never both', () => {
+    for (const kind of kinds) {
+      // The English render must not contain the Swahili line and vice versa.
+      expect(rendered(kind, 'en')).toBe(BANNER_COPY[kind].en)
+      expect(rendered(kind, 'sw')).toBe(BANNER_COPY[kind].sw)
+      expect(rendered(kind, 'en')).not.toBe(rendered(kind, 'sw'))
+      expect(rendered(kind, 'en')).not.toContain(BANNER_COPY[kind].sw)
+      expect(rendered(kind, 'sw')).not.toContain(BANNER_COPY[kind].en)
+    }
   })
 })

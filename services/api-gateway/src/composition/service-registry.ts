@@ -219,7 +219,16 @@ import {
   createPrivacyBudgetComposerService,
   createSensorRoutingService,
   createPersonaRegistryService,
+  createPlatformUsersService,
 } from '@borjie/database';
+/**
+ * `PlatformUsersService` re-exported through the `@borjie/database` barrel
+ * resolves as a namespace (TS2709 namespace-as-type widening under the
+ * `export *` chains) — same hazard as the `DatabaseClient` /
+ * `PrivacyBudgetComposerService` aliases above. Derive the type from the
+ * factory return value instead of importing the alias.
+ */
+type PlatformUsersService = ReturnType<typeof createPlatformUsersService>;
 import { createPersonaRegistry } from '@borjie/central-intelligence';
 type PrivacyBudgetComposerService = ReturnType<typeof createPrivacyBudgetComposerService>;
 import {
@@ -850,6 +859,15 @@ export interface ServiceRegistry {
   readonly branding: {
     readonly service: TenantBrandingService;
   };
+
+  /** Platform users (Central Command Phase B — B1). Paginated tenant-user
+   *  list + invite/create over the `users` table. Backs the owner-portal +
+   *  owner-mobile O-M-23 'Your team' roster (GET /admin/users) and 'Send
+   *  invite' button (POST /admin/users). Postgres-backed in live mode; `null`
+   *  in degraded mode (DATABASE_URL unset) so the admin-users router keeps
+   *  its honest 501 rather than fabricating an empty roster. Same service the
+   *  HQ `platform.list_users` / `platform.create_user` tool surface uses. */
+  readonly platformUsers: PlatformUsersService | null;
 
   /** Head briefing (Wave 28) — cohesive morning screen composer. Pulls
    *  from overnight-autonomy / pending-approvals / escalations / KPI /
@@ -2031,6 +2049,9 @@ function degradedRegistry(eventBus: EventBus): ServiceRegistry {
       // degraded mode; overrides don't persist across restarts.
       service: new TenantBrandingService(new InMemoryTenantBrandingRepository()),
     },
+    // No DB handle in degraded mode → leave platformUsers null so the
+    // admin-users router returns its honest 501 instead of a fake roster.
+    platformUsers: null,
     headBriefing: {
       // Wave 28 — head briefing composer with in-memory source stubs.
       // Degraded mode uses a fresh ExceptionInbox backed by an empty
@@ -2918,6 +2939,10 @@ function buildServicesInner(input: BuildServicesInput): ServiceRegistry {
       // (defaults resolve cleanly) so data loss on restart is acceptable.
       service: new TenantBrandingService(new InMemoryTenantBrandingRepository()),
     },
+    // Central Command Phase B B1 — Drizzle-backed platform users service.
+    // Backs the owner-mobile O-M-23 'Your team' roster + 'Send invite'
+    // (GET/POST /admin/users). Same factory the HQ tool surface uses.
+    platformUsers: createPlatformUsersService(db),
     headBriefing: {
       // Wave 28 — head briefing composer. Live mode still uses in-memory
       // sources for now; the composer's port-based design lets us swap

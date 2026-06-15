@@ -129,12 +129,14 @@ export function createCalendarSyncWorker(
       // single tenant GUC would scope the claim to one tenant). In production
       // the worker's DATABASE_URL is the Supabase service_role (BYPASSRLS), so
       // the claim spans tenants via the ROLE — the sibling reminders-dispatch
-      // worker relies on the same. NOTE: `reminders` has no
-      // `service_role_bypass` RLS policy, so under an RLS-ENFORCED
-      // (NOBYPASSRLS) role this claim matches zero rows (fail-closed, never a
-      // cross-tenant read) until such a policy is added — identical to the
-      // prior no-GUC behaviour, so this is not a regression. Each row's
-      // per-tenant writes below re-bind the row's own tenant context.
+      // worker relies on the same. Migration 0354
+      // (0354_reminders_service_role_bypass.sql) added the
+      // `reminders_service_role_bypass` RLS policy keyed on
+      // `app.is_service_role = 'true'`, which `withServiceRoleContext` binds —
+      // so even under an RLS-ENFORCED (NOBYPASSRLS) role this cross-tenant
+      // claim correctly returns rows in prod; the worker is NOT
+      // fail-closed-dark. Each row's per-tenant writes below re-bind the row's
+      // own tenant context.
       const res = await withServiceRoleContext(
         options.db as unknown as Parameters<typeof withServiceRoleContext>[0],
         (txDb) =>

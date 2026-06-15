@@ -18,6 +18,13 @@
  * Concurrency:
  *   - The tick is reentrant-safe via an in-process `running` flag — at
  *     most one tick executes at a time per process.
+ *   - Across REPLICAS the runner takes a single-winner atomic claim
+ *     (`UPDATE ... SET status='dispatching' ... FOR UPDATE SKIP LOCKED
+ *     RETURNING`, mirroring `reminders-dispatch.worker.ts`) so two
+ *     replicas can never grab and double-dispatch the same approved row.
+ *     `markExecuted`/`markFailed` transition out of `dispatching`, and a
+ *     per-tick sweep returns long-stuck `dispatching` rows (a replica that
+ *     crashed between claim and mark) back to `approved` for retry.
  *   - We `LIMIT 5` per tick to bound blast radius if `executeJuniors`
  *     misbehaves; the next tick picks up the rest.
  */
@@ -44,6 +51,11 @@ type ServiceRoleDb = Parameters<typeof withServiceRoleContext>[0];
 const ONE_SECOND_MS = 1000;
 const DEFAULT_INTERVAL_MS = 10 * ONE_SECOND_MS;
 const DEFAULT_BATCH_SIZE = 5;
+// A row claimed ('dispatching') by a replica that then crashed before
+// markExecuted/markFailed is reclaimed back to 'approved' after this many
+// seconds so it isn't stranded. 5 min comfortably exceeds a single
+// executeJuniors dispatch under the LIMIT-5 blast bound.
+const STUCK_DISPATCHING_TIMEOUT_SECONDS = 300;
 
 export interface DbLike {
   execute(query: unknown): Promise<unknown>;
@@ -135,7 +147,10 @@ export function createExecutiveBriefActionRunner(
     running = true;
     const started = Date.now();
     try {
-      const rows = await fetchApprovedBatch(options.db, batchSize);
+      // Reclaim rows a crashed replica left mid-flight before claiming new
+      // work, so a single stuck row never permanently consumes a batch slot.
+      await sweepStuckDispatching(options.db, nowFn());
+      const rows = await claimApprovedBatch(options.db, batchSize, nowFn());
       (result as { scanned: number }).scanned = rows.length;
       if (rows.length === 0) return result;
 
@@ -305,24 +320,37 @@ async function dispatchOne(
 // SQL helpers
 // ─────────────────────────────────────────────────────────────────────
 
-async function fetchApprovedBatch(
+async function claimApprovedBatch(
   db: DbLike,
   limit: number,
+  now: Date,
 ): Promise<ReadonlyArray<QueueRow>> {
   try {
-    // CROSS-TENANT discovery scan: no tenant filter, so bind the
-    // service-role GUC (app.is_service_role='true') to satisfy the
-    // executive_brief_actions_service_role_bypass policy. Without it
-    // FORCE-RLS silently filters this scan to zero rows in prod.
-    // The unit-test stub injects a db with .execute but no .transaction;
-    // fall back to a bare execute there to keep those tests green.
+    // CROSS-TENANT atomic claim: flip ready rows from 'approved' to
+    // 'dispatching' in ONE statement so a second replica (or a restart)
+    // can never grab the same row and double-dispatch. `FOR UPDATE SKIP
+    // LOCKED` lets concurrent replicas claim DISJOINT rows without blocking;
+    // the inner SELECT keeps the (approved_at, created_at) ordering and the
+    // LIMIT. We RETURN the claimed rows so the dispatcher has everything it
+    // needs. No tenant filter, so bind the service-role GUC
+    // (app.is_service_role='true') to satisfy the
+    // executive_brief_actions_service_role_bypass policy — without it
+    // FORCE-RLS silently filters this scan to zero rows in prod. The
+    // unit-test stub injects a db with .execute but no .transaction; fall
+    // back to a bare execute there to keep those tests green.
     const query = sql`
-      SELECT id, tenant_id, brief_id, junior_name, intent, payload_jsonb, attempts
-        FROM executive_brief_actions
-       WHERE status = 'approved'
-         AND executed_at IS NULL
-       ORDER BY approved_at ASC NULLS LAST, created_at ASC
-       LIMIT ${limit}
+      UPDATE executive_brief_actions
+         SET status = 'dispatching',
+             updated_at = ${now.toISOString()}
+       WHERE id IN (
+         SELECT id FROM executive_brief_actions
+          WHERE status = 'approved'
+            AND executed_at IS NULL
+          ORDER BY approved_at ASC NULLS LAST, created_at ASC
+          LIMIT ${limit}
+          FOR UPDATE SKIP LOCKED
+       )
+      RETURNING id, tenant_id, brief_id, junior_name, intent, payload_jsonb, attempts
     `;
     const res =
       typeof (db as { transaction?: unknown }).transaction === 'function'
@@ -336,6 +364,39 @@ async function fetchApprovedBatch(
       .map((p) => p.data);
   } catch {
     return [];
+  }
+}
+
+/**
+ * Reclaim 'dispatching' rows whose claiming replica crashed before it
+ * could mark them executed/failed. Without this a single crash would
+ * strand a row in 'dispatching' forever (no tick would ever re-pick it,
+ * since the claim only matches 'approved'). CROSS-TENANT, so bind the
+ * service-role GUC. Best-effort: a sweep failure must not abort the tick.
+ */
+async function sweepStuckDispatching(db: DbLike, now: Date): Promise<void> {
+  try {
+    const cutoff = new Date(
+      now.getTime() - STUCK_DISPATCHING_TIMEOUT_SECONDS * ONE_SECOND_MS,
+    ).toISOString();
+    const query = sql`
+      UPDATE executive_brief_actions
+         SET status = 'approved',
+             updated_at = ${now.toISOString()}
+       WHERE status = 'dispatching'
+         AND executed_at IS NULL
+         AND updated_at < ${cutoff}
+    `;
+    if (typeof (db as { transaction?: unknown }).transaction === 'function') {
+      await withServiceRoleContext(db as ServiceRoleDb, (tx) =>
+        tx.execute(query),
+      );
+    } else {
+      await db.execute(query);
+    }
+  } catch {
+    // Best-effort reclaim — a sweep failure simply defers the reclaim to a
+    // later tick; it must never block claiming fresh approved work.
   }
 }
 
@@ -355,6 +416,10 @@ async function markExecuted(
   // (and app.tenant_id) so the table's tenant-isolation policy permits
   // the write under FORCE-RLS. The unit-test stub has no .transaction;
   // fall back to a bare execute to keep those tests green.
+  // Transition out of the claimed 'dispatching' state. The `status =
+  // 'dispatching'` guard makes the write idempotent: if a sweep already
+  // reclaimed this row to 'approved' (replica looked stuck), this update
+  // no-ops rather than clobbering a row another replica may now own.
   const query = sql`
     UPDATE executive_brief_actions
        SET status      = 'executed',
@@ -364,6 +429,7 @@ async function markExecuted(
            error_text  = NULL,
            updated_at  = ${now.toISOString()}
      WHERE id = ${id}
+       AND status = 'dispatching'
   `;
   if (typeof (db as { transaction?: unknown }).transaction === 'function') {
     await withWorkerTenantContext(db, tenantId, (tx) => tx.execute(query));
@@ -380,12 +446,16 @@ async function markFailed(
   attempts: number,
 ): Promise<void> {
   // After 3 attempts the row stays at status='failed' and the runner
-  // skips it on subsequent ticks (status filter is 'approved' only).
+  // skips it on subsequent ticks (the claim only matches 'approved').
+  // Below the cap the row returns to 'approved' so a later claim re-picks
+  // it. Either way it transitions OUT of the claimed 'dispatching' state.
   const nextStatus = attempts + 1 >= 3 ? 'failed' : 'approved';
   // PER-TENANT update on a known tenant id: bind app.current_tenant_id
   // (and app.tenant_id) so the table's tenant-isolation policy permits
   // the write under FORCE-RLS. The unit-test stub has no .transaction;
-  // fall back to a bare execute to keep those tests green.
+  // fall back to a bare execute to keep those tests green. The `status =
+  // 'dispatching'` guard keeps the write idempotent if a sweep already
+  // reclaimed the row.
   const query = sql`
     UPDATE executive_brief_actions
        SET status     = ${nextStatus},
@@ -393,6 +463,7 @@ async function markFailed(
            error_text = ${errorText},
            updated_at = now()
      WHERE id = ${id}
+       AND status = 'dispatching'
   `;
   if (typeof (db as { transaction?: unknown }).transaction === 'function') {
     await withWorkerTenantContext(db, tenantId, (tx) => tx.execute(query));
@@ -429,6 +500,15 @@ async function auditDispatch(db: DbLike, args: AuditDispatchArgs): Promise<void>
     // ai_audit_chain is RLS-FORCED; without the GUC bind every INSERT
     // here would be silently rejected and the chain would gap.
     await withWorkerTenantContext(db, args.tenantId, async (tx) => {
+      // Serialize concurrent same-tenant appends within the tx. Without
+      // this two replicas approving for the same tenant both read the same
+      // MAX(sequence_id) and race the (tenant_id, sequence_id) unique
+      // index — one INSERT 23505s and gaps the chain. The xact lock
+      // auto-releases at commit/rollback; hashtext keys it per-tenant so
+      // different tenants never contend.
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtext(${args.tenantId}))`,
+      );
       await tx.execute(sql`
         INSERT INTO ai_audit_chain (
           id, tenant_id, sequence_id, turn_id, action, prev_hash, this_hash, payload

@@ -31,6 +31,7 @@ import {
   type BrainCitation,
   type BrainMessage,
   type BrainToolCall,
+  type BrainTurnAudit,
   type BrainTurnResult,
 } from '@/lib/brain-api';
 
@@ -96,6 +97,14 @@ export interface AskBorjieMessage {
   readonly streaming: boolean;
   readonly errored: boolean;
   readonly createdAt: string;
+  /**
+   * KI-005 — the Auditor grounding verdict for this answer, when the gateway
+   * surfaced one (mirrors `BrainTurnAudit`). Absent on user messages and on
+   * legacy wires that predate the auditor field — consumers must handle
+   * `undefined`. AskBubble renders a caution badge when the answer was
+   * ungrounded / unverified / flagged for review.
+   */
+  readonly audit?: BrainTurnAudit;
 }
 
 export interface UseAskBorjieResult {
@@ -238,6 +247,10 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
                     citations: chunk.citations,
                     toolCalls: chunk.toolCalls,
                     streaming: !chunk.done,
+                    // KI-005 — carry the terminal Auditor verdict onto the
+                    // assistant message so AskBubble can render the grounding
+                    // badge. Attach only when the gateway surfaced one.
+                    ...(chunk.audit ? { audit: chunk.audit } : {}),
                   }
                 : m,
             ),

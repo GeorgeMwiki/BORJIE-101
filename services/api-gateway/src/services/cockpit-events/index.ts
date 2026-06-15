@@ -30,6 +30,8 @@ export type {
   ChatHandoffEvent,
   ManagerApprovedEvent,
   BidPlacedEvent,
+  BidAcceptedEvent,
+  BidRejectedEvent,
   IncidentEscalatedEvent,
   CockpitTabSpawnedEvent,
   CockpitTabUpdatedEvent,

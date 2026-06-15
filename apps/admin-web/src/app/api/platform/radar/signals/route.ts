@@ -4,11 +4,12 @@
  *   GET /api/platform/radar/signals
  *       → gateway GET /api/v1/platform/radar/signals (if exists)
  *
- * When the gateway route is not yet wired, returns a structured empty
- * payload (`{ signals: [] }`) with status 200 so the radar page renders
- * the "stream empty" state rather than the permanent "degraded" banner.
- * A 503 from the gateway is passed through as-is so the page's degraded
- * guard fires correctly.
+ * The gateway radar aggregator is not yet mounted. When it returns 404
+ * we surface a 503 so the radar page's degraded guard fires and shows an
+ * honest "pipeline offline" card — rather than a fake `{ signals: [] }`
+ * that would render "Pipeline healthy, stream empty", which lies about a
+ * stream that has no backend. A real 503 from the gateway is passed
+ * through as-is.
  *
  * Auth: the platform session cookie + Authorization header are forwarded
  * by `proxyJson`.
@@ -27,10 +28,20 @@ export async function GET(): Promise<NextResponse> {
     { method: 'GET' },
   );
 
-  // If the gateway returns 404 (route not yet wired) return an empty
-  // signals array so the page renders cleanly instead of degraded.
+  // If the gateway returns 404 (aggregator route not yet mounted) surface
+  // a 503 so the radar page's degraded guard fires correctly. The page
+  // keys on the 503 status, so the code is purely informational.
   if (upstream.status === 404) {
-    return NextResponse.json({ signals: [] }, { status: 200 });
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: 'RADAR_PIPELINE_UNAVAILABLE',
+          message: 'The radar aggregator is not yet available from the platform.',
+        },
+      },
+      { status: 503 },
+    );
   }
 
   return upstream;

@@ -25,6 +25,16 @@ const BrandingUpdateSchema = z
     aiPersonaHonorific: z.string().min(1).max(40).optional(),
     aiGreeting: z.string().min(1).max(120).optional(),
     aiPronoun: z.enum(['he', 'she', 'they']).optional(),
+    // Org-settings toggles the owner-mobile O-M-23 screen sends. The strict
+    // schema previously 400'd on these four keys, so every toggle silently
+    // snapped back. They are accepted here and persisted by the branding
+    // service's overrides bag (see updateConfig). `primaryCurrency` stays a
+    // free string (TZS / USD / KES / UGX / NGN — never hard-code a single
+    // currency); `defaultLang` is the single-language locale toggle (sw|en).
+    multiTenant: z.boolean().optional(),
+    brandLock: z.boolean().optional(),
+    primaryCurrency: z.string().min(1).max(8).optional(),
+    defaultLang: z.enum(['sw', 'en']).optional(),
   })
   .strict();
 
@@ -73,7 +83,14 @@ app.get('/', async (c: any) => {
 // ---------------------------------------------------------------------------
 app.put(
   '/',
-  requireRole(UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  // The org OWNER is the natural editor of their own org's branding /
+  // org-settings (un-darkens O-M-23); platform/tenant admins retain access.
+  requireRole(
+    UserRole.OWNER,
+    UserRole.TENANT_ADMIN,
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+  ),
   zValidator('json', BrandingUpdateSchema),
   withSecurityEvents({ action: 'tenant-branding.update', resource: 'tenant-branding', severity: 'info' }, async (c: any) => {
     const service = svc(c);
@@ -97,7 +114,12 @@ app.put(
 // ---------------------------------------------------------------------------
 app.post(
   '/reset',
-  requireRole(UserRole.TENANT_ADMIN, UserRole.SUPER_ADMIN, UserRole.ADMIN),
+  requireRole(
+    UserRole.OWNER,
+    UserRole.TENANT_ADMIN,
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+  ),
   withSecurityEvents({ action: 'tenant-branding.create', resource: 'tenant-branding', severity: 'info' }, async (c: any) => {
     const service = svc(c);
     if (!service) return notConfigured(c);

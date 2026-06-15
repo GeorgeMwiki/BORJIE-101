@@ -35,6 +35,7 @@ import { z } from 'zod';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
   Money,
+  moneyFromDecimal,
   type AccountId,
   type TenantId,
   type PaymentIntentId,
@@ -263,8 +264,12 @@ export async function handleMpesaWebhook(
   if (amountMajor == null) {
     return { status: 'rejected', reason: 'missing-amount' };
   }
-  // M-Pesa amounts are whole major units; KES/TZS minor unit is ×100.
-  const amountMinor = Math.round(amountMajor * 100);
+  // M-Pesa amounts arrive as decimal major units. Derive the minor-unit
+  // scale from the resolved currency's ISO-4217 fractional precision
+  // (×100 for 2-decimal KES/USD, ×1 for 0-decimal TZS/UGX) so a 0-decimal
+  // currency is not over-scaled by a factor of 100. ctx is resolved above
+  // (line ~254) before this point, so ctx.currency is in scope.
+  const amountMinor = moneyFromDecimal(amountMajor, ctx.currency).amountMinorUnits;
 
   // EDGE-HARDENING #5 — amount reconciliation. If the resolver pins an
   // expected amount for this checkout, a mismatch is treated as a FAILED

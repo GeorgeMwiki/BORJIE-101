@@ -62,4 +62,22 @@ export const homeChatTeachStrings = {
     en: 'Mr. Mwikila · Teacher',
     sw: 'Mr. Mwikila · Mwalimu',
   },
+  // KI-005 — Auditor grounding-verdict caution badges. Single-language per
+  // locale; mirrors the master-brain ChatBubble warnings.
+  groundingFault: {
+    en: 'Grounding check unavailable. Treat with caution.',
+    sw: 'Ukaguzi wa uthibitisho haupatikani. Tahadhari.',
+  },
+  groundingNoEvidence: {
+    en: 'Unverified: no evidence cited.',
+    sw: 'Haijathibitishwa: hakuna ushahidi uliotajwa.',
+  },
+  groundingEvidenceInvalid: {
+    en: 'Evidence could not be verified.',
+    sw: 'Ushahidi haukuweza kuthibitishwa.',
+  },
+  groundingNeedsHuman: {
+    en: 'Auditor flagged this answer for review.',
+    sw: 'Mkaguzi ameashiria jibu hili kwa ukaguzi.',
+  },
 } as const;

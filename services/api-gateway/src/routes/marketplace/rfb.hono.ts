@@ -38,6 +38,7 @@ import { sql } from 'drizzle-orm';
 import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
+import { enqueueRfbResponseNotification } from '../../services/buyer-notifications';
 import { createLogger } from '../../utils/logger';
 import { UserRole } from '../../types/user-role';
 import {
@@ -530,7 +531,7 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
   // row.
   const rfb = rowsOf(
     await db.execute(sql`
-      SELECT tenant_id::text AS tenant_id, status, expires_at
+      SELECT tenant_id::text AS tenant_id, buyer_id, mineral_kind, status, expires_at
         FROM request_for_bids
        WHERE id = ${id}::uuid
          AND status = 'open'
@@ -595,6 +596,31 @@ rfbRouter.post('/:id/respond', zValidator('json', RespondSchema), async (c) => {
       },
       500,
     );
+  }
+  // Notify the buyer of the counter-offer through the pre-reserved
+  // `rfb_response_received` buyer_notifications kind. Without this the buyer
+  // only learns of a seller response by polling GET /mine. The insert runs in
+  // the SELLER's RLS context (migration 0132 admits it via the
+  // seller_tenant_id WITH CHECK). Best-effort: a notification failure must
+  // NEVER roll back the already-committed response row.
+  const buyerId = rfb.buyer_id != null ? String(rfb.buyer_id) : null;
+  if (buyerId) {
+    try {
+      await enqueueRfbResponseNotification(db, {
+        buyerTenantId: rfbTenantId,
+        buyerUserId: buyerId,
+        sellerTenantId: auth.tenantId,
+        rfbId: id,
+        responseId: String(row.id),
+        mineralKind: rfb.mineral_kind != null ? String(rfb.mineral_kind) : null,
+        offeredPriceTzs: body.offeredPriceTzs,
+      });
+    } catch (err) {
+      moduleLogger.warn(
+        { err, rfbId: id, responseId: row.id, buyerTenantId: rfbTenantId },
+        'rfb_response_buyer_notification_failed',
+      );
+    }
   }
   moduleLogger.info(
     {
@@ -748,9 +774,16 @@ rfbRouter.post(
       );
     }
 
-    // Cockpit fan-out — re-use opportunity.scan_completed so the
-    // existing owner-web SSE handler sees the dispatch as a moved
-    // opportunity. Best-effort; never blocks the response.
+    // Cockpit fan-out — TWO pulses, both best-effort, never block the
+    // response:
+    //   1) opportunity.scan_completed — the owner-web cockpit SSE handler
+    //      sees the dispatch as a moved opportunity (owner-reachable).
+    //   2) task.assigned — the assigned manager's mobile inbox flips green
+    //      within <200 ms. opportunity.scan_completed is owner-only and
+    //      never reaches the manager app, which listens for task.assigned
+    //      (already in WORKFORCE_EVENT_KINDS); without this pulse the
+    //      dispatched fulfilment task was invisible to the worker until a
+    //      manual refresh. Mirrors tasks.hono.ts:329's task.assigned emit.
     try {
       publishCockpitEvent({
         kind: 'opportunity.scan_completed',
@@ -763,6 +796,24 @@ rfbRouter.post(
       moduleLogger.warn(
         { err, tenantId: auth.tenantId, rfbId: id },
         'rfb_dispatch_cockpit_event_failed',
+      );
+    }
+    try {
+      publishCockpitEvent({
+        kind: 'task.assigned',
+        tenantId: auth.tenantId,
+        emittedAt: new Date().toISOString(),
+        taskId: String(inserted.id),
+        assigneeId: body.managerId,
+        assignedBy: auth.userId,
+        title: titleEn,
+        siteId: body.siteId,
+        priority: 'high',
+      });
+    } catch (err) {
+      moduleLogger.warn(
+        { err, tenantId: auth.tenantId, rfbId: id, taskId: inserted.id },
+        'rfb_dispatch_task_assigned_event_failed',
       );
     }
 

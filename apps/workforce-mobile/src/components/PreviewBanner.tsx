@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native'
+import { useI18n } from '../i18n/useI18n'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 
@@ -12,8 +13,9 @@ export interface PreviewBannerProps {
  * Honest-UX banner surfacing real failure modes (no fake-data affordance).
  * Three kinds: backend unconfigured, empty endpoint, device offline.
  *
- * Copy is inlined as a frozen const map — i18n files are owned by other
- * agents this wave. Swahili-first per CLAUDE.md, English as secondary line.
+ * Copy is held as a frozen per-locale const map. The active language
+ * follows the worker's preference (default `en`); the toggle is absolute,
+ * so only ONE language renders — zero EN/SW mixing on this screen.
  */
 export const BANNER_COPY = Object.freeze({
   'env-missing': Object.freeze({
@@ -31,16 +33,16 @@ export const BANNER_COPY = Object.freeze({
 }) as Readonly<Record<PreviewBannerKind, Readonly<{ sw: string; en: string }>>>
 
 export function PreviewBanner({ kind }: PreviewBannerProps): JSX.Element {
-  const copy = BANNER_COPY[kind]
+  const { lang } = useI18n()
+  const message = BANNER_COPY[kind][lang]
   return (
     <View
       accessibilityRole="alert"
-      accessibilityLabel={`${copy.sw} — ${copy.en}`}
+      accessibilityLabel={message}
       testID={`preview-banner-${kind}`}
       style={[styles.wrap, kindStyle(kind)]}
     >
-      <Text style={styles.label}>{copy.sw}</Text>
-      <Text style={styles.sub}>{copy.en}</Text>
+      <Text style={styles.label}>{message}</Text>
     </View>
   )
 }
@@ -68,10 +70,5 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: fontSize.body,
     fontWeight: '700'
-  },
-  sub: {
-    color: colors.textMuted,
-    fontSize: fontSize.caption,
-    marginTop: spacing.xs
   }
 })

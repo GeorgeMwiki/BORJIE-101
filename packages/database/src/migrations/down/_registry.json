@@ -626,6 +626,36 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0362_driver_letter_acks.sql",
+      "down": "down/0362_down_driver_letter_acks.sql",
+      "reverses": "Drops the driver_letter_acks table (the offline-field-capture /api/v1/mining/driver-letter-acks sink's persistence target) — its RLS policies + indexes fall with the table. Dev/staging only — DATA LOSS: removes all captured driver-letter acknowledgement rows, and re-opens the degraded leg of the offline-field-capture BLOCKER (the sink falls back to the audit-only degraded accept). No money/licence/ledger records (field-capture ack rows only).",
+      "dataLoss": true,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0363_executive_brief_actions_dispatching_status.sql",
+      "down": "down/0363_down_executive_brief_actions_dispatching_status.sql",
+      "reverses": "Reverts the executive_brief_actions status CHECK to the original 5-status set (drops the transient 'dispatching' status). Dev/staging only — FAILS if any row currently holds status='dispatching', and re-breaks the multi-replica atomic-claim (every claim UPDATE throws 23514, the runner goes dark). Pure constraint metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
+    },
+    {
+      "up": "0364_buyer_notifications_bid_outcome.sql",
+      "down": "down/0364_down_buyer_notifications_bid_outcome.sql",
+      "reverses": "Reverts the buyer_notifications kind CHECK to the original 3-kind set (drops 'bid_accepted'/'bid_rejected') and re-adds the rfb_id NOT NULL. Dev/staging only — FAILS if any bid-outcome rows or rfb_id IS NULL rows exist, and re-breaks the seller-accept/reject buyer pulse (the insert rolls back the bid-accept transaction). Pure constraint metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

@@ -2,9 +2,8 @@
  * Shared upstream-proxy helper for admin-web Next route
  * handlers.
  *
- * Most `/api/platform/*` routes are thin proxies onto either the
- * api-gateway (`process.env.API_GATEWAY_URL`) or the identity service
- * (`process.env.IDENTITY_URL`). This module owns:
+ * Most `/api/platform/*` routes are thin proxies onto the api-gateway
+ * (`process.env.API_GATEWAY_URL`). This module owns:
  *
  *   - base-URL resolution + production guards,
  *   - cookie / Authorization header forwarding,
@@ -13,9 +12,9 @@
  *     of an opaque "fetch failed").
  *
  * Production guard: when `NODE_ENV === 'production'` and the relevant
- * env var is unset, `getApiGatewayBase()` / `getIdentityBase()` throw
- * loudly at first use so misconfigurations are caught at the edge
- * rather than silently routing to localhost in prod.
+ * env var is unset, `getApiGatewayBase()` throws loudly at first use so
+ * misconfigurations are caught at the edge rather than silently routing
+ * to localhost in prod.
  */
 import { cookies, headers } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
@@ -59,22 +58,6 @@ export function getApiGatewayBase(): string {
     );
   }
   return 'http://localhost:4000';
-}
-
-/**
- * Resolve the identity-service base URL. Throws in production if unset.
- */
-export function getIdentityBase(): string {
-  const raw = process.env.IDENTITY_URL?.trim();
-  if (raw && raw.length > 0) {
-    return raw.replace(/\/$/, '');
-  }
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'IDENTITY_URL is unset — refusing to fall back to localhost in production',
-    );
-  }
-  return 'http://localhost:4001';
 }
 
 /**

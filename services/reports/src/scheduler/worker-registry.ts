@@ -15,7 +15,6 @@
 
 export type WorkerId =
   | 'renewal-scheduler'
-  | 'sla-worker'
   | 'vendor-rating-worker'
   | 'intelligence-history-worker'
   | 'far-scheduler'
@@ -74,7 +73,6 @@ export interface WorkerDescriptor {
  */
 export interface WorkerRegistryDeps {
   readonly runRenewalScheduler: () => Promise<void>;
-  readonly runSlaWorker: () => Promise<void>;
   readonly runVendorRatingWorker: () => Promise<void>;
   readonly runIntelligenceHistoryWorker: () => Promise<void>;
   readonly runFarScheduler: () => Promise<void>;
@@ -85,7 +83,6 @@ export interface WorkerRegistryDeps {
 /**
  * Build the canonical descriptor list. The cron expressions below
  * reflect the operational SLOs called out in the platform spec:
- *   - SLA worker: every 5 minutes
  *   - Waitlist backfill: hourly
  *   - FAR scheduler: hourly
  *   - Renewal / vendor-rating / intelligence / arrears: nightly
@@ -100,13 +97,6 @@ export function createWorkerRegistry(
       cron: '0 2 * * *', // 02:00 daily
       handler: deps.runRenewalScheduler,
       timeoutMs: 5 * 60 * 1000,
-    },
-    {
-      id: 'sla-worker',
-      description: 'Case SLA breach detection + auto-escalation',
-      cron: '*/5 * * * *', // every 5 minutes
-      handler: deps.runSlaWorker,
-      timeoutMs: 2 * 60 * 1000,
     },
     {
       id: 'vendor-rating-worker',
