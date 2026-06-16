@@ -44,10 +44,12 @@
     "gen-secrets": "node scripts/generate-borjie-secrets.mjs",
     "preflight": "node scripts/preflight-production.mjs",
     "set-gh-secrets": "node scripts/set-gh-secrets.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "gen:locales": "tsx scripts/gen-marketing-locales.mjs"
   },
   "devDependencies": {
     "@borjie/translation": "workspace:*",
+    "@borjie/translation-sota": "workspace:^",
     "@eslint/js": "^9.18.0",
     "@playwright/test": "^1.41.2",
     "@types/node": "^25.8.0",

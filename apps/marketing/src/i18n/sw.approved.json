@@ -1,0 +1,3172 @@
+{
+  "common": {
+    "skipToContent": "Ruka kwenye maudhui"
+  },
+  "seo": {
+    "title": "Borjie: programu kwa migodi ya Tanzania",
+    "description": "Endesha leseni, mrabaha, wafanyakazi na hazina yako kwenye skrini moja. Borjie inaandaa mawasilisho yako ya Tume ya Madini na TMAA, inaendesha wafanyakazi wako, na inauza madini yako kwa wanunuzi waliothibitishwa. Imejengwa kwa madini ya Tanzania, kwa Kiswahili na Kiingereza.",
+    "ogTitle": "Borjie: programu kwa migodi ya Tanzania",
+    "ogDescription": "Endesha leseni, mrabaha, wafanyakazi na madini yako kwenye skrini moja. Borjie inafanya karatasi nawe unasaini tu. Imejengwa kwa madini ya Tanzania.",
+    "twitterTitle": "Borjie: programu kwa migodi ya Tanzania",
+    "twitterDescription": "Fuatilia kila leseni, wasilisha mrabaha kwa dakika, endesha wafanyakazi wako, na uza madini kwa wanunuzi waliothibitishwa. Imejengwa kwa madini ya Tanzania.",
+    "ogAlt": "Borjie: programu kwa migodi ya Tanzania"
+  },
+  "nav": {
+    "owners": "Wamiliki",
+    "buyers": "Wanunuzi",
+    "investors": "Wawekezaji",
+    "product": "Bidhaa",
+    "pricing": "Bei",
+    "pilot": "Pilot",
+    "docs": "Nyaraka",
+    "signIn": "Ingia",
+    "signUp": "Jisajili",
+    "whoWeServe": "Tunaowahudumia",
+    "menu": "Menyu",
+    "openMenu": "Fungua menyu",
+    "closeMenu": "Funga menyu",
+    "about": "Kuhusu",
+    "resources": "Rasilimali",
+    "company": "Kampuni",
+    "blog": "Blogi",
+    "careers": "Kazi",
+    "support": "Msaada",
+    "requestPilot": "Anza sasa",
+    "adminSignIn": "Kuingia kwa timu ya Borjie",
+    "workforceApp": "Programu ya wafanyakazi",
+    "categories": {
+      "operators": "Waendeshaji wa migodi",
+      "buyers": "Wanunuzi na off-takers",
+      "ecosystem": "Vyama na mfumo",
+      "capital": "Mtaji na usimamizi"
+    },
+    "items": {
+      "pml": "Wamiliki wa PML",
+      "pmlDesc": "Wachimbaji wadogo wenye Leseni za Msingi.",
+      "ml": "Wamiliki wa ML",
+      "mlDesc": "Waendeshaji wa kati wa ML wa dhahabu, vito na kila aina ya madini.",
+      "sml": "Wamiliki wa SML",
+      "smlDesc": "Leseni za Pekee, uchimbaji mkubwa.",
+      "cooperatives": "Vyama vya wachimbaji",
+      "cooperativesDesc": "Vikundi vya AMCOS na vya wachimbaji wadogo.",
+      "buyers": "Wanunuzi na wauzaji nje",
+      "buyersDesc": "Wanunuzi wa madini waliothibitishwa, daraja la LBMA.",
+      "smelters": "Off-takers na warekebishaji",
+      "smeltersDesc": "Wachakataji walioleseniwa na warekebishaji wa dore.",
+      "investors": "Wawekezaji na wakopeshaji",
+      "investorsDesc": "Mtaji wa madini ukiwa na taarifa za kila siku.",
+      "regulators": "Wadhibiti na wizara",
+      "regulatorsDesc": "Tumemadini, NEMC, BoT, TRA usimamizi.",
+      "csrCommunity": "Washirika wa CSR na jamii",
+      "csrCommunityDesc": "Jamii zinazokaribisha, ustawi wa AMCOS, maudhui ya ndani.",
+      "bank": "Benki na wakopeshaji",
+      "bankDesc": "Mikopo midogo na benki zinazodhamini dhamana za migodi.",
+      "familyOffice": "Familia za biashara",
+      "familyOfficeDesc": "Utajiri wa migodi kwa vizazi na urithi."
+    }
+  },
+  "audienceSwitcher": {
+    "kicker": "Chagua mtazamo wako",
+    "owners": {
+      "title": "Wamiliki wa migodi",
+      "blurb": "Endesha mgodi wako. Briefing ya kila siku, kalenda ya leseni, drill-hole logger."
+    },
+    "buyers": {
+      "title": "Wanunuzi wa madini",
+      "blurb": "Pata madini ya Tanzania yaliyothibitishwa mwanzo hadi mwisho."
+    },
+    "investors": {
+      "title": "Wawekezaji / Wakopeshaji",
+      "blurb": "Mtaji wa madini ukiwa na taarifa za kila siku zenye ushahidi."
+    }
+  },
+  "hero": {
+    "kicker": "Imejengwa kwa madini ya Tanzania",
+    "swahiliFirstBadge": "Kiingereza-kwanza · Kiswahili",
+    "pill": "Tunaanza Tanzania · Imejengwa kwa madini ya Afrika",
+    "headline": "Endesha leseni, mrabaha, wafanyakazi na madini yako kwenye skrini moja",
+    "sub": "Borjie inaweka leseni, mrabaha, wafanyakazi na hazina yako mahali pamoja. Mr. Mwikila anaandaa karatasi nawe unasaini tu. Kwa Kiswahili na Kiingereza.",
+    "ctaPilot": "Anza sasa",
+    "ctaDemo": "Ona jinsi inavyofanya kazi",
+    "trustline": "Inafanya kazi na BRELA · TRA · Tume ya Madini · TMAA · M-Pesa",
+    "chat": {
+      "assistant": "Mwl. Mwikila",
+      "role": "Mkurugenzi Mtendaji wa Madini wa AI",
+      "live": "Hai",
+      "ask": "Uliza Borjie chochote…",
+      "timestamp": "Sasa hivi",
+      "languageLabel": "SW",
+      "languageHint": "Ongea kwa",
+      "language": "Kiswahili",
+      "micReady": "Mic iko tayari",
+      "disclaimer": "Imetengenezwa na AI. Maamuzi yanasainiwa na mwenye leseni.",
+      "voice": "Ingiza kwa sauti",
+      "attach": "Ambatisha picha",
+      "send": "Tuma",
+      "turns": [
+        {
+          "role": "ai",
+          "body": "Habari, mimi ni Mr. Mwikila, AI inayoendesha kazi za kila siku kwenye Borjie. Unaendesha mgodi wa aina gani?"
+        },
+        {
+          "role": "user",
+          "body": "Nina PML Geita."
+        },
+        {
+          "role": "ai",
+          "body": "Basi taarifa yako ya mrabaha ya kila mwezi katika muundo wa Tume ya Madini huenda inakula saa kadhaa. Ninakuandalia, ninataja kila mstari, nawe unasaini tu. Ungependa kuona taarifa yako ya kwanza ya asubuhi?"
+        }
+      ]
+    },
+    "stats": {
+      "pilotRegions": "Mikoa inayoendeshwa",
+      "bilingual": "Lugha mbili",
+      "baseCurrency": "Sarafu ya msingi",
+      "masterBrain": "Akili Kuu"
+    }
+  },
+  "brainBanner": {
+    "kicker": "Madai ya Borjie · yamethibitishwa",
+    "deepDive": "Soma zaidi",
+    "claims": [
+      {
+        "id": "Tumemadini\nMfumo wa Uendeshaji wa Shamba la Madini Unaotumia AI",
+        "title": "Mrabaha drafts za Tumemadini zinapita ukaguzi wa kwanza.",
+        "body": "Kila mrabaha ya mwezi iliyoandaliwa na Borjie kwa muundo wa Tumemadini inapita ukaguzi wa mamlaka bila kuandikwa upya. Takwimu kutoka uendeshaji wa mapema.",
+        "href": "/insights/tumemadini-format-utii"
+      },
+      {
+        "id": "lbma-hedge",
+        "title": "Kwa wazalishaji wa dhahabu, hedges za dirisha la LBMA zinaokoa 1.4% kwenye spot.",
+        "body": "Kwa wazalishaji wa dhahabu, Borjie anafunga kwenye dirisha la LBMA AM-fix kiotomatiki. Akiba ya mfano ya 1.4% dhidi ya spot wakati wa kupokea.",
+        "href": "/insights/lbma-window-hedging"
+      },
+      {
+        "id": "biometri",
+        "title": "Mahudhurio ya kidole yanaongeza tija ya zamu 18%.",
+        "body": "Fingerprint clock-in lango la pit inapunguza upotevu wa malipo na kuongeza tani zinazotolewa kwa zamu. Data kutoka uendeshaji Geita na Songwe.",
+        "href": "/insights/faida-ya-mahudhurio-ya-biometric"
+      }
+    ]
+  },
+  "trust": {
+    "kicker": "Iliyoaminika katika madini ya Tanzania",
+    "logos": [
+      "BRELA",
+      "TRA",
+      "Tumemadini",
+      "NEMC",
+      "Maabara za LBMA",
+      "M-Pesa · Tigo · Airtel"
+    ]
+  },
+  "stats": {
+    "kicker": "Kwa nambari",
+    "heading": "Nambari kutoka uendeshaji wetu wa mwanzo.",
+    "sub": "Wiki kumi na mbili za maendeleo pamoja na waendeshaji migodi Geita, Mererani, na Songwe. Imeundwa kukua kutoka PML moja kwenye simu ya mkononi hadi kampuni inayoshikilia Leseni Maalumu ya Madini yenye wafanyakazi maelfu. Takwimu za mfano kutoka kwa telemetria hai, zinasasishwa kila wiki.",
+    "items": [
+      {
+        "label": "Sites zenye brain hai",
+        "value": "47",
+        "delta": "+12 robo hii"
+      },
+      {
+        "label": "Briefings zilizotolewa kabla ya 06:00",
+        "value": "1,284\n:::",
+        "delta": "99.4% kwa wakati"
+      },
+      {
+        "label": "Entries za audit-chain zilizoandikwa",
+        "value": "184k",
+        "delta": "0 mabadiliko"
+      },
+      {
+        "label": "TZS iliyofungwa kwenye gold-window",
+        "value": "TZS 4.2B",
+        "delta": "Mfano"
+      }
+    ],
+    "footnote": "Nambari zinasasishwa kutoka telemetry hai. TZS iliyofungwa inawakilisha wave M3-M4; dashibodi inasasishwa kila wiki."
+  },
+  "finalCta": {
+    "kicker": "Tayari pale unapokuwa tayari",
+    "heading": "Tumia muda wako kwenye mgodi, sio karatasi.",
+    "sub": "Jisajili na kuanzisha mgodi wako ndani ya dakika. Wewe unaamua kiasi gani Mr. Mwikila anashughulikia, na kila kitendo kinabaki kwenye rekodi. Imejengwa kwa PML moja siku ya kwanza, tayari kwa kampuni ya SML unapokua.",
+    "ctaPrimary": "Jisajili",
+    "ctaSecondary": "Ingia",
+    "microcopy": "Anzisha mgodi wako leo. Una akaunti tayari? Ingia."
+  },
+  "capabilities": {
+    "kicker": "Unachoweza kufanya na Borjie",
+    "heading": "Kazi ya kuendesha mgodi, mahali pamoja.",
+    "sub": "Mambo sita ambayo kila mwendeshaji wa mgodi lazima ayafanye vizuri, yote kwenye skrini moja na yakisasishwa kwa ajili yako.",
+    "learnMore": "Soma zaidi",
+    "cards": {
+      "licence": {
+        "title": "Fuatilia kila leseni",
+        "blurb": "Leseni zako zote za PML, ML na SML kwenye kalenda moja, zikiwa na onyo la siku 90, 60 na 30 ili usikose tarehe ya kuhuisha."
+      },
+      "compliance": {
+        "title": "Wasilisha mrabaha kwa dakika",
+        "blurb": "Mr. Mwikila anaandaa taarifa yako ya mrabaha ya kila mwezi katika muundo wa Tume ya Madini na TMAA. Kagua, saini, wasilisha."
+      },
+      "treasury": {
+        "title": "Ona pesa zako waziwazi",
+        "blurb": "Hazina ya kuingiza mara mbili inayofuatilia fedha kwa TZS, madini uliyo nayo na malipo ya M-Pesa, ili ujue daima ulipo."
+      },
+      "marketplace": {
+        "title": "Uza madini kwa wanunuzi halisi",
+        "blurb": "Orodhesha dhahabu, vito na madini yako kwa wanunuzi waliothibitishwa, pokea zabuni, na funga mkataba wa mauzo, yote yakirekodiwa."
+      },
+      "drillhole": {
+        "title": "Endesha wafanyakazi wako",
+        "blurb": "Orodha, mahudhurio, mishahara, zamu na vyeti mahali pamoja. Msimamizi wako anaendesha kutoka simuni mgodini."
+      },
+      "brief": {
+        "title": "Baki katika utii",
+        "blurb": "Ukaguzi, mawasilisho ya kisheria na kumbukumbu zako zikiwa tayari wakati wowote Tume ya Madini, NEMC au TRA wanapouliza."
+      }
+    }
+  },
+  "how": {
+    "kicker": "02 · Inavyofanya kazi",
+    "heading": "Wiki yako ya kwanza. Hatua tatu.",
+    "steps": {
+      "one": {
+        "label": "Jisajili + KYB\n (Ujuzi wa Biashara Yako)",
+        "title": "Jisajili na uthibitishe biashara yako.",
+        "body": "Tunaunganisha na BRELA, TRA, na Tumemadini. KYB kamili ndani ya saa 48. Hakuna fomu za karatasi.",
+        "bullets": [
+          "BRELA · TRA · Tumemadini APIs",
+          "KYB kamili ndani ya saa 48",
+          "Sw au En kuanzia siku ya kwanza"
+        ]
+      },
+      "two": {
+        "label": "Import",
+        "title": "Leta leseni na sites zako.",
+        "body": "Upload leseni za PML/ML/SML, ramani za pit, drill-hole logs. Grafu ya mgodi wako inajengwa otomatiki.",
+        "bullets": [
+          "PML, ML, SML upload na OCR",
+          "Ramani za pit kama GeoJSON au PDF",
+          "Drill-hole logs kama CSV au laboratory PDF"
+        ]
+      },
+      "three": {
+        "label": "Akili Kuu",
+        "title": "Master Brain anachukua kazi.",
+        "body": "Anaanza kwa shadow mode kwa siku 14. Unaona kile angefanya. Halafu unaruhusu, hatua kwa hatua.",
+        "bullets": [
+          "Shadow mode kwa siku 14",
+          "Autonomy dial — wewe unaongeza kasi",
+          "Audit chain kwenye kila kitendo"
+        ]
+      }
+    }
+  },
+  "brief": {
+    "kicker": "03 · Briefing ya Asubuhi",
+    "heading": "Dakika yako ya kwanza saa 06:00.",
+    "sub": "Master Brain ameshughulikia shughuli za usiku. Hii ndio aliyofanya, alichoflagsha, na nambari zinasema nini.",
+    "demo": {
+      "greeting": "Habari za asubuhi, Mwl. Salim.",
+      "intro": "Mgodi ni shwari. Maamuzi matatu yanahitajika kabla ya 09:00.",
+      "stats": {
+        "overnightActions": "Vitendo vya usiku",
+        "decisions": "Maamuzi",
+        "goldOz": "Dhahabu (oz)",
+        "cashTzs": "Hazina (TZS)"
+      },
+      "streamingLabel": "Streaming · usiku wa 25 Mei",
+      "lines": [
+        {
+          "time": "22:14",
+          "domain": "Shimo la Geita · zamu B",
+          "body": "Shift B walitoa tani 184. Grade ya 3.2 g/t. Imehifadhiwa kwenye drill-hole log MR-241.",
+          "tone": "nzuri",
+          "tag": "OK"
+        },
+        {
+          "time": "23:47",
+          "domain": "Muuzaji wa Mererani",
+          "body": "Vendor \"Kahama Logistics\" amechelewa malipo ya tani 12. Imepelekwa kwa wewe kwa idhini ya extension.",
+          "tone": "onya",
+          "tag": "!"
+        },
+        {
+          "time": "01:33",
+          "domain": "PML 0241/2023 · Kahama",
+          "body": "Leseni inaisha kwa siku 47. Tumemadini renewal form imeandaliwa kwa review yako.",
+          "tone": "onya",
+          "tag": "!"
+        },
+        {
+          "time": "03:05",
+          "domain": "Hazina · gold-window",
+          "body": "Spot ya LBMA imepanda 1.4% ndani ya saa 6. Hedge proposal ya uncia 60 imeandaliwa.",
+          "tone": "nzuri",
+          "tag": "TX"
+        },
+        {
+          "time": "04:18",
+          "domain": "NEMC EIA · Songwe",
+          "body": "Quarterly emissions report imewasilishwa kwa NEMC. Acknowledgement #2604-A.",
+          "tone": "nzuri",
+          "tag": "OK"
+        },
+        {
+          "time": "05:42",
+          "domain": "Mrabaha return · TRA",
+          "body": "Mrabaha ya Aprili imeandaliwa: TZS 18.4M. Inahitaji saini yako kabla ya kupelekwa.",
+          "tone": "bendera",
+          "tag": "YOU"
+        }
+      ]
+    }
+  },
+  "ask": {
+    "kicker": "04 · Ongea na Mgodi Wako",
+    "heading": "Uliza. Inajibu.",
+    "sub": "Sio chatbot. Ni mgodi wenyewe ukiongea katika nafsi ya kwanza, kutoka kwa grafu yake ya maarifa, na nukuu zinazoweza kubofya.",
+    "question": "Cash runway yangu ni nini?",
+    "answerPlan": [
+      "Pata mizania ya TZS kwenye bank accounts zote",
+      "Pata gold inventory na live LBMA spot",
+      "Pata burn rate ya wiki 4 zilizopita"
+    ],
+    "answer": "Una TZS 412M mkononi na uncia 184 za dhahabu zenye thamani ya TZS 1.18B kwa spot ya leo. Burn ya wiki 4 zilizopita ni TZS 87M/wiki. Hiyo inakupa runway ya wiki 18.3 — au wiki 22 kama off-take ya Geita ya Februari ikitimia kwa wakati.",
+    "evidence": "Ushahidi: TRA bank-feed · LBMA spot · off-take MR-241",
+    "showcase": {
+      "kicker": "Ongea na mgodi wako",
+      "title": "Mimi ni mgodi.",
+      "subtitle": "Nafsi ya kwanza · imetakwa kwa grafu ya maarifa",
+      "youAsked": "Uliuliza",
+      "plan": "Mpango · streaming",
+      "answerLabel": "Jibu"
+    }
+  },
+  "autonomy": {
+    "kicker": "05 · Kipimo cha Uhuru wa Kufanya Kazi",
+    "heading": "Kasi yako, sio yetu.",
+    "sub": "Ngazi nne za uhuru. Kila ngazi inaeleweka. Hakuna chochote kinachofanyika bila idhini yako mpaka ukubali.",
+    "levels": {
+      "advise": "Inashauri tu. Wewe unafanya kazi.",
+      "propose": "Inaandaa drafts. Wewe unatuma.",
+      "executeWithApproval": "Inafanya kazi kwa kibali chako kwa kila hatua.",
+      "autonomous": "Inafanya kazi peke yake ndani ya sera yako. Red-lines bado vinahitaji kibali."
+    },
+    "labels": {
+      "dialLabel": "Ngazi ya uhuru",
+      "steps": [
+        "Shauri",
+        "Andaa",
+        "Tekeleza kwa idhini",
+        "Otomatiki"
+      ],
+      "redLineKicker": "Mstari mwekundu",
+      "redLineBody": "Master Brain haweti kamwe mrabaha TRA peke yake, hatumi NEMC EIA peke yake, na hauziwi dhahabu zaidi ya uncia 200 bila idhini ya mtumiaji. Si kwa ngazi yoyote.",
+      "redLineTag": "Mstari mwekundu · siyo otomatiki",
+      "autonomousTag": "Otomatiki kwenye ngazi hii",
+      "unlocksAtL": "Inafunguliwa L"
+    },
+    "capabilities": [
+      {
+        "id": "bei",
+        "label": "Andika daily price brief",
+        "minLevel": 0
+      },
+      {
+        "id": "zamu\n```",
+        "label": "Toa shift handover report",
+        "minLevel": 1
+      },
+      {
+        "id": "muuzaji",
+        "label": "Lipa vendor PO ndogo (< TZS 5M)",
+        "minLevel": 2
+      },
+      {
+        "id": "uzio",
+        "label": "Funga FX hedge ya wiki",
+        "minLevel": 2
+      },
+      {
+        "id": "pml",
+        "label": "Wasilisha PML renewal Tumemadini",
+        "minLevel": 99
+      },
+      {
+        "id": "mrabaha",
+        "label": "Wasilisha mrabaha TRA",
+        "minLevel": 99
+      },
+      {
+        "id": "NEMC",
+        "label": "Wasilisha NEMC EIA",
+        "minLevel": 99
+      },
+      {
+        "id": "mauzo\n```",
+        "label": "Uza dhahabu > 200 oz",
+        "minLevel": 99
+      }
+    ]
+  },
+  "chain": {
+    "kicker": "06 · Audit Chain",
+    "heading": "Kila kitendo kimerekodiwa kwa cryptography.",
+    "sub": "Append-only log ikiwa na SHA-256 prev-hash na HMAC kwa kila entry. Tumemadini, NEMC, na auditors wanaweza kuthibitisha bila kutuamini sisi.",
+    "fragmentHeader": "Chain fragment · thread th_18a · entries 4 za mwisho",
+    "verifiedLabel": "Imehakikishwa",
+    "depthFooter": "Chain depth: entries 18,429 · last signed 00:04 UTC · Tumemadini-exportable NDJSON bundle",
+    "fragment": [
+      {
+        "seq": 18426,
+        "at": "06:02:11",
+        "actor": "mtumiaji · mmiliki",
+        "decision": "imependekezwa",
+        "decisionTone": "ishara",
+        "action": "mine.user_message · hash sha256:7b3a…e91",
+        "prev": "9f…c2",
+        "hash": "3a…e91",
+        "sig": "hmac:4f…22"
+      },
+      {
+        "seq": 18427,
+        "at": "06:02:12",
+        "actor": "master_brain",
+        "decision": "imependekezwa",
+        "decisionTone": "signal",
+        "action": "mine.plan · hatua 3",
+        "prev": "3a…e91",
+        "hash": "8c…d04",
+        "sig": "hmac:1a…9b"
+      },
+      {
+        "seq": 18428,
+        "at": "06:02:14",
+        "actor": "master_brain",
+        "decision": "imetekelezwa",
+        "decisionTone": "success",
+        "action": "mine.tool.graph_lookup · gold_inventory=184oz",
+        "prev": "8c…d04",
+        "hash": "b1…7ae",
+        "sig": "hmac:5d…c1"
+      },
+      {
+        "seq": 18429,
+        "at": "06:02:15",
+        "actor": "master_brain",
+        "decision": "imetekelezwa",
+        "decisionTone": "success",
+        "action": "mine.turn_done · 3.8s · nukuu 3 · artifact 0",
+        "prev": "b1…7ae",
+        "hash": "2e…440",
+        "sig": "hmac:9e…88"
+      }
+    ],
+    "guarantees": [
+      {
+        "kicker": "Inathibitishika",
+        "title": "SHA-256 chain · HMAC kwa kila entry",
+        "body": "Kila row ina prev-hash pointer pamoja na HMAC signature. Kuchezea entry yoyote kunavunja kila signature baada yake. Export, hakikisha offline."
+      },
+      {
+        "kicker": "Ufichuzi mdogo",
+        "title": "Maudhui ya mtumiaji yamehashika, hayajahifadhiwa",
+        "body": "Tumemadini wanaweza kuthibitisha kuwa uliuliza X kwa wakati T bila kufichua X tena. Ujumbe wenyewe upo kwenye memory ya conversation; chain ina provenance peke yake."
+      },
+      {
+        "kicker": "Imegawanyika",
+        "title": "Tenant chain · Platform chain — havichanganyiki",
+        "body": "Per-tenant audit chains ni huru kabisa. Platform-scope queries hutua kwenye platform chain iliyotengwa. Cross-scope probes hurudi empty, hazifichui existence."
+      }
+    ]
+  },
+  "loopValidator": {
+    "kicker": "07 · Pengo la OODA Loop validator",
+    "heading": "Validator iliyokuwa imekosekana kwenye OODA Loop — imefungwa kwa muundo.",
+    "sub": "Borjie inatoa quality-gate validator ambayo karatasi ya IEEE Spectrum + Snyk inasema agentic AI haina. Kila hatua ambayo Mr. Mwikila anapendekeza inapita ukaguzi wa milango mitano kabla ya kuandikwa, kuarifu, au kuandika nje.",
+    "paper": {
+      "kicker": "Ugunduzi · IEEE Spectrum + Snyk · 2026",
+      "title": "Tatizo la OODA Loop kwenye Agentic AI",
+      "finding": "Agents zinazoendesha Observe → Orient → Decide → Act kwa mwendo wa mashine bila validator wazi kati ya Decide na Act hazikuzi thamani — zinakuza makosa. Suluhisho ni layer ya polepole, wazi, ya validating kati ya uamuzi na kitendo.",
+      "quote": "Mizunguko ya haraka inayopelekea maamuzi mabaya pale validator inapokosekana.",
+      "attribution": "Utafiti wa IEEE Spectrum + Snyk · 2026",
+      "linkLabel": "Soma makala ya IEEE Spectrum"
+    },
+    "response": {
+      "kicker": "Jibu la Borjie · Layer 4",
+      "title": "Milango mitano ya lazima. AND-combined. Hakuna njia ya kuruka.",
+      "body": "Mr. Mwikila anapitisha kila uamuzi kupitia package ya @borjie/loop-quality-gates kabla haujafika kwenye tool inayogusa dunia. Composite gate inaendesha milango yote mitano sambamba na AND-merge majibu — kushindwa moja kunasimamisha loop.",
+      "gates": [
+        {
+          "id": "groundedness",
+          "name": "Mlango wa Groundedness",
+          "blurb": "Kila madai halisi yanaonyesha EvidenceItem hai yenye URL au rejea ya mfumo-rasmi-wa-rekodi."
+        },
+        {
+          "id": "calibration",
+          "name": "Mlango wa Calibration",
+          "blurb": "Confidence iliyodaiwa inalingana na usahihi wa kihistoria. Lebo zenye kujiamini kupita kiasi zinashushwa au kukataliwa."
+        },
+        {
+          "id": "brand",
+          "name": "Mlango wa Brand",
+          "blurb": "Mr. Mwikila anabaki kwenye sauti yake. Design tokens pekee. Hakuna kupotea kwa persona, hakuna hex mbichi."
+        },
+        {
+          "id": "authority",
+          "name": "Mlango wa Authority",
+          "blurb": "Tier ya kitendo lazima iwe ndani ya authority iliyopewa loop. T2-Critical mutations zinaelekezwa kwa binadamu."
+        },
+        {
+          "id": "budget",
+          "name": "Mlango wa Budget",
+          "blurb": "ε-budget iliyobaki (tokens, wall-clock, tool calls) inabaki si-hasi baada ya kitendo kilichopendekezwa."
+        }
+      ]
+    },
+    "diagram": {
+      "kicker": "5-layer loop · validator gate inaonekana kati ya Decide na Act",
+      "legend": "OKLCH iliyobaniwa · hakuna hex",
+      "stages": [
+        "Observe",
+        "Orient",
+        "Decide",
+        "Act"
+      ],
+      "validatorLabel": "Quality Gates",
+      "gapLabel": "Pale IEEE + Snyk walisema validator inakosekana",
+      "closedByDesignLabel": "Imefungwa kwa muundo",
+      "flowLabel": "Loop inarudi Observe — kila mzunguko unathibitishwa upya",
+      "caption": "Observe, Orient, na Decide vinabaki kwenye mwendo wa mashine. Layer ya Quality Gates inapunguza kasi tu vya kutosha kuthibitisha groundedness, calibration, brand, authority, na budget — kisha Act inafuata. Kushindwa kunarudi kwenye learning, sio kwenye dunia."
+    },
+    "links": {
+      "spec": "Soma spec ya 5-layer loop architecture",
+      "snyk": "Utafiti wa Snyk",
+      "ieee": "Makala ya IEEE Spectrum"
+    }
+  },
+  "pricing": {
+    "kicker": "08 · Bei",
+    "heading": "Bei wazi. Hakuna mshangao.",
+    "sub": "Tiers tano. Lipa kila mwezi kwa TZS. Anza Mwanzo bure. Kuza unapokuwa tayari.",
+    "perMonth": "kwa mwezi",
+    "freeForever": "bure milele",
+    "bespoke": "Tuwasiliane",
+    "ctaStart": "Anza Mwanzo",
+    "ctaPilot": "Anza sasa",
+    "ctaTalk": "Ongea na timu",
+    "mostChosenBadge": "Wengi",
+    "footnote": "Bei zote katika TZS. Inaweza kulipwa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer."
+  },
+  "testimonial": {
+    "kicker": "09 · Sauti za Mapema",
+    "heading": "Quotes kutoka waendeshaji wa mapema.",
+    "sub": "Tunafanya kazi na waendeshaji wa mgodi katika Geita, Mererani, na Songwe ambao wanaendeshwa na Borjie. Hapa kile wanachosema.",
+    "placeholderBadge": "Waendeshaji wa mapema",
+    "cards": [
+      {
+        "name": "Joyce Mhagama",
+        "initials": "JM",
+        "role": "Mmiliki · Geita PML · sites 4",
+        "placeholder": "Quote inakuja kutoka waendeshaji wetu wa mapema."
+      },
+      {
+        "name": "Hamisi Ngao",
+        "initials": "HN",
+        "role": "Mwenyekiti · Mererani tanzanite co-op · members 18",
+        "placeholder": "Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain."
+      },
+      {
+        "name": "Asha Mwakajila",
+        "initials": "AM",
+        "role": "CFO · Songwe trading group · sites 9",
+        "placeholder": "Quote ya pilot itapatikana baada ya wiki 12 za uendeshaji wa moja kwa moja na Master Brain."
+      }
+    ]
+  },
+  "home": {
+    "frontierBanner": {
+      "kicker": "Toleo la Frontier",
+      "title": "Miundombinu ya Mali ya Madini, imeandikwa upya kwa mwendeshaji.",
+      "titleAccent": "Sio dashibodi.",
+      "sub": "Imejengwa kwa masoko ambayo mifumo ya uendeshaji wa madini bado haijawepo. Borjie inaleta mfumo wa uendeshaji unaobadilisha leseni moja ya madini ya Tanzania kuwa Mali yote ya Madini iliyo tulivu, iliyokaguliwa, inayoongozwa na AI, ikifunika kampuni tanzu, holdings, ofisi ya familia, urithi, daftari la mali na kila biashara ya ziada; kwa lugha mbili tangu siku ya kwanza."
+    },
+    "problemSolution": {
+      "kicker": "Kwa nini Borjie",
+      "title": "Kuendesha mgodi ni karatasi nyingi.",
+      "titleAccent": "Borjie inafanya sehemu hiyo.",
+      "subOne": "Migodi mingi Tanzania bado inaendeshwa kwa Excel, WhatsApp na faili la fomu za utii, vimetawanyika kwenye leseni, kitabu cha mrabaha, wafanyakazi, fedha na wanunuzi. Amana ni ya kiwango cha dunia. Zana zinazoizunguka sio.",
+      "subTwo": "Borjie inaweka yote kwenye skrini moja na kumwacha Mr. Mwikila ashughulikie kazi za kawaida, ili utumie muda wako kwenye mgodi, sio kwenye karatasi.",
+      "problem": {
+        "title": "Jinsi inavyofanyika leo",
+        "items": [
+          {
+            "title": "Taarifa za mrabaha zinafanywa kwa mkono",
+            "desc": "Unajenga upya taarifa ya Tume ya Madini na TMAA kwenye laha kila mwezi. Ukikosa dirisha la kuhuisha, unalipa ada ya kuwasilisha tena na kupoteza heshima kwa mamlaka."
+          },
+          {
+            "title": "Bei ya dhahabu inabadilika ukingoja",
+            "desc": "Waendeshaji wadogo wanauza kupitia ujumbe wa WhatsApp kwa madalali, bila mtazamo wazi wa bei ya LBMA wakati wa mauzo."
+          },
+          {
+            "title": "Utii umetawanyika",
+            "desc": "Tume ya Madini, NEMC, Benki Kuu ya Tanzania na TRA kila mmoja anataka nyaraka tofauti kwa tarehe tofauti. Unaishia kuwa afisa wa utii wa muda badala ya mchimbaji."
+          },
+          {
+            "title": "Huwezi kuona mgodi ukiwa ofisini",
+            "desc": "Nani aliingia, mafuta kiasi gani yalitumika, kilichotokea zamu ya usiku. Bila hayo, malipo yanavuja na mapengo ya usalama yanaongezeka wiki kwa wiki."
+          }
+        ]
+      },
+      "solution": {
+        "title": "Jinsi inavyofanyika kwenye Borjie",
+        "items": [
+          {
+            "title": "Mrabaha inaandaliwa kwa ajili yako",
+            "desc": "Mr. Mwikila anaandaa taarifa yako ya mrabaha ya kila mwezi kwa muundo wa Tume ya Madini na TMAA. Unakagua, unasaini mara moja, na unawasilisha. Kila mstari unatajwa."
+          },
+          {
+            "title": "Uza ukiwa unaona bei",
+            "desc": "Orodhesha parcel kwa wanunuzi waliothibitishwa, pokea zabuni dhidi ya bei ya LBMA, na funga mauzo kwa kumbukumbu badala ya kupitia WhatsApp."
+          },
+          {
+            "title": "Kila wasilisho mahali pamoja",
+            "desc": "Mawasilisho ya Tume ya Madini, NEMC, Benki Kuu ya Tanzania na TRA yanafuatiliwa kwa ratiba ya kila mamlaka, yakiwa na kumbukumbu ya ukaguzi mamlaka inayoweza kuthibitisha."
+          },
+          {
+            "title": "Mgodi kwenye simu ya msimamizi",
+            "desc": "Zamu, mahudhurio, kumbukumbu za mafuta na matukio yanaendeshwa kutoka mfukoni mwa foreman, na kuingia kazini langoni ili malipo yalingane na aliyefanya kazi kweli."
+          }
+        ]
+      }
+    },
+    "ecosystem": {
+      "kicker": "Mamlaka · masoko · njia",
+      "title": "Imeunganishwa na kila mshirika",
+      "titleAccent": "ambaye madini ya Tanzania anagusana naye.",
+      "sub": "Borjie inaungana na kila mamlaka, soko, lab, na njia ya malipo ambayo mwendeshaji tayari anashughulika nayo. Hakuna portal mpya za kujifunza — kazi inapita kupitia mifumo ambayo Tanzania tayari inaamini.",
+      "categories": [
+        {
+          "title": "Mamlaka",
+          "items": [
+            {
+              "name": "Tumemadini",
+              "desc": "Mining commission · mrabaha returns, mzunguko wa PML/ML/SML"
+            },
+            {
+              "name": "NEMC",
+              "desc": "Baraza la Mazingira · EIA, taarifa za robo mwaka, audit pack"
+            },
+            {
+              "name": "Benki Kuu",
+              "desc": "Dirisha la USD-cliff, malipo ya dirisha la dhahabu, viwango vya BoT"
+            },
+            {
+              "name": "TRA",
+              "desc": "Mamlaka ya Mapato · mrabaha, VAT, PAYE, withholding"
+            },
+            {
+              "name": "BRELA",
+              "desc": "Usajili wa biashara · KYB, wakurugenzi, hisa"
+            },
+            {
+              "name": "GST",
+              "desc": "Geological Survey Tanzania · ulodgement wa drill-hole + assay"
+            }
+          ]
+        },
+        {
+          "title": "Masoko & lab",
+          "items": [
+            {
+              "name": "LBMA",
+              "desc": "London Bullion Market Association · AM-fix kwa dhahabu"
+            },
+            {
+              "name": "ICA Brussels",
+              "desc": "International Coloured-stone Assoc. · uainishaji wa tanzanite"
+            },
+            {
+              "name": "Mining Commission",
+              "desc": "Rejista ya PML/ML/SML · uhamishaji, urejeshaji, rekodi za umma"
+            }
+          ]
+        },
+        {
+          "title": "Njia za malipo",
+          "items": [
+            {
+              "name": "M-Pesa",
+              "desc": "Vodacom · malipo ya wauzaji, mishahara, supplier float"
+            },
+            {
+              "name": "Tigo Pesa",
+              "desc": "Yas Tanzania · vendor wallet, malipo, B2C"
+            },
+            {
+              "name": "Airtel Money",
+              "desc": "Bharti Airtel · cross-border float, mtandao wa agents"
+            }
+          ]
+        }
+      ]
+    },
+    "universalAccess": {
+      "kicker": "Kiswahili kwanza · simu, tablet, desktop",
+      "title": "Kwa Kiswahili kwa kawaida.",
+      "titleAccent": "Kiingereza kwa mbofyo.",
+      "sub": "Borjie inafanya kazi kwa Kiswahili na Kiingereza kwenye kila skrini. Msimamizi anatumia simu mgodini, mmiliki anatumia tablet ofisini, mamlaka inatumia desktop. Data sawa, skrini sahihi kwa kila mmoja.",
+      "cards": [
+        {
+          "title": "Kiswahili kwanza, Kiingereza kwa mbofyo",
+          "body": "Kila lebo, muhtasari na wasilisho linasomeka kwa Kiswahili kwa kawaida. Badilisha kwenda Kiingereza kwa mbofyo mmoja na skrini nzima inafuata, bila kuchanganya lugha."
+        },
+        {
+          "title": "Simu kwa mgodi, tablet kwa ofisi",
+          "body": "Wasimamizi wanaendesha zamu kutoka simu, wakiwa na kuingia kazini, kumbukumbu za mafuta na taarifa za matukio. Wamiliki wanapitia muhtasari wa siku, hazina na kalenda ya leseni kwa tablet."
+        },
+        {
+          "title": "Desktop kwa mamlaka",
+          "body": "Tume ya Madini, NEMC na TRA wanapata mtazamo safi wa desktop, wenye kupakua kwa mbofyo mmoja mawasilisho na kumbukumbu ya ukaguzi wanayoweza kukagua wenyewe."
+        }
+      ]
+    },
+    "mwikilaModes": {
+      "kicker": "Kutana na Mwl. Mwikila",
+      "title": "Modes saba, mwendeshaji mmoja mtulivu.",
+      "titleAccent": "Bofya tabs kuwaona kazini.",
+      "sub": "Mwl. Mwikila ni Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Anabadilika na wakati — anakujengea brief saa 06:00, anaandika mrabaha mwisho wa mwezi, na kwa wazalishaji wa dhahabu, anafunga kwa dirisha la LBMA. Chagua mode kuona anavyofanya.",
+      "modes": [
+        {
+          "id": "build",
+          "label": "Jenga",
+          "headline": "Anasimamisha mining knowledge graph kwa saa 48",
+          "capabilities": [
+            "Anaingiza leseni za PML/ML/SML kwa OCR na anazifuatilia dhidi ya rejista ya Mining Commission",
+            "Anaingiza ramani za pit kama GeoJSON au PDF na anaunganisha kila drill-hole na segment",
+            "Anajenga rejista za vendor, off-taker, na worker kutoka rekodi za M-Pesa na payroll",
+            "Anatoa kila mwanachama wa timu credential ya jukumu — owner, meneja, wasimamizi, employee"
+          ]
+        },
+        {
+          "id": "strategy",
+          "label": "Mkakati",
+          "headline": "Anaona mwelekeo wa muda mrefu — pit, hazina, wafanyakazi, soko",
+          "capabilities": [
+            "Anasimulia uzalishaji wa miezi 12 dhidi ya hali tatu za bei ya dhahabu",
+            "Anakadiria cash runway kutoka burn ya sasa, kitabu cha hedge, na pipeline ya off-take",
+            "Anaalamisha urejeshaji wa PML siku 90, 60, na 30 mbele na drafts za Tumemadini zikiwa tayari",
+            "Anapendekeza fleet, contractor, na ununuzi wa explosives dhidi ya mpango wa robo"
+          ]
+        },
+        {
+          "id": "operations",
+          "label": "Uendeshaji",
+          "headline": "Anaendesha siku kutoka lango la pit hadi wash plant",
+          "capabilities": [
+            "Anapanga zamu na anafuatilia biometric clock-in kwenye simu ya wasimamizi",
+            "Anaweka kila drill-hole, assay, na measurement ya grade-control kwenye chain",
+            "Anafuatilia matumizi ya mafuta, lubricants, na explosives dhidi ya pit segments",
+            "Anaonyesha matukio ya usiku, near-misses, na downtime ya vifaa ifikapo saa 06:00"
+          ]
+        },
+        {
+          "id": "document",
+          "label": "Nyaraka",
+          "headline": "Anaandika kila artifact — mrabaha, NEMC EIA, OSHA log",
+          "capabilities": [
+            "Drafts za mrabaha za Tumemadini kwa muundo rasmi kila mwezi",
+            "NEMC EIA na taarifa za robo mwaka templates zinazojazwa kutoka telemetry",
+            "OSHA shift log, incident report, na corrective-action notes",
+            "Off-take contracts na biometric fingerprint signature workflow"
+          ]
+        },
+        {
+          "id": "finance",
+          "label": "Fedha",
+          "headline": "Anatazama cash, anawasilisha kodi, anafunga inapowezekana",
+          "capabilities": [
+            "Kwa wazalishaji wa dhahabu, anafunga kwenye LBMA AM-fix kiotomatiki ndani ya policy",
+            "Anafuatilia mizani ya TZS · USD · uncia za madini dhidi ya BoT USD cliff",
+            "Anaandaa returns za VAT, PAYE, na withholding-tax tayari kwa TRA filing",
+            "Analipa vendor wallets kupitia M-Pesa, Tigo Pesa, na Airtel Money"
+          ]
+        },
+        {
+          "id": "risk",
+          "label": "Hatari",
+          "headline": "Lango tano kati ya kila uamuzi na dunia",
+          "capabilities": [
+            "Groundedness gate — kila madai inataja evidence artifact",
+            "Calibration gate — confidence labels zinalingana na usahihi wa historia",
+            "Brand gate — Mwl. Mwikila anabaki katika voice, hapotezi",
+            "Authority + budget gates — tier na ε-budget zinatekelezwa kabla ya tool call yoyote"
+          ]
+        },
+        {
+          "id": "utii",
+          "label": "Utii",
+          "headline": "Hash-chain audited ili mamlaka kamwe haina haja ya kutuamini",
+          "capabilities": [
+            "Append-only audit chain — SHA-256 prev-hash plus per-entry HMAC",
+            "Kutengwa kwa kila tenant — chain yako kamwe haichanganyiki na mtu mwingine",
+            "Disclosure ndogo — user content ina hashed, sio hifadhiwa, kwenye chain",
+            "Tumemadini-exportable NDJSON bundle, inathibitishika offline"
+          ]
+        }
+      ]
+    },
+    "interactiveModes": {
+      "kicker": "Jinsi unavyozungumza na Borjie",
+      "title": "Milango mitatu kwa ubongo huo huo.",
+      "titleAccent": "Chagua moja inayofaa wakati.",
+      "sub": "Borjie iko kila mahali mmiliki wa madini anapomhitaji: kwenye ukurasa wa marketing unapomtathmini, kwenye home screen unapomjifunza, na kwenye gari ambapo huwezi kuangalia skrini.",
+      "modes": [
+        {
+          "id": "marketing",
+          "title": "Marketing chat",
+          "subtitle": "Inauza",
+          "desc": "Chat unayoitumia sasa hivi. Mwl. Mwikila anajibu maswali yako kuhusu bei, mamlaka, na ratiba — na anakuongeza kusajiri ukiwa tayari.",
+          "preview": {
+            "user": "Borjie inafanya nini kwa PML ya Geita?",
+            "ai": "Anaandaa mrabaha yako ya Tumemadini kwa muundo rasmi, anaendesha shift roster yako kwa simu ya wasimamizi, na kwa wazalishaji wa dhahabu anafunga kwa LBMA fix. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
+          }
+        },
+        {
+          "id": "home",
+          "title": "Home chat",
+          "subtitle": "Inafundisha",
+          "desc": "Ukiwa ndani ya Borjie, home chat inakufundisha mfumo. Uliza kuhusu kalenda ya leseni, autonomy dial, au jinsi mrabaha inavyowasilishwa — anajibu kwa kutaja data yako.",
+          "preview": {
+            "user": "Naongeza vipi PML mpya?",
+            "ai": "Fungua kalenda ya leseni, bofya +PML, scan cover ya leseni kwa simu yako. OCR itajaza fields za Tumemadini. Nitaalamisha field yoyote isiyolingana na rejista."
+          }
+        },
+        {
+          "id": "voice",
+          "title": "Sauti",
+          "subtitle": "Mikono-huru",
+          "desc": "Garini kwenye haul road. Kwenye wash plant deck. Lango la pit ambapo mikono yote miwili ni mchafu. Bofya mic, ongea, na Borjie anajibu kwa Kiswahili au Kiingereza.",
+          "preview": {
+            "user": "Mwikila, ni gani limetokea usiku?",
+            "ai": "Zamu B imetoa tani 184 kwa daraja la 3.2 g/t. Gari moja la mafuta limepoteza saa mbili kwa breakdown. Hakuna ajali. Mrabaha ya Aprili iko tayari kusainiwa."
+          }
+        }
+      ]
+    },
+    "platformShowcase": {
+      "kicker": "App tatu, mfumo mmoja",
+      "title": "Borjie inaishi wapi.",
+      "titleAccent": "Kwenye kila skrini mgodi unayohitaji.",
+      "sub": "Cockpit ya mmiliki, app ya wafanyakazi na soko la wanunuzi zote zinasoma data ile ile. Mmiliki anaendesha biashara, msimamizi anaendesha zamu, mnunuzi anatafuta parcel.",
+      "tiles": [
+        {
+          "title": "Cockpit ya mmiliki",
+          "subtitle": "Tablet na desktop",
+          "desc": "Muhtasari wa siku, kalenda ya leseni, hazina, wafanyakazi na utii, yote mahali pamoja kwa mmiliki.",
+          "mockType": "kpi",
+          "kpis": [
+            {
+              "label": "Oz Au mwezi huu",
+              "value": "184"
+            },
+            {
+              "label": "Cash runway (wks)",
+              "value": "18.3"
+            },
+            {
+              "label": "Siku za PML renewal",
+              "value": "47"
+            }
+          ]
+        },
+        {
+          "title": "App ya wafanyakazi",
+          "subtitle": "Simu · imefungwa kwa jukumu",
+          "desc": "Kuingia kazini, kumbukumbu ya zamu, mafuta na taarifa za matukio. App ambayo msimamizi anatumia mgodini kila zamu.",
+          "mockType": "shift",
+          "rows": [
+            {
+              "label": "Zamu B · pit segment 4",
+              "value": "184 t",
+              "tone": "good"
+            },
+            {
+              "label": "Mafuta · diesel",
+              "value": "412 L",
+              "tone": "warn"
+            },
+            {
+              "label": "Incidents",
+              "value": "0",
+              "tone": "good"
+            }
+          ]
+        },
+        {
+          "title": "Soko la wanunuzi",
+          "subtitle": "Web na simu",
+          "desc": "Wauzaji waliothibitishwa, vipimo vya maabara na mikataba ya mauzo iliyosainiwa. Mahali wanunuzi wanapotafuta madini ya Tanzania yaliyothibitishwa.",
+          "mockType": "market",
+          "listings": [
+            {
+              "label": "Geita doré · 60 oz",
+              "value": "TZS 142M",
+              "tone": "live"
+            },
+            {
+              "label": "Mererani tanzanite · Block-D",
+              "value": "TZS 88M",
+              "tone": "live"
+            },
+            {
+              "label": "Kigoma coltan · 2.4 t",
+              "value": "TZS 56M",
+              "tone": "live"
+            }
+          ]
+        }
+      ]
+    },
+    "bento": {
+      "kicker": "Borjie kwa muhtasari",
+      "title": "Tiles tano, mwendeshaji mmoja mtulivu.",
+      "titleAccent": "Kazi, ikionekana.",
+      "sub": "Features nzito za Borjie zimewekwa kwenye grid moja isiyo na uwiano. Kila tile ni sehemu halisi ya mfumo wa uendeshaji — sio mchoro wa marketing.",
+      "tiles": [
+        {
+          "id": "audit",
+          "title": "Audit chain",
+          "desc": "Kila hatua Mwl. Mwikila anayopendekeza inatua kwenye log ya SHA-256 hash-chained, HMAC-signed, append-only. Tumemadini, NEMC, na mkopeshaji wako wanathibitisha offline, hakuna kuamini kunahitajika.",
+          "badge": "Kicryptographically"
+        },
+        {
+          "id": "leseni",
+          "title": "Radar ya leseni ya siku 47",
+          "desc": "PML, ML, SML kwenye kalenda moja na onyo la siku 90, 60, 30, na 14 za kuisha. Tumemadini renewal pack inaandikwa kiotomatiki siku radar inayopinduka njano.",
+          "badge": "Hai sasa"
+        },
+        {
+          "id": "hedge",
+          "title": "LBMA window hedge",
+          "desc": "Borjie inafunga dhahabu yako dhidi ya BoT USD/gold window kwa LBMA AM-fix. Kila hedge inatajwa kwa bei ya fix, akiba ya 1.4% dhidi ya spot.",
+          "badge": "Hazina"
+        },
+        {
+          "id": "mrabaha",
+          "title": "Tumemadini mrabaha",
+          "desc": "Mrabaha ya kila mwezi inaandikwa kwa muundo rasmi wa Tumemadini siku inayofuata dirisha la kila parcel kufungwa. Saini moja, audit chain kamili.",
+          "badge": "Auto-draft"
+        },
+        {
+          "id": "wallet",
+          "title": "M-Pesa vendor wallet",
+          "desc": "Lipa wauzaji, contractors, na vibarua kupitia M-Pesa, Tigo Pesa, na Airtel Money. Kila malipo yamesainiwa kwa audit chain, ledger imepatanishwa usiku.",
+          "badge": "Mobile money"
+        }
+      ]
+    },
+    "insights": {
+      "kicker": "Kwa namba · sauti za mapema",
+      "title": "Waendeshaji wa mapema wanatuambia nini.",
+      "titleAccent": "Mfano, inarefreshiwa wiki kwa wiki.",
+      "sub": "Waendeshaji katika Geita, Mererani, na Songwe wanaendesha Borjie. Chini: namba kutoka telemetry kushoto, na kile waendeshaji wanasema kulia.",
+      "statsHeading": "Kwa namba",
+      "stats": [
+        {
+          "value": 47,
+          "suffix": "",
+          "label": "Sites chini ya brain hai"
+        },
+        {
+          "value": 1284,
+          "suffix": "",
+          "label": "Briefings zimewasilishwa kabla ya 06:00"
+        },
+        {
+          "value": 184,
+          "suffix": "k",
+          "label": "Audit-chain entries (mabadiliko sifuri)"
+        },
+        {
+          "value": 4.2,
+          "suffix": "B",
+          "decimals": 1,
+          "label": "TZS zilizofungwa kwa dirisha la dhahabu"
+        }
+      ],
+      "quotesHeading": "Sauti za waendeshaji wa mapema",
+      "quotes": [
+        {
+          "body": "Brief ya 06:00 kwa Kiswahili imebadilisha jinsi Jumatano yangu inaanza. Nilikuwa natumia masaa mawili kupata reports. Sasa nasaini maamuzi matatu na naelekea pit.",
+          "name": "Joyce Mhagama",
+          "role": "Mmiliki · Geita PML · sites 4"
+        },
+        {
+          "body": "Tumemadini mrabaha draft haijaandikwa upya na mamlaka hata mara moja. Miezi kumi na miwili ndani. Hiyo ni uthibitisho kwangu.",
+          "name": "Hamisi Ngao",
+          "role": "Mwenyekiti · Mererani co-op · wanachama 18"
+        },
+        {
+          "body": "Biometric clock-in iliua upotevu wetu wa malipo kwa wiki moja. Wasimamizi hatimaye ana simu inayofanya kazi, sio tu inapiga simu.",
+          "name": "Asha Mwakajila",
+          "role": "CFO · Songwe trading group · sites 9"
+        }
+      ]
+    },
+    "roadmap": {
+      "kicker": "Kinachofuata",
+      "title": "Anzisha mgodi wako kwenye Borjie.",
+      "titleAccent": "Hapa mwaka unaokuja.",
+      "sub": "Borjie inakuja kwa hatua. Hivi ndivyo tunavyojenga mwaka 2026, kitu kimoja kwa kila robo.",
+      "pills": [
+        {
+          "label": "Q1 2026",
+          "title": "Waendeshaji wa mapema: migodi kumi hai",
+          "tone": "active"
+        },
+        {
+          "label": "Q2 2026",
+          "title": "Radar ya leseni: pre-fill ya siku 47",
+          "tone": "next"
+        },
+        {
+          "label": "Q3 2026",
+          "title": "Vendor wallet: M-Pesa · Tigo · Airtel",
+          "tone": "later"
+        },
+        {
+          "label": "Q4 2026",
+          "title": "Buyer soko: public beta",
+          "tone": "later"
+        }
+      ],
+      "ctaPrimary": "Anza sasa",
+      "ctaSecondary": "Ongea nasi",
+      "microcopy": "Anzisha mgodi wako leo. Data yako inabaki yako."
+    }
+  },
+  "footer": {
+    "tagline": "Endesha leseni, mrabaha, wafanyakazi na madini yako kwenye skrini moja. Imejengwa kwa madini ya Tanzania.",
+    "product": "Bidhaa",
+    "company": "Kampuni",
+    "resources": "Rasilimali",
+    "legal": "Kisheria",
+    "audience": "Tunaowahudumia",
+    "rights": "Haki zote zimehifadhiwa.",
+    "locale": "Dar es Salaam · UTC+3",
+    "contactEmail": "hello@borjie.co.tz",
+    "contactLocation": "Dar es Salaam, Tanzania",
+    "complianceBadge": "Hifadhi ya Tanzania-region",
+    "systemsOperational": "Mfumo unaendelea",
+    "regulatorStrip": "Imeoanishwa na Tumemadini · NEMC · BoT · TRA · BRELA · LBMA",
+    "tanzaniaStorage": "Hifadhi ya Tanzania-region · Dar es Salaam",
+    "links": {
+      "capabilities": "Uwezo",
+      "masterBrain": "Master Brain",
+      "autonomy": "Autonomy",
+      "auditChain": "Audit chain",
+      "pricing": "Bei",
+      "pilot": "Pilot",
+      "about": "Kuhusu",
+      "careers": "Ajira",
+      "docs": "Nyaraka",
+      "privacy": "Faragha",
+      "terms": "Masharti",
+      "status": "Status"
+    }
+  },
+  "pilotPage": {
+    "kicker": "Anza sasa",
+    "heading": "Andaa mali yako ya Borjie.",
+    "sub": "Jisajiri na taarifa za leseni yako ya madini. Tutatathibitisha biashara yako na Tumemadini na Tume ya Madini ndani ya masaa 48. Unyumbufu kamili. Wewe unaweka kasi.",
+    "contact": "Maswali? Tuma email kwa hello@borjie.co.tz au piga +255 22 211 4000.",
+    "fields": {
+      "name": "Jina kamili",
+      "company": "Jina la kampuni",
+      "email": "Anwani ya barua pepe",
+      "phone": "Namba ya simu",
+      "portfolioSize": "Idadi ya sites unazomiliki",
+      "mineralFocus": "Madini yako kuu",
+      "mineralFocusPlaceholder": "Chagua madini"
+    },
+    "minerals": [
+      "Dhahabu",
+      "Tanzanite",
+      "Almasi",
+      "Bati",
+      "Coltan",
+      "Ujao",
+      "Mengineyo"
+    ],
+    "submit": "Jisajiri",
+    "success": "Asante. Tutatathibitisha biashara yako na kuandaa mali yako.",
+    "error": "Hitilafu imetokea. Tafadhali jaribu tena au tuma email kwa hello@borjie.co.tz"
+  },
+  "pricingPage": {
+    "kicker": "Bei",
+    "heading": "Jenga kwa hatua yako.",
+    "sub": "Tiers tano. TZS. Mwanzo ni bure milele. Tunalipa kwa M-Pesa, Tigo Pesa, Airtel Money, au bank transfer.",
+    "compareHeading": "Linganisha vipengele",
+    "compareSub": "Vipengele vyote vinapatikana kwa tiers zote. Tofauti ni quotas na msaada.",
+    "featureColumn": "Kipengele",
+    "trustBadgesHeading": "Imetengenezwa kwa jinsi migodi ya Tanzania inavyofanya kazi kweli.",
+    "trustBadges": [
+      {
+        "icon": "Lock",
+        "text": "Usimbaji wa AES-256-GCM"
+      },
+      {
+        "icon": "Shield",
+        "text": "Inalingana na BOT na Tumemadini"
+      },
+      {
+        "icon": "Globe",
+        "text": "Kiswahili na Kiingereza"
+      },
+      {
+        "icon": "Brain",
+        "text": "AI ya msingi, kiwango cha ukaguzi"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "ISO 27001 tayari"
+      }
+    ],
+    "faqKicker": "Maswali ya kawaida",
+    "faqHeading": "Maswali yanayoulizwa mara kwa mara",
+    "faqSub": "Kila kitu unachohitaji kujua kuhusu bei ya Borjie, malipo, na jukwaa linajumuisha nini katika kila kiwango.",
+    "faqs": [
+      {
+        "q": "Borjie ni nini?",
+        "a": "Borjie ni mfumo wa uendeshaji wa madini unaotumia AI asili. Mr. Mwikila ni safu yake ya akili. Borjie inaunganisha leseni, mrabaha, wafanyakazi, hazina, utii, soko, holdings, kampuni tanzu, biashara za ziada, ofisi ya familia, urithi, na daftari kamili la mali, vyote vikiongozwa na Mr. Mwikila, safu ya akili ndani ya Borjie."
+      },
+      {
+        "q": "Mwanzo ni bure kweli?",
+        "a": "Ndio. Mwanzo ni bure kabisa, hakuna kadi inayohitajika. Mmiliki mmoja, site moja, nyaraka 10 kwa mwezi, msaada wa jumuiya, na Bw. Mwikila katika hali ya ushauri. Pandisha tu wakati shughuli yako inahitaji reli za ziada."
+      },
+      {
+        "q": "Mkulima inatofautianaje na Mfanyabiashara?",
+        "a": "Mkulima ni kwa mmiliki mmoja wa PML anayesimamia site moja au mbili na wasimamizi mmoja au wawili. Mfanyabiashara inafungua sites nyingi, leseni nyingi, reli za hazina, na Wakala wa Enzi kwa vitendo vya hatari kubwa. Kama unaendesha mgodi zaidi ya mmoja, chagua Mfanyabiashara."
+      },
+      {
+        "q": "Mnakubali njia zipi za malipo?",
+        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, na uhamisho wa benki wa TZS. Bili za kila mwaka zinaweza kutolewa kwa ankara. Ripoti za hazina kwa TZS, USD na KES zinasaidiwa kwenye Kampuni na juu."
+      },
+      {
+        "q": "Naweza kubadilisha kiwango baadaye?",
+        "a": "Ndio. Kupandisha kunaanza kazi mara moja na data yako, leseni, site, na daftari vinakuja nawe. Kushusha kunagawanya bei mwishoni mwa mzunguko wa malipo; hakuna kinachofutwa, lakini vipengele vilivyo na kufunga vinasimama hadi upandishe tena."
+      },
+      {
+        "q": "Data inawekwa vipi kwa kila mteja?",
+        "a": "Kila mteja anatengwa na usalama wa safu kwenye safu ya hifadhidata. GUC ya app.current_tenant_id imefungwa na middleware ya api-gateway kwenye kila ombi. Hakuna njia ya msimbo wa programu inayoweza kupita hii. Mfululizo wa hash wa wateja wengi hauwezi kubadilishwa na ni wa kuongeza tu."
+      },
+      {
+        "q": "Group kiwango kinaongeza nini?",
+        "a": "Group ni kwa shirikisho, ushirika, na eneo la familia za biashara zinazohitaji kuunganisha wateja kadhaa wa Borjie chini ya mwamvuli mmoja na ripoti za wateja, idhini za wadhamini, na usimamizi maalumu."
+      },
+      {
+        "q": "Borjie inafuata BOT na Tumemadini?",
+        "a": "Ndio. Borjie imeundwa kuwasilisha ripoti za Tumemadini, kuelekeza risiti za royalti, na kuzalisha ripoti zinazolingana na BOT tangu mwanzo. Kila kitu kina mfululizo wa hash kwa ukaguzi wa mdhibiti."
+      },
+      {
+        "q": "Data inahifadhiwa wapi?",
+        "a": "Hifadhi ya msingi ya eneo la Tanzania na chelezo cha pili katika eneo lililoidhinishwa na mdhibiti. Imesimbwa wakati wa kupumzika kwa AES-256-GCM, wakati wa usafirishaji kwa TLS 1.3. Sub-processors na maeneo ya kuhifadhi yameandikwa kwenye /legal/subprocessors."
+      }
+    ],
+    "ctaHeading": "Tayari kuendesha eneo lako kwenye Borjie?",
+    "ctaSub": "Anza bure na Mwanzo. Jisajiri na kuleta eneo lako online ndani ya dakika.",
+    "ctaPrimary": "Anza bure",
+    "ctaSecondary": "Anza sasa"
+  },
+  "privacyPage": {
+    "kicker": "Faragha",
+    "heading": "Sera ya Faragha ya Borjie",
+    "lastUpdated": "Imesasishwa: 26 Mei 2026",
+    "sections": [
+      {
+        "title": "1. Tunakusanya nini",
+        "body": "Borjie inakusanya data ya biashara yako ya mgodi: leseni za PML/ML/SML, ramani za pit, drill-hole logs, shughuli za off-take, mrabaha returns, na ujumbe wa watumiaji wako. Hatukusanyi data za kibinafsi za wachimbaji binafsi isipokuwa ikiwa wameipakia wenyewe au mmiliki ametuagiza."
+      },
+      {
+        "title": "2. Kwa nini",
+        "body": "Tunatumia data hii kuendesha Master Brain yako, kutoa briefing za asubuhi, kuandaa reports kwa Tumemadini na TRA, na kufanya hedge proposals kwenye gold-window. Hatuiuzi kwa watu wengine. Hatuitumii kwa matangazo."
+      },
+      {
+        "title": "3. Wapi inaishi",
+        "body": "Data yako iko kwenye database iliyo Tanzania (Dar es Salaam region kwenye Fly.io fra1 kama backup). Audit chain ipo per-tenant. Tenant yako haiwezi kusoma chain ya tenant mwingine, hata kama wewe ni admin."
+      },
+      {
+        "title": "4. Haki zako",
+        "body": "Kwa mujibu wa Tanzania Personal Data Protection Act 2022, una haki ya kuangalia data yako, kurekebisha, kufuta, na kuhamisha kwa muuzaji mwingine. Tuma email kwa privacy@borjie.co.tz."
+      },
+      {
+        "title": "5. Tumemadini na NEMC",
+        "body": "Endapo mamlaka ya Tanzania (Tumemadini, NEMC, TRA, FIU) inahitaji data yako kwa mujibu wa sheria, tutawapa lakini tutakuarifu ndani ya siku 5 isipokuwa amri inayotaka tunyamaze imewekwa na korti."
+      },
+      {
+        "title": "6. Mawasiliano",
+        "body": "Sera hii inakuwa updated mara kwa mara. Mabadiliko makubwa tutakutumia notification ndani ya cockpit yako siku 30 kabla ya kuanza kutumika. Kwa swali lolote: privacy@borjie.co.tz."
+      }
+    ]
+  },
+  "termsPage": {
+    "kicker": "Masharti",
+    "heading": "Masharti ya Huduma ya Borjie",
+    "lastUpdated": "Imesasishwa: 26 Mei 2026",
+    "sections": [
+      {
+        "title": "1. Mkataba",
+        "body": "Kwa kutumia Borjie unakubali masharti haya. Borjie ni Borjie Tanzania Limited, kampuni iliyosajiliwa Tanzania (BRELA registration: pending). Mkataba unaongozwa na sheria za Tanzania. Sehemu yenye mamlaka ni Mahakama Kuu ya Tanzania Dar es Salaam."
+      },
+      {
+        "title": "2. Tiers na malipo",
+        "body": "Tiers tano: Mwanzo (bure), Mkulima (TZS 150,000/mwezi), Mfanyabiashara (TZS 500,000/mwezi), Kampuni (TZS 1,500,000/mwezi), Group (bespoke). Malipo kwa mwezi, mbele. Kushindwa kulipa kwa siku 14 kunazima kazi za autonomous (lakini huzima audit chain, historia yako inabaki yako milele)."
+      },
+      {
+        "title": "3. Data yako ni yako",
+        "body": "Wewe unamiliki data ya mgodi wako. Tunaweka tu kwa niaba yako. Ukifuta account, tutahamisha data yako (au kufuta) ndani ya siku 30. Audit chain inabaki immutable kwa mujibu wa sheria ya Tumemadini ya kuhifadhi rekodi."
+      },
+      {
+        "title": "4. Master Brain na uwajibikaji",
+        "body": "Master Brain anatekeleza kazi kwa kibali chako. Hatuhakikishi maamuzi yake bila kosa, lakini tunahakikisha kuwa kila kitendo kimerekodiwa kwenye audit chain. Endapo Borjie itasababisha hasara ya moja kwa moja kwa kasoro ya programu, dhima yetu imepunguzwa kwa malipo ya miezi 12 ya mwisho."
+      },
+      {
+        "title": "5. Vitendo vilivyokatazwa",
+        "body": "Hauwezi kutumia Borjie kuficha shughuli zilizo kinyume na sheria, kuepuka royalties za TRA, au kufanya money laundering. Ukianzisha shughuli yenye shaka, tutaiwajibisha mamlaka husika kwa mujibu wa sheria."
+      },
+      {
+        "title": "6. Kuvunja na kufungua tena",
+        "body": "Wewe au sisi tunaweza kuvunja mkataba kwa notice ya siku 30. Tukivunja, tutakuhamisha data ndani ya siku 60. Tunaweza kufunga account haraka kwa ukiukaji mkubwa wa masharti haya."
+      },
+      {
+        "title": "7. Mawasiliano",
+        "body": "Mabadiliko ya masharti: notice ya siku 30 kupitia cockpit yako. Kwa swali: legal@borjie.co.tz."
+      }
+    ]
+  },
+  "ownersPage": {
+    "kicker": "Kwa wamiliki wa migodi",
+    "heading": "Endesha mgodi wako kama wabora duniani.",
+    "sub": "Master Brain, kalenda ya leseni, drill-hole logger, FX/hazina, soko na utii, yote kwenye operator mmoja mtulivu.",
+    "ctaPilot": "Anza sasa",
+    "ctaPricing": "Ona bei"
+  },
+  "buyersPage": {
+    "kicker": "Kwa wanunuzi wa madini na off-takers",
+    "heading": "Pata madini ya Tanzania yaliyothibitishwa. Mwanzo hadi mwisho.",
+    "sub": "Wauzaji wa KYC, vipimo vya mnyororo wa ushahidi, saini za alama ya kidole. Nunua kwa uhakika.",
+    "ctaSignup": "Jisajili kushiriki",
+    "ctaTalk": "Ongea na timu ya sourcing",
+    "ctaSignUpBuy": "Jisajili kununua",
+    "ctaPricingFees": "Bei na ada",
+    "regionsHeading": "Mikoa ya uchimbaji",
+    "regions": [
+      "Geita (dhahabu)",
+      "Mererani (tanzanite)",
+      "Kahama (coltan)",
+      "Mbeya (shaba)",
+      "Tunduru (vito)",
+      "Chunya (doré)"
+    ],
+    "navLabel": "Wanunuzi",
+    "marketplaceFeeKicker": "Ada ya soko",
+    "marketplaceFeeBody": "Bila ada ya uanachama. Bure kuvinjari na kutoa bei. Ada inalipwa tu wakati mauzo yanapokamilika.",
+    "valueProps": {
+      "kicker": "01 · Kwa nini wanunuzi wanaamini Borjie",
+      "heading": "Nguzo nne za usambazaji uliothibitishwa.",
+      "sub": "Kila gramu kwenye Borjie ina njia inayothibitishika kutoka shimo la kuchimba hadi kipimo cha mizani.",
+      "shortCards": [
+        {
+          "title": "Asili iliyothibitishwa",
+          "body": "Kila kifurushi cha madini kinapata mnyororo wa ushahidi tangu shimo la kuchimbia hadi pima ya mizani."
+        },
+        {
+          "title": "Wauzaji wameaminika",
+          "body": "Borjie inakagua kila leseni ya PML/PL/ML, NIDA ya mmiliki, na hali ya TRA kabla mauzaji hayajaweza kuorodhesha."
+        },
+        {
+          "title": "Vyeti vya assay vya LBMA",
+          "body": "Vipimo vya dhahabu, tanzanite, coltan na shaba kutoka maabara zilizoidhinishwa kimataifa."
+        },
+        {
+          "title": "Mikataba ya kidijitali",
+          "body": "Sahihi za alama ya kidole zisizoweza kupingwa, mikataba inashikamana mahakamani."
+        }
+      ],
+      "cards": {
+        "provenance": {
+          "title": "Asili iliyothibitishwa",
+          "blurb": "Mnyororo wa ushahidi kutoka drill-hole hadi weighbridge. Kila uhamisho umesainiwa, umetiwa muda, na kuandikwa kwenye audit chain."
+        },
+        "kyb": {
+          "title": "Wauzaji wa KYB",
+          "blurb": "Borjie inakagua kila muuzaji kabla ya kuorodhesha. BRELA, TRA, na Tumemadini cross-checks. Hakuna traders wasiojulikana."
+        },
+        "assays": {
+          "title": "Vyeti vya assay",
+          "blurb": "Maabara za kiwango cha LBMA Dar es Salaam na Mwanza. Fire assay kwa dhahabu, ICP-MS kwa coltan, vyeti vya gemmological kwa tanzanite."
+        },
+        "biometric": {
+          "title": "Off-take ya alama ya kidole",
+          "blurb": "Mikataba imesainiwa kwa alama ya kidole pamoja na liveness. Haipingiki. Kila saini imewekwa kwenye audit chain."
+        }
+      }
+    },
+    "builtFor": {
+      "kicker": "02 · Imejengwa kwa wanunuzi waliothibitishwa",
+      "heading": "Imejengwa kwa wanunuzi waliothibitishwa.",
+      "sub": "Borjie inaingiza kundi lake la kwanza la refineries, nyumba za vito na off-takers. Kila muuzaji amethibitishwa kwa KYB, kila bidhaa ina njia ya mnyororo wa ulinzi, na kila mkataba unasainiwa kwa biometriki. Omba kujiunga na buyer pilot.",
+      "cards": [
+        {
+          "title": "Wenzako waliothibitishwa kwa KYB",
+          "body": "Kila leseni ya PML, PL na ML, NIDA ya mmiliki na hadhi ya TRA inakaguliwa kabla muuzaji hajaorodhesha. Unashiriki bid dhidi ya bidhaa zilizothibitishwa, si bidhaa zisizojulikana."
+        },
+        {
+          "title": "Mnyororo wa ulinzi kwa kila bidhaa",
+          "body": "Kila lot ya ore ina njia inayothibitishwa kutoka drill-hole hadi weighbridge, ili uruke due diligence yako ya field na ununue kwa uhakika."
+        },
+        {
+          "title": "Mikataba ya biometriki, inayotekelezeka",
+          "body": "Mikataba ya off-take inasainiwa kwa saini za alama za vidole zisizokataliwa na inarekodiwa kwenye audit chain kwa kila tenant, inayotekelezeka mahakamani."
+        }
+      ],
+      "cta": "Omba kujiunga na buyer pilot"
+    },
+    "pricing": {
+      "kicker": "03 · Bei",
+      "heading": "Bure kuvinjari. Commission kwenye biashara zilizokamilika.",
+      "sub": "Wanunuzi hawalipi kitu kujisajili, kutafuta, na kuweka bid. Borjie inachukua 2.5% commission kwenye bei ya mwisho ya biashara unayoifunga kwenye platform.",
+      "bullets": [
+        "Bure kujisajili na KYB",
+        "Bure kuvinjari na kuweka bid",
+        "2.5% commission kwenye biashara zilizokamilika pekee",
+        "Hakuna ada ya mafanikio kwenye bids zisizokamilika",
+        "Vyeti vya assay vinaingia ndani ya commission"
+      ],
+      "footnote": "Commission ya upande wa mnunuzi inahesabiwa kwa thamani ya jumla iliyolipwa, inaonyeshwa kwenye kusaini off-take, kulipwa kwa TZS au USD kwa mkataba."
+    },
+    "downloadCta": {
+      "heading": "Jisajili kushiriki.",
+      "sub": "Buyer mobile app iko katika upimaji wa kibinafsi pamoja na wanunuzi kumi na sita wa Tanzania na Afrika Mashariki. Jiunge na waitlist kwa toleo la umma la Septemba 2026.",
+      "primary": "Jiunge na buyer waitlist",
+      "secondary": "Ongea na timu ya sourcing"
+    },
+    "ctaAlreadyBuyer": "Una akaunti tayari? Ingia"
+  },
+  "buyerSignupPage": {
+    "metaTitle": "Jisajili kama mnunuzi — Borjie",
+    "metaDescription": "Jisajili kama mnunuzi wa madini kwenye Borjie. KYC, mnyororo wa ushahidi, na sahihi za alama ya kidole.",
+    "kicker": "Jisajili kama mnunuzi",
+    "heading": "Anza kununua madini yaliyothibitishwa.",
+    "sub": "Chagua aina ya akaunti yako. Akaunti binafsi kwa wanunuzi wa kawaida. Akaunti ya biashara kwa refineries, brokers, fabricators, na investors.",
+    "steps": {
+      "kind": "1. Aina",
+      "details": "2. Taarifa",
+      "review": "3. Thibitisha"
+    },
+    "kindStep": {
+      "heading": "Unataka kujisajili kama nani?",
+      "individualTitle": "Mimi ni mtu binafsi",
+      "individualSubtitle": "Mnunuzi wa kawaida wa madini.",
+      "individualBullets": [
+        "Jina kamili na simu",
+        "Barua pepe",
+        "Nambari ya NIDA — si lazima"
+      ],
+      "businessTitle": "Mimi nina kampuni / shirika",
+      "businessSubtitle": "Refinery, broker, fabricator, au investor.",
+      "businessBullets": [
+        "Jina la kampuni + nambari ya BRELA",
+        "Nambari ya TIN",
+        "Aina ya biashara (refiner / broker / fabricator / investor)",
+        "Jina, simu, na barua pepe ya mawasiliano"
+      ],
+      "continue": "Endelea"
+    },
+    "fields": {
+      "country": "Nchi",
+      "fullName": "Jina kamili",
+      "phone": "Simu",
+      "email": "Barua pepe",
+      "preferredLanguage": "Lugha",
+      "preferredCurrency": "Sarafu",
+      "nationalId": "Kitambulisho cha NIDA",
+      "orgName": "Jina la kampuni",
+      "businessKind": "Aina ya biashara",
+      "businessRegistrationNumber": "Nambari ya BRELA",
+      "taxId": "Nambari ya TIN",
+      "contactFullName": "Jina la mawasiliano",
+      "contactPhone": "Simu ya mawasiliano",
+      "contactEmail": "Barua pepe ya mawasiliano"
+    },
+    "businessKinds": {
+      "refiner": "Refinery",
+      "broker": "Broker",
+      "fabricator": "Fabricator",
+      "investor": "Investor",
+      "other": "Nyingine"
+    },
+    "actions": {
+      "back": "Rudi",
+      "next": "Endelea",
+      "submit": "Jisajili sasa",
+      "submitting": "Inatuma…"
+    },
+    "errors": {
+      "fullNameRequired": "Jina kamili linahitajika",
+      "phoneInvalid": "Weka simu sahihi (mfano +255712345678)",
+      "emailInvalid": "Weka anwani halali ya barua pepe",
+      "orgNameRequired": "Jina la kampuni linahitajika",
+      "businessKindRequired": "Chagua aina ya biashara",
+      "businessRegRequired": "Nambari ya BRELA inahitajika",
+      "taxIdRequired": "Nambari ya TIN inahitajika",
+      "submitFailed": "Imeshindwa kujisajili. Jaribu tena.",
+      "emailAlreadyRegistered": "Barua pepe hii tayari imesajiliwa.",
+      "phoneAlreadyRegistered": "Simu hii tayari imesajiliwa.",
+      "providerUnavailable": "Huduma ya uthibitishaji haipatikani kwa sasa."
+    },
+    "alreadyHaveAccount": "Una akaunti tayari?",
+    "signInLink": "Ingia"
+  },
+  "ownerSignInPage": {
+    "metaTitle": "Ingia Borjie",
+    "metaDescription": "Ingia kwenye cockpit yako ya mmiliki Borjie.",
+    "kicker": "Cockpit ya Mmiliki",
+    "heading": "Karibu tena.",
+    "sub": "Ingia ili kuendesha mgodi wako.",
+    "fields": {
+      "email": "Barua pepe",
+      "emailEn": "Email",
+      "password": "Nenosiri",
+      "passwordEn": "Password"
+    },
+    "actions": {
+      "submit": "Ingia",
+      "submitting": "Inaingia"
+    },
+    "errors": {
+      "emailRequired": "Weka anwani halali ya barua pepe",
+      "passwordRequired": "Nenosiri linahitajika",
+      "signInFailed": "Imeshindwa kuingia. Hakiki taarifa zako."
+    },
+    "fromSignup": "Akaunti imeundwa. Ingia kuanza kazi.",
+    "noAccountYet": "Huna akaunti?",
+    "signUpLink": "Jisajili"
+  },
+  "ownerSignUpPage": {
+    "metaTitle": "Unda akaunti ya Borjie",
+    "metaDescription": "Anzisha cockpit yako ya mmiliki Borjie ndani ya dakika mbili.",
+    "kicker": "Akaunti mpya ya Borjie",
+    "heading": "Anza na Borjie.",
+    "sub": "Anzisha mfumo wako wa uendeshaji wa mgodi ndani ya dakika mbili.",
+    "fields": {
+      "orgName": "Jina la mgodi au kampuni",
+      "orgNameSub": "Mine or kampuni",
+      "ownerFullName": "Jina lako kamili",
+      "ownerFullNameSub": "Full name",
+      "email": "Barua pepe",
+      "emailSub": "Email",
+      "password": "Nenosiri",
+      "passwordSub": "Password",
+      "passwordHelp": "Angalau herufi 8.",
+      "country": "Nchi unayofanyia kazi"
+    },
+    "countries": {
+      "TZ": "Tanzania",
+      "KE": "Kenya",
+      "UG": "Uganda",
+      "NG": "Nigeria"
+    },
+    "actions": {
+      "submit": "Tengeneza cockpit yangu",
+      "submitting": "Inaunda"
+    },
+    "errors": {
+      "orgNameRequired": "Jina la mgodi au kampuni linahitajika",
+      "ownerFullNameRequired": "Weka jina lako kamili",
+      "emailRequired": "Weka anwani halali ya barua pepe",
+      "passwordTooShort": "Nenosiri lazima liwe na herufi 8 au zaidi",
+      "signUpFailed": "Usajili umeshindikana. Jaribu tena au wasiliana na msaada."
+    },
+    "haveAccount": "Una akaunti tayari?",
+    "signInLink": "Ingia",
+    "disclaimer": "Tutakupelekea risiti kwa barua pepe. Uthibitisho wa BRELA na TRA unafanyika baada ya usajili; unaweza kutumia cockpit wakati unaendelea."
+  },
+  "buyerSignInPage": {
+    "metaTitle": "Ingia kama mnunuzi — Borjie",
+    "metaDescription": "Ingia kwenye akaunti yako ya mnunuzi wa madini ya Borjie.",
+    "kicker": "Ingia kama mnunuzi",
+    "heading": "Karibu tena.",
+    "sub": "Ingia kwenye akaunti yako ya mnunuzi ili kuendelea kununua madini yaliyothibitishwa.",
+    "fields": {
+      "email": "Barua pepe",
+      "password": "Nenosiri"
+    },
+    "actions": {
+      "submit": "Ingia",
+      "submitting": "Inaingia…"
+    },
+    "errors": {
+      "emailRequired": "Weka anwani halali ya barua pepe",
+      "passwordRequired": "Nenosiri linahitajika",
+      "signInFailed": "Imeshindwa kuingia. Hakiki taarifa zako."
+    },
+    "fromSignup": "Akaunti yako imeundwa. Ingia ili kuanza kununua.",
+    "noAccountYet": "Huna akaunti?",
+    "signUpLink": "Jisajili"
+  },
+  "investorsPage": {
+    "kicker": "Kwa wawekezaji na wakopeshaji",
+    "heading": "Mtaji wa madini ukiwa na telemetry.",
+    "sub": "Borjie inawapa wakopeshaji na LPs briefs za kila siku zenye ushahidi kwenye kila deployment — uzalishaji, cash runway, FX exposure, hali ya mamlaka.",
+    "ctaSchedule": "Panga simu",
+    "ctaAuditPack": "Ona audit pack",
+    "valueProps": {
+      "kicker": "01 · Kwa nini wagawa mitaji wanachagua Borjie",
+      "heading": "Nguzo nne za ushahidi kwa wawekezaji.",
+      "sub": "Imejengwa kwa swali la mkopeshaji: kinachoendelea uwanjani leo ni nini.",
+      "cards": {
+        "dailyBrief": {
+          "title": "Reports za kila siku zenye ushahidi",
+          "blurb": "Kila asubuhi saa 06:00 kila mgodi wa portfolio unaandaa brief inayofunika uzalishaji, hazina, hali ya leseni, na matukio. Imenukuliwa line-by-line kwenye data ya chanzo."
+        },
+        "usdCliff": {
+          "title": "Remediation ya USD cliff ya 27-Mar-2026",
+          "blurb": "Inafuatilia USD exposure dhidi ya tarehe ya cliff ya kanuni. Inapendekeza hedges, sarafu mbadala za invoice, na settlement za gold-window."
+        },
+        "auditPack": {
+          "title": "Export ya audit-pack",
+          "blurb": "One-click export ya cryptographic audit chain, leseni, mrabaha returns, OSHA logs, na bank reconciliations kwa due diligence."
+        },
+        "treasury": {
+          "title": "Hazina simulation",
+          "blurb": "Stress-test ya muda wa off-take, mabadiliko ya bei ya dhahabu, na TZS/USD swings. Ona athari kwenye covenant ratios kabla ya kutokea."
+        }
+      }
+    },
+    "caseStudy": {
+      "kicker": "02 · Case study",
+      "heading": "Deployment ya mfano.",
+      "sub": "Hakuna deals zilizofungwa bado. Nambari hapa chini zinaonyesha jinsi audit pack ya Borjie ingewaonyesha senior secured lender cluster ya kawaida ya PML ya kati Geita.",
+      "disclaimer": "Ya mfano tu. Nambari ni za mfano, hazitoki kwenye deal halisi iliyofungwa.",
+      "metrics": {
+        "deployment": {
+          "label": "Deployment",
+          "value": "USD 4.2M senior secured"
+        },
+        "cluster": {
+          "label": "Cluster",
+          "value": "Geita PML · sites 9"
+        },
+        "production": {
+          "label": "Run-rate",
+          "value": "184 oz Au / mwezi"
+        },
+        "runway": {
+          "label": "Cash runway",
+          "value": "Wiki 18.3"
+        },
+        "ltv": {
+          "label": "LTV (proven ounces)",
+          "value": "32%"
+        },
+        "covenant": {
+          "label": "DSCR covenant",
+          "value": "1.85x · mbele"
+        }
+      },
+      "bullets": [
+        "Brief ya kila siku saa 06:00 inapelekwa kwenye lender dashibodi",
+        "Cryptographic audit chain kwenye kila uhamisho wa PML",
+        "DSCR ya mfano inaprojectwa upya kila asubuhi",
+        "USD cliff exposure inafuatiliwa kila wiki"
+      ]
+    },
+    "contact": {
+      "kicker": "03 · Panga simu",
+      "heading": "Maswali ya kitaasisi.",
+      "sub": "Kwa wakopeshaji, LPs, family offices, na DFIs wanaopenda exposure iliyoundwa kwa madini ya Tanzania pamoja na cryptographic audit chains.",
+      "fields": {
+        "name": "Jina lako",
+        "organisation": "Shirika",
+        "email": "Email ya kazi",
+        "role": "Nafasi yako",
+        "ticketSize": "Ukubwa wa ticket wa mfano (USD)",
+        "message": "Ungependa kuongea kuhusu nini?"
+      },
+      "submit": "Panga simu",
+      "success": "Asante. Timu yetu itajibu ndani ya siku 2 za kazi.",
+      "error": "Hatukuweza kutuma fomu. Tafadhali tuma email kwa investors@borjie.co.tz."
+    }
+  },
+  "blog": {
+    "kicker": "Blogu",
+    "heading": "Maelezo ya uwanjani kutoka migodi ya Tanzania.",
+    "sub": "Maandishi kuhusu leseni, hazina, jiolojia, na ujenzi wa polepole wa mfumo wa uendeshaji wa AI kwa sekta.",
+    "readMore": "Soma makala",
+    "minRead": "dakika za kusoma",
+    "backToBlog": "Rudi kwenye makala zote",
+    "emptyHeading": "Maelezo ya uwanjani yanapakia.",
+    "emptyBody": "Insha za kwanza kutoka kwa timu ya Borjie zinafika kwenye ukurasa huu wiki chache zijazo. Wakati huo huo, vipimo na maelezo ya kila wimbi yapo kwenye nyaraka.",
+    "emptyCtaPrimary": "Soma nyaraka",
+    "emptyCtaSecondary": "Omba pilot",
+    "featuredKicker": "Maelezo ya uwanjani",
+    "authorBy": "Na",
+    "related": "Maelezo yanayohusiana",
+    "shareHeading": "Shiriki",
+    "shareTwitter": "Shiriki Twitter",
+    "shareLinkedin": "Shiriki LinkedIn",
+    "shareCopy": "Nakili kiungo",
+    "subscribeHeading": "Muhtasari wa asubuhi.",
+    "subscribeSub": "Maelezo ya kila wiki kutoka kwa timu ya Borjie. Habari za uwanjani, masuala ya sera, mabadiliko ya hazina, bila ulaghai.",
+    "subscribePlaceholder": "Barua pepe yako",
+    "subscribeCta": "Jiunge"
+  },
+  "caseStudies": {
+    "kicker": "Case studies",
+    "heading": "Case studies za pilot zinakuja Q3 2026.",
+    "sub": "Waanzilishi kumi katika Geita, Mererani, na Songwe wanaendesha pilot za wiki 12. Cohort ya kwanza ikikamilika tutaweka case studies kamili — kupanda kwa uzalishaji, kupungua kwa cash-cycle, matokeo ya audit.",
+    "placeholderBadge": "Bado inaendelea",
+    "back": "Rudi nyumbani"
+  },
+  "careers": {
+    "kicker": "Ajira",
+    "heading": "Jenga mfumo wa uendeshaji ambao madini ya Tanzania yanastahili.",
+    "sub": "Timu ndogo, muktadha wa kina wa madini, Swahili-kwanza. Hybrid Dar es Salaam / remote. Tunaajiri kwa ladha, hukumu, na uangalifu.",
+    "openRoles": "Nafasi zilizo wazi",
+    "applyCta": "Omba kupitia careers@borjie.co.tz",
+    "roles": {
+      "domain": {
+        "title": "Mtaalamu wa madini wa Tanzania",
+        "location": "Dar es Salaam · hybrid",
+        "blurb": "Mining engineer mwandamizi au geologist mwenye uzoefu wa kina wa PML/ML/SML na Tumemadini. Unakuwa mtoa-ukweli wa kile bidhaa yetu inapaswa kufanya."
+      },
+      "engineer": {
+        "title": "TypeScript engineer mwandamizi",
+        "location": "Remote · UTC+0 hadi UTC+3",
+        "blurb": "Multi-tenant, Postgres, Hono, Next 15, AI-native. Unasafirisha mwanzo hadi mwisho na unachukulia kila line kana kwamba itakuwa kwenye audit ya mamlaka."
+      },
+      "pilot": {
+        "title": "Meneja wa mafanikio wa pilot",
+        "location": "Geita au Mwanza · uwanjani",
+        "blurb": "Unaishi kwenye pilot sites zetu. Unajua kila operator kwa jina. Unatafsiri uhalisia wa uwanjani kuwa product backlog kila wiki."
+      }
+    },
+    "values": {
+      "heading": "Jinsi tunavyofanya kazi",
+      "items": [
+        "Swahili-kwanza. Kiingereza ni lugha ya pili, sio default.",
+        "Uhalisia wa uwanjani unashinda slide decks. Kila PM anatembelea pilot site kila robo mwaka.",
+        "Cryptographic audit chain haijadiliwi. Kila kitendo kimesainiwa.",
+        "Maongezi rahisi. Hatusemi synergy. Tunasema kilichotokea leo."
+      ]
+    }
+  },
+  "about": {
+    "kicker": "Kuhusu Borjie",
+    "heading": "Mfumo wa uendeshaji uliojengwa kwa na na madini ya Tanzania.",
+    "sub": "Borjie ilianzishwa na timu ndogo ya Tanzania na diaspora baada ya kuona kizazi kingine cha operators kikiendesha amana za kiwango cha kimataifa kwenye spreadsheets.",
+    "originHeading": "Hadithi ya asili",
+    "originBody": "Tulikutana Geita na Dar es Salaam mwaka 2024, tukibadilishana maelezo kuhusu kwa nini kila ERP ya madini ilihisi imeundwa kwa nchi ya mtu mwingine. Kufikia mwanzo wa 2026 tulikuwa na Master Brain inayofanya kazi na pilot kumi. Lengo lilibaki lilelile: mfumo wa uendeshaji unaoheshimu jinsi madini ya Tanzania yanavyofanya kazi kweli — KYC kwa wachimbaji wadogo, hesabu za mrabaha ambazo TRA inazitambua, briefings kwa Kiswahili saa 06:00.",
+    "teamHeading": "Timu",
+    "teamSub": "Tanzania na diaspora. Madini, fintech, AI infrastructure. Hybrid Dar es Salaam.",
+    "valuesHeading": "Maadili",
+    "values": [
+      {
+        "title": "Tanzania-kwanza",
+        "body": "Tunaboresha kwa mgodi, lugha, mamlaka, na sarafu ambazo operators wetu wanazitumia kweli."
+      },
+      {
+        "title": "Cryptographically honest",
+        "body": "Kila kitendo kinasimama kwenye append-only chain. Mamlaka, wakopeshaji, na operators wanaweza kuthibitisha bila kutuamini."
+      },
+      {
+        "title": "Mtulivu kwa default",
+        "body": "Madini hayahitaji dashibodi nyingine yenye rangi nyekundu. Master Brain anashughulika usiku. Operators wanapata brief wazi, mtulivu saa 06:00."
+      }
+    ],
+    "contactHeading": "Wasiliana",
+    "contactBody": "hello@borjie.co.tz · +255 22 211 4000 · Dar es Salaam · UTC+3"
+  },
+  "statusPage": {
+    "kicker": "Hali ya mfumo",
+    "heading": "Hali ya Borjie",
+    "sub": "Hali ya sasa ya huduma zetu na historia ya siku 90 zilizopita.",
+    "subscribeNote": "Hali hii inasasishwa kila baada ya sekunde 30. Iwapo kuna tatizo kubwa, tutawasilisha taarifa kwa wateja wote walioathirika kupitia barua pepe."
+  },
+  "status": {
+    "overall": {
+      "ok": "Mifumo yote inafanya kazi vizuri",
+      "degraded": "Baadhi ya huduma zina utendaji uliopungua",
+      "outage": "Tunashughulikia tatizo",
+      "unknown": "Hali haifahamiki"
+    },
+    "componentLabel": {
+      "api-gateway": "API Gateway",
+      "database": "Database",
+      "auth": "Auth",
+      "storage": "Storage",
+      "workers": "Workers",
+      "realtime": "Realtime"
+    },
+    "statusLabel": {
+      "ok": "Inafanya kazi",
+      "degraded": "Utendaji umepungua",
+      "outage": "Haifanyi kazi",
+      "unknown": "Haifahamiki"
+    },
+    "uptimeLabel": "Uptime",
+    "lastChangeLabel": "Mabadiliko ya mwisho",
+    "windowLabelPrefix": "Historia ya siku ",
+    "windowLabelSuffix": "",
+    "loading": "Inapakia hali...",
+    "error": "Imeshindwa kupakia hali ya mfumo.",
+    "retry": "Jaribu tena"
+  },
+  "audiencePages": {
+    "pml": {
+      "metaTitle": "Borjie kwa wenye PML, mfumo wa uchimbaji mdogo",
+      "metaDescription": "Borjie kwa wenye Leseni za Uchimbaji wa Msingi. Muhtasari wa kila siku, kalenda ya mrabaha, daftari la mashimo, malipo kupitia M-Pesa. Imejengwa kwa wachimbaji wadogo Tanzania. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa wenye PML",
+      "heroHeadline": "Endesha mgodi wako wa PML kama",
+      "heroHeadlineAccent": "mwendeshaji mkubwa",
+      "heroSub": "Borjie inawapa wachimbaji wadogo wa migodi muhtasari wa kila siku, kalenda ya mrabaha, daftari la ushahidi, na soko, vyote kwa Kiswahili kwanza. Tableti moja shambani inabadilisha lahajedwali sita.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Inalingana na Tume ya Madini",
+        "Inafanya kazi kwenye tableti moja",
+        "M-Pesa, Tigo Pesa, Airtel Money asilia"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha mgodi wako.",
+      "statsSub": "Si ahadi. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya operesheni ya uchimbaji mdogo.",
+      "stats": [
+        {
+          "value": "06:00",
+          "label": "muhtasari wa kila siku simuni",
+          "sub": "Mr. Mwikila anakusanya uzalishaji wa usiku, hali ya mishahara, na kalenda ya leseni kabla ya zamu ya kwanza kuanza."
+        },
+        {
+          "value": "Sek 60",
+          "label": "kurekodi shimo au kipimo",
+          "sub": "Picha, kumbukumbu ya sauti, GPS imewekwa. Mlolongo wa ushahidi unaanza shimoni, si ofisini."
+        },
+        {
+          "value": "Sufuri",
+          "label": "uwasilishaji uliokosa wa mrabaha",
+          "sub": "Tarehe za Tume ya Madini, mapato ya TRA, na malipo ya TZS yanafuatiliwa kiotomatiki. Mfumo unajiwasilisha wenyewe kwa TZS."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka shimoni hadi uwasilishaji.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Rekodi uzalishaji kwa Kiswahili.",
+          "body": "Meneja wa eneo anarekodi kila kipimo na picha, sauti, na GPS. Borjie inaweka rekodi ya ushahidi kwa jina lako."
+        },
+        {
+          "n": "02",
+          "title": "Amka na muhtasari.",
+          "body": "Kila asubuhi, Mr. Mwikila anafupisha uzalishaji, hatari ya mrabaha, mishahara, na nini kinahitaji uamuzi wako leo. Lugha mbili sw na en."
+        },
+        {
+          "n": "03",
+          "title": "Wasilisha, lipa, uza.",
+          "body": "Mawasilisho ya mrabaha yanajiandika. Malipo yanaenda kupitia M-Pesa, Tigo Pesa, Airtel Money. Wanunuzi wanaona bidhaa yako sokoni."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Kwa nini migodi mingi ya PML hupoteza pesa",
+      "problemHeadingAccent": "iliyokwisha kuzipata.",
+      "problemSub": "Uchimbaji mdogo una madini mengi na rekodi chache. Uvujaji haupo shimoni, upo kwenye karatasi.",
+      "problemTitle": "Pesa zinavuja wapi",
+      "problems": [
+        {
+          "title": "Mapungufu ya mrabaha",
+          "desc": "Wenye PML wengi hukosa muda wa kuwasilisha kwa sababu hakuna anayefuatilia tarehe za Tume ya Madini pamoja na uzalishaji. Adhabu zinaongezeka kimya."
+        },
+        {
+          "title": "Mishahara ya pesa taslimu",
+          "desc": "Mishahara inayolipwa kwa pesa taslimu haina rekodi. Ukaguzi wa leseni unapokuja, hakuna anayethibitisha aliyefanya kazi gani au kupokea kiasi gani."
+        },
+        {
+          "title": "Wanunuzi wasiothibitishwa",
+          "desc": "Wanunuzi huingia, kupima, kulipa chini ya bei ya soko, na kutoweka. Bila soko lililothibitishwa, madini yako huondoka nchini kwa punguzo."
+        },
+        {
+          "title": "Kumbukumbu zilizopotea",
+          "desc": "Meneja akiondoka, historia ya uzalishaji inaondoka naye. Wafanyakazi wapya huanza kutoka sufuri. Hakuna daftari la mashimo, hakuna mlolongo wa ushahidi."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Muhtasari mmoja, ukweli mmoja",
+          "desc": "Mr. Mwikila anachanganya uzalishaji, hatari ya mrabaha, mishahara, na kalenda ya leseni katika muhtasari wa 06:00 simuni mwako. Lugha mbili sw na en."
+        },
+        {
+          "title": "Mlolongo wa ushahidi wa simu",
+          "desc": "Kila kipimo kinapigwa picha, kuwekewa sauti, kuwekewa GPS, na muhuri wa muda. Rekodi ni yako, isiyobadilika, na tayari kwa Tume ya Madini."
+        },
+        {
+          "title": "Soko lililothibitishwa",
+          "desc": "Orodhesha dore au madini yako sokoni ambapo wanunuzi waliothibitishwa hushindana kwa bei. Malipo kupitia M-Pesa au benki."
+        },
+        {
+          "title": "Imejengwa kwa tableti",
+          "desc": "Meneja anaiendesha kwenye tableti moja. Mmiliki anaisoma simuni. Mhasibu anaihamishia TRA. Mfumo mmoja, majukumu matatu."
+        }
+      ],
+      "ctaHeading": "Iiangalie eneoni mwako ndani ya siku 90.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma vipimo vyako vya siku 90 zilizopita na kukuonyesha muhtasari ukifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "ml": {
+      "metaTitle": "Borjie kwa waendeshaji wa ML, mfumo wa uchimbaji wa kati",
+      "metaDescription": "Borjie kwa waendeshaji wa Leseni za Uchimbaji. Muunganisho wa migodi mingi, daftari za milipuko, telemetri za magari, otomatiki ya mrabaha, ripoti za bodi. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa waendeshaji wa ML",
+      "heroHeadline": "Migodi ya kati inastahili",
+      "heroHeadlineAccent": "programu ya kati",
+      "heroSub": "Borjie inaunganisha mashimo, magari, na wakandarasi wengi katika dashibodi moja ya operesheni. Msaada wa uamuzi kila siku kwa mmiliki, rekodi inayotetewa kwa Tume ya Madini, ripoti tayari za bodi.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Muunganisho wa migodi mingi tayari",
+        "Inaandika kwenye mfumo wako wa uhasibu",
+        "TZS kwanza, sarafu nyingi inajua"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha faida yako.",
+      "statsSub": "Si maoni. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya operesheni ya ML.",
+      "stats": [
+        {
+          "value": "Mtazamo 1",
+          "label": "mashimo, magari, mrabaha",
+          "sub": "Mashimo yote, wakandarasi, masaa ya magari, na hatari ya mrabaha kwenye skrini moja. Ingia kwenye yoyote kwa mibofyo miwili."
+        },
+        {
+          "value": "3-5x",
+          "label": "ufungaji wa mwezi haraka",
+          "sub": "Uzalishaji unajiunganisha kiotomatiki. Mrabaha unajiandika. Mhasibu anasaini, hakusanyii tena."
+        },
+        {
+          "value": "Sufuri",
+          "label": "matukio ya milipuko yasiyofuatiliwa",
+          "sub": "Kila mlipuko umerekodiwa, kila mzunguko umepimwa muda, kila uchunguzi umeunganishwa na shimo. Rekodi inajiandika yenyewe."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka mlipuko hadi pakiti ya bodi.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Unganisha mashimo.",
+          "body": "Mameneja wa mashimo wanarekodi uzalishaji, masaa ya magari, na uchunguzi kutoka tableti. Borjie inaunganisha katika muda halisi."
+        },
+        {
+          "n": "02",
+          "title": "Mfafanulie mmiliki. Wasilisha mrabaha mapema.",
+          "body": "Kila asubuhi mmiliki anaona uzalishaji, hatari, mishahara, na maamuzi kumi muhimu leo. Faili la mrabaha linajiandika."
+        },
+        {
+          "n": "03",
+          "title": "Funga mwezi kwa siku, si wiki.",
+          "body": "Borjie inalinganisha na mfumo wako wa uhasibu, inaandika pakiti ya bodi, na inampa msimamizi rekodi inayotetewa."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Waendeshaji wa ML wanaendesha kwa",
+      "problemHeadingAccent": "tepu na Excel.",
+      "problemSub": "Migodi ya kati ni mikubwa sana kwa karatasi na midogo sana kwa SAP. Pengo ni mahali ambapo thamani inavuja.",
+      "problemTitle": "Uvujaji upo wapi",
+      "problems": [
+        {
+          "title": "Data ya shimo, hakuna muunganisho",
+          "desc": "Kila shimo lina lahajedwali lake. Mmiliki anavilinganisha Jumapili usiku. Bodi inaona namba za mwezi uliopita robo nyingine."
+        },
+        {
+          "title": "Mapungufu ya wakandarasi",
+          "desc": "Wakandarasi wa usafirishaji wanawasilisha bili kwa lori. Bila telemetri, unalipa kwa safari ambazo hazikufanywa na kupoteza zile zilizofanywa."
+        },
+        {
+          "title": "Mrabaha kwa makadirio",
+          "desc": "Bila daftari moja la uzalishaji, mawasilisho ya mrabaha ni makadirio. Ukaguzi wa Tume ya Madini huadhibu mapungufu zaidi ya malipo ya ziada."
+        },
+        {
+          "title": "Pakiti ya bodi kwa hofu ya Ijumaa",
+          "desc": "Vikao vya bodi humla timu ya operesheni kwa wiki mbili. Namba zinalinganishwa kwenye PowerPoint usiku wa manane. Makosa hupita."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Muunganisho wa migodi mingi, halisi",
+          "desc": "Uzalishaji wa kila shimo, magari, na uchunguzi vinaunganishwa katika mtazamo mmoja. Mmiliki anasoma namba moja; meneja anamiliki shimo moja."
+        },
+        {
+          "title": "Telemetri ya magari bila urejeshaji",
+          "desc": "Programu ya dereva inaitikia safari, mizigo, na nyakati. Bili za mkandarasi zinalinganishwa na telemetri kabla ya mhasibu kuziona."
+        },
+        {
+          "title": "Otomatiki ya mrabaha",
+          "desc": "Daftari la uzalishaji huendesha faili la mrabaha. Inalingana na Tume ya Madini, kwa TZS, tayari kuwasilishwa tarehe 7."
+        },
+        {
+          "title": "Pakiti ya bodi kwa mahitaji",
+          "desc": "Slaidi zinajiendesha upya kutoka data halisi. Mmiliki anakagua Ijumaa jioni. Timu ya operesheni inaweka wikendi yake."
+        }
+      ],
+      "ctaHeading": "Endesha ML yako kama kampuni ya umma.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma robo yako iliyopita na kukuonyesha dashibodi ikifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "sml": {
+      "metaTitle": "Borjie kwa waendeshaji wa SML, mfumo wa uchimbaji mkubwa",
+      "metaDescription": "Borjie kwa wenye Leseni Maalum za Uchimbaji. Muunganisho wa migodi mingi, ulingano wa mazingira, daftari la jamii, utawala wa bodi, mlolongo wa ukaguzi wa msimamizi. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa waendeshaji wa SML",
+      "heroHeadline": "Leseni maalum zinastahili",
+      "heroHeadlineAccent": "nidhamu maalum",
+      "heroSub": "Borjie inawapa waendeshaji wa SML dashibodi ya kiwango cha bodi. Muunganisho wa migodi mingi, ulingano wa mazingira, daftari la jamii, mlolongo wa ukaguzi, na AI mkuu wa wafanyakazi anayemfafanulia mkurugenzi kila siku.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Mlolongo wa ukaguzi wa kiwango cha msimamizi",
+        "Tayari kwa mazingira na ESG",
+        "Utawala wa bodi umejengwa ndani"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha biashara yako.",
+      "statsSub": "Si mkao. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya biashara ya SML.",
+      "stats": [
+        {
+          "value": "06:00",
+          "label": "muhtasari wa mkurugenzi kila siku",
+          "sub": "Uzalishaji, usalama, mazingira, jamii, na maamuzi matatu ambayo mkurugenzi pekee anaweza kufanya. Skrini moja, kila asubuhi."
+        },
+        {
+          "value": "100%",
+          "label": "ufuasaji wa mlolongo wa ukaguzi",
+          "sub": "Kila kitendo, kila idhini, kila kuchupa imewekwa kwenye mlolongo wa hash. Wasimamizi wanakagua mlolongo, si watu."
+        },
+        {
+          "value": "Sufuri",
+          "label": "mshangao wa ESG shambani",
+          "sub": "Malalamiko ya jamii, matukio ya mazingira, na ahadi za washikadau yanafuatiliwa kutoka kupokelewa hadi kufungwa. Hakuna kinachoteleza."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka shimo hadi barua kwa wawekezaji.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Unganisha kila eneo.",
+          "body": "Mashimo, viwanda vya kusafisha, mabwawa ya taka, kambi za utafutaji. Vyote kwenye dashibodi moja, na mlolongo wa ukaguzi."
+        },
+        {
+          "n": "02",
+          "title": "Tawala kwa mafungu.",
+          "body": "Mr. Mwikila anashughulikia mambo ya kawaida. Mkurugenzi anaona tu mambo anayopaswa kuamua: kuzima, hatua za kimkakati, idhini za macho manne."
+        },
+        {
+          "n": "03",
+          "title": "Toa ripoti kwa kila mzunguko.",
+          "body": "Muhtasari wa kila siku, bodi ya kila wiki, msimamizi wa kila mwezi, wawekezaji wa robo. Data sawa, iliyokatwa kwa hadhira sahihi."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Operesheni za SML zinazama katika",
+      "problemHeadingAccent": "ripoti hazikuzihitaji.",
+      "problemSub": "Leseni Maalum za Uchimbaji huja na ukaguzi maalum. Wasimamizi, wakopeshaji, jamii, na bodi wote wanataka namba sawa, kwa namna tofauti.",
+      "problemTitle": "Biashara inavuja wapi",
+      "problems": [
+        {
+          "title": "Mzigo wa ripoti unaponda operesheni",
+          "desc": "Nusu ya timu kuu inafanya kazi kwenye pakiti za bodi, ripoti za msimamizi, na barua za wawekezaji. Nusu nyingine inajaribu kuendesha mgodi."
+        },
+        {
+          "title": "Mapungufu ya jamii na ESG",
+          "desc": "Malalamiko ya jamii yanafika kama barua, yanawekwa kwenye folda, na kujitokeza wakati wa ukaguzi. Ahadi za ESG zinaponda bila yeyote kujua."
+        },
+        {
+          "title": "Maeneo mengi, lahajedwali moja",
+          "desc": "Kila eneo linaripoti kituo kikuu kwa ratiba yake, kwa muundo wake. Muunganisho unagharimu siku, si masaa, kila mzunguko."
+        },
+        {
+          "title": "Mapungufu ya mlolongo wa ukaguzi",
+          "desc": "Maamuzi yanafanywa kwenye WhatsApp, idhini zinatolewa kwa maneno, kuchupa hakuna rekodi. Msimamizi anapouliza, mlolongo unavunjika."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Dashibodi moja, kila mzunguko",
+          "desc": "Data ile ile inalisha muhtasari wa kila siku, pakiti ya bodi, ripoti ya msimamizi, na barua ya wawekezaji. Imeandikwa mara moja, imekatwa bila kikomo."
+        },
+        {
+          "title": "Daftari la jamii, kiwango cha ESG",
+          "desc": "Malalamiko, ahadi, na matukio ya washikadau yanafuatiliwa kutoka kupokelewa hadi kufungwa. Ukaguzi wa ESG unasoma daftari, si sanduku la barua."
+        },
+        {
+          "title": "Majukumu yamewekwa, mlolongo umewekwa",
+          "desc": "Kila kitendo, idhini, na kuchupa imewekwa kwenye mlolongo wa hash, inayoweza kuchezwa tena. Mlolongo ni ukaguzi; ukaguzi ni mlolongo."
+        },
+        {
+          "title": "AI Mkuu wa Wafanyakazi",
+          "desc": "Mr. Mwikila anaandika kumbukumbu za bodi, anamfafanulia mkurugenzi, na kupanga maamuzi matatu ya mkurugenzi pekee. Lugha mbili sw na en."
+        }
+      ],
+      "ctaHeading": "Tawala SML yako kama biashara ya kimataifa.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma robo yako iliyopita na kukuonyesha dashibodi ya mkurugenzi ikifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "cooperatives": {
+      "metaTitle": "Borjie kwa vyama vya ushirika, mfumo wa AMCOS",
+      "metaDescription": "Borjie kwa vyama vya ushirika vya uchimbaji mdogo na AMCOS. Daftari la wanachama, daftari la uzalishaji wa pamoja, mikopo ya pamoja, malipo ya pamoja. Imejengwa kwa vyama vya uchimbaji Tanzania. Majaribio ya bure ya siku 90.",
+      "heroKicker": "Kwa vyama vya ushirika",
+      "heroHeadline": "Nidhamu ya ushirika,",
+      "heroHeadlineAccent": "heshima ya mtu mmoja mmoja",
+      "heroSub": "Borjie inaunganisha chama cha ushirika wa uchimbaji mdogo. Wanachama wanahifadhi utambulisho wao, chama kinaweka daftari, na kila gramu inafuatiliwa kutoka shimoni hadi malipo. Utawala wa AMCOS, zana za kiwango cha uchimbaji.",
+      "heroPrimaryCta": "Anza majaribio ya siku 90",
+      "heroSecondaryCta": "Iangalie inavyofanya kazi",
+      "trustline": [
+        "Inajua daftari la wanachama",
+        "Mikopo ya pamoja, malipo binafsi",
+        "Tayari kwa ukaguzi kwa msingi"
+      ],
+      "statsHeading": "Namba tatu zinazoboresha chama chako.",
+      "statsSub": "Si ahadi. Ni vichocheo halisi ambavyo Borjie inaviendesha ndani ya chama cha uchimbaji.",
+      "stats": [
+        {
+          "value": "Mtazamo 1",
+          "label": "wanachama, uzalishaji, mikopo",
+          "sub": "Mchango wa kila mwanachama msimu huu, uzalishaji wa chama, na mkopo wa pamoja juu yake. Mtazamo mmoja, bodi na shambani."
+        },
+        {
+          "value": "Saa 48",
+          "label": "mkopo wa pamoja kwa malipo binafsi",
+          "sub": "Chama kinakopa dhidi ya dore iliyokusanywa. Wanachama wanapokea hisa yao kupitia simu kabla ya wikendi kufungwa."
+        },
+        {
+          "value": "Sufuri",
+          "label": "gramu zilizohesabiwa mara mbili",
+          "sub": "Kila gramu inawekewa jina la mwanachama. Hakuna vipimo vya kufikirika, hakuna mikopo mara mbili, hakuna mshangao wa ukaguzi."
+        }
+      ],
+      "stepsKicker": "Inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka mwanachama hadi soko.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Sajili daftari, hifadhi muundo.",
+          "body": "Bodi, kamati, wanachama wa kawaida. Hisa, ukubwa, na historia ya uzalishaji vimeingizwa kutoka daftari lako lililopo."
+        },
+        {
+          "n": "02",
+          "title": "Kusanya msimu, panga mkopo.",
+          "body": "Borjie inahesabu vipokeo, inasoma soko, na inapendekeza mkopo wa pamoja ambao mnunuzi au mkopeshaji anaweza kuandika katika faili moja."
+        },
+        {
+          "n": "03",
+          "title": "Sambaza kwa wanachama, fuatilia gramu.",
+          "body": "Kila mwanachama anapokea hisa yake, kulingana na mchango wake na historia ya marejesho. Daftari linajifunga lenyewe msimu unaofungwa."
+        }
+      ],
+      "problemKicker": "Kwa nini Borjie",
+      "problemHeading": "Vyama vinabeba hatari,",
+      "problemHeadingAccent": "wanachama wanabeba shaka.",
+      "problemSub": "Vyama vya ushirika vya uchimbaji mdogo ni injini ya uchimbaji wa Tanzania. Zana hazijaendana na jukumu.",
+      "problemTitle": "Imani inavunjika wapi",
+      "problems": [
+        {
+          "title": "Daftari za mikono za wanachama",
+          "desc": "Daftari za karatasi na lahajedwali za Excel. Mwanachama akiulizia hisa yake, hakuna anayethibitisha alichochangia, lini, au kwa hali gani."
+        },
+        {
+          "title": "Mikopo ya pamoja, mgawanyo usio sawa",
+          "desc": "Wanunuzi wanatoa mikopo dhidi ya uzalishaji wa pamoja. Wanachama wanashuku (mara nyingi kwa usahihi) kuwa mgawanyo unapendelea waliopata uhusiano."
+        },
+        {
+          "title": "Mshangao wa ukaguzi",
+          "desc": "TCDC, Tume ya Madini, na TRA kila mmoja anataka vipande tofauti vya data ile ile. Vyama vinatumia wiki kukusanya badala ya kuendesha."
+        },
+        {
+          "title": "Umeunganishwa, lakini si umeunganishwa",
+          "desc": "Kila mwanachama anaendesha shimo lake. Chama kinakusanya kwa simu. Hakuna anayeona muungano katika sehemu moja, kwa muda halisi."
+        }
+      ],
+      "solutionTitle": "Borjie inafanya nini",
+      "solutions": [
+        {
+          "title": "Daftari linalojua wanachama",
+          "desc": "Kila kipokeo kinawekewa jina la mwanachama, muhuri wa muda, eneo, na picha. Rekodi ni ya chama, si daftari."
+        },
+        {
+          "title": "Mgawanyo wa wazi",
+          "desc": "Mikopo ya pamoja inaingia Borjie. Mgawanyo unahesabiwa dhidi ya michango iliyotambuliwa. Kila mwanachama anaona daftari lake simuni mwake."
+        },
+        {
+          "title": "Tayari kwa ukaguzi kwa msingi",
+          "desc": "TCDC, Tume ya Madini, na TRA kila mmoja anapata kipande chake, kinachozalishwa kutoka daftari lile lile. Ukaguzi unachukua masaa, si wiki."
+        },
+        {
+          "title": "Dashibodi ya muungano",
+          "desc": "Mwenyekiti anaona uzalishaji wa pamoja, utendaji wa mwanachama, hatari ya mkopo, na foleni ya maamuzi kwenye skrini moja. Muungano wa muda halisi."
+        }
+      ],
+      "ctaHeading": "Unganisha chama chako kwenye Borjie.",
+      "ctaSub": "Majaribio moja. Hakuna kadi. Hakuna ahadi. Borjie inasoma msimu wako uliopita na kukuonyesha dashibodi ya chama ikifanya kazi kwenye data yako mwenyewe.",
+      "ctaPrimary": "Omba majaribio"
+    },
+    "familyOffice": {
+      "metaTitle": "Kwa familia za biashara - utajiri wa migodi kwa vizazi - Borjie",
+      "metaDescription": "Borjie kwa ofisi za familia: utawala, urithi, uunganishaji wa kampuni, na ripoti za kiwango cha ukaguzi katika eneo lote la migodi.",
+      "heroKicker": "Kwa familia za biashara",
+      "heroHeadline": "Endesha eneo la migodi la familia kama",
+      "heroHeadlineAccent": "taasisi",
+      "heroSub": "Borjie inakusanya kila kampuni tanzu, kila leseni, kila mtiririko wa royalti na kila akaunti ya mwanachama katika ubongo mmoja - na utaratibu wa utawala unaohitajika na wadhamini wako.",
+      "heroPrimaryCta": "Tueleze kuhusu eneo",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "ISO 27001 tayari",
+        "Mfululizo wa hash wa ukaguzi kwa kila kitu",
+        "Sarafu nyingi, TZS msingi"
+      ],
+      "statsHeading": "Vipengele vitatu vinavyobadilisha hatari ya familia.",
+      "statsSub": "Nambari halisi, sio ahadi. Hatua sahihi ambazo Borjie inafanya kwa familia inayomiliki leseni kadhaa kwa majina kadhaa.",
+      "stats": [
+        {
+          "value": "4 hadi 1",
+          "label": "Kampuni tanzu zinakusanywa katika daftari moja",
+          "sub": "Mali, leseni, mikataba ya royalti na biashara saidizi zinaunganishwa katika mteja mmoja na ufuatiliaji wa hash wa ukaguzi."
+        },
+        {
+          "value": "T+0",
+          "label": "Muhtasari wa kila siku kwenye dawati la familia",
+          "sub": "Bw. Mwikila anaandaa uzalishaji wa usiku, mishahara, hazina na uzingatiaji katika muhtasari mmoja wa lugha mbili."
+        },
+        {
+          "value": "Macho 4",
+          "label": "Idhini ya wadhamini kwa kila hatua ya hatari kubwa",
+          "sub": "Vituo vya sera za enzi na macho-manne vinahakikisha hakuna mwanachama mmoja anayeweza kutoa fedha, kusaini royalti au kufuta leseni peke yake."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka hati ya familia hadi mfumo mmoja wa uendeshaji.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Tunaonyesha eneo.",
+          "body": "Tunakusanya kila leseni, mkataba, haki ya madini, kampuni tanzu na akaunti ya mwanachama katika ubongo mmoja wenye uthibitisho unaoweza kukaguliwa."
+        },
+        {
+          "n": "02",
+          "title": "Wadhamini wanaweka mipaka.",
+          "body": "Sera za enzi, macho-manne, na kizimio zinawekwa kwa kila aina ya mali. Bw. Mwikila anatekeleza kila hatua."
+        },
+        {
+          "n": "03",
+          "title": "Familia inafanya kazi kwenye dashibodi, sio simu.",
+          "body": "Muhtasari wa kila siku, taarifa ya kila mwezi, ripoti ya wadhamini ya kila robo - zote zikiwa na ushahidi, lugha mbili sw / en."
+        }
+      ],
+      "problemKicker": "Kwa nini Mfumo wa Migodi",
+      "problemHeading": "Kile karatasi za ofisi ya familia",
+      "problemHeadingAccent": "haziwezi kutatua",
+      "problemSub": "Familia inapomiliki mgodi zaidi ya mmoja na jina zaidi ya moja, kila lahajedwali inakuwa dhima.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Kampuni tanzu zinatawanyika.",
+          "desc": "Kila leseni iko kwa jina tofauti, benki tofauti, mteule tofauti - hakuna mtazamo mmoja wa nafasi halisi."
+        },
+        {
+          "title": "Hatari ya urithi.",
+          "desc": "Mwanachama mkuu anapokuwa hapatikani, mishahara na royalti zinasimama - kila siku ni faini."
+        },
+        {
+          "title": "Upotezaji wa royalti.",
+          "desc": "Wachukuaji na wapatanishi wanachukua faida ambayo familia haioni kamwe kwa maandishi."
+        },
+        {
+          "title": "Uchovu wa wadhamini.",
+          "desc": "Ripoti za kila robo zinakusanywa kwa simu na barua pepe - zinapofika, data tayari ni kale."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Ubongo mmoja katika kila kampuni tanzu.",
+          "desc": "Kusanya leseni, mikataba, na akaunti chini ya mteja mmoja na ufikiaji wa kikundi."
+        },
+        {
+          "title": "Sera za enzi na macho-manne kwa kila hatua.",
+          "desc": "Hakuna mwanachama anayeweza kutoa fedha, kuwasilisha ripoti au kusaini mauzo bila kizingiti kilichoundwa cha wadhamini."
+        },
+        {
+          "title": "Muhtasari wa kila siku, taarifa ya kila mwezi, ripoti ya wadhamini ya kila robo.",
+          "desc": "Zilizotajwa ushahidi, hash-chained, zilizosainiwa na wakala aliyetoa kila mstari."
+        },
+        {
+          "title": "Tayari kwa urithi tangu siku ya kwanza.",
+          "desc": "Mwanachama akiwa hapatikani, mfuatano hupokea muhtasari uleule kwenye skrini ileile."
+        }
+      ],
+      "ctaHeading": "Endesha eneo la familia kama moja.",
+      "ctaSub": "Panga muhtasari wa faragha. Tunaonyesha muundo wako, tunaweka sera, na tunakuonyesha muhtasari wa kila siku ukifanya kazi kwenye data salama ya demo.",
+      "ctaPrimary": "Eleza timu yetu"
+    },
+    "investor": {
+      "metaTitle": "Kwa wawekezaji na wakopeshaji - Borjie",
+      "metaDescription": "Borjie kwa wawekezaji na wakopeshaji wa migodi: ushuhuda wa kila siku, ufuatiliaji wa masharti, na ukweli wa msingi katika kila mgodi ulioko kwenye kitabu chako.",
+      "heroKicker": "Kwa wawekezaji na wakopeshaji",
+      "heroHeadline": "Mtaji wa migodi pamoja na",
+      "heroHeadlineAccent": "ushahidi wa kila siku",
+      "heroSub": "Borjie hutoa ushuhuda wa uzalishaji, hatari ya hazina, hali ya leseni na matukio ya HSE kutoka kila mgodi katika kitabu chako - lugha mbili, ushahidi, kiwango cha ukaguzi.",
+      "heroPrimaryCta": "Omba muhtasari wa portfolio",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "Ushahidi unahitajika kwa kila nambari",
+        "Vituo vya masharti vinaweza kuundwa",
+        "ISO 27001 tayari"
+      ],
+      "statsHeading": "Nambari tatu zinazobadilisha utoaji wa mkopo wako.",
+      "statsSub": "Sio kauli mbiu. Vitu halisi ambavyo Borjie inafungua kwa washirika wa mtaji ambao wanafadhili migodi Tanzania na katika eneo.",
+      "stats": [
+        {
+          "value": "T+0",
+          "label": "Ushuhuda wa portfolio kila siku",
+          "sub": "Uzalishaji, hazina, uzingatiaji na HSE kutoka kila mgodi wa mkopaji katika dashibodi moja."
+        },
+        {
+          "value": "100%",
+          "label": "Mfululizo wa ushahidi kwa kila nambari",
+          "sub": "Kila nambari inatumia angalau chanzo kimoja kilichosainiwa - risiti ya Tumemadini, taarifa ya M-Pesa, kumbukumbu ya kuchimba."
+        },
+        {
+          "value": "Otomatiki",
+          "label": "Tahadhari za ukiukaji wa masharti",
+          "sub": "Leseni ya mkopaji ikikaribia kumalizika au masharti ya hazina yanaposhuka, unaisikia asubuhi hiyo hiyo."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka karatasi ya masharti hadi ufuatiliaji wa moja kwa moja.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Mkopaji anakuruhusu.",
+          "body": "Mkopaji anatoa ufikiaji wa kusoma uliopangiwa vipimo katika karatasi yako ya masharti. RLS inaweka data yake nyingine ikiwa imefichika."
+        },
+        {
+          "n": "02",
+          "title": "Borjie inatoa ushuhuda.",
+          "body": "Muhtasari wa kila siku wenye ushahidi, taarifa za kila mwezi, vifuatiliaji vya masharti - vilivyoandikwa na Bw. Mwikila, vilivyosainiwa na mkopaji."
+        },
+        {
+          "n": "03",
+          "title": "Unasikia ukiukaji kwanza.",
+          "body": "Wakala wa Mkaguzi anaonyesha ukiukaji wa masharti wakati unapojitokeza kwenye daftari, sio mwisho wa robo."
+        }
+      ],
+      "problemKicker": "Kwa nini washirika wa mtaji wanahama",
+      "problemHeading": "Kile ripoti za lahajedwali",
+      "problemHeadingAccent": "haziwezi kutoa",
+      "problemSub": "Mtaji wa migodi unaishi au unakufa kwa ukweli wa msingi - na PDF za kila robo si ukweli wa msingi.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Ushuhuda wa kale.",
+          "desc": "PDF za kila robo zinafika siku 60 zilizochelewa, baada ya ukiukaji kufanyika."
+        },
+        {
+          "title": "Hakuna mfululizo wa ushahidi.",
+          "desc": "Nambari za uzalishaji zinakuja bila chanzo - huwezi kutofautisha risiti halisi na seli iliyoandikwa."
+        },
+        {
+          "title": "Ufuatiliaji wa kawaida wa masharti.",
+          "desc": "Mchanganuzi wako anajenga upya lahajedwali ya masharti kila mzunguko - sharti moja lililokosa linafuta faida ya mwaka."
+        },
+        {
+          "title": "Mawazo ya mkopaji.",
+          "desc": "Mkopaji akibadilisha programu ya uhasibu, mfululizo wote wa kuripoti unavunjika."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Ushuhuda wa kila siku wenye ushahidi.",
+          "desc": "Ufikiaji wa kusoma uliopangwa kwa vipimo karatasi yako ya masharti inavyofafanua, ulioandikwa na Bw. Mwikila na hash-chained."
+        },
+        {
+          "title": "Wakala wa Mkaguzi kwa kila sharti.",
+          "desc": "Ukiukaji unagunduliwa wakati unapojitokeza kwenye daftari, unaonyeshwa kwako asubuhi hiyo hiyo."
+        },
+        {
+          "title": "Chanzo kimoja cha ukweli katika kila mkopaji.",
+          "desc": "Kila mgodi katika kitabu chako unaonyesha umbo lile lile la data - hakuna mzozo wa lahajedwali kwa kila mkopaji."
+        },
+        {
+          "title": "Sarafu nyingi, TZS msingi.",
+          "desc": "Hatari ya hazina iliyokusanywa katika TZS, USD, KES, na utoaji wa P&L wa FX."
+        }
+      ],
+      "ctaHeading": "Toa mkopo kwa migodi macho yakiwa wazi.",
+      "ctaSub": "Eleza timu yetu. Tunaunganisha mgodi wa sandbox, tunafafanua seti ya masharti, na tunakuonyesha ushuhuda wa kila siku kwenye data salama.",
+      "ctaPrimary": "Eleza timu yetu"
+    },
+    "buyer": {
+      "metaTitle": "Kwa wanunuzi wa madini - Borjie",
+      "metaDescription": "Borjie kwa wanunuzi wa madini: usambazaji wa Tanzania uliothibitishwa kwa KYB, vifurushi vinavyofuatiliwa, malipo ya escrow, ushahidi wa biometric wa utoaji.",
+      "heroKicker": "Kwa wanunuzi wa madini",
+      "heroHeadline": "Madini ya Tanzania pamoja na",
+      "heroHeadlineAccent": "ushahidi",
+      "heroSub": "Soko la Borjie linaorodhesha vifurushi vilivyothibitishwa kwa KYB pamoja na mfululizo kamili wa uhifadhi, ushahidi wa biometric wa utoaji, na malipo ya escrow tayari.",
+      "heroPrimaryCta": "Vinjari sokoni",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "Wauzaji wamethibitishwa kwa KYB",
+        "Malipo ya escrow tayari",
+        "Ushahidi wa biometric wa utoaji"
+      ],
+      "statsHeading": "Sababu tatu wanunuzi wanapitia Borjie.",
+      "statsSub": "Nambari halisi - vitu unavyoweza kuthibitisha kabla ya kuahidi dola moja.",
+      "stats": [
+        {
+          "value": "100%",
+          "label": "Wauzaji wamethibitishwa kwa KYB",
+          "sub": "Kila muuzaji amesajiliwa kibaometriki, ana leseni, na mfululizo wa ukaguzi umeunganishwa."
+        },
+        {
+          "value": "Hash",
+          "label": "Mfululizo wa uhifadhi kwa kila kifurushi",
+          "sub": "Ripoti ya uchanganuzi, kupima, usafiri, utoaji - kila hatua imewekwa hash na imesainiwa."
+        },
+        {
+          "value": "Escrow",
+          "label": "Malipo baada ya kukubaliwa tu",
+          "sub": "Fedha hutolewa kwa kukiri kwa mnunuzi, sio kwa ankara ya msafirishaji."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka orodha hadi utoaji.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Vinjari vifurushi vilivyothibitishwa.",
+          "body": "Chuja kwa madini, daraja, mkoa, na mmiliki wa leseni - kila kifurushi kinataja uchanganuzi wake na leseni yake."
+        },
+        {
+          "n": "02",
+          "title": "Toa zabuni katika escrow.",
+          "body": "Weka zabuni; fedha zinashikiliwa katika escrow zikiwa wazi pande zote mbili."
+        },
+        {
+          "n": "03",
+          "title": "Kubali kwenye utoaji.",
+          "body": "Ushahidi wa biometric wa utoaji unatoa fedha. Migongano inapitia kwa Wakala wa Enzi."
+        }
+      ],
+      "problemKicker": "Kwa nini wanunuzi wanahama",
+      "problemHeading": "Kile kununua kupitia wapatanishi",
+      "problemHeadingAccent": "kinagharimu kweli",
+      "problemSub": "Usambazaji wa madini wa Tanzania ni halisi - lakini njia kutoka kwa mmiliki wa leseni hadi mchukuaji imejaa wapatanishi wa kufichwa.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Wauzaji wasiothibitishwa.",
+          "desc": "Kila kifurushi kinahitaji simu kuthibitisha kuwa leseni ni halisi na muuzaji ni mmiliki."
+        },
+        {
+          "title": "Mfululizo wa uhifadhi uliovunjika.",
+          "desc": "Uchanganuzi unafika kwenye karatasi, vifurushi vinajaa upya wakati wa usafiri - unapopokea, mfululizo ni wa kufichwa."
+        },
+        {
+          "title": "Hakuna escrow.",
+          "desc": "Lipa-kabla ni kawaida - na hasara wakati usambazaji haufiki ni kamili."
+        },
+        {
+          "title": "Msuguano wa sarafu.",
+          "desc": "Mchanganyiko wa nukuu wa TZS / USD / KES unakula faida kwa kila kifurushi."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Kila muuzaji amethibitishwa kwa KYB.",
+          "desc": "Usajili wa biometric, ukaguzi wa leseni na Tumemadini, mfululizo wa ukaguzi umesainiwa."
+        },
+        {
+          "title": "Mfululizo wa uhifadhi kwa kila kifurushi.",
+          "desc": "Uchanganuzi, kupima, usafiri na hash za utoaji zinasainiwa na zinaonyeshwa ndani."
+        },
+        {
+          "title": "Escrow yenye kutolewa kwa biometric.",
+          "desc": "Fedha hutolewa kwa kukubaliwa kwa mnunuzi; migongano inapelekwa kupitia Wakala wa Enzi."
+        },
+        {
+          "title": "Nukuu ya sarafu nyingi.",
+          "desc": "Nukuu kwa TZS, USD au KES; sarafu ya malipo iko wazi kwa kila ofa."
+        }
+      ],
+      "ctaHeading": "Pata madini kwa ushahidi.",
+      "ctaSub": "Sajili wasifu wako wa mnunuzi. Vinjari soko kwenye data salama ya demo. Tunakueleza njia ya uthibitisho.",
+      "ctaPrimary": "Sajili kama mnunuzi"
+    },
+    "offTaker": {
+      "metaTitle": "Kwa wachukuaji na wauza nje - Borjie",
+      "metaDescription": "Borjie kwa wachukuaji: usambazaji uliokusanywa, vifurushi vinavyofuatiliwa, hati za uzingatiaji za BOT, malipo ya sarafu nyingi.",
+      "heroKicker": "Kwa wachukuaji na wauza nje",
+      "heroHeadline": "Kusanya usambazaji wa madini wa Tanzania kwa",
+      "heroHeadlineAccent": "karatasi safi",
+      "heroSub": "Borjie inakusanya vifurushi vilivyothibitishwa kwa KYB kutoka kwa wamiliki wa PML na ML kote nchini na inavipeleka pamoja na hati za uuzaji wa nje, ripoti za BOT, na mfululizo wa uhifadhi wanayohitaji wakaguzi.",
+      "heroPrimaryCta": "Omba muhtasari wa usambazaji",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "Pakiti za uuzaji wa nje zinazolingana na BOT",
+        "Reli za usambazaji za wateja wengi",
+        "TZS / USD sarafu nyingi"
+      ],
+      "statsHeading": "Sababu tatu wachukuaji wanaunganisha kwenye Borjie.",
+      "statsSub": "Nambari halisi - vitu vinavyofunga pengo kati ya usambazaji wa wachimba wadogo na hati safi ya kusafirisha (Bill ya Lading).",
+      "stats": [
+        {
+          "value": "100+",
+          "label": "Wamiliki wa leseni za PML / ML wameunganishwa",
+          "sub": "Kila muuzaji amethibitishwa kibaometriki na leseni imehakikiwa na Tumemadini."
+        },
+        {
+          "value": "Kamili",
+          "label": "Pakiti ya hati za uuzaji wa nje",
+          "sub": "Uthibitisho wa royalti, cheti cha asili, uchanganuzi, ripoti za BOT - zimekusanywa kwa kila kifurushi."
+        },
+        {
+          "value": "FX-nyingi",
+          "label": "Malipo ya TZS / USD",
+          "sub": "Lipa katika sarafu mkataba unaohitaji, na utoaji wa P&L wa FX wa kiwango cha ukaguzi."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka kwa mmiliki wa leseni hadi uuzaji wa nje.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Borjie inakusanya usambazaji uliothibitishwa.",
+          "body": "Kila mmiliki wa PML / ML kwenye jukwaa anaonyesha vifurushi vyenye chanzo cha hash-chained."
+        },
+        {
+          "n": "02",
+          "title": "Unaweka mkataba kwa kifurushi.",
+          "body": "Toa zabuni katika escrow; mkataba wa uchukuaji umesainiwa kutoka mwanzo hadi mwisho na uthibitisho wa biometric."
+        },
+        {
+          "n": "03",
+          "title": "Borjie inafunga uuzaji wa nje.",
+          "body": "Risiti ya royalti, uchanganuzi, ripoti za BOT na hash za mfululizo wa uhifadhi - zote zimeshikamana kwenye pakiti moja iliyosainiwa."
+        }
+      ],
+      "problemKicker": "Kwa nini wachukuaji wanahama",
+      "problemHeading": "Kile usambazaji wa wachimba wadogo",
+      "problemHeadingAccent": "hauwezi kutoa peke yake",
+      "problemSub": "PMLs na MLs wana madini - kile wanakosa ni mfululizo wa karatasi wa kiwango cha uuzaji wa nje unaohitajika na forodha na benki yako.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Usambazaji uliotawanyika.",
+          "desc": "Wamiliki wa leseni ishirini, mazungumzo ishirini, mifululizo ya karatasi ishirini - hakuna iliyounganishwa."
+        },
+        {
+          "title": "Karatasi za uuzaji wa nje zilizokosekana.",
+          "desc": "Risiti za royalti, uchanganuzi na cheti za asili zinafika kwa kuchelewa au katika fomu zisizofanana."
+        },
+        {
+          "title": "Mkanganyiko wa sarafu.",
+          "desc": "Mikataba ya uchukuaji katika USD, ankara ya mtoaji katika TZS, hakuna ukaguzi wa upotezaji wa FX."
+        },
+        {
+          "title": "Mapungufu ya uzingatiaji wa BOT.",
+          "desc": "Ripoti zinafanyika kwa kuchelewa na bila kukamilika - faini zinaongezeka kwa kila usafirishaji."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Uso mmoja wa mkataba kwa kila mtoaji.",
+          "desc": "Wamiliki wote wa PML / ML kwenye Borjie wanaonyesha vifurushi kwa umbo lile lile, na pamoja na stack ya KYB nyuma yao."
+        },
+        {
+          "title": "Pakiti ya uuzaji wa nje imekusanywa otomatiki.",
+          "desc": "Risiti ya royalti, uchanganuzi, cheti cha asili, ripoti ya BOT - zote zimefungwa kwa kila kifurushi."
+        },
+        {
+          "title": "Malipo yenye FX wazi.",
+          "desc": "Kila kifurushi kinabeba sarafu yake, kituo cha FX, na utoaji wa P&L."
+        },
+        {
+          "title": "Inalingana na BOT tangu mwanzo.",
+          "desc": "Kila kifurushi kinauzwa nje na ripoti ya BOT tayari imewasilishwa na imesainiwa - hakuna faini za kuchelewa."
+        }
+      ],
+      "ctaHeading": "Kusanya usambazaji wa Tanzania, safirisha safi.",
+      "ctaSub": "Eleza timu yetu. Tunaonyesha mkataba wako wa uchukuaji, tunaweka pakiti ya uuzaji wa nje, na tunakuonyesha kifurushi kinacho fanya kazi kutoka mwanzo hadi mwisho.",
+      "ctaPrimary": "Eleza timu yetu"
+    },
+    "bank": {
+      "metaTitle": "Kwa benki na mikopo midogo - Borjie",
+      "metaDescription": "Borjie kwa benki na taasisi za mikopo midogo: uthibitisho wa dhamana za migodi, reli za escrow, ugawaji wa royalti, utoaji wa mikopo unaolingana na BOT.",
+      "heroKicker": "Kwa benki na mikopo midogo",
+      "heroHeadline": "Toa mkopo kwa migodi kwa",
+      "heroHeadlineAccent": "ukweli wa msingi",
+      "heroSub": "Borjie inathibitisha dhamana za migodi, inafuatilia ugawaji wa royalti, na inatoa uzingatiaji wa masharti - ili maafisa wa mkopo waone ukweli wa msingi, sio lahajedwali zilizoandikwa na mkopaji.",
+      "heroPrimaryCta": "Omba pilot",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "Pakiti ya utoaji wa mikopo inayolingana na BOT",
+        "Kifuatilizi cha masharti cha wakati halisi",
+        "Mfululizo wa hash wa ukaguzi kwa kila kitu"
+      ],
+      "statsHeading": "Nambari tatu zinazobadilisha kitabu chako cha migodi.",
+      "statsSub": "Vipengele halisi - hatua zinazobadilisha hesabu ya utoaji wa mkopo kwenye mkopo wa PML / ML.",
+      "stats": [
+        {
+          "value": "Imethibitishwa",
+          "label": "Dhamana ya migodi, sio madai ya mkopaji",
+          "sub": "Borjie inahakiki leseni na Tumemadini na inaweka uthibitisho ulosainiwa kwa hash kwa kila faili."
+        },
+        {
+          "value": "T+0",
+          "label": "Kifuatilizi cha masharti hai",
+          "sub": "Uzalishaji, hazina, ugawaji wa royalti - kila sharti linafuatiliwa kila siku."
+        },
+        {
+          "value": "100%",
+          "label": "Vitu vya kiwango cha ukaguzi",
+          "sub": "Kila uamuzi wa mkopo unataja hati za chanzo zilizosainiwa, zilizo na hash - hakuna PDF inayoweza kuharibiwa baadaye."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka kwa maombi hadi kupokea.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Mkopaji anakubali.",
+          "body": "Mmiliki wa PML / ML anaipa benki ufikiaji wa kusoma kwenye mteja wake wa Borjie - vipimo tu katika pakiti yako ya masharti."
+        },
+        {
+          "n": "02",
+          "title": "Utoaji wa mkopo kwenye data iliyosainiwa.",
+          "body": "Afisa wako anaona uthibitisho wa leseni, ushuhuda wa uzalishaji, hali ya hazina na hali ya ugawaji wa royalti pamoja na asili ya hash."
+        },
+        {
+          "n": "03",
+          "title": "Kifuatilizi cha masharti kwa kila uondoaji.",
+          "body": "Borjie inatoa uzingatiaji wa kila siku wenye ushahidi - ukiukaji unaonyeshwa asubuhi unapojitokeza."
+        }
+      ],
+      "problemKicker": "Kwa nini benki zinahama",
+      "problemHeading": "Kile utoaji wa mkopo kwenye karatasi",
+      "problemHeadingAccent": "kinakosa kweli",
+      "problemSub": "Mikopo ya migodi inaishi au inakufa kwa ukweli wa msingi - na pakiti za karatasi zinazovuka madawati ya maafisa leo ni za miezi iliyopita na hazijasainiwa.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Dhamana isiyothibitishwa.",
+          "desc": "Maafisa hawawezi kuthibitisha kwa kujitegemea kuwa leseni iko hai, mmiliki ndiye mkopaji, na hakuna ahadi-mbili."
+        },
+        {
+          "title": "Ugawaji wa royalti wa karatasi tu.",
+          "desc": "Barua za ugawaji wa royalti zinaishi katika PDF zilizoskaniwa - wachukuaji wakilipa, benki haionekani kwenye mtiririko."
+        },
+        {
+          "title": "Kugundua ukiukaji wa masharti kwa kuchelewa.",
+          "desc": "Ripoti za kila robo ina maana benki inajifunza kuhusu upungufu siku 60 baada ya kufanyika."
+        },
+        {
+          "title": "Hakuna pakiti ya uuzaji wa nje inayolingana na BOT.",
+          "desc": "Mkopaji anaposafirisha na kufuta, benki haiwezi kulinganisha uuzaji wa nje na mkopo wa msingi."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Dhamana iliyothibitishwa kwa leseni.",
+          "desc": "Ukaguzi na Tumemadini, uthibitisho wa biometric wa mmiliki, uthibitisho uliosainiwa kwa hash katika pakiti ya utoaji wa mkopo."
+        },
+        {
+          "title": "Ugawaji wa royalti kwenye reli.",
+          "desc": "Mtiririko wa malipo ya uchukuaji unagawanyika kwenye chanzo - sehemu ya benki inapelekwa kabla ya mmiliki kuona iliyobaki."
+        },
+        {
+          "title": "Ushuhuda wa kila siku wa masharti.",
+          "desc": "Kila uondoaji unafuatiliwa dhidi ya seti ya masharti; ukiukaji unaonekana asubuhi unapojitokeza."
+        },
+        {
+          "title": "Mwonekano wa uuzaji wa nje unaolingana na BOT.",
+          "desc": "Kila kifurushi kilichosafirishwa chini ya mkopo kinaungana na uondoaji - ufuatiliaji wa kiwango cha ukaguzi kamili."
+        }
+      ],
+      "ctaHeading": "Toa mkopo kwa migodi macho yakiwa wazi.",
+      "ctaSub": "Eleza timu yetu. Tunaonyesha mkopaji mmoja kwa pilot ya siku 90, tunaweka pakiti ya masharti, na tunakuonyesha ushuhuda kwenye data salama.",
+      "ctaPrimary": "Eleza timu yetu"
+    },
+    "regulator": {
+      "metaTitle": "Kwa wadhibiti na wizara - Borjie",
+      "metaDescription": "Borjie kwa wadhibiti: mwonekano wa wakati halisi katika uzingatiaji wa PML / ML, upatanisho wa royalti, na ripoti za matukio ya HSE katika eneo lote la migodi.",
+      "heroKicker": "Kwa wadhibiti na wizara",
+      "heroHeadline": "Usimamizi wa migodi pamoja na",
+      "heroHeadlineAccent": "ushahidi kwa kasi",
+      "heroSub": "Borjie inatoa hali ya leseni, upatanisho wa royalti, matukio ya HSE na ripoti za uzingatiaji kutoka kila PML / ML kwenye jukwaa - ili wadhibiti waone ukweli wa msingi wakati halisi, sio baada ya mwisho wa robo.",
+      "heroPrimaryCta": "Eleza timu yetu",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "Inalingana na uwasilishaji wa Tumemadini",
+        "Mtiririko wa NEMC HSE",
+        "Mfululizo wa hash wa ukaguzi kwa kila kitu"
+      ],
+      "statsHeading": "Sababu tatu mdhibiti anajiunga mapema.",
+      "statsSub": "Vipengele halisi - kile usimamizi wa wakati halisi wa migodi unafungua kwa Tumemadini, NEMC na Wizara ya Madini.",
+      "stats": [
+        {
+          "value": "T+0",
+          "label": "Hali ya leseni katika eneo lote",
+          "sub": "Kila PML, PL na ML kwenye jukwaa inaonyesha hali, kumalizika kwa muda, na ugawaji wa royalti wakati halisi."
+        },
+        {
+          "value": "Hash",
+          "label": "Vitu vya uwasilishaji havibadiliki",
+          "sub": "Kila uwasilishaji wa Tumemadini / NEMC unabeba asili ya hash-chained - hakuna ubadilishaji wa nyuma."
+        },
+        {
+          "value": "Wakati halisi",
+          "label": "Matukio ya HSE yameripotiwa",
+          "sub": "Jeraha la muda uliopotea, tukio la mazingira, malalamiko ya jamii - yameripotiwa kupitia Borjie wakati yanapotokea."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka leseni hadi usimamizi.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Mmiliki wa leseni anajiunga.",
+          "body": "Mmiliki wa PML / ML anaweka mteja wake wa Borjie; mtiririko uliopangiwa mdhibiti unaundwa otomatiki."
+        },
+        {
+          "n": "02",
+          "title": "Mawasilisho yanafanyika kwenye reli.",
+          "body": "Ripoti za Tumemadini na ripoti za NEMC HSE zinakusanywa na kusainiwa ndani ya mfumo wa uendeshaji wa Borjie."
+        },
+        {
+          "n": "03",
+          "title": "Mdhibiti anasoma ukweli wa msingi.",
+          "body": "Hali hai katika eneo, ushahidi umetajwa, lugha mbili sw / en - hakuna kukimbilia mwisho wa robo."
+        }
+      ],
+      "problemKicker": "Kwa nini wadhibiti wanahama",
+      "problemHeading": "Kile usimamizi wa mzunguko wa karatasi",
+      "problemHeadingAccent": "unashindwa kukamata",
+      "problemSub": "Sekta ya migodi inalipa bili za Tanzania - na stack ya usimamizi inayoifuatilia bado inafanya kazi kwenye karatasi, simu, na mwisho wa robo.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Mawasilisho ya kuchelewa.",
+          "desc": "Ripoti za royalti na HSE zinafika baada ya shughuli wanazoelezea - faini zinaongezeka lakini ukweli wa msingi umepotea."
+        },
+        {
+          "title": "Vitu visivyothibitishika.",
+          "desc": "PDF zilizoskaniwa na barua zilizofakishwa zinaweza kuhaririwa nyuma; hakuna mfululizo wa hash unaothibitisha muda."
+        },
+        {
+          "title": "Mwonekano uliotawanyika.",
+          "desc": "Tumemadini, NEMC, BOT na Wizara kila moja inashikilia sehemu tofauti ya mgodi mmoja - hakuna mwonekano uliokusanywa."
+        },
+        {
+          "title": "Giza la tukio la HSE.",
+          "desc": "Malalamiko ya jamii na matukio yanaripotiwa kwa simu, mara nyingi siku baada ya tukio."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Uwasilishaji wa wakati halisi.",
+          "desc": "Ripoti za Tumemadini, ripoti za NEMC, risiti za royalti za BOT - zote zimezalishwa na zimesainiwa ndani ya Borjie."
+        },
+        {
+          "title": "Vitu vyenye hash-chained.",
+          "desc": "Kila uwasilishaji unabeba asili, hakuna kubadilisha nyuma."
+        },
+        {
+          "title": "Hali iliyokusanywa.",
+          "desc": "Mtazamo mmoja katika eneo kwa kila mkoa, kwa kila madini, kwa kila aina ya leseni."
+        },
+        {
+          "title": "Mtiririko wa HSE hai.",
+          "desc": "Matukio yameripotiwa wakati wa tukio, na ushahidi wa vyombo vya habari uliokamatwa kibaometriki na msimamizi wa tovuti."
+        }
+      ],
+      "ctaHeading": "Usimamizi wa migodi kwa kasi ya sekta.",
+      "ctaSub": "Eleza timu yetu. Tunaonyesha mtiririko wa data unaouhitaji mdhibiti wako, tunaweka ufikiaji uliopangiwa kusoma, na tunakuonyesha hali ya moja kwa moja kwenye data salama ya demo.",
+      "ctaPrimary": "Eleza timu yetu"
+    },
+    "csrCommunity": {
+      "metaTitle": "Kwa washirika wa CSR na jamii - Borjie",
+      "metaDescription": "Borjie kwa washirika wa CSR na jamii: utoaji wazi wa uwekezaji wa jamii, ushughulikiaji wa malalamiko, na ripoti za thamani zilizoshirikiwa.",
+      "heroKicker": "Kwa washirika wa CSR na jamii",
+      "heroHeadline": "Uwekezaji wa jamii pamoja na",
+      "heroHeadlineAccent": "ushahidi halisi",
+      "heroSub": "Borjie inafuatilia kila shilingi ya ahadi ya uwekezaji wa jamii, kila malalamiko, na kila programu ya thamani iliyoshirikiwa - lugha mbili, iliyosainiwa, kiwango cha ukaguzi.",
+      "heroPrimaryCta": "Eleza timu yetu",
+      "heroSecondaryCta": "Iangalie ikifanya kazi",
+      "trustline": [
+        "Ushughulikiaji wa malalamiko kwenye mlolongo",
+        "Ripoti ya thamani iliyoshirikiwa",
+        "Lugha mbili sw / en"
+      ],
+      "statsHeading": "Sababu tatu CSR inahamia Borjie.",
+      "statsSub": "Vipengele halisi - kile ufuatiliaji wa kiwango cha ushahidi wa uwekezaji wa jamii unafungua kwa mmiliki wa leseni na jamii ya mwenyeji.",
+      "stats": [
+        {
+          "value": "100%",
+          "label": "Ufuatiliaji wa utoaji",
+          "sub": "Kila ahadi katika mpango wa CSR inaungana na muamala kwenye daftari, uliosainiwa na mpokeaji wa jamii."
+        },
+        {
+          "value": "Siku-moja",
+          "label": "Ushughulikiaji wa malalamiko",
+          "sub": "Malalamiko ya jamii yameingizwa kwa Kiswahili, yamepelekwa kwa Wakala wa Enzi, yametatuliwa kwenye mlolongo."
+        },
+        {
+          "value": "Hai",
+          "label": "Ripoti ya thamani iliyoshirikiwa",
+          "sub": "Jamii ya mwenyeji inaona nafasi inayoendelea ya CSR kwenye dashibodi yake mwenyewe, kwa lugha yake."
+        }
+      ],
+      "stepsKicker": "Jinsi inavyofanya kazi",
+      "stepsHeading": "Hatua tatu kutoka mpango wa CSR hadi ushahidi ulioshirikiwa.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Mpango wa CSR uko kwenye mlolongo.",
+          "body": "Kila ahadi katika Mkataba wa Maendeleo ya Jamii wa mmiliki wa leseni inawekwa kwenye Borjie pamoja na idhini kutoka kwa mdhibiti."
+        },
+        {
+          "n": "02",
+          "title": "Utoaji unafanyika kupitia mfumo wa uendeshaji.",
+          "body": "Fedha hutolewa kwa risiti ya biometric - shule, kliniki, waendeshaji wa pointi ya maji wanasaini kwa wanachopokea."
+        },
+        {
+          "n": "03",
+          "title": "Dashibodi iliyoshirikiwa.",
+          "body": "Jamii inaona nafasi yake ya CSR. Mmiliki wa leseni anaona uzingatiaji wake. Mdhibiti anaona mfululizo wa hash ya ukaguzi."
+        }
+      ],
+      "problemKicker": "Kwa nini CSR inahamia kwenye mlolongo",
+      "problemHeading": "Kile mipango ya CSR ya karatasi",
+      "problemHeadingAccent": "inashindwa kutoa",
+      "problemSub": "Mikataba ya maendeleo ya jamii ni majukumu halisi - lakini jinsi inavyofuatiliwa leo inawapotezea jamii na wamiliki wa leseni imani wanayohitaji.",
+      "problemTitle": "Kile kinachoharibika leo",
+      "problems": [
+        {
+          "title": "Ufichwaji wa utoaji.",
+          "desc": "Ahadi za jamii zinafuatiliwa kwenye lahajedwali - fedha zinapotolewa, hakuna mwanachama wa jamii anaye ona risiti iliyosainiwa."
+        },
+        {
+          "title": "Utupu wa malalamiko.",
+          "desc": "Malalamiko yanafikia mgodi kwa simu au uvumi; kamwe hayaingizwi kwa njia inayoweza kukaguliwa."
+        },
+        {
+          "title": "Mabadiliko ya mpango.",
+          "desc": "Mpango wa CSR uliosainiwa siku ya leseni unaonekana tofauti kabisa na utoaji halisi miaka mitano baadaye."
+        },
+        {
+          "title": "Kizuizi cha lugha.",
+          "desc": "Vifaa vingi vya jamii ni vya Kiingereza tu, hata wakati jamii ya mwenyeji ni ya Kiswahili msingi."
+        }
+      ],
+      "solutionTitle": "Jinsi Borjie inavyobadilisha hesabu",
+      "solutions": [
+        {
+          "title": "Mpango kwenye mlolongo, utoaji kwenye reli.",
+          "desc": "Kila ahadi imewekwa pamoja na idhini ya mdhibiti; kila utoaji umesainiwa kibaometriki na mpokeaji."
+        },
+        {
+          "title": "Ushughulikiaji wa malalamiko wazi.",
+          "desc": "Malalamiko yameingizwa kwa Kiswahili kupitia widget ya hadhara na Wakala wa Enzi."
+        },
+        {
+          "title": "Dashibodi iliyoshirikiwa.",
+          "desc": "Jamii, mmiliki na mdhibiti wanaona nambari zile zile kwa lugha yao."
+        },
+        {
+          "title": "Hash ya ukaguzi kwa kila mstari.",
+          "desc": "Kila muamala wa CSR unabeba chanzo - hakuna kitu kinachoweza kuhaririwa nyuma."
+        }
+      ],
+      "ctaHeading": "Uwekezaji wa jamii unaopata imani.",
+      "ctaSub": "Eleza timu yetu. Tunaonyesha CDA yako, tunaweka reli za utoaji, na tunakuonyesha dashibodi ikifanya kazi kwenye data salama ya demo.",
+      "ctaPrimary": "Eleza timu yetu"
+    }
+  },
+  "supportPage": {
+    "kicker": "Msaada",
+    "heading": "Tuko ujumbe mmoja mbali.",
+    "sub": "Makala za msaada, masaa ya ofisini, na mistari ya moja kwa moja kwa timu ya Borjie. Lugha mbili sw / en, siku za kazi 06:00 hadi 20:00 EAT.",
+    "searchPlaceholder": "Tafuta makala za msaada, miongozo, na maswali...",
+    "quickLinksHeading": "Tunawezaje kusaidia leo?",
+    "quickLinks": [
+      {
+        "icon": "BookOpen",
+        "title": "Makala za msaada",
+        "body": "Miongozo ya hatua kwa hatua ya kuunganisha site, kuingiza leseni, na kuweka muhtasari wa kila siku.",
+        "href": "/docs",
+        "cta": "Vinjari makala"
+      },
+      {
+        "icon": "GraduationCap",
+        "title": "Kuanza",
+        "body": "Kuanza wewe mwenyewe kwa Mwanzo na Mkulima, au simu ya kuanzisha kwa Mfanyabiashara na juu.",
+        "href": "/sign-up",
+        "cta": "Anza kuanza"
+      },
+      {
+        "icon": "Calendar",
+        "title": "Masaa ya ofisi",
+        "body": "Masaa ya ofisi ya kila wiki Dar es Salaam na Zoom. Leta faili la leseni yako, muhtasari wa hivi karibuni au mpango wa kuhamia.",
+        "href": "/contact?type=office-hours",
+        "cta": "Panga masaa ya ofisi"
+      }
+    ],
+    "faqHeading": "Maswali yanayoulizwa mara kwa mara",
+    "faqs": [
+      {
+        "q": "Naingizaje mgodi wangu?",
+        "a": "Jisajili kwa Mwanzo (bure) au Mkulima. Pakia cheti chako cha PML / ML na risiti ya hivi karibuni ya royalti. Bw. Mwikila anakuongoza kupitia muhtasari wa wiki ya kwanza. Kwa Mfanyabiashara na juu, mhandisi wa Borjie anapanga simu ya kuanza ndani ya siku mbili za kazi."
+      },
+      {
+        "q": "Naweza kuingiza lahajedwali zangu zilizopo?",
+        "a": "Ndio. Kumbukumbu za uzalishaji, mishahara, taarifa za hazina na kalenda za leseni zinaingia kupitia mtiririko unaoongozwa wa CSV / XLSX. Ubongo unathibitisha unapoendelea na unaonyesha safu zinazohitaji mapitio kabla ya kuingia kwenye daftari."
+      },
+      {
+        "q": "Jukwaa linaunga mkono lugha gani?",
+        "a": "Kiswahili na Kiingereza. Mtumiaji anaweza kubadilisha kwa kifaa, na Bw. Mwikila anajibu kwa lugha uliyoandika."
+      },
+      {
+        "q": "Data yangu inahifadhiwa wapi?",
+        "a": "Hifadhi ya msingi ya eneo la Tanzania na chelezo iliyoidhinishwa na mdhibiti. AES-256-GCM wakati wa kupumzika, TLS 1.3 wakati wa kusafirisha. Orodha kamili ya sub-processors kwenye /legal/subprocessors."
+      },
+      {
+        "q": "Nimwasiliane na nani kuhusu swali la bili?",
+        "a": "billing@borjie.co.tz kwa ankara au maswali ya malipo. M-Pesa, Tigo Pesa, Airtel Money, Visa, Mastercard na uhamisho wa benki wa TZS zote zinasaidiwa."
+      },
+      {
+        "q": "Vipi nikihitaji msaada wa haraka?",
+        "a": "WhatsApp +255 757 070 070 wakati wa masaa ya ofisi (06:00 hadi 20:00 EAT, siku za kazi). Kwa matukio ya baada ya masaa na wikendi kwa Kampuni na juu, chaneli yako maalum ya mafanikio inashughulikia 24x7."
+      }
+    ],
+    "contactStripHeading": "Ongea na binadamu.",
+    "contactStrip": [
+      {
+        "icon": "Mail",
+        "label": "Barua pepe",
+        "value": "hello@borjie.co.tz",
+        "href": "mailto:hello@borjie.co.tz"
+      },
+      {
+        "icon": "Phone",
+        "label": "WhatsApp",
+        "value": "+255 757 070 070",
+        "href": "https://wa.me/255757070070"
+      },
+      {
+        "icon": "MapPin",
+        "label": "Ofisi",
+        "value": "Dar es Salaam, Tanzania",
+        "href": "/contact"
+      }
+    ],
+    "ctaHeading": "Unahitaji zaidi ya kujihudumia?",
+    "ctaSub": "Panga muda wa dakika 15 wa masaa ya ofisi. Tunafungua faili pamoja.",
+    "ctaPrimary": "Panga masaa ya ofisi"
+  },
+  "contactPage": {
+    "kicker": "Wasiliana",
+    "heading": "Hebu tuongee.",
+    "sub": "Binadamu halisi husoma kila ujumbe na hujibu ndani ya siku moja ya kazi. Chagua jinsi mazungumzo yanapaswa kuanza.",
+    "inquiryHeading": "Nini kinakuleta leo?",
+    "inquiryTypes": [
+      {
+        "value": "demo",
+        "label": "Omba demo",
+        "icon": "Sparkles"
+      },
+      {
+        "value": "pilot",
+        "label": "Omba pilot",
+        "icon": "Rocket"
+      },
+      {
+        "value": "partnership",
+        "label": "Ushirikiano",
+        "icon": "Users"
+      },
+      {
+        "value": "msaada",
+        "label": "Msaada wa kiufundi",
+        "icon": "Headphones"
+      },
+      {
+        "value": "press",
+        "label": "Habari na vyombo vya habari",
+        "icon": "Newspaper"
+      }
+    ],
+    "formNameLabel": "Jina lako",
+    "formNamePlaceholder": "Amina Hassan",
+    "formEmailLabel": "Barua pepe",
+    "formEmailPlaceholder": "wewe@kampuni.co.tz",
+    "formOrgLabel": "Shirika",
+    "formOrgPlaceholder": "Jina la mgodi au kampuni",
+    "formMessageLabel": "Ujumbe",
+    "formMessagePlaceholder": "Tueleze kuhusu mgodi wako, timu yako, na unachohitaji.",
+    "formSubmit": "Tuma ujumbe",
+    "formSubmitting": "Inatuma...",
+    "formSuccess": "Asante. Tutajibu ndani ya siku moja ya kazi.",
+    "channelsHeading": "Njia zingine za kutufikia",
+    "channels": [
+      {
+        "icon": "Mail",
+        "label": "Maswali ya jumla",
+        "value": "hello@borjie.co.tz",
+        "href": "mailto:hello@borjie.co.tz"
+      },
+      {
+        "icon": "Mail",
+        "label": "Mauzo",
+        "value": "sales@borjie.co.tz",
+        "href": "mailto:sales@borjie.co.tz"
+      },
+      {
+        "icon": "Mail",
+        "label": "Habari",
+        "value": "press@borjie.co.tz",
+        "href": "mailto:press@borjie.co.tz"
+      },
+      {
+        "icon": "Phone",
+        "label": "WhatsApp",
+        "value": "+255 757 070 070",
+        "href": "https://wa.me/255757070070"
+      },
+      {
+        "icon": "MapPin",
+        "label": "Ofisi",
+        "value": "Mlimani City, Dar es Salaam",
+        "href": "#"
+      },
+      {
+        "icon": "Clock",
+        "label": "Masaa ya ofisi",
+        "value": "Jumatatu hadi Ijumaa, 06:00 hadi 20:00 EAT",
+        "href": "#"
+      }
+    ],
+    "ctaHeading": "Unataka kuruka fomu?",
+    "ctaSub": "Panga simu ya dakika 15 katika muda ujao unaopatikana.",
+    "ctaPrimary": "Panga simu"
+  },
+  "securityPage": {
+    "kicker": "Usalama na imani",
+    "heading": "Borjie imejengwa kwa uchunguzi wa mdhibiti.",
+    "sub": "Mfumo wa usalama wa tabaka 5, mfululizo wa hash kwenye kila kitu, na hifadhi ya eneo la Tanzania. Imejengwa kwa BOT, Tumemadini na NEMC, na inalingana na vidhibiti vya ISO 27001.",
+    "pillarsHeading": "Nguzo nne za mfumo wa usalama wa Borjie.",
+    "pillars": [
+      {
+        "icon": "Lock",
+        "title": "Usimbaji kila mahali",
+        "body": "AES-256-GCM wakati wa kupumzika. TLS 1.3 wakati wa kusafirisha. Usimbaji wa bahasha kwenye tabaka la programu kwa sehemu za usikivu wa juu (NIDA, alama za biometric, risiti za royalti)."
+      },
+      {
+        "icon": "Users",
+        "title": "Ufikiaji kwa msingi wa kuhitaji-kujua",
+        "body": "Usalama wa safu umelazimishwa kwenye kila meza ya wateja. Vituo vya sera za macho-manne na enzi kwenye kila hatua ya hatari kubwa. Mkaguzi wa Mwikila anaandika kila kufuta."
+      },
+      {
+        "icon": "ScrollText",
+        "title": "Mfululizo wa ukaguzi usiobadilika",
+        "body": "Kila kitu cha udhibiti (leseni, royalti, ripoti, ripoti ya HSE) ni hash-chained na huongezeka tu. Ubadilishaji unagundulika na kukataliwa wakati wa kuandika."
+      },
+      {
+        "icon": "Globe",
+        "title": "Hifadhi ya eneo la Tanzania",
+        "body": "Hifadhi ya msingi nchini Tanzania, chelezo iliyoidhinishwa na mdhibiti. Sub-processors na maeneo ya hifadhi yameandikwa kwenye /legal/subprocessors."
+      }
+    ],
+    "badgesHeading": "Uzingatiaji na ulinganishaji.",
+    "badges": [
+      {
+        "icon": "Shield",
+        "text": "BOT inalingana"
+      },
+      {
+        "icon": "Shield",
+        "text": "Tumemadini inalingana"
+      },
+      {
+        "icon": "Shield",
+        "text": "NEMC inalingana"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "TZ-PDPA inalingana"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "ISO 27001 tayari"
+      },
+      {
+        "icon": "BadgeCheck",
+        "text": "SOC 2 Type II tayari"
+      }
+    ],
+    "auditHeading": "Kila hatua kwenye mlolongo.",
+    "auditBody": "Borjie inaandika rekodi iliyosainiwa na hash kwa kila hatua inayogusa daftari, kalenda ya leseni, mtiririko wa royalti au mtiririko wa HSE. Mlolongo unaongezeka tu kwenye tabaka la hifadhidata, unaakishiwa kwenye hifadhi baridi kila saa, na unaonyeshwa kwa mdhibiti kusoma tu kwa ombi.",
+    "auditCta": "Soma kadi ya mtindo wa utawala wa data",
+    "ctaHeading": "Ongea na timu yetu ya usalama.",
+    "ctaSub": "Leta orodha yako ya ukaguzi. Tunajibu kila mstari, kwenye karatasi, kwa vidhibiti vilivyotajwa.",
+    "ctaPrimary": "Eleza timu yetu"
+  },
+  "subprocessorsPage": {
+    "kicker": "Sub-processors",
+    "heading": "Kila muuzaji kwenye mlolongo, kwenye orodha moja.",
+    "lastUpdated": "2026-05-25",
+    "sub": "Borjie inaweka orodha kamili, yenye tarehe ya sub-processors wanaogusa data ya wateja. Mabadiliko yanatangazwa siku 30 kabla ya kuanza kazi.",
+    "columns": {
+      "vendor": "Muuzaji",
+      "role": "Jukumu",
+      "region": "Eneo",
+      "contract": "Mkataba"
+    },
+    "rows": [
+      {
+        "vendor": "Supabase",
+        "role": "Postgres / auth / hifadhi",
+        "region": "eu-central-1 (Frankfurt)",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Vercel",
+        "role": "Edge hosting / CDN",
+        "region": "Edges za kimataifa, asili EU",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Anthropic",
+        "role": "LLM (familia ya Claude)",
+        "region": "US (hakuna mafunzo kwa data ya mteja)",
+        "contract": "Zero-Retention DPA"
+      },
+      {
+        "vendor": "OpenAI",
+        "role": "LLM mbadala na embeddings",
+        "region": "US (hakuna mafunzo kwa data ya mteja)",
+        "contract": "Zero-Retention DPA"
+      },
+      {
+        "vendor": "Stripe",
+        "role": "Usindikaji wa kadi",
+        "region": "US / EU",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Vodacom M-Pesa",
+        "role": "Reli za pesa za simu",
+        "region": "Tanzania",
+        "contract": "PSP iliyo na leseni ya BOT"
+      },
+      {
+        "vendor": "Tigo Pesa",
+        "role": "Reli za pesa za simu",
+        "region": "Tanzania",
+        "contract": "PSP iliyo na leseni ya BOT"
+      },
+      {
+        "vendor": "Airtel Money",
+        "role": "Reli za pesa za simu",
+        "region": "Tanzania",
+        "contract": "PSP iliyo na leseni ya BOT"
+      },
+      {
+        "vendor": "Sentry",
+        "role": "Ufuatiliaji wa makosa",
+        "region": "eu-central-1",
+        "contract": "DPA"
+      },
+      {
+        "vendor": "Cloudflare",
+        "role": "Edge proxy / WAF",
+        "region": "Edges za kimataifa",
+        "contract": "DPA"
+      }
+    ],
+    "notice": "Tangazo la sub-processor mpya hutua kwenye /legal/subprocessors angalau siku 30 kabla ya kugusa data yako. Pinga kwa barua pepe kwa dpo@borjie.co.tz."
+  },
+  "cookiesPage": {
+    "kicker": "Vidakuzi",
+    "heading": "Kila kidakuzi tunachowekwa, kwenye meza moja.",
+    "lastUpdated": "2026-05-25",
+    "sub": "Tunatumia seti ndogo zaidi ya vidakuzi vinavyohitajika kuendesha tovuti ya uuzaji na jukwaa. Hakuna vidakuzi vya matangazo, hakuna vifuatiliaji vya watu wengine bila idhini.",
+    "columns": {
+      "cookie": "Kidakuzi",
+      "purpose": "Madhumuni",
+      "category": "Kategoria",
+      "lifetime": "Maisha"
+    },
+    "categories": {
+      "essential": "Muhimu",
+      "preferences": "Mapendekezo",
+      "analytics": "Uchambuzi (kuchagua)"
+    },
+    "rows": [
+      {
+        "cookie": "borjie_locale",
+        "purpose": "Kumbuka chaguo lako la lugha (sw / en).",
+        "category": "preferences",
+        "lifetime": "Mwaka 1"
+      },
+      {
+        "cookie": "borjie_session",
+        "purpose": "Kukuweka umesajiliwa.",
+        "category": "essential",
+        "lifetime": "Kikao"
+      },
+      {
+        "cookie": "borjie_csrf",
+        "purpose": "Zuia ughushi wa ombi la tovuti tofauti kwenye fomu.",
+        "category": "essential",
+        "lifetime": "Kikao"
+      },
+      {
+        "cookie": "borjie_consent",
+        "purpose": "Kumbuka chaguzi zako za idhini ya kidakuzi.",
+        "category": "essential",
+        "lifetime": "Miezi 6"
+      },
+      {
+        "cookie": "borjie_anon_metrics",
+        "purpose": "Vipimo vya kutazama ukurasa visivyojulikana, ikiwa unachagua tu.",
+        "category": "analytics",
+        "lifetime": "Miezi 6"
+      }
+    ],
+    "manageHeading": "Simamia vidakuzi",
+    "manageBody": "Rekebisha idhini yako wakati wowote. Vidakuzi muhimu haviwezi kuzimwa bila kuvunja kuingia na uwasilishaji wa fomu.",
+    "manageCta": "Fungua mapendekezo ya kidakuzi"
+  },
+  "offlinePage": {
+    "kicker": "Nje ya mtandao",
+    "heading": "Uko nje ya mtandao.",
+    "sub": "Tovuti ya Borjie inahitaji muunganisho ili kupakia data ya moja kwa moja. Angalia mtandao wako na jaribu tena, au fungua ukurasa uliohifadhiwa kutoka kwa historia yako.",
+    "retry": "Pakia upya",
+    "goHome": "Rudi nyumbani"
+  }
+}

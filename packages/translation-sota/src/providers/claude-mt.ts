@@ -102,7 +102,13 @@ export function createClaudeProvider(deps: ClaudeMtDeps): ProviderPort {
       const body = JSON.stringify({
         model: deps.config.model,
         max_tokens: deps.config.maxTokens ?? 1024,
-        temperature: deps.config.temperature ?? 0,
+        // Only send `temperature` when explicitly configured. Newer models
+        // (e.g. Opus 4.8) DEPRECATED the parameter and 400 the request if it
+        // is present — sending a default `temperature: 0` silently killed the
+        // Claude tier, degrading every translate() surface to source text.
+        ...(deps.config.temperature !== undefined
+          ? { temperature: deps.config.temperature }
+          : {}),
         system: systemPrompt,
         messages: [
           {
