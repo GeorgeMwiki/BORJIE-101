@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Borjie Buyers",
-    "slogan": "Real minerals market"
+    "slogan": "Real minerals market",
+    "tagline": "Mineral marketplace"
   },
   "tabs": {
     "dashboard": "Dashboard",
@@ -73,6 +74,12 @@
     "max_grade": "Max grade",
     "all_minerals": "All minerals",
     "all_regions": "All regions",
+    "status_reserved": "Reserved",
+    "status_open": "Open",
+    "seller_verified": "Verified",
+    "seller_unverified": "Unverified",
+    "assay": "Assay",
+    "assay_pdf": "Assay PDF",
     "trust": {
       "gov_licensed": "Govt-licensed",
       "lab_assayed": "Lab-assayed",
@@ -171,7 +178,33 @@
     "biometric_cancelled": "Signature cancelled",
     "pdf_open_failed": "Could not open PDF",
     "empty_pending": "No contracts awaiting signature",
-    "empty_signed": "No signed contracts yet"
+    "empty_signed": "No signed contracts yet",
+    "kind_contract": "Contract",
+    "kind_rfp": "RFP / Tender",
+    "kind_letter": "Letter",
+    "kind_report": "Report",
+    "kind_other": "Other",
+    "status_queued": "Queued",
+    "status_processing": "Processing",
+    "status_ready": "Ready",
+    "status_failed": "Failed"
+  },
+  "documents_intel": {
+    "tab_title": "Living documents",
+    "tab_subtitle": "Chat with your contracts",
+    "upload_new": "Upload new document",
+    "load_failed": "Could not load documents",
+    "not_found": "Document not found",
+    "list_empty_title": "No documents yet",
+    "list_empty_body": "Upload a contract, RFP, or report to start chatting with it.",
+    "open_document": "Open document {{name}}",
+    "summary": "Summary",
+    "ask_empty": "Ask anything about this document.",
+    "ask_placeholder": "Type a question...",
+    "ask_accessibility": "Ask about this document",
+    "send_question": "Send question",
+    "answer_pending": "Question received. This document has {{count}} chunks indexed. The brain will reply shortly.",
+    "ask_failed": "Could not get an answer"
   },
   "kyc": {
     "title": "KYC verification",
@@ -246,6 +279,7 @@
     "empty": "Start the conversation",
     "loading": "Loading chat",
     "load_failed": "Could not load chat",
+    "assistant_thinking": "Mr. Mwikila is replying",
     "no_thread": "This bid has no message thread yet. A chat opens once the seller responds to your offer."
   },
   "auth": {
@@ -387,5 +421,31 @@
     "price-fit": "Price fit",
     "region-preference": "Region",
     "compliance-posture": "Compliance"
+  },
+  "superpowers": {
+    "undo": "Undo ({{seconds}})",
+    "undone": "Undone",
+    "undo_accessibility": "Undo last action",
+    "selected_count": "{{count}} selected",
+    "bulk_rfb": "Bulk RFB",
+    "bulk_rfb_accessibility": "Send bulk request-for-bids",
+    "bulk_rfb_done": "RFB sent on {{count}}",
+    "watch": "Watch",
+    "watch_accessibility": "Bulk add to watchlist",
+    "watch_done": "Watching {{count}}",
+    "search_placeholder": "Search…",
+    "search_open_accessibility": "Open universal search",
+    "search_input_accessibility": "Universal search input",
+    "open_target": "Open {{label}}",
+    "target_home": "Home",
+    "target_marketplace": "Marketplace",
+    "target_rfb": "Request for Bids",
+    "target_bids": "My bids",
+    "target_contracts": "Contracts",
+    "target_chat": "Chat"
+  },
+  "brand": {
+    "marketplace_eyebrow": "BORJIE · MARKETPLACE",
+    "mwikila_eyebrow": "MR. MWIKILA · MARKETPLACE DIRECTOR"
   }
 }

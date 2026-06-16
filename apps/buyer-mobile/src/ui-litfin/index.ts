@@ -21,6 +21,7 @@ export { LitFinBadge, type LitFinBadgeProps, type LitFinBadgeTone } from './LitF
 export { LitFinAvatar, type LitFinAvatarProps } from './LitFinAvatar'
 export { LitFinEmptyState, type LitFinEmptyStateProps } from './LitFinEmptyState'
 export { LitFinChatBubble, type LitFinChatBubbleProps, type LitFinChatBubbleRole } from './LitFinChatBubble'
+export { LitFinChatDisclaimer, type LitFinChatDisclaimerProps } from './LitFinChatDisclaimer'
 export { LitFinPageHero, type LitFinPageHeroProps } from './LitFinPageHero'
 export { LitFinKpiTile, type LitFinKpiTileProps, type LitFinKpiTone } from './LitFinKpiTile'
 export { LitFinThinkingDots } from './LitFinThinkingDots'

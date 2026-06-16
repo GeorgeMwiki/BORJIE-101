@@ -114,7 +114,7 @@ export default function MarketplaceDetail() {
           <View style={styles.sellerRow}>
             <Text style={styles.sellerName}>{listing.seller.name}</Text>
             <Pill
-              label={listing.seller.verified ? 'verified' : 'unverified'}
+              label={listing.seller.verified ? t('marketplace.seller_verified') : t('marketplace.seller_unverified')}
               tone={listing.seller.verified ? 'success' : 'warning'}
             />
           </View>
@@ -124,7 +124,7 @@ export default function MarketplaceDetail() {
         </Card>
 
         <Card>
-          <Text style={styles.cardTitle}>Assay</Text>
+          <Text style={styles.cardTitle}>{t('marketplace.assay')}</Text>
           {listing.assayResults.map((result) => (
             <KeyValueRow
               key={result.element}
@@ -133,7 +133,7 @@ export default function MarketplaceDetail() {
             />
           ))}
           <View style={{ marginTop: spacing.md }}>
-            <PdfViewer url={listing.assayPdfUrl} title="Assay PDF" />
+            <PdfViewer url={listing.assayPdfUrl} title={t('marketplace.assay_pdf')} />
           </View>
         </Card>
 

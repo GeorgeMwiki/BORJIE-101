@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Wanunuzi wa Borjie",
-    "slogan": "Soko la madini halisi"
+    "slogan": "Soko la madini halisi",
+    "tagline": "Soko la madini"
   },
   "tabs": {
     "dashboard": "Dashibodi",
@@ -73,6 +74,12 @@
     "max_grade": "Daraja la juu",
     "all_minerals": "Madini yote",
     "all_regions": "Mikoa yote",
+    "status_reserved": "Imehifadhiwa",
+    "status_open": "Wazi",
+    "seller_verified": "Amethibitishwa",
+    "seller_unverified": "Hajathibitishwa",
+    "assay": "Uchanganuzi",
+    "assay_pdf": "PDF ya uchanganuzi",
     "trust": {
       "gov_licensed": "Leseni ya Serikali",
       "lab_assayed": "Imepimwa maabara",
@@ -171,7 +178,33 @@
     "biometric_cancelled": "Saini imeghairiwa",
     "pdf_open_failed": "Imeshindwa kufungua PDF",
     "empty_pending": "Hakuna mikataba inayosubiri saini",
-    "empty_signed": "Hakuna mikataba iliyosainiwa bado"
+    "empty_signed": "Hakuna mikataba iliyosainiwa bado",
+    "kind_contract": "Mkataba",
+    "kind_rfp": "RFP / Zabuni",
+    "kind_letter": "Barua",
+    "kind_report": "Ripoti",
+    "kind_other": "Nyingine",
+    "status_queued": "Imepangwa",
+    "status_processing": "Inachakatwa",
+    "status_ready": "Tayari",
+    "status_failed": "Imeshindwa"
+  },
+  "documents_intel": {
+    "tab_title": "Hati hai",
+    "tab_subtitle": "Zungumza na mikataba yako",
+    "upload_new": "Pakia hati mpya",
+    "load_failed": "Imeshindwa kupakia hati",
+    "not_found": "Hati haikupatikana",
+    "list_empty_title": "Bado hakuna hati",
+    "list_empty_body": "Pakia mkataba, RFP, au ripoti uanze kuzungumza nayo.",
+    "open_document": "Fungua hati {{name}}",
+    "summary": "Muhtasari",
+    "ask_empty": "Uliza chochote kuhusu hati hii.",
+    "ask_placeholder": "Andika swali...",
+    "ask_accessibility": "Uliza kuhusu hati hii",
+    "send_question": "Tuma swali",
+    "answer_pending": "Swali limepokelewa. Hati hii ina vipande {{count}} vilivyofahirisiwa. Ubongo utajibu hivi karibuni.",
+    "ask_failed": "Imeshindwa kupata jibu"
   },
   "kyc": {
     "title": "Uthibitisho wa KYC",
@@ -246,6 +279,7 @@
     "empty": "Anzisha mazungumzo",
     "loading": "Inapakia mazungumzo",
     "load_failed": "Imeshindwa kupakia mazungumzo",
+    "assistant_thinking": "Bw. Mwikila anajibu",
     "no_thread": "Zabuni hii bado haina mazungumzo. Mazungumzo yatafunguka pindi muuzaji atakapojibu ofa yako."
   },
   "auth": {
@@ -387,5 +421,31 @@
     "price-fit": "Ulinganifu wa bei",
     "region-preference": "Mkoa",
     "compliance-posture": "Uzingatiaji"
+  },
+  "superpowers": {
+    "undo": "Tendua ({{seconds}})",
+    "undone": "Imetenduliwa",
+    "undo_accessibility": "Tendua kitendo cha mwisho",
+    "selected_count": "{{count}} zimechaguliwa",
+    "bulk_rfb": "RFB ya wingi",
+    "bulk_rfb_accessibility": "Tuma maombi ya zabuni kwa wingi",
+    "bulk_rfb_done": "RFB imetumwa kwa {{count}}",
+    "watch": "Fuatilia",
+    "watch_accessibility": "Ongeza kwenye orodha ya kufuatilia kwa wingi",
+    "watch_done": "Unafuatilia {{count}}",
+    "search_placeholder": "Tafuta…",
+    "search_open_accessibility": "Fungua utafutaji wa jumla",
+    "search_input_accessibility": "Sehemu ya utafutaji wa jumla",
+    "open_target": "Fungua {{label}}",
+    "target_home": "Nyumbani",
+    "target_marketplace": "Soko",
+    "target_rfb": "Maombi ya Zabuni",
+    "target_bids": "Zabuni zangu",
+    "target_contracts": "Mikataba",
+    "target_chat": "Mazungumzo"
+  },
+  "brand": {
+    "marketplace_eyebrow": "BORJIE · SOKO",
+    "mwikila_eyebrow": "BW. MWIKILA · MKURUGENZI WA SOKO"
   }
 }

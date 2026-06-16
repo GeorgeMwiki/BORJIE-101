@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
+import { useTranslation } from '@/hooks/useTranslation'
 import { ingestionStatusLabel, kindLabel, type UploadedDocument } from './types'
 
 export interface DocumentListProps {
@@ -9,13 +10,12 @@ export interface DocumentListProps {
 }
 
 export function DocumentList({ documents, onSelect }: DocumentListProps) {
+  const { t } = useTranslation()
   if (documents.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>No documents yet</Text>
-        <Text style={styles.emptyBody}>
-          Upload a contract, RFP, or report to start chatting with it.
-        </Text>
+        <Text style={styles.emptyTitle}>{t('documents_intel.list_empty_title')}</Text>
+        <Text style={styles.emptyBody}>{t('documents_intel.list_empty_body')}</Text>
       </View>
     )
   }
@@ -25,7 +25,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps) {
         <Pressable
           key={doc.id}
           accessibilityRole="button"
-          accessibilityLabel={`Open document ${doc.fileName}`}
+          accessibilityLabel={t('documents_intel.open_document', { name: doc.fileName })}
           onPress={() => onSelect?.(doc)}
           style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
         >
@@ -35,7 +35,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps) {
             </Text>
             <View style={styles.chipRow}>
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{kindLabel(doc.kind)}</Text>
+                <Text style={styles.chipText}>{kindLabel(doc.kind, t)}</Text>
               </View>
               <View
                 style={[
@@ -44,7 +44,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps) {
                   doc.ingestionStatus === 'failed' ? styles.chipFailed : null,
                 ]}
               >
-                <Text style={styles.chipText}>{ingestionStatusLabel(doc.ingestionStatus)}</Text>
+                <Text style={styles.chipText}>{ingestionStatusLabel(doc.ingestionStatus, t)}</Text>
               </View>
             </View>
           </View>

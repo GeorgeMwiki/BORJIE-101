@@ -45,7 +45,12 @@ import { useTranslation } from '@/hooks/useTranslation'
 import { ApiError } from '@/api/errors'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
-import { greet as timeAwareGreeting } from '@/ui-litfin'
+import {
+  greet as timeAwareGreeting,
+  LitFinChatBubble,
+  LitFinChatDisclaimer,
+  LitFinThinkingDots
+} from '@/ui-litfin'
 import {
   BUYER_SLASH_COMMANDS,
   slashCommandsForPersona
@@ -54,7 +59,6 @@ import { streamBrainTurn, type BrainStreamEvent } from './brainTurn'
 import { ChatSkeleton } from './ChatSkeleton'
 import { FailureDot } from './FailureDot'
 import { SendButton } from './SendButton'
-import { ThreeDotPulse } from './ThreeDotPulse'
 import { ToolCallRenderer } from './ToolCallRenderer'
 import {
   buyerGreeting,
@@ -94,6 +98,11 @@ const ENTRY_DURATION_MS = R7_TIMINGS['BUBBLE_ENTRY_DURATION_MS'] ?? 200
 // brain dispatches the 10 marketplace tools from buyer-tools.ts under
 // the persona's `toolCatalogIds`.
 const BUYER_PERSONA_SLUG = 'T1_buyer_marketplace_director'
+
+// Persona display name — seeds the gold-ringed avatar beside every AI
+// reply. The brain resolves the persona per turn; this keeps the on-screen
+// attribution stable as "Mr. Mwikila".
+const MWIKILA_NAME = 'Mr. Mwikila'
 
 export function HomeChat() {
   const user = useSession()
@@ -339,7 +348,7 @@ export function HomeChat() {
         >
           {showGreeting ? (
             <View style={styles.greetingBlock}>
-              <Text style={styles.greetingEyebrow}>MR. MWIKILA · MARKETPLACE DIRECTOR</Text>
+              <Text style={styles.greetingEyebrow}>{t('brand.mwikila_eyebrow')}</Text>
               <Text style={styles.greetingTitle}>
                 {timeAwareGreeting(lang, user.companyName)}
               </Text>
@@ -407,6 +416,8 @@ export function HomeChat() {
           </View>
         ) : null}
 
+        <LitFinChatDisclaimer language={lang} testID="buyer-chat-disclaimer" />
+
         <View style={styles.composer}>
           <TextInput
             value={draft}
@@ -442,20 +453,18 @@ function SettledTurnView({ turn, translate }: SettledTurnViewProps) {
   return (
     <View style={styles.turnBlock}>
       <BubbleEnter>
-        <View style={[styles.bubble, styles.bubbleUser]}>
-          <Text style={styles.bubbleUserText}>{turn.userText}</Text>
-        </View>
+        <LitFinChatBubble role="user" text={turn.userText} testID="buyer-chat-user-bubble" />
       </BubbleEnter>
-      <BubbleEnter>
-        {turn.responseText.length > 0 ? (
-          <View style={[styles.bubble, styles.bubbleBrain]}>
+      {turn.responseText.length > 0 ? (
+        <BubbleEnter>
+          <LitFinChatBubble role="ai" avatarName={MWIKILA_NAME} testID="buyer-chat-ai-bubble">
             <Text style={styles.bubbleBrainText}>{turn.responseText}</Text>
             {turn.citations.length > 0 ? (
               <CitationChips citations={turn.citations} />
             ) : null}
-          </View>
-        ) : null}
-      </BubbleEnter>
+          </LitFinChatBubble>
+        </BubbleEnter>
+      ) : null}
       {turn.toolCalls.length > 0 ? (
         <ToolCallRenderer toolCalls={turn.toolCalls} translate={translate} />
       ) : null}
@@ -486,10 +495,16 @@ function LiveTurnView({
       (turn.kind === 'streaming' && turn.text.length === 0)) &&
     showSkeleton
 
+  // A bare pending turn (no stream, no skeleton yet) renders the canonical
+  // LitFin typing row — avatar + gold-top bubble + pulsing dots — so the
+  // wait state reads identically to a settled AI reply.
+  const showTypingRow =
+    turn.kind !== 'failed' && showPulse && !hasStream && !showSkeleton
+
   return (
     <View style={styles.turnBlock}>
       <BubbleEnter>
-        <View style={[styles.bubble, styles.bubbleUser]}>
+        <LitFinChatBubble role="user" testID="buyer-chat-user-bubble">
           <Text style={styles.bubbleUserText}>{turn.userText}</Text>
           {turn.kind === 'failed' ? (
             <FailureDot
@@ -497,16 +512,21 @@ function LiveTurnView({
               accessibilityLabel={lang === 'sw' ? 'Jaribu tena' : 'Try again'}
             />
           ) : null}
-        </View>
+        </LitFinChatBubble>
       </BubbleEnter>
-      {turn.kind !== 'failed' ? (
+      {showTypingRow ? <LitFinThinkingDots withBubble avatarName={MWIKILA_NAME} /> : null}
+      {turn.kind !== 'failed' && !showTypingRow ? (
         <BubbleEnter>
-          <View style={[styles.bubble, styles.bubbleBrain, styles.bubbleBrainFlexible]}>
+          <LitFinChatBubble
+            role="ai"
+            avatarName={MWIKILA_NAME}
+            style={styles.bubbleBrainFlexible}
+            testID="buyer-chat-ai-bubble"
+          >
             {showSkeleton && !hasStream ? <ChatSkeleton /> : null}
             {hasStream ? (
               <Text style={styles.bubbleBrainText}>{turn.text}</Text>
             ) : null}
-            {showPulse ? <ThreeDotPulse /> : null}
             {showSlow ? (
               <Text style={styles.slowIndicator}>
                 {lang === 'sw'
@@ -514,7 +534,7 @@ function LiveTurnView({
                   : 'Borjie is busy, hold on…'}
               </Text>
             ) : null}
-          </View>
+          </LitFinChatBubble>
         </BubbleEnter>
       ) : null}
       {turn.toolCalls.length > 0 ? (
@@ -670,29 +690,8 @@ const styles = StyleSheet.create({
   turnBlock: {
     gap: spacing.sm
   },
-  bubble: {
-    padding: spacing.md,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 20,
-    maxWidth: '88%',
-    position: 'relative',
-    borderWidth: 1
-  },
-  bubbleUser: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.gold,
-    borderColor: colors.goldSoft,
-    borderBottomRightRadius: 6
-  },
+  // User-bubble text wrapped inside `LitFinChatBubble` (navy ink on gold).
   bubbleUserText: { ...typography.body, color: colors.ink, fontWeight: '600' },
-  bubbleBrain: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.forestSoft,
-    borderColor: 'rgba(255, 200, 87, 0.22)',
-    borderTopWidth: 2,
-    borderTopColor: colors.gold,
-    borderBottomLeftRadius: 6
-  },
   bubbleBrainFlexible: {
     minHeight: 48,
     minWidth: 120

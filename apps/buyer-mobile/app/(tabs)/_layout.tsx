@@ -55,7 +55,7 @@ export default function TabsLayout() {
   void user
 
   if (!ready) {
-    return <LitFinSplash wordmark="BORJIE" tagline="Soko la Madini. Mineral marketplace." showSpinner />
+    return <LitFinSplash wordmark="BORJIE" tagline={t('app.tagline')} showSpinner />
   }
   if (!isAuthenticated()) {
     return <Redirect href="/auth/login" />

@@ -7,6 +7,7 @@ import { DocumentList } from '@/documents/DocumentList'
 import { DocumentUploadButton } from '@/documents/DocumentUploadButton'
 import { listDocuments } from '@/documents/api'
 import type { UploadedDocument } from '@/documents/types'
+import { useTranslation } from '@/hooks/useTranslation'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
 
@@ -20,6 +21,7 @@ import { radius, spacing, typography } from '@/theme/spacing'
  */
 export default function DocumentsIntelTab() {
   const router = useRouter()
+  const { t } = useTranslation()
   const [docs, setDocs] = useState<ReadonlyArray<UploadedDocument>>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,13 +33,13 @@ export default function DocumentsIntelTab() {
       const next = await listDocuments(50)
       setDocs(next)
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Failed to load documents.'
+      const message = cause instanceof Error ? cause.message : t('documents_intel.load_failed')
       setError(message)
       setDocs([])
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void refresh()
@@ -45,10 +47,13 @@ export default function DocumentsIntelTab() {
 
   return (
     <Screen>
-      <SectionHeader title="Living documents" subtitle="Chat with your contracts" />
+      <SectionHeader
+        title={t('documents_intel.tab_title')}
+        subtitle={t('documents_intel.tab_subtitle')}
+      />
       <View style={styles.uploadRow}>
         <DocumentUploadButton
-          label="Upload new document"
+          label={t('documents_intel.upload_new')}
           onUploaded={(result) => setDocs((prev) => [result.document, ...prev])}
           onError={(message) => setError(message)}
         />

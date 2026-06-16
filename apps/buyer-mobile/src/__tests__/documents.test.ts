@@ -6,6 +6,10 @@ import {
   kindLabel,
   validateUpload,
 } from '../documents/types'
+import { translate } from '../i18n'
+
+const tEn = (path: string): string => translate('en', path)
+const tSw = (path: string): string => translate('sw', path)
 
 /**
  * Pure-data tests for the buyer-mobile documents module.
@@ -59,19 +63,26 @@ describe('buyer-mobile documents.validateUpload', () => {
 })
 
 describe('buyer-mobile documents.label helpers', () => {
-  it('returns English status labels', () => {
-    expect(ingestionStatusLabel('queued')).toBe('Queued')
-    expect(ingestionStatusLabel('processing')).toBe('Processing')
-    expect(ingestionStatusLabel('ready')).toBe('Ready')
-    expect(ingestionStatusLabel('failed')).toBe('Failed')
+  it('resolves status labels through the active locale (en)', () => {
+    expect(ingestionStatusLabel('queued', tEn)).toBe('Queued')
+    expect(ingestionStatusLabel('processing', tEn)).toBe('Processing')
+    expect(ingestionStatusLabel('ready', tEn)).toBe('Ready')
+    expect(ingestionStatusLabel('failed', tEn)).toBe('Failed')
   })
 
-  it('returns English kind labels', () => {
-    expect(kindLabel('contract')).toBe('Contract')
-    expect(kindLabel('rfp')).toBe('RFP / Tender')
-    expect(kindLabel('letter')).toBe('Letter')
-    expect(kindLabel('report')).toBe('Report')
-    expect(kindLabel('other')).toBe('Other')
+  it('resolves kind labels through the active locale (en)', () => {
+    expect(kindLabel('contract', tEn)).toBe('Contract')
+    expect(kindLabel('rfp', tEn)).toBe('RFP / Tender')
+    expect(kindLabel('letter', tEn)).toBe('Letter')
+    expect(kindLabel('report', tEn)).toBe('Report')
+    expect(kindLabel('other', tEn)).toBe('Other')
+  })
+
+  it('returns the Swahili copy when the active locale is sw (single-language)', () => {
+    expect(ingestionStatusLabel('ready', tSw)).toBe('Tayari')
+    expect(kindLabel('contract', tSw)).toBe('Mkataba')
+    // canon: no English token leaks into the Swahili render
+    expect(kindLabel('letter', tSw)).not.toBe('Letter')
   })
 })
 

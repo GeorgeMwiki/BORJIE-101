@@ -33,9 +33,9 @@ export function ListingCard({ listing, onPress, translate }: ListingCardProps) {
           </Text>
         </View>
         {listing.status === 'reserved' ? (
-          <Pill label="reserved" tone="warning" />
+          <Pill label={translate('marketplace.status_reserved')} tone="warning" />
         ) : (
-          <Pill label="open" tone="success" />
+          <Pill label={translate('marketplace.status_open')} tone="success" />
         )}
       </View>
 
