@@ -177,7 +177,7 @@ export function Nav({ locale }: { readonly locale: Locale }) {
   return (
     <header
       className={[
-        'fixed inset-x-0 top-0 z-50 transition-[background-color,border-color,box-shadow] duration-200 ease-out',
+        'fixed inset-x-0 top-0 z-50 isolate transition-[background-color,border-color,box-shadow] duration-200 ease-out',
         scrolled
           ? 'border-b border-border bg-background/80 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-background/70'
           : 'border-b border-transparent bg-background/50 backdrop-blur-md',

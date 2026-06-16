@@ -37,7 +37,7 @@ export function AudienceMenu({
   return (
     <div
       id={id}
-      className="absolute left-1/2 top-full mt-2 w-cmd -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lift-medium"
+      className="absolute z-[60] left-1/2 top-full mt-2 w-cmd -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lift-medium"
     >
       <div className="grid grid-cols-4 gap-1">
         {categories.map((cat) => (
