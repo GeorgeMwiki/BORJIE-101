@@ -127,6 +127,17 @@
     "confirmMessageOut": "Check-out recorded.",
     "directionLabel": "Pick direction"
   },
+  "shiftHero": {
+    "loading": "Loading shift…",
+    "startShift": "Start shift",
+    "start": "Start",
+    "inProgress": "Shift in progress",
+    "endShift": "End shift",
+    "end": "End",
+    "endedToday": "Shift ended for today",
+    "statusLabel": "Shift status",
+    "defaultSite": "Mine"
+  },
   "fuelLog": {
     "assetLabel": "Pick asset",
     "assetPlaceholder": "Excavator-1, Truck-3, Loader-2",
@@ -473,5 +484,56 @@
       "summaryBiometricYes": "Enrolled",
       "summaryBiometricNo": "4-digit PIN"
     }
+  },
+  "documents": {
+    "summaryTitle": "Summary",
+    "emptyChat": "Start a conversation with this document. Ask me anything.",
+    "askPlaceholder": "Type a question…",
+    "askAccessibility": "Type a question about the document",
+    "send": "Send",
+    "sendAccessibility": "Send question",
+    "sessionTitle": "Read: {{fileName}}",
+    "askFallback": "Question received. This document has {{count}} chunks. The brain will respond once processing finishes.",
+    "askError": "Could not ask the question.",
+    "listEmptyTitle": "No documents yet",
+    "listEmptyBody": "Upload a contract, tender or letter to start a conversation with those documents.",
+    "openAccessibility": "Open document {{fileName}}",
+    "kind": {
+      "contract": "Contract",
+      "rfp": "RFP / Tender",
+      "letter": "Letter",
+      "report": "Report",
+      "other": "Other"
+    },
+    "status": {
+      "queued": "Queued",
+      "processing": "Processing",
+      "ready": "Ready",
+      "failed": "Failed"
+    },
+    "driverLetter": {
+      "title": "Borjie - Driver Transport Letter",
+      "truckReg": "Truck reg",
+      "driver": "Driver",
+      "mineral": "Mineral",
+      "tonnage": "Tonnage (t)",
+      "routeFrom": "From",
+      "routeTo": "To",
+      "issued": "Issued"
+    }
+  },
+  "superpowers": {
+    "undone": "Undone",
+    "undo": "Undo ({{seconds}})",
+    "undoAccessibility": "Undo last action",
+    "selected": "{{count}} selected",
+    "acknowledge": "Acknowledge",
+    "acknowledgeAccessibility": "Acknowledge selected items",
+    "markDone": "Done",
+    "markDoneAccessibility": "Mark selected items done",
+    "searchPlaceholder": "Search…",
+    "searchAccessibility": "Universal search input",
+    "openSearchAccessibility": "Open universal search",
+    "openTargetAccessibility": "Open {{label}}"
   }
 }

@@ -127,6 +127,17 @@
     "confirmMessageOut": "Wakati wako wa kutoka umerekodiwa.",
     "directionLabel": "Chagua aina"
   },
+  "shiftHero": {
+    "loading": "Inapakia hali ya zamu…",
+    "startShift": "Anza zamu",
+    "start": "Anza",
+    "inProgress": "Zamu inaendelea",
+    "endShift": "Maliza zamu",
+    "end": "Maliza",
+    "endedToday": "Zamu imeisha leo",
+    "statusLabel": "Hali ya zamu",
+    "defaultSite": "Mgodi"
+  },
   "fuelLog": {
     "assetLabel": "Chagua gari",
     "assetPlaceholder": "Excavator-1, Truck-3, Loader-2",
@@ -626,5 +637,56 @@
       "summaryBiometricYes": "Imethibitishwa",
       "summaryBiometricNo": "PIN ya 4 nambari"
     }
+  },
+  "documents": {
+    "summaryTitle": "Muhtasari",
+    "emptyChat": "Anza mazungumzo na hati hii. Niulize lolote.",
+    "askPlaceholder": "Andika swali…",
+    "askAccessibility": "Andika swali kuhusu hati",
+    "send": "Tuma",
+    "sendAccessibility": "Tuma swali",
+    "sessionTitle": "Soma: {{fileName}}",
+    "askFallback": "Swali limepokelewa. Hati hii ina vipande {{count}}. Borjie itajibu baada ya kuchakata kumalizika.",
+    "askError": "Imeshindikana kuuliza.",
+    "listEmptyTitle": "Hakuna hati bado",
+    "listEmptyBody": "Pakia mkataba, zabuni au barua kuanza mazungumzo na hati hizo.",
+    "openAccessibility": "Fungua hati {{fileName}}",
+    "kind": {
+      "contract": "Mkataba",
+      "rfp": "Zabuni",
+      "letter": "Barua",
+      "report": "Ripoti",
+      "other": "Nyingine"
+    },
+    "status": {
+      "queued": "Imewekwa kwenye foleni",
+      "processing": "Inachakatwa",
+      "ready": "Tayari",
+      "failed": "Imeshindikana"
+    },
+    "driverLetter": {
+      "title": "Borjie - Barua ya Usafirishaji",
+      "truckReg": "Namba ya gari",
+      "driver": "Dereva",
+      "mineral": "Madini",
+      "tonnage": "Uzito (t)",
+      "routeFrom": "Kutoka",
+      "routeTo": "Kwenda",
+      "issued": "Imetolewa"
+    }
+  },
+  "superpowers": {
+    "undone": "Imeghairiwa",
+    "undo": "Tendua ({{seconds}})",
+    "undoAccessibility": "Tendua kitendo cha mwisho",
+    "selected": "{{count}} zimechaguliwa",
+    "acknowledge": "Kubali",
+    "acknowledgeAccessibility": "Kubali vipengele vilivyochaguliwa",
+    "markDone": "Maliza",
+    "markDoneAccessibility": "Weka alama vimekamilika",
+    "searchPlaceholder": "Tafuta…",
+    "searchAccessibility": "Sehemu ya utafutaji wa jumla",
+    "openSearchAccessibility": "Fungua utafutaji wa jumla",
+    "openTargetAccessibility": "Fungua {{label}}"
   }
 }

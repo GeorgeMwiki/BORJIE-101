@@ -82,6 +82,8 @@ function DriverLetterView(): JSX.Element {
   const mutation = useMutation<IssueResult, ApiError, LetterDraft>({
     mutationFn: async (input) => {
       const pdfBytes = buildDriverLetterPdf({
+        // Single active locale — the letter renders in one language only.
+        lang: user?.preferredLang ?? 'sw',
         truckReg: input.truckReg.trim(),
         driverName: input.driverName.trim(),
         mineral: input.mineral.trim(),

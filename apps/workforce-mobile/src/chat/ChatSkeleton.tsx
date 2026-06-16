@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { colors } from '../theme/colors'
 import { radius, spacing } from '../theme/spacing'
+import { useI18n } from '../i18n/useI18n'
 
 export interface ChatSkeletonProps {
   /** When true the shimmer fades in + animates. Default true. */
@@ -22,6 +23,7 @@ export interface ChatSkeletonProps {
 const SHIMMER_DURATION_MS = 1200
 
 export function ChatSkeleton({ visible = true }: ChatSkeletonProps): JSX.Element | null {
+  const { t } = useI18n()
   const progress = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
@@ -57,7 +59,7 @@ export function ChatSkeleton({ visible = true }: ChatSkeletonProps): JSX.Element
   return (
     <View
       testID="home-chat-skeleton"
-      accessibilityLabel="Borjie inajibu"
+      accessibilityLabel={t.askBorjie.thinking}
       accessibilityRole="progressbar"
       style={styles.wrap}
     >

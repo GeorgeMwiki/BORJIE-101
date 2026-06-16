@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
+import { useI18n } from '../i18n/useI18n'
 import { ingestionStatusLabel, kindLabel, type UploadedDocument } from './types'
 
 export interface DocumentListProps {
@@ -9,18 +10,18 @@ export interface DocumentListProps {
 }
 
 /**
- * DocumentList — Swahili-first list of uploaded documents with chip
- * badges for kind + ingestion status. Tapping a row delegates to the
+ * DocumentList — locale-aware list of uploaded documents with chip
+ * badges for kind + ingestion status. Copy flows through the i18n layer
+ * (single language per active locale). Tapping a row delegates to the
  * caller (typically the Documents tab routes to DocumentExplorer).
  */
 export function DocumentList({ documents, onSelect }: DocumentListProps): JSX.Element {
+  const { t } = useI18n()
   if (documents.length === 0) {
     return (
       <View style={styles.empty}>
-        <Text style={styles.emptyTitle}>Hakuna hati bado</Text>
-        <Text style={styles.emptyBody}>
-          Pakia mkataba, zabuni au barua kuanza mazungumzo na hati hizo.
-        </Text>
+        <Text style={styles.emptyTitle}>{t.documents.listEmptyTitle}</Text>
+        <Text style={styles.emptyBody}>{t.documents.listEmptyBody}</Text>
       </View>
     )
   }
@@ -30,7 +31,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps): JSX.El
         <Pressable
           key={doc.id}
           accessibilityRole="button"
-          accessibilityLabel={`Fungua hati ${doc.fileName}`}
+          accessibilityLabel={t.documents.openAccessibility.replace('{{fileName}}', doc.fileName)}
           onPress={() => onSelect?.(doc)}
           style={({ pressed }) => [styles.row, pressed ? styles.rowPressed : null]}
         >
@@ -40,7 +41,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps): JSX.El
             </Text>
             <View style={styles.chipRow}>
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{kindLabel(doc.kind)}</Text>
+                <Text style={styles.chipText}>{kindLabel(doc.kind, t)}</Text>
               </View>
               <View
                 style={[
@@ -49,7 +50,7 @@ export function DocumentList({ documents, onSelect }: DocumentListProps): JSX.El
                   doc.ingestionStatus === 'failed' ? styles.chipFailed : null,
                 ]}
               >
-                <Text style={styles.chipText}>{ingestionStatusLabel(doc.ingestionStatus)}</Text>
+                <Text style={styles.chipText}>{ingestionStatusLabel(doc.ingestionStatus, t)}</Text>
               </View>
             </View>
           </View>

@@ -23,6 +23,7 @@ import {
 } from 'react-native'
 import { colors } from '../theme/colors'
 import { radius, spacing, fontSize } from '../theme/spacing'
+import { useI18n } from '../i18n/useI18n'
 import { undoToastBus, bulkActionBus, type UndoToastEvent } from './bus'
 import { undoJournalIds } from './undo'
 import { navigateToTarget, DEFAULT_WORKER_TARGETS, type NavigateTarget } from './navigate'
@@ -35,6 +36,7 @@ interface UndoState {
 }
 
 function UndoToastMount(): JSX.Element | null {
+  const { t } = useI18n()
   const [state, setState] = useState<UndoState | null>(null)
   const [undone, setUndone] = useState(false)
 
@@ -68,17 +70,19 @@ function UndoToastMount(): JSX.Element | null {
     <View style={styles.undoToastWrap} pointerEvents="box-none">
       <View style={styles.undoToast}>
         <Text style={styles.undoLabel} numberOfLines={1}>
-          {undone ? 'Imeghairiwa' : state.toast.label}
+          {undone ? t.superpowers.undone : state.toast.label}
         </Text>
         {!undone && state.toast.journalIds.length > 0 ? (
           <TouchableOpacity
             onPress={() => void onUndo()}
             style={styles.undoButton}
             accessibilityRole="button"
-            accessibilityLabel="Undo last action"
+            accessibilityLabel={t.superpowers.undoAccessibility}
             hitSlop={8}
           >
-            <Text style={styles.undoButtonText}>Tendua ({state.secondsLeft})</Text>
+            <Text style={styles.undoButtonText}>
+              {t.superpowers.undo.replace('{{seconds}}', String(state.secondsLeft))}
+            </Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -87,35 +91,47 @@ function UndoToastMount(): JSX.Element | null {
 }
 
 function BulkActionMount(): JSX.Element | null {
+  const { t } = useI18n()
   const [tick, setTick] = useState(0)
   useEffect(() => bulkActionBus.subscribe(() => setTick((n) => n + 1)), [])
   const sel = getLiveBulkSelection()
   if (!sel || sel.ids.length === 0) return null
+  const count = String(sel.ids.length)
   return (
     <View key={tick} style={styles.bulkChipWrap} pointerEvents="box-none">
       <View style={styles.bulkChip}>
-        <Text style={styles.bulkChipText}>{sel.ids.length} selected</Text>
+        <Text style={styles.bulkChipText}>{t.superpowers.selected.replace('{{count}}', count)}</Text>
         <TouchableOpacity
           onPress={() => {
-            void runWorkerBulkAction(sel.entityType, sel.ids, 'acknowledge', `Acknowledged ${sel.ids.length}`)
+            void runWorkerBulkAction(
+              sel.entityType,
+              sel.ids,
+              'acknowledge',
+              t.superpowers.acknowledgeAccessibility
+            )
           }}
           style={styles.bulkChipAction}
           accessibilityRole="button"
-          accessibilityLabel="Acknowledge selected items"
+          accessibilityLabel={t.superpowers.acknowledgeAccessibility}
           hitSlop={8}
         >
-          <Text style={styles.bulkChipActionText}>Kubali</Text>
+          <Text style={styles.bulkChipActionText}>{t.superpowers.acknowledge}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
-            void runWorkerBulkAction(sel.entityType, sel.ids, 'mark_done', `Marked ${sel.ids.length} done`)
+            void runWorkerBulkAction(
+              sel.entityType,
+              sel.ids,
+              'mark_done',
+              t.superpowers.markDoneAccessibility
+            )
           }}
           style={styles.bulkChipAction}
           accessibilityRole="button"
-          accessibilityLabel="Mark selected items done"
+          accessibilityLabel={t.superpowers.markDoneAccessibility}
           hitSlop={8}
         >
-          <Text style={styles.bulkChipActionText}>Maliza</Text>
+          <Text style={styles.bulkChipActionText}>{t.superpowers.markDone}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -123,6 +139,7 @@ function BulkActionMount(): JSX.Element | null {
 }
 
 function SearchFab(): JSX.Element {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ReadonlyArray<SearchResult>>([])
@@ -152,7 +169,7 @@ function SearchFab(): JSX.Element {
         onPress={() => setOpen(true)}
         style={styles.fab}
         accessibilityRole="button"
-        accessibilityLabel="Open universal search"
+        accessibilityLabel={t.superpowers.openSearchAccessibility}
         hitSlop={6}
       >
         <Text style={styles.fabText}>?</Text>
@@ -162,12 +179,12 @@ function SearchFab(): JSX.Element {
           <Pressable style={styles.modalCard} onPress={() => undefined}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Tafuta…"
+              placeholder={t.superpowers.searchPlaceholder}
               placeholderTextColor={colors.textMuted}
               value={query}
               onChangeText={setQuery}
               autoFocus
-              accessibilityLabel="Universal search input"
+              accessibilityLabel={t.superpowers.searchAccessibility}
             />
             <View style={styles.resultsList}>
               {(results.length > 0 ? results : DEFAULT_WORKER_TARGETS).map((r) => (
@@ -176,7 +193,7 @@ function SearchFab(): JSX.Element {
                   onPress={() => onPickTarget(r)}
                   style={styles.resultRow}
                   accessibilityRole="button"
-                  accessibilityLabel={`Open ${r.label}`}
+                  accessibilityLabel={t.superpowers.openTargetAccessibility.replace('{{label}}', r.label)}
                 >
                   <Text style={styles.resultLabel}>{r.label}</Text>
                   <Text style={styles.resultRoute}>{r.route}</Text>

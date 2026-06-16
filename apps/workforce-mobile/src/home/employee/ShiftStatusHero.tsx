@@ -4,6 +4,7 @@ import { colors } from '../../theme/colors'
 import { fontSize, radius, spacing } from '../../theme/spacing'
 import { PreviewBanner } from '../../components/PreviewBanner'
 import { enqueueWrite } from '../../sync/queue'
+import { pickStrings } from '../../i18n'
 import { PRIMARY_CTA_DP, type AttendanceShift } from './types'
 
 export interface ShiftStatusHeroProps {
@@ -12,6 +13,7 @@ export interface ShiftStatusHeroProps {
   readonly error: Error | null
   readonly online: boolean
   readonly userId: string | null
+  readonly lang: 'sw' | 'en'
 }
 
 function elapsedLabel(seconds: number): string {
@@ -29,8 +31,13 @@ export function ShiftStatusHero({
   loading,
   error,
   online,
-  userId
+  userId,
+  lang
 }: ShiftStatusHeroProps): JSX.Element {
+  // Single-locale labels from the i18n catalog — no hardcoded user-facing
+  // strings in the JSX (the canon: all copy flows through i18n).
+  const s = pickStrings(lang).shiftHero
+  const defaultSiteName = s.defaultSite
   const onClockIn = useCallback((): void => {
     if (!userId) {
       return
@@ -47,7 +54,9 @@ export function ShiftStatusHero({
 
   const body = useMemo<JSX.Element>(() => {
     if (loading) {
-      return <Text style={styles.lead}>Inapakia hali ya zamu… / Loading shift…</Text>
+      return (
+        <Text style={styles.lead}>{s.loading}</Text>
+      )
     }
     if (error) {
       return <PreviewBanner kind="env-missing" />
@@ -55,19 +64,20 @@ export function ShiftStatusHero({
     if (!shift) {
       return <PreviewBanner kind="no-data" />
     }
+    const siteName = shift.siteName ?? defaultSiteName
     if (shift.state === 'not-started') {
       return (
         <View>
-          <Text style={styles.headline}>Anza zamu</Text>
-          <Text style={styles.sub}>Start shift · {shift.siteName ?? 'Mgodi'}</Text>
+          <Text style={styles.headline}>{s.startShift}</Text>
+          <Text style={styles.sub}>{`${s.startShift} · ${siteName}`}</Text>
           <Pressable
             onPress={onClockIn}
             accessibilityRole="button"
-            accessibilityLabel="Anza zamu / Start shift"
+            accessibilityLabel={s.startShift}
             style={({ pressed }) => [styles.cta, pressed ? styles.ctaPressed : null]}
             testID="employee-home-clock-in"
           >
-            <Text style={styles.ctaText}>Anza / Start</Text>
+            <Text style={styles.ctaText}>{s.start}</Text>
           </Pressable>
         </View>
       )
@@ -77,27 +87,29 @@ export function ShiftStatusHero({
         <View>
           <Text style={styles.timer}>{elapsedLabel(shift.elapsedSeconds)}</Text>
           <Text style={styles.sub}>
-            Zamu inaendelea · {shift.siteName ?? 'Mgodi'} / Shift in progress
+            {`${s.inProgress} · ${siteName}`}
           </Text>
           <Pressable
             onPress={onClockOut}
             accessibilityRole="button"
-            accessibilityLabel="Maliza zamu / End shift"
+            accessibilityLabel={s.endShift}
             style={({ pressed }) => [styles.ctaSecondary, pressed ? styles.ctaPressed : null]}
             testID="employee-home-clock-out"
           >
-            <Text style={styles.ctaSecondaryText}>Maliza / End</Text>
+            <Text style={styles.ctaSecondaryText}>{s.end}</Text>
           </Pressable>
         </View>
       )
     }
-    return <Text style={styles.lead}>Zamu imeisha leo / Shift ended for today</Text>
-  }, [loading, error, shift, onClockIn, onClockOut])
+    return (
+      <Text style={styles.lead}>{s.endedToday}</Text>
+    )
+  }, [loading, error, shift, onClockIn, onClockOut, s, defaultSiteName])
 
   return (
     <View
       style={[styles.wrap, online ? null : styles.wrapOffline]}
-      accessibilityLabel="Hali ya zamu / Shift status"
+      accessibilityLabel={s.statusLabel}
     >
       {body}
     </View>

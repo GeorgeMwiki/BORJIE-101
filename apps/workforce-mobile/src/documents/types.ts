@@ -3,8 +3,10 @@
  * `/api/v1/mining/document-intelligence` endpoint family.
  *
  * Keep this file free of React / RN imports so it can be exercised by
- * the node-only vitest harness without a JSDOM stub.
+ * the node-only vitest harness without a JSDOM stub. (`StringDict` is a
+ * TYPE-only import — erased at compile, no runtime i18n/JSON pulled in.)
  */
+import type { StringDict } from '../i18n'
 
 export type DocumentKind = 'contract' | 'rfp' | 'letter' | 'report' | 'other'
 
@@ -98,58 +100,20 @@ export function validateUpload(input: {
   return { ok: true }
 }
 
-/** Translate an ingestion status into a Swahili-first badge label. */
-export function ingestionStatusLabel(status: IngestionStatus, lang: 'sw' | 'en' = 'sw'): string {
-  if (lang === 'en') {
-    switch (status) {
-      case 'queued':
-        return 'Queued'
-      case 'processing':
-        return 'Processing'
-      case 'ready':
-        return 'Ready'
-      case 'failed':
-        return 'Failed'
-    }
-  }
-  switch (status) {
-    case 'queued':
-      return 'Imewekwa kwenye foleni'
-    case 'processing':
-      return 'Inachakatwa'
-    case 'ready':
-      return 'Tayari'
-    case 'failed':
-      return 'Imeshindikana'
-  }
+/**
+ * Resolve an ingestion status into a SINGLE-LOCALE badge label from the i18n
+ * catalog. `t` is the active-locale dictionary (from `useI18n().t` /
+ * `pickStrings(lang)`) — one source of truth, no inline duplicated strings,
+ * no EN+SW mixing. Mirrors the buyer-mobile fix.
+ */
+export function ingestionStatusLabel(status: IngestionStatus, t: StringDict): string {
+  return t.documents.status[status]
 }
 
-/** Translate a document kind into a Swahili-first label. */
-export function kindLabel(kind: DocumentKind, lang: 'sw' | 'en' = 'sw'): string {
-  if (lang === 'en') {
-    switch (kind) {
-      case 'contract':
-        return 'Contract'
-      case 'rfp':
-        return 'RFP / Tender'
-      case 'letter':
-        return 'Letter'
-      case 'report':
-        return 'Report'
-      case 'other':
-        return 'Other'
-    }
-  }
-  switch (kind) {
-    case 'contract':
-      return 'Mkataba'
-    case 'rfp':
-      return 'Zabuni'
-    case 'letter':
-      return 'Barua'
-    case 'report':
-      return 'Ripoti'
-    case 'other':
-      return 'Nyingine'
-  }
+/**
+ * Resolve a document kind into a SINGLE-LOCALE label from the i18n catalog.
+ * `t` is the active-locale dictionary. Mirrors the buyer-mobile fix.
+ */
+export function kindLabel(kind: DocumentKind, t: StringDict): string {
+  return t.documents.kind[kind]
 }

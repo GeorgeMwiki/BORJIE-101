@@ -141,6 +141,7 @@ function TodayTasksCard(): JSX.Element {
 
 function ShiftStatusCard(): JSX.Element {
   const { user } = useAuth()
+  const { lang } = useI18n()
   const userId = user?.id ?? null
   const { online } = useOnlineStatus()
   const query = useTodayShift(userId)
@@ -151,6 +152,7 @@ function ShiftStatusCard(): JSX.Element {
       error={query.error ?? null}
       online={online}
       userId={userId}
+      lang={lang}
     />
   )
 }
