@@ -6,7 +6,7 @@
     "title": "Borjie: software for Tanzanian mining estates",
     "description": "Run your licences, royalty, workforce and treasury from one screen. Borjie drafts your Mining Commission and TMAA filings, runs your crew, and sells your ore to verified buyers. Built for Tanzanian mining, in Swahili and English.",
     "ogTitle": "Borjie: software for Tanzanian mining estates",
-    "ogDescription": "Run your licences, royalty, crew and gold from one screen. Borjie does the paperwork so you just sign. Built for Tanzanian mining.",
+    "ogDescription": "Run your licences, royalty, crew and minerals from one screen. Borjie does the paperwork so you just sign. Built for Tanzanian mining.",
     "twitterTitle": "Borjie: software for Tanzanian mining estates",
     "twitterDescription": "Track every licence, file royalty in minutes, run your crew, and sell ore to verified buyers. Built for Tanzanian mining, in Swahili and English.",
     "ogAlt": "Borjie: software for Tanzanian mining estates"
@@ -44,7 +44,7 @@
       "pml": "PML holders",
       "pmlDesc": "Artisanal miners on Primary Mining Licences.",
       "ml": "ML holders",
-      "mlDesc": "Mid-tier ML operators across gold and gemstones.",
+      "mlDesc": "Mid-tier ML operators across gold, gemstones and every mineral type.",
       "sml": "SML holders",
       "smlDesc": "Special Mining Licences, large-format operations.",
       "cooperatives": "Cooperatives",
@@ -84,7 +84,7 @@
     "kicker": "Built for Tanzanian mining",
     "swahiliFirstBadge": "English-first · Swahili",
     "pill": "Starting in Tanzania · Built for African mining",
-    "headline": "Run your licences, royalty, crew and gold from one screen",
+    "headline": "Run your licences, royalty, crew and minerals from one screen",
     "sub": "Borjie keeps your licences, royalty filings, workforce and treasury in one place. Mr. Mwikila drafts the paperwork and you sign. In Swahili and English.",
     "ctaPilot": "Get started",
     "ctaDemo": "See how it works",
@@ -137,8 +137,8 @@
       },
       {
         "id": "lbma-hedge",
-        "title": "Gold-window hedges save 1.4% on the LBMA spot.",
-        "body": "Borjie hedges your gold at the LBMA AM-fix window automatically. Indicative saving of 1.4% vs spot at delivery.",
+        "title": "For gold producers, LBMA-window hedges save 1.4% on spot.",
+        "body": "For gold producers, Borjie hedges at the LBMA AM-fix window automatically. Indicative saving of 1.4% vs spot at delivery.",
         "href": "/insights/lbma-window-hedging"
       },
       {
@@ -212,11 +212,11 @@
       },
       "treasury": {
         "title": "See your money clearly",
-        "blurb": "A double-entry treasury that tracks cash in TZS, gold on hand and M-Pesa payments, so you always know where you stand."
+        "blurb": "A double-entry treasury that tracks cash in TZS, minerals on hand and M-Pesa payments, so you always know where you stand."
       },
       "marketplace": {
         "title": "Sell ore to real buyers",
-        "blurb": "List your gold or gemstone parcels to verified buyers, take bids, and lock an offtake agreement, all on the record."
+        "blurb": "List your gold, gemstone and mineral parcels to verified buyers, take bids, and lock an offtake agreement, all on the record."
       },
       "drillhole": {
         "title": "Run your crew",
@@ -738,7 +738,7 @@
       "kicker": "Meet Mr. Mwikila",
       "title": "Seven modes, one calm operator.",
       "titleAccent": "Switch tabs to see them work.",
-      "sub": "Mr. Mwikila is Borjie's AI Mining Managing Director. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, hedging your gold at the LBMA window. Pick a mode to see what he does.",
+      "sub": "Mr. Mwikila is Borjie's AI Mining Managing Director. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, and, for gold producers, hedging at the LBMA window. Pick a mode to see what he does.",
       "modes": [
         {
           "id": "build",
@@ -787,10 +787,10 @@
         {
           "id": "finance",
           "label": "Finance",
-          "headline": "Hedges the gold window, watches the cash, files the tax",
+          "headline": "Watches the cash, files the tax, hedges where it can",
           "capabilities": [
-            "Hedges gold at the LBMA AM-fix automatically inside policy",
-            "Tracks TZS · USD · gold-ounce balances against the BoT USD cliff",
+            "For gold producers, hedges at the LBMA AM-fix automatically inside policy",
+            "Tracks TZS · USD · mineral-ounce balances against the BoT USD cliff",
             "Drafts VAT, PAYE, and withholding-tax returns ready for TRA filing",
             "Settles vendor wallets through M-Pesa, Tigo Pesa, and Airtel Money"
           ]
@@ -832,7 +832,7 @@
           "desc": "The chat you're using right now. Mr. Mwikila answers your questions about pricing, regulators, and timelines — and guides you to sign up when you're ready.",
           "preview": {
             "user": "What does Borjie do for a Geita PML?",
-            "ai": "Drafts your Mining Commission royalty in the official format, hedges your gold at the LBMA fix, runs your shift roster on the supervisor's phone. Want to see how a real Wednesday at 06:00 looks?"
+            "ai": "Drafts your Mining Commission royalty in the official format, runs your shift roster on the supervisor's phone, and for gold producers hedges at the LBMA fix. Want to see how a real Wednesday at 06:00 looks?"
           }
         },
         {
@@ -1050,7 +1050,7 @@
     }
   },
   "footer": {
-    "tagline": "Run your licences, royalty, crew and gold from one screen. Built for Tanzanian mining.",
+    "tagline": "Run your licences, royalty, crew and minerals from one screen. Built for Tanzanian mining.",
     "product": "Product",
     "company": "Company",
     "resources": "Resources",
@@ -1796,7 +1796,7 @@
         },
         {
           "title": "Unverified buyers",
-          "desc": "Off-takers walk on site, weigh, pay below spot, and disappear. Without a verified marketplace, your gold leaves the country at a discount."
+          "desc": "Off-takers walk on site, weigh, pay below spot, and disappear. Without a verified marketplace, your ore leaves the country at a discount."
         },
         {
           "title": "Lost institutional memory",
@@ -1828,7 +1828,7 @@
     },
     "ml": {
       "metaTitle": "Borjie for ML operators: mid-tier mining software",
-      "metaDescription": "Borjie for Mining Licence operators across gold and gemstones. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
+      "metaDescription": "Borjie for Mining Licence operators across gold, gemstones and every mineral type. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
       "heroKicker": "For ML operators",
       "heroHeadline": "Mid-tier mines deserve",
       "heroHeadlineAccent": "mid-tier software",

@@ -6,7 +6,7 @@
     "title": "Borjie: programu kwa migodi ya Tanzania",
     "description": "Endesha leseni, mrabaha, wafanyakazi na hazina yako kwenye skrini moja. Borjie inaandaa mawasilisho yako ya Tume ya Madini na TMAA, inaendesha wafanyakazi wako, na inauza madini yako kwa wanunuzi waliothibitishwa. Imejengwa kwa madini ya Tanzania, kwa Kiswahili na Kiingereza.",
     "ogTitle": "Borjie: programu kwa migodi ya Tanzania",
-    "ogDescription": "Endesha leseni, mrabaha, wafanyakazi na dhahabu yako kwenye skrini moja. Borjie inafanya karatasi nawe unasaini tu. Imejengwa kwa madini ya Tanzania.",
+    "ogDescription": "Endesha leseni, mrabaha, wafanyakazi na madini yako kwenye skrini moja. Borjie inafanya karatasi nawe unasaini tu. Imejengwa kwa madini ya Tanzania.",
     "twitterTitle": "Borjie: programu kwa migodi ya Tanzania",
     "twitterDescription": "Fuatilia kila leseni, wasilisha mrabaha kwa dakika, endesha wafanyakazi wako, na uza madini kwa wanunuzi waliothibitishwa. Imejengwa kwa madini ya Tanzania.",
     "ogAlt": "Borjie: programu kwa migodi ya Tanzania"
@@ -44,7 +44,7 @@
       "pml": "Wamiliki wa PML",
       "pmlDesc": "Wachimbaji wadogo wenye Leseni za Msingi.",
       "ml": "Wamiliki wa ML",
-      "mlDesc": "Waendeshaji wa kati wa ML wa dhahabu na vito.",
+      "mlDesc": "Waendeshaji wa kati wa ML wa dhahabu, vito na kila aina ya madini.",
       "sml": "Wamiliki wa SML",
       "smlDesc": "Leseni za Pekee, uchimbaji mkubwa.",
       "cooperatives": "Vyama vya wachimbaji",
@@ -84,7 +84,7 @@
     "kicker": "Imejengwa kwa madini ya Tanzania",
     "swahiliFirstBadge": "Kiingereza-kwanza · Kiswahili",
     "pill": "Tunaanza Tanzania · Imejengwa kwa madini ya Afrika",
-    "headline": "Endesha leseni, mrabaha, wafanyakazi na dhahabu yako kwenye skrini moja",
+    "headline": "Endesha leseni, mrabaha, wafanyakazi na madini yako kwenye skrini moja",
     "sub": "Borjie inaweka leseni, mrabaha, wafanyakazi na hazina yako mahali pamoja. Mr. Mwikila anaandaa karatasi nawe unasaini tu. Kwa Kiswahili na Kiingereza.",
     "ctaPilot": "Anza sasa",
     "ctaDemo": "Ona jinsi inavyofanya kazi",
@@ -136,9 +136,9 @@
         "href": "/insights/tumemadini-format-utii"
       },
       {
-        "id": "lbma-hedge\n(Nota: Neno hili ni jina maalum la kiufundi linalohusu LBMA - London Bullion Market Association - na linabaki bila kutafsiriwa)",
-        "title": "Hedges za gold-window zinaokoa 1.4% kwenye LBMA spot.",
-        "body": "Borjie anafunga dhahabu yako kwenye dirisha la LBMA AM-fix kiotomatiki. Akiba ya mfano ya 1.4% dhidi ya spot wakati wa kupokea.",
+        "id": "lbma-hedge",
+        "title": "Kwa wazalishaji wa dhahabu, hedges za dirisha la LBMA zinaokoa 1.4% kwenye spot.",
+        "body": "Kwa wazalishaji wa dhahabu, Borjie anafunga kwenye dirisha la LBMA AM-fix kiotomatiki. Akiba ya mfano ya 1.4% dhidi ya spot wakati wa kupokea.",
         "href": "/insights/lbma-window-hedging"
       },
       {
@@ -212,11 +212,11 @@
       },
       "treasury": {
         "title": "Ona pesa zako waziwazi",
-        "blurb": "Hazina ya kuingiza mara mbili inayofuatilia fedha kwa TZS, dhahabu uliyo nayo na malipo ya M-Pesa, ili ujue daima ulipo."
+        "blurb": "Hazina ya kuingiza mara mbili inayofuatilia fedha kwa TZS, madini uliyo nayo na malipo ya M-Pesa, ili ujue daima ulipo."
       },
       "marketplace": {
         "title": "Uza madini kwa wanunuzi halisi",
-        "blurb": "Orodhesha dhahabu au vito vyako kwa wanunuzi waliothibitishwa, pokea zabuni, na funga mkataba wa mauzo, yote yakirekodiwa."
+        "blurb": "Orodhesha dhahabu, vito na madini yako kwa wanunuzi waliothibitishwa, pokea zabuni, na funga mkataba wa mauzo, yote yakirekodiwa."
       },
       "drillhole": {
         "title": "Endesha wafanyakazi wako",
@@ -738,7 +738,7 @@
       "kicker": "Kutana na Mwl. Mwikila",
       "title": "Modes saba, mwendeshaji mmoja mtulivu.",
       "titleAccent": "Bofya tabs kuwaona kazini.",
-      "sub": "Mwl. Mwikila ni Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Anabadilika na wakati — anakujengea brief saa 06:00, anaandika mrabaha mwisho wa mwezi, anafunga dhahabu yako kwa dirisha la LBMA. Chagua mode kuona anavyofanya.",
+      "sub": "Mwl. Mwikila ni Meneja wa Uendeshaji wa Madini wa AI wa Borjie. Anabadilika na wakati — anakujengea brief saa 06:00, anaandika mrabaha mwisho wa mwezi, na kwa wazalishaji wa dhahabu, anafunga kwa dirisha la LBMA. Chagua mode kuona anavyofanya.",
       "modes": [
         {
           "id": "build",
@@ -787,10 +787,10 @@
         {
           "id": "finance",
           "label": "Fedha",
-          "headline": "Anafunga dirisha la dhahabu, anatazama cash, anawasilisha kodi",
+          "headline": "Anatazama cash, anawasilisha kodi, anafunga inapowezekana",
           "capabilities": [
-            "Anafunga dhahabu kwenye LBMA AM-fix kiotomatiki ndani ya policy",
-            "Anafuatilia mizani ya TZS · USD · gold-ounce dhidi ya BoT USD cliff",
+            "Kwa wazalishaji wa dhahabu, anafunga kwenye LBMA AM-fix kiotomatiki ndani ya policy",
+            "Anafuatilia mizani ya TZS · USD · uncia za madini dhidi ya BoT USD cliff",
             "Anaandaa returns za VAT, PAYE, na withholding-tax tayari kwa TRA filing",
             "Analipa vendor wallets kupitia M-Pesa, Tigo Pesa, na Airtel Money"
           ]
@@ -832,7 +832,7 @@
           "desc": "Chat unayoitumia sasa hivi. Mwl. Mwikila anajibu maswali yako kuhusu bei, mamlaka, na ratiba — na anakuongeza kusajiri ukiwa tayari.",
           "preview": {
             "user": "Borjie inafanya nini kwa PML ya Geita?",
-            "ai": "Anaandaa mrabaha yako ya Tumemadini kwa muundo rasmi, anafunga dhahabu yako kwa LBMA fix, anaendesha shift roster yako kwa simu ya wasimamizi. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
+            "ai": "Anaandaa mrabaha yako ya Tumemadini kwa muundo rasmi, anaendesha shift roster yako kwa simu ya wasimamizi, na kwa wazalishaji wa dhahabu anafunga kwa LBMA fix. Ungependa kuona jinsi Jumatano halisi saa 06:00 inavyoonekana?"
           }
         },
         {
@@ -1050,7 +1050,7 @@
     }
   },
   "footer": {
-    "tagline": "Endesha leseni, mrabaha, wafanyakazi na dhahabu yako kwenye skrini moja. Imejengwa kwa madini ya Tanzania.",
+    "tagline": "Endesha leseni, mrabaha, wafanyakazi na madini yako kwenye skrini moja. Imejengwa kwa madini ya Tanzania.",
     "product": "Bidhaa",
     "company": "Kampuni",
     "resources": "Rasilimali",
@@ -1796,7 +1796,7 @@
         },
         {
           "title": "Wanunuzi wasiothibitishwa",
-          "desc": "Wanunuzi huingia, kupima, kulipa chini ya bei ya soko, na kutoweka. Bila soko lililothibitishwa, dhahabu yako huondoka nchini kwa punguzo."
+          "desc": "Wanunuzi huingia, kupima, kulipa chini ya bei ya soko, na kutoweka. Bila soko lililothibitishwa, madini yako huondoka nchini kwa punguzo."
         },
         {
           "title": "Kumbukumbu zilizopotea",

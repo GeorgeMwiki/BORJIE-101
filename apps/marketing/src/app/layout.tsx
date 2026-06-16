@@ -75,7 +75,7 @@ export async function generateMetadata(): Promise<Metadata> {
       'Mr. Mwikila',
       'Tanzania mining software',
       'PML licence management',
-      'gold-window treasury',
+      'mineral treasury and hedging',
       'mining compliance Tanzania',
       'Mining Commission',
       // SW search keyword (regulator's local short-name) is exposed for
