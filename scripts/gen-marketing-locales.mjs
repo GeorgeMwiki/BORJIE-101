@@ -29,13 +29,17 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const I18N = resolve(HERE, '..', 'apps', 'marketing', 'src', 'i18n');
+// App-agnostic: `--app <name>` selects apps/<name>/src/i18n (default: marketing).
+// This is "SOTA language, all places" — one generator for every app's catalogs.
+const appArgIdx = process.argv.indexOf('--app');
+const APP = appArgIdx !== -1 ? process.argv[appArgIdx + 1] : 'marketing';
+const I18N = resolve(HERE, '..', 'apps', APP, 'src', 'i18n');
 const EN_PATH = resolve(I18N, 'en.json');
 const SW_OUT = resolve(I18N, 'sw.json');
 const SW_APPROVED = resolve(I18N, 'sw.approved.json');
 
-const TENANT = 'borjie-marketing';
-const SURFACE = 'marketing';
+const TENANT = `borjie-${APP}`;
+const SURFACE = APP;
 
 // ── flatten / unflatten ────────────────────────────────────────────────────
 function flatten(obj, prefix = '', out = {}) {
