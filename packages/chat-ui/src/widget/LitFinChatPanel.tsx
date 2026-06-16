@@ -373,6 +373,26 @@ export function LitFinChatPanel({
               ];
             });
           });
+          // An error-only stream (gateway emitted just an `error` frame and no
+          // `message_chunk`) leaves the bubble empty — the parser only honours
+          // message_chunk. Surface a localized fallback so the visitor never
+          // gets a silent dead reply (single language per active locale).
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (!last || last.role !== 'assistant' || last.content.length > 0) {
+              return prev;
+            }
+            return [
+              ...prev.slice(0, -1),
+              {
+                ...last,
+                content:
+                  language === 'sw'
+                    ? 'Samahani, hakuna jibu kwa sasa.'
+                    : 'Sorry, no reply right now.',
+              },
+            ];
+          });
         } else {
           const json = (await res.json().catch(() => null)) as
             | {

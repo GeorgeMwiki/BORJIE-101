@@ -114,6 +114,35 @@ function writeStorage(key: string, value: string, kind: 'local' | 'session'): vo
   }
 }
 
+/**
+ * App-wide page-locale cookie — the SINGLE SOURCE OF TRUTH set by every
+ * Borjie Next app's layout and by both language toggles. The floating
+ * widget MUST follow it so it can never render English UI on a Swahili
+ * page (zero-mix canon). Mirrors `useWidgetLanguage` (the LitFin widget
+ * path fixed in b667b3b6) so both widget families resolve language the
+ * same way — no widget-only language state.
+ */
+const PAGE_LOCALE_COOKIE = 'borjie_locale';
+
+function readPageLocale(): BorjieLanguage | null {
+  if (typeof document === 'undefined') return null;
+  const parts = document.cookie.split('; ');
+  for (const part of parts) {
+    const [k, v] = part.split('=');
+    if (k === PAGE_LOCALE_COOKIE) {
+      const decoded = decodeURIComponent(v ?? '');
+      if (decoded === 'en' || decoded === 'sw') return decoded;
+    }
+  }
+  return null;
+}
+
+function writePageLocale(value: BorjieLanguage): void {
+  if (typeof document === 'undefined') return;
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `${PAGE_LOCALE_COOKIE}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+
 function isValidMode(v: string | null): v is BorjieMode {
   return (
     v === 'build' ||
@@ -200,8 +229,17 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
     if (storedOpen === '1') setOpen(true);
     const storedMode = readStorage(STORAGE_MODE, 'local');
     if (isValidMode(storedMode)) setMode(storedMode);
-    const storedLang = readStorage(STORAGE_LANG, 'local');
-    if (storedLang === 'sw' || storedLang === 'en') setLanguage(storedLang);
+    // Language follows the page locale (`borjie_locale`) — the single
+    // source of truth — so the widget never diverges from the page it sits
+    // on. The legacy widget-local key is only consulted when no page locale
+    // exists (e.g. an embedding that doesn't set the cookie).
+    const pageLocale = readPageLocale();
+    if (pageLocale) {
+      setLanguage(pageLocale);
+    } else {
+      const storedLang = readStorage(STORAGE_LANG, 'local');
+      if (storedLang === 'sw' || storedLang === 'en') setLanguage(storedLang);
+    }
     setReducedMotion(prefersReducedMotion());
 
     const firstVisit = readFirstVisit();
@@ -307,10 +345,21 @@ export function FloatingAskBorjie(props: FloatingAskBorjieProps): JSX.Element | 
   const handleLanguageChange = useCallback(
     (next: BorjieLanguage) => {
       setLanguage(next);
+      // Drive the PAGE locale (single source of truth) so the toggle is
+      // site-wide and absolute — not widget-only. Keep the legacy key in
+      // sync for embeddings that don't read the cookie.
+      writePageLocale(next);
       writeStorage(STORAGE_LANG, next, 'local');
-      void chat.retranslate(next);
+      // Reload so the SERVER re-renders the ENTIRE host page (header, sidebar,
+      // every surface) AND this widget in the new locale together — identical
+      // to the header LanguageToggle and the LitFin widget (useWidgetLanguage).
+      // Without it the chat would switch while the host chrome stayed in the old
+      // language until the next nav / poll tick — the exact EN-chrome-on-SW-chat
+      // mixing the zero-mix canon forbids. (Retranslating in place is moot once
+      // we reload, so it is dropped.)
+      if (typeof window !== 'undefined') window.location.reload();
     },
-    [chat],
+    [],
   );
 
   const handleSend = useCallback(

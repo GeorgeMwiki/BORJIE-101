@@ -26,8 +26,9 @@
  *     BorjieChatBubble
  *
  * Disclaimer:
- *   - hairline compliance notice ("Imezalishwa na AI · Si ushauri wa
- *     kifedha · Maamuzi ni yako") above the composer
+ *   - hairline mining-compliance notice pinning the "mine owner" actor
+ *     ("AI-generated · Not legal/operational advice · Decisions are made
+ *     by the mine owner") above the composer — matches the LitFin widget
  *
  * Footer / composer:
  *   - mic ghost button · textarea · gold-gradient circular send arrow
@@ -218,10 +219,15 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
   const placeholder = t(MESSAGES.placeholder, language);
   const sendLabel = t(MESSAGES.send, language);
   const micLabel = language === 'sw' ? 'Sauti' : 'Voice';
+  // Mining-domain compliance copy. The actor is the mine owner / licence
+  // holder, so the disclaimer pins "mine owner" — matching the LitFin
+  // marketing widget (apps/marketing BorjieWidgetMount) and the LitFin
+  // panel default in litfin-primitives.tsx so every Mr. Mwikila chat
+  // surface reads identically (persona parity).
   const disclaimerText =
     language === 'sw'
-      ? 'Imezalishwa na AI · Si ushauri wa kifedha · Maamuzi ni yako'
-      : 'AI-generated · Not financial advice · Decisions are yours';
+      ? 'Imezalishwa na AI · Si ushauri wa kisheria/uendeshaji · Maamuzi yanafanywa na mmiliki wa mgodi'
+      : 'AI-generated · Not legal/operational advice · Decisions are made by the mine owner';
 
   // Most-recent assistant evidence id drives the ContextBadge pill.
   const contextLabel = useMemo<string | null>(() => {
@@ -631,9 +637,12 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
             fontWeight: 500,
             lineHeight: 1.3,
             color: 'rgba(15, 23, 42, 0.55)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            // A compliance string is never single-line-ellipsis-clipped: the
+            // (longer, mining-domain) copy must stay fully readable in the
+            // compact 380px floating panel, worst-case the longer SW locale.
+            // Wrap freely (the row is alignItems:center so the shield stays
+            // aligned); overflowWrap guards a long unbroken token.
+            overflowWrap: 'anywhere',
           }}
         >
           {disclaimerText}
