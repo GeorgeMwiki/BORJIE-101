@@ -1,3 +1,7 @@
+'use client';
+
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 import type { DailyBriefSlot } from '@/lib/queries/owner-brief';
 
 interface AiDailyBriefPanelProps {
@@ -9,11 +13,16 @@ interface AiDailyBriefPanelProps {
  *
  * Surfaces the four headline counters the cron computes for today:
  * shifts logged, open incidents, open grievances, critical incidents.
- * The header includes a Swahili gloss so bilingual owners see both.
+ *
+ * Single-language per active locale: every label renders ONLY in the
+ * active locale. The previous design rendered an English label with a
+ * Swahili gloss stacked underneath (EN/SW mixing) — that has been
+ * collapsed to one language resolved from the cockpit locale cookie.
  */
 export function AiDailyBriefPanel({
   dailyBrief,
 }: AiDailyBriefPanelProps): JSX.Element {
+  const locale = useLocale();
   const empty =
     dailyBrief.shiftsToday === 0 &&
     dailyBrief.openIncidents === 0 &&
@@ -27,17 +36,24 @@ export function AiDailyBriefPanel({
     >
       <header className="flex items-baseline justify-between">
         <div>
-          <h2 className="cockpit-card-title">AI daily brief</h2>
+          <h2 className="cockpit-card-title">
+            {pickByLocale(locale, S.aiDailyBrief.title)}
+          </h2>
           <p className="text-xs italic text-neutral-500">
-            Muhtasari wa siku · {dailyBrief.date}
+            {pickByLocale(locale, S.aiDailyBrief.subtitle)} · {dailyBrief.date}
           </p>
         </div>
         {dailyBrief.criticalIncidents > 0 ? (
           <span className="pill pill-red">
-            {dailyBrief.criticalIncidents} critical
+            {pickByLocale(
+              locale,
+              S.aiDailyBrief.critical(dailyBrief.criticalIncidents),
+            )}
           </span>
         ) : (
-          <span className="pill pill-green">all clear</span>
+          <span className="pill pill-green">
+            {pickByLocale(locale, S.aiDailyBrief.allClear)}
+          </span>
         )}
       </header>
 
@@ -46,34 +62,30 @@ export function AiDailyBriefPanel({
           className="text-sm text-neutral-400"
           data-testid="dashboard-daily-brief-empty"
         >
-          No activity logged yet today. Ask Borjie Brain on{' '}
+          {pickByLocale(locale, S.aiDailyBrief.emptyBefore)}{' '}
           <a className="text-signal-500 underline" href="/">
             /
           </a>{' '}
-          to refresh the field signal.
+          {pickByLocale(locale, S.aiDailyBrief.emptyAfter)}
         </p>
       ) : (
         <dl className="grid grid-cols-2 gap-4">
           <BriefMetric
-            label="Shifts logged"
-            labelSw="Zamu zilizoandikwa"
+            label={pickByLocale(locale, S.aiDailyBrief.shiftsLogged)}
             value={dailyBrief.shiftsToday}
           />
           <BriefMetric
-            label="Open incidents"
-            labelSw="Matukio yaliyo wazi"
+            label={pickByLocale(locale, S.aiDailyBrief.openIncidents)}
             value={dailyBrief.openIncidents}
             tone={dailyBrief.openIncidents > 0 ? 'amber' : 'neutral'}
           />
           <BriefMetric
-            label="Open grievances"
-            labelSw="Malalamiko yaliyo wazi"
+            label={pickByLocale(locale, S.aiDailyBrief.openGrievances)}
             value={dailyBrief.openGrievances}
             tone={dailyBrief.openGrievances > 0 ? 'amber' : 'neutral'}
           />
           <BriefMetric
-            label="Critical incidents"
-            labelSw="Matukio mazito"
+            label={pickByLocale(locale, S.aiDailyBrief.criticalIncidents)}
             value={dailyBrief.criticalIncidents}
             tone={dailyBrief.criticalIncidents > 0 ? 'red' : 'neutral'}
           />
@@ -85,14 +97,12 @@ export function AiDailyBriefPanel({
 
 interface BriefMetricProps {
   readonly label: string;
-  readonly labelSw: string;
   readonly value: number;
   readonly tone?: 'neutral' | 'amber' | 'red';
 }
 
 function BriefMetric({
   label,
-  labelSw,
   value,
   tone = 'neutral',
 }: BriefMetricProps): JSX.Element {
@@ -106,7 +116,6 @@ function BriefMetric({
     <div>
       <dt className="text-xs text-neutral-500">{label}</dt>
       <dd className={`mt-1 font-display text-2xl ${valueClass}`}>{value}</dd>
-      <p className="text-xs italic text-neutral-600">{labelSw}</p>
     </div>
   );
 }

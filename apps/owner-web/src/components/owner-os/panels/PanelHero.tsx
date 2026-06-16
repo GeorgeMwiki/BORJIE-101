@@ -43,9 +43,14 @@ const CHIP_TONE: Record<NonNullable<NonNullable<PanelHeroProps['metaChips']>[num
 
 /**
  * Compressed page-hero for tab bodies. Matches LitFin / Borjie rhythm
- * (eyebrow + display + Swahili gloss + intent body + actions strip) but
- * with tab-body padding (no full-page padding) and an icon affordance
- * to mirror the tab pill the owner clicked to open it.
+ * (eyebrow + display + intent body + actions strip) but with tab-body
+ * padding (no full-page padding) and an icon affordance to mirror the
+ * tab pill the owner clicked to open it.
+ *
+ * Single-language per active locale: title and subtitle render ONLY in
+ * the active locale. The previous cross-language italic gloss (rendering
+ * the OTHER locale's title under the active one) was an EN/SW mixing
+ * violation and has been removed.
  */
 export function PanelHero({
   icon: Icon,
@@ -72,9 +77,6 @@ export function PanelHero({
           <h2 className="font-display text-xl font-medium tracking-tight text-foreground">
             {isSw ? titleSw : titleEn}
           </h2>
-          <p className="mt-0.5 text-xs italic text-neutral-500">
-            {isSw ? titleEn : titleSw}
-          </p>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-neutral-300">
             {isSw ? subtitleSw : subtitleEn}
           </p>

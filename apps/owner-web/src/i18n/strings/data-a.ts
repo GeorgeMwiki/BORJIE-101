@@ -230,8 +230,52 @@ export const dataAStrings = {
 
   // ── components/dashboard/ComplianceSafetyPanel.tsx ─────────────────
   complianceSafetyPanel: {
-    licenceHealthSw: { sw: 'Afya ya leseni', en: 'Afya ya leseni' },
-    incidentsSw: { sw: 'Matukio mazito', en: 'Matukio mazito' },
+    licenceHealth: { sw: 'Afya ya leseni', en: 'Licence health' },
+    licencesTracked: { sw: 'leseni zinazofuatiliwa', en: 'licences tracked' },
+    atRisk: { sw: 'zenye hatari', en: 'at risk' },
+    rowAtRisk: { sw: 'hatari', en: 'at risk' },
+    rowOk: { sw: 'sawa', en: 'ok' },
+    mineralRight: { sw: 'haki ya madini', en: 'mineral right' },
+    expiryUnknown: { sw: 'mwisho haujulikani', en: 'expiry unknown' },
+    daysToExpiry: (days: number) => ({
+      sw: `siku ${days} hadi mwisho`,
+      en: `${days}d to expiry`,
+    }),
+    licenceEmpty: {
+      sw: 'Hakuna safu za leseni zilizotatuliwa bado. Cockpit ya leseni itajaza mara tu mfumo wa msajili utakapolingana kwa shirika lako.',
+      en: 'No licence rows resolved yet. The licence cockpit will populate once the registrar feed reconciles for your tenant.',
+    },
+    incidents: { sw: 'Matukio mazito', en: 'High-severity incidents' },
+    openLast7d: { sw: 'wazi · siku 7 zilizopita', en: 'open · last 7d' },
+    timeUnknown: { sw: 'muda haujulikani', en: 'time unknown' },
+    incidentEmptyBefore: {
+      sw: 'Hakuna matukio mazito yaliyo wazi. Uliza Ubongo wa Borjie kwenye',
+      en: 'No open high-severity incidents. Ask Borjie Brain on',
+    },
+    incidentEmptyAfter: {
+      sw: 'kwa ukaguzi wa usalama wa kina ikiwa unataka pasi ya pili.',
+      en: 'for the long-tail safety scan if you want a second pass.',
+    },
+  },
+
+  // ── components/dashboard/AiDailyBriefPanel.tsx ─────────────────────
+  aiDailyBrief: {
+    title: { sw: 'Muhtasari wa siku wa AI', en: 'AI daily brief' },
+    subtitle: { sw: 'Muhtasari wa siku', en: 'Daily summary' },
+    critical: (count: number) => ({ sw: `${count} mazito`, en: `${count} critical` }),
+    allClear: { sw: 'salama', en: 'all clear' },
+    emptyBefore: {
+      sw: 'Hakuna shughuli iliyorekodiwa leo. Uliza Ubongo wa Borjie kwenye',
+      en: 'No activity logged yet today. Ask Borjie Brain on',
+    },
+    emptyAfter: {
+      sw: 'ili kuburudisha taarifa za uwandani.',
+      en: 'to refresh the field signal.',
+    },
+    shiftsLogged: { sw: 'Zamu zilizoandikwa', en: 'Shifts logged' },
+    openIncidents: { sw: 'Matukio yaliyo wazi', en: 'Open incidents' },
+    openGrievances: { sw: 'Malalamiko yaliyo wazi', en: 'Open grievances' },
+    criticalIncidents: { sw: 'Matukio mazito', en: 'Critical incidents' },
   },
 
   // ── components/dashboard/DailyBriefCard.tsx ────────────────────────
@@ -281,11 +325,42 @@ export const dataAStrings = {
     safety: { sw: 'Usalama · matukio mazito', en: 'Safety · open critical' },
     licences: { sw: 'Leseni · zenye hatari', en: 'Licences · at risk' },
     usdCliff: { sw: 'Tarehe ya USD', en: 'USD cliff' },
+    metaSites: (count: number) => ({
+      sw: `migodi ${count}`,
+      en: `${count} sites`,
+    }),
+    metaCriticalToday: (count: number) => ({
+      sw: `${count} mazito leo`,
+      en: `${count} critical today`,
+    }),
+    metaOf: (atRisk: number, total: number) => ({
+      sw: `${atRisk} kati ya ${total}`,
+      en: `${atRisk} of ${total}`,
+    }),
+    metaRemediationComplete: {
+      sw: 'urekebishaji umekamilika',
+      en: 'remediation complete',
+    },
+    metaUsdContracts: (count: number) => ({
+      sw: `mikataba ya USD ${count}`,
+      en: `${count} USD contracts`,
+    }),
   },
 
   // ── components/dashboard/ProductionVsTargetTable.tsx ───────────────
   productionVsTarget: {
-    subtitleSw: { sw: 'Uzalishaji kwa migodi', en: 'Uzalishaji kwa migodi' },
+    title: { sw: 'Uzalishaji dhidi ya lengo', en: 'Production vs target' },
+    subtitle: { sw: 'Uzalishaji kwa migodi', en: 'Production by site' },
+    sites: (count: number) => ({ sw: `migodi ${count}`, en: `${count} sites` }),
+    empty: {
+      sw: 'Hakuna ripoti za zamu zilizopokelewa kwa kipindi hiki.',
+      en: 'No shift reports have landed for this window.',
+    },
+    colSite: { sw: 'Mgodi', en: 'Site' },
+    colTonnes: { sw: 'Tani', en: 'Tonnes' },
+    colFuel: { sw: 'Mafuta (L)', en: 'Fuel (L)' },
+    colShifts: { sw: 'Zamu', en: 'Shifts' },
+    unassigned: { sw: 'haijapangwa', en: 'unassigned' },
   },
 
   // ── components/estate/AssetsRegister.tsx ───────────────────────────

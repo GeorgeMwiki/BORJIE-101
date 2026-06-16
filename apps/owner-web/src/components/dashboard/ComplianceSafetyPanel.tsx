@@ -1,3 +1,6 @@
+'use client';
+
+import { useLocale, pickByLocale } from '@/lib/locale';
 import type {
   LicenceHealthSlot,
   OpenHighIncidentsSlot,
@@ -16,11 +19,18 @@ interface ComplianceSafetyPanelProps {
  * indicators from the gateway) and the most recent high-severity
  * incidents (already merged into the alert queue, but repeated here
  * with the full kind/severity for the compliance officer's eye).
+ *
+ * Single-language per active locale: all chrome renders in the active
+ * locale only. The header italic line previously hardcoded a Swahili
+ * subtitle under an English title (EN/SW mixing); it now resolves from
+ * the cockpit locale cookie like the rest of the panel.
  */
 export function ComplianceSafetyPanel({
   licenceHealth,
   incidents,
 }: ComplianceSafetyPanelProps): JSX.Element {
+  const locale = useLocale();
+  const C = S.complianceSafetyPanel;
   return (
     <section
       className="grid grid-cols-1 gap-4 lg:grid-cols-2"
@@ -28,16 +38,17 @@ export function ComplianceSafetyPanel({
     >
       <article className="cockpit-card flex flex-col gap-3">
         <header>
-          <h2 className="cockpit-card-title">Licence health</h2>
-          <p className="text-xs italic text-neutral-500">
-            {S.complianceSafetyPanel.licenceHealthSw.sw}
-          </p>
+          <h2 className="cockpit-card-title">
+            {pickByLocale(locale, C.licenceHealth)}
+          </h2>
         </header>
         <div className="flex items-baseline gap-3">
           <span className="font-display text-3xl text-foreground">
             {licenceHealth.totalCount}
           </span>
-          <span className="text-sm text-neutral-400">licences tracked</span>
+          <span className="text-sm text-neutral-400">
+            {pickByLocale(locale, C.licencesTracked)}
+          </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <span
@@ -45,7 +56,7 @@ export function ComplianceSafetyPanel({
               licenceHealth.atRiskCount === 0 ? 'pill-green' : 'pill-amber'
             }`}
           >
-            {licenceHealth.atRiskCount} at risk
+            {licenceHealth.atRiskCount} {pickByLocale(locale, C.atRisk)}
           </span>
         </div>
         {licenceHealth.items.length === 0 ? (
@@ -53,8 +64,7 @@ export function ComplianceSafetyPanel({
             className="text-sm text-neutral-400"
             data-testid="dashboard-licence-empty"
           >
-            No licence rows resolved yet. The licence cockpit will populate
-            once the registrar feed reconciles for your tenant.
+            {pickByLocale(locale, C.licenceEmpty)}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -69,17 +79,19 @@ export function ComplianceSafetyPanel({
                     item.atRisk ? 'pill-red' : 'pill-green'
                   }`}
                 >
-                  {item.atRisk ? 'at risk' : 'ok'}
+                  {item.atRisk
+                    ? pickByLocale(locale, C.rowAtRisk)
+                    : pickByLocale(locale, C.rowOk)}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="truncate text-sm text-foreground">
                     {item.number ?? item.id}
                   </div>
                   <div className="text-xs text-neutral-500">
-                    {item.kind ?? 'mineral right'} ·{' '}
+                    {item.kind ?? pickByLocale(locale, C.mineralRight)} ·{' '}
                     {item.daysToExpiry === null
-                      ? 'expiry unknown'
-                      : `${item.daysToExpiry}d to expiry`}
+                      ? pickByLocale(locale, C.expiryUnknown)
+                      : pickByLocale(locale, C.daysToExpiry(item.daysToExpiry))}
                   </div>
                 </div>
               </li>
@@ -90,27 +102,28 @@ export function ComplianceSafetyPanel({
 
       <article className="cockpit-card flex flex-col gap-3">
         <header>
-          <h2 className="cockpit-card-title">High-severity incidents</h2>
-          <p className="text-xs italic text-neutral-500">
-            {S.complianceSafetyPanel.incidentsSw.sw}
-          </p>
+          <h2 className="cockpit-card-title">
+            {pickByLocale(locale, C.incidents)}
+          </h2>
         </header>
         <div className="flex items-baseline gap-3">
           <span className="font-display text-3xl text-foreground">
             {incidents.count}
           </span>
-          <span className="text-sm text-neutral-400">open · last 7d</span>
+          <span className="text-sm text-neutral-400">
+            {pickByLocale(locale, C.openLast7d)}
+          </span>
         </div>
         {incidents.items.length === 0 ? (
           <p
             className="text-sm text-neutral-400"
             data-testid="dashboard-incident-empty"
           >
-            No open high-severity incidents. Ask Borjie Brain on{' '}
+            {pickByLocale(locale, C.incidentEmptyBefore)}{' '}
             <a className="text-signal-500 underline" href="/">
               /
             </a>{' '}
-            for the long-tail safety scan if you want a second pass.
+            {pickByLocale(locale, C.incidentEmptyAfter)}
           </p>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -134,7 +147,7 @@ export function ComplianceSafetyPanel({
                     {item.kind}
                   </div>
                   <div className="text-xs text-neutral-500">
-                    {item.occurredAt ?? 'time unknown'}
+                    {item.occurredAt ?? pickByLocale(locale, C.timeUnknown)}
                   </div>
                 </div>
               </li>
