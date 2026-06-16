@@ -2,14 +2,13 @@
 
 import {
   useCallback,
-  useEffect,
-  useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Send, Square, RotateCcw, Sparkles } from 'lucide-react';
+import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 
 import { ApiError, isBrainConfigured } from '@/lib/brain-api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
@@ -80,22 +79,25 @@ function HomeChatInner() {
   });
 
   const [draft, setDraft] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== 'function') return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, isStreaming]);
+  // Stick-to-bottom ONLY when the operator is near the bottom (follow-on-growth
+  // via ResizeObserver/MutationObserver, scroll-behavior:auto), with a "jump to
+  // latest" pill when they scroll up — the same anti-yank contract the owner
+  // cockpit chat uses. The old per-render `scrollTo({behavior:'smooth'})` effect
+  // chased/shook the bottom on every chunk; this kills that bug class.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
 
   const submitDraft = useCallback(
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isStreaming) return;
+      // Re-engage bottom-follow for the fresh answer so a prior scroll-up
+      // doesn't strand the operator away from the new reply.
+      resetAtStreamStart();
       void send(trimmed);
       setDraft('');
     },
-    [isStreaming, send],
+    [isStreaming, resetAtStreamStart, send],
   );
 
   const onFormSubmit = useCallback(
@@ -139,7 +141,7 @@ function HomeChatInner() {
 
   return (
     <div className="flex h-screen w-full flex-row bg-background text-foreground">
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="relative flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/40 px-6 py-3">
           <div className="flex items-center gap-2">
             <Sparkles
@@ -212,6 +214,12 @@ function HomeChatInner() {
             </div>
           )}
         </section>
+
+        <JumpToLatestPill
+          visible={showJumpPill}
+          language={locale}
+          onClick={jumpToLatest}
+        />
 
         <Composer
           draft={draft}
