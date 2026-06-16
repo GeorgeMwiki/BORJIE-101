@@ -53,6 +53,8 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from 'react';
+import { useChatScroll } from '../use-chat-scroll.js';
+import { JumpToLatestPill } from '../JumpToLatestPill.js';
 import type {
   BorjieLanguage,
   BorjieMessage,
@@ -143,7 +145,12 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const listEndRef = useRef<HTMLDivElement | null>(null);
+  // Anchor law: stick to the bottom during a stream, back off when the user
+  // scrolls up (then offer the JumpToLatestPill). Shared across all Borjie
+  // chat surfaces. See ../use-chat-scroll.ts.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
+  const prevStreamingRef = useRef(false);
   // Tracks whether we've already fired the synthetic "hello" so the
   // live brain produces the welcome turn instead of a canned string.
   // We fire it exactly once per panel-open lifetime; further opens
@@ -155,11 +162,17 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
     inputRef.current?.focus();
   }, []);
 
+  // Re-engage auto-follow at the top of each new turn. The transcript scroll
+  // itself is owned by `useChatScroll` (it follows content growth via
+  // Resize/Mutation observers, not a [messages] effect, so a tall streaming
+  // answer never scrolls its own tail off-screen).
   useEffect(() => {
-    if (listEndRef.current && typeof listEndRef.current.scrollIntoView === 'function') {
-      listEndRef.current.scrollIntoView({ block: 'end' });
+    const wasStreaming = prevStreamingRef.current;
+    prevStreamingRef.current = chat.isStreaming;
+    if (chat.isStreaming && !wasStreaming) {
+      resetAtStreamStart();
     }
-  }, [chat.messages.length, chat.isStreaming]);
+  }, [chat.isStreaming, resetAtStreamStart]);
 
   // ── Live first-open greeting ──
   // No canned welcome string. When the panel opens with an empty
@@ -213,8 +226,13 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
     [handleSubmit, onClose],
   );
 
+  // `brand` is the long single-string identity, kept only as the dialog's
+  // accessible name (aria-label). The VISIBLE header renders the short
+  // `name` + `headerRole` per the locked canonical-display contract — never
+  // the long brochure sentence.
   const brand = language === 'sw' ? BORJIE_BRAND_SW : BORJIE_BRAND_EN;
-  const tagline = t(MESSAGES.brandTagline, language);
+  const headerName = MR_MWIKILA_CANONICAL_DISPLAY.name;
+  const headerRole = MR_MWIKILA_CANONICAL_DISPLAY.headerRole[language];
   const footerAttribution = t(MESSAGES.footerAttribution, language);
   const placeholder = t(MESSAGES.placeholder, language);
   const sendLabel = t(MESSAGES.send, language);
@@ -411,7 +429,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
                 textOverflow: 'ellipsis',
               }}
             >
-              {brand}
+              {headerName}
             </strong>
             <span
               style={{
@@ -424,7 +442,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
                 fontWeight: 600,
               }}
             >
-              {tagline}
+              {headerRole}
             </span>
             {contextLabel ? (
               <span
@@ -539,6 +557,16 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
 
       {/* ── Body ── */}
       <div
+        style={{
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+      <div
+        ref={scrollRef}
         data-testid="borjie-live-region"
         aria-live="polite"
         aria-atomic="false"
@@ -589,7 +617,12 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
             );
           })}
         </ul>
-        <div ref={listEndRef} />
+      </div>
+        <JumpToLatestPill
+          visible={showJumpPill}
+          language={language}
+          onClick={jumpToLatest}
+        />
       </div>
 
       {showChips ? (

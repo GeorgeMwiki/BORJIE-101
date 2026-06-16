@@ -70,9 +70,9 @@ describe('FloatingAskBorjie', () => {
     // The canned welcome bubble was removed — instead the panel
     // dispatches one synthetic "hello" to /api/v1/public/chat on
     // first open so the Anthropic-backed persona generates the
-    // greeting. The widget header still renders the canonical brand
-    // (sourced from MR_MWIKILA_CANONICAL_DISPLAY.name_full) which
-    // contains the persona role.
+    // greeting. The widget header renders the canonical persona name +
+    // the short headerRole line (the long single-string identity stays
+    // on the dialog's aria-label, not in the visible header text).
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         makeSseResponse([
@@ -89,7 +89,13 @@ describe('FloatingAskBorjie', () => {
     fireEvent.click(fab);
     const panel = await screen.findByTestId('borjie-chat-panel');
     expect(panel).toBeInTheDocument();
-    expect(panel.textContent ?? '').toMatch(/the brain layer within Borjie/i);
+    // The visible header shows the persona name + the short EN role line
+    // (default locale). The long single-string identity is on aria-label.
+    expect(panel.textContent ?? '').toMatch(/Mr\. Mwikila/i);
+    expect(panel.textContent ?? '').toMatch(/AI Mining Director/i);
+    expect(panel.getAttribute('aria-label') ?? '').toMatch(
+      /the brain layer within Borjie/i,
+    );
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/v1/public/chat',

@@ -58,6 +58,9 @@ import {
 import { createWebSpeechAudioPort } from '../voice/web-speech-adapter.js';
 import type { VoiceAudioPort } from '../voice/voice-audio-port.js';
 import type { Language } from '../chat-modes/types.js';
+import { useChatScroll } from '../use-chat-scroll.js';
+import { JumpToLatestPill } from '../JumpToLatestPill.js';
+import { MR_MWIKILA_CANONICAL_DISPLAY } from '../canonical-display.js';
 
 interface LitFinChatPanelProps {
   readonly onClose: () => void;
@@ -244,12 +247,17 @@ export function LitFinChatPanel({
 
   const isRecording = voiceState === 'listening' || voiceState === 'arming';
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const ttsPortRef = useRef<VoiceAudioPort | null>(null);
   const spokenCountRef = useRef(0);
   const prevStreamingRef = useRef(false);
+
+  // Anchor law: stick to the bottom during a stream, but back off the instant
+  // the user scrolls up (then offer the JumpToLatestPill). Shared across all
+  // Borjie chat surfaces. See ../use-chat-scroll.ts.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
 
   const { playSound } = useChatSounds(true);
 
@@ -263,15 +271,22 @@ export function LitFinChatPanel({
     setTtsSupported(port.ttsSupported);
   }, [language]);
 
-  // ── Auto-scroll + send/receive sounds ─────────────────────────────
+  // ── Send/receive sounds + re-anchor at the top of each new turn ────
+  // The transcript scroll itself is owned by `useChatScroll` (it follows
+  // content growth via Resize/Mutation observers, not a [messages] effect,
+  // so a tall streaming answer never scrolls its own tail off-screen).
+  // Here we only ring the open/receive sounds on the streaming edge and
+  // re-engage auto-follow when a new stream starts.
   useEffect(() => {
     const wasStreaming = prevStreamingRef.current;
     prevStreamingRef.current = isStreaming;
-    if (isStreaming && !wasStreaming) playSound('open');
-    else if (!isStreaming && wasStreaming) playSound('receive');
-    const behavior = isStreaming || wasStreaming ? 'auto' : 'smooth';
-    messagesEndRef.current?.scrollIntoView({ behavior });
-  }, [messages, isStreaming, playSound]);
+    if (isStreaming && !wasStreaming) {
+      playSound('open');
+      resetAtStreamStart();
+    } else if (!isStreaming && wasStreaming) {
+      playSound('receive');
+    }
+  }, [isStreaming, playSound, resetAtStreamStart]);
 
   // ── Focus on open, and after the AI finishes responding ───────────
   useEffect(() => {
@@ -657,8 +672,11 @@ export function LitFinChatPanel({
           </div>
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold leading-tight">
-              Mr. Mwikila
+              {MR_MWIKILA_CANONICAL_DISPLAY.name}
             </h3>
+            <p className="truncate text-[11px] font-medium leading-tight text-primary-foreground/80">
+              {MR_MWIKILA_CANONICAL_DISPLAY.headerRole[language]}
+            </p>
             <LitFinContextBadge
               currentRoute={currentRoute}
               portalId={portalId}
@@ -765,7 +783,9 @@ export function LitFinChatPanel({
       </div>
 
       {/* ── Messages ── */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div
+        ref={scrollRef}
         className="flex-1 overflow-y-auto px-3 pb-2"
         aria-live="polite"
         aria-atomic="false"
@@ -795,7 +815,12 @@ export function LitFinChatPanel({
             </li>
           )}
         </ul>
-        <div ref={messagesEndRef} />
+      </div>
+        <JumpToLatestPill
+          visible={showJumpPill}
+          language={language}
+          onClick={jumpToLatest}
+        />
       </div>
 
       {/* Pending image preview */}

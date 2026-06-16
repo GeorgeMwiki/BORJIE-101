@@ -25,10 +25,9 @@ export { WaveformVisualizer } from './WaveformVisualizer';
 export { VoiceOverlay } from './VoiceOverlay';
 export { FloatingChatWidget } from './FloatingChatWidget';
 export { renderMarkdown, escapeHtml } from './markdown';
-// LitFin-clone Widget — full FAB pulse + tooltip + chips + lazy ChatPanel.
-// Carbon-copy port of LitFinWidget.tsx with Borjie brand swapped in.
-export { Widget } from './Widget';
-export type { WidgetProps } from './Widget';
+// The legacy `Widget` export was removed: only `LitFinWidget` (below) is a
+// mountable floating widget, so there is no second skeleton path to flash on
+// chunk-load. No live consumer imported `Widget`/`WidgetProps`.
 export { WidgetErrorBoundary } from './WidgetErrorBoundary';
 export {
   getWidgetWelcomeMessage,

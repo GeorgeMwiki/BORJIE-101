@@ -38,8 +38,8 @@ export const MESSAGES = {
     sw: 'Borjie',
   },
   brandTagline: {
-    en: 'The brain layer within Borjie — an AI-native mining estate operating system',
-    sw: 'Safu ya akili ndani ya Borjie — mfumo wa uendeshaji wa madini unaotumia AI asili',
+    en: 'Runs your mine: licences, royalty, workforce, treasury.',
+    sw: 'Inaendesha mgodi wako: leseni, mrabaha, wafanyakazi, hazina.',
   },
 
   // ── Tooltip + nudge (FAB) ──────────────────────────────────────────

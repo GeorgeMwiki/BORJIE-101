@@ -72,6 +72,14 @@ export {
   MR_MWIKILA_CANONICAL_DISPLAY,
   type MrMwikilaCanonicalDisplay,
 } from './canonical-display.js';
+// Shared transcript-scroll anchor law + the "Jump to latest" pill.
+// Promoted from apps/owner-web so every chat surface (marketing widget,
+// owner cockpit, admin) sticks to the bottom during a stream and offers a
+// re-anchor control when the user scrolls up. See ./use-chat-scroll.ts.
+export { useChatScroll } from './use-chat-scroll.js';
+export type { ChatScrollAnchor } from './use-chat-scroll.js';
+export { JumpToLatestPill } from './JumpToLatestPill.js';
+export type { JumpToLatestPillProps } from './JumpToLatestPill.js';
 // Composer primitives — shared slash command + `@`-reference menus
 // surfaced across every Borjie chat surface (marketing / owner-web /
 // admin-web / workforce-mobile / buyer-mobile). The trigger-parser is
