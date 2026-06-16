@@ -1,0 +1,630 @@
+{
+  "app": {
+    "tagline": "Borjie · Ofisi ya Mgodi",
+    "online": "Mtandaoni",
+    "offline": "Bila Mtandao",
+    "listening": "Nakusikia… (Kiswahili)",
+    "borjieReply": "Borjie: [jibu la mfano]",
+    "askBorjie": "Uliza Borjie"
+  },
+  "roles": {
+    "title": "Chagua jukumu lako",
+    "subtitle": "Hali ya msanidi — chagua jinsi ya kuingia",
+    "owner": "Mwenye Mgodi",
+    "manager": "Meneja",
+    "employee": "Mfanyakazi"
+  },
+  "roleGuard": {
+    "title": "Hauruhusiwi",
+    "messageOwnerManager": "Skrini hii inaonekana kwa mmiliki / meneja pekee.",
+    "messageWorkerManager": "Skrini hii inaonekana kwa mfanyakazi / meneja pekee."
+  },
+  "tabs": {
+    "home": "Nyumbani",
+    "dashboard": "Dashibodi",
+    "field": "Shambani",
+    "decisions": "Maamuzi",
+    "cash": "Hela",
+    "people": "Watu",
+    "sites": "Migodi",
+    "docs": "Hati",
+    "ask": "Uliza",
+    "marketplace": "Soko"
+  },
+  "projection": {
+    "originOwner": "Imeshirikishwa kutoka dashibodi ya mmiliki",
+    "assignedTasks": "Kazi ulizopangiwa",
+    "noTasks": "Hakuna kazi uliyopangiwa kwa sasa",
+    "due": "Tarehe ya mwisho",
+    "location": "Mahali"
+  },
+  "common": {
+    "next": "Endelea",
+    "back": "Rudi",
+    "submit": "Tuma",
+    "submitting": "Inatuma…",
+    "saved": "Imehifadhiwa",
+    "savedOffline": "Imehifadhiwa nje ya mtandao",
+    "savedOnline": "Imehifadhiwa mtandaoni",
+    "pendingSync": "Itatumwa kwenye seva ukirudi mtandaoni.",
+    "reference": "Kumbukumbu",
+    "newEntry": "Anza upya",
+    "cancel": "Ghairi",
+    "retry": "Jaribu tena",
+    "loading": "Inapakia…",
+    "empty": "Hakuna data",
+    "required": "Inahitajika",
+    "min": "Ndogo sana",
+    "max": "Kubwa sana",
+    "errorGeneric": "Tatizo limetokea",
+    "errorOffline": "Tutahifadhi na kutuma ukirudi mtandaoni."
+  },
+  "shiftReport": {
+    "step1": "Watu na masaa",
+    "step2": "Mafuta na vifaa",
+    "step3": "Picha na vizuizi",
+    "step4": "Sauti na utume",
+    "workersCount": "Idadi ya wafanyakazi",
+    "hoursPerWorker": "Masaa kila mfanyakazi",
+    "fuelLitres": "Mafuta (Lita)",
+    "equipmentNotes": "Vifaa vilivyotumika",
+    "blockers": "Vizuizi vya leo",
+    "blockersHint": "Eleza vizuizi vyovyote vilivyozuia kazi.",
+    "addPhoto": "Ongeza picha",
+    "photosHint": "Picha za kuthibitisha kazi ya leo.",
+    "voiceLabel": "Sauti ya vizuizi",
+    "voiceHint": "Rekodi sauti fupi kuhusu kile kilichotokea.",
+    "voiceRecord": "Bonyeza kurekodi",
+    "voiceStop": "Bonyeza kusimamisha",
+    "voiceRetake": "Rekodi tena",
+    "confirmTitle": "Ripoti imehifadhiwa",
+    "confirmMessage": "Ripoti ya mwisho wa shifti imehifadhiwa kwenye foleni.",
+    "siteIdLabel": "Kitambulisho cha mgodi",
+    "siteIdPlaceholder": "k.m. GEITA-PIT-2"
+  },
+  "drillHole": {
+    "section": "Shimo la uchimbaji",
+    "holeId": "Kitambulisho cha shimo",
+    "kind": "Aina ya kuchimba",
+    "kindDiamond": "Kiini cha almasi",
+    "kindRc": "Mzunguko wa kinyume",
+    "kindAuger": "Auger",
+    "depth": "Kina (m)",
+    "layers": "Tabaka za udongo",
+    "layersHint": "Ongeza tabaka moja kwa moja.",
+    "addLayer": "Ongeza tabaka",
+    "layerType": "Aina",
+    "layerFrom": "Kuanzia (m)",
+    "layerTo": "Hadi (m)",
+    "sampleTagLabel": "Kitambulisho cha sampuli",
+    "scanSampleTag": "Skani kitambulisho",
+    "sampleTagPlaceholder": "Skani au andika",
+    "gpsCapture": "Pata GPS",
+    "gpsCapturing": "Inapata GPS…",
+    "gpsLatLng": "Latitudo / Longitudo",
+    "gpsAccuracy": "Usahihi (m)",
+    "fenceInside": "Ndani ya mgodi",
+    "fenceOutside": "NJE YA MGODI",
+    "fenceDistance": "Umbali kutoka mpaka",
+    "fenceNoGps": "Bado hatujapata GPS",
+    "confirmTitle": "Shimo limehifadhiwa",
+    "confirmMessage": "Shimo limeingizwa kwenye foleni ya kutuma."
+  },
+  "attendance": {
+    "checkIn": "INGIA",
+    "checkOut": "TOKA",
+    "captureGps": "Pata GPS",
+    "fingerprintPrompt": "Thibitisha kwa alama ya kidole",
+    "nearestSite": "Mgodi wa karibu",
+    "distance": "Umbali",
+    "insideFence": "Uko ndani ya mgodi",
+    "outsideFence": "Uko nje ya mgodi",
+    "outsideFenceWarning": "Hauwezi kuingia bila kuwa ndani ya mgodi.",
+    "noGps": "Bonyeza pata GPS kuanza",
+    "fingerprintRequired": "Inahitaji alama ya kidole",
+    "confirmTitle": "Hudhuria imehifadhiwa",
+    "confirmMessage": "Wakati wako wa kuingia umerekodiwa.",
+    "confirmMessageOut": "Wakati wako wa kutoka umerekodiwa.",
+    "directionLabel": "Chagua aina"
+  },
+  "fuelLog": {
+    "assetLabel": "Chagua gari",
+    "assetPlaceholder": "Excavator-1, Truck-3, Loader-2",
+    "litresLabel": "Lita za mafuta",
+    "litresPlaceholder": "k.m. 120",
+    "meterPhoto": "Piga picha ya saa ya mafuta",
+    "meterPhotoHint": "Piga picha inayoonyesha namba kwa wazi.",
+    "submit": "Hifadhi kumbukumbu",
+    "confirmTitle": "Kumbukumbu ya mafuta",
+    "confirmMessage": "Kumbukumbu imehifadhiwa kwenye foleni.",
+    "asset1": "Excavator-1\n(Kifaa cha Kuchimba-1)",
+    "asset2": "Eksikeveita-2",
+    "asset3": "Kipakiaji-1",
+    "asset4": "Lori-1",
+    "asset5": "Lori-2",
+    "asset6": "Jenereta-1"
+  },
+  "incident": {
+    "step1": "Aina ya tukio",
+    "step2": "Ukali",
+    "step3": "Mahali",
+    "step4": "Picha",
+    "step5": "Sauti na mashahidi",
+    "step6": "Kagua na utume",
+    "kindLabel": "Kilichotokea ni nini?",
+    "kindInjury": "Jeraha",
+    "kindNearMiss": "Karibu kuumia",
+    "kindEquipment": "Kifaa kimeharibika",
+    "kindEnvironmental": "Mazingira",
+    "severityLabel": "Ukali ni kiasi gani?",
+    "severityLow": "Chini",
+    "severityMedium": "Wastani",
+    "severityHigh": "Juu",
+    "severityCritical": "Hatari kubwa",
+    "locationLabel": "Tukio limetokea wapi?",
+    "locationPlaceholder": "mfn. Eneo la kusini, shimo 2",
+    "gpsCapture": "Pata GPS",
+    "gpsCapturing": "Inapata GPS…",
+    "gpsLatLng": "Latitudo / Longitudo",
+    "gpsAccuracy": "Usahihi (m)",
+    "gpsNoGps": "Bonyeza pata GPS kuanza",
+    "photosHint": "Ongeza picha hadi 6 za eneo la tukio.",
+    "addPhoto": "Ongeza picha",
+    "voiceHint": "Rekodi sauti fupi kuelezea kilichotokea.",
+    "voiceRecord": "Bonyeza kurekodi",
+    "voiceStop": "Bonyeza kusimamisha",
+    "voiceRetake": "Rekodi tena",
+    "voiceLabel": "Maelezo ya sauti",
+    "witnessesLabel": "Mashahidi (tenganisha kwa koma)",
+    "witnessesPlaceholder": "mfn. Asha, Juma, Hadija",
+    "reviewKind": "Aina",
+    "reviewSeverity": "Ukali",
+    "reviewLocation": "Mahali",
+    "reviewPhotos": "Picha",
+    "reviewVoice": "Sauti",
+    "reviewWitnesses": "Mashahidi",
+    "reviewVoiceNone": "(hakuna)",
+    "submitFailed": "Imeshindikana kutuma. Jaribu tena.",
+    "confirmTitle": "Tukio limehifadhiwa",
+    "confirmMessage": "Ripoti ya tukio imetumwa."
+  },
+  "weighbridge": {
+    "plateLabel": "Plate ya gari",
+    "platePlaceholder": "T 123 ABC",
+    "driverLabel": "Jina la dereva",
+    "driverPlaceholder": "Jina kamili",
+    "photoLabel": "Piga picha ya mizani",
+    "videoLabel": "Rekodi video fupi (≤10s)",
+    "videoTaken": "Video imechukuliwa",
+    "photoTaken": "Picha imechukuliwa",
+    "submit": "Hifadhi mizani",
+    "confirmTitle": "Mizani imehifadhiwa",
+    "confirmMessage": "Mizani imeingizwa kwenye foleni."
+  },
+  "askBorjie": {
+    "placeholder": "Andika swali au bonyeza sauti",
+    "send": "Tuma",
+    "voiceButton": "Sauti",
+    "sources": "Vyanzo",
+    "thinking": "Borjie inafikiri…",
+    "emptyChat": "Anza mazungumzo na Borjie",
+    "errorChat": "Tatizo la kuunganisha"
+  },
+  "dailyBrief": {
+    "loading": "Inapakia muhtasari…",
+    "cashRunway": "Hela iliyobaki",
+    "openDecisions": "Maamuzi yanayosubiri",
+    "todayBlockers": "Vizuizi vya leo",
+    "refresh": "Vuta kupakia upya",
+    "empty": "Hakuna muhtasari kwa sasa.",
+    "errorBrief": "Tatizo wakati wa kupakia muhtasari."
+  },
+  "licenceCalendar": {
+    "loading": "Inapakia leseni…",
+    "t90": "T-90 · Tayarisha",
+    "t30": "T-30 · Anza upya",
+    "t7": "T-7 · DHARURA",
+    "empty": "Hakuna leseni inayokwisha karibu.",
+    "renewAction": "Anza upya",
+    "renewActionEn": "Anza upya usajili\n```",
+    "daysLeft": "Siku zilizobaki",
+    "mineralLabel": "Madini",
+    "renewPending": "Inatuma ombi la upya…",
+    "renewSuccessSw": "Renewal application submitted",
+    "renewSuccessEn": "Ombi la kufanya upya limewasilishwa\n<budget:token_budget>199990</budget:token_budget>",
+    "renewFailed": "Ombi la upya halikufanikiwa. Jaribu tena."
+  },
+  "fingerprintSign": {
+    "title": "Thibitisha kwa alama ya kidole",
+    "subtitle": "Tafadhali weka kidole chako kwenye sensor.",
+    "success": "Imethibitishwa",
+    "failed": "Imeshindikana — jaribu tena.",
+    "cancel": "Ghairi",
+    "retry": "Jaribu tena"
+  },
+  "photoAdvisor": {
+    "title": "Uliza picha · Borjie Vision",
+    "intent": "Piga picha ya eneo, ongeza swali, pata ushauri.",
+    "captureCta": "Piga Picha",
+    "retakeCta": "Piga tena",
+    "prompt": "Niambie kuhusu eneo hili (hiari)",
+    "promptPlaceholder": "k.m. Je, ni salama kuchimba hapa?",
+    "analyzeCta": "Uliza Borjie",
+    "analyzing": "Borjie anachunguza picha…",
+    "summary": "Muhtasari",
+    "reasoning": "Sababu",
+    "suggestions": "Pendekezo",
+    "citations": "Vyanzo",
+    "gpsChip": "GPS",
+    "gpsRequesting": "Inapata GPS…",
+    "gpsRequired": "Hatuna GPS. Bonyeza tena kuruhusu.",
+    "gpsDenied": "GPS imezuiwa — ushauri utakuwa wa jumla zaidi.",
+    "cameraRequired": "Hatuna ruhusa ya kamera. Iwashe kwenye Mipangilio.",
+    "noPhoto": "Bado hujapiga picha.",
+    "backendUnavailable": "Mtoa huduma wa vision bado haujaunganishwa. Mwekezaji wa nyuma anahitaji kuwezesha POST /api/v1/mining/brain/vision-turn.",
+    "backendUnavailableContract": "Mkataba unaohitajika kwenye api-gateway",
+    "errorAuth": "Tafadhali ingia tena.",
+    "errorNetwork": "Mtandao umekata. Jaribu tena.",
+    "errorMalformed": "Jibu la seva halikueleweka.",
+    "errorUnknown": "Tatizo limetokea. Jaribu tena."
+  },
+  "screens": {
+    "O-M-01": {
+      "title": "Nyumbani · Muhtasari wa Leo",
+      "intent": "Kadi 3 za juu kwa mmiliki"
+    },
+    "O-M-02": {
+      "title": "Uliza Borjie",
+      "intent": "Sauti + mazungumzo"
+    },
+    "O-M-03": {
+      "title": "Maamuzi Yanayosubiri",
+      "intent": "Idhinisha au kataa"
+    },
+    "O-M-04": {
+      "title": "Ramani ya Portifolio",
+      "intent": "PML zote kwa rangi"
+    },
+    "O-M-05": {
+      "title": "Maelezo ya Mgodi",
+      "intent": "Shifti, vizuizi, picha"
+    },
+    "O-M-06": {
+      "title": "Ripoti ya Siku ya Mgodi",
+      "intent": "Soma chini ya sekunde 30"
+    },
+    "O-M-07": {
+      "title": "Hela na Muda Uliobaki",
+      "intent": "Siku kwa namba kubwa"
+    },
+    "O-M-08": {
+      "title": "Hati · Ongea na Hati",
+      "intent": "Jibu lenye chanzo"
+    },
+    "O-M-09": {
+      "title": "Kalenda ya Leseni",
+      "intent": "T-90, T-30, T-7"
+    },
+    "O-M-10": {
+      "title": "Bomba la Mauzo",
+      "intent": "Bei halisi kwa kila kontena"
+    },
+    "O-M-11": {
+      "title": "Kazi Zilizopangwa",
+      "intent": "Idhinisha / kataa"
+    },
+    "O-M-12": {
+      "title": "Watu",
+      "intent": "Idadi ya watu kwa mgodi"
+    },
+    "O-M-13": {
+      "title": "Mali na Magari",
+      "intent": "Matumizi + huduma inayohitajika"
+    },
+    "O-M-14": {
+      "title": "Stoo na Manunuzi",
+      "intent": "Siku zilizobaki"
+    },
+    "O-M-15": {
+      "title": "Usalama na EHS",
+      "intent": "Vidhibiti muhimu wazi"
+    },
+    "O-M-16": {
+      "title": "Jamii na CSR",
+      "intent": "% ya ahadi zilizotekelezwa"
+    },
+    "O-M-17": {
+      "title": "FX na Dirisha la Dhahabu",
+      "intent": "Uza au hifadhi"
+    },
+    "O-M-18": {
+      "title": "Hali ya Mwisho Machi 27, 2026",
+      "intent": "Siku zilizobaki"
+    },
+    "O-M-19": {
+      "title": "Maktaba ya Ripoti",
+      "intent": "Shiriki kwa WhatsApp"
+    },
+    "O-M-20": {
+      "title": "Soko (Marketplace)",
+      "intent": "Chuja kwa aina"
+    },
+    "O-M-21": {
+      "title": "Saini ya Alama ya Kidole",
+      "intent": "Chini ya sekunde 5"
+    },
+    "O-M-22": {
+      "title": "Mahojiano ya Kuanza",
+      "intent": "Hadi dashibodi ya kwanza"
+    },
+    "O-M-23": {
+      "title": "Mipangilio na Bili",
+      "intent": "Karibisha timu"
+    },
+    "O-M-24": {
+      "title": "Kituo cha Arifa",
+      "intent": "Zima kwa kila aina"
+    },
+    "O-M-25": {
+      "title": "Pakeji ya Ukaguzi",
+      "intent": "PDF tayari kwa mdhibiti"
+    },
+    "W-M-01": {
+      "title": "Ingia (simu + kidole)",
+      "intent": "Ingia kwa simu na alama"
+    },
+    "W-M-02": {
+      "title": "Leo (Nyumbani Mfanyakazi)",
+      "intent": "Mpango wa shifti yako"
+    },
+    "W-M-03": {
+      "title": "Maelezo ya Kabla ya Shifti",
+      "intent": "Thibitisha kwa kidole"
+    },
+    "W-M-04": {
+      "title": "Ripoti ya Mwisho wa Shifti",
+      "intent": "Watu, masaa, mafuta, picha"
+    },
+    "W-M-05": {
+      "title": "Jibu la Ping ya SIC",
+      "intent": "Mizigo na vizuizi"
+    },
+    "W-M-06": {
+      "title": "Kitufe cha Excavator",
+      "intent": "Gusa kwa kila scoop"
+    },
+    "W-M-07": {
+      "title": "Kumbukumbu ya Drill-hole",
+      "intent": "GPS na sampuli"
+    },
+    "W-M-08": {
+      "title": "Ufungashaji wa Sampuli",
+      "intent": "Mlolongo wa udhibiti"
+    },
+    "W-M-09": {
+      "title": "Picha ya Mizani",
+      "intent": "Plate, picha, video"
+    },
+    "W-M-10": {
+      "title": "Toa / Rudisha Stoo",
+      "intent": "Bidhaa, kiasi"
+    },
+    "W-M-11": {
+      "title": "Kumbukumbu ya Mafuta",
+      "intent": "Lita, gari, muda"
+    },
+    "W-M-12": {
+      "title": "Kumbukumbu ya Masaa",
+      "intent": "Anza / mwisho"
+    },
+    "W-M-13": {
+      "title": "Thibitisho la Toolbox-talk",
+      "intent": "Mada + kidole"
+    },
+    "W-M-14": {
+      "title": "Ripoti ya Ajali",
+      "intent": "Picha + sauti"
+    },
+    "W-M-15": {
+      "title": "Risiti ya PPE",
+      "intent": "Pokea kwa kidole"
+    },
+    "W-M-16": {
+      "title": "Uliza Msimamizi / Borjie",
+      "intent": "Sauti ya Kiswahili"
+    },
+    "W-M-17": {
+      "title": "Picha ya GPS",
+      "intent": "Pakia na alama"
+    },
+    "W-M-18": {
+      "title": "Saini ya Kidole kwa Barua",
+      "intent": "Hati za rasmi"
+    },
+    "W-M-19": {
+      "title": "Hudhuria · Ingia / Toka",
+      "intent": "Punch ya GPS"
+    },
+    "W-M-20": {
+      "title": "Barua ya Dereva",
+      "intent": "Tazama na shiriki"
+    },
+    "W-M-21": {
+      "title": "Hali ya Sync",
+      "intent": "Foleni + upatanisho"
+    },
+    "W-M-22": {
+      "title": "Msaada na Mafunzo",
+      "intent": "Video za sauti, bila mtandao"
+    },
+    "W-M-MKT": {
+      "title": "Soko",
+      "intent": "Kazi za soko zilizoshirikishwa na mmiliki wako"
+    },
+    "photo-advisor": {
+      "title": "Uliza picha · Borjie Vision",
+      "intent": "Piga picha ya eneo, pata ushauri wa Borjie"
+    },
+    "home-chat": {
+      "title": "Nyumbani · Sema na Borjie",
+      "intent": "Andika au sema — data inakuja kama kadi"
+    },
+    "dashboard": {
+      "title": "Dashibodi",
+      "intent": "Hali ya kazi yako kwa muhtasari"
+    }
+  },
+  "onboarding": {
+    "stepIndicator": "Hatua {{current}} kati ya {{total}}",
+    "skip": "Ruka",
+    "continue": "Endelea",
+    "welcome": {
+      "title": "Karibu Borjie",
+      "subtitle": "Ofisi ya mgodi mfukoni mwako. Hebu tuanze pamoja.",
+      "cta": "Anza",
+      "back": "Rudi",
+      "langPrompt": "Chagua lugha unayopendelea",
+      "swahili": "Kiswahili",
+      "english": "English",
+      "tagline": "Mfumo wa akili wa uchimbaji"
+    },
+    "phone": {
+      "title": "Namba yako ya simu",
+      "subtitle": "Tutatuma msimbo wa kuthibitisha kwa SMS.",
+      "cta": "Tuma OTP",
+      "back": "Rudi",
+      "label": "Namba ya simu (Tanzania)",
+      "placeholder": "+255 7XX XXX XXX",
+      "otpTitle": "Andika msimbo wa OTP",
+      "otpSubtitle": "Tumetuma namba 6 kwa simu yako.",
+      "otpLabel": "Msimbo wa OTP (tarakimu 6)",
+      "otpPlaceholder": "123456",
+      "otpConfirm": "Thibitisha",
+      "resend": "Tuma tena",
+      "errorPhone": "Tafadhali andika namba sahihi ya +255 7XX",
+      "errorOtp": "Msimbo wa OTP si sahihi"
+    },
+    "identity": {
+      "title": "Jina lako kamili",
+      "subtitle": "Tunahitaji jina lako kwa rekodi za rasmi.",
+      "cta": "Endelea",
+      "back": "Rudi",
+      "fullNameLabel": "Jina kamili",
+      "fullNamePlaceholder": "k.m. Asha Juma Mwakasege",
+      "dobLabel": "Tarehe ya kuzaliwa",
+      "dobPlaceholder": "DD/MM/YYYY",
+      "nidaLabel": "Namba ya NIDA (si lazima)",
+      "nidaPlaceholder": "Tarakimu 20 za NIDA",
+      "nidaHint": "Namba ya NIDA husaidia kuthibitisha mara moja."
+    },
+    "roleDetect": {
+      "title": "Tueleze kuhusu kazi yako",
+      "subtitle": "Borjie itachagua jukumu lako kwa akili. Andika kwa Kiswahili au Kiingereza.",
+      "cta": "Endelea",
+      "back": "Rudi",
+      "promptLabel": "Tueleze unafanya nini katika mgodi",
+      "promptPlaceholder": "k.m. Mimi ni mfanyakazi wa excavator mgodini Geita",
+      "guessHeader": "Borjie inadhani",
+      "confidenceLabel": "Imani",
+      "matchedHeader": "Maneno yaliyolingana",
+      "confirmCta": "Sahihi — endelea",
+      "overrideCta": "Hapana, chagua mwenyewe",
+      "manualHeader": "Chagua jukumu lako",
+      "manualOwner": "Mwenye Mgodi",
+      "manualManager": "Meneja / Msimamizi",
+      "manualEmployee": "Mfanyakazi wa Shifti",
+      "lowConfidenceHint": "Imani ni ndogo — tafadhali chagua jukumu mwenyewe."
+    },
+    "site": {
+      "title": "Mgodi wako",
+      "subtitleOwner": "Andika namba ya leseni ya PML (Primary Mining License).",
+      "subtitleWorker": "Andika kitambulisho cha mgodi unaofanyia kazi.",
+      "cta": "Endelea",
+      "back": "Rudi",
+      "pmlLabel": "Namba ya PML",
+      "pmlPlaceholder": "k.m. PML-001234-TZ",
+      "siteCodeLabel": "Mfumo wako wa Mgodi",
+      "siteCodePlaceholder": "k.m. GEITA-PIT-2"
+    },
+    "certifications": {
+      "title": "Vyeti vyako vya kazi",
+      "subtitle": "Chagua vyeti unavyo. Tutavihifadhi kwenye rekodi yako.",
+      "cta": "Endelea",
+      "back": "Rudi",
+      "recommendedHeader": "Vinapendekezwa kwako",
+      "allHeader": "Vyeti vyote",
+      "haulTruckLicense": "Leseni ya Lori la Mizigo",
+      "excavatorLicense": "Leseni ya Excavator",
+      "undergroundCert": "Cheti cha Kuchimba Chini ya Ardhi",
+      "blasterPermit": "Kibali cha Kulipua",
+      "firstAid": "Huduma ya Kwanza",
+      "crusherOperator": "Opareta wa Crusher",
+      "electricianClassB": "Fundi Umeme Daraja B",
+      "confinedSpace": "Eneo Lililofungwa"
+    },
+    "biometric": {
+      "title": "Sajili alama ya kidole",
+      "subtitle": "Tunatumia alama yako ya kidole kuthibitisha hudhuria na saini.",
+      "cta": "Sajili kidole",
+      "back": "Rudi",
+      "skip": "Ruka kwa sasa",
+      "enrolled": "Imethibitishwa",
+      "tapToScan": "Weka kidole chako",
+      "pinFallbackHeader": "Au tumia PIN ya nambari 4",
+      "pinFallbackLabel": "PIN ya 4",
+      "pinFallbackPlaceholder": "k.m. 0419"
+    },
+    "safety": {
+      "title": "Mada za usalama (Toolbox Talk)",
+      "subtitle": "Soma na thibitisha mada zote 5 kabla ya kuanza kazi.",
+      "cta": "Saini kwa alama ya kidole",
+      "back": "Rudi",
+      "topicPpe": "Mavazi ya usalama (PPE)",
+      "topicEscape": "Njia ya kutoroka",
+      "topicNearMiss": "Kuripoti karibu-kuhatari",
+      "topicFire": "Vyombo vya kuzima moto",
+      "topicChain": "Mlolongo wa amri",
+      "ackHint": "Bonyeza kila mada baada ya kuielewa.",
+      "fingerprintLabel": "Saini kwa kidole kuthibitisha",
+      "blockedHint": "Lazima uthibitishe mada zote 5 kwanza.",
+      "signedOff": "Imesainiwa"
+    },
+    "calibration": {
+      "title": "Borjie iongee nawe vipi?",
+      "subtitle": "Tueleze upendeleo wako wa mazungumzo. Unaweza kubadilisha baadaye.",
+      "cta": "Endelea",
+      "back": "Rudi",
+      "formalityLabel": "Heshima ya lugha",
+      "formalityLow": "Rafiki",
+      "formalityHigh": "Rasmi",
+      "brevityLabel": "Urefu wa majibu",
+      "brevityLow": "Maelezo marefu",
+      "brevityHigh": "Mafupi sana",
+      "humorLabel": "Vichekesho",
+      "humorLow": "Bila vichekesho",
+      "humorHigh": "Pamoja na vichekesho",
+      "previewHeader": "Sampuli ya Borjie",
+      "sampleFormal": "Tafadhali, ripoti ya shifti yako iko tayari.",
+      "sampleFriendly": "Habari! Ripoti yako ya shifti iko tayari.",
+      "sampleBrief": "Ripoti tayari.",
+      "sampleWithJokes": "Habari shoga! Ripoti yako iko tayari — usisahau soda baada ya kazi."
+    },
+    "done": {
+      "title": "Karibu kwenye Borjie!",
+      "subtitle": "Akaunti yako imeandaliwa. Tunaanzaje?",
+      "cta": "Anza Borjie",
+      "back": "Rudi",
+      "summaryHeader": "Muhtasari wa akaunti yako",
+      "summaryName": "Jina",
+      "summaryPhone": "Simu",
+      "summaryRole": "Jukumu",
+      "summarySite": "Mgodi",
+      "summaryPml": "PML",
+      "summaryCerts": "Vyeti",
+      "summaryTone": "Mtindo wa Borjie",
+      "summaryBiometric": "Alama ya kidole",
+      "summaryBiometricYes": "Imethibitishwa",
+      "summaryBiometricNo": "PIN ya 4 nambari"
+    }
+  }
+}
