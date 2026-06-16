@@ -8,8 +8,9 @@
  *      with the chip prompt + the forced admin persona id.
  *   3. After a successful turn the assistant bubble renders the response
  *      text and the tool-call list appears in the sidebar.
- *   4. PersonaGreeting suggestion list exposes the right four Swahili
- *      labels (Onyesha tenants, Kill-switch, Sentry pilot, Audit chain).
+ *   4. PersonaGreeting suggestion list carries BOTH locale variants for
+ *      every chip (en label/prompt + sw labelSw/promptSw) so the surface
+ *      renders single-language-per-locale (canon), never EN+SW mixed.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -124,7 +125,9 @@ describe('HomeChat · suggestion chip dispatches a turn', () => {
     ];
     const body = JSON.parse(call[1]?.body ?? '{}') as Record<string, unknown>;
     expect(body.forcePersonaId).toBe('T2_admin_strategist');
-    expect(String(body.userText)).toContain('tenants 10 wapya');
+    // jsdom has no `borjie_locale` cookie → default 'en', so the chip
+    // seeds the English prompt (single-language-per-locale canon).
+    expect(String(body.userText)).toContain('10 newest tenants');
   });
 
   it('renders the assistant bubble + tool list after a successful turn', async () => {
@@ -160,13 +163,21 @@ describe('HomeChat · suggestion chip dispatches a turn', () => {
 });
 
 describe('PersonaGreeting · suggestion contract', () => {
-  it('exposes the four high-leverage Swahili admin prompts', () => {
+  it('exposes the four high-leverage admin prompts in BOTH locales', () => {
     render(<PersonaGreeting onSuggest={vi.fn()} />);
-    const labels = ADMIN_SUGGESTIONS.map((c) => c.label);
-    expect(labels).toContain('Onyesha tenants 10 wapya');
-    expect(labels).toContain('Kill-switch hali');
-    expect(labels).toContain('Sentry pilot errors leo');
-    expect(labels).toContain('Audit chain integrity');
+    // English (default-locale) labels render on screen.
+    const enLabels = ADMIN_SUGGESTIONS.map((c) => c.label);
+    expect(enLabels).toContain('Show the 10 newest tenants');
+    expect(enLabels).toContain('Kill-switch state');
+    expect(enLabels).toContain('Sentry pilot errors today');
+    expect(enLabels).toContain('Audit chain integrity');
+    // Swahili variants exist for every chip (label + prompt parity), so a
+    // `sw` locale renders single-language Swahili — never EN+SW mixed.
+    for (const chip of ADMIN_SUGGESTIONS) {
+      expect(chip.labelSw.length).toBeGreaterThan(0);
+      expect(chip.promptSw.length).toBeGreaterThan(0);
+      expect(chip.prompt.length).toBeGreaterThan(0);
+    }
   });
 
   it('disables every chip when the gateway is unconfigured', () => {
