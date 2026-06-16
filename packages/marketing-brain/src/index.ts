@@ -5,7 +5,8 @@
  * conversation on borjie.com landing page.
  */
 
-export * from './marketing-persona.js';
+// marketing-persona.ts removed (dead property-domain layer). Live marketing prompt is
+// BORJIE_MARKETING_SYSTEM_PROMPT_EN in services/api-gateway/src/routes/public-chat.hono.ts.
 export * from './marketing-few-shots.js';
 export * from './lead-qualifier.js';
 export * from './demo-data-generator.js';
