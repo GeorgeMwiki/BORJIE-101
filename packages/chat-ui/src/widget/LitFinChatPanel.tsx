@@ -4,15 +4,26 @@
  * Borjie AI Chat Panel — carbon copy of LitFin's ChatPanel, Borjie-skinned.
  *
  * The expanded chat interface for the floating widget. Renders:
- *   - Gradient header (Logomark + persona + ContextBadge + EN/SW + close)
+ *   - Gradient header (Logomark + persona + ContextBadge + EN/SW + voice
+ *     toggles + new-chat + expand/collapse + close)
  *   - Session strip ("Public · 12:45 PM · 2 msgs")
- *   - Message list with LitFin-style bubbles
- *   - Composer (mic + image upload + textarea + send)
- *   - "Chat in English" pill + "Mic ready" status
+ *   - Centered empty state (logomark + Mr. Mwikila greeting)
+ *   - Message list with LitFin-style bubbles + typing dots
+ *   - Composer (5-state voice mic + image upload + textarea + send)
+ *   - Drag-and-drop / paste image, sounds, auto-speak (TTS)
+ *   - "Chat in <Lang>" pill + "Mic ready" status
  *   - Disclaimer footer
  *
  * Source pattern this mirrors:
  *   LITFIN_PATH/src/core/litfin-ai/components/ChatPanel.tsx
+ *
+ * Brand / locale invariants (do NOT regress):
+ *   - Persona stays "Mr. Mwikila" (Borjie brand).
+ *   - Language follows the page locale via `useWidgetLanguage`; the toggle
+ *     writes `borjie_locale` + reloads (site-wide). No widget-only state.
+ *   - Single language per active locale (zero EN/SW mixing).
+ *   - Borjie copper/navy brand tokens (CHAT_HEADER_GRADIENT etc.).
+ *   - Endpoint stays /api/chat (the marketing proxy), persona "public".
  */
 
 import {
@@ -22,6 +33,8 @@ import {
   useCallback,
   useMemo,
   type ChangeEvent,
+  type ClipboardEvent,
+  type DragEvent,
   type KeyboardEvent,
   type JSX,
 } from 'react';
@@ -34,9 +47,17 @@ import {
 } from '../litfin-primitives';
 import { useLitFinAI } from './LitFinAIProvider';
 import { useWidgetLanguage } from './useWidgetLanguage';
+import { useChatSounds } from './useChatSounds';
 import { LitFinMessageBubble, type LitFinMessage } from './LitFinMessageBubble';
 import { LitFinSegmentHeader } from './LitFinSegmentHeader';
 import { LitFinContextBadge } from './LitFinContextBadge';
+import {
+  LitFinVoiceCapture,
+  type VoiceCaptureVisualState,
+} from './LitFinVoiceCapture.js';
+import { createWebSpeechAudioPort } from '../voice/web-speech-adapter.js';
+import type { VoiceAudioPort } from '../voice/voice-audio-port.js';
+import type { Language } from '../chat-modes/types.js';
 
 interface LitFinChatPanelProps {
   readonly onClose: () => void;
@@ -59,6 +80,60 @@ const DEFAULT_DISCLAIMER_EN =
   'AI-generated. Not legal advice. Decisions are made by the owner.';
 const DEFAULT_DISCLAIMER_SW =
   'AI-iliyotengenezwa . Si ushauri wa kisheria . Maamuzi yanafanywa na mmiliki';
+
+// ============================================================================
+// Bilingual UI strings — single language per active locale.
+// ============================================================================
+
+type Bilingual = Readonly<Record<Language, string>>;
+
+const PANEL_TEXT = {
+  placeholder: {
+    en: 'Ask Mr. Mwikila anything...',
+    sw: 'Uliza Mr. Mwikila chochote...',
+  },
+  placeholderImage: { en: 'Describe the image...', sw: 'Eleza picha...' },
+  placeholderRecording: { en: 'Speak now...', sw: 'Ongea sasa...' },
+  emptyGreeting: {
+    en: "Hi. I'm Mr. Mwikila, your AI mining managing director. I can walk you through licences, royalty, workforce, compliance, and offtake. What do you want to start with?",
+    sw: 'Habari. Mimi ni Mr. Mwikila, mkurugenzi mtendaji wa uchimbaji wa AI. Naweza kukupitisha kwenye leseni, mrabaha, wafanyakazi, uzingatiaji, na uuzaji wa madini. Tuanzie wapi?',
+  },
+  send: { en: 'Send', sw: 'Tuma' },
+  close: { en: 'Close', sw: 'Funga' },
+  minimize: { en: 'Minimize', sw: 'Punguza' },
+  expand: { en: 'Expand', sw: 'Panua' },
+  collapse: { en: 'Collapse', sw: 'Kunja' },
+  expandChat: { en: 'Expand chat', sw: 'Panua gumzo' },
+  collapseChat: { en: 'Collapse chat', sw: 'Kunja gumzo' },
+  newConversation: { en: 'New conversation', sw: 'Mazungumzo mapya' },
+  newConfirmTitle: {
+    en: 'Start a new conversation?',
+    sw: 'Anza mazungumzo mapya?',
+  },
+  newConfirmMessage: {
+    en: 'This will clear your current chat. I will not remember anything from this conversation in the new one.',
+    sw: 'Hii itafuta mazungumzo yako ya sasa. Sitakumbuka chochote kutoka mazungumzo haya katika mazungumzo mapya.',
+  },
+  newConfirmYes: { en: 'Yes, start fresh', sw: 'Ndio, anza upya' },
+  newConfirmCancel: { en: 'Cancel', sw: 'Ghairi' },
+  attachImage: { en: 'Attach image', sw: 'Ambatanisha picha' },
+  dropImage: { en: 'Drop image here', sw: 'Dondosha picha hapa' },
+  autoSpeak: { en: 'Auto-speak responses', sw: 'Jibu kwa sauti' },
+  speaking: { en: 'Speaking...', sw: 'Inaongea...' },
+  stop: { en: 'Stop', sw: 'Simamisha' },
+  listening: { en: 'Listening...', sw: 'Nasikiliza...' },
+  micReady: { en: 'Mic ready', sw: 'Mic tayari' },
+  micUnavailable: { en: 'Mic unavailable', sw: 'Mic haipatikani' },
+  chatIn: { en: 'Chat in English', sw: 'Zungumza kwa Kiswahili' },
+  notUnderstood: {
+    en: "I didn't quite catch that. Could you say that again?",
+    sw: 'Sijasikia vizuri, tafadhali sema tena?',
+  },
+  removeImage: { en: 'Remove image', sw: 'Ondoa picha' },
+  readyToSend: { en: 'Ready to send', sw: 'Tayari kutuma' },
+} as const satisfies Readonly<Record<string, Bilingual>>;
+
+const PENDING_CHIP_KEY = 'borjie-litfin-pending-chip-prompt';
 
 function makeId(prefix: string): string {
   const cryptoApi =
@@ -99,15 +174,31 @@ async function fileToImage(file: File): Promise<PendingImage | null> {
         resolve(null);
         return;
       }
-      resolve({
-        data: base64,
-        mediaType: file.type,
-        fileName: file.name,
-      });
+      resolve({ data: base64, mediaType: file.type, fileName: file.name });
     };
     reader.onerror = () => resolve(null);
     reader.readAsDataURL(file);
   });
+}
+
+const AUTO_SPEAK_KEY = 'borjie-litfin-auto-speak';
+
+function getAutoSpeak(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(AUTO_SPEAK_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function setAutoSpeakStorage(value: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(AUTO_SPEAK_KEY, String(value));
+  } catch {
+    /* ignore */
+  }
 }
 
 export function LitFinChatPanel({
@@ -123,6 +214,9 @@ export function LitFinChatPanel({
     disclaimerSw: ctxDisclaimerSw,
   } = useLitFinAI();
   const { language, toggleLanguage } = useWidgetLanguage();
+  const t = useCallback((m: Bilingual): string => m[language] ?? m.en, [
+    language,
+  ]);
 
   // Resolution order: explicit prop wins (lets tests pin a value),
   // then provider context (the mount-site choice), then the generic
@@ -136,38 +230,97 @@ export function LitFinChatPanel({
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [isMicReady, setIsMicReady] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
+  const [voiceState, setVoiceState] =
+    useState<VoiceCaptureVisualState>('idle');
+  const [voiceClarification, setVoiceClarification] = useState(false);
+  const [autoSpeak, setAutoSpeak] = useState(getAutoSpeak);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [ttsSupported, setTtsSupported] = useState(false);
   const [sessionId] = useState(() => makeId('bn-sess'));
   const [sessionStartedAt] = useState(() => new Date().toISOString());
+
+  const isRecording = voiceState === 'listening' || voiceState === 'arming';
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<unknown>(null);
+  const ttsPortRef = useRef<VoiceAudioPort | null>(null);
+  const spokenCountRef = useRef(0);
+  const prevStreamingRef = useRef(false);
 
+  const { playSound } = useChatSounds(true);
+
+  // ── TTS port (browser SpeechSynthesis) ────────────────────────────
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (typeof window === 'undefined') return;
+    const port = createWebSpeechAudioPort({
+      recognitionLang: language === 'sw' ? 'sw-TZ' : 'en-US',
+    });
+    ttsPortRef.current = port;
+    setTtsSupported(port.ttsSupported);
+  }, [language]);
 
+  // ── Auto-scroll + send/receive sounds ─────────────────────────────
+  useEffect(() => {
+    const wasStreaming = prevStreamingRef.current;
+    prevStreamingRef.current = isStreaming;
+    if (isStreaming && !wasStreaming) playSound('open');
+    else if (!isStreaming && wasStreaming) playSound('receive');
+    const behavior = isStreaming || wasStreaming ? 'auto' : 'smooth';
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }, [messages, isStreaming, playSound]);
+
+  // ── Focus on open, and after the AI finishes responding ───────────
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
   useEffect(() => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices) return;
-    navigator.permissions
-      ?.query({ name: 'microphone' as PermissionName })
-      .then((res) =>
-        setIsMicReady(res.state === 'granted' || res.state === 'prompt'),
-      )
-      .catch(() => setIsMicReady(false));
+    if (isStreaming) return undefined;
+    inputRef.current?.focus();
+    const timer = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(timer);
+  }, [isStreaming]);
+
+  // ── Auto-speak new assistant messages ─────────────────────────────
+  useEffect(() => {
+    if (!autoSpeak || !ttsSupported || isStreaming) {
+      spokenCountRef.current = messages.length;
+      return;
+    }
+    if (messages.length <= spokenCountRef.current) {
+      spokenCountRef.current = messages.length;
+      return;
+    }
+    const last = messages[messages.length - 1];
+    if (last && last.role === 'assistant' && last.content.trim().length > 0) {
+      const paragraphs = last.content.split(/\n\n+/);
+      const speakText = paragraphs.slice(0, 2).join('\n\n').slice(0, 500);
+      const port = ttsPortRef.current;
+      if (port) {
+        setIsSpeaking(true);
+        void port
+          .speak(speakText)
+          .catch(() => undefined)
+          .finally(() => setIsSpeaking(false));
+      }
+    }
+    spokenCountRef.current = messages.length;
+  }, [messages, autoSpeak, ttsSupported, isStreaming]);
+
+  // Cancel any TTS on unmount.
+  useEffect(() => {
+    return () => ttsPortRef.current?.cancelSpeech();
   }, []);
 
   const handleSend = useCallback(
     async (override?: string) => {
       const text = (override ?? input).trim();
       if (!text || isStreaming) return;
+
+      playSound('send');
 
       const userMsg: LitFinMessage = {
         id: makeId('user'),
@@ -184,6 +337,7 @@ export function LitFinChatPanel({
       };
       setMessages((prev) => [...prev, userMsg, aiMsg]);
       setInput('');
+      const imageToSend = pendingImage;
       setPendingImage(null);
       setIsStreaming(true);
 
@@ -203,7 +357,7 @@ export function LitFinChatPanel({
             language,
             portalId,
             currentRoute,
-            ...(pendingImage ? { image: pendingImage } : {}),
+            ...(imageToSend ? { image: imageToSend } : {}),
           }),
         });
 
@@ -260,11 +414,11 @@ export function LitFinChatPanel({
           });
         }
       } catch (err) {
+        playSound('error');
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (!last || last.role !== 'assistant') return prev;
-          const errText =
-            err instanceof Error ? err.message : 'unknown error';
+          const errText = err instanceof Error ? err.message : 'unknown error';
           return [
             ...prev.slice(0, -1),
             {
@@ -283,6 +437,7 @@ export function LitFinChatPanel({
           return [...prev.slice(0, -1), { ...last, isStreaming: false }];
         });
         setIsStreaming(false);
+        requestAnimationFrame(() => inputRef.current?.focus());
       }
     },
     [
@@ -294,8 +449,22 @@ export function LitFinChatPanel({
       portalId,
       currentRoute,
       pendingImage,
+      playSound,
     ],
   );
+
+  // ── Pending chip prompt: send once on mount when chat is ready ────
+  useEffect(() => {
+    let prompt: string | null = null;
+    try {
+      prompt = sessionStorage.getItem(PENDING_CHIP_KEY);
+      if (prompt) sessionStorage.removeItem(PENDING_CHIP_KEY);
+    } catch {
+      /* ignore */
+    }
+    if (prompt) void handleSend(prompt);
+    // Intentionally run once on mount (the chip prompt is consumed once).
+  }, []);
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -312,52 +481,91 @@ export function LitFinChatPanel({
     [handleSend, onClose],
   );
 
-  const onPickImage = useCallback(async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    if (!file) return;
+  const handleImageFile = useCallback(async (file: File) => {
     const img = await fileToImage(file);
-    if (img) setPendingImage(img);
-    e.target.value = '';
+    if (img) {
+      setPendingImage(img);
+      inputRef.current?.focus();
+    }
   }, []);
 
-  const toggleMic = useCallback(() => {
-    const win = window as unknown as {
-      SpeechRecognition?: new () => unknown;
-      webkitSpeechRecognition?: new () => unknown;
-    };
-    const Recognition = win.SpeechRecognition ?? win.webkitSpeechRecognition;
-    if (!Recognition) return;
-    if (isRecording) {
-      const rec = recognitionRef.current as { stop?: () => void } | null;
-      rec?.stop?.();
-      setIsRecording(false);
-      return;
-    }
-    const rec = new Recognition() as {
-      lang: string;
-      interimResults: boolean;
-      onresult: (e: {
-        results: ArrayLike<ArrayLike<{ transcript: string }>>;
-      }) => void;
-      onend: () => void;
-      start: () => void;
-      stop: () => void;
-    };
-    rec.lang = language === 'sw' ? 'sw-TZ' : 'en-US';
-    rec.interimResults = false;
-    rec.onresult = (e) => {
-      const last = e.results[e.results.length - 1];
-      const transcript = last?.[0]?.transcript ?? '';
-      if (transcript)
-        setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
-    };
-    rec.onend = () => setIsRecording(false);
-    rec.start();
-    recognitionRef.current = rec;
-    setIsRecording(true);
-  }, [isRecording, language]);
+  const onPickImage = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) await handleImageFile(file);
+      e.target.value = '';
+    },
+    [handleImageFile],
+  );
+
+  const onPaste = useCallback(
+    (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item && item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) void handleImageFile(file);
+          return;
+        }
+      }
+    },
+    [handleImageFile],
+  );
+
+  const onDragOver = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+  const onDragLeave = useCallback((e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+  const onDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      const file = e.dataTransfer.files[0];
+      if (file && ACCEPTED_IMAGE_TYPES.has(file.type)) void handleImageFile(file);
+    },
+    [handleImageFile],
+  );
+
+  const handleVoiceTranscript = useCallback(
+    (text: string) => {
+      if (!text.trim()) return;
+      setVoiceClarification(false);
+      void handleSend(text.trim());
+    },
+    [handleSend],
+  );
+
+  const handleVoiceNeedsRepetition = useCallback(() => {
+    setVoiceClarification(true);
+    setTimeout(() => setVoiceClarification(false), 5000);
+  }, []);
+
+  const toggleAutoSpeak = useCallback(() => {
+    setAutoSpeak((prev) => {
+      const next = !prev;
+      setAutoSpeakStorage(next);
+      if (!next) ttsPortRef.current?.cancelSpeech();
+      return next;
+    });
+  }, []);
+
+  const clearMessages = useCallback(() => {
+    ttsPortRef.current?.cancelSpeech();
+    setMessages([]);
+    setInput('');
+    setPendingImage(null);
+    spokenCountRef.current = 0;
+  }, []);
 
   const sessionLabel = useMemo(
     () =>
@@ -369,6 +577,12 @@ export function LitFinChatPanel({
     [portalId, language],
   );
 
+  const placeholder = isRecording
+    ? t(PANEL_TEXT.placeholderRecording)
+    : pendingImage
+      ? t(PANEL_TEXT.placeholderImage)
+      : t(PANEL_TEXT.placeholder);
+
   return (
     <motion.section
       data-testid="litfin-chat-panel"
@@ -378,8 +592,30 @@ export function LitFinChatPanel({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 320, damping: 28 }}
-      className="fixed bottom-4 right-4 z-50 flex h-[min(78vh,720px)] w-[min(92vw,380px)] flex-col overflow-hidden rounded-[28px] border border-border/50 bg-background/92 shadow-[0_28px_80px_rgb(15_23_42_/_0.22)] ring-1 ring-border/20 backdrop-blur-2xl md:bottom-6 md:right-6"
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={`fixed bottom-4 right-4 z-50 flex flex-col overflow-hidden rounded-[28px] border bg-background/92 shadow-[0_28px_80px_rgb(15_23_42_/_0.22)] ring-1 ring-border/20 backdrop-blur-2xl transition-[height,width] duration-300 ease-out motion-reduce:transition-none md:bottom-6 md:right-6 ${
+        isExpanded
+          ? 'h-[min(92vh,920px)] w-[min(96vw,760px)]'
+          : 'h-[min(80vh,760px)] w-[min(94vw,500px)]'
+      } ${isDragging ? 'border-primary/50 ring-2 ring-primary/20' : 'border-border/50'}`}
     >
+      {/* ── Drag overlay ── */}
+      {isDragging && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center rounded-[28px] bg-primary/5 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-2 text-primary">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <polyline points="21 15 16 10 5 21" />
+            </svg>
+            <span className="text-sm font-medium">{t(PANEL_TEXT.dropImage)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Header ── */}
       <div
         className={`relative flex items-center justify-between overflow-hidden border-b border-white/10 px-4 py-3 text-primary-foreground ${CHAT_HEADER_GRADIENT}`}
       >
@@ -395,12 +631,12 @@ export function LitFinChatPanel({
             ease: 'easeInOut',
           }}
         />
-        <div className="relative flex items-center gap-2 min-w-0">
+        <div className="relative flex min-w-0 items-center gap-2">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary-foreground/15 ring-1 ring-primary-foreground/20 shadow-[0_4px_12px_rgb(0_0_0_/_0.1)] backdrop-blur-sm">
             <BorjieMark size={20} />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold leading-tight truncate">
+            <h3 className="truncate text-sm font-semibold leading-tight">
               Mr. Mwikila
             </h3>
             <LitFinContextBadge
@@ -411,6 +647,7 @@ export function LitFinChatPanel({
           </div>
         </div>
         <div className="relative flex items-center gap-0.5">
+          {/* Language toggle (site-wide via useWidgetLanguage). */}
           <ChatHeaderIconButton
             onClick={toggleLanguage}
             ariaLabel={
@@ -422,19 +659,74 @@ export function LitFinChatPanel({
               {language === 'sw' ? 'EN' : 'SW'}
             </span>
           </ChatHeaderIconButton>
+
+          {/* Auto-speak toggle. */}
+          {ttsSupported && (
+            <ChatHeaderIconButton
+              onClick={toggleAutoSpeak}
+              active={autoSpeak}
+              ariaLabel={t(PANEL_TEXT.autoSpeak)}
+              title={t(PANEL_TEXT.autoSpeak)}
+            >
+              {autoSpeak ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <line x1="23" y1="9" x2="17" y2="15" />
+                  <line x1="17" y1="9" x2="23" y2="15" />
+                </svg>
+              )}
+            </ChatHeaderIconButton>
+          )}
+
+          {/* New conversation — confirms before wiping a live chat. */}
+          <ChatHeaderIconButton
+            onClick={() => {
+              if (messages.some((m) => m.role === 'user')) {
+                setShowNewChatConfirm(true);
+              } else {
+                clearMessages();
+              }
+            }}
+            ariaLabel={t(PANEL_TEXT.newConversation)}
+            title={t(PANEL_TEXT.newConversation)}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </ChatHeaderIconButton>
+
+          {/* Expand / collapse. */}
+          <ChatHeaderIconButton
+            onClick={() => setIsExpanded((v) => !v)}
+            ariaLabel={
+              isExpanded ? t(PANEL_TEXT.collapseChat) : t(PANEL_TEXT.expandChat)
+            }
+            title={isExpanded ? t(PANEL_TEXT.collapse) : t(PANEL_TEXT.expand)}
+          >
+            {isExpanded ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+              </svg>
+            )}
+          </ChatHeaderIconButton>
+
+          {/* Minimize / close. */}
           <ChatHeaderIconButton
             onClick={onClose}
-            ariaLabel="Close chat"
-            title="Close"
+            ariaLabel={t(PANEL_TEXT.close)}
+            title={t(PANEL_TEXT.minimize)}
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
@@ -452,16 +744,23 @@ export function LitFinChatPanel({
         />
       </div>
 
+      {/* ── Messages ── */}
       <div
         className="flex-1 overflow-y-auto px-3 pb-2"
         aria-live="polite"
         aria-atomic="false"
       >
         {messages.length === 0 && (
-          <div className="px-2 pt-4 text-sm text-muted-foreground">
-            {language === 'sw'
-              ? 'Habari, niulize chochote kuhusu mali zako.'
-              : 'Hi, ask me anything about your portfolio.'}
+          <div className="flex h-full items-center justify-center text-center">
+            <div className="max-w-[320px] space-y-3">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                <BorjieMark size={28} />
+              </div>
+              <p className="text-sm font-medium text-foreground">Mr. Mwikila</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {t(PANEL_TEXT.emptyGreeting)}
+              </p>
+            </div>
           </div>
         )}
         <ul className="flex flex-col gap-3">
@@ -479,29 +778,35 @@ export function LitFinChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Pending image preview */}
       <AnimatePresence>
         {pendingImage && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="mx-3 mb-1 flex items-center gap-2 rounded-lg border border-border/50 bg-muted/40 px-2 py-1.5 text-[11px]"
+            className="mx-3 mb-1 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-2 py-1.5"
           >
-            <span className="truncate">{pendingImage.fileName}</span>
+            <img
+              src={`data:${pendingImage.mediaType};base64,${pendingImage.data}`}
+              alt={pendingImage.fileName}
+              className="h-9 w-9 rounded border border-primary/20 object-cover"
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-medium text-primary">
+                {pendingImage.fileName}
+              </p>
+              <p className="text-[10px] text-primary/60">
+                {t(PANEL_TEXT.readyToSend)}
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => setPendingImage(null)}
-              className="ml-auto text-muted-foreground hover:text-foreground"
-              aria-label="Remove image"
+              className="ml-auto shrink-0 text-primary/60 hover:text-primary"
+              aria-label={t(PANEL_TEXT.removeImage)}
             >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -510,61 +815,70 @@ export function LitFinChatPanel({
         )}
       </AnimatePresence>
 
+      {/* ── Composer ── */}
       <div className="shrink-0 border-t border-border px-4 py-3">
-        <div className="flex items-end gap-2">
-          <button
-            type="button"
-            onClick={toggleMic}
-            disabled={isStreaming}
-            title={language === 'sw' ? 'Bofya kuongea' : 'Tap to talk'}
-            aria-label={
-              isRecording
-                ? 'Stop recording'
-                : language === 'sw'
-                  ? 'Bofya kuongea'
-                  : 'Tap to talk'
-            }
-            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-colors disabled:opacity-40 ${
-              isRecording
-                ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 hover:bg-red-600'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-            }`}
+        {/* Voice clarification — STT couldn't understand */}
+        {voiceClarification && (
+          <div className="mb-2 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-500/10">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-amber-500">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+              <line x1="12" y1="19" x2="12" y2="22" />
+            </svg>
+            <p className="flex-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+              {t(PANEL_TEXT.notUnderstood)}
+            </p>
+          </div>
+        )}
+
+        {/* TTS speaking indicator */}
+        {isSpeaking && (
+          <div
+            className="mb-2 flex items-center gap-2 text-primary"
+            role="status"
+            aria-live="polite"
           >
-            {isRecording ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="6" width="12" height="12" rx="2" />
-              </svg>
-            ) : (
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="22" />
-              </svg>
-            )}
-          </button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-pulse">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+            </svg>
+            <span className="text-xs font-medium">{t(PANEL_TEXT.speaking)}</span>
+            <button
+              type="button"
+              onClick={() => {
+                ttsPortRef.current?.cancelSpeech();
+                setIsSpeaking(false);
+              }}
+              className="ml-auto text-xs text-primary/70 hover:text-primary"
+            >
+              {t(PANEL_TEXT.stop)}
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-end gap-2">
+          {/* 5-state voice capture (mic + partial overlay + level meter). */}
+          <LitFinVoiceCapture
+            onTranscript={handleVoiceTranscript}
+            onSendSound={() => playSound('send')}
+            onNeedsRepetition={handleVoiceNeedsRepetition}
+            onStateChange={setVoiceState}
+            composerIsEmpty={input.trim().length === 0}
+            disabled={isStreaming}
+            language={language}
+          />
+
+          {/* Image attachment */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={isStreaming}
-            aria-label={language === 'sw' ? 'Pakia picha' : 'Upload image'}
-            title={language === 'sw' ? 'Pakia picha' : 'Upload image'}
+            disabled={isStreaming || isRecording || !!pendingImage}
+            aria-label={t(PANEL_TEXT.attachImage)}
+            title={t(PANEL_TEXT.attachImage)}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors hover:bg-muted/80 hover:text-foreground disabled:opacity-40"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
@@ -573,82 +887,119 @@ export function LitFinChatPanel({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/gif,image/webp"
             onChange={onPickImage}
             className="hidden"
           />
+
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder={
-              language === 'sw'
-                ? 'Uliza Mr. Mwikila chochote...'
-                : 'Ask Mr. Mwikila anything...'
-            }
-            disabled={isStreaming}
+            onPaste={onPaste}
+            placeholder={placeholder}
+            disabled={isStreaming || isRecording}
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+            className="min-h-9 flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
           />
+
           <button
             type="button"
             onClick={() => void handleSend()}
-            disabled={isStreaming || !input.trim()}
-            aria-label="Send"
-            className="relative flex h-10 w-10 items-center justify-center rounded-full text-primary-foreground transition-all hover:scale-[1.04] active:scale-[0.96] disabled:opacity-40 disabled:hover:scale-100 bg-[linear-gradient(135deg,hsl(36_86%_64%)_0%,hsl(24_78%_54%)_50%,hsl(14_62%_36%)_100%)] shadow-[0_8px_20px_-4px_hsl(24_72%_50%/0.45),0_2px_6px_hsl(14_62%_30%/0.2)] hover:shadow-[0_10px_24px_-4px_hsl(24_72%_50%/0.55),0_3px_8px_hsl(14_62%_30%/0.25)]"
+            disabled={isStreaming || isRecording || !input.trim()}
+            aria-label={t(PANEL_TEXT.send)}
+            className="relative flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,hsl(36_86%_64%)_0%,hsl(24_78%_54%)_50%,hsl(14_62%_36%)_100%)] text-primary-foreground shadow-[0_8px_20px_-4px_hsl(24_72%_50%/0.45),0_2px_6px_hsl(14_62%_30%/0.2)] transition-all hover:scale-[1.04] hover:shadow-[0_10px_24px_-4px_hsl(24_72%_50%/0.55),0_3px_8px_hsl(14_62%_30%/0.25)] active:scale-[0.96] disabled:opacity-40 disabled:hover:scale-100"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 19V5M5 12l7-7 7 7" />
             </svg>
           </button>
         </div>
+
         <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5">
-            {language === 'sw' ? 'Zungumza kwa Kiswahili' : 'Chat in English'}
+          <span className="inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="rounded-full bg-muted/60 px-2 py-0.5 font-medium text-foreground/80 underline-offset-2 transition-colors hover:bg-muted hover:underline"
+            >
+              {t(PANEL_TEXT.chatIn)}
+            </button>
           </span>
           <span>
-            {isMicReady
-              ? language === 'sw'
-                ? 'Mic tayari'
-                : 'Mic ready'
-              : language === 'sw'
-                ? 'Mic haipatikani'
-                : 'Mic unavailable'}
+            {isRecording ? (
+              <span className="font-medium text-red-400">
+                {t(PANEL_TEXT.listening)}
+              </span>
+            ) : (
+              t(PANEL_TEXT.micReady)
+            )}
           </span>
         </div>
       </div>
 
+      {/* ── AI compliance disclaimer ── */}
       <div
         role="note"
         aria-label="AI compliance notice"
-        className="flex items-center gap-2 border-t border-border/40 px-4 py-1.5 bg-gradient-to-r from-gray-50/80 via-gray-50/60 to-gray-50/80 dark:from-white/5 dark:via-white/[0.025] dark:to-white/5"
+        className="flex items-center gap-2 border-t border-border/40 bg-gradient-to-r from-gray-50/80 via-gray-50/60 to-gray-50/80 px-4 py-1.5 dark:from-white/5 dark:via-white/[0.025] dark:to-white/5"
       >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="shrink-0 text-emerald-600/60 dark:text-emerald-400/60"
-          aria-hidden="true"
-        >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-emerald-600/60 dark:text-emerald-400/60" aria-hidden="true">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
         <p className="min-w-0 flex-1 truncate text-[10px] font-medium leading-tight text-muted-foreground/80">
           {language === 'sw' ? resolvedDisclaimerSw : resolvedDisclaimerEn}
         </p>
       </div>
+
+      {/* ── New-conversation confirmation modal ── */}
+      {showNewChatConfirm && (
+        <div
+          className="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bn-new-chat-confirm-title"
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.stopPropagation();
+              setShowNewChatConfirm(false);
+            }
+          }}
+        >
+          <div className="mx-4 w-full max-w-sm rounded-2xl border border-border/60 bg-card p-5 shadow-[0_24px_48px_-16px_hsl(14_62%_24%/0.45),0_8px_16px_hsl(14_50%_24%/0.18)]">
+            <h2
+              id="bn-new-chat-confirm-title"
+              className="text-base font-semibold text-foreground"
+            >
+              {t(PANEL_TEXT.newConfirmTitle)}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {t(PANEL_TEXT.newConfirmMessage)}
+            </p>
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowNewChatConfirm(false)}
+                className="rounded-lg border border-border/60 px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/50"
+              >
+                {t(PANEL_TEXT.newConfirmCancel)}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowNewChatConfirm(false);
+                  clearMessages();
+                }}
+                className="rounded-lg bg-[linear-gradient(135deg,hsl(24_78%_54%)_0%,hsl(14_62%_30%)_100%)] px-3 py-1.5 text-sm font-medium text-primary-foreground shadow-[0_6px_14px_-4px_hsl(14_62%_30%/0.45)] transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                {t(PANEL_TEXT.newConfirmYes)}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.section>
   );
 }
@@ -686,7 +1037,6 @@ async function readEventStream(
     for (const rawLine of lines) {
       const line = rawLine.replace(/\r$/, '');
       if (line.length === 0) {
-        // Blank line ends a frame — reset the event scope.
         currentEvent = null;
         continue;
       }
@@ -698,19 +1048,12 @@ async function readEventStream(
       const data = line.slice(5).trim();
       if (data === '[DONE]') return;
       if (!data) continue;
-      // When an event name is set, only honour message_chunk frames.
-      // Frames without an event line are treated as raw text-bearing
-      // payloads (legacy / non-Borjie streams).
       if (currentEvent !== null && currentEvent !== 'message_chunk') continue;
       try {
         const parsed = JSON.parse(data) as { text?: string; delta?: string };
         const text = parsed.text ?? parsed.delta ?? '';
         if (text) onChunk(text);
       } catch {
-        // Defensive: only push raw text when there is no event scope.
-        // SSE control frames (turn.accepted etc.) parse as JSON without
-        // a `text` field and are skipped above — this branch is for the
-        // legacy plain-text-stream shape only.
         if (currentEvent === null) onChunk(data);
       }
     }

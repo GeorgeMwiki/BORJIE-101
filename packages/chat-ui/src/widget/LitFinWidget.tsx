@@ -25,16 +25,47 @@ import {
   useMemo,
   type JSX,
 } from 'react';
+import dynamic from 'next/dynamic';
 import { BorjieMark } from '../borjie/BorjieMark';
 import { useLitFinAI } from './LitFinAIProvider';
 import { useWidgetLanguage } from './useWidgetLanguage';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
-import { LitFinChatPanel } from './LitFinChatPanel';
+import { CHAT_HEADER_GRADIENT } from '../litfin-primitives';
 import {
   getWidgetSuggestionChips,
   getWidgetWelcomeMessage,
   type WidgetPortalId,
 } from './litfin-widget-content';
+
+// ---------------------------------------------------------------------------
+// Lazy-load LitFinChatPanel — only fetched when the user opens the widget.
+// Mirrors LitFin's perf pattern: keeps the heavy chat surface (markdown,
+// voice port, framer layout) out of the marketing critical-path bundle.
+// ---------------------------------------------------------------------------
+const loadChatPanel = () =>
+  import('./LitFinChatPanel.js').then((m) => ({ default: m.LitFinChatPanel }));
+
+const LitFinChatPanel = dynamic(loadChatPanel, {
+  loading: () => (
+    <div className="fixed bottom-4 right-4 z-50 flex h-[min(80vh,760px)] w-[min(94vw,500px)] flex-col overflow-hidden rounded-[28px] border border-border/50 bg-background/92 shadow-[0_28px_80px_rgb(15_23_42_/_0.22)] ring-1 ring-border/20 backdrop-blur-2xl md:bottom-6 md:right-6">
+      <div
+        className={`flex items-center justify-between border-b border-white/10 px-4 py-3 text-primary-foreground ${CHAT_HEADER_GRADIENT}`}
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-9 w-9 animate-pulse rounded-full bg-primary-foreground/20" />
+          <div className="h-4 w-24 animate-pulse rounded bg-primary-foreground/20" />
+        </div>
+      </div>
+      <div className="flex flex-1 items-center justify-center">
+        <div className="w-3/4 animate-pulse space-y-3">
+          <div className="h-3 w-full rounded bg-muted" />
+          <div className="h-3 w-2/3 rounded bg-muted" />
+          <div className="h-3 w-4/5 rounded bg-muted" />
+        </div>
+      </div>
+    </div>
+  ),
+});
 
 const WIDGET_SEEN_KEY = 'borjie-litfin-widget-seen';
 
@@ -70,6 +101,26 @@ export function LitFinWidget(): JSX.Element {
       setHasBeenOpened(true);
     }
   }, [isOpen, hasBeenOpened]);
+
+  // Preload the chat-panel chunk on idle so first-open latency is low,
+  // without pulling the heavy chat bundle into the marketing critical path.
+  useEffect(() => {
+    if (hasBeenOpened) return;
+    if (typeof window === 'undefined') return;
+    const preload = () => {
+      void loadChatPanel();
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const idleId = w.requestIdleCallback(preload, { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(idleId);
+    }
+    const timer = globalThis.setTimeout(preload, 1800);
+    return () => globalThis.clearTimeout(timer);
+  }, [hasBeenOpened]);
 
   useEffect(() => {
     if (portalId !== 'public' || isOpen) {
@@ -191,6 +242,8 @@ export function LitFinWidget(): JSX.Element {
                   setShowTooltip(false);
                 }
               }}
+              onMouseEnter={() => void loadChatPanel()}
+              onFocus={() => void loadChatPanel()}
               className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background active:scale-95"
               aria-label={askLabel}
               aria-describedby={

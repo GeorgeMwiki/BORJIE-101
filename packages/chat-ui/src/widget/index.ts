@@ -49,6 +49,15 @@ export type {
 export { LitFinWidget } from './LitFinWidget';
 export { LitFinChatPanel } from './LitFinChatPanel';
 export {
+  LitFinVoiceCapture,
+  nextVisualState as litfinVoiceNextVisualState,
+} from './LitFinVoiceCapture';
+export type {
+  LitFinVoiceCaptureProps,
+  VoiceCaptureVisualState,
+  VoiceCaptureEvent,
+} from './LitFinVoiceCapture';
+export {
   LitFinAIProvider,
   useLitFinAI,
   useOptionalLitFinAI,
