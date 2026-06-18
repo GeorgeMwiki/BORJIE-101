@@ -6,7 +6,7 @@ import { useLocale } from '@/lib/locale';
 import { useScrollAnchor } from '@/components/home-chat/streaming/use-scroll-anchor';
 import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
 import { JumpToLatestPill } from '@/components/home-chat/streaming/JumpToLatestPill';
-import { pickByLocale } from '@/lib/locale-shared';
+import { useT } from '@/i18n/t.client';
 import { ChatBubble } from './ChatBubble';
 import { Composer } from './Composer';
 import { BreadcrumbStrip } from './BreadcrumbStrip';
@@ -25,6 +25,7 @@ export function ChatPanel() {
   // language. Default owner locale is `en`; `useLocale` also re-renders
   // when the owner flips the toggle mid-session.
   const locale = useLocale();
+  const t = useT();
   const { state, send, abort } = useChatSession(locale);
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
   // Stick-to-bottom ONLY when the owner is near the bottom (follow-on-growth via
@@ -48,16 +49,12 @@ export function ChatPanel() {
               key={message.id}
               message={message}
               onSelectEvidence={setSelectedEvidence}
-              language={locale}
             />
           ))}
           {state.streaming && state.streamingText ? (
             <div className="flex flex-col items-end gap-1">
               <div className="text-badge text-neutral-500">
-                {pickByLocale(locale, {
-                  en: 'Master Brain · streaming…',
-                  sw: 'Master Brain · inatiririsha…',
-                })}
+                {t('masterBrain.streaming')}
               </div>
               <div className="max-w-2xl rounded-lg border border-warning/40 bg-warning-subtle/20 px-3 py-2 text-sm leading-relaxed text-foreground">
                 <IncrementalMarkdown text={state.streamingText} />
@@ -67,18 +64,12 @@ export function ChatPanel() {
           ) : null}
           {state.messages.length === 0 && !state.streaming && !state.error ? (
             <div className="rounded-md border border-border bg-surface/40 px-3 py-2 text-sm text-neutral-400">
-              {pickByLocale(locale, {
-                en: 'Ask the Master Brain anything about your portfolio. Replies stream live with cited evidence.',
-                sw: 'Uliza Master Brain chochote kuhusu portfolio yako. Majibu hutiririka moja kwa moja na ushahidi uliotajwa.',
-              })}
+              {t('masterBrain.emptyState')}
             </div>
           ) : null}
           {state.error ? (
             <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {pickByLocale(locale, {
-                en: `Chat stream failed: ${state.error}. Check your connection and try again.`,
-                sw: `Mtiririko wa mazungumzo umeshindwa: ${state.error}. Angalia muunganisho wako na ujaribu tena.`,
-              })}
+              {t('masterBrain.error', { error: state.error ?? '' })}
             </div>
           ) : null}
         </div>

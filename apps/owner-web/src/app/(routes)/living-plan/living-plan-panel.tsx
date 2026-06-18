@@ -12,6 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { livingPlanPanelStrings as M } from '@/i18n/strings/living-plan-panel';
@@ -339,7 +340,7 @@ function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
         </span>
         {item.confirmedAt ? (
           <span className="inline-flex items-center gap-1 text-emerald-400/80">
-            <span aria-hidden>✓</span>
+            <Check className="h-3 w-3" aria-hidden />
             {pickByLocale(locale, M.proofClosed)}
             {item.confirmationKind ? ` · ${item.confirmationKind}` : ''}
           </span>

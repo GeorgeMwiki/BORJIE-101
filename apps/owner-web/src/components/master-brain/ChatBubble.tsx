@@ -1,15 +1,15 @@
 'use client';
 
+import { AlertTriangle } from 'lucide-react';
 import type { ChatMessage } from '@/lib/types/chat';
 import { fmtTime } from '@/lib/format';
-import { pickByLocale } from '@/lib/locale-shared';
+import { useT } from '@/i18n/t.client';
 import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
 import { EvidenceChip } from './EvidenceChip';
 
 interface ChatBubbleProps {
   readonly message: ChatMessage;
   readonly onSelectEvidence: (id: string) => void;
-  readonly language?: 'en' | 'sw';
 }
 
 /**
@@ -18,11 +18,8 @@ interface ChatBubbleProps {
  * the role separation is immediate. Evidence IDs render as clickable
  * pills inline that open the right-hand side panel.
  */
-export function ChatBubble({
-  message,
-  onSelectEvidence,
-  language = 'en',
-}: ChatBubbleProps) {
+export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
+  const t = useT();
   const isOwner = message.role === 'owner';
   // KI-005 — the evidence-chain Auditor verdict (surfaced by the /chat stream)
   // rides on message.grounding; show a caution badge when the answer is
@@ -30,32 +27,18 @@ export function ChatBubble({
   // get no badge (no clutter).
   const g = isOwner ? undefined : message.grounding;
   const groundingWarn = g?.groundingFault
-    ? pickByLocale(language, {
-        en: 'Grounding check unavailable. Treat with caution.',
-        sw: 'Uthibitisho wa msingi haupatikani. Chukua kwa tahadhari.',
-      })
+    ? t('masterBrain.groundingFault')
     : g?.evidenceWarning === 'no_evidence_cited'
-      ? pickByLocale(language, {
-          en: 'Unverified: no evidence cited.',
-          sw: 'Haijathibitishwa: hakuna ushahidi uliotajwa.',
-        })
+      ? t('masterBrain.noEvidence')
       : g?.evidenceWarning === 'evidence_invalid'
-        ? pickByLocale(language, {
-            en: 'Evidence could not be verified.',
-            sw: 'Ushahidi haukuweza kuthibitishwa.',
-          })
+        ? t('masterBrain.evidenceInvalid')
         : g?.verdict === 'needs_human'
-          ? pickByLocale(language, {
-              en: 'Auditor flagged this answer for review.',
-              sw: 'Mkaguzi ameweka alama jibu hili kwa ukaguzi.',
-            })
+          ? t('masterBrain.needsHuman')
           : null;
   return (
     <div className={`flex flex-col gap-1 ${isOwner ? '' : 'items-end'}`}>
       <div className="text-badge text-neutral-500">
-        {isOwner
-          ? pickByLocale(language, { en: 'Owner', sw: 'Mmiliki' })
-          : 'Master Brain'}{' '}
+        {isOwner ? t('masterBrain.roleOwner') : t('masterBrain.roleBrain')}{' '}
         · {fmtTime(message.createdAt)}
       </div>
       <div
@@ -79,10 +62,7 @@ export function ChatBubble({
         ) : null}
         {message.breadcrumbs.length > 0 ? (
           <div className="mt-2 text-tiny text-neutral-500">
-            {pickByLocale(language, {
-              en: 'Junior calls:',
-              sw: 'Miito ya wasaidizi:',
-            })}{' '}
+            {t('masterBrain.juniorCalls')}{' '}
             {message.breadcrumbs
               .map((bc) => `${bc.agent}·${bc.action} (${bc.latencyMs}ms)`)
               .join(' → ')}
@@ -90,7 +70,8 @@ export function ChatBubble({
         ) : null}
         {groundingWarn ? (
           <div className="mt-2 inline-flex items-center gap-1 rounded border border-warning/60 bg-warning-subtle/40 px-1.5 py-0.5 text-tiny font-medium text-warning">
-            <span aria-hidden>⚠</span> {groundingWarn}
+            <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />{' '}
+            {groundingWarn}
           </div>
         ) : null}
       </div>
