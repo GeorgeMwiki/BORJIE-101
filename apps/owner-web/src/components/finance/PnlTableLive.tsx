@@ -15,6 +15,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { PnlTable } from './PnlTable';
 import { usePnl, currentMonthYYYYMM } from '@/lib/queries/pnl';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
@@ -60,13 +61,15 @@ export function PnlTableLive({ locale, initialMonth }: PnlTableLiveProps) {
           data-testid="pnl-error"
         >
           {locale === 'sw' ? S.pnl.loadError.sw : S.pnl.loadError.en}
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="sm"
             onClick={() => refetch()}
-            className="ml-2 underline"
+            className="ml-2"
           >
             {locale === 'sw' ? S.pnl.retry.sw : S.pnl.retry.en}
-          </button>
+          </Button>
         </div>
       )}
       {data && !isLoading && !isError && (

@@ -1,6 +1,7 @@
 'use client';
 
 import { type ReactElement } from 'react';
+import { Button } from '@borjie/design-system';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusPill } from '@/components/shared/StatusPill';
 import {
@@ -230,14 +231,16 @@ export function StageAdvisorPanel({
                       </p>
                     </div>
                     {nudge.dismissable ? (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => dismiss.mutate(nudge.id)}
-                        disabled={dismiss.isPending}
-                        className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:border-danger disabled:opacity-50"
+                        loading={dismiss.isPending}
+                        className="shrink-0 text-muted-foreground hover:border-danger"
                         data-testid={`stage-nudge-dismiss-${nudge.id}`}
                       >
                         {pick(STR.dismiss, locale)}
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                 </div>
