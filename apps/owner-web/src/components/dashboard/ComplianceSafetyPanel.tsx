@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@borjie/design-system';
 import { useLocale, pickByLocale } from '@/lib/locale';
 import type {
   LicenceHealthSlot,
@@ -36,7 +37,7 @@ export function ComplianceSafetyPanel({
       className="grid grid-cols-1 gap-4 lg:grid-cols-2"
       data-testid="dashboard-compliance-safety"
     >
-      <article className="cockpit-card flex flex-col gap-3">
+      <Card hoverable className="flex flex-col gap-3 p-5">
         <header>
           <h2 className="cockpit-card-title">
             {pickByLocale(locale, C.licenceHealth)}
@@ -98,9 +99,9 @@ export function ComplianceSafetyPanel({
             ))}
           </ul>
         )}
-      </article>
+      </Card>
 
-      <article className="cockpit-card flex flex-col gap-3">
+      <Card hoverable className="flex flex-col gap-3 p-5">
         <header>
           <h2 className="cockpit-card-title">
             {pickByLocale(locale, C.incidents)}
@@ -154,7 +155,7 @@ export function ComplianceSafetyPanel({
             ))}
           </ul>
         )}
-      </article>
+      </Card>
     </section>
   );
 }

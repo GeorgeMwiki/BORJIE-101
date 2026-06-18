@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@borjie/design-system';
 import { useLocale, pickByLocale } from '@/lib/locale';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 import type { DailyBriefSlot } from '@/lib/queries/owner-brief';
@@ -30,8 +31,9 @@ export function AiDailyBriefPanel({
     dailyBrief.criticalIncidents === 0;
 
   return (
-    <article
-      className="cockpit-card flex flex-col gap-4"
+    <Card
+      hoverable
+      className="flex flex-col gap-4 p-5"
       data-testid="dashboard-daily-brief"
     >
       <header className="flex items-baseline justify-between">
@@ -91,7 +93,7 @@ export function AiDailyBriefPanel({
           />
         </dl>
       )}
-    </article>
+    </Card>
   );
 }
 

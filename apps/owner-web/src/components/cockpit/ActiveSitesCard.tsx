@@ -1,3 +1,5 @@
+import { Card } from '@borjie/design-system';
+
 interface SiteCardItem {
   readonly name: string;
   readonly status: 'on-track' | 'watch' | 'behind';
@@ -16,7 +18,7 @@ const STATUS_PILL: Record<SiteCardItem['status'], string> = {
 
 export function ActiveSitesCard({ items }: ActiveSitesCardProps) {
   return (
-    <article className="cockpit-card lg:col-span-2">
+    <Card hoverable className="p-5 lg:col-span-2">
       <div className="cockpit-card-title">Active sites</div>
       <ul className="flex flex-col gap-3">
         {items.map((site) => (
@@ -34,6 +36,6 @@ export function ActiveSitesCard({ items }: ActiveSitesCardProps) {
           </li>
         ))}
       </ul>
-    </article>
+    </Card>
   );
 }

@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@borjie/design-system';
+
 import type { BriefItem } from '@/lib/types/cockpit';
 import { useT } from '@/i18n/t.client';
 import { useLocale } from '@/lib/locale';
@@ -30,7 +32,7 @@ export function DailyBriefCard({ items, language }: DailyBriefCardProps) {
   const activeLocale = language ?? cookieLocale;
 
   return (
-    <article className="cockpit-card lg:col-span-2">
+    <Card hoverable className="p-5 lg:col-span-2">
       <div className="cockpit-card-title">{t('cockpit.dailyBriefTitle')}</div>
       <ul className="flex flex-col gap-3">
         {items.map((item, index) => (
@@ -44,6 +46,6 @@ export function DailyBriefCard({ items, language }: DailyBriefCardProps) {
           </li>
         ))}
       </ul>
-    </article>
+    </Card>
   );
 }

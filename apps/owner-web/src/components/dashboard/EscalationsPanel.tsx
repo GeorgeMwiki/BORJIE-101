@@ -22,7 +22,7 @@
  */
 
 import { useMemo, type ReactElement } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT, type TFn } from '@/i18n/resolve';
 import { useLocale } from '@/lib/locale';
@@ -94,8 +94,9 @@ export function EscalationsPanel({
   } = useEscalations(enabled);
 
   return (
-    <article
-      className="cockpit-card flex flex-col gap-4"
+    <Card
+      hoverable
+      className="flex flex-col gap-4 p-5"
       data-testid="dashboard-escalations"
     >
       <header className="flex items-baseline justify-between">
@@ -144,7 +145,7 @@ export function EscalationsPanel({
           </ul>
         </>
       )}
-    </article>
+    </Card>
   );
 }
 

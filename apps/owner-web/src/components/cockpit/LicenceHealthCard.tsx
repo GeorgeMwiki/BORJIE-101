@@ -1,3 +1,5 @@
+import { Card } from '@borjie/design-system';
+
 interface LicenceHealthCardProps {
   readonly active: number;
   readonly renewalsDue60d: number;
@@ -10,7 +12,7 @@ export function LicenceHealthCard({
   dormancyFlags,
 }: LicenceHealthCardProps) {
   return (
-    <article className="cockpit-card">
+    <Card hoverable className="p-5">
       <div className="cockpit-card-title">Licence health</div>
       <div className="cockpit-card-value">{active}</div>
       <div className="cockpit-card-meta">active mineral rights</div>
@@ -22,6 +24,6 @@ export function LicenceHealthCard({
           <span className="pill pill-red">{dormancyFlags} dormancy flag</span>
         ) : null}
       </div>
-    </article>
+    </Card>
   );
 }

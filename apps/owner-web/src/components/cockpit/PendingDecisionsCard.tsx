@@ -1,3 +1,5 @@
+import { Card } from '@borjie/design-system';
+
 interface DecisionItem {
   readonly title: string;
   readonly waitingDays: number;
@@ -10,7 +12,7 @@ interface PendingDecisionsCardProps {
 
 export function PendingDecisionsCard({ items }: PendingDecisionsCardProps) {
   return (
-    <article className="cockpit-card">
+    <Card hoverable className="p-5">
       <div className="cockpit-card-title">Pending decisions</div>
       <ul className="flex flex-col gap-2.5">
         {items.map((item, index) => (
@@ -25,6 +27,6 @@ export function PendingDecisionsCard({ items }: PendingDecisionsCardProps) {
           </li>
         ))}
       </ul>
-    </article>
+    </Card>
   );
 }

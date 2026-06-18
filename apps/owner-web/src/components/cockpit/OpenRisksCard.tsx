@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Card } from '@borjie/design-system';
 import { dispatchMicroAction } from '@/lib/queries/chat-actions';
 
 interface RiskItem {
@@ -70,7 +71,7 @@ function RiskRow({ item }: { readonly item: RiskItem }) {
 
 export function OpenRisksCard({ items }: OpenRisksCardProps) {
   return (
-    <article className="cockpit-card">
+    <Card hoverable className="p-5">
       <div className="cockpit-card-title">Open risks</div>
       {items.length === 0 ? (
         <p className="text-xs text-neutral-500">No open risks</p>
@@ -81,6 +82,6 @@ export function OpenRisksCard({ items }: OpenRisksCardProps) {
           ))}
         </ul>
       )}
-    </article>
+    </Card>
   );
 }

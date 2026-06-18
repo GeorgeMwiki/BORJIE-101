@@ -1,3 +1,4 @@
+import { Card } from '@borjie/design-system';
 import { fmtTzs } from '@/lib/format';
 import type {
   CashRunwaySlot,
@@ -46,8 +47,9 @@ export function CashRunwayCard({
       : 'pill-amber';
 
   return (
-    <article
-      className="cockpit-card flex h-full flex-col gap-3"
+    <Card
+      hoverable
+      className="flex h-full flex-col gap-3 p-5"
       data-testid="dashboard-cash-runway"
     >
       <header>
@@ -96,6 +98,6 @@ export function CashRunwayCard({
           {cliffStatus.postCliffSales} post-cliff sales recorded
         </p>
       </div>
-    </article>
+    </Card>
   );
 }

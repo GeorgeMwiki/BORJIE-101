@@ -1,3 +1,5 @@
+import { Card } from '@borjie/design-system';
+
 interface CashRunwayCardProps {
   readonly cashTzsMillions: number;
   readonly runwayDays: number;
@@ -20,7 +22,7 @@ export function CashRunwayCard({
         ? 'pill-amber'
         : 'pill-red';
   return (
-    <article className="cockpit-card">
+    <Card hoverable className="p-5">
       <div className="cockpit-card-title">Cash & runway</div>
       <div className="cockpit-card-value">{formatTzs(cashTzsMillions)}</div>
       <div className="mt-2 flex items-center gap-2">
@@ -29,6 +31,6 @@ export function CashRunwayCard({
       <div className="cockpit-card-meta">
         Burn ~ {formatTzs(burnPerDayTzsMillions)} / day
       </div>
-    </article>
+    </Card>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@borjie/design-system';
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum } from '@/lib/format';
 import { useLocale, pickByLocale } from '@/lib/locale';
@@ -33,8 +34,9 @@ export function ProductionVsTargetTable({
   }));
 
   return (
-    <article
-      className="cockpit-card flex h-full flex-col gap-4"
+    <Card
+      hoverable
+      className="flex h-full flex-col gap-4 p-5"
       data-testid="dashboard-production-table"
     >
       <header className="flex items-baseline justify-between">
@@ -114,6 +116,6 @@ export function ProductionVsTargetTable({
           ) : null}
         </>
       )}
-    </article>
+    </Card>
   );
 }
