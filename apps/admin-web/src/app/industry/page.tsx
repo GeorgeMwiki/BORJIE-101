@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { Card } from '@borjie/design-system';
 import { DegradedCard } from '@/components/DegradedCard';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
@@ -94,14 +95,14 @@ export default async function IndustryPage() {
           }
           if (result.status === 'loading') {
             return (
-              <div key={slot.key} className="platform-card">
+              <Card key={slot.key} className="rounded-2xl p-6 transition-colors hover:border-border-strong">
                 <div className="platform-card-title">{slot.title}</div>
                 <div className="text-sm text-neutral-500">Loading…</div>
-              </div>
+              </Card>
             );
           }
           return (
-            <div key={slot.key} className="platform-card">
+            <Card key={slot.key} className="rounded-2xl p-6 transition-colors hover:border-border-strong">
               <div className="platform-card-title">{slot.title}</div>
               <div className="platform-card-value">
                 {result.data.value}
@@ -111,7 +112,7 @@ export default async function IndustryPage() {
                   </span>
                 ) : null}
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>

@@ -18,6 +18,7 @@ import {
   Alert,
   AlertDescription,
   Button,
+  Card,
 } from '@borjie/design-system';
 import { api, formatCurrency, formatDate } from '@/lib/api';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
@@ -271,11 +272,11 @@ function StatTile({
   tone?: string;
 }) {
   return (
-    <div className="platform-card">
+    <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
       <p className={`text-2xl font-display ${tone ?? 'text-foreground'}`}>
         {value}
       </p>
       <p className="text-sm text-neutral-400">{label}</p>
-    </div>
+    </Card>
   );
 }

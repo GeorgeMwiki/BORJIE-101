@@ -1,3 +1,4 @@
+import { Card } from '@borjie/design-system';
 import { formatCurrency } from '@/lib/api';
 import type { Tenant } from '@/lib/internal/types';
 
@@ -26,11 +27,11 @@ export function TenantOverviewTab({ tenant }: TenantOverviewTabProps): JSX.Eleme
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       {panels.map((panel) => (
-        <div key={panel.title} className="platform-card">
+        <Card key={panel.title} className="rounded-2xl p-6 transition-colors hover:border-border-strong">
           <p className="platform-card-title">{panel.title}</p>
           <p className="platform-card-value">{panel.value}</p>
           <p className="text-xs text-neutral-500 mt-1">{panel.hint}</p>
-        </div>
+        </Card>
       ))}
     </div>
   );

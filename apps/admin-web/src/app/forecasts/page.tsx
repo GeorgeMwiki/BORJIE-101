@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { Card } from '@borjie/design-system';
 import { DegradedCard } from '@/components/DegradedCard';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
@@ -70,11 +71,11 @@ export default async function ForecastsPage() {
       {result.status === 'degraded' ? (
         <DegradedCard title="Forecast service" reason={result.reason} />
       ) : result.forecasts.length === 0 ? (
-        <div className="platform-card">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
           <div className="text-sm text-neutral-400">
             No forecasts ready. TGN service healthy, queue empty.
           </div>
-        </div>
+        </Card>
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {result.forecasts.map((fc) => (

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { Card } from '@borjie/design-system';
 import { DegradedCard } from '@/components/DegradedCard';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
@@ -68,11 +69,11 @@ export default async function RadarPage() {
       {result.status === 'degraded' ? (
         <DegradedCard title="Radar stream" reason={result.reason} />
       ) : result.signals.length === 0 ? (
-        <div className="platform-card">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
           <div className="text-sm text-neutral-400">
             No signals in the current window. Pipeline healthy, stream empty.
           </div>
-        </div>
+        </Card>
       ) : (
         <ol className="space-y-2">
           {result.signals.map((signal) => (

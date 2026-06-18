@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Inbox, Loader2, Repeat } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface DlqEntry {
@@ -92,11 +92,11 @@ export function WebhookDLQClient() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading…
         </div>
       ) : entries.length === 0 ? (
-        <div className="platform-card text-sm text-neutral-400">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong text-sm text-neutral-400">
           DLQ empty.
-        </div>
+        </Card>
       ) : (
-        <section className="platform-card overflow-hidden">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
@@ -155,11 +155,11 @@ export function WebhookDLQClient() {
               ))}
             </tbody>
           </table>
-        </section>
+        </Card>
       )}
 
       {selected && (
-        <section className="platform-card text-sm">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong text-sm">
           <div className="flex items-center justify-between">
             <h3 className="font-display text-foreground">
               Delivery {selected.id}
@@ -177,7 +177,7 @@ export function WebhookDLQClient() {
           <pre className="mt-3 overflow-x-auto rounded border border-border bg-surface-sunken p-3 text-xs text-neutral-300">
             {selected.payloadPreview ?? 'Payload preview unavailable.'}
           </pre>
-        </section>
+        </Card>
       )}
     </div>
   );
