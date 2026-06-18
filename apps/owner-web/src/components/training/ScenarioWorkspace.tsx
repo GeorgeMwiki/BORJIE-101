@@ -28,6 +28,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { ScenarioView, ScenarioRoleMode, ScenarioLanguage } from '@borjie/api-client/training-types';
+import { Button } from '@borjie/design-system';
 import { trainingT } from '@/i18n/strings/training';
 import { useTraining } from './training-mode-context';
 import { computeRunScore, formatElapsed } from './training-scoring';
@@ -119,14 +120,15 @@ export function ScenarioWorkspace({
     <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface/40 p-4">
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="icon-sm"
             onClick={onExit}
             aria-label={tr.t('backToBrowser')}
-            className="rounded-full border border-border bg-surface px-2.5 py-2 text-neutral-400 hover:bg-surface/60"
           >
             <ArrowLeft className="h-4 w-4" />
-          </button>
+          </Button>
           <div>
             <h2 className="text-base font-semibold text-foreground">{title}</h2>
             <p className="text-xs text-neutral-500">{tr.kindLabel(scenario.kind)}</p>
@@ -349,30 +351,29 @@ function Composer({
           placeholder={tr.t('inputPlaceholder')}
           className="flex-1 resize-none rounded-xl border border-border bg-slate-950/40 px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
         />
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={onSend}
           disabled={disabled || !input.trim()}
-          className="inline-flex items-center gap-1.5 rounded-full bg-signal-500 px-4 py-2.5 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
+          className="gap-1.5"
         >
           <Send className="h-4 w-4" aria-hidden="true" />
           {tr.t('send')}
-        </button>
+        </Button>
       </div>
       <div className="mt-2 flex justify-end">
-        <button
+        <Button
           type="button"
+          variant={highlightComplete ? 'default' : 'outline'}
+          size="sm"
           onClick={onComplete}
           disabled={!canComplete}
-          className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold disabled:opacity-50 ${
-            highlightComplete
-              ? 'bg-signal-500 text-background hover:bg-signal-400'
-              : 'border border-border bg-surface text-foreground hover:bg-surface/60'
-          }`}
+          className="gap-1.5"
         >
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
           {tr.t('completeRun')}
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -417,13 +418,9 @@ function RunResult({
       <p className="mt-1.5 text-sm text-neutral-400">
         <span className="tabular-nums">{pct}%</span> · {objectivesCovered}/{objectivesTotal}
       </p>
-      <button
-        type="button"
-        onClick={onExit}
-        className="mt-6 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
-      >
+      <Button type="button" size="sm" onClick={onExit} className="mt-6">
         {tr.t('backToBrowser')}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -444,13 +441,9 @@ function WorkspaceError({
       <XCircle className="mb-3 h-10 w-10 text-warning" aria-hidden="true" />
       <h2 className="text-lg font-semibold text-foreground">{title}</h2>
       <p className="mt-1.5 max-w-md text-sm text-neutral-400">{message}</p>
-      <button
-        type="button"
-        onClick={onExit}
-        className="mt-6 rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface/60"
-      >
+      <Button type="button" variant="outline" size="sm" onClick={onExit} className="mt-6">
         {exitLabel}
-      </button>
+      </Button>
     </div>
   );
 }

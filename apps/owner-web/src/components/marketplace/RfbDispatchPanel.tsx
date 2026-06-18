@@ -14,6 +14,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, CheckCircle2, Send } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { useSitesList } from '@/lib/queries/sites';
 import {
   useDispatchRfbToManager,
@@ -178,10 +179,10 @@ export function RfbDispatchPanel({
         ) : null}
 
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="submit"
             disabled={!canSubmit}
-            className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-sm font-semibold text-background hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="gap-2 bg-signal-500 text-background hover:bg-signal-400 disabled:cursor-not-allowed"
           >
             <Send className="h-3.5 w-3.5" />
             {dispatch.isPending
@@ -192,14 +193,15 @@ export function RfbDispatchPanel({
                 ? S.rfbDispatch.sw
                 : S.rfbDispatch.en}
             <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => router.push('/marketplace')}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface"
+            className="gap-2"
           >
             {isSw ? S.rfbCancel.sw : S.rfbCancel.en}
-          </button>
+          </Button>
         </div>
       </form>
       {toast ? (

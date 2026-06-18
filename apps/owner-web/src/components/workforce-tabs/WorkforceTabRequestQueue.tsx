@@ -13,6 +13,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
@@ -229,26 +230,29 @@ export function WorkforceTabRequestQueue(props: QueueProps): JSX.Element {
                 </label>
                 <div className="mt-3 flex flex-col gap-2">
                   <div className="flex gap-2">
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
                       onClick={() => void decide(row.id, 'approve')}
                       disabled={decidingId !== null}
-                      className="rounded-full bg-success px-4 py-1.5 text-xs font-semibold text-background hover:opacity-90 disabled:opacity-60"
+                      className="bg-success text-background hover:bg-success/90"
                     >
                       {decidingId === `${row.id}::approve`
                         ? copy.deciding
                         : copy.approve}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => void decide(row.id, 'reject')}
                       disabled={decidingId !== null}
-                      className="rounded-full border border-destructive px-4 py-1.5 text-xs font-semibold text-destructive hover:bg-destructive/10 disabled:opacity-60"
+                      className="border-destructive text-destructive hover:bg-destructive/10"
                     >
                       {decidingId === `${row.id}::reject`
                         ? copy.deciding
                         : copy.reject}
-                    </button>
+                    </Button>
                   </div>
                   {rowErrors[row.id] ? (
                     <p
