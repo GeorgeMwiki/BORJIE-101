@@ -4,6 +4,7 @@ import { fmtTime } from '@/lib/format';
 import type { AskBorjieMessage } from '@/lib/queries/brain';
 import type { BrainCitation } from '@/lib/brain-api';
 import { CitationChip } from './CitationChip';
+import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
 
 interface AskBubbleProps {
   readonly message: AskBorjieMessage;
@@ -74,16 +75,24 @@ export function AskBubble({ message, onCitationClick }: AskBubbleProps) {
             : `border ${message.errored ? 'border-destructive/40 bg-destructive/10' : 'border-warning/40 bg-warning-subtle/20'} text-foreground`
         }`}
       >
-        <p className="whitespace-pre-wrap">
-          {message.text}
-          {message.streaming ? (
-            <span
-              aria-hidden="true"
-              data-testid="ask-stream-cursor"
-              className="ml-1 inline-block h-3 w-1.5 animate-pulse bg-warning align-text-bottom"
-            />
-          ) : null}
-        </p>
+        {isOwner ? (
+          // Owner input is plain text — never parsed as markdown.
+          <p className="whitespace-pre-wrap">{message.text}</p>
+        ) : (
+          // Assistant text is streaming-tolerant markdown (bold/lists/code/
+          // headings render structurally instead of as literal ** / - / ```),
+          // matching the TIER-1 teaching chat renderer.
+          <div>
+            <IncrementalMarkdown text={message.text} />
+            {message.streaming ? (
+              <span
+                aria-hidden="true"
+                data-testid="ask-stream-cursor"
+                className="ml-1 inline-block h-3 w-1.5 animate-pulse bg-warning align-text-bottom"
+              />
+            ) : null}
+          </div>
+        )}
         {!isOwner && message.citations.length > 0 ? (
           <div
             className="mt-2 flex flex-wrap gap-1.5"
