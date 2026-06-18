@@ -161,8 +161,17 @@ export function LitFinAIProvider({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleOpen = () => setIsOpen(true);
+    // Another floating surface (e.g. the nav mega-menu / mobile drawer) is
+    // taking the screen — yield so two overlays never collide. We close WITHOUT
+    // persisting a dismissal (it wasn't the visitor closing it), so the FAB
+    // still reopens the chat afterwards.
+    const handleClose = () => setIsOpen(false);
     window.addEventListener('bn-litfin-open-chat', handleOpen);
-    return () => window.removeEventListener('bn-litfin-open-chat', handleOpen);
+    window.addEventListener('bn-litfin-close-chat', handleClose);
+    return () => {
+      window.removeEventListener('bn-litfin-open-chat', handleOpen);
+      window.removeEventListener('bn-litfin-close-chat', handleClose);
+    };
   }, []);
 
   // Auto-open (marketing concierge): pop the panel open shortly after first
