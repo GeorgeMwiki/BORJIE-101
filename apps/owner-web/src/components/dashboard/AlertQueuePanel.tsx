@@ -1,3 +1,4 @@
+import { Card } from '@borjie/design-system';
 import type {
   DecisionsSlot,
   OpenHighIncidentsSlot,
@@ -38,8 +39,9 @@ export function AlertQueuePanel({
   const rows = mergeAlerts(decisions, incidents);
 
   return (
-    <article
-      className="cockpit-card flex flex-col gap-4"
+    <Card
+      hoverable
+      className="flex flex-col gap-4 p-5"
       data-testid="dashboard-alert-queue"
     >
       <header className="flex items-baseline justify-between">
@@ -91,7 +93,7 @@ export function AlertQueuePanel({
           ))}
         </ul>
       )}
-    </article>
+    </Card>
   );
 }
 

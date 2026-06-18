@@ -1,3 +1,5 @@
+import { Card } from '@borjie/design-system';
+
 interface ProductionCardProps {
   readonly grammesToday: number;
   readonly grammesTargetToday: number;
@@ -20,7 +22,7 @@ export function ProductionCard({
   const mtdPct = pct(grammesMtd, grammesTargetMtd);
   const dayPill = dayPct >= 100 ? 'pill-green' : dayPct >= 85 ? 'pill-amber' : 'pill-red';
   return (
-    <article className="cockpit-card">
+    <Card hoverable className="p-5">
       <div className="cockpit-card-title">Production vs target</div>
       <div className="cockpit-card-value">
         {grammesToday.toLocaleString()} g
@@ -31,6 +33,6 @@ export function ProductionCard({
       <div className="cockpit-card-meta">
         MTD {grammesMtd.toLocaleString()} g of {grammesTargetMtd.toLocaleString()} g ({mtdPct}%)
       </div>
-    </article>
+    </Card>
   );
 }

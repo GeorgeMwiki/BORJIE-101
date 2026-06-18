@@ -1,3 +1,5 @@
+import { Card } from '@borjie/design-system';
+
 interface FxGoldCardProps {
   readonly goldSpotUsdOz: number;
   readonly tzsUsd: number;
@@ -17,7 +19,7 @@ export function FxGoldCard({
   const hasGold = goldSpotUsdOz > 0;
   const hasTzsUsd = tzsUsd > 0;
   return (
-    <article className="cockpit-card">
+    <Card hoverable className="p-5">
       <div className="cockpit-card-title">FX & gold window</div>
       <div className="cockpit-card-value">
         {hasGold ? (
@@ -44,6 +46,6 @@ export function FxGoldCard({
           27 Mar cliff in {daysToCliff27Mar}d
         </span>
       </div>
-    </article>
+    </Card>
   );
 }
