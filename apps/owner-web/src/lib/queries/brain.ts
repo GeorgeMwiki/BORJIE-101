@@ -114,6 +114,8 @@ export interface UseAskBorjieResult {
   readonly isHydrating: boolean;
   readonly error: ApiError | Error | null;
   readonly send: (text: string) => Promise<void>;
+  /** Stop the in-flight stream, keeping whatever partial answer arrived. */
+  readonly abort: () => void;
   readonly reset: () => void;
 }
 
@@ -198,6 +200,14 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
     hydratedFromRef.current = null;
   }, []);
 
+  // User-initiated stop. Aborting the controller makes the in-flight
+  // streamBrainChat loop throw; the catch treats `signal.aborted` as a clean
+  // stop (keeps the partial answer, surfaces no error). `finally` clears
+  // isStreaming + the ref.
+  const abort = useCallback((): void => {
+    abortRef.current?.abort();
+  }, []);
+
   const send = useCallback(
     async (text: string): Promise<void> => {
       const trimmed = text.trim();
@@ -266,15 +276,24 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
           ),
         );
       } catch (err) {
-        const e = err instanceof Error ? err : new Error('brain turn failed');
-        setError(e);
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, streaming: false, errored: true }
-              : m,
-          ),
-        );
+        if (controller.signal.aborted) {
+          // Owner pressed Stop — settle the partial answer, no error surfaced.
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId ? { ...m, streaming: false } : m,
+            ),
+          );
+        } else {
+          const e = err instanceof Error ? err : new Error('brain turn failed');
+          setError(e);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantId
+                ? { ...m, streaming: false, errored: true }
+                : m,
+            ),
+          );
+        }
       } finally {
         setIsStreaming(false);
         abortRef.current = null;
@@ -290,6 +309,7 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
     isHydrating: threadQuery.isLoading,
     error,
     send,
+    abort,
     reset,
   };
 }

@@ -107,6 +107,7 @@ export function HomeChat({
     isHydrating,
     error,
     send,
+    abort,
     reset,
   } = useAskBorjie({
     initialThreadId,
@@ -275,6 +276,7 @@ export function HomeChat({
           <AskComposer
             busy={isStreaming}
             disabled={composerDisabled}
+            onAbort={abort}
             onSubmit={(content) => {
               // Re-engage bottom-follow for the fresh answer so a prior
               // scroll-up doesn't strand the owner away from the new reply.

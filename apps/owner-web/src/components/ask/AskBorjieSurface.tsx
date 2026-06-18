@@ -52,6 +52,7 @@ export function AskBorjieSurface() {
     isHydrating,
     error,
     send,
+    abort,
     reset,
   } = useAskBorjie({
     initialThreadId,
@@ -187,6 +188,7 @@ export function AskBorjieSurface() {
           disabled={!configured || emptyKind === 'unauthenticated'}
           voiceLocale={locale}
           onSubmit={submit}
+          onAbort={abort}
         />
       </section>
     </div>
