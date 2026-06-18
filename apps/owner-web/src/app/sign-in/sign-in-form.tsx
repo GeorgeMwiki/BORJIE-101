@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { z } from 'zod';
+import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useT } from '@/i18n/t.client';
 
@@ -143,15 +144,16 @@ export function SignInForm() {
           </p>
         ) : null}
 
-        <button
+        <Button
           type="submit"
-          disabled={state.phase === 'submitting'}
-          className="w-full rounded-md bg-signal-500 px-4 py-3.5 text-base font-semibold text-primary-foreground shadow-md transition-all duration-fast ease-out hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+          fullWidth
+          loading={state.phase === 'submitting'}
+          className="px-4 py-3.5 text-base font-semibold shadow-md hover:shadow-lg active:scale-[0.99]"
         >
           {state.phase === 'submitting'
             ? t('auth.signIn.submitting')
             : t('auth.signIn.submit')}
-        </button>
+        </Button>
       </form>
 
       <p className="mt-8 text-center font-mono text-caption uppercase tracking-widest text-neutral-500">

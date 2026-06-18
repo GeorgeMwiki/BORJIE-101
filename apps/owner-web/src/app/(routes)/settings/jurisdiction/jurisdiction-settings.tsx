@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { jurisdictionSettingsStrings as JS } from '@/i18n/strings/jurisdiction-settings';
@@ -89,13 +90,15 @@ export function JurisdictionSettings() {
         <p className="text-sm text-red-200">
           {pickByLocale(locale, JS.loadError(state.message))}
         </p>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={load}
-          className="mt-2 rounded border border-red-300/40 px-3 py-1 text-xs text-red-100 hover:bg-red-500/20"
+          className="mt-2 border-red-300/40 bg-transparent text-red-100 hover:bg-red-500/20 hover:text-red-100"
         >
           {pickByLocale(locale, { en: 'Retry', sw: S.connectedAgentsList.retry.sw })}
-        </button>
+        </Button>
       </div>
     );
   }

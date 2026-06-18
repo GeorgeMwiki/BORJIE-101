@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { FileCheck2, Loader2 } from 'lucide-react';
+import { FileCheck2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { useGenerateRenewalPack } from '@/lib/queries/licence';
 import { Toast } from '@/components/shared/Toast';
 
@@ -47,19 +48,16 @@ export function RenewalActions({ licenceId, completePct, missing }: RenewalActio
           <li key={item}>· {item}</li>
         ))}
       </ul>
-      <button
+      <Button
         type="button"
+        variant="outline"
         onClick={generate}
-        disabled={mutation.isPending}
-        className="mt-4 inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:opacity-60"
+        loading={mutation.isPending}
+        leftIcon={<FileCheck2 className="h-4 w-4" />}
+        className="mt-4 border-warning bg-warning-subtle/30 text-warning hover:bg-warning-subtle/50 hover:text-warning"
       >
-        {mutation.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <FileCheck2 className="h-4 w-4" />
-        )}
         Generate renewal pack
-      </button>
+      </Button>
       {toastUrl ? (
         <Toast
           message="Renewal pack ready for review."

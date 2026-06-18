@@ -13,6 +13,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
@@ -129,13 +130,13 @@ export function PersonalKbPanel() {
             onChange={(e) => setQuery(e.target.value)}
             maxLength={200}
           />
-          <button
+          <Button
             type="submit"
-            disabled={searching || !query.trim()}
-            className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
+            disabled={!query.trim()}
+            loading={searching}
           >
-            {searching ? 'Searching…' : S.personalKbPanel.searchButton.both}
-          </button>
+            {S.personalKbPanel.searchButton.both}
+          </Button>
         </div>
         {searchError ? (
           <p className="text-sm text-destructive">Error: {searchError}</p>
