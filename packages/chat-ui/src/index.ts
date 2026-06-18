@@ -80,6 +80,10 @@ export { useChatScroll } from './use-chat-scroll.js';
 export type { ChatScrollAnchor } from './use-chat-scroll.js';
 export { JumpToLatestPill } from './JumpToLatestPill.js';
 export type { JumpToLatestPillProps } from './JumpToLatestPill.js';
+// Lightweight streaming-tolerant message renderer (protocol-tag stripping +
+// **bold** + bullet lists). Shared so every Borjie chat surface renders model
+// output the same way instead of raw whitespace-pre-wrap.
+export { AIMessageText } from './widget/AIMessageText.js';
 // Composer primitives — shared slash command + `@`-reference menus
 // surfaced across every Borjie chat surface (marketing / owner-web /
 // admin-web / workforce-mobile / buyer-mobile). The trigger-parser is

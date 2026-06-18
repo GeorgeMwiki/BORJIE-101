@@ -4,10 +4,10 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send, Sparkles, RotateCcw } from 'lucide-react';
 
-import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
+import { useChatScroll, JumpToLatestPill, AIMessageText } from '@borjie/chat-ui';
 import { readSseStream, type SseEvent } from '@/lib/sse';
 import { getCsrfHeaders } from '@/lib/csrf';
-import { useLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   DEFAULT_SLICE,
   SliceSelector,
@@ -291,7 +291,7 @@ export function AskChat({
 
         <div className="mx-auto max-w-3xl space-y-6">
           {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
+            <MessageBubble key={m.id} message={m} language={locale} />
           ))}
 
           {failure.kind === 'offline' ? (
@@ -375,7 +375,13 @@ function EmptyState() {
   );
 }
 
-function MessageBubble({ message }: { readonly message: ChatMessage }) {
+function MessageBubble({
+  message,
+  language,
+}: {
+  readonly message: ChatMessage;
+  readonly language: Locale;
+}) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -390,11 +396,29 @@ function MessageBubble({ message }: { readonly message: ChatMessage }) {
       <div className="max-w-2xl rounded-lg border border-signal-500/20 bg-surface px-5 py-4">
         <div className="flex items-center gap-2 mb-2 text-xs uppercase tracking-wider text-signal-500">
           <Sparkles className="h-3 w-3" />
-          Industry observer
+          {pickByLocale(language, {
+            en: 'Industry observer',
+            sw: 'Mtazamaji wa sekta',
+          })}
         </div>
-        <div className="font-display text-base text-foreground whitespace-pre-wrap leading-relaxed">
-          {message.text || (message.streaming ? 'Listening across the network…' : '')}
-        </div>
+        {message.text ? (
+          // Markdown parity with the cockpit chats — bold/lists render
+          // structurally instead of as literal ** / -, while the institutional
+          // font-display voice is preserved via the className override.
+          <AIMessageText
+            content={message.text}
+            className="font-display text-base leading-relaxed text-foreground break-words"
+          />
+        ) : (
+          <div className="font-display text-base text-foreground leading-relaxed">
+            {message.streaming
+              ? pickByLocale(language, {
+                  en: 'Listening across the network…',
+                  sw: 'Inasikiliza mtandaoni…',
+                })
+              : ''}
+          </div>
+        )}
       </div>
     </div>
   );
