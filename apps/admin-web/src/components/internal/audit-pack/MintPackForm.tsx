@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Button } from '@borjie/design-system';
 import { useMintAuditPack } from '@/lib/internal/queries/audit-pack';
 import { Toast } from '../Toast';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
@@ -102,13 +103,13 @@ export function MintPackForm(): JSX.Element {
         </select>
       </label>
       <div className="flex items-end justify-end">
-        <button
+        <Button
           type="submit"
+          loading={mint.isPending}
           disabled={mint.isPending || !formState.isValid}
-          className="rounded-md bg-signal-500 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-signal-500/90 disabled:opacity-50"
         >
           {mint.isPending ? 'Minting…' : 'Mint audit-pack'}
-        </button>
+        </Button>
       </div>
       <Toast
         message={toast}

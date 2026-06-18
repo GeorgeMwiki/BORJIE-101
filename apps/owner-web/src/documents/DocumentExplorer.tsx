@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { askSession, createSession, summariseDocument } from './api';
 import type { UploadedDocument } from './types';
 import { ingestionStatusLabel, kindLabel } from './types';
@@ -206,14 +207,14 @@ export function DocumentExplorer({
             rows={2}
             className="flex-1 resize-none rounded-md border border-border bg-surface p-2 text-sm text-foreground placeholder:text-neutral-500 disabled:opacity-50"
           />
-          <button
+          <Button
             type="submit"
             disabled={busy || draft.trim().length === 0}
+            loading={busy}
             aria-label={S.documentExplorer.sendLabel[locale]}
-            className="rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:opacity-50"
           >
-            {busy ? '...' : S.documentExplorer.send[locale]}
-          </button>
+            {S.documentExplorer.send[locale]}
+          </Button>
         </form>
       </div>
     </section>
