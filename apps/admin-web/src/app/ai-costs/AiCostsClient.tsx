@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Coins, DollarSign, AlertTriangle } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface ModelBreakdownRow {
@@ -177,7 +177,7 @@ export function AiCostsClient() {
             />
           </section>
 
-          <section className="platform-card">
+          <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
             <h3 className="font-display text-foreground mb-3">Per model</h3>
             <table className="w-full text-sm">
               <thead>
@@ -214,9 +214,9 @@ export function AiCostsClient() {
                 )}
               </tbody>
             </table>
-          </section>
+          </Card>
 
-          <section className="platform-card max-w-xl space-y-3">
+          <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong max-w-xl space-y-3">
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-amber-500" />
               <h3 className="font-display text-foreground">Monthly cap</h3>
@@ -244,9 +244,9 @@ export function AiCostsClient() {
             <Button type="button" onClick={() => void saveBudget()}>
               Save
             </Button>
-          </section>
+          </Card>
 
-          <section className="platform-card">
+          <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
             <h3 className="font-display text-foreground mb-3">Recent calls</h3>
             <ul className="space-y-2 text-sm">
               {entries.slice(0, 20).map((e) => (
@@ -270,7 +270,7 @@ export function AiCostsClient() {
                 <li className="text-neutral-500">No recent calls.</li>
               )}
             </ul>
-          </section>
+          </Card>
         </>
       )}
     </div>
@@ -279,9 +279,9 @@ export function AiCostsClient() {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="platform-card">
+    <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
       <p className="text-xs text-neutral-500">{label}</p>
       <p className="mt-1 text-2xl font-display text-foreground">{value}</p>
-    </div>
+    </Card>
   );
 }
