@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import {
@@ -130,14 +131,15 @@ export function ProposalsQueue(): JSX.Element {
                     className="w-20 rounded-md border border-border bg-surface-sunken px-2 py-1 text-sm text-foreground focus:border-signal-500 focus:outline-none"
                   />
                 </label>
-                <button
+                <Button
                   type="button"
+                  variant="success"
+                  size="sm"
                   disabled={busy}
                   onClick={() => onApprove(p)}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs text-success hover:bg-surface-sunken disabled:opacity-40"
                 >
                   Approve
-                </button>
+                </Button>
 
                 <label className="block flex-1 min-w-[12rem]">
                   <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
@@ -153,14 +155,15 @@ export function ProposalsQueue(): JSX.Element {
                     className="w-full rounded-md border border-border bg-surface-sunken px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
                   />
                 </label>
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="sm"
                   disabled={busy}
                   onClick={() => onDecline(p)}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs text-warning hover:bg-surface-sunken disabled:opacity-40"
                 >
                   Decline
-                </button>
+                </Button>
               </div>
             </article>
           );

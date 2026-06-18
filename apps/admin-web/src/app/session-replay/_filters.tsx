@@ -16,6 +16,7 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import {
   DEFAULT_FACET_STATE,
   searchAndFilter,
@@ -80,13 +81,9 @@ export function SessionReplayFilters({
         onSelect={(next) => onChange({ ...value, duration: next })}
       />
       {onReset ? (
-        <button
-          type="button"
-          onClick={onReset}
-          className="rounded-md border border-border px-2 py-1 text-xs text-neutral-300 hover:bg-neutral-800"
-        >
+        <Button type="button" onClick={onReset} variant="outline" size="sm">
           Reset filters
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -196,13 +193,15 @@ export function SessionReplayList({
           {isFiltered ? (
             <>
               {' '}
-              <button
+              <Button
                 type="button"
                 onClick={resetAll}
-                className="text-signal-500 hover:underline"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-signal-500"
               >
                 Reset filters
-              </button>
+              </Button>
               .
             </>
           ) : null}

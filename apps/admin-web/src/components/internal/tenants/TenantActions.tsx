@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { useSetTenantStatus } from '@/lib/internal/queries/tenants';
 import type { Tenant } from '@/lib/internal/types';
 import { Toast } from '../Toast';
@@ -21,8 +22,10 @@ export function TenantActions({ tenant }: TenantActionsProps): JSX.Element {
     // which calls the gateway activate route.
     return (
       <>
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="sm"
           onClick={(e) => {
             e.stopPropagation();
             setStatus.mutate(
@@ -37,10 +40,10 @@ export function TenantActions({ tenant }: TenantActionsProps): JSX.Element {
             );
           }}
           disabled={setStatus.isPending}
-          className="text-xs text-signal-500 hover:underline disabled:opacity-50"
+          className="text-signal-500"
         >
           Activate
-        </button>
+        </Button>
         <Toast
           message={toast}
           tone={setStatus.isError ? 'danger' : 'success'}
@@ -52,8 +55,10 @@ export function TenantActions({ tenant }: TenantActionsProps): JSX.Element {
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="link"
+        size="sm"
         onClick={(e) => {
           e.stopPropagation();
           setStatus.mutate(
@@ -68,10 +73,10 @@ export function TenantActions({ tenant }: TenantActionsProps): JSX.Element {
           );
         }}
         disabled={setStatus.isPending}
-        className="text-xs text-warning hover:underline disabled:opacity-50"
+        className="text-warning"
       >
         Suspend
-      </button>
+      </Button>
       <Toast
         message={toast}
         tone={setStatus.isError ? 'danger' : 'success'}

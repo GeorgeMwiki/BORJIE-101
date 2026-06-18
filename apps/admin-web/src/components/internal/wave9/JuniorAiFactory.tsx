@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import {
@@ -118,22 +119,25 @@ export function JuniorAiFactory(): JSX.Element {
                       className="w-full rounded-md border border-border bg-surface-sunken px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
                     />
                   </label>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={busy || j.status === 'suspended'}
                     onClick={() => onSuspend(j)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs text-warning hover:bg-surface-sunken disabled:opacity-40"
+                    className="text-warning"
                   >
                     Suspend
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="destructive"
+                    size="sm"
                     disabled={busy}
                     onClick={() => onRevoke(j)}
-                    className="rounded-md border border-border px-3 py-1.5 text-xs text-danger hover:bg-surface-sunken disabled:opacity-40"
                   >
                     Revoke
-                  </button>
+                  </Button>
                 </div>
               ) : null}
             </article>

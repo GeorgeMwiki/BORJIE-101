@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import {
   AlertTriangle,
   Bot,
@@ -489,33 +490,26 @@ function FourEyeModal({ control, onClose, onApplied }: FourEyeModalProps) {
         </div>
 
         <footer className="mt-6 flex items-center justify-end gap-2 border-t border-border pt-4">
-          <button
+          <Button
             type="button"
             onClick={onClose}
             disabled={submitting}
-            className="rounded-full border border-border px-4 py-1.5 text-xs font-semibold text-neutral-300 hover:bg-background disabled:opacity-50"
+            variant="outline"
+            size="sm"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => void submit()}
-            disabled={!canConfirm || submitting}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold ${
-              canConfirm && !submitting
-                ? 'bg-warning text-background hover:bg-warning/90'
-                : 'cursor-not-allowed bg-warning/30 text-background opacity-50'
-            }`}
+            disabled={!canConfirm}
+            loading={submitting}
+            variant="warning"
+            size="sm"
+            className="text-background"
           >
-            {submitting ? (
-              <>
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Applying…
-              </>
-            ) : (
-              'Apply change'
-            )}
-          </button>
+            Apply change
+          </Button>
         </footer>
       </div>
     </div>

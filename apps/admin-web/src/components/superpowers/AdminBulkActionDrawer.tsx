@@ -18,6 +18,7 @@
 
 import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { postSuperpowerJson, ADMIN_SUPERPOWER_ENDPOINTS } from './api';
 import {
   ADMIN_BULK_ACTIONS,
@@ -254,14 +255,14 @@ export function AdminBulkActionDrawer(): ReactElement | null {
             </p>
           ) : null}
 
-          <button
+          <Button
             type="submit"
-            disabled={submitting}
-            className="w-full rounded border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm text-signal-500 hover:bg-signal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            loading={submitting}
+            fullWidth
             data-testid="admin-bulk-drawer-submit"
           >
             {submitting ? 'Dispatching…' : 'Dispatch bulk action'}
-          </button>
+          </Button>
         </form>
       </aside>
     </div>
