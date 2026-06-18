@@ -530,6 +530,20 @@ export const en = {
     statusAcknowledged: 'Acknowledged',
     statusResolved: 'Resolved',
   },
+
+  masterBrain: {
+    streaming: 'Master Brain · streaming…',
+    emptyState:
+      'Ask the Master Brain anything about your portfolio. Replies stream live with cited evidence.',
+    error: 'Chat stream failed: {error}. Check your connection and try again.',
+    roleOwner: 'Owner',
+    roleBrain: 'Master Brain',
+    juniorCalls: 'Junior calls:',
+    groundingFault: 'Grounding check unavailable. Treat with caution.',
+    noEvidence: 'Unverified: no evidence cited.',
+    evidenceInvalid: 'Evidence could not be verified.',
+    needsHuman: 'Auditor flagged this answer for review.',
+  },
 } as const;
 
 export type Dictionary = typeof en;

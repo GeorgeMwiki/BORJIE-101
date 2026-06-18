@@ -453,5 +453,18 @@ export const sw = {
     "statusOpen": "Wazi",
     "statusAcknowledged": "Imethibitishwa",
     "statusResolved": "Imetatuliwa"
+  },
+
+  "masterBrain": {
+    "streaming": "Master Brain · inatiririsha…",
+    "emptyState": "Uliza Master Brain chochote kuhusu portfolio yako. Majibu hutiririka moja kwa moja na ushahidi uliotajwa.",
+    "error": "Mtiririko wa mazungumzo umeshindwa: {error}. Angalia muunganisho wako na ujaribu tena.",
+    "roleOwner": "Mmiliki",
+    "roleBrain": "Master Brain",
+    "juniorCalls": "Miito ya wasaidizi:",
+    "groundingFault": "Uthibitisho wa msingi haupatikani. Chukua kwa tahadhari.",
+    "noEvidence": "Haijathibitishwa: hakuna ushahidi uliotajwa.",
+    "evidenceInvalid": "Ushahidi haukuweza kuthibitishwa.",
+    "needsHuman": "Mkaguzi ameweka alama jibu hili kwa ukaguzi."
   }
 } as const;
