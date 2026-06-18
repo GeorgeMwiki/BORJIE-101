@@ -22,6 +22,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 
 import { notificationPreferencesPanelStrings as S } from '@/i18n/strings/notification-preferences-panel';
 import { useLocale, pickByLocale } from '@/lib/locale';
@@ -191,13 +192,15 @@ export function NotificationPreferencesPanel() {
         <p className="text-sm text-red-200">
           {pickByLocale(locale, S.loadError(loadState.message))}
         </p>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => void load()}
-          className="mt-2 rounded border border-red-300/40 px-3 py-1 text-xs text-red-100 hover:bg-red-500/20"
+          className="mt-2 border-red-300/40 text-red-100 hover:bg-red-500/20"
         >
           {pickByLocale(locale, S.retry)}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -334,28 +337,28 @@ export function NotificationPreferencesPanel() {
             />
           </label>
           {quietStart || quietEnd ? (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={clearQuietHours}
-              className="rounded border border-border px-3 py-2 text-xs text-neutral-300 hover:bg-surface"
             >
               {pickByLocale(locale, S.quietHoursClear)}
-            </button>
+            </Button>
           ) : null}
         </div>
       </div>
 
       <div className="flex items-center gap-3">
-        <button
+        <Button
           type="button"
-          disabled={saving}
+          loading={saving}
           onClick={() => void save()}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
         >
           {saving
             ? pickByLocale(locale, S.saving)
             : pickByLocale(locale, S.savePreferences)}
-        </button>
+        </Button>
         {saved ? (
           <span className="text-sm text-success">
             {pickByLocale(locale, S.saved)}
