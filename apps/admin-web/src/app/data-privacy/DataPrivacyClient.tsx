@@ -18,7 +18,7 @@
 
 import { useCallback, useState } from 'react';
 import { Lock, Shield, Download, AlertTriangle } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface DeleteRequestRecord {
@@ -144,7 +144,7 @@ export function DataPrivacyClient() {
         </div>
       )}
 
-      <section className="platform-card space-y-3">
+      <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong space-y-3">
         <div className="flex items-center gap-2">
           <Shield className="h-4 w-4 text-rose-500" />
           <h3 className="font-display text-foreground">New deletion request</h3>
@@ -189,9 +189,9 @@ export function DataPrivacyClient() {
         >
           Submit deletion request
         </Button>
-      </section>
+      </Card>
 
-      <section className="platform-card space-y-3">
+      <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong space-y-3">
         <div className="flex items-center gap-2">
           <Download className="h-4 w-4 text-indigo-400" />
           <h3 className="font-display text-foreground">Look up request</h3>
@@ -213,10 +213,10 @@ export function DataPrivacyClient() {
             Fetch status
           </Button>
         </div>
-      </section>
+      </Card>
 
       {record && (
-        <section className="platform-card space-y-2 text-sm text-neutral-200">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong space-y-2 text-sm text-neutral-200">
           <p className="font-display text-foreground">Request {record.id}</p>
           <p>Customer: {record.customerId}</p>
           <p>Status: {record.status}</p>
@@ -246,7 +246,7 @@ export function DataPrivacyClient() {
               </Button>
             </div>
           )}
-        </section>
+        </Card>
       )}
     </div>
   );
