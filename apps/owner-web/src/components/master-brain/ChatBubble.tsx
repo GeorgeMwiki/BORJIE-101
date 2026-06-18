@@ -1,5 +1,6 @@
 'use client';
 
+import { AlertTriangle } from 'lucide-react';
 import type { ChatMessage } from '@/lib/types/chat';
 import { fmtTime } from '@/lib/format';
 import { pickByLocale } from '@/lib/locale-shared';
@@ -90,7 +91,8 @@ export function ChatBubble({
         ) : null}
         {groundingWarn ? (
           <div className="mt-2 inline-flex items-center gap-1 rounded border border-warning/60 bg-warning-subtle/40 px-1.5 py-0.5 text-tiny font-medium text-warning">
-            <span aria-hidden>⚠</span> {groundingWarn}
+            <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />{' '}
+            {groundingWarn}
           </div>
         ) : null}
       </div>

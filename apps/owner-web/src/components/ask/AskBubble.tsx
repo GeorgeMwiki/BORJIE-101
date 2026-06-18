@@ -1,5 +1,6 @@
 'use client';
 
+import { AlertTriangle } from 'lucide-react';
 import { fmtTime } from '@/lib/format';
 import type { AskBorjieMessage } from '@/lib/queries/brain';
 import type { BrainCitation } from '@/lib/brain-api';
@@ -112,7 +113,8 @@ export function AskBubble({ message, onCitationClick }: AskBubbleProps) {
             data-testid="ask-grounding-badge"
             className="mt-2 inline-flex items-center gap-1 rounded border border-warning/60 bg-warning-subtle/40 px-1.5 py-0.5 text-tiny font-medium text-warning"
           >
-            <span aria-hidden>⚠</span> {groundingWarn}
+            <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />{' '}
+            {groundingWarn}
           </div>
         ) : null}
       </div>
