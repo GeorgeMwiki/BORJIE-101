@@ -15,6 +15,7 @@
  */
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { Toast } from '@/components/internal/Toast';
 import {
@@ -120,23 +121,25 @@ export function SelfHealingConsole(): JSX.Element {
 
               <div className="mt-3 flex gap-2">
                 {p.needsApproval ? (
-                  <button
+                  <Button
                     type="button"
+                    variant="success"
+                    size="sm"
                     disabled={decide.isPending}
                     onClick={() => act(p, 'approve')}
-                    className="rounded-md bg-success/20 px-3 py-1 text-xs font-medium text-success hover:bg-success/30 disabled:opacity-50"
                   >
                     Approve fix
-                  </button>
+                  </Button>
                 ) : null}
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="sm"
                   disabled={decide.isPending}
                   onClick={() => act(p, 'deny')}
-                  className="rounded-md bg-danger/20 px-3 py-1 text-xs font-medium text-danger hover:bg-danger/30 disabled:opacity-50"
                 >
                   {p.needsApproval ? 'Deny (accept degrade)' : 'Dismiss'}
-                </button>
+                </Button>
               </div>
             </article>
           ))

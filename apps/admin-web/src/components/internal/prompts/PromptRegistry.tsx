@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { ConfirmModal } from '../ConfirmModal';
 import { DataSourceBadge } from '../DataSourceBadge';
@@ -71,21 +72,25 @@ export function PromptRegistry(): JSX.Element {
                 </td>
                 <td className="px-4 py-3 text-right">
                   {row.status === 'Canary' ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       onClick={() => setConfirm({ row, next: 'Production' })}
-                      className="text-xs text-signal-500 hover:underline"
+                      className="h-auto p-0 text-signal-500"
                     >
                       Promote to production
-                    </button>
+                    </Button>
                   ) : row.status === 'Production' ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       onClick={() => setConfirm({ row, next: 'Archived' })}
-                      className="text-xs text-warning hover:underline"
+                      className="h-auto p-0 text-warning"
                     >
                       Roll back
-                    </button>
+                    </Button>
                   ) : (
                     <span className="text-xs text-neutral-500">—</span>
                   )}

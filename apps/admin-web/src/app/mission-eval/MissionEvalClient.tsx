@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 // NOTE: `id` values are the wire contract consumed by the gateway's
@@ -350,14 +351,16 @@ export function MissionEvalClient() {
             className="mt-1 w-44 rounded border border-border/40 bg-surface-sunken px-2 py-1 text-sm text-foreground"
           />
         </label>
-        <button
+        <Button
           type="button"
           onClick={() => void loadRuns()}
           disabled={loadingRows}
-          className="flex items-center gap-1 rounded-md bg-indigo-500/20 px-3 py-1.5 text-sm text-indigo-200 hover:bg-indigo-500/30"
+          size="sm"
+          leftIcon={<RefreshCcw className="h-4 w-4" />}
+          className="bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30"
         >
-          <RefreshCcw className="h-4 w-4" /> Refresh
-        </button>
+          Refresh
+        </Button>
       </section>
 
       {/* Runs table */}
@@ -521,15 +524,16 @@ export function MissionEvalClient() {
               </div>
             </div>
           </dl>
-          <button
+          <Button
             type="button"
             onClick={() => void rejudge(selected.thoughtId)}
-            disabled={rejudging}
+            loading={rejudging}
+            fullWidth
             data-testid="rejudge-button"
-            className="mt-6 w-full rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
+            className="mt-6 bg-indigo-500 text-white hover:bg-indigo-400"
           >
-            {rejudging ? 'Re-judging…' : 'Re-judge with current rubric'}
-          </button>
+            Re-judge with current rubric
+          </Button>
         </aside>
       )}
     </div>

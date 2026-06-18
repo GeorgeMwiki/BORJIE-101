@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import {
@@ -64,14 +65,15 @@ export function PersonaRegistry(): JSX.Element {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <StubBadge tone="danger">SUPER_ADMIN · cross-portal hot-swap</StubBadge>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           disabled={refresh.isPending}
           onClick={onRefresh}
-          className="rounded-md border border-border px-3 py-1.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-40"
         >
           Refresh from DB
-        </button>
+        </Button>
       </div>
 
       {personas.length === 0 ? (
@@ -99,14 +101,16 @@ export function PersonaRegistry(): JSX.Element {
                     </p>
                   ) : null}
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="sm"
                   disabled={remove.isPending}
                   onClick={() => onDelete(p)}
-                  className="shrink-0 rounded-md border border-border px-3 py-1.5 text-xs text-danger hover:bg-surface-sunken disabled:opacity-40"
+                  className="shrink-0"
                 >
                   {confirmId === p.id ? 'Confirm delete' : 'Delete'}
-                </button>
+                </Button>
               </div>
             </article>
           ))}

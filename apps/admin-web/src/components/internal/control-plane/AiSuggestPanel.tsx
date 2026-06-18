@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import { useAiSuggest } from '@/lib/internal/control-plane/queries';
@@ -60,14 +61,14 @@ export function AiSuggestPanel({ onApply }: AiSuggestPanelProps): JSX.Element {
           (cost / capability / latency weighted). It is suggest-only — review, then
           apply into the routing draft and save it there.
         </p>
-        <button
+        <Button
           type="button"
           disabled={mutation.isPending}
           onClick={run}
-          className="rounded-md bg-signal-500/15 px-4 py-2 text-sm font-medium text-signal-500 hover:bg-signal-500/25 disabled:opacity-50"
+          className="bg-signal-500/15 text-signal-500 hover:bg-signal-500/25"
         >
           {mutation.isPending ? 'Running…' : 'Run recommender'}
-        </button>
+        </Button>
       </div>
 
       {result ? (
@@ -115,17 +116,18 @@ export function AiSuggestPanel({ onApply }: AiSuggestPanelProps): JSX.Element {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <button
+            <Button
               type="button"
+              variant="outline"
               disabled={applicableCount === 0}
               onClick={() => {
                 onApply(applicable);
                 setToast(`Applied ${applicableCount} suggestions into the routing draft.`);
               }}
-              className="rounded-md border border-signal-500/40 bg-signal-500/10 px-4 py-2 text-sm font-medium text-signal-500 hover:bg-signal-500/20 disabled:opacity-40"
+              className="border-signal-500/40 bg-signal-500/10 text-signal-500 hover:bg-signal-500/20 disabled:opacity-40"
             >
               Apply {applicableCount} into routing draft
-            </button>
+            </Button>
             <StubBadge tone="info">Review-then-apply · never auto-applies</StubBadge>
           </div>
         </div>
