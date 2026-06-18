@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '@borjie/design-system';
 import { useDashboardCorpus } from '@/lib/internal/queries/dashboard';
 
 /**
@@ -44,10 +45,7 @@ export function CorpusQueuePanel(): JSX.Element {
   const { total, indexed, superseded, latestIngestAt } = query.data;
 
   return (
-    <article
-      className="rounded-lg border border-border bg-surface p-5"
-      data-testid="admin-dashboard-corpus"
-    >
+    <Card className="p-5" data-testid="admin-dashboard-corpus">
       <header className="mb-3 flex items-start justify-between">
         <div>
           <h2 className="text-caption uppercase tracking-widest text-neutral-500">
@@ -95,6 +93,6 @@ export function CorpusQueuePanel(): JSX.Element {
           first dossier.
         </p>
       ) : null}
-    </article>
+    </Card>
   );
 }

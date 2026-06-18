@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '@borjie/design-system';
 import { useDashboardFeatureFlags } from '@/lib/internal/queries/dashboard';
 
 /**
@@ -63,10 +64,7 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
   const enabledCount = data.rows.filter((r) => r.enabled).length;
 
   return (
-    <article
-      className="rounded-lg border border-border bg-surface p-5"
-      data-testid="admin-dashboard-flags"
-    >
+    <Card className="p-5" data-testid="admin-dashboard-flags">
       <header className="mb-3 flex items-start justify-between">
         <div>
           <h2 className="text-caption uppercase tracking-widest text-neutral-500">
@@ -116,6 +114,6 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
           ))}
         </ul>
       )}
-    </article>
+    </Card>
   );
 }

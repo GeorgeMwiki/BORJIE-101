@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@borjie/design-system';
+
 import { useDashboardAuditIntegrity } from '@/lib/internal/queries/dashboard';
 
 /**
@@ -15,8 +17,8 @@ export function AuditChainIntegrityPanel(): JSX.Element {
 
   if (query.isLoading) {
     return (
-      <div
-        className="h-44 animate-pulse rounded-lg border border-border bg-surface/40 lg:col-span-3"
+      <Card
+        className="h-44 animate-pulse bg-surface/40 lg:col-span-3"
         data-testid="admin-dashboard-audit-skeleton"
       />
     );
@@ -44,8 +46,8 @@ export function AuditChainIntegrityPanel(): JSX.Element {
 
   if (data.state === 'unconfigured') {
     return (
-      <article
-        className="rounded-2xl border border-border bg-surface/40 p-5 lg:col-span-3"
+      <Card
+        className="rounded-2xl bg-surface/40 p-5 lg:col-span-3"
         data-testid="admin-dashboard-audit-unconfigured"
       >
         <h2 className="font-mono text-mini font-semibold uppercase tracking-eyebrow text-neutral-500">
@@ -56,14 +58,14 @@ export function AuditChainIntegrityPanel(): JSX.Element {
           AUDIT_TRAIL_SIGNING_SECRET and a pipeline slot to enable
           24h hash-chain checks.
         </p>
-      </article>
+      </Card>
     );
   }
 
   if (data.state === 'unauthorized') {
     return (
-      <article
-        className="rounded-lg border border-border bg-surface p-5 lg:col-span-3"
+      <Card
+        className="bg-surface p-5 lg:col-span-3"
         data-testid="admin-dashboard-audit-unauth"
       >
         <h2 className="text-caption uppercase tracking-widest text-neutral-500">
@@ -72,7 +74,7 @@ export function AuditChainIntegrityPanel(): JSX.Element {
         <p className="mt-3 text-sm text-neutral-400">
           Sign in as tenant-admin or super-admin to verify the hash chain.
         </p>
-      </article>
+      </Card>
     );
   }
 

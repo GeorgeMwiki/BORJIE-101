@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { Sparkles, ShieldAlert } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
@@ -77,7 +78,7 @@ export async function PrivacyBudgetCard() {
 
   if (result.status === 'offline') {
     return (
-      <div className="rounded-lg border border-border bg-surface-sunken p-5">
+      <Card className="bg-surface-sunken p-5">
         <div className="flex items-center gap-2 mb-2">
           <ShieldAlert className="h-4 w-4 text-warning" />
           <span className="text-xs uppercase tracking-wider text-neutral-500">
@@ -86,7 +87,7 @@ export async function PrivacyBudgetCard() {
         </div>
         <div className="text-sm text-warning mb-1">Budget service offline</div>
         <p className="text-xs text-neutral-500 leading-relaxed">{result.reason}</p>
-      </div>
+      </Card>
     );
   }
 
@@ -98,7 +99,7 @@ export async function PrivacyBudgetCard() {
       : null;
 
   return (
-    <div className="rounded-lg border border-signal-500/20 bg-surface-sunken p-5">
+    <Card className="border-signal-500/20 bg-surface-sunken p-5">
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className="h-4 w-4 text-signal-500" />
         <span className="text-xs uppercase tracking-wider text-neutral-500">
@@ -143,6 +144,6 @@ export async function PrivacyBudgetCard() {
           surface closes until the next window.
         </p>
       )}
-    </div>
+    </Card>
   );
 }
