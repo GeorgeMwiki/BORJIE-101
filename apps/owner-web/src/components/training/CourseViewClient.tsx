@@ -30,6 +30,7 @@ import {
   ServerCrash,
   Database,
 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import type {
   CourseLanguage,
   CourseWithLessons,
@@ -170,13 +171,15 @@ function ErrorPanel({
     >
       <ServerCrash className="h-5 w-5 shrink-0" aria-hidden="true" />
       <span>{unavailable ? tr.t('serviceUnavailable') : tr.t('loadError')}</span>
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={onRetry}
-        className="ml-auto rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground hover:bg-surface/60"
+        className="ml-auto"
       >
         {tr.t('retry')}
-      </button>
+      </Button>
     </div>
   );
 }

@@ -22,6 +22,7 @@
  */
 
 import { useMemo, type ReactElement } from 'react';
+import { Button } from '@borjie/design-system';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT, type TFn } from '@/i18n/resolve';
 import { useLocale } from '@/lib/locale';
@@ -186,23 +187,28 @@ function EscalationRow(props: {
       </p>
       <div className="mt-2 flex items-center justify-end gap-2">
         {row.status === 'open' ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={anyPending}
+            loading={busyAction === 'acknowledge'}
             onClick={() => onAct(row.id, 'acknowledge')}
-            className="rounded border border-border px-2.5 py-1 text-xs font-medium text-neutral-300 hover:bg-surface-raised disabled:opacity-50"
           >
             {ackLabel}
-          </button>
+          </Button>
         ) : null}
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           disabled={anyPending}
+          loading={busyAction === 'resolve'}
           onClick={() => onAct(row.id, 'resolve')}
-          className="rounded border border-success/40 bg-success/10 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/20 disabled:opacity-50"
+          className="border-success/40 bg-success/10 text-success hover:bg-success/20 hover:text-success"
         >
           {resolveLabel}
-        </button>
+        </Button>
       </div>
     </li>
   );

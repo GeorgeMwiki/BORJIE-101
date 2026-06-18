@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { Button } from '@borjie/design-system';
 
 interface SavedSearch {
   readonly id: string;
@@ -217,15 +218,15 @@ export function SavedSearchesPanel() {
             </select>
           </label>
         </div>
-        <button
+        <Button
           type="submit"
+          loading={creating}
           disabled={creating || !label.trim()}
-          className="rounded bg-foreground px-4 py-2 text-sm text-background disabled:opacity-40"
         >
           {creating
             ? pickByLocale(locale, { en: 'Saving…', sw: 'Inahifadhi…' })
             : pickByLocale(locale, S.savedSearches.save)}
-        </button>
+        </Button>
         {error ? (
           <p className="text-sm text-destructive">
             {pickByLocale(locale, { en: 'Error: ', sw: 'Hitilafu: ' })}
@@ -290,13 +291,14 @@ export function SavedSearchesPanel() {
                       {JSON.stringify(item.queryJson, null, 0)}
                     </pre>
                   </div>
-                  <button
+                  <Button
                     type="button"
+                    variant="destructive"
+                    size="sm"
                     onClick={() => void remove(item.id)}
-                    className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:text-destructive"
                   >
                     {pickByLocale(locale, S.savedSearches.delete)}
-                  </button>
+                  </Button>
                 </li>
               );
             })}

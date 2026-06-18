@@ -12,6 +12,7 @@
 
 import { useState } from 'react';
 import { Plus, X, FileText } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import type { CourseLanguage } from '@borjie/api-client/courses-types';
 import { coursesT } from '@/i18n/strings/courses';
 import { StepActions } from './StepActions';
@@ -143,14 +144,15 @@ export function DocumentAttach({
         </ul>
       )}
 
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={addRow}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border bg-slate-950/40 px-3.5 py-1.5 text-xs font-semibold text-neutral-300 transition-colors hover:bg-slate-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+        leftIcon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
       >
-        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
         {tr.t('addDocument')}
-      </button>
+      </Button>
 
       <StepActions
         locale={locale}

@@ -6,6 +6,7 @@ import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { Button } from '@borjie/design-system';
 
 type DeviceDetails = {
   readonly client_id: string;
@@ -337,22 +338,23 @@ function ConsentBody(props: {
       </p>
 
       <div className="flex gap-3">
-        <button
+        <Button
           type="button"
           onClick={onApprove}
           disabled={busy}
-          className="flex-1 rounded bg-signal-500 px-4 py-2 text-sm font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
+          className="flex-1"
         >
           {pickByLocale(locale, S.oauthConfirm.approve)}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           onClick={onDeny}
           disabled={busy}
-          className="flex-1 rounded border border-border bg-background px-4 py-2 text-sm text-foreground hover:bg-surface disabled:opacity-50"
+          className="flex-1"
         >
           {pickByLocale(locale, S.oauthConfirm.deny)}
-        </button>
+        </Button>
       </div>
     </div>
   );
