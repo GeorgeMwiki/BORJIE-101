@@ -110,6 +110,7 @@ export function AskChat({
   // never fired DURING a stream.
   const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
     useChatScroll();
+  const retryLabel = pickByLocale(locale, { en: 'Retry', sw: 'Jaribu tena' });
 
   const canSend = useMemo(
     () => input.trim().length > 0 && !sending,
@@ -287,7 +288,7 @@ export function AskChat({
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-8 py-10"
       >
-        {messages.length === 0 ? <EmptyState /> : null}
+        {messages.length === 0 ? <EmptyState language={locale} /> : null}
 
         <div className="mx-auto max-w-3xl space-y-6">
           {messages.map((m) => (
@@ -296,35 +297,62 @@ export function AskChat({
 
           {failure.kind === 'offline' ? (
             <FailureBanner
-              title="The industry voice is offline."
-              body="The intelligence service returned 503. No mock response will be rendered."
-              action={{ label: 'Retry', onClick: retry }}
+              title={pickByLocale(locale, {
+                en: 'The industry voice is offline.',
+                sw: 'Sauti ya sekta haipatikani.',
+              })}
+              body={pickByLocale(locale, {
+                en: 'The intelligence service returned 503. No mock response will be rendered.',
+                sw: 'Huduma ya akili ilirudisha 503. Hakuna jibu bandia litakaloonyeshwa.',
+              })}
+              action={{ label: retryLabel, onClick: retry }}
             />
           ) : null}
 
           {failure.kind === 'forbidden' ? (
             <FailureBanner
-              title="This conversation is platform-only."
-              body="You need PLATFORM_ADMIN to query the industry observer."
+              title={pickByLocale(locale, {
+                en: 'This conversation is platform-only.',
+                sw: 'Mazungumzo haya ni ya jukwaa pekee.',
+              })}
+              body={pickByLocale(locale, {
+                en: 'You need PLATFORM_ADMIN to query the industry observer.',
+                sw: 'Unahitaji PLATFORM_ADMIN kuuliza mtazamaji wa sekta.',
+              })}
             />
           ) : null}
 
           {failure.kind === 'budget-exhausted' ? (
             <FailureBanner
-              title="We've spent this month's privacy budget."
+              title={pickByLocale(locale, {
+                en: "We've spent this month's privacy budget.",
+                sw: 'Tumetumia bajeti ya faragha ya mwezi huu.',
+              })}
               body={
                 failure.resetLabel
-                  ? `Next reset: ${failure.resetLabel}.`
-                  : 'The DP-accountant will publish the next reset window shortly.'
+                  ? pickByLocale(locale, {
+                      en: `Next reset: ${failure.resetLabel}.`,
+                      sw: `Kuanzishwa upya kunakofuata: ${failure.resetLabel}.`,
+                    })
+                  : pickByLocale(locale, {
+                      en: 'The DP-accountant will publish the next reset window shortly.',
+                      sw: 'Mhasibu wa DP atachapisha dirisha la kuanzishwa upya hivi karibuni.',
+                    })
               }
             />
           ) : null}
 
           {failure.kind === 'unexpected' ? (
             <FailureBanner
-              title="Unexpected response from the industry voice."
-              body={`Upstream returned ${failure.status}. No answer rendered — this is deliberate.`}
-              action={{ label: 'Retry', onClick: retry }}
+              title={pickByLocale(locale, {
+                en: 'Unexpected response from the industry voice.',
+                sw: 'Jibu lisilotarajiwa kutoka sauti ya sekta.',
+              })}
+              body={pickByLocale(locale, {
+                en: `Upstream returned ${failure.status}. No answer rendered. This is deliberate.`,
+                sw: `Mfumo wa juu ulirudisha ${failure.status}. Hakuna jibu lililoonyeshwa. Hii ni kwa makusudi.`,
+              })}
+              action={{ label: retryLabel, onClick: retry }}
             />
           ) : null}
         </div>
@@ -347,29 +375,45 @@ export function AskChat({
         sending={sending}
         onSend={send}
         artifactCount={artifacts.length}
+        language={locale}
       />
     </div>
   );
 }
 
-function EmptyState() {
+function EmptyState({ language }: { readonly language: Locale }) {
   return (
     <div className="mx-auto max-w-2xl text-center py-20">
       <h2 className="font-display text-4xl text-foreground mb-4 leading-tight">
-        The network has not spoken with you today.
+        {pickByLocale(language, {
+          en: 'The network has not spoken with you today.',
+          sw: 'Mtandao haujazungumza nawe leo.',
+        })}
       </h2>
       <p className="text-sm text-neutral-400 leading-relaxed">
-        Ask across every tenant at once. Try:{' '}
+        {pickByLocale(language, {
+          en: 'Ask across every tenant at once. Try:',
+          sw: 'Uliza katika kila mpangaji kwa mara moja. Jaribu:',
+        })}{' '}
         <span className="text-foreground">
-          &ldquo;Where is vendor reopen rate degrading?&rdquo;
+          {pickByLocale(language, {
+            en: '“Where is vendor reopen rate degrading?”',
+            sw: '“Wapi kiwango cha kufungua upya cha wachuuzi kinashuka?”',
+          })}
         </span>{' '}
-        or{' '}
+        {pickByLocale(language, { en: 'or', sw: 'au' })}{' '}
         <span className="text-foreground">
-          &ldquo;Which jurisdictions are drifting toward tighter compliance?&rdquo;
+          {pickByLocale(language, {
+            en: '“Which jurisdictions are drifting toward tighter compliance?”',
+            sw: '“Maeneo gani ya kisheria yanaelekea kwenye uzingatiaji mkali zaidi?”',
+          })}
         </span>
       </p>
       <p className="mt-4 text-xs text-neutral-500">
-        Privacy is preserved — you will never see a single tenant&rsquo;s name.
+        {pickByLocale(language, {
+          en: 'Privacy is preserved. You will never see a single tenant’s name.',
+          sw: 'Faragha inalindwa. Hutawahi kuona jina la mpangaji mmoja.',
+        })}
       </p>
     </div>
   );
@@ -462,6 +506,7 @@ interface ComposerProps {
   readonly sending: boolean;
   readonly onSend: () => void;
   readonly artifactCount: number;
+  readonly language: Locale;
 }
 
 function Composer({
@@ -475,6 +520,7 @@ function Composer({
   sending,
   onSend,
   artifactCount,
+  language,
 }: ComposerProps) {
   return (
     <div className="border-t border-border bg-surface-sunken px-6 py-4">
@@ -491,7 +537,10 @@ function Composer({
                 onSend();
               }
             }}
-            placeholder="Ask the network about aggregate patterns…"
+            placeholder={pickByLocale(language, {
+              en: 'Ask the network about aggregate patterns…',
+              sw: 'Uliza mtandao kuhusu mifumo ya jumla…',
+            })}
             rows={2}
             disabled={sending}
             className="flex-1 resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:border-signal-500/40 disabled:opacity-50"
@@ -503,7 +552,7 @@ function Composer({
             className="inline-flex items-center gap-1.5 rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm text-signal-500 hover:bg-signal-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="h-3.5 w-3.5" />
-            Ask
+            {pickByLocale(language, { en: 'Ask', sw: 'Uliza' })}
           </button>
         </div>
 
@@ -516,12 +565,21 @@ function Composer({
               disabled={sending}
               className="rounded border-border bg-surface"
             />
-            Extended thinking
+            {pickByLocale(language, {
+              en: 'Extended thinking',
+              sw: 'Kufikiri kwa kina',
+            })}
           </label>
           <span>
             {artifactCount > 0
-              ? `${artifactCount} artifact${artifactCount === 1 ? '' : 's'} in this thread`
-              : 'No artifacts yet in this thread'}
+              ? pickByLocale(language, {
+                  en: `${artifactCount} artifact${artifactCount === 1 ? '' : 's'} in this thread`,
+                  sw: `vitu ${artifactCount} kwenye mada hii`,
+                })
+              : pickByLocale(language, {
+                  en: 'No artifacts yet in this thread',
+                  sw: 'Hakuna vitu bado kwenye mada hii',
+                })}
           </span>
         </div>
       </div>
