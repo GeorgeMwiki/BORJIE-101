@@ -148,6 +148,16 @@ export function Nav({ locale }: { readonly locale: Locale }) {
     setMobileOpen(false);
   }, [pathname]);
 
+  // Mutual exclusion with the floating concierge chat: the moment a nav overlay
+  // (the "Who we serve" mega-menu or the mobile drawer) opens, close the chat so
+  // the two large overlays never sit on top of each other. The chat reopens from
+  // its own FAB; opening the chat in turn closes the menu via its outside-click.
+  useEffect(() => {
+    if ((audienceOpen || mobileOpen) && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('bn-litfin-close-chat'));
+    }
+  }, [audienceOpen, mobileOpen]);
+
   const isOnAudiencePage = ALL_AUDIENCE_HREFS.includes(pathname);
 
   // The marketing site never owns auth — Sign in bounces to owner-web's
