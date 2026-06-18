@@ -448,20 +448,25 @@ export function LitFinChatPanel({
             ];
           });
         }
-      } catch (err) {
+      } catch {
         playSound('error');
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (!last || last.role !== 'assistant') return prev;
-          const errText = err instanceof Error ? err.message : 'unknown error';
+          // Clean, localized copy — never leak the raw error message to a public
+          // visitor. If a partial answer already streamed in, keep it and append
+          // the notice rather than overwriting the bubble.
+          const notice =
+            language === 'sw'
+              ? 'Samahani, mawasiliano yamekatika. Tafadhali jaribu tena.'
+              : 'Sorry, the connection dropped. Please try again.';
+          const hadPartial =
+            typeof last.content === 'string' && last.content.trim().length > 0;
           return [
             ...prev.slice(0, -1),
             {
               ...last,
-              content:
-                language === 'sw'
-                  ? `Samahani, hakuna mawasiliano. (${errText})`
-                  : `Sorry, no network. (${errText})`,
+              content: hadPartial ? `${last.content}\n\n${notice}` : notice,
             },
           ];
         });
