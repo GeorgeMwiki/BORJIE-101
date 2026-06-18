@@ -6,12 +6,12 @@ import {
   CalendarClock,
   CheckCircle2,
   HardHat,
-  Loader2,
   ShieldCheck,
   Truck,
   Users,
   XCircle,
 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { shiftPlannerPanelStrings as M } from '@/i18n/strings/shift-planner-panel';
 import {
@@ -248,19 +248,17 @@ export function ShiftPlannerPanel({
         </div>
 
         <div className="mt-4 flex items-center gap-3">
-          <button
+          <Button
             type="button"
-            disabled={!canPlan || plan.isPending}
+            size="sm"
+            disabled={!canPlan}
+            loading={plan.isPending}
             onClick={runPlan}
-            className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+            leftIcon={<CalendarClock className="h-3.5 w-3.5" />}
+            className="gap-2 bg-signal-500 text-background hover:bg-signal-400"
           >
-            {plan.isPending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <CalendarClock className="h-3.5 w-3.5" />
-            )}
             {isSw ? M.controls.runPlan.sw : M.controls.runPlan.en}
-          </button>
+          </Button>
           {!canPlan ? (
             <span className="text-xs text-neutral-500">
               {isSw ? M.controls.pickSiteHint.sw : M.controls.pickSiteHint.en}

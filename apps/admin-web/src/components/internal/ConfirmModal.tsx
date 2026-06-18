@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, type ReactNode } from 'react';
+import { Button, type ButtonProps } from '@borjie/design-system';
 
 interface ConfirmModalProps {
   readonly open: boolean;
@@ -14,11 +15,12 @@ interface ConfirmModalProps {
   readonly onCancel: () => void;
 }
 
-const TONE_STYLES: Record<'danger' | 'warn' | 'info', string> = {
-  danger: 'bg-danger/20 text-danger hover:bg-danger/30 border-danger/40',
-  warn: 'bg-warning/20 text-warning hover:bg-warning/30 border-warning/40',
-  info: 'bg-signal-500/20 text-signal-500 hover:bg-signal-500/30 border-signal-500/30',
-};
+const TONE_VARIANT: Record<'danger' | 'warn' | 'info', ButtonProps['variant']> =
+  {
+    danger: 'destructive',
+    warn: 'warning',
+    info: 'default',
+  };
 
 /**
  * Headless-style modal built on the native <dialog> element so we keep
@@ -58,22 +60,24 @@ export function ConfirmModal({
         <h2 className="text-base font-display text-foreground mb-2">{title}</h2>
         <div className="text-sm text-neutral-300 mb-6">{body}</div>
         <div className="flex justify-end gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onCancel}
             disabled={busy}
-            className="rounded-md border border-border px-3 py-1.5 text-xs text-neutral-300 hover:bg-surface-sunken disabled:opacity-50"
           >
             {cancelLabel}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant={TONE_VARIANT[tone]}
+            size="sm"
             onClick={onConfirm}
-            disabled={busy}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${TONE_STYLES[tone]}`}
+            loading={busy}
           >
-            {busy ? 'Working…' : confirmLabel}
-          </button>
+            {confirmLabel}
+          </Button>
         </div>
       </div>
     </dialog>

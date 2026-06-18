@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Coins, DollarSign, AlertTriangle } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface ModelBreakdownRow {
@@ -139,13 +140,15 @@ export function AiCostsClient() {
           className="flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
         >
           <span>{error}</span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void load()}
-            className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+            className="self-start border-destructive/40 bg-surface text-destructive hover:bg-destructive/10"
           >
             Retry
-          </button>
+          </Button>
         </div>
       )}
 
@@ -238,13 +241,9 @@ export function AiCostsClient() {
               />
               Hard stop when cap reached
             </label>
-            <button
-              type="button"
-              onClick={() => void saveBudget()}
-              className="rounded bg-amber-500 px-4 py-2 text-sm font-medium text-black"
-            >
+            <Button type="button" onClick={() => void saveBudget()}>
               Save
-            </button>
+            </Button>
           </section>
 
           <section className="platform-card">

@@ -17,6 +17,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface TraceMetaRow {
@@ -114,12 +115,9 @@ export function DecisionTraceListClient() {
             <option value="failed">failed</option>
           </select>
         </label>
-        <button
-          type="submit"
-          className="px-4 py-2 bg-amber-700 hover:bg-amber-600 text-white text-sm rounded font-medium"
-        >
+        <Button type="submit" size="sm" loading={loading}>
           Filter
-        </button>
+        </Button>
       </form>
 
       {error && (

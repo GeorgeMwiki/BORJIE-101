@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 
 interface DriftEvent {
   readonly id: string;
@@ -104,13 +105,15 @@ export function PersonaDriftClient() {
           <span className="font-medium">Could not load persona-drift events.</span>
           <span className="ml-1 text-muted-foreground">{state.error}</span>
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setReloadKey((k) => k + 1)}
-          className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          className="self-start border-destructive/40 bg-surface text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive"
         >
           Retry
-        </button>
+        </Button>
       </div>
     );
   }

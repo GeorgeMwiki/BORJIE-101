@@ -2,6 +2,7 @@
 
 import type { ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { setQueuedPrompt } from '@/lib/owner-os/queued-prompt';
 
 /**
@@ -44,14 +45,16 @@ export function AskMwikilaCta({
     }
   }
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={handleClick}
       data-testid="owner-os-panel-cta"
-      className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-4 py-1.5 text-xs font-semibold text-warning hover:bg-warning/20"
+      leftIcon={<Sparkles className="h-3.5 w-3.5" aria-hidden />}
+      className="gap-1.5 border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning"
     >
-      <Sparkles className="h-3.5 w-3.5" aria-hidden />
-      <span>{label}</span>
-    </button>
+      {label}
+    </Button>
   );
 }
