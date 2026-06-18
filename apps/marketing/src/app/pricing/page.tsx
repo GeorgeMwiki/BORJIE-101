@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { ArrowRight, Check, Minus, Sparkles } from 'lucide-react';
+import { Check, Minus } from 'lucide-react';
 import { Pricing } from '@/components/Pricing';
 import { FinalCta } from '@/components/FinalCta';
 import { FaqAccordion } from '@/components/shared/FaqAccordion';
@@ -150,40 +149,6 @@ export default async function PricingPage() {
           </div>
           <div className="mt-12">
             <FaqAccordion items={t.faqs} />
-          </div>
-        </section>
-
-        {/* CLOSING CTA , LitFin S15 */}
-        <section
-          className="border-t border-border bg-surface/40 px-5 py-16 md:py-24"
-          aria-labelledby="pricing-closing-cta"
-        >
-          <div className="mx-auto max-w-3xl text-center">
-            <h2
-              id="pricing-closing-cta"
-              className="font-display text-3xl font-semibold tracking-tight text-balance sm:text-4xl lg:text-5xl"
-            >
-              {t.ctaHeading}
-            </h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg leading-relaxed text-foreground/70">
-              {t.ctaSub}
-            </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href="/sign-up"
-                className="group inline-flex h-12 items-center justify-center gap-2 rounded-md bg-signal-500 px-7 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-signal-glow active:scale-[0.98]"
-              >
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                {t.ctaPrimary}
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-              <Link
-                href="/pilot"
-                className="inline-flex h-12 items-center justify-center rounded-md border border-border bg-surface/60 px-7 text-sm font-semibold text-foreground transition-colors hover:bg-surface-raised"
-              >
-                {t.ctaSecondary}
-              </Link>
-            </div>
           </div>
         </section>
 
