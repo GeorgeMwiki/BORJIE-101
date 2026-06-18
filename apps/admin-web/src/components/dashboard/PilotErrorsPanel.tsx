@@ -1,5 +1,6 @@
 'use client';
 
+import { Card } from '@borjie/design-system';
 import { useDashboardPilotErrors } from '@/lib/internal/queries/dashboard';
 
 /**
@@ -55,10 +56,7 @@ export function PilotErrorsPanel(): JSX.Element {
   }
 
   return (
-    <article
-      className="rounded-lg border border-border bg-surface p-5"
-      data-testid="admin-dashboard-pilot-errors"
-    >
+    <Card className="p-5" data-testid="admin-dashboard-pilot-errors">
       <header className="mb-3 flex items-start justify-between">
         <div>
           <h2 className="text-caption uppercase tracking-widest text-neutral-500">
@@ -97,7 +95,7 @@ export function PilotErrorsPanel(): JSX.Element {
           ))}
         </ul>
       )}
-    </article>
+    </Card>
   );
 }
 

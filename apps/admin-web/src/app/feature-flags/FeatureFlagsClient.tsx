@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Flag, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface FeatureFlag {
@@ -85,13 +86,13 @@ export function FeatureFlagsClient() {
       )}
 
       {!loading && flags.length === 0 && !error && (
-        <div className="platform-card text-sm text-neutral-400">
+        <Card className="rounded-2xl p-6 text-sm text-neutral-400 transition-colors hover:border-border-strong">
           No flags resolved for this caller.
-        </div>
+        </Card>
       )}
 
       {!loading && flags.length > 0 && (
-        <section className="platform-card overflow-hidden">
+        <Card className="overflow-hidden rounded-2xl p-6 transition-colors hover:border-border-strong">
           <ul className="divide-y divide-border/40">
             {flags.map((flag) => (
               <li key={flag.key} className="flex items-start gap-4 py-4">
@@ -142,7 +143,7 @@ export function FeatureFlagsClient() {
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
     </div>
   );

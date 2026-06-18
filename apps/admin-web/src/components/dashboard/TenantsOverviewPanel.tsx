@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Card } from '@borjie/design-system';
 import { useDashboardTenants } from '@/lib/internal/queries/dashboard';
 
 /**
@@ -33,10 +34,7 @@ export function TenantsOverviewPanel(): JSX.Element {
   const { total, recent } = query.data;
 
   return (
-    <article
-      className="rounded-lg border border-border bg-surface p-5"
-      data-testid="admin-dashboard-tenants"
-    >
+    <Card className="p-5" data-testid="admin-dashboard-tenants">
       <header className="mb-3 flex items-start justify-between">
         <div>
           <h2 className="text-caption uppercase tracking-widest text-neutral-500">
@@ -77,7 +75,7 @@ export function TenantsOverviewPanel(): JSX.Element {
           ))}
         </ul>
       )}
-    </article>
+    </Card>
   );
 }
 

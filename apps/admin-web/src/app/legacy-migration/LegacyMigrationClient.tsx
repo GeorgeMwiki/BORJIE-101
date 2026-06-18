@@ -20,7 +20,7 @@
 
 import { useCallback, useState } from 'react';
 import { UploadCloud, FileCheck2 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface ExtractedBundle {
@@ -153,7 +153,7 @@ export function LegacyMigrationClient() {
         </div>
       )}
 
-      <section className="platform-card space-y-3">
+      <Card className="space-y-3 rounded-2xl p-6 transition-colors hover:border-border-strong">
         <label className="block text-sm">
           <span className="text-neutral-300">File (.csv / .json / .xml)</span>
           <input
@@ -234,7 +234,7 @@ export function LegacyMigrationClient() {
             </div>
           </div>
         )}
-      </section>
+      </Card>
 
       {counts && (
         <section className="rounded-xl border border-emerald-500/30 bg-surface p-5 space-y-2">

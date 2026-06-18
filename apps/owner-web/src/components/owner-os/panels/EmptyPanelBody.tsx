@@ -3,6 +3,7 @@
 import type { LucideIcon } from 'lucide-react';
 import type { ReactElement } from 'react';
 import { Sparkles } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 
 interface BaseProps {
   readonly locale: 'sw' | 'en';
@@ -60,8 +61,8 @@ export function EmptyPanelBody(props: EmptyPanelBodyProps): ReactElement {
   const Icon = props.icon ?? Sparkles;
   const isContract = 'bodyEn' in props && props.bodyEn !== undefined;
   return (
-    <div
-      className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-10 text-center"
+    <Card
+      className="flex flex-col items-center justify-center gap-4 rounded-2xl border-dashed bg-surface/30 px-6 py-10 text-center"
       data-testid="owner-os-panel-empty"
     >
       <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-warning/30 bg-warning/10 text-warning">
@@ -97,6 +98,6 @@ export function EmptyPanelBody(props: EmptyPanelBodyProps): ReactElement {
             : (props as CtaShape).ctaEn}
         </button>
       ) : null}
-    </div>
+    </Card>
   );
 }

@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Plus, Loader2, Trash2 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface Certification {
@@ -117,7 +117,7 @@ export function IntegrationsClient() {
         </div>
       )}
 
-      <section className="platform-card max-w-xl space-y-3">
+      <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong max-w-xl space-y-3">
         <h3 className="flex items-center gap-2 font-display text-foreground">
           <Plus className="h-4 w-4" /> Issue new certification
         </h3>
@@ -159,9 +159,9 @@ export function IntegrationsClient() {
         >
           {issuing ? 'Issuing…' : 'Issue'}
         </Button>
-      </section>
+      </Card>
 
-      <section className="platform-card overflow-hidden">
+      <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong overflow-hidden">
         <header className="border-b border-border/40 pb-3 mb-3">
           <h3 className="font-display text-foreground">Active certifications</h3>
         </header>
@@ -205,7 +205,7 @@ export function IntegrationsClient() {
             ))}
           </ul>
         )}
-      </section>
+      </Card>
 
       {revokingId && (
         <section
@@ -256,7 +256,7 @@ export function IntegrationsClient() {
       )}
 
       {revocations.length > 0 && (
-        <section className="platform-card">
+        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
           <h3 className="font-display text-foreground mb-3">
             Revocation history
           </h3>
@@ -272,7 +272,7 @@ export function IntegrationsClient() {
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       )}
     </div>
   );
