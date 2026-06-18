@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import { ScopeSelector } from './ScopeSelector';
@@ -190,13 +191,14 @@ export function PowersPanel(): JSX.Element {
           aria-label="Add a flag to manage"
           className="w-64 rounded-md border border-border bg-surface-sunken px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
         />
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={addFlag}
-          className="rounded-md border border-border px-3 py-1.5 text-xs text-neutral-300 hover:bg-surface"
         >
           Add flag
-        </button>
+        </Button>
       </div>
 
       <Toast

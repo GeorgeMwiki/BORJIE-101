@@ -28,6 +28,7 @@ import { AdaptiveRenderer } from '@/lib/genui';
 import type { AgUiUiPart } from '@/lib/genui';
 import type { GenUiUnknownKindEventDetail } from '@borjie/genui';
 import { FeedbackThumbs, type FeedbackVerdict } from '@/components/FeedbackThumbs';
+import { Button } from '@borjie/design-system';
 
 // Build-time guard: production deployments MUST set
 // NEXT_PUBLIC_API_GATEWAY_URL. The localhost fallback exists only so a
@@ -413,8 +414,9 @@ export function JarvisConsole(): JSX.Element {
           className="hidden"
           aria-label="Attach images"
         />
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => fileInputRef.current?.click()}
           disabled={isThinking || pendingImages.length >= MAX_IMAGES_PER_TURN}
           aria-label="Attach images"
@@ -423,10 +425,9 @@ export function JarvisConsole(): JSX.Element {
               ? `Up to ${MAX_IMAGES_PER_TURN} images per turn`
               : 'Attach images (licence scan, site photo, equipment assessment)'
           }
-          className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground disabled:opacity-50"
         >
           Image
-        </button>
+        </Button>
         {audioPort?.sttSupported ? (
           <MicButton
             isListening={isListening}
@@ -435,33 +436,32 @@ export function JarvisConsole(): JSX.Element {
             disabled={isThinking}
           />
         ) : null}
-        <button
+        <Button
           type="submit"
           disabled={
             isThinking ||
             (!draft.trim() && pendingImages.length === 0)
           }
-          className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
           Send
-        </button>
+        </Button>
         {isStreaming && isThinking ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={abortStream}
-            className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground"
           >
             Abort
-          </button>
+          </Button>
         ) : null}
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={reset}
           disabled={turns.length === 0}
-          className="rounded border border-border bg-surface px-3 py-2 text-sm text-foreground disabled:opacity-50"
         >
           Clear
-        </button>
+        </Button>
       </form>
     </div>
   );

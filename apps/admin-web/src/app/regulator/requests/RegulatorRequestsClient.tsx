@@ -18,6 +18,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 import { useLocale } from '@/lib/locale';
 
@@ -265,13 +266,13 @@ export function RegulatorRequestsClient() {
           )}
         </div>
         <div className="mt-4 flex justify-end gap-3">
-          <button
+          <Button
+            loading={loading}
             disabled={loading}
             onClick={() => void submitNew()}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           >
             {loading ? 'Saving…' : 'Capture request'}
-          </button>
+          </Button>
         </div>
       </section>
 

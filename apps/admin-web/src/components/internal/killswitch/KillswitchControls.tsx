@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
@@ -56,22 +57,26 @@ export function KillswitchControls(): JSX.Element {
           confirm within 30s.
         </p>
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="sm"
             disabled={initiate.isPending}
             onClick={() => onInitiate('global', 'Global', 'DEGRADED')}
-            className="rounded-md bg-warning/20 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/30 disabled:opacity-50"
+            className="bg-warning/20 text-warning hover:bg-warning/30"
           >
             Initiate DEGRADED
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="destructive"
+            size="sm"
             disabled={initiate.isPending}
             onClick={() => onInitiate('global', 'Global', 'HALT')}
-            className="rounded-md bg-danger/20 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/30 disabled:opacity-50"
+            className="bg-danger/20 text-danger hover:bg-danger/30"
           >
             Initiate HALT
-          </button>
+          </Button>
         </div>
       </section>
 

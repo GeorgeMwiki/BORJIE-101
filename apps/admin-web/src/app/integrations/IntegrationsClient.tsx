@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { KeyRound, Plus, Loader2, Trash2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface Certification {
@@ -149,15 +150,15 @@ export function IntegrationsClient() {
             className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
           />
         </label>
-        <button
+        <Button
           type="button"
           onClick={() => void issue()}
           disabled={!form.agentId || issuing}
-          className="inline-flex items-center gap-2 rounded bg-amber-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          loading={issuing}
+          className="bg-amber-600 text-white hover:bg-amber-600/90"
         >
-          {issuing && <Loader2 className="h-3 w-3 animate-spin" />}
           {issuing ? 'Issuing…' : 'Issue'}
-        </button>
+        </Button>
       </section>
 
       <section className="platform-card overflow-hidden">
@@ -229,24 +230,27 @@ export function IntegrationsClient() {
             />
           </label>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               onClick={() => void confirmRevoke()}
               disabled={!revokeReason.trim()}
-              className="rounded bg-rose-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
             >
               Confirm revoke
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setRevokingId(null);
                 setRevokeReason('');
               }}
-              className="rounded border border-border px-3 py-1 text-xs text-neutral-300"
+              className="text-neutral-300"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </section>
       )}

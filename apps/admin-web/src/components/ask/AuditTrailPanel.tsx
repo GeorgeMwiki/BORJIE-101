@@ -29,6 +29,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 
 export interface AuditRecord {
   readonly id: string;
@@ -169,15 +170,17 @@ export function AuditTrailPanel({
             {title ?? 'This conversation'}
           </h2>
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => void load()}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-caption-lg font-medium text-neutral-500 transition-colors duration-fast hover:bg-surface-raised hover:text-foreground"
+          className="gap-1 text-neutral-500"
           aria-label="Reload audit trail"
         >
           <RefreshCw className="h-3 w-3" />
           Reload
-        </button>
+        </Button>
       </header>
 
       <div className="flex-1 overflow-y-auto">
@@ -198,13 +201,15 @@ export function AuditTrailPanel({
                 </p>
                 <p className="mt-1 text-neutral-500">{state.reason}</p>
                 {state.retryable && (
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={() => void load()}
-                    className="mt-2 text-caption-lg font-semibold text-signal-500 underline-offset-2 hover:underline"
+                    className="mt-2 h-auto p-0 text-signal-500"
                   >
                     Try again
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>

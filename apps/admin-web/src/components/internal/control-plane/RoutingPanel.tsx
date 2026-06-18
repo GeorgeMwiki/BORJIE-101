@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import { ScopeSelector } from './ScopeSelector';
@@ -248,17 +249,18 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
             emptyLabel="— add fallback —"
             ariaLabel="Add fallback model"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={!newFallback || fallbacks.includes(newFallback) || fallbacks.length >= 8}
             onClick={() => {
               setFallbacks((prev) => [...prev, newFallback]);
               setNewFallback('');
             }}
-            className="rounded-md border border-border px-3 py-1.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-40"
           >
             Add
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -412,14 +414,14 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
             }`}
           />
         </label>
-        <button
+        <Button
           type="button"
+          loading={mutation.isPending}
           disabled={mutation.isPending}
           onClick={save}
-          className="rounded-md bg-signal-500/15 px-4 py-2 text-sm font-medium text-signal-500 hover:bg-signal-500/25 disabled:opacity-50"
         >
           {mutation.isPending ? 'Saving…' : 'Save routing config'}
-        </button>
+        </Button>
       </section>
 
       <Toast

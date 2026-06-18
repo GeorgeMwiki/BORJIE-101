@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
@@ -52,30 +53,36 @@ export function ComplianceQueue(): JSX.Element {
                 </div>
               </div>
               <div className="flex gap-2 mt-3">
-                <button
+                <Button
                   type="button"
+                  variant="success"
+                  size="sm"
                   disabled={resolve.isPending}
                   onClick={() => decide(item, 'approve')}
-                  className="rounded-md bg-success/20 px-3 py-1 text-xs font-medium text-success hover:bg-success/30 disabled:opacity-50"
+                  className="bg-success/20 text-success hover:bg-success/30"
                 >
                   Approve
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="sm"
                   disabled={resolve.isPending}
                   onClick={() => decide(item, 'reject')}
-                  className="rounded-md bg-danger/20 px-3 py-1 text-xs font-medium text-danger hover:bg-danger/30 disabled:opacity-50"
+                  className="bg-danger/20 text-danger hover:bg-danger/30"
                 >
                   Reject
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   disabled
                   title="Evidence-request workflow lands with the regulator-pipeline expansion (SCRUB-4: needs POST /compliance-queue/:id/request-evidence)"
-                  className="rounded-md border border-border px-3 py-1 text-xs text-neutral-500 opacity-60 cursor-not-allowed"
+                  className="text-neutral-500 cursor-not-allowed"
                 >
                   Request more evidence
-                </button>
+                </Button>
               </div>
             </article>
           ))

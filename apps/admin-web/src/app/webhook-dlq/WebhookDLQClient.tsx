@@ -11,6 +11,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Inbox, Loader2, Repeat } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface DlqEntry {
@@ -125,26 +126,29 @@ export function WebhookDLQClient() {
                     {new Date(e.createdAt).toLocaleString()}
                   </td>
                   <td className="space-x-2 px-3 py-2 text-right">
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       onClick={() => void inspect(e)}
                       disabled={inspectingId === e.id}
-                      className="inline-flex items-center gap-1 text-xs text-neutral-300 hover:underline disabled:opacity-50"
+                      loading={inspectingId === e.id}
+                      className="h-auto gap-1 p-0 text-xs text-neutral-300"
                     >
-                      {inspectingId === e.id && (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      )}
                       Inspect
-                    </button>
+                    </Button>
                     {!e.replayedAt && (
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
+                        size="sm"
                         onClick={() => void replay(e)}
                         disabled={replaying === e.id}
-                        className="inline-flex items-center gap-1 text-xs text-rose-400 hover:underline disabled:opacity-50"
+                        loading={replaying === e.id}
+                        className="h-auto gap-1 p-0 text-xs text-rose-400"
                       >
                         <Repeat className="h-3 w-3" /> Replay
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -160,13 +164,15 @@ export function WebhookDLQClient() {
             <h3 className="font-display text-foreground">
               Delivery {selected.id}
             </h3>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setSelected(null)}
-              className="text-xs text-neutral-500"
+              className="h-auto p-0 text-xs text-neutral-500"
             >
               Close
-            </button>
+            </Button>
           </div>
           <pre className="mt-3 overflow-x-auto rounded border border-border bg-surface-sunken p-3 text-xs text-neutral-300">
             {selected.payloadPreview ?? 'Payload preview unavailable.'}
