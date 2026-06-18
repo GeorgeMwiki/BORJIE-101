@@ -17,7 +17,8 @@
  */
 
 import { useCallback, useState } from 'react';
-import { Lock, Shield, Download, Loader2, AlertTriangle } from 'lucide-react';
+import { Lock, Shield, Download, AlertTriangle } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface DeleteRequestRecord {
@@ -179,17 +180,15 @@ export function DataPrivacyClient() {
             className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
           />
         </label>
-        <button
+        <Button
           type="button"
+          variant="destructive"
           onClick={() => void submit()}
           disabled={!customerId || loading}
-          className="rounded bg-rose-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          loading={loading}
         >
-          {loading ? (
-            <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-          ) : null}
           Submit deletion request
-        </button>
+        </Button>
       </section>
 
       <section className="platform-card space-y-3">
@@ -205,14 +204,14 @@ export function DataPrivacyClient() {
             placeholder="Request ID"
             className="flex-1 rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => void lookup()}
             disabled={!lookupId || loading}
-            className="rounded border border-border px-4 py-2 text-sm text-foreground hover:bg-surface"
           >
             Fetch status
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -226,22 +225,25 @@ export function DataPrivacyClient() {
           {record.notes && <p>Notes: {record.notes}</p>}
           {record.status !== 'executed' && (
             <div className="mt-2 flex flex-wrap gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => void requestBreakGlass()}
                 disabled={!targetTenantId || requestingGrant}
-                className="rounded border border-amber-700 px-4 py-2 text-sm font-medium text-amber-300 disabled:opacity-50"
+                loading={requestingGrant}
+                className="border-amber-700 text-amber-300"
               >
                 {requestingGrant ? 'Filing…' : 'Request break-glass'}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={() => void execute()}
                 disabled={!targetTenantId}
-                className="rounded bg-rose-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                className="bg-rose-700 text-white hover:bg-rose-700/90"
               >
                 Execute deletion (break-glass)
-              </button>
+              </Button>
             </div>
           )}
         </section>

@@ -19,7 +19,8 @@
  */
 
 import { useCallback, useState } from 'react';
-import { UploadCloud, Loader2, FileCheck2 } from 'lucide-react';
+import { UploadCloud, FileCheck2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 interface ExtractedBundle {
@@ -181,25 +182,24 @@ export function LegacyMigrationClient() {
         </div>
 
         <div className="flex gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => void doPreview()}
             disabled={!file || loading}
-            className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            loading={loading}
+            className="bg-indigo-600 text-white hover:bg-indigo-600/90"
           >
-            {loading ? (
-              <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-            ) : null}
             Preview
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => setConfirmingCommit(true)}
             disabled={!runId || loading || confirmingCommit || committed}
-            className="rounded border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-300 disabled:opacity-50"
+            className="border-indigo-600 text-indigo-300"
           >
             Commit
-          </button>
+          </Button>
         </div>
 
         {confirmingCommit && (
@@ -212,22 +212,25 @@ export function LegacyMigrationClient() {
               Commit this import? This action cannot be undone.
             </p>
             <div className="mt-2 flex gap-2">
-              <button
+              <Button
                 type="button"
+                size="sm"
                 onClick={() => void commit()}
                 disabled={loading}
-                className="rounded bg-amber-600 px-3 py-1 text-xs font-medium text-white disabled:opacity-50"
+                className="bg-amber-600 text-white hover:bg-amber-600/90"
               >
                 Confirm commit
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 onClick={() => setConfirmingCommit(false)}
                 disabled={loading}
-                className="rounded border border-amber-500/40 px-3 py-1 text-xs text-amber-200"
+                className="border-amber-500/40 text-amber-200"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}
