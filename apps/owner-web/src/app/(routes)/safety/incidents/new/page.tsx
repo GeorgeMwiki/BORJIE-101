@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
+import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { useLocale, pickByLocale } from '@/lib/locale';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
@@ -402,10 +403,10 @@ export default function NewIncidentPage() {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3 border-t border-border pt-4">
-          <button
+          <Button
             type="submit"
             disabled={mutation.isPending}
-            className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="gap-2"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -413,7 +414,7 @@ export default function NewIncidentPage() {
               <AlertTriangle className="h-3.5 w-3.5" />
             )}
             Log incident
-          </button>
+          </Button>
           <Link
             href="/ask?prompt=incident"
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"

@@ -27,6 +27,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquarePlus, Star, X } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
@@ -242,25 +243,26 @@ export function FeedbackButton({
             ) : null}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={close}
-                className="rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-border-strong hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40"
+                className="rounded-xl"
                 data-testid="feedback-button-cancel"
               >
                 {t('feedback.cancel')}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 onClick={(): void => {
                   void send();
                 }}
                 disabled={submitting}
-                className="rounded-xl bg-signal-500 px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-all hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                className="rounded-xl bg-signal-500 font-semibold text-primary-foreground shadow-md hover:bg-signal-400"
                 data-testid="feedback-button-send"
               >
                 {t('feedback.send')}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

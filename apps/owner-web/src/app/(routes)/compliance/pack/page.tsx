@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 
 // ---------------------------------------------------------------------------
@@ -300,10 +301,10 @@ export default function CompliancePackPage() {
         ) : null}
 
         <div className="flex gap-3">
-          <button
+          <Button
             type="submit"
             disabled={mutation.isPending || selectedRegs.length === 0}
-            className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="gap-2"
           >
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -311,7 +312,7 @@ export default function CompliancePackPage() {
               <FileCheck className="h-3.5 w-3.5" />
             )}
             Schedule pack
-          </button>
+          </Button>
           <Link
             href="/ask?prompt=compliance+pack"
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
@@ -340,13 +341,15 @@ export default function CompliancePackPage() {
             <p className="text-xs text-destructive">
               Could not load previous packs.
             </p>
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               onClick={() => void refetch()}
-              className="mt-1 text-xs text-destructive underline hover:no-underline"
+              className="mt-1 h-auto p-0 text-xs text-destructive underline hover:no-underline"
             >
               Retry
-            </button>
+            </Button>
           </div>
         ) : null}
 

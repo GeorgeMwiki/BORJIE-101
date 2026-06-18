@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { Stepper, type StepperStep } from '@/components/onboarding/Stepper';
@@ -397,14 +398,15 @@ export default function OnboardingPage() {
           {step === 4 ? <CockpitSeedStep headline={headline} onChange={setHeadline} /> : null}
           {stepError ? <p className="mt-3 text-xs text-destructive">{stepError}</p> : null}
           <div className="mt-4 flex items-center justify-between gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={goBack}
               disabled={step === 0 || submitting}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground hover:bg-surface disabled:opacity-40"
             >
               {S.onboarding.backButton.both}
-            </button>
+            </Button>
             <button
               type="button"
               onClick={() => void goNext()}

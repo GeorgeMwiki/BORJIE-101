@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { Button } from '@borjie/design-system';
+
 import { apiRequest } from '@/lib/api-client';
 
 interface InboxRow {
@@ -251,37 +253,40 @@ export function MwikilaInboxPanel() {
                 <div className="mt-3 flex gap-2">
                   {row.status === 'proposed' ? (
                     <>
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
                         onClick={() => void runAction(row.id, 'approve')}
-                        className="rounded bg-foreground px-3 py-1 text-xs text-background"
                       >
                         Approve / Idhinisha
-                      </button>
-                      <button
+                      </Button>
+                      <Button
                         type="button"
+                        variant="outline"
+                        size="sm"
                         onClick={() => void runAction(row.id, 'deny')}
-                        className="rounded border border-border px-3 py-1 text-xs text-foreground"
                       >
                         Deny / Kataa
-                      </button>
+                      </Button>
                     </>
                   ) : null}
                   {row.status === 'executed' &&
                   row.reversalToken &&
                   countdown &&
                   countdown !== 'Window closed' ? (
-                    <button
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() =>
                         void runAction(row.id, 'reverse', {
                           reversalToken: row.reversalToken,
                         })
                       }
-                      className="rounded border border-amber-500 px-3 py-1 text-xs text-amber-400"
+                      className="border-amber-500 text-amber-400 hover:text-amber-400"
                     >
                       Reverse / Rejesha
-                    </button>
+                    </Button>
                   ) : null}
                 </div>
               </li>
