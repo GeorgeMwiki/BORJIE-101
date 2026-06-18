@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { useUploadCorpus } from '@/lib/internal/queries/corpus';
 
 const ACCEPTED = '.md,.markdown,.txt,.pdf';
@@ -51,14 +52,15 @@ export function CorpusDropZone({ onUploaded }: { readonly onUploaded?: () => voi
       <p className="text-xs text-neutral-500 mb-4">
         Files are versioned and routed through the re-ingest pipeline. Existing entries auto-supersede.
       </p>
-      <button
+      <Button
         type="button"
+        size="sm"
         onClick={() => inputRef.current?.click()}
+        loading={upload.isPending}
         disabled={upload.isPending}
-        className="rounded-md bg-signal-500 px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-signal-500/90 disabled:opacity-50"
       >
         {upload.isPending ? 'Uploading…' : 'Pick files'}
-      </button>
+      </Button>
       <input
         ref={inputRef}
         type="file"

@@ -1,3 +1,4 @@
+import { Button } from '@borjie/design-system';
 import { QueryProvider } from '@/components/internal/QueryProvider';
 import { TenantDirectory } from '@/components/internal/tenants/TenantDirectory';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
@@ -39,17 +40,17 @@ export default async function TenantsPage(): Promise<JSX.Element> {
               })}
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            size="sm"
             disabled
             title={pickByLocale(locale, {
               en: 'Provisioning form lands with self-serve tenant onboarding',
               sw: 'Fomu ya usajili itapatikana na ujiandikishaji wa tenant wa kujihudumia',
             })}
-            className="rounded-md bg-signal-500/40 px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-50 cursor-not-allowed"
           >
             {pickByLocale(locale, { en: 'New tenant', sw: 'Tenant mpya' })}
-          </button>
+          </Button>
         </header>
 
         <TenantDirectory />

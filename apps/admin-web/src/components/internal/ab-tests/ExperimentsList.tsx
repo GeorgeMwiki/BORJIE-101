@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@borjie/design-system';
 import {
   useExperimentsQuery,
   useCreateExperiment,
@@ -174,13 +175,13 @@ function NewExperimentForm(): JSX.Element {
         />
       </label>
       <div className="flex justify-end md:col-span-4">
-        <button
+        <Button
           type="submit"
           disabled={!canSubmit}
-          className="rounded-md bg-signal-500 px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-signal-500/90 disabled:opacity-50"
+          loading={create.isPending}
         >
           {create.isPending ? 'Creating…' : 'New experiment'}
-        </button>
+        </Button>
       </div>
       <Toast
         message={toast}
