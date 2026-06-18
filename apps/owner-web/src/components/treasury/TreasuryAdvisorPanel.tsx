@@ -17,6 +17,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
 import {
   useTreasuryAnalyze,
@@ -247,22 +248,23 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
       </Section>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={onCompute}
           disabled={analyzeMut.isPending}
-          className="rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
         >
           {analyzeMut.isPending ? tr('computing') : tr('compute')}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onRecommend}
           disabled={!analysis || recommendMut.isPending}
-          className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-background disabled:opacity-50"
         >
           {recommendMut.isPending ? tr('recommending') : tr('recommend')}
-        </button>
+        </Button>
         {analyzeMut.data?.persisted ? (
           <span className="self-center text-tiny text-success">{tr('persisted')}</span>
         ) : null}

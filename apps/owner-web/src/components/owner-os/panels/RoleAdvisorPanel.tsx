@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, type ReactElement } from 'react';
+import { Button } from '@borjie/design-system';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { StatusPill } from '@/components/shared/StatusPill';
 import {
@@ -94,14 +95,13 @@ export function RoleAdvisorPanel({
           className="flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
           data-testid="role-advisor-input"
         />
-        <button
+        <Button
           type="submit"
           disabled={question.trim().length < 2 || ask.isPending}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           data-testid="role-advisor-send"
         >
           {ask.isPending ? pick(STR.thinking, locale) : pick(STR.send, locale)}
-        </button>
+        </Button>
       </form>
 
       {/* Starting points */}
@@ -195,7 +195,9 @@ export function RoleAdvisorPanel({
               <p className="text-xs text-success">{pick(STR.thanks, locale)}</p>
             ) : (
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() =>
                     feedback.mutate({
                       sessionId,
@@ -204,12 +206,14 @@ export function RoleAdvisorPanel({
                     })
                   }
                   disabled={feedback.isPending}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:border-success disabled:opacity-50"
+                  className="hover:border-success"
                   data-testid="role-advisor-feedback-up"
                 >
                   {pick(STR.helpful, locale)}
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() =>
                     feedback.mutate({
                       sessionId,
@@ -218,11 +222,11 @@ export function RoleAdvisorPanel({
                     })
                   }
                   disabled={feedback.isPending}
-                  className="rounded-md border border-border px-3 py-1.5 text-xs text-foreground hover:border-danger disabled:opacity-50"
+                  className="hover:border-danger"
                   data-testid="role-advisor-feedback-down"
                 >
                   {pick(STR.notHelpful, locale)}
-                </button>
+                </Button>
               </div>
             )}
           </CardContent>

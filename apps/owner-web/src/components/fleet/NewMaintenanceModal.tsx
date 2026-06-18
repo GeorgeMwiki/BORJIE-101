@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Loader2, X } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import {
   useCreateMaintenance,
   type UiMaintenanceKind,
@@ -197,21 +198,24 @@ export function NewMaintenanceModal({
             </p>
           ) : null}
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
-              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs text-foreground hover:bg-surface"
             >
               {S.newMaintCancel.en} / {S.newMaintCancel.sw}
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="outline"
+              size="sm"
               disabled={mutation.isPending}
-              className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-1.5 text-xs text-warning hover:bg-warning-subtle/50 disabled:opacity-60"
+              className="gap-2 border-warning bg-warning-subtle/30 text-warning hover:bg-warning-subtle/50"
             >
               {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
               {S.newMaintSubmit.en} / {S.newMaintSubmit.sw}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

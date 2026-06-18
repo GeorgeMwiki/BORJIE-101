@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Trophy,
 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import {
   useExpansionAnalyze,
   useExpansionRecommend,
@@ -319,19 +320,22 @@ export function CapacityExpansionPanel({
         ))}
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={addDraft}
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
+            className="gap-2"
           >
             <Plus className="h-3.5 w-3.5" />
             {isSw ? M.addScenario.sw : M.addScenario.en}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            size="sm"
             disabled={!canAnalyze || analyze.isPending}
             onClick={runAnalyze}
-            className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+            className="gap-2"
           >
             {analyze.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -339,7 +343,7 @@ export function CapacityExpansionPanel({
               <BarChart3 className="h-3.5 w-3.5" />
             )}
             {isSw ? M.analyze.sw : M.analyze.en}
-          </button>
+          </Button>
           {!canAnalyze ? (
             <span className="text-xs text-neutral-500">
               {isSw ? M.enterCapexHint.sw : M.enterCapexHint.en}
@@ -426,11 +430,13 @@ export function CapacityExpansionPanel({
             </table>
           </div>
           <div className="flex items-center gap-3 border-t border-border px-5 py-4">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               disabled={recommend.isPending}
               onClick={runRecommend}
-              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface disabled:opacity-50"
+              className="gap-2"
             >
               {recommend.isPending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -438,7 +444,7 @@ export function CapacityExpansionPanel({
                 <Lightbulb className="h-3.5 w-3.5 text-signal-500" />
               )}
               {isSw ? M.getRecommendations.sw : M.getRecommendations.en}
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
