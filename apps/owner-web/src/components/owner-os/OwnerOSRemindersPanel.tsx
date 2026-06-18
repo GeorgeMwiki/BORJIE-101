@@ -17,6 +17,7 @@ import {
   type FormEvent,
 } from 'react';
 import { Bell, Check, Mail, MessageCircle, Trash2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
@@ -191,13 +192,15 @@ export function OwnerOSRemindersPanel({
           </select>
         </label>
         <div className="md:col-span-2">
-          <button
+          <Button
             type="submit"
-            disabled={creating}
-            className="rounded border border-warning bg-warning/10 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/20 disabled:opacity-50"
+            variant="outline"
+            size="sm"
+            loading={creating}
+            className="border-warning bg-warning/10 text-warning hover:bg-warning/20"
           >
             {creating ? t('reminders.saving') : t('reminders.schedule')}
-          </button>
+          </Button>
         </div>
       </form>
 
@@ -234,23 +237,27 @@ export function OwnerOSRemindersPanel({
                 </div>
               </div>
               {r.status === 'scheduled' ? (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => void cancel(r.id)}
-                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-tiny hover:border-destructive hover:text-destructive"
+                  className="gap-1 px-2 text-tiny hover:border-destructive hover:text-destructive"
                 >
                   <Trash2 aria-hidden="true" className="h-3 w-3" />
                   {t('reminders.cancelItem')}
-                </button>
+                </Button>
               ) : r.status === 'sent' ? (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => void acknowledge(r.id)}
-                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-tiny hover:border-success hover:text-success"
+                  className="gap-1 px-2 text-tiny hover:border-success hover:text-success"
                 >
                   <Check aria-hidden="true" className="h-3 w-3" />
                   {t('reminders.acknowledge')}
-                </button>
+                </Button>
               ) : null}
             </li>
           ))}

@@ -22,6 +22,7 @@ import type {
   CheckpointSubmitResult,
   ScenarioLanguage,
 } from '@borjie/api-client/training-types';
+import { Button } from '@borjie/design-system';
 import { trainingT } from '@/i18n/strings/training';
 import { submitCheckpoint, TrainingGatewayError } from './training-gateway';
 
@@ -193,26 +194,29 @@ export function MasteryCheckpoint({
               ? tr.t('errorUnavailable')
               : tr.t('checkpointSubmitFailed')}
           </span>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void runSubmit(answers)}
-            className="ml-auto rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground hover:bg-surface/60"
+            className="ml-auto"
           >
             {tr.t('retry')}
-          </button>
+          </Button>
         </div>
       ) : null}
 
       <div className="flex justify-end">
-        <button
+        <Button
           type="button"
+          size="sm"
           disabled={!picked || pending}
           onClick={advance}
-          className="inline-flex min-w-[8rem] items-center justify-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
+          className="min-w-[8rem] gap-1.5"
         >
           {pending ? tr.t('submitting') : isLast ? tr.t('submit') : tr.t('next')}
           {!pending ? <ArrowRight className="h-4 w-4" aria-hidden="true" /> : null}
-        </button>
+        </Button>
       </div>
 
       <p className="text-center text-xs text-neutral-600">
@@ -286,23 +290,21 @@ function CheckpointResult({
 
       <div className="mt-6 flex gap-2">
         {!result.passed ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onRetry}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface/60"
+            className="gap-1.5"
           >
             <RotateCcw className="h-4 w-4" aria-hidden="true" />
             {tr.t('retakeCheckpoint')}
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
-          onClick={onExit}
-          className="inline-flex items-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
-        >
+        <Button type="button" size="sm" onClick={onExit} className="gap-1.5">
           {tr.t('backToHub')}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -324,13 +326,9 @@ function CheckpointEmpty({
       <Award className="mb-3 h-10 w-10 text-neutral-600" aria-hidden="true" />
       <h2 className="text-lg font-semibold text-foreground">{title}</h2>
       <p className="mt-1.5 max-w-md text-sm text-neutral-400">{description}</p>
-      <button
-        type="button"
-        onClick={onExit}
-        className="mt-6 rounded-full border border-border bg-surface px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface/60"
-      >
+      <Button type="button" variant="outline" size="sm" onClick={onExit} className="mt-6">
         {exitLabel}
-      </button>
+      </Button>
     </div>
   );
 }

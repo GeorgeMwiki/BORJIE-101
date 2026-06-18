@@ -10,6 +10,7 @@
 
 import { useEffect, useState, type ReactElement } from 'react';
 import { FileText, MessageSquare, Sparkles } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
@@ -142,19 +143,23 @@ export function OwnerOSDocsPanel({
                   </div>
                 </div>
                 <div className="flex flex-shrink-0 gap-1.5">
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => onOpenDoc(d.id, d.fileName)}
-                    className="inline-flex items-center gap-1 rounded border border-border bg-surface px-2 py-1 text-tiny hover:border-warning"
+                    className="gap-1 text-tiny hover:border-warning"
                   >
                     <MessageSquare aria-hidden="true" className="h-3 w-3" />
                     {languagePreference === 'sw' ? S.docsPanel.ask.sw : S.docsPanel.ask.en}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => void explain(d.id)}
                     disabled={explaining === d.id}
-                    className="inline-flex items-center gap-1 rounded border border-warning/60 bg-warning/10 px-2 py-1 text-tiny font-medium text-warning hover:bg-warning/20 disabled:opacity-50"
+                    className="gap-1 border-warning/60 bg-warning/10 text-tiny text-warning hover:bg-warning/20"
                   >
                     <Sparkles aria-hidden="true" className="h-3 w-3" />
                     {explaining === d.id
@@ -164,7 +169,7 @@ export function OwnerOSDocsPanel({
                       : languagePreference === 'sw'
                         ? S.docsPanel.explain.sw
                         : S.docsPanel.explain.en}
-                  </button>
+                  </Button>
                 </div>
               </div>
               {explanation?.documentId === d.id ? (

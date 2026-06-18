@@ -29,6 +29,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { ScenarioView, ScenarioLanguage } from '@borjie/api-client/training-types';
+import { Button } from '@borjie/design-system';
 import {
   listScenarios,
   generateScenarios,
@@ -135,13 +136,15 @@ export function ScenarioBrowser({
       <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
         <ServerCrash className="h-5 w-5 shrink-0" aria-hidden="true" />
         <span>{errorStatus === 503 ? tr.t('errorUnavailable') : tr.t('errorLoad')}</span>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => void load()}
-          className="ml-auto rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground hover:bg-surface/60"
+          className="ml-auto"
         >
           {tr.t('retry')}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -334,14 +337,15 @@ function ScenarioCard({ scenario, locale, onSelect }: ScenarioCardProps) {
         </div>
       </dl>
 
-      <button
+      <Button
         type="button"
+        size="sm"
         onClick={() => onSelect(scenario)}
-        className="mt-4 inline-flex items-center justify-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
+        className="mt-4 gap-1.5"
       >
         <Play className="h-4 w-4" aria-hidden="true" />
         {tr.t('startScenario')}
-      </button>
+      </Button>
     </div>
   );
 }
@@ -387,15 +391,16 @@ function ScenarioEmptyState({
         {degraded ? tr.t('emptyDegradedDesc') : tr.t('emptyDesc')}
       </p>
       {degraded ? (
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={onGenerate}
           disabled={generating}
-          className="mt-5 inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
+          className="mt-5 gap-2"
         >
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           {generating ? tr.t('loading') : tr.t('generate')}
-        </button>
+        </Button>
       ) : null}
     </div>
   );

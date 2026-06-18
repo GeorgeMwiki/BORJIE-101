@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { Button } from '@borjie/design-system';
+
 import {
   describeCockpitEvent,
   useCockpitStream,
@@ -140,13 +142,9 @@ export function NotificationsInbox(): JSX.Element {
           ) : null}
         </div>
         {unreadCount > 0 ? (
-          <button
-            type="button"
-            onClick={markAllRead}
-            className="rounded border border-border px-3 py-1 text-xs text-neutral-300 hover:bg-surface"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={markAllRead}>
             {pickByLocale(locale, S.markAllRead)}
-          </button>
+          </Button>
         ) : null}
       </div>
       {items.length === 0 ? (
