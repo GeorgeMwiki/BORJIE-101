@@ -52,7 +52,9 @@ export function ScrollProgressBar() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-hairline"
+      // z-[70]: top of the marketing z-ladder (above the z-[60] nav) so the
+      // scroll-progress hairline stays visible over the nav's top edge.
+      className="pointer-events-none fixed inset-x-0 top-0 z-[70] h-hairline"
     >
       <div
         className="h-full origin-left"

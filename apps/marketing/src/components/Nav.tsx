@@ -177,7 +177,19 @@ export function Nav({ locale }: { readonly locale: Locale }) {
   return (
     <header
       className={[
-        'fixed inset-x-0 top-0 z-50 isolate transition-[background-color,border-color,box-shadow] duration-200 ease-out',
+        // ── Marketing global z-ladder (single source of truth) ──────────
+        //   z-[70]  ScrollProgressBar  (top hairline, pointer-events-none)
+        //   z-[60]  THIS nav  + its mega-menu (z-[60] local) + mobile drawer
+        //   z-50    floating chat widget (FAB + open panel, @borjie/chat-ui)
+        //   z-40    cookie consent
+        //    0      page content
+        // The nav is `isolate` so it is its own stacking context; raising it
+        // to z-[60] lifts the WHOLE nav — bar, "Who we serve" panel, and the
+        // mobile drawer — above the ambient chat widget. Previously the nav
+        // sat at z-50 = the widget, and the widget (later in the DOM) painted
+        // OVER any open menu, so a summoned overlay lost to the FAB ("no clear
+        // order which comes up first").
+        'fixed inset-x-0 top-0 z-[60] isolate transition-[background-color,border-color,box-shadow] duration-200 ease-out',
         scrolled
           ? 'border-b border-border bg-background/80 shadow-sm backdrop-blur-xl supports-[backdrop-filter]:bg-background/70'
           : 'border-b border-transparent bg-background/50 backdrop-blur-md',

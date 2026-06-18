@@ -37,7 +37,16 @@ export function AudienceMenu({
   return (
     <div
       id={id}
-      className="absolute z-[60] left-1/2 top-full mt-2 w-cmd -translate-x-1/2 rounded-xl border border-border bg-card p-2 shadow-lift-medium"
+      // Anchor the 720px (w-cmd) panel to the LEFT of its trigger, not
+      // centered on it. The trigger sits on the left of the nav, so a
+      // `-translate-x-1/2` centered panel overflowed the left viewport edge
+      // (~-61px at the lg breakpoint), clipping the menu off-canvas. Left-
+      // aligning keeps the whole panel on-screen at every width from `lg`
+      // (1024px) up: the panel's left edge tracks the trigger (~230px at
+      // 1024) and its 720px right edge stays well inside the viewport
+      // (≈950px). z-[60] is local ordering inside the nav's own z-[60]
+      // stacking context (see Nav.tsx z-ladder).
+      className="absolute z-[60] left-0 top-full mt-2 w-cmd rounded-xl border border-border bg-card p-2 shadow-lift-medium"
     >
       <div className="grid grid-cols-4 gap-1">
         {categories.map((cat) => (
