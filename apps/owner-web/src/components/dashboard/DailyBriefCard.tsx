@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, ArrowRight, Coins, ShieldAlert, TrendingUp, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 import { useOwnerDailyBrief } from '@/lib/queries/owner-brief';
 import { DailyBriefListenButton } from './DailyBriefListenButton';
 import { SuperscriptRenderer } from '@/components/inline-citations/SuperscriptRenderer';
@@ -59,8 +60,9 @@ export function DailyBriefCard({
     .join(' ');
 
   return (
-    <section
-      className="rounded-3xl border border-border bg-surface/80 p-8 shadow-sm"
+    <Card
+      role="region"
+      className="rounded-3xl bg-surface/80 p-8"
       data-testid="dashboard-daily-brief-card"
       aria-label={isSw ? S.dailyBrief.cardAria.sw : S.dailyBrief.cardAria.en}
     >
@@ -142,7 +144,7 @@ export function DailyBriefCard({
           label={isSw ? S.dailyBrief.chipCompliance.sw : S.dailyBrief.chipCompliance.en}
         />
       </nav>
-    </section>
+    </Card>
   );
 }
 
