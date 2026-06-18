@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Send, Sparkles, RotateCcw } from 'lucide-react';
 
+import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 import { readSseStream, type SseEvent } from '@/lib/sse';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { useLocale } from '@/lib/locale';
 import {
   DEFAULT_SLICE,
   SliceSelector,
@@ -100,14 +102,14 @@ export function AskChat({
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<Failure>({ kind: 'none' });
   const abortRef = useRef<AbortController | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const locale = useLocale();
 
-  useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [messages]);
+  // Anchor-law scroll (shared hook): re-anchors on content growth only while
+  // the user is at the bottom, so a tall streamed answer never yanks its own
+  // tail off-screen. Replaces the smooth-scrollTo-on-[messages] effect that
+  // never fired DURING a stream.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
 
   const canSend = useMemo(
     () => input.trim().length > 0 && !sending,
@@ -175,6 +177,8 @@ export function AskChat({
 
     setSending(true);
     setFailure({ kind: 'none' });
+    // Re-engage auto-follow at the top of the new turn.
+    resetAtStreamStart();
 
     const userMessage: ChatMessage = {
       id: newId(),
@@ -261,7 +265,16 @@ export function AskChat({
       setSending(false);
       abortRef.current = null;
     }
-  }, [canSend, dispatchEvent, extendedThinking, input, router, slice, threadId]);
+  }, [
+    canSend,
+    dispatchEvent,
+    extendedThinking,
+    input,
+    router,
+    slice,
+    threadId,
+    resetAtStreamStart,
+  ]);
 
   const retry = useCallback(() => {
     setFailure({ kind: 'none' });
@@ -269,6 +282,7 @@ export function AskChat({
 
   return (
     <div className="flex h-full flex-col">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-8 py-10"
@@ -314,6 +328,12 @@ export function AskChat({
             />
           ) : null}
         </div>
+      </div>
+        <JumpToLatestPill
+          visible={showJumpPill}
+          language={locale}
+          onClick={jumpToLatest}
+        />
       </div>
 
       <Composer

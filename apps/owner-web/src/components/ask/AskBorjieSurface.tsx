@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 import { useLocale } from '@/lib/locale';
 import { pickByLocale } from '@/lib/locale-shared';
 import { askEmptyStateStrings as S } from '@/i18n/strings/ask-empty-state';
@@ -57,15 +58,36 @@ export function AskBorjieSurface() {
     onThreadCreated: handleThreadCreated,
   });
 
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // Anchor-law scroll: the shared hook re-anchors on content growth ONLY while
+  // the user is at the bottom (no mid-stream tail-yank), and surfaces a "jump
+  // to latest" pill when they scroll up. Replaces the old
+  // smooth-scrollTo-on-[messages.length] effect that never fired DURING a
+  // stream, so a tall answer scrolled its own tail off-screen.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
+
+  // Every send re-engages auto-follow at the top of the new turn so a prior
+  // scroll-up never strands the owner away from the fresh answer.
+  const submit = useCallback(
+    (content: string): void => {
+      resetAtStreamStart();
+      void send(content);
+    },
+    [resetAtStreamStart, send],
+  );
+
+  // Seed the transcript from a `?prompt=` deep-link exactly once: the daily-
+  // brief evidence CTA ("Open in Mr. Mwikila") and the /mwikila?prompt= cockpit
+  // CTAs both land here. Guarded so it never re-fires on re-render or after the
+  // owner has started their own conversation / is resuming a thread.
+  const seededRef = useRef(false);
   useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== 'function') return;
-    el.scrollTo({
-      top: el.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [messages.length, isStreaming]);
+    if (seededRef.current) return;
+    const seed = searchParams?.get('prompt')?.trim();
+    if (!seed || !configured || initialThreadId || messages.length > 0) return;
+    seededRef.current = true;
+    submit(seed);
+  }, [searchParams, configured, initialThreadId, messages.length, submit]);
 
   const emptyKind = resolveEmptyKind({
     configured,
@@ -117,9 +139,10 @@ export function AskBorjieSurface() {
         className="flex h-chart-xl flex-col overflow-hidden rounded-lg border border-border bg-surface/40"
         aria-label="Ask Borjie transcript"
       >
+        <div className="relative flex-1 overflow-hidden">
         <div
           ref={scrollRef}
-          className="flex-1 space-y-4 overflow-y-auto px-4 py-4"
+          className="h-full space-y-4 overflow-y-auto px-4 py-4"
           aria-live="polite"
         >
           {messages.length === 0 ? (
@@ -153,11 +176,17 @@ export function AskBorjieSurface() {
             </div>
           ) : null}
         </div>
+          <JumpToLatestPill
+            visible={showJumpPill}
+            language={locale}
+            onClick={jumpToLatest}
+          />
+        </div>
         <AskComposer
           busy={isStreaming}
           disabled={!configured || emptyKind === 'unauthenticated'}
           voiceLocale={locale}
-          onSubmit={(content) => void send(content)}
+          onSubmit={submit}
         />
       </section>
     </div>

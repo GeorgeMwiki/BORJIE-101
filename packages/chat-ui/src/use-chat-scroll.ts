@@ -98,8 +98,11 @@ export function useChatScroll(): ChatScrollAnchor {
 
     const maybeFollow = (): void => {
       if (!followRef.current) return;
-      // Re-check the gap so a tiny manual nudge under threshold still follows.
-      if (gapFromBottom(el) <= NEAR_BOTTOM_PX || followRef.current) {
+      // Re-check the gap so a manual nudge just over the threshold (which the
+      // scroll handler may not have flipped yet) still disengages follow rather
+      // than yanking. (The old `|| followRef.current` here was dead logic — it
+      // is always true at this point, so the gap check never applied.)
+      if (gapFromBottom(el) <= NEAR_BOTTOM_PX) {
         scrollToBottom();
       }
     };

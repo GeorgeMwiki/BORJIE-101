@@ -291,7 +291,16 @@ export const dataAStrings = {
     sourceHeading: { sw: 'Chanzo', en: 'Source' },
     close: { sw: 'Funga', en: 'Close' },
     evidenceIdLabel: { sw: 'Kitambulisho cha ushahidi:', en: 'Evidence identifier:' },
-    openInLibrary: { sw: 'Fungua katika maktaba', en: 'Open in Evidence Library' },
+    // Opens the live Ask-Borjie surface (/ask) seeded with a prompt so Mr.
+    // Mwikila surfaces and cites this exact evidence — there is no standalone
+    // evidence-viewer route; evidence is a brain-cited concept.
+    openInLibrary: { sw: 'Fuatilia ushahidi huu', en: 'Trace this evidence' },
+    evidencePrompt: {
+      sw: (id: string) =>
+        `Fuatilia na nukuu ushahidi wa chanzo nyuma ya muhtasari wa leo (ushahidi ${id}).`,
+      en: (id: string) =>
+        `Trace and cite the source evidence behind today's brief (evidence ${id}).`,
+    },
     greeting: {
       morning: (salutation: string) => ({
         sw: `Habari za asubuhi, ${salutation}.`,

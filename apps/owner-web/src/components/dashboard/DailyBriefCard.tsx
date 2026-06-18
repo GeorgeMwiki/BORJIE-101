@@ -196,7 +196,11 @@ function EvidenceSourceModal({
           {evidenceId}
         </code>
         <Link
-          href={`/evidence/${encodeURIComponent(evidenceId)}`}
+          href={`/ask?prompt=${encodeURIComponent(
+            (isSw ? S.dailyBrief.evidencePrompt.sw : S.dailyBrief.evidencePrompt.en)(
+              evidenceId,
+            ),
+          )}`}
           className="mt-4 inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-sm font-semibold text-background hover:bg-signal-400"
         >
           {isSw ? S.dailyBrief.openInLibrary.sw : S.dailyBrief.openInLibrary.en}
