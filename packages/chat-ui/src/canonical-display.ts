@@ -32,10 +32,33 @@
 export const MR_MWIKILA_CANONICAL_DISPLAY = {
   /** Just the name. Used when the surface stacks name over title. */
   name: 'Mr. Mwikila',
-  /** Just the title. Used when the name is rendered separately. */
-  title: 'The brain layer within Borjie — an AI-native mining estate operating system',
+  /**
+   * The short role line a chat-panel HEADER renders under the name.
+   * Bilingual, single language per active locale. This is what every
+   * Mr. Mwikila chat surface shows beneath the name — NOT the long
+   * brochure sentence (which now lives in `brochure`).
+   */
+  headerRole: {
+    en: 'AI Mining Director',
+    sw: 'Mkurugenzi wa Madini wa AI',
+  },
+  /**
+   * The long brochure sentence. Kept ONLY for brochure / about copy
+   * (e.g. the home-shell persona header), NOT for live-chat panel
+   * headers, which render `headerRole`.
+   */
+  brochure:
+    'The brain layer within Borjie — an AI-native mining estate operating system',
+  /**
+   * Back-compat alias for `brochure`. Retained so the home-shell
+   * `PersonaHeader` (and its canonical-lock test) keep resolving while
+   * the chat panels migrate to `headerRole`. New code should use
+   * `headerRole` (chat header) or `brochure` (brochure copy).
+   */
+  title:
+    'The brain layer within Borjie — an AI-native mining estate operating system',
   /** The full single-string identity. Used everywhere a header
-   *  prefers one inline label (chat panel header, intro greeting). */
+   *  prefers one inline label (intro greeting, brochure label). */
   name_full:
     'Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system',
 } as const;

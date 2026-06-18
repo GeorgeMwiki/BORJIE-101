@@ -4,6 +4,7 @@ import { colors } from '../theme/colors'
 import { fontSize, radius, spacing } from '../theme/spacing'
 import { askSession, createSession, summariseDocument } from './api'
 import type { UploadedDocument } from './types'
+import { useI18n } from '../i18n/useI18n'
 import { ingestionStatusLabel, kindLabel } from './types'
 
 interface ChatTurn {
@@ -32,6 +33,7 @@ export interface DocumentExplorerProps {
  * URL is reachable.
  */
 export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerProps): JSX.Element {
+  const { lang, t } = useI18n()
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [turns, setTurns] = useState<ReadonlyArray<ChatTurn>>([])
   const [draft, setDraft] = useState<string>('')
@@ -41,13 +43,13 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
   useEffect(() => {
     // On mount, request a deterministic preview-summary if the doc is ready.
-    // English default per CLAUDE.md (flipped 2026-05).
+    // Summary language follows the active locale.
     if (document.ingestionStatus === 'ready') {
-      summariseDocument({ documentId: document.id, language: 'en' })
+      summariseDocument({ documentId: document.id, language: lang })
         .then((res) => setSummary(res.summary))
         .catch(() => undefined)
     }
-  }, [document.id, document.ingestionStatus])
+  }, [document.id, document.ingestionStatus, lang])
 
   async function ensureSession(): Promise<string> {
     if (sessionId) {
@@ -56,7 +58,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     const { sessionId: newId } = await createSession({
       documentIds: [document.id],
       ...(initialPrompt !== undefined ? { initialPrompt } : {}),
-      title: `Soma: ${document.fileName}`,
+      title: t.documents.sessionTitle.replace('{{fileName}}', document.fileName),
     })
     setSessionId(newId)
     return newId
@@ -78,11 +80,11 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     setDraft('')
     try {
       const id = await ensureSession()
-      // English default per CLAUDE.md (flipped 2026-05).
-      const res = await askSession({ sessionId: id, question, language: 'en' })
+      // Answer language follows the active locale.
+      const res = await askSession({ sessionId: id, question, language: lang })
       const assistantText =
         res.answer ??
-        `Question received. This document has ${res.evidenceIds.length} chunks. The brain will respond once processing finishes.`
+        t.documents.askFallback.replace('{{count}}', String(res.evidenceIds.length))
       const assistantTurn: ChatTurn = {
         id: `a_${Date.now()}`,
         role: 'assistant',
@@ -90,7 +92,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
       }
       setTurns((prev) => [...prev, assistantTurn])
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Imeshindikana kuuliza.'
+      const message = cause instanceof Error ? cause.message : t.documents.askError
       setError(message)
     } finally {
       setBusy(false)
@@ -105,7 +107,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
         </Text>
         <View style={styles.chipRow}>
           <View style={styles.chip}>
-            <Text style={styles.chipText}>{kindLabel(document.kind)}</Text>
+            <Text style={styles.chipText}>{kindLabel(document.kind, t)}</Text>
           </View>
           <View
             style={[
@@ -114,14 +116,14 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
               document.ingestionStatus === 'failed' ? styles.chipFailed : null,
             ]}
           >
-            <Text style={styles.chipText}>{ingestionStatusLabel(document.ingestionStatus)}</Text>
+            <Text style={styles.chipText}>{ingestionStatusLabel(document.ingestionStatus, t)}</Text>
           </View>
         </View>
       </View>
 
       {summary ? (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Muhtasari</Text>
+          <Text style={styles.summaryTitle}>{t.documents.summaryTitle}</Text>
           <Text style={styles.summaryBody} numberOfLines={6}>
             {summary}
           </Text>
@@ -130,7 +132,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
       <ScrollView style={styles.chatList} contentContainerStyle={styles.chatContent}>
         {turns.length === 0 ? (
-          <Text style={styles.empty}>Anza mazungumzo na hati hii. Niulize lolote.</Text>
+          <Text style={styles.empty}>{t.documents.emptyChat}</Text>
         ) : (
           turns.map((turn) => (
             <View
@@ -150,10 +152,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
       <View style={styles.composer}>
         <TextInput
-          accessibilityLabel="Andika swali kuhusu hati"
+          accessibilityLabel={t.documents.askAccessibility}
           value={draft}
           onChangeText={setDraft}
-          placeholder="Andika swali..."
+          placeholder={t.documents.askPlaceholder}
           placeholderTextColor={colors.textMuted}
           style={styles.input}
           editable={!busy}
@@ -165,11 +167,11 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           ) : (
             <Text
               accessibilityRole="button"
-              accessibilityLabel="Tuma swali"
+              accessibilityLabel={t.documents.sendAccessibility}
               onPress={handleSend}
               style={styles.sendLabel}
             >
-              Tuma
+              {t.documents.send}
             </Text>
           )}
         </View>

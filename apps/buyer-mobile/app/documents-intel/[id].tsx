@@ -4,6 +4,7 @@ import { useLocalSearchParams } from 'expo-router'
 import { DocumentExplorer } from '@/documents/DocumentExplorer'
 import { listDocuments } from '@/documents/api'
 import type { UploadedDocument } from '@/documents/types'
+import { useTranslation } from '@/hooks/useTranslation'
 import { colors } from '@/theme/colors'
 import { spacing, typography } from '@/theme/spacing'
 
@@ -13,6 +14,7 @@ import { spacing, typography } from '@/theme/spacing'
  */
 export default function DocumentIntelDetail() {
   const params = useLocalSearchParams<{ id: string }>()
+  const { t } = useTranslation()
   const id = String(params.id)
   const [doc, setDoc] = useState<UploadedDocument | null>(null)
   const [loading, setLoading] = useState(true)
@@ -26,11 +28,11 @@ export default function DocumentIntelDetail() {
         if (cancelled) return
         const found = docs.find((d) => d.id === id) ?? null
         setDoc(found)
-        setError(found ? null : 'Document not found.')
+        setError(found ? null : t('documents_intel.not_found'))
       })
       .catch((cause: unknown) => {
         if (cancelled) return
-        const message = cause instanceof Error ? cause.message : 'Failed.'
+        const message = cause instanceof Error ? cause.message : t('documents_intel.load_failed')
         setError(message)
       })
       .finally(() => {
@@ -39,7 +41,7 @@ export default function DocumentIntelDetail() {
     return () => {
       cancelled = true
     }
-  }, [id])
+  }, [id, t])
 
   if (loading) {
     return (
@@ -51,7 +53,7 @@ export default function DocumentIntelDetail() {
   if (!doc) {
     return (
       <View style={styles.center}>
-        <Text style={styles.error}>{error ?? 'Not found.'}</Text>
+        <Text style={styles.error}>{error ?? t('documents_intel.not_found')}</Text>
       </View>
     )
   }

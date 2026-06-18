@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
+import { useTranslation } from '@/hooks/useTranslation'
 import { undoToastBus, bulkActionBus, type UndoToastEvent } from './bus'
 import { undoJournalIds } from './undo'
 import { navigateToTarget, DEFAULT_BUYER_TARGETS, type NavigateTarget } from './navigate'
@@ -26,6 +27,7 @@ interface UndoState {
 }
 
 function UndoToastMount(): JSX.Element | null {
+  const { t } = useTranslation()
   const [state, setState] = useState<UndoState | null>(null)
   const [undone, setUndone] = useState(false)
 
@@ -59,17 +61,19 @@ function UndoToastMount(): JSX.Element | null {
     <View style={styles.undoToastWrap} pointerEvents="box-none">
       <View style={styles.undoToast}>
         <Text style={styles.undoLabel} numberOfLines={1}>
-          {undone ? 'Undone' : state.toast.label}
+          {undone ? t('superpowers.undone') : state.toast.label}
         </Text>
         {!undone && state.toast.journalIds.length > 0 ? (
           <TouchableOpacity
             onPress={() => void onUndo()}
             style={styles.undoButton}
             accessibilityRole="button"
-            accessibilityLabel="Undo last action"
+            accessibilityLabel={t('superpowers.undo_accessibility')}
             hitSlop={8}
           >
-            <Text style={styles.undoButtonText}>Undo ({state.secondsLeft})</Text>
+            <Text style={styles.undoButtonText}>
+              {t('superpowers.undo', { seconds: state.secondsLeft })}
+            </Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -78,6 +82,7 @@ function UndoToastMount(): JSX.Element | null {
 }
 
 function BulkActionMount(): JSX.Element | null {
+  const { t } = useTranslation()
   const [tick, setTick] = useState(0)
   useEffect(() => bulkActionBus.subscribe(() => setTick((n) => n + 1)), [])
   const sel = getLiveBulkSelection()
@@ -85,28 +90,40 @@ function BulkActionMount(): JSX.Element | null {
   return (
     <View key={tick} style={styles.bulkChipWrap} pointerEvents="box-none">
       <View style={styles.bulkChip}>
-        <Text style={styles.bulkChipText}>{sel.ids.length} selected</Text>
+        <Text style={styles.bulkChipText}>
+          {t('superpowers.selected_count', { count: sel.ids.length })}
+        </Text>
         <TouchableOpacity
           onPress={() => {
-            void runBuyerBulkAction(sel.entityType, sel.ids, 'bulk_rfb', `RFB sent on ${sel.ids.length}`)
+            void runBuyerBulkAction(
+              sel.entityType,
+              sel.ids,
+              'bulk_rfb',
+              t('superpowers.bulk_rfb_done', { count: sel.ids.length })
+            )
           }}
           style={styles.bulkChipAction}
           accessibilityRole="button"
-          accessibilityLabel="Send bulk request-for-bids"
+          accessibilityLabel={t('superpowers.bulk_rfb_accessibility')}
           hitSlop={8}
         >
-          <Text style={styles.bulkChipActionText}>Bulk RFB</Text>
+          <Text style={styles.bulkChipActionText}>{t('superpowers.bulk_rfb')}</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
-            void runBuyerBulkAction(sel.entityType, sel.ids, 'bulk_watch', `Watching ${sel.ids.length}`)
+            void runBuyerBulkAction(
+              sel.entityType,
+              sel.ids,
+              'bulk_watch',
+              t('superpowers.watch_done', { count: sel.ids.length })
+            )
           }}
           style={styles.bulkChipAction}
           accessibilityRole="button"
-          accessibilityLabel="Bulk add to watchlist"
+          accessibilityLabel={t('superpowers.watch_accessibility')}
           hitSlop={8}
         >
-          <Text style={styles.bulkChipActionText}>Watch</Text>
+          <Text style={styles.bulkChipActionText}>{t('superpowers.watch')}</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -114,6 +131,7 @@ function BulkActionMount(): JSX.Element | null {
 }
 
 function SearchFab(): JSX.Element {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ReadonlyArray<SearchResult>>([])
@@ -130,12 +148,20 @@ function SearchFab(): JSX.Element {
     return () => clearTimeout(handle)
   }, [open, query])
 
-  const onPickTarget = useCallback((t: NavigateTarget) => {
-    rememberRecentSearch(t)
+  const onPickTarget = useCallback((target: NavigateTarget) => {
+    rememberRecentSearch(target)
     setOpen(false)
     setQuery('')
-    navigateToTarget(t)
+    navigateToTarget(target)
   }, [])
+
+  // Built-in fallback targets carry an i18n key; server search results
+  // carry a real content label. Prefer the translated key when present
+  // so the locale stays single-language.
+  const targetLabel = useCallback(
+    (target: NavigateTarget): string => (target.labelKey ? t(target.labelKey) : target.label),
+    [t]
+  )
 
   return (
     <>
@@ -143,7 +169,7 @@ function SearchFab(): JSX.Element {
         onPress={() => setOpen(true)}
         style={styles.fab}
         accessibilityRole="button"
-        accessibilityLabel="Open universal search"
+        accessibilityLabel={t('superpowers.search_open_accessibility')}
         hitSlop={6}
       >
         <Text style={styles.fabText}>?</Text>
@@ -153,12 +179,12 @@ function SearchFab(): JSX.Element {
           <Pressable style={styles.modalCard} onPress={() => undefined}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Search…"
+              placeholder={t('superpowers.search_placeholder')}
               placeholderTextColor={colors.inkMuted}
               value={query}
               onChangeText={setQuery}
               autoFocus
-              accessibilityLabel="Universal search input"
+              accessibilityLabel={t('superpowers.search_input_accessibility')}
             />
             <View style={styles.resultsList}>
               {(results.length > 0 ? results : DEFAULT_BUYER_TARGETS).map((r) => (
@@ -167,9 +193,9 @@ function SearchFab(): JSX.Element {
                   onPress={() => onPickTarget(r)}
                   style={styles.resultRow}
                   accessibilityRole="button"
-                  accessibilityLabel={`Open ${r.label}`}
+                  accessibilityLabel={t('superpowers.open_target', { label: targetLabel(r) })}
                 >
-                  <Text style={styles.resultLabel}>{r.label}</Text>
+                  <Text style={styles.resultLabel}>{targetLabel(r)}</Text>
                   <Text style={styles.resultRoute}>{r.route}</Text>
                 </TouchableOpacity>
               ))}

@@ -6,14 +6,20 @@ import {
   kindLabel,
   validateUpload,
 } from '../documents/types'
+import { pickStrings } from '../i18n'
 
 /**
  * Pure-data tests for the documents module. We exercise:
  *
  *   - The validation helper (mime allow-list, size cap, empty payload).
- *   - The bilingual chip-label helpers (sw default, en branch).
+ *   - The chip-label helpers resolve a SINGLE-LOCALE label from the active
+ *     dictionary (no EN+SW mixing) — `sw` and `en` each render only their
+ *     own catalog value.
  *   - The constants ship a non-empty mime list with PDF + DOCX coverage.
  */
+
+const sw = pickStrings('sw')
+const en = pickStrings('en')
 
 describe('documents.validateUpload', () => {
   it('rejects an empty filename', () => {
@@ -84,30 +90,36 @@ describe('documents.validateUpload', () => {
 })
 
 describe('documents.ingestionStatusLabel', () => {
-  it('returns Swahili-first labels by default', () => {
-    expect(ingestionStatusLabel('queued')).toBe('Imewekwa kwenye foleni')
-    expect(ingestionStatusLabel('ready')).toBe('Tayari')
-    expect(ingestionStatusLabel('failed')).toBe('Imeshindikana')
+  it('resolves Swahili labels from the sw dictionary', () => {
+    expect(ingestionStatusLabel('queued', sw)).toBe('Imewekwa kwenye foleni')
+    expect(ingestionStatusLabel('processing', sw)).toBe('Inachakatwa')
+    expect(ingestionStatusLabel('ready', sw)).toBe('Tayari')
+    expect(ingestionStatusLabel('failed', sw)).toBe('Imeshindikana')
   })
 
-  it('switches to English when requested', () => {
-    expect(ingestionStatusLabel('queued', 'en')).toBe('Queued')
-    expect(ingestionStatusLabel('ready', 'en')).toBe('Ready')
+  it('resolves English labels from the en dictionary', () => {
+    expect(ingestionStatusLabel('queued', en)).toBe('Queued')
+    expect(ingestionStatusLabel('processing', en)).toBe('Processing')
+    expect(ingestionStatusLabel('ready', en)).toBe('Ready')
+    expect(ingestionStatusLabel('failed', en)).toBe('Failed')
   })
 })
 
 describe('documents.kindLabel', () => {
-  it('returns Swahili-first labels by default', () => {
-    expect(kindLabel('contract')).toBe('Mkataba')
-    expect(kindLabel('rfp')).toBe('Zabuni')
-    expect(kindLabel('letter')).toBe('Barua')
-    expect(kindLabel('report')).toBe('Ripoti')
-    expect(kindLabel('other')).toBe('Nyingine')
+  it('resolves Swahili labels from the sw dictionary', () => {
+    expect(kindLabel('contract', sw)).toBe('Mkataba')
+    expect(kindLabel('rfp', sw)).toBe('Zabuni')
+    expect(kindLabel('letter', sw)).toBe('Barua')
+    expect(kindLabel('report', sw)).toBe('Ripoti')
+    expect(kindLabel('other', sw)).toBe('Nyingine')
   })
 
-  it('switches to English when requested', () => {
-    expect(kindLabel('contract', 'en')).toBe('Contract')
-    expect(kindLabel('rfp', 'en')).toBe('RFP / Tender')
+  it('resolves English labels from the en dictionary', () => {
+    expect(kindLabel('contract', en)).toBe('Contract')
+    expect(kindLabel('rfp', en)).toBe('RFP / Tender')
+    expect(kindLabel('letter', en)).toBe('Letter')
+    expect(kindLabel('report', en)).toBe('Report')
+    expect(kindLabel('other', en)).toBe('Other')
   })
 })
 

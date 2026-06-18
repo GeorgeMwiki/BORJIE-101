@@ -216,6 +216,10 @@ export async function POST(req: Request): Promise<Response> {
   const upstreamBody = {
     sessionId: parsed.sessionId,
     message: parsed.message,
+    // Forward the active locale so the gateway pins Mr. Mwikila's REPLY to it.
+    // Without this the gateway defaults to 'en' and answers a Swahili visitor
+    // in English (zero-mix canon violation in the chat content itself).
+    language: parsed.language ?? 'en',
   };
 
   let serviceToken: string;
@@ -280,8 +284,8 @@ export async function POST(req: Request): Promise<Response> {
       try {
         const system =
           language === 'sw'
-            ? 'Wewe ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili. Jibu kwa Kiswahili, mfupi, mwenye msaada. Jitambulishe verbatim: "Mimi ni Mr. Mwikila — safu ya akili ndani ya Borjie, mfumo wa uendeshaji wa madini unaotumia AI asili." Wamiliki wa PML/ML/SML wanakuhitaji.'
-            : "You are Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system. Use that exact phrase verbatim when introducing yourself: \"I'm Mr. Mwikila — the brain layer within Borjie, an AI-native mining estate operating system.\" Help PML, ML and SML owners run their mines better. Keep replies concise, warm and useful.";
+            ? 'Wewe ni Mr. Mwikila, Mkurugenzi wa Madini wa AI wa Borjie. Jibu kwa Kiswahili pekee, kwa kifupi, joto na kwa msaada. Ukijitambulisha, jitambulishe kwa maneno YAKO ya asili kila mara, kamwe usikariri sentensi ya kujitangaza. Unaendesha estate ya madini kwa wamiliki: leseni na kuhuisha, mrabaha, wafanyakazi na zamu, hazina na dirisha la kuuza madini, na kufuata Tume ya Madini, TRA na BoT. Jibu maswali yanayohusu Borjie na Mr. Mwikila pekee; kataa kwa heshima mada zisizohusiana na kamwe usijadili bidhaa nyingine.'
+            : "You are Mr. Mwikila, Borjie's AI mining MD. Reply in English only, concise, warm and useful. When you introduce yourself, do it in your OWN fresh words every time; never recite a fixed positioning sentence. You run the mining estate for owners: licences and renewals, royalty, workforce and shifts, treasury and the mineral-sale window, and compliance with the Mining Commission, TRA and BoT. Only answer questions about Borjie and Mr. Mwikila; politely decline unrelated topics and never discuss other products.";
         const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {

@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { Animated, StyleSheet, View } from 'react-native'
 import { colors } from '@/theme/colors'
 import { radius, spacing } from '@/theme/spacing'
+import { useTranslation } from '@/hooks/useTranslation'
 
 export interface ChatSkeletonProps {
   readonly visible?: boolean
@@ -20,6 +21,7 @@ export interface ChatSkeletonProps {
 const SHIMMER_DURATION_MS = 1200
 
 export function ChatSkeleton({ visible = true }: ChatSkeletonProps) {
+  const { t } = useTranslation()
   const progress = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
@@ -55,7 +57,7 @@ export function ChatSkeleton({ visible = true }: ChatSkeletonProps) {
   return (
     <View
       testID="buyer-chat-skeleton"
-      accessibilityLabel="Borjie inajibu"
+      accessibilityLabel={t('chat.assistant_thinking')}
       accessibilityRole="progressbar"
       style={styles.wrap}
     >

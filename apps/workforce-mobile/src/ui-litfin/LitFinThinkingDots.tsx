@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react'
 import { Animated, Easing, StyleSheet, View } from 'react-native'
 import { tokens } from './tokens'
+import { useI18n } from '../i18n/useI18n'
 
 /**
  * LitFin three-dot thinking pulse — gold dots, proportional gaps,
- * staggered opacity cycle matching the web ChatPanel waveform.
+ * staggered opacity cycle matching the web ChatPanel waveform. The
+ * accessibility label resolves from the active locale's catalog (single
+ * language per surface — no hardcoded EN/SW).
  */
 export function LitFinThinkingDots(): JSX.Element {
+  const { t } = useI18n()
   const a = useRef(new Animated.Value(0.35)).current
   const b = useRef(new Animated.Value(0.35)).current
   const c = useRef(new Animated.Value(0.35)).current
@@ -37,7 +41,7 @@ export function LitFinThinkingDots(): JSX.Element {
   }, [a, b, c])
 
   return (
-    <View style={styles.row} accessibilityRole="progressbar" accessibilityLabel="thinking">
+    <View style={styles.row} accessibilityRole="progressbar" accessibilityLabel={t.askBorjie.thinking}>
       <Animated.View style={[styles.dot, { opacity: a }]} />
       <Animated.View style={[styles.dot, { opacity: b }]} />
       <Animated.View style={[styles.dot, { opacity: c }]} />

@@ -6,7 +6,7 @@
     "title": "Borjie: software for Tanzanian mining estates",
     "description": "Run your licences, royalty, workforce and treasury from one screen. Borjie drafts your Mining Commission and TMAA filings, runs your crew, and sells your ore to verified buyers. Built for Tanzanian mining, in Swahili and English.",
     "ogTitle": "Borjie: software for Tanzanian mining estates",
-    "ogDescription": "Run your licences, royalty, crew and gold from one screen. Borjie does the paperwork so you just sign. Built for Tanzanian mining.",
+    "ogDescription": "Run your licences, royalty, crew and minerals from one screen. Borjie does the paperwork so you just sign. Built for Tanzanian mining.",
     "twitterTitle": "Borjie: software for Tanzanian mining estates",
     "twitterDescription": "Track every licence, file royalty in minutes, run your crew, and sell ore to verified buyers. Built for Tanzanian mining, in Swahili and English.",
     "ogAlt": "Borjie: software for Tanzanian mining estates"
@@ -44,22 +44,22 @@
       "pml": "PML holders",
       "pmlDesc": "Artisanal miners on Primary Mining Licences.",
       "ml": "ML holders",
-      "mlDesc": "Mid-tier ML operators across gold and gemstones.",
+      "mlDesc": "Mid-tier ML operators across gold, gemstones and every mineral type.",
       "sml": "SML holders",
       "smlDesc": "Special Mining Licences, large-format operations.",
       "cooperatives": "Cooperatives",
       "cooperativesDesc": "Federated artisanal groups, AMCOS-style entities.",
       "buyers": "Buyers and exporters",
       "buyersDesc": "Verified mineral buyers, LBMA-grade off-takers.",
-      "smelters": "Smelters and refiners",
+      "smelters": "Off-takers and refiners",
       "smeltersDesc": "Licensed processors and dore refiners.",
-      "investors": "Investors and lenders",
+      "investors": "Investors and funds",
       "investorsDesc": "Mining capital with daily evidence-cited telemetry.",
       "regulators": "Regulators and ministries",
       "regulatorsDesc": "Mining Commission, NEMC, BoT, TRA oversight surfaces.",
       "csrCommunity": "CSR and community partners",
       "csrCommunityDesc": "Host communities, AMCOS welfare, local-content programmes.",
-      "bank": "Banks and lenders",
+      "bank": "Banks and microfinance",
       "bankDesc": "Microfinance and banks underwriting mining collateral.",
       "familyOffice": "Family offices",
       "familyOfficeDesc": "Multi-generational mining wealth and succession."
@@ -84,7 +84,7 @@
     "kicker": "Built for Tanzanian mining",
     "swahiliFirstBadge": "English-first · Swahili",
     "pill": "Starting in Tanzania · Built for African mining",
-    "headline": "Run your licences, royalty, crew and gold from one screen",
+    "headline": "Run your licences, royalty, crew and minerals from one screen",
     "sub": "Borjie keeps your licences, royalty filings, workforce and treasury in one place. Mr. Mwikila drafts the paperwork and you sign. In Swahili and English.",
     "ctaPilot": "Get started",
     "ctaDemo": "See how it works",
@@ -93,6 +93,7 @@
       "assistant": "Mr. Mwikila",
       "role": "AI Mining Managing Director",
       "live": "Live",
+      "previewLabel": "Product preview",
       "ask": "Ask Borjie anything…",
       "timestamp": "Just now",
       "languageLabel": "EN",
@@ -137,8 +138,8 @@
       },
       {
         "id": "lbma-hedge",
-        "title": "Gold-window hedges save 1.4% on the LBMA spot.",
-        "body": "Borjie hedges your gold at the LBMA AM-fix window automatically. Indicative saving of 1.4% vs spot at delivery.",
+        "title": "For gold producers, LBMA-window hedges save 1.4% on spot.",
+        "body": "For gold producers, Borjie hedges at the LBMA AM-fix window automatically. Indicative saving of 1.4% vs spot at delivery.",
         "href": "/insights/lbma-window-hedging"
       },
       {
@@ -212,11 +213,11 @@
       },
       "treasury": {
         "title": "See your money clearly",
-        "blurb": "A double-entry treasury that tracks cash in TZS, gold on hand and M-Pesa payments, so you always know where you stand."
+        "blurb": "A double-entry treasury that tracks cash in TZS, minerals on hand and M-Pesa payments, so you always know where you stand."
       },
       "marketplace": {
         "title": "Sell ore to real buyers",
-        "blurb": "List your gold or gemstone parcels to verified buyers, take bids, and lock an offtake agreement, all on the record."
+        "blurb": "List your gold, gemstone and mineral parcels to verified buyers, take bids, and lock an offtake agreement, all on the record."
       },
       "drillhole": {
         "title": "Run your crew",
@@ -738,7 +739,7 @@
       "kicker": "Meet Mr. Mwikila",
       "title": "Seven modes, one calm operator.",
       "titleAccent": "Switch tabs to see them work.",
-      "sub": "Mr. Mwikila is Borjie's AI Mining Managing Director. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, hedging your gold at the LBMA window. Pick a mode to see what he does.",
+      "sub": "Mr. Mwikila is Borjie's AI Mining Managing Director. He adapts to the moment — building you a brief at 06:00, drafting your royalty at month-end, and, for gold producers, hedging at the LBMA window. Pick a mode to see what he does.",
       "modes": [
         {
           "id": "build",
@@ -787,10 +788,10 @@
         {
           "id": "finance",
           "label": "Finance",
-          "headline": "Hedges the gold window, watches the cash, files the tax",
+          "headline": "Watches the cash, files the tax, hedges where it can",
           "capabilities": [
-            "Hedges gold at the LBMA AM-fix automatically inside policy",
-            "Tracks TZS · USD · gold-ounce balances against the BoT USD cliff",
+            "For gold producers, hedges at the LBMA AM-fix automatically inside policy",
+            "Tracks TZS · USD · mineral-ounce balances against the BoT USD cliff",
             "Drafts VAT, PAYE, and withholding-tax returns ready for TRA filing",
             "Settles vendor wallets through M-Pesa, Tigo Pesa, and Airtel Money"
           ]
@@ -832,7 +833,7 @@
           "desc": "The chat you're using right now. Mr. Mwikila answers your questions about pricing, regulators, and timelines — and guides you to sign up when you're ready.",
           "preview": {
             "user": "What does Borjie do for a Geita PML?",
-            "ai": "Drafts your Mining Commission royalty in the official format, hedges your gold at the LBMA fix, runs your shift roster on the supervisor's phone. Want to see how a real Wednesday at 06:00 looks?"
+            "ai": "Drafts your Mining Commission royalty in the official format, runs your shift roster on the supervisor's phone, and for gold producers hedges at the LBMA fix. Want to see how a real Wednesday at 06:00 looks?"
           }
         },
         {
@@ -1025,22 +1026,22 @@
       "pills": [
         {
           "label": "Q1 2026",
-          "title": "Early operators — ten live mines",
+          "title": "Early operators: ten live mines",
           "tone": "active"
         },
         {
           "label": "Q2 2026",
-          "title": "Licence radar — 47-day pre-fill",
+          "title": "Licence radar: 47-day pre-fill",
           "tone": "next"
         },
         {
           "label": "Q3 2026",
-          "title": "Vendor wallet — M-Pesa · Tigo · Airtel",
+          "title": "Vendor wallet: M-Pesa · Tigo · Airtel",
           "tone": "later"
         },
         {
           "label": "Q4 2026",
-          "title": "Buyer marketplace — public beta",
+          "title": "Buyer marketplace: public beta",
           "tone": "later"
         }
       ],
@@ -1050,7 +1051,7 @@
     }
   },
   "footer": {
-    "tagline": "Run your licences, royalty, crew and gold from one screen. Built for Tanzanian mining.",
+    "tagline": "Run your licences, royalty, crew and minerals from one screen. Built for Tanzanian mining.",
     "product": "Product",
     "company": "Company",
     "resources": "Resources",
@@ -1142,7 +1143,7 @@
     "faqs": [
       {
         "q": "What is Borjie?",
-        "a": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Borjie connects licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, and the full asset register — orchestrated end-to-end by Mr. Mwikila, the brain layer within Borjie."
+        "a": "Borjie is an AI-native mining estate operating system. Mr. Mwikila is its brain layer. Borjie connects licences, royalty, workforce, treasury, compliance, marketplace, holdings, subsidiaries, ancillary businesses, family office, succession, and the full asset register, orchestrated end-to-end by Mr. Mwikila, the brain layer within Borjie."
       },
       {
         "q": "Is Mwanzo really free?",
@@ -1154,7 +1155,7 @@
       },
       {
         "q": "What payment methods do you accept?",
-        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, and TZS bank transfer. Annual bills can be invoiced. Multi-currency (TZS, USD, KES) is supported on Kampuni and above."
+        "a": "M-Pesa, Tigo Pesa, Airtel Money, Visa / Mastercard, and TZS bank transfer. Annual bills can be invoiced. Treasury reporting across TZS, USD and KES is supported on Kampuni and above."
       },
       {
         "q": "Can I switch tiers later?",
@@ -1189,7 +1190,7 @@
     "sections": [
       {
         "title": "1. What we collect",
-        "body": "Borjie collects your mining business data — PML/ML/SML licences, pit maps, drill-hole logs, off-take transactions, royalty returns, and your users' messages. We do not collect personal data on individual artisanal miners unless they upload it themselves or an owner directs us to."
+        "body": "Borjie collects your mining business data: PML/ML/SML licences, pit maps, drill-hole logs, off-take transactions, royalty returns, and your users' messages. We do not collect personal data on individual artisanal miners unless they upload it themselves or an owner directs us to."
       },
       {
         "title": "2. Why",
@@ -1197,7 +1198,7 @@
       },
       {
         "title": "3. Where it lives",
-        "body": "Your data is stored in a Tanzania-resident database (Dar es Salaam region, with Fly.io fra1 as DR backup). Audit chains are per-tenant — your tenant cannot read another tenant's chain even if you are an admin."
+        "body": "Your data is stored in a Tanzania-resident database (Dar es Salaam region, with Fly.io fra1 as DR backup). Audit chains are per-tenant. Your tenant cannot read another tenant's chain even if you are an admin."
       },
       {
         "title": "4. Your rights",
@@ -1224,7 +1225,7 @@
       },
       {
         "title": "2. Tiers and billing",
-        "body": "Five tiers: Mwanzo (free), Mkulima (TZS 150,000/mo), Mfanyabiashara (TZS 500,000/mo), Kampuni (TZS 1,500,000/mo), Group (bespoke). Billed monthly in advance. Non-payment for 14 days pauses autonomous actions (but never the audit chain — your history remains yours forever)."
+        "body": "Five tiers: Mwanzo (free), Mkulima (TZS 150,000/mo), Mfanyabiashara (TZS 500,000/mo), Kampuni (TZS 1,500,000/mo), Group (bespoke). Billed monthly in advance. Non-payment for 14 days pauses autonomous actions (but never the audit chain, your history remains yours forever)."
       },
       {
         "title": "3. Your data is yours",
@@ -1251,7 +1252,7 @@
   "ownersPage": {
     "kicker": "For mining owners",
     "heading": "Run your mine like the world's best.",
-    "sub": "Master Brain, licence calendar, drill-hole logger, FX/treasury, marketplace and compliance — all in one calm operator.",
+    "sub": "Master Brain, licence calendar, drill-hole logger, FX/treasury, marketplace and compliance, all in one calm operator.",
     "ctaPilot": "Get started",
     "ctaPricing": "See pricing"
   },
@@ -1294,7 +1295,7 @@
         },
         {
           "title": "Biometric off-take contracts",
-          "body": "Non-repudiable fingerprint signatures — contracts enforceable in court."
+          "body": "Non-repudiable fingerprint signatures, contracts enforceable in court."
         }
       ],
       "cards": {
@@ -1316,30 +1317,25 @@
         }
       }
     },
-    "useCases": {
-      "kicker": "02 · Use-case stories",
-      "heading": "Buyers already on the platform.",
-      "sub": "Mock pilot relationships shown — real deals are still on-boarding. Replaced with audited case studies once live.",
-      "cards": {
-        "gold": {
-          "tag": "Gold doré",
-          "buyer": "Pamoja Refinery",
-          "location": "Dar es Salaam",
-          "blurb": "Sources 40-60 kg/month of artisanal doré from Geita and Kahama PML clusters. Borjie chain-of-custody lets the refinery skip its own field due diligence."
+    "builtFor": {
+      "kicker": "02 · Built for verified buyers",
+      "heading": "Built for verified buyers.",
+      "sub": "Borjie is onboarding its first cohort of refineries, gemstone houses and off-takers. Every seller is KYB-verified, every parcel carries a chain-of-custody trail, and every contract is signed biometrically. Apply to join the buyer pilot.",
+      "cards": [
+        {
+          "title": "KYB-verified counterparties",
+          "body": "Every PML, PL and ML licence, owner NIDA and TRA standing is audited before a seller can list. You bid against vetted supply, not anonymous parcels."
         },
-        "tanzanite": {
-          "tag": "Tanzanite rough",
-          "buyer": "Heritage TZ Gemstones",
-          "location": "Arusha",
-          "blurb": "Bids on Mererani Block-D rough every Tuesday. Borjie's gemmological cert plus biometric off-take gets the lot loaded inside 48 hours."
+        {
+          "title": "Chain-of-custody on every parcel",
+          "body": "Each ore lot carries a verifiable path from drill-hole to weighbridge, so you can skip your own field due diligence and source with confidence."
         },
-        "coltan": {
-          "tag": "Coltan concentrate",
-          "buyer": "Dar Gold Traders",
-          "location": "Dar es Salaam",
-          "blurb": "ICP-MS-graded coltan from Kigoma artisanal sites. Audit chain provides the OECD due-diligence trail downstream EU buyers require."
+        {
+          "title": "Biometric, enforceable contracts",
+          "body": "Off-take agreements are signed with non-repudiable fingerprint signatures and recorded on a per-tenant audit chain, enforceable in court."
         }
-      }
+      ],
+      "cta": "Apply to join the buyer pilot"
     },
     "pricing": {
       "kicker": "03 · Pricing",
@@ -1801,7 +1797,7 @@
         },
         {
           "title": "Unverified buyers",
-          "desc": "Off-takers walk on site, weigh, pay below spot, and disappear. Without a verified marketplace, your gold leaves the country at a discount."
+          "desc": "Off-takers walk on site, weigh, pay below spot, and disappear. Without a verified marketplace, your ore leaves the country at a discount."
         },
         {
           "title": "Lost institutional memory",
@@ -1833,7 +1829,7 @@
     },
     "ml": {
       "metaTitle": "Borjie for ML operators: mid-tier mining software",
-      "metaDescription": "Borjie for Mining Licence operators across gold and gemstones. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
+      "metaDescription": "Borjie for Mining Licence operators across gold, gemstones and every mineral type. Multi-pit production rollups, blast logs, fleet telemetry, royalty automation, board-ready reporting. 90-day free pilot.",
       "heroKicker": "For ML operators",
       "heroHeadline": "Mid-tier mines deserve",
       "heroHeadlineAccent": "mid-tier software",

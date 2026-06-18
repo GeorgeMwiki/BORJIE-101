@@ -2,6 +2,7 @@
 
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum, fmtTzsM } from '@/lib/format';
+import { useLocale, pickByLocale } from '@/lib/locale';
 import type { OwnerBriefPayload } from '@/lib/queries/owner-brief';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
@@ -18,6 +19,7 @@ interface KpiStripPanelProps {
  * production sparkline reads per-site tonnes from the 30-day window.
  */
 export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
+  const locale = useLocale();
   const productionTotal = brief.productionVsTarget.perSite.reduce(
     (sum, s) => sum + Number(s.tonnes ?? 0),
     0,
@@ -38,17 +40,18 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
       data-testid="dashboard-kpi-strip"
     >
       <KpiTile
-        label="Production · 30d"
-        labelSw={S.kpiStrip.production.sw}
+        label={pickByLocale(locale, S.kpiStrip.production)}
         value={`${fmtNum(productionTotal)} t`}
-        meta={`${brief.productionVsTarget.perSite.length} sites`}
+        meta={pickByLocale(
+          locale,
+          S.kpiStrip.metaSites(brief.productionVsTarget.perSite.length),
+        )}
         sparkData={productionSpark}
         tone="green"
         testId="kpi-production"
       />
       <KpiTile
-        label="Cash · days"
-        labelSw={S.kpiStrip.cash.sw}
+        label={pickByLocale(locale, S.kpiStrip.cash)}
         value={cashDays === null ? '—' : `${cashDays} d`}
         meta={fmtTzsM(brief.cashRunway.ninetyDayNetTzs / 1_000_000)}
         tone={
@@ -63,18 +66,25 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
         testId="kpi-cash"
       />
       <KpiTile
-        label="Safety · open critical"
-        labelSw={S.kpiStrip.safety.sw}
+        label={pickByLocale(locale, S.kpiStrip.safety)}
         value={fmtNum(safetyCount)}
-        meta={`${brief.dailyBrief.criticalIncidents} critical today`}
+        meta={pickByLocale(
+          locale,
+          S.kpiStrip.metaCriticalToday(brief.dailyBrief.criticalIncidents),
+        )}
         tone={safetyCount === 0 ? 'green' : safetyCount < 3 ? 'amber' : 'red'}
         testId="kpi-safety"
       />
       <KpiTile
-        label="Licences · at risk"
-        labelSw={S.kpiStrip.licences.sw}
+        label={pickByLocale(locale, S.kpiStrip.licences)}
         value={`${licenceAtRiskPct.toFixed(0)}%`}
-        meta={`${brief.licenceHealth.atRiskCount} of ${brief.licenceHealth.totalCount}`}
+        meta={pickByLocale(
+          locale,
+          S.kpiStrip.metaOf(
+            brief.licenceHealth.atRiskCount,
+            brief.licenceHealth.totalCount,
+          ),
+        )}
         tone={
           licenceAtRiskPct === 0
             ? 'green'
@@ -85,13 +95,15 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
         testId="kpi-licence"
       />
       <KpiTile
-        label="USD cliff"
-        labelSw={S.kpiStrip.usdCliff.sw}
+        label={pickByLocale(locale, S.kpiStrip.usdCliff)}
         value={cliffDays === null ? '—' : `${cliffDays} d`}
         meta={
           brief.cliffStatus.remediationComplete
-            ? 'remediation complete'
-            : `${brief.cliffStatus.usdDenominated} USD contracts`
+            ? pickByLocale(locale, S.kpiStrip.metaRemediationComplete)
+            : pickByLocale(
+                locale,
+                S.kpiStrip.metaUsdContracts(brief.cliffStatus.usdDenominated),
+              )
         }
         tone={
           brief.cliffStatus.remediationComplete
@@ -108,7 +120,6 @@ export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
 
 interface KpiTileProps {
   readonly label: string;
-  readonly labelSw: string;
   readonly value: string;
   readonly meta: string;
   readonly sparkData?: ReadonlyArray<{
@@ -127,7 +138,6 @@ const TONE_TEXT: Record<KpiTileProps['tone'], string> = {
 
 function KpiTile({
   label,
-  labelSw,
   value,
   meta,
   sparkData,
@@ -142,7 +152,6 @@ function KpiTile({
       <h3 className="font-mono text-caption uppercase tracking-widest text-neutral-500">
         {label}
       </h3>
-      <p className="font-mono text-caption text-neutral-500">{labelSw}</p>
       <div
         className={`mt-1 font-display text-4xl font-medium leading-none tracking-tight tabular-nums ${TONE_TEXT[tone]}`}
       >

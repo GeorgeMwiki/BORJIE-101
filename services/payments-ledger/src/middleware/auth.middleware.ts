@@ -52,6 +52,7 @@ function extractBearer(headerValue: string | undefined): string | null {
 function readMetadata(payload: JWTPayload): {
   tenantId?: string;
   roles?: string[];
+  tenantConflict: boolean;
 } {
   const app = (payload as Record<string, unknown>).app_metadata as
     | Record<string, unknown>
@@ -59,13 +60,23 @@ function readMetadata(payload: JWTPayload): {
   const user = (payload as Record<string, unknown>).user_metadata as
     | Record<string, unknown>
     | undefined;
-  const merged = { ...(user ?? {}), ...(app ?? {}) };
+  // Authoritative tenant/roles come from app_metadata ONLY. user_metadata is
+  // client-writable (supabase.auth.updateUser({ data })), so a fall-through to
+  // it would let a user self-grant a tenant or role. Mirrors the canonical
+  // gateway (hono-auth / supabase-jwt-verify) which rejects, never trusts,
+  // user_metadata for authorization.
+  const appTenant =
+    typeof app?.tenant_id === 'string' ? (app.tenant_id as string) : undefined;
+  const userTenant =
+    typeof user?.tenant_id === 'string'
+      ? (user.tenant_id as string)
+      : undefined;
   return {
-    tenantId:
-      typeof merged.tenant_id === 'string' ? merged.tenant_id : undefined,
-    roles: Array.isArray(merged.roles)
-      ? (merged.roles as string[])
-      : undefined,
+    tenantId: appTenant,
+    roles: Array.isArray(app?.roles) ? (app.roles as string[]) : undefined,
+    // A client-supplied tenant that disagrees with (or appears without) the
+    // trusted app_metadata tenant is a privilege-escalation attempt.
+    tenantConflict: userTenant !== undefined && userTenant !== appTenant,
   };
 }
 
@@ -93,6 +104,15 @@ export async function verifySupabaseAuthMiddleware(
       return;
     }
     const md = readMetadata(payload);
+    if (md.tenantConflict) {
+      res.status(403).json({
+        error: {
+          code: 'AUTH_TENANT_CONFLICT',
+          message: 'client tenant claim disagrees with the trusted tenant',
+        },
+      });
+      return;
+    }
     if (!md.tenantId) {
       res.status(403).json({
         error: { code: 'AUTH_NO_TENANT', message: 'token has no tenant_id' },

@@ -3,6 +3,8 @@ import { QueryProvider } from '@/components/internal/QueryProvider';
 import { AdminDashboardSurface } from '@/components/dashboard/AdminDashboardSurface';
 import { AdminDailyBriefCard } from '@/components/dashboard/AdminDailyBriefCard';
 import { DashboardMetricStrip } from '@/components/dashboard/DashboardMetricStrip';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 /**
  * D-A-01 — Admin cockpit (read-only platform status).
@@ -19,19 +21,25 @@ import { DashboardMetricStrip } from '@/components/dashboard/DashboardMetricStri
  * each own their own react-query hook so an outage in one stays
  * scoped.
  */
-export default function AdminDashboardPage() {
+export default async function AdminDashboardPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <div className="space-y-8" data-testid="admin-cockpit">
       <header className="border-b border-border pb-6">
         <p className="font-mono text-tiny uppercase tracking-widest text-signal-500">
-          Cockpit · Dashibodi
+          {pickByLocale(locale, { en: 'Cockpit', sw: 'Dashibodi' })}
         </p>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          Platform status
+          {pickByLocale(locale, {
+            en: 'Platform status',
+            sw: 'Hali ya jukwaa',
+          })}
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
-          Read-only structured view across every Borjie tenant. For
-          investigation drop into chat at{' '}
+          {pickByLocale(locale, {
+            en: 'Read-only structured view across every Borjie tenant. For investigation drop into chat at ',
+            sw: 'Mwonekano uliopangwa wa kusoma-tu kwa kila tenant ya Borjie. Kwa uchunguzi, ingia kwenye gumzo ',
+          })}
           <a
             className="font-medium text-signal-500 underline-offset-4 hover:underline"
             href="/"
@@ -44,7 +52,7 @@ export default function AdminDashboardPage() {
 
       <QueryProvider>
         <Suspense fallback={<MetricStripFallback />}>
-          <DashboardMetricStrip />
+          <DashboardMetricStrip initialLocale={locale} />
         </Suspense>
 
         {/* Wave OWNER-OS DAILY-BRIEF rebuild — fleet view of today's

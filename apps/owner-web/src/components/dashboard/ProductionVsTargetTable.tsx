@@ -2,6 +2,7 @@
 
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum } from '@/lib/format';
+import { useLocale, pickByLocale } from '@/lib/locale';
 import type { ProductionSlot } from '@/lib/queries/owner-brief';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
@@ -16,10 +17,16 @@ interface ProductionVsTargetTableProps {
  * cron computes for the rolling 30-day window. A sparkline is drawn
  * only when at least three sites contribute — fewer points would be
  * misleading.
+ *
+ * Single-language per active locale: header, columns, and empty state
+ * resolve from the cockpit locale cookie. The header italic previously
+ * hardcoded a Swahili subtitle under an English title (EN/SW mixing).
  */
 export function ProductionVsTargetTable({
   production,
 }: ProductionVsTargetTableProps): JSX.Element {
+  const locale = useLocale();
+  const P = S.productionVsTarget;
   const sparkData = production.perSite.map((s, i) => ({
     x: s.siteId ?? `site-${i}`,
     y: Number(s.tonnes ?? 0),
@@ -32,13 +39,13 @@ export function ProductionVsTargetTable({
     >
       <header className="flex items-baseline justify-between">
         <div>
-          <h2 className="cockpit-card-title">Production vs target</h2>
+          <h2 className="cockpit-card-title">{pickByLocale(locale, P.title)}</h2>
           <p className="text-xs italic text-neutral-500">
-            {S.productionVsTarget.subtitleSw.sw} · {production.window}
+            {pickByLocale(locale, P.subtitle)} · {production.window}
           </p>
         </div>
         <span className="pill border-border text-neutral-400">
-          {production.perSite.length} sites
+          {pickByLocale(locale, P.sites(production.perSite.length))}
         </span>
       </header>
 
@@ -47,11 +54,7 @@ export function ProductionVsTargetTable({
           className="text-sm text-neutral-400"
           data-testid="dashboard-production-empty"
         >
-          No shift reports have landed for this window. Ask Borjie Brain on{' '}
-          <a className="text-signal-500 underline" href="/">
-            /
-          </a>{' '}
-          for the most recent field reconciliation.
+          {pickByLocale(locale, P.empty)}
         </p>
       ) : (
         <>
@@ -59,10 +62,16 @@ export function ProductionVsTargetTable({
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-500">
-                  <th className="py-2 pr-4">Site</th>
-                  <th className="py-2 pr-4 text-right">Tonnes</th>
-                  <th className="py-2 pr-4 text-right">Fuel (L)</th>
-                  <th className="py-2 text-right">Shifts</th>
+                  <th className="py-2 pr-4">{pickByLocale(locale, P.colSite)}</th>
+                  <th className="py-2 pr-4 text-right">
+                    {pickByLocale(locale, P.colTonnes)}
+                  </th>
+                  <th className="py-2 pr-4 text-right">
+                    {pickByLocale(locale, P.colFuel)}
+                  </th>
+                  <th className="py-2 text-right">
+                    {pickByLocale(locale, P.colShifts)}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -73,7 +82,7 @@ export function ProductionVsTargetTable({
                     data-testid="dashboard-production-row"
                   >
                     <td className="py-2 pr-4 text-foreground">
-                      {row.siteId ?? 'unassigned'}
+                      {row.siteId ?? pickByLocale(locale, P.unassigned)}
                     </td>
                     <td className="py-2 pr-4 text-right text-foreground">
                       {fmtNum(Number(row.tonnes ?? 0))}

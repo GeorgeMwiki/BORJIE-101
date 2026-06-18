@@ -389,4 +389,56 @@ from the bug register entirely:
   required — per-domain squads own the swap as their target package
   matures.
 
-End of register. **Open KI count: 0.**
+### KI-017 — Owner two-way calendar sync is born-dark (backend-only, NO UI entry) — **REGISTERED 2026-06-15 — LOW (incomplete feature, not user-reachable)**
+
+`services/api-gateway/src/composition/calendar-wiring.ts` (`createCalendarWiring`)
+and `services/api-gateway/src/workers/calendar-sync.worker.ts`
+(`createCalendarSyncWorker`) have **zero callers** — `index.ts` never imports the
+wiring, so the sync worker never `.start()`s. The owner calendar OAuth route
+(`services/api-gateway/src/routes/owner/calendar.hono.ts`, migration 0171) IS
+mounted (connect / callback / status / disconnect), but no writer ever creates a
+`channel='calendar'` reminder, the reminders-dispatch worker drops that channel,
+and the action-executor refuses to schedule it — so the two-way sync is dark end
+to end.
+
+**Why this is REGISTERED, not a shipped bug:** a repo-wide sweep finds **no
+front-end caller** of `/owner/calendar/*` in any surface (owner-web,
+workforce-mobile, buyer-mobile) — there is no "Connect Google Calendar" CTA, so
+no user is shown a dead-end promise. This is an **incomplete backend feature**
+(skeleton present, loop not closed), not a regression in any shipped behaviour.
+
+**Proposed fix (a feature, owner-prioritised):** compose `createCalendarWiring`
+in `index.ts`, add a `channel='calendar'` writer + reminders-dispatch handler
+that pushes reminders/deadlines to the linked provider via the stored OAuth
+connection (with token refresh + event dedup), then surface a connect entry on
+the owner cockpit. Until then the route stays mounted-but-unconsumed (harmless,
+OWNER-auth + OAuth gated).
+
+### KI-018 — admin-web console uses a "bilingual show-BOTH" pattern (EN+SW together) — **PARTIAL FIX 2026-06-15 — MEDIUM (canon violation, internal surface)**
+
+The internal admin console was built to render English AND Swahili side-by-side
+(a deliberate "bilingual" design), which violates the **single-language-per-locale
+canon** (one active locale → ZERO tokens of the other language anywhere). Live
+proof (authed admin console): the nav read `Cockpit Dashibodi · Tenants
+Wapangaji · Audit Ukaguzi · Health Afya · Brain Akili · Control tower Mnara wa
+Udhibiti`, and the SSR/client split of the show-both flag drove a React #418
+hydration-text mismatch.
+
+**FIXED (this session, commit 55e6add1):** the **Sidebar** (the nav, on every
+admin page — the highest-impact, most-repeated element) now threads the
+server-resolved locale (RootLayout → AdminShell → Sidebar) and renders ONE label
+per active locale via `pickByLocale`. No hydration mismatch on the nav.
+
+**STILL OPEN (registered for a focused admin-i18n pass):** the same show-both
+pattern remains in other admin surfaces — `DashboardMetricStrip.tsx` (KPI cards
+render `{m.label}` AND `{m.labelSw}`), hardcoded `EN · SW` page eyebrows (e.g.
+`app/dashboard/page.tsx` "Cockpit · Dashibodi"), and the `PersonaGreeting` chat
+chips. PLUS a likely-separate React #418 from PersonaGreeting's time-of-day
+greeting (SSR time ≠ client time). **Scope:** convert every admin surface to a
+server-resolved locale + `pickByLocale` single-label (the Sidebar is the
+template), and make the persona greeting time-stable across hydration. INTERNAL
+staff surface, fully functional — this is a canon/polish defect, not a
+customer-facing or fatal one. Owner/marketing surfaces are single-locale
+(verified live).
+
+End of register. **Open KI count: 0 user-reachable customer-facing; 1 incomplete feature (KI-017); 1 internal-console canon residual (KI-018, nav fixed).**

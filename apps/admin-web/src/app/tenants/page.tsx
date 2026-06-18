@@ -1,5 +1,7 @@
 import { QueryProvider } from '@/components/internal/QueryProvider';
 import { TenantDirectory } from '@/components/internal/tenants/TenantDirectory';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 /**
  * Tenant directory — dense data table at the top-level admin URL.
@@ -9,32 +11,44 @@ import { TenantDirectory } from '@/components/internal/tenants/TenantDirectory';
  * paginated TenantDirectory component (sticky header, plan + status
  * filter chips, row click opens detail). The component is shared with
  * `/internal/tenants` — this route is the LitFin-parity entry point.
+ *
+ * SINGLE LANGUAGE PER LOCALE (canon): the header eyebrow + title +
+ * subtitle resolve to the active locale via `pickByLocale`. The previous
+ * eyebrow hard-rendered "Tenants · Wapangaji" (EN+SW together).
  */
-export default function TenantsPage(): JSX.Element {
+export default async function TenantsPage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <QueryProvider>
       <div className="space-y-6">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
           <div>
             <p className="font-mono text-tiny uppercase tracking-widest text-signal-500">
-              Tenants · Wapangaji
+              {pickByLocale(locale, { en: 'Tenants', sw: 'Wapangaji' })}
             </p>
             <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-              Tenant directory
+              {pickByLocale(locale, {
+                en: 'Tenant directory',
+                sw: 'Orodha ya wapangaji',
+              })}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
-              Every Borjie tenant — plan, status, ARR, last-active. Row click
-              opens the tenant detail drawer. Filter by plan or status; search
-              by name or primary commodity.
+              {pickByLocale(locale, {
+                en: 'Every Borjie tenant — plan, status, ARR, last-active. Row click opens the tenant detail drawer. Filter by plan or status; search by name or primary commodity.',
+                sw: 'Kila tenant ya Borjie — mpango, hali, ARR, alipokuwa hai mwisho. Bonyeza safu kufungua dirisha la maelezo ya tenant. Chuja kwa mpango au hali; tafuta kwa jina au madini makuu.',
+              })}
             </p>
           </div>
           <button
             type="button"
             disabled
-            title="Provisioning form lands with self-serve tenant onboarding"
+            title={pickByLocale(locale, {
+              en: 'Provisioning form lands with self-serve tenant onboarding',
+              sw: 'Fomu ya usajili itapatikana na ujiandikishaji wa tenant wa kujihudumia',
+            })}
             className="rounded-md bg-signal-500/40 px-3 py-1.5 text-xs font-medium text-primary-foreground opacity-50 cursor-not-allowed"
           >
-            New tenant
+            {pickByLocale(locale, { en: 'New tenant', sw: 'Tenant mpya' })}
           </button>
         </header>
 

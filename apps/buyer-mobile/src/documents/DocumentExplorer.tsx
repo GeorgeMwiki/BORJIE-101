@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
+import { useTranslation } from '@/hooks/useTranslation'
 import { askSession, createSession, summariseDocument } from './api'
 import type { UploadedDocument } from './types'
 import { ingestionStatusLabel, kindLabel } from './types'
@@ -23,6 +24,7 @@ export interface DocumentExplorerProps {
  * theme tokens.
  */
 export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerProps) {
+  const { t, lang } = useTranslation()
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [turns, setTurns] = useState<ReadonlyArray<ChatTurn>>([])
   const [draft, setDraft] = useState<string>('')
@@ -32,11 +34,11 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
   useEffect(() => {
     if (document.ingestionStatus === 'ready') {
-      summariseDocument({ documentId: document.id, language: 'en' })
+      summariseDocument({ documentId: document.id, language: lang })
         .then((res) => setSummary(res.summary))
         .catch(() => undefined)
     }
-  }, [document.id, document.ingestionStatus])
+  }, [document.id, document.ingestionStatus, lang])
 
   async function ensureSession(): Promise<string> {
     if (sessionId) {
@@ -67,10 +69,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
     setDraft('')
     try {
       const id = await ensureSession()
-      const res = await askSession({ sessionId: id, question, language: 'en' })
+      const res = await askSession({ sessionId: id, question, language: lang })
       const assistantText =
         res.answer ??
-        `Question received. This document has ${res.evidenceIds.length} chunks indexed. The brain will reply shortly.`
+        t('documents_intel.answer_pending', { count: res.evidenceIds.length })
       const assistantTurn: ChatTurn = {
         id: `a_${Date.now()}`,
         role: 'assistant',
@@ -78,7 +80,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
       }
       setTurns((prev) => [...prev, assistantTurn])
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Ask failed.'
+      const message = cause instanceof Error ? cause.message : t('documents_intel.ask_failed')
       setError(message)
     } finally {
       setBusy(false)
@@ -93,7 +95,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
         </Text>
         <View style={styles.chipRow}>
           <View style={styles.chip}>
-            <Text style={styles.chipText}>{kindLabel(document.kind)}</Text>
+            <Text style={styles.chipText}>{kindLabel(document.kind, t)}</Text>
           </View>
           <View
             style={[
@@ -102,14 +104,14 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
               document.ingestionStatus === 'failed' ? styles.chipFailed : null,
             ]}
           >
-            <Text style={styles.chipText}>{ingestionStatusLabel(document.ingestionStatus)}</Text>
+            <Text style={styles.chipText}>{ingestionStatusLabel(document.ingestionStatus, t)}</Text>
           </View>
         </View>
       </View>
 
       {summary ? (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Summary</Text>
+          <Text style={styles.summaryTitle}>{t('documents_intel.summary')}</Text>
           <Text style={styles.summaryBody} numberOfLines={6}>
             {summary}
           </Text>
@@ -118,7 +120,7 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
       <ScrollView style={styles.chatList} contentContainerStyle={styles.chatContent}>
         {turns.length === 0 ? (
-          <Text style={styles.empty}>Ask anything about this document.</Text>
+          <Text style={styles.empty}>{t('documents_intel.ask_empty')}</Text>
         ) : (
           turns.map((turn) => (
             <View
@@ -145,10 +147,10 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
 
       <View style={styles.composer}>
         <TextInput
-          accessibilityLabel="Ask about this document"
+          accessibilityLabel={t('documents_intel.ask_accessibility')}
           value={draft}
           onChangeText={setDraft}
-          placeholder="Type a question..."
+          placeholder={t('documents_intel.ask_placeholder')}
           placeholderTextColor={colors.inkMuted}
           style={styles.input}
           editable={!busy}
@@ -160,11 +162,11 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
           ) : (
             <Text
               accessibilityRole="button"
-              accessibilityLabel="Send question"
+              accessibilityLabel={t('documents_intel.send_question')}
               onPress={handleSend}
               style={styles.sendLabel}
             >
-              Send
+              {t('chat.send')}
             </Text>
           )}
         </View>

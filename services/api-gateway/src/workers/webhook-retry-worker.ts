@@ -20,6 +20,7 @@
 
 import { createHmac } from 'node:crypto';
 import type pino from 'pino';
+import { assertUrlSafe } from '@borjie/enterprise-hardening';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -231,6 +232,23 @@ export function createWebhookRetryWorker(
     const body = JSON.stringify(event.payload);
     const ts = Math.floor(now() / 1000);
     const signature = computeWebhookSignature(body, ts, secret);
+
+    // SSRF pre-flight — the retry/DLQ-replay path re-delivers the SAME
+    // operator-supplied URL the canonical first-delivery screened
+    // (packages/agent-platform/src/webhook-delivery.ts), so it must apply the
+    // identical policy here. Re-screen PER ATTEMPT so a DNS rebind between
+    // attempts is also caught. A blocked URL can never succeed → permanent
+    // (the DLQ captures it; we do not retry an SSRF target forever).
+    try {
+      await assertUrlSafe(event.targetUrl);
+    } catch (err) {
+      return {
+        kind: 'permanent',
+        errorMessage: `SSRF-blocked target URL: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      };
+    }
 
     let response: Response | undefined;
     let thrown: unknown;

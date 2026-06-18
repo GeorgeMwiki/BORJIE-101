@@ -28,12 +28,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
   Animated,
   Easing,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type NativeScrollEvent,
   type NativeSyntheticEvent,
   type TextInputSubmitEditingEventData
 } from 'react-native'
@@ -96,6 +99,8 @@ import {
   finaliseTurn,
   newTurnId,
   optimisticTurn,
+  shouldAutoScroll,
+  smartReplyChips,
   toPersistedSlice,
   type LiveTurn,
   type SettledTurn
@@ -147,9 +152,24 @@ export function HomeChat(): JSX.Element {
   const [threadId, setThreadId] = useState<string | null>(null)
   const [pendingAttachment, setPendingAttachment] = useState<CapturedMedia | null>(null)
   const scrollRef = useRef<ScrollView | null>(null)
+  const scrollMetrics = useRef({ y: 0, contentHeight: 0, viewportHeight: 0 })
   const [showSkeleton, setShowSkeleton] = useState(false)
   const [showSlow, setShowSlow] = useState(false)
   const photoPicker = usePhotoPicker()
+
+  // Smart-reply chips — LitFin parity. Derived from the last settled
+  // turn's first tool call so the worker gets one-tap follow-ups.
+  const lastToolName = useMemo<string | null>(() => {
+    const last = turns[turns.length - 1]
+    if (!last || last.toolCalls.length === 0) {
+      return null
+    }
+    return last.toolCalls[0]?.tool ?? null
+  }, [turns])
+  const smartReplies = useMemo(
+    () => smartReplyChips(lastToolName, lang),
+    [lastToolName, lang]
+  )
 
   // Composer slash + @ menus — load slash commands per persona once,
   // fetch @-entities lazily when the trigger opens.
@@ -336,11 +356,30 @@ export function HomeChat(): JSX.Element {
     [lang, submitTurn]
   )
 
+  // Safe auto-scroll — LitFin parity. Only snap to bottom when the user
+  // is already near it, so reading earlier turns is never yanked.
   const onContentSizeChange = useCallback((): void => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollToEnd({ animated: true })
+    const m = scrollMetrics.current
+    if (m.contentHeight === 0 || m.viewportHeight === 0) {
+      scrollRef.current?.scrollToEnd({ animated: true })
+      return
+    }
+    if (shouldAutoScroll(m.y, m.contentHeight, m.viewportHeight)) {
+      scrollRef.current?.scrollToEnd({ animated: true })
     }
   }, [])
+
+  const onScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>): void => {
+      const e = event.nativeEvent
+      scrollMetrics.current = {
+        y: e.contentOffset.y,
+        contentHeight: e.contentSize.height,
+        viewportHeight: e.layoutMeasurement.height
+      }
+    },
+    []
+  )
 
   const retryFailedTurn = useCallback(
     (failed: LiveTurn): void => {
@@ -421,12 +460,19 @@ export function HomeChat(): JSX.Element {
   const canSend = draft.trim().length > 0
 
   return (
-    <View style={styles.root} testID="home-chat-root">
+    <KeyboardAvoidingView
+      style={styles.root}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      testID="home-chat-root"
+    >
       <ScrollView
         ref={scrollRef}
         style={styles.history}
         contentContainerStyle={styles.historyContent}
         onContentSizeChange={onContentSizeChange}
+        onScroll={onScroll}
+        scrollEventThrottle={64}
+        keyboardShouldPersistTaps="handled"
       >
         {showGreeting ? (
           <GreetingCard
@@ -452,6 +498,25 @@ export function HomeChat(): JSX.Element {
           />
         ) : null}
       </ScrollView>
+      {smartReplies.length > 0 && live === null ? (
+        <View style={styles.smartReplyRow} testID="home-chat-smart-replies">
+          {smartReplies.map((chip) => (
+            <Pressable
+              key={chip.id}
+              onPress={() => setDraft(chip.prompt)}
+              accessibilityRole="button"
+              accessibilityLabel={chip.label}
+              testID={`home-chat-smart-reply-${chip.id}`}
+              style={({ pressed }) => [
+                styles.smartReplyChip,
+                pressed ? styles.smartReplyChipPressed : null
+              ]}
+            >
+              <Text style={styles.smartReplyLabel}>{chip.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <Composer
         draft={draft}
         onChangeDraft={setDraft}
@@ -481,7 +546,7 @@ export function HomeChat(): JSX.Element {
         currentTabs={tabConfig.tabs}
         initialReason={tabSheetReasonSeed}
       />
-    </View>
+    </KeyboardAvoidingView>
   )
 }
 
@@ -1021,7 +1086,9 @@ export const __internals__ = Object.freeze({
   PULSE_GRACE_MS,
   ENTRY_DURATION_MS,
   openersMap: HOME_CHAT_OPENERS,
-  newTurnId
+  newTurnId,
+  smartReplyChips,
+  shouldAutoScroll
 })
 
 const styles = StyleSheet.create({
@@ -1177,6 +1244,30 @@ const styles = StyleSheet.create({
     color: colors.goldLight,
     fontSize: fontSize.caption,
     fontWeight: '600'
+  },
+  smartReplyRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    paddingTop: spacing.sm
+  },
+  smartReplyChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255, 200, 87, 0.10)',
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 200, 87, 0.32)',
+    minHeight: 36,
+    justifyContent: 'center'
+  },
+  smartReplyChipPressed: {
+    backgroundColor: 'rgba(255, 200, 87, 0.20)'
+  },
+  smartReplyLabel: {
+    color: colors.gold,
+    fontSize: fontSize.caption,
+    fontWeight: '700'
   },
   composer: {
     paddingTop: spacing.md,

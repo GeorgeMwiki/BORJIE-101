@@ -21,11 +21,12 @@ import { BorjieLogo } from '@borjie/design-system';
  *
  * Two-column rhythm:
  *   LEFT  — pill kicker, claim headline, sub, dual CTA, trust strip
- *   RIGHT — live chat inset playing a 3-turn choreographed Borjie
- *           conversation with framer-motion spring entries staggered
- *           at 400ms / 1800ms / 3200ms. The chat panel mirrors the
+ *   RIGHT — static product-preview inset playing a 3-turn choreographed
+ *           Borjie conversation with framer-motion spring entries
+ *           staggered at 400ms / 1800ms / 3200ms. The panel mirrors the
  *           Borjie product chrome (gold-gradient header, rounded-3xl
- *           shell, brand mark circle, mini-waveform, composer).
+ *           shell, brand mark circle, mini-waveform, composer). Hidden
+ *           below xl so it never stacks behind the real floating widget.
  *
  * No screenshots. The chat is REAL DOM. Honours prefers-reduced-motion
  * by collapsing the staggered spring entries to instant reveals and
@@ -360,13 +361,15 @@ export function Hero({ locale }: { readonly locale: Locale }) {
           </p>
         </div>
 
-        {/* RIGHT — live chat inset (Live Fabric) */}
-        <div className="relative flex items-center">
+        {/* RIGHT — static product preview inset. Hidden below xl so it
+            never stacks behind the real floating chat widget on narrow
+            screens; the live widget carries the conversation there. */}
+        <div className="relative hidden items-center xl:flex">
           <div
             className="relative w-full overflow-hidden rounded-card-lg border border-border/60 bg-background/92 shadow-lift-hero ring-1 ring-border/40 backdrop-blur-2xl"
             style={{ minHeight: '520px' }}
             role="region"
-            aria-label={`${chat.assistant} · ${chat.role}`}
+            aria-label={chat.previewLabel}
           >
             {/* Header strip — gold gradient with brand mark */}
             <div
@@ -381,25 +384,12 @@ export function Hero({ locale }: { readonly locale: Locale }) {
                   <BorjieMark size={20} />
                 </span>
                 <span className="font-display text-base font-semibold leading-tight tracking-tight">
-                  {chat.assistant}
+                  {chat.previewLabel}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-tiny font-medium uppercase tracking-wide">
                   {chat.languageLabel}
-                </span>
-                <span className="h-3 w-px bg-white/20" aria-hidden="true" />
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-tiny font-medium uppercase tracking-wide">
-                  <span
-                    aria-hidden="true"
-                    className="h-1 w-1 rounded-full bg-success"
-                    style={
-                      reducedMotion
-                        ? undefined
-                        : { animation: 'cursor-blink 1.5s steps(1) infinite' }
-                    }
-                  />
-                  {chat.live}
                 </span>
               </div>
             </div>

@@ -18,6 +18,13 @@ export interface FlushResult {
   skipped: boolean
 }
 
+/**
+ * The single store location offline issues/returns resolve against. MUST match
+ * the online W-M-10 path (`warehouse.router.ts` DEFAULT_STORE_LOCATION_ID) so a
+ * move reconciles to the same on-hand whether it synced online or via flush.
+ */
+const DEFAULT_STORE_LOCATION_ID = 'default-store'
+
 const MAX_ATTEMPTS = 5
 
 interface LocalMediaRef {
@@ -120,6 +127,27 @@ function prepareInventoryMoveBody(payload: unknown): Record<string, unknown> {
   if (typeof p.type === 'string') {
     // Already in the gateway shape — pass through.
     return p
+  }
+  // W-M-10 enqueue shape: { warehouseItemId, movementType: 'issue' | 'return',
+  // quantityDelta, reason }. This is what the live W-M-10 screen actually
+  // queues on an offline issue/return. Map it onto `MovementSchema` so the
+  // offline retry hits the SAME route + table + store location as the online
+  // POST — `warehouseItemId` is the SKU id, and the issue/return both resolve
+  // against `default-store` (the warehouse router's DEFAULT_STORE_LOCATION_ID),
+  // so on-hand reconciles whether the move synced online or via this flush.
+  if (typeof p.warehouseItemId === 'string') {
+    const movementType = String(p.movementType ?? '').toLowerCase()
+    const quantity = Math.abs(Number(p.quantityDelta ?? 0))
+    const base: Record<string, unknown> = {
+      skuId: p.warehouseItemId,
+      ...(p.reason !== undefined ? { reference: p.reason } : {})
+    }
+    if (movementType === 'return' || movementType === 'in' || movementType === 'receipt') {
+      return { ...base, type: 'receipt', locationId: DEFAULT_STORE_LOCATION_ID, quantity }
+    }
+    // 'issue' — and any unknown movementType defaults to the conservative
+    // issue path (decrement), never a silent drop.
+    return { ...base, type: 'issue', fromLocationId: DEFAULT_STORE_LOCATION_ID, quantity }
   }
   const direction = String(p.direction ?? p.action ?? 'adjustment').toLowerCase()
   const base: Record<string, unknown> = {

@@ -136,6 +136,52 @@ describe('flushQueue — offline field-capture must never be silently deleted', 
     expect(dead[0]?.reason).toContain('404')
   })
 
+  it('maps the W-M-10 offline inventory_move shape onto MovementSchema (no 400-drop)', async () => {
+    // The EXACT payload W-M-10.tsx enqueues on an offline issue/return.
+    await enqueueWrite('inventory_move', {
+      warehouseItemId: 'sku-123',
+      movementType: 'issue',
+      quantityDelta: -4,
+      reason: 'Site B headlamp draw'
+    })
+    await enqueueWrite('inventory_move', {
+      warehouseItemId: 'sku-456',
+      movementType: 'return',
+      quantityDelta: 2,
+      reason: 'Unused PPE returned'
+    })
+
+    const bodies: Array<Record<string, unknown>> = []
+    const { client } = clientPosting(async (_path, body) => {
+      bodies.push(body as Record<string, unknown>)
+      return { success: true }
+    })
+    const result = await flushQueue(client)
+
+    // Both synced — neither was dropped as a malformed body.
+    expect(result.succeeded).toBe(2)
+    expect(await listQueued()).toHaveLength(0)
+
+    // The issue maps to { type:'issue', skuId, fromLocationId, positive quantity }.
+    const issue = bodies.find((b) => b.type === 'issue')
+    expect(issue).toMatchObject({
+      type: 'issue',
+      skuId: 'sku-123',
+      fromLocationId: 'default-store',
+      quantity: 4,
+      reference: 'Site B headlamp draw'
+    })
+    // The return maps to a receipt: { type:'receipt', skuId, locationId, quantity }.
+    const receipt = bodies.find((b) => b.type === 'receipt')
+    expect(receipt).toMatchObject({
+      type: 'receipt',
+      skuId: 'sku-456',
+      locationId: 'default-store',
+      quantity: 2,
+      reference: 'Unused PPE returned'
+    })
+  })
+
   it('removes a record only on a real 2xx success', async () => {
     await enqueueWrite('ppe_receipt', { ppeKind: 'helmet' })
 

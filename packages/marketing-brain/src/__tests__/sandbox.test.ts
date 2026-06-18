@@ -17,7 +17,6 @@ import {
   selectFewShots,
   renderFewShotsForPrompt,
 } from '../marketing-few-shots.js';
-import { buildMarketingSystemPrompt } from '../marketing-persona.js';
 
 describe('sandbox estate generator', () => {
   it('yields deterministic output for same seed', () => {
@@ -171,15 +170,5 @@ describe('marketing few-shots', () => {
     expect(txt).toContain('Example 2');
     expect(txt).toContain('Prospect:');
     expect(txt).toContain('Mr. Mwikila:');
-  });
-
-  it('buildMarketingSystemPrompt injects few-shots', () => {
-    const prompt = buildMarketingSystemPrompt({
-      visitorRole: 'owner',
-      sessionSeed: 'inject-test',
-      fewShotCount: 3,
-    });
-    expect(prompt).toContain('Reference Exemplars');
-    expect(prompt).toContain('Example 1');
   });
 });

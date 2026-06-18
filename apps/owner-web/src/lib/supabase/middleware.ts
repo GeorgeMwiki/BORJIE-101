@@ -25,7 +25,14 @@ export async function refreshSupabaseSession(
   request: NextRequest,
 ): Promise<RefreshResult> {
   const env = getSupabaseEnv();
-  let response = NextResponse.next({ request: { headers: request.headers } });
+  // Forward the request pathname as a header so server components (the root
+  // layout) can tell which route is rendering and skip the session-gated
+  // `OwnerShell` on public/auth routes like `/sign-in` — without this the
+  // shell's `getOwnerSession()` redirects to `/sign-in` even ON `/sign-in`,
+  // an infinite loop that makes the cockpit login unreachable.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-borjie-pathname', request.nextUrl.pathname);
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
 
   const supabase = createServerClient(env.url, env.anonKey, {
     cookies: {
@@ -34,12 +41,12 @@ export async function refreshSupabaseSession(
       },
       set(name: string, value: string, options: CookieOptions) {
         request.cookies.set({ name, value, ...options });
-        response = NextResponse.next({ request: { headers: request.headers } });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         response.cookies.set({ name, value, ...options });
       },
       remove(name: string, options: CookieOptions) {
         request.cookies.set({ name, value: '', ...options });
-        response = NextResponse.next({ request: { headers: request.headers } });
+        response = NextResponse.next({ request: { headers: requestHeaders } });
         response.cookies.set({ name, value: '', ...options });
       },
     },

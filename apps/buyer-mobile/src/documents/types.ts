@@ -100,30 +100,38 @@ export function validateUpload(input: {
   return { ok: true }
 }
 
-export function ingestionStatusLabel(status: IngestionStatus): string {
+/**
+ * Translator injected by the calling component (the useTranslation `t`).
+ * Keeping these helpers locale-driven means status / kind chips obey the
+ * active locale instead of hardcoding English — single-language-per-locale
+ * by construction.
+ */
+type Translate = (path: string) => string
+
+export function ingestionStatusLabel(status: IngestionStatus, t: Translate): string {
   switch (status) {
     case 'queued':
-      return 'Queued'
+      return t('documents.status_queued')
     case 'processing':
-      return 'Processing'
+      return t('documents.status_processing')
     case 'ready':
-      return 'Ready'
+      return t('documents.status_ready')
     case 'failed':
-      return 'Failed'
+      return t('documents.status_failed')
   }
 }
 
-export function kindLabel(kind: DocumentKind): string {
+export function kindLabel(kind: DocumentKind, t: Translate): string {
   switch (kind) {
     case 'contract':
-      return 'Contract'
+      return t('documents.kind_contract')
     case 'rfp':
-      return 'RFP / Tender'
+      return t('documents.kind_rfp')
     case 'letter':
-      return 'Letter'
+      return t('documents.kind_letter')
     case 'report':
-      return 'Report'
+      return t('documents.kind_report')
     case 'other':
-      return 'Other'
+      return t('documents.kind_other')
   }
 }

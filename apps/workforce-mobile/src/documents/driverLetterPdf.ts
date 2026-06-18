@@ -10,7 +10,16 @@
  * target — nothing here is a placeholder.
  */
 
+import type { Lang } from '../auth/types'
+import { pickStrings } from '../i18n'
+
 export interface DriverLetterFields {
+  /**
+   * Active locale. The letter renders in ONE language only — the Borjie
+   * canon forbids EN+SW on a single rendered surface. All labels resolve
+   * from the i18n catalog (documents.driverLetter) for this locale.
+   */
+  readonly lang: Lang
   readonly truckReg: string
   readonly driverName: string
   readonly mineral: string
@@ -48,17 +57,20 @@ function contentStream(lines: ReadonlyArray<string>): string {
  * construct (ASCII operators + WinAnsi text).
  */
 export function buildDriverLetterPdf(fields: DriverLetterFields): Uint8Array {
+  // Single active locale only (no EN+SW mixing) — every label from the
+  // i18n catalog for `fields.lang`.
+  const t = pickStrings(fields.lang).documents.driverLetter
   const lines: ReadonlyArray<string> = [
-    'BORJIE — Driver Transport Letter / Barua ya Usafirishaji',
+    t.title,
     '',
-    `Truck reg / Namba ya gari: ${fields.truckReg || '-'}`,
-    `Driver / Dereva: ${fields.driverName || '-'}`,
-    `Mineral / Madini: ${fields.mineral || '-'}`,
-    `Tonnage / Uzito (t): ${fields.tonnage || '-'}`,
-    `From / Kutoka: ${fields.routeFrom || '-'}`,
-    `To / Kwenda: ${fields.routeTo || '-'}`,
+    `${t.truckReg}: ${fields.truckReg || '-'}`,
+    `${t.driver}: ${fields.driverName || '-'}`,
+    `${t.mineral}: ${fields.mineral || '-'}`,
+    `${t.tonnage}: ${fields.tonnage || '-'}`,
+    `${t.routeFrom}: ${fields.routeFrom || '-'}`,
+    `${t.routeTo}: ${fields.routeTo || '-'}`,
     '',
-    `Issued / Imetolewa: ${fields.issuedAtIso}`
+    `${t.issued}: ${fields.issuedAtIso}`
   ]
 
   const stream = contentStream(lines)

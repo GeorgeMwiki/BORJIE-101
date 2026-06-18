@@ -1,9 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import {
-  buildMarketingSystemPrompt,
-  MARKETING_METADATA,
-  MARKETING_PROMPT_LAYER,
-} from '../marketing-persona.js';
 import { qualifyLead } from '../lead-qualifier.js';
 import {
   generateDemoEstate,
@@ -15,26 +10,6 @@ import {
 } from '../demo-data-generator.js';
 import { adviseTier, TIERS } from '../pricing-advisor.js';
 import { buildWaitlistSignup } from '../waitlist-integrator.js';
-
-describe('marketing-persona', () => {
-  it('injects Mr. Mwikila identity into the system prompt', () => {
-    const prompt = buildMarketingSystemPrompt({});
-    expect(prompt).toContain('Mr. Mwikila');
-    expect(prompt).toContain(MARKETING_PROMPT_LAYER);
-  });
-
-  it('notes visitor country when provided', () => {
-    expect(buildMarketingSystemPrompt({ visitorCountry: 'KE' })).toContain('KE');
-  });
-
-  it('skips role discovery when role is detected', () => {
-    expect(buildMarketingSystemPrompt({ visitorRole: 'owner' })).toContain('owner');
-  });
-
-  it('metadata is stable', () => {
-    expect(MARKETING_METADATA.id).toBe('mr-mwikila-marketing');
-  });
-});
 
 describe('lead-qualifier', () => {
   it('classifies an owner prospect', () => {

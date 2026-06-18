@@ -21,6 +21,13 @@ export interface WordmarkProps extends React.HTMLAttributes<HTMLDivElement> {
   readonly size?: WordmarkSize;
   readonly premium?: boolean;
   readonly label?: string;
+  /**
+   * Override the wordmark text colour. Pass `'currentColor'` on a
+   * theme-toggling surface so the wordmark follows the foreground and stays
+   * legible (WCAG AA) in BOTH light and dark — without this the `full`/
+   * `mono-cream` tones resolve to a fixed cream that vanishes on light.
+   */
+  readonly wordmarkColor?: string;
 }
 
 const SIZE_MAP: Record<WordmarkSize, number> = {
@@ -36,6 +43,7 @@ export function Wordmark({
   size = 'md',
   premium = true,
   label = 'Borjie',
+  wordmarkColor,
   className,
   ...rest
 }: WordmarkProps) {
@@ -50,6 +58,7 @@ export function Wordmark({
         size={SIZE_MAP[size]}
         tone={premium ? 'full' : 'mono-cream'}
         label={label}
+        {...(wordmarkColor !== undefined ? { wordmarkColor } : {})}
       />
     </div>
   );
@@ -60,6 +69,7 @@ export function WordmarkStacked({
   size = 'lg',
   premium = true,
   label = 'Borjie',
+  wordmarkColor,
   className,
   ...rest
 }: WordmarkProps) {
@@ -76,6 +86,7 @@ export function WordmarkStacked({
         size={SIZE_MAP[size]}
         tone={premium ? 'full' : 'mono-cream'}
         label={label}
+        {...(wordmarkColor !== undefined ? { wordmarkColor } : {})}
       />
     </div>
   );
@@ -86,6 +97,7 @@ export function WordmarkStacked({
 export function WordmarkOnly({
   size = 'md',
   label = 'Borjie',
+  wordmarkColor,
   className,
   ...rest
 }: Omit<WordmarkProps, 'premium'>) {
@@ -100,6 +112,7 @@ export function WordmarkOnly({
         size={SIZE_MAP[size]}
         tone="full"
         label={label}
+        {...(wordmarkColor !== undefined ? { wordmarkColor } : {})}
       />
     </span>
   );

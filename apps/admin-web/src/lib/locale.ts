@@ -39,9 +39,18 @@ export {
 /**
  * React hook that subscribes to the active locale. Re-renders if the
  * cookie changes mid-session (e.g. the user flips the toggle).
+ *
+ * `initialLocale` SEEDS the first render. A client component rendered by a
+ * Server Component that already resolved the cookie (via
+ * `readLocaleFromServerCookies`) MUST pass it so SSR + the client's first
+ * paint render the SAME, correct language — otherwise the hook defaults to
+ * `en` until the post-hydration effect runs, producing a one-frame
+ * EN-under-an-SW-header split (the zero-mix canon violation). Absent a seed
+ * (a purely client surface) it falls back to the project default and the
+ * effect below corrects it on mount.
  */
-export function useLocale(): Locale {
-  const [locale, setLocale] = useState<Locale>(DEFAULT_LOCALE);
+export function useLocale(initialLocale?: Locale): Locale {
+  const [locale, setLocale] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
   useEffect(() => {
     setLocale(readLocaleFromDocument());
     const interval = window.setInterval(() => {

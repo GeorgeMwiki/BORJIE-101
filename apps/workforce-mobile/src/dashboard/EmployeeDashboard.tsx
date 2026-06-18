@@ -57,6 +57,7 @@ export function EmployeeDashboard(): JSX.Element {
         error={shiftQuery.error ?? null}
         online={online}
         userId={userId}
+        lang={lang}
       />
       <SafetyBriefingSlot
         talk={toolboxQuery.data ?? null}

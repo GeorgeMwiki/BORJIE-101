@@ -26,8 +26,9 @@
  *     BorjieChatBubble
  *
  * Disclaimer:
- *   - hairline compliance notice ("Imezalishwa na AI · Si ushauri wa
- *     kifedha · Maamuzi ni yako") above the composer
+ *   - hairline mining-compliance notice pinning the "mine owner" actor
+ *     ("AI-generated · Not legal/operational advice · Decisions are made
+ *     by the mine owner") above the composer — matches the LitFin widget
  *
  * Footer / composer:
  *   - mic ghost button · textarea · gold-gradient circular send arrow
@@ -52,6 +53,8 @@ import {
   type CSSProperties,
   type KeyboardEvent,
 } from 'react';
+import { useChatScroll } from '../use-chat-scroll.js';
+import { JumpToLatestPill } from '../JumpToLatestPill.js';
 import type {
   BorjieLanguage,
   BorjieMessage,
@@ -142,7 +145,12 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const listEndRef = useRef<HTMLDivElement | null>(null);
+  // Anchor law: stick to the bottom during a stream, back off when the user
+  // scrolls up (then offer the JumpToLatestPill). Shared across all Borjie
+  // chat surfaces. See ../use-chat-scroll.ts.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
+  const prevStreamingRef = useRef(false);
   // Tracks whether we've already fired the synthetic "hello" so the
   // live brain produces the welcome turn instead of a canned string.
   // We fire it exactly once per panel-open lifetime; further opens
@@ -154,11 +162,17 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
     inputRef.current?.focus();
   }, []);
 
+  // Re-engage auto-follow at the top of each new turn. The transcript scroll
+  // itself is owned by `useChatScroll` (it follows content growth via
+  // Resize/Mutation observers, not a [messages] effect, so a tall streaming
+  // answer never scrolls its own tail off-screen).
   useEffect(() => {
-    if (listEndRef.current && typeof listEndRef.current.scrollIntoView === 'function') {
-      listEndRef.current.scrollIntoView({ block: 'end' });
+    const wasStreaming = prevStreamingRef.current;
+    prevStreamingRef.current = chat.isStreaming;
+    if (chat.isStreaming && !wasStreaming) {
+      resetAtStreamStart();
     }
-  }, [chat.messages.length, chat.isStreaming]);
+  }, [chat.isStreaming, resetAtStreamStart]);
 
   // ── Live first-open greeting ──
   // No canned welcome string. When the panel opens with an empty
@@ -212,16 +226,26 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
     [handleSubmit, onClose],
   );
 
+  // `brand` is the long single-string identity, kept only as the dialog's
+  // accessible name (aria-label). The VISIBLE header renders the short
+  // `name` + `headerRole` per the locked canonical-display contract — never
+  // the long brochure sentence.
   const brand = language === 'sw' ? BORJIE_BRAND_SW : BORJIE_BRAND_EN;
-  const tagline = t(MESSAGES.brandTagline, language);
+  const headerName = MR_MWIKILA_CANONICAL_DISPLAY.name;
+  const headerRole = MR_MWIKILA_CANONICAL_DISPLAY.headerRole[language];
   const footerAttribution = t(MESSAGES.footerAttribution, language);
   const placeholder = t(MESSAGES.placeholder, language);
   const sendLabel = t(MESSAGES.send, language);
   const micLabel = language === 'sw' ? 'Sauti' : 'Voice';
+  // Mining-domain compliance copy. The actor is the mine owner / licence
+  // holder, so the disclaimer pins "mine owner" — matching the LitFin
+  // marketing widget (apps/marketing BorjieWidgetMount) and the LitFin
+  // panel default in litfin-primitives.tsx so every Mr. Mwikila chat
+  // surface reads identically (persona parity).
   const disclaimerText =
     language === 'sw'
-      ? 'Imezalishwa na AI · Si ushauri wa kifedha · Maamuzi ni yako'
-      : 'AI-generated · Not financial advice · Decisions are yours';
+      ? 'Imezalishwa na AI · Si ushauri wa kisheria/uendeshaji · Maamuzi yanafanywa na mmiliki wa mgodi'
+      : 'AI-generated · Not legal/operational advice · Decisions are made by the mine owner';
 
   // Most-recent assistant evidence id drives the ContextBadge pill.
   const contextLabel = useMemo<string | null>(() => {
@@ -405,7 +429,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
                 textOverflow: 'ellipsis',
               }}
             >
-              {brand}
+              {headerName}
             </strong>
             <span
               style={{
@@ -418,7 +442,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
                 fontWeight: 600,
               }}
             >
-              {tagline}
+              {headerRole}
             </span>
             {contextLabel ? (
               <span
@@ -533,6 +557,16 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
 
       {/* ── Body ── */}
       <div
+        style={{
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+      <div
+        ref={scrollRef}
         data-testid="borjie-live-region"
         aria-live="polite"
         aria-atomic="false"
@@ -583,7 +617,12 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
             );
           })}
         </ul>
-        <div ref={listEndRef} />
+      </div>
+        <JumpToLatestPill
+          visible={showJumpPill}
+          language={language}
+          onClick={jumpToLatest}
+        />
       </div>
 
       {showChips ? (
@@ -631,9 +670,12 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
             fontWeight: 500,
             lineHeight: 1.3,
             color: 'rgba(15, 23, 42, 0.55)',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
+            // A compliance string is never single-line-ellipsis-clipped: the
+            // (longer, mining-domain) copy must stay fully readable in the
+            // compact 380px floating panel, worst-case the longer SW locale.
+            // Wrap freely (the row is alignItems:center so the shield stays
+            // aligned); overflowWrap guards a long unbroken token.
+            overflowWrap: 'anywhere',
           }}
         >
           {disclaimerText}

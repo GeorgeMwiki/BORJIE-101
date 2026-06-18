@@ -172,6 +172,74 @@ export function toPersistedSlice(
 }
 
 /**
+ * Smart-reply chip mapper — LitFin parity with buyer-mobile. After each
+ * brain response we derive up to two follow-up prompts from the first
+ * tool call's `tool` id. Static mapping (the brain-side `/brain/suggest`
+ * endpoint lands in v2 per the mobile-chat-latency research §11.5).
+ *
+ * Bilingual by construction: each chip carries the active-locale label +
+ * prompt. The caller passes the resolved `lang` so a single language
+ * renders per surface — no widget-only language state, no mixing.
+ */
+export function smartReplyChips(
+  toolName: string | null,
+  lang: 'sw' | 'en'
+): ReadonlyArray<{ readonly id: string; readonly label: string; readonly prompt: string }> {
+  if (toolName === null) {
+    return []
+  }
+  const sw = lang === 'sw'
+  if (toolName === 'cockpit.daily-brief') {
+    return [
+      { id: 'brief-cash', label: sw ? 'Hela na muda' : 'Cash and runway', prompt: sw ? 'Onyesha hela na muda' : 'Show cash and runway' },
+      { id: 'brief-decisions', label: sw ? 'Maamuzi' : 'Decisions', prompt: sw ? 'Maamuzi yanayosubiri' : 'Pending decisions' }
+    ]
+  }
+  if (toolName === 'attendance.crew') {
+    return [
+      { id: 'crew-late', label: sw ? 'Waliochelewa' : 'Who is late', prompt: sw ? 'Nani amechelewa leo?' : 'Who is late today?' },
+      { id: 'crew-shift', label: sw ? 'Shifti' : 'Shift', prompt: sw ? 'Onyesha shifti ya leo' : 'Show today’s shift' }
+    ]
+  }
+  if (toolName === 'tasks.today') {
+    return [
+      { id: 'tasks-next', label: sw ? 'Kazi inayofuata' : 'Next task', prompt: sw ? 'Kazi yangu inayofuata ni ipi?' : 'What is my next task?' }
+    ]
+  }
+  if (toolName === 'attendance.shift') {
+    return [
+      { id: 'shift-clock', label: sw ? 'Ingia kazini' : 'Clock in', prompt: sw ? 'Nataka kuingia kazini' : 'I want to clock in' }
+    ]
+  }
+  if (toolName === 'incidents.exceptions') {
+    return [
+      { id: 'inc-report', label: sw ? 'Ripoti tukio' : 'Report an issue', prompt: sw ? 'Nataka kuripoti tukio' : 'I want to report an issue' }
+    ]
+  }
+  if (toolName === 'performance.snapshot') {
+    return [
+      { id: 'perf-improve', label: sw ? 'Niboreshe vipi?' : 'How to improve?', prompt: sw ? 'Naweza kuboresha vipi?' : 'How can I improve?' }
+    ]
+  }
+  return []
+}
+
+/**
+ * `shouldAutoScroll` — LitFin parity. Only snap the chat to the bottom
+ * when the user is already near it (within `threshold` px), so reading
+ * earlier turns while a new one streams never yanks the viewport.
+ */
+export function shouldAutoScroll(
+  scrollY: number,
+  contentHeight: number,
+  viewportHeight: number,
+  threshold: number = 80
+): boolean {
+  const distanceFromBottom = contentHeight - (scrollY + viewportHeight)
+  return distanceFromBottom <= threshold
+}
+
+/**
  * `derivePendingState` summarises the visual state for tests + telemetry.
  * Returns a string the HomeChat doesn't need at render time but tests
  * can assert on to verify timing transitions deterministically.

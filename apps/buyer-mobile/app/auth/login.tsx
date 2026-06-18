@@ -77,7 +77,7 @@ export default function AuthLogin() {
   return (
     <Screen>
       <View style={styles.hero}>
-        <Text style={styles.eyebrow}>BORJIE · MARKETPLACE</Text>
+        <Text style={styles.eyebrow}>{t('brand.marketplace_eyebrow')}</Text>
         <Text style={styles.brand}>{t('app.name')}</Text>
         <Text style={styles.slogan}>{t('app.slogan')}</Text>
         <Text style={styles.dayGreet}>{greet(lang)}</Text>

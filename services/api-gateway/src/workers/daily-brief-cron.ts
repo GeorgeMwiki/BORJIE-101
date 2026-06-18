@@ -37,6 +37,7 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import type { Logger } from 'pino';
+import { assertUrlSafe } from '@borjie/enterprise-hardening';
 import { composeOwnerBrief, persistSnapshot } from '../routes/owner/brief.hono';
 import { callBrainOnce } from '../routes/owner/brain-call';
 import {
@@ -678,6 +679,20 @@ async function dispatchOne(args: DispatchOneArgs): Promise<DispatchResult> {
         status: 'failed',
         errorCode: 'slack_webhook_not_configured',
         errorMessage: 'no webhook configured for tenant',
+      };
+    }
+    // SSRF pre-flight — the webhook may be a per-tenant value
+    // (slackWebhookForTenant); screen it before dispatch so an internal /
+    // metadata target can never be reached. Fails closed (no send).
+    try {
+      await assertUrlSafe(webhook);
+    } catch (err) {
+      return {
+        status: 'failed',
+        errorCode: 'slack_webhook_unsafe',
+        errorMessage: `SSRF-blocked Slack webhook: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       };
     }
     const slackHeader =

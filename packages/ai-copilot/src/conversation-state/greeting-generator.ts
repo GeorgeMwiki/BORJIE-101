@@ -2,7 +2,7 @@
  * Greeting generator.
  *
  * Produces a time-of-day + user-history-aware greeting for Mr. Mwikila.
- * Zero LLM \u2014 the goal is *reliable*, consistent voice. The LLM can rewrite
+ * Zero LLM. The goal is *reliable*, consistent voice. The LLM can rewrite
  * these greetings for flavour, but it should never fail to produce one.
  */
 
@@ -23,14 +23,14 @@ export function generateGreeting(input: GreetingInput): string {
 
   if (input.language === 'sw') {
     return [
-      `${tod}, ${name} \u2014 hapa ni Mr. Mwikila.`,
+      `${tod}, ${name}. Hapa ni Mr. Mwikila.`,
       resume,
       insights,
     ]
       .filter(Boolean)
       .join(' ');
   }
-  return [`${tod}, ${name} \u2014 Mr. Mwikila here.`, resume, insights]
+  return [`${tod}, ${name}. Mr. Mwikila here.`, resume, insights]
     .filter(Boolean)
     .join(' ');
 }
@@ -51,8 +51,8 @@ function buildResumeLine(input: GreetingInput): string {
   const { user, language } = input;
   if (!user.lastSessionAt) {
     return language === 'sw'
-      ? 'Karibu kwenye jukwaa la usimamizi wa mali.'
-      : 'Welcome to your property desk.';
+      ? 'Karibu kwenye estate yako. Tuanze kusukuma mgodi.'
+      : "Welcome to your estate. Let's get the mine moving.";
   }
   const hours = hoursSince(user.lastSessionAt, input.now);
   if (hours < 6) {
@@ -61,7 +61,7 @@ function buildResumeLine(input: GreetingInput): string {
   if (user.lastFocus) {
     return language === 'sw'
       ? `Mara ya mwisho ulikuwa ukiangalia ${user.lastFocus}; tuendelee?`
-      : `Last time you were reviewing ${user.lastFocus} \u2014 should we continue?`;
+      : `Last time you were reviewing ${user.lastFocus}. Should we continue?`;
   }
   return language === 'sw' ? 'Karibu tena.' : 'Welcome back.';
 }
@@ -70,9 +70,9 @@ function buildInsightLine(input: GreetingInput): string {
   const count = input.openInsightCount ?? 0;
   if (count === 0) return '';
   if (input.language === 'sw') {
-    return `Nimekuandalia ${count} uchambuzi mpya \u2014 utaanza na upi?`;
+    return `Nimekuandalia ${count} uchambuzi mpya. Utaanza na upi?`;
   }
-  return `I have ${count} fresh insight${count === 1 ? '' : 's'} for you \u2014 where do you want to start?`;
+  return `I have ${count} fresh insight${count === 1 ? '' : 's'} for you. Where do you want to start?`;
 }
 
 function hoursSince(isoTs: string, now: Date): number {

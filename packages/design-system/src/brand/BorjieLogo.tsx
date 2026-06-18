@@ -433,7 +433,7 @@ export function BorjieLogo({
       aria-label={title}
       {...rest}
     >
-      <BorjieMarkSvg size={size} tone={tone} title={title} />
+      <BorjieMarkSvg size={size} tone={tone} title={title} pulse={pulse} />
       <BorjieWordmarkText size={size} tone={tone} label={label} wordmarkColor={wordmarkColor} />
     </span>
   );

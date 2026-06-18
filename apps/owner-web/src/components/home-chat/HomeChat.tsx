@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { isBrainConfigured } from '@/lib/brain-api';
 import type { BrainToolCall } from '@/lib/brain-api';
@@ -16,6 +16,8 @@ import { PersonaGreeting } from './PersonaGreeting';
 import { ToolCallSidebar } from './ToolCallSidebar';
 import { BorjieDynamicHints } from './BorjieDynamicHints';
 import { hintActionSuggestion } from './hint-action-suggestion';
+import { useScrollAnchor } from '@/components/home-chat/streaming/use-scroll-anchor';
+import { JumpToLatestPill } from '@/components/home-chat/streaming/JumpToLatestPill';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
 
@@ -111,15 +113,13 @@ export function HomeChat({
     onThreadCreated: handleThreadCreated,
   });
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== 'function') return;
-    el.scrollTo({
-      top: el.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [messages.length, isStreaming]);
+  // Stick-to-bottom ONLY when the owner is near the bottom (follow-on-growth via
+  // ResizeObserver/MutationObserver, scroll-behavior:auto), with a "jump to
+  // latest" pill when they scroll up — the same anti-yank contract the master
+  // brain chat uses. The old per-render `scrollTo({behavior:'smooth'})` effect
+  // chased/shook the bottom on every chunk; this kills that bug class.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useScrollAnchor();
 
   const emptyKind = resolveEmptyKind({
     configured,
@@ -131,9 +131,12 @@ export function HomeChat({
 
   const onSuggestion = useCallback(
     (text: string) => {
+      // Re-engage bottom-follow for the fresh answer so a prior scroll-up
+      // doesn't strand the owner away from the new reply.
+      resetAtStreamStart();
       void send(text);
     },
-    [send],
+    [resetAtStreamStart, send],
   );
 
   // Locale-bound translator for the proactive-hint follow-up copy.
@@ -222,7 +225,7 @@ export function HomeChat({
         ) : null}
 
         <section
-          className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface/40"
+          className="relative flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-surface/40"
           aria-label="Borjie Brain transcript"
           data-testid="home-chat-transcript"
         >
@@ -264,10 +267,20 @@ export function HomeChat({
               </div>
             ) : null}
           </div>
+          <JumpToLatestPill
+            visible={showJumpPill}
+            languagePreference={languagePreference}
+            onClick={jumpToLatest}
+          />
           <AskComposer
             busy={isStreaming}
             disabled={composerDisabled}
-            onSubmit={(content) => void send(content)}
+            onSubmit={(content) => {
+              // Re-engage bottom-follow for the fresh answer so a prior
+              // scroll-up doesn't strand the owner away from the new reply.
+              resetAtStreamStart();
+              void send(content);
+            }}
           />
         </section>
         <BorjieDynamicHints

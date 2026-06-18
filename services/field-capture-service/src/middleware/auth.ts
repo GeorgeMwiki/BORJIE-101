@@ -83,6 +83,7 @@ function extractBearer(headerValue: string | undefined): string | null {
 interface ClaimMetadata {
   readonly tenantId?: string;
   readonly role?: string;
+  readonly tenantConflict: boolean;
 }
 
 function readMetadata(payload: JWTPayload): ClaimMetadata {
@@ -92,21 +93,29 @@ function readMetadata(payload: JWTPayload): ClaimMetadata {
   const user = (payload as Record<string, unknown>).user_metadata as
     | Record<string, unknown>
     | undefined;
-  const merged: Record<string, unknown> = { ...(user ?? {}), ...(app ?? {}) };
 
+  // Authoritative tenant/role come from app_metadata ONLY (plus the
+  // non-client-writable top-level claim). user_metadata is client-writable via
+  // supabase.auth.updateUser({ data }), so a fall-through to it would let a
+  // user self-grant a tenant or role. Mirrors the canonical gateway, which
+  // rejects — never trusts — user_metadata for authorization.
   const tenantId =
-    typeof merged.tenant_id === 'string' && merged.tenant_id.length > 0
-      ? merged.tenant_id
+    typeof app?.tenant_id === 'string' && app.tenant_id.length > 0
+      ? (app.tenant_id as string)
       : typeof (payload as Record<string, unknown>).tenantId === 'string'
         ? ((payload as Record<string, unknown>).tenantId as string)
         : undefined;
+  const userTenant =
+    typeof user?.tenant_id === 'string' && user.tenant_id.length > 0
+      ? (user.tenant_id as string)
+      : undefined;
 
   let role: string | undefined;
-  if (Array.isArray(merged.roles) && merged.roles.length > 0) {
-    const first = merged.roles[0];
+  if (Array.isArray(app?.roles) && app.roles.length > 0) {
+    const first = app.roles[0];
     if (typeof first === 'string') role = first;
-  } else if (typeof merged.role === 'string') {
-    role = merged.role;
+  } else if (typeof app?.role === 'string') {
+    role = app.role as string;
   } else if (typeof (payload as Record<string, unknown>).role === 'string') {
     role = (payload as Record<string, unknown>).role as string;
   }
@@ -114,6 +123,9 @@ function readMetadata(payload: JWTPayload): ClaimMetadata {
   const result: ClaimMetadata = {
     ...(tenantId !== undefined ? { tenantId } : {}),
     ...(role !== undefined ? { role } : {}),
+    // A client-supplied tenant that disagrees with (or appears without) the
+    // trusted app_metadata tenant is a privilege-escalation attempt.
+    tenantConflict: userTenant !== undefined && userTenant !== tenantId,
   };
   return result;
 }
@@ -195,6 +207,16 @@ export function registerAuthHook(
             return;
           }
           const md = readMetadata(payload);
+          if (md.tenantConflict) {
+            reply.code(403);
+            void reply.send({
+              error: {
+                code: 'AUTH_TENANT_CONFLICT',
+                message: 'client tenant claim disagrees with the trusted tenant',
+              },
+            });
+            return;
+          }
           if (!md.tenantId) {
             reply.code(403);
             void reply.send({

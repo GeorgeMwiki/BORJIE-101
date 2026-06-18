@@ -23,7 +23,15 @@ const BUYER_ALLOWED_PREFIXES: ReadonlyArray<string> = [
 
 export interface NavigateTarget {
   readonly route: string
+  /**
+   * Display label. For server-returned search results this is the
+   * real content label. For the built-in fallback targets
+   * (DEFAULT_BUYER_TARGETS) it holds the i18n key in `labelKey` and
+   * `label` is a non-rendered English mnemonic; the renderer prefers
+   * the translated `labelKey` so the locale stays single-language.
+   */
   readonly label: string
+  readonly labelKey?: string
   readonly params?: Readonly<Record<string, string>>
 }
 
@@ -55,10 +63,10 @@ export function subscribeNavigateRequest(handler: (e: NavigateRequestEvent) => v
 }
 
 export const DEFAULT_BUYER_TARGETS: ReadonlyArray<NavigateTarget> = [
-  { route: '/(tabs)', label: 'Home' },
-  { route: '/marketplace', label: 'Marketplace' },
-  { route: '/rfb', label: 'Request for Bids' },
-  { route: '/bids', label: 'My bids' },
-  { route: '/documents', label: 'Contracts' },
-  { route: '/chat', label: 'Chat' }
+  { route: '/(tabs)', label: 'Home', labelKey: 'superpowers.target_home' },
+  { route: '/marketplace', label: 'Marketplace', labelKey: 'superpowers.target_marketplace' },
+  { route: '/rfb', label: 'Request for Bids', labelKey: 'superpowers.target_rfb' },
+  { route: '/bids', label: 'My bids', labelKey: 'superpowers.target_bids' },
+  { route: '/documents', label: 'Contracts', labelKey: 'superpowers.target_contracts' },
+  { route: '/chat', label: 'Chat', labelKey: 'superpowers.target_chat' }
 ]

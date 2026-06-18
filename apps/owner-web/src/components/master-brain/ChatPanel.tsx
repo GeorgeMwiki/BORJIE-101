@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useChatSession } from '@/lib/queries/chat';
 import { useLocale } from '@/lib/locale';
+import { useScrollAnchor } from '@/components/home-chat/streaming/use-scroll-anchor';
+import { JumpToLatestPill } from '@/components/home-chat/streaming/JumpToLatestPill';
 import { ChatBubble } from './ChatBubble';
 import { Composer } from './Composer';
 import { BreadcrumbStrip } from './BreadcrumbStrip';
@@ -23,18 +25,17 @@ export function ChatPanel() {
   const locale = useLocale();
   const { state, send, abort } = useChatSession(locale);
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: 'smooth',
-    });
-  }, [state.messages.length, state.streamingText]);
+  // Stick-to-bottom ONLY when the owner is near the bottom (follow-on-growth via
+  // ResizeObserver/MutationObserver, scroll-behavior:auto), with a "jump to
+  // latest" pill when they scroll up — the same anti-yank contract the primary
+  // cockpit chat uses. The old per-token `scrollTo({behavior:'smooth'})` effect
+  // chased/shook the bottom on every streamed chunk; this kills that bug class.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useScrollAnchor();
 
   return (
     <section className="flex h-chart-xl overflow-hidden rounded-lg border border-border bg-surface/40">
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="relative flex min-w-0 flex-1 flex-col">
         <BreadcrumbStrip
           breadcrumbs={state.streamingBreadcrumbs}
           streaming={state.streaming}
@@ -71,10 +72,20 @@ export function ChatPanel() {
             </div>
           ) : null}
         </div>
+        <JumpToLatestPill
+          visible={showJumpPill}
+          languagePreference={locale}
+          onClick={jumpToLatest}
+        />
         <Composer
           busy={state.streaming}
           onAbort={abort}
-          onSubmit={(content) => void send({ content })}
+          onSubmit={(content) => {
+            // Re-engage bottom-follow for the fresh answer so a prior scroll-up
+            // doesn't strand the owner away from the new reply.
+            resetAtStreamStart();
+            void send({ content });
+          }}
         />
       </div>
       <EvidencePanel

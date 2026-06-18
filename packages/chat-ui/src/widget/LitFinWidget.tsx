@@ -25,16 +25,32 @@ import {
   useMemo,
   type JSX,
 } from 'react';
+import dynamic from 'next/dynamic';
 import { BorjieMark } from '../borjie/BorjieMark';
 import { useLitFinAI } from './LitFinAIProvider';
 import { useWidgetLanguage } from './useWidgetLanguage';
 import { WidgetErrorBoundary } from './WidgetErrorBoundary';
-import { LitFinChatPanel } from './LitFinChatPanel';
 import {
   getWidgetSuggestionChips,
   getWidgetWelcomeMessage,
   type WidgetPortalId,
 } from './litfin-widget-content';
+
+// ---------------------------------------------------------------------------
+// Lazy-load LitFinChatPanel — only fetched when the user opens the widget.
+// Mirrors LitFin's perf pattern: keeps the heavy chat surface (markdown,
+// voice port, framer layout) out of the marketing critical-path bundle.
+// ---------------------------------------------------------------------------
+const loadChatPanel = () =>
+  import('./LitFinChatPanel.js').then((m) => ({ default: m.LitFinChatPanel }));
+
+const LitFinChatPanel = dynamic(loadChatPanel, {
+  // Render nothing while the panel chunk loads. The widget only mounts the
+  // panel once `hasBeenOpened` is true AND we preload on idle / hover / focus,
+  // so a visible skeleton would only ever flash a SECOND floating panel on a
+  // post-reload chunk fetch. `null` keeps a single panel on screen.
+  loading: () => null,
+});
 
 const WIDGET_SEEN_KEY = 'borjie-litfin-widget-seen';
 
@@ -70,6 +86,26 @@ export function LitFinWidget(): JSX.Element {
       setHasBeenOpened(true);
     }
   }, [isOpen, hasBeenOpened]);
+
+  // Preload the chat-panel chunk on idle so first-open latency is low,
+  // without pulling the heavy chat bundle into the marketing critical path.
+  useEffect(() => {
+    if (hasBeenOpened) return;
+    if (typeof window === 'undefined') return;
+    const preload = () => {
+      void loadChatPanel();
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (typeof w.requestIdleCallback === 'function') {
+      const idleId = w.requestIdleCallback(preload, { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(idleId);
+    }
+    const timer = globalThis.setTimeout(preload, 1800);
+    return () => globalThis.clearTimeout(timer);
+  }, [hasBeenOpened]);
 
   useEffect(() => {
     if (portalId !== 'public' || isOpen) {
@@ -191,6 +227,8 @@ export function LitFinWidget(): JSX.Element {
                   setShowTooltip(false);
                 }
               }}
+              onMouseEnter={() => void loadChatPanel()}
+              onFocus={() => void loadChatPanel()}
               className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:shadow-xl hover:shadow-primary/30 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background active:scale-95"
               aria-label={askLabel}
               aria-describedby={

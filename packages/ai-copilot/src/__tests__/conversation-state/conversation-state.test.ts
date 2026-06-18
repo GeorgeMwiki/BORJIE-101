@@ -168,6 +168,51 @@ describe('generateGreeting', () => {
     });
     expect(s).toMatch(/4/);
   });
+  it('no-session greeting is mining-native (no property/mali, no em-dash)', () => {
+    const en = generateGreeting({
+      language: 'en',
+      now: new Date('2026-04-19T08:00:00'),
+      user: { displayName: 'Test' },
+    });
+    expect(en).toContain('estate');
+    expect(en).not.toContain('property');
+    expect(en).not.toContain('—');
+    const sw = generateGreeting({
+      language: 'sw',
+      now: new Date('2026-04-19T08:00:00'),
+      user: { displayName: 'Test' },
+    });
+    expect(sw).toContain('mgodi');
+    expect(sw).not.toContain('mali');
+    expect(sw).not.toContain('—');
+  });
+  it('never joins with an em-dash across history/insight branches', () => {
+    const variants = [
+      generateGreeting({
+        language: 'en',
+        now: new Date('2026-04-19T20:00:00'),
+        user: {
+          displayName: 'Test',
+          lastSessionAt: new Date('2026-04-17T08:00:00').toISOString(),
+          lastFocus: 'Geita licence calendar',
+        },
+        openInsightCount: 2,
+      }),
+      generateGreeting({
+        language: 'sw',
+        now: new Date('2026-04-19T20:00:00'),
+        user: {
+          displayName: 'Test',
+          lastSessionAt: new Date('2026-04-17T08:00:00').toISOString(),
+          lastFocus: 'kalenda ya leseni',
+        },
+        openInsightCount: 2,
+      }),
+    ];
+    for (const v of variants) {
+      expect(v).not.toContain('—');
+    }
+  });
 });
 
 describe('resumeDecision', () => {

@@ -2,16 +2,16 @@
 
 import {
   useCallback,
-  useEffect,
-  useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Send, Square, RotateCcw, Sparkles } from 'lucide-react';
+import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 
 import { ApiError, isBrainConfigured } from '@/lib/brain-api';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   useAskBorjie,
   type AskBorjieMessage,
@@ -47,6 +47,7 @@ import { ToolCallSidebar } from './ToolCallSidebar';
  */
 
 function HomeChatInner() {
+  const locale = useLocale();
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialThreadId = searchParams?.get('thread') ?? null;
@@ -78,22 +79,25 @@ function HomeChatInner() {
   });
 
   const [draft, setDraft] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || typeof el.scrollTo !== 'function') return;
-    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, isStreaming]);
+  // Stick-to-bottom ONLY when the operator is near the bottom (follow-on-growth
+  // via ResizeObserver/MutationObserver, scroll-behavior:auto), with a "jump to
+  // latest" pill when they scroll up — the same anti-yank contract the owner
+  // cockpit chat uses. The old per-render `scrollTo({behavior:'smooth'})` effect
+  // chased/shook the bottom on every chunk; this kills that bug class.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
 
   const submitDraft = useCallback(
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isStreaming) return;
+      // Re-engage bottom-follow for the fresh answer so a prior scroll-up
+      // doesn't strand the operator away from the new reply.
+      resetAtStreamStart();
       void send(trimmed);
       setDraft('');
     },
-    [isStreaming, send],
+    [isStreaming, resetAtStreamStart, send],
   );
 
   const onFormSubmit = useCallback(
@@ -137,7 +141,7 @@ function HomeChatInner() {
 
   return (
     <div className="flex h-screen w-full flex-row bg-background text-foreground">
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <main className="relative flex flex-1 flex-col overflow-hidden">
         <header className="flex items-center justify-between gap-3 border-b border-border bg-surface/40 px-6 py-3">
           <div className="flex items-center gap-2">
             <Sparkles
@@ -145,7 +149,10 @@ function HomeChatInner() {
               aria-hidden="true"
             />
             <h1 className="font-display text-lg text-foreground">
-              Borjie internal — chat home
+              {pickByLocale(locale, {
+                en: 'Borjie internal — chat home',
+                sw: 'Borjie ndani — gumzo la nyumbani',
+              })}
             </h1>
             {threadId ? (
               <code
@@ -164,7 +171,7 @@ function HomeChatInner() {
               data-testid="home-chat-reset"
             >
               <RotateCcw className="h-3 w-3" aria-hidden="true" />
-              New thread
+              {pickByLocale(locale, { en: 'New thread', sw: 'Mada mpya' })}
             </button>
           ) : null}
         </header>
@@ -179,6 +186,7 @@ function HomeChatInner() {
             <PersonaGreeting
               onSuggest={onChipClick}
               disabled={!configured || isStreaming}
+              locale={locale}
             />
           ) : (
             <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
@@ -190,15 +198,28 @@ function HomeChatInner() {
                   data-testid="home-chat-hydrating"
                   className="text-center text-xs text-neutral-500"
                 >
-                  Loading thread…
+                  {pickByLocale(locale, {
+                    en: 'Loading thread…',
+                    sw: 'Inapakia mada…',
+                  })}
                 </p>
               ) : null}
               {error ? (
-                <ErrorBanner error={error} configured={configured} />
+                <ErrorBanner
+                  error={error}
+                  configured={configured}
+                  locale={locale}
+                />
               ) : null}
             </div>
           )}
         </section>
+
+        <JumpToLatestPill
+          visible={showJumpPill}
+          language={locale}
+          onClick={jumpToLatest}
+        />
 
         <Composer
           draft={draft}
@@ -208,6 +229,7 @@ function HomeChatInner() {
           busy={isStreaming}
           disabled={!configured}
           configured={configured}
+          locale={locale}
         />
       </main>
 
@@ -306,24 +328,34 @@ function Bubble({ message }: { readonly message: AskBorjieMessage }) {
 function ErrorBanner({
   error,
   configured,
+  locale,
 }: {
   readonly error: Error;
   readonly configured: boolean;
+  readonly locale: Locale;
 }) {
   const isAuth = error instanceof ApiError && error.status === 401;
+  const headline = isAuth
+    ? pickByLocale(locale, {
+        en: 'Session expired.',
+        sw: 'Kipindi kimeisha muda.',
+      })
+    : !configured
+      ? pickByLocale(locale, {
+          en: 'Brain backend not configured.',
+          sw: 'Mfumo wa akili haujasanidiwa.',
+        })
+      : pickByLocale(locale, {
+          en: 'The brain stream dropped.',
+          sw: 'Mtiririko wa akili umekatika.',
+        });
   return (
     <div
       role="alert"
       data-testid="home-chat-error"
       className="rounded-md border border-warning/40 bg-warning-subtle/20 px-4 py-3 text-sm text-warning"
     >
-      <div className="font-medium">
-        {isAuth
-          ? 'Session expired.'
-          : !configured
-            ? 'Brain backend not configured.'
-            : 'The brain stream dropped.'}
-      </div>
+      <div className="font-medium">{headline}</div>
       <div className="mt-0.5 text-xs text-neutral-400">{error.message}</div>
     </div>
   );
@@ -337,6 +369,7 @@ interface ComposerProps {
   readonly busy: boolean;
   readonly disabled: boolean;
   readonly configured: boolean;
+  readonly locale: Locale;
 }
 
 function Composer({
@@ -347,6 +380,7 @@ function Composer({
   busy,
   disabled,
   configured,
+  locale,
 }: ComposerProps) {
   const rowCount = Math.min(6, Math.max(2, draft.split('\n').length));
   return (
@@ -364,10 +398,19 @@ function Composer({
           rows={rowCount}
           placeholder={
             configured
-              ? 'Ask Borjie internal — Swahili or English. Enter to send, Shift+Enter for newline.'
-              : 'Set NEXT_PUBLIC_API_GATEWAY_URL to enable chat.'
+              ? pickByLocale(locale, {
+                  en: 'Ask Borjie internal — Swahili or English. Enter to send, Shift+Enter for newline.',
+                  sw: 'Uliza Borjie ndani — Kiswahili au Kiingereza. Enter kutuma, Shift+Enter kwa mstari mpya.',
+                })
+              : pickByLocale(locale, {
+                  en: 'Set NEXT_PUBLIC_API_GATEWAY_URL to enable chat.',
+                  sw: 'Weka NEXT_PUBLIC_API_GATEWAY_URL kuwezesha gumzo.',
+                })
           }
-          aria-label="Ask Borjie internal"
+          aria-label={pickByLocale(locale, {
+            en: 'Ask Borjie internal',
+            sw: 'Uliza Borjie ndani',
+          })}
           disabled={disabled}
           maxLength={2000}
           className="flex-1 resize-none rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus:border-signal-500/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -376,23 +419,26 @@ function Composer({
           <button
             type="button"
             disabled
-            aria-label="Generating"
+            aria-label={pickByLocale(locale, {
+              en: 'Generating',
+              sw: 'Inazalisha',
+            })}
             data-testid="home-chat-busy"
             className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-3 py-2 text-sm text-neutral-400"
           >
             <Square className="h-4 w-4" aria-hidden="true" />
-            Working
+            {pickByLocale(locale, { en: 'Working', sw: 'Inafanya kazi' })}
           </button>
         ) : (
           <button
             type="submit"
-            aria-label="Send"
+            aria-label={pickByLocale(locale, { en: 'Send', sw: 'Tuma' })}
             disabled={disabled || draft.trim().length === 0}
             data-testid="home-chat-send"
             className="inline-flex items-center gap-1 rounded-md border border-signal-500/40 bg-signal-500/10 px-3 py-2 text-sm text-signal-500 hover:bg-signal-500/20 disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Send className="h-4 w-4" aria-hidden="true" />
-            Ask
+            {pickByLocale(locale, { en: 'Ask', sw: 'Uliza' })}
           </button>
         )}
       </div>

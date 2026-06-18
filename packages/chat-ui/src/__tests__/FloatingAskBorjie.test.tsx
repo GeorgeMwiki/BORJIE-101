@@ -40,6 +40,9 @@ describe('FloatingAskBorjie', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
     window.localStorage.clear();
+    // The widget now resolves language from the `borjie_locale` page cookie —
+    // clear it so a case from another suite can never leak a locale in here.
+    document.cookie = 'borjie_locale=; path=/; max-age=0';
     savedGatewayUrl = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
     delete process.env.NEXT_PUBLIC_API_GATEWAY_URL;
   });
@@ -67,9 +70,9 @@ describe('FloatingAskBorjie', () => {
     // The canned welcome bubble was removed — instead the panel
     // dispatches one synthetic "hello" to /api/v1/public/chat on
     // first open so the Anthropic-backed persona generates the
-    // greeting. The widget header still renders the canonical brand
-    // (sourced from MR_MWIKILA_CANONICAL_DISPLAY.name_full) which
-    // contains the persona role.
+    // greeting. The widget header renders the canonical persona name +
+    // the short headerRole line (the long single-string identity stays
+    // on the dialog's aria-label, not in the visible header text).
     const fetchMock = vi.fn().mockImplementation(() =>
       Promise.resolve(
         makeSseResponse([
@@ -86,7 +89,13 @@ describe('FloatingAskBorjie', () => {
     fireEvent.click(fab);
     const panel = await screen.findByTestId('borjie-chat-panel');
     expect(panel).toBeInTheDocument();
-    expect(panel.textContent ?? '').toMatch(/the brain layer within Borjie/i);
+    // The visible header shows the persona name + the short EN role line
+    // (default locale). The long single-string identity is on aria-label.
+    expect(panel.textContent ?? '').toMatch(/Mr\. Mwikila/i);
+    expect(panel.textContent ?? '').toMatch(/AI Mining Director/i);
+    expect(panel.getAttribute('aria-label') ?? '').toMatch(
+      /the brain layer within Borjie/i,
+    );
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/v1/public/chat',
@@ -177,5 +186,63 @@ describe('FloatingAskBorjie', () => {
     const prompt = await screen.findByTestId('borjie-signin-prompt');
     expect(prompt).toBeInTheDocument();
     expect(screen.queryByTestId('borjie-input')).toBeNull();
+  });
+});
+
+/**
+ * Language resolution — the floating widget MUST follow the app-wide
+ * `borjie_locale` page cookie (the single source of truth), mirroring
+ * `readStoredLanguage()` in widget/useWidgetLanguage.ts. This is the
+ * zero-mix canon: a fresh visitor on a Swahili page can never get an
+ * English widget. Priority: page cookie → legacy widget key → 'en'.
+ *
+ * We assert on the collapsed FAB's localized aria-label so no SSE fetch is
+ * involved — the cheapest deterministic locale probe.
+ */
+describe('FloatingAskBorjie — page-locale (borjie_locale) resolution', () => {
+  const ARIA_EN = 'Open Borjie chat';
+  const ARIA_SW = 'Fungua mazungumzo ya Borjie';
+  const STORAGE_LANG = 'borjie.chat.lang';
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    document.cookie = 'borjie_locale=; path=/; max-age=0';
+  });
+
+  afterEach(() => {
+    cleanup();
+    window.localStorage.clear();
+    document.cookie = 'borjie_locale=; path=/; max-age=0';
+  });
+
+  it('follows borjie_locale=sw for a fresh visitor (no widget key) — no EN-widget-on-SW-page', async () => {
+    document.cookie = 'borjie_locale=sw; path=/';
+    render(<FloatingAskBorjie variant="public" apiBaseUrl="" />);
+    const fab = await screen.findByTestId('borjie-fab');
+    await waitFor(() => expect(fab).toHaveAttribute('aria-label', ARIA_SW));
+  });
+
+  it('defaults to English when neither a page cookie nor a widget key exist', async () => {
+    render(<FloatingAskBorjie variant="public" apiBaseUrl="" />);
+    const fab = await screen.findByTestId('borjie-fab');
+    await waitFor(() => expect(fab).toHaveAttribute('aria-label', ARIA_EN));
+  });
+
+  it('lets the borjie_locale page cookie win over a stale legacy widget key (single source of truth)', async () => {
+    // The per-widget key is a stale 'en' from a prior session, but the page
+    // is now 'sw' — the widget must follow the PAGE, never render EN on SW.
+    window.localStorage.setItem(STORAGE_LANG, 'en');
+    document.cookie = 'borjie_locale=sw; path=/';
+    render(<FloatingAskBorjie variant="public" apiBaseUrl="" />);
+    const fab = await screen.findByTestId('borjie-fab');
+    await waitFor(() => expect(fab).toHaveAttribute('aria-label', ARIA_SW));
+  });
+
+  it('falls back to the legacy widget key only when no page cookie is set', async () => {
+    window.localStorage.setItem(STORAGE_LANG, 'sw');
+    render(<FloatingAskBorjie variant="public" apiBaseUrl="" />);
+    const fab = await screen.findByTestId('borjie-fab');
+    await waitFor(() => expect(fab).toHaveAttribute('aria-label', ARIA_SW));
   });
 });

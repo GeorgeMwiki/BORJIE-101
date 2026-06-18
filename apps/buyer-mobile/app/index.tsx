@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Redirect } from 'expo-router'
 import { ensureBootstrapped, isAuthenticated } from '@/auth/session'
+import { useTranslation } from '@/hooks/useTranslation'
 import { LitFinSplash } from '@/ui-litfin'
 
 /**
@@ -13,6 +14,7 @@ import { LitFinSplash } from '@/ui-litfin'
  * returning user was always bounced to /auth/login.
  */
 export default function Index() {
+  const { t } = useTranslation()
   const [ready, setReady] = useState<boolean>(false)
   useEffect(() => {
     let cancelled = false
@@ -26,7 +28,7 @@ export default function Index() {
     }
   }, [])
   if (!ready) {
-    return <LitFinSplash wordmark="BORJIE" tagline="Soko la Madini. Mineral marketplace." showSpinner />
+    return <LitFinSplash wordmark="BORJIE" tagline={t('app.tagline')} showSpinner />
   }
   if (!isAuthenticated()) {
     return <Redirect href="/auth/login" />
