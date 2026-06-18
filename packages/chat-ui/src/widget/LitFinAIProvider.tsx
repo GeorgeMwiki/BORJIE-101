@@ -112,8 +112,18 @@ export interface LitFinAIProviderProps {
    */
   readonly disclaimerEn?: string;
   readonly disclaimerSw?: string;
+  /**
+   * Open the chat panel automatically on first paint (the marketing
+   * concierge greets the visitor). It stays open until the visitor
+   * explicitly closes it, then the dismissal is persisted so it never
+   * auto-pops again. Default false (cockpit/console surfaces stay an
+   * unobtrusive FAB).
+   */
+  readonly autoOpen?: boolean;
   readonly children: ReactNode;
 }
+
+const AUTO_OPEN_DISMISS_KEY = 'bn-litfin-autoopen-dismissed';
 
 export function LitFinAIProvider({
   portalId,
@@ -121,6 +131,7 @@ export function LitFinAIProvider({
   endpoint = '/api/chat',
   disclaimerEn,
   disclaimerSw,
+  autoOpen = false,
   children,
 }: LitFinAIProviderProps): JSX.Element {
   const [currentRoute, setCurrentRoute] = useState<string>(initialRoute);
@@ -154,9 +165,36 @@ export function LitFinAIProvider({
     return () => window.removeEventListener('bn-litfin-open-chat', handleOpen);
   }, []);
 
+  // Auto-open (marketing concierge): pop the panel open shortly after first
+  // paint UNLESS the visitor previously closed it (persisted dismissal). The
+  // small delay lets the page render first so the open never janks the paint.
+  useEffect(() => {
+    if (!autoOpen || typeof window === 'undefined') return undefined;
+    try {
+      if (window.localStorage.getItem(AUTO_OPEN_DISMISS_KEY) === '1') {
+        return undefined;
+      }
+    } catch {
+      // private mode / storage blocked — treat as not-dismissed.
+    }
+    const id = window.setTimeout(() => setIsOpen(true), 900);
+    return () => window.clearTimeout(id);
+  }, [autoOpen]);
+
   const toggleWidget = useCallback(() => setIsOpen((prev) => !prev), []);
   const openWidget = useCallback(() => setIsOpen(true), []);
-  const closeWidget = useCallback(() => setIsOpen(false), []);
+  const closeWidget = useCallback(() => {
+    setIsOpen(false);
+    // Once the visitor closes the auto-opened concierge, remember it so we
+    // never auto-pop again on later loads.
+    if (autoOpen && typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(AUTO_OPEN_DISMISS_KEY, '1');
+      } catch {
+        // ignore — non-persistent dismissal is acceptable degraded behaviour.
+      }
+    }
+  }, [autoOpen]);
 
   const registerPageData = useCallback(
     (data: Record<string, unknown>) => {

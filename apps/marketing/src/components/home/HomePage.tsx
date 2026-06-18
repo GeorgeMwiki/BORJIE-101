@@ -34,7 +34,6 @@ import type { Locale } from '@/lib/i18n';
 import { SectionSkeleton } from '@/components/SectionSkeleton';
 import { LazyVisible } from '@/components/LazyVisible';
 import { ProblemSolution } from '@/components/sections/ProblemSolution';
-import { UniversalAccessSection } from '@/components/sections/UniversalAccessSection';
 import { PlatformShowcaseSection } from '@/components/sections/PlatformShowcaseSection';
 import { RoadmapCTASection } from '@/components/sections/RoadmapCTASection';
 import { Pricing } from '@/components/Pricing';
@@ -75,13 +74,6 @@ export function HomePage({ locale }: HomePageProps): JSX.Element {
           a vertical-space placeholder so we don't shift layout
           before the section enters the viewport.
           ────────────────────────────────────────────────────────── */}
-      <LazyVisible
-        placeholderClassName="min-h-[520px]"
-        fallback={<SectionSkeleton minHeight={520} cards={3} />}
-      >
-        <UniversalAccessSection locale={locale} />
-      </LazyVisible>
-
       <LazyVisible
         placeholderClassName="min-h-[480px]"
         fallback={<SectionSkeleton minHeight={480} cards={3} />}

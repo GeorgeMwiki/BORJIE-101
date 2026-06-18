@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import type { ScenarioView, ScenarioRoleMode, ScenarioLanguage } from '@borjie/api-client/training-types';
 import { Button } from '@borjie/design-system';
+import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 import { trainingT } from '@/i18n/strings/training';
 import { useTraining } from './training-mode-context';
 import { computeRunScore, formatElapsed } from './training-scoring';
@@ -264,17 +265,25 @@ function Transcript({
 }) {
   const tr = trainingT(locale);
   const { state } = useTraining();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // Anchor-law scroll (shared hook): re-anchors on transcript growth ONLY while
+  // the learner is at the bottom, so a streaming counterparty reply never yanks
+  // the view. Replaces the old smooth-scrollTo-on-[transcript,isSending] effect.
+  const { scrollRef, showJumpPill, jumpToLatest, resetAtStreamStart } =
+    useChatScroll();
   const counterpartyName = useMemo(() => {
     const b = scenario.briefing;
     return locale === 'sw' ? b.counterpartySw ?? b.counterpartyEn : b.counterpartyEn;
   }, [scenario.briefing, locale]);
 
+  // Re-engage bottom-follow at the start of each counterparty reply.
+  const prevSending = useRef(false);
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-  }, [state.transcript, state.isSending]);
+    if (state.isSending && !prevSending.current) resetAtStreamStart();
+    prevSending.current = state.isSending;
+  }, [state.isSending, resetAtStreamStart]);
 
   return (
+    <div className="relative">
     <div
       ref={scrollRef}
       className="flex max-h-[24rem] flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-slate-950/40 p-4"
@@ -305,6 +314,12 @@ function Transcript({
           {tr.t('counterpartyTyping')}
         </div>
       ) : null}
+    </div>
+      <JumpToLatestPill
+        visible={showJumpPill}
+        language={locale}
+        onClick={jumpToLatest}
+      />
     </div>
   );
 }

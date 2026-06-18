@@ -63,6 +63,7 @@ export function BorjieWidgetMount(
       initialRoute="/"
       disclaimerEn={BORJIE_DISCLAIMER_EN}
       disclaimerSw={BORJIE_DISCLAIMER_SW}
+      autoOpen
     >
       <LitFinWidget />
     </LitFinAIProvider>
