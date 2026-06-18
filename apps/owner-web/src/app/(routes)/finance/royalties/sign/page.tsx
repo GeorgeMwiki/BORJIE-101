@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
+import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { fmtTzs } from '@/lib/format';
 
@@ -206,19 +207,17 @@ function SignRowForm({
           Request four-eye approval
         </Link>
       ) : (
-        <button
+        <Button
           type="button"
+          size="sm"
+          loading={mutation.isPending}
           onClick={handleSign}
           disabled={mutation.isPending || !canSubmit}
-          className="inline-flex items-center gap-1.5 rounded-full bg-signal-500 px-3 py-1.5 text-xs font-semibold text-background hover:bg-signal-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="gap-1.5"
+          leftIcon={<PenLine className="h-3 w-3" />}
         >
-          {mutation.isPending ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <PenLine className="h-3 w-3" />
-          )}
           {confirming ? 'Confirm sign & pay' : 'Sign & pay'}
-        </button>
+        </Button>
       )}
 
       {error ? (
@@ -304,13 +303,15 @@ export default function RoyaltySignPage() {
           <p className="text-sm text-destructive">
             Could not load royalty drafts from the gateway.
           </p>
-          <button
+          <Button
             type="button"
+            variant="link"
+            size="sm"
             onClick={() => void refetch()}
-            className="mt-2 text-xs text-destructive underline hover:no-underline"
+            className="mt-2 h-auto p-0 text-xs text-destructive underline hover:no-underline"
           >
             Retry
-          </button>
+          </Button>
         </div>
       ) : null}
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { CheckCircle2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { pickByLocale, useLocale } from '@/lib/locale';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
@@ -123,13 +124,14 @@ export function OnboardingDone({
         ) : null}
 
         <div className="mt-5">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onGoToCockpit}
-            className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-4 py-2 text-sm text-warning hover:bg-warning-subtle/50"
+            className="gap-2 border-warning bg-warning-subtle/30 text-warning hover:bg-warning-subtle/50 hover:text-warning"
           >
             {pickByLocale(locale, S.onboarding.goToCockpit)}
-          </button>
+          </Button>
         </div>
       </SectionCard>
     </div>

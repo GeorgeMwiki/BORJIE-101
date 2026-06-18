@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Wallet } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import {
   ownerOsTabContextSchema,
   registerTab,
@@ -122,15 +123,16 @@ function QuickActionButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={() => void handleClick()}
-      disabled={busy}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/60 px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
+      loading={busy}
       data-testid={`treasury-quick-action-${toolId}`}
     >
       {busy ? (isSw ? 'Inaendesha…' : 'Running…') : isSw ? labelSw : labelEn}
-    </button>
+    </Button>
   );
 }
 

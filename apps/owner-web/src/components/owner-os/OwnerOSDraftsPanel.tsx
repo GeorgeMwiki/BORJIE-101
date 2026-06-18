@@ -11,6 +11,7 @@
 
 import { useEffect, useState, type ReactElement } from 'react';
 import { FileSignature, Sparkles } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 
 interface TemplateRow {
@@ -108,13 +109,15 @@ export function OwnerOSDraftsPanel({
                 {languagePreference === 'sw' ? t.titleSw : t.titleEn}
               </p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => void compose(t.id)}
-              disabled={drafting === t.id}
-              className="inline-flex items-center gap-1 rounded border border-warning bg-warning/10 px-2 py-1 text-tiny font-medium text-warning hover:bg-warning/20 disabled:opacity-50"
+              loading={drafting === t.id}
+              leftIcon={<Sparkles aria-hidden="true" className="h-3 w-3" />}
+              className="border-warning bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning"
             >
-              <Sparkles aria-hidden="true" className="h-3 w-3" />
               {drafting === t.id
                 ? languagePreference === 'sw'
                   ? 'Inaandika…'
@@ -122,7 +125,7 @@ export function OwnerOSDraftsPanel({
                 : languagePreference === 'sw'
                   ? 'Andika'
                   : 'Draft'}
-            </button>
+            </Button>
           </li>
         ))}
       </ul>

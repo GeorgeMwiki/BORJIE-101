@@ -13,6 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { livingPlanPanelStrings as M } from '@/i18n/strings/living-plan-panel';
@@ -475,13 +476,14 @@ export function LivingPlanPanel() {
           <p className="text-sm font-medium text-destructive">
             {pickByLocale(locale, M.errorTitle)}
           </p>
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => void refresh()}
-            className="mt-4 rounded-lg border border-border bg-background px-4 py-2 text-sm text-foreground transition-colors hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+            className="mt-4"
           >
             {pickByLocale(locale, M.retry)}
-          </button>
+          </Button>
         </div>
       ) : loading || !data ? (
         <PlanSkeleton />

@@ -31,6 +31,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 
 const FLOW_KEY = 'buyer_inquiry';
@@ -226,19 +227,16 @@ export default function FlowsPage() {
                   : 'Installed'}
               </span>
             ) : (
-              <button
+              <Button
                 type="button"
+                size="sm"
+                loading={install.isPending}
                 disabled={install.isPending}
                 onClick={() => install.mutate()}
-                className="inline-flex items-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
+                leftIcon={<Sparkles className="h-3.5 w-3.5" />}
               >
-                {install.isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
                 Install flow
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -286,16 +284,18 @@ export default function FlowsPage() {
               your approval queue below.
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={queue.isFetching}
             onClick={() => queue.refetch()}
             aria-label="Refresh the inquiry queue"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-neutral-400 transition-colors hover:bg-surface hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 disabled:opacity-50"
+            className="shrink-0 gap-1.5"
+            leftIcon={<RotateCw className={`h-3.5 w-3.5 ${queue.isFetching ? 'animate-spin' : ''}`} />}
           >
-            <RotateCw className={`h-3.5 w-3.5 ${queue.isFetching ? 'animate-spin' : ''}`} />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {queue.isLoading ? (
@@ -317,14 +317,16 @@ export default function FlowsPage() {
               <AlertCircle className="h-4 w-4 shrink-0" />
               {queue.error instanceof ApiError ? queue.error.message : 'Could not load the inquiry queue.'}
             </p>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => queue.refetch()}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+              className="shrink-0 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/20 hover:text-destructive focus-visible:ring-destructive"
+              leftIcon={<RotateCw className="h-3.5 w-3.5" />}
             >
-              <RotateCw className="h-3.5 w-3.5" />
               Retry
-            </button>
+            </Button>
           </div>
         ) : queueRuns.length === 0 ? (
           <div
@@ -398,19 +400,17 @@ export default function FlowsPage() {
                     ) : (
                       <span aria-hidden className="text-xs text-transparent">.</span>
                     )}
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
+                      loading={isSending}
                       disabled={!canSend}
                       onClick={() => respond.mutate({ id: run.id, message: draft.trim() })}
-                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background transition-colors hover:bg-signal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 active:bg-signal-600 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="shrink-0 gap-1.5"
+                      leftIcon={<Send className="h-3.5 w-3.5" />}
                     >
-                      {isSending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Send className="h-3.5 w-3.5" />
-                      )}
                       Send reply
-                    </button>
+                    </Button>
                   </div>
                 </li>
               );
@@ -461,15 +461,18 @@ export default function FlowsPage() {
                     </p>
                   ) : null}
                 </div>
-                <button
+                <Button
                   type="button"
+                  variant="success"
+                  size="sm"
+                  loading={approve.isPending}
                   disabled={approve.isPending}
                   onClick={() => approve.mutate(run.id)}
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-success/20 px-3 py-1.5 text-xs font-medium text-success hover:bg-success/30 disabled:opacity-50"
+                  className="shrink-0 gap-1.5"
+                  leftIcon={<CheckCircle2 className="h-3.5 w-3.5" />}
                 >
-                  <CheckCircle2 className="h-3.5 w-3.5" />
                   Approve &amp; deliver
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
