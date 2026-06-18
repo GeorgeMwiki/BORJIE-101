@@ -92,12 +92,12 @@ function renderBlocks(text: string): ReadonlyArray<JSX.Element> {
 
   let i = 0;
   while (i < lines.length) {
-    const ln = lines[i];
+    const ln = lines[i] ?? '';
     if (BULLET_RE.test(ln)) {
       flushPara();
       const items: string[] = [];
-      while (i < lines.length && BULLET_RE.test(lines[i])) {
-        items.push(lines[i].replace(BULLET_RE, ''));
+      while (i < lines.length && BULLET_RE.test(lines[i] ?? '')) {
+        items.push((lines[i] ?? '').replace(BULLET_RE, ''));
         i += 1;
       }
       const key = `u${out.length}`;

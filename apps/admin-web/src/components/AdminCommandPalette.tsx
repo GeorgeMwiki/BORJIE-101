@@ -36,6 +36,9 @@ const ADMIN_NAV_ROUTES: ReadonlyArray<{
   { route: '/internal/killswitch', label: 'Kill switch' },
   { route: '/internal/flags', label: 'Feature flags' },
   { route: '/ai-costs', label: 'AI costs' },
+  // Fully gateway-backed (GET /admin/subscriptions) but previously had no nav
+  // door anywhere — reachable only by typing the URL. Surfaced here.
+  { route: '/platform/subscriptions', label: 'Subscriptions' },
 ];
 
 export function AdminCommandPalette(): ReactElement {
