@@ -19,7 +19,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
-import { BookOpen, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
+import { BookOpen, Check, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { cn } from '@borjie/design-system';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
 import { MasteryDial } from './MasteryDial';
@@ -134,7 +134,7 @@ function CollapsedRow({
       aria-current={isActive ? 'step' : undefined}
       data-testid={`stepper-collapsed-${step.id}`}
       className={cn(
-        'w-6 h-6 rounded-full border-2 transition-all text-[9px] font-bold flex items-center justify-center',
+        'w-6 h-6 rounded-full border-2 transition-all text-tiny font-bold flex items-center justify-center',
         isActive
           ? 'border-warning bg-warning/20 text-warning'
           : step.isComplete
@@ -144,7 +144,11 @@ function CollapsedRow({
               : 'border-neutral-700/30 text-neutral-700 opacity-40',
       )}
     >
-      {step.isComplete ? '✓' : index + 1}
+      {step.isComplete ? (
+        <Check className="h-3 w-3" aria-hidden />
+      ) : (
+        index + 1
+      )}
     </button>
   );
 }

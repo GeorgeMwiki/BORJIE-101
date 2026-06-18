@@ -666,6 +666,16 @@
         "dev",
         "staging"
       ]
+    },
+    {
+      "up": "0366_driver_letter_acks_rls_literal_reassert.sql",
+      "down": "down/0366_down_driver_letter_acks_rls_literal_reassert.sql",
+      "reverses": "NO-OP. 0366 only re-asserts (in the literal form the rls-coverage static analyzer recognises) the FORCE RLS + tenant_isolation + service_role_bypass policies that migration 0362 already installed on driver_letter_acks. It owns no unique state — its DROP-then-CREATE replaced 0362's policies with bit-identical ones — so reverting it must leave RLS intact (0362's own down reverses the table+RLS). The down file is an explicit registered no-op. Pure metadata, no data touched. No money/licence/ledger records.",
+      "dataLoss": false,
+      "envs": [
+        "dev",
+        "staging"
+      ]
     }
   ]
 }

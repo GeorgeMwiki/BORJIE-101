@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { Paperclip, Loader2 } from 'lucide-react';
 import { registerUpload } from './api';
 import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types';
 import type { Locale } from '@/lib/locale-shared';
@@ -102,7 +103,11 @@ export function DocumentUploadButton({
           onClick={handleClick}
           className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition hover:bg-surface/80 disabled:opacity-50"
         >
-          <span aria-hidden>{busy ? '…' : '📎'}</span>
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          ) : (
+            <Paperclip className="h-4 w-4" aria-hidden />
+          )}
         </button>
       </>
     );
@@ -127,9 +132,11 @@ export function DocumentUploadButton({
         onClick={handleClick}
         className="inline-flex items-center gap-2 rounded-md bg-foreground px-4 py-2 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:opacity-50"
       >
-        <span aria-hidden>📎</span>
+        <Paperclip className="h-4 w-4" aria-hidden />
         <span>{resolvedLabel}</span>
-        {busy ? <span className="ml-1 animate-pulse">…</span> : null}
+        {busy ? (
+          <Loader2 className="ml-1 h-4 w-4 animate-spin" aria-hidden />
+        ) : null}
       </button>
     </>
   );

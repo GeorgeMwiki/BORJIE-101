@@ -142,7 +142,7 @@ export function InlineChartBlock({
               <path
                 key={i}
                 d={`M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1} Z`}
-                fill={s.color ?? '#d4af37'}
+                style={{ fill: s.color ?? 'hsl(var(--signal-500))' }}
                 opacity={0.8}
               />
             );
@@ -177,7 +177,7 @@ export function InlineChartBlock({
             const py = padding.top + innerH - ((yVal - minY) / rangeY) * innerH;
             return { px, py };
           });
-          const color = s.color ?? '#d4af37';
+          const color = s.color ?? 'hsl(var(--signal-500))';
           if (kind === 'bar') {
             const barW = Math.max(2, stepX * 0.6);
             return (
@@ -189,7 +189,7 @@ export function InlineChartBlock({
                     y={c.py}
                     width={barW}
                     height={padding.top + innerH - c.py}
-                    fill={color}
+                    style={{ fill: color }}
                     opacity={0.7}
                   />
                 ))}
@@ -203,8 +203,8 @@ export function InlineChartBlock({
             const areaPath = `${path} L ${coords[coords.length - 1]?.px ?? 0} ${padding.top + innerH} L ${coords[0]?.px ?? 0} ${padding.top + innerH} Z`;
             return (
               <g key={si}>
-                <path d={areaPath} fill={color} opacity={0.18} />
-                <path d={path} fill="none" stroke={color} strokeWidth="1.5" />
+                <path d={areaPath} style={{ fill: color }} opacity={0.18} />
+                <path d={path} fill="none" style={{ stroke: color }} strokeWidth="1.5" />
               </g>
             );
           }
@@ -214,7 +214,7 @@ export function InlineChartBlock({
               key={si}
               d={path}
               fill="none"
-              stroke={color}
+              style={{ stroke: color }}
               strokeWidth={kind === 'sparkline' ? 1.25 : 1.75}
             />
           );
@@ -229,7 +229,7 @@ export function InlineChartBlock({
                     cx={ax}
                     cy={padding.top + innerH / 2}
                     r={3}
-                    fill="#d4af37"
+                    style={{ fill: 'hsl(var(--signal-500))' }}
                   />
                 );
               }
@@ -240,7 +240,7 @@ export function InlineChartBlock({
                   y1={padding.top}
                   x2={ax}
                   y2={padding.top + innerH}
-                  stroke="#d4af37"
+                  style={{ stroke: 'hsl(var(--signal-500))' }}
                   strokeDasharray="3,3"
                   strokeOpacity={0.5}
                 />
@@ -254,7 +254,7 @@ export function InlineChartBlock({
             <div key={i} className="flex items-center gap-1.5 text-tiny text-foreground/70">
               <span
                 className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: s.color ?? '#d4af37' }}
+                style={{ backgroundColor: s.color ?? 'hsl(var(--signal-500))' }}
                 aria-hidden="true"
               />
               <span>{s.name ?? `Series ${i + 1}`}</span>

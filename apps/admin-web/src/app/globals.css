@@ -8,8 +8,13 @@
 
 @import '../../../../packages/design-system/src/styles/globals.css';
 
-/* Load Borjie fonts at the app root */
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Load Borjie fonts at the app root.
+   Inter (--font-sans) + Syne (--font-display) are the design-system's canonical
+   families (packages/design-system globals.css resolves --font-sans -> 'Inter'
+   and --font-display -> 'Syne'). They MUST be loaded here or every heading
+   silently falls through to Geist and the brand's display face never renders.
+   Fraunces/Geist remain as the next fallbacks in the stack. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Syne:wght@600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Geist:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* Tailwind directives — declared locally so Tailwind's `@layer` validator
  * resolves them in this file (PostCSS does not follow the @import above

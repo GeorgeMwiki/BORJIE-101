@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Home,
   LayoutDashboard,
   Brain,
   Network,
@@ -31,6 +30,10 @@ import {
   Scale,
   GraduationCap,
   Workflow,
+  LineChart,
+  Banknote,
+  FileSearch,
+  ListChecks,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { BorjieLogo, Logomark } from '@borjie/design-system';
@@ -70,7 +73,6 @@ const SECTIONS: ReadonlyArray<NavSection> = [
   {
     headingKey: 'nav.sectionOverview',
     items: [
-      { labelKey: 'nav.home', href: '/', icon: Home },
       { labelKey: 'nav.dashboard', href: '/dashboard', icon: LayoutDashboard },
       { labelKey: 'nav.cockpit', href: '/cockpit', icon: BarChart3 },
       { labelKey: 'nav.masterBrain', href: '/master-brain', icon: Brain },
@@ -79,6 +81,7 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { labelKey: 'nav.headBriefing', href: '/head-briefing', icon: Sparkles },
       { labelKey: 'nav.agentic', href: '/agentic', icon: Brain },
       { labelKey: 'nav.training', href: '/training/scenarios', icon: GraduationCap },
+      { labelKey: 'nav.livingPlan', href: '/living-plan', icon: ListChecks },
     ],
   },
   {
@@ -89,6 +92,7 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { labelKey: 'nav.siteCockpit', href: '/site-cockpit', icon: Layers },
       { labelKey: 'nav.licences', href: '/licences', icon: FileCheck },
       { labelKey: 'nav.documents', href: '/documents', icon: FileText },
+      { labelKey: 'nav.documentIntelligence', href: '/document-intelligence', icon: FileSearch },
       { labelKey: 'nav.people', href: '/people', icon: Users },
       { labelKey: 'nav.workforceTabs', href: '/workforce-tabs', icon: Users },
     ],
@@ -111,6 +115,8 @@ const SECTIONS: ReadonlyArray<NavSection> = [
       { labelKey: 'nav.sales', href: '/sales', icon: TrendingUp },
       { labelKey: 'nav.treasury', href: '/treasury', icon: TrendingUp },
       { labelKey: 'nav.marketplace', href: '/marketplace', icon: Store },
+      { labelKey: 'nav.market', href: '/market', icon: LineChart },
+      { labelKey: 'nav.payroll', href: '/payroll', icon: Banknote },
     ],
   },
   {

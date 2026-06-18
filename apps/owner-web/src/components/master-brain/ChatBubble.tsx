@@ -2,11 +2,14 @@
 
 import type { ChatMessage } from '@/lib/types/chat';
 import { fmtTime } from '@/lib/format';
+import { pickByLocale } from '@/lib/locale-shared';
+import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
 import { EvidenceChip } from './EvidenceChip';
 
 interface ChatBubbleProps {
   readonly message: ChatMessage;
   readonly onSelectEvidence: (id: string) => void;
+  readonly language?: 'en' | 'sw';
 }
 
 /**
@@ -15,7 +18,11 @@ interface ChatBubbleProps {
  * the role separation is immediate. Evidence IDs render as clickable
  * pills inline that open the right-hand side panel.
  */
-export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
+export function ChatBubble({
+  message,
+  onSelectEvidence,
+  language = 'en',
+}: ChatBubbleProps) {
   const isOwner = message.role === 'owner';
   // KI-005 — the evidence-chain Auditor verdict (surfaced by the /chat stream)
   // rides on message.grounding; show a caution badge when the answer is
@@ -23,18 +30,33 @@ export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
   // get no badge (no clutter).
   const g = isOwner ? undefined : message.grounding;
   const groundingWarn = g?.groundingFault
-    ? 'Grounding check unavailable. Treat with caution.'
+    ? pickByLocale(language, {
+        en: 'Grounding check unavailable. Treat with caution.',
+        sw: 'Uthibitisho wa msingi haupatikani. Chukua kwa tahadhari.',
+      })
     : g?.evidenceWarning === 'no_evidence_cited'
-      ? 'Unverified: no evidence cited.'
+      ? pickByLocale(language, {
+          en: 'Unverified: no evidence cited.',
+          sw: 'Haijathibitishwa: hakuna ushahidi uliotajwa.',
+        })
       : g?.evidenceWarning === 'evidence_invalid'
-        ? 'Evidence could not be verified.'
+        ? pickByLocale(language, {
+            en: 'Evidence could not be verified.',
+            sw: 'Ushahidi haukuweza kuthibitishwa.',
+          })
         : g?.verdict === 'needs_human'
-          ? 'Auditor flagged this answer for review.'
+          ? pickByLocale(language, {
+              en: 'Auditor flagged this answer for review.',
+              sw: 'Mkaguzi ameweka alama jibu hili kwa ukaguzi.',
+            })
           : null;
   return (
     <div className={`flex flex-col gap-1 ${isOwner ? '' : 'items-end'}`}>
       <div className="text-badge text-neutral-500">
-        {isOwner ? 'Owner' : 'Master Brain'} · {fmtTime(message.createdAt)}
+        {isOwner
+          ? pickByLocale(language, { en: 'Owner', sw: 'Mmiliki' })
+          : 'Master Brain'}{' '}
+        · {fmtTime(message.createdAt)}
       </div>
       <div
         className={`max-w-2xl rounded-lg px-3 py-2 text-sm leading-relaxed ${
@@ -43,7 +65,11 @@ export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
             : 'border border-warning/40 bg-warning-subtle/20 text-foreground'
         }`}
       >
-        <p className="whitespace-pre-wrap">{message.content}</p>
+        {isOwner ? (
+          <p className="whitespace-pre-wrap">{message.content}</p>
+        ) : (
+          <IncrementalMarkdown text={message.content} />
+        )}
         {message.evidenceIds.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {message.evidenceIds.map((id) => (
@@ -53,7 +79,10 @@ export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
         ) : null}
         {message.breadcrumbs.length > 0 ? (
           <div className="mt-2 text-tiny text-neutral-500">
-            Junior calls:{' '}
+            {pickByLocale(language, {
+              en: 'Junior calls:',
+              sw: 'Miito ya wasaidizi:',
+            })}{' '}
             {message.breadcrumbs
               .map((bc) => `${bc.agent}·${bc.action} (${bc.latencyMs}ms)`)
               .join(' → ')}

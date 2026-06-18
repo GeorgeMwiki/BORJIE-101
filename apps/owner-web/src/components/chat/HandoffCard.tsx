@@ -23,6 +23,7 @@
 
 import type { ReactElement } from 'react';
 import { useMemo } from 'react';
+import { cn } from '@borjie/design-system';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 export interface HandoffCardData {
@@ -86,62 +87,44 @@ export function HandoffCard({ handoff, language = 'en' }: HandoffCardProps): Rea
     <div
       role="article"
       aria-label={`handoff to ${targetName}`}
-      className={`borjie-handoff-card borjie-handoff-${handoff.resolution}`}
-      style={{
-        border: '1px solid var(--borjie-border, #2a2a32)',
-        borderRadius: 12,
-        padding: 12,
-        marginTop: 8,
-        background: 'var(--borjie-surface, #16161c)',
-        fontSize: 13,
-        color: 'var(--borjie-text, #e7e7ea)',
-      }}
+      className={cn(
+        // Real design-system tokens — the previous inline styles used a ghost
+        // `--borjie-*` namespace that exists nowhere, so they always fell back
+        // to a hardcoded dark/gold palette (wrong brand: the system is
+        // copper-on-cream). Keep the resolution hook-classes for any consumer.
+        'mt-2 rounded-xl border border-border bg-surface p-3 text-sm text-foreground transition-colors',
+        'borjie-handoff-card',
+        `borjie-handoff-${handoff.resolution}`,
+      )}
     >
-      <header style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontWeight: 600 }}>
+      <header className="mb-1.5 flex items-center justify-between gap-2">
+        <span className="font-semibold">
           {copy.sentTo} {roleLabel} {targetName}
         </span>
-        <span style={{ opacity: 0.7, fontSize: 11 }}>{when}</span>
+        <span className="shrink-0 text-tiny text-foreground/70">{when}</span>
       </header>
 
-      <div style={{ marginBottom: 8 }}>
+      <div className="mb-2">
         <strong>{copy.re}</strong> {handoff.topic}
       </div>
 
       {handoff.scopePayload?.siteIds && handoff.scopePayload.siteIds.length > 0 ? (
-        <div style={{ fontSize: 11, opacity: 0.7 }}>
+        <div className="text-tiny text-foreground/70">
           {copy.site} {handoff.scopePayload.siteIds.join(', ')}
         </div>
       ) : null}
       {handoff.scopePayload?.category ? (
-        <div style={{ fontSize: 11, opacity: 0.7 }}>
+        <div className="text-tiny text-foreground/70">
           {copy.category} {handoff.scopePayload.category}
         </div>
       ) : null}
 
       {isReplied ? (
-        <blockquote
-          style={{
-            borderLeft: '3px solid var(--borjie-accent, #d4af37)',
-            marginTop: 8,
-            paddingLeft: 8,
-            color: 'var(--borjie-text-strong, #fafafa)',
-            fontStyle: 'italic',
-          }}
-        >
+        <blockquote className="mt-2 border-l-2 border-signal-500 pl-2 italic text-foreground">
           {targetName}: {handoff.replyText}
         </blockquote>
       ) : statusLabel ? (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 11,
-            opacity: 0.6,
-            fontStyle: 'italic',
-          }}
-        >
-          {statusLabel}
-        </div>
+        <div className="mt-2 text-tiny italic text-foreground/60">{statusLabel}</div>
       ) : null}
     </div>
   );
