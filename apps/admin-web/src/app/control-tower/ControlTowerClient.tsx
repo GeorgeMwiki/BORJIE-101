@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import {
   AlertTriangle,
   Bot,
@@ -259,10 +259,7 @@ export function ControlTowerClient(): JSX.Element {
     <div className="space-y-8">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {healthKpis.map((kpi) => (
-          <div
-            key={kpi.label}
-            className="rounded-2xl border border-border bg-surface/40 p-5"
-          >
+          <Card key={kpi.label} className="rounded-2xl p-5">
             <p className="text-tiny font-semibold uppercase tracking-eyebrow text-neutral-500">
               {kpi.label}
             </p>
@@ -270,7 +267,7 @@ export function ControlTowerClient(): JSX.Element {
               {kpi.value}
             </p>
             <p className="mt-1 text-xs text-neutral-400">{kpi.sub}</p>
-          </div>
+          </Card>
         ))}
       </div>
 

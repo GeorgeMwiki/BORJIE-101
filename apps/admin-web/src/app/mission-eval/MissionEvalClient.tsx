@@ -16,7 +16,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Card } from '@borjie/design-system';
 import { api } from '@/lib/api';
 
 // NOTE: `id` values are the wire contract consumed by the gateway's
@@ -242,16 +242,16 @@ export function MissionEvalClient() {
         className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
       >
         {loadingRollup && (
-          <div className="platform-card col-span-full flex items-center gap-2 text-sm text-neutral-400">
+          <Card className="col-span-full flex items-center gap-2 rounded-2xl p-6 text-sm text-neutral-400 transition-colors hover:border-border-strong">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading rollup…
-          </div>
+          </Card>
         )}
         {!loadingRollup &&
           rollup?.capabilities.map((tile) => (
-            <article
+            <Card
               key={tile.id}
               data-testid={`capability-tile-${tile.id}`}
-              className="platform-card flex flex-col gap-2"
+              className="flex flex-col gap-2 rounded-2xl p-6 transition-colors hover:border-border-strong"
             >
               <header className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">
@@ -283,19 +283,19 @@ export function MissionEvalClient() {
                   </dd>
                 </div>
               </dl>
-            </article>
+            </Card>
           ))}
         {rollup?.degraded && (
-          <div className="platform-card col-span-full text-xs text-neutral-500">
+          <Card className="col-span-full rounded-2xl p-6 text-xs text-neutral-500 transition-colors hover:border-border-strong">
             Degraded view — substrate service is not wired in this environment.
-          </div>
+          </Card>
         )}
       </section>
 
       {/* Filters */}
-      <section
+      <Card
         aria-label="Filters"
-        className="platform-card flex flex-wrap items-end gap-3"
+        className="flex flex-wrap items-end gap-3 rounded-2xl p-6 transition-colors hover:border-border-strong"
       >
         <label className="flex flex-col text-xs text-neutral-400">
           Capability
@@ -361,12 +361,12 @@ export function MissionEvalClient() {
         >
           Refresh
         </Button>
-      </section>
+      </Card>
 
       {/* Runs table */}
-      <section
+      <Card
         aria-label="Eval runs"
-        className="platform-card overflow-hidden"
+        className="overflow-hidden rounded-2xl p-6 transition-colors hover:border-border-strong"
         data-testid="eval-runs-table"
       >
         {loadingRows && (
@@ -431,7 +431,7 @@ export function MissionEvalClient() {
             Showing {rows.length} of {total} runs (refine filters to narrow).
           </p>
         )}
-      </section>
+      </Card>
 
       {/* Detail drawer */}
       {selected && (
