@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { MaintenanceTable } from '@/components/fleet/MaintenanceTable';
@@ -48,14 +49,16 @@ export default function FleetMaintenancePage() {
               <span className="italic">{S.fleetMaintenance.intro.both}</span>
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => setModalOpen(true)}
-            className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-xs text-warning hover:bg-warning-subtle/50"
+            className="gap-2 border-warning bg-warning-subtle/30 text-warning hover:bg-warning-subtle/50 hover:text-warning"
           >
             <Plus className="h-4 w-4" />
             {S.fleetMaintenance.newMaintenanceCta.both}
-          </button>
+          </Button>
         </div>
       </header>
       <div className="px-8 py-6">

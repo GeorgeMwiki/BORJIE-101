@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import {
   routesAStrings as S,
@@ -288,15 +289,16 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
               ? S.renewalClient.startDraftBody.sw
               : S.renewalClient.startDraftBody.en}
           </p>
-          <button
+          <Button
+            size="sm"
             onClick={() => void start()}
             disabled={loading}
-            className="mt-4 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
+            className="mt-4"
           >
             {isSwahili
               ? S.renewalClient.startRenewalCta.sw
               : S.renewalClient.startRenewalCta.en}
-          </button>
+          </Button>
         </section>
       )}
 
@@ -337,15 +339,15 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
             </label>
           </div>
           <div className="mt-4 flex justify-end">
-            <button
+            <Button
+              size="sm"
               onClick={() => void submit()}
               disabled={loading}
-              className="rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400 disabled:opacity-50"
             >
               {isSwahili
                 ? S.renewalClient.submitRenewalCta.sw
                 : S.renewalClient.submitRenewalCta.en}
-            </button>
+            </Button>
           </div>
         </section>
       )}

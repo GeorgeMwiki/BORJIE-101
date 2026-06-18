@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
@@ -176,13 +177,15 @@ export function ConnectedAgentsList() {
         className="flex flex-col gap-3 rounded border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
       >
         <span>{state.message}</span>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => void load()}
-          className="self-start rounded-md border border-destructive/40 bg-surface px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive"
+          className="self-start border-destructive/40 bg-surface text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive"
         >
           {pickByLocale(locale, S.connectedAgentsList.retry)}
-        </button>
+        </Button>
       </div>
     );
   }
@@ -245,16 +248,18 @@ export function ConnectedAgentsList() {
                 )}
               </dl>
             </div>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => handleRevoke(token)}
-              disabled={revoking === token.id}
-              className="rounded border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 disabled:opacity-50"
+              loading={revoking === token.id}
+              className="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               {revoking === token.id
                 ? pickByLocale(locale, S.connectedAgentsList.revoking)
                 : pickByLocale(locale, S.connectedAgentsList.revoke)}
-            </button>
+            </Button>
           </div>
         </li>
       ))}

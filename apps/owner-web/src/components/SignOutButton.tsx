@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
@@ -51,17 +52,19 @@ export function SignOutButton(props: {
           {error}
         </span>
       ) : null}
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={handleClick}
-        disabled={pending}
+        loading={pending}
         className={
           props.className ??
-          'inline-flex items-center gap-1.5 rounded-md border border-border bg-card/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60'
+          'gap-1.5 bg-card/60 font-medium text-muted-foreground hover:border-border-strong hover:bg-muted/50 hover:text-foreground'
         }
       >
         {pending ? t('signOut.pending') : (props.label ?? t('signOut.action'))}
-      </button>
+      </Button>
     </div>
   );
 }

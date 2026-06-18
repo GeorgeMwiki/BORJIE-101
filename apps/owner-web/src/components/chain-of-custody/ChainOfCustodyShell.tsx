@@ -7,6 +7,7 @@ import {
   Search,
   ShieldAlert,
 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { useChainOfCustody, type ChainStep } from '@/lib/queries/ops';
 
 /**
@@ -43,12 +44,9 @@ export function ChainOfCustodyShell() {
             className="w-full rounded-xl border border-border bg-surface/40 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-neutral-500"
           />
         </div>
-        <button
-          type="submit"
-          className="rounded-xl bg-signal-500 px-4 py-2 text-sm font-medium text-background hover:bg-signal-500/90"
-        >
+        <Button type="submit" size="sm" className="rounded-xl px-4 text-sm">
           Trace
-        </button>
+        </Button>
       </form>
 
       {parcelId === null ? (

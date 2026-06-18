@@ -1,6 +1,7 @@
 'use client';
 
 import { Scroll, ShieldCheck } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import {
   useSuccessionPlans,
   type SuccessionPlanRow,
@@ -93,13 +94,14 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
         )[lang]
       }
       actions={
-        <button
+        <Button
           type="button"
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface/80"
+          variant="outline"
+          size="sm"
+          leftIcon={<Scroll className="h-3.5 w-3.5" />}
         >
-          <Scroll className="h-3.5 w-3.5" />
           {isSw ? S.succession.generateDraftWill.sw : S.succession.generateDraftWill.en}
-        </button>
+        </Button>
       }
     >
       <div className="space-y-4 px-5 py-4">
