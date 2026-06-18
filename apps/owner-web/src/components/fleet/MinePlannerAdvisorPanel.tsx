@@ -2,6 +2,7 @@
 
 import { useState, type ReactElement } from 'react';
 import { CalendarClock, AlertTriangle } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/genui';
 import { useSitesList } from '@/lib/queries/sites';
 import {
@@ -67,7 +68,7 @@ export function MinePlannerAdvisorPanel({
   const adviceQ = useMinePlannerAdvice({ siteId: activeSiteId });
 
   return (
-    <section className="rounded-2xl border border-border bg-surface/40 p-6">
+    <Card className="rounded-2xl p-6">
       <header className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="rounded-xl border border-info/40 bg-info/10 p-2 text-info">
@@ -166,7 +167,7 @@ export function MinePlannerAdvisorPanel({
           )}
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

@@ -23,7 +23,7 @@
 
 import type { ReactElement } from 'react';
 import { useMemo } from 'react';
-import { cn } from '@borjie/design-system';
+import { Card, cn } from '@borjie/design-system';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 export interface HandoffCardData {
@@ -84,7 +84,7 @@ export function HandoffCard({ handoff, language = 'en' }: HandoffCardProps): Rea
   const isReplied = handoff.resolution === 'replied' && handoff.replyText;
 
   return (
-    <div
+    <Card
       role="article"
       aria-label={`handoff to ${targetName}`}
       className={cn(
@@ -92,7 +92,7 @@ export function HandoffCard({ handoff, language = 'en' }: HandoffCardProps): Rea
         // `--borjie-*` namespace that exists nowhere, so they always fell back
         // to a hardcoded dark/gold palette (wrong brand: the system is
         // copper-on-cream). Keep the resolution hook-classes for any consumer.
-        'mt-2 rounded-xl border border-border bg-surface p-3 text-sm text-foreground transition-colors',
+        'mt-2 rounded-xl p-3 text-sm text-foreground transition-colors',
         'borjie-handoff-card',
         `borjie-handoff-${handoff.resolution}`,
       )}
@@ -126,6 +126,6 @@ export function HandoffCard({ handoff, language = 'en' }: HandoffCardProps): Rea
       ) : statusLabel ? (
         <div className="mt-2 text-tiny italic text-foreground/60">{statusLabel}</div>
       ) : null}
-    </div>
+    </Card>
   );
 }

@@ -22,6 +22,7 @@
 
 import type { ReactElement } from 'react';
 import { ShieldCheck, HelpCircle, Sparkles } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 import type { TFn } from '@/i18n/resolve';
 
 /** The fixed posture vocabulary the kernel may surface (INV-H). */
@@ -143,9 +144,9 @@ export function SelfModelPanel({
   const badgeLabel = t(`teach.selfModel.posture.${selfModel.posture}`);
 
   return (
-    <div
+    <Card
       data-testid="teach-self-model"
-      className="ml-10 flex max-w-2xl flex-col gap-2 rounded-xl border border-border bg-surface/40 px-3 py-2"
+      className="ml-10 flex max-w-2xl flex-col gap-2 rounded-xl px-3 py-2"
     >
       <div className="flex items-center gap-1.5">
         <span
@@ -201,7 +202,7 @@ export function SelfModelPanel({
           />
         ) : null}
       </div>
-    </div>
+    </Card>
   );
 }
 
