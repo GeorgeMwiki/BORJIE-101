@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 
 /**
@@ -48,8 +49,9 @@ export function SignOutButton(props: {
           {error}
         </span>
       ) : null}
-      <button
+      <Button
         type="button"
+        variant="ghost"
         onClick={handleClick}
         disabled={pending}
         className={
@@ -58,7 +60,7 @@ export function SignOutButton(props: {
         }
       >
         {pending ? 'Signing out…' : (props.label ?? 'Sign out')}
-      </button>
+      </Button>
     </div>
   );
 }

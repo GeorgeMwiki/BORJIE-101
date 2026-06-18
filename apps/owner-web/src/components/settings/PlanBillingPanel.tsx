@@ -1,5 +1,6 @@
 'use client';
 
+import { Button } from '@borjie/design-system';
 import { useTenantCurrent } from '@/lib/queries/tenant';
 import { EmptyState } from '@/components/shared/EmptyState';
 
@@ -35,13 +36,14 @@ export function PlanBillingPanel() {
         }
         hint="GET /api/v1/tenants/current"
         action={
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void refetch()}
-            className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface/70"
           >
             Retry
-          </button>
+          </Button>
         }
       />
     );

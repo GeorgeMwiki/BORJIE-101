@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useForm, type UseFormRegisterReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Download, Loader2 } from 'lucide-react';
+import { Download } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { REPORT_CATALOGUE, type ReportKind } from '@/lib/types/reports';
 import { useGenerateReport } from '@/lib/queries/reports';
 import { Toast } from '@/components/shared/Toast';
@@ -108,19 +109,14 @@ export function ReportForm() {
             Failed to generate report: {(mutation.error as Error)?.message ?? 'unknown'}
           </p>
         ) : null}
-        <button
+        <Button
           type="submit"
-          disabled={mutation.isPending}
-          aria-busy={mutation.isPending}
-          className="inline-flex items-center gap-2 rounded-md border border-warning bg-warning-subtle/30 px-3 py-2 text-sm text-warning hover:bg-warning-subtle/50 disabled:cursor-not-allowed disabled:opacity-60"
+          variant="warning"
+          loading={mutation.isPending}
+          leftIcon={<Download className="h-4 w-4" />}
         >
-          {mutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
           Generate {selected?.title ?? 'report'}
-        </button>
+        </Button>
       </form>
       {queuedJobId ? (
         <Toast

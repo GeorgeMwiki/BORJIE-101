@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Download, Share2 } from 'lucide-react';
+import { Button } from '@borjie/design-system';
 import { ChapterList } from './ChapterList';
 import { SyncedTranscript } from './SyncedTranscript';
 import { ReportAudioPayloadSchema, type ReportAudioPayload } from './report-player-schema';
@@ -154,15 +155,16 @@ export function ReportPlayer({ report, lang = 'sw', shareUrl }: ReportPlayerProp
             <Download className="h-3.5 w-3.5" />
             {t.download}
           </a>
-          <button
+          <Button
             type="button"
+            variant="success"
+            size="sm"
             onClick={onShareWhatsapp}
             aria-label={t.shareWhatsapp}
-            className="inline-flex items-center gap-1 rounded-md border border-success/40 bg-success-subtle/20 px-2 py-1 text-xs text-success hover:bg-success-subtle/40"
+            leftIcon={<Share2 className="h-3.5 w-3.5" />}
           >
-            <Share2 className="h-3.5 w-3.5" />
             {t.shareWhatsapp}
-          </button>
+          </Button>
         </div>
       </header>
       <div className="flex flex-col gap-3 md:flex-row">
