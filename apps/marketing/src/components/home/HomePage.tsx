@@ -31,8 +31,6 @@
 'use client';
 
 import type { Locale } from '@/lib/i18n';
-import { SectionSkeleton } from '@/components/SectionSkeleton';
-import { LazyVisible } from '@/components/LazyVisible';
 import { ProblemSolution } from '@/components/sections/ProblemSolution';
 import { PlatformShowcaseSection } from '@/components/sections/PlatformShowcaseSection';
 import { RoadmapCTASection } from '@/components/sections/RoadmapCTASection';
@@ -63,37 +61,17 @@ export interface HomePageProps {
  * on the /for-* audience pages, not stacked here.
  */
 export function HomePage({ locale }: HomePageProps): JSX.Element {
+  // Render every below-fold section eagerly. The previous LazyVisible
+  // (IntersectionObserver) gates saved a little first-paint JS but at the cost
+  // of ROBUSTNESS — any hydration hiccup left 3 large blank panels mid-page.
+  // The sections are small + below the fold, so direct rendering is the right
+  // trade: no possibility of blank gaps, and Next still code-splits the route.
   return (
     <div className="overflow-x-hidden">
-      {/* ABOVE-FOLD of HomePage — eager */}
       <ProblemSolution locale={locale} />
-
-      {/* ──────────────────────────────────────────────────────────
-          BELOW-FOLD — each section gated by LazyVisible
-          (IntersectionObserver 400px ahead). The skeleton holds
-          a vertical-space placeholder so we don't shift layout
-          before the section enters the viewport.
-          ────────────────────────────────────────────────────────── */}
-      <LazyVisible
-        placeholderClassName="min-h-[480px]"
-        fallback={<SectionSkeleton minHeight={480} cards={3} />}
-      >
-        <PlatformShowcaseSection locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[520px]"
-        fallback={<SectionSkeleton minHeight={520} cards={3} />}
-      >
-        <Pricing locale={locale} />
-      </LazyVisible>
-
-      <LazyVisible
-        placeholderClassName="min-h-[480px]"
-        fallback={<SectionSkeleton minHeight={480} cards={4} />}
-      >
-        <RoadmapCTASection locale={locale} />
-      </LazyVisible>
+      <PlatformShowcaseSection locale={locale} />
+      <Pricing locale={locale} />
+      <RoadmapCTASection locale={locale} />
     </div>
   );
 }
