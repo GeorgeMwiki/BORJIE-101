@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Check, ShieldCheck } from 'lucide-react';
-import { TrustStrip } from '@/components/TrustStrip';
 import { getLocale } from '@/lib/locale';
 import { getMessages } from '@/lib/i18n';
 
@@ -85,9 +84,6 @@ export default async function BuyersPage() {
             </div>
           </div>
         </section>
-
-        {/* Trust strip — shared with homepage */}
-        <TrustStrip locale={locale} />
 
         {/* Value propositions — four-up grid */}
         <section
