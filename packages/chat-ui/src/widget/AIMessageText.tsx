@@ -25,9 +25,16 @@ interface AIMessageTextProps {
   readonly className?: string;
 }
 
-/** Strip residual protocol tags the SSE pipeline may leak into the text. */
+/**
+ * Strip every structured-UI / non-prose artifact the model may leak into a
+ * conversational reply. The floating concierge is a CHAT surface — visitors
+ * never want a code-fence, a markdown table, or a `<ui_block>` here, just
+ * natural prose. We strip both forms (matched-pair AND unterminated-tail) so
+ * a leak mid-stream collapses to clean text instead of dumping raw markup.
+ */
 function cleanForDisplay(text: string): string {
   let cleaned = text;
+  // 1) Protocol tags (matched + unterminated tail).
   cleaned = cleaned.replace(/<ui_block>[\s\S]*?<\/ui_block>/gi, '');
   cleaned = cleaned.replace(/<ui_block>[\s\S]*$/i, '');
   cleaned = cleaned.replace(
@@ -39,6 +46,18 @@ function cleanForDisplay(text: string): string {
     /\s*\[\/?(QUICK_REPLIES|EXTRACTION_TABLE|CONCEPT_CARD|QUIZ_BLOCK)\]\s*/gi,
     '',
   );
+  // 2) Code fences — fenced + unterminated tail. Inline backticks stay (they
+  //    can highlight a real term inline) but block-fences never belong here.
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
+  cleaned = cleaned.replace(/```[\s\S]*$/m, '');
+  // 3) Markdown tables — a line of pipes followed by a separator line. Drop
+  //    every contiguous table-shaped block (lines starting with `|`).
+  cleaned = cleaned.replace(/(?:^|\n)\|[^\n]*\|[ \t]*\n\|[ \t]*[-:| ]+\|[^\n]*(?:\n\|[^\n]*\|[^\n]*)*/g, '');
+  cleaned = cleaned.replace(/(?:^|\n)(?:\|[^\n]*\|[^\n]*\n?){2,}/g, '');
+  // 4) Raw HTML tags (e.g. <table>, <div>, <script>) — chat is plain prose.
+  cleaned = cleaned.replace(/<\/?(?:table|thead|tbody|tr|td|th|div|span|script|style|iframe|img|hr)[^>]*>/gi, '');
+  // 5) Decorative dividers (lines of --- or === or ~~~).
+  cleaned = cleaned.replace(/(?:^|\n)[ \t]*[-=~]{3,}[ \t]*(?=\n|$)/g, '');
   return cleaned.trim();
 }
 
