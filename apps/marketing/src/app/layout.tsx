@@ -91,7 +91,10 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: 'Borjie',
       locale: locale === 'sw' ? 'sw_TZ' : 'en_US',
       alternateLocale: locale === 'sw' ? ['en_US'] : ['sw_TZ'],
-      url: SITE_URL,
+      // NOTE: no `url` here. A layout-level openGraph.url propagates to every
+      // sub-page (no per-page override), so /pricing, /buyers, /for-*, etc.
+      // all advertised the HOMEPAGE as their og:url — bad for SEO + link
+      // unfurls. Pages that want a specific og:url override per-page.
       images: [
         {
           url: '/og-image.png',
@@ -108,13 +111,13 @@ export async function generateMetadata(): Promise<Metadata> {
       creator: '@borjie_tz',
       images: ['/og-image.png'],
     },
-    alternates: {
-      canonical: SITE_URL,
-      languages: {
-        sw: SITE_URL,
-        en: `${SITE_URL}?lang=en`,
-      },
-    },
+    // NOTE: no `alternates.canonical` or `alternates.languages` here. A
+    // layout-level canonical propagates to every sub-page; every marketing
+    // page was advertising SITE_URL (the homepage) as its canonical — SEO
+    // disaster. With metadataBase set above, Next resolves canonicals from
+    // the request URL by default, which is the correct behavior for a
+    // single-locale-per-cookie surface. Pages that need a hand-set canonical
+    // can set it in their own generateMetadata.
     robots: {
       index: true,
       follow: true,

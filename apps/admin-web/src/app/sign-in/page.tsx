@@ -9,14 +9,12 @@ import { pickByLocale } from '@/lib/locale-shared';
 
 export const dynamic = 'force-dynamic';
 
-// Locale-aware <title> + Suspense fallback so neither leak EN onto a SW page.
+// Locale-aware <title>. Just the per-page noun; layout.tsx's template appends
+// the locale-aware console name (`— Borjie Console` / `— Konsoli ya Borjie`).
 export async function generateMetadata() {
   const locale = await readLocaleFromServerCookies();
   return {
-    title: pickByLocale(locale, {
-      en: 'Sign in — Borjie Console',
-      sw: 'Ingia — Konsoli ya Borjie',
-    }),
+    title: pickByLocale(locale, { en: 'Sign in', sw: 'Ingia' }),
   };
 }
 

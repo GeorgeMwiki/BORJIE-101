@@ -24,6 +24,22 @@ import { extractReplyFromUpstream } from './sse-parse';
 
 export const runtime = 'nodejs';
 
+/**
+ * JSON response helper that ALWAYS stamps `cache-control: no-store` + a Vary
+ * on Cookie/Authorization. The default `NextResponse.json` inherits the
+ * framework's `public, max-age=0, must-revalidate` — wrong for a
+ * session-JWT-minting mutating BFF (a future shared intermediary that honors
+ * `public` could legally cache one visitor's reply and serve it to another).
+ */
+function noStoreJson(body: unknown, init?: number | ResponseInit): NextResponse {
+  const opts: ResponseInit =
+    typeof init === 'number' ? { status: init } : init ?? {};
+  const headers = new Headers(opts.headers);
+  headers.set('cache-control', 'no-store, no-cache, must-revalidate');
+  headers.set('vary', 'Cookie, Authorization');
+  return NextResponse.json(body, { ...opts, headers });
+}
+
 function mintPublicServiceJwt(sessionId: string): string {
   const secret =
     process.env.JWT_SECRET ?? process.env.SUPABASE_JWT_SECRET ?? '';
@@ -87,7 +103,7 @@ function resolveGatewayBase(): string {
 export async function POST(req: Request): Promise<Response> {
   const ct = req.headers.get('content-type') ?? '';
   if (!ct.includes('application/json')) {
-    return NextResponse.json(
+    return noStoreJson(
       { error: 'unsupported_media_type' },
       { status: 415 },
     );
@@ -97,7 +113,7 @@ export async function POST(req: Request): Promise<Response> {
     const raw = (await req.json()) as unknown;
     parsed = WidgetTurnSchema.parse(raw);
   } catch (err) {
-    return NextResponse.json(
+    return noStoreJson(
       {
         error: 'invalid_payload',
         detail: err instanceof Error ? err.message : 'unknown',
@@ -124,7 +140,7 @@ export async function POST(req: Request): Promise<Response> {
   try {
     serviceToken = mintPublicServiceJwt(parsed.sessionId);
   } catch (err) {
-    return NextResponse.json(
+    return noStoreJson(
       {
         error: 'auth_unconfigured',
         detail: err instanceof Error ? err.message : 'unknown',
@@ -163,7 +179,7 @@ export async function POST(req: Request): Promise<Response> {
     const text = await upstreamRes.text();
     const upstreamCt = upstreamRes.headers.get('content-type') ?? '';
     const reply = extractReplyFromUpstream(text, upstreamCt);
-    return NextResponse.json(
+    return noStoreJson(
       {
         reply,
         sessionId: parsed.sessionId,
@@ -226,7 +242,7 @@ export async function POST(req: Request): Promise<Response> {
             // Empty Anthropic reply — surface as 503 with a structured
             // error code so the widget renders its own degraded state
             // instead of showing a hardcoded "(no response)" string.
-            return NextResponse.json(
+            return noStoreJson(
               {
                 error: 'ai_empty_reply',
                 detail: 'anthropic_returned_empty_content',
@@ -235,7 +251,7 @@ export async function POST(req: Request): Promise<Response> {
               { status: 503 },
             );
           }
-          return NextResponse.json(
+          return noStoreJson(
             {
               reply,
               sessionId: parsed.sessionId,
@@ -248,7 +264,7 @@ export async function POST(req: Request): Promise<Response> {
         // Fall through to structured 503 below.
       }
     }
-    return NextResponse.json(
+    return noStoreJson(
       {
         error: 'ai_unavailable',
         detail:
