@@ -93,6 +93,14 @@ RUN pnpm -F @borjie/api-gateway --prod deploy /deploy
 # -----------------------------------------------------------------------------
 FROM node:22.15.0-bookworm-slim AS runtime
 
+# Deploy-freshness stamp: the /health handler reads process.env.APP_VERSION
+# (`?? 'dev'`). Pass the deploying commit's short SHA via:
+#   fly deploy --build-arg APP_VERSION=$(git rev-parse --short HEAD)
+# Then `curl https://borjie-api-gateway.fly.dev/health` returns the live SHA,
+# making the cheapest possible deploy-freshness probe trivial.
+ARG APP_VERSION="dev"
+ENV APP_VERSION="${APP_VERSION}"
+
 ENV NODE_ENV="production"
 ENV PORT="3001"
 ENV HOST="0.0.0.0"

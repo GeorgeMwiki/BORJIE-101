@@ -17,11 +17,19 @@
 
 import { useMemo } from 'react';
 
-import { useLocale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
 import { dictionaries } from './dictionaries';
 import { makeT, type TFn } from './resolve';
 
-export function useT(): TFn {
-  const locale = useLocale();
+/**
+ * `initialLocale` SEEDS the first render. A client component rendered by a
+ * Server Component that already resolved the cookie via
+ * `readLocaleFromServerCookies()` MUST pass it so SSR and the client's first
+ * paint render the SAME, correct language — otherwise useLocale starts at
+ * DEFAULT_LOCALE='en' and the post-hydration effect ticks a frame later,
+ * producing the first-paint EN-under-an-SW-chrome split.
+ */
+export function useT(initialLocale?: Locale): TFn {
+  const locale = useLocale(initialLocale);
   return useMemo(() => makeT(dictionaries[locale]), [locale]);
 }

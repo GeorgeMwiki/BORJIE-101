@@ -12,8 +12,6 @@
 
 import type { ReactElement, ReactNode } from 'react';
 import Link from 'next/link';
-import { Nav } from '@/components/Nav';
-import { Footer } from '@/components/Footer';
 import type { Locale } from '@/lib/i18n';
 
 export interface LegalSection {
@@ -42,9 +40,11 @@ export function LegalShell({
   children,
 }: LegalShellProps): ReactElement {
   return (
-    <>
-      <Nav locale={locale} />
-      <main id="main-content">
+    // Root layout (apps/marketing/src/app/layout.tsx) owns <Nav>, the single
+    // <main id="main-content"> landmark, the skip-link target, and <Footer>.
+    // LegalShell renders ONLY the page body so we never duplicate the
+    // landmark (which fails axe + screen-readers + HTML validators).
+    <div>
         {/* Hero */}
         <section className="border-b border-border/40 px-6 py-20 lg:px-8 lg:py-24">
           <div className="mx-auto max-w-3xl text-center">
@@ -102,8 +102,6 @@ export function LegalShell({
             </div>
           </div>
         </section>
-      </main>
-      <Footer locale={locale} />
-    </>
+    </div>
   );
 }
