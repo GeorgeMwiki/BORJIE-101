@@ -198,7 +198,15 @@ export async function POST(req: Request): Promise<Response> {
             'anthropic-version': '2023-06-01',
           },
           body: JSON.stringify({
-            model: 'claude-sonnet-4-6',
+            // Resolve the chat model from env (canonical model-resolution
+            // pattern: DEFAULT_TIER_MODEL_IDS.standard in ai-copilot) so a
+            // model upgrade is one env flip on Vercel + Fly, not a code edit
+            // in the BFF. Fallback constant tracks the same default the
+            // gateway uses for the floating concierge tier.
+            model:
+              process.env.BORJIE_CHAT_MODEL_ID?.trim() ||
+              process.env.CHAT_MODEL_ID?.trim() ||
+              'claude-opus-4-8',
             max_tokens: 600,
             system,
             messages: [{ role: 'user', content: parsed.message }],

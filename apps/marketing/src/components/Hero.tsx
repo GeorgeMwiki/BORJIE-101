@@ -361,10 +361,14 @@ export function Hero({ locale }: { readonly locale: Locale }) {
           </p>
         </div>
 
-        {/* RIGHT — static product preview inset. Hidden below xl so it
-            never stacks behind the real floating chat widget on narrow
-            screens; the live widget carries the conversation there. */}
-        <div className="relative hidden items-center xl:flex">
+        {/* RIGHT — static product preview inset.
+            HIDDEN ENTIRELY now that the floating concierge auto-opens on first
+            paint: on xl+ the live widget would sit directly on top of this
+            mock, two chat-looking surfaces stacked on the right edge. Keeping
+            the markup so a future redesign can restore it (e.g. once the
+            auto-open is removed or moved); just gated off the screen via the
+            `hidden` class. */}
+        <div className="relative hidden items-center">
           <div
             className="relative w-full overflow-hidden rounded-card-lg border border-border/60 bg-background/92 shadow-lift-hero ring-1 ring-border/40 backdrop-blur-2xl"
             style={{ minHeight: '520px' }}
