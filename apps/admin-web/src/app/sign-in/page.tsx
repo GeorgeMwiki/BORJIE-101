@@ -1,7 +1,11 @@
 import { Suspense } from 'react';
 import { SignInForm } from './sign-in-form';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
-import { pickByLocale } from '@/lib/locale';
+// IMPORTANT: import pickByLocale from locale-shared (hook-free), NOT from
+// @/lib/locale — the latter also exports useLocale which uses useEffect, and
+// pulling that into a Server Component fails the Next build with the "needs
+// useEffect ... mark with use client" error. locale-shared is pure.
+import { pickByLocale } from '@/lib/locale-shared';
 
 export const dynamic = 'force-dynamic';
 
