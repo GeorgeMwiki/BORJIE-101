@@ -11,7 +11,6 @@ import { motion } from 'framer-motion';
 import { BorjieMark } from '../borjie/BorjieMark';
 import { CHAT_USER_BUBBLE, CHAT_AI_BUBBLE } from '../litfin-primitives';
 import { AIMessageText } from './AIMessageText';
-import type { InlineChatBlock } from './InlineLearningBlocks';
 import type { JSX } from 'react';
 
 export interface LitFinMessage {
@@ -20,12 +19,9 @@ export interface LitFinMessage {
   readonly content: string;
   readonly timestamp?: string;
   readonly isStreaming?: boolean;
-  /**
-   * Inline learning-chat blocks. Narrow port of LitFin's chat-message-
-   * level generative-UI pattern (concept_card + ui_block ONLY — NOT the
-   * stepper / classroom / adaptive-layout framework).
-   */
-  readonly blocks?: ReadonlyArray<InlineChatBlock>;
+  // The floating concierge is CONVERSATIONAL-ONLY — no inline learning
+  // blocks (concept_card / ui_block). Structured-UI belongs to the cockpit
+  // chat, not here. The historical `blocks` field is removed.
 }
 
 interface LitFinMessageBubbleProps {

@@ -1,32 +1,14 @@
 /**
- * HomePage — LitFin canonical pattern. The marketing page.tsx composes
- * four top-level pieces: IgnitionHero, BrainClaimsBanner, CapabilitiesSection,
- * HomePage. This component is `HomePage` — the lazy-loaded fold of inner
- * sections. Mirrors:
+ * HomePage — the below-the-hero fold of the marketing home.
  *
- *   LITFIN_PATH/src/components/home/HomePage.tsx
+ * The marketing page.tsx composes:
+ *   <IgnitionHero />            — hero + Live Fabric chat
+ *   <CapabilitiesSection />     — six capabilities tilt-grid
+ *   <HomePage />                — everything below (this file)
  *
- * Borjie keeps each inner section as its own polished impl (already
- * LitFin-cloned in prior waves — sibling #75 / #82 / #117 / #122). This
- * shell:
- *   1. Renders the "Why a Mining OS?" Problem/Solution duo (eager).
- *   2. Wraps below-fold sections in `LazyVisible` (IntersectionObserver
- *      gate, 400px ahead) so framer-motion-heavy sections never enter
- *      the first-paint payload.
- *
- * The 4-component LitFin marketing composition is:
- *   <IgnitionHero />            // hero + Live Fabric chat
- *   <BrainClaimsBanner />       // evidence-backed claims band
- *   <CapabilitiesSection />     // six capabilities tilt-grid
- *   <HomePage />                // everything below (this file)
- *
- * Note: LitFin's source uses next/dynamic() + Suspense for code-split
- * chunks. Borjie achieves the same first-paint goal through
- * IntersectionObserver-gated LazyVisible — chunks load when the
- * sentinel intersects, framer-motion never parses ahead of need. The
- * trade-off (less type-safety on dynamic strings vs simpler static
- * imports) was decided in favour of static imports for build-time TS
- * cleanliness under nodenext module resolution.
+ * All sections render EAGERLY. The previous IntersectionObserver-gated
+ * `LazyVisible` shell was removed (PR drive-to-zero): the savings were
+ * tiny and any hydration hiccup left blank panels mid-page.
  */
 'use client';
 

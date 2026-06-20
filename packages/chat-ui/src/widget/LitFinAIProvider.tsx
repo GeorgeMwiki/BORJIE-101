@@ -177,6 +177,12 @@ export function LitFinAIProvider({
   // Auto-open (marketing concierge): pop the panel open shortly after first
   // paint UNLESS the visitor previously closed it (persisted dismissal). The
   // small delay lets the page render first so the open never janks the paint.
+  //
+  // RACE: if a nav overlay (mega-menu / mobile drawer) opens BEFORE the 900ms
+  // elapses, the panel would still pop open behind it — defeating the mutex.
+  // The bn-litfin-close-chat listener now also CANCELS a pending auto-open so
+  // a menu-first interaction kills the auto-open entirely (the FAB still
+  // reopens manually).
   useEffect(() => {
     if (!autoOpen || typeof window === 'undefined') return undefined;
     try {
@@ -187,7 +193,12 @@ export function LitFinAIProvider({
       // private mode / storage blocked — treat as not-dismissed.
     }
     const id = window.setTimeout(() => setIsOpen(true), 900);
-    return () => window.clearTimeout(id);
+    const cancelOnClose = () => window.clearTimeout(id);
+    window.addEventListener('bn-litfin-close-chat', cancelOnClose);
+    return () => {
+      window.clearTimeout(id);
+      window.removeEventListener('bn-litfin-close-chat', cancelOnClose);
+    };
   }, [autoOpen]);
 
   const toggleWidget = useCallback(() => setIsOpen((prev) => !prev), []);
