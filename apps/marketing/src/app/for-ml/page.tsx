@@ -25,9 +25,9 @@ export default async function ForMlPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Mountain} />
-      </main>
+      </div>
       
     </>
   );

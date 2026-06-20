@@ -29,8 +29,8 @@ export default async function BuyersSignupPage() {
   return (
     <>
       
-      <main
-        id="main-content"
+      <div
+
         className="relative min-h-screen overflow-hidden bg-background text-foreground"
       >
         <div className="hero-aurora" aria-hidden="true" />
@@ -65,7 +65,7 @@ export default async function BuyersSignupPage() {
             KYB-verified · biometric off-take · audit chain
           </p>
         </div>
-      </main>
+      </div>
       
     </>
   );

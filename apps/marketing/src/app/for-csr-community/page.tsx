@@ -26,9 +26,9 @@ export default async function ForCsrCommunityPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={HeartHandshake} />
-      </main>
+      </div>
       
     </>
   );

@@ -25,9 +25,9 @@ export default async function ForSmlPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Gem} />
-      </main>
+      </div>
       
     </>
   );

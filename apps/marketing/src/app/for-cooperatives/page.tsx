@@ -26,9 +26,9 @@ export default async function ForCooperativesPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Users} />
-      </main>
+      </div>
       
     </>
   );

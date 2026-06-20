@@ -30,8 +30,8 @@ export default function MarketingError({ error, reset }: ErrorPageProps) {
   }, [error]);
 
   return (
-    <main
-      id="main-content"
+    <div
+
       className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-12"
     >
       <div
@@ -80,6 +80,6 @@ export default function MarketingError({ error, reset }: ErrorPageProps) {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

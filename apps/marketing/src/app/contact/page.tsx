@@ -39,7 +39,7 @@ export default async function ContactPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-border/40">
           <div className="hero-aurora" aria-hidden="true" />
@@ -207,7 +207,7 @@ export default async function ContactPage() {
             </Link>
           </div>
         </section>
-      </main>
+      </div>
       
     </>
   );

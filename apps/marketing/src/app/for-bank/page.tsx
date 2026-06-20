@@ -26,9 +26,9 @@ export default async function ForBankPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Building2} />
-      </main>
+      </div>
       
     </>
   );

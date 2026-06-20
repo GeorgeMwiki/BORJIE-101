@@ -63,7 +63,7 @@ export default async function BlogPostPage({
   return (
     <>
       
-      <main id="main-content">
+      <div>
         {/* Post hero */}
         <section className="relative overflow-hidden border-b border-border/40">
           <div
@@ -180,7 +180,7 @@ export default async function BlogPostPage({
             </div>
           </div>
         </section>
-      </main>
+      </div>
       
     </>
   );

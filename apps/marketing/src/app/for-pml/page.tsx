@@ -27,9 +27,9 @@ export default async function ForPmlPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Pickaxe} />
-      </main>
+      </div>
       
     </>
   );

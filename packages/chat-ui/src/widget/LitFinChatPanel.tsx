@@ -414,10 +414,6 @@ export function LitFinChatPanel({
                 reply?: string;
                 text?: string;
                 error?: string;
-                blocks?: ReadonlyArray<{
-                  type: string;
-                  [key: string]: unknown;
-                }>;
               }
             | null;
           const reply =
@@ -428,13 +424,9 @@ export function LitFinChatPanel({
               : language === 'sw'
                 ? 'Samahani, hakuna jibu kwa sasa.'
                 : 'Sorry, no reply right now.');
-          // Narrow port: AI may include inline learning blocks alongside
-          // the reply. Only `concept_card` and `ui_block` are honored.
-          const blocks = Array.isArray(json?.blocks)
-            ? (json!.blocks.filter(
-                (b) => b?.type === 'concept_card' || b?.type === 'ui_block',
-              ) as unknown as LitFinMessage['blocks'])
-            : undefined;
+          // CONVERSATIONAL-ONLY: the floating concierge never renders
+          // server-injected blocks. The BFF no longer sends them; even if a
+          // legacy proxy did, the renderer would ignore them.
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (!last || last.role !== 'assistant') return prev;
@@ -443,7 +435,6 @@ export function LitFinChatPanel({
               {
                 ...last,
                 content: reply,
-                ...(blocks && blocks.length > 0 ? { blocks } : {}),
               },
             ];
           });
