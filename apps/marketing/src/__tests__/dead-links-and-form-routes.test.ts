@@ -94,7 +94,15 @@ describe('KI-016 — audience pages are reachable (no orphan landing pages)', ()
   it('each newly-linked audience page appears in the sitemap', () => {
     const sitemap = read('app/sitemap.ts');
     for (const href of NEWLY_LINKED) {
-      expect(sitemap, `${href} should be in sitemap`).toContain(`${href}\``);
+      // The sitemap may store paths inside template literals or as plain
+      // strings via the `entry('/path', …)` helper — accept either form so
+      // future structural refactors don't trip this canary.
+      const inTemplate = sitemap.includes(`${href}\``);
+      const inEntry = sitemap.includes(`'${href}'`);
+      expect(
+        inTemplate || inEntry,
+        `${href} should be in sitemap (template OR entry-helper form)`,
+      ).toBe(true);
     }
   });
 
@@ -117,6 +125,9 @@ describe('KI-016 — audience pages are reachable (no orphan landing pages)', ()
     expect(existsSync(join(SRC, 'app/for-buyer/page.tsx'))).toBe(false);
     // ...and nothing links to the removed route.
     expect(nav).not.toContain("'/for-buyer'");
-    expect(read('app/sitemap.ts')).not.toContain('/for-buyer`');
+    const sitemap = read('app/sitemap.ts');
+    // Neither the template-literal form nor the entry-helper string form.
+    expect(sitemap).not.toContain('/for-buyer`');
+    expect(sitemap).not.toContain("'/for-buyer'");
   });
 });
