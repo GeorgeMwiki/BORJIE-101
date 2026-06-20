@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useT } from '@/i18n/t.client';
+import type { Locale } from '@/lib/locale';
 
 interface FormState {
   readonly phase: 'idle' | 'submitting' | 'error';
@@ -23,10 +24,20 @@ interface FormState {
  * bridged into the Supabase SSR session the middleware gates on, so a
  * "successful" sign-in bounced /dashboard → /sign-in in a loop.)
  */
-export function SignInForm() {
+export interface SignInFormProps {
+  /**
+   * Server-resolved locale, passed down from SignInPage so useT/useLocale
+   * seed the first client render to the SAME language the SSR chrome used.
+   * Without this seed, useLocale defaults to EN and renders a one-frame
+   * EN body under SW chrome (the first-paint split-brain).
+   */
+  readonly initialLocale?: Locale;
+}
+
+export function SignInForm({ initialLocale }: SignInFormProps = {}) {
   const router = useRouter();
   const params = useSearchParams();
-  const t = useT();
+  const t = useT(initialLocale);
   const next = params.get('next') ?? '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

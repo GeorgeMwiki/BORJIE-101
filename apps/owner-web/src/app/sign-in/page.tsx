@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { SignInForm } from './sign-in-form';
 import { getServerT } from '@/i18n/t.server';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,10 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function SignInPage() {
   const t = await getServerT();
+  // Seed the client form's locale from the SAME cookie the server resolved;
+  // otherwise useLocale defaults to EN and renders a one-frame EN body under
+  // the SW chrome (first-paint split-brain — zero-mix canon violation).
+  const initialLocale = await readLocaleFromServerCookies();
   return (
     <main
       className="relative min-h-screen overflow-hidden bg-background p-6"
@@ -38,7 +43,7 @@ export default async function SignInPage() {
             </div>
           }
         >
-          <SignInForm />
+          <SignInForm initialLocale={initialLocale} />
         </Suspense>
       </div>
     </main>

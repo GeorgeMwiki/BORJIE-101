@@ -6,17 +6,24 @@ import { z } from 'zod';
 import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { sanitizeNext } from '@/lib/safe-next';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
-const SignInSchema = z.object({
-  email: z.string().email('Enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-});
-
-type SignInInput = z.infer<typeof SignInSchema>;
+type SignInInput = { readonly email: string; readonly password: string };
 
 interface FormState {
   readonly phase: 'idle' | 'submitting' | 'error';
   readonly error?: string;
+}
+
+export interface SignInFormProps {
+  /**
+   * Server-resolved locale, passed down from SignInPage so useLocale seeds
+   * the first client render to the SAME language the SSR chrome used.
+   * Otherwise useLocale defaults to EN and renders a one-frame EN body
+   * under SW chrome (the first-paint split-brain — zero-mix canon
+   * violation).
+   */
+  readonly initialLocale?: Locale;
 }
 
 /**
@@ -26,9 +33,32 @@ interface FormState {
  * + declarative heading, generous spacing, full-width primary CTA in
  * signal-gold. Trust microcopy below.
  */
-export function SignInForm() {
+export function SignInForm({ initialLocale }: SignInFormProps = {}) {
+  const locale = useLocale(initialLocale);
   const router = useRouter();
   const params = useSearchParams();
+  // Build the zod schema with locale-aware messages so the EN/SW pivot reaches
+  // even the validation toasts (rather than the visitor getting "Enter a valid
+  // email address" on a Swahili surface).
+  const SignInSchema = z.object({
+    email: z
+      .string()
+      .email(
+        pickByLocale(locale, {
+          en: 'Enter a valid email address',
+          sw: 'Weka barua pepe sahihi',
+        }),
+      ),
+    password: z
+      .string()
+      .min(
+        1,
+        pickByLocale(locale, {
+          en: 'Password is required',
+          sw: 'Nenosiri linahitajika',
+        }),
+      ),
+  });
   // Guard against open-redirect: only same-origin absolute paths survive.
   const next = sanitizeNext(params.get('next'));
   const [email, setEmail] = useState('');
@@ -40,7 +70,9 @@ export function SignInForm() {
     setState({ phase: 'submitting' });
     const parsed = SignInSchema.safeParse({ email, password });
     if (!parsed.success) {
-      const first = parsed.error.issues[0]?.message ?? 'Invalid input';
+      const first =
+        parsed.error.issues[0]?.message ??
+        pickByLocale(locale, { en: 'Invalid input', sw: 'Maelezo si sahihi' });
       setState({ phase: 'error', error: first });
       return;
     }
@@ -62,7 +94,10 @@ export function SignInForm() {
         error:
           err instanceof Error
             ? err.message
-            : 'Could not reach Supabase Auth',
+            : pickByLocale(locale, {
+                en: 'Could not reach Supabase Auth',
+                sw: 'Imeshindwa kufikia Supabase Auth',
+              }),
       });
     }
   }
@@ -76,13 +111,16 @@ export function SignInForm() {
           </span>
         </div>
         <p className="font-mono text-caption uppercase tracking-widest text-signal-500">
-          Borjie Console
+          {pickByLocale(locale, { en: 'Borjie Console', sw: 'Konsoli ya Borjie' })}
         </p>
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-          Welcome back.
+          {pickByLocale(locale, { en: 'Welcome back.', sw: 'Karibu tena.' })}
         </h1>
         <p className="mt-3 text-sm text-neutral-400">
-          Sign in to the internal Borjie HQ.
+          {pickByLocale(locale, {
+            en: 'Sign in to the internal Borjie HQ.',
+            sw: 'Ingia kwenye Makao Makuu ya ndani ya Borjie.',
+          })}
         </p>
       </header>
 
@@ -96,7 +134,7 @@ export function SignInForm() {
             htmlFor="email"
             className="block text-sm font-medium text-foreground"
           >
-            Email
+            {pickByLocale(locale, { en: 'Email', sw: 'Barua pepe' })}
           </label>
           <input
             id="email"
@@ -114,7 +152,7 @@ export function SignInForm() {
             htmlFor="password"
             className="block text-sm font-medium text-foreground"
           >
-            Password
+            {pickByLocale(locale, { en: 'Password', sw: 'Nenosiri' })}
           </label>
           <input
             id="password"
@@ -144,12 +182,17 @@ export function SignInForm() {
           disabled={state.phase === 'submitting'}
           className="bg-signal-500 py-3.5 text-base font-semibold text-primary-foreground shadow-md hover:bg-signal-400 hover:shadow-lg active:scale-[0.99] focus-visible:ring-signal-500"
         >
-          {state.phase === 'submitting' ? 'Signing in…' : 'Sign in'}
+          {state.phase === 'submitting'
+            ? pickByLocale(locale, { en: 'Signing in…', sw: 'Inaingia…' })
+            : pickByLocale(locale, { en: 'Sign in', sw: 'Ingia' })}
         </Button>
       </form>
 
       <p className="mt-8 text-center font-mono text-caption uppercase tracking-widest text-neutral-500">
-        Borjie internal · staff only · 2FA enforced
+        {pickByLocale(locale, {
+          en: 'Borjie internal · staff only · 2FA enforced',
+          sw: 'Borjie ya ndani · wafanyakazi pekee · 2FA inatekelezwa',
+        })}
       </p>
     </div>
   );

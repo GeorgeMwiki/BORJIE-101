@@ -84,6 +84,25 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/(.*)', headers: SECURITY_HEADERS },
+      {
+        // Marketing HTML defaults to no-cache, no-store under the framework's
+        // safe-by-default. Public marketing pages have no per-visitor state in
+        // the body — let Vercel's edge cache them briefly + serve stale while
+        // revalidating, so most visitors get an instant edge response instead
+        // of paying full SSR (we burn through Vercel function minutes for free
+        // and TTFB drops from ~1-2s to ~50-100ms). Cookie is varied so a
+        // future locale-sensitive render doesn't poison cross-locale caching.
+        // Exclude /_next/ (immutable, already long-cached) and /api/ (mutating
+        // BFF routes — must not be cached).
+        source: '/((?!_next/|api/).*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, s-maxage=60, stale-while-revalidate=300',
+          },
+          { key: 'Vary', value: 'Cookie' },
+        ],
+      },
     ];
   },
 };
