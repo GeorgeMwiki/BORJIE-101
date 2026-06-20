@@ -35,7 +35,7 @@ export default async function BuyersPage() {
   return (
     <>
       
-      <main id="main-content" className="min-h-screen bg-background text-foreground">
+      <div className="min-h-screen bg-background text-foreground">
         {/* Hero */}
         <section
           className="relative overflow-hidden"
@@ -280,7 +280,7 @@ export default async function BuyersPage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
       
     </>
   );

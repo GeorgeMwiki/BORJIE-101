@@ -31,7 +31,7 @@ export default async function BlogIndexPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <section
           className="relative overflow-hidden"
           aria-labelledby="blog-heading"
@@ -135,7 +135,7 @@ export default async function BlogIndexPage() {
             </form>
           </div>
         </section>
-      </main>
+      </div>
       
     </>
   );

@@ -26,9 +26,9 @@ export default async function ForRegulatorPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={ShieldCheck} />
-      </main>
+      </div>
       
     </>
   );

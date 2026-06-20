@@ -26,8 +26,8 @@ export default async function StatusPage() {
   return (
     <>
       
-      <main
-        id="main-content"
+      <div
+
         className="mx-auto max-w-3xl px-6 pb-24 pt-20 lg:px-8"
       >
         <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
@@ -47,7 +47,7 @@ export default async function StatusPage() {
         <p className="mt-10 text-xs leading-relaxed text-foreground/60">
           {c.subscribeNote}
         </p>
-      </main>
+      </div>
       
     </>
   );

@@ -14,12 +14,12 @@ import { extractReplyFromUpstream } from './sse-parse';
  * gateway now requires auth on all /api/v1/* routes (even /public/*).
  * The PUBLIC role grants no tenant access, only Mr. Mwikila public chat.
  *
- * Inline learning blocks (narrow port of LitFin's chat-message-level
- * learning pattern): when the user's message touches a known mining
- * topic, this route appends one `concept_card` or `ui_block` to the
- * response under `blocks`. The widget renders these inline via
- * InlineLearningBlocks. This does NOT port LitFin's stepper / classroom
- * / adaptive-layout framework — only the chat-message-level pattern.
+ * CONVERSATIONAL-ONLY: this BFF is a pure proxy — it forwards the user's
+ * message to the gateway and returns the gateway's prose reply. NO server-
+ * synthesised concept_card / ui_block / structured artifacts. The floating
+ * concierge is a chat surface, not a UI surface; mining-domain knowledge
+ * surfaces as the model's prose. (The earlier emitLearningBlocks heuristic
+ * was removed in PR drive-to-zero.)
  */
 
 export const runtime = 'nodejs';
@@ -76,115 +76,13 @@ function resolveGatewayBase(): string {
   return 'http://localhost:4000';
 }
 
-// ─── Inline learning-block generator (narrow port) ───────────────
-
-interface ConceptCardBlock {
-  readonly type: 'concept_card';
-  readonly title: string;
-  readonly summary: string;
-  readonly keyPoints?: ReadonlyArray<string>;
-  readonly citation?: string;
-}
-
-interface UiBlock {
-  readonly type: 'ui_block';
-  readonly kind: string;
-  readonly payload: Record<string, unknown>;
-}
-
-type InlineChatBlock = ConceptCardBlock | UiBlock;
-
-/**
- * Heuristic-based learning-block emitter for Borjie's mining domain.
- * Detects mining concept triggers in the user message and emits an
- * inline `concept_card` or `ui_block`. Pure function — no LLM call so
- * latency stays at the gateway's baseline. Future iterations can ask
- * the gateway to emit blocks server-side; this is the narrow MVP.
- */
-function emitLearningBlocks(
-  userMessage: string,
-  language: 'en' | 'sw',
-): ReadonlyArray<InlineChatBlock> {
-  const msg = userMessage.toLowerCase();
-
-  // PML / Primary Mining Licence
-  if (/\bpml\b|primary mining|leseni ya msingi/.test(msg)) {
-    const card: ConceptCardBlock =
-      language === 'sw'
-        ? {
-            type: 'concept_card',
-            title: 'Leseni ya Msingi ya Madini (PML)',
-            summary:
-              'Leseni ya msingi inaruhusu uchimbaji wa madini katika eneo lisilozidi hekta 10. Inatolewa na Tume ya Madini chini ya Sheria ya Madini ya 2010.',
-            keyPoints: [
-              'Eneo: kiwango cha juu hekta 10',
-              'Muda: miaka 7, inarejeshwa',
-              'Ada ya mwaka: TZS 50,000 kwa hekta',
-              'Inakiwa wenyeji wa Tanzania pekee',
-            ],
-            citation: 'Sheria ya Madini ya 2010, Kifungu cha 46',
-          }
-        : {
-            type: 'concept_card',
-            title: 'Primary Mining Licence (PML) basics',
-            summary:
-              'A PML permits small-scale mining over an area not exceeding 10 hectares. Issued by the Mining Commission under the Mining Act 2010.',
-            keyPoints: [
-              'Area cap: 10 hectares maximum',
-              'Term: 7 years, renewable',
-              'Annual rent: TZS 50,000 per hectare',
-              'Tanzanian citizens only',
-            ],
-            citation: 'Mining Act 2010, Section 46',
-          };
-    return [card];
-  }
-
-  // Royalty rate
-  if (/royalty|mrabaha|royalti/.test(msg)) {
-    const card: ConceptCardBlock =
-      language === 'sw'
-        ? {
-            type: 'concept_card',
-            title: 'Viwango vya Mrabaha wa Madini',
-            summary:
-              'Mrabaha hulipwa kwa mauzo ghafi ya madini. Viwango vinatofautiana kulingana na aina ya madini.',
-            keyPoints: [
-              'Dhahabu, fedha, platinum: 6%',
-              'Almasi: 5%',
-              'Madini ya viwanda (chokaa, chumvi): 3%',
-              'Madini ya ujenzi: 1%',
-            ],
-            citation: 'Sheria ya Madini 2010, Jedwali la Tatu',
-          }
-        : {
-            type: 'concept_card',
-            title: 'Mining royalty rates (Tanzania)',
-            summary:
-              'Royalty is calculated on the gross value of minerals sold. Rates vary by mineral category.',
-            keyPoints: [
-              'Gold, silver, platinum group: 6%',
-              'Diamonds: 5%',
-              'Industrial minerals (gypsum, salt): 3%',
-              'Building materials: 1%',
-            ],
-            citation: 'Mining Act 2010, Third Schedule',
-          };
-    const calc: UiBlock = {
-      type: 'ui_block',
-      kind: 'royalty_calculator',
-      payload: {
-        mineral: 'Gold',
-        rate: 6,
-        grossSales: 10_000_000,
-        currency: 'TZS',
-      },
-    };
-    return [card, calc];
-  }
-
-  return [];
-}
+// Note: this route previously synthesised inline `concept_card` / `ui_block`
+// objects from a keyword heuristic and injected them into the JSON response,
+// directly contradicting the floating-concierge "CONVERSATIONAL ONLY" promise
+// the system prompt enforces. Removed (PR drive-to-zero) — the BFF is now a
+// pure proxy: it forwards the user's message to the gateway and returns the
+// gateway's prose reply, nothing else. Mining-domain knowledge surfaces as
+// the model's prose, not as server-injected cards.
 
 export async function POST(req: Request): Promise<Response> {
   const ct = req.headers.get('content-type') ?? '';
@@ -236,7 +134,6 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const language = parsed.language ?? 'en';
-  const blocks = emitLearningBlocks(parsed.message, language);
 
   try {
     const upstreamRes = await fetch(upstream, {
@@ -250,8 +147,8 @@ export async function POST(req: Request): Promise<Response> {
     });
 
     if (wantsStream && upstreamRes.body) {
-      // SSE pass-through: blocks are not streamed for the MVP — the
-      // widget falls back to JSON for any turn that triggers blocks.
+      // SSE pass-through: stream the gateway's response body through to the
+      // widget unchanged.
       return new Response(upstreamRes.body, {
         status: upstreamRes.status,
         headers: {
@@ -270,7 +167,6 @@ export async function POST(req: Request): Promise<Response> {
       {
         reply,
         sessionId: parsed.sessionId,
-        ...(blocks.length > 0 ? { blocks } : {}),
       },
       { status: upstreamRes.status },
     );
@@ -282,10 +178,18 @@ export async function POST(req: Request): Promise<Response> {
     const anthropicKey = process.env.ANTHROPIC_API_KEY?.trim();
     if (anthropicKey) {
       try {
-        const system =
+        // Conversational-only floating concierge: same rule as the gateway's
+        // public-chat system prompt — no tables, no code fences, no <ui_block>
+        // tags, no bullet lists, no HTML. Plain prose, 1-4 short sentences.
+        const CONVERSATIONAL_ONLY =
           language === 'sw'
+            ? ' Hii ni dirisha la mazungumzo. Andika kama mshauri mtaalamu anayejibu DM: prose tu, sentensi 1-4 fupi, malizia kwa swali. KAMWE usitumie meza (no | col |), code fences, <ui_block>, [QUICK_REPLIES], orodha za bullet, au lebo za HTML.'
+            : ' This is a floating chat panel. Write like a senior advisor typing back in a DM: prose only, 1-4 short sentences, end with a question. NEVER use tables (no | col |), code fences, <ui_block>, [QUICK_REPLIES], bullet lists, or HTML tags.';
+        const system =
+          (language === 'sw'
             ? 'Wewe ni Mr. Mwikila, Mkurugenzi wa Madini wa AI wa Borjie. Jibu kwa Kiswahili pekee, kwa kifupi, joto na kwa msaada. Ukijitambulisha, jitambulishe kwa maneno YAKO ya asili kila mara, kamwe usikariri sentensi ya kujitangaza. Unaendesha estate ya madini kwa wamiliki: leseni na kuhuisha, mrabaha, wafanyakazi na zamu, hazina na dirisha la kuuza madini, na kufuata Tume ya Madini, TRA na BoT. Jibu maswali yanayohusu Borjie na Mr. Mwikila pekee; kataa kwa heshima mada zisizohusiana na kamwe usijadili bidhaa nyingine.'
-            : "You are Mr. Mwikila, Borjie's AI mining MD. Reply in English only, concise, warm and useful. When you introduce yourself, do it in your OWN fresh words every time; never recite a fixed positioning sentence. You run the mining estate for owners: licences and renewals, royalty, workforce and shifts, treasury and the mineral-sale window, and compliance with the Mining Commission, TRA and BoT. Only answer questions about Borjie and Mr. Mwikila; politely decline unrelated topics and never discuss other products.";
+            : "You are Mr. Mwikila, Borjie's AI mining MD. Reply in English only, concise, warm and useful. When you introduce yourself, do it in your OWN fresh words every time; never recite a fixed positioning sentence. You run the mining estate for owners: licences and renewals, royalty, workforce and shifts, treasury and the mineral-sale window, and compliance with the Mining Commission, TRA and BoT. Only answer questions about Borjie and Mr. Mwikila; politely decline unrelated topics and never discuss other products.") +
+          CONVERSATIONAL_ONLY;
         const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -327,7 +231,6 @@ export async function POST(req: Request): Promise<Response> {
             {
               reply,
               sessionId: parsed.sessionId,
-              ...(blocks.length > 0 ? { blocks } : {}),
               degraded: { mode: 'direct_anthropic', reason: 'gateway_unreachable' },
             },
             { status: 200 },
@@ -343,7 +246,6 @@ export async function POST(req: Request): Promise<Response> {
         detail:
           anthropicKey ? 'gateway_down_and_anthropic_failed' : 'ANTHROPIC_API_KEY missing',
         sessionId: parsed.sessionId,
-        ...(blocks.length > 0 ? { blocks } : {}),
       },
       { status: 503 },
     );

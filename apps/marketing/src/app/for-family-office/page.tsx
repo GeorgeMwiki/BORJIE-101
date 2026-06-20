@@ -26,9 +26,9 @@ export default async function ForFamilyOfficePage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Landmark} />
-      </main>
+      </div>
       
     </>
   );

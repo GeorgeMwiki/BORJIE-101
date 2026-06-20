@@ -121,16 +121,10 @@ export function Footer({ locale }: { readonly locale: Locale }) {
       links: [
         { label: t.links.docs, href: '/docs' },
         { label: 'GitHub', href: 'https://github.com/borjie', external: true },
-        {
-          label: 'X / Twitter',
-          href: 'https://x.com/borjie_tz',
-          external: true,
-        },
-        {
-          label: 'LinkedIn',
-          href: 'https://www.linkedin.com/company/borjie',
-          external: true,
-        },
+        // X (twitter.com/borjie_tz) and LinkedIn (linkedin.com/company/borjie)
+        // accounts not yet provisioned — links return 404 / are rate-blocked.
+        // Re-add once the accounts are live; dead social links in a launch
+        // footer read as broken infrastructure and burn trust.
       ],
     },
     {
@@ -147,11 +141,10 @@ export function Footer({ locale }: { readonly locale: Locale }) {
         { label: t.links.privacy, href: '/privacy' },
         { label: t.links.terms, href: '/terms' },
         { label: 'DPA', href: '/dpa' },
-        {
-          label: t.links.status,
-          href: 'https://status.borjie.co.tz',
-          external: true,
-        },
+        // /status is the in-repo status page (src/app/status/page.tsx). The
+        // status.borjie.co.tz subdomain is not provisioned (NXDOMAIN); a
+        // footer link to a dead subdomain is a trust burn. Repointing here.
+        { label: t.links.status, href: '/status' },
       ],
     },
   ];

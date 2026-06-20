@@ -150,7 +150,7 @@ export default async function SupportPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         {/* Hero */}
         <section className="relative overflow-hidden border-b border-border/40">
           <div className="hero-aurora" aria-hidden="true" />
@@ -309,7 +309,7 @@ export default async function SupportPage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
       
     </>
   );

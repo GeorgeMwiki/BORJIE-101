@@ -36,7 +36,7 @@ export default async function PricingPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <section
           className="relative overflow-hidden"
           aria-labelledby="pricing-page-heading"
@@ -153,7 +153,7 @@ export default async function PricingPage() {
         </section>
 
         <FinalCta locale={locale} />
-      </main>
+      </div>
       
     </>
   );

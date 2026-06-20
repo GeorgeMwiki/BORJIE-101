@@ -859,14 +859,14 @@
       ]
     },
     "platformShowcase": {
-      "kicker": "App tatu, mfumo mmoja",
+      "kicker": "Programu tatu, mfumo mmoja",
       "title": "Borjie inaishi wapi.",
       "titleAccent": "Kwenye kila skrini mgodi unayohitaji.",
-      "sub": "Cockpit ya mmiliki, app ya wafanyakazi na soko la wanunuzi zote zinasoma data ile ile. Mmiliki anaendesha biashara, msimamizi anaendesha zamu, mnunuzi anatafuta parcel.",
+      "sub": "Dashibodi ya mmiliki, programu ya wafanyakazi na soko la wanunuzi zote zinasoma data ile ile. Mmiliki anaendesha biashara, msimamizi anaendesha zamu, mnunuzi anatafuta shehena.",
       "tiles": [
         {
-          "title": "Cockpit ya mmiliki",
-          "subtitle": "Tablet na desktop",
+          "title": "Dashibodi ya mmiliki",
+          "subtitle": "Kompyuta kibao na kompyuta",
           "desc": "Muhtasari wa siku, kalenda ya leseni, hazina, wafanyakazi na utii, yote mahali pamoja kwa mmiliki.",
           "mockType": "kpi",
           "kpis": [
@@ -875,23 +875,23 @@
               "value": "184"
             },
             {
-              "label": "Cash runway (wks)",
+              "label": "Akiba ya fedha (wiki)",
               "value": "18.3"
             },
             {
-              "label": "Siku za PML renewal",
+              "label": "Siku za kuhuisha PML",
               "value": "47"
             }
           ]
         },
         {
-          "title": "App ya wafanyakazi",
+          "title": "Programu ya wafanyakazi",
           "subtitle": "Simu · imefungwa kwa jukumu",
-          "desc": "Kuingia kazini, kumbukumbu ya zamu, mafuta na taarifa za matukio. App ambayo msimamizi anatumia mgodini kila zamu.",
+          "desc": "Kuingia kazini, kumbukumbu ya zamu, mafuta na taarifa za matukio. Programu ambayo msimamizi anatumia mgodini kila zamu.",
           "mockType": "shift",
           "rows": [
             {
-              "label": "Zamu B · pit segment 4",
+              "label": "Zamu B · sehemu ya shimo 4",
               "value": "184 t",
               "tone": "good"
             },

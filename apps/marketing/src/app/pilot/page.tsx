@@ -16,7 +16,7 @@ export default async function PilotPage() {
   return (
     <>
       
-      <main id="main-content" className="mx-auto max-w-3xl px-6 pb-24 pt-20 lg:px-8">
+      <div className="mx-auto max-w-3xl px-6 pb-24 pt-20 lg:px-8">
         <p className="font-mono text-xs uppercase tracking-widest text-signal-500">
           {t.kicker}
         </p>
@@ -34,7 +34,7 @@ export default async function PilotPage() {
         <p className="mt-8 text-sm text-foreground/70">
           {t.contact}
         </p>
-      </main>
+      </div>
       
     </>
   );

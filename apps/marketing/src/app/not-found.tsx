@@ -20,8 +20,8 @@ export const metadata: Metadata = {
  */
 export default function NotFoundPage() {
   return (
-    <main
-      id="main-content"
+    <div
+
       className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-12"
     >
       <div
@@ -62,6 +62,6 @@ export default function NotFoundPage() {
           </Link>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

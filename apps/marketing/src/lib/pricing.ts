@@ -34,10 +34,10 @@ export const TIERS: ReadonlyArray<PricingTier> = [
     features: {
       sw: [
         '1 mmiliki',
-        '1 site',
-        '10 nyaraka kwa mwezi',
+        '1 eneo',
+        'Nyaraka 10 kwa mwezi',
         'Msaada wa jumuiya',
-        'Master Brain · advise mode',
+        'Mr. Mwikila · hali ya ushauri',
       ],
       en: [
         '1 owner',
@@ -59,9 +59,9 @@ export const TIERS: ReadonlyArray<PricingTier> = [
     highlighted: false,
     features: {
       sw: [
-        '3 watumiaji',
-        '3 sites',
-        '100 nyaraka kwa mwezi',
+        'Watumiaji 3',
+        'Maeneo 3',
+        'Nyaraka 100 kwa mwezi',
         'Msaada wa WhatsApp',
         'Kalenda ya leseni + muhtasari wa kila siku',
       ],
@@ -85,12 +85,12 @@ export const TIERS: ReadonlyArray<PricingTier> = [
     highlighted: true,
     features: {
       sw: [
-        '10 watumiaji',
-        '10 sites',
+        'Watumiaji 10',
+        'Maeneo 10',
         'Nyaraka bila kikomo',
-        'Email + Msaada wa WhatsApp',
-        'Logger ya mashimo + FX & hazina',
-        'Soko + KYC otomatiki',
+        'Barua pepe + msaada wa WhatsApp',
+        'Kurekodi visima + fedha za kigeni na hazina',
+        'Soko + uthibitishaji wa wateja otomatiki',
       ],
       en: [
         '10 users',
@@ -113,11 +113,11 @@ export const TIERS: ReadonlyArray<PricingTier> = [
     highlighted: false,
     features: {
       sw: [
-        '50 watumiaji',
-        'Sites bila kikomo',
-        'Dedicated success meneja',
-        'Integrations za kawaida',
-        'Compliance pack + audit chain export',
+        'Watumiaji 50',
+        'Maeneo bila kikomo',
+        'Meneja wa mafanikio aliyetajwa',
+        'Miunganisho ya kawaida',
+        'Kifurushi cha uzingatiaji + uhamishaji wa mlolongo wa ukaguzi',
       ],
       en: [
         '50 users',

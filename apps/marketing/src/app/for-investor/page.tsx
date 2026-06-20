@@ -25,9 +25,9 @@ export default async function ForInvestorPage() {
   return (
     <>
       
-      <main id="main-content">
+      <div>
         <AudiencePage locale={locale} copy={t} kickerIcon={Coins} />
-      </main>
+      </div>
       
     </>
   );

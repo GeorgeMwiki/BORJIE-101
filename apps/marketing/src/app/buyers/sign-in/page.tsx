@@ -34,8 +34,8 @@ export default async function BuyersSignInPage() {
   return (
     <>
       
-      <main
-        id="main-content"
+      <div
+
         className="relative min-h-screen overflow-hidden bg-background text-foreground"
       >
         <div className="hero-aurora" aria-hidden="true" />
@@ -83,7 +83,7 @@ export default async function BuyersSignInPage() {
               : 'BRELA · TRA · Mining Commission verified'}
           </p>
         </div>
-      </main>
+      </div>
       
     </>
   );
