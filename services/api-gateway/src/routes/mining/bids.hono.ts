@@ -204,13 +204,17 @@ app.openapi(bidsListRoute, async (c) => {
   return c.json({ success: true as const, data: rows }, 200);
 });
 
+type SetBidStatusResult =
+  | { ok: true; row: typeof marketplaceBids.$inferSelect }
+  | { ok: false; code: 'NOT_FOUND' | 'BID_NOT_PENDING' };
+
 async function setBidStatus(
   db: DrizzleDb,
   tenantId: string,
   bidId: string,
   status: 'accepted' | 'rejected',
   extra: Record<string, unknown> = {},
-) {
+): Promise<SetBidStatusResult> {
   const [row] = await db
     .select()
     .from(marketplaceBids)
@@ -218,7 +222,12 @@ async function setBidStatus(
       and(eq(marketplaceBids.id, bidId), eq(marketplaceBids.tenantId, tenantId)),
     )
     .limit(1);
-  if (!row) return null;
+  if (!row) return { ok: false, code: 'NOT_FOUND' };
+  // Only a still-pending bid may be accepted/rejected. Without this guard a
+  // reject-after-accept (or double-accept) flips a terminal bid — diverging
+  // marketplace_bids.status from the crystallized offtake_agreements row and
+  // firing a contradictory "declined" notification on an accepted contract.
+  if (row.status !== 'pending') return { ok: false, code: 'BID_NOT_PENDING' };
   const nextAttributes = {
     ...((row.attributes as Record<string, unknown>) ?? {}),
     ...extra,
@@ -232,10 +241,18 @@ async function setBidStatus(
       updatedAt: new Date(),
     })
     .where(
-      and(eq(marketplaceBids.id, bidId), eq(marketplaceBids.tenantId, tenantId)),
+      and(
+        eq(marketplaceBids.id, bidId),
+        eq(marketplaceBids.tenantId, tenantId),
+        // Compare-and-set: the row must STILL be pending at write time, so two
+        // concurrent transitions (the TOCTOU between the SELECT and here) can
+        // never both commit — the loser gets zero rows.
+        eq(marketplaceBids.status, 'pending'),
+      ),
     )
     .returning();
-  return updated;
+  if (!updated) return { ok: false, code: 'BID_NOT_PENDING' };
+  return { ok: true, row: updated };
 }
 
 /**
@@ -344,14 +361,15 @@ app.openapi(
       //
       // NOTE: money is NOT moved here. agreed_price_tzs / quantity_kg are
       // CONTRACT TERMS; settlement still routes through LedgerService.post().
-      let updated: Record<string, unknown> | null = null;
+      let result: SetBidStatusResult | null = null;
       let offtakeAgreementId: string | null = null;
       try {
-        updated = await db.transaction(async (tx: DrizzleDb) => {
-          const flipped = await setBidStatus(tx, tenantId, id, 'accepted', {
+        result = await db.transaction(async (tx: DrizzleDb) => {
+          const r = await setBidStatus(tx, tenantId, id, 'accepted', {
             acceptedAt: new Date().toISOString(),
           });
-          if (!flipped) return null;
+          if (!r.ok) return r;
+          const flipped = r.row;
 
           // Re-read the listing INSIDE the tx (tenant-scoped) so the
           // contract terms (quantity) come from a consistent snapshot.
@@ -402,7 +420,7 @@ app.openapi(
               offtakeAgreementId,
             });
           }
-          return flipped;
+          return r;
         });
       } catch (error) {
         c.get('logger')?.error?.(
@@ -421,20 +439,26 @@ app.openapi(
         );
       }
 
-      if (!updated) {
+      if (!result || !result.ok) {
+        const conflict = result?.code === 'BID_NOT_PENDING';
         return c.json(
           {
             success: false as const,
-            error: { code: 'NOT_FOUND', message: 'Bid not found' },
+            error: {
+              code: result?.code ?? 'NOT_FOUND',
+              message: conflict
+                ? 'Bid is no longer pending. Zabuni hii haisubiri tena.'
+                : 'Bid not found',
+            },
           },
-          404,
+          conflict ? 409 : 404,
         );
       }
       // Pulse the buyer's own cockpit:<tenantId> channel so buyer-mobile
       // invalidates the buyer_notifications inbox and surfaces the accepted
       // bid immediately. Best-effort, never blocks the response — the
       // persisted notification row above is the durable truth.
-      const acceptedBid = updated;
+      const acceptedBid = result.row;
       setImmediate(() => {
         try {
           publishCockpitEvent({
@@ -450,7 +474,7 @@ app.openapi(
           // bus failures must never leak to the request response.
         }
       });
-      return c.json({ success: true as const, data: updated }, 200);
+      return c.json({ success: true as const, data: acceptedBid }, 200);
     },
   ),
 );
@@ -468,12 +492,13 @@ app.openapi(
       // transaction so the buyer reliably learns the outcome the moment the
       // bid is declined (the bid is intra-tenant, so the buyer's own
       // cockpit:<tenantId> channel + inbox both receive it).
-      const updated = await db.transaction(async (tx: DrizzleDb) => {
-        const flipped = await setBidStatus(tx, tenantId, id, 'rejected', {
+      const result = await db.transaction(async (tx: DrizzleDb) => {
+        const r = await setBidStatus(tx, tenantId, id, 'rejected', {
           rejectionReason: body.reason,
           rejectedAt: new Date().toISOString(),
         });
-        if (!flipped) return null;
+        if (!r.ok) return r;
+        const flipped = r.row;
         const buyerUserId = await resolveBuyerUserId(
           tx,
           tenantId,
@@ -489,18 +514,24 @@ app.openapi(
             listingId: flipped.listingId,
           });
         }
-        return flipped;
+        return r;
       });
-      if (!updated) {
+      if (!result.ok) {
+        const conflict = result.code === 'BID_NOT_PENDING';
         return c.json(
           {
             success: false as const,
-            error: { code: 'NOT_FOUND', message: 'Bid not found' },
+            error: {
+              code: result.code,
+              message: conflict
+                ? 'Bid is no longer pending. Zabuni hii haisubiri tena.'
+                : 'Bid not found',
+            },
           },
-          404,
+          conflict ? 409 : 404,
         );
       }
-      const rejectedBid = updated;
+      const rejectedBid = result.row;
       setImmediate(() => {
         try {
           publishCockpitEvent({
@@ -515,7 +546,7 @@ app.openapi(
           // bus failures must never leak to the request response.
         }
       });
-      return c.json({ success: true as const, data: updated }, 200);
+      return c.json({ success: true as const, data: rejectedBid }, 200);
     },
   ),
 );

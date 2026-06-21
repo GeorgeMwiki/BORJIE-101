@@ -39,7 +39,13 @@ export function createInMemoryConversationMemory(
   const byScope = new Map<string, Map<string, StoredThread>>();
 
   function scopeKey(ctx: ScopeContext): string {
-    return ctx.kind === 'tenant' ? `t:${ctx.tenantId}` : `p:platform`;
+    // Platform threads are PER-ADMIN, never a shared namespace. Keying every
+    // platform ctx as a constant `p:platform` let any Borjie staff admin list
+    // and open every OTHER admin's conversation threads (a cross-actor leak) —
+    // partition by the acting user so each admin sees only their own.
+    return ctx.kind === 'tenant'
+      ? `t:${ctx.tenantId}`
+      : `p:${ctx.actorUserId}`;
   }
 
   function mapFor(ctx: ScopeContext): Map<string, StoredThread> {

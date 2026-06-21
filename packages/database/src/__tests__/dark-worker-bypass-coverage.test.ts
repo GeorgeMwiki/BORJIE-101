@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /**
  * Dark-worker bypass-coverage guard (the structural guard the behavioral
@@ -52,7 +53,10 @@ const WORKER_BYPASS_TABLES = [
   'licence_events', // read source = write-target (0361)  [licences already 0358]
 ] as const
 
-const MIGRATIONS_DIR = join(process.cwd(), 'packages/database/src/migrations')
+// Resolve relative to THIS test file (…/src/__tests__) so it works whether
+// vitest runs from the repo root or the package dir (turbo sets cwd to the
+// package, which doubled `packages/database/…` → ENOENT before this fix).
+const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'migrations')
 
 /** Per-file SQL chunks of the forward migration chain. */
 function migrationChunks(): string[] {

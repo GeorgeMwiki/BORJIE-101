@@ -215,6 +215,25 @@ vi.mock('drizzle-orm', async () => {
       const key = camel[name] ?? (name as keyof InMemRow);
       return { __orderBy: key };
     },
+    // `queryByStatus` now binds the status OR-list via drizzle `inArray`
+    // (the array-spread-safe idiom that renders `IN ($1, $2)`), so the
+    // stub must understand it too — otherwise the predicate carries no
+    // `__marker`, the `where` filter no-ops, and every status query
+    // returns ALL rows.
+    inArray: (col: unknown, values: unknown) => {
+      const name = fieldName(col);
+      const camel: Record<string, keyof InMemRow> = {
+        status: 'status',
+        capability: 'capability',
+        version: 'version',
+        id: 'id',
+      };
+      const key = camel[name] ?? (name as keyof InMemRow);
+      const arr = (Array.isArray(values) ? values : []) as unknown[];
+      return {
+        __marker: (r: InMemRow) => arr.includes(r[key] as unknown),
+      };
+    },
     sql: (_strings: TemplateStringsArray, ...values: unknown[]) => {
       // The service uses `sql\`${col} = ANY(${arr})\`` in one place
       // (readByStatus). We turn the first array value back into a
