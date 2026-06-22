@@ -1,57 +1,138 @@
+'use client';
+
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Skeleton,
+  Alert,
+} from '@borjie/design-system';
 import { formatCurrency } from '@/lib/api';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import {
+  useTenantInvoicesQuery,
+  type TenantInvoice,
+} from '@/lib/internal/queries/tenant-detail';
 import type { Tenant } from '@/lib/internal/types';
 
-interface Invoice {
-  readonly id: string;
-  readonly issuedAt: string;
-  readonly amountUsd: number;
-  readonly status: 'Paid' | 'Open' | 'Overdue';
+const S = {
+  runRate: { en: 'Annual run rate', sw: 'Kiwango cha kila mwaka' },
+  billedMonthly: { en: 'billed monthly', sw: 'inalipwa kila mwezi' },
+  colInvoice: { en: 'Invoice', sw: 'Ankara' },
+  colIssued: { en: 'Issued', sw: 'Ilitolewa' },
+  colAmount: { en: 'Amount', sw: 'Kiasi' },
+  colStatus: { en: 'Status', sw: 'Hali' },
+  loading: { en: 'Loading invoices…', sw: 'Inapakia ankara…' },
+  unavailable: { en: 'Invoices unavailable', sw: 'Ankara hazipatikani' },
+  empty: {
+    en: 'No invoices for this tenant yet.',
+    sw: 'Hakuna ankara kwa mteja huyu bado.',
+  },
+  statusPaid: { en: 'Paid', sw: 'Imelipwa' },
+  statusOpen: { en: 'Open', sw: 'Wazi' },
+  statusOverdue: { en: 'Overdue', sw: 'Imechelewa' },
+} as const;
+
+function statusLabel(status: TenantInvoice['status'], locale: Locale): string {
+  if (status === 'Paid') return pickByLocale(locale, S.statusPaid);
+  if (status === 'Overdue') return pickByLocale(locale, S.statusOverdue);
+  return pickByLocale(locale, S.statusOpen);
 }
 
-const INVOICES: ReadonlyArray<Invoice> = [
-  { id: 'inv_204', issuedAt: '2026-05-01', amountUsd: 4920, status: 'Paid' },
-  { id: 'inv_198', issuedAt: '2026-04-01', amountUsd: 4920, status: 'Paid' },
-  { id: 'inv_191', issuedAt: '2026-03-01', amountUsd: 4480, status: 'Paid' },
-];
+function statusTone(status: TenantInvoice['status']): string {
+  if (status === 'Paid') return 'text-success';
+  if (status === 'Overdue') return 'text-danger';
+  return 'text-warning';
+}
 
-export function TenantBillingTab({ tenant }: { readonly tenant: Tenant }): JSX.Element {
+/**
+ * The annual run rate is always-real tenant data. The invoice list is the LIVE
+ * per-tenant invoice history from GET /mining/internal/tenants/:id/invoices
+ * (PLATFORM_FEE ledger postings) — DS Skeleton while loading, DS Alert on
+ * error, honest empty state for an unbilled tenant. No mock rows. Amounts
+ * render in each invoice's own currency via `formatCurrency`.
+ */
+export function TenantBillingTab({
+  tenant,
+  initialLocale,
+}: {
+  readonly tenant: Tenant;
+  readonly initialLocale?: Locale;
+}): JSX.Element {
+  const locale = useLocale(initialLocale);
+  const { data, isPending, isError, error } = useTenantInvoicesQuery(tenant.id);
+  const invoices = data ?? [];
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-surface p-6">
         <div className="flex items-baseline justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wider text-neutral-500">Annual run rate</p>
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              {pickByLocale(locale, S.runRate)}
+            </p>
             <p className="text-3xl font-display text-foreground tabular-nums">
               {formatCurrency(tenant.arr, tenant.currency)}
             </p>
           </div>
-          <p className="text-xs text-neutral-500">{tenant.plan} · billed monthly</p>
+          <p className="text-xs text-muted-foreground">
+            {tenant.plan} · {pickByLocale(locale, S.billedMonthly)}
+          </p>
         </div>
       </div>
-      <div className="rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border bg-surface-sunken">
-            <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-              <th className="px-4 py-3 font-medium">Invoice</th>
-              <th className="px-4 py-3 font-medium">Issued</th>
-              <th className="px-4 py-3 font-medium text-right">Amount</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {INVOICES.map((inv) => (
-              <tr key={inv.id} className="border-b border-border last:border-0">
-                <td className="px-4 py-3 font-mono text-xs text-neutral-300">{inv.id}</td>
-                <td className="px-4 py-3 text-neutral-300 tabular-nums">{inv.issuedAt}</td>
-                <td className="px-4 py-3 text-right text-neutral-300 tabular-nums">
-                  ${inv.amountUsd.toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-success text-xs">{inv.status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {isPending ? (
+        <Skeleton
+          className="h-40 w-full rounded-lg"
+          aria-label={pickByLocale(locale, S.loading)}
+        />
+      ) : isError ? (
+        <Alert variant="error" title={pickByLocale(locale, S.unavailable)}>
+          {error.message}
+        </Alert>
+      ) : invoices.length === 0 ? (
+        <div className="rounded-lg border border-border bg-surface px-4 py-6">
+          <p className="text-xs text-muted-foreground">
+            {pickByLocale(locale, S.empty)}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-surface overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colInvoice)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colIssued)}</TableHead>
+                <TableHead className="text-right">
+                  {pickByLocale(locale, S.colAmount)}
+                </TableHead>
+                <TableHead>{pickByLocale(locale, S.colStatus)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((inv) => (
+                <TableRow key={inv.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {inv.id}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground tabular-nums">
+                    {inv.issuedAt.slice(0, 10)}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground tabular-nums">
+                    {formatCurrency(inv.amount, inv.currency)}
+                  </TableCell>
+                  <TableCell className={`${statusTone(inv.status)} text-xs`}>
+                    {statusLabel(inv.status, locale)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

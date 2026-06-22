@@ -1,29 +1,83 @@
-interface Operator {
-  readonly id: string;
-  readonly name: string;
-  readonly role: string;
-  readonly lastSeen: string;
+'use client';
+
+import { Skeleton, Alert } from '@borjie/design-system';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { useTenantOperatorsQuery } from '@/lib/internal/queries/tenant-detail';
+
+const S = {
+  lastActive: { en: 'Last active', sw: 'Mwisho kuonekana' },
+  never: { en: 'never', sw: 'kamwe' },
+  loading: { en: 'Loading operators…', sw: 'Inapakia waendeshaji…' },
+  unavailable: { en: 'Operators unavailable', sw: 'Waendeshaji hawapatikani' },
+  empty: {
+    en: 'No active operators for this tenant.',
+    sw: 'Hakuna waendeshaji hai kwa mteja huyu.',
+  },
+} as const;
+
+/** Absolute timestamp (YYYY-MM-DD HH:mm) — honest + no clock dependency. */
+function formatLastActive(iso: string | null, locale: Locale): string {
+  if (!iso) return pickByLocale(locale, S.never);
+  return iso.replace('T', ' ').slice(0, 16);
 }
 
-const OPERATORS: ReadonlyArray<Operator> = [
-  { id: 'op_001', name: 'Asha Mwita', role: 'Owner', lastSeen: '2m ago' },
-  { id: 'op_002', name: 'Juma Nzwani', role: 'Mine manager', lastSeen: '14m ago' },
-  { id: 'op_003', name: 'Grace Mbele', role: 'Compliance lead', lastSeen: '1h ago' },
-  { id: 'op_004', name: 'Eliud Kasenge', role: 'Field operator', lastSeen: '3h ago' },
-];
+/**
+ * LIVE operator roster from GET /mining/internal/tenants/:id/operators
+ * (active employment-class memberships joined to the user record). DS Skeleton
+ * while loading, DS Alert on error, honest empty state when the tenant has no
+ * active operators — no mock rows.
+ */
+export function TenantUsersTab({
+  tenantId,
+  initialLocale,
+}: {
+  readonly tenantId: string;
+  readonly initialLocale?: Locale;
+}): JSX.Element {
+  const locale = useLocale(initialLocale);
+  const { data, isPending, isError, error } = useTenantOperatorsQuery(tenantId);
 
-export function TenantUsersTab({ tenantId: _tenantId }: { readonly tenantId: string }): JSX.Element {
+  if (isPending) {
+    return (
+      <Skeleton
+        className="h-48 w-full rounded-lg"
+        aria-label={pickByLocale(locale, S.loading)}
+      />
+    );
+  }
+  if (isError) {
+    return (
+      <Alert variant="error" title={pickByLocale(locale, S.unavailable)}>
+        {error.message}
+      </Alert>
+    );
+  }
+
+  const operators = data ?? [];
+
   return (
     <div className="rounded-lg border border-border bg-surface divide-y divide-border">
-      {OPERATORS.map((op) => (
-        <div key={op.id} className="px-4 py-3 flex items-center justify-between">
-          <div>
-            <p className="text-sm text-foreground">{op.name}</p>
-            <p className="text-xs text-neutral-500">{op.role}</p>
+      {operators.length === 0 ? (
+        <p className="px-4 py-6 text-xs text-muted-foreground">
+          {pickByLocale(locale, S.empty)}
+        </p>
+      ) : (
+        operators.map((op) => (
+          <div
+            key={op.id}
+            className="px-4 py-3 flex items-center justify-between"
+          >
+            <div>
+              <p className="text-sm text-foreground">{op.name}</p>
+              <p className="text-xs text-muted-foreground">{op.role}</p>
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {pickByLocale(locale, S.lastActive)}{' '}
+              {formatLastActive(op.lastActiveAt, locale)}
+            </span>
           </div>
-          <span className="text-xs text-neutral-500">Last seen {op.lastSeen}</span>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }
