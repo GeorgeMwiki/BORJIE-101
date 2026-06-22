@@ -1,12 +1,18 @@
 'use client';
 
 import { Card } from '@borjie/design-system';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 import type { DailyBriefSlot } from '@/lib/queries/owner-brief';
 
 interface AiDailyBriefPanelProps {
   readonly dailyBrief: DailyBriefSlot;
+  /**
+   * Server-resolved locale, threaded from the dashboard surface so
+   * `useLocale` SEEDS the first client render to the active language —
+   * without it the labels flash EN under an SW page (split-brain).
+   */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -22,8 +28,9 @@ interface AiDailyBriefPanelProps {
  */
 export function AiDailyBriefPanel({
   dailyBrief,
+  initialLocale,
 }: AiDailyBriefPanelProps): JSX.Element {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const empty =
     dailyBrief.shiftsToday === 0 &&
     dailyBrief.openIncidents === 0 &&

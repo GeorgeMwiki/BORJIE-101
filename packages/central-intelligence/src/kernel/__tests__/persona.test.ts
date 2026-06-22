@@ -30,11 +30,18 @@ describe('BORJIE_PERSONA', () => {
     expect(BORJIE_PERSONA).toMatch(/ISO-4217/);
   });
 
-  it('cites property-management regulators (KRA, RERA, PDPA, BoT)', () => {
-    expect(BORJIE_PERSONA).toMatch(/KRA/);
-    expect(BORJIE_PERSONA).toMatch(/RERA/);
+  it('cites mining-estate regulators (TRA, BRELA, PDPA, BoT)', () => {
+    expect(BORJIE_PERSONA).toMatch(/TRA/);
+    expect(BORJIE_PERSONA).toMatch(/BRELA/);
     expect(BORJIE_PERSONA).toMatch(/PDPA/);
     expect(BORJIE_PERSONA).toMatch(/BoT/);
+  });
+
+  it('pins replies to the active locale (no mirror, no code-switch)', () => {
+    expect(BORJIE_PERSONA).toMatch(/active locale/i);
+    expect(BORJIE_PERSONA).toMatch(/never code-switch/i);
+    // The discarded mirror rule must be gone — it inverted the canon.
+    expect(BORJIE_PERSONA).not.toMatch(/switch to Swahili when the user/i);
   });
 
   it('bans AI dodge phrases', () => {
@@ -123,9 +130,8 @@ describe('renderPersonaPrelude', () => {
 });
 
 describe('isBrandReservedName + preservesBrandName', () => {
-  it('flags Borjie and Nyumba Mind as reserved', () => {
+  it('flags the Borjie brand as reserved', () => {
     expect(isBrandReservedName('Borjie Resident Concierge')).toBe(true);
-    expect(isBrandReservedName('Nyumba Mind')).toBe(true);
     expect(isBrandReservedName('Acme Estates')).toBe(false);
   });
 
@@ -138,8 +144,8 @@ describe('isBrandReservedName + preservesBrandName', () => {
   });
 
   it('fails on plausible translations of the brand', () => {
-    expect(preservesBrandName(TENANT_RESIDENT_PERSONA, 'House Boss says hi')).toBe(false);
-    expect(preservesBrandName(TENANT_RESIDENT_PERSONA, 'akili ya nyumba')).toBe(false);
+    expect(preservesBrandName(TENANT_RESIDENT_PERSONA, 'The Mining Brain says hi')).toBe(false);
+    expect(preservesBrandName(TENANT_RESIDENT_PERSONA, 'akili ya mgodi')).toBe(false);
   });
 
   it('non-brand persona always preserves', () => {

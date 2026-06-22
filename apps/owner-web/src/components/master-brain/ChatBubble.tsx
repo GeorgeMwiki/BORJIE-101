@@ -2,6 +2,7 @@
 
 import { AlertTriangle } from 'lucide-react';
 import type { ChatMessage } from '@/lib/types/chat';
+import type { Locale } from '@/lib/locale';
 import { fmtTime } from '@/lib/format';
 import { useT } from '@/i18n/t.client';
 import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
@@ -10,6 +11,8 @@ import { EvidenceChip } from './EvidenceChip';
 interface ChatBubbleProps {
   readonly message: ChatMessage;
   readonly onSelectEvidence: (id: string) => void;
+  /** Server-resolved locale — seeds the hook so the first paint matches SSR. */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -18,8 +21,12 @@ interface ChatBubbleProps {
  * the role separation is immediate. Evidence IDs render as clickable
  * pills inline that open the right-hand side panel.
  */
-export function ChatBubble({ message, onSelectEvidence }: ChatBubbleProps) {
-  const t = useT();
+export function ChatBubble({
+  message,
+  onSelectEvidence,
+  initialLocale,
+}: ChatBubbleProps) {
+  const t = useT(initialLocale);
   const isOwner = message.role === 'owner';
   // KI-005 — the evidence-chain Auditor verdict (surfaced by the /chat stream)
   // rides on message.grounding; show a caution badge when the answer is

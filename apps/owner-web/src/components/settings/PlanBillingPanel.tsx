@@ -3,6 +3,8 @@
 import { Button } from '@borjie/design-system';
 import { useTenantCurrent } from '@/lib/queries/tenant';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { useT } from '@/i18n/t.client';
+import type { Locale } from '@/lib/locale';
 
 /**
  * Plan + billing panel — wired to the LIVE current-tenant read
@@ -10,6 +12,11 @@ import { EmptyState } from '@/components/shared/EmptyState';
  * subscription plan, status, and seat/unit limits. Honest states: a
  * loading skeleton, a real error message, and "—" placeholders for any
  * field the gateway omits (never fabricated).
+ *
+ * Locale-strict: ALL copy resolves through `useT(initialLocale)` (the
+ * single locale source). The previous version rendered an English heading
+ * AND a Swahili subtitle on the same surface (EN/SW mixing) — the canon
+ * forbids that; one language per active locale now.
  *
  * Scope note: detailed RBAC role assignment + autonomy-policy controls
  * are separate, not-yet-built owner endpoints — see the gateway-wave list.
@@ -19,7 +26,17 @@ function valueOrDash(value: string | number | null | undefined): string {
   return String(value);
 }
 
-export function PlanBillingPanel() {
+interface PlanBillingPanelProps {
+  /**
+   * Server-resolved locale, threaded from the settings page so `useT` SEEDS
+   * the first client render to the active language (no EN-under-SW
+   * split-brain frame).
+   */
+  readonly initialLocale?: Locale;
+}
+
+export function PlanBillingPanel({ initialLocale }: PlanBillingPanelProps = {}) {
+  const t = useT(initialLocale);
   const { data, isLoading, isError, error, refetch } = useTenantCurrent();
 
   if (isLoading) {
@@ -30,9 +47,9 @@ export function PlanBillingPanel() {
   if (isError) {
     return (
       <EmptyState
-        title="Could not load plan & billing"
+        title={t('planBilling.loadErrorTitle')}
         description={
-          error instanceof Error ? error.message : 'Please try again.'
+          error instanceof Error ? error.message : t('planBilling.tryAgain')
         }
         hint="GET /api/v1/tenants/current"
         action={
@@ -42,7 +59,7 @@ export function PlanBillingPanel() {
             size="sm"
             onClick={() => void refetch()}
           >
-            Retry
+            {t('planBilling.retry')}
           </Button>
         }
       />
@@ -52,20 +69,27 @@ export function PlanBillingPanel() {
   const sub = data?.subscription;
   const rows: ReadonlyArray<{ readonly label: string; readonly value: string }> =
     [
-      { label: 'Plan', value: valueOrDash(sub?.plan) },
-      { label: 'Status', value: valueOrDash(sub?.status ?? data?.status) },
-      { label: 'Max units', value: valueOrDash(sub?.maxUnits) },
-      { label: 'Max users', value: valueOrDash(sub?.maxUsers) },
-      { label: 'Billing contact', value: valueOrDash(data?.contactEmail) },
+      { label: t('planBilling.plan'), value: valueOrDash(sub?.plan) },
+      {
+        label: t('planBilling.status'),
+        value: valueOrDash(sub?.status ?? data?.status),
+      },
+      { label: t('planBilling.maxUnits'), value: valueOrDash(sub?.maxUnits) },
+      { label: t('planBilling.maxUsers'), value: valueOrDash(sub?.maxUsers) },
+      {
+        label: t('planBilling.billingContact'),
+        value: valueOrDash(data?.contactEmail),
+      },
     ];
 
   return (
     <section className="rounded-md border border-border bg-surface p-5">
       <div className="flex items-baseline justify-between">
-        <h2 className="font-display text-lg text-foreground">Plan & billing</h2>
+        <h2 className="font-display text-lg text-foreground">
+          {t('planBilling.heading')}
+        </h2>
         <span className="text-xs text-neutral-500">{valueOrDash(data?.name)}</span>
       </div>
-      <p className="mt-0.5 text-xs italic text-neutral-500">Mpango na malipo</p>
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
         {rows.map((row) => (
           <div
@@ -77,10 +101,7 @@ export function PlanBillingPanel() {
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-xs text-neutral-500">
-        RBAC role assignment and autonomy-policy controls are coming in a
-        later wave.
-      </p>
+      <p className="mt-4 text-xs text-neutral-500">{t('planBilling.rbacNote')}</p>
     </section>
   );
 }

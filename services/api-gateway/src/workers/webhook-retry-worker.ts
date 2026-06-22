@@ -20,7 +20,7 @@
 
 import { createHmac } from 'node:crypto';
 import type pino from 'pino';
-import { assertUrlSafe } from '@borjie/enterprise-hardening';
+import { pinnedSafeDispatcher } from '@borjie/enterprise-hardening';
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -239,8 +239,14 @@ export function createWebhookRetryWorker(
     // identical policy here. Re-screen PER ATTEMPT so a DNS rebind between
     // attempts is also caught. A blocked URL can never succeed → permanent
     // (the DLQ captures it; we do not retry an SSRF target forever).
+    // Screen AND pin to the screened resolution in one call: the returned
+    // undici dispatcher dials the exact IP we just screened, so a DNS rebind
+    // between screen and connect (the within-attempt TOCTOU the bare
+    // assertUrlSafe left open) can no longer land the POST on an internal IP.
+    // `undefined` ⇒ literal-IP host (already pinned) → plain dispatch.
+    let safeDispatcher: Awaited<ReturnType<typeof pinnedSafeDispatcher>>;
     try {
-      await assertUrlSafe(event.targetUrl);
+      safeDispatcher = await pinnedSafeDispatcher(event.targetUrl);
     } catch (err) {
       return {
         kind: 'permanent',
@@ -262,7 +268,11 @@ export function createWebhookRetryWorker(
           'X-Borjie-Signature': buildSignatureHeader(signature, ts),
         },
         body,
-      });
+        // undici's fetch honours `dispatcher`; the key isn't on the DOM
+        // RequestInit type, so route through `unknown`. Omitted when there is
+        // nothing to pin (literal-IP host).
+        ...(safeDispatcher ? { dispatcher: safeDispatcher } : {}),
+      } as unknown as RequestInit);
     } catch (err) {
       thrown = err;
     }

@@ -531,6 +531,80 @@ export const en = {
     statusResolved: 'Resolved',
   },
 
+  // Evidence side-panel (master-brain chat) — the cited corpus chunk.
+  evidence: {
+    title: 'Evidence',
+    closeAria: 'Close evidence panel',
+    unavailable:
+      'Evidence payload unavailable. The cited chunk has not been loaded from the live corpus yet.',
+    page: 'page {page}',
+  },
+
+  // Plan + billing panel (settings). One language per locale — no EN/SW
+  // subtitle mixing.
+  planBilling: {
+    heading: 'Plan & billing',
+    loadErrorTitle: 'Could not load plan & billing',
+    tryAgain: 'Please try again.',
+    retry: 'Retry',
+    plan: 'Plan',
+    status: 'Status',
+    maxUnits: 'Max units',
+    maxUsers: 'Max users',
+    billingContact: 'Billing contact',
+    rbacNote:
+      'RBAC role assignment and autonomy-policy controls are coming in a later wave.',
+  },
+
+  // Business flows — process compiler (slice 1). The golden buyer-inquiry
+  // flow + inquiry queue + approvals.
+  flows: {
+    eyebrow: 'Business flows · Process compiler',
+    title: 'Flows that run themselves — with your say-so',
+    intro:
+      'Install a compiled flow and it materializes the matching tab on every actor’s surface — your control tab, the worker’s queue, the buyer’s inquiry view — at once. Automation is human-gated by default; flip it on only when you trust it.',
+    actorBuyer: 'Buyer',
+    actorWorker: 'Worker',
+    actorOwner: 'Owner',
+    goldenFlowTitle: 'Buyer inquiry on a listing',
+    goldenFlowDesc:
+      'Buyer asks about a listing → a response task appears in the worker queue → you review → the answer is delivered back to the buyer.',
+    installed: 'Installed',
+    installedWithSurfaces: 'Installed · {count} surfaces',
+    installFlow: 'Install flow',
+    autoToggleLabel: 'Auto-respond to buyer inquiries',
+    autoStateAuto: 'AUTO — worker responses are delivered to buyers immediately.',
+    autoStateGated: 'GATED (default) — every response waits for your approval.',
+    switchToGated: 'Switch to gated',
+    enableAuto: 'Enable auto',
+    queueHeading: 'Inquiry queue',
+    queueSubtitle:
+      'Open buyer inquiries waiting for a reply. Send one and it moves to your approval queue below.',
+    refresh: 'Refresh',
+    refreshQueueAria: 'Refresh the inquiry queue',
+    queueLoadFailed: 'Could not load the inquiry queue.',
+    retry: 'Retry',
+    queueEmptyTitle: 'No inquiries waiting for a reply',
+    queueEmptyBody:
+      'When a buyer asks about a listing, the inquiry lands here for you to answer.',
+    buyerInquiryFallback: 'Buyer inquiry',
+    onListing: 'on {title}',
+    listingRef: 'listing: {ref}',
+    yourReply: 'Your reply',
+    replyPlaceholder: 'Write a clear, helpful reply to the buyer…',
+    replySent: 'Reply sent. Now awaiting your approval below.',
+    respondFailed: 'Could not send the reply.',
+    sendReply: 'Send reply',
+    pendingHeading: 'Responses awaiting your approval',
+    loading: 'Loading…',
+    pendingLoadFailed: 'Could not load pending responses.',
+    pendingEmptyTitle: 'Nothing waiting',
+    pendingEmptyBody:
+      'Drafted responses appear here for your approval before they reach the buyer.',
+    draftedReply: 'Drafted reply: {message}',
+    approveDeliver: 'Approve & deliver',
+  },
+
   masterBrain: {
     streaming: 'Master Brain · streaming…',
     emptyState:

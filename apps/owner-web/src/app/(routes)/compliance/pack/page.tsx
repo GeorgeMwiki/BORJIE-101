@@ -23,6 +23,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { fmtDateForLocale } from '@/lib/format';
+import { useLocale, type Locale } from '@/lib/locale';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,13 +75,11 @@ const QUERY_KEY = ['compliance', 'exports'] as const;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function fmtDate(iso: string): string {
+// Locale-aware — never a hardcoded 'en-GB'. The BCP-47 tag follows the
+// user's active locale (locale-follows-the-user canon).
+function fmtDate(iso: string, locale: Locale): string {
   try {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+    return fmtDateForLocale(iso, locale);
   } catch {
     return iso;
   }
@@ -106,6 +106,7 @@ function statusClass(status: string): string {
 
 export default function CompliancePackPage() {
   const queryClient = useQueryClient();
+  const locale = useLocale();
 
   // Form state
   const now = new Date();
@@ -371,7 +372,7 @@ export default function CompliancePackPage() {
                     {row.label ?? 'Compliance pack'}
                   </p>
                   <p className="text-xs text-neutral-500">
-                    {fmtDate(row.createdAt)}
+                    {fmtDate(row.createdAt, locale)}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

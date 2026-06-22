@@ -14,6 +14,16 @@ import { FxGoldCard } from './FxGoldCard';
 import { RefreshButton } from '@/components/shared/RefreshButton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtTime } from '@/lib/format';
+import type { Locale } from '@/lib/locale';
+
+interface CockpitGridProps {
+  /**
+   * Server-resolved locale, threaded from the cockpit page so the
+   * locale-aware DailyBriefCard SEEDS its first client render to the active
+   * language (no EN-under-SW split-brain frame).
+   */
+  readonly initialLocale?: Locale;
+}
 
 /**
  * Owner-cockpit grid — 10 cards wired to the daily-brief query.
@@ -23,7 +33,7 @@ import { fmtTime } from '@/lib/format';
  * grid is LIVE-ONLY: on load it shows a skeleton, on failure an honest
  * error state with retry (no fabricated data), and on success the cards.
  */
-export function CockpitGrid() {
+export function CockpitGrid({ initialLocale }: CockpitGridProps = {}) {
   const query = useDailyBrief();
   const data = query.data;
   // Honest error state — no more infinite skeleton when the brief fails.
@@ -67,7 +77,7 @@ export function CockpitGrid() {
         <RefreshButton onClick={() => query.refetch()} busy={query.isFetching} />
       </div>
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <DailyBriefCard items={data.dailyBrief} />
+        <DailyBriefCard items={data.dailyBrief} language={initialLocale} />
         <CashRunwayCard
           cashTzsMillions={data.cashTzsMillions}
           runwayDays={data.runwayDays}

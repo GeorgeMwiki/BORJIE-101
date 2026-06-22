@@ -541,12 +541,27 @@ export function createRemindersDispatchWorker(
     const slackMention = slackHandle
       ? `<${slackHandle.startsWith('@') ? slackHandle : `@${slackHandle}`}> `
       : '';
+    // SSRF pre-flight OUTSIDE the send try — `webhook` may be a per-tenant
+    // value (slackWebhookForTenant). A blocked internal/metadata target is a
+    // PERMANENT failure AND a security near-miss: classify it non-retryable
+    // (never churn it to the attempt cap) and warn, matching the sibling
+    // policy in webhook-retry-worker + daily-brief-cron. Screening it inside
+    // the generic catch below would mis-mark it retryable=true.
     try {
-      // SSRF pre-flight — `webhook` may be a per-tenant value
-      // (slackWebhookForTenant); screen it before dispatch so an internal /
-      // metadata target can never be reached. A blocked URL throws and is
-      // handled by the catch below as a send failure (never an actual fetch).
       await assertUrlSafe(webhook);
+    } catch (ssrfErr) {
+      options.logger.warn(
+        {
+          worker: 'reminders-dispatch',
+          tenantId: r.tenantId,
+          reminderId: r.id,
+          err: ssrfErr instanceof Error ? ssrfErr.message : String(ssrfErr),
+        },
+        'reminders-dispatch: Slack webhook failed SSRF screening — blocked, not retried',
+      );
+      return { outcome: await handleFailure(r, false, 'slack_webhook_unsafe') };
+    }
+    try {
       const res = await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

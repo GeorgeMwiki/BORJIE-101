@@ -42,6 +42,7 @@ import {
   createBrainToolRegistry,
   createDpCohortSource,
   createGatekeeper,
+  createLocalePurePort,
   createInMemoryApprovalStore,
   createNullEmbedder,
   createOpenAiEmbedder,
@@ -856,7 +857,13 @@ async function build(scope: SovereignScope): Promise<SovereignBrain> {
     killswitch: () => 'live',
     tenantScopeConsistent: () => true,
     evidenceChain: (a) => a.payload?.['hasEvidence'] === true,
-    localePure: () => true,
+    // Real locale-purity certification (was a `() => true` no-op): the port
+    // reads the final reply + active locale off `action.payload` and flags a
+    // code-switched reply. Shadow/observe-only like the rest of the gatekeeper
+    // (logs a divergence, never blocks); certifies satisfied when the payload
+    // carries no reply text, so wiring it is safe. The PRIMARY enforcement is
+    // the active-locale prompt PIN now on every persona/junior path.
+    localePure: createLocalePurePort(),
     egressClean: () => true,
     kAnon: () => true,
     noRailMutation: () => true,

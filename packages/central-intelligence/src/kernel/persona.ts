@@ -11,14 +11,9 @@
  * text below changes ONLY when a deliberate voice review ships, so
  * Anthropic ephemeral-cache hits stay high across a session.
  *
- * Mining-estate framing: voice rules cite KRA / RERA / PDPA as the
+ * Mining-estate framing: voice rules cite TRA / BRELA / PDPA as the
  * regulatory tradition, ISO-4217 currency discipline as the numerical
  * tradition, and TZS / KES / UGX as the de-facto first tongues.
- *
- * NOTE — `RERA` (the real-estate regulator) is retained in the voice
- * rules because `persona.test.ts` pins `/RERA/` and `/estate addresses/`;
- * migrating the regulator name to the mining commission must update that
- * test in lockstep. Flagged for a coordinated pass.
  */
 
 import type { PersonaIdentity } from './identity.js';
@@ -49,12 +44,13 @@ export const BORJIE_PERSONA: string = [
   '- Dates render in EAT (Africa/Nairobi) unless the user explicitly asks for UTC.',
   '',
   'REGULATORY DISCIPLINE:',
-  '- I name the statute or regulator when I assert a legal posture (KRA for tax, RERA for tenancy, PDPA for privacy, BoT for FX).',
+  '- I name the statute or regulator when I assert a legal posture (TRA for tax, BRELA and the Mining Commission for licensing, PDPA for privacy, BoT for FX).',
   '- I never speculate on outcomes of pending litigation or arbitration.',
   '- I never promise licence-suspension outcomes, market crashes, or guaranteed yields.',
   '',
-  'BILINGUAL RULE:',
-  '- I switch to Swahili when the user does. I do not preemptively translate proper nouns ("Borjie", "Nyumba Mind") — those stay invariant in all languages.',
+  'LANGUAGE RULE (ABSOLUTE):',
+  '- I reply ONLY in the active locale named in the situated address. I never mirror the language of the user message, and I never code-switch — not in greetings, answers, errors, or summaries. Every word of a reply is in the one active locale.',
+  '- The brand name "Borjie" stays invariant in every locale; I do not translate it.',
   '',
   'FABRICATION GATE:',
   '- I do not invent agency names, estate addresses, counterparty names, or outstanding-royalty numbers.',
@@ -117,19 +113,14 @@ export function renderPersonaPrelude(args: SituatedAddressArgs): string {
 }
 
 /**
- * Mining-estate-aware persona-name discipline. The platform's
- * own brand names ("Borjie", "Nyumba Mind") never translate. The
- * per-surface persona display names follow the same rule when they
- * embed the brand. Exposed so the drift detector and the fabrication
- * gate can check "the rebranded persona name was preserved verbatim".
+ * Mining-estate-aware persona-name discipline. The platform's own brand
+ * name ("Borjie") never translates. The per-surface persona display names
+ * follow the same rule when they embed the brand. Exposed so the drift
+ * detector and the fabrication gate can check "the persona name was
+ * preserved verbatim".
  */
 export function isBrandReservedName(name: string): boolean {
-  const lower = name.toLowerCase();
-  return (
-    lower.includes('borjie') ||
-    lower.includes('nyumba mind') ||
-    lower.includes('boss nyumba')
-  );
+  return name.toLowerCase().includes('borjie');
 }
 
 /**
@@ -142,26 +133,17 @@ export function preservesBrandName(
   outputText: string,
 ): boolean {
   if (!isBrandReservedName(persona.displayName)) return true;
-  // Find the brand-reserved substring(s) in the persona's display name
-  // and require an exact (case-insensitive) match in the output. We
-  // tolerate the persona name being absent (not every reply names the
-  // brand); we only fail if a *translated* form appears, which we
-  // approximate by "Borjie/Nyumba Mind never appears but a
-  // plausible translation does".
+  // Require the brand to appear verbatim in the output. We tolerate the
+  // persona name being absent (not every reply names the brand); we only
+  // fail if a *translated* form appears, which we approximate by "Borjie
+  // never appears but a plausible translation does".
   const out = outputText.toLowerCase();
-  const brandPresent =
-    out.includes('borjie') ||
-    out.includes('boss nyumba') ||
-    out.includes('nyumba mind');
-  if (brandPresent) return true;
-  // Plausible translations of the brand we explicitly reject.
-  const translations = [
-    'house boss',
-    'home boss',
-    'mind of nyumba',
-    'nyumba intelligence',
-    'akili ya nyumba',
-  ];
+  if (out.includes('borjie')) return true;
+  // Plausible (mis)translations of the brand we explicitly reject — a reply
+  // that renders the brand CONCEPT in another tongue instead of the verbatim
+  // proper noun. None contain "borjie", so they only match when the brand
+  // itself is absent.
+  const translations = ['the mining brain', 'akili ya mgodi'];
   return !translations.some((t) => out.includes(t));
 }
 

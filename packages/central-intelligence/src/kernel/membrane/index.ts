@@ -54,3 +54,11 @@ export {
   type ShadowDivergenceEvent,
   type ExistingDecisionOutcome,
 } from './shadow.js';
+
+export {
+  createLocalePurePort,
+  isLocaleImpure,
+  LOCALE_PURE_PAYLOAD_TEXT_KEY,
+  LOCALE_PURE_PAYLOAD_LOCALE_KEY,
+  type ActiveLocale,
+} from './locale-pure.js';

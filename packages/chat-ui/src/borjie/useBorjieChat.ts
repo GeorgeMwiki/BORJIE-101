@@ -30,6 +30,7 @@
  * in `~/.claude/rules/coding-style.md`.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MESSAGES, t } from './messages';
 
 export type BorjieMode =
   | 'build'
@@ -616,7 +617,11 @@ function applyFrame(
   }
 
   if (frame.event === 'error') {
-    const errMsg = typeof parsed.message === 'string' ? parsed.message : 'orchestrator_error';
+    // NEVER surface the raw server-supplied `parsed.message` to the user — it
+    // can leak internal orchestrator detail (the marketing twin was already
+    // hardened for this). Render a localized generic notice in the active
+    // stream language instead.
+    const errMsg = t(MESSAGES.errorGeneric, streamLang);
     setMessages((prev) =>
       prev.map((m) => {
         if (m.id !== assistantId) return m;

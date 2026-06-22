@@ -51,7 +51,11 @@ vi.mock('@/lib/api-client', () => ({
 }));
 
 import { apiRequest } from '@/lib/api-client';
-import FlowsPage from '../page';
+// The route page.tsx is now a thin async SERVER wrapper that only resolves
+// the locale cookie and seeds the client surface; RTL renders the client
+// FlowsSurface directly (default `en` locale → the English copy asserted
+// below resolves through the i18n layer unchanged).
+import { FlowsSurface as FlowsPage } from '../FlowsSurface';
 
 const apiRequestMock = apiRequest as unknown as ReturnType<typeof vi.fn>;
 

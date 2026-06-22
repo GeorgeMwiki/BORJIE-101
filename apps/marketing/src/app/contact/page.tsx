@@ -1,6 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Mail, Phone, MapPin, ArrowRight, MessageCircle } from 'lucide-react';
+import {
+  Mail,
+  Phone,
+  MapPin,
+  ArrowRight,
+  MessageCircle,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react';
 import { getLocale } from '@/lib/locale';
 
 /**
@@ -32,9 +40,21 @@ const INQUIRY_CHIPS: ReadonlyArray<{
   { id: 'press', en: 'Press', sw: 'Habari' },
 ];
 
-export default async function ContactPage() {
+type SentStatus = 'ok' | 'invalid' | 'error';
+
+function isSentStatus(value: unknown): value is SentStatus {
+  return value === 'ok' || value === 'invalid' || value === 'error';
+}
+
+export default async function ContactPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ readonly sent?: string }>;
+}) {
   const locale = await getLocale();
   const isSw = locale === 'sw';
+  const { sent } = await searchParams;
+  const status: SentStatus | null = isSentStatus(sent) ? sent : null;
 
   return (
     <>
@@ -76,6 +96,7 @@ export default async function ContactPage() {
 
         {/* Form + alternates */}
         <section className="mx-auto max-w-6xl px-6 pb-16 lg:px-8 lg:pb-24">
+          {status !== null && <ContactBanner status={status} isSw={isSw} />}
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
             <form
               action="/api/contact"
@@ -210,6 +231,52 @@ export default async function ContactPage() {
       </div>
       
     </>
+  );
+}
+
+function ContactBanner({
+  status,
+  isSw,
+}: {
+  readonly status: SentStatus;
+  readonly isSw: boolean;
+}) {
+  if (status === 'ok') {
+    return (
+      <div
+        role="status"
+        className="mb-8 flex items-start gap-3 rounded-2xl border border-signal-500/40 bg-signal-500/5 p-5 text-sm text-foreground"
+      >
+        <CheckCircle2
+          className="mt-0.5 h-5 w-5 shrink-0 text-signal-500"
+          aria-hidden="true"
+        />
+        <p>
+          {isSw
+            ? 'Asante. Tumepokea ujumbe wako na tutajibu ndani ya siku moja ya kazi.'
+            : "Thank you. We've received your note and will reply within one working day."}
+        </p>
+      </div>
+    );
+  }
+
+  const message =
+    status === 'invalid'
+      ? isSw
+        ? 'Tafadhali angalia sehemu zako — baadhi ya taarifa hazikuwa sahihi.'
+        : 'Please check your details — some fields were not valid.'
+      : isSw
+        ? 'Hitilafu imetokea. Tafadhali jaribu tena au tuandikie hello@borjie.co.tz.'
+        : 'Something went wrong. Please try again or email hello@borjie.co.tz.';
+
+  return (
+    <div
+      role="alert"
+      className="mb-8 flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-5 text-sm text-destructive"
+    >
+      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <p>{message}</p>
+    </div>
   );
 }
 

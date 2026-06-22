@@ -364,10 +364,20 @@ export function createMwikilaInboxRecorder(
                  owner_reviewed_by = ${reviewedByUserId},
                  updated_at = ${nowIso}::timestamptz
            WHERE tenant_id = ${tenantId} AND id = ${id}
+             AND status = 'proposed'
            RETURNING *
         `,
         ),
       );
+      // CAS: the status precondition lives IN the UPDATE, so a concurrent
+      // approve/deny between loadById and here cannot double-commit — the
+      // loser gets zero rows and a wrong_status conflict, never a clobber.
+      if (rows.length === 0) {
+        throw new MwikilaError(
+          'wrong_status',
+          `cannot approve ${id}: no longer in status=proposed`,
+        );
+      }
       return rowToInbox(rows[0] as ExecRow);
     },
 
@@ -394,10 +404,17 @@ export function createMwikilaInboxRecorder(
                  owner_reviewed_by = ${reviewedByUserId},
                  updated_at = ${nowIso}::timestamptz
            WHERE tenant_id = ${tenantId} AND id = ${id}
+             AND status = 'proposed'
            RETURNING *
         `,
         ),
       );
+      if (rows.length === 0) {
+        throw new MwikilaError(
+          'wrong_status',
+          `cannot deny ${id}: no longer in status=proposed`,
+        );
+      }
       return rowToInbox(rows[0] as ExecRow);
     },
 
@@ -443,10 +460,21 @@ export function createMwikilaInboxRecorder(
                  owner_reviewed_by = ${reviewedByUserId},
                  updated_at = ${nowIso}::timestamptz
            WHERE tenant_id = ${tenantId} AND id = ${id}
+             AND status = 'executed'
+             AND reversal_token = ${reversalToken}
            RETURNING *
         `,
         ),
       );
+      // CAS on BOTH status='executed' AND the single-use reversal_token: a
+      // concurrent reverse (token replay / double-submit) finds zero rows and
+      // conflicts rather than reversing twice.
+      if (rows.length === 0) {
+        throw new MwikilaError(
+          'wrong_status',
+          `cannot reverse ${id}: no longer executed or token already used`,
+        );
+      }
       return rowToInbox(rows[0] as ExecRow);
     },
 

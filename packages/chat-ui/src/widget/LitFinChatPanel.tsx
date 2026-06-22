@@ -989,7 +989,12 @@ export function LitFinChatPanel({
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-emerald-600/60 dark:text-emerald-400/60" aria-hidden="true">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
-        <p className="min-w-0 flex-1 truncate text-[10px] font-medium leading-tight text-muted-foreground/80">
+        {/* A compliance/legal string is NEVER single-line-ellipsis-clipped:
+            the (longer SW) copy must stay fully readable in the compact panel.
+            Mirrors the sibling BorjieChatPanel fix — wrap freely (the row is
+            items-center so the shield stays aligned); break-words guards a
+            long unbroken token. */}
+        <p className="min-w-0 flex-1 break-words text-[10px] font-medium leading-tight text-muted-foreground/80">
           {language === 'sw' ? resolvedDisclaimerSw : resolvedDisclaimerEn}
         </p>
       </div>

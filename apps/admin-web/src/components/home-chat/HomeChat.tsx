@@ -12,6 +12,7 @@ import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 
 import { ApiError, isBrainConfigured } from '@/lib/brain-api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { DEFAULT_LOCALE } from '@/lib/locale-shared';
 import {
   useAskBorjie,
   type AskBorjieMessage,
@@ -46,8 +47,12 @@ import { ToolCallSidebar } from './ToolCallSidebar';
  * sign-in nudge stays consistent.
  */
 
-function HomeChatInner() {
-  const locale = useLocale();
+function HomeChatInner({ initialLocale }: { readonly initialLocale?: Locale }) {
+  // Seed the first paint from the server-resolved cookie so SSR + the first
+  // client render agree (zero-mix canon): without the seed `useLocale`
+  // defaults to `en` and renders an EN chat under the `<html lang="sw">`
+  // chrome for one frame until the post-mount effect ticks.
+  const locale = useLocale(initialLocale);
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialThreadId = searchParams?.get('thread') ?? null;
@@ -191,7 +196,7 @@ function HomeChatInner() {
           ) : (
             <div className="mx-auto max-w-3xl space-y-5 px-6 py-8">
               {messages.map((msg) => (
-                <Bubble key={msg.id} message={msg} />
+                <Bubble key={msg.id} message={msg} locale={locale} />
               ))}
               {isHydrating ? (
                 <p
@@ -237,12 +242,19 @@ function HomeChatInner() {
         toolCalls={latestToolCalls}
         citations={aggregateCitations}
         isStreaming={isStreaming}
+        locale={locale}
       />
     </div>
   );
 }
 
-function Bubble({ message }: { readonly message: AskBorjieMessage }) {
+function Bubble({
+  message,
+  locale,
+}: {
+  readonly message: AskBorjieMessage;
+  readonly locale: Locale;
+}) {
   const isUser = message.role === 'user';
   // Wave SUPERPOWERS — subscribe to chip emissions keyed by this
   // assistant turn's message id. User bubbles never carry chips, so
@@ -269,7 +281,10 @@ function Bubble({ message }: { readonly message: AskBorjieMessage }) {
           <ul
             data-testid="home-chat-bubble-tools"
             className="m-0 mb-2 flex list-none flex-wrap gap-1 p-0"
-            aria-label="Juniors invoked"
+            aria-label={pickByLocale(locale, {
+              en: 'Juniors invoked',
+              sw: 'Wasaidizi walioitwa',
+            })}
           >
             {message.toolCalls.map((call, i) => (
               <li
@@ -450,11 +465,19 @@ function Composer({
  * Exported wrapper that mounts the QueryProvider so this surface can be
  * dropped into any layout without depending on a parent provider. The
  * inner component owns the react-query hooks.
+ *
+ * `initialLocale` is the server-resolved `borjie_locale` cookie, threaded
+ * from the page Server Component so the chat's first paint matches the SSR
+ * `<html lang>` (zero-mix canon — no EN-under-SW split-brain frame).
  */
-export function HomeChat() {
+export interface HomeChatProps {
+  readonly initialLocale?: Locale;
+}
+
+export function HomeChat({ initialLocale = DEFAULT_LOCALE }: HomeChatProps = {}) {
   return (
     <QueryProvider>
-      <HomeChatInner />
+      <HomeChatInner initialLocale={initialLocale} />
     </QueryProvider>
   );
 }

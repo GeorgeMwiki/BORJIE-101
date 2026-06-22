@@ -50,8 +50,10 @@ const QUICK_ACTIONS: ReadonlyArray<{
 
 export interface OwnerCommandPaletteProps {
   /**
-   * Retained for caller compatibility; the active locale now flows from
-   * the borjie_locale cookie via useT()/useLocale (the single source).
+   * Server-resolved locale, threaded from the root layout so useT/useLocale
+   * SEED the first client render to the SAME language the SSR `<html lang>`
+   * chrome used — without it both hooks default to `en` and the palette
+   * labels render a one-frame EN-under-SW split (zero-mix canon violation).
    */
   readonly languagePreference?: 'sw' | 'en';
   /** Optional callback so the host can dispatch chat-driven actions. */
@@ -63,13 +65,14 @@ export interface OwnerCommandPaletteProps {
 }
 
 export function OwnerCommandPalette({
+  languagePreference,
   onActionIntent,
   onSpawnTab,
   onSignOut,
 }: OwnerCommandPaletteProps): ReactElement {
   const router = useRouter();
-  const t = useT();
-  const locale = useLocale();
+  const t = useT(languagePreference);
+  const locale = useLocale(languagePreference);
 
   const items = useMemo<ReadonlyArray<CommandItem>>(() => {
     const out: CommandItem[] = [];

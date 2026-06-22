@@ -1495,6 +1495,13 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         grounding: renderGroundingFragment(groundingFacts),
         learnedSkills: learnedSkillsFragment,
         cohortMix: cohortMix.promptFragment,
+        // Item-1 — ABSOLUTE single-language pin on the legacy persona path,
+        // at parity with the orchestrator path. CLAUDE.md: `en` default,
+        // `sw` toggle, ZERO mixing. Terminal dynamic slot so it cannot be
+        // displaced by recalled memory / grounding / tool output.
+        languageDirective: renderOrchestratorLanguageDirective(
+          req.language === 'sw' ? 'sw' : 'en',
+        ),
       };
       const system = assembleSystemPrompt(systemFragments);
       const systemSegments = assembleSystemPromptBlocks(systemFragments);
@@ -2650,6 +2657,11 @@ export function createBrainKernel(deps: BrainKernelDeps): BrainKernel {
         activeGoals: renderActiveGoalsFragment(activeGoals),
         grounding: renderGroundingFragment(groundingFacts),
         cohortMix: cohortMix.promptFragment,
+        // Item-1 — ABSOLUTE single-language pin on the streaming legacy
+        // persona path, at parity with the buffered + orchestrator paths.
+        languageDirective: renderOrchestratorLanguageDirective(
+          req.language === 'sw' ? 'sw' : 'en',
+        ),
       };
       const system = assembleSystemPrompt(systemFragments);
       const systemSegments = assembleSystemPromptBlocks(systemFragments);

@@ -1625,7 +1625,10 @@
     "subscribeHeading": "The morning brief.",
     "subscribeSub": "A weekly note from the Borjie team. Field updates, policy reads, treasury swings, no fluff.",
     "subscribePlaceholder": "Your email",
-    "subscribeCta": "Subscribe"
+    "subscribeCta": "Subscribe",
+    "subscribeSuccess": "You're subscribed. The next morning brief lands in your inbox.",
+    "subscribeInvalid": "Please enter a valid email address.",
+    "subscribeError": "Something went wrong. Please try again in a moment."
   },
   "caseStudies": {
     "kicker": "Case studies",

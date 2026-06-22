@@ -311,7 +311,7 @@
         {
           "time": "04:18",
           "domain": "NEMC EIA · Songwe",
-          "body": "Quarterly emissions report imewasilishwa kwa NEMC. Acknowledgement #2604-A.",
+          "body": "Ripoti ya robo-mwaka ya hewa-chafu imewasilishwa kwa NEMC. Uthibitisho wa kupokea #2604-A.",
           "tone": "nzuri",
           "tag": "OK"
         },
@@ -329,13 +329,13 @@
     "kicker": "04 · Ongea na Mgodi Wako",
     "heading": "Uliza. Inajibu.",
     "sub": "Sio chatbot. Ni mgodi wenyewe ukiongea katika nafsi ya kwanza, kutoka kwa grafu yake ya maarifa, na nukuu zinazoweza kubofya.",
-    "question": "Cash runway yangu ni nini?",
+    "question": "Akiba yangu ya fedha ni ngapi?",
     "answerPlan": [
       "Pata mizania ya TZS kwenye bank accounts zote",
       "Pata gold inventory na live LBMA spot",
       "Pata burn rate ya wiki 4 zilizopita"
     ],
-    "answer": "Una TZS 412M mkononi na uncia 184 za dhahabu zenye thamani ya TZS 1.18B kwa spot ya leo. Burn ya wiki 4 zilizopita ni TZS 87M/wiki. Hiyo inakupa runway ya wiki 18.3 — au wiki 22 kama off-take ya Geita ya Februari ikitimia kwa wakati.",
+    "answer": "Una TZS 412M mkononi na uncia 184 za dhahabu zenye thamani ya TZS 1.18B kwa bei ya papo hapo ya leo. Matumizi ya wiki 4 zilizopita ni TZS 87M/wiki. Hiyo inakupa akiba ya wiki 18.3 — au wiki 22 kama off-take ya Geita ya Februari ikitimia kwa wakati.",
     "evidence": "Ushahidi: TRA bank-feed · LBMA spot · off-take MR-241",
     "showcase": {
       "kicker": "Ongea na mgodi wako",
@@ -373,12 +373,12 @@
     "capabilities": [
       {
         "id": "bei",
-        "label": "Andika daily price brief",
+        "label": "Andika muhtasari wa bei wa kila siku",
         "minLevel": 0
       },
       {
         "id": "zamu\n```",
-        "label": "Toa shift handover report",
+        "label": "Toa ripoti ya makabidhiano ya zamu",
         "minLevel": 1
       },
       {
@@ -498,33 +498,33 @@
     },
     "response": {
       "kicker": "Jibu la Borjie · Layer 4",
-      "title": "Milango mitano ya lazima. AND-combined. Hakuna njia ya kuruka.",
-      "body": "Mr. Mwikila anapitisha kila uamuzi kupitia package ya @borjie/loop-quality-gates kabla haujafika kwenye tool inayogusa dunia. Composite gate inaendesha milango yote mitano sambamba na AND-merge majibu — kushindwa moja kunasimamisha loop.",
+      "title": "Milango mitano ya lazima. Yote sharti yapite pamoja. Hakuna njia ya kuruka.",
+      "body": "Mr. Mwikila anapitisha kila uamuzi kupitia kifurushi cha @borjie/loop-quality-gates kabla haujafika kwenye zana inayogusa dunia. Mlango mchanganyiko huendesha milango yote mitano sambamba na kuunganisha majibu kwa sharti-zote — kushindwa moja kunasimamisha mzunguko.",
       "gates": [
         {
           "id": "groundedness",
-          "name": "Mlango wa Groundedness",
-          "blurb": "Kila madai halisi yanaonyesha EvidenceItem hai yenye URL au rejea ya mfumo-rasmi-wa-rekodi."
+          "name": "Mlango wa Uthibitisho-msingi",
+          "blurb": "Kila dai halisi linaonyesha EvidenceItem hai yenye URL au rejea ya mfumo-rasmi-wa-rekodi."
         },
         {
           "id": "calibration",
-          "name": "Mlango wa Calibration",
-          "blurb": "Confidence iliyodaiwa inalingana na usahihi wa kihistoria. Lebo zenye kujiamini kupita kiasi zinashushwa au kukataliwa."
+          "name": "Mlango wa Ulinganifu",
+          "blurb": "Kiwango cha kujiamini kilichodaiwa kinalingana na usahihi wa kihistoria. Lebo zenye kujiamini kupita kiasi zinashushwa au kukataliwa."
         },
         {
           "id": "brand",
-          "name": "Mlango wa Brand",
-          "blurb": "Mr. Mwikila anabaki kwenye sauti yake. Design tokens pekee. Hakuna kupotea kwa persona, hakuna hex mbichi."
+          "name": "Mlango wa Chapa",
+          "blurb": "Mr. Mwikila anabaki kwenye sauti yake. Tokeni za muundo pekee. Hakuna kupotea kwa persona, hakuna hex mbichi."
         },
         {
           "id": "authority",
-          "name": "Mlango wa Authority",
-          "blurb": "Tier ya kitendo lazima iwe ndani ya authority iliyopewa loop. T2-Critical mutations zinaelekezwa kwa binadamu."
+          "name": "Mlango wa Mamlaka",
+          "blurb": "Daraja la kitendo lazima liwe ndani ya mamlaka aliyopewa mzunguko. Mabadiliko ya T2-Critical yanaelekezwa kwa binadamu."
         },
         {
           "id": "budget",
-          "name": "Mlango wa Budget",
-          "blurb": "ε-budget iliyobaki (tokens, wall-clock, tool calls) inabaki si-hasi baada ya kitendo kilichopendekezwa."
+          "name": "Mlango wa Bajeti",
+          "blurb": "ε-bajeti iliyobaki (tokeni, muda-halisi, miito ya zana) inabaki si-hasi baada ya kitendo kilichopendekezwa."
         }
       ]
     },
@@ -537,11 +537,11 @@
         "Decide",
         "Act"
       ],
-      "validatorLabel": "Quality Gates",
-      "gapLabel": "Pale IEEE + Snyk walisema validator inakosekana",
+      "validatorLabel": "Milango ya Ubora",
+      "gapLabel": "Pale IEEE + Snyk walisema kithibitishi kinakosekana",
       "closedByDesignLabel": "Imefungwa kwa muundo",
-      "flowLabel": "Loop inarudi Observe — kila mzunguko unathibitishwa upya",
-      "caption": "Observe, Orient, na Decide vinabaki kwenye mwendo wa mashine. Layer ya Quality Gates inapunguza kasi tu vya kutosha kuthibitisha groundedness, calibration, brand, authority, na budget — kisha Act inafuata. Kushindwa kunarudi kwenye learning, sio kwenye dunia."
+      "flowLabel": "Mzunguko unarudi Observe — kila mzunguko unathibitishwa upya",
+      "caption": "Observe, Orient, na Decide vinabaki kwenye mwendo wa mashine. Tabaka la Milango ya Ubora hupunguza kasi tu vya kutosha kuthibitisha uthibitisho-msingi, ulinganifu, chapa, mamlaka, na bajeti — kisha Act inafuata. Kushindwa kunarudi kwenye kujifunza, sio kwenye dunia."
     },
     "links": {
       "spec": "Soma spec ya 5-layer loop architecture",
@@ -758,7 +758,7 @@
           "headline": "Anaona mwelekeo wa muda mrefu — pit, hazina, wafanyakazi, soko",
           "capabilities": [
             "Anasimulia uzalishaji wa miezi 12 dhidi ya hali tatu za bei ya dhahabu",
-            "Anakadiria cash runway kutoka burn ya sasa, kitabu cha hedge, na pipeline ya off-take",
+            "Anakadiria akiba ya fedha kutoka matumizi ya sasa, kitabu cha hedge, na pipeline ya off-take",
             "Anaalamisha urejeshaji wa PML siku 90, 60, na 30 mbele na drafts za Tumemadini zikiwa tayari",
             "Anapendekeza fleet, contractor, na ununuzi wa explosives dhidi ya mpango wa robo"
           ]
@@ -781,14 +781,14 @@
           "capabilities": [
             "Drafts za mrabaha za Tumemadini kwa muundo rasmi kila mwezi",
             "NEMC EIA na taarifa za robo mwaka templates zinazojazwa kutoka telemetry",
-            "OSHA shift log, incident report, na corrective-action notes",
+            "Daftari la zamu la OSHA, ripoti ya tukio, na maelezo ya hatua za kurekebisha",
             "Off-take contracts na biometric fingerprint signature workflow"
           ]
         },
         {
           "id": "finance",
           "label": "Fedha",
-          "headline": "Anatazama cash, anawasilisha kodi, anafunga inapowezekana",
+          "headline": "Anatazama fedha, anawasilisha kodi, anafunga inapowezekana",
           "capabilities": [
             "Kwa wazalishaji wa dhahabu, anafunga kwenye LBMA AM-fix kiotomatiki ndani ya policy",
             "Anafuatilia mizani ya TZS · USD · uncia za madini dhidi ya BoT USD cliff",
@@ -801,10 +801,10 @@
           "label": "Hatari",
           "headline": "Lango tano kati ya kila uamuzi na dunia",
           "capabilities": [
-            "Groundedness gate — kila madai inataja evidence artifact",
-            "Calibration gate — confidence labels zinalingana na usahihi wa historia",
-            "Brand gate — Mwl. Mwikila anabaki katika voice, hapotezi",
-            "Authority + budget gates — tier na ε-budget zinatekelezwa kabla ya tool call yoyote"
+            "Mlango wa Uthibitisho-msingi — kila dai linataja kielelezo cha ushahidi",
+            "Mlango wa Ulinganifu — lebo za kujiamini zinalingana na usahihi wa kihistoria",
+            "Mlango wa Chapa — Mwl. Mwikila anabaki katika sauti yake, hapotezi",
+            "Milango ya mamlaka + bajeti — daraja na ε-bajeti zinatekelezwa kabla ya mwito wowote wa zana"
           ]
         },
         {
@@ -1523,7 +1523,7 @@
   "investorsPage": {
     "kicker": "Kwa wawekezaji na wakopeshaji",
     "heading": "Mtaji wa madini ukiwa na telemetry.",
-    "sub": "Borjie inawapa wakopeshaji na LPs briefs za kila siku zenye ushahidi kwenye kila deployment — uzalishaji, cash runway, FX exposure, hali ya mamlaka.",
+    "sub": "Borjie inawapa wakopeshaji na LPs briefs za kila siku zenye ushahidi kwenye kila deployment — uzalishaji, akiba ya fedha, FX exposure, hali ya mamlaka.",
     "ctaSchedule": "Panga simu",
     "ctaAuditPack": "Ona audit pack",
     "valueProps": {
@@ -1550,7 +1550,7 @@
       }
     },
     "caseStudy": {
-      "kicker": "02 · Case study",
+      "kicker": "02 · Tafiti ya tukio",
       "heading": "Deployment ya mfano.",
       "sub": "Hakuna deals zilizofungwa bado. Nambari hapa chini zinaonyesha jinsi audit pack ya Borjie ingewaonyesha senior secured lender cluster ya kawaida ya PML ya kati Geita.",
       "disclaimer": "Ya mfano tu. Nambari ni za mfano, hazitoki kwenye deal halisi iliyofungwa.",
@@ -1560,15 +1560,15 @@
           "value": "USD 4.2M senior secured"
         },
         "cluster": {
-          "label": "Cluster",
-          "value": "Geita PML · sites 9"
+          "label": "Kundi",
+          "value": "Geita PML · maeneo 9"
         },
         "production": {
-          "label": "Run-rate",
+          "label": "Kasi ya uzalishaji",
           "value": "184 oz Au / mwezi"
         },
         "runway": {
-          "label": "Cash runway",
+          "label": "Akiba ya fedha",
           "value": "Wiki 18.3"
         },
         "ltv": {
@@ -1625,12 +1625,15 @@
     "subscribeHeading": "Muhtasari wa asubuhi.",
     "subscribeSub": "Maelezo ya kila wiki kutoka kwa timu ya Borjie. Habari za uwanjani, masuala ya sera, mabadiliko ya hazina, bila ulaghai.",
     "subscribePlaceholder": "Barua pepe yako",
-    "subscribeCta": "Jiunge"
+    "subscribeCta": "Jiunge",
+    "subscribeSuccess": "Umejiunge. Muhtasari ujao wa asubuhi utafika kwenye barua pepe yako.",
+    "subscribeInvalid": "Tafadhali weka anwani sahihi ya barua pepe.",
+    "subscribeError": "Hitilafu imetokea. Tafadhali jaribu tena baada ya muda mfupi."
   },
   "caseStudies": {
-    "kicker": "Case studies",
-    "heading": "Case studies za pilot zinakuja Q3 2026.",
-    "sub": "Waanzilishi kumi katika Geita, Mererani, na Songwe wanaendesha pilot za wiki 12. Cohort ya kwanza ikikamilika tutaweka case studies kamili — kupanda kwa uzalishaji, kupungua kwa cash-cycle, matokeo ya audit.",
+    "kicker": "Tafiti za matukio",
+    "heading": "Tafiti za matukio ya majaribio zinakuja Q3 2026.",
+    "sub": "Waanzilishi kumi katika Geita, Mererani, na Songwe wanaendesha majaribio ya wiki 12. Kundi la kwanza likikamilika tutaweka tafiti kamili za matukio — kupanda kwa uzalishaji, kupungua kwa mzunguko wa fedha, matokeo ya ukaguzi.",
     "placeholderBadge": "Bado inaendelea",
     "back": "Rudi nyumbani"
   },
@@ -1644,10 +1647,10 @@
       "domain": {
         "title": "Mtaalamu wa madini wa Tanzania",
         "location": "Dar es Salaam · hybrid",
-        "blurb": "Mining engineer mwandamizi au geologist mwenye uzoefu wa kina wa PML/ML/SML na Tumemadini. Unakuwa mtoa-ukweli wa kile bidhaa yetu inapaswa kufanya."
+        "blurb": "Mhandisi wa madini mwandamizi au mwanajiolojia mwenye uzoefu wa kina wa PML/ML/SML na Tume ya Madini. Unakuwa mtoa-ukweli wa kile bidhaa yetu inapaswa kufanya."
       },
       "engineer": {
-        "title": "TypeScript engineer mwandamizi",
+        "title": "Mhandisi mwandamizi wa TypeScript",
         "location": "Remote · UTC+0 hadi UTC+3",
         "blurb": "Multi-tenant, Postgres, Hono, Next 15, AI-native. Unasafirisha mwanzo hadi mwisho na unachukulia kila line kana kwamba itakuwa kwenye audit ya mamlaka."
       },

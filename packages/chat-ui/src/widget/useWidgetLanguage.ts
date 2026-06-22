@@ -61,12 +61,22 @@ export interface UseWidgetLanguageResult {
   readonly toggleLanguage: () => void;
 }
 
-export function useWidgetLanguage(defaultLanguage: Language = 'en'): UseWidgetLanguageResult {
-  const [language, setLanguageState] = useState<Language>(defaultLanguage);
+export function useWidgetLanguage(
+  defaultLanguage: Language = 'en',
+  initialLocale?: Language,
+): UseWidgetLanguageResult {
+  // Zero-mix first-paint: when the host passes the server-resolved locale
+  // (`initialLocale`), SEED the initial state from it so SSR and the first
+  // client render agree — no EN flash on a SW page before the effect ticks.
+  // Absent it, fall back to the prior post-mount cookie-read behaviour so
+  // no-arg callers behave exactly as before.
+  const [language, setLanguageState] = useState<Language>(
+    initialLocale ?? defaultLanguage,
+  );
 
   useEffect(() => {
-    setLanguageState(readStoredLanguage(defaultLanguage));
-  }, [defaultLanguage]);
+    setLanguageState(readStoredLanguage(initialLocale ?? defaultLanguage));
+  }, [defaultLanguage, initialLocale]);
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);

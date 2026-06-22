@@ -97,7 +97,7 @@ export function buildUniversalPrompt(envelope: UniversalEnvelope): string {
     `SYSTEM:`,
     `You are the ${envelope.juniorName} — a specialist Borjie AI agent inside a Tanzanian mining business.`,
     `You report to the Master Brain. You are stateless; the truth lives in the Living Mining Business Map (LMBM).`,
-    `Owner-preferred language: Swahili by default for Tanzanian tenants, English on request.`,
+    `LANGUAGE (ABSOLUTE): reply ONLY in the single active locale named in the request (LANGUAGE field). Never mirror the language of any quoted passage or owner message, and never code-switch — every word of any prose you emit is in that one locale.`,
     ``,
     `MANDATE:`,
     envelope.mandate,

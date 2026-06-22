@@ -153,15 +153,18 @@ function isItemActive(href: string, pathname: string | null): boolean {
 interface SidebarProps {
   readonly tenantName: string;
   /**
-   * Retained for caller compatibility; the active locale now flows from
-   * the borjie_locale cookie via useT(), the single locale source.
+   * Server-resolved locale, threaded down from OwnerShell so `useT` SEEDS
+   * the first client render to the SAME language the SSR `<html lang>`
+   * chrome used. Without this seed `useT` defaults to `en` and renders a
+   * one-frame EN sidebar under an SW page (the first-paint split-brain —
+   * a zero-mix canon violation).
    */
   readonly languagePreference?: 'sw' | 'en';
 }
 
-export function Sidebar({ tenantName }: SidebarProps) {
+export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
   const pathname = usePathname();
-  const t = useT();
+  const t = useT(languagePreference);
 
   return (
     <aside

@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
 
 type Regulator = 'pccb' | 'nemc' | 'eiti' | 'tmaa' | 'other';
 type SubjectKind =
@@ -83,8 +83,13 @@ function daysUntilLabel(dueAt: string): string {
   return `${days}d remaining`;
 }
 
-export function RegulatorRequestsClient() {
-  const locale = useLocale();
+export function RegulatorRequestsClient({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
+  // Seed from the server-resolved cookie to avoid the first-paint split-brain.
+  const locale = useLocale(initialLocale);
   const [rows, setRows] = useState<readonly RegulatorRequestRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

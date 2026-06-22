@@ -92,6 +92,7 @@ export function AskSellerSheet({ visible, onClose, listing }: AskSellerSheetProp
         <PrimaryButton
           label={t('inquiry.submit')}
           onPress={onSubmit}
+          busy={submitMutation.isPending}
           disabled={submitMutation.isPending || !formState.isValid}
         />
       </View>

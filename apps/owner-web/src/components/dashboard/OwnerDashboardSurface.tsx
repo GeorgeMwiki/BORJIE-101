@@ -1,5 +1,6 @@
 'use client';
 
+import type { Locale } from '@/lib/locale';
 import { useOwnerBrief } from '@/lib/queries/owner-brief';
 import { fmtTime } from '@/lib/format';
 import { AiDailyBriefPanel } from './AiDailyBriefPanel';
@@ -11,6 +12,17 @@ import { CashRunwayCard } from './CashRunwayCard';
 import { ComplianceSafetyPanel } from './ComplianceSafetyPanel';
 import { QuickActionsBar } from './QuickActionsBar';
 
+interface OwnerDashboardSurfaceProps {
+  /**
+   * Server-resolved locale (from the borjie_locale cookie), threaded from
+   * the dashboard page's server region so the locale-aware islands below
+   * (KPI strip, AI daily brief, escalations) SEED their first client render
+   * to the SAME language the SSR `<html lang>` chrome used — without it they
+   * default to `en` and flash a one-frame EN-under-SW split-brain.
+   */
+  readonly initialLocale?: Locale;
+}
+
 /**
  * Client island for the owner dashboard.
  *
@@ -21,7 +33,9 @@ import { QuickActionsBar } from './QuickActionsBar';
  * Empty / error states reference `/` for follow-up so the operator
  * always has a way back to the brain.
  */
-export function OwnerDashboardSurface(): JSX.Element {
+export function OwnerDashboardSurface({
+  initialLocale,
+}: OwnerDashboardSurfaceProps = {}): JSX.Element {
   const query = useOwnerBrief();
 
   if (query.isLoading) {
@@ -62,7 +76,10 @@ export function OwnerDashboardSurface(): JSX.Element {
         className="grid grid-cols-1 gap-4 lg:grid-cols-2"
         data-testid="dashboard-top-row"
       >
-        <AiDailyBriefPanel dailyBrief={brief.dailyBrief} />
+        <AiDailyBriefPanel
+          dailyBrief={brief.dailyBrief}
+          initialLocale={initialLocale}
+        />
         <AlertQueuePanel
           decisions={brief.decisions}
           incidents={brief.openHighIncidents}
@@ -72,16 +89,19 @@ export function OwnerDashboardSurface(): JSX.Element {
       {/* Escalations closing surface — reads the authoritative
           mining_escalations ladder and exposes Acknowledge / Resolve so
           the closing stage is reachable for a real owner. */}
-      <EscalationsPanel />
+      <EscalationsPanel languagePreference={initialLocale} />
 
-      <KpiStripPanel brief={brief} />
+      <KpiStripPanel brief={brief} initialLocale={initialLocale} />
 
       <section
         className="grid grid-cols-1 gap-4 lg:grid-cols-3"
         data-testid="dashboard-middle-row"
       >
         <div className="lg:col-span-2">
-          <ProductionVsTargetTable production={brief.productionVsTarget} />
+          <ProductionVsTargetTable
+            production={brief.productionVsTarget}
+            initialLocale={initialLocale}
+          />
         </div>
         <CashRunwayCard
           cashRunway={brief.cashRunway}
@@ -92,6 +112,7 @@ export function OwnerDashboardSurface(): JSX.Element {
       <ComplianceSafetyPanel
         licenceHealth={brief.licenceHealth}
         incidents={brief.openHighIncidents}
+        initialLocale={initialLocale}
       />
     </div>
   );

@@ -97,7 +97,10 @@ interface TopBarProps {
 
 export function TopBar({ fullName, tenantName, languagePreference }: TopBarProps) {
   const pathname = usePathname();
-  const t = useT();
+  // Seed useT from the server-resolved languagePreference so the breadcrumb
+  // spine + action labels render the SAME language as the SSR `<html lang>`
+  // chrome on the first paint (no EN-under-SW split-brain frame).
+  const t = useT(languagePreference);
   const crumbs = useMemo(() => buildCrumbs(pathname, t), [pathname, t]);
   const initials = useMemo(
     () =>

@@ -22,6 +22,7 @@
  * critical-path JS payload.
  */
 import dynamic from 'next/dynamic';
+import { useEffect } from 'react';
 import type { ReactNode, JSX } from 'react';
 
 const LitFinAIProvider = dynamic(
@@ -53,9 +54,39 @@ const BORJIE_DISCLAIMER_EN =
 const BORJIE_DISCLAIMER_SW =
   'AI-iliyotengenezwa. Si ushauri wa kisheria. Maamuzi yanafanywa na mmiliki wa mgodi.';
 
-export function BorjieWidgetMount(
-  _props: BorjieWidgetMountProps = {},
-): JSX.Element {
+/**
+ * The shared page-locale cookie that `@borjie/chat-ui`'s
+ * `useWidgetLanguage()` treats as the single source of truth. The
+ * marketing layout resolves the active locale server-side and passes it
+ * down as `locale`; we mirror it into the cookie synchronously on the
+ * client so the widget's first post-mount read finds the SAME value the
+ * server rendered with — closing the one-EN-frame split-brain on `sw`
+ * pages for embeddings where the cookie was not already set.
+ *
+ * NOTE (cross-package): this only narrows the gap. The widget still
+ * `useState`s `'en'` on its very first synchronous render because
+ * `LitFinWidget` / `LitFinAIProvider` accept no `initialLocale` prop to
+ * seed `useWidgetLanguage(initialLocale)`. Fully eliminating the EN
+ * frame requires a chat-ui change (see `risk:`); we forward the locale
+ * as far as the marketing boundary allows.
+ */
+const PAGE_LOCALE_COOKIE = 'borjie_locale';
+
+function seedPageLocaleCookie(locale: 'en' | 'sw'): void {
+  if (typeof document === 'undefined') return;
+  const maxAge = 60 * 60 * 24 * 365;
+  document.cookie = `${PAGE_LOCALE_COOKIE}=${encodeURIComponent(locale)}; path=/; max-age=${maxAge}; samesite=lax`;
+}
+
+export function BorjieWidgetMount({
+  locale = 'en',
+}: BorjieWidgetMountProps = {}): JSX.Element {
+  // Mirror the server-resolved locale into the shared page-locale cookie
+  // before the widget's post-mount language read runs.
+  useEffect(() => {
+    seedPageLocaleCookie(locale);
+  }, [locale]);
+
   return (
     <LitFinAIProvider
       portalId="public"

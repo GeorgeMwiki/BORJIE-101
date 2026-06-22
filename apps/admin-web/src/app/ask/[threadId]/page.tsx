@@ -5,6 +5,7 @@
 import { ThreadList } from '@/components/ask/ThreadList';
 import { AskChat } from '@/components/ask/AskChat';
 import { AuditTrailPanel } from '@/components/ask/AuditTrailPanel';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,10 @@ interface ThreadPageProps {
 
 export default async function IndustryThreadPage({ params }: ThreadPageProps) {
   const { threadId } = await params;
+  // Seed the chat's first paint from the server-resolved `borjie_locale`
+  // cookie so SSR + the first client render agree with the `<html lang>`
+  // the root layout stamped (zero-mix canon — no EN-under-SW frame).
+  const initialLocale = await readLocaleFromServerCookies();
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-thread-narrow shrink-0 border-r border-border bg-surface-sunken lg:block">
@@ -35,6 +40,7 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
             threadId={threadId}
             initialMessages={[]}
             initialArtifacts={[]}
+            initialLocale={initialLocale}
           />
         </div>
       </main>

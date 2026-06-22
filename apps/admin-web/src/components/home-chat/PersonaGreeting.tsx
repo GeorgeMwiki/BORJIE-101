@@ -48,11 +48,11 @@ export const ADMIN_SUGGESTIONS: ReadonlyArray<SuggestionChip> = [
   {
     id: 'tenants-recent',
     label: 'Show the 10 newest tenants',
-    labelSw: 'Onyesha tenants 10 wapya',
+    labelSw: 'Onyesha wateja 10 wapya',
     prompt:
       'Show the 10 newest tenants that joined this week. List them by sign-up date.',
     promptSw:
-      'Onyesha tenants 10 wapya waliojiunga wiki hii. Orodhesha kwa tarehe ya kujisajili.',
+      'Onyesha wateja 10 wapya waliojiunga wiki hii. Orodhesha kwa tarehe ya kujisajili.',
   },
   {
     id: 'killswitch',
@@ -163,7 +163,10 @@ export function PersonaGreeting({
     <section
       className="mx-auto max-w-prose-md space-y-5 px-4 py-12 text-center"
       data-testid="home-chat-greeting"
-      aria-label="Admin greeting"
+      aria-label={pickByLocale(locale, {
+        en: 'Admin greeting',
+        sw: 'Salamu ya msimamizi',
+      })}
     >
       <div className="inline-flex items-center gap-2 rounded-full border border-signal-500/30 bg-signal-500/10 px-3 py-1 text-caption uppercase tracking-widest text-signal-500">
         <Sparkles className="h-3 w-3" aria-hidden="true" />
@@ -187,7 +190,10 @@ export function PersonaGreeting({
 
       <ul
         className="mx-auto flex flex-wrap justify-center gap-2 pt-2"
-        aria-label="Suggested admin prompts"
+        aria-label={pickByLocale(locale, {
+          en: 'Suggested admin prompts',
+          sw: 'Mapendekezo ya maswali ya msimamizi',
+        })}
       >
         {ADMIN_SUGGESTIONS.map((chip) => (
           <li key={chip.id}>
