@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { Card } from '@borjie/design-system';
+import { Card, Skeleton } from '@borjie/design-system';
 import { DegradedCard } from '@/components/DegradedCard';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
@@ -77,7 +77,7 @@ export default async function IndustryPage() {
         <h1 className="text-3xl font-display text-foreground mb-1">
           Industry dashboard
         </h1>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted-foreground">
           Six DP-aggregated platform KPIs. Each slot renders live or declares degraded.
         </p>
       </header>
@@ -97,7 +97,7 @@ export default async function IndustryPage() {
             return (
               <Card key={slot.key} className="rounded-2xl p-6 transition-colors hover:border-border-strong">
                 <div className="platform-card-title">{slot.title}</div>
-                <div className="text-sm text-neutral-500">Loading…</div>
+                <Skeleton className="mt-2 h-7 w-24 rounded" />
               </Card>
             );
           }
@@ -107,7 +107,7 @@ export default async function IndustryPage() {
               <div className="platform-card-value">
                 {result.data.value}
                 {result.data.unit ? (
-                  <span className="text-base text-neutral-500 ml-1">
+                  <span className="ml-1 text-base text-muted-foreground">
                     {result.data.unit}
                   </span>
                 ) : null}

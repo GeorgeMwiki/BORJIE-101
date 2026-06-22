@@ -6,17 +6,29 @@
  * client wrapper that pipes the host page's server-fetched sessions
  * through the pure `search-filter-utils` reducer.
  *
- * The facet bar (`SessionReplayFilters`) is purely presentational; the
- * filter chain lives in the parent `SessionReplayList` component. Both
- * are exported so unit tests + the page host can compose them
- * independently.
+ * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
+ * PER LOCALE (canon): every user-facing string resolves to the active
+ * locale via `pickByLocale`, seeded from the server-resolved cookie
+ * (`initialLocale`) so SSR + the first client paint agree (no split-brain
+ * frame). The facet bar (`SessionReplayFilters`) is purely presentational;
+ * the filter chain lives in the parent `SessionReplayList`.
  */
 
 'use client';
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Empty,
+  Card,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import {
   DEFAULT_FACET_STATE,
   searchAndFilter,
@@ -26,63 +38,106 @@ import {
   type FacetState,
   type RecentSessionLike,
 } from '@/lib/session-replay/search-filter-utils';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { SessionReplaySearch } from './_search';
+
+type LocalizedString = { readonly en: string; readonly sw: string };
+
+const S = {
+  date: { en: 'Date', sw: 'Tarehe' },
+  errors: { en: 'Errors', sw: 'Hitilafu' },
+  duration: { en: 'Duration', sw: 'Muda' },
+  reset: { en: 'Reset filters', sw: 'Weka upya vichujio' },
+  of: { en: 'of', sw: 'kati ya' },
+  sessions: { en: 'sessions', sw: 'vipindi' },
+  emptyNoneTitle: {
+    en: 'No replay sessions recorded',
+    sw: 'Hakuna vipindi vya kuchezea vilivyorekodiwa',
+  },
+  emptyNoneBody: {
+    en: 'Visit any admin page — the recorder boots from the layout provider and flushes a chunk every 30 seconds.',
+    sw: 'Tembelea ukurasa wowote wa admin — kinasa huwasha kutoka kwa mtoaji wa muundo na hutuma kipande kila sekunde 30.',
+  },
+  emptyFilteredTitle: {
+    en: 'No sessions match the current filters',
+    sw: 'Hakuna vipindi vinavyolingana na vichujio vya sasa',
+  },
+  emptyFilteredBody: {
+    en: 'Reset the facets or clear the search to see more sessions.',
+    sw: 'Weka upya vipengele au futa utafutaji kuona vipindi zaidi.',
+  },
+  colSession: { en: 'Session', sw: 'Kipindi' },
+  colUser: { en: 'User', sw: 'Mtumiaji' },
+  colSurface: { en: 'Surface', sw: 'Uso' },
+  colFirst: { en: 'First captured', sw: 'Ilinaswa kwanza' },
+  colLast: { en: 'Last captured', sw: 'Ilinaswa mwisho' },
+  colChunks: { en: 'Chunks', sw: 'Vipande' },
+  play: { en: 'Play →', sw: 'Cheza →' },
+} as const;
 
 interface SessionReplayFiltersProps {
   readonly value: FacetState;
   readonly onChange: (next: FacetState) => void;
   readonly onReset?: () => void;
+  readonly locale: Locale;
 }
 
-const DATE_OPTIONS: ReadonlyArray<{ label: string; value: DateFacet }> = [
-  { label: 'All', value: 'all' },
-  { label: 'Last hour', value: '1h' },
-  { label: 'Last 24h', value: '24h' },
-  { label: 'Last 7d', value: '7d' },
-  { label: 'Last 30d', value: '30d' },
+const DATE_OPTIONS: ReadonlyArray<{ label: LocalizedString; value: DateFacet }> = [
+  { label: { en: 'All', sw: 'Zote' }, value: 'all' },
+  { label: { en: 'Last hour', sw: 'Saa iliyopita' }, value: '1h' },
+  { label: { en: 'Last 24h', sw: 'Saa 24 zilizopita' }, value: '24h' },
+  { label: { en: 'Last 7d', sw: 'Siku 7 zilizopita' }, value: '7d' },
+  { label: { en: 'Last 30d', sw: 'Siku 30 zilizopita' }, value: '30d' },
 ];
 
-const ERROR_OPTIONS: ReadonlyArray<{ label: string; value: ErrorFacet }> = [
-  { label: 'Any', value: 'all' },
-  { label: 'With errors', value: 'with-errors' },
-  { label: 'Error-free', value: 'no-errors' },
+const ERROR_OPTIONS: ReadonlyArray<{ label: LocalizedString; value: ErrorFacet }> = [
+  { label: { en: 'Any', sw: 'Yoyote' }, value: 'all' },
+  { label: { en: 'With errors', sw: 'Zenye hitilafu' }, value: 'with-errors' },
+  { label: { en: 'Error-free', sw: 'Bila hitilafu' }, value: 'no-errors' },
 ];
 
-const DURATION_OPTIONS: ReadonlyArray<{ label: string; value: DurationFacet }> = [
-  { label: 'Any', value: 'all' },
-  { label: '< 1 min', value: 'under-1m' },
-  { label: '1 – 5 min', value: '1-5m' },
-  { label: '> 5 min', value: 'over-5m' },
+const DURATION_OPTIONS: ReadonlyArray<{
+  label: LocalizedString;
+  value: DurationFacet;
+}> = [
+  { label: { en: 'Any', sw: 'Yoyote' }, value: 'all' },
+  { label: { en: '< 1 min', sw: '< dakika 1' }, value: 'under-1m' },
+  { label: { en: '1 – 5 min', sw: 'dakika 1 – 5' }, value: '1-5m' },
+  { label: { en: '> 5 min', sw: '> dakika 5' }, value: 'over-5m' },
 ];
 
 export function SessionReplayFilters({
   value,
   onChange,
   onReset,
+  locale,
 }: SessionReplayFiltersProps): JSX.Element {
   return (
-    <div className="flex flex-wrap items-end gap-4 text-xs text-neutral-400">
+    <div className="flex flex-wrap items-end gap-4 text-xs text-muted-foreground">
       <FacetGroup
-        label="Date"
+        label={pickByLocale(locale, S.date)}
         options={DATE_OPTIONS}
         selected={value.date}
         onSelect={(next) => onChange({ ...value, date: next })}
+        locale={locale}
       />
       <FacetGroup
-        label="Errors"
+        label={pickByLocale(locale, S.errors)}
         options={ERROR_OPTIONS}
         selected={value.errors}
         onSelect={(next) => onChange({ ...value, errors: next })}
+        locale={locale}
       />
       <FacetGroup
-        label="Duration"
+        label={pickByLocale(locale, S.duration)}
         options={DURATION_OPTIONS}
         selected={value.duration}
         onSelect={(next) => onChange({ ...value, duration: next })}
+        locale={locale}
       />
       {onReset ? (
         <Button type="button" onClick={onReset} variant="outline" size="sm">
-          Reset filters
+          {pickByLocale(locale, S.reset)}
         </Button>
       ) : null}
     </div>
@@ -91,9 +146,10 @@ export function SessionReplayFilters({
 
 interface FacetGroupProps<T extends string> {
   readonly label: string;
-  readonly options: ReadonlyArray<{ label: string; value: T }>;
+  readonly options: ReadonlyArray<{ label: LocalizedString; value: T }>;
   readonly selected: T;
   readonly onSelect: (next: T) => void;
+  readonly locale: Locale;
 }
 
 function FacetGroup<T extends string>({
@@ -101,10 +157,11 @@ function FacetGroup<T extends string>({
   options,
   selected,
   onSelect,
+  locale,
 }: FacetGroupProps<T>): JSX.Element {
   return (
     <fieldset className="flex flex-col gap-1">
-      <legend className="uppercase tracking-wider text-neutral-500">
+      <legend className="uppercase tracking-wider text-muted-foreground">
         {label}
       </legend>
       <div className="flex flex-wrap gap-1" role="group" aria-label={label}>
@@ -117,13 +174,13 @@ function FacetGroup<T extends string>({
               onClick={() => onSelect(opt.value)}
               aria-pressed={isActive}
               className={
-                'rounded-md border px-2 py-1 text-xs transition-colors ' +
+                'rounded-md border px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ' +
                 (isActive
                   ? 'border-signal-500 bg-signal-500/10 text-signal-200'
-                  : 'border-border bg-neutral-900 text-neutral-300 hover:bg-neutral-800')
+                  : 'border-border bg-surface-sunken text-muted-foreground hover:bg-muted')
               }
             >
-              {opt.label}
+              {pickByLocale(locale, opt.label)}
             </button>
           );
         })}
@@ -144,11 +201,14 @@ interface SessionReplayRow extends RecentSessionLike {
 
 interface SessionReplayListProps {
   readonly sessions: ReadonlyArray<SessionReplayRow>;
+  readonly initialLocale?: Locale;
 }
 
 export function SessionReplayList({
   sessions,
+  initialLocale,
 }: SessionReplayListProps): JSX.Element {
+  const locale = useLocale(initialLocale);
   const [query, setQuery] = useState('');
   const [facets, setFacets] = useState<FacetState>(DEFAULT_FACET_STATE);
 
@@ -172,74 +232,68 @@ export function SessionReplayList({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <SessionReplaySearch value={query} onChange={setQuery} />
-        <div className="text-xs text-neutral-500">
-          {filtered.length} of {sessions.length} sessions
+        <div className="text-xs text-muted-foreground">
+          {filtered.length} {pickByLocale(locale, S.of)} {sessions.length}{' '}
+          {pickByLocale(locale, S.sessions)}
         </div>
       </div>
       <SessionReplayFilters
         value={facets}
         onChange={setFacets}
+        locale={locale}
         {...(isFiltered ? { onReset: resetAll } : {})}
       />
       {sessions.length === 0 ? (
-        <div className="text-sm text-neutral-400">
-          No replay sessions recorded in the current window. Visit any
-          admin page — the recorder boots from the layout provider and
-          flushes a chunk every 30 seconds.
-        </div>
+        <Empty
+          title={pickByLocale(locale, S.emptyNoneTitle)}
+          description={pickByLocale(locale, S.emptyNoneBody)}
+        />
       ) : filtered.length === 0 ? (
-        <div className="text-sm text-neutral-400">
-          No sessions match the current filters.
-          {isFiltered ? (
-            <>
-              {' '}
-              <Button
-                type="button"
-                onClick={resetAll}
-                variant="link"
-                size="sm"
-                className="h-auto p-0 text-signal-500"
-              >
-                Reset filters
-              </Button>
-              .
-            </>
-          ) : null}
-        </div>
+        <Empty
+          title={pickByLocale(locale, S.emptyFilteredTitle)}
+          description={pickByLocale(locale, S.emptyFilteredBody)}
+          {...(isFiltered
+            ? { action: { label: pickByLocale(locale, S.reset), onClick: resetAll } }
+            : {})}
+        />
       ) : (
-        <table className="w-full text-sm text-neutral-300 border-collapse">
-          <thead className="text-neutral-500 uppercase text-xs tracking-wider">
-            <tr>
-              <th className="text-left py-2 pr-3">Session</th>
-              <th className="text-left py-2 pr-3">User</th>
-              <th className="text-left py-2 pr-3">Surface</th>
-              <th className="text-left py-2 pr-3">First captured</th>
-              <th className="text-left py-2 pr-3">Last captured</th>
-              <th className="text-left py-2 pr-3">Chunks</th>
-              <th className="text-left py-2 pr-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((s) => (
-              <tr key={s.sessionId} className="border-t border-border">
-                <td className="py-2 pr-3 font-mono break-all">{s.sessionId}</td>
-                <td className="py-2 pr-3">{s.userId}</td>
-                <td className="py-2 pr-3">{s.surface}</td>
-                <td className="py-2 pr-3">{s.firstCapturedAt}</td>
-                <td className="py-2 pr-3">{s.lastCapturedAt}</td>
-                <td className="py-2 pr-3">{s.chunkCount}</td>
-                <td className="py-2 pr-3">
-                  <Link
-                    href={`/session-replay/${encodeURIComponent(s.sessionId)}`}
-                    className="text-signal-500 hover:underline"
-                  >
-                    Play →
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <Card variant="outline" padding="none" className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colSession)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colUser)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colSurface)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colFirst)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colLast)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colChunks)}</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((s) => (
+                <TableRow key={s.sessionId}>
+                  <TableCell className="break-all font-mono">
+                    {s.sessionId}
+                  </TableCell>
+                  <TableCell>{s.userId}</TableCell>
+                  <TableCell>{s.surface}</TableCell>
+                  <TableCell>{s.firstCapturedAt}</TableCell>
+                  <TableCell>{s.lastCapturedAt}</TableCell>
+                  <TableCell>{s.chunkCount}</TableCell>
+                  <TableCell>
+                    <Link
+                      href={`/session-replay/${encodeURIComponent(s.sessionId)}`}
+                      className="text-signal-500 hover:underline"
+                    >
+                      {pickByLocale(locale, S.play)}
+                    </Link>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { Suspense } from 'react';
+import { Skeleton } from '@borjie/design-system';
 import { QueryProvider } from '@/components/internal/QueryProvider';
 import { AdminDashboardSurface } from '@/components/dashboard/AdminDashboardSurface';
 import { AdminDailyBriefCard } from '@/components/dashboard/AdminDailyBriefCard';
@@ -35,7 +36,7 @@ export default async function AdminDashboardPage() {
             sw: 'Hali ya jukwaa',
           })}
         </h1>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           {pickByLocale(locale, {
             en: 'Read-only structured view across every Borjie tenant. For investigation drop into chat at ',
             sw: 'Mwonekano uliopangwa wa kusoma-tu kwa kila tenant ya Borjie. Kwa uchunguzi, ingia kwenye gumzo ',
@@ -78,10 +79,7 @@ function MetricStripFallback() {
       data-testid="admin-metric-strip-fallback"
     >
       {Array.from({ length: 4 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-28 animate-pulse rounded-lg border border-border bg-surface/40"
-        />
+        <Skeleton key={i} className="h-28 rounded-lg border border-border" />
       ))}
     </div>
   );
@@ -89,8 +87,8 @@ function MetricStripFallback() {
 
 function DailyBriefCardFallback() {
   return (
-    <div
-      className="h-56 animate-pulse rounded-lg border border-border bg-surface/40"
+    <Skeleton
+      className="h-56 rounded-lg border border-border"
       data-testid="admin-daily-brief-fallback"
     />
   );
@@ -103,10 +101,7 @@ function DashboardFallback() {
       data-testid="admin-dashboard-fallback"
     >
       {Array.from({ length: 6 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-44 animate-pulse rounded-lg border border-border bg-surface/40"
-        />
+        <Skeleton key={i} className="h-44 rounded-lg border border-border" />
       ))}
     </div>
   );

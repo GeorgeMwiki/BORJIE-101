@@ -1,8 +1,12 @@
 'use client';
 
+import { Button } from '@borjie/design-system';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+
 interface TenantImpersonateTabProps {
   readonly tenantId: string;
   readonly tenantName: string;
+  readonly initialLocale?: Locale;
 }
 
 /**
@@ -14,25 +18,49 @@ interface TenantImpersonateTabProps {
  * disabled with an explanatory notice. Re-enable the mutation flow once
  * `POST /tenants/:id/impersonate` lands on the gateway.
  */
-export function TenantImpersonateTab({ tenantName }: TenantImpersonateTabProps): JSX.Element {
+const S = {
+  title: { en: 'Audited operator impersonation', sw: 'Kuiga opereta kwa ukaguzi' },
+  body: {
+    en: 'A signed bearer is minted server-side, scoped to this tenant, and emits an immutable audit event. Sessions self-expire after 60 minutes.',
+    sw: 'Tikiti iliyosainiwa hutengenezwa upande wa seva, ikiwa imefungwa kwa mteja huyu, na hutoa tukio la ukaguzi lisiloweza kubadilishwa. Vipindi hujifutia muda baada ya dakika 60.',
+  },
+  start: { en: 'Start impersonation session', sw: 'Anzisha kipindi cha kuiga' },
+  notAvailable: {
+    en: 'Not yet available — pending gateway wiring.',
+    sw: 'Bado haipatikani — inasubiri uunganishaji wa lango.',
+  },
+  disabledTitle: {
+    en: "Impersonation isn't available yet — the gateway route is not wired. Tracked for the gateway wave.",
+    sw: 'Kuiga bado hakupatikani — njia ya lango haijaunganishwa. Inafuatiliwa kwa wimbi la lango.',
+  },
+} as const;
+
+export function TenantImpersonateTab({
+  tenantName,
+  initialLocale,
+}: TenantImpersonateTabProps): JSX.Element {
+  const locale = useLocale(initialLocale);
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-warning/40 bg-warning/5 p-6">
-        <h3 className="text-sm font-medium text-foreground mb-2">Audited operator impersonation</h3>
-        <p className="text-xs text-neutral-400 mb-4">
-          A signed bearer is minted server-side, scoped to {tenantName}, and emits an immutable audit event. Sessions
-          self-expire after 60 minutes.
+      <div className="rounded-lg border border-warning/40 bg-warning-subtle p-6">
+        <h3 className="text-sm font-medium text-foreground mb-2">
+          {pickByLocale(locale, S.title)}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          {pickByLocale(locale, S.body)}
+          {tenantName ? ` (${tenantName})` : ''}
         </p>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           disabled
-          title="Impersonation isn't available yet — the gateway route is not wired. Tracked for the gateway wave."
-          className="cursor-not-allowed rounded-md border border-border bg-surface-sunken px-4 py-2 text-xs font-medium text-neutral-500 opacity-60"
+          title={pickByLocale(locale, S.disabledTitle)}
         >
-          Start impersonation session
-        </button>
-        <p className="mt-3 text-xs text-neutral-500">
-          Not yet available — pending gateway wiring.
+          {pickByLocale(locale, S.start)}
+        </Button>
+        <p className="mt-3 text-xs text-muted-foreground">
+          {pickByLocale(locale, S.notAvailable)}
         </p>
       </div>
     </div>

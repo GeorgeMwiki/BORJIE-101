@@ -1,6 +1,8 @@
 'use client';
 
+import { Skeleton, Alert } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   useMyWorkflowQueue,
   useFlowAutonomy,
@@ -19,7 +21,33 @@ import {
  * stay a follow-up that rides the durable-saga wave; the inviolable rails
  * still gate every action regardless of posture.
  */
-export function WorkflowEngine(): JSX.Element {
+const S = {
+  myRuns: { en: 'My open runs', sw: 'Mizunguko yangu iliyo wazi' },
+  readFirst: { en: 'read-first', sw: 'soma-kwanza' },
+  loadingQueue: { en: 'Loading your queue…', sw: 'Inapakia foleni yako…' },
+  noRuns: { en: 'No open workflow runs.', sw: 'Hakuna mizunguko ya kazi iliyo wazi.' },
+  postures: { en: 'Flow postures', sw: 'Misimamo ya mtiririko' },
+  loadingPostures: { en: 'Loading flow postures…', sw: 'Inapakia misimamo ya mtiririko…' },
+  noPostures: {
+    en: 'No flow postures set — every flow is GATED by default.',
+    sw: 'Hakuna misimamo ya mtiririko iliyowekwa — kila mtiririko umeZUIWA kwa chaguo-msingi.',
+  },
+  ceiling: { en: 'ceiling', sw: 'kikomo' },
+  pendingTitle: {
+    en: 'Pending auto-vs-gated confirmations',
+    sw: 'Uthibitisho wa otomatiki-dhidi-ya-kuzuiwa unaosubiri',
+  },
+  trustCalibration: { en: 'trust-calibration', sw: 'urekebishaji-imani' },
+  loadingPending: { en: 'Loading pending confirmations…', sw: 'Inapakia uthibitisho unaosubiri…' },
+  noPending: { en: 'No flows awaiting confirmation.', sw: 'Hakuna mitiririko inayosubiri uthibitisho.' },
+} as const;
+
+export function WorkflowEngine({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const queue = useMyWorkflowQueue();
   const postures = useFlowAutonomy(false);
   const pending = useFlowAutonomy(true);
@@ -28,26 +56,26 @@ export function WorkflowEngine(): JSX.Element {
     <div className="space-y-8">
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-foreground">My open runs</h2>
-          <StubBadge tone="info">read-first</StubBadge>
+          <h2 className="text-sm font-medium text-foreground">{pickByLocale(locale, S.myRuns)}</h2>
+          <StubBadge tone="info">{pickByLocale(locale, S.readFirst)}</StubBadge>
         </div>
         {queue.isPending ? (
-          <p className="text-sm text-neutral-500">Loading your queue…</p>
+          <Skeleton className="h-24 w-full rounded-lg" aria-label={pickByLocale(locale, S.loadingQueue)} />
         ) : queue.isError ? (
-          <p className="text-sm text-danger">{queue.error.message}</p>
+          <Alert variant="error">{queue.error.message}</Alert>
         ) : (queue.data ?? []).length === 0 ? (
-          <p className="text-sm text-neutral-400">No open workflow runs.</p>
+          <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noRuns)}</p>
         ) : (
           <div className="divide-y divide-border rounded-lg border border-border bg-surface">
             {(queue.data ?? []).map((run) => (
               <article key={run.id} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-xs text-neutral-500">{run.id}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{run.id}</p>
                   {run.definitionId ? (
                     <p className="text-sm text-foreground">{run.definitionId}</p>
                   ) : null}
                   {run.scope ? (
-                    <p className="text-xs text-neutral-400">
+                    <p className="text-xs text-muted-foreground">
                       {run.scope}
                       {run.scopeRef ? ` · ${run.scopeRef}` : ''}
                     </p>
@@ -63,21 +91,23 @@ export function WorkflowEngine(): JSX.Element {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-medium text-foreground">Flow postures</h2>
+        <h2 className="text-sm font-medium text-foreground">{pickByLocale(locale, S.postures)}</h2>
         {postures.isPending ? (
-          <p className="text-sm text-neutral-500">Loading flow postures…</p>
+          <Skeleton className="h-24 w-full rounded-lg" aria-label={pickByLocale(locale, S.loadingPostures)} />
         ) : postures.isError ? (
-          <p className="text-sm text-danger">{postures.error.message}</p>
+          <Alert variant="error">{postures.error.message}</Alert>
         ) : (postures.data ?? []).length === 0 ? (
-          <p className="text-sm text-neutral-400">No flow postures set — every flow is GATED by default.</p>
+          <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noPostures)}</p>
         ) : (
           <div className="divide-y divide-border rounded-lg border border-border bg-surface">
             {(postures.data ?? []).map((pref) => (
               <article key={pref.flowId} className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-0">
-                  <p className="font-mono text-xs text-neutral-500">{pref.flowId}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{pref.flowId}</p>
                   {pref.riskCeiling ? (
-                    <p className="text-xs text-neutral-400">ceiling: {pref.riskCeiling}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.ceiling)}: {pref.riskCeiling}
+                    </p>
                   ) : null}
                 </div>
                 <StubBadge tone={pref.posture === 'auto' ? 'success' : 'warn'}>
@@ -91,20 +121,20 @@ export function WorkflowEngine(): JSX.Element {
 
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-foreground">Pending auto-vs-gated confirmations</h2>
-          <StubBadge tone="warn">trust-calibration</StubBadge>
+          <h2 className="text-sm font-medium text-foreground">{pickByLocale(locale, S.pendingTitle)}</h2>
+          <StubBadge tone="warn">{pickByLocale(locale, S.trustCalibration)}</StubBadge>
         </div>
         {pending.isPending ? (
-          <p className="text-sm text-neutral-500">Loading pending confirmations…</p>
+          <Skeleton className="h-24 w-full rounded-lg" aria-label={pickByLocale(locale, S.loadingPending)} />
         ) : pending.isError ? (
-          <p className="text-sm text-danger">{pending.error.message}</p>
+          <Alert variant="error">{pending.error.message}</Alert>
         ) : (pending.data ?? []).length === 0 ? (
-          <p className="text-sm text-neutral-400">No flows awaiting confirmation.</p>
+          <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noPending)}</p>
         ) : (
           <div className="divide-y divide-border rounded-lg border border-border bg-surface">
             {(pending.data ?? []).map((pref) => (
               <article key={pref.flowId} className="flex items-center justify-between gap-3 px-4 py-3">
-                <p className="font-mono text-xs text-neutral-500">{pref.flowId}</p>
+                <p className="font-mono text-xs text-muted-foreground">{pref.flowId}</p>
                 <StubBadge tone="neutral">{pref.posture}</StubBadge>
               </article>
             ))}

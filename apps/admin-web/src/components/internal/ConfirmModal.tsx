@@ -1,7 +1,18 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
-import { Button, type ButtonProps } from '@borjie/design-system';
+/**
+ * ConfirmModal — THIN WRAPPER over the design-system `Modal`.
+ *
+ * The public API (`open, title, body, confirmLabel, cancelLabel, tone,
+ * busy, onConfirm, onCancel`) is preserved VERBATIM so existing callers
+ * (PromptRegistry, RollbackPanel, …) keep compiling unchanged. The
+ * hand-rolled native `<dialog>` + focus-trap body is gone; overlay,
+ * ESC-to-dismiss, focus trapping, and scroll-lock now come from the DS
+ * `Modal`, and the footer buttons map `tone` onto the canonical DS
+ * `Button` variants.
+ */
+import type { ReactNode } from 'react';
+import { Modal, ModalBody, ModalFooter, Button, type ButtonProps } from '@borjie/design-system';
 
 interface ConfirmModalProps {
   readonly open: boolean;
@@ -15,18 +26,12 @@ interface ConfirmModalProps {
   readonly onCancel: () => void;
 }
 
-const TONE_VARIANT: Record<'danger' | 'warn' | 'info', ButtonProps['variant']> =
-  {
-    danger: 'destructive',
-    warn: 'warning',
-    info: 'default',
-  };
+const TONE_VARIANT: Record<'danger' | 'warn' | 'info', ButtonProps['variant']> = {
+  danger: 'destructive',
+  warn: 'warning',
+  info: 'default',
+};
 
-/**
- * Headless-style modal built on the native <dialog> element so we keep
- * keyboard focus trapping + ESC-to-dismiss for free without pulling a
- * Radix dependency into the internal admin bundle.
- */
 export function ConfirmModal({
   open,
   title,
@@ -38,48 +43,23 @@ export function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps): JSX.Element {
-  const ref = useRef<HTMLDialogElement | null>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (open && !el.open) el.showModal();
-    if (!open && el.open) el.close();
-  }, [open]);
-
   return (
-    <dialog
-      ref={ref}
-      onCancel={(e) => {
-        e.preventDefault();
-        onCancel();
-      }}
-      className="rounded-lg border border-border bg-surface p-0 backdrop:bg-black/60"
-    >
-      <div className="w-dialog-md max-w-modal-cap p-6">
-        <h2 className="text-base font-display text-foreground mb-2">{title}</h2>
-        <div className="text-sm text-neutral-300 mb-6">{body}</div>
-        <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onCancel}
-            disabled={busy}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            type="button"
-            variant={TONE_VARIANT[tone]}
-            size="sm"
-            onClick={onConfirm}
-            loading={busy}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </dialog>
+    <Modal open={open} onClose={onCancel} title={title} size="md">
+      <ModalBody className="text-sm text-muted-foreground">{body}</ModalBody>
+      <ModalFooter>
+        <Button type="button" variant="outline" size="sm" onClick={onCancel} disabled={busy}>
+          {cancelLabel}
+        </Button>
+        <Button
+          type="button"
+          variant={TONE_VARIANT[tone]}
+          size="sm"
+          onClick={onConfirm}
+          loading={busy}
+        >
+          {confirmLabel}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

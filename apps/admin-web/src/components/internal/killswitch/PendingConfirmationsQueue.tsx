@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Button } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   useConfirmKillswitch,
   usePendingConfirmations,
@@ -10,7 +12,25 @@ import {
 
 interface PendingConfirmationsQueueProps {
   readonly onResult: (msg: string) => void;
+  readonly initialLocale?: Locale;
 }
+
+const S = {
+  title: {
+    en: 'Pending two-operator confirmations',
+    sw: 'Uthibitisho wa waendeshaji wawili unaosubiri',
+  },
+  waiting: { en: 'waiting', sw: 'wanaosubiri' },
+  body: {
+    en: 'Each entry was initiated by another operator. You must hold a matching killswitch authority AND confirm before the 30s window closes.',
+    sw: 'Kila kipengele kilianzishwa na opereta mwingine. Lazima uwe na mamlaka linganifu ya kizima-dharura NA uthibitishe kabla ya dirisha la sekunde 30 kufungwa.',
+  },
+  reason: { en: 'reason', sw: 'sababu' },
+  initiator: { en: 'initiator', sw: 'mwanzilishi' },
+  expired: { en: 'expired', sw: 'imekwisha muda' },
+  left: { en: 'left', sw: 'zimebaki' },
+  confirm: { en: 'Confirm', sw: 'Thibitisha' },
+} as const;
 
 function secondsRemaining(expiresAt: string, nowMs: number): number {
   const remaining = Math.max(0, Date.parse(expiresAt) - nowMs);
@@ -30,7 +50,9 @@ function targetLevelTone(level: PendingConfirmation['killswitchTarget']['level']
  */
 export function PendingConfirmationsQueue({
   onResult,
+  initialLocale,
 }: PendingConfirmationsQueueProps): JSX.Element | null {
+  const locale = useLocale(initialLocale);
   const query = usePendingConfirmations(3_000);
   const confirm = useConfirmKillswitch();
   const [now, setNow] = useState(() => Date.now());
@@ -44,16 +66,17 @@ export function PendingConfirmationsQueue({
   if (rows.length === 0) return null;
 
   return (
-    <section className="rounded-lg border border-warning/40 bg-warning/5 p-6">
+    <section className="rounded-lg border border-warning/40 bg-warning-subtle p-6">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-medium text-foreground">
-          Pending two-operator confirmations
+          {pickByLocale(locale, S.title)}
         </h3>
-        <StubBadge tone="warn">{rows.length} waiting</StubBadge>
+        <StubBadge tone="warn">
+          {rows.length} {pickByLocale(locale, S.waiting)}
+        </StubBadge>
       </div>
-      <p className="text-xs text-neutral-400 mb-4">
-        Each entry was initiated by another operator. You must hold a matching killswitch authority
-        AND confirm before the 30s window closes.
+      <p className="text-xs text-muted-foreground mb-4">
+        {pickByLocale(locale, S.body)}
       </p>
       <ul className="space-y-2">
         {rows.map((row) => {
@@ -66,28 +89,34 @@ export function PendingConfirmationsQueue({
             >
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <code className="text-xs text-neutral-400">{row.killswitchTarget.scope}</code>
+                  <code className="text-xs text-muted-foreground">{row.killswitchTarget.scope}</code>
                   <StubBadge tone={targetLevelTone(row.killswitchTarget.level)}>
                     {row.killswitchTarget.level}
                   </StubBadge>
                 </div>
-                <p className="text-xs text-neutral-500">
-                  reason: {row.killswitchTarget.reasonCode}
+                <p className="text-xs text-muted-foreground">
+                  {pickByLocale(locale, S.reason)}: {row.killswitchTarget.reasonCode}
                   {row.killswitchTarget.note ? ` — ${row.killswitchTarget.note}` : ''}
                 </p>
-                <p className="text-xs text-neutral-500">
-                  initiator: <code>{row.initiatorUserId.slice(0, 8)}…</code>
+                <p className="text-xs text-muted-foreground">
+                  {pickByLocale(locale, S.initiator)}:{' '}
+                  <code>{row.initiatorUserId.slice(0, 8)}…</code>
                 </p>
               </div>
               <div className="flex items-center gap-3">
                 <span
                   className={`text-xs tabular-nums ${stale ? 'text-danger' : 'text-warning'}`}
                 >
-                  {stale ? 'expired' : `${remaining}s left`}
+                  {stale
+                    ? pickByLocale(locale, S.expired)
+                    : `${remaining}s ${pickByLocale(locale, S.left)}`}
                 </span>
-                <button
+                <Button
                   type="button"
+                  variant="destructive"
+                  size="sm"
                   disabled={stale || confirm.isPending}
+                  loading={confirm.isPending}
                   onClick={() =>
                     confirm.mutate(row.id, {
                       onSuccess: () =>
@@ -100,10 +129,9 @@ export function PendingConfirmationsQueue({
                         ),
                     })
                   }
-                  className="rounded-md bg-danger/20 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/30 disabled:opacity-50"
                 >
-                  Confirm
-                </button>
+                  {pickByLocale(locale, S.confirm)}
+                </Button>
               </div>
             </li>
           );

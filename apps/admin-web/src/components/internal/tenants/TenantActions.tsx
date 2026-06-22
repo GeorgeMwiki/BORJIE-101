@@ -3,55 +3,28 @@
 import { useState } from 'react';
 import { Button } from '@borjie/design-system';
 import { useSetTenantStatus } from '@/lib/internal/queries/tenants';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { Tenant } from '@/lib/internal/types';
 import { Toast } from '../Toast';
 
 interface TenantActionsProps {
   readonly tenant: Tenant;
+  readonly initialLocale?: Locale;
 }
 
-export function TenantActions({ tenant }: TenantActionsProps): JSX.Element {
+const S = {
+  activate: { en: 'Activate', sw: 'Wezesha' },
+  suspend: { en: 'Suspend', sw: 'Simamisha' },
+} as const;
+
+export function TenantActions({ tenant, initialLocale }: TenantActionsProps): JSX.Element {
+  const locale = useLocale(initialLocale);
   const setStatus = useSetTenantStatus();
   const [toast, setToast] = useState<string | null>(null);
 
   const isSuspended = tenant.status === 'Suspended';
-
-  if (isSuspended) {
-    // POST /api/v1/mining/internal/tenants/:id/activate now exists (Wave A).
-    // Wire the Activate button to useSetTenantStatus({ status: 'Active' })
-    // which calls the gateway activate route.
-    return (
-      <>
-        <Button
-          type="button"
-          variant="link"
-          size="sm"
-          onClick={(e) => {
-            e.stopPropagation();
-            setStatus.mutate(
-              { id: tenant.id, status: 'Active' },
-              {
-                onSuccess: () => setToast(`${tenant.name} → Active`),
-                onError: (err) =>
-                  setToast(
-                    `Failed: ${err instanceof Error ? err.message : 'unknown'}`,
-                  ),
-              },
-            );
-          }}
-          disabled={setStatus.isPending}
-          className="text-signal-500"
-        >
-          Activate
-        </Button>
-        <Toast
-          message={toast}
-          tone={setStatus.isError ? 'danger' : 'success'}
-          onDismiss={() => setToast(null)}
-        />
-      </>
-    );
-  }
+  const nextStatus = isSuspended ? 'Active' : 'Suspended';
+  const label = isSuspended ? pickByLocale(locale, S.activate) : pickByLocale(locale, S.suspend);
 
   return (
     <>
@@ -62,20 +35,19 @@ export function TenantActions({ tenant }: TenantActionsProps): JSX.Element {
         onClick={(e) => {
           e.stopPropagation();
           setStatus.mutate(
-            { id: tenant.id, status: 'Suspended' },
+            { id: tenant.id, status: nextStatus },
             {
-              onSuccess: () => setToast(`${tenant.name} → Suspended`),
+              onSuccess: () => setToast(`${tenant.name} → ${nextStatus}`),
               onError: (err) =>
-                setToast(
-                  `Failed: ${err instanceof Error ? err.message : 'unknown'}`,
-                ),
+                setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
             },
           );
         }}
         disabled={setStatus.isPending}
-        className="text-warning"
+        loading={setStatus.isPending}
+        className={isSuspended ? 'text-signal-500' : 'text-warning'}
       >
-        Suspend
+        {label}
       </Button>
       <Toast
         message={toast}

@@ -3,14 +3,33 @@
 import { useRef, useState } from 'react';
 import { Button } from '@borjie/design-system';
 import { useUploadCorpus } from '@/lib/internal/queries/corpus';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 const ACCEPTED = '.md,.markdown,.txt,.pdf';
+
+const S = {
+  prompt: { en: 'Drop markdown dossiers or PDFs here', sw: 'Dondosha majalada ya markdown au PDF hapa' },
+  hint: {
+    en: 'Files are versioned and routed through the re-ingest pipeline. Existing entries auto-supersede.',
+    sw: 'Faili huwekewa matoleo na kupitishwa kwenye mfumo wa uingizaji upya. Maingizo yaliyopo hubadilishwa kiotomatiki.',
+  },
+  uploading: { en: 'Uploading…', sw: 'Inapakia…' },
+  pick: { en: 'Pick files', sw: 'Chagua faili' },
+  uploadFailed: { en: 'Upload failed', sw: 'Upakiaji umeshindwa' },
+} as const;
 
 interface DragState {
   readonly active: boolean;
 }
 
-export function CorpusDropZone({ onUploaded }: { readonly onUploaded?: () => void }): JSX.Element {
+export function CorpusDropZone({
+  onUploaded,
+  initialLocale,
+}: {
+  readonly onUploaded?: () => void;
+  readonly initialLocale?: Locale;
+}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const upload = useUploadCorpus();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [drag, setDrag] = useState<DragState>({ active: false });
@@ -24,7 +43,8 @@ export function CorpusDropZone({ onUploaded }: { readonly onUploaded?: () => voi
         { name: file.name, bytes: file.size },
         {
           onSuccess: () => onUploaded?.(),
-          onError: (err) => setError(err instanceof Error ? err.message : 'Upload failed'),
+          onError: (err) =>
+            setError(err instanceof Error ? err.message : pickByLocale(locale, S.uploadFailed)),
         }
       );
     });
@@ -48,10 +68,8 @@ export function CorpusDropZone({ onUploaded }: { readonly onUploaded?: () => voi
           : 'border-border bg-surface-sunken hover:border-signal-500/40'
       }`}
     >
-      <p className="text-sm text-foreground mb-1">Drop markdown dossiers or PDFs here</p>
-      <p className="text-xs text-neutral-500 mb-4">
-        Files are versioned and routed through the re-ingest pipeline. Existing entries auto-supersede.
-      </p>
+      <p className="text-sm text-foreground mb-1">{pickByLocale(locale, S.prompt)}</p>
+      <p className="text-xs text-muted-foreground mb-4">{pickByLocale(locale, S.hint)}</p>
       <Button
         type="button"
         size="sm"
@@ -59,7 +77,7 @@ export function CorpusDropZone({ onUploaded }: { readonly onUploaded?: () => voi
         loading={upload.isPending}
         disabled={upload.isPending}
       >
-        {upload.isPending ? 'Uploading…' : 'Pick files'}
+        {upload.isPending ? pickByLocale(locale, S.uploading) : pickByLocale(locale, S.pick)}
       </Button>
       <input
         ref={inputRef}

@@ -2,10 +2,12 @@ import { Button } from '@borjie/design-system';
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { findScreen } from '@/lib/internal/screens';
 import { TenantDirectory } from '@/components/internal/tenants/TenantDirectory';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('tenants')!;
 
-export default function TenantDirectoryPage(): JSX.Element {
+export default async function TenantDirectoryPage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell
       screen={SCREEN}
@@ -20,7 +22,7 @@ export default function TenantDirectoryPage(): JSX.Element {
         </Button>
       }
     >
-      <TenantDirectory />
+      <TenantDirectory initialLocale={locale} />
     </ScreenShell>
   );
 }

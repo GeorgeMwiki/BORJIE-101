@@ -13,10 +13,30 @@
  * Production binds the endpoint to a router that paginates the table.
  * In the absence of a wired endpoint the client shows a friendly
  * "Awaiting first breach" empty state.
+ *
+ * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
+ * PER LOCALE (canon): every user-facing string resolves to the active
+ * locale via `pickByLocale`. Purely client surface — the hook falls back to
+ * the project default and the post-mount effect corrects it.
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Card,
+  Skeleton,
+  Alert,
+  Empty,
+  Badge,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  type BadgeProps,
+} from '@borjie/design-system';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface DriftEvent {
   readonly id: string;
@@ -37,6 +57,36 @@ interface FetchState {
 
 const POLL_INTERVAL_MS = 60_000;
 
+const S = {
+  loadFailed: {
+    en: 'Could not load persona-drift events.',
+    sw: 'Imeshindwa kupakia matukio ya kupotoka kwa persona.',
+  },
+  retry: { en: 'Retry', sw: 'Jaribu tena' },
+  loadingLabel: {
+    en: 'Loading persona-drift events',
+    sw: 'Inapakia matukio ya kupotoka kwa persona',
+  },
+  emptyTitle: { en: 'Awaiting first breach', sw: 'Inasubiri ukiukaji wa kwanza' },
+  emptyBody: {
+    en: 'The persona-drift cron emits one event per (tenant, persona, day) when the 24-dim probe exceeds threshold.',
+    sw: 'Cron ya kupotoka kwa persona hutoa tukio moja kwa kila (mteja, persona, siku) wakati kipimo cha vipimo-24 kinapozidi kizingiti.',
+  },
+  breachByDay: { en: 'Breach counts by day', sw: 'Idadi ya ukiukaji kwa siku' },
+  recentBreaches: { en: 'Recent breaches', sw: 'Ukiukaji wa hivi karibuni' },
+  colWhen: { en: 'When', sw: 'Lini' },
+  colPersona: { en: 'Persona', sw: 'Persona' },
+  colSeverity: { en: 'Severity', sw: 'Ukali' },
+  colWorstDim: { en: 'Worst dim', sw: 'Kipimo dhaifu' },
+  colExcerpt: { en: 'Excerpt', sw: 'Dondoo' },
+} as const;
+
+const SEVERITY_VARIANT: Record<DriftEvent['severity'], BadgeProps['variant']> = {
+  high: 'error-soft',
+  medium: 'warning-soft',
+  low: 'secondary',
+};
+
 function endpoint(): string {
   const base = process.env.NEXT_PUBLIC_API_URL?.trim();
   const trimmed = base ? base.replace(/\/$/, '') : '';
@@ -44,6 +94,7 @@ function endpoint(): string {
 }
 
 export function PersonaDriftClient() {
+  const locale = useLocale();
   const [state, setState] = useState<FetchState>({
     status: 'idle',
     events: [],
@@ -97,24 +148,22 @@ export function PersonaDriftClient() {
 
   if (state.status === 'error') {
     return (
-      <div
-        role="alert"
-        className="flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
+      <Alert
+        variant="error"
+        title={pickByLocale(locale, S.loadFailed)}
+        actions={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setReloadKey((k) => k + 1)}
+          >
+            {pickByLocale(locale, S.retry)}
+          </Button>
+        }
       >
-        <div>
-          <span className="font-medium">Could not load persona-drift events.</span>
-          <span className="ml-1 text-muted-foreground">{state.error}</span>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setReloadKey((k) => k + 1)}
-          className="self-start border-destructive/40 bg-surface text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive"
-        >
-          Retry
-        </Button>
-      </div>
+        {state.error}
+      </Alert>
     );
   }
 
@@ -123,16 +172,16 @@ export function PersonaDriftClient() {
       <div
         role="status"
         aria-live="polite"
-        aria-label="Loading persona-drift events"
+        aria-label={pickByLocale(locale, S.loadingLabel)}
         className="flex flex-col gap-6"
       >
         <section>
-          <div className="mb-2 h-4 w-44 animate-pulse rounded bg-surface-raised" />
-          <div className="h-32 animate-pulse rounded-md border border-border bg-surface" />
+          <Skeleton className="mb-2 h-4 w-44 rounded" />
+          <Skeleton className="h-32 rounded-md border border-border" />
         </section>
         <section>
-          <div className="mb-2 h-4 w-32 animate-pulse rounded bg-surface-raised" />
-          <div className="h-40 animate-pulse rounded-md border border-border bg-surface" />
+          <Skeleton className="mb-2 h-4 w-32 rounded" />
+          <Skeleton className="h-40 rounded-md border border-border" />
         </section>
       </div>
     );
@@ -140,10 +189,10 @@ export function PersonaDriftClient() {
 
   if (state.status === 'ok' && state.events.length === 0) {
     return (
-      <div className="rounded-md border border-success/40 bg-success/10 p-4 text-sm text-success">
-        Awaiting first breach. The persona-drift cron emits one event per
-        (tenant, persona, day) when the 24-dim probe exceeds threshold.
-      </div>
+      <Empty
+        title={pickByLocale(locale, S.emptyTitle)}
+        description={pickByLocale(locale, S.emptyBody)}
+      />
     );
   }
 
@@ -151,9 +200,9 @@ export function PersonaDriftClient() {
     <div className="flex flex-col gap-6">
       <section>
         <h2 className="mb-2 text-sm font-semibold text-foreground">
-          Breach counts by day
+          {pickByLocale(locale, S.breachByDay)}
         </h2>
-        <div className="flex h-32 items-end gap-2 rounded-md border border-border bg-surface p-3">
+        <div className="flex h-32 items-end gap-2 rounded-md border border-border bg-surface-sunken p-3">
           {chartData.map((bar) => {
             const maxCount = Math.max(...chartData.map((d) => d.count), 1);
             const heightPct = (bar.count / maxCount) * 100;
@@ -164,7 +213,7 @@ export function PersonaDriftClient() {
                 title={`${bar.day}: ${bar.count}`}
               >
                 <div
-                  className="w-6 rounded-t-sm bg-indigo-500"
+                  className="w-6 rounded-t-sm bg-info"
                   style={{ height: `${heightPct}%` }}
                 />
                 <span className="text-tiny text-muted-foreground">
@@ -178,46 +227,40 @@ export function PersonaDriftClient() {
 
       <section>
         <h2 className="mb-2 text-sm font-semibold text-foreground">
-          Recent breaches
+          {pickByLocale(locale, S.recentBreaches)}
         </h2>
-        <div className="overflow-x-auto rounded-md border border-border bg-surface">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-surface-raised text-xs uppercase text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2">When</th>
-                <th className="px-3 py-2">Persona</th>
-                <th className="px-3 py-2">Severity</th>
-                <th className="px-3 py-2">Worst dim</th>
-                <th className="px-3 py-2">Excerpt</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Card variant="outline" padding="none" className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colWhen)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colPersona)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colSeverity)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colWorstDim)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colExcerpt)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {state.events.slice(0, 50).map((e) => (
-                <tr key={e.id} className="border-t border-border/40">
-                  <td className="px-3 py-2 text-muted-foreground">{e.detectedAt}</td>
-                  <td className="px-3 py-2 text-foreground">{e.personaId}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={
-                        e.severity === 'high'
-                          ? 'rounded bg-destructive/15 px-2 py-0.5 text-destructive'
-                          : e.severity === 'medium'
-                            ? 'rounded bg-warning/15 px-2 py-0.5 text-warning'
-                            : 'rounded bg-surface-raised px-2 py-0.5 text-muted-foreground'
-                      }
-                    >
+                <TableRow key={e.id}>
+                  <TableCell className="text-muted-foreground">
+                    {e.detectedAt}
+                  </TableCell>
+                  <TableCell className="text-foreground">{e.personaId}</TableCell>
+                  <TableCell>
+                    <Badge variant={SEVERITY_VARIANT[e.severity]} size="sm">
                       {e.severity}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {e.worstDim ?? '—'}
-                  </td>
-                  <td className="px-3 py-2 text-foreground">{e.excerpt}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-foreground">{e.excerpt}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </Card>
       </section>
     </div>
   );

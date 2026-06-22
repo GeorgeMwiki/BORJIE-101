@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { PageHeader } from '@borjie/design-system';
 
 interface PageHeroProps {
   readonly eyebrow: string;
@@ -9,46 +10,29 @@ interface PageHeroProps {
 }
 
 /**
- * LitFin-rhythm page hero for admin-web.
+ * LitFin-rhythm page hero for admin-web — now routed through the
+ * design-system `PageHeader` for the title / subtitle / actions row.
  *
- * Composition:
- *  - Mono uppercase eyebrow (small caps, signal-coloured)
- *  - Display headline (Syne, tight tracking)
- *  - Sub-paragraph (max-w-2xl)
- *  - Right-side actions slot (wraps on mobile)
- *  - Optional meta slot below the body (KPIs / chips / breadcrumbs)
- *
- * Used by every authenticated admin page. Replaces the older
- * `PageShell` migrated wrapper which double-wrapped the AdminShell
- * layout and produced a confusing double-sidebar render.
+ * The public API (`eyebrow, title, subtitle, actions, meta`) is
+ * preserved VERBATIM so every authenticated admin page keeps compiling
+ * unchanged. The mono uppercase eyebrow and the optional meta slot are
+ * admin-shell affordances the DS `PageHeader` does not model, so they
+ * stay; the title, description, and actions delegate to the DS
+ * primitive. The `border-b` hairline + `pb-6` rhythm is kept on the
+ * wrapper (DS `PageHeader` ships only a `mb-6`), so layout is unchanged.
  */
-export function PageHero({
-  eyebrow,
-  title,
-  subtitle,
-  actions,
-  meta,
-}: PageHeroProps) {
+export function PageHero({ eyebrow, title, subtitle, actions, meta }: PageHeroProps) {
   return (
     <header className="border-b border-border pb-6">
-      <div className="flex flex-wrap items-start justify-between gap-6">
-        <div className="min-w-0 max-w-3xl">
-          <p className="font-mono text-tiny uppercase tracking-eyebrow text-signal-500">
-            {eyebrow}
-          </p>
-          <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
-            {title}
-          </h1>
-          {subtitle ? (
-            <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-              {subtitle}
-            </p>
-          ) : null}
-        </div>
-        {actions ? (
-          <div className="flex flex-wrap items-center gap-2">{actions}</div>
-        ) : null}
-      </div>
+      <p className="mb-3 font-mono text-tiny uppercase tracking-eyebrow text-signal-500">
+        {eyebrow}
+      </p>
+      <PageHeader
+        title={title}
+        {...(subtitle ? { description: subtitle } : {})}
+        actions={actions}
+        className="mb-0"
+      />
       {meta ? <div className="mt-6">{meta}</div> : null}
     </header>
   );

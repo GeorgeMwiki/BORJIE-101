@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { findScreen } from '@/lib/internal/screens';
 import { MarketplaceModerationList } from '@/components/internal/marketplace/MarketplaceModerationList';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('marketplace')!;
 
@@ -12,10 +13,11 @@ const SCREEN = findScreen('marketplace')!;
  *
  * Cross-tenant HQ surface; admin-role guarded + audited on the gateway.
  */
-export default function MarketplacePage(): JSX.Element {
+export default async function MarketplacePage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell screen={SCREEN}>
-      <MarketplaceModerationList />
+      <MarketplaceModerationList initialLocale={locale} />
     </ScreenShell>
   );
 }

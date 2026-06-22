@@ -16,12 +16,20 @@
  * deleted in the mining hard-fork — there is no preview-schema endpoint
  * and no JSON import mode. Upload now stages the run server-side and the
  * returned bundle IS the preview; commit then applies it by runId.
+ *
+ * Rendered on design-system primitives + semantic tokens. The hand-rolled
+ * `role="alertdialog"` commit confirm is now a focus-trapped DS Modal.
+ * SINGLE LANGUAGE PER LOCALE (canon): every user-facing string resolves to
+ * the active locale via `pickByLocale`. Purely client surface — the hook
+ * falls back to the project default and the post-mount effect corrects it.
  */
 
 import { useCallback, useState } from 'react';
 import { UploadCloud, FileCheck2 } from 'lucide-react';
-import { Button, Card } from '@borjie/design-system';
+import { Button, Card, Alert, FormField } from '@borjie/design-system';
+import { ConfirmModal } from '@/components/internal/ConfirmModal';
 import { api } from '@/lib/api';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface ExtractedBundle {
   readonly properties: ReadonlyArray<unknown>;
@@ -45,6 +53,34 @@ interface CommitResult {
   readonly skipped?: Record<string, number>;
 }
 
+const S = {
+  intro: {
+    en: 'Upload a legacy export, review the extracted records, and commit when satisfied.',
+    sw: 'Pakia uhamishaji wa zamani, kagua rekodi zilizotolewa, na thibitisha ukiridhika.',
+  },
+  uploadFailed: { en: 'Upload failed', sw: 'Upakiaji umeshindwa' },
+  commitFailed: { en: 'Commit failed', sw: 'Uthibitishaji umeshindwa' },
+  committed: { en: 'Import committed.', sw: 'Uingizaji umethibitishwa.' },
+  fileLabel: { en: 'File (.csv / .json / .xml)', sw: 'Faili (.csv / .json / .xml)' },
+  noFile: { en: 'No file selected', sw: 'Hakuna faili lililochaguliwa' },
+  run: { en: 'Run', sw: 'Mzunguko' },
+  preview: { en: 'Preview', sw: 'Onyesho la awali' },
+  commit: { en: 'Commit', sw: 'Thibitisha' },
+  confirmTitle: {
+    en: 'Commit this import?',
+    sw: 'Thibitisha uingizaji huu?',
+  },
+  confirmBody: {
+    en: 'Commit this import? This action cannot be undone.',
+    sw: 'Thibitisha uingizaji huu? Kitendo hiki hakiwezi kutenduliwa.',
+  },
+  confirmCommit: { en: 'Confirm commit', sw: 'Thibitisha uthibitishaji' },
+  cancel: { en: 'Cancel', sw: 'Ghairi' },
+  extracted: { en: 'Extracted records', sw: 'Rekodi zilizotolewa' },
+  warnings: { en: 'warning(s)', sw: 'onyo(/maonyo)' },
+  bytes: { en: 'bytes', sw: 'baiti' },
+} as const;
+
 /** Count the rows in each bundle collection for the preview grid. */
 function bundleCounts(bundle: ExtractedBundle): Record<string, number> {
   return {
@@ -58,6 +94,7 @@ function bundleCounts(bundle: ExtractedBundle): Record<string, number> {
 }
 
 export function LegacyMigrationClient() {
+  const locale = useLocale();
   const [file, setFile] = useState<File | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   const [counts, setCounts] = useState<Record<string, number> | null>(null);
@@ -95,7 +132,7 @@ export function LegacyMigrationClient() {
       setCounts(bundleCounts(res.data.bundle));
       setWarnings(res.data.warnings ?? []);
     } else {
-      setError(res.error ?? 'Upload failed');
+      setError(res.error ?? pickByLocale(locale, S.uploadFailed));
     }
   }
 
@@ -105,57 +142,42 @@ export function LegacyMigrationClient() {
     setCommitted(false);
     setLoading(true);
     setError(null);
-    const res = await api.post<CommitResult>(
-      `/migration/${runId}/commit`,
-      {},
-    );
+    const res = await api.post<CommitResult>(`/migration/${runId}/commit`, {});
     setLoading(false);
     if (res.success && res.data?.ok) {
       setCommitted(true);
       setCommittedCounts(res.data.counts ?? null);
     } else {
-      setError(res.error ?? 'Commit failed');
+      setError(res.error ?? pickByLocale(locale, S.commitFailed));
     }
   }
 
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3">
-        <UploadCloud className="h-6 w-6 text-indigo-400" />
-        <p className="text-sm text-neutral-400">
-          Upload a legacy export, review the extracted records, and commit
-          when satisfied.
+        <UploadCloud className="h-6 w-6 text-info" />
+        <p className="text-sm text-muted-foreground">
+          {pickByLocale(locale, S.intro)}
         </p>
       </header>
 
-      {error && (
-        <div
-          role="alert"
-          className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300"
-        >
-          {error}
-        </div>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {committed && (
-        <div
-          role="status"
-          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300"
-        >
-          Import committed.
+        <Alert variant="success">
+          {pickByLocale(locale, S.committed)}
           {committedCounts ? (
-            <span className="ml-2 text-emerald-200">
+            <span className="ml-2">
               {Object.entries(committedCounts)
                 .map(([k, v]) => `${v} ${k}`)
                 .join(' · ')}
             </span>
           ) : null}
-        </div>
+        </Alert>
       )}
 
       <Card className="space-y-3 rounded-2xl p-6 transition-colors hover:border-border-strong">
-        <label className="block text-sm">
-          <span className="text-neutral-300">File (.csv / .json / .xml)</span>
+        <FormField label={pickByLocale(locale, S.fileLabel)} name="file">
           <input
             type="file"
             accept=".csv,.json,.xml"
@@ -163,20 +185,21 @@ export function LegacyMigrationClient() {
               const f = e.target.files?.[0];
               if (f) handleFile(f);
             }}
-            className="mt-1 w-full text-sm text-foreground"
+            className="w-full text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-surface-sunken file:px-3 file:py-1.5 file:text-sm file:text-foreground"
             data-testid="migration-upload"
           />
-        </label>
+        </FormField>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-muted-foreground">
             {file
-              ? `${file.name} (${file.size.toLocaleString()} bytes)`
-              : 'No file selected'}
+              ? `${file.name} (${file.size.toLocaleString()} ${pickByLocale(locale, S.bytes)})`
+              : pickByLocale(locale, S.noFile)}
           </span>
           {runId ? (
-            <span className="text-xs text-neutral-500">
-              Run <code className="text-neutral-400">{runId}</code>
+            <span className="text-xs text-muted-foreground">
+              {pickByLocale(locale, S.run)}{' '}
+              <code className="text-muted-foreground">{runId}</code>
             </span>
           ) : null}
         </div>
@@ -185,76 +208,54 @@ export function LegacyMigrationClient() {
           <Button
             type="button"
             onClick={() => void doPreview()}
-            disabled={!file || loading}
+            disabled={!file}
             loading={loading}
-            className="bg-indigo-600 text-white hover:bg-indigo-600/90"
           >
-            Preview
+            {pickByLocale(locale, S.preview)}
           </Button>
           <Button
             type="button"
             variant="outline"
             onClick={() => setConfirmingCommit(true)}
             disabled={!runId || loading || confirmingCommit || committed}
-            className="border-indigo-600 text-indigo-300"
           >
-            Commit
+            {pickByLocale(locale, S.commit)}
           </Button>
         </div>
-
-        {confirmingCommit && (
-          <div
-            role="alertdialog"
-            aria-labelledby="migration-commit-confirm-title"
-            className="mt-3 rounded border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-200"
-          >
-            <p id="migration-commit-confirm-title" className="font-medium">
-              Commit this import? This action cannot be undone.
-            </p>
-            <div className="mt-2 flex gap-2">
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => void commit()}
-                disabled={loading}
-                className="bg-amber-600 text-white hover:bg-amber-600/90"
-              >
-                Confirm commit
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setConfirmingCommit(false)}
-                disabled={loading}
-                className="border-amber-500/40 text-amber-200"
-              >
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
       </Card>
 
+      <ConfirmModal
+        open={confirmingCommit}
+        title={pickByLocale(locale, S.confirmTitle)}
+        body={pickByLocale(locale, S.confirmBody)}
+        confirmLabel={pickByLocale(locale, S.confirmCommit)}
+        cancelLabel={pickByLocale(locale, S.cancel)}
+        tone="warn"
+        busy={loading}
+        onConfirm={() => void commit()}
+        onCancel={() => setConfirmingCommit(false)}
+      />
+
       {counts && (
-        <section className="rounded-xl border border-emerald-500/30 bg-surface p-5 space-y-2">
+        <Card variant="outline" className="space-y-2 p-5">
           <h3 className="flex items-center gap-2 font-display text-foreground">
-            <FileCheck2 className="h-4 w-4 text-emerald-400" /> Extracted records
+            <FileCheck2 className="h-4 w-4 text-success" />{' '}
+            {pickByLocale(locale, S.extracted)}
           </h3>
           <ul className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4">
             {Object.entries(counts).map(([k, v]) => (
               <li
                 key={k}
-                className="rounded bg-emerald-500/10 p-2 text-emerald-300"
+                className="rounded bg-success-subtle p-2 text-success"
               >
                 <span className="font-semibold">{v}</span> {k}
               </li>
             ))}
           </ul>
           {warnings.length > 0 && (
-            <details className="text-xs text-neutral-400">
-              <summary className="cursor-pointer text-amber-400">
-                {warnings.length} warning(s)
+            <details className="text-xs text-muted-foreground">
+              <summary className="cursor-pointer text-warning">
+                {warnings.length} {pickByLocale(locale, S.warnings)}
               </summary>
               <ul className="ml-5 mt-2 list-disc">
                 {warnings.map((msg, idx) => (
@@ -263,7 +264,7 @@ export function LegacyMigrationClient() {
               </ul>
             </details>
           )}
-        </section>
+        </Card>
       )}
     </div>
   );

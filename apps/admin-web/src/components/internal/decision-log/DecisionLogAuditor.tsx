@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Skeleton, EmptyState } from '@borjie/design-system';
 import { DecisionFilters, type DecisionFiltersState } from './DecisionFilters';
 import { VirtualList } from './VirtualList';
 import { DataSourceBadge } from '../DataSourceBadge';
@@ -8,6 +9,7 @@ import { StubBadge } from '../StubBadge';
 import { useDecisionLogQuery } from '@/lib/internal/queries/decision-log';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import type { DecisionLogRow } from '@/lib/internal/types';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 const INITIAL: DecisionFiltersState = { tenantId: '', juniorId: '', from: '', to: '' };
 
@@ -17,7 +19,24 @@ function confidenceTone(c: number): 'success' | 'warn' | 'danger' {
   return 'danger';
 }
 
-export function DecisionLogAuditor(): JSX.Element {
+const S = {
+  loading: { en: 'Loading decisions…', sw: 'Inapakia maamuzi…' },
+  inRange: { en: 'decisions in range', sw: 'maamuzi katika kipindi' },
+  emptyTitle: { en: 'No decisions in range', sw: 'Hakuna maamuzi katika kipindi' },
+  emptyBody: {
+    en: 'Adjust the filters or date range to see logged decisions.',
+    sw: 'Rekebisha vichujio au kipindi cha tarehe ili kuona maamuzi yaliyorekodiwa.',
+  },
+  evidence: { en: 'evidence', sw: 'ushahidi' },
+  listLabel: { en: 'Decision log', sw: 'Kumbukumbu ya maamuzi' },
+} as const;
+
+export function DecisionLogAuditor({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useDecisionLogQuery();
   const tenantsQuery = useTenantsQuery();
   const [filters, setFilters] = useState<DecisionFiltersState>(INITIAL);
@@ -48,8 +67,17 @@ export function DecisionLogAuditor(): JSX.Element {
     return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
   }, [rows]);
 
-  if (query.isPending) return <p className="text-sm text-neutral-500">Loading decisions…</p>;
-  if (query.isError) return <p className="text-sm text-danger">{query.error.message}</p>;
+  if (query.isPending) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-[520px] w-full rounded-lg" />
+      </div>
+    );
+  }
+  if (query.isError) {
+    return <p className="text-sm text-danger">{query.error.message}</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -58,33 +86,48 @@ export function DecisionLogAuditor(): JSX.Element {
         onChange={setFilters}
         tenants={tenants.map((t) => ({ id: t.id, name: t.name }))}
         juniors={juniors}
+        locale={locale}
       />
 
-      <div className="flex items-center justify-between text-xs text-neutral-500">
-        <span>{filtered.length.toLocaleString()} decisions in range</span>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          {filtered.length.toLocaleString()} {pickByLocale(locale, S.inRange)}
+        </span>
         <DataSourceBadge source={query.data?.source ?? 'live'} />
       </div>
 
-      <VirtualList<DecisionLogRow>
-        items={filtered}
-        rowHeight={64}
-        height={520}
-        ariaLabel="Decision log"
-        render={(row) => (
-          <div className="px-4 py-2 flex items-start justify-between gap-4 h-full">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-foreground truncate">{row.decision}</p>
-              <p className="text-xs text-neutral-500 mt-0.5">
-                {row.tenant} · {row.junior} · {row.mode} · {row.evidenceIds.length} evidence
-              </p>
+      {filtered.length === 0 ? (
+        <EmptyState
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
+      ) : (
+        <VirtualList<DecisionLogRow>
+          items={filtered}
+          rowHeight={64}
+          height={520}
+          ariaLabel={pickByLocale(locale, S.listLabel)}
+          render={(row) => (
+            <div className="px-4 py-2 flex items-start justify-between gap-4 h-full">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm text-foreground truncate">{row.decision}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {row.tenant} · {row.junior} · {row.mode} · {row.evidenceIds.length}{' '}
+                  {pickByLocale(locale, S.evidence)}
+                </p>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {row.at.replace('T', ' ').slice(0, 16)}
+                </span>
+                <StubBadge tone={confidenceTone(row.confidence)}>
+                  {(row.confidence * 100).toFixed(0)}%
+                </StubBadge>
+              </div>
             </div>
-            <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className="text-xs text-neutral-500 tabular-nums">{row.at.replace('T', ' ').slice(0, 16)}</span>
-              <StubBadge tone={confidenceTone(row.confidence)}>{(row.confidence * 100).toFixed(0)}%</StubBadge>
-            </div>
-          </div>
-        )}
-      />
+          )}
+        />
+      )}
     </div>
   );
 }

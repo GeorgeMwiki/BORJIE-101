@@ -38,7 +38,7 @@ export default async function TenantsPage(): Promise<JSX.Element> {
                 sw: 'Orodha ya wateja',
               })}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {pickByLocale(locale, {
                 en: 'Every Borjie tenant — plan, status, ARR, last-active. Row click opens the tenant detail drawer. Filter by plan or status; search by name or primary commodity.',
                 sw: 'Kila mteja wa Borjie — mpango, hali, ARR, alipokuwa hai mwisho. Bonyeza safu kufungua dirisha la maelezo ya mteja. Chuja kwa mpango au hali; tafuta kwa jina au madini makuu.',

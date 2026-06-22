@@ -36,7 +36,7 @@ export default async function IndustryAskLandingPage() {
           <h1 className="mt-1 font-display text-3xl font-medium tracking-tight">
             Talk to the industry
           </h1>
-          <p className="mt-2 max-w-prose-md text-sm leading-relaxed text-neutral-500">
+          <p className="mt-2 max-w-prose-md text-sm leading-relaxed text-muted-foreground">
             Across the network. Every claim is grounded in
             differentially-private aggregates. No single tenant is ever
             named. Every query costs privacy budget — the network
@@ -56,10 +56,10 @@ export default async function IndustryAskLandingPage() {
 
       <aside className="hidden w-thread-medium shrink-0 flex-col gap-4 border-l border-border bg-surface px-5 py-5 lg:flex">
         <div className="rounded-lg border border-border bg-background p-4">
-          <p className="font-mono text-caption uppercase tracking-widest text-neutral-500">
+          <p className="font-mono text-caption uppercase tracking-widest text-muted-foreground">
             Observer note
           </p>
-          <p className="mt-2 text-xs leading-relaxed text-neutral-500">
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             I speak in the first-person plural for the industry. I
             never refer to any single tenant. If a pattern only one
             tenant shows, I refuse the query under k-anonymity.

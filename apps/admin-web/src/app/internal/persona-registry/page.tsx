@@ -2,6 +2,7 @@ import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
 import { PersonaRegistry } from '@/components/internal/wave9/PersonaRegistry';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('persona-registry')!;
 
@@ -14,13 +15,14 @@ const SCREEN = findScreen('persona-registry')!;
  * SUPER_ADMIN / ADMIN and hot-swaps personas across the cross-portal bus;
  * this surface lists, refreshes, and removes personas.
  */
-export default function PersonaRegistryPage(): JSX.Element {
+export default async function PersonaRegistryPage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell
       screen={SCREEN}
       actions={<StubBadge tone="danger">SUPER_ADMIN · audited</StubBadge>}
     >
-      <PersonaRegistry />
+      <PersonaRegistry initialLocale={locale} />
     </ScreenShell>
   );
 }

@@ -1,8 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { Bot } from 'lucide-react';
+import { Button, Skeleton, Alert, Empty, FormField, Input } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { useTaskAgents, useRunTaskAgent } from '@/lib/internal/wave9/queries';
 import type { TaskAgent } from '@/lib/internal/wave9/api';
 
@@ -14,7 +17,27 @@ import type { TaskAgent } from '@/lib/internal/wave9/api';
  * free-form JSON object; the gateway validates it against the agent's own
  * zod schema and runs the executor (503 when the executor isn't wired).
  */
-export function TaskAgentsRegistry(): JSX.Element {
+const S = {
+  loading: { en: 'Loading task-agent registry…', sw: 'Inapakia rejista ya wakala-kazi…' },
+  emptyTitle: { en: 'No task agents registered', sw: 'Hakuna wakala-kazi waliosajiliwa' },
+  emptyBody: {
+    en: 'Narrow-scope task agents appear here once they are registered.',
+    sw: 'Wakala-kazi wenye wigo finyu huonekana hapa mara wanaposajiliwa.',
+  },
+  registered: { en: 'registered agents', sw: 'wakala waliosajiliwa' },
+  guardrail: { en: 'guardrail', sw: 'kizuizi' },
+  payloadLabel: { en: 'Payload (JSON object, optional)', sw: 'Mzigo (kitu cha JSON, hiari)' },
+  run: { en: 'Run', sw: 'Endesha' },
+  payloadObject: { en: 'Payload must be a JSON object.', sw: 'Mzigo lazima uwe kitu cha JSON.' },
+  payloadInvalid: { en: 'Payload is not valid JSON.', sw: 'Mzigo si JSON halali.' },
+} as const;
+
+export function TaskAgentsRegistry({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useTaskAgents();
   const run = useRunTaskAgent();
   const [toast, setToast] = useState<string | null>(null);
@@ -35,11 +58,11 @@ export function TaskAgentsRegistry(): JSX.Element {
         if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
           payload = parsed as Record<string, unknown>;
         } else {
-          announce('Payload must be a JSON object.', 'danger');
+          announce(pickByLocale(locale, S.payloadObject), 'danger');
           return;
         }
       } catch {
-        announce('Payload is not valid JSON.', 'danger');
+        announce(pickByLocale(locale, S.payloadInvalid), 'danger');
         return;
       }
     }
@@ -53,17 +76,34 @@ export function TaskAgentsRegistry(): JSX.Element {
   }
 
   if (query.isPending) {
-    return <p className="text-sm text-neutral-500">Loading task-agent registry…</p>;
+    return (
+      <Skeleton
+        className="h-48 w-full rounded-lg"
+        aria-label={pickByLocale(locale, S.loading)}
+      />
+    );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <Alert variant="error">{query.error.message}</Alert>;
   }
 
   const agents = query.data?.agents ?? [];
 
+  if (agents.length === 0) {
+    return (
+      <Empty
+        icon={<Bot className="h-8 w-8" />}
+        title={pickByLocale(locale, S.emptyTitle)}
+        description={pickByLocale(locale, S.emptyBody)}
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <StubBadge tone="info">{agents.length} registered agents</StubBadge>
+      <StubBadge tone="info">
+        {agents.length} {pickByLocale(locale, S.registered)}
+      </StubBadge>
 
       <div className="divide-y divide-border rounded-lg border border-border bg-surface">
         {agents.map((agent) => (
@@ -77,37 +117,43 @@ export function TaskAgentsRegistry(): JSX.Element {
                     <StubBadge tone="info">LLM</StubBadge>
                   ) : null}
                 </div>
-                <p className="mt-0.5 font-mono text-xs text-neutral-500">{agent.id}</p>
-                <p className="mt-1 text-xs text-neutral-400">{agent.description}</p>
-                <p className="mt-1 text-xs text-neutral-500">
-                  guardrail: {agent.guardrails.autonomyDomain} · {agent.guardrails.autonomyAction}
+                <p className="mt-0.5 font-mono text-xs text-muted-foreground">{agent.id}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{agent.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {pickByLocale(locale, S.guardrail)}: {agent.guardrails.autonomyDomain} ·{' '}
+                  {agent.guardrails.autonomyAction}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3">
-              <label className="block flex-1 min-w-[16rem]">
-                <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-                  Payload (JSON object, optional)
-                </span>
-                <input
+              <FormField
+                label={pickByLocale(locale, S.payloadLabel)}
+                htmlFor={`payload-${agent.id}`}
+                className="flex-1 min-w-[16rem] space-y-1"
+              >
+                <Input
+                  id={`payload-${agent.id}`}
                   type="text"
+                  inputSize="sm"
+                  className="font-mono"
                   value={payloadById[agent.id] ?? ''}
                   onChange={(e) =>
                     setPayloadById((prev) => ({ ...prev, [agent.id]: e.target.value }))
                   }
                   placeholder='{ "key": "value" }'
-                  className="w-full rounded-md border border-border bg-surface-sunken px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
                 />
-              </label>
-              <button
+              </FormField>
+              <Button
                 type="button"
+                variant="outline"
+                size="sm"
                 disabled={run.isPending}
+                loading={run.isPending}
                 onClick={() => onRun(agent)}
-                className="rounded-md border border-border px-3 py-1.5 text-xs text-signal-500 hover:bg-surface-sunken disabled:opacity-40"
               >
-                Run
-              </button>
+                {pickByLocale(locale, S.run)}
+              </Button>
             </div>
           </article>
         ))}

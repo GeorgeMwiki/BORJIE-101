@@ -1,12 +1,55 @@
 'use client';
 
 import {
+  Skeleton,
+  EmptyState,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
+import {
   useActivationFunnelQuery,
   useCohortsQuery,
   type FunnelStep,
   type Cohort,
 } from '@/lib/internal/queries/analytics';
 import { DataSourceBadge } from '../DataSourceBadge';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+
+const S = {
+  funnelTitle: { en: 'Activation funnel', sw: 'Funeli ya uwezeshaji' },
+  funnelEmpty: {
+    en: 'No activation events recorded yet in this window.',
+    sw: 'Hakuna matukio ya uwezeshaji yaliyorekodiwa bado katika kipindi hiki.',
+  },
+  cohortTitle: { en: 'Signup cohorts & activation', sw: 'Makundi ya usajili na uwezeshaji' },
+  cohortEmpty: { en: 'No signup cohorts yet', sw: 'Hakuna makundi ya usajili bado' },
+  cohortEmptyBody: {
+    en: 'Cohorts appear here once tenants sign up.',
+    sw: 'Makundi huonekana hapa mara wateja wanaposajiliwa.',
+  },
+  colCohort: { en: 'Cohort', sw: 'Kundi' },
+  colSignedUp: { en: 'Signed up', sw: 'Waliosajili' },
+  colActivated: { en: 'Activated', sw: 'Walioamilishwa' },
+  colActivation: { en: 'Activation', sw: 'Uwezeshaji' },
+  percent: { en: 'percent', sw: 'asilimia' },
+} as const;
+
+function SectionSkeleton(): JSX.Element {
+  return (
+    <section className="rounded-lg border border-border bg-surface p-6">
+      <Skeleton className="mb-4 h-5 w-1/3 rounded-md" />
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-full rounded-full" />
+        <Skeleton className="h-3 w-5/6 rounded-full" />
+        <Skeleton className="h-3 w-2/3 rounded-full" />
+      </div>
+    </section>
+  );
+}
 
 /**
  * Live HQ product analytics.
@@ -20,19 +63,26 @@ import { DataSourceBadge } from '../DataSourceBadge';
  * Every number is computed from the real append-only `activation_events`
  * log — no fixtures. Empty until milestone events accrue.
  */
-export function AnalyticsView(): JSX.Element {
+export function AnalyticsView({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const funnel = useActivationFunnelQuery(90);
   const cohorts = useCohortsQuery();
 
   return (
     <div className="space-y-6">
       <FunnelSection
+        locale={locale}
         isPending={funnel.isPending}
         error={funnel.isError ? funnel.error.message : null}
         steps={funnel.data?.steps ?? []}
         windowDays={funnel.data?.windowDays ?? 90}
       />
       <CohortSection
+        locale={locale}
         isPending={cohorts.isPending}
         error={cohorts.isError ? cohorts.error.message : null}
         cohorts={cohorts.data?.cohorts ?? []}
@@ -43,29 +93,30 @@ export function AnalyticsView(): JSX.Element {
 }
 
 function FunnelSection({
+  locale,
   isPending,
   error,
   steps,
   windowDays,
 }: {
+  readonly locale: Locale;
   readonly isPending: boolean;
   readonly error: string | null;
   readonly steps: ReadonlyArray<FunnelStep>;
   readonly windowDays: number;
 }): JSX.Element {
+  if (isPending) return <SectionSkeleton />;
   const max = steps[0]?.count ?? 0;
   return (
     <section className="rounded-lg border border-border bg-surface p-6">
       <h3 className="text-sm font-medium text-foreground mb-4">
-        Activation funnel ({windowDays}d)
+        {pickByLocale(locale, S.funnelTitle)} ({windowDays}d)
       </h3>
-      {isPending ? (
-        <p className="text-sm text-neutral-500">Loading funnel…</p>
-      ) : error ? (
+      {error ? (
         <p className="text-sm text-danger">{error}</p>
       ) : steps.every((s) => s.count === 0) ? (
-        <p className="text-sm text-neutral-500">
-          No activation events recorded yet in this window.
+        <p className="text-sm text-muted-foreground">
+          {pickByLocale(locale, S.funnelEmpty)}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -73,17 +124,17 @@ function FunnelSection({
             const pct = max > 0 ? Math.round((step.count / max) * 100) : 0;
             return (
               <li key={step.eventType} className="flex items-center gap-4">
-                <span className="w-48 shrink-0 text-sm text-neutral-300">
+                <span className="w-48 shrink-0 text-sm text-muted-foreground">
                   {step.label}
                 </span>
                 <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className="h-full bg-signal-500"
                     style={{ width: `${pct}%` }}
-                    aria-label={`${pct} percent`}
+                    aria-label={`${pct} ${pickByLocale(locale, S.percent)}`}
                   />
                 </div>
-                <span className="w-12 text-right text-sm tabular-nums text-neutral-300">
+                <span className="w-12 text-right text-sm tabular-nums text-muted-foreground">
                   {step.count}
                 </span>
               </li>
@@ -96,52 +147,56 @@ function FunnelSection({
 }
 
 function CohortSection({
+  locale,
   isPending,
   error,
   cohorts,
 }: {
+  readonly locale: Locale;
   readonly isPending: boolean;
   readonly error: string | null;
   readonly cohorts: ReadonlyArray<Cohort>;
 }): JSX.Element {
+  if (isPending) return <SectionSkeleton />;
   return (
     <section className="rounded-lg border border-border bg-surface p-6">
       <h3 className="text-sm font-medium text-foreground mb-4">
-        Signup cohorts &amp; activation
+        {pickByLocale(locale, S.cohortTitle)}
       </h3>
-      {isPending ? (
-        <p className="text-sm text-neutral-500">Loading cohorts…</p>
-      ) : error ? (
+      {error ? (
         <p className="text-sm text-danger">{error}</p>
       ) : cohorts.length === 0 ? (
-        <p className="text-sm text-neutral-500">No signup cohorts yet.</p>
+        <EmptyState
+          title={pickByLocale(locale, S.cohortEmpty)}
+          description={pickByLocale(locale, S.cohortEmptyBody)}
+        />
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-              <th className="py-2 font-medium">Cohort</th>
-              <th className="py-2 text-right font-medium">Signed up</th>
-              <th className="py-2 text-right font-medium">Activated</th>
-              <th className="py-2 text-right font-medium">Activation</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{pickByLocale(locale, S.colCohort)}</TableHead>
+              <TableHead className="text-right">{pickByLocale(locale, S.colSignedUp)}</TableHead>
+              <TableHead className="text-right">{pickByLocale(locale, S.colActivated)}</TableHead>
+              <TableHead className="text-right">{pickByLocale(locale, S.colActivation)}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {cohorts.map((row) => (
-              <tr key={row.cohort} className="border-t border-border">
-                <td className="py-2 text-foreground">{row.cohort}</td>
-                <td className="py-2 text-right tabular-nums text-neutral-300">
+              <TableRow key={row.cohort}>
+                <TableCell className="text-foreground">{row.cohort}</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
                   {row.signedUp}
-                </td>
-                <td className="py-2 text-right tabular-nums text-neutral-300">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
                   {row.activated}
-                </td>
-                <td className="py-2 text-right tabular-nums text-signal-500">
+                </TableCell>
+                <TableCell className="text-right tabular-nums text-signal-500">
                   {row.activationPct}%
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       )}
     </section>
   );

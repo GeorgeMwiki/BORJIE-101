@@ -2,6 +2,7 @@ import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
 import { ProposalsQueue } from '@/components/internal/wave9/ProposalsQueue';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('proposals')!;
 
@@ -14,13 +15,14 @@ const SCREEN = findScreen('proposals')!;
  * approve/decline; this surface only lists pending_hitl rows and posts the
  * decision.
  */
-export default function ProposalsPage(): JSX.Element {
+export default async function ProposalsPage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell
       screen={SCREEN}
       actions={<StubBadge tone="warn">four-eye · audited</StubBadge>}
     >
-      <ProposalsQueue />
+      <ProposalsQueue initialLocale={locale} />
     </ScreenShell>
   );
 }

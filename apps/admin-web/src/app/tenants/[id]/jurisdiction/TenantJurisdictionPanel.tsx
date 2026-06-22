@@ -1,7 +1,15 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Skeleton,
+  Alert,
+  Empty,
+  FormField,
+  Input,
+  Textarea,
+} from '@borjie/design-system';
 import { getCsrfHeaders } from '@/lib/csrf';
 
 // ─── Allowed target countries (mirror of JC-7 route enum) ─────────────
@@ -124,7 +132,7 @@ function CurrentSnapshot({
       </h2>
       <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
-          <dt className="font-mono text-tiny uppercase text-neutral-500">
+          <dt className="font-mono text-tiny uppercase text-muted-foreground">
             Country
           </dt>
           <dd className="mt-1 text-base font-medium text-foreground">
@@ -132,7 +140,7 @@ function CurrentSnapshot({
           </dd>
         </div>
         <div>
-          <dt className="font-mono text-tiny uppercase text-neutral-500">
+          <dt className="font-mono text-tiny uppercase text-muted-foreground">
             Locked at
           </dt>
           <dd className="mt-1 text-base text-foreground">
@@ -142,7 +150,7 @@ function CurrentSnapshot({
           </dd>
         </div>
         <div>
-          <dt className="font-mono text-tiny uppercase text-neutral-500">
+          <dt className="font-mono text-tiny uppercase text-muted-foreground">
             Locked by
           </dt>
           <dd className="mt-1 text-base text-foreground">
@@ -200,7 +208,7 @@ function ProposeForm({
       <h2 className="font-display text-lg font-medium text-foreground">
         Propose change
       </h2>
-      <p className="mt-2 text-sm text-neutral-400">
+      <p className="mt-2 text-sm text-muted-foreground">
         A second Borjie internal admin must approve before the change applies.
         You cannot approve your own proposal.
       </p>
@@ -211,18 +219,13 @@ function ProposeForm({
           if (canSubmit) void submit();
         }}
       >
-        <div>
-          <label
-            htmlFor="new-country"
-            className="font-mono text-tiny uppercase text-neutral-500"
-          >
-            Target country
-          </label>
+        <FormField label="Target country" name="new-country" htmlFor="new-country">
           <select
             id="new-country"
             value={newCountryCode}
             onChange={(e) => setNewCountryCode(e.target.value)}
-            className="mt-2 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            aria-label="Target country"
+            className="h-10 w-full rounded-md border border-border bg-surface-sunken px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {ALLOWED_TARGET_COUNTRIES.filter(
               (c) => c.code !== currentCountry,
@@ -232,42 +235,31 @@ function ProposeForm({
               </option>
             ))}
           </select>
-        </div>
-        <div>
-          <label
-            htmlFor="reason"
-            className="font-mono text-tiny uppercase text-neutral-500"
-          >
-            Reason (min 8 chars)
-          </label>
-          <textarea
+        </FormField>
+        <FormField label="Reason (min 8 chars)" name="reason" htmlFor="reason" required>
+          <Textarea
             id="reason"
             rows={3}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="mt-2 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           />
-        </div>
-        <div>
-          <label
-            htmlFor="verifiedWith"
-            className="font-mono text-tiny uppercase text-neutral-500"
-          >
-            Verified with (call, ticket, in-person)
-          </label>
-          <input
+        </FormField>
+        <FormField
+          label="Verified with (call, ticket, in-person)"
+          name="verifiedWith"
+          htmlFor="verifiedWith"
+          required
+        >
+          <Input
             id="verifiedWith"
             type="text"
             value={verifiedWith}
             onChange={(e) => setVerifiedWith(e.target.value)}
-            className="mt-2 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
           />
-        </div>
-        {error ? (
-          <p className="text-sm text-danger-foreground">{error}</p>
-        ) : null}
-        <Button type="submit" disabled={!canSubmit}>
-          {submitting ? 'Proposing…' : 'Propose change'}
+        </FormField>
+        {error ? <Alert variant="error">{error}</Alert> : null}
+        <Button type="submit" disabled={!canSubmit} loading={submitting}>
+          Propose change
         </Button>
       </form>
     </section>
@@ -289,9 +281,12 @@ function PendingQueue({
         Pending proposals
       </h2>
       {pending.length === 0 ? (
-        <p className="mt-3 text-sm text-neutral-400">
-          No pending jurisdiction changes for this tenant.
-        </p>
+        <div className="mt-3">
+          <Empty
+            title="No pending proposals"
+            description="No pending jurisdiction changes for this tenant."
+          />
+        </div>
       ) : (
         <ul className="mt-4 space-y-4">
           {pending.map((p) => (
@@ -351,7 +346,7 @@ function ProposalRow({
         <p className="font-mono text-tiny uppercase text-signal-500">
           {proposal.proposalId}
         </p>
-        <p className="text-tiny text-neutral-500">
+        <p className="text-tiny text-muted-foreground">
           Proposed by {proposal.proposedByUserId} ·{' '}
           {new Date(proposal.proposedAt).toISOString()}
         </p>
@@ -361,32 +356,26 @@ function ProposalRow({
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="font-mono text-tiny uppercase text-neutral-500">
+          <p className="font-mono text-tiny uppercase text-muted-foreground">
             Reason
           </p>
           <p className="mt-1 whitespace-pre-line">{proposal.reason}</p>
         </div>
         <div>
-          <p className="font-mono text-tiny uppercase text-neutral-500">
+          <p className="font-mono text-tiny uppercase text-muted-foreground">
             Verified with
           </p>
           <p className="mt-1">{proposal.verifiedWith}</p>
         </div>
       </div>
-      <label className="block">
-        <span className="font-mono text-tiny uppercase text-neutral-500">
-          Decision note (optional)
-        </span>
-        <textarea
+      <FormField label="Decision note (optional)" name="decisionNote">
+        <Textarea
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="mt-1 block w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
         />
-      </label>
-      {error ? (
-        <p className="text-sm text-danger-foreground">{error}</p>
-      ) : null}
+      </FormField>
+      {error ? <Alert variant="error">{error}</Alert> : null}
       <div className="flex flex-wrap gap-3">
         <Button
           type="button"
@@ -404,7 +393,7 @@ function ProposalRow({
           Reject
         </Button>
       </div>
-      <p className="text-tiny text-neutral-500">
+      <p className="text-tiny text-muted-foreground">
         You cannot approve your own proposal — the API enforces four-eye.
       </p>
     </div>
@@ -422,9 +411,12 @@ function HistoryList({
         <h2 className="font-display text-lg font-medium text-foreground">
           Decision history
         </h2>
-        <p className="mt-3 text-sm text-neutral-400">
-          No prior jurisdiction changes recorded for this tenant.
-        </p>
+        <div className="mt-3">
+          <Empty
+            title="No decision history"
+            description="No prior jurisdiction changes recorded for this tenant."
+          />
+        </div>
       </section>
     );
   }
@@ -445,7 +437,7 @@ function HistoryList({
             <p className="mt-1 font-medium text-foreground">
               {p.fromCountryCode} → {p.toCountryCode}
             </p>
-            <p className="mt-1 text-tiny text-neutral-500">
+            <p className="mt-1 text-tiny text-muted-foreground">
               Proposed by {p.proposedByUserId} on{' '}
               {new Date(p.proposedAt).toISOString()}
               {p.decidedByUserId && p.decidedAt ? (
@@ -458,7 +450,7 @@ function HistoryList({
             </p>
             {p.decisionNote ? (
               <p className="mt-2 text-foreground">
-                <span className="font-mono text-tiny uppercase text-neutral-500">
+                <span className="font-mono text-tiny uppercase text-muted-foreground">
                   Note
                 </span>
                 : {p.decisionNote}
@@ -493,16 +485,17 @@ export function TenantJurisdictionPanel({
 
   if (state === undefined) {
     return (
-      <p className="rounded-md border border-border bg-card p-6 text-sm text-neutral-400">
-        Loading jurisdiction state…
-      </p>
+      <div className="space-y-6">
+        <Skeleton className="h-28 w-full rounded-lg border border-border" />
+        <Skeleton className="h-64 w-full rounded-lg border border-border" />
+      </div>
     );
   }
   if (state === null) {
     return (
-      <p className="rounded-md border border-border bg-card p-6 text-sm text-danger-foreground">
+      <Alert variant="error">
         Tenant not found or the admin token does not authorize this view.
-      </p>
+      </Alert>
     );
   }
 

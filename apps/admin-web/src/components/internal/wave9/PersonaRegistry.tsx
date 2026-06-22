@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Users } from 'lucide-react';
+import { Button, Skeleton, Alert, Empty } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
+import { ConfirmModal } from '../ConfirmModal';
 import { Toast } from '../Toast';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   usePersonas,
   useRefreshPersonas,
@@ -18,13 +21,33 @@ import type { Persona } from '@/lib/internal/wave9/api';
  * refresh from the DB or remove a persona. The gateway gates every route on
  * SUPER_ADMIN / ADMIN and fans hot-swaps out across the cross-portal bus.
  */
-export function PersonaRegistry(): JSX.Element {
+const S = {
+  loading: { en: 'Loading persona registry…', sw: 'Inapakia rejista ya watu binafsi…' },
+  badge: { en: 'SUPER_ADMIN · cross-portal hot-swap', sw: 'SUPER_ADMIN · ubadilishaji-moto baina ya milango' },
+  refresh: { en: 'Refresh from DB', sw: 'Onyesha upya kutoka DB' },
+  emptyTitle: { en: 'No personas registered', sw: 'Hakuna watu binafsi waliosajiliwa' },
+  emptyBody: {
+    en: 'Brain personas appear here once they are registered for the platform or a tenant.',
+    sw: 'Watu binafsi wa ubongo huonekana hapa mara wanaposajiliwa kwa jukwaa au mteja.',
+  },
+  delete: { en: 'Delete', sw: 'Futa' },
+  deleteTitle: { en: 'Remove persona', sw: 'Ondoa mtu binafsi' },
+  deleteConfirm: { en: 'Delete persona', sw: 'Futa mtu binafsi' },
+  taboos: { en: 'taboos', sw: 'miiko' },
+} as const;
+
+export function PersonaRegistry({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = usePersonas();
   const refresh = useRefreshPersonas();
   const remove = useDeletePersona();
   const [toast, setToast] = useState<string | null>(null);
   const [tone, setTone] = useState<'success' | 'danger'>('success');
-  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [target, setTarget] = useState<Persona | null>(null);
 
   function announce(message: string, nextTone: 'success' | 'danger') {
     setTone(nextTone);
@@ -38,25 +61,28 @@ export function PersonaRegistry(): JSX.Element {
     });
   }
 
-  function onDelete(p: Persona) {
-    if (confirmId !== p.id) {
-      setConfirmId(p.id);
-      return;
-    }
+  function onConfirmDelete() {
+    if (!target) return;
+    const p = target;
     remove.mutate(p.id, {
       onSuccess: () => {
         announce(`Persona '${p.id}' removed.`, 'success');
-        setConfirmId(null);
+        setTarget(null);
       },
       onError: (err) => announce(`Delete failed: ${err.message}`, 'danger'),
     });
   }
 
   if (query.isPending) {
-    return <p className="text-sm text-neutral-500">Loading persona registry…</p>;
+    return (
+      <Skeleton
+        className="h-48 w-full rounded-lg"
+        aria-label={pickByLocale(locale, S.loading)}
+      />
+    );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <Alert variant="error">{query.error.message}</Alert>;
   }
 
   const personas = query.data ?? [];
@@ -64,22 +90,25 @@ export function PersonaRegistry(): JSX.Element {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <StubBadge tone="danger">SUPER_ADMIN · cross-portal hot-swap</StubBadge>
+        <StubBadge tone="danger">{pickByLocale(locale, S.badge)}</StubBadge>
         <Button
           type="button"
           variant="outline"
           size="sm"
           disabled={refresh.isPending}
+          loading={refresh.isPending}
           onClick={onRefresh}
         >
-          Refresh from DB
+          {pickByLocale(locale, S.refresh)}
         </Button>
       </div>
 
       {personas.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-          <p className="text-sm text-neutral-400">No personas registered.</p>
-        </div>
+        <Empty
+          icon={<Users className="h-8 w-8" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border bg-surface">
           {personas.map((p) => (
@@ -88,16 +117,16 @@ export function PersonaRegistry(): JSX.Element {
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm text-foreground">{p.displayName}</p>
-                    <span className="font-mono text-xs text-neutral-500">{p.id}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{p.id}</span>
                     <StubBadge tone="neutral">{p.firstPersonNoun}</StubBadge>
                   </div>
-                  <p className="mt-1 text-xs italic text-neutral-400">
+                  <p className="mt-1 text-xs italic text-muted-foreground">
                     “{p.openingStatement}”
                   </p>
-                  <p className="mt-1 text-xs text-neutral-500">{p.toneGuidance}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{p.toneGuidance}</p>
                   {p.taboos.length > 0 ? (
-                    <p className="mt-1 text-xs text-neutral-500">
-                      taboos: {p.taboos.join(', ')}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.taboos)}: {p.taboos.join(', ')}
                     </p>
                   ) : null}
                 </div>
@@ -106,16 +135,27 @@ export function PersonaRegistry(): JSX.Element {
                   variant="destructive"
                   size="sm"
                   disabled={remove.isPending}
-                  onClick={() => onDelete(p)}
+                  onClick={() => setTarget(p)}
                   className="shrink-0"
                 >
-                  {confirmId === p.id ? 'Confirm delete' : 'Delete'}
+                  {pickByLocale(locale, S.delete)}
                 </Button>
               </div>
             </article>
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        open={Boolean(target)}
+        tone="danger"
+        title={pickByLocale(locale, S.deleteTitle)}
+        body={target ? <>{target.displayName} ({target.id})</> : null}
+        confirmLabel={pickByLocale(locale, S.deleteConfirm)}
+        busy={remove.isPending}
+        onCancel={() => setTarget(null)}
+        onConfirm={onConfirmDelete}
+      />
 
       <Toast message={toast} tone={tone} onDismiss={() => setToast(null)} />
     </div>

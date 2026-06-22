@@ -1,6 +1,7 @@
 import { ScreenShell } from '@/components/internal/ScreenShell';
 import { findScreen } from '@/lib/internal/screens';
 import { SupportTicketList } from '@/components/internal/support/SupportTicketList';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('support')!;
 
@@ -11,10 +12,11 @@ const SCREEN = findScreen('support')!;
  *   (read-only; the gateway does not yet expose a ticket-acknowledge
  *   route, so each row shows severity + SLA only).
  */
-export default function SupportPage(): JSX.Element {
+export default async function SupportPage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell screen={SCREEN}>
-      <SupportTicketList />
+      <SupportTicketList initialLocale={locale} />
     </ScreenShell>
   );
 }

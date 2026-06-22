@@ -2,6 +2,7 @@ import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
 import { WorkflowEngine } from '@/components/internal/wave9/WorkflowEngine';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('workflow-engine')!;
 
@@ -14,13 +15,14 @@ const SCREEN = findScreen('workflow-engine')!;
  * state-changing and ride the durable-saga wave; the inviolable rails still
  * gate every action regardless of posture.
  */
-export default function WorkflowEnginePage(): JSX.Element {
+export default async function WorkflowEnginePage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell
       screen={SCREEN}
       actions={<StubBadge tone="info">read-first · four-eyes engine</StubBadge>}
     >
-      <WorkflowEngine />
+      <WorkflowEngine initialLocale={locale} />
     </ScreenShell>
   );
 }

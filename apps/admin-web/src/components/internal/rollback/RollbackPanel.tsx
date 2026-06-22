@@ -1,23 +1,67 @@
 'use client';
 
 import { useState } from 'react';
+import { Undo2 } from 'lucide-react';
+import { Button, Skeleton, Alert, Empty } from '@borjie/design-system';
 import { ConfirmModal } from '../ConfirmModal';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { usePromotionsQuery, useRevertPromotion } from '@/lib/internal/queries/rollback';
 import type { PromotionRow } from '@/lib/internal/types';
 
-export function RollbackPanel(): JSX.Element {
+const S = {
+  loading: { en: 'Loading promotions…', sw: 'Inapakia upandishaji…' },
+  emptyTitle: { en: 'No promotions', sw: 'Hakuna upandishaji' },
+  emptyBody: {
+    en: 'Recent promotions appear here. A revert emits an audit event and notifies the platform channel.',
+    sw: 'Upandishaji wa hivi karibuni huonekana hapa. Kurudisha hutoa tukio la ukaguzi na kuarifu chaneli ya jukwaa.',
+  },
+  by: { en: 'by', sw: 'na' },
+  revertNow: { en: 'Revert now', sw: 'Rudisha sasa' },
+  windowClosed: { en: 'Window closed', sw: 'Dirisha limefungwa' },
+  revertTitle: { en: 'Revert promotion', sw: 'Rudisha upandishaji' },
+  revertConfirm: { en: 'Revert', sw: 'Rudisha' },
+} as const;
+
+export function RollbackPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = usePromotionsQuery();
   const revert = useRevertPromotion();
   const [target, setTarget] = useState<PromotionRow | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  if (query.isPending) return <p className="text-sm text-neutral-500">Loading promotions…</p>;
-  if (query.isError) return <p className="text-sm text-danger">{query.error.message}</p>;
+  if (query.isPending) {
+    return (
+      <Skeleton
+        className="h-48 w-full rounded-lg"
+        aria-label={pickByLocale(locale, S.loading)}
+      />
+    );
+  }
+  if (query.isError) {
+    return <Alert variant="error">{query.error.message}</Alert>;
+  }
 
   const rows = query.data?.rows ?? [];
+
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Empty
+          icon={<Undo2 className="h-8 w-8" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
+        <DataSourceBadge source={query.data?.source ?? 'live'} />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -27,31 +71,36 @@ export function RollbackPanel(): JSX.Element {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <StubBadge tone="info">{row.kind}</StubBadge>
-                <span className="text-xs text-neutral-500 tabular-nums">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {row.promotedAt.replace('T', ' ').slice(0, 16)}
                 </span>
-                <span className="text-xs text-neutral-500">by {row.promotedBy}</span>
+                <span className="text-xs text-muted-foreground">
+                  {pickByLocale(locale, S.by)} {row.promotedBy}
+                </span>
               </div>
               <p className="text-sm text-foreground">{row.subject}</p>
             </div>
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               disabled={!row.canRevert || revert.isPending}
               onClick={() => setTarget(row)}
-              className="rounded-md border border-danger/40 bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/20 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {row.canRevert ? 'Revert now' : 'Window closed'}
-            </button>
+              {row.canRevert
+                ? pickByLocale(locale, S.revertNow)
+                : pickByLocale(locale, S.windowClosed)}
+            </Button>
           </div>
         ))}
       </div>
 
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} />
 
       <ConfirmModal
         open={Boolean(target)}
         tone="danger"
-        title="Revert promotion"
+        title={pickByLocale(locale, S.revertTitle)}
         body={
           target ? (
             <>
@@ -60,7 +109,7 @@ export function RollbackPanel(): JSX.Element {
             </>
           ) : null
         }
-        confirmLabel="Revert"
+        confirmLabel={pickByLocale(locale, S.revertConfirm)}
         busy={revert.isPending}
         onCancel={() => setTarget(null)}
         onConfirm={() => {

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { ClipboardCheck } from 'lucide-react';
+import { Button, Skeleton, Alert, Empty, FormField, Input } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   usePendingProposals,
   useApproveProposal,
@@ -19,7 +21,31 @@ import type { Proposal } from '@/lib/internal/wave9/api';
  * gateway runs the REAL state transition + four-eye / approver-tier rules;
  * this surface only renders the queue and posts the decisions.
  */
-export function ProposalsQueue(): JSX.Element {
+const S = {
+  loading: { en: 'Loading pending proposals…', sw: 'Inapakia mapendekezo yanayosubiri…' },
+  emptyTitle: { en: 'No proposals awaiting review', sw: 'Hakuna mapendekezo yanayosubiri ukaguzi' },
+  emptyBody: {
+    en: 'Brain↔tab module-update proposals awaiting a second operator appear here.',
+    sw: 'Mapendekezo ya kusasisha moduli kati ya ubongo na kichupo yanayosubiri opereta wa pili huonekana hapa.',
+  },
+  pending: { en: 'pending · four-eye enforced upstream', sw: 'yanasubiri · macho-manne yanatekelezwa juu' },
+  persona: { en: 'persona', sw: 'mtu binafsi' },
+  conf: { en: 'conf', sw: 'uhakika' },
+  priority: { en: 'priority', sw: 'kipaumbele' },
+  approverTier: { en: 'Approver tier', sw: 'Daraja la mthibitishaji' },
+  approve: { en: 'Approve', sw: 'Idhinisha' },
+  declineReason: { en: 'Decline reason', sw: 'Sababu ya kukataa' },
+  declineReasonPlaceholder: { en: 'Why is this being declined?', sw: 'Kwa nini hili linakataliwa?' },
+  decline: { en: 'Decline', sw: 'Kataa' },
+  enterReason: { en: 'Enter a decline reason first.', sw: 'Weka sababu ya kukataa kwanza.' },
+} as const;
+
+export function ProposalsQueue({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = usePendingProposals();
   const approve = useApproveProposal();
   const decline = useDeclineProposal();
@@ -47,7 +73,7 @@ export function ProposalsQueue(): JSX.Element {
   function onDecline(p: Proposal) {
     const reason = (reasonById[p.id] ?? '').trim();
     if (reason.length < 1) {
-      announce('Enter a decline reason first.', 'danger');
+      announce(pickByLocale(locale, S.enterReason), 'danger');
       return;
     }
     decline.mutate(
@@ -60,25 +86,34 @@ export function ProposalsQueue(): JSX.Element {
   }
 
   if (query.isPending) {
-    return <p className="text-sm text-neutral-500">Loading pending proposals…</p>;
+    return (
+      <Skeleton
+        className="h-48 w-full rounded-lg"
+        aria-label={pickByLocale(locale, S.loading)}
+      />
+    );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <Alert variant="error">{query.error.message}</Alert>;
   }
 
   const items = query.data ?? [];
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-        <p className="text-sm text-neutral-400">No proposals awaiting human review.</p>
-      </div>
+      <Empty
+        icon={<ClipboardCheck className="h-8 w-8" />}
+        title={pickByLocale(locale, S.emptyTitle)}
+        description={pickByLocale(locale, S.emptyBody)}
+      />
     );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <StubBadge tone="info">{items.length} pending · four-eye enforced upstream</StubBadge>
+        <StubBadge tone="info">
+          {items.length} {pickByLocale(locale, S.pending)}
+        </StubBadge>
       </div>
 
       <div className="divide-y divide-border rounded-lg border border-border bg-surface">
@@ -91,36 +126,45 @@ export function ProposalsQueue(): JSX.Element {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm text-foreground">{p.action ?? 'update'}</p>
                     {p.moduleTemplateId ? (
-                      <span className="font-mono text-xs text-neutral-500">
+                      <span className="font-mono text-xs text-muted-foreground">
                         {p.moduleTemplateId}
                       </span>
                     ) : null}
                     {p.hitlRequired ? <StubBadge tone="warn">HITL</StubBadge> : null}
                   </div>
-                  <p className="mt-0.5 font-mono text-xs text-neutral-500">{p.id}</p>
+                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">{p.id}</p>
                   {p.personaId ? (
-                    <p className="mt-0.5 text-xs text-neutral-400">persona: {p.personaId}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.persona)}: {p.personaId}
+                    </p>
                   ) : null}
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1 text-right">
                   {typeof p.confidence === 'number' ? (
-                    <StubBadge tone="neutral">conf {Math.round(p.confidence * 100)}%</StubBadge>
+                    <StubBadge tone="neutral">
+                      {pickByLocale(locale, S.conf)} {Math.round(p.confidence * 100)}%
+                    </StubBadge>
                   ) : null}
                   {p.priority !== null && p.priority !== undefined ? (
-                    <span className="text-xs text-neutral-500">priority {String(p.priority)}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.priority)} {String(p.priority)}
+                    </span>
                   ) : null}
                 </div>
               </div>
 
               <div className="flex flex-wrap items-end gap-3">
-                <label className="block">
-                  <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-                    Approver tier
-                  </span>
-                  <input
+                <FormField
+                  label={pickByLocale(locale, S.approverTier)}
+                  htmlFor={`tier-${p.id}`}
+                  className="w-24 space-y-1"
+                >
+                  <Input
+                    id={`tier-${p.id}`}
                     type="number"
                     min={1}
                     max={5}
+                    inputSize="sm"
                     value={tierById[p.id] ?? 1}
                     onChange={(e) =>
                       setTierById((prev) => ({
@@ -128,41 +172,44 @@ export function ProposalsQueue(): JSX.Element {
                         [p.id]: Math.max(1, Math.min(5, Number(e.target.value) || 1)),
                       }))
                     }
-                    className="w-20 rounded-md border border-border bg-surface-sunken px-2 py-1 text-sm text-foreground focus:border-signal-500 focus:outline-none"
                   />
-                </label>
+                </FormField>
                 <Button
                   type="button"
                   variant="success"
                   size="sm"
                   disabled={busy}
+                  loading={approve.isPending}
                   onClick={() => onApprove(p)}
                 >
-                  Approve
+                  {pickByLocale(locale, S.approve)}
                 </Button>
 
-                <label className="block flex-1 min-w-[12rem]">
-                  <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-                    Decline reason
-                  </span>
-                  <input
+                <FormField
+                  label={pickByLocale(locale, S.declineReason)}
+                  htmlFor={`reason-${p.id}`}
+                  className="flex-1 min-w-[12rem] space-y-1"
+                >
+                  <Input
+                    id={`reason-${p.id}`}
                     type="text"
+                    inputSize="sm"
                     value={reasonById[p.id] ?? ''}
                     onChange={(e) =>
                       setReasonById((prev) => ({ ...prev, [p.id]: e.target.value }))
                     }
-                    placeholder="Why is this being declined?"
-                    className="w-full rounded-md border border-border bg-surface-sunken px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
+                    placeholder={pickByLocale(locale, S.declineReasonPlaceholder)}
                   />
-                </label>
+                </FormField>
                 <Button
                   type="button"
                   variant="destructive"
                   size="sm"
                   disabled={busy}
+                  loading={decline.isPending}
                   onClick={() => onDecline(p)}
                 >
-                  Decline
+                  {pickByLocale(locale, S.decline)}
                 </Button>
               </div>
             </article>

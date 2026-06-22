@@ -15,11 +15,18 @@
  *     hash-chain audited + tenant-visible).
  *
  * No SUPABASE_SERVICE_ROLE_KEY anywhere — auth is the platform-session cookie.
+ *
+ * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
+ * PER LOCALE (canon): every user-facing string resolves to the active
+ * locale via `pickByLocale`. Purely client surface — the hook falls back to
+ * the project default and the post-mount effect corrects it.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Button, Card, Skeleton, Alert, FormField, Input } from '@borjie/design-system';
 import { api } from '@/lib/api';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface TraceMeta {
   readonly id: string;
@@ -44,6 +51,55 @@ interface TraceContent extends TraceMeta {
   readonly error: string | null;
 }
 
+const S = {
+  notFound: { en: 'Trace not found', sw: 'Ufuatiliaji haukupatikana' },
+  noTenantScope: {
+    en: 'This is a platform-tier trace with no tenant scope.',
+    sw: 'Huu ni ufuatiliaji wa kiwango cha jukwaa bila wigo wa mteja.',
+  },
+  breakGlassRequired: {
+    en: 'Break-glass required — the tenant must consent to a time-boxed grant before content is shown.',
+    sw: 'Ufikiaji wa dharura unahitajika — mteja lazima aidhinishe ruhusa ya muda kabla maudhui hayajaonyeshwa.',
+  },
+  filed: {
+    en: 'Break-glass request filed. The tenant will see it on their Trust Center and must consent before content unlocks. Retry once consented.',
+    sw: 'Ombi la ufikiaji wa dharura limewasilishwa. Mteja ataliona kwenye Kituo cha Uaminifu na lazima aidhinishe kabla maudhui hayajafunguliwa. Jaribu tena baada ya idhini.',
+  },
+  fileFailed: {
+    en: 'Failed to file break-glass request',
+    sw: 'Imeshindwa kuwasilisha ombi la ufikiaji wa dharura',
+  },
+  back: { en: '← Back to list', sw: '← Rudi kwenye orodha' },
+  action: { en: 'Action', sw: 'Kitendo' },
+  outcome: { en: 'Outcome', sw: 'Matokeo' },
+  tenant: { en: 'Tenant', sw: 'Mteja' },
+  platform: { en: 'platform', sw: 'jukwaa' },
+  duration: { en: 'Duration', sw: 'Muda' },
+  contentIsTenant: {
+    en: 'Decision content is tenant business data',
+    sw: 'Maudhui ya uamuzi ni data ya biashara ya mteja',
+  },
+  contentExplain: {
+    en: 'Inputs, branches, rationale, and output cross the control-plane wall. They are shown only under an active, tenant-consented, time-boxed break-glass grant — every read is hash-chain audited and visible to the tenant.',
+    sw: 'Ingizo, matawi, hoja, na matokeo huvuka ukuta wa udhibiti. Huonyeshwa tu chini ya ruhusa ya dharura iliyo hai, iliyoidhinishwa na mteja, ya muda — kila usomaji hukaguliwa kwa mnyororo wa heshi na huonekana kwa mteja.',
+  },
+  justification: { en: 'Justification / reason', sw: 'Uhalali / sababu' },
+  filing: { en: 'Filing…', sw: 'Inawasilisha…' },
+  requestBg: { en: 'Request break-glass', sw: 'Omba ufikiaji wa dharura' },
+  checking: { en: 'Checking…', sw: 'Inaangalia…' },
+  loadContent: { en: 'Load content', sw: 'Pakia maudhui' },
+  platformNoBg: {
+    en: 'Platform-tier trace — no tenant scope, no break-glass needed (and no tenant content to show).',
+    sw: 'Ufuatiliaji wa kiwango cha jukwaa — hakuna wigo wa mteja, hakuna ufikiaji wa dharura unaohitajika (na hakuna maudhui ya mteja ya kuonyesha).',
+  },
+  inputs: { en: 'Inputs', sw: 'Ingizo' },
+  branchesConsidered: { en: 'Branches considered', sw: 'Matawi yaliyozingatiwa' },
+  rationale: { en: 'Rationale', sw: 'Hoja' },
+  error: { en: 'Error', sw: 'Hitilafu' },
+  output: { en: 'Output', sw: 'Matokeo' },
+  attributes: { en: 'Attributes', sw: 'Sifa' },
+} as const;
+
 function json(value: unknown): string {
   try {
     return JSON.stringify(value, null, 2);
@@ -59,6 +115,7 @@ export function DecisionTraceDetailClient({
   traceId: string;
   tenant: string | null;
 }) {
+  const locale = useLocale();
   const [meta, setMeta] = useState<TraceMeta | null>(null);
   const [content, setContent] = useState<TraceContent | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
@@ -75,14 +132,14 @@ export function DecisionTraceDetailClient({
         `/mining/internal/decision-trace/${encodeURIComponent(traceId)}`,
       );
       if (res.success && res.data) setMeta(res.data);
-      else setMetaError(res.error ?? 'Trace not found');
+      else setMetaError(res.error ?? pickByLocale(locale, S.notFound));
     })();
-  }, [traceId]);
+  }, [traceId, locale]);
 
   const fetchContent = useCallback(async () => {
     if (!tenant) {
       setContentState('error');
-      setContentMsg('This is a platform-tier trace with no tenant scope.');
+      setContentMsg(pickByLocale(locale, S.noTenantScope));
       return;
     }
     setContentState('loading');
@@ -97,12 +154,9 @@ export function DecisionTraceDetailClient({
       setContentMsg(null);
     } else {
       setContentState('locked');
-      setContentMsg(
-        res.error ??
-          'Break-glass required — the tenant must consent to a time-boxed grant before content is shown.',
-      );
+      setContentMsg(res.error ?? pickByLocale(locale, S.breakGlassRequired));
     }
-  }, [traceId, tenant]);
+  }, [traceId, tenant, locale]);
 
   const requestAccess = useCallback(async () => {
     if (!tenant) return;
@@ -115,116 +169,142 @@ export function DecisionTraceDetailClient({
     });
     setRequesting(false);
     if (res.success) {
-      setContentMsg(
-        'Break-glass request filed. The tenant will see it on their Trust Center and must consent before content unlocks. Retry once consented.',
-      );
+      setContentMsg(pickByLocale(locale, S.filed));
     } else {
-      setContentMsg(res.error ?? 'Failed to file break-glass request');
+      setContentMsg(res.error ?? pickByLocale(locale, S.fileFailed));
     }
-  }, [tenant, reason, traceId]);
+  }, [tenant, reason, traceId, locale]);
 
   if (metaError) {
-    return (
-      <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
-        {metaError}
-      </div>
-    );
+    return <Alert variant="error">{metaError}</Alert>;
   }
   if (!meta) {
-    return <div className="text-sm text-neutral-400">Loading…</div>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-24 w-full rounded-lg border border-border" />
+        <Skeleton className="h-40 w-full rounded-lg border border-border" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
       <div className="text-xs">
-        <Link href="/decision-trace" className="text-amber-400 hover:text-amber-200">
-          ← Back to list
+        <Link
+          href="/decision-trace"
+          className="text-info hover:underline"
+        >
+          {pickByLocale(locale, S.back)}
         </Link>
       </div>
 
-      <section className="p-5 border border-neutral-700 rounded bg-neutral-900/40">
+      <Card variant="outline" className="p-5">
         <div className="flex flex-wrap justify-between gap-4">
-          <Meta label="Action" value={meta.name} mono />
-          <Meta label="Outcome" value={meta.outcome.toUpperCase()} mono />
-          <Meta label="Tenant" value={meta.tenantId ?? 'platform'} mono />
-          <Meta label="Duration" value={`${meta.durationMs}ms`} mono />
+          <Meta label={pickByLocale(locale, S.action)} value={meta.name} mono />
+          <Meta
+            label={pickByLocale(locale, S.outcome)}
+            value={meta.outcome.toUpperCase()}
+            mono
+          />
+          <Meta
+            label={pickByLocale(locale, S.tenant)}
+            value={meta.tenantId ?? pickByLocale(locale, S.platform)}
+            mono
+          />
+          <Meta
+            label={pickByLocale(locale, S.duration)}
+            value={`${meta.durationMs}ms`}
+            mono
+          />
         </div>
-        <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs font-mono text-neutral-400">
+        <div className="mt-3 grid grid-cols-1 gap-3 font-mono text-xs text-muted-foreground md:grid-cols-3">
           <div>id: {meta.id}</div>
           <div>started: {new Date(meta.startedAt).toISOString()}</div>
           <div>finalised: {new Date(meta.finalisedAt).toISOString()}</div>
           {meta.userId ? <div>userId: {meta.userId}</div> : null}
           {meta.requestId ? <div>requestId: {meta.requestId}</div> : null}
         </div>
-      </section>
+      </Card>
 
       {!content ? (
-        <section className="p-5 border border-amber-700/40 rounded bg-amber-950/20 space-y-3">
-          <h2 className="text-sm font-medium text-amber-300">
-            Decision content is tenant business data
+        <Card className="space-y-3 border-warning/30 bg-warning-subtle p-5">
+          <h2 className="text-sm font-medium text-warning">
+            {pickByLocale(locale, S.contentIsTenant)}
           </h2>
-          <p className="text-xs text-neutral-400">
-            Inputs, branches, rationale, and output cross the control-plane wall.
-            They are shown only under an active, tenant-consented, time-boxed
-            break-glass grant — every read is hash-chain audited and visible to
-            the tenant.
+          <p className="text-xs text-muted-foreground">
+            {pickByLocale(locale, S.contentExplain)}
           </p>
-          {contentMsg && (
-            <p className="text-xs text-amber-200">{contentMsg}</p>
-          )}
-          <div className="flex flex-wrap gap-2 items-end">
-            <label className="flex flex-col text-xs text-neutral-400 flex-1 min-w-64">
-              Justification / reason
-              <input
+          {contentMsg && <p className="text-xs text-warning">{contentMsg}</p>}
+          <div className="flex flex-wrap items-end gap-2">
+            <FormField
+              label={pickByLocale(locale, S.justification)}
+              name="reason"
+              className="min-w-64 flex-1"
+            >
+              <Input
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="incident ref / ticket id"
-                className="mt-1 px-3 py-2 bg-neutral-900 border border-neutral-700 rounded text-sm text-neutral-100"
               />
-            </label>
-            <button
+            </FormField>
+            <Button
               type="button"
+              variant="warning"
               onClick={() => void requestAccess()}
-              disabled={!tenant || requesting}
-              className="rounded bg-amber-700 hover:bg-amber-600 px-4 py-2 text-sm text-white disabled:opacity-50"
+              disabled={!tenant}
+              loading={requesting}
             >
-              {requesting ? 'Filing…' : 'Request break-glass'}
-            </button>
-            <button
+              {pickByLocale(locale, S.requestBg)}
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => void fetchContent()}
-              disabled={!tenant || contentState === 'loading'}
-              className="rounded border border-amber-700 px-4 py-2 text-sm text-amber-300 disabled:opacity-50"
+              disabled={!tenant}
+              loading={contentState === 'loading'}
             >
-              {contentState === 'loading' ? 'Checking…' : 'Load content'}
-            </button>
+              {pickByLocale(locale, S.loadContent)}
+            </Button>
           </div>
           {!tenant && (
-            <p className="text-xs text-neutral-500">
-              Platform-tier trace — no tenant scope, no break-glass needed (and
-              no tenant content to show).
+            <p className="text-xs text-muted-foreground">
+              {pickByLocale(locale, S.platformNoBg)}
             </p>
           )}
-        </section>
+        </Card>
       ) : (
         <>
-          <Panel title="Inputs" body={json(content.inputs ?? {})} />
           <Panel
-            title={`Branches considered (${content.branches?.length ?? 0})`}
+            title={pickByLocale(locale, S.inputs)}
+            body={json(content.inputs ?? {})}
+          />
+          <Panel
+            title={`${pickByLocale(locale, S.branchesConsidered)} (${content.branches?.length ?? 0})`}
             body={json(content.branches ?? [])}
           />
           {content.chosenRationale ? (
-            <div className="text-xs text-neutral-400">
-              Rationale: {content.chosenRationale}
+            <div className="text-xs text-muted-foreground">
+              {pickByLocale(locale, S.rationale)}: {content.chosenRationale}
             </div>
           ) : null}
           {content.error ? (
-            <Panel title="Error" body={content.error} tone="error" />
+            <Panel
+              title={pickByLocale(locale, S.error)}
+              body={content.error}
+              tone="error"
+            />
           ) : null}
-          <Panel title="Output" body={json(content.output ?? null)} />
-          {content.attributes && Object.keys(content.attributes).length > 0 ? (
-            <Panel title="Attributes" body={json(content.attributes)} />
+          <Panel
+            title={pickByLocale(locale, S.output)}
+            body={json(content.output ?? null)}
+          />
+          {content.attributes &&
+          Object.keys(content.attributes).length > 0 ? (
+            <Panel
+              title={pickByLocale(locale, S.attributes)}
+              body={json(content.attributes)}
+            />
           ) : null}
         </>
       )}
@@ -243,10 +323,10 @@ function Meta({
 }) {
   return (
     <div>
-      <div className="text-xs uppercase tracking-wide text-neutral-500">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
-      <div className={`text-sm text-neutral-100 ${mono ? 'font-mono' : ''}`}>
+      <div className={`text-sm text-foreground ${mono ? 'font-mono' : ''}`}>
         {value}
       </div>
     </div>
@@ -265,17 +345,17 @@ function Panel({
   return (
     <section>
       <h2
-        className={`text-sm font-medium mb-2 ${
-          tone === 'error' ? 'text-rose-300' : 'text-neutral-300'
+        className={`mb-2 text-sm font-medium ${
+          tone === 'error' ? 'text-danger' : 'text-foreground'
         }`}
       >
         {title}
       </h2>
       <pre
-        className={`text-xs rounded p-4 overflow-x-auto ${
+        className={`overflow-x-auto rounded p-4 text-xs ${
           tone === 'error'
-            ? 'bg-rose-950/40 border border-rose-800 text-rose-200'
-            : 'bg-neutral-950 border border-neutral-800 text-neutral-200'
+            ? 'border border-danger/40 bg-danger-subtle text-danger'
+            : 'border border-border bg-surface-sunken text-foreground'
         }`}
       >
         {body}

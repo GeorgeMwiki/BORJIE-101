@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, FormField, Input } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import { ScopeSelector } from './ScopeSelector';
@@ -15,8 +15,44 @@ import {
   type KnownFlag,
 } from '@/lib/internal/control-plane/known-flags';
 import type { PowerFlag, Scope } from '@/lib/internal/control-plane/api';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 const FLAG_RE = /^[a-z][a-z0-9_]*$/;
+
+const S = {
+  platformWide: { en: 'Platform-wide default', sw: 'Chaguo-msingi la jukwaa zima' },
+  tenantOverride: { en: 'Tenant override', sw: 'Ubatilishaji wa mteja' },
+  reasonLabel: {
+    en: 'Reason (audited, required for every write)',
+    sw: 'Sababu (inakaguliwa, inahitajika kwa kila andiko)',
+  },
+  reasonPlaceholder: {
+    en: 'Why are you changing this power?',
+    sw: 'Kwa nini unabadilisha mamlaka haya?',
+  },
+  loading: { en: 'Loading powers…', sw: 'Inapakia mamlaka…' },
+  sovereignLocked: { en: 'Sovereign · locked', sw: 'Huru · imefungwa' },
+  readError: { en: 'Read error', sw: 'Hitilafu ya kusoma' },
+  unset: { en: 'unset', sw: 'haijawekwa' },
+  on: { en: 'On', sw: 'Imewashwa' },
+  off: { en: 'Off', sw: 'Imezimwa' },
+  enable: { en: 'Enable', sw: 'Wezesha' },
+  disable: { en: 'Disable', sw: 'Zima' },
+  addPlaceholder: { en: 'add_flag_name', sw: 'add_flag_name' },
+  addFlagAria: { en: 'Add a flag to manage', sw: 'Ongeza bendera ya kusimamia' },
+  addFlag: { en: 'Add flag', sw: 'Ongeza bendera' },
+  flagSnakeCase: {
+    en: 'Flag must be snake_case (a-z, 0-9, _).',
+    sw: 'Bendera lazima iwe snake_case (a-z, 0-9, _).',
+  },
+  flagAlready: { en: 'Flag already in the list.', sw: 'Bendera tayari ipo kwenye orodha.' },
+  reasonRequired: {
+    en: 'Enter a reason (≥ 8 chars) before changing a power flag.',
+    sw: 'Weka sababu (≥ herufi 8) kabla ya kubadilisha bendera ya mamlaka.',
+  },
+  audit: { en: 'audit', sw: 'ukaguzi' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+} as const;
 
 function currentValue(flag: PowerFlag, scope: Scope): boolean | null {
   if (scope === 'global') return flag.globalValue;
@@ -43,7 +79,12 @@ function descriptionFor(
  * write requires a reason (audited) and surfaces the journal id + previous value
  * so the operator sees the audit trail land.
  */
-export function PowersPanel(): JSX.Element {
+export function PowersPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const [scope, setScope] = useState<Scope>('global');
   const [extraFlags, setExtraFlags] = useState<ReadonlyArray<string>>([]);
   const [newFlag, setNewFlag] = useState('');
@@ -62,11 +103,11 @@ export function PowersPanel(): JSX.Element {
   function addFlag() {
     const candidate = newFlag.trim();
     if (!FLAG_RE.test(candidate)) {
-      setToast('Flag must be snake_case (a-z, 0-9, _).');
+      setToast(pickByLocale(locale, S.flagSnakeCase));
       return;
     }
     if (flagNames.includes(candidate)) {
-      setToast('Flag already in the list.');
+      setToast(pickByLocale(locale, S.flagAlready));
       return;
     }
     setExtraFlags((prev) => [...prev, candidate]);
@@ -76,7 +117,7 @@ export function PowersPanel(): JSX.Element {
   function toggle(flag: PowerFlag, next: boolean) {
     if (flag.sovereign) return;
     if (!reasonValid) {
-      setToast('Enter a reason (≥ 8 chars) before changing a power flag.');
+      setToast(pickByLocale(locale, S.reasonRequired));
       return;
     }
     mutation.mutate(
@@ -84,11 +125,13 @@ export function PowersPanel(): JSX.Element {
       {
         onSuccess: (res) =>
           setToast(
-            `${res.flag} → ${res.enabled ? 'on' : 'off'} (${res.scope})${
-              res.journalId ? ` · audit ${res.journalId.slice(0, 8)}…` : ''
+            `${res.flag} → ${res.enabled ? pickByLocale(locale, S.on) : pickByLocale(locale, S.off)} (${res.scope})${
+              res.journalId
+                ? ` · ${pickByLocale(locale, S.audit)} ${res.journalId.slice(0, 8)}…`
+                : ''
             }`,
           ),
-        onError: (err) => setToast(`Failed: ${err.message}`),
+        onError: (err) => setToast(`${pickByLocale(locale, S.failed)}: ${err.message}`),
       },
     );
   }
@@ -96,31 +139,29 @@ export function PowersPanel(): JSX.Element {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <ScopeSelector scope={scope} onChange={setScope} />
+        <ScopeSelector scope={scope} onChange={setScope} initialLocale={locale} />
         <StubBadge tone="info">
-          {scope === 'global' ? 'Platform-wide default' : 'Tenant override'}
+          {scope === 'global'
+            ? pickByLocale(locale, S.platformWide)
+            : pickByLocale(locale, S.tenantOverride)}
         </StubBadge>
       </div>
 
-      <label className="block">
-        <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-          Reason (audited, required for every write)
-        </span>
-        <input
+      <FormField label={pickByLocale(locale, S.reasonLabel)} name="reason">
+        <Input
           type="text"
           value={reason}
           onChange={(e) => setReason(e.target.value)}
-          placeholder="Why are you changing this power?"
-          className={`w-full rounded-md border bg-surface-sunken px-3 py-2 text-sm text-foreground placeholder:text-neutral-600 focus:outline-none ${
-            reason.length === 0 || reasonValid
-              ? 'border-border focus:border-signal-500'
-              : 'border-danger/60'
-          }`}
+          placeholder={pickByLocale(locale, S.reasonPlaceholder)}
+          error={reason.length > 0 && !reasonValid}
         />
-      </label>
+      </FormField>
 
       {query.isPending ? (
-        <p className="text-sm text-neutral-500">Loading powers…</p>
+        <div className="space-y-2 rounded-lg border border-border bg-surface p-4">
+          <Skeleton className="h-12 w-full rounded-md" />
+          <Skeleton className="h-12 w-full rounded-md" />
+        </div>
       ) : query.isError ? (
         <p className="text-sm text-danger">{query.error.message}</p>
       ) : (
@@ -139,20 +180,24 @@ export function PowersPanel(): JSX.Element {
                       {labelFor(KNOWN_POWER_FLAGS, flag.flag)}
                     </p>
                     {flag.sovereign ? (
-                      <StubBadge tone="danger">Sovereign · locked</StubBadge>
+                      <StubBadge tone="danger">{pickByLocale(locale, S.sovereignLocked)}</StubBadge>
                     ) : null}
                     {flag.readError ? (
-                      <StubBadge tone="warn">Read error</StubBadge>
+                      <StubBadge tone="warn">{pickByLocale(locale, S.readError)}</StubBadge>
                     ) : null}
                   </div>
-                  <p className="font-mono text-xs text-neutral-500">{flag.flag}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{flag.flag}</p>
                   {description ? (
-                    <p className="mt-0.5 text-xs text-neutral-400">{description}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
                   ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <StubBadge tone={value === true ? 'success' : value === false ? 'neutral' : 'info'}>
-                    {value === null ? 'unset' : value ? 'On' : 'Off'}
+                    {value === null
+                      ? pickByLocale(locale, S.unset)
+                      : value
+                        ? pickByLocale(locale, S.on)
+                        : pickByLocale(locale, S.off)}
                   </StubBadge>
                   <div className="flex gap-1">
                     <button
@@ -161,7 +206,7 @@ export function PowersPanel(): JSX.Element {
                       onClick={() => toggle(flag, true)}
                       className="rounded-md border border-border px-2 py-1 text-xs text-success hover:bg-surface-sunken disabled:opacity-40"
                     >
-                      Enable
+                      {pickByLocale(locale, S.enable)}
                     </button>
                     <button
                       type="button"
@@ -169,7 +214,7 @@ export function PowersPanel(): JSX.Element {
                       onClick={() => toggle(flag, false)}
                       className="rounded-md border border-border px-2 py-1 text-xs text-warning hover:bg-surface-sunken disabled:opacity-40"
                     >
-                      Disable
+                      {pickByLocale(locale, S.disable)}
                     </button>
                   </div>
                 </div>
@@ -179,25 +224,22 @@ export function PowersPanel(): JSX.Element {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
-          value={newFlag}
-          onChange={(e) => setNewFlag(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') addFlag();
-          }}
-          placeholder="add_flag_name"
-          aria-label="Add a flag to manage"
-          className="w-64 rounded-md border border-border bg-surface-sunken px-3 py-1.5 font-mono text-xs text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={addFlag}
-        >
-          Add flag
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="w-64">
+          <Input
+            type="text"
+            value={newFlag}
+            onChange={(e) => setNewFlag(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') addFlag();
+            }}
+            placeholder={pickByLocale(locale, S.addPlaceholder)}
+            aria-label={pickByLocale(locale, S.addFlagAria)}
+            className="font-mono text-xs"
+          />
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={addFlag}>
+          {pickByLocale(locale, S.addFlag)}
         </Button>
       </div>
 

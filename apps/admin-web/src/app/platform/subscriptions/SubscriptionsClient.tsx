@@ -6,22 +6,37 @@
  *
  *   GET /api/v1/admin/subscriptions
  *
- * Tenant-detail navigation now uses next/link. Currency / dates are
- * formatted by the shared lib.
+ * Tenant-detail navigation links out to owner-portal. Currency / dates are
+ * formatted by the shared lib (no hardcoded symbol).
+ *
+ * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
+ * PER LOCALE (canon): every user-facing string resolves to the active
+ * locale via `pickByLocale`. Purely client surface — the hook falls back to
+ * the project default and the post-mount effect corrects it.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Building2, Search, ChevronRight } from 'lucide-react';
+import { Building2, ChevronRight } from 'lucide-react';
 import {
-  EmptyState,
+  Empty,
   Skeleton,
   Alert,
-  AlertDescription,
   Button,
   Card,
+  Badge,
+  FormField,
+  SearchInput,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  type BadgeProps,
 } from '@borjie/design-system';
 import { api, formatCurrency, formatDate } from '@/lib/api';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface Subscription {
   id: string;
@@ -35,21 +50,45 @@ interface Subscription {
   createdAt: string;
 }
 
-const statusColors: Record<string, string> = {
-  active: 'bg-emerald-500/15 text-emerald-300',
-  trialing: 'bg-blue-500/15 text-blue-300',
-  past_due: 'bg-amber-500/15 text-amber-300',
-  canceled: 'bg-rose-500/15 text-rose-300',
+const S = {
+  loadFailed: { en: 'Failed to load subscriptions', sw: 'Imeshindwa kupakia michango' },
+  retry: { en: 'Retry', sw: 'Jaribu tena' },
+  total: { en: 'Total subscriptions', sw: 'Jumla ya michango' },
+  active: { en: 'Active', sw: 'Hai' },
+  trialing: { en: 'Trialing', sw: 'Jaribio' },
+  pastDue: { en: 'Past due', sw: 'Imechelewa' },
+  totalMrr: { en: 'Total MRR', sw: 'Jumla ya MRR' },
+  searchTenants: { en: 'Search tenants…', sw: 'Tafuta wateja…' },
+  allStatus: { en: 'All status', sw: 'Hali zote' },
+  canceled: { en: 'Canceled', sw: 'Imeghairiwa' },
+  colTenant: { en: 'Tenant', sw: 'Mteja' },
+  colPlan: { en: 'Plan', sw: 'Mpango' },
+  colStatus: { en: 'Status', sw: 'Hali' },
+  colBilling: { en: 'Billing', sw: 'Ankara' },
+  colMrr: { en: 'MRR', sw: 'MRR' },
+  colPeriodEnd: { en: 'Period end', sw: 'Mwisho wa kipindi' },
+  colActions: { en: 'Actions', sw: 'Vitendo' },
+  manage: { en: 'Manage', sw: 'Simamia' },
+  emptyTitle: { en: 'No subscriptions', sw: 'Hakuna michango' },
+  emptyBody: {
+    en: 'No subscriptions match the current filters.',
+    sw: 'Hakuna michango inayolingana na vichujio vya sasa.',
+  },
+} as const;
+
+const STATUS_VARIANT: Record<Subscription['status'], BadgeProps['variant']> = {
+  active: 'success-soft',
+  trialing: 'info-soft',
+  past_due: 'warning-soft',
+  canceled: 'error-soft',
 };
 
 /**
  * Owner-portal base URL. Tenant-detail pages (/tenants/:id) live in the
- * owner-portal app, not in HQ; admin-web links there
- * externally so HQ staff can deep-link into a tenant's own surface.
- *
- * Resolved through `requirePublicBaseUrl` so production builds without
- * NEXT_PUBLIC_OWNER_PORTAL_URL fail at module load instead of silently
- * pointing HQ staff at localhost:3001 from a deployed bundle.
+ * owner-portal app, not in HQ; admin-web links there externally so HQ staff
+ * can deep-link into a tenant's own surface. Resolved through
+ * `requirePublicBaseUrl` so production builds without
+ * NEXT_PUBLIC_OWNER_PORTAL_URL fail at module load.
  */
 const OWNER_PORTAL_BASE = requirePublicBaseUrl(
   'NEXT_PUBLIC_OWNER_PORTAL_URL',
@@ -57,6 +96,7 @@ const OWNER_PORTAL_BASE = requirePublicBaseUrl(
 );
 
 export function SubscriptionsClient() {
+  const locale = useLocale();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [subscriptions, setSubscriptions] = useState<
@@ -79,14 +119,16 @@ export function SubscriptionsClient() {
       if (res.success) {
         setSubscriptions(res.data ?? []);
       } else {
-        setError(res.error ?? 'Failed to load subscriptions');
+        setError(res.error ?? pickByLocale(locale, S.loadFailed));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load subscriptions');
+      setError(
+        err instanceof Error ? err.message : pickByLocale(locale, S.loadFailed),
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void load();
@@ -114,149 +156,146 @@ export function SubscriptionsClient() {
   return (
     <div className="space-y-6">
       {error && (
-        <Alert variant="danger">
-          <AlertDescription>
-            {error}
-            <Button
-              size="sm"
-              variant="link"
-              onClick={() => void load()}
-              className="ml-2"
-            >
-              Retry
+        <Alert
+          variant="error"
+          actions={
+            <Button size="sm" variant="outline" onClick={() => void load()}>
+              {pickByLocale(locale, S.retry)}
             </Button>
-          </AlertDescription>
+          }
+        >
+          {error}
         </Alert>
       )}
 
       {loading && (
         <div className="space-y-3" aria-busy="true" aria-live="polite">
-          <Skeleton className="h-28 w-full" />
-          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-28 w-full rounded-lg border border-border" />
+          <Skeleton className="h-28 w-full rounded-lg border border-border" />
         </div>
       )}
 
       <section className="grid grid-cols-2 gap-4 md:grid-cols-5">
-        <StatTile value={String(stats.total)} label="Total subscriptions" />
+        <StatTile
+          value={String(stats.total)}
+          label={pickByLocale(locale, S.total)}
+        />
         <StatTile
           value={String(stats.active)}
-          label="Active"
-          tone="text-emerald-400"
+          label={pickByLocale(locale, S.active)}
+          tone="text-success"
         />
         <StatTile
           value={String(stats.trialing)}
-          label="Trialing"
-          tone="text-blue-400"
+          label={pickByLocale(locale, S.trialing)}
+          tone="text-info"
         />
         <StatTile
           value={String(stats.pastDue)}
-          label="Past due"
-          tone="text-amber-400"
+          label={pickByLocale(locale, S.pastDue)}
+          tone="text-warning"
         />
         <StatTile
           value={formatCurrency(stats.totalMrr)}
-          label="Total MRR"
+          label={pickByLocale(locale, S.totalMrr)}
         />
       </section>
 
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
-          <input
-            type="text"
-            placeholder="Search tenants…"
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+        <div className="flex-1">
+          <SearchInput
+            placeholder={pickByLocale(locale, S.searchTenants)}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-border bg-surface-sunken py-2 pl-10 pr-4 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500"
           />
         </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-border bg-surface-sunken px-4 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-2 focus:ring-signal-500"
-        >
-          <option value="all">All status</option>
-          <option value="active">Active</option>
-          <option value="trialing">Trialing</option>
-          <option value="past_due">Past due</option>
-          <option value="canceled">Canceled</option>
-        </select>
+        <FormField label={pickByLocale(locale, S.colStatus)} name="statusFilter">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label={pickByLocale(locale, S.colStatus)}
+            className="h-10 w-full rounded-md border border-border bg-surface-sunken px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="all">{pickByLocale(locale, S.allStatus)}</option>
+            <option value="active">{pickByLocale(locale, S.active)}</option>
+            <option value="trialing">{pickByLocale(locale, S.trialing)}</option>
+            <option value="past_due">{pickByLocale(locale, S.pastDue)}</option>
+            <option value="canceled">{pickByLocale(locale, S.canceled)}</option>
+          </select>
+        </FormField>
       </div>
 
-      <div className="platform-card overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border/40 text-left text-xs uppercase tracking-wider text-neutral-500">
-              <th className="px-6 py-3">Tenant</th>
-              <th className="px-6 py-3">Plan</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Billing</th>
-              <th className="px-6 py-3">MRR</th>
-              <th className="px-6 py-3">Period end</th>
-              <th className="px-6 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/40">
-            {filteredSubscriptions.map((sub) => (
-              <tr key={sub.id} className="hover:bg-surface">
-                <td className="whitespace-nowrap px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-signal-500/10">
-                      <Building2 className="h-5 w-5 text-signal-500" />
-                    </div>
-                    <span className="font-medium text-foreground">
-                      {sub.tenantName}
-                    </span>
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-200">
-                  {sub.plan}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4">
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      statusColors[sub.status] ?? statusColors.active
-                    }`}
-                  >
-                    {sub.status.replace('_', ' ')}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-400">
-                  <span className="capitalize">{sub.billingCycle}</span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-foreground">
-                  {formatCurrency(sub.mrr)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-400">
-                  {formatDate(sub.currentPeriodEnd)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-right">
-                  {/*
-                   * Tenant-detail (/tenants/:id) lives in owner-portal,
-                   * not HQ. Link out via NEXT_PUBLIC_OWNER_PORTAL_URL.
-                   */}
-                  <a
-                    href={`${ownerPortalBase}/tenants/${sub.tenantId}`}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="inline-flex items-center gap-1 text-sm text-signal-500 hover:text-signal-400"
-                  >
-                    Manage
-                    <ChevronRight className="h-4 w-4" />
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {!loading && filteredSubscriptions.length === 0 && (
-        <EmptyState
-          icon={<Building2 className="h-8 w-8" />}
-          title="No subscriptions"
-          description="No subscriptions match the current filters."
+      {!loading && filteredSubscriptions.length === 0 ? (
+        <Empty
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
         />
+      ) : (
+        <Card variant="outline" padding="none" className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colTenant)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colPlan)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colStatus)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colBilling)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colMrr)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colPeriodEnd)}</TableHead>
+                <TableHead className="text-right">
+                  {pickByLocale(locale, S.colActions)}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredSubscriptions.map((sub) => (
+                <TableRow key={sub.id}>
+                  <TableCell className="whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-signal-500/10">
+                        <Building2 className="h-5 w-5 text-signal-500" />
+                      </div>
+                      <span className="font-medium text-foreground">
+                        {sub.tenantName}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-foreground">
+                    {sub.plan}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <Badge variant={STATUS_VARIANT[sub.status]} size="sm">
+                      {sub.status.replace('_', ' ')}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm capitalize text-muted-foreground">
+                    {sub.billingCycle}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm font-medium text-foreground">
+                    {formatCurrency(sub.mrr)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                    {formatDate(sub.currentPeriodEnd)}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right">
+                    {/*
+                     * Tenant-detail (/tenants/:id) lives in owner-portal,
+                     * not HQ. Link out via NEXT_PUBLIC_OWNER_PORTAL_URL.
+                     */}
+                    <a
+                      href={`${ownerPortalBase}/tenants/${sub.tenantId}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1 text-sm text-signal-500 hover:text-signal-400"
+                    >
+                      {pickByLocale(locale, S.manage)}
+                      <ChevronRight className="h-4 w-4" />
+                    </a>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       )}
     </div>
   );
@@ -273,10 +312,10 @@ function StatTile({
 }) {
   return (
     <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
-      <p className={`text-2xl font-display ${tone ?? 'text-foreground'}`}>
+      <p className={`font-display text-2xl ${tone ?? 'text-foreground'}`}>
         {value}
       </p>
-      <p className="text-sm text-neutral-400">{label}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
     </Card>
   );
 }

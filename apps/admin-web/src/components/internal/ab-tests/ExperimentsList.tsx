@@ -1,7 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Skeleton,
+  EmptyState,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  FormField,
+  Input,
+} from '@borjie/design-system';
 import {
   useExperimentsQuery,
   useCreateExperiment,
@@ -11,6 +23,31 @@ import { AbTestActions } from './AbTestActions';
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+
+const S = {
+  loading: { en: 'Loading experiments…', sw: 'Inapakia majaribio…' },
+  emptyTitle: { en: 'No experiments yet', sw: 'Hakuna majaribio bado' },
+  emptyBody: {
+    en: 'Create the first experiment above to start an A/B run.',
+    sw: 'Tengeneza jaribio la kwanza hapo juu kuanza mzunguko wa A/B.',
+  },
+  colVariant: { en: 'Variant', sw: 'Toleo' },
+  colJunior: { en: 'Junior', sw: 'Mdogo' },
+  colScore: { en: 'Golden score', sw: 'Alama ya dhahabu' },
+  colCanary: { en: 'Canary tenants', sw: 'Wateja wa majaribio' },
+  colStatus: { en: 'Status', sw: 'Hali' },
+  colActions: { en: 'Actions', sw: 'Vitendo' },
+  promoted: { en: 'Promoted', sw: 'Imepandishwa' },
+  formVariant: { en: 'Variant', sw: 'Toleo' },
+  formJunior: { en: 'Junior', sw: 'Mdogo' },
+  formScore: { en: 'Golden score (0–1)', sw: 'Alama ya dhahabu (0–1)' },
+  newExperiment: { en: 'New experiment', sw: 'Jaribio jipya' },
+  creating: { en: 'Creating…', sw: 'Inatengeneza…' },
+  created: { en: 'Experiment created', sw: 'Jaribio limetengenezwa' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
+} as const;
 
 /**
  * Live HQ A/B experiment harness.
@@ -27,71 +64,74 @@ function tone(status: string): 'success' | 'danger' | 'info' | 'neutral' {
   return 'neutral';
 }
 
-export function ExperimentsList(): JSX.Element {
+export function ExperimentsList({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useExperimentsQuery();
+  const experiments = query.data ?? [];
 
   return (
     <div className="space-y-6">
-      <NewExperimentForm />
+      <NewExperimentForm locale={locale} />
 
       {query.isPending ? (
-        <p className="text-sm text-neutral-500">Loading experiments…</p>
+        <div className="space-y-2 rounded-lg border border-border bg-surface p-4">
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-9 w-full rounded-md" />
+          <Skeleton className="h-9 w-2/3 rounded-md" />
+        </div>
       ) : query.isError ? (
         <p className="text-sm text-danger">{query.error.message}</p>
+      ) : experiments.length === 0 ? (
+        <EmptyState
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-surface-sunken">
-              <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-                <th className="px-4 py-3 font-medium">Variant</th>
-                <th className="px-4 py-3 font-medium">Junior</th>
-                <th className="px-4 py-3 text-right font-medium">Golden score</th>
-                <th className="px-4 py-3 text-right font-medium">Canary tenants</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium" aria-label="Actions" />
-              </tr>
-            </thead>
-            <tbody>
-              {(query.data ?? []).length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-6 text-center text-xs text-neutral-500"
-                  >
-                    No experiments yet. Create one above.
-                  </td>
-                </tr>
-              ) : (
-                (query.data ?? []).map((row: Experiment) => (
-                  <tr
-                    key={row.id}
-                    className="border-b border-border last:border-0"
-                  >
-                    <td className="px-4 py-3 text-foreground">{row.variant}</td>
-                    <td className="px-4 py-3 text-neutral-300">{row.junior}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-neutral-300">
-                      {row.goldenScore != null
-                        ? row.goldenScore.toFixed(3)
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-neutral-300">
-                      {row.canaryTenants.length}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {row.status === 'promoted' ? (
-                        <span className="text-xs text-neutral-500">Promoted</span>
-                      ) : (
-                        <AbTestActions id={row.id} variant={row.variant} />
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colVariant)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colJunior)}</TableHead>
+                <TableHead className="text-right">{pickByLocale(locale, S.colScore)}</TableHead>
+                <TableHead className="text-right">{pickByLocale(locale, S.colCanary)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colStatus)}</TableHead>
+                <TableHead>
+                  <span className="sr-only">{pickByLocale(locale, S.colActions)}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {experiments.map((row: Experiment) => (
+                <TableRow key={row.id}>
+                  <TableCell className="text-foreground">{row.variant}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.junior}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {row.goldenScore != null ? row.goldenScore.toFixed(3) : '—'}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">
+                    {row.canaryTenants.length}
+                  </TableCell>
+                  <TableCell>
+                    <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {row.status === 'promoted' ? (
+                      <span className="text-xs text-muted-foreground">
+                        {pickByLocale(locale, S.promoted)}
+                      </span>
+                    ) : (
+                      <AbTestActions id={row.id} variant={row.variant} />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -100,7 +140,7 @@ export function ExperimentsList(): JSX.Element {
   );
 }
 
-function NewExperimentForm(): JSX.Element {
+function NewExperimentForm({ locale }: { readonly locale: Locale }): JSX.Element {
   const create = useCreateExperiment();
   const [variant, setVariant] = useState('');
   const [junior, setJunior] = useState('');
@@ -122,14 +162,16 @@ function NewExperimentForm(): JSX.Element {
       },
       {
         onSuccess: () => {
-          setToast('Experiment created');
+          setToast(pickByLocale(locale, S.created));
           setVariant('');
           setJunior('');
           setGoldenScore('');
         },
         onError: (err) =>
           setToast(
-            `Failed: ${err instanceof Error ? err.message : 'unknown'}`,
+            `${pickByLocale(locale, S.failed)}: ${
+              err instanceof Error ? err.message : pickByLocale(locale, S.unknown)
+            }`,
           ),
       },
     );
@@ -140,47 +182,35 @@ function NewExperimentForm(): JSX.Element {
       onSubmit={submit}
       className="grid grid-cols-1 gap-4 rounded-lg border border-border bg-surface p-6 md:grid-cols-4"
     >
-      <label className="text-sm md:col-span-2">
-        <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-          Variant
-        </span>
-        <input
-          value={variant}
-          onChange={(e) => setVariant(e.target.value)}
-          placeholder="geology v18-rc vs v17"
-          className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
-        />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-          Junior
-        </span>
-        <input
+      <div className="md:col-span-2">
+        <FormField label={pickByLocale(locale, S.formVariant)} name="variant">
+          <Input
+            value={variant}
+            onChange={(e) => setVariant(e.target.value)}
+            placeholder="geology v18-rc vs v17"
+          />
+        </FormField>
+      </div>
+      <FormField label={pickByLocale(locale, S.formJunior)} name="junior">
+        <Input
           value={junior}
           onChange={(e) => setJunior(e.target.value)}
           placeholder="Geology"
-          className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
         />
-      </label>
-      <label className="text-sm">
-        <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-          Golden score (0–1)
-        </span>
-        <input
+      </FormField>
+      <FormField label={pickByLocale(locale, S.formScore)} name="goldenScore">
+        <Input
           value={goldenScore}
           onChange={(e) => setGoldenScore(e.target.value)}
           inputMode="decimal"
           placeholder="0.871"
-          className="w-full rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
         />
-      </label>
+      </FormField>
       <div className="flex justify-end md:col-span-4">
-        <Button
-          type="submit"
-          disabled={!canSubmit}
-          loading={create.isPending}
-        >
-          {create.isPending ? 'Creating…' : 'New experiment'}
+        <Button type="submit" disabled={!canSubmit} loading={create.isPending}>
+          {create.isPending
+            ? pickByLocale(locale, S.creating)
+            : pickByLocale(locale, S.newExperiment)}
         </Button>
       </div>
       <Toast

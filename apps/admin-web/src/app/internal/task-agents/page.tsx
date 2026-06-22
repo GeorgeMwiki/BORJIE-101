@@ -2,6 +2,7 @@ import { ScreenShell } from '@/components/internal/ScreenShell';
 import { StubBadge } from '@/components/internal/StubBadge';
 import { findScreen } from '@/lib/internal/screens';
 import { TaskAgentsRegistry } from '@/components/internal/wave9/TaskAgentsRegistry';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 const SCREEN = findScreen('task-agents')!;
 
@@ -13,13 +14,14 @@ const SCREEN = findScreen('task-agents')!;
  * gateway validates each manual run against the agent's own schema and runs
  * the executor; this surface lists the registry and triggers runs.
  */
-export default function TaskAgentsPage(): JSX.Element {
+export default async function TaskAgentsPage(): Promise<JSX.Element> {
+  const locale = await readLocaleFromServerCookies();
   return (
     <ScreenShell
       screen={SCREEN}
       actions={<StubBadge tone="info">guardrailed · audited</StubBadge>}
     >
-      <TaskAgentsRegistry />
+      <TaskAgentsRegistry initialLocale={locale} />
     </ScreenShell>
   );
 }

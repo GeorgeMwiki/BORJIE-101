@@ -14,12 +14,25 @@
  * for the TARGET tenant before the gateway will execute. The execution is
  * hash-chain audited and surfaced on the tenant's owner-web Trust Center. The
  * operator files the request here; the gateway enforces the gate.
+ *
+ * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
+ * PER LOCALE (canon): every user-facing string resolves to the active
+ * locale via `pickByLocale`. Purely client surface — the hook falls back to
+ * the project default and the post-mount effect corrects it.
  */
 
 import { useCallback, useState } from 'react';
 import { Lock, Shield, Download, AlertTriangle } from 'lucide-react';
-import { Button, Card } from '@borjie/design-system';
+import {
+  Button,
+  Card,
+  Alert,
+  FormField,
+  Input,
+  Textarea,
+} from '@borjie/design-system';
 import { api } from '@/lib/api';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface DeleteRequestRecord {
   readonly id: string;
@@ -30,7 +43,63 @@ interface DeleteRequestRecord {
   readonly notes?: string;
 }
 
+const S = {
+  intro: {
+    en: 'Lodge GDPR right-to-be-forgotten requests and execute approved deletions.',
+    sw: 'Wasilisha maombi ya haki-ya-kusahaulika ya GDPR na tekeleza ufutaji ulioidhinishwa.',
+  },
+  recordFailed: { en: 'Failed to record request', sw: 'Imeshindwa kurekodi ombi' },
+  lookupFailed: { en: 'Lookup failed', sw: 'Utafutaji umeshindwa' },
+  tenantRequiredBg: {
+    en: 'A target tenant id is required to request break-glass.',
+    sw: 'Kitambulisho cha mteja lengwa kinahitajika kuomba ufikiaji wa dharura.',
+  },
+  tenantRequiredExec: {
+    en: 'A target tenant id is required to execute (break-glass scope).',
+    sw: 'Kitambulisho cha mteja lengwa kinahitajika kutekeleza (wigo wa ufikiaji wa dharura).',
+  },
+  recorded: {
+    en: 'Request recorded with status',
+    sw: 'Ombi limerekodiwa likiwa na hali',
+  },
+  bgFiled: {
+    en: 'Break-glass request filed. The tenant must consent on their Trust Center before execution will run. Retry execution once consented.',
+    sw: 'Ombi la ufikiaji wa dharura limewasilishwa. Mteja lazima aidhinishe kwenye Kituo cha Uaminifu kabla utekelezaji haujaanza. Jaribu tena baada ya idhini.',
+  },
+  bgFailed: {
+    en: 'Failed to file break-glass request',
+    sw: 'Imeshindwa kuwasilisha ombi la ufikiaji wa dharura',
+  },
+  executed: {
+    en: 'Deletion executed under break-glass (audited + tenant-visible).',
+    sw: 'Ufutaji umetekelezwa chini ya ufikiaji wa dharura (umekaguliwa + unaonekana kwa mteja).',
+  },
+  execFailed: {
+    en: 'Failed to execute deletion — an active tenant-consented break-glass grant is required.',
+    sw: 'Imeshindwa kutekeleza ufutaji — ruhusa hai ya ufikiaji wa dharura iliyoidhinishwa na mteja inahitajika.',
+  },
+  newRequest: { en: 'New deletion request', sw: 'Ombi jipya la ufutaji' },
+  customerId: { en: 'Customer ID', sw: 'Kitambulisho cha mteja' },
+  targetTenant: { en: 'Target tenant id', sw: 'Kitambulisho cha mteja lengwa' },
+  notes: { en: 'Notes', sw: 'Maelezo' },
+  submitRequest: { en: 'Submit deletion request', sw: 'Wasilisha ombi la ufutaji' },
+  lookup: { en: 'Look up request', sw: 'Tafuta ombi' },
+  requestId: { en: 'Request ID', sw: 'Kitambulisho cha ombi' },
+  fetchStatus: { en: 'Fetch status', sw: 'Pata hali' },
+  request: { en: 'Request', sw: 'Ombi' },
+  customer: { en: 'Customer', sw: 'Mteja' },
+  status: { en: 'Status', sw: 'Hali' },
+  created: { en: 'Created', sw: 'Imeundwa' },
+  executedLabel: { en: 'Executed', sw: 'Imetekelezwa' },
+  requestBg: { en: 'Request break-glass', sw: 'Omba ufikiaji wa dharura' },
+  executeDeletion: {
+    en: 'Execute deletion (break-glass)',
+    sw: 'Tekeleza ufutaji (ufikiaji wa dharura)',
+  },
+} as const;
+
 export function DataPrivacyClient() {
+  const locale = useLocale();
   const [customerId, setCustomerId] = useState('');
   const [notes, setNotes] = useState('');
   const [targetTenantId, setTargetTenantId] = useState('');
@@ -53,12 +122,12 @@ export function DataPrivacyClient() {
     if (res.success && res.data) {
       setRecord(res.data);
       setMessage(
-        `Request ${res.data.id} recorded with status ${res.data.status}.`,
+        `${pickByLocale(locale, S.request)} ${res.data.id} — ${pickByLocale(locale, S.recorded)} ${res.data.status}.`,
       );
     } else {
-      setError(res.error ?? 'Failed to record request');
+      setError(res.error ?? pickByLocale(locale, S.recordFailed));
     }
-  }, [customerId, notes]);
+  }, [customerId, notes, locale]);
 
   const lookup = useCallback(async () => {
     if (!lookupId) return;
@@ -71,13 +140,13 @@ export function DataPrivacyClient() {
     if (res.success && res.data) {
       setRecord(res.data);
     } else {
-      setError(res.error ?? 'Lookup failed');
+      setError(res.error ?? pickByLocale(locale, S.lookupFailed));
     }
-  }, [lookupId]);
+  }, [lookupId, locale]);
 
   const requestBreakGlass = useCallback(async () => {
     if (!targetTenantId) {
-      setError('A target tenant id is required to request break-glass.');
+      setError(pickByLocale(locale, S.tenantRequiredBg));
       return;
     }
     setRequestingGrant(true);
@@ -91,18 +160,16 @@ export function DataPrivacyClient() {
     });
     setRequestingGrant(false);
     if (res.success) {
-      setMessage(
-        'Break-glass request filed. The tenant must consent on their Trust Center before execution will run. Retry execution once consented.',
-      );
+      setMessage(pickByLocale(locale, S.bgFiled));
     } else {
-      setError(res.error ?? 'Failed to file break-glass request');
+      setError(res.error ?? pickByLocale(locale, S.bgFailed));
     }
-  }, [targetTenantId, record]);
+  }, [targetTenantId, record, locale]);
 
   const execute = useCallback(async () => {
     if (!record) return;
     if (!targetTenantId) {
-      setError('A target tenant id is required to execute (break-glass scope).');
+      setError(pickByLocale(locale, S.tenantRequiredExec));
       return;
     }
     setLoading(true);
@@ -114,135 +181,150 @@ export function DataPrivacyClient() {
     setLoading(false);
     if (res.success && res.data) {
       setRecord(res.data);
-      setMessage('Deletion executed under break-glass (audited + tenant-visible).');
+      setMessage(pickByLocale(locale, S.executed));
     } else {
-      setError(
-        res.error ??
-          'Failed to execute deletion — an active tenant-consented break-glass grant is required.',
-      );
+      setError(res.error ?? pickByLocale(locale, S.execFailed));
     }
-  }, [record, targetTenantId]);
+  }, [record, targetTenantId, locale]);
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="max-w-3xl space-y-6">
       <header className="flex items-center gap-3">
-        <Lock className="h-6 w-6 text-rose-500" />
-        <p className="text-sm text-neutral-400">
-          Lodge GDPR right-to-be-forgotten requests and execute approved
-          deletions.
+        <Lock className="h-6 w-6 text-danger" />
+        <p className="text-sm text-muted-foreground">
+          {pickByLocale(locale, S.intro)}
         </p>
       </header>
 
-      {message && (
-        <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
-          {message}
-        </div>
-      )}
+      {message && <Alert variant="success">{message}</Alert>}
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
-          <AlertTriangle className="h-4 w-4 mt-0.5" /> {error}
-        </div>
+        <Alert variant="error">
+          <span className="inline-flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4" /> {error}
+          </span>
+        </Alert>
       )}
 
-      <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong space-y-3">
+      <Card className="space-y-3 rounded-2xl p-6 transition-colors hover:border-border-strong">
         <div className="flex items-center gap-2">
-          <Shield className="h-4 w-4 text-rose-500" />
-          <h3 className="font-display text-foreground">New deletion request</h3>
+          <Shield className="h-4 w-4 text-danger" />
+          <h3 className="font-display text-foreground">
+            {pickByLocale(locale, S.newRequest)}
+          </h3>
         </div>
-        <label className="block text-sm">
-          <span className="text-neutral-300">Customer ID</span>
-          <input
+        <FormField label={pickByLocale(locale, S.customerId)} name="customerId">
+          <Input
             type="text"
             value={customerId}
             onChange={(e) => setCustomerId(e.target.value)}
             placeholder="cust_…"
-            className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
             data-testid="gdpr-customer-id"
           />
-        </label>
-        <label className="block text-sm">
-          <span className="text-neutral-300">Target tenant id</span>
-          <input
+        </FormField>
+        <FormField
+          label={pickByLocale(locale, S.targetTenant)}
+          name="targetTenant"
+        >
+          <Input
             type="text"
             value={targetTenantId}
             onChange={(e) => setTargetTenantId(e.target.value)}
             placeholder="tenant_… (required for break-glass execution)"
-            className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
             data-testid="gdpr-target-tenant"
           />
-        </label>
-        <label className="block text-sm">
-          <span className="text-neutral-300">Notes</span>
-          <textarea
+        </FormField>
+        <FormField label={pickByLocale(locale, S.notes)} name="notes">
+          <Textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
           />
-        </label>
+        </FormField>
         <Button
           type="button"
           variant="destructive"
           onClick={() => void submit()}
-          disabled={!customerId || loading}
+          disabled={!customerId}
           loading={loading}
         >
-          Submit deletion request
+          {pickByLocale(locale, S.submitRequest)}
         </Button>
       </Card>
 
-      <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong space-y-3">
+      <Card className="space-y-3 rounded-2xl p-6 transition-colors hover:border-border-strong">
         <div className="flex items-center gap-2">
-          <Download className="h-4 w-4 text-indigo-400" />
-          <h3 className="font-display text-foreground">Look up request</h3>
+          <Download className="h-4 w-4 text-info" />
+          <h3 className="font-display text-foreground">
+            {pickByLocale(locale, S.lookup)}
+          </h3>
         </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={lookupId}
-            onChange={(e) => setLookupId(e.target.value)}
-            placeholder="Request ID"
-            className="flex-1 rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
-          />
+        <div className="flex items-end gap-2">
+          <FormField
+            label={pickByLocale(locale, S.requestId)}
+            name="lookupId"
+            className="flex-1"
+          >
+            <Input
+              type="text"
+              value={lookupId}
+              onChange={(e) => setLookupId(e.target.value)}
+              placeholder={pickByLocale(locale, S.requestId)}
+            />
+          </FormField>
           <Button
             type="button"
             variant="outline"
             onClick={() => void lookup()}
-            disabled={!lookupId || loading}
+            disabled={!lookupId}
+            loading={loading}
           >
-            Fetch status
+            {pickByLocale(locale, S.fetchStatus)}
           </Button>
         </div>
       </Card>
 
       {record && (
-        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong space-y-2 text-sm text-neutral-200">
-          <p className="font-display text-foreground">Request {record.id}</p>
-          <p>Customer: {record.customerId}</p>
-          <p>Status: {record.status}</p>
-          <p>Created: {record.createdAt}</p>
-          {record.executedAt && <p>Executed: {record.executedAt}</p>}
-          {record.notes && <p>Notes: {record.notes}</p>}
+        <Card className="space-y-2 rounded-2xl p-6 text-sm text-foreground transition-colors hover:border-border-strong">
+          <p className="font-display text-foreground">
+            {pickByLocale(locale, S.request)} {record.id}
+          </p>
+          <p>
+            {pickByLocale(locale, S.customer)}: {record.customerId}
+          </p>
+          <p>
+            {pickByLocale(locale, S.status)}: {record.status}
+          </p>
+          <p>
+            {pickByLocale(locale, S.created)}: {record.createdAt}
+          </p>
+          {record.executedAt && (
+            <p>
+              {pickByLocale(locale, S.executedLabel)}: {record.executedAt}
+            </p>
+          )}
+          {record.notes && (
+            <p>
+              {pickByLocale(locale, S.notes)}: {record.notes}
+            </p>
+          )}
           {record.status !== 'executed' && (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="warning"
                 onClick={() => void requestBreakGlass()}
-                disabled={!targetTenantId || requestingGrant}
+                disabled={!targetTenantId}
                 loading={requestingGrant}
-                className="border-amber-700 text-amber-300"
               >
-                {requestingGrant ? 'Filing…' : 'Request break-glass'}
+                {pickByLocale(locale, S.requestBg)}
               </Button>
               <Button
                 type="button"
                 variant="destructive"
                 onClick={() => void execute()}
                 disabled={!targetTenantId}
-                className="bg-rose-700 text-white hover:bg-rose-700/90"
               >
-                Execute deletion (break-glass)
+                {pickByLocale(locale, S.executeDeletion)}
               </Button>
             </div>
           )}

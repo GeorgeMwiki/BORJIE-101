@@ -1,4 +1,15 @@
+/**
+ * StubBadge — THIN WRAPPER over the design-system `Badge`.
+ *
+ * The public API (`tone` + `children`) is preserved VERBATIM so all 40+
+ * existing call sites keep compiling unchanged. The divergent body (a
+ * hand-rolled pill with per-tone Tailwind maps) is gone — tone now maps
+ * onto DS `Badge` soft variants, which carry the canonical token colours
+ * (`bg-*-subtle text-*`). The pill shape, uppercase tracking, and font
+ * weight are layered via `className` so the rendered look stays familiar.
+ */
 import type { ReactNode } from 'react';
+import { Badge, type BadgeProps } from '@borjie/design-system';
 
 type Tone = 'neutral' | 'success' | 'warn' | 'danger' | 'info';
 
@@ -7,20 +18,22 @@ interface StubBadgeProps {
   readonly children: ReactNode;
 }
 
-const TONE_CLASSES: Record<Tone, string> = {
-  neutral: 'bg-surface-sunken text-neutral-300 border-border',
-  success: 'bg-success/10 text-success border-success/30',
-  warn: 'bg-warning/10 text-warning border-warning/40',
-  danger: 'bg-danger/10 text-danger border-danger/40',
-  info: 'bg-signal-500/10 text-signal-500 border-signal-500/30',
+const TONE_VARIANT: Record<Tone, BadgeProps['variant']> = {
+  neutral: 'secondary',
+  success: 'success-soft',
+  warn: 'warning-soft',
+  danger: 'error-soft',
+  info: 'info-soft',
 };
 
 export function StubBadge({ tone = 'neutral', children }: StubBadgeProps): JSX.Element {
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-caption-lg font-medium uppercase tracking-wider ${TONE_CLASSES[tone]}`}
+    <Badge
+      variant={TONE_VARIANT[tone]}
+      size="sm"
+      className="uppercase tracking-wider font-medium"
     >
       {children}
-    </span>
+    </Badge>
   );
 }

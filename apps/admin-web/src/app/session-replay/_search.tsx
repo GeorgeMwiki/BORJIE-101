@@ -8,11 +8,15 @@
  * the rendered table calm).
  *
  * Pure presentational; all filtering happens upstream in the host page.
+ * Rendered on the DS `Input` + semantic tokens. SINGLE LANGUAGE PER LOCALE
+ * (canon): copy resolves to the active locale via `pickByLocale`.
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Input, Button } from '@borjie/design-system';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface SessionReplaySearchProps {
   readonly value: string;
@@ -23,12 +27,23 @@ interface SessionReplaySearchProps {
 
 const DEFAULT_DEBOUNCE_MS = 250;
 
+const S = {
+  label: { en: 'Search sessions', sw: 'Tafuta vipindi' },
+  placeholder: {
+    en: 'Search by session id, user, surface, or tenant…',
+    sw: 'Tafuta kwa kitambulisho cha kipindi, mtumiaji, uso, au mteja…',
+  },
+  clear: { en: 'Clear', sw: 'Futa' },
+  clearAria: { en: 'Clear search', sw: 'Futa utafutaji' },
+} as const;
+
 export function SessionReplaySearch({
   value,
   onChange,
   debounceMs = DEFAULT_DEBOUNCE_MS,
-  placeholder = 'Search by session id, user, surface, or tenant…',
+  placeholder,
 }: SessionReplaySearchProps): JSX.Element {
+  const locale = useLocale();
   const [local, setLocal] = useState(value);
 
   // Sync external resets (e.g. "Clear filters" button) back into the
@@ -45,32 +60,34 @@ export function SessionReplaySearch({
   }, [local, value, debounceMs, onChange]);
 
   return (
-    <div className="flex items-center gap-2 w-full max-w-md">
+    <div className="flex w-full max-w-md items-center gap-2">
       <label htmlFor="session-replay-search" className="sr-only">
-        Search sessions
+        {pickByLocale(locale, S.label)}
       </label>
-      <input
+      <Input
         id="session-replay-search"
         type="search"
         value={local}
         onChange={(e) => setLocal(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder ?? pickByLocale(locale, S.placeholder)}
         autoComplete="off"
         spellCheck={false}
-        className="w-full rounded-md border border-border bg-neutral-900 px-3 py-2 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
+        className="w-full"
       />
       {local.length > 0 ? (
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="sm"
           onClick={() => {
             setLocal('');
             onChange('');
           }}
-          className="text-xs text-neutral-400 hover:text-neutral-200"
-          aria-label="Clear search"
+          className="h-auto p-0 text-xs"
+          aria-label={pickByLocale(locale, S.clearAria)}
         >
-          Clear
-        </button>
+          {pickByLocale(locale, S.clear)}
+        </Button>
       ) : null}
     </div>
   );

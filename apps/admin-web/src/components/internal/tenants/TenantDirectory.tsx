@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ColumnDef } from '@tanstack/react-table';
 import { Building2 } from 'lucide-react';
-import { EmptyState } from '@borjie/design-system';
+import { EmptyState, Input, Skeleton, Alert } from '@borjie/design-system';
 import { DataTable } from '../DataTable';
 import { FilterChips } from '../FilterChips';
 import { Pagination } from '../Pagination';
@@ -105,7 +105,7 @@ export function TenantDirectory({
         accessorKey: 'lastActiveAt',
         header: pickByLocale(locale, { en: 'Last active', sw: 'Alipokuwa hai mwisho' }),
         cell: (ctx) => (
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-muted-foreground">
             {formatRelative(ctx.row.original.lastActiveAt, locale)}
           </span>
         ),
@@ -137,22 +137,23 @@ export function TenantDirectory({
 
   if (query.isPending) {
     return (
-      <p className="text-sm text-neutral-500">
-        {pickByLocale(locale, {
+      <Skeleton
+        className="h-64 w-full rounded-lg"
+        aria-label={pickByLocale(locale, {
           en: 'Loading tenants…',
           sw: 'Inapakia wateja…',
         })}
-      </p>
+      />
     );
   }
   if (query.isError) {
     return (
-      <p className="text-sm text-danger">
+      <Alert variant="error">
         {pickByLocale(locale, {
           en: `Failed to load tenants: ${query.error.message}`,
           sw: `Imeshindwa kupakia wateja: ${query.error.message}`,
         })}
-      </p>
+      </Alert>
     );
   }
 
@@ -193,8 +194,10 @@ export function TenantDirectory({
       </div>
 
       <div className="flex items-center gap-3">
-        <input
+        <Input
           type="search"
+          inputSize="sm"
+          className="flex-1"
           value={search}
           onChange={(e) => {
             setSearch(e.target.value);
@@ -208,9 +211,8 @@ export function TenantDirectory({
             en: 'Search tenants',
             sw: 'Tafuta wateja',
           })}
-          className="flex-1 rounded-md border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground placeholder:text-neutral-500"
         />
-        <span className="text-xs text-neutral-500 tabular-nums">
+        <span className="text-xs text-muted-foreground tabular-nums">
           {pickByLocale(locale, {
             en: `${filtered.length} match`,
             sw: `${filtered.length} zinazolingana`,

@@ -28,7 +28,7 @@ import { AdaptiveRenderer } from '@/lib/genui';
 import type { AgUiUiPart } from '@/lib/genui';
 import type { GenUiUnknownKindEventDetail } from '@borjie/genui';
 import { FeedbackThumbs, type FeedbackVerdict } from '@/components/FeedbackThumbs';
-import { Button } from '@borjie/design-system';
+import { Button, Input, Empty } from '@borjie/design-system';
 
 // Build-time guard: production deployments MUST set
 // NEXT_PUBLIC_API_GATEWAY_URL. The localhost fallback exists only so a
@@ -279,11 +279,10 @@ export function JarvisConsole(): JSX.Element {
 
       <div className="flex min-h-console-pane flex-col gap-3 rounded border border-border bg-surface p-4 overflow-y-auto">
         {turns.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Ask Mr. Mwikila anything about the platform — royalty collection trends,
-            available-capacity drift, outstanding-royalty patterns. Every claim is
-            grounded in DP-aggregate evidence.
-          </p>
+          <Empty
+            title="Ask Mr. Mwikila"
+            description="Ask anything about the platform — royalty collection trends, available-capacity drift, outstanding-royalty patterns. Every claim is grounded in DP-aggregate evidence."
+          />
         ) : (
           turns.map((t) => {
             // Both turn shapes overlap on `id`, `role`, `text`. The
@@ -397,13 +396,13 @@ export function JarvisConsole(): JSX.Element {
       ) : null}
 
       <form onSubmit={onSubmit} className="flex gap-2">
-        <input
+        <Input
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={isListening ? 'Listening…' : 'Ask Mr. Mwikila…'}
           disabled={isThinking}
-          className="flex-1 rounded border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground"
+          className="flex-1"
         />
         <input
           ref={fileInputRef}

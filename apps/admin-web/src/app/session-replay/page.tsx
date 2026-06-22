@@ -18,6 +18,7 @@ import { PageShell } from '@/components/migrated/PageShell';
 import { SessionReplayList } from './_filters';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 interface RecentSession {
   readonly sessionId: string;
@@ -84,18 +85,21 @@ async function fetchRecentSessions(): Promise<{
 }
 
 export default async function SessionReplayLandingPage() {
-  const { sessions, error } = await fetchRecentSessions();
+  const [{ sessions, error }, locale] = await Promise.all([
+    fetchRecentSessions(),
+    readLocaleFromServerCookies(),
+  ]);
   return (
     <PageShell
       title="Session replay"
       subtitle="Cold-store playback of operator sessions. rrweb events are PII-masked at capture; the brain never sees the bytes."
     >
       {error ? (
-        <div className="rounded-md border border-warning bg-warning/10 p-4 text-sm text-warning mb-4">
+        <div className="mb-4 rounded-md border border-warning bg-warning-subtle p-4 text-sm text-warning">
           {error}
         </div>
       ) : null}
-      <SessionReplayList sessions={sessions} />
+      <SessionReplayList sessions={sessions} initialLocale={locale} />
     </PageShell>
   );
 }

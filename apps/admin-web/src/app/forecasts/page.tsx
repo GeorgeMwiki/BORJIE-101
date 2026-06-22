@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { Card } from '@borjie/design-system';
+import { Empty } from '@borjie/design-system';
 import { DegradedCard } from '@/components/DegradedCard';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 
@@ -63,7 +63,7 @@ export default async function ForecastsPage() {
         <h1 className="text-3xl font-display text-foreground mb-1">
           Platform forecasts
         </h1>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted-foreground">
           Sector forecasts with conformal intervals. Quarterly horizon, calibrated.
         </p>
       </header>
@@ -71,11 +71,10 @@ export default async function ForecastsPage() {
       {result.status === 'degraded' ? (
         <DegradedCard title="Forecast service" reason={result.reason} />
       ) : result.forecasts.length === 0 ? (
-        <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
-          <div className="text-sm text-neutral-400">
-            No forecasts ready. TGN service healthy, queue empty.
-          </div>
-        </Card>
+        <Empty
+          title="No forecasts ready"
+          description="TGN service is healthy and the queue is empty — new forecasts will appear here."
+        />
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {result.forecasts.map((fc) => (
@@ -86,12 +85,12 @@ export default async function ForecastsPage() {
               <div className="platform-card-value">
                 {fc.pointEstimate.toFixed(2)}
                 {fc.unit ? (
-                  <span className="text-base text-neutral-500 ml-1">
+                  <span className="ml-1 text-base text-muted-foreground">
                     {fc.unit}
                   </span>
                 ) : null}
               </div>
-              <div className="text-xs text-neutral-500 mt-2">
+              <div className="mt-2 text-xs text-muted-foreground">
                 90% CI: [{fc.intervalLow.toFixed(2)}, {fc.intervalHigh.toFixed(2)}]
               </div>
             </li>

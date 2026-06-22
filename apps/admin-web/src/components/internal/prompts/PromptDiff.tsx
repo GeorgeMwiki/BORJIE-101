@@ -33,9 +33,9 @@ function diffLines(a: string, b: string): { readonly left: ReadonlyArray<DiffLin
 }
 
 const MARKER_STYLE: Record<Marker, string> = {
-  eq: 'text-neutral-400',
-  add: 'bg-success/10 text-success border-l-2 border-success/60 pl-2',
-  del: 'bg-danger/10 text-danger border-l-2 border-danger/60 pl-2',
+  eq: 'text-muted-foreground',
+  add: 'bg-success-subtle text-success border-l-2 border-success/60 pl-2',
+  del: 'bg-danger-subtle text-danger border-l-2 border-danger/60 pl-2',
 };
 
 export function PromptDiff({ left, right }: PromptDiffProps): JSX.Element {
@@ -44,7 +44,7 @@ export function PromptDiff({ left, right }: PromptDiffProps): JSX.Element {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border rounded-lg overflow-hidden">
       <div className="bg-surface">
-        <header className="px-4 py-2 border-b border-border text-xs text-neutral-400">{left.label}</header>
+        <header className="px-4 py-2 border-b border-border text-xs text-muted-foreground">{left.label}</header>
         <pre className="p-4 text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">
           {diff.left.map((line, i) => (
             <div key={`l-${i}`} className={MARKER_STYLE[line.marker]}>
@@ -54,7 +54,7 @@ export function PromptDiff({ left, right }: PromptDiffProps): JSX.Element {
         </pre>
       </div>
       <div className="bg-surface">
-        <header className="px-4 py-2 border-b border-border text-xs text-neutral-400">{right.label}</header>
+        <header className="px-4 py-2 border-b border-border text-xs text-muted-foreground">{right.label}</header>
         <pre className="p-4 text-xs font-mono leading-relaxed whitespace-pre-wrap break-words">
           {diff.right.map((line, i) => (
             <div key={`r-${i}`} className={MARKER_STYLE[line.marker]}>

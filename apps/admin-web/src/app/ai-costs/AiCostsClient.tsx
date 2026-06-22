@@ -8,13 +8,37 @@
  *   GET /api/v1/ai-costs/budget   — monthly cap (null if unset)
  *   PUT /api/v1/ai-costs/budget   — admin sets cap
  *
- * Cost figures come back as USD-micro (1e-6 USD); we render them as USD.
+ * Cost figures come back as USD-micro (1e-6 USD); the underlying provider
+ * billing is denominated in USD, so the "$" here is the DATA unit (not a
+ * jurisdictional currency literal) and stays verbatim across locales.
+ *
+ * Rendered on design-system primitives + semantic tokens so the screen
+ * lives correctly inside the dark admin shell. SINGLE LANGUAGE PER LOCALE
+ * (canon): every user-facing string resolves to the active locale via
+ * `pickByLocale`. This is a purely client surface (no server-seeded
+ * locale prop), so the hook falls back to the project default and the
+ * post-mount effect corrects it.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { Coins, DollarSign, AlertTriangle } from 'lucide-react';
-import { Button, Card } from '@borjie/design-system';
+import {
+  Button,
+  Card,
+  Skeleton,
+  Alert,
+  FormField,
+  Input,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Empty,
+} from '@borjie/design-system';
 import { api } from '@/lib/api';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 interface ModelBreakdownRow {
   readonly model: string;
@@ -52,11 +76,52 @@ interface Entry {
   readonly purpose?: string;
 }
 
+const S = {
+  intro: {
+    en: 'Per-model LLM spend across the platform.',
+    sw: 'Matumizi ya LLM kwa kila modeli katika jukwaa zima.',
+  },
+  retry: { en: 'Retry', sw: 'Jaribu tena' },
+  loadFailed: { en: 'Failed to load summary', sw: 'Imeshindwa kupakia muhtasari' },
+  saveFailed: { en: 'Failed to save budget', sw: 'Imeshindwa kuhifadhi bajeti' },
+  capInvalid: {
+    en: 'Cap must be a non-negative number',
+    sw: 'Kikomo lazima kiwe namba isiyo hasi',
+  },
+  overBudget: { en: 'Monthly budget exceeded.', sw: 'Bajeti ya mwezi imezidiwa.' },
+  thisMonth: { en: 'This month', sw: 'Mwezi huu' },
+  calls: { en: 'Calls', sw: 'Miito' },
+  cap: { en: 'Cap', sw: 'Kikomo' },
+  perModel: { en: 'Per model', sw: 'Kwa kila modeli' },
+  colModel: { en: 'Model', sw: 'Modeli' },
+  colPrompt: { en: 'Prompt tokens', sw: 'Tokeni za ombi' },
+  colCompletion: { en: 'Completion tokens', sw: 'Tokeni za jibu' },
+  colCost: { en: 'Cost', sw: 'Gharama' },
+  noUsage: {
+    en: 'No usage recorded this period.',
+    sw: 'Hakuna matumizi yaliyorekodiwa kipindi hiki.',
+  },
+  monthlyCap: { en: 'Monthly cap', sw: 'Kikomo cha mwezi' },
+  capUsd: { en: 'Cap (USD)', sw: 'Kikomo (USD)' },
+  hardStop: {
+    en: 'Hard stop when cap reached',
+    sw: 'Simamisha kabisa kikomo kikifikiwa',
+  },
+  save: { en: 'Save', sw: 'Hifadhi' },
+  recent: { en: 'Recent calls', sw: 'Miito ya hivi karibuni' },
+  noRecentTitle: { en: 'No recent calls', sw: 'Hakuna miito ya hivi karibuni' },
+  noRecentBody: {
+    en: 'LLM calls will appear here as they are billed.',
+    sw: 'Miito ya LLM itaonekana hapa inapotozwa.',
+  },
+} as const;
+
 function dollars(micro: number): string {
   return `$${(micro / 1_000_000).toFixed(2)}`;
 }
 
 export function AiCostsClient() {
+  const locale = useLocale();
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [entries, setEntries] = useState<readonly Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,11 +142,11 @@ export function AiCostsClient() {
         setHardStop(s.data.budget.hardStop);
       }
     } else {
-      setError(s.error ?? 'Failed to load summary');
+      setError(s.error ?? pickByLocale(locale, S.loadFailed));
     }
     if (e.success && e.data) setEntries(e.data);
     setLoading(false);
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void load();
@@ -90,7 +155,7 @@ export function AiCostsClient() {
   async function saveBudget(): Promise<void> {
     const capUsd = Number(draftCap);
     if (!Number.isFinite(capUsd) || capUsd < 0) {
-      setError('Cap must be a non-negative number');
+      setError(pickByLocale(locale, S.capInvalid));
       return;
     }
     const res = await api.put('/ai-costs/budget', {
@@ -100,7 +165,7 @@ export function AiCostsClient() {
     if (res.success) {
       void load();
     } else {
-      setError(res.error ?? 'Failed to save budget');
+      setError(res.error ?? pickByLocale(locale, S.saveFailed));
     }
   }
 
@@ -109,18 +174,15 @@ export function AiCostsClient() {
       <div
         role="status"
         aria-live="polite"
-        aria-label="Loading AI spend metrics"
+        aria-label={pickByLocale(locale, S.intro)}
         className="space-y-6"
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-lg border border-border bg-surface-raised"
-            />
+            <Skeleton key={i} className="h-24 rounded-lg border border-border" />
           ))}
         </div>
-        <div className="h-40 animate-pulse rounded-lg border border-border bg-surface-raised" />
+        <Skeleton className="h-40 rounded-lg border border-border" />
       </div>
     );
   }
@@ -128,49 +190,52 @@ export function AiCostsClient() {
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3">
-        <Coins className="h-6 w-6 text-amber-500" />
+        <Coins className="h-6 w-6 text-warning" />
         <p className="text-sm text-muted-foreground">
-          Per-model LLM spend across the platform.
+          {pickByLocale(locale, S.intro)}
         </p>
       </header>
 
       {error && (
-        <div
-          role="alert"
-          className="flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+        <Alert
+          variant="error"
+          actions={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void load()}
+            >
+              {pickByLocale(locale, S.retry)}
+            </Button>
+          }
         >
-          <span>{error}</span>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void load()}
-            className="self-start border-destructive/40 bg-surface text-destructive hover:bg-destructive/10"
-          >
-            Retry
-          </Button>
-        </div>
+          {error}
+        </Alert>
       )}
 
       {summary && (
         <>
           {summary.overBudget && (
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4" /> Monthly budget exceeded.
-            </div>
+            <Alert variant="warning">
+              <span className="inline-flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {pickByLocale(locale, S.overBudget)}
+              </span>
+            </Alert>
           )}
 
           <section className="grid gap-4 md:grid-cols-3">
             <StatCard
-              label="This month"
+              label={pickByLocale(locale, S.thisMonth)}
               value={dollars(summary.summary.totalCostUsdMicro)}
             />
             <StatCard
-              label="Calls"
+              label={pickByLocale(locale, S.calls)}
               value={summary.summary.totalCalls.toLocaleString()}
             />
             <StatCard
-              label="Cap"
+              label={pickByLocale(locale, S.cap)}
               value={
                 summary.budget ? dollars(summary.budget.monthlyCapUsdMicro) : '—'
               }
@@ -178,98 +243,114 @@ export function AiCostsClient() {
           </section>
 
           <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
-            <h3 className="font-display text-foreground mb-3">Per model</h3>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-neutral-500">
-                  <th className="py-2">Model</th>
-                  <th>Calls</th>
-                  <th>Prompt tokens</th>
-                  <th>Completion tokens</th>
-                  <th className="text-right">Cost</th>
-                </tr>
-              </thead>
-              <tbody>
+            <h3 className="mb-3 font-display text-foreground">
+              {pickByLocale(locale, S.perModel)}
+            </h3>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{pickByLocale(locale, S.colModel)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.calls)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colPrompt)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colCompletion)}</TableHead>
+                  <TableHead className="text-right">
+                    {pickByLocale(locale, S.colCost)}
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {summary.summary.perModel.map((row) => (
-                  <tr
-                    key={row.model}
-                    className="border-t border-border/40 text-neutral-200"
-                  >
-                    <td className="py-2 font-medium">{row.model}</td>
-                    <td>{row.calls}</td>
-                    <td>{row.promptTokens.toLocaleString()}</td>
-                    <td>{row.completionTokens.toLocaleString()}</td>
-                    <td className="text-right">{dollars(row.costUsdMicro)}</td>
-                  </tr>
+                  <TableRow key={row.model}>
+                    <TableCell className="font-medium text-foreground">
+                      {row.model}
+                    </TableCell>
+                    <TableCell>{row.calls}</TableCell>
+                    <TableCell>{row.promptTokens.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {row.completionTokens.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {dollars(row.costUsdMicro)}
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {summary.summary.perModel.length === 0 && (
-                  <tr>
-                    <td
+                  <TableRow>
+                    <TableCell
                       colSpan={5}
-                      className="py-3 text-center text-neutral-500"
+                      className="py-6 text-center text-muted-foreground"
                     >
-                      No usage recorded this period.
-                    </td>
-                  </tr>
+                      {pickByLocale(locale, S.noUsage)}
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </Card>
 
-          <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong max-w-xl space-y-3">
+          <Card className="max-w-xl space-y-3 rounded-2xl p-6 transition-colors hover:border-border-strong">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-amber-500" />
-              <h3 className="font-display text-foreground">Monthly cap</h3>
+              <DollarSign className="h-4 w-4 text-warning" />
+              <h3 className="font-display text-foreground">
+                {pickByLocale(locale, S.monthlyCap)}
+              </h3>
             </div>
-            <label className="block text-sm">
-              <span className="text-neutral-300">Cap (USD)</span>
-              <input
+            <FormField label={pickByLocale(locale, S.capUsd)} name="cap">
+              <Input
                 type="number"
                 min="0"
                 step="1"
                 value={draftCap}
                 onChange={(e) => setDraftCap(e.target.value)}
-                className="mt-1 w-full rounded border border-border bg-surface-sunken px-3 py-2 text-sm text-foreground"
                 data-testid="ai-cost-cap"
               />
-            </label>
-            <label className="flex items-center gap-2 text-sm text-neutral-300">
+            </FormField>
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={hardStop}
                 onChange={(e) => setHardStop(e.target.checked)}
+                className="h-4 w-4 rounded border-border text-info focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
-              Hard stop when cap reached
+              {pickByLocale(locale, S.hardStop)}
             </label>
             <Button type="button" onClick={() => void saveBudget()}>
-              Save
+              {pickByLocale(locale, S.save)}
             </Button>
           </Card>
 
           <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
-            <h3 className="font-display text-foreground mb-3">Recent calls</h3>
-            <ul className="space-y-2 text-sm">
-              {entries.slice(0, 20).map((e) => (
-                <li
-                  key={e.id}
-                  className="flex items-center justify-between border-b border-border/40 py-1 last:border-b-0"
-                >
-                  <span>
-                    <span className="font-medium text-foreground">{e.model}</span>
-                    {e.purpose ? (
-                      <span className="text-neutral-500"> — {e.purpose}</span>
-                    ) : null}
-                  </span>
-                  <span className="text-xs text-neutral-500">
-                    {dollars(e.costUsdMicro)} ·{' '}
-                    {new Date(e.createdAt).toLocaleString()}
-                  </span>
-                </li>
-              ))}
-              {entries.length === 0 && (
-                <li className="text-neutral-500">No recent calls.</li>
-              )}
-            </ul>
+            <h3 className="mb-3 font-display text-foreground">
+              {pickByLocale(locale, S.recent)}
+            </h3>
+            {entries.length === 0 ? (
+              <Empty
+                title={pickByLocale(locale, S.noRecentTitle)}
+                description={pickByLocale(locale, S.noRecentBody)}
+              />
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {entries.slice(0, 20).map((e) => (
+                  <li
+                    key={e.id}
+                    className="flex items-center justify-between border-b border-border/40 py-1 last:border-b-0"
+                  >
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {e.model}
+                      </span>
+                      {e.purpose ? (
+                        <span className="text-muted-foreground"> — {e.purpose}</span>
+                      ) : null}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {dollars(e.costUsdMicro)} ·{' '}
+                      {new Date(e.createdAt).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Card>
         </>
       )}
@@ -280,8 +361,8 @@ export function AiCostsClient() {
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
     <Card className="rounded-2xl p-6 transition-colors hover:border-border-strong">
-      <p className="text-xs text-neutral-500">{label}</p>
-      <p className="mt-1 text-2xl font-display text-foreground">{value}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 font-display text-2xl text-foreground">{value}</p>
     </Card>
   );
 }

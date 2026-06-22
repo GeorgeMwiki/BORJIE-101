@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, EmptyState, FormField, Input } from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import {
@@ -10,6 +10,7 @@ import {
   useRevokeJunior,
 } from '@/lib/internal/wave9/queries';
 import type { JuniorAi } from '@/lib/internal/wave9/api';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 function statusTone(status: string): 'success' | 'warn' | 'danger' | 'neutral' {
   if (status === 'active') return 'success';
@@ -18,6 +19,30 @@ function statusTone(status: string): 'success' | 'warn' | 'danger' | 'neutral' {
   return 'neutral';
 }
 
+const S = {
+  loading: { en: 'Loading provisioned juniors…', sw: 'Inapakia wadogo waliotengwa…' },
+  emptyTitle: { en: 'No juniors provisioned', sw: 'Hakuna wadogo waliotengwa' },
+  emptyBody: {
+    en: 'No juniors are provisioned for this account yet.',
+    sw: 'Hakuna wadogo waliotengwa kwa akaunti hii bado.',
+  },
+  provisioned: {
+    en: 'provisioned · team-lead gate upstream',
+    sw: 'waliotengwa · lango la kiongozi wa timu juu',
+  },
+  certRequired: { en: 'cert required', sw: 'cheti kinahitajika' },
+  memory: { en: 'memory', sw: 'kumbukumbu' },
+  suspendReason: { en: 'Suspend reason', sw: 'Sababu ya kusimamisha' },
+  suspendPlaceholder: { en: 'Why pause this junior?', sw: 'Kwa nini kusitisha mdogo huyu?' },
+  suspend: { en: 'Suspend', sw: 'Simamisha' },
+  revoke: { en: 'Revoke', sw: 'Batilisha' },
+  enterReason: { en: 'Enter a suspend reason first.', sw: 'Weka sababu ya kusimamisha kwanza.' },
+  suspended: { en: 'suspended', sw: 'imesimamishwa' },
+  revoked: { en: 'revoked', sw: 'imebatilishwa' },
+  suspendFailed: { en: 'Suspend failed', sw: 'Kusimamisha kumeshindwa' },
+  revokeFailed: { en: 'Revoke failed', sw: 'Kubatilisha kumeshindwa' },
+} as const;
+
 /**
  * Junior-AI Factory (I-W-23).
  *
@@ -25,7 +50,12 @@ function statusTone(status: string): 'success' | 'warn' | 'danger' | 'neutral' {
  * lets an operator suspend (reversible, with reason) or revoke (terminal)
  * each one. The gateway enforces the team-lead role gate + lifecycle rules.
  */
-export function JuniorAiFactory(): JSX.Element {
+export function JuniorAiFactory({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useJuniorAis();
   const suspend = useSuspendJunior();
   const revoke = useRevokeJunior();
@@ -41,27 +71,36 @@ export function JuniorAiFactory(): JSX.Element {
   function onSuspend(j: JuniorAi) {
     const reason = (reasonById[j.id] ?? '').trim();
     if (reason.length < 1) {
-      announce('Enter a suspend reason first.', 'danger');
+      announce(pickByLocale(locale, S.enterReason), 'danger');
       return;
     }
     suspend.mutate(
       { id: j.id, reason },
       {
-        onSuccess: () => announce(`${j.id.slice(0, 8)}… suspended`, 'success'),
-        onError: (err) => announce(`Suspend failed: ${err.message}`, 'danger'),
+        onSuccess: () =>
+          announce(`${j.id.slice(0, 8)}… ${pickByLocale(locale, S.suspended)}`, 'success'),
+        onError: (err) =>
+          announce(`${pickByLocale(locale, S.suspendFailed)}: ${err.message}`, 'danger'),
       },
     );
   }
 
   function onRevoke(j: JuniorAi) {
     revoke.mutate(j.id, {
-      onSuccess: () => announce(`${j.id.slice(0, 8)}… revoked`, 'success'),
-      onError: (err) => announce(`Revoke failed: ${err.message}`, 'danger'),
+      onSuccess: () =>
+        announce(`${j.id.slice(0, 8)}… ${pickByLocale(locale, S.revoked)}`, 'success'),
+      onError: (err) =>
+        announce(`${pickByLocale(locale, S.revokeFailed)}: ${err.message}`, 'danger'),
     });
   }
 
   if (query.isPending) {
-    return <p className="text-sm text-neutral-500">Loading provisioned juniors…</p>;
+    return (
+      <div className="space-y-2 rounded-lg border border-border bg-surface p-4">
+        <Skeleton className="h-20 w-full rounded-md" />
+        <Skeleton className="h-20 w-full rounded-md" />
+      </div>
+    );
   }
   if (query.isError) {
     return <p className="text-sm text-danger">{query.error.message}</p>;
@@ -70,15 +109,18 @@ export function JuniorAiFactory(): JSX.Element {
   const items = query.data ?? [];
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-        <p className="text-sm text-neutral-400">No juniors provisioned for this account.</p>
-      </div>
+      <EmptyState
+        title={pickByLocale(locale, S.emptyTitle)}
+        description={pickByLocale(locale, S.emptyBody)}
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      <StubBadge tone="info">{items.length} provisioned · team-lead gate upstream</StubBadge>
+      <StubBadge tone="info">
+        {items.length} {pickByLocale(locale, S.provisioned)}
+      </StubBadge>
 
       <div className="divide-y divide-border rounded-lg border border-border bg-surface">
         {items.map((j) => {
@@ -92,42 +134,41 @@ export function JuniorAiFactory(): JSX.Element {
                     <p className="text-sm text-foreground">{j.domain}</p>
                     <StubBadge tone={statusTone(j.status)}>{j.status}</StubBadge>
                     {j.certificationRequired ? (
-                      <StubBadge tone="neutral">cert required</StubBadge>
+                      <StubBadge tone="neutral">{pickByLocale(locale, S.certRequired)}</StubBadge>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 font-mono text-xs text-neutral-500">{j.id}</p>
-                  <p className="mt-1 text-xs text-neutral-400">{j.mandate}</p>
+                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">{j.id}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{j.mandate}</p>
                 </div>
                 {j.memoryScope ? (
-                  <StubBadge tone="neutral">{j.memoryScope} memory</StubBadge>
+                  <StubBadge tone="neutral">
+                    {j.memoryScope} {pickByLocale(locale, S.memory)}
+                  </StubBadge>
                 ) : null}
               </div>
 
               {!terminal ? (
                 <div className="flex flex-wrap items-end gap-3">
-                  <label className="block flex-1 min-w-[12rem]">
-                    <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-                      Suspend reason
-                    </span>
-                    <input
-                      type="text"
-                      value={reasonById[j.id] ?? ''}
-                      onChange={(e) =>
-                        setReasonById((prev) => ({ ...prev, [j.id]: e.target.value }))
-                      }
-                      placeholder="Why pause this junior?"
-                      className="w-full rounded-md border border-border bg-surface-sunken px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
-                    />
-                  </label>
+                  <div className="flex-1 min-w-[12rem]">
+                    <FormField label={pickByLocale(locale, S.suspendReason)} name={`reason-${j.id}`}>
+                      <Input
+                        type="text"
+                        value={reasonById[j.id] ?? ''}
+                        onChange={(e) =>
+                          setReasonById((prev) => ({ ...prev, [j.id]: e.target.value }))
+                        }
+                        placeholder={pickByLocale(locale, S.suspendPlaceholder)}
+                      />
+                    </FormField>
+                  </div>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="warning"
                     size="sm"
                     disabled={busy || j.status === 'suspended'}
                     onClick={() => onSuspend(j)}
-                    className="text-warning"
                   >
-                    Suspend
+                    {pickByLocale(locale, S.suspend)}
                   </Button>
                   <Button
                     type="button"
@@ -136,7 +177,7 @@ export function JuniorAiFactory(): JSX.Element {
                     disabled={busy}
                     onClick={() => onRevoke(j)}
                   >
-                    Revoke
+                    {pickByLocale(locale, S.revoke)}
                   </Button>
                 </div>
               ) : null}

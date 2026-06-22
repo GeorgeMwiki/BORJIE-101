@@ -1,6 +1,20 @@
 'use client';
 
+/**
+ * Toast — THIN WRAPPER preserving the app's declarative toast API
+ * (message, tone, onDismiss + 3s auto-dismiss) while delegating all
+ * visual styling to the design-system Alert primitive, so the surface
+ * inherits the canonical token palette (subtle bg, border, text)
+ * instead of the hand-rolled per-tone Tailwind maps.
+ *
+ * The public API is unchanged — every existing call site keeps
+ * compiling verbatim. The only fork the app keeps is the fixed-position
+ * aria-live envelope + timer (the DS Toaster/useToast imperative stack
+ * is a different contract; converging the 22 call sites onto it is out
+ * of scope for this foundation pass).
+ */
 import { useEffect } from 'react';
+import { Alert } from '@borjie/design-system';
 
 interface ToastProps {
   readonly message: string | null;
@@ -8,17 +22,12 @@ interface ToastProps {
   readonly onDismiss: () => void;
 }
 
-const TONE_STYLES: Record<'success' | 'danger' | 'info', string> = {
-  success: 'border-success/40 bg-success/10 text-success',
-  danger: 'border-danger/40 bg-danger/10 text-danger',
-  info: 'border-signal-500/30 bg-signal-500/10 text-signal-500',
-};
+const TONE_VARIANT = {
+  success: 'success',
+  danger: 'danger',
+  info: 'info',
+} as const;
 
-/**
- * Bare-bones aria-live toast — auto-dismisses after 3s so async
- * mutation callers don't have to manage the timer themselves.
- * Passing `message=null` hides the toast.
- */
 export function Toast({ message, tone = 'success', onDismiss }: ToastProps): JSX.Element | null {
   useEffect(() => {
     if (!message) return undefined;
@@ -29,12 +38,10 @@ export function Toast({ message, tone = 'success', onDismiss }: ToastProps): JSX
   if (!message) return null;
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      className={`fixed bottom-6 right-6 z-50 rounded-lg border px-4 py-2 text-xs shadow-lg ${TONE_STYLES[tone]}`}
-    >
-      {message}
+    <div role="status" aria-live="polite" className="fixed bottom-6 right-6 z-50 max-w-sm">
+      <Alert variant={TONE_VARIANT[tone]} size="sm" className="shadow-lg">
+        {message}
+      </Alert>
     </div>
   );
 }

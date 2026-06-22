@@ -1,6 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { Store } from 'lucide-react';
+import {
+  Skeleton,
+  Alert,
+  Empty,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Button,
+} from '@borjie/design-system';
 import {
   useMarketplaceListingsQuery,
   useModerateListing,
@@ -10,6 +23,7 @@ import {
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 /**
  * Live HQ marketplace moderation queue (AD-3).
@@ -17,8 +31,24 @@ import { Toast } from '../Toast';
  * Binds to GET /api/v1/mining/internal/marketplace (real
  * `marketplace_listings` rows) and flips a listing's status via
  * POST /:id/hide | /:id/restore. Cross-tenant, admin-role guarded on the
- * gateway. Replaces the prior hardcoded fixture + disabled button.
+ * gateway.
  */
+const S = {
+  loading: { en: 'Loading listings…', sw: 'Inapakia matangazo…' },
+  emptyTitle: { en: 'No listings', sw: 'Hakuna matangazo' },
+  emptyBody: {
+    en: 'Marketplace listings appear here once tenants publish them. This queue reflects the live gateway — nothing is fabricated.',
+    sw: 'Matangazo ya soko huonekana hapa mara wateja wanapoyachapisha. Foleni hii inaonyesha lango hai — hakuna kinachotungwa.',
+  },
+  colListing: { en: 'Listing', sw: 'Tangazo' },
+  colCategory: { en: 'Category', sw: 'Kategoria' },
+  colTenant: { en: 'Tenant', sw: 'Mteja' },
+  colStatus: { en: 'Status', sw: 'Hali' },
+  colActions: { en: 'Actions', sw: 'Vitendo' },
+  hide: { en: 'Hide listing', sw: 'Ficha tangazo' },
+  restore: { en: 'Restore listing', sw: 'Rejesha tangazo' },
+} as const;
+
 function statusTone(status: ListingStatus): 'success' | 'warn' | 'danger' | 'neutral' {
   if (status === 'Live') return 'success';
   if (status === 'Paused') return 'warn';
@@ -26,20 +56,43 @@ function statusTone(status: ListingStatus): 'success' | 'warn' | 'danger' | 'neu
   return 'neutral';
 }
 
-export function MarketplaceModerationList(): JSX.Element {
+export function MarketplaceModerationList({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useMarketplaceListingsQuery();
   const moderate = useModerateListing();
   const [toast, setToast] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   if (query.isPending) {
-    return <p className="text-sm text-neutral-500">Loading listings…</p>;
+    return (
+      <Skeleton
+        className="h-64 w-full rounded-lg"
+        aria-label={pickByLocale(locale, S.loading)}
+      />
+    );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <Alert variant="error">{query.error.message}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
+
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Empty
+          icon={<Store className="h-8 w-8" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
+        <DataSourceBadge source={query.data?.source ?? 'live'} />
+      </div>
+    );
+  }
 
   const onModerate = (listing: ModerationListing): void => {
     const action = listing.status === 'Hidden' ? 'restore' : 'hide';
@@ -58,51 +111,50 @@ export function MarketplaceModerationList(): JSX.Element {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-border bg-surface overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border bg-surface-sunken">
-            <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-              <th className="px-4 py-3 font-medium">Listing</th>
-              <th className="px-4 py-3 font-medium">Category</th>
-              <th className="px-4 py-3 font-medium">Tenant</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium" aria-label="Actions" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-neutral-500">
-                  No listings.
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => (
-                <tr key={row.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 text-foreground">{row.title}</td>
-                  <td className="px-4 py-3 text-neutral-300">{row.category}</td>
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-400">
-                    {row.tenantId}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StubBadge tone={statusTone(row.status)}>{row.status}</StubBadge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      type="button"
-                      disabled={moderate.isPending && pendingId === row.id}
-                      onClick={() => onModerate(row)}
-                      className="text-xs text-signal-500 hover:underline disabled:opacity-50"
-                    >
-                      {row.status === 'Hidden' ? 'Restore listing' : 'Hide listing'}
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{pickByLocale(locale, S.colListing)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colCategory)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colTenant)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colStatus)}</TableHead>
+              <TableHead>
+                <span className="sr-only">{pickByLocale(locale, S.colActions)}</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell className="text-foreground">{row.title}</TableCell>
+                <TableCell className="text-muted-foreground">{row.category}</TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {row.tenantId}
+                </TableCell>
+                <TableCell>
+                  <StubBadge tone={statusTone(row.status)}>{row.status}</StubBadge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-signal-500"
+                    disabled={moderate.isPending && pendingId === row.id}
+                    loading={moderate.isPending && pendingId === row.id}
+                    onClick={() => onModerate(row)}
+                  >
+                    {row.status === 'Hidden'
+                      ? pickByLocale(locale, S.restore)
+                      : pickByLocale(locale, S.hide)}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} />
       <Toast
         message={toast}
         tone={moderate.isError ? 'danger' : 'success'}

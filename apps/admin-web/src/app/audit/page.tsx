@@ -31,7 +31,7 @@ export default async function AuditPage(): Promise<JSX.Element> {
                 sw: 'Kumbukumbu ya ukaguzi',
               })}
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {pickByLocale(locale, {
                 en: 'Append-only, hash-chained activity stream. Filter by tenant, actor, or date range; export NDJSON ships with the audit-log export endpoint.',
                 sw: 'Mtiririko wa shughuli wa kuongeza-tu, uliofungamanishwa kwa hash. Chuja kwa tenant, mhusika, au kipindi cha tarehe; usafirishaji wa NDJSON unapatikana na kituo cha kusafirisha kumbukumbu ya ukaguzi.',

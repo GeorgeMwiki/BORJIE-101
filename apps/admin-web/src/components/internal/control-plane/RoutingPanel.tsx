@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  FormField,
+  Input,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import { StubBadge } from '../StubBadge';
 import { Toast } from '../Toast';
 import { ScopeSelector } from './ScopeSelector';
@@ -15,12 +25,14 @@ import {
   type Scope,
   type SetRoutingInput,
 } from '@/lib/internal/control-plane/api';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface RoutingPanelProps {
   /** Optional per-use-case map seeded from an applied AI-suggest proposal. */
   readonly seededPerUseCase?: Readonly<Record<string, string>> | null;
   /** Bumped by the parent each time a new suggestion is applied. */
   readonly seedNonce?: number;
+  readonly initialLocale?: Locale;
 }
 
 interface DraftEnsemble {
@@ -37,6 +49,74 @@ const EMPTY_ENSEMBLE: DraftEnsemble = {
   judgeModel: '',
 };
 
+const S = {
+  lastSet: { en: 'Last set', sw: 'Imewekwa mwisho' },
+  noConfig: {
+    en: 'No config yet — falls back to task ladder',
+    sw: 'Hakuna usanidi bado — hurudi kwenye ngazi ya kazi',
+  },
+  coreModel: { en: 'Core model', sw: 'Muundo wa msingi' },
+  coreModelHint: {
+    en: 'The primary model that answers when no per-use-case override matches.',
+    sw: 'Muundo wa msingi unaojibu wakati hakuna ubatilishaji wa matumizi unaolingana.',
+  },
+  pickCore: { en: '— pick a core model —', sw: '— chagua muundo wa msingi —' },
+  fallbackChain: { en: 'Fallback chain', sw: 'Mnyororo wa kurudi' },
+  fallbackHint: {
+    en: 'Tried in order when the core model is unavailable. Reorder with the arrows.',
+    sw: 'Hujaribiwa kwa mpangilio wakati muundo wa msingi haupatikani. Panga upya kwa mishale.',
+  },
+  moveUp: { en: 'Move up', sw: 'Sogeza juu' },
+  moveDown: { en: 'Move down', sw: 'Sogeza chini' },
+  remove: { en: 'Remove', sw: 'Ondoa' },
+  addFallback: { en: '— add fallback —', sw: '— ongeza ya kurudi —' },
+  addFallbackAria: { en: 'Add fallback model', sw: 'Ongeza muundo wa kurudi' },
+  add: { en: 'Add', sw: 'Ongeza' },
+  ensemble: { en: 'Ensemble', sw: 'Mkusanyiko' },
+  ensembleHint: {
+    en: 'Run multiple models in parallel and combine. Cost-aware: N members = N x cost.',
+    sw: 'Endesha miundo mingi kwa sambamba na uchanganye. Inazingatia gharama: wanachama N = gharama N.',
+  },
+  enabled: { en: 'Enabled', sw: 'Imewezeshwa' },
+  members: { en: 'Members', sw: 'Wanachama' },
+  costMultiplier: {
+    en: 'members · ~{n}x cost multiplier.',
+    sw: 'wanachama · kizidishi cha gharama ~{n}x.',
+  },
+  combineStrategy: { en: 'Combine strategy', sw: 'Mkakati wa kuchanganya' },
+  judgeModel: { en: 'Judge model', sw: 'Muundo wa hakimu' },
+  pickJudge: { en: '— pick a judge —', sw: '— chagua hakimu —' },
+  perUseCase: { en: 'Per-use-case routing', sw: 'Uelekezaji kwa kila matumizi' },
+  perUseCaseHint: {
+    en: 'Override the core model for a specific use-case. Locked / sovereign use-cases are not listed — they stay pinned to their policy floor.',
+    sw: 'Batilisha muundo wa msingi kwa matumizi mahususi. Matumizi yaliyofungwa / huru hayaorodheshwi — yanabaki kwenye sera yao ya msingi.',
+  },
+  colUseCase: { en: 'Use case', sw: 'Matumizi' },
+  colModel: { en: 'Model', sw: 'Muundo' },
+  useCore: { en: '— use core —', sw: '— tumia ya msingi —' },
+  modelFor: { en: 'Model for', sw: 'Muundo kwa' },
+  reasonLabel: { en: 'Reason (audited, required)', sw: 'Sababu (inakaguliwa, inahitajika)' },
+  reasonPlaceholder: {
+    en: 'Why are you changing routing?',
+    sw: 'Kwa nini unabadilisha uelekezaji?',
+  },
+  saving: { en: 'Saving…', sw: 'Inahifadhi…' },
+  save: { en: 'Save routing config', sw: 'Hifadhi usanidi wa uelekezaji' },
+  pickCoreFirst: { en: 'Pick a core model first.', sw: 'Chagua muundo wa msingi kwanza.' },
+  reasonRequired: {
+    en: 'Enter a reason (≥ 8 chars) before saving routing.',
+    sw: 'Weka sababu (≥ herufi 8) kabla ya kuhifadhi uelekezaji.',
+  },
+  saved: { en: 'Routing saved', sw: 'Uelekezaji umehifadhiwa' },
+  audit: { en: 'audit', sw: 'ukaguzi' },
+  droppedLocked: { en: 'dropped locked', sw: 'imeondoa zilizofungwa' },
+  applied: {
+    en: 'Applied recommendation into the per-use-case draft. Review + save.',
+    sw: 'Pendekezo limewekwa kwenye rasimu ya matumizi. Kagua + hifadhi.',
+  },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+} as const;
+
 function moveItem<T>(items: ReadonlyArray<T>, from: number, to: number): ReadonlyArray<T> {
   if (to < 0 || to >= items.length || from < 0 || from >= items.length) return items;
   const moved = items[from] as T;
@@ -50,7 +130,12 @@ function moveItem<T>(items: ReadonlyArray<T>, from: number, to: number): Readonl
  * routing table. Hydrates the current config from GET /llm-routing and writes
  * the whole document via PUT /llm-routing (the gateway re-validates + audits).
  */
-export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps): JSX.Element {
+export function RoutingPanel({
+  seededPerUseCase,
+  seedNonce,
+  initialLocale,
+}: RoutingPanelProps): JSX.Element {
+  const locale = useLocale(initialLocale);
   const [scope, setScope] = useState<Scope>('global');
   const catalogQuery = useModelCatalogQuery();
   const routingQuery = useRoutingQuery(scope);
@@ -98,7 +183,7 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
   useEffect(() => {
     if (seededPerUseCase && Object.keys(seededPerUseCase).length > 0) {
       setPerUseCase((prev) => ({ ...prev, ...seededPerUseCase }));
-      setToast('Applied recommendation into the per-use-case draft. Review + save.');
+      setToast(pickByLocale(locale, S.applied));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedNonce]);
@@ -117,11 +202,11 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
 
   function save() {
     if (!coreModel) {
-      setToast('Pick a core model first.');
+      setToast(pickByLocale(locale, S.pickCoreFirst));
       return;
     }
     if (!reasonValid) {
-      setToast('Enter a reason (≥ 8 chars) before saving routing.');
+      setToast(pickByLocale(locale, S.reasonRequired));
       return;
     }
     const cleanedUseCases = Object.fromEntries(
@@ -149,15 +234,17 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
     mutation.mutate(payload, {
       onSuccess: (res) => {
         const dropped = res.droppedLockedUseCases?.length
-          ? ` · dropped locked: ${res.droppedLockedUseCases.join(', ')}`
+          ? ` · ${pickByLocale(locale, S.droppedLocked)}: ${res.droppedLockedUseCases.join(', ')}`
           : '';
         setToast(
-          `Routing saved (${res.scope})${
-            res.journalId ? ` · audit ${res.journalId.slice(0, 8)}…` : ''
+          `${pickByLocale(locale, S.saved)} (${res.scope})${
+            res.journalId
+              ? ` · ${pickByLocale(locale, S.audit)} ${res.journalId.slice(0, 8)}…`
+              : ''
           }${dropped}`,
         );
       },
-      onError: (err) => setToast(`Failed: ${err.message}`),
+      onError: (err) => setToast(`${pickByLocale(locale, S.failed)}: ${err.message}`),
     });
   }
 
@@ -168,37 +255,42 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <ScopeSelector scope={scope} onChange={setScope} />
+        <ScopeSelector scope={scope} onChange={setScope} initialLocale={locale} />
         {routingQuery.data?.lastSetAt ? (
-          <span className="text-xs text-neutral-500">
-            Last set {routingQuery.data.lastSetAt.replace('T', ' ').slice(0, 16)}
+          <span className="text-xs text-muted-foreground">
+            {pickByLocale(locale, S.lastSet)}{' '}
+            {routingQuery.data.lastSetAt.replace('T', ' ').slice(0, 16)}
           </span>
         ) : (
-          <StubBadge tone="neutral">No config yet — falls back to task ladder</StubBadge>
+          <StubBadge tone="neutral">{pickByLocale(locale, S.noConfig)}</StubBadge>
         )}
       </div>
 
       {/* Core model */}
       <section className="rounded-lg border border-border bg-surface p-5">
-        <h3 className="mb-1 text-sm font-medium text-foreground">Core model</h3>
-        <p className="mb-3 text-xs text-neutral-400">
-          The primary model that answers when no per-use-case override matches.
+        <h3 className="mb-1 text-sm font-medium text-foreground">
+          {pickByLocale(locale, S.coreModel)}
+        </h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          {pickByLocale(locale, S.coreModelHint)}
         </p>
         <ModelSelect
           value={coreModel}
           models={models}
           onChange={setCoreModel}
           allowEmpty
-          emptyLabel="— pick a core model —"
-          ariaLabel="Core model"
+          emptyLabel={pickByLocale(locale, S.pickCore)}
+          ariaLabel={pickByLocale(locale, S.coreModel)}
         />
       </section>
 
       {/* Ordered fallbacks */}
       <section className="rounded-lg border border-border bg-surface p-5">
-        <h3 className="mb-1 text-sm font-medium text-foreground">Fallback chain</h3>
-        <p className="mb-3 text-xs text-neutral-400">
-          Tried in order when the core model is unavailable. Reorder with the arrows.
+        <h3 className="mb-1 text-sm font-medium text-foreground">
+          {pickByLocale(locale, S.fallbackChain)}
+        </h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          {pickByLocale(locale, S.fallbackHint)}
         </p>
         <ol className="space-y-2">
           {fallbacks.map((model, idx) => (
@@ -206,31 +298,31 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
               key={`${model}-${idx}`}
               className="flex items-center justify-between rounded-md border border-border bg-surface-sunken px-3 py-2"
             >
-              <span className="font-mono text-xs text-neutral-300">
+              <span className="font-mono text-xs text-muted-foreground">
                 {idx + 1}. {model}
               </span>
               <div className="flex gap-1">
                 <button
                   type="button"
-                  aria-label="Move up"
+                  aria-label={pickByLocale(locale, S.moveUp)}
                   disabled={idx === 0}
                   onClick={() => setFallbacks((prev) => moveItem(prev, idx, idx - 1))}
-                  className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-40"
+                  className="rounded border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-surface disabled:opacity-40"
                 >
                   ↑
                 </button>
                 <button
                   type="button"
-                  aria-label="Move down"
+                  aria-label={pickByLocale(locale, S.moveDown)}
                   disabled={idx === fallbacks.length - 1}
                   onClick={() => setFallbacks((prev) => moveItem(prev, idx, idx + 1))}
-                  className="rounded border border-border px-2 py-0.5 text-xs text-neutral-300 hover:bg-surface disabled:opacity-40"
+                  className="rounded border border-border px-2 py-0.5 text-xs text-muted-foreground hover:bg-surface disabled:opacity-40"
                 >
                   ↓
                 </button>
                 <button
                   type="button"
-                  aria-label="Remove"
+                  aria-label={pickByLocale(locale, S.remove)}
                   onClick={() => setFallbacks((prev) => prev.filter((_, i) => i !== idx))}
                   className="rounded border border-border px-2 py-0.5 text-xs text-danger hover:bg-surface"
                 >
@@ -246,8 +338,8 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
             models={models}
             onChange={setNewFallback}
             allowEmpty
-            emptyLabel="— add fallback —"
-            ariaLabel="Add fallback model"
+            emptyLabel={pickByLocale(locale, S.addFallback)}
+            ariaLabel={pickByLocale(locale, S.addFallbackAria)}
           />
           <Button
             type="button"
@@ -259,7 +351,7 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
               setNewFallback('');
             }}
           >
-            Add
+            {pickByLocale(locale, S.add)}
           </Button>
         </div>
       </section>
@@ -268,26 +360,30 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
       <section className="rounded-lg border border-border bg-surface p-5">
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-medium text-foreground">Ensemble</h3>
-            <p className="text-xs text-neutral-400">
-              Run multiple models in parallel and combine. Cost-aware: N members = N x cost.
+            <h3 className="text-sm font-medium text-foreground">
+              {pickByLocale(locale, S.ensemble)}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              {pickByLocale(locale, S.ensembleHint)}
             </p>
           </div>
-          <label className="flex items-center gap-2 text-xs text-neutral-300">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
             <input
               type="checkbox"
               checked={ensemble.enabled}
               onChange={(e) => setEnsemble((prev) => ({ ...prev, enabled: e.target.checked }))}
               className="size-4 accent-signal-500"
             />
-            Enabled
+            {pickByLocale(locale, S.enabled)}
           </label>
         </div>
 
         {ensemble.enabled ? (
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-xs uppercase tracking-wider text-neutral-500">Members</p>
+              <p className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
+                {pickByLocale(locale, S.members)}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {models.map((m) => (
                   <button
@@ -297,7 +393,7 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
                     className={`rounded-md border px-3 py-1.5 text-xs ${
                       memberSet.has(m.model)
                         ? 'border-signal-500 bg-signal-500/10 text-signal-500'
-                        : 'border-border text-neutral-300 hover:bg-surface-sunken'
+                        : 'border-border text-muted-foreground hover:bg-surface-sunken'
                     }`}
                   >
                     {m.label}
@@ -306,18 +402,22 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
               </div>
               {ensemble.members.length > 1 ? (
                 <p className="mt-2 text-xs text-warning">
-                  {ensemble.members.length} members · ~{ensemble.members.length}x cost multiplier.
+                  {ensemble.members.length}{' '}
+                  {pickByLocale(locale, S.costMultiplier).replace(
+                    '{n}',
+                    String(ensemble.members.length),
+                  )}
                 </p>
               ) : null}
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              <label className="text-xs uppercase tracking-wider text-neutral-500">
-                Combine strategy
+              <label className="text-xs uppercase tracking-wider text-muted-foreground">
+                {pickByLocale(locale, S.combineStrategy)}
               </label>
               <select
                 value={ensemble.combineStrategy}
-                aria-label="Combine strategy"
+                aria-label={pickByLocale(locale, S.combineStrategy)}
                 onChange={(e) =>
                   setEnsemble((prev) => ({
                     ...prev,
@@ -336,16 +436,16 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
 
             {ensemble.combineStrategy === 'judge-synthesis' ? (
               <div className="flex flex-wrap items-center gap-3">
-                <label className="text-xs uppercase tracking-wider text-neutral-500">
-                  Judge model
+                <label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {pickByLocale(locale, S.judgeModel)}
                 </label>
                 <ModelSelect
                   value={ensemble.judgeModel}
                   models={models}
                   onChange={(judgeModel) => setEnsemble((prev) => ({ ...prev, judgeModel }))}
                   allowEmpty
-                  emptyLabel="— pick a judge —"
-                  ariaLabel="Judge model"
+                  emptyLabel={pickByLocale(locale, S.pickJudge)}
+                  ariaLabel={pickByLocale(locale, S.judgeModel)}
                 />
               </div>
             ) : null}
@@ -355,24 +455,25 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
 
       {/* Per-use-case routing table */}
       <section className="rounded-lg border border-border bg-surface p-5">
-        <h3 className="mb-1 text-sm font-medium text-foreground">Per-use-case routing</h3>
-        <p className="mb-3 text-xs text-neutral-400">
-          Override the core model for a specific use-case. Locked / sovereign
-          use-cases are not listed — they stay pinned to their policy floor.
+        <h3 className="mb-1 text-sm font-medium text-foreground">
+          {pickByLocale(locale, S.perUseCase)}
+        </h3>
+        <p className="mb-3 text-xs text-muted-foreground">
+          {pickByLocale(locale, S.perUseCaseHint)}
         </p>
         <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-surface-sunken">
-              <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-                <th className="px-4 py-2 font-medium">Use case</th>
-                <th className="px-4 py-2 font-medium">Model</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colUseCase)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colModel)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {assignableUseCases.map((useCase) => (
-                <tr key={useCase} className="border-b border-border last:border-0">
-                  <td className="px-4 py-2 font-mono text-xs text-neutral-300">{useCase}</td>
-                  <td className="px-4 py-2">
+                <TableRow key={useCase}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{useCase}</TableCell>
+                  <TableCell>
                     <ModelSelect
                       value={perUseCase[useCase] ?? ''}
                       models={models}
@@ -385,42 +486,30 @@ export function RoutingPanel({ seededPerUseCase, seedNonce }: RoutingPanelProps)
                         })
                       }
                       allowEmpty
-                      emptyLabel="— use core —"
-                      ariaLabel={`Model for ${useCase}`}
+                      emptyLabel={pickByLocale(locale, S.useCore)}
+                      ariaLabel={`${pickByLocale(locale, S.modelFor)} ${useCase}`}
                     />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
 
       {/* Reason + save */}
       <section className="space-y-3">
-        <label className="block">
-          <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
-            Reason (audited, required)
-          </span>
-          <input
+        <FormField label={pickByLocale(locale, S.reasonLabel)} name="routing-reason">
+          <Input
             type="text"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="Why are you changing routing?"
-            className={`w-full rounded-md border bg-surface-sunken px-3 py-2 text-sm text-foreground placeholder:text-neutral-600 focus:outline-none ${
-              reason.length === 0 || reasonValid
-                ? 'border-border focus:border-signal-500'
-                : 'border-danger/60'
-            }`}
+            placeholder={pickByLocale(locale, S.reasonPlaceholder)}
+            error={reason.length > 0 && !reasonValid}
           />
-        </label>
-        <Button
-          type="button"
-          loading={mutation.isPending}
-          disabled={mutation.isPending}
-          onClick={save}
-        >
-          {mutation.isPending ? 'Saving…' : 'Save routing config'}
+        </FormField>
+        <Button type="button" loading={mutation.isPending} disabled={mutation.isPending} onClick={save}>
+          {mutation.isPending ? pickByLocale(locale, S.saving) : pickByLocale(locale, S.save)}
         </Button>
       </section>
 

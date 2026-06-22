@@ -1,13 +1,22 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button, Card } from '@borjie/design-system';
+import {
+  Button,
+  Card,
+  Skeleton,
+  Alert,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  FormField,
+  Input,
+} from '@borjie/design-system';
 import {
   AlertTriangle,
   Bot,
   CheckCircle2,
   Gauge,
-  Loader2,
   Power,
   ShieldAlert,
   ShieldCheck,
@@ -15,6 +24,7 @@ import {
   ToggleRight,
 } from 'lucide-react';
 
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   CONTROL_META,
   fetchControls,
@@ -24,18 +34,82 @@ import {
   type ToggleResult,
 } from './control-tower-api';
 
+const S = {
+  loadFailed: { en: 'Failed to load controls', sw: 'Imeshindwa kupakia vidhibiti' },
+  toggleFailed: { en: 'Toggle failed', sw: 'Kubadilisha kumeshindwa' },
+  pendingApproval: {
+    en: "Change recorded and awaiting a second operator's approval",
+    sw: 'Mabadiliko yamerekodiwa na yanasubiri idhini ya mendeshaji wa pili',
+  },
+  applied: {
+    en: 'Change applied to live platform state.',
+    sw: 'Mabadiliko yametumika kwenye hali hai ya jukwaa.',
+  },
+  ref: { en: 'ref', sw: 'kumb.' },
+  activeTenants: { en: 'Active tenants', sw: 'Wateja hai' },
+  brainTurns: { en: 'Brain turns / min', sw: 'Mizunguko ya ubongo / dakika' },
+  errorBudget: { en: 'Error budget burn', sw: 'Mwako wa bajeti ya hitilafu' },
+  rlsDenies: { en: 'RLS denies / min', sw: 'Vikatazo vya RLS / dakika' },
+  loadingShort: { en: 'Loading…', sw: 'Inapakia…' },
+  acrossPlans: { en: 'Across all plans', sw: 'Katika mipango yote' },
+  sinceStart: { en: 'Since gateway start', sw: 'Tangu kuanza kwa lango' },
+  errorRate: { en: 'Brain turn error rate', sw: 'Kiwango cha hitilafu za ubongo' },
+  healthyIsolation: { en: 'Healthy isolation', sw: 'Utengaji wenye afya' },
+  checkIsolation: { en: 'Check isolation', sw: 'Angalia utengaji' },
+  metricsUnavailable: { en: 'Metrics unavailable', sw: 'Vipimo havipatikani' },
+  platformControls: { en: 'Platform controls', sw: 'Vidhibiti vya jukwaa' },
+  fourEyeRequired: { en: '4-eye confirm required', sw: 'Uthibitisho wa macho-4 unahitajika' },
+  couldNotLoad: {
+    en: 'Could not load live control state',
+    sw: 'Imeshindwa kupakia hali hai ya udhibiti',
+  },
+  loadingLive: {
+    en: 'Loading live platform state…',
+    sw: 'Inapakia hali hai ya jukwaa…',
+  },
+  on: { en: 'On', sw: 'Imewashwa' },
+  off: { en: 'Off', sw: 'Imezimwa' },
+  unknown: { en: 'Unknown', sw: 'Haijulikani' },
+  auditFootprint: { en: 'Audit footprint', sw: 'Alama ya ukaguzi' },
+  auditBody: {
+    en: 'Every Control Tower action records to the hash-chained audit trail (append-only, tamper-evident) and emits a SOC2 security event. Toggle attempts include actor, timestamp, control id, blast-radius and the second-eye attestation. High-impact controls only change live platform state after a second operator approves.',
+    sw: 'Kila kitendo cha Mnara wa Udhibiti hurekodiwa kwenye njia ya ukaguzi ya mnyororo-heshi (ya kuongeza-tu, inayodhihirisha uchakachuaji) na hutoa tukio la usalama la SOC2. Majaribio ya kubadilisha yanajumuisha mtendaji, muhuri wa muda, kitambulisho cha kidhibiti, eneo-athari na uthibitisho wa jicho-la-pili. Vidhibiti vyenye athari kubwa hubadilisha hali hai ya jukwaa tu baada ya mendeshaji wa pili kuidhinisha.',
+  },
+  fourEyeTitle: {
+    en: '4-eye confirmation required',
+    sw: 'Uthibitisho wa macho-4 unahitajika',
+  },
+  toggle: { en: 'Toggle', sw: 'Badilisha' },
+  affectsTenants: {
+    en: 'affects every tenant. Type the phrase and capture an operational reason; a second operator must approve high-impact changes before they take effect.',
+    sw: 'huathiri kila mteja. Andika kifungu na uweke sababu ya kiutendaji; mendeshaji wa pili lazima aidhinishe mabadiliko yenye athari kubwa kabla hayajaanza kutumika.',
+  },
+  setting: { en: 'Setting', sw: 'Kuweka' },
+  to: { en: 'to', sw: 'kuwa' },
+  typeConfirm: { en: 'Type CONFIRM to proceed', sw: 'Andika CONFIRM kuendelea' },
+  opReason: {
+    en: 'Operational reason (min 8 chars — recorded on the audit trail)',
+    sw: 'Sababu ya kiutendaji (herufi 8+ — inarekodiwa kwenye njia ya ukaguzi)',
+  },
+  cancel: { en: 'Cancel', sw: 'Ghairi' },
+  applyChange: { en: 'Apply change', sw: 'Tekeleza mabadiliko' },
+} as const;
+
 interface PlatformKpi {
   readonly label: string;
   readonly value: string;
   readonly sub: string;
 }
 
-const KPI_FALLBACK: ReadonlyArray<PlatformKpi> = [
-  { label: 'Active tenants', value: '—', sub: 'Loading…' },
-  { label: 'Brain turns / min', value: '—', sub: 'Loading…' },
-  { label: 'Error budget burn', value: '—', sub: 'Loading…' },
-  { label: 'RLS denies / min', value: '—', sub: 'Loading…' },
-];
+function kpiFallback(locale: Locale): ReadonlyArray<PlatformKpi> {
+  const loading = pickByLocale(locale, S.loadingShort);
+  return [
+    { label: pickByLocale(locale, S.activeTenants), value: '—', sub: loading },
+    { label: pickByLocale(locale, S.brainTurns), value: '—', sub: loading },
+    { label: pickByLocale(locale, S.errorBudget), value: '—', sub: loading },
+    { label: pickByLocale(locale, S.rlsDenies), value: '—', sub: loading },
+  ];
+}
 
 interface CounterSnapshot {
   readonly name: string;
@@ -74,7 +148,9 @@ function gaugeValue(snap: MetricsSnapshot, name: string): number | null {
   return g !== undefined ? g.value : null;
 }
 
-async function fetchPlatformKpis(): Promise<ReadonlyArray<PlatformKpi>> {
+async function fetchPlatformKpis(
+  locale: Locale,
+): Promise<ReadonlyArray<PlatformKpi>> {
   // Source 1: /api/platform/overview — carries activeTenants (real DB count)
   // Source 2: gateway GET /api/v1/metrics (MetricsSnapshot) — carries the
   //   brain turn counters + RLS deny gauge that overview never emits.
@@ -155,38 +231,37 @@ async function fetchPlatformKpis(): Promise<ReadonlyArray<PlatformKpi>> {
 
   return [
     {
-      label: 'Active tenants',
+      label: pickByLocale(locale, S.activeTenants),
       value: activeTenants !== undefined ? String(activeTenants) : '—',
-      sub: 'Across all plans',
+      sub: pickByLocale(locale, S.acrossPlans),
     },
     {
-      label: 'Brain turns / min',
+      label: pickByLocale(locale, S.brainTurns),
       value:
         brainTurnsPerMin !== undefined
           ? brainTurnsPerMin >= 1000
             ? `${(brainTurnsPerMin / 1000).toFixed(1)}k`
             : String(brainTurnsPerMin)
           : '—',
-      sub: 'Since gateway start',
+      sub: pickByLocale(locale, S.sinceStart),
     },
     {
-      label: 'Error budget burn',
+      label: pickByLocale(locale, S.errorBudget),
       value:
         errorBudgetBurnPct !== undefined
           ? `${errorBudgetBurnPct.toFixed(1)}%`
           : '—',
-      sub: 'Brain turn error rate',
+      sub: pickByLocale(locale, S.errorRate),
     },
     {
-      label: 'RLS denies / min',
-      value:
-        rlsDeniesPerMin !== undefined ? String(rlsDeniesPerMin) : '—',
+      label: pickByLocale(locale, S.rlsDenies),
+      value: rlsDeniesPerMin !== undefined ? String(rlsDeniesPerMin) : '—',
       sub:
         rlsDeniesPerMin === 0
-          ? 'Healthy isolation'
+          ? pickByLocale(locale, S.healthyIsolation)
           : rlsDeniesPerMin !== undefined
-            ? 'Check isolation'
-            : 'Metrics unavailable',
+            ? pickByLocale(locale, S.checkIsolation)
+            : pickByLocale(locale, S.metricsUnavailable),
     },
   ];
 }
@@ -210,30 +285,34 @@ function CategoryIcon({ category }: { category: ControlMeta['category'] }) {
  * side on the hash-chained trail.
  */
 export function ControlTowerClient(): JSX.Element {
+  const locale = useLocale();
   const [controls, setControls] = useState<ReadonlyArray<ControlRow>>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pending, setPending] = useState<ControlRow | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [healthKpis, setHealthKpis] =
-    useState<ReadonlyArray<PlatformKpi>>(KPI_FALLBACK);
+  const [healthKpis, setHealthKpis] = useState<ReadonlyArray<PlatformKpi>>(() =>
+    kpiFallback(locale),
+  );
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const [rows, kpis] = await Promise.all([
         fetchControls(),
-        fetchPlatformKpis(),
+        fetchPlatformKpis(locale),
       ]);
       setControls(rows);
       setHealthKpis(kpis);
       setLoadError(null);
     } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Failed to load controls');
+      setLoadError(
+        err instanceof Error ? err.message : pickByLocale(locale, S.loadFailed),
+      );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void refresh();
@@ -244,15 +323,17 @@ export function ControlTowerClient(): JSX.Element {
       setPending(null);
       if (result.status === 'pending_approval') {
         setNotice(
-          `Change recorded and awaiting a second operator's approval` +
-            (result.journalId ? ` (ref ${result.journalId}).` : '.'),
+          pickByLocale(locale, S.pendingApproval) +
+            (result.journalId
+              ? ` (${pickByLocale(locale, S.ref)} ${result.journalId}).`
+              : '.'),
         );
       } else {
-        setNotice('Change applied to live platform state.');
+        setNotice(pickByLocale(locale, S.applied));
       }
       void refresh();
     },
-    [refresh],
+    [refresh, locale],
   );
 
   return (
@@ -260,48 +341,50 @@ export function ControlTowerClient(): JSX.Element {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {healthKpis.map((kpi) => (
           <Card key={kpi.label} className="rounded-2xl p-5">
-            <p className="text-tiny font-semibold uppercase tracking-eyebrow text-neutral-500">
+            <p className="text-tiny font-semibold uppercase tracking-eyebrow text-muted-foreground">
               {kpi.label}
             </p>
             <p className="mt-2 font-display text-3xl text-foreground">
               {kpi.value}
             </p>
-            <p className="mt-1 text-xs text-neutral-400">{kpi.sub}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{kpi.sub}</p>
           </Card>
         ))}
       </div>
 
       <section>
         <header className="mb-3 flex items-center justify-between">
-          <h2 className="text-tiny font-semibold uppercase tracking-eyebrow text-neutral-500">
-            Platform controls
+          <h2 className="text-tiny font-semibold uppercase tracking-eyebrow text-muted-foreground">
+            {pickByLocale(locale, S.platformControls)}
           </h2>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-tiny font-mono uppercase text-warning">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning-subtle px-2.5 py-0.5 text-tiny font-mono uppercase text-warning">
             <AlertTriangle className="h-3 w-3" />
-            4-eye confirm required
+            {pickByLocale(locale, S.fourEyeRequired)}
           </span>
         </header>
 
         {notice ? (
-          <div className="mb-3 flex items-start gap-2 rounded-xl border border-signal-500/40 bg-signal-500/10 px-4 py-3 text-xs text-signal-200">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-signal-400" />
-            <span>{notice}</span>
-          </div>
+          <Alert variant="success" className="mb-3">
+            <span className="inline-flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+              {notice}
+            </span>
+          </Alert>
         ) : null}
         {loadError ? (
-          <div className="mb-3 flex items-start gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-xs text-destructive">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>Could not load live control state: {loadError}</span>
-          </div>
+          <Alert variant="error" className="mb-3">
+            {pickByLocale(locale, S.couldNotLoad)}: {loadError}
+          </Alert>
         ) : null}
 
-        <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border bg-surface/40">
-          {loading && controls.length === 0 ? (
-            <li className="flex items-center gap-2 px-5 py-6 text-xs text-neutral-400">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Loading live platform state…
-            </li>
-          ) : null}
+        {loading && controls.length === 0 ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : (
+        <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border bg-surface-sunken">
           {controls.map((control) => {
             const meta = CONTROL_META[control.id];
             if (!meta) return null;
@@ -329,7 +412,7 @@ export function ControlTowerClient(): JSX.Element {
                         {meta.riskLabel}
                       </span>
                     </div>
-                    <p className="mt-1 max-w-2xl text-xs text-neutral-400">
+                    <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                       {meta.description}
                     </p>
                   </div>
@@ -341,27 +424,27 @@ export function ControlTowerClient(): JSX.Element {
                     setPending(control);
                   }}
                   disabled={control.state === 'unknown'}
-                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ${
                     control.state === 'on'
-                      ? 'border-success/40 bg-success/10 text-success hover:bg-success/20'
-                      : 'border-border bg-background text-neutral-300 hover:bg-surface'
+                      ? 'border-success/40 bg-success-subtle text-success hover:bg-success/20'
+                      : 'border-border bg-background text-muted-foreground hover:bg-surface-sunken'
                   }`}
-                  aria-label={`Toggle ${meta.title}`}
+                  aria-label={`${pickByLocale(locale, S.toggle)} ${meta.title}`}
                 >
                   {control.state === 'on' ? (
                     <>
                       <ToggleRight className="h-3.5 w-3.5" />
-                      On
+                      {pickByLocale(locale, S.on)}
                     </>
                   ) : control.state === 'off' ? (
                     <>
                       <ToggleLeft className="h-3.5 w-3.5" />
-                      Off
+                      {pickByLocale(locale, S.off)}
                     </>
                   ) : (
                     <>
                       <AlertTriangle className="h-3.5 w-3.5" />
-                      Unknown
+                      {pickByLocale(locale, S.unknown)}
                     </>
                   )}
                 </button>
@@ -369,25 +452,23 @@ export function ControlTowerClient(): JSX.Element {
             );
           })}
         </ul>
+        )}
       </section>
 
-      <section className="rounded-2xl border border-signal-500/30 bg-signal-500/5 p-5">
+      <section className="rounded-2xl border border-info/30 bg-info-subtle p-5">
         <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <ShieldCheck className="h-4 w-4 text-signal-500" />
-          Audit footprint
+          <ShieldCheck className="h-4 w-4 text-info" />
+          {pickByLocale(locale, S.auditFootprint)}
         </h3>
-        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-neutral-300">
-          Every Control Tower action records to the hash-chained audit trail
-          (append-only, tamper-evident) and emits a SOC2 security event. Toggle
-          attempts include actor, timestamp, control id, blast-radius and the
-          second-eye attestation. High-impact controls only change live platform
-          state after a second operator approves.
+        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-muted-foreground">
+          {pickByLocale(locale, S.auditBody)}
         </p>
       </section>
 
       {pending ? (
         <FourEyeModal
           control={pending}
+          locale={locale}
           onClose={() => setPending(null)}
           onApplied={onApplied}
         />
@@ -398,11 +479,12 @@ export function ControlTowerClient(): JSX.Element {
 
 interface FourEyeModalProps {
   readonly control: ControlRow;
+  readonly locale: Locale;
   readonly onClose: () => void;
   readonly onApplied: (result: ToggleResult) => void;
 }
 
-function FourEyeModal({ control, onClose, onApplied }: FourEyeModalProps) {
+function FourEyeModal({ control, locale, onClose, onApplied }: FourEyeModalProps) {
   const meta = CONTROL_META[control.id];
   const desiredState = control.state === 'on' ? 'off' : 'on';
   const [phrase, setPhrase] = useState('');
@@ -422,93 +504,80 @@ function FourEyeModal({ control, onClose, onApplied }: FourEyeModalProps) {
       });
       onApplied(result);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Toggle failed');
+      setError(
+        err instanceof Error ? err.message : pickByLocale(locale, S.toggleFailed),
+      );
     } finally {
       setSubmitting(false);
     }
-  }, [control.id, desiredState, reason, onApplied]);
+  }, [control.id, desiredState, reason, onApplied, locale]);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur"
+    <Modal
+      open
+      onClose={onClose}
+      title={pickByLocale(locale, S.fourEyeTitle)}
+      size="lg"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-2xl">
-        <header className="flex items-start gap-3 border-b border-border pb-4">
-          <ShieldAlert className="mt-1 h-5 w-5 text-warning" />
-          <div>
-            <h3 className="text-lg font-semibold text-foreground">
-              4-eye confirmation required
-            </h3>
-            <p className="mt-1 text-xs text-neutral-400">
-              Setting {(meta?.title ?? control.id).toLowerCase()} to{' '}
-              <span className="font-mono uppercase text-foreground">
-                {desiredState}
-              </span>{' '}
-              affects every tenant. Type the phrase and capture an operational
-              reason; a second operator must approve high-impact changes before
-              they take effect.
-            </p>
-          </div>
-        </header>
-
-        <div className="mt-5 space-y-4">
-          <label className="block">
-            <span className="text-xs font-medium text-neutral-300">
-              Type CONFIRM to proceed
-            </span>
-            <input
-              type="text"
-              value={phrase}
-              onChange={(event) => setPhrase(event.target.value.toUpperCase())}
-              placeholder="CONFIRM"
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-medium text-neutral-300">
-              Operational reason (min 8 chars — recorded on the audit trail)
-            </span>
-            <input
-              type="text"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="e.g. active incident #4821 — pausing all inference"
-              className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
-            />
-          </label>
-          {error ? (
-            <p className="flex items-center gap-1.5 text-xs text-destructive">
+      <ModalBody className="space-y-4">
+        <p className="flex items-start gap-2 text-xs text-muted-foreground">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+          <span>
+          {pickByLocale(locale, S.setting)}{' '}
+          {(meta?.title ?? control.id).toLowerCase()}{' '}
+          {pickByLocale(locale, S.to)}{' '}
+          <span className="font-mono uppercase text-foreground">
+            {desiredState}
+          </span>{' '}
+          {pickByLocale(locale, S.affectsTenants)}
+          </span>
+        </p>
+        <FormField label={pickByLocale(locale, S.typeConfirm)} name="phrase">
+          <Input
+            type="text"
+            value={phrase}
+            onChange={(event) => setPhrase(event.target.value.toUpperCase())}
+            placeholder="CONFIRM"
+          />
+        </FormField>
+        <FormField label={pickByLocale(locale, S.opReason)} name="reason">
+          <Input
+            type="text"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="e.g. active incident #4821 — pausing all inference"
+          />
+        </FormField>
+        {error ? (
+          <Alert variant="error">
+            <span className="inline-flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5" />
               {error}
-            </p>
-          ) : null}
-        </div>
-
-        <footer className="mt-6 flex items-center justify-end gap-2 border-t border-border pt-4">
-          <Button
-            type="button"
-            onClick={onClose}
-            disabled={submitting}
-            variant="outline"
-            size="sm"
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={() => void submit()}
-            disabled={!canConfirm}
-            loading={submitting}
-            variant="warning"
-            size="sm"
-            className="text-background"
-          >
-            Apply change
-          </Button>
-        </footer>
-      </div>
-    </div>
+            </span>
+          </Alert>
+        ) : null}
+      </ModalBody>
+      <ModalFooter>
+        <Button
+          type="button"
+          onClick={onClose}
+          disabled={submitting}
+          variant="outline"
+          size="sm"
+        >
+          {pickByLocale(locale, S.cancel)}
+        </Button>
+        <Button
+          type="button"
+          onClick={() => void submit()}
+          disabled={!canConfirm}
+          loading={submitting}
+          variant="warning"
+          size="sm"
+        >
+          {pickByLocale(locale, S.applyChange)}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 }

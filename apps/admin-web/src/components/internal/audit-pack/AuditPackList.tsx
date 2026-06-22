@@ -1,11 +1,39 @@
 'use client';
 
 import {
+  Skeleton,
+  EmptyState,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
+import {
   useAuditPacksQuery,
   type AuditPack,
 } from '@/lib/internal/queries/audit-pack';
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+
+const S = {
+  emptyTitle: { en: 'No audit-packs issued yet', sw: 'Hakuna pakiti za ukaguzi bado' },
+  emptyBody: {
+    en: 'Mint a regulator audit-pack above to issue the first one.',
+    sw: 'Tengeneza pakiti ya ukaguzi ya mdhibiti hapo juu ili kutoa ya kwanza.',
+  },
+  colPack: { en: 'Pack', sw: 'Pakiti' },
+  colTenant: { en: 'Tenant', sw: 'Mteja' },
+  colRegulator: { en: 'Regulator', sw: 'Mdhibiti' },
+  colIssued: { en: 'Issued', sw: 'Imetolewa' },
+  colExpires: { en: 'Expires', sw: 'Inaisha' },
+  colStatus: { en: 'Status', sw: 'Hali' },
+  colDownload: { en: 'Download', sw: 'Pakua' },
+  download: { en: 'Download', sw: 'Pakua' },
+  pendingBundle: { en: 'Pending bundle', sw: 'Inasubiri kifurushi' },
+} as const;
 
 /**
  * Live issued audit-pack list.
@@ -29,11 +57,22 @@ function fmt(iso: string | null): string {
   return iso.replace('T', ' ').slice(0, 16);
 }
 
-export function AuditPackList(): JSX.Element {
+export function AuditPackList({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useAuditPacksQuery();
 
   if (query.isPending) {
-    return <p className="text-sm text-neutral-500">Loading issued packs…</p>;
+    return (
+      <div className="space-y-2 rounded-lg border border-border bg-surface p-4">
+        <Skeleton className="h-9 w-full rounded-md" />
+        <Skeleton className="h-9 w-full rounded-md" />
+        <Skeleton className="h-9 w-2/3 rounded-md" />
+      </div>
+    );
   }
   if (query.isError) {
     return <p className="text-sm text-danger">{query.error.message}</p>;
@@ -41,76 +80,72 @@ export function AuditPackList(): JSX.Element {
 
   const rows = query.data ?? [];
 
+  if (rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        <EmptyState
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
+        <DataSourceBadge source="live" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border bg-surface-sunken">
-            <tr className="text-left text-xs uppercase tracking-wider text-neutral-500">
-              <th className="px-4 py-3 font-medium">Pack</th>
-              <th className="px-4 py-3 font-medium">Tenant</th>
-              <th className="px-4 py-3 font-medium">Regulator</th>
-              <th className="px-4 py-3 font-medium">Issued</th>
-              <th className="px-4 py-3 font-medium">Expires</th>
-              <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Download</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-4 py-6 text-center text-xs text-neutral-500"
-                >
-                  No audit-packs issued yet.
-                </td>
-              </tr>
-            ) : (
-              rows.map((row: AuditPack) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-300">
-                    {row.id.slice(0, 8)}…
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs text-neutral-300">
-                    {row.tenantId.slice(0, 8)}…
-                  </td>
-                  <td className="px-4 py-3 text-neutral-300">{row.regulator}</td>
-                  <td className="px-4 py-3 tabular-nums text-neutral-300">
-                    {fmt(row.issuedAt)}
-                  </td>
-                  <td className="px-4 py-3 tabular-nums text-neutral-300">
-                    {fmt(row.expiresAt)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StubBadge tone={statusTone(row.status)}>
-                      {row.status}
-                    </StubBadge>
-                  </td>
-                  <td className="px-4 py-3">
-                    {row.signedUrl ? (
-                      <a
-                        href={row.signedUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs text-signal-500 hover:underline"
-                      >
-                        Download
-                      </a>
-                    ) : (
-                      <span className="text-xs text-neutral-500">
-                        Pending bundle
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{pickByLocale(locale, S.colPack)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colTenant)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colRegulator)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colIssued)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colExpires)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colStatus)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colDownload)}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row: AuditPack) => (
+              <TableRow key={row.id}>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {row.id.slice(0, 8)}…
+                </TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
+                  {row.tenantId.slice(0, 8)}…
+                </TableCell>
+                <TableCell className="text-muted-foreground">{row.regulator}</TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">
+                  {fmt(row.issuedAt)}
+                </TableCell>
+                <TableCell className="tabular-nums text-muted-foreground">
+                  {fmt(row.expiresAt)}
+                </TableCell>
+                <TableCell>
+                  <StubBadge tone={statusTone(row.status)}>{row.status}</StubBadge>
+                </TableCell>
+                <TableCell>
+                  {row.signedUrl ? (
+                    <a
+                      href={row.signedUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-signal-500 hover:underline"
+                    >
+                      {pickByLocale(locale, S.download)}
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.pendingBundle)}
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
       <DataSourceBadge source="live" />
     </div>

@@ -10,14 +10,42 @@
  *   POST /api/v1/parity/capability/dashboard/runs/:id/judge — re-judge
  *
  * Filters: capability, score range, scenario category. Click a row to
- * open a drawer with captured CoT (PII-scrubbed) + judge score + reason
- * + a "re-judge" button.
+ * open a DS Drawer (focus-trapped, ESC-dismissible) with captured CoT
+ * (PII-scrubbed) + judge score + reason + a "re-judge" button.
+ *
+ * Rendered on design-system primitives + semantic tokens so the screen
+ * lives correctly inside the dark admin shell. SINGLE LANGUAGE PER LOCALE
+ * (canon): every user-facing string resolves to the active locale via
+ * `pickByLocale`. Purely client surface — the hook falls back to the
+ * project default and the post-mount effect corrects it.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, ShieldCheck, AlertTriangle, RefreshCcw } from 'lucide-react';
-import { Button, Card } from '@borjie/design-system';
+import { ShieldCheck, AlertTriangle, RefreshCcw } from 'lucide-react';
+import {
+  Button,
+  Card,
+  Skeleton,
+  Alert,
+  Badge,
+  FormField,
+  Input,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Empty,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerBody,
+  type BadgeProps,
+} from '@borjie/design-system';
 import { api } from '@/lib/api';
+import { useLocale, pickByLocale } from '@/lib/locale';
 
 // NOTE: `id` values are the wire contract consumed by the gateway's
 // parity-capability-dashboard factory (services/api-gateway/src/routes/
@@ -89,6 +117,76 @@ interface CotReservoirRow {
 // skew between the provenance row and the reservoir capture.
 const COT_WINDOW_MS = 10 * 60 * 1000;
 
+const S = {
+  loadRollupFailed: {
+    en: 'Failed to load capability rollup',
+    sw: 'Imeshindwa kupakia muhtasari wa uwezo',
+  },
+  loadRunsFailed: {
+    en: 'Failed to load eval runs',
+    sw: 'Imeshindwa kupakia tathmini',
+  },
+  rejudgeFailed: { en: 'Re-judge failed', sw: 'Tathmini upya imeshindwa' },
+  rollupLabel: { en: 'Capability rollup', sw: 'Muhtasari wa uwezo' },
+  runs24h: { en: 'Runs (24h)', sw: 'Mizunguko (saa 24)' },
+  meanJudge: { en: 'Mean judge', sw: 'Wastani wa jaji' },
+  regenRate: { en: 'Regen rate', sw: 'Kiwango cha kuzalisha upya' },
+  degraded: {
+    en: 'Degraded view — substrate service is not wired in this environment.',
+    sw: 'Mwonekano uliopunguzwa — huduma ya msingi haijaunganishwa katika mazingira haya.',
+  },
+  filters: { en: 'Filters', sw: 'Vichujio' },
+  capability: { en: 'Capability', sw: 'Uwezo' },
+  all: { en: 'All', sw: 'Zote' },
+  minScore: { en: 'Min score', sw: 'Alama ya chini' },
+  maxScore: { en: 'Max score', sw: 'Alama ya juu' },
+  category: { en: 'Scenario category', sw: 'Aina ya hali' },
+  refresh: { en: 'Refresh', sw: 'Onyesha upya' },
+  evalRuns: { en: 'Eval runs', sw: 'Mizunguko ya tathmini' },
+  emptyTitle: {
+    en: 'No eval runs match these filters',
+    sw: 'Hakuna tathmini inayolingana na vichujio hivi',
+  },
+  emptyBody: {
+    en: 'Widen the score range or clear the category to see more runs.',
+    sw: 'Panua kiwango cha alama au futa aina ili kuona mizunguko zaidi.',
+  },
+  colThought: { en: 'Thought', sw: 'Wazo' },
+  colStakes: { en: 'Stakes', sw: 'Hatari' },
+  colCategory: { en: 'Category', sw: 'Aina' },
+  colJudge: { en: 'Judge', sw: 'Jaji' },
+  colWhen: { en: 'When', sw: 'Lini' },
+  showing: { en: 'Showing', sw: 'Inaonyesha' },
+  of: { en: 'of', sw: 'kati ya' },
+  runsNarrow: {
+    en: 'runs (refine filters to narrow).',
+    sw: 'mizunguko (boresha vichujio kupunguza).',
+  },
+  capturedRun: { en: 'Captured eval run', sw: 'Tathmini iliyonaswa' },
+  judgeScore: { en: 'Judge score', sw: 'Alama ya jaji' },
+  judgeReason: { en: 'Judge reason', sw: 'Sababu ya jaji' },
+  suggestedFix: { en: 'Suggested fix', sw: 'Marekebisho yaliyopendekezwa' },
+  capturedCot: {
+    en: 'Captured chain-of-thought (PII-scrubbed)',
+    sw: 'Mlolongo wa mawazo uliokamatwa (umesafishwa PII)',
+  },
+  loadingCot: {
+    en: 'Loading captured chain-of-thought…',
+    sw: 'Inapakia mlolongo wa mawazo…',
+  },
+  notCaptured: {
+    en: '— (not captured at sampling)',
+    sw: '— (haukunaswa wakati wa sampuli)',
+  },
+  model: { en: 'Model', sw: 'Modeli' },
+  promptHash: { en: 'Prompt hash', sw: 'Heshi ya ombi' },
+  responseHash: { en: 'Response hash', sw: 'Heshi ya jibu' },
+  rejudge: {
+    en: 'Re-judge with current rubric',
+    sw: 'Tathmini upya kwa kigezo cha sasa',
+  },
+} as const;
+
 function cotQueryPath(producedAt: string): string {
   const center = Date.parse(producedAt);
   const params = new URLSearchParams();
@@ -103,14 +201,16 @@ function cotQueryPath(producedAt: string): string {
   return `/admin/cot-query/query?${params.toString()}`;
 }
 
-function scoreBadge(score: number | null): string {
-  if (score === null) return 'bg-neutral-700 text-neutral-300';
-  if (score < 0.5) return 'bg-rose-500/20 text-rose-300';
-  if (score < 0.8) return 'bg-amber-500/20 text-amber-300';
-  return 'bg-emerald-500/20 text-emerald-300';
+/** Score → DS badge tone, on semantic tokens (no raw rose/amber/emerald). */
+function scoreVariant(score: number | null): BadgeProps['variant'] {
+  if (score === null) return 'secondary';
+  if (score < 0.5) return 'error-soft';
+  if (score < 0.8) return 'warning-soft';
+  return 'success-soft';
 }
 
 export function MissionEvalClient() {
+  const locale = useLocale();
   const [rollup, setRollup] = useState<DashboardRollup | null>(null);
   const [rows, setRows] = useState<ReadonlyArray<EvalRunRow>>([]);
   const [total, setTotal] = useState<number>(0);
@@ -132,10 +232,10 @@ export function MissionEvalClient() {
     if (res.success && res.data) {
       setRollup(res.data);
     } else {
-      setError(res.error ?? 'Failed to load capability rollup');
+      setError(res.error ?? pickByLocale(locale, S.loadRollupFailed));
     }
     setLoadingRollup(false);
-  }, []);
+  }, [locale]);
 
   const loadRuns = useCallback(async () => {
     setLoadingRows(true);
@@ -153,12 +253,12 @@ export function MissionEvalClient() {
       const meta = (res as unknown as { meta?: { total?: number } }).meta;
       setTotal(meta?.total ?? res.data.length);
     } else {
-      setError(res.error ?? 'Failed to load eval runs');
+      setError(res.error ?? pickByLocale(locale, S.loadRunsFailed));
       setRows([]);
       setTotal(0);
     }
     setLoadingRows(false);
-  }, [capability, minScore, maxScore, category]);
+  }, [capability, minScore, maxScore, category, locale]);
 
   useEffect(() => {
     void loadRollup();
@@ -218,7 +318,7 @@ export function MissionEvalClient() {
         ),
       );
     } else {
-      setError(res.error ?? 'Re-judge failed');
+      setError(res.error ?? pickByLocale(locale, S.rejudgeFailed));
     }
   }
 
@@ -230,22 +330,23 @@ export function MissionEvalClient() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">
-          <AlertTriangle className="mt-0.5 h-4 w-4" />
-          <span>{error}</span>
-        </div>
+        <Alert variant="error">
+          <span className="inline-flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4" />
+            {error}
+          </span>
+        </Alert>
       )}
 
       {/* Capability rollup tiles */}
       <section
-        aria-label="Capability rollup"
+        aria-label={pickByLocale(locale, S.rollupLabel)}
         className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
       >
-        {loadingRollup && (
-          <Card className="col-span-full flex items-center gap-2 rounded-2xl p-6 text-sm text-neutral-400 transition-colors hover:border-border-strong">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading rollup…
-          </Card>
-        )}
+        {loadingRollup &&
+          Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl border border-border" />
+          ))}
         {!loadingRollup &&
           rollup?.capabilities.map((tile) => (
             <Card
@@ -257,26 +358,26 @@ export function MissionEvalClient() {
                 <h3 className="text-sm font-semibold text-foreground">
                   {CAPABILITIES.find((c) => c.id === tile.id)?.label ?? tile.id}
                 </h3>
-                <ShieldCheck className="h-4 w-4 text-indigo-400" />
+                <ShieldCheck className="h-4 w-4 text-info" />
               </header>
-              <dl className="grid grid-cols-3 gap-2 text-xs text-neutral-400">
+              <dl className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                 <div>
-                  <dt>Runs (24h)</dt>
-                  <dd className="text-base font-mono text-foreground">
+                  <dt>{pickByLocale(locale, S.runs24h)}</dt>
+                  <dd className="font-mono text-base text-foreground">
                     {tile.runsLast24h}
                   </dd>
                 </div>
                 <div>
-                  <dt>Mean judge</dt>
-                  <dd className="text-base font-mono text-foreground">
+                  <dt>{pickByLocale(locale, S.meanJudge)}</dt>
+                  <dd className="font-mono text-base text-foreground">
                     {tile.meanJudgeScore === null
                       ? '—'
                       : tile.meanJudgeScore.toFixed(2)}
                   </dd>
                 </div>
                 <div>
-                  <dt>Regen rate</dt>
-                  <dd className="text-base font-mono text-foreground">
+                  <dt>{pickByLocale(locale, S.regenRate)}</dt>
+                  <dd className="font-mono text-base text-foreground">
                     {tile.regenRateLast24h === null
                       ? '—'
                       : `${(tile.regenRateLast24h * 100).toFixed(1)}%`}
@@ -286,37 +387,44 @@ export function MissionEvalClient() {
             </Card>
           ))}
         {rollup?.degraded && (
-          <Card className="col-span-full rounded-2xl p-6 text-xs text-neutral-500 transition-colors hover:border-border-strong">
-            Degraded view — substrate service is not wired in this environment.
+          <Card className="col-span-full rounded-2xl p-6 text-xs text-muted-foreground transition-colors hover:border-border-strong">
+            {pickByLocale(locale, S.degraded)}
           </Card>
         )}
       </section>
 
       {/* Filters */}
       <Card
-        aria-label="Filters"
+        aria-label={pickByLocale(locale, S.filters)}
         className="flex flex-wrap items-end gap-3 rounded-2xl p-6 transition-colors hover:border-border-strong"
       >
-        <label className="flex flex-col text-xs text-neutral-400">
-          Capability
+        <FormField
+          label={pickByLocale(locale, S.capability)}
+          name="capability"
+          className="min-w-[12rem]"
+        >
           <select
             data-testid="filter-capability"
             value={capability}
             onChange={(e) => setCapability(e.target.value as CapabilityId | '')}
             disabled={filterControlsDisabled}
-            className="mt-1 rounded border border-border/40 bg-surface-sunken px-2 py-1 text-sm text-foreground"
+            aria-label={pickByLocale(locale, S.capability)}
+            className="h-10 w-full rounded-md border border-border bg-surface-sunken px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="">All</option>
+            <option value="">{pickByLocale(locale, S.all)}</option>
             {CAPABILITIES.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.label}
               </option>
             ))}
           </select>
-        </label>
-        <label className="flex flex-col text-xs text-neutral-400">
-          Min score
-          <input
+        </FormField>
+        <FormField
+          label={pickByLocale(locale, S.minScore)}
+          name="minScore"
+          className="w-28"
+        >
+          <Input
             data-testid="filter-min-score"
             type="number"
             min={0}
@@ -324,12 +432,14 @@ export function MissionEvalClient() {
             step={0.05}
             value={minScore}
             onChange={(e) => setMinScore(e.target.value)}
-            className="mt-1 w-24 rounded border border-border/40 bg-surface-sunken px-2 py-1 text-sm text-foreground"
           />
-        </label>
-        <label className="flex flex-col text-xs text-neutral-400">
-          Max score
-          <input
+        </FormField>
+        <FormField
+          label={pickByLocale(locale, S.maxScore)}
+          name="maxScore"
+          className="w-28"
+        >
+          <Input
             data-testid="filter-max-score"
             type="number"
             min={0}
@@ -337,205 +447,212 @@ export function MissionEvalClient() {
             step={0.05}
             value={maxScore}
             onChange={(e) => setMaxScore(e.target.value)}
-            className="mt-1 w-24 rounded border border-border/40 bg-surface-sunken px-2 py-1 text-sm text-foreground"
           />
-        </label>
-        <label className="flex flex-col text-xs text-neutral-400">
-          Scenario category
-          <input
+        </FormField>
+        <FormField
+          label={pickByLocale(locale, S.category)}
+          name="category"
+          className="w-48"
+        >
+          <Input
             data-testid="filter-category"
             type="text"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             placeholder="refusal, drift, policy…"
-            className="mt-1 w-44 rounded border border-border/40 bg-surface-sunken px-2 py-1 text-sm text-foreground"
           />
-        </label>
+        </FormField>
         <Button
           type="button"
           onClick={() => void loadRuns()}
           disabled={loadingRows}
           size="sm"
           leftIcon={<RefreshCcw className="h-4 w-4" />}
-          className="bg-indigo-500/20 text-indigo-200 hover:bg-indigo-500/30"
         >
-          Refresh
+          {pickByLocale(locale, S.refresh)}
         </Button>
       </Card>
 
       {/* Runs table */}
       <Card
-        aria-label="Eval runs"
+        aria-label={pickByLocale(locale, S.evalRuns)}
         className="overflow-hidden rounded-2xl p-6 transition-colors hover:border-border-strong"
         data-testid="eval-runs-table"
       >
         {loadingRows && (
-          <div className="flex items-center gap-2 p-4 text-sm text-neutral-400">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading runs…
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full rounded-md" />
+            ))}
           </div>
         )}
         {!loadingRows && rows.length === 0 && !error && (
-          <div className="p-6 text-center text-sm text-neutral-500">
-            No eval runs match these filters.
-          </div>
+          <Empty
+            title={pickByLocale(locale, S.emptyTitle)}
+            description={pickByLocale(locale, S.emptyBody)}
+          />
         )}
         {!loadingRows && rows.length > 0 && (
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-border/40 text-xs text-neutral-400">
-              <tr>
-                <th className="px-3 py-2">Thought</th>
-                <th className="px-3 py-2">Stakes</th>
-                <th className="px-3 py-2">Capability</th>
-                <th className="px-3 py-2">Category</th>
-                <th className="px-3 py-2">Judge</th>
-                <th className="px-3 py-2">When</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.colThought)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colStakes)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.capability)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colCategory)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colJudge)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.colWhen)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.map((r) => (
-                <tr
+                <TableRow
                   key={r.thoughtId}
                   data-testid={`eval-row-${r.thoughtId}`}
                   onClick={() => void openDetail(r)}
-                  className="cursor-pointer border-b border-border/30 hover:bg-surface-sunken/50"
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      void openDetail(r);
+                    }
+                  }}
+                  className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <td className="px-3 py-2 font-mono text-xs text-neutral-300">
+                  <TableCell className="font-mono text-xs text-muted-foreground">
                     {r.thoughtId.slice(0, 12)}…
-                  </td>
-                  <td className="px-3 py-2 text-xs text-neutral-300">
-                    {r.stakes}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-neutral-300">
-                    {r.capability ?? '—'}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-neutral-300">
-                    {r.category ?? '—'}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`inline-block rounded px-1.5 py-0.5 text-xs font-mono ${scoreBadge(r.judgeScore)}`}
-                    >
+                  </TableCell>
+                  <TableCell className="text-xs">{r.stakes}</TableCell>
+                  <TableCell className="text-xs">{r.capability ?? '—'}</TableCell>
+                  <TableCell className="text-xs">{r.category ?? '—'}</TableCell>
+                  <TableCell>
+                    <Badge variant={scoreVariant(r.judgeScore)} size="sm">
                       {r.judgeScore === null ? '—' : r.judgeScore.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-xs text-neutral-400">
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
                     {new Date(r.producedAt).toLocaleString()}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
         {total > rows.length && (
-          <p className="px-3 py-2 text-xs text-neutral-500">
-            Showing {rows.length} of {total} runs (refine filters to narrow).
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            {pickByLocale(locale, S.showing)} {rows.length}{' '}
+            {pickByLocale(locale, S.of)} {total}{' '}
+            {pickByLocale(locale, S.runsNarrow)}
           </p>
         )}
       </Card>
 
-      {/* Detail drawer */}
-      {selected && (
-        <aside
-          data-testid="detail-drawer"
-          className="fixed inset-y-0 right-0 z-40 w-full max-w-xl overflow-y-auto border-l border-border/40 bg-surface-sunken p-6 shadow-2xl"
-        >
-          <header className="mb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-foreground">
-                Captured eval run
-              </h2>
-              <p className="font-mono text-xs text-neutral-400">
-                {selected.thoughtId}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              className="text-sm text-neutral-400 hover:text-foreground"
-              aria-label="Close drawer"
-            >
-              Close
-            </button>
-          </header>
-          <dl className="space-y-3 text-sm">
-            <div>
-              <dt className="text-xs text-neutral-400">Judge score</dt>
-              <dd className="font-mono text-base text-foreground">
-                <span
-                  className={`inline-block rounded px-2 py-0.5 ${scoreBadge(selected.judgeScore)}`}
+      {/* Detail drawer — DS Drawer (focus trap + ESC for free) */}
+      <Drawer
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null);
+        }}
+      >
+        <DrawerContent side="right" size="lg" data-testid="detail-drawer">
+          {selected && (
+            <>
+              <DrawerHeader>
+                <DrawerTitle>{pickByLocale(locale, S.capturedRun)}</DrawerTitle>
+                <p className="font-mono text-xs text-muted-foreground">
+                  {selected.thoughtId}
+                </p>
+              </DrawerHeader>
+              <DrawerBody>
+                <dl className="space-y-3 text-sm">
+                  <div>
+                    <dt className="text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.judgeScore)}
+                    </dt>
+                    <dd className="font-mono text-base text-foreground">
+                      <Badge variant={scoreVariant(selected.judgeScore)}>
+                        {selected.judgeScore === null
+                          ? '—'
+                          : selected.judgeScore.toFixed(2)}
+                      </Badge>
+                    </dd>
+                  </div>
+                  {selected.judgeReasonText && (
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        {pickByLocale(locale, S.judgeReason)}
+                      </dt>
+                      <dd className="text-sm text-foreground">
+                        {selected.judgeReasonText}
+                      </dd>
+                    </div>
+                  )}
+                  {selected.judgeSuggestedFix && (
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        {pickByLocale(locale, S.suggestedFix)}
+                      </dt>
+                      <dd className="text-sm text-foreground">
+                        {selected.judgeSuggestedFix}
+                      </dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt className="text-xs text-muted-foreground">
+                      {pickByLocale(locale, S.capturedCot)}
+                    </dt>
+                    <dd className="mt-1 whitespace-pre-wrap rounded bg-surface-sunken p-3 font-mono text-xs text-foreground">
+                      {cotLoading && selected.cotThoughtText === null ? (
+                        <span className="text-muted-foreground">
+                          {pickByLocale(locale, S.loadingCot)}
+                        </span>
+                      ) : (
+                        (selected.cotThoughtText ??
+                          pickByLocale(locale, S.notCaptured))
+                      )}
+                    </dd>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div>
+                      <dt>{pickByLocale(locale, S.colStakes)}</dt>
+                      <dd className="text-foreground">{selected.stakes}</dd>
+                    </div>
+                    <div>
+                      <dt>{pickByLocale(locale, S.model)}</dt>
+                      <dd className="text-foreground">
+                        {selected.modelId ?? '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{pickByLocale(locale, S.promptHash)}</dt>
+                      <dd className="break-all font-mono text-tiny">
+                        {selected.promptHash ?? '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>{pickByLocale(locale, S.responseHash)}</dt>
+                      <dd className="break-all font-mono text-tiny">
+                        {selected.responseHash ?? '—'}
+                      </dd>
+                    </div>
+                  </div>
+                </dl>
+                <Button
+                  type="button"
+                  onClick={() => void rejudge(selected.thoughtId)}
+                  loading={rejudging}
+                  fullWidth
+                  data-testid="rejudge-button"
+                  className="mt-6"
                 >
-                  {selected.judgeScore === null
-                    ? '—'
-                    : selected.judgeScore.toFixed(2)}
-                </span>
-              </dd>
-            </div>
-            {selected.judgeReasonText && (
-              <div>
-                <dt className="text-xs text-neutral-400">Judge reason</dt>
-                <dd className="text-sm text-foreground">
-                  {selected.judgeReasonText}
-                </dd>
-              </div>
-            )}
-            {selected.judgeSuggestedFix && (
-              <div>
-                <dt className="text-xs text-neutral-400">Suggested fix</dt>
-                <dd className="text-sm text-foreground">
-                  {selected.judgeSuggestedFix}
-                </dd>
-              </div>
-            )}
-            <div>
-              <dt className="text-xs text-neutral-400">
-                Captured chain-of-thought (PII-scrubbed)
-              </dt>
-              <dd className="mt-1 whitespace-pre-wrap rounded bg-neutral-900 p-3 font-mono text-xs text-neutral-200">
-                {cotLoading && selected.cotThoughtText === null ? (
-                  <span className="flex items-center gap-2 text-neutral-400">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Loading captured
-                    chain-of-thought…
-                  </span>
-                ) : (
-                  (selected.cotThoughtText ?? '— (not captured at sampling)')
-                )}
-              </dd>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-xs text-neutral-400">
-              <div>
-                <dt>Stakes</dt>
-                <dd className="text-neutral-200">{selected.stakes}</dd>
-              </div>
-              <div>
-                <dt>Model</dt>
-                <dd className="text-neutral-200">{selected.modelId ?? '—'}</dd>
-              </div>
-              <div>
-                <dt>Prompt hash</dt>
-                <dd className="break-all font-mono text-tiny text-neutral-500">
-                  {selected.promptHash ?? '—'}
-                </dd>
-              </div>
-              <div>
-                <dt>Response hash</dt>
-                <dd className="break-all font-mono text-tiny text-neutral-500">
-                  {selected.responseHash ?? '—'}
-                </dd>
-              </div>
-            </div>
-          </dl>
-          <Button
-            type="button"
-            onClick={() => void rejudge(selected.thoughtId)}
-            loading={rejudging}
-            fullWidth
-            data-testid="rejudge-button"
-            className="mt-6 bg-indigo-500 text-white hover:bg-indigo-400"
-          >
-            Re-judge with current rubric
-          </Button>
-        </aside>
-      )}
+                  {pickByLocale(locale, S.rejudge)}
+                </Button>
+              </DrawerBody>
+            </>
+          )}
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

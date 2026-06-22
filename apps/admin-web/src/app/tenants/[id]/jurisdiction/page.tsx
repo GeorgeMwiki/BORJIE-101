@@ -37,7 +37,7 @@ export default async function TenantJurisdictionPage({
             <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               Jurisdiction override
             </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               Tenants are LOCKED to their signup jurisdiction. Only Borjie
               internal admin can re-assign — and the change requires a
               second admin&apos;s approval (four-eye, per CLAUDE.md inviolable).
