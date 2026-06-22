@@ -58,7 +58,7 @@ export default async function TenantsPage(): Promise<JSX.Element> {
           </Button>
         </header>
 
-        <TenantDirectory />
+        <TenantDirectory initialLocale={locale} />
       </div>
     </QueryProvider>
   );

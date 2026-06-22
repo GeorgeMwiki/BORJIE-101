@@ -9,19 +9,11 @@ export default function AuditLogPage(): JSX.Element {
   return (
     <ScreenShell
       screen={SCREEN}
-      actions={
-        <>
-          <StubBadge tone="info">Append-only</StubBadge>
-          <button
-            type="button"
-            disabled
-            title="NDJSON export lands once the audit-log /export endpoint ships (SCRUB-4: needs GET /internal/audit-log/export)"
-            className="text-xs text-signal-500/50 opacity-60 cursor-not-allowed"
-          >
-            Export NDJSON
-          </button>
-        </>
-      }
+      // NDJSON export intentionally NOT rendered: the gateway export
+      // endpoint (GET /internal/audit-log/export) has not shipped yet. A
+      // permanently-disabled control reads as a real-but-broken affordance
+      // (honesty / zero-mock violation) — re-add it only when the route lands.
+      actions={<StubBadge tone="info">Append-only</StubBadge>}
     >
       <AuditLogViewer />
     </ScreenShell>

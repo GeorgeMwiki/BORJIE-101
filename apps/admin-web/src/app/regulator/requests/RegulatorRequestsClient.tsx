@@ -10,17 +10,41 @@
  *   POST /api/v1/regulator/requests/:id/deliver
  *   POST /api/v1/regulator/requests/:id/reject
  *
- * The summary textarea renders ONLY the active-locale field — Swahili
- * when locale=sw, English when locale=en. Both values are kept in
- * CreatePayload so the downstream bilingual record is complete.
- * SLA countdown via simple Math; toasts use the shared `useState`
- * message pattern.
+ * Rendered on DESIGN-SYSTEM primitives + semantic TOKENS so the screen
+ * lives correctly inside the dark admin shell (the previous build was a
+ * full light-theme leaf — bg-white / slate-* / amber-100 — that read as
+ * broken). SINGLE LANGUAGE PER LOCALE (canon): every user-facing string
+ * resolves to the active locale via `pickByLocale`, seeded from the
+ * server-resolved cookie (`initialLocale`) so SSR + the first client paint
+ * agree. Agency acronyms (PCCB / NEMC / EITI / TMAA) are proper nouns and
+ * are kept verbatim. Both summary values are retained in CreatePayload so
+ * the downstream bilingual record stays complete.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Badge,
+  Alert,
+  Modal,
+  ModalFooter,
+  Input,
+  Textarea,
+  type BadgeProps,
+} from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, type Locale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 type Regulator = 'pccb' | 'nemc' | 'eiti' | 'tmaa' | 'other';
 type SubjectKind =
@@ -63,25 +87,87 @@ interface CreatePayload {
   readonly summaryEn?: string;
 }
 
-const STATUS_BADGE: Readonly<Record<Status, string>> = Object.freeze({
-  received: 'bg-slate-100 text-slate-700',
-  parsed: 'bg-slate-200 text-slate-800',
-  owner_review: 'bg-amber-100 text-amber-800',
-  disclosure_approved: 'bg-emerald-100 text-emerald-800',
-  exporting: 'bg-blue-100 text-blue-800',
-  exported: 'bg-blue-200 text-blue-900',
-  delivered: 'bg-green-100 text-green-800',
-  rejected: 'bg-rose-100 text-rose-800',
-  expired: 'bg-zinc-200 text-zinc-700',
+/** Status → DS badge tone, on semantic tokens (no raw light palette). */
+const STATUS_TONE: Readonly<Record<Status, BadgeProps['variant']>> =
+  Object.freeze({
+    received: 'secondary',
+    parsed: 'secondary',
+    owner_review: 'warning-soft',
+    disclosure_approved: 'success-soft',
+    exporting: 'info-soft',
+    exported: 'info-soft',
+    delivered: 'success',
+    rejected: 'error-soft',
+    expired: 'outline',
+  });
+
+/** Agency proper nouns — kept verbatim across locales. */
+const REGULATOR_LABEL: Readonly<Record<Regulator, string>> = Object.freeze({
+  pccb: 'PCCB / PDPC',
+  nemc: 'NEMC',
+  eiti: 'EITI / TEITI',
+  tmaa: 'TMAA',
+  other: 'Other',
 });
 
-function daysUntilLabel(dueAt: string): string {
+function statusLabel(status: Status, locale: Locale): string {
+  const map: Record<Status, { en: string; sw: string }> = {
+    received: { en: 'received', sw: 'imepokelewa' },
+    parsed: { en: 'parsed', sw: 'imechanganuliwa' },
+    owner_review: { en: 'owner review', sw: 'ukaguzi wa mmiliki' },
+    disclosure_approved: { en: 'disclosure approved', sw: 'ufichuzi umeidhinishwa' },
+    exporting: { en: 'exporting', sw: 'inasafirisha' },
+    exported: { en: 'exported', sw: 'imesafirishwa' },
+    delivered: { en: 'delivered', sw: 'imewasilishwa' },
+    rejected: { en: 'rejected', sw: 'imekataliwa' },
+    expired: { en: 'expired', sw: 'imeisha muda' },
+  };
+  return pickByLocale(locale, map[status]);
+}
+
+function subjectKindLabel(kind: SubjectKind, locale: Locale): string {
+  const map: Record<SubjectKind, { en: string; sw: string }> = {
+    worker: { en: 'Worker', sw: 'Mfanyakazi' },
+    site: { en: 'Site', sw: 'Eneo' },
+    licence: { en: 'Licence', sw: 'Leseni' },
+    tenant: { en: 'Tenant', sw: 'Mteja' },
+    company: { en: 'Company', sw: 'Kampuni' },
+    shipment: { en: 'Shipment', sw: 'Mzigo' },
+  };
+  return pickByLocale(locale, map[kind]);
+}
+
+function daysUntilLabel(dueAt: string, locale: Locale): string {
   const ms = new Date(dueAt).getTime() - Date.now();
   const days = Math.ceil(ms / (24 * 60 * 60 * 1000));
-  if (days < 0) return `${Math.abs(days)}d overdue`;
-  if (days === 0) return 'Due today';
-  return `${days}d remaining`;
+  if (days < 0)
+    return pickByLocale(locale, {
+      en: `${Math.abs(days)}d overdue`,
+      sw: `siku ${Math.abs(days)} zimepita`,
+    });
+  if (days === 0)
+    return pickByLocale(locale, { en: 'Due today', sw: 'Inastahili leo' });
+  return pickByLocale(locale, {
+    en: `${days}d remaining`,
+    sw: `siku ${days} zimebaki`,
+  });
 }
+
+const REGULATOR_OPTIONS: ReadonlyArray<Regulator> = [
+  'pccb',
+  'nemc',
+  'eiti',
+  'tmaa',
+  'other',
+];
+const SUBJECT_KIND_OPTIONS: ReadonlyArray<SubjectKind> = [
+  'worker',
+  'site',
+  'licence',
+  'tenant',
+  'company',
+  'shipment',
+];
 
 export function RegulatorRequestsClient({
   initialLocale,
@@ -99,6 +185,9 @@ export function RegulatorRequestsClient({
     subjectKind: 'worker',
     subjectRef: '',
   });
+  // Reject flow: DS Modal + DS Input replaces the native window.prompt().
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -110,9 +199,15 @@ export function RegulatorRequestsClient({
     if (res.success && res.data) {
       setRows(res.data);
     } else {
-      setError(res.error ?? 'Failed to load regulator requests');
+      setError(
+        res.error ??
+          pickByLocale(locale, {
+            en: 'Failed to load regulator requests',
+            sw: 'Imeshindwa kupakia maombi ya wadhibiti',
+          }),
+      );
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void load();
@@ -120,7 +215,12 @@ export function RegulatorRequestsClient({
 
   const submitNew = useCallback(async () => {
     if (!draft.subjectRef) {
-      setError('Subject reference is required');
+      setError(
+        pickByLocale(locale, {
+          en: 'Subject reference is required',
+          sw: 'Kumbukumbu ya mhusika inahitajika',
+        }),
+      );
       return;
     }
     setLoading(true);
@@ -132,13 +232,24 @@ export function RegulatorRequestsClient({
     );
     setLoading(false);
     if (res.success && res.data) {
-      setMessage(`Captured ${res.data.id} — ${res.data.status}`);
+      setMessage(
+        pickByLocale(locale, {
+          en: `Captured ${res.data.id} — ${statusLabel(res.data.status, 'en')}`,
+          sw: `Imehifadhiwa ${res.data.id} — ${statusLabel(res.data.status, 'sw')}`,
+        }),
+      );
       setDraft({ ...draft, subjectRef: '' });
       await load();
     } else {
-      setError(res.error ?? 'Failed to capture request');
+      setError(
+        res.error ??
+          pickByLocale(locale, {
+            en: 'Failed to capture request',
+            sw: 'Imeshindwa kuhifadhi ombi',
+          }),
+      );
     }
-  }, [draft, load]);
+  }, [draft, load, locale]);
 
   const advance = useCallback(
     async (id: string, path: 'parse' | 'export-redacted' | 'deliver') => {
@@ -147,34 +258,56 @@ export function RegulatorRequestsClient({
       const res = await api.post<unknown>(`/regulator/requests/${id}/${path}`, {});
       setLoading(false);
       if (res.success) {
-        setMessage(`${id}: ${path} ok`);
+        setMessage(
+          pickByLocale(locale, {
+            en: `${id}: ${path} ok`,
+            sw: `${id}: ${path} imefaulu`,
+          }),
+        );
         await load();
       } else {
-        setError(res.error ?? `Failed to ${path} ${id}`);
+        setError(
+          res.error ??
+            pickByLocale(locale, {
+              en: `Failed to ${path} ${id}`,
+              sw: `Imeshindwa kutekeleza ${path} kwa ${id}`,
+            }),
+        );
       }
     },
-    [load],
+    [load, locale],
   );
 
-  const reject = useCallback(
-    async (id: string) => {
-      const reason = window.prompt('Reason for rejection?');
-      if (!reason) return;
-      setLoading(true);
-      setError(null);
-      const res = await api.post<unknown>(`/regulator/requests/${id}/reject`, {
-        reason,
-      });
-      setLoading(false);
-      if (res.success) {
-        setMessage(`${id}: rejected`);
-        await load();
-      } else {
-        setError(res.error ?? `Failed to reject ${id}`);
-      }
-    },
-    [load],
-  );
+  const confirmReject = useCallback(async () => {
+    const id = rejectTarget;
+    const reason = rejectReason.trim();
+    if (!id || !reason) return;
+    setLoading(true);
+    setError(null);
+    const res = await api.post<unknown>(`/regulator/requests/${id}/reject`, {
+      reason,
+    });
+    setLoading(false);
+    setRejectTarget(null);
+    setRejectReason('');
+    if (res.success) {
+      setMessage(
+        pickByLocale(locale, {
+          en: `${id}: rejected`,
+          sw: `${id}: imekataliwa`,
+        }),
+      );
+      await load();
+    } else {
+      setError(
+        res.error ??
+          pickByLocale(locale, {
+            en: `Failed to reject ${id}`,
+            sw: `Imeshindwa kukataa ${id}`,
+          }),
+      );
+    }
+  }, [rejectTarget, rejectReason, load, locale]);
 
   const totals = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -184,222 +317,338 @@ export function RegulatorRequestsClient({
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-base font-semibold text-slate-900">
-          Capture inbound request
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Paste the regulator&apos;s ask. Status starts at <code>received</code>
-          and auto-advances to <code>owner_review</code> on parse.
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
-          <label className="text-sm">
-            Regulator
-            <select
-              value={draft.regulator}
-              onChange={(e) =>
-                setDraft({ ...draft, regulator: e.target.value as Regulator })
-              }
-              className="mt-1 w-full rounded-md border-slate-300 text-sm"
-            >
-              <option value="pccb">PCCB / PDPC</option>
-              <option value="nemc">NEMC</option>
-              <option value="eiti">EITI / TEITI</option>
-              <option value="tmaa">TMAA</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-          <label className="text-sm">
-            Subject kind
-            <select
-              value={draft.subjectKind}
-              onChange={(e) =>
-                setDraft({
-                  ...draft,
-                  subjectKind: e.target.value as SubjectKind,
-                })
-              }
-              className="mt-1 w-full rounded-md border-slate-300 text-sm"
-            >
-              <option value="worker">Worker</option>
-              <option value="site">Site</option>
-              <option value="licence">Licence</option>
-              <option value="tenant">Tenant</option>
-              <option value="company">Company</option>
-              <option value="shipment">Shipment</option>
-            </select>
-          </label>
-          <label className="text-sm">
-            Subject reference
-            <input
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {pickByLocale(locale, {
+              en: 'Capture inbound request',
+              sw: 'Hifadhi ombi linaloingia',
+            })}
+          </CardTitle>
+          <CardDescription>
+            {pickByLocale(locale, {
+              en: 'Paste the regulator’s ask. Status starts at “received” and auto-advances to “owner review” on parse.',
+              sw: 'Bandika ombi la mdhibiti. Hali huanza kwa “imepokelewa” na husonga mbele kiotomatiki hadi “ukaguzi wa mmiliki” baada ya kuchanganua.',
+            })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <label className="block text-sm text-foreground">
+              <span className="mb-1 block text-muted-foreground">
+                {pickByLocale(locale, { en: 'Regulator', sw: 'Mdhibiti' })}
+              </span>
+              <select
+                value={draft.regulator}
+                onChange={(e) =>
+                  setDraft({ ...draft, regulator: e.target.value as Regulator })
+                }
+                aria-label={pickByLocale(locale, {
+                  en: 'Regulator',
+                  sw: 'Mdhibiti',
+                })}
+                className="h-10 w-full rounded-md border border-border bg-surface-sunken px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {REGULATOR_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {REGULATOR_LABEL[value]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm text-foreground">
+              <span className="mb-1 block text-muted-foreground">
+                {pickByLocale(locale, {
+                  en: 'Subject kind',
+                  sw: 'Aina ya mhusika',
+                })}
+              </span>
+              <select
+                value={draft.subjectKind}
+                onChange={(e) =>
+                  setDraft({
+                    ...draft,
+                    subjectKind: e.target.value as SubjectKind,
+                  })
+                }
+                aria-label={pickByLocale(locale, {
+                  en: 'Subject kind',
+                  sw: 'Aina ya mhusika',
+                })}
+                className="h-10 w-full rounded-md border border-border bg-surface-sunken px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                {SUBJECT_KIND_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {subjectKindLabel(value, locale)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Input
+              label={pickByLocale(locale, {
+                en: 'Subject reference',
+                sw: 'Kumbukumbu ya mhusika',
+              })}
               value={draft.subjectRef}
               onChange={(e) =>
                 setDraft({ ...draft, subjectRef: e.target.value })
               }
               placeholder="usr-… / site-… / lic-…"
-              className="mt-1 w-full rounded-md border-slate-300 text-sm"
             />
-          </label>
-        </div>
-        <div className="mt-3">
+          </div>
+
           {locale === 'sw' ? (
-            <label className="text-sm">
-              Muhtasari (sw)
-              <textarea
-                value={draft.summarySw ?? ''}
-                onChange={(e) =>
-                  setDraft({ ...draft, summarySw: e.target.value })
-                }
-                rows={2}
-                placeholder="Maandishi ya muhtasari kwa Kiswahili"
-                className="mt-1 w-full rounded-md border-slate-300 text-sm"
-              />
-            </label>
+            <Textarea
+              label="Muhtasari"
+              value={draft.summarySw ?? ''}
+              onChange={(e) =>
+                setDraft({ ...draft, summarySw: e.target.value })
+              }
+              rows={2}
+              placeholder="Maandishi ya muhtasari kwa Kiswahili"
+            />
           ) : (
-            <label className="text-sm">
-              Summary (en)
-              <textarea
-                value={draft.summaryEn ?? ''}
-                onChange={(e) =>
-                  setDraft({ ...draft, summaryEn: e.target.value })
-                }
-                rows={2}
-                placeholder="English summary text"
-                className="mt-1 w-full rounded-md border-slate-300 text-sm"
-              />
-            </label>
+            <Textarea
+              label="Summary"
+              value={draft.summaryEn ?? ''}
+              onChange={(e) =>
+                setDraft({ ...draft, summaryEn: e.target.value })
+              }
+              rows={2}
+              placeholder="English summary text"
+            />
           )}
-        </div>
-        <div className="mt-4 flex justify-end gap-3">
-          <Button
-            loading={loading}
-            disabled={loading}
-            onClick={() => void submitNew()}
-          >
-            {loading ? 'Saving…' : 'Capture request'}
-          </Button>
-        </div>
-      </section>
+
+          <div className="flex justify-end">
+            <Button
+              loading={loading}
+              disabled={loading}
+              onClick={() => void submitNew()}
+            >
+              {loading
+                ? pickByLocale(locale, { en: 'Saving…', sw: 'Inahifadhi…' })
+                : pickByLocale(locale, {
+                    en: 'Capture request',
+                    sw: 'Hifadhi ombi',
+                  })}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {error && (
-        <div className="rounded-md border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+        <Alert variant="error" hideIcon={false}>
           {error}
-        </div>
+        </Alert>
       )}
       {message && (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+        <Alert variant="success" hideIcon={false}>
           {message}
-        </div>
+        </Alert>
       )}
 
-      <section>
+      <section className="space-y-3">
         <header className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-base font-semibold text-slate-900">
-            Inbox ({rows.length})
+          <h2 className="text-base font-semibold text-foreground">
+            {pickByLocale(locale, {
+              en: `Inbox (${rows.length})`,
+              sw: `Kikasha (${rows.length})`,
+            })}
           </h2>
-          <ul className="flex flex-wrap gap-2 text-xs text-slate-600">
+          <ul className="flex flex-wrap gap-2">
             {Object.entries(totals).map(([k, v]) => (
-              <li
-                key={k}
-                className={`rounded-full px-2 py-0.5 ${STATUS_BADGE[k as Status] ?? 'bg-slate-100 text-slate-700'}`}
-              >
-                {k}: {v}
+              <li key={k}>
+                <Badge
+                  variant={STATUS_TONE[k as Status] ?? 'secondary'}
+                  size="sm"
+                >
+                  {statusLabel(k as Status, locale)}: {v}
+                </Badge>
               </li>
             ))}
           </ul>
         </header>
-        <table className="mt-3 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
-            <tr>
-              <th className="px-4 py-2">Regulator</th>
-              <th className="px-4 py-2">Subject</th>
-              <th className="px-4 py-2">Status</th>
-              <th className="px-4 py-2">SLA</th>
-              <th className="px-4 py-2 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {rows.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  className="px-4 py-8 text-center text-slate-500"
-                >
-                  No regulator requests yet.
-                </td>
-              </tr>
-            )}
-            {rows.map((row) => (
-              <tr key={row.id} className="hover:bg-slate-50">
-                <td className="px-4 py-2 font-medium uppercase">
-                  {row.regulator}
-                </td>
-                <td className="px-4 py-2 text-slate-700">
-                  <div>{row.subjectKind}</div>
-                  <div className="text-xs text-slate-500">
-                    {row.subjectRef}
-                  </div>
-                </td>
-                <td className="px-4 py-2">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[row.status]}`}
+
+        <Card variant="outline" padding="none" className="overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                  {pickByLocale(locale, { en: 'Regulator', sw: 'Mdhibiti' })}
+                </TableHead>
+                <TableHead>
+                  {pickByLocale(locale, { en: 'Subject', sw: 'Mhusika' })}
+                </TableHead>
+                <TableHead>
+                  {pickByLocale(locale, { en: 'Status', sw: 'Hali' })}
+                </TableHead>
+                <TableHead>
+                  {pickByLocale(locale, { en: 'SLA', sw: 'SLA' })}
+                </TableHead>
+                <TableHead className="text-right">
+                  {pickByLocale(locale, { en: 'Actions', sw: 'Vitendo' })}
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={5}
+                    className="py-8 text-center text-muted-foreground"
                   >
-                    {row.status}
-                  </span>
-                </td>
-                <td className="px-4 py-2 text-xs text-slate-600">
-                  {daysUntilLabel(row.dueAt)}
-                </td>
-                <td className="px-4 py-2 text-right space-x-2">
-                  {row.status === 'received' && (
-                    <button
-                      onClick={() => void advance(row.id, 'parse')}
-                      className="text-xs font-medium text-blue-700 hover:underline"
+                    {pickByLocale(locale, {
+                      en: 'No regulator requests yet.',
+                      sw: 'Hakuna maombi ya wadhibiti bado.',
+                    })}
+                  </TableCell>
+                </TableRow>
+              )}
+              {rows.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium uppercase text-foreground">
+                    {REGULATOR_LABEL[row.regulator]}
+                  </TableCell>
+                  <TableCell className="text-foreground">
+                    <div>{subjectKindLabel(row.subjectKind, locale)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {row.subjectRef}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant={STATUS_TONE[row.status] ?? 'secondary'}
+                      size="sm"
                     >
-                      Parse
-                    </button>
-                  )}
-                  {row.status === 'disclosure_approved' && (
-                    <button
-                      onClick={() => void advance(row.id, 'export-redacted')}
-                      className="text-xs font-medium text-blue-700 hover:underline"
-                    >
-                      Export
-                    </button>
-                  )}
-                  {row.status === 'exported' && (
-                    <button
-                      onClick={() => void advance(row.id, 'deliver')}
-                      className="text-xs font-medium text-emerald-700 hover:underline"
-                    >
-                      Deliver
-                    </button>
-                  )}
-                  {row.responseDocUrl && (
-                    <a
-                      href={row.responseDocUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-medium text-slate-700 hover:underline"
-                    >
-                      Download
-                    </a>
-                  )}
-                  {row.status !== 'delivered' &&
-                    row.status !== 'rejected' && (
-                      <button
-                        onClick={() => void reject(row.id)}
-                        className="text-xs font-medium text-rose-700 hover:underline"
+                      {statusLabel(row.status, locale)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
+                    {daysUntilLabel(row.dueAt, locale)}
+                  </TableCell>
+                  <TableCell className="space-x-1 text-right">
+                    {row.status === 'received' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void advance(row.id, 'parse')}
                       >
-                        Reject
-                      </button>
+                        {pickByLocale(locale, { en: 'Parse', sw: 'Changanua' })}
+                      </Button>
                     )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    {row.status === 'disclosure_approved' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void advance(row.id, 'export-redacted')}
+                      >
+                        {pickByLocale(locale, {
+                          en: 'Export',
+                          sw: 'Safirisha',
+                        })}
+                      </Button>
+                    )}
+                    {row.status === 'exported' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void advance(row.id, 'deliver')}
+                      >
+                        {pickByLocale(locale, {
+                          en: 'Deliver',
+                          sw: 'Wasilisha',
+                        })}
+                      </Button>
+                    )}
+                    {row.responseDocUrl && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        asChild
+                      >
+                        <a
+                          href={row.responseDocUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {pickByLocale(locale, {
+                            en: 'Download',
+                            sw: 'Pakua',
+                          })}
+                        </a>
+                      </Button>
+                    )}
+                    {row.status !== 'delivered' &&
+                      row.status !== 'rejected' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-danger hover:text-danger"
+                          onClick={() => {
+                            setRejectReason('');
+                            setRejectTarget(row.id);
+                          }}
+                        >
+                          {pickByLocale(locale, { en: 'Reject', sw: 'Kataa' })}
+                        </Button>
+                      )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
       </section>
+
+      <Modal
+        open={rejectTarget !== null}
+        onClose={() => {
+          setRejectTarget(null);
+          setRejectReason('');
+        }}
+        title={pickByLocale(locale, {
+          en: 'Reject request',
+          sw: 'Kataa ombi',
+        })}
+        description={pickByLocale(locale, {
+          en: 'Record a reason for rejecting this regulator request. It is stored on the audit trail.',
+          sw: 'Andika sababu ya kukataa ombi hili la mdhibiti. Huhifadhiwa kwenye njia ya ukaguzi.',
+        })}
+        size="md"
+      >
+        <Textarea
+          label={pickByLocale(locale, {
+            en: 'Reason for rejection',
+            sw: 'Sababu ya kukataa',
+          })}
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          rows={3}
+          autoFocus
+          placeholder={pickByLocale(locale, {
+            en: 'Why is this request being rejected?',
+            sw: 'Kwa nini ombi hili linakataliwa?',
+          })}
+        />
+        <ModalFooter
+          primaryLabel={pickByLocale(locale, {
+            en: 'Reject',
+            sw: 'Kataa',
+          })}
+          secondaryLabel={pickByLocale(locale, {
+            en: 'Cancel',
+            sw: 'Ghairi',
+          })}
+          primaryVariant="danger"
+          primaryLoading={loading}
+          primaryDisabled={loading || rejectReason.trim() === ''}
+          onPrimaryAction={() => void confirmReject()}
+          onSecondaryAction={() => {
+            setRejectTarget(null);
+            setRejectReason('');
+          }}
+        />
+      </Modal>
     </div>
   );
 }

@@ -9,6 +9,8 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Card } from '@borjie/design-system';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface CounterSnapshot {
   name: string;
@@ -110,29 +112,30 @@ function formatUsd(micro: number): string {
 }
 
 function formatMs(v: number | null): string {
-  if (v === null) return 'n/a';
+  if (v === null) return '—';
   return `${v.toFixed(0)} ms`;
 }
 
-function breakerStateLabel(n: number): string {
-  if (n === 0) return 'closed';
-  if (n === 1) return 'half-open';
-  return 'open';
+function breakerStateLabel(n: number, locale: Locale): string {
+  if (n === 0) return pickByLocale(locale, { en: 'closed', sw: 'imefungwa' });
+  if (n === 1)
+    return pickByLocale(locale, { en: 'half-open', sw: 'nusu-wazi' });
+  return pickByLocale(locale, { en: 'open', sw: 'wazi' });
 }
 
-interface CardProps {
+interface MetricCardProps {
   readonly title: string;
   readonly value: string;
   readonly sub?: string;
   readonly tone?: 'ok' | 'warn' | 'bad';
 }
 
-function Card({ title, value, sub, tone = 'ok' }: CardProps) {
+function MetricCard({ title, value, sub, tone = 'ok' }: MetricCardProps) {
   const toneClass =
     tone === 'bad'
-      ? 'border-rose-500/40 bg-rose-500/5'
+      ? 'border-danger/40 bg-danger/5'
       : tone === 'warn'
-        ? 'border-amber-500/40 bg-amber-500/5'
+        ? 'border-warning/40 bg-warning/5'
         : 'border-border bg-surface';
   return (
     <div
@@ -148,7 +151,13 @@ function Card({ title, value, sub, tone = 'ok' }: CardProps) {
   );
 }
 
-export function SystemHealthClient() {
+export function SystemHealthClient({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
+  // Seed from the server-resolved cookie to avoid the first-paint split-brain.
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<FetchState>({
     status: 'idle',
     snapshot: null,
@@ -255,17 +264,31 @@ export function SystemHealthClient() {
     };
   }, [state.snapshot]);
 
+  const statusLabel = pickByLocale(locale, {
+    en: STATUS_LABEL_EN[state.status],
+    sw: STATUS_LABEL_SW[state.status],
+  });
+  const lastPoll =
+    state.lastFetchedAt !== null
+      ? Math.floor((Date.now() - state.lastFetchedAt) / 1000)
+      : null;
+
   return (
     <div data-testid="system-health-root" className="space-y-6">
       <p
         data-testid="system-health-status"
         className="text-xs text-neutral-500"
       >
-        Status: {state.status}
-        {state.lastFetchedAt
-          ? ` — last poll ${Math.floor((Date.now() - state.lastFetchedAt) / 1000)}s ago`
+        {pickByLocale(locale, { en: 'Status', sw: 'Hali' })}: {statusLabel}
+        {lastPoll !== null
+          ? pickByLocale(locale, {
+              en: ` — last poll ${lastPoll}s ago`,
+              sw: ` — kura ya mwisho sekunde ${lastPoll} zilizopita`,
+            })
           : ''}
-        {state.error ? ` — error: ${state.error}` : ''}
+        {state.error
+          ? `${pickByLocale(locale, { en: ' — error: ', sw: ' — hitilafu: ' })}${state.error}`
+          : ''}
       </p>
 
       {!derived ? (
@@ -276,11 +299,19 @@ export function SystemHealthClient() {
             className="flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive"
           >
             <span>
-              <span className="font-medium">Metrics endpoint unreachable.</span>
+              <span className="font-medium">
+                {pickByLocale(locale, {
+                  en: 'Metrics endpoint unreachable.',
+                  sw: 'Kituo cha vipimo hakipatikani.',
+                })}
+              </span>
               <span className="ml-1 text-muted-foreground">{state.error}</span>
             </span>
             <span className="text-xs text-muted-foreground">
-              Auto-retry in {Math.round(POLL_INTERVAL_MS / 1000)} s.
+              {pickByLocale(locale, {
+                en: `Auto-retry in ${Math.round(POLL_INTERVAL_MS / 1000)} s.`,
+                sw: `Jaribu tena kiotomatiki baada ya sekunde ${Math.round(POLL_INTERVAL_MS / 1000)}.`,
+              })}
             </span>
           </div>
         ) : (
@@ -288,7 +319,10 @@ export function SystemHealthClient() {
             data-testid="system-health-empty"
             role="status"
             aria-live="polite"
-            aria-label="Loading system health metrics"
+            aria-label={pickByLocale(locale, {
+              en: 'Loading system health metrics',
+              sw: 'Inapakia vipimo vya afya ya mfumo',
+            })}
             className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
           >
             {Array.from({ length: 8 }).map((_, i) => (
@@ -305,33 +339,57 @@ export function SystemHealthClient() {
             data-testid="system-health-primary-cards"
             className="flex flex-wrap gap-3"
           >
-            <Card
-              title="Uptime"
-              value={`${derived.uptimeMinutes} min`}
-              sub="Process uptime"
+            <MetricCard
+              title={pickByLocale(locale, { en: 'Uptime', sw: 'Muda hai' })}
+              value={pickByLocale(locale, {
+                en: `${derived.uptimeMinutes} min`,
+                sw: `dakika ${derived.uptimeMinutes}`,
+              })}
+              sub={pickByLocale(locale, {
+                en: 'Process uptime',
+                sw: 'Muda hai wa mchakato',
+              })}
             />
-            <Card
-              title="Events / sec"
+            <MetricCard
+              title={pickByLocale(locale, {
+                en: 'Events / sec',
+                sw: 'Matukio / sekunde',
+              })}
               value={derived.eventsPerSecond.toFixed(2)}
-              sub={`${derived.streamEvents} total stream events`}
+              sub={pickByLocale(locale, {
+                en: `${derived.streamEvents} total stream events`,
+                sw: `jumla ya matukio ya mtiririko ${derived.streamEvents}`,
+              })}
             />
-            <Card
-              title="Latency"
+            <MetricCard
+              title={pickByLocale(locale, { en: 'Latency', sw: 'Ucheleweshaji' })}
               value={formatMs(derived.latencyHist?.p50 ?? null)}
               sub={`p95 ${formatMs(derived.latencyHist?.p95 ?? null)} / p99 ${formatMs(derived.latencyHist?.p99 ?? null)}`}
             />
-            <Card
-              title="Today's spend"
+            <MetricCard
+              title={pickByLocale(locale, {
+                en: "Today's spend",
+                sw: 'Matumizi ya leo',
+              })}
               value={formatUsd(derived.costMicro)}
-              sub={`${derived.turns} turns / ${derived.errors} errors`}
+              sub={pickByLocale(locale, {
+                en: `${derived.turns} turns / ${derived.errors} errors`,
+                sw: `zamu ${derived.turns} / hitilafu ${derived.errors}`,
+              })}
               tone={derived.errors > 0 ? 'warn' : 'ok'}
             />
-            <Card
-              title="Active personas"
-              value={String(derived.activePersonas?.value ?? 'n/a')}
+            <MetricCard
+              title={pickByLocale(locale, {
+                en: 'Active personas',
+                sw: 'Wahusika hai',
+              })}
+              value={String(derived.activePersonas?.value ?? '—')}
             />
-            <Card
-              title="Heartbeat"
+            <MetricCard
+              title={pickByLocale(locale, {
+                en: 'Heartbeat',
+                sw: 'Mapigo ya moyo',
+              })}
               value={formatMs(derived.lastTickAgo?.value ?? null)}
               tone={
                 (derived.lastTickAgo?.value ?? 0) > 30_000
@@ -341,16 +399,25 @@ export function SystemHealthClient() {
                     : 'ok'
               }
             />
-            <Card
-              title="Junior asleep"
-              value={String(derived.sleepCount?.value ?? 'n/a')}
+            <MetricCard
+              title={pickByLocale(locale, {
+                en: 'Junior asleep',
+                sw: 'Wasaidizi waliolala',
+              })}
+              value={String(derived.sleepCount?.value ?? '—')}
             />
-            <Card
-              title="Bg success rate"
+            <MetricCard
+              title={pickByLocale(locale, {
+                en: 'Bg success rate',
+                sw: 'Kiwango cha mafanikio ya kazi za nyuma',
+              })}
               value={
-                derived.bgRate === null ? 'n/a' : `${derived.bgRate.toFixed(1)}%`
+                derived.bgRate === null ? '—' : `${derived.bgRate.toFixed(1)}%`
               }
-              sub={`${derived.bgSuccess} ok / ${derived.bgFailure} failed`}
+              sub={pickByLocale(locale, {
+                en: `${derived.bgSuccess} ok / ${derived.bgFailure} failed`,
+                sw: `${derived.bgSuccess} sawa / ${derived.bgFailure} zilizoshindwa`,
+              })}
               tone={
                 derived.bgRate !== null && derived.bgRate < 80
                   ? 'bad'
@@ -362,10 +429,18 @@ export function SystemHealthClient() {
           </section>
 
           <section data-testid="system-health-breakers">
-            <h2 className="mb-2 font-display text-foreground">Circuit breakers</h2>
+            <h2 className="mb-2 font-display text-foreground">
+              {pickByLocale(locale, {
+                en: 'Circuit breakers',
+                sw: 'Vizuizi vya mzunguko',
+              })}
+            </h2>
             {derived.breakerGauges.length === 0 ? (
               <p className="text-sm text-neutral-500">
-                No breaker gauges reported.
+                {pickByLocale(locale, {
+                  en: 'No breaker gauges reported.',
+                  sw: 'Hakuna vipimo vya vizuizi vilivyoripotiwa.',
+                })}
               </p>
             ) : (
               <ul className="space-y-1 text-sm text-neutral-200">
@@ -377,7 +452,7 @@ export function SystemHealthClient() {
                       data-testid={`breaker-${breakerName}`}
                     >
                       <strong className="text-foreground">{breakerName}:</strong>{' '}
-                      {breakerStateLabel(g.value)}
+                      {breakerStateLabel(g.value, locale)}
                     </li>
                   );
                 })}
@@ -385,14 +460,93 @@ export function SystemHealthClient() {
             )}
           </section>
 
-          <details className="text-xs text-neutral-400">
-            <summary className="cursor-pointer">Raw snapshot</summary>
-            <pre data-testid="system-health-raw" className="mt-2 overflow-x-auto">
-              {JSON.stringify(state.snapshot, null, 2)}
-            </pre>
-          </details>
+          <SnapshotPanel snapshot={state.snapshot} locale={locale} />
         </>
       )}
     </div>
+  );
+}
+
+const STATUS_LABEL_EN: Readonly<Record<FetchState['status'], string>> =
+  Object.freeze({
+    idle: 'idle',
+    loading: 'loading',
+    ok: 'ok',
+    error: 'error',
+  });
+
+const STATUS_LABEL_SW: Readonly<Record<FetchState['status'], string>> =
+  Object.freeze({
+    idle: 'tuli',
+    loading: 'inapakia',
+    ok: 'sawa',
+    error: 'hitilafu',
+  });
+
+/**
+ * Readable, DS-styled replacement for the raw `<pre>{JSON.stringify(…)}</pre>`
+ * snapshot dump. Renders the collected-at / uptime summary as a definition
+ * list, then a per-section count strip and a monospaced, scroll-bounded
+ * breakdown — all on semantic tokens (no raw light-palette literals).
+ */
+function SnapshotPanel({
+  snapshot,
+  locale,
+}: {
+  readonly snapshot: MetricsSnapshot | null;
+  readonly locale: Locale;
+}): JSX.Element | null {
+  if (!snapshot) return null;
+  const summary: ReadonlyArray<readonly [string, string]> = [
+    [
+      pickByLocale(locale, { en: 'Collected at', sw: 'Imekusanywa saa' }),
+      snapshot.collectedAt.replace('T', ' ').slice(0, 19),
+    ],
+    [
+      pickByLocale(locale, { en: 'Uptime', sw: 'Muda hai' }),
+      pickByLocale(locale, {
+        en: `${Math.floor(snapshot.uptimeSeconds / 60)} min`,
+        sw: `dakika ${Math.floor(snapshot.uptimeSeconds / 60)}`,
+      }),
+    ],
+    [
+      pickByLocale(locale, { en: 'Counters', sw: 'Vihesabu' }),
+      String(snapshot.counters.length),
+    ],
+    [
+      pickByLocale(locale, { en: 'Gauges', sw: 'Vipimo' }),
+      String(snapshot.gauges.length),
+    ],
+    [
+      pickByLocale(locale, { en: 'Histograms', sw: 'Histogramu' }),
+      String(snapshot.histograms.length),
+    ],
+  ];
+  return (
+    <details className="text-xs text-neutral-400">
+      <summary className="cursor-pointer text-muted-foreground">
+        {pickByLocale(locale, { en: 'Raw snapshot', sw: 'Picha ghafi' })}
+      </summary>
+      <Card variant="outline" className="mt-2 p-4">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+          {summary.map(([label, value]) => (
+            <div key={label} className="flex flex-col">
+              <dt className="text-tiny uppercase tracking-wider text-neutral-500">
+                {label}
+              </dt>
+              <dd className="font-mono text-sm text-foreground tabular-nums">
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <pre
+          data-testid="system-health-raw"
+          className="mt-4 max-h-80 overflow-auto rounded-md border border-border bg-surface-sunken p-3 font-mono text-tiny leading-relaxed text-neutral-300"
+        >
+          {JSON.stringify(snapshot, null, 2)}
+        </pre>
+      </Card>
+    </details>
   );
 }
