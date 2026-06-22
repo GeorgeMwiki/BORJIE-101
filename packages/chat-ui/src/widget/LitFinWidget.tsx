@@ -72,10 +72,16 @@ function markWidgetSeen(): void {
   }
 }
 
-export function LitFinWidget(): JSX.Element {
+export function LitFinWidget({
+  initialLocale,
+}: {
+  /** Server-resolved page locale — seeds the FAB language so the first paint
+   *  matches the SSR'd page (no EN tooltip flash on a SW page). */
+  readonly initialLocale?: 'en' | 'sw';
+} = {}): JSX.Element {
   const { portalId, currentRoute, isOpen, toggleWidget, closeWidget } =
     useLitFinAI();
-  const { language } = useWidgetLanguage();
+  const { language } = useWidgetLanguage('en', initialLocale);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isFirstVisit, setIsFirstVisit] = useState(() => !hasSeenWidget());
   const [showChips, setShowChips] = useState(false);

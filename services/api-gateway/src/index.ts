@@ -777,7 +777,12 @@ import { ownerDailyBriefRouter } from './routes/owner/daily-brief.hono';
 import { ownerForecastsRouter } from './routes/owner/forecasts.hono';
 // Wave FOUR-EYE-APPROVAL — two-person sign-off on high-stakes owner
 // actions (payment > 5M TZS, regulator filing, contract signature).
-import { fourEyeApprovalsRouter } from './routes/owner/four-eye-approvals.hono';
+import {
+  fourEyeApprovalsRouter,
+  setFourEyeDispatcher,
+} from './routes/owner/four-eye-approvals.hono';
+import { dispatchAction } from './services/action-executor/registry';
+import type { ExecContext } from './services/action-executor/types';
 import {
   workforceTabConfigOwnerListRouter,
   workforceTabPolicyAdminRouter,
@@ -3457,6 +3462,30 @@ api.route('/public/share', publicShareResolverRouter);
 // the /owner/four-eye prefix so owner-web modals can target a single
 // path tree without touching the brain.
 api.route('/owner/four-eye', fourEyeApprovalsRouter);
+// Wire the four-eye EXECUTOR at boot (was a born-dark hook — setFourEyeDispatcher
+// had no non-test caller, so an APPROVED request stalled at
+// `no_dispatcher_registered` and never ran its side effect). On approval we
+// re-run the original action through the SAME safe `dispatchAction` pipeline the
+// inline confirm uses — the dual-control approval is the gate clearance, so this
+// is the execute step. chat-actions stores `{ verb, params }` in the payload; we
+// use the request-scoped db (tenant GUC bound) + the original requester as the
+// ExecContext. An unknown/empty verb degrades to executed:false (honest), never
+// a fake success.
+setFourEyeDispatcher(async ({ payload, db, tenantId, requesterId }) => {
+  const verb = typeof payload['verb'] === 'string' ? (payload['verb'] as string) : null;
+  if (!verb) {
+    return { executed: false, reason: 'four_eye_payload_missing_verb' };
+  }
+  const ctx: ExecContext = {
+    db: db as ExecContext['db'],
+    tenantId,
+    userId: requesterId,
+    logger,
+  };
+  const result = await dispatchAction(verb, payload['params'] ?? {}, ctx);
+  return result as unknown as Record<string, unknown>;
+});
+logger.info({ scope: 'four-eye' }, 'four-eye action dispatcher registered');
 // Wave ESTATE-OS — family-office holdings layer.
 api.route('/estate/groups', estateGroupsRouter);
 api.route('/estate/entities', estateEntitiesRouter);

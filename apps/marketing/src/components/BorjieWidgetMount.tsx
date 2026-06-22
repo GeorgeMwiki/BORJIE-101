@@ -63,12 +63,12 @@ const BORJIE_DISCLAIMER_SW =
  * server rendered with — closing the one-EN-frame split-brain on `sw`
  * pages for embeddings where the cookie was not already set.
  *
- * NOTE (cross-package): this only narrows the gap. The widget still
- * `useState`s `'en'` on its very first synchronous render because
- * `LitFinWidget` / `LitFinAIProvider` accept no `initialLocale` prop to
- * seed `useWidgetLanguage(initialLocale)`. Fully eliminating the EN
- * frame requires a chat-ui change (see `risk:`); we forward the locale
- * as far as the marketing boundary allows.
+ * The EN-frame is now fully eliminated, not just narrowed: `LitFinWidget`
+ * takes an `initialLocale` prop (forwarded below) that SEEDS
+ * `useWidgetLanguage('en', initialLocale)`, so the FAB's very first
+ * synchronous render already matches the server-resolved locale. The cookie
+ * mirror remains as the shared page-locale source of truth for the chat panel
+ * (opened post-mount) and for embeddings where the cookie was not pre-set.
  */
 const PAGE_LOCALE_COOKIE = 'borjie_locale';
 
@@ -96,7 +96,7 @@ export function BorjieWidgetMount({
       disclaimerSw={BORJIE_DISCLAIMER_SW}
       autoOpen
     >
-      <LitFinWidget />
+      <LitFinWidget initialLocale={locale} />
     </LitFinAIProvider>
   );
 }

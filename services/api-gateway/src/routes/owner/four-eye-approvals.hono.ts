@@ -286,21 +286,41 @@ interface DispatchOutcome {
  * tool dispatcher is wired separately via a composition hook so tests
  * can inject a fake.
  */
-async function dispatchActionForRequest(args: {
+/**
+ * Arguments handed to the registered four-eye dispatcher. Carries the original
+ * action (`actionType` + `payload`, where chat-actions stores `{ verb, params }`)
+ * plus the request-scoped `db` (tenant GUC already bound) and the request's
+ * tenant + requester, so the composition-root handler can re-run the action
+ * through the SAME safe `dispatchAction(verb, params, ctx)` pipeline the inline
+ * confirm uses — the dual-control approval IS the gate clearance, so this is the
+ * execute step, never a re-gate.
+ */
+export interface FourEyeDispatchArgs {
   readonly actionType: string;
   readonly payload: Record<string, unknown>;
   /**
-   * Stable idempotency key (`four-eye:<requestId>`) threaded into the real
-   * brain-tool / LedgerService dispatcher so a money mutation dedupes on
-   * retry — the CAS already guarantees a single approval winner, this guards
-   * the side-effect leg if the same winner is replayed.
+   * Stable idempotency key (`four-eye:<requestId>`) for the side-effect leg —
+   * the CAS already guarantees one approval winner; this dedupes a replay.
    */
   readonly idempotencyKey: string;
-}): Promise<DispatchOutcome> {
-  // Default behaviour: record the dispatch but do not perform the
-  // side-effect. The brain-tool dispatcher injects the real handler at
-  // bootstrap via `setFourEyeDispatcher`. Keeps the route file free of
-  // the LedgerService import (avoid cycles).
+  /**
+   * Request-scoped Drizzle client (the approve route's `db`, with the tenant
+   * GUC already bound). Typed `unknown` to keep this route file free of the
+   * action-executor import (module-init cycle-avoidance); the composition-root
+   * handler casts it to the ExecContext db.
+   */
+  readonly db: unknown;
+  readonly tenantId: string;
+  readonly requesterId: string;
+}
+
+async function dispatchActionForRequest(
+  args: FourEyeDispatchArgs,
+): Promise<DispatchOutcome> {
+  // The real handler is injected at bootstrap via `setFourEyeDispatcher`
+  // (keeps this route file free of the action-executor import). Until then a
+  // degrade is HONEST: executed:false with an explicit reason, never a fake
+  // success.
   const handler = dispatcherRef.current;
   if (!handler) {
     return {
@@ -313,7 +333,11 @@ async function dispatchActionForRequest(args: {
   }
   try {
     const result = await handler(args);
-    return { executed: true, result };
+    // Respect the handler's OWN verdict: dispatchAction returns
+    // `{ executed:false, reason }` for an unknown verb — that is NOT a throw,
+    // so the four-eye row must record executed:false, not a false 'executed'.
+    const executed = result?.['executed'] === true;
+    return { executed, result };
   } catch (e) {
     return {
       executed: false,
@@ -326,28 +350,17 @@ async function dispatchActionForRequest(args: {
 }
 
 const dispatcherRef: {
-  current:
-    | ((args: {
-        readonly actionType: string;
-        readonly payload: Record<string, unknown>;
-        readonly idempotencyKey: string;
-      }) => Promise<Record<string, unknown>>)
-    | null;
+  current: ((args: FourEyeDispatchArgs) => Promise<Record<string, unknown>>) | null;
 } = { current: null };
 
 /**
- * Composition hook — wire the real brain-tool dispatcher at bootstrap.
- * Keeps the route file free of LedgerService / brain imports so we
- * avoid a cycle at module-init time. The handler receives a stable
- * `idempotencyKey` (`four-eye:<requestId>`) so the money path can route
- * it into `LedgerService.post`'s idempotency guard.
+ * Composition hook — wire the real action dispatcher at bootstrap. On approval
+ * the registered handler re-runs the original action through the existing SAFE
+ * `dispatchAction` pipeline using the request-scoped db + the request's
+ * tenant/requester as the ExecContext.
  */
 export function setFourEyeDispatcher(
-  handler: (args: {
-    readonly actionType: string;
-    readonly payload: Record<string, unknown>;
-    readonly idempotencyKey: string;
-  }) => Promise<Record<string, unknown>>,
+  handler: (args: FourEyeDispatchArgs) => Promise<Record<string, unknown>>,
 ): void {
   dispatcherRef.current = handler;
 }
@@ -658,6 +671,11 @@ app.post('/approve/:token', requireRole(...FOUR_EYE_APPROVER_ROLES), async (c: a
     actionType: row.actionType,
     payload: (row.payload as Record<string, unknown>) ?? {},
     idempotencyKey: `four-eye:${row.id}`,
+    // Re-dispatch through the SAME safe pipeline with the request-scoped db
+    // (tenant GUC bound) + the original requester as the acting user.
+    db,
+    tenantId: auth.tenantId,
+    requesterId: row.requesterId,
   });
 
   const executeAuditId = await appendAuditEntry(db, {
