@@ -115,11 +115,16 @@ export const routesAStrings = {
 
   // app/(routes)/document-intelligence/page.tsx
   documentIntelligence: {
-    title: { both: 'Hati hai · Living documents' },
+    title: { en: 'Living documents', sw: 'Hati hai' },
     subtitle: {
-      both: 'Pakia mkataba, zabuni au barua. Brain itazungumza nazo kama vyombo hai.',
+      en: 'Upload a contract, tender, or letter. Mr. Mwikila talks to them as living entities.',
+      sw: 'Pakia mkataba, zabuni au barua. Bw. Mwikila atazungumza nazo kama vyombo hai.',
     },
-    emptyState: { both: 'Chagua hati au pakia mpya kuanza.' },
+    emptyState: {
+      en: 'Choose a document or upload a new one to begin.',
+      sw: 'Chagua hati au pakia mpya kuanza.',
+    },
+    documents: { en: 'Documents', sw: 'Nyaraka' },
   },
 
   // app/(routes)/estate/page.tsx
@@ -201,18 +206,6 @@ export const routesAStrings = {
     catMarketplaceCounters: { sw: 'Rejea za bei', en: 'Marketplace counters' },
     loading: { both: 'Loading… / Inapakia…' },
     categoryHeader: { both: 'Category / Kazi' },
-  },
-
-  // app/(routes)/mwikila/delegation/page.tsx
-  delegationPage: {
-    subhead: {
-      both: 'Uwakilishi wa Mwikila — chagua kiwango cha uhuru kwa kila kazi',
-    },
-  },
-
-  // app/(routes)/mwikila/inbox/page.tsx
-  mwikilaInbox: {
-    subhead: { both: 'Mwikila kwa niaba yako — kagua, idhinisha au rejesha' },
   },
 
   // app/(routes)/onboarding/page.tsx
@@ -322,6 +315,7 @@ export const routesAStrings = {
       sw: 'Vipindi vya hivi karibuni',
       en: 'Recent runs',
     },
+    noRunsTitle: { sw: 'Hakuna kipindi bado', en: 'No runs yet' },
     noRuns: {
       sw: 'Hakuna kipindi bado. Endesha cha kwanza juu.',
       en: 'No runs yet. Trigger the first one above.',
@@ -330,41 +324,66 @@ export const routesAStrings = {
 
   // app/(routes)/personal-kb/[personId]/personal-kb-detail-panel.tsx
   personalKbDetail: {
-    kindPreference: { both: 'Mapendekezo' },
-    kindContext: { both: 'Mazingira ya sasa' },
-    kindRecurringFact: { both: 'Ukweli wa maisha' },
-    kindCalibration: { both: 'Marekebisho' },
-    kindSentiment: { both: 'Hisia za hivi karibuni' },
-    loading: { both: 'Loading… / Inapakia…' },
+    kindPreference: { en: 'Preference', sw: 'Mapendekezo' },
+    kindContext: { en: 'Current context', sw: 'Mazingira ya sasa' },
+    kindRecurringFact: { en: 'Recurring fact', sw: 'Ukweli wa maisha' },
+    kindCalibration: { en: 'Calibration', sw: 'Marekebisho' },
+    kindSentiment: { en: 'Recent sentiment', sw: 'Hisia za hivi karibuni' },
+    loading: { en: 'Loading…', sw: 'Inapakia…' },
     forbidden: {
-      both:
-        'You can only read your own personal-KB. / Unaweza tu kusoma maktaba yako mwenyewe.',
+      en: 'You can only read your own personal knowledge base.',
+      sw: 'Unaweza tu kusoma maktaba yako mwenyewe.',
     },
-    consentRequiredGloss: { both: 'Idhini inahitajika' },
-    // The SW consent body wraps a <strong> around the settings path, so
-    // it is split: prose before, the bold segment, prose after.
-    consentBodySwBefore: {
-      both: 'Ili kusoma kumbukumbu zako za kibinafsi tunahitaji idhini yako. Fungua ',
+    consentRequiredTitle: { en: 'Consent required', sw: 'Idhini inahitajika' },
+    consentRequiredGloss: { en: 'Consent required', sw: 'Idhini inahitajika' },
+    // The consent body wraps a <strong> around the settings path, so it
+    // is split: prose before, the bold segment, prose after.
+    consentBodyBefore: {
+      en: 'To read your personal memory cells we need your affirmative consent. Open ',
+      sw: 'Ili kusoma kumbukumbu zako za kibinafsi tunahitaji idhini yako. Fungua ',
     },
-    consentBodySwStrong: { both: 'Mipangilio → Idhini' },
-    consentBodySwAfter: { both: ' kuruhusu.' },
-    noCells: { both: 'No cells yet. / Hakuna kumbukumbu bado.' },
+    consentBodyStrong: {
+      en: 'Settings → Share consent',
+      sw: 'Mipangilio → Idhini',
+    },
+    consentBodyAfter: { en: ' to opt in.', sw: ' kuruhusu.' },
+    noCells: { en: 'No cells yet.', sw: 'Hakuna kumbukumbu bado.' },
+    captured: { en: 'captured', sw: 'imenakiliwa' },
+    confidence: { en: 'confidence', sw: 'uhakika' },
+    fromTenant: { en: 'from tenant', sw: 'kutoka shirika' },
   },
 
   // app/(routes)/personal-kb/personal-kb-panel.tsx
   personalKbPanel: {
-    roleOwner: { both: 'Mmiliki' },
-    roleManager: { both: 'Meneja' },
-    roleEmployee: { both: 'Mfanyakazi' },
-    roleBuyer: { both: 'Mnunuzi' },
-    roleAdmin: { both: 'Msimamizi' },
-    searchGloss: { both: 'Tafuta kwenye maktaba yangu' },
-    searchButton: { both: 'Search / Tafuta' },
-    resultsGloss: { both: 'Matokeo ya utafutaji' },
-    noMatches: { both: 'No matches yet. / Hakuna matokeo bado.' },
-    hatsGloss: { both: 'Kofia zako — mahali pote unapotumia Borjie' },
-    noHats: { both: 'No hats yet. / Hauna kofia bado.' },
-    openButton: { both: 'Open / Fungua' },
+    roleOwner: { en: 'Owner', sw: 'Mmiliki' },
+    roleManager: { en: 'Manager', sw: 'Meneja' },
+    roleEmployee: { en: 'Employee', sw: 'Mfanyakazi' },
+    roleBuyer: { en: 'Buyer', sw: 'Mnunuzi' },
+    roleAdmin: { en: 'Admin', sw: 'Msimamizi' },
+    searchGloss: { en: 'Search my knowledge base', sw: 'Tafuta kwenye maktaba yangu' },
+    searchButton: { en: 'Search', sw: 'Tafuta' },
+    resultsGloss: { en: 'Search results', sw: 'Matokeo ya utafutaji' },
+    noMatches: { en: 'No matches yet.', sw: 'Hakuna matokeo bado.' },
+    hatsGloss: {
+      en: 'Your hats — everywhere you use Borjie',
+      sw: 'Kofia zako — mahali pote unapotumia Borjie',
+    },
+    noHats: { en: 'No hats yet.', sw: 'Hauna kofia bado.' },
+    openButton: { en: 'Open', sw: 'Fungua' },
+    loading: { en: 'Loading…', sw: 'Inapakia…' },
+    searchHeading: { en: 'Search my knowledge base', sw: 'Tafuta kwenye maktaba yangu' },
+    searchPlaceholder: { en: 'e.g. mother, payroll deadline', sw: 'mfano: mama, tarehe ya mishahara' },
+    resultsHeading: { en: 'Search results', sw: 'Matokeo ya utafutaji' },
+    hatsHeading: { en: 'Your hats', sw: 'Kofia zako' },
+    errorPrefix: { en: 'Error: ', sw: 'Hitilafu: ' },
+    tenantWord: { en: 'tenant', sw: 'shirika' },
+    linkedWord: { en: 'linked', sw: 'imeunganishwa' },
+    consentPending: {
+      en: 'Consent not granted yet — open this hat to grant unified-KB consent.',
+      sw: 'Idhini bado haijatolewa — fungua kofia hii kutoa idhini ya maktaba moja.',
+    },
+    captured: { en: 'captured', sw: 'imenakiliwa' },
+    confidence: { en: 'confidence', sw: 'uhakika' },
   },
 } as const satisfies Record<string, Record<string, SwEn | Both>>;
 
