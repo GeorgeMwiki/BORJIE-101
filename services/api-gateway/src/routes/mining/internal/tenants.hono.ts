@@ -17,10 +17,9 @@
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, isNull, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, sql } from 'drizzle-orm';
 import {
   tenants,
-  orgMemberships,
   users,
   decisionTraces,
   complianceEscalations,
@@ -233,14 +232,18 @@ app.get('/:id/operator-summary', async (c) => {
   // Date cutoff compares correctly (no string/clock ambiguity).
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const summary = await withServiceRoleContext(db, async (tx) => {
+    // Operators are the tenant's active users. (The unified org_memberships
+    // graph is the forward model but is not backfilled in every deployment;
+    // `users` is the authoritative, populated per-tenant operator table the
+    // request-path auth itself resolves through.)
     const [ops] = await tx
       .select({ n: sql<number>`count(*)::int` })
-      .from(orgMemberships)
+      .from(users)
       .where(
         and(
-          eq(orgMemberships.platformTenantId, id),
-          eq(orgMemberships.status, 'ACTIVE'),
-          isNotNull(orgMemberships.userId),
+          eq(users.tenantId, id),
+          eq(users.status, 'active'),
+          isNull(users.deletedAt),
         ),
       );
     const [dec] = await tx
@@ -267,44 +270,42 @@ app.get('/:id/operator-summary', async (c) => {
   return c.json({ success: true as const, data: summary }, 200);
 });
 
-// GET /:id/operators — the live operator roster (active employment-class
-// memberships joined to the user record for name/role/last-active).
+// GET /:id/operators — the live operator roster (the tenant's active users,
+// with their mining role + last-active). Sourced from `users` for the same
+// reason as the summary count above.
 app.get('/:id/operators', async (c) => {
   const db = c.get('db');
   const id = c.req.param('id');
   const rows = await withServiceRoleContext(db, async (tx) =>
     tx
       .select({
-        id: orgMemberships.id,
+        id: users.id,
         email: users.email,
         firstName: users.firstName,
         lastName: users.lastName,
         displayName: users.displayName,
-        role: orgMemberships.memberRole,
+        role: users.miningRole,
         lastActivityAt: users.lastActivityAt,
         lastLoginAt: users.lastLoginAt,
-        joinedAt: orgMemberships.joinedAt,
       })
-      .from(orgMemberships)
-      .leftJoin(users, eq(orgMemberships.userId, users.id))
+      .from(users)
       .where(
         and(
-          eq(orgMemberships.platformTenantId, id),
-          eq(orgMemberships.status, 'ACTIVE'),
-          isNotNull(orgMemberships.userId),
+          eq(users.tenantId, id),
+          eq(users.status, 'active'),
+          isNull(users.deletedAt),
         ),
       )
-      .orderBy(desc(orgMemberships.joinedAt))
+      .orderBy(desc(users.lastActivityAt))
       .limit(200),
   );
   const data = rows.map((r) => {
     const fullName = [r.firstName, r.lastName].filter(Boolean).join(' ').trim();
     return {
       id: r.id,
-      name: r.displayName ?? (fullName || r.email) ?? 'Unknown',
-      role: r.role ?? 'Operator',
-      lastActiveAt:
-        (r.lastActivityAt ?? r.lastLoginAt ?? r.joinedAt)?.toISOString() ?? null,
+      name: r.displayName ?? (fullName || r.email),
+      role: r.role ?? 'operator',
+      lastActiveAt: (r.lastActivityAt ?? r.lastLoginAt)?.toISOString() ?? null,
     };
   });
   return c.json({ success: true as const, data }, 200);
