@@ -32,11 +32,14 @@ import { sql } from 'drizzle-orm';
 import { withServiceRoleContext } from '@borjie/database';
 import { authMiddleware } from '../middleware/hono-auth';
 import { databaseMiddleware } from '../middleware/database';
+import { createLogger } from '../utils/logger';
 import {
   ACTIVE_TENANT_COOKIE_NAME as ACTIVE_TENANT_COOKIE,
   clearActiveTenantCache,
   verifyEmploymentMembershipForTenant,
 } from '../middleware/active-tenant-override';
+
+const moduleLogger = createLogger('me-tenants');
 
 interface DbExec {
   execute(query: unknown): Promise<unknown>;
@@ -132,7 +135,11 @@ meTenantsRouter.get('/', async (c) => {
             m.member_role        AS role_in_tenant,
             m.joined_at          AS linked_at,
             COALESCE(t.name, 'Tenant') AS tenant_name,
-            t.logo_url
+            -- the tenants table has no logo column (neither in the Drizzle
+            -- schema nor the live DB) so selecting t.logo_url threw column
+            -- does not exist, 500-ing the org-switcher for EVERY actor. Emit
+            -- NULL so the query succeeds; rowToMembership null-defaults logoUrl.
+            NULL::text AS logo_url
           FROM identity_auth_principals iap
           JOIN org_memberships m
             ON m.tenant_identity_id = iap.tenant_identity_id
@@ -150,7 +157,15 @@ meTenantsRouter.get('/', async (c) => {
       data,
       meta: { activeTenantId },
     });
-  } catch {
+  } catch (err) {
+    // Log the REAL cause server-side (the comment below promised "ops read
+    // logs" but the bare `catch {}` swallowed it — a silent-failure factory:
+    // this exact phantom-column error sat undiagnosable until a live walk).
+    // The CLIENT still gets only the opaque code (no SQL/paths leaked).
+    moduleLogger.error(
+      { err: err instanceof Error ? err.message : String(err), route: '/me/tenants' },
+      'me-tenants: membership query failed',
+    );
     return c.json(
       {
         success: false,
