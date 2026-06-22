@@ -8,10 +8,12 @@ import {
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { MetricStrip } from '@/components/shared/MetricStrip';
+import { formatMoney, formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface AssetsRegisterProps {
-  readonly locale: 'sw' | 'en';
+  readonly locale: Locale;
 }
 
 const CLASS_OPTIONS: ReadonlyArray<{
@@ -122,7 +124,7 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
         tiles={[
           {
             label: isSw ? S.assets.totalValueLabel.sw : S.assets.totalValueLabel.en,
-            value: `TZS ${formatTzs(totalValue)}`,
+            value: formatLargeMoney(totalValue, LAUNCH_CURRENCY, locale),
             sub: isSw ? S.assets.totalValueSub.sw : S.assets.totalValueSub.en,
             icon: Boxes,
           },
@@ -136,8 +138,8 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
           {
             label: isSw ? S.assets.averageValueLabel.sw : S.assets.averageValueLabel.en,
             value: rows.length
-              ? `TZS ${formatTzs(totalValue / rows.length)}`
-              : 'TZS 0',
+              ? formatLargeMoney(totalValue / rows.length, LAUNCH_CURRENCY, locale)
+              : formatMoney(0, LAUNCH_CURRENCY, locale),
           },
         ]}
       />
@@ -197,7 +199,7 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
                       {a.assetClass}
                     </td>
                     <td className="px-5 py-2 text-right font-medium text-foreground">
-                      {formatTzs(Number(a.currentValueTzs))}
+                      {formatLargeMoney(Number(a.currentValueTzs), LAUNCH_CURRENCY, locale)}
                     </td>
                     <td className="px-5 py-2 text-neutral-300">
                       {a.valuationMethod}
@@ -214,12 +216,4 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
       </SectionCard>
     </div>
   );
-}
-
-function formatTzs(amount: number): string {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
-  return amount.toFixed(0);
 }

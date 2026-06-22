@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   FileCheck,
+  Info,
   Loader2,
   ScrollText,
   ShieldCheck,
@@ -15,37 +16,43 @@ import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest } from '@/lib/api-client';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { useDailyBrief } from '@/lib/queries/cockpit';
+import { fmtDateForLocale } from '@/lib/format';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 import { routesBStrings as RB } from '@/i18n/strings/routes-b';
+import { complianceSurfaceStrings as CS } from '@/i18n/strings/compliance-surface';
+import type { Locale } from '@/lib/locale-shared';
 
 interface ComplianceSurfaceProps {
-  readonly locale?: 'sw' | 'en';
+  readonly locale?: Locale;
 }
 
 type Cadence = 'monthly' | 'quarterly' | 'annual' | 'event';
-type TrackerStatus = 'green' | 'amber' | 'red';
 
-interface RegulatorTrack {
+interface RegulatorObligation {
   readonly id: string;
   readonly regulator: string;
   readonly regulatorLong: string;
   readonly obligationEn: string;
   readonly obligationSw: string;
   readonly cadence: Cadence;
-  readonly status: TrackerStatus;
-  readonly nextDueEn: string;
-  readonly nextDueSw: string;
 }
 
 // ---------------------------------------------------------------------------
-// Static obligation framework (Tanzanian mining-act schedule — accurate
+// Static obligation FRAMEWORK (Tanzanian mining-act schedule — accurate
 // regulatory obligation set, NOT fabricated transaction data). These rows
-// represent the COMPLIANCE OBLIGATIONS that always apply to TZ mining ops.
-// The status values (green/amber/red) will be driven by a live
-// `/api/v1/mining/compliance/checklist` endpoint when it lands.
+// are the COMPLIANCE OBLIGATIONS that always apply to TZ mining ops:
+// regulator + obligation text + filing cadence are real law.
+//
+// The per-filing traffic-light STATUS and per-filing "next due" countdowns
+// are NOT invented here — they come from the live compliance-checklist
+// feed. Until `/api/v1/compliance/checklist` is exposed, the per-row status
+// renders an honest "pending live feed" pill rather than a fabricated
+// green/amber/red. The KPI strip is driven by the live `daily-brief`
+// compliance rollup (derived from real licence-risk + incident data).
 // ---------------------------------------------------------------------------
 
-const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
+const REGULATOR_OBLIGATIONS: ReadonlyArray<RegulatorObligation> = [
   {
     id: 'mc-royalty-monthly',
     regulator: 'MC',
@@ -53,9 +60,6 @@ const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
     obligationEn: S.complianceSurface.track.royaltyMonthly.obligation.en,
     obligationSw: S.complianceSurface.track.royaltyMonthly.obligation.sw,
     cadence: 'monthly',
-    status: 'amber',
-    nextDueEn: S.complianceSurface.track.royaltyMonthly.nextDue.en,
-    nextDueSw: S.complianceSurface.track.royaltyMonthly.nextDue.sw,
   },
   {
     id: 'mc-renewal-pml',
@@ -64,9 +68,6 @@ const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
     obligationEn: S.complianceSurface.track.renewalPml.obligation.en,
     obligationSw: S.complianceSurface.track.renewalPml.obligation.sw,
     cadence: 'event',
-    status: 'red',
-    nextDueEn: S.complianceSurface.track.renewalPml.nextDue.en,
-    nextDueSw: S.complianceSurface.track.renewalPml.nextDue.sw,
   },
   {
     id: 'nemc-quarterly-eia',
@@ -75,9 +76,6 @@ const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
     obligationEn: S.complianceSurface.track.nemcEia.obligation.en,
     obligationSw: S.complianceSurface.track.nemcEia.obligation.sw,
     cadence: 'quarterly',
-    status: 'green',
-    nextDueEn: S.complianceSurface.track.nemcEia.nextDue.en,
-    nextDueSw: S.complianceSurface.track.nemcEia.nextDue.sw,
   },
   {
     id: 'bot-fx-monthly',
@@ -86,9 +84,6 @@ const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
     obligationEn: S.complianceSurface.track.botFx.obligation.en,
     obligationSw: S.complianceSurface.track.botFx.obligation.sw,
     cadence: 'monthly',
-    status: 'green',
-    nextDueEn: S.complianceSurface.track.botFx.nextDue.en,
-    nextDueSw: S.complianceSurface.track.botFx.nextDue.sw,
   },
   {
     id: 'tra-vat',
@@ -97,9 +92,6 @@ const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
     obligationEn: S.complianceSurface.track.traVat.obligation.en,
     obligationSw: S.complianceSurface.track.traVat.obligation.sw,
     cadence: 'monthly',
-    status: 'green',
-    nextDueEn: S.complianceSurface.track.traVat.nextDue.en,
-    nextDueSw: S.complianceSurface.track.traVat.nextDue.sw,
   },
   {
     id: 'osha-incident',
@@ -108,9 +100,6 @@ const REGULATOR_TRACK: ReadonlyArray<RegulatorTrack> = [
     obligationEn: S.complianceSurface.track.oshaIncident.obligation.en,
     obligationSw: S.complianceSurface.track.oshaIncident.obligation.sw,
     cadence: 'event',
-    status: 'green',
-    nextDueEn: S.complianceSurface.track.oshaIncident.nextDue.en,
-    nextDueSw: S.complianceSurface.track.oshaIncident.nextDue.sw,
   },
 ];
 
@@ -150,101 +139,100 @@ function useComplianceExports() {
 // Status tone helpers
 // ---------------------------------------------------------------------------
 
-function statusTone(status: TrackerStatus) {
-  if (status === 'red') {
-    return {
-      pill: 'border-destructive/40 bg-destructive/10 text-destructive',
-      dot: 'bg-destructive',
-    };
-  }
-  if (status === 'amber') {
-    return {
-      pill: 'border-warning/40 bg-warning/10 text-warning',
-      dot: 'bg-warning',
-    };
-  }
-  return {
-    pill: 'border-success/40 bg-success/10 text-success',
-    dot: 'bg-success',
-  };
-}
-
 function exportStatusClass(status: string): string {
   if (status === 'generated') return 'text-success border-success/40 bg-success/10';
   if (status === 'failed') return 'text-destructive border-destructive/40 bg-destructive/10';
   return 'text-neutral-300 border-border bg-surface';
 }
 
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return iso;
-  }
-}
-
 /**
  * Compliance surface — regulator cadence tracker.
  *
- * 4-up KPI strip summarises overall posture (open / overdue /
- * upcoming / clean) plus a dense table of obligations by regulator
- * (Mining Commission, NEMC, BoT, TRA, OSHA). Status pills follow the
- * green / amber / red traffic-light convention.
- *
- * The obligation framework is accurate Tanzanian mining-act law.
- * Live per-filing status comes from `/api/v1/mining/compliance/checklist`
- * (pending gateway endpoint). Recent compliance pack exports are fetched
- * live from `/api/v1/compliance/exports`.
+ * The 4-up KPI strip summarises overall posture from the LIVE
+ * `daily-brief` compliance rollup (green / amber / red derived from real
+ * licence-risk + open-incident data) — never fabricated literals. The
+ * dense obligation table is the accurate Tanzanian mining-act schedule;
+ * per-filing status shows an honest "pending live feed" pill until
+ * `/api/v1/compliance/checklist` is exposed. Recent compliance pack
+ * exports are fetched live from `/api/v1/compliance/exports`.
  */
 export function ComplianceSurface({
   locale = 'en',
 }: ComplianceSurfaceProps): JSX.Element {
   const isSw = locale === 'sw';
   const exportsQuery = useComplianceExports();
+  const briefQuery = useDailyBrief();
+
+  // Live compliance rollup — real counts derived by the gateway from
+  // licence-risk tiers + open critical incidents. Null until it loads.
+  const rollup = briefQuery.data?.compliance;
+  const rollupReady = !briefQuery.isLoading && !briefQuery.isError && !!rollup;
 
   const metrics = useMemo<readonly MetricTile[]>(() => {
-    const overdue = REGULATOR_TRACK.filter((r) => r.status === 'red').length;
-    const watching = REGULATOR_TRACK.filter((r) => r.status === 'amber').length;
-    const clean = REGULATOR_TRACK.filter((r) => r.status === 'green').length;
     const m = S.complianceSurface.metrics;
+    const total = REGULATOR_OBLIGATIONS.length;
+    // Honest placeholder while the live rollup is loading / unavailable.
+    const overdue = rollup?.red ?? null;
+    const watching = rollup?.amber ?? null;
+    const clean = rollup?.green ?? null;
+    const show = (n: number | null) => (n === null ? '—' : String(n));
     return [
       {
         label: isSw ? m.totalLabel.sw : m.totalLabel.en,
-        value: String(REGULATOR_TRACK.length),
+        value: String(total),
         sub: isSw ? m.totalSub.sw : m.totalSub.en,
         icon: ScrollText,
       },
       {
         label: isSw ? m.overdueLabel.sw : m.overdueLabel.en,
-        value: String(overdue),
+        value: show(overdue),
         sub: isSw ? m.overdueSub.sw : m.overdueSub.en,
         icon: AlertCircle,
-        tone: overdue > 0 ? ('danger' as const) : ('success' as const),
+        tone:
+          overdue !== null && overdue > 0
+            ? ('danger' as const)
+            : ('default' as const),
       },
       {
         label: isSw ? m.watchingLabel.sw : m.watchingLabel.en,
-        value: String(watching),
+        value: show(watching),
         sub: isSw ? m.watchingSub.sw : m.watchingSub.en,
         icon: Clock,
-        tone: watching > 0 ? ('warning' as const) : ('default' as const),
+        tone:
+          watching !== null && watching > 0
+            ? ('warning' as const)
+            : ('default' as const),
       },
       {
         label: isSw ? m.filedLabel.sw : m.filedLabel.en,
-        value: String(clean),
+        value: show(clean),
         sub: isSw ? m.filedSub.sw : m.filedSub.en,
         icon: CheckCircle2,
-        tone: 'success' as const,
+        tone:
+          clean !== null && clean > 0
+            ? ('success' as const)
+            : ('default' as const),
       },
     ];
-  }, [isSw]);
+  }, [isSw, rollup]);
 
   return (
     <div className="space-y-6">
       <MetricStrip tiles={metrics} cols={4} />
+
+      {/* Honest provenance note for the KPI rollup. */}
+      <div className="flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-4 py-3 text-xs leading-relaxed text-neutral-300">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+        <p>
+          {rollupReady
+            ? isSw
+              ? CS.rollupSourceNote.sw
+              : CS.rollupSourceNote.en
+            : isSw
+              ? CS.rollupPendingBody.sw
+              : CS.rollupPendingBody.en}
+        </p>
+      </div>
 
       <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
         <header className="flex items-center justify-between border-b border-border px-5 py-4">
@@ -267,7 +255,7 @@ export function ComplianceSurface({
               ? S.complianceSurface.colRegulator.sw
               : S.complianceSurface.colRegulator.en}
           </div>
-          <div className="col-span-5">
+          <div className="col-span-6">
             {isSw
               ? S.complianceSurface.colObligation.sw
               : S.complianceSurface.colObligation.en}
@@ -277,49 +265,40 @@ export function ComplianceSurface({
               ? S.complianceSurface.colCadence.sw
               : S.complianceSurface.colCadence.en}
           </div>
-          <div className="col-span-3 text-right">
-            {isSw
-              ? S.complianceSurface.colNextAction.sw
-              : S.complianceSurface.colNextAction.en}
+          <div className="col-span-2 text-right">
+            {isSw ? CS.colStatus.sw : CS.colStatus.en}
           </div>
         </div>
         <ul className="divide-y divide-border/60">
-          {REGULATOR_TRACK.map((row) => {
-            const tone = statusTone(row.status);
-            return (
-              <li
-                key={row.id}
-                className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4"
-              >
-                <div className="col-span-2">
-                  <div className="font-mono text-xs font-semibold uppercase tracking-widest text-foreground">
-                    {row.regulator}
-                  </div>
-                  <div className="text-tiny text-neutral-500">
-                    {row.regulatorLong}
-                  </div>
+          {REGULATOR_OBLIGATIONS.map((row) => (
+            <li
+              key={row.id}
+              className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4"
+            >
+              <div className="col-span-2">
+                <div className="font-mono text-xs font-semibold uppercase tracking-widest text-foreground">
+                  {row.regulator}
                 </div>
-                <div className="col-span-5">
-                  <div className="text-sm text-foreground">
-                    {isSw ? row.obligationSw : row.obligationEn}
-                  </div>
+                <div className="text-tiny text-neutral-500">
+                  {row.regulatorLong}
                 </div>
-                <div className="col-span-2 text-xs capitalize text-neutral-300">
-                  {row.cadence}
+              </div>
+              <div className="col-span-6">
+                <div className="text-sm text-foreground">
+                  {isSw ? row.obligationSw : row.obligationEn}
                 </div>
-                <div className="col-span-3 flex items-center justify-start gap-2 md:justify-end">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${tone.dot}`}
-                    />
-                    {isSw ? row.nextDueSw : row.nextDueEn}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
+              </div>
+              <div className="col-span-2 text-xs capitalize text-neutral-300">
+                {row.cadence}
+              </div>
+              <div className="col-span-2 flex items-center justify-start md:justify-end">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-0.5 text-badge font-medium text-neutral-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
+                  {isSw ? CS.statusPending.sw : CS.statusPending.en}
+                </span>
+              </div>
+            </li>
+          ))}
         </ul>
       </div>
 
@@ -375,7 +354,7 @@ export function ComplianceSurface({
                     {exp.label ?? (isSw ? RB.compliance.defaultPackLabel.sw : RB.compliance.defaultPackLabel.en)}
                   </p>
                   <p className="text-tiny text-neutral-500">
-                    {fmtDate(exp.createdAt)}
+                    {fmtDateForLocale(exp.createdAt, locale)}
                   </p>
                 </div>
                 <span

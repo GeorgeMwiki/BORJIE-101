@@ -30,8 +30,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
-import { fmtTzs, fmtMonthYearForLocale } from '@/lib/format';
+import { formatMoney, fmtMonthYearForLocale, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale, type Locale } from '@/lib/locale';
+import { royaltySignPageStrings as SP } from '@/i18n/strings/royalty-sign-page';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -121,9 +122,11 @@ function statusTone(draft: RoyaltyDraft): StatusTone {
 function SignRowForm({
   draft,
   onSigned,
+  locale,
 }: {
   readonly draft: RoyaltyDraft;
   readonly onSigned: () => void;
+  readonly locale: Locale;
 }) {
   const [amount, setAmount] = useState<string>(
     draft.royaltyAmount !== null ? String(draft.royaltyAmount) : '',
@@ -146,7 +149,7 @@ function SignRowForm({
       const msg =
         err instanceof ApiError
           ? err.message
-          : 'Sign failed. Please try again.';
+          : SP.errorSignFailed[locale];
       setError(msg);
       setConfirming(false);
     },
@@ -160,12 +163,14 @@ function SignRowForm({
   function handleSign() {
     setError(null);
     if (Number.isNaN(parsedAmount) || parsedAmount <= 0) {
-      setError('Enter a valid royalty amount before signing.');
+      setError(SP.errorEnterValid[locale]);
       return;
     }
     if (needsFourEye) {
       setError(
-        `Amounts ≥ ${fmtTzs(FOUR_EYE_THRESHOLD)} require a four-eye approval. Use "Ask Mr. Mwikila" to request one.`,
+        SP.errorFourEye(
+          formatMoney(FOUR_EYE_THRESHOLD, LAUNCH_CURRENCY, locale),
+        )[locale],
       );
       return;
     }
@@ -183,7 +188,7 @@ function SignRowForm({
           htmlFor={`amount-${draft.id}`}
           className="text-xs text-neutral-400"
         >
-          Amount (TZS)
+          {SP.amountLabel(LAUNCH_CURRENCY)[locale]}
         </label>
         <input
           id={`amount-${draft.id}`}
@@ -207,7 +212,7 @@ function SignRowForm({
           className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 px-3 py-1.5 text-xs font-medium text-warning hover:bg-warning/10"
         >
           <Sparkles className="h-3 w-3" />
-          Request four-eye approval
+          {SP.requestFourEye[locale]}
         </Link>
       ) : (
         <Button
@@ -219,7 +224,7 @@ function SignRowForm({
           className="gap-1.5"
           leftIcon={<PenLine className="h-3 w-3" />}
         >
-          {confirming ? 'Confirm sign & pay' : 'Sign & pay'}
+          {confirming ? SP.confirmSignAndPay[locale] : SP.signAndPay[locale]}
         </Button>
       )}
 
@@ -380,10 +385,11 @@ export default function RoyaltySignPage() {
                     <SignRowForm
                       draft={draft}
                       onSigned={() => handleSigned(draft.id)}
+                      locale={locale}
                     />
                   ) : (
                     <p className="mt-3 text-xs text-success">
-                      Signed and posted to ledger.
+                      {SP.signedPosted[locale]}
                     </p>
                   )}
                 </li>
@@ -412,13 +418,13 @@ export default function RoyaltySignPage() {
                   <p className="text-xs text-neutral-500">
                     {fmtPeriod(draft.periodStart, draft.periodEnd, locale)}
                     {draft.royaltyAmount !== null
-                      ? ` · ${fmtTzs(draft.royaltyAmount)}`
+                      ? ` · ${formatMoney(draft.royaltyAmount, LAUNCH_CURRENCY, locale)}`
                       : ''}
                   </p>
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-badge font-medium text-success">
                   <CheckCircle2 className="h-3 w-3" />
-                  Submitted
+                  {SP.submitted[locale]}
                 </span>
               </li>
             ))}

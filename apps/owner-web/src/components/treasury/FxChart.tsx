@@ -8,11 +8,23 @@
  * gold PM fix. Bottom row: a minimal SVG sparkline for TZS/USD over
  * the last 60 ticks. Degraded state stays graceful — when no rows yet
  * the card shows "FX feed warming up" instead of crashing.
+ *
+ * Every label renders in the ACTIVE locale (`label[locale]`) — the pair
+ * glosses are bilingual and the surrounding chrome flows through the
+ * treasury-page string table, so an `sw` user never sees an `en` gloss.
  */
 
 import { useMemo } from 'react';
 import { useFxLatest, useFxHistory } from '@/lib/queries/fx';
 import type { FxLatestRate, FxHistoryPoint } from '@/lib/queries/fx';
+import type { Locale } from '@/lib/locale-shared';
+import { pickByLocale } from '@/lib/locale-shared';
+import { bcp47For } from '@/lib/format';
+import { treasuryPageStrings as S } from '@/i18n/strings/treasury-page';
+
+interface FxChartProps {
+  readonly locale: Locale;
+}
 
 const PAIR_LABEL: Record<string, { en: string; sw: string; unit: string }> = {
   TZS_USD: { en: 'TZS / USD', sw: 'TZS / USD', unit: 'TZS' },
@@ -20,11 +32,11 @@ const PAIR_LABEL: Record<string, { en: string; sw: string; unit: string }> = {
   XAU_USD_PM: { en: 'Gold PM fix', sw: 'Dhahabu (mchana)', unit: 'USD/oz' },
 };
 
-function formatRate(rate: number): string {
-  return rate.toLocaleString('en-US', { maximumFractionDigits: 2 });
+function formatRate(rate: number, locale: Locale): string {
+  return rate.toLocaleString(bcp47For(locale), { maximumFractionDigits: 2 });
 }
 
-export function FxChart(): JSX.Element {
+export function FxChart({ locale }: FxChartProps): JSX.Element {
   const latestQuery = useFxLatest();
   const historyQuery = useFxHistory('TZS_USD', 60);
 
@@ -35,9 +47,11 @@ export function FxChart(): JSX.Element {
         data-testid="fx-chart-loading"
       >
         <div className="text-xs uppercase tracking-wide text-neutral-500">
-          Live FX and gold
+          {pickByLocale(locale, S.fx.sectionTitle)}
         </div>
-        <p className="mt-4 text-sm font-medium text-foreground">Loading rates…</p>
+        <p className="mt-4 text-sm font-medium text-foreground">
+          {pickByLocale(locale, S.fx.loading)}
+        </p>
       </article>
     );
   }
@@ -52,14 +66,13 @@ export function FxChart(): JSX.Element {
         data-testid="fx-chart-empty"
       >
         <div className="text-xs uppercase tracking-wide text-neutral-500">
-          Live FX and gold
+          {pickByLocale(locale, S.fx.sectionTitle)}
         </div>
         <p className="mt-4 text-sm font-medium text-foreground">
-          {degraded ? 'FX feed warming up' : 'No rates yet'}
+          {pickByLocale(locale, degraded ? S.fx.feedWarming : S.fx.noRates)}
         </p>
         <p className="mt-1 text-xs text-neutral-400">
-          The fx-feed worker writes a row every 5 minutes; the first rates
-          appear shortly after process boot.
+          {pickByLocale(locale, S.fx.feedHint)}
         </p>
       </article>
     );
@@ -72,28 +85,38 @@ export function FxChart(): JSX.Element {
     >
       <div className="flex items-baseline justify-between">
         <div className="text-xs uppercase tracking-wide text-neutral-500">
-          Live FX and gold
+          {pickByLocale(locale, S.fx.sectionTitle)}
         </div>
         {rates[0] ? (
           <span className="text-tiny text-neutral-400">
-            updated {new Date(rates[0].ts).toLocaleTimeString()}
+            {
+              S.fx.updatedAt(
+                new Date(rates[0].ts).toLocaleTimeString(bcp47For(locale)),
+              )[locale]
+            }
           </span>
         ) : null}
       </div>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {rates.map((rate) => (
-          <RateCard key={rate.pair} rate={rate} />
+          <RateCard key={rate.pair} rate={rate} locale={locale} />
         ))}
       </div>
       <Sparkline
         points={historyQuery.data?.points ?? []}
-        label="TZS / USD - last 60 ticks"
+        label={pickByLocale(locale, S.fx.sparklineLabel)}
       />
     </article>
   );
 }
 
-function RateCard({ rate }: { readonly rate: FxLatestRate }): JSX.Element {
+function RateCard({
+  rate,
+  locale,
+}: {
+  readonly rate: FxLatestRate;
+  readonly locale: Locale;
+}): JSX.Element {
   const label = PAIR_LABEL[rate.pair] ?? { en: rate.pair, sw: rate.pair, unit: '' };
   return (
     <div
@@ -101,10 +124,10 @@ function RateCard({ rate }: { readonly rate: FxLatestRate }): JSX.Element {
       data-testid={`fx-rate-${rate.pair}`}
     >
       <div className="text-tiny uppercase tracking-wide text-neutral-500">
-        {label.en}
+        {label[locale]}
       </div>
       <div className="mt-1 font-display text-xl tabular-nums text-foreground">
-        {formatRate(rate.rate)}
+        {formatRate(rate.rate, locale)}
       </div>
       <div className="mt-0.5 text-tiny text-neutral-400">
         {label.unit} · {rate.source}

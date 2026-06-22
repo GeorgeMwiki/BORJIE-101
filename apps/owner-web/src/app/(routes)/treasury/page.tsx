@@ -7,6 +7,8 @@ import { CliffBanner } from '@/components/treasury/CliffBanner';
 import { CommodityTrendPanel } from '@/components/treasury/CommodityTrendPanel';
 import { TreasuryAdvisorPanel } from '@/components/treasury/TreasuryAdvisorPanel';
 import { getOwnerSession } from '@/lib/session';
+import { pickByLocale } from '@/lib/locale-shared';
+import { treasuryPageStrings as S } from '@/i18n/strings/treasury-page';
 
 /**
  * O-W-17 — FX & treasury.
@@ -19,7 +21,7 @@ import { getOwnerSession } from '@/lib/session';
  */
 export default async function TreasuryPage() {
   const session = await getOwnerSession();
-  const isSw = session.languagePreference === 'sw';
+  const locale = session.languagePreference;
   return (
     <div className="space-y-8 px-8 py-8">
       <PageHero
@@ -31,25 +33,26 @@ export default async function TreasuryPage() {
               className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
             >
               <Coins className="h-3.5 w-3.5" />
-              {isSw ? 'Tengeneza order' : 'Place sell order'}
+              {pickByLocale(locale, S.hero.placeSellOrder)}
             </Link>
             <Link
               href="/ask?prompt=treasury"
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isSw ? 'Uliza simu ya hedge' : 'Ask about hedging'}
+              {pickByLocale(locale, S.hero.askHedging)}
             </Link>
           </>
         }
       />
-      <CliffBanner />
+      <CliffBanner locale={locale} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <FxChart />
+          <FxChart locale={locale} />
         </div>
         <div className="lg:col-span-1">
           <SellSimulator
+            locale={locale}
             initialGoldUsdOz={2384}
             initialTzsUsd={2585}
             initialGrammes={12_000}

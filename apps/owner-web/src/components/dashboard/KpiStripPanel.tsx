@@ -1,7 +1,7 @@
 'use client';
 
 import { Sparkline } from '@/components/shared/Sparkline';
-import { fmtNum, fmtTzsM } from '@/lib/format';
+import { fmtNum, formatMoneyMillions, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { OwnerBriefPayload } from '@/lib/queries/owner-brief';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
@@ -62,7 +62,10 @@ export function KpiStripPanel({
       <KpiTile
         label={pickByLocale(locale, S.kpiStrip.cash)}
         value={cashDays === null ? '—' : `${cashDays} d`}
-        meta={fmtTzsM(brief.cashRunway.ninetyDayNetTzs / 1_000_000)}
+        meta={formatMoneyMillions(
+          brief.cashRunway.ninetyDayNetTzs / 1_000_000,
+          LAUNCH_CURRENCY,
+        )}
         tone={
           cashDays === null
             ? 'amber'

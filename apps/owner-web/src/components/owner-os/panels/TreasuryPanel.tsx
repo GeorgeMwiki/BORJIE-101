@@ -176,13 +176,14 @@ export function TreasuryPanel({ locale }: OwnerOSPanelProps): ReactElement {
         ))}
       </div>
 
-      <CliffBanner />
+      <CliffBanner locale={locale} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <FxChart />
+          <FxChart locale={locale} />
         </div>
         <div className="lg:col-span-1">
           <SellSimulator
+            locale={locale}
             initialGoldUsdOz={goldSeed}
             initialTzsUsd={tzsSeed}
             initialGrammes={FALLBACK_GRAMMES}

@@ -14,7 +14,8 @@ import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
 import { useEstateAssets, type EstateAssetRow } from '@/lib/queries/estate';
-import { fmtTzs } from '@/lib/format';
+import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 
 const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
   type: 'asset-register',
@@ -63,13 +64,14 @@ const ASSET_REGISTER_DESCRIPTOR: OwnerOSTabDescriptor = {
 
 registerTab(ASSET_REGISTER_DESCRIPTOR);
 
-function assetValue(raw: string): string {
+function assetValue(raw: string, locale: Locale): string {
   const n = Number(raw);
-  return Number.isFinite(n) ? fmtTzs(n) : raw;
+  return Number.isFinite(n) ? formatMoney(n, LAUNCH_CURRENCY, locale) : raw;
 }
 
 function assetColumns(
   isSw: boolean,
+  locale: Locale,
 ): ReadonlyArray<PanelColumn<EstateAssetRow>> {
   return [
     {
@@ -86,7 +88,7 @@ function assetColumns(
       key: 'value',
       header: isSw ? P.assetRegister.colValue.sw : P.assetRegister.colValue.en,
       alignRight: true,
-      render: (r) => assetValue(r.currentValueTzs),
+      render: (r) => assetValue(r.currentValueTzs, locale),
     },
     {
       key: 'method',
@@ -121,7 +123,7 @@ export function AssetRegisterPanel({
         isLoading={isLoading}
         isError={isError}
         rows={rows}
-        columns={assetColumns(isSw)}
+        columns={assetColumns(isSw, locale)}
         rowKey={(r) => r.id}
         emptyTitle={
           isSw ? P.assetRegister.emptyTitle.sw : P.assetRegister.emptyTitle.en

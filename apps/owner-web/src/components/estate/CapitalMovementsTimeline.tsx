@@ -9,10 +9,12 @@ import {
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { MetricStrip } from '@/components/shared/MetricStrip';
+import { formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface CapitalMovementsTimelineProps {
-  readonly locale: 'sw' | 'en';
+  readonly locale: Locale;
 }
 
 /**
@@ -68,19 +70,19 @@ export function CapitalMovementsTimeline({
         tiles={[
           {
             label: isSw ? S.capitalMovements.inflowLabel.sw : S.capitalMovements.inflowLabel.en,
-            value: `TZS ${formatTzs(inflow)}`,
+            value: formatLargeMoney(inflow, LAUNCH_CURRENCY, locale),
             sub: isSw ? S.capitalMovements.inflowSub.sw : S.capitalMovements.inflowSub.en,
             tone: 'success',
           },
           {
             label: isSw ? S.capitalMovements.outflowLabel.sw : S.capitalMovements.outflowLabel.en,
-            value: `TZS ${formatTzs(outflow)}`,
+            value: formatLargeMoney(outflow, LAUNCH_CURRENCY, locale),
             sub: isSw ? S.capitalMovements.outflowSub.sw : S.capitalMovements.outflowSub.en,
             tone: 'warning',
           },
           {
             label: isSw ? S.capitalMovements.netLabel.sw : S.capitalMovements.netLabel.en,
-            value: `TZS ${formatTzs(inflow - outflow)}`,
+            value: formatLargeMoney(inflow - outflow, LAUNCH_CURRENCY, locale),
             sub: isSw ? S.capitalMovements.netSub.sw : S.capitalMovements.netSub.en,
           },
         ]}
@@ -143,17 +145,9 @@ function FlowRow({ movement, nameById, locale }: FlowRowProps) {
       </div>
       <div className="shrink-0 text-right">
         <div className="text-sm font-semibold text-foreground">
-          {movement.currency} {formatTzs(Number(movement.amount))}
+          {formatLargeMoney(Number(movement.amount), movement.currency, locale)}
         </div>
       </div>
     </li>
   );
-}
-
-function formatTzs(amount: number): string {
-  const abs = Math.abs(amount);
-  if (abs >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(2)}B`;
-  if (abs >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${(amount / 1_000).toFixed(0)}K`;
-  return amount.toFixed(0);
 }

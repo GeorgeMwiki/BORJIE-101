@@ -9,6 +9,8 @@ import {
 } from '@borjie/owner-os-tabs';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { ownerOsBStrings as S } from '@/i18n/strings/owner-os-b';
+import { formatLargeMoney } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import { PanelHero } from './PanelHero';
 import type { OwnerOSPanelProps } from './types';
 import {
@@ -66,15 +68,13 @@ export const RISK_PANEL_DESCRIPTOR = RISK_DESCRIPTOR;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-/** Format a USD exposure value for display, e.g. "USD 184.2K". */
-function fmtUsdExposure(usd: number): string {
-  if (usd >= 1_000_000) {
-    return `USD ${(usd / 1_000_000).toFixed(1)}M`;
-  }
-  if (usd >= 1_000) {
-    return `USD ${(usd / 1_000).toFixed(1)}K`;
-  }
-  return `USD ${usd.toFixed(0)}`;
+/**
+ * Format a USD exposure value for display, e.g. "USD 184.2K".
+ * Currency is genuinely USD (the cliff exposure is USD-denominated data);
+ * the digit grouping follows the active locale via `formatLargeMoney`.
+ */
+function fmtUsdExposure(usd: number, locale: Locale): string {
+  return formatLargeMoney(usd, 'USD', locale);
 }
 
 /** Kill-switch level → display label pair. */
@@ -118,7 +118,7 @@ export function RiskPanel({
     ? isSw ? 'Inapakia…' : 'Loading…'
     : cliffQuery.isError
       ? isSw ? 'Haijulikani' : 'Unavailable'
-      : fmtUsdExposure(cliffQuery.data?.usdDenominated ?? 0);
+      : fmtUsdExposure(cliffQuery.data?.usdDenominated ?? 0, locale);
 
   const fxTone: MetricTile['tone'] =
     cliffQuery.isLoading || cliffQuery.isError ? 'default' : 'warning';

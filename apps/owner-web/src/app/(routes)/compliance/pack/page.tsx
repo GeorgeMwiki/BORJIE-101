@@ -25,6 +25,7 @@ import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { fmtDateForLocale } from '@/lib/format';
 import { useLocale, type Locale } from '@/lib/locale';
+import { compliancePackPageStrings as S } from '@/i18n/strings/compliance-pack-page';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -85,11 +86,11 @@ function fmtDate(iso: string, locale: Locale): string {
   }
 }
 
-function statusLabel(status: string): string {
-  if (status === 'scheduled') return 'Queued';
-  if (status === 'generating') return 'Generating…';
-  if (status === 'generated') return 'Ready';
-  if (status === 'failed') return 'Failed';
+function statusLabel(status: string, locale: Locale): string {
+  if (status === 'scheduled') return S.statusQueued[locale];
+  if (status === 'generating') return S.statusGenerating[locale];
+  if (status === 'generated') return S.statusReady[locale];
+  if (status === 'failed') return S.statusFailed[locale];
   return status;
 }
 
@@ -150,7 +151,7 @@ export default function CompliancePackPage() {
     },
     onError: (err: unknown) => {
       setFormError(
-        err instanceof ApiError ? err.message : 'Could not schedule the pack. Please retry.',
+        err instanceof ApiError ? err.message : S.scheduleFailed[locale],
       );
     },
   });
@@ -168,14 +169,14 @@ export default function CompliancePackPage() {
     e.preventDefault();
     setFormError(null);
     setSuccessId(null);
-    const effectiveLabel = label.trim() || `${period} compliance pack`;
+    const effectiveLabel = label.trim() || S.defaultPackLabel(period)[locale];
     const result = CreateExportSchema.safeParse({
       label: effectiveLabel,
       regulators: [...selectedRegs],
       period,
     });
     if (!result.success) {
-      setFormError(result.error.issues[0]?.message ?? 'Invalid input');
+      setFormError(result.error.issues[0]?.message ?? S.invalidInput[locale]);
       return;
     }
     mutation.mutate(result.data);
@@ -192,7 +193,7 @@ export default function CompliancePackPage() {
           className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Compliance
+          {S.backToCompliance[locale]}
         </Link>
       </div>
 
@@ -200,16 +201,12 @@ export default function CompliancePackPage() {
       <header className="space-y-1">
         <div className="flex items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
           <FileCheck className="h-3.5 w-3.5" />
-          <span>Compliance · Monthly pack</span>
+          <span>{S.eyebrow[locale]}</span>
         </div>
         <h1 className="font-display text-2xl font-medium text-foreground">
-          Draft monthly pack
+          {S.title[locale]}
         </h1>
-        <p className="text-sm text-neutral-400">
-          Generate a compliance export bundle for one or more regulators.
-          The pack is assembled by the consolidation worker and becomes
-          available for download within minutes.
-        </p>
+        <p className="text-sm text-neutral-400">{S.subtitle[locale]}</p>
       </header>
 
       {/* Form */}
@@ -218,7 +215,7 @@ export default function CompliancePackPage() {
         className="space-y-6 rounded-2xl border border-border bg-surface/40 p-6"
       >
         <h2 className="text-sm font-semibold text-foreground">
-          Schedule a new pack
+          {S.scheduleNewPack[locale]}
         </h2>
 
         {/* Period */}
@@ -227,7 +224,7 @@ export default function CompliancePackPage() {
             htmlFor="pack-period"
             className="text-xs font-medium text-neutral-300"
           >
-            Period (YYYY-MM)
+            {S.periodLabel[locale]}
           </label>
           <input
             id="pack-period"
@@ -245,15 +242,15 @@ export default function CompliancePackPage() {
             htmlFor="pack-label"
             className="text-xs font-medium text-neutral-300"
           >
-            Label{' '}
-            <span className="text-neutral-500">(optional)</span>
+            {S.labelLabel[locale]}{' '}
+            <span className="text-neutral-500">{S.optional[locale]}</span>
           </label>
           <input
             id="pack-label"
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder={`${period} compliance pack`}
+            placeholder={S.defaultPackLabel(period)[locale]}
             maxLength={120}
             className="w-full max-w-sm rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/50"
           />
@@ -262,7 +259,7 @@ export default function CompliancePackPage() {
         {/* Regulators */}
         <fieldset>
           <legend className="mb-2 text-xs font-medium text-neutral-300">
-            Include regulators
+            {S.includeRegulators[locale]}
           </legend>
           <div className="flex flex-wrap gap-2">
             {REGULATOR_OPTIONS.map((opt) => {
@@ -285,7 +282,7 @@ export default function CompliancePackPage() {
           </div>
           {selectedRegs.length === 0 ? (
             <p className="mt-1 text-xs text-warning">
-              Select at least one regulator.
+              {S.selectAtLeastOne[locale]}
             </p>
           ) : null}
         </fieldset>
@@ -297,7 +294,7 @@ export default function CompliancePackPage() {
         {successId ? (
           <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success">
             <Package className="h-4 w-4 shrink-0" />
-            Pack queued. It will appear in the list below once generated.
+            {S.packQueued[locale]}
           </div>
         ) : null}
 
@@ -312,14 +309,14 @@ export default function CompliancePackPage() {
             ) : (
               <FileCheck className="h-3.5 w-3.5" />
             )}
-            Schedule pack
+            {S.schedulePack[locale]}
           </Button>
           <Link
             href="/ask?prompt=compliance+pack"
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Ask Mr. Mwikila
+            {S.askCta[locale]}
           </Link>
         </div>
       </form>
@@ -327,21 +324,19 @@ export default function CompliancePackPage() {
       {/* Previous packs */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Previous packs
+          {S.previousPacks[locale]}
         </h2>
 
         {isLoading ? (
           <div className="flex items-center gap-2 text-sm text-neutral-400">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Loading…
+            {S.loading[locale]}
           </div>
         ) : null}
 
         {isError ? (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-            <p className="text-xs text-destructive">
-              Could not load previous packs.
-            </p>
+            <p className="text-xs text-destructive">{S.loadFailed[locale]}</p>
             <Button
               type="button"
               variant="link"
@@ -349,15 +344,13 @@ export default function CompliancePackPage() {
               onClick={() => void refetch()}
               className="mt-1 h-auto p-0 text-xs text-destructive underline hover:no-underline"
             >
-              Retry
+              {S.retry[locale]}
             </Button>
           </div>
         ) : null}
 
         {!isLoading && !isError && exports.length === 0 ? (
-          <p className="text-sm text-neutral-400">
-            No packs yet. Schedule the first one above.
-          </p>
+          <p className="text-sm text-neutral-400">{S.noPacksYet[locale]}</p>
         ) : null}
 
         {exports.length > 0 ? (
@@ -369,7 +362,7 @@ export default function CompliancePackPage() {
               >
                 <div>
                   <p className="text-sm font-medium text-foreground">
-                    {row.label ?? 'Compliance pack'}
+                    {row.label ?? S.defaultRowLabel[locale]}
                   </p>
                   <p className="text-xs text-neutral-500">
                     {fmtDate(row.createdAt, locale)}
@@ -379,7 +372,7 @@ export default function CompliancePackPage() {
                   <span
                     className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-badge font-medium ${statusClass(row.status)}`}
                   >
-                    {statusLabel(row.status)}
+                    {statusLabel(row.status, locale)}
                   </span>
                   {row.status === 'generated' && row.downloadUrl ? (
                     <a
@@ -389,7 +382,7 @@ export default function CompliancePackPage() {
                       className="inline-flex items-center gap-1.5 text-xs text-signal-500 hover:underline"
                     >
                       <Download className="h-3.5 w-3.5" />
-                      Download
+                      {S.download[locale]}
                     </a>
                   ) : null}
                 </div>

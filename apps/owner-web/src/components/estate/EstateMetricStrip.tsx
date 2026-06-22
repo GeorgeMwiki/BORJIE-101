@@ -25,22 +25,12 @@ import {
   useEstateCapitalMovements,
   useSuccessionPlans,
 } from '@/lib/queries/estate';
-import { fmtTzs } from '@/lib/format';
+import { formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 interface EstateMetricStripProps {
-  readonly locale: 'sw' | 'en';
-}
-
-/** Format a large TZS total as e.g. "TZS 1.2B" or "TZS 450M". */
-function fmtLargeTzs(value: number): string {
-  if (value >= 1_000_000_000) {
-    return `TZS ${(value / 1_000_000_000).toFixed(1)}B`;
-  }
-  if (value >= 1_000_000) {
-    return `TZS ${(value / 1_000_000).toFixed(1)}M`;
-  }
-  return fmtTzs(value);
+  readonly locale: Locale;
 }
 
 /** ISO date 30 days ago for the capital-movements since filter. */
@@ -91,7 +81,7 @@ export function EstateMetricStrip({ locale }: EstateMetricStripProps) {
       (sum, a) => sum + (parseFloat(String(a.currentValueTzs)) || 0),
       0,
     );
-    return total > 0 ? fmtLargeTzs(total) : '—';
+    return total > 0 ? formatLargeMoney(total, LAUNCH_CURRENCY, locale) : '—';
   })();
 
   // 30-day capital flows — useEstateCapitalMovements returns {success,data:{movements,count}}
@@ -107,7 +97,7 @@ export function EstateMetricStrip({ locale }: EstateMetricStripProps) {
       (sum, m) => sum + (parseFloat(String(m.amount)) || 0),
       0,
     );
-    return net !== 0 ? fmtLargeTzs(Math.abs(net)) : '—';
+    return net !== 0 ? formatLargeMoney(Math.abs(net), LAUNCH_CURRENCY, locale) : '—';
   })();
 
   // Succession plan status — useSuccessionPlans returns {success,data:{plans,count}}

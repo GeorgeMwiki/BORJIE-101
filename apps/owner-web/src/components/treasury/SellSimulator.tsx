@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { simulateSellVsHold } from '@/lib/types/treasury';
-import { fmtTzsM } from '@/lib/format';
+import { formatMoneyMillions, LAUNCH_CURRENCY } from '@/lib/format';
 import { useFxSeeds } from '@/lib/queries/fx';
+import type { Locale } from '@/lib/locale-shared';
+import { treasuryPageStrings as S } from '@/i18n/strings/treasury-page';
 
 interface SellSimulatorProps {
+  readonly locale: Locale;
   readonly initialGoldUsdOz: number;
   readonly initialTzsUsd: number;
   readonly initialGrammes: number;
 }
 
 export function SellSimulator({
+  locale,
   initialGoldUsdOz,
   initialTzsUsd,
   initialGrammes,
@@ -56,14 +60,24 @@ export function SellSimulator({
         ? 'border-success/40 bg-success-subtle/20 text-success'
         : 'border-border bg-surface text-foreground';
 
+  const recoLabel =
+    out.recommendation === 'sell-now'
+      ? S.sim.recoSellNow[locale]
+      : out.recommendation === 'hold'
+        ? S.sim.recoHold[locale]
+        : S.sim.recoNeutral[locale];
+
+  const money = (millions: number) =>
+    formatMoneyMillions(millions, LAUNCH_CURRENCY);
+
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <div className="text-xs uppercase tracking-wide text-neutral-500">
-        Sell-now vs stockpile simulator
+        {S.sim.title[locale]}
       </div>
       <div className="mt-3 space-y-3">
         <Slider
-          label={`Gold price assumption USD/oz · ${goldUsd}`}
+          label={S.sim.goldAssumption(goldUsd)[locale]}
           min={1800}
           max={3000}
           step={10}
@@ -74,7 +88,7 @@ export function SellSimulator({
           }}
         />
         <Slider
-          label={`TZS/USD · ${tzsUsd}`}
+          label={S.sim.tzsUsd(tzsUsd)[locale]}
           min={2200}
           max={2900}
           step={5}
@@ -85,7 +99,7 @@ export function SellSimulator({
           }}
         />
         <Slider
-          label={`Grammes available · ${grammes}`}
+          label={S.sim.grammes(grammes)[locale]}
           min={500}
           max={50_000}
           step={500}
@@ -93,7 +107,7 @@ export function SellSimulator({
           onChange={setGrammes}
         />
         <Slider
-          label={`Hold window (days) · ${holdDays}`}
+          label={S.sim.holdWindow(holdDays)[locale]}
           min={1}
           max={60}
           step={1}
@@ -102,13 +116,16 @@ export function SellSimulator({
         />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-        <Outcome label="Net now" value={fmtTzsM(out.netNowTzsM)} />
-        <Outcome label={`Net hold ${holdDays}d (expected)`} value={fmtTzsM(out.netHoldExpectedTzsM)} />
-        <Outcome label="Low band" value={fmtTzsM(out.netHoldLowTzsM)} />
-        <Outcome label="High band" value={fmtTzsM(out.netHoldHighTzsM)} />
+        <Outcome label={S.sim.netNow[locale]} value={money(out.netNowTzsM)} />
+        <Outcome
+          label={S.sim.netHoldExpected(holdDays)[locale]}
+          value={money(out.netHoldExpectedTzsM)}
+        />
+        <Outcome label={S.sim.lowBand[locale]} value={money(out.netHoldLowTzsM)} />
+        <Outcome label={S.sim.highBand[locale]} value={money(out.netHoldHighTzsM)} />
       </div>
       <div className={`mt-4 rounded-md border px-3 py-2 text-sm ${tone}`}>
-        Recommendation: <strong>{out.recommendation}</strong>
+        {S.sim.recommendation[locale]}: <strong>{recoLabel}</strong>
       </div>
     </article>
   );

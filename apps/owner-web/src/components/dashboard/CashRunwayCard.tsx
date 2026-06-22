@@ -1,5 +1,9 @@
+'use client';
+
 import { Card } from '@borjie/design-system';
-import { fmtTzs } from '@/lib/format';
+import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { useLocale } from '@/lib/locale';
+import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 import type {
   CashRunwaySlot,
   CliffStatusSlot,
@@ -15,13 +19,14 @@ interface CashRunwayCardProps {
  *
  * Combines the 90-day net inflow (used as a runway proxy) with the
  * post-27-Mar USD cliff tracker so the owner sees both numbers
- * together. The cliff tile turns red when the cliff is < 30 days
- * out and remediation is still pending.
+ * together. Every string renders in the ACTIVE locale (no EN/SW mixing);
+ * money flows through `formatMoney` with the launch currency as data.
  */
 export function CashRunwayCard({
   cashRunway,
   cliffStatus,
 }: CashRunwayCardProps): JSX.Element {
+  const locale = useLocale();
   const dailyAvg = cashRunway.dailyAvgTzs;
   const projectedDays =
     dailyAvg > 0
@@ -53,49 +58,52 @@ export function CashRunwayCard({
       data-testid="dashboard-cash-runway"
     >
       <header>
-        <h2 className="cockpit-card-title">Cash &amp; USD cliff</h2>
-        <p className="text-xs italic text-neutral-500">
-          Hela &amp; tarehe ya USD
-        </p>
+        <h2 className="cockpit-card-title">{S.cashRunway.title[locale]}</h2>
       </header>
 
       <div>
         <div className="font-display text-2xl text-foreground">
-          {fmtTzs(Math.max(cashRunway.ninetyDayNetTzs, 0))}
+          {formatMoney(
+            Math.max(cashRunway.ninetyDayNetTzs, 0),
+            LAUNCH_CURRENCY,
+            locale,
+          )}
         </div>
         <p className="cockpit-card-meta">
-          90-day net · {cashRunway.sampleCount} sales sampled
+          {S.cashRunway.netDays(cashRunway.sampleCount)[locale]}
         </p>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
         <span className={`pill ${runwayPill}`}>
           {projectedDays === null
-            ? 'runway unknown'
-            : `${projectedDays} days runway`}
+            ? S.cashRunway.runwayUnknown[locale]
+            : S.cashRunway.daysRunway(projectedDays)[locale]}
         </span>
       </div>
 
       <hr className="border-border/40" />
 
       <div>
-        <div className="text-xs text-neutral-500">Post-cliff posture</div>
+        <div className="text-xs text-neutral-500">
+          {S.cashRunway.postureLabel[locale]}
+        </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
           <span className={`pill ${cliffPill}`}>
             {cliffStatus.remediationComplete
-              ? 'remediation complete'
-              : `${cliffStatus.usdDenominated} USD contracts`}
+              ? S.cashRunway.remediationComplete[locale]
+              : S.cashRunway.usdContracts(cliffStatus.usdDenominated)[locale]}
           </span>
           {cliffDays !== null ? (
             <span className="pill border-border text-neutral-400">
               {cliffDays >= 0
-                ? `cliff in ${cliffDays}d`
-                : `${Math.abs(cliffDays)}d past`}
+                ? S.cashRunway.cliffIn(cliffDays)[locale]
+                : S.cashRunway.cliffPast(Math.abs(cliffDays))[locale]}
             </span>
           ) : null}
         </div>
         <p className="cockpit-card-meta">
-          {cliffStatus.postCliffSales} post-cliff sales recorded
+          {S.cashRunway.postCliffSales(cliffStatus.postCliffSales)[locale]}
         </p>
       </div>
     </Card>

@@ -14,7 +14,7 @@ import {
   useInboundRfbs,
   useMarketplaceListings,
 } from '@/lib/queries/marketplace';
-import { fmtUsd } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
 
@@ -95,7 +95,7 @@ export function MarketplaceBoard({
       },
       {
         label: isSw ? S.mktMetricAvgLabel.sw : S.mktMetricAvgLabel.en,
-        value: fmtUsd(avgUsd),
+        value: formatMoney(avgUsd, 'USD', locale),
         sub: isSw ? S.mktMetricAvgSub.sw : S.mktMetricAvgSub.en,
         icon: Star,
       },
@@ -162,7 +162,7 @@ export function MarketplaceBoard({
                       {o.listing}
                     </div>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
-                      <span className="font-mono">{fmtUsd(o.priceUsd)}</span>
+                      <span className="font-mono">{formatMoney(o.priceUsd, 'USD', locale)}</span>
                       <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                         LBMA
                       </span>

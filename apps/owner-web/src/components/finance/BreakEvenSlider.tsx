@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { computeBreakEven } from '@/lib/types/finance';
-import { fmtTzs } from '@/lib/format';
+import { formatMoney, LAUNCH_CURRENCY, bcp47For } from '@/lib/format';
 import { useFxSeeds } from '@/lib/queries/fx';
+import { useLocale } from '@/lib/locale';
+import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 
 interface BreakEvenSliderProps {
   readonly initialGoldUsdOz: number;
@@ -16,6 +18,7 @@ export function BreakEvenSlider({
   initialTzsUsd,
   initialUnitCostTzsPerG,
 }: BreakEvenSliderProps) {
+  const locale = useLocale();
   const [goldUsd, setGoldUsd] = useState(initialGoldUsdOz);
   const [tzsUsd, setTzsUsd] = useState(initialTzsUsd);
   const [unitCost, setUnitCost] = useState(initialUnitCostTzsPerG);
@@ -41,11 +44,11 @@ export function BreakEvenSlider({
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <div className="text-xs uppercase tracking-wide text-neutral-500">
-        Break-even sensitivity · TZS / g
+        {S.breakEven.title(LAUNCH_CURRENCY)[locale]}
       </div>
       <div className="mt-3 space-y-4">
         <SliderRow
-          label={`Gold price USD/oz · ${goldUsd}`}
+          label={S.breakEven.goldPrice(goldUsd)[locale]}
           min={1800}
           max={3000}
           step={10}
@@ -56,7 +59,7 @@ export function BreakEvenSlider({
           }}
         />
         <SliderRow
-          label={`TZS/USD · ${tzsUsd}`}
+          label={S.breakEven.tzsUsd(tzsUsd)[locale]}
           min={2200}
           max={2900}
           step={5}
@@ -67,7 +70,12 @@ export function BreakEvenSlider({
           }}
         />
         <SliderRow
-          label={`Unit all-in cost TZS/g · ${unitCost.toLocaleString()}`}
+          label={
+            S.breakEven.unitCost(
+              unitCost.toLocaleString(bcp47For(locale)),
+              LAUNCH_CURRENCY,
+            )[locale]
+          }
           min={60000}
           max={180000}
           step={1000}
@@ -82,7 +90,11 @@ export function BreakEvenSlider({
             : 'border-destructive/40 bg-destructive/10 text-destructive'
         }`}
       >
-        Net margin: {fmtTzs(out.netMarginTzsPerG)} / g
+        {
+          S.breakEven.netMargin(
+            formatMoney(out.netMarginTzsPerG, LAUNCH_CURRENCY, locale),
+          )[locale]
+        }
       </div>
     </article>
   );

@@ -13,7 +13,7 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiRequest, ApiError } from '@/lib/api-client';
-import { fmtTzs } from '@/lib/format';
+import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
 import { routesBStrings as RB } from '@/i18n/strings/routes-b';
@@ -154,7 +154,7 @@ export function RoyaltyDraftPanel({
   const metrics: readonly MetricTile[] = [
     {
       label: isSw ? S.royaltyMetricRoyaltyLabel.sw : S.royaltyMetricRoyaltyLabel.en,
-      value: totals.royalty > 0 ? fmtTzs(totals.royalty) : '—',
+      value: totals.royalty > 0 ? formatMoney(totals.royalty, LAUNCH_CURRENCY, locale) : '—',
       sub: isSw ? S.royaltyMetricRoyaltySub.sw : S.royaltyMetricRoyaltySub.en,
       icon: Calculator,
       tone: 'warning',
@@ -275,7 +275,7 @@ export function RoyaltyDraftPanel({
                     </div>
                     <div className="col-span-3 text-right font-mono text-sm font-medium text-foreground">
                       {row.royaltyAmount !== null
-                        ? fmtTzs(row.royaltyAmount)
+                        ? formatMoney(row.royaltyAmount, LAUNCH_CURRENCY, locale)
                         : '—'}
                     </div>
                     <div className="col-span-3 flex justify-start md:justify-end">

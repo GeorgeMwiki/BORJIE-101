@@ -1,20 +1,22 @@
 'use client';
 
 import type { PnLRow } from '@/lib/types/finance';
-import { fmtTzsM } from '@/lib/format';
+import { formatMoneyMillions, LAUNCH_CURRENCY } from '@/lib/format';
+import { useLocale } from '@/lib/locale';
+import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 
 interface PnlTableProps {
   readonly rows: ReadonlyArray<PnLRow>;
 }
 
-const GROUP_LABEL: Record<PnLRow['group'], string> = {
-  revenue: 'Revenue',
-  cogs: 'Cost of sales',
-  opex: 'Operating expense',
-  other: 'Other',
-};
-
 export function PnlTable({ rows }: PnlTableProps) {
+  const locale = useLocale();
+  const groupLabel: Record<PnLRow['group'], string> = {
+    revenue: S.pnl.groupRevenue[locale],
+    cogs: S.pnl.groupCogs[locale],
+    opex: S.pnl.groupOpex[locale],
+    other: S.pnl.groupOther[locale],
+  };
   const groups: PnLRow['group'][] = ['revenue', 'cogs', 'opex', 'other'];
   const subtotals = Object.fromEntries(
     groups.map((g) => [
@@ -28,20 +30,32 @@ export function PnlTable({ rows }: PnlTableProps) {
     (subtotals.opex ?? 0) +
     (subtotals.other ?? 0);
 
+  const money = (millions: number) =>
+    formatMoneyMillions(millions, LAUNCH_CURRENCY);
+
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <div className="text-xs uppercase tracking-wide text-neutral-500">
-        Monthly P&L · TZS millions
+        {S.pnl.title(LAUNCH_CURRENCY)[locale]}
       </div>
       <table className="mt-3 w-full text-sm">
         <tbody>
           {groups.map((g) => (
-            <Group key={g} group={g} rows={rows.filter((r) => r.group === g)} subtotal={subtotals[g]} />
+            <Group
+              key={g}
+              label={groupLabel[g]}
+              subtotalLabel={S.pnl.subtotal[locale]}
+              rows={rows.filter((r) => r.group === g)}
+              subtotal={subtotals[g]}
+              money={money}
+            />
           ))}
           <tr className="border-t-2 border-border bg-surface/60">
-            <td className="py-2 font-medium text-foreground">EBITDA</td>
+            <td className="py-2 font-medium text-foreground">
+              {S.pnl.ebitda[locale]}
+            </td>
             <td className="py-2 text-right font-mono font-medium text-foreground">
-              {fmtTzsM(ebitda)}
+              {money(ebitda)}
             </td>
           </tr>
         </tbody>
@@ -51,20 +65,24 @@ export function PnlTable({ rows }: PnlTableProps) {
 }
 
 function Group({
-  group,
+  label,
+  subtotalLabel,
   rows,
   subtotal,
+  money,
 }: {
-  readonly group: PnLRow['group'];
+  readonly label: string;
+  readonly subtotalLabel: string;
   readonly rows: ReadonlyArray<PnLRow>;
   readonly subtotal: number;
+  readonly money: (millions: number) => string;
 }) {
   if (rows.length === 0) return null;
   return (
     <>
       <tr className="bg-surface/40">
         <td colSpan={2} className="py-1 text-tiny uppercase tracking-wide text-neutral-500">
-          {GROUP_LABEL[group]}
+          {label}
         </td>
       </tr>
       {rows.map((r, idx) => (
@@ -75,14 +93,14 @@ function Group({
               r.tzsM < 0 ? 'text-destructive' : 'text-foreground'
             }`}
           >
-            {fmtTzsM(r.tzsM)}
+            {money(r.tzsM)}
           </td>
         </tr>
       ))}
       <tr className="border-t border-border bg-surface/30">
-        <td className="py-1 text-badge italic text-neutral-400">subtotal</td>
+        <td className="py-1 text-badge italic text-neutral-400">{subtotalLabel}</td>
         <td className="py-1 text-right font-mono text-badge text-foreground">
-          {fmtTzsM(subtotal)}
+          {money(subtotal)}
         </td>
       </tr>
     </>
