@@ -1,5 +1,8 @@
 import { PageShell } from '@/components/migrated/PageShell';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
+// hook-free pickByLocale (NOT from '@/lib/locale', which is client-coupled and
+// would force this server component to "use client") — same as sign-in/page.
+import { pickByLocale } from '@/lib/locale-shared';
 import { RegulatorRequestsClient } from './RegulatorRequestsClient';
 
 /**
@@ -16,8 +19,15 @@ export default async function RegulatorRequestsPage() {
   const initialLocale = await readLocaleFromServerCookies();
   return (
     <PageShell
-      title="Regulator requests"
-      subtitle="PCCB / NEMC / EITI / TMAA data-subject + audit requests inbox"
+      title={pickByLocale(initialLocale, {
+        en: 'Regulator requests',
+        sw: 'Maombi ya wadhibiti',
+      })}
+      subtitle={pickByLocale(initialLocale, {
+        // Agency acronyms (PCCB / NEMC / EITI / TMAA) are proper nouns — kept.
+        en: 'PCCB / NEMC / EITI / TMAA data-subject + audit requests inbox',
+        sw: 'Kikasha cha maombi ya mhusika-data na ukaguzi: PCCB / NEMC / EITI / TMAA',
+      })}
     >
       <RegulatorRequestsClient initialLocale={initialLocale} />
     </PageShell>
