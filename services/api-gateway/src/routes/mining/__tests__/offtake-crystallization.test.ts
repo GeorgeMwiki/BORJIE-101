@@ -207,7 +207,25 @@ function makeStubDb(seed: Record<string, Row[]> = {}) {
                   col = (target as { name: string }).name;
                   col = snakeToCamel(col);
                 }
-                return doInsert(col);
+                // Production chains `.onConflictDoNothing(...).returning(...)`
+                // (crystallizeOfftakeAgreement), so this must stay chainable —
+                // returning a bare Promise here made `.returning` undefined and
+                // threw, surfacing as a 500. Run the insert ONCE (memoised) and
+                // expose both `.returning()` and an awaitable `then`.
+                let cached: Promise<Row[]> | undefined;
+                const run = () => (cached ??= doInsert(col));
+                return {
+                  async returning() {
+                    return run();
+                  },
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  then(resolve: any) {
+                    resolve(run());
+                  },
+                };
+              },
+              async returning() {
+                return doInsert();
               },
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               then(resolve: any) {

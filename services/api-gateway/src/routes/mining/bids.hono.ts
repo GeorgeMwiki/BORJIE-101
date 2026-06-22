@@ -223,11 +223,16 @@ async function setBidStatus(
     )
     .limit(1);
   if (!row) return { ok: false, code: 'NOT_FOUND' };
-  // Only a still-pending bid may be accepted/rejected. Without this guard a
-  // reject-after-accept (or double-accept) flips a terminal bid — diverging
-  // marketplace_bids.status from the crystallized offtake_agreements row and
-  // firing a contradictory "declined" notification on an accepted contract.
-  if (row.status !== 'pending') return { ok: false, code: 'BID_NOT_PENDING' };
+  // Allow the transition from 'pending' (the real state change) OR from the
+  // SAME target status (an at-least-once retry / double-submit stays
+  // idempotent — crystallizeOfftakeAgreement is UNIQUE on bid_id, so a
+  // re-accept never creates a second offtake). A CROSS transition
+  // (reject-after-accept / accept-after-reject) is the divergence we reject:
+  // it would desync marketplace_bids.status from the crystallized
+  // offtake_agreements row and fire a contradictory notification.
+  if (row.status !== 'pending' && row.status !== status) {
+    return { ok: false, code: 'BID_NOT_PENDING' };
+  }
   const nextAttributes = {
     ...((row.attributes as Record<string, unknown>) ?? {}),
     ...extra,
@@ -244,10 +249,11 @@ async function setBidStatus(
       and(
         eq(marketplaceBids.id, bidId),
         eq(marketplaceBids.tenantId, tenantId),
-        // Compare-and-set: the row must STILL be pending at write time, so two
-        // concurrent transitions (the TOCTOU between the SELECT and here) can
-        // never both commit — the loser gets zero rows.
-        eq(marketplaceBids.status, 'pending'),
+        // Optimistic compare-and-set on the status we just read: if a
+        // concurrent caller changed it between the SELECT and here, this
+        // matches zero rows and we 409 — closing the reject-after-accept
+        // TOCTOU without blocking the idempotent same-state retry allowed above.
+        eq(marketplaceBids.status, row.status),
       ),
     )
     .returning();
