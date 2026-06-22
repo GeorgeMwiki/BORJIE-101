@@ -15,8 +15,10 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Skeleton, Alert } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface MemoryCell {
   readonly id: string;
@@ -36,19 +38,24 @@ type FetchState =
   | { kind: 'forbidden' }
   | { kind: 'error'; message: string };
 
-const KIND_LABEL_SW: Record<string, string> = {
-  preference: S.personalKbDetail.kindPreference.both,
-  context: S.personalKbDetail.kindContext.both,
-  'recurring-fact': S.personalKbDetail.kindRecurringFact.both,
-  calibration: S.personalKbDetail.kindCalibration.both,
-  sentiment: S.personalKbDetail.kindSentiment.both,
-};
+function kindLabel(locale: Locale, kind: string): string {
+  const map: Record<string, { readonly en: string; readonly sw: string }> = {
+    preference: S.personalKbDetail.kindPreference,
+    context: S.personalKbDetail.kindContext,
+    'recurring-fact': S.personalKbDetail.kindRecurringFact,
+    calibration: S.personalKbDetail.kindCalibration,
+    sentiment: S.personalKbDetail.kindSentiment,
+  };
+  const entry = map[kind];
+  return entry ? pickByLocale(locale, entry) : kind;
+}
 
 export function PersonalKbDetailPanel({
   personId,
 }: {
   readonly personId: string;
 }) {
+  const locale = useLocale();
   const [state, setState] = useState<FetchState>({ kind: 'loading' });
 
   const load = useCallback(async () => {
@@ -96,52 +103,53 @@ export function PersonalKbDetailPanel({
 
   if (state.kind === 'loading') {
     return (
-      <p className="mt-6 text-sm text-neutral-400">
-        {S.personalKbDetail.loading.both}
-      </p>
+      <div
+        className="mt-6 space-y-3"
+        role="status"
+        aria-label={pickByLocale(locale, S.personalKbDetail.loading)}
+      >
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-20 rounded-lg border border-border" />
+        ))}
+      </div>
     );
   }
   if (state.kind === 'error') {
     return (
-      <p className="mt-6 text-sm text-destructive">
-        Error: {state.message}
-      </p>
+      <Alert variant="error" className="mt-6">
+        {state.message}
+      </Alert>
     );
   }
   if (state.kind === 'forbidden') {
     return (
-      <p className="mt-6 text-sm text-destructive">
-        {S.personalKbDetail.forbidden.both}
-      </p>
+      <Alert variant="error" className="mt-6">
+        {pickByLocale(locale, S.personalKbDetail.forbidden)}
+      </Alert>
     );
   }
   if (state.kind === 'consent-required') {
     return (
-      <div className="mt-6 rounded-lg border border-amber-700 bg-amber-950/40 p-4">
+      <Alert variant="warning" className="mt-6">
         <h2 className="font-display text-xl text-foreground">
-          Consent required
+          {pickByLocale(locale, S.personalKbDetail.consentRequiredTitle)}
         </h2>
-        <p className="text-xs italic text-amber-200">
-          {S.personalKbDetail.consentRequiredGloss.both}
+        <p className="mt-3 text-sm">
+          {pickByLocale(locale, S.personalKbDetail.consentBodyBefore)}
+          <strong>
+            {pickByLocale(locale, S.personalKbDetail.consentBodyStrong)}
+          </strong>
+          {pickByLocale(locale, S.personalKbDetail.consentBodyAfter)}
         </p>
-        <p className="mt-3 text-sm text-neutral-200">
-          To read your personal memory cells we need your affirmative
-          consent. Open <strong>Settings → Share consent</strong> to opt in.
-        </p>
-        <p className="mt-2 text-sm text-neutral-300">
-          {S.personalKbDetail.consentBodySwBefore.both}
-          <strong>{S.personalKbDetail.consentBodySwStrong.both}</strong>
-          {S.personalKbDetail.consentBodySwAfter.both}
-        </p>
-      </div>
+      </Alert>
     );
   }
 
   const cells = state.cells;
   if (cells.length === 0) {
     return (
-      <p className="mt-6 text-sm text-neutral-400">
-        {S.personalKbDetail.noCells.both}
+      <p className="mt-6 text-sm text-muted-foreground">
+        {pickByLocale(locale, S.personalKbDetail.noCells)}
       </p>
     );
   }
@@ -165,8 +173,8 @@ export function PersonalKbDetailPanel({
           className="rounded-lg border border-border bg-surface p-4"
         >
           <h2 className="font-display text-xl text-foreground">
-            {KIND_LABEL_SW[kind] ?? kind}
-            <span className="ml-2 text-xs text-neutral-500">({group.length})</span>
+            {kindLabel(locale, kind)}
+            <span className="ml-2 text-xs text-muted-foreground">({group.length})</span>
           </h2>
           <ul className="mt-3 space-y-2">
             {group.map((cell) => (
@@ -175,16 +183,22 @@ export function PersonalKbDetailPanel({
                 className="rounded border border-border bg-background p-3"
               >
                 <p className="font-medium text-foreground">{cell.key}</p>
-                <p className="mt-1 text-sm text-neutral-300">
+                <p className="mt-1 text-sm text-muted-foreground">
                   {typeof cell.value === 'string'
                     ? cell.value
                     : JSON.stringify(cell.value)}
                 </p>
-                <p className="mt-1 text-xxs text-neutral-500">
-                  captured {new Date(cell.capturedAt).toLocaleString()} ·
-                  confidence {cell.confidence}
+                <p className="mt-1 text-xxs text-muted-foreground">
+                  {pickByLocale(locale, S.personalKbDetail.captured)}{' '}
+                  {new Date(cell.capturedAt).toLocaleString()} ·{' '}
+                  {pickByLocale(locale, S.personalKbDetail.confidence)}{' '}
+                  {cell.confidence}
                   {cell.sourceTenantId ? (
-                    <> · from tenant {cell.sourceTenantId.slice(0, 8)}…</>
+                    <>
+                      {' '}·{' '}
+                      {pickByLocale(locale, S.personalKbDetail.fromTenant)}{' '}
+                      {cell.sourceTenantId.slice(0, 8)}…
+                    </>
                   ) : null}
                 </p>
               </li>

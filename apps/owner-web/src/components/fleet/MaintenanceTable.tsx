@@ -1,12 +1,25 @@
 'use client';
 
 import { useMemo } from 'react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import { StatusPill } from '@/components/shared/StatusPill';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import type { MaintenanceEvent } from '@/lib/queries/maintenance';
-import { dataBStrings as S } from '@/i18n/strings/data-b';
+import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
 
 interface MaintenanceTableProps {
   readonly events: ReadonlyArray<MaintenanceEvent>;
+  /** Seeded by the server-resolved session so SSR + first paint agree. */
+  readonly locale?: Locale;
 }
 
 interface AssetGroup {
@@ -18,11 +31,7 @@ function groupByAsset(events: ReadonlyArray<MaintenanceEvent>): ReadonlyArray<As
   const map = new Map<string, MaintenanceEvent[]>();
   for (const event of events) {
     const list = map.get(event.assetId);
-    if (list) {
-      map.set(event.assetId, [...list, event]);
-    } else {
-      map.set(event.assetId, [event]);
-    }
+    map.set(event.assetId, list ? [...list, event] : [event]);
   }
   return Array.from(map.entries()).map(([assetId, rows]) => ({ assetId, rows }));
 }
@@ -58,105 +67,91 @@ const SERVICE_INTERVAL_DAYS = 30;
  * service window (createdAt + interval) is within DUE_SOON_DAYS we
  * show "due soon"; if it has passed we show "overdue".
  */
-function predictive(event: MaintenanceEvent): PredictiveFlag {
+function predictive(event: MaintenanceEvent, locale: Locale): PredictiveFlag {
   if (event.status !== 'completed' || event.kind !== 'scheduled_service') {
     return { tone: 'neutral', label: '—' };
   }
   const completedAt = event.completedAt ?? event.createdAt;
   const nextDue = new Date(completedAt).getTime() + SERVICE_INTERVAL_DAYS * 86_400_000;
-  const now = Date.now();
-  const days = (nextDue - now) / 86_400_000;
+  const days = (nextDue - Date.now()) / 86_400_000;
   if (days < 0) {
-    return {
-      tone: 'red',
-      label: `${S.maintFlagOverdue.en} / ${S.maintFlagOverdue.sw}`,
-    };
+    return { tone: 'red', label: pickByLocale(locale, S.flagOverdue) };
   }
   if (days < DUE_SOON_DAYS) {
-    return {
-      tone: 'amber',
-      label: `${S.maintFlagDueSoon.en} / ${S.maintFlagDueSoon.sw}`,
-    };
+    return { tone: 'amber', label: pickByLocale(locale, S.flagDueSoon) };
   }
   return { tone: 'neutral', label: '—' };
 }
 
-export function MaintenanceTable({ events }: MaintenanceTableProps) {
+export function MaintenanceTable({ events, locale: seeded }: MaintenanceTableProps) {
+  const locale = useLocale(seeded);
   const groups = useMemo(() => groupByAsset(events), [events]);
 
   if (groups.length === 0) {
     return (
-      <p className="px-5 py-6 text-center text-xs text-neutral-500">
-        {S.maintEmpty.en} / {S.maintEmpty.sw}
+      <p className="px-5 py-6 text-center text-xs text-muted-foreground">
+        {pickByLocale(locale, S.tableEmpty)}
       </p>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-border">
-      <table className="w-full border-collapse text-xs">
-        <thead className="bg-surface/60 text-left text-neutral-400">
-          <tr>
-            <th className="px-3 py-2 font-medium">
-              {S.maintColAsset.en} / {S.maintColAsset.sw}
-            </th>
-            <th className="px-3 py-2 font-medium">
-              {S.maintColKind.en} / {S.maintColKind.sw}
-            </th>
-            <th className="px-3 py-2 font-medium">
-              {S.maintColStarted.en} / {S.maintColStarted.sw}
-            </th>
-            <th className="px-3 py-2 font-medium">
-              {S.maintColDuration.en} / {S.maintColDuration.sw}
-            </th>
-            <th className="px-3 py-2 font-medium">
-              {S.maintColStatus.en} / {S.maintColStatus.sw}
-            </th>
-            <th className="px-3 py-2 font-medium">Cost (TZS)</th>
-            <th className="px-3 py-2 font-medium">Predictive</th>
-          </tr>
-        </thead>
-        <tbody>
-          {groups.map((group) => (
-            <GroupRows key={group.assetId} group={group} />
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{pickByLocale(locale, S.colAsset)}</TableHead>
+          <TableHead>{pickByLocale(locale, S.colKind)}</TableHead>
+          <TableHead>{pickByLocale(locale, S.colStarted)}</TableHead>
+          <TableHead>{pickByLocale(locale, S.colDuration)}</TableHead>
+          <TableHead>{pickByLocale(locale, S.colStatus)}</TableHead>
+          <TableHead className="text-right">{pickByLocale(locale, S.colCost)}</TableHead>
+          <TableHead>{pickByLocale(locale, S.colPredictive)}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {groups.map((group) => (
+          <GroupRows key={group.assetId} group={group} locale={locale} />
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
-function GroupRows({ group }: { readonly group: AssetGroup }) {
+function GroupRows({ group, locale }: { readonly group: AssetGroup; readonly locale: Locale }) {
+  const countLabel = pickByLocale(
+    locale,
+    group.rows.length === 1 ? S.eventCountOne : S.eventCountMany,
+  );
   return (
     <>
-      <tr className="border-t border-border bg-background/40">
-        <td colSpan={7} className="px-3 py-1.5 text-badge font-semibold text-foreground">
+      <TableRow className="bg-background/40">
+        <TableCell colSpan={7} className="text-badge font-semibold text-foreground">
           {group.assetId}
-          <span className="ml-2 text-neutral-500">
-            {group.rows.length} event{group.rows.length === 1 ? '' : 's'}
+          <span className="ml-2 text-muted-foreground">
+            {group.rows.length} {countLabel}
           </span>
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {group.rows.map((row) => {
-        const flag = predictive(row);
+        const flag = predictive(row, locale);
         return (
-          <tr key={row.id} className="border-t border-border">
-            <td className="px-3 py-2 text-neutral-400">{row.assetId}</td>
-            <td className="px-3 py-2 text-foreground">{row.kind}</td>
-            <td className="px-3 py-2 text-neutral-400">
+          <TableRow key={row.id}>
+            <TableCell className="text-muted-foreground">{row.assetId}</TableCell>
+            <TableCell className="text-foreground">{row.kind}</TableCell>
+            <TableCell className="text-muted-foreground">
               {(row.startedAt ?? row.createdAt).slice(0, 10)}
-            </td>
-            <td className="px-3 py-2 text-foreground">{durationLabel(row)}</td>
-            <td className="px-3 py-2">
+            </TableCell>
+            <TableCell className="text-foreground">{durationLabel(row)}</TableCell>
+            <TableCell>
               <StatusPill tone={statusTone(row.status)} label={row.status} />
-            </td>
-            <td className="px-3 py-2 text-right text-foreground">
-              {row.costTzs ? Number(row.costTzs).toLocaleString() : '—'}
-            </td>
-            <td className="px-3 py-2">
+            </TableCell>
+            <TableCell className="text-right text-foreground">
+              {row.costTzs ? formatMoney(Number(row.costTzs), LAUNCH_CURRENCY, locale) : '—'}
+            </TableCell>
+            <TableCell>
               <StatusPill tone={flag.tone} label={flag.label} />
-            </td>
-          </tr>
+            </TableCell>
+          </TableRow>
         );
       })}
     </>

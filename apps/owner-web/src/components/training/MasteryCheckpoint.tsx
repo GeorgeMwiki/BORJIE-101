@@ -137,12 +137,12 @@ export function MasteryCheckpoint({
             <Award className="h-4 w-4 text-signal-400" aria-hidden="true" />
             {tr.t('checkpointTitle')}
           </span>
-          <span className="text-xs tabular-nums text-neutral-500">
+          <span className="text-xs tabular-nums text-muted-foreground">
             {idx + 1}/{total}
           </span>
         </div>
         <div
-          className="h-2 w-full overflow-hidden rounded-full bg-slate-800"
+          className="h-2 w-full overflow-hidden rounded-full bg-surface"
           role="progressbar"
           aria-valuenow={progressPct}
           aria-valuemin={0}
@@ -180,7 +180,7 @@ export function MasteryCheckpoint({
                   onChange={() => setPicked(opt.id)}
                   className="h-4 w-4 shrink-0 accent-signal-500"
                 />
-                <span className="font-medium text-neutral-200">{opt.label}</span>
+                <span className="font-medium text-foreground">{opt.label}</span>
               </label>
             );
           })}
@@ -188,7 +188,7 @@ export function MasteryCheckpoint({
       </section>
 
       {submit.status === 'error' ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning">
           <span>
             {submit.httpStatus === 503
               ? tr.t('errorUnavailable')
@@ -219,7 +219,7 @@ export function MasteryCheckpoint({
         </Button>
       </div>
 
-      <p className="text-center text-xs text-neutral-600">
+      <p className="text-center text-xs text-muted-foreground">
         {`${Math.round(passThreshold * 100)}%`}
       </p>
     </div>
@@ -248,11 +248,11 @@ function CheckpointResult({
     >
       <div
         className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${
-          result.passed ? 'bg-emerald-950/40' : 'bg-warning/10'
+          result.passed ? 'bg-success-subtle' : 'bg-warning-subtle'
         }`}
       >
         {result.passed ? (
-          <CheckCircle2 className="h-8 w-8 text-emerald-400" aria-hidden="true" />
+          <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
         ) : (
           <XCircle className="h-8 w-8 text-warning" aria-hidden="true" />
         )}
@@ -260,13 +260,13 @@ function CheckpointResult({
       <h2 className="text-xl font-bold text-foreground">
         {result.passed ? tr.t('phaseMasteredTitle') : tr.t('phaseMissedTitle')}
       </h2>
-      <p className="mt-1.5 text-sm text-neutral-400">
+      <p className="mt-1.5 text-sm text-muted-foreground">
         <span className="tabular-nums">
           {result.correct}/{result.total}
         </span>{' '}
         · <span className="tabular-nums">{pct}%</span>
       </p>
-      <p className="mt-1 text-xs text-neutral-600">
+      <p className="mt-1 text-xs text-muted-foreground">
         {result.passed
           ? tr.t('phaseUnlockedNote')
           : `${Math.round(passThreshold * 100)}%`}
@@ -323,9 +323,9 @@ function CheckpointEmpty({
 }) {
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center justify-center rounded-2xl border border-border bg-surface/40 px-6 py-12 text-center">
-      <Award className="mb-3 h-10 w-10 text-neutral-600" aria-hidden="true" />
+      <Award className="mb-3 h-10 w-10 text-muted-foreground" aria-hidden="true" />
       <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      <p className="mt-1.5 max-w-md text-sm text-neutral-400">{description}</p>
+      <p className="mt-1.5 max-w-md text-sm text-muted-foreground">{description}</p>
       <Button type="button" variant="outline" size="sm" onClick={onExit} className="mt-6">
         {exitLabel}
       </Button>

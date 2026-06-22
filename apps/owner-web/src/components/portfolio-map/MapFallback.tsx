@@ -21,7 +21,7 @@ export function MapFallback({ features, enabled, onSelect }: MapFallbackProps) {
   }));
   return (
     <div className="h-chart-lg overflow-y-auto rounded-lg border border-dashed border-border bg-surface/30 p-4">
-      <div className="mb-3 text-xs text-neutral-400">
+      <div className="mb-3 text-xs text-muted-foreground">
         NEXT_PUBLIC_MAPBOX_TOKEN not set — showing the GeoJSON feature catalogue
         as a tile-free fallback.
       </div>
@@ -31,11 +31,11 @@ export function MapFallback({ features, enabled, onSelect }: MapFallbackProps) {
             key={g.kind}
             className="rounded-md border border-border bg-surface px-3 py-2"
           >
-            <div className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
+            <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
               {g.kind} · {g.items.length}
             </div>
             {g.items.length === 0 ? (
-              <div className="text-xs text-neutral-500">no features</div>
+              <div className="text-xs text-muted-foreground">no features</div>
             ) : (
               <ul className="space-y-1 text-xs">
                 {g.items.map((feature) => (
@@ -43,7 +43,7 @@ export function MapFallback({ features, enabled, onSelect }: MapFallbackProps) {
                     <button
                       type="button"
                       onClick={() => onSelect(feature)}
-                      className="w-full rounded px-1 py-0.5 text-left text-neutral-300 hover:bg-surface/70 hover:text-foreground"
+                      className="w-full rounded px-1 py-0.5 text-left text-muted-foreground hover:bg-surface/70 hover:text-foreground"
                     >
                       {feature.name}
                     </button>

@@ -45,13 +45,13 @@ export function computeRunScore(
   return Math.max(0, Math.min(1, Number(score.toFixed(4))));
 }
 
-/** Difficulty → dark-theme chip classes (signal / warning / destructive). */
+/** Difficulty → DS semantic chip classes (success / warning / danger). */
 export function difficultyChipClass(difficulty: string): string {
   if (difficulty === 'advanced') {
-    return 'border-destructive/40 bg-destructive/10 text-destructive';
+    return 'border-danger/40 bg-danger-subtle text-danger';
   }
   if (difficulty === 'intermediate') {
-    return 'border-warning/40 bg-warning/10 text-warning';
+    return 'border-warning/40 bg-warning-subtle text-warning';
   }
-  return 'border-emerald-700/40 bg-emerald-950/30 text-emerald-300';
+  return 'border-success/40 bg-success-subtle text-success';
 }

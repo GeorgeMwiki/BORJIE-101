@@ -2,10 +2,27 @@
 
 import { useMemo } from 'react';
 import { RefreshCw } from 'lucide-react';
+import {
+  Skeleton,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtNum, fmtDate } from '@/lib/format';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import type { Locale } from '@/lib/locale-shared';
 import { useFleetOpsTco, type VehicleTcoRow } from '@/lib/queries/fleet-ops';
+import { fleetOpsStrings as S } from '@/i18n/strings/fleet-ops-surface';
+
+interface FleetOpsSurfaceProps {
+  /** Seeded by the server-resolved session so SSR + first paint agree. */
+  readonly locale?: Locale;
+}
 
 /**
  * Fleet-ops surface — REAL cost-of-ownership computed by
@@ -27,113 +44,114 @@ function fmtMajor(cents: number): string {
   return fmtNum(Math.round(cents) / 100);
 }
 
-function VehicleTcoTable({ rows }: { readonly rows: ReadonlyArray<VehicleTcoRow> }) {
+function VehicleTcoTable({
+  rows,
+  locale,
+}: {
+  readonly rows: ReadonlyArray<VehicleTcoRow>;
+  readonly locale: Locale;
+}) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-            <th className="px-3 py-2 font-medium">Vehicle</th>
-            <th className="px-3 py-2 font-medium">Type</th>
-            <th className="px-3 py-2 text-right font-medium">Fuel</th>
-            <th className="px-3 py-2 text-right font-medium">Maintenance</th>
-            <th className="px-3 py-2 text-right font-medium">Depreciation</th>
-            <th className="px-3 py-2 text-right font-medium">Total (reporting ccy)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.vehicleId} className="border-b border-border/60">
-              <td className="px-3 py-2 font-medium text-foreground">{r.label}</td>
-              <td className="px-3 py-2 text-neutral-500">{r.type}</td>
-              <td className="px-3 py-2 text-right tabular-nums">
-                {fmtMajor(r.fuelCostCents)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">
-                {fmtMajor(r.maintenanceCostCents)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">
-                {fmtMajor(r.depreciationCents)}
-              </td>
-              <td className="px-3 py-2 text-right font-semibold tabular-nums">
-                {fmtMajor(r.totalCents)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>{pickByLocale(locale, S.colVehicle)}</TableHead>
+          <TableHead>{pickByLocale(locale, S.colType)}</TableHead>
+          <TableHead className="text-right">{pickByLocale(locale, S.colFuel)}</TableHead>
+          <TableHead className="text-right">{pickByLocale(locale, S.colMaintenance)}</TableHead>
+          <TableHead className="text-right">{pickByLocale(locale, S.colDepreciation)}</TableHead>
+          <TableHead className="text-right">{pickByLocale(locale, S.colTotalReporting)}</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((r) => (
+          <TableRow key={r.vehicleId}>
+            <TableCell className="font-medium text-foreground">{r.label}</TableCell>
+            <TableCell className="text-muted-foreground">{r.type}</TableCell>
+            <TableCell className="text-right tabular-nums">{fmtMajor(r.fuelCostCents)}</TableCell>
+            <TableCell className="text-right tabular-nums">
+              {fmtMajor(r.maintenanceCostCents)}
+            </TableCell>
+            <TableCell className="text-right tabular-nums">
+              {fmtMajor(r.depreciationCents)}
+            </TableCell>
+            <TableCell className="text-right font-semibold tabular-nums">
+              {fmtMajor(r.totalCents)}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
-export function FleetOpsSurface() {
+export function FleetOpsSurface({ locale: seeded }: FleetOpsSurfaceProps) {
+  const locale = useLocale(seeded);
   const tco = useFleetOpsTco();
 
   const subtitle = useMemo(() => {
-    if (!tco.data) return 'Fuel + maintenance + depreciation per vehicle.';
-    return `Period ${fmtDate(tco.data.periodStart)} – ${fmtDate(
+    if (!tco.data) return pickByLocale(locale, S.subtitleDefault);
+    return `${pickByLocale(locale, S.periodPrefix)} ${fmtDate(tco.data.periodStart)} – ${fmtDate(
       tco.data.periodEnd,
-    )} · ${tco.data.fleetTotals.vehicleCount} vehicle(s).`;
-  }, [tco.data]);
+    )} · ${tco.data.fleetTotals.vehicleCount} ${pickByLocale(locale, S.vehicleCountSuffix)}`;
+  }, [tco.data, locale]);
 
   return (
     <div className="space-y-4">
       <SectionCard
-        title="Fleet cost of ownership"
+        title={pickByLocale(locale, S.title)}
         subtitle={subtitle}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void tco.refetch()}
-            className="text-neutral-500 hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
-            <RefreshCw
-              className={`h-4 w-4 ${tco.isFetching ? 'animate-spin' : ''}`}
-            />
+            <RefreshCw className={`h-4 w-4 ${tco.isFetching ? 'animate-spin' : ''}`} />
           </button>
         }
       >
         {tco.isLoading ? (
-          <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
+          <Skeleton className="h-chart-sm rounded-lg border border-border" />
         ) : tco.isError ? (
           <EmptyState
-            title="Could not load fleet cost of ownership"
-            description={(tco.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.loadErrorTitle)}
+            description={(tco.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
             hint="GET /api/v1/mining/fleet-ops/tco"
           />
         ) : (tco.data?.vehicles ?? []).length === 0 ? (
           <EmptyState
-            title="No vehicle assets yet"
-            description="Register trucks / vehicles and log fuel + maintenance to see real per-vehicle cost of ownership computed by the fleet engine."
+            title={pickByLocale(locale, S.emptyTitle)}
+            description={pickByLocale(locale, S.emptyBody)}
             hint="assets.kind in [truck, vehicle, pickup, van]"
           />
         ) : (
           <div className="space-y-4">
-            <VehicleTcoTable rows={tco.data?.vehicles ?? []} />
+            <VehicleTcoTable rows={tco.data?.vehicles ?? []} locale={locale} />
             {tco.data ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <SummaryTile
-                  label="Fuel"
+                  label={pickByLocale(locale, S.tileFuel)}
                   value={fmtMajor(tco.data.fleetTotals.fuelCostCents)}
                 />
                 <SummaryTile
-                  label="Maintenance"
+                  label={pickByLocale(locale, S.tileMaintenance)}
                   value={fmtMajor(tco.data.fleetTotals.maintenanceCostCents)}
                 />
                 <SummaryTile
-                  label="Depreciation"
+                  label={pickByLocale(locale, S.tileDepreciation)}
                   value={fmtMajor(tco.data.fleetTotals.depreciationCents)}
                 />
                 <SummaryTile
-                  label="Total"
+                  label={pickByLocale(locale, S.tileTotal)}
                   value={fmtMajor(tco.data.fleetTotals.totalCents)}
                   emphasis
                 />
               </div>
             ) : null}
             {(tco.data?.flags ?? []).length > 0 ? (
-              <ul className="space-y-1 rounded-lg border border-border bg-surface/40 p-3 text-xs text-neutral-500">
+              <ul className="space-y-1 rounded-lg border border-border bg-surface/40 p-3 text-xs text-muted-foreground">
                 {(tco.data?.flags ?? []).map((flag) => (
                   <li key={flag}>{flag}</li>
                 ))}
@@ -157,12 +175,10 @@ function SummaryTile({
 }) {
   return (
     <div className="rounded-lg border border-border bg-surface p-3">
-      <div className="text-xs uppercase tracking-wide text-neutral-400">
-        {label}
-      </div>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       <div
         className={`mt-1 tabular-nums ${
-          emphasis ? 'text-lg font-semibold text-foreground' : 'text-base'
+          emphasis ? 'text-lg font-semibold text-foreground' : 'text-base text-foreground'
         }`}
       >
         {value}

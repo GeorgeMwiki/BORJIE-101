@@ -10,12 +10,18 @@
  *   2. A reserved content column (cards / panels) using the same
  *      `space-y-8` spacing the routes use.
  *
- * Tokens only (no hex) — `bg-muted/*` + `animate-pulse` match the
- * existing `SurfaceSkeleton` / admin fallback look. `aria-hidden` so
- * screen readers skip the placeholder; the live region announces once
- * the real content lands.
+ * CONVERGED (DS foundation wave): every shimmer block now delegates to
+ * the shared `Skeleton` primitive from `@borjie/design-system` so the
+ * pulse animation, radius, and `bg-muted` token come from ONE source of
+ * truth — no more raw `animate-pulse bg-muted/NN` literals. The wrapper
+ * keeps its `(): ReactElement` signature and the
+ * `data-testid="route-skeleton"` hook verbatim so `loading.tsx` and any
+ * test importer compile unchanged. `aria-hidden` stays on the outer box
+ * so screen readers skip the placeholder; DS `Skeleton` carries its own
+ * `role="status"` but the hidden ancestor suppresses it here.
  */
 import type { ReactElement } from 'react';
+import { Skeleton } from '@borjie/design-system';
 
 export function RouteSkeleton(): ReactElement {
   return (
@@ -26,26 +32,23 @@ export function RouteSkeleton(): ReactElement {
     >
       {/* PageHero-shaped header band */}
       <header className="border-b border-border pb-6">
-        <div className="h-3 w-40 animate-pulse rounded-full bg-muted/40" />
-        <div className="mt-4 h-9 w-2/3 animate-pulse rounded-lg bg-muted/40" />
-        <div className="mt-3 h-3 w-1/3 animate-pulse rounded-full bg-muted/30" />
+        <Skeleton className="h-3 w-40 rounded-full" />
+        <Skeleton className="mt-4 h-9 w-2/3 rounded-lg" />
+        <Skeleton className="mt-3 h-3 w-1/3 rounded-full" />
         <div className="mt-5 flex flex-wrap gap-3">
-          <div className="h-8 w-36 animate-pulse rounded-full bg-muted/30" />
-          <div className="h-8 w-36 animate-pulse rounded-full bg-muted/20" />
+          <Skeleton className="h-8 w-36 rounded-full" />
+          <Skeleton className="h-8 w-36 rounded-full" />
         </div>
       </header>
 
-      {/* Reserved content column — two stacked panels matching the
+      {/* Reserved content column — three stacked tiles matching the
           card-grid rhythm so the box sizes are held while data streams. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-28 animate-pulse rounded-xl border border-border bg-muted/30"
-          />
+          <Skeleton key={i} className="h-28 rounded-xl border border-border" />
         ))}
       </div>
-      <div className="h-64 animate-pulse rounded-xl border border-border bg-muted/20" />
+      <Skeleton className="h-64 rounded-xl border border-border" />
     </div>
   );
 }

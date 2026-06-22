@@ -22,16 +22,17 @@ import {
   Calculator,
   CheckCircle2,
   Clock,
-  Loader2,
   PenLine,
   Sparkles,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Alert, Input, Badge } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { formatMoney, fmtMonthYearForLocale, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale, type Locale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
 import { royaltySignPageStrings as SP } from '@/i18n/strings/royalty-sign-page';
 
 // ---------------------------------------------------------------------------
@@ -88,30 +89,30 @@ function fmtPeriod(start: string, end: string, locale: Locale): string {
 }
 
 type StatusTone = {
-  readonly pillClass: string;
+  readonly variant: 'success-soft' | 'warning-soft' | 'secondary';
   readonly icon: React.ElementType;
-  readonly label: string;
+  readonly label: { readonly en: string; readonly sw: string };
 };
 
 function statusTone(draft: RoyaltyDraft): StatusTone {
   if (draft.signed || draft.status === 'submitted') {
     return {
-      pillClass: 'border-success/40 bg-success/10 text-success',
+      variant: 'success-soft',
       icon: CheckCircle2,
-      label: 'Signed',
+      label: SP.statusSigned,
     };
   }
   if (draft.status === 'reviewing') {
     return {
-      pillClass: 'border-warning/40 bg-warning/10 text-warning',
+      variant: 'warning-soft',
       icon: Clock,
-      label: 'Reviewing',
+      label: SP.statusReviewing,
     };
   }
   return {
-    pillClass: 'border-border bg-surface text-neutral-300',
+    variant: 'secondary',
     icon: PenLine,
-    label: 'Draft',
+    label: SP.statusDraft,
   };
 }
 
@@ -186,13 +187,14 @@ function SignRowForm({
       <div className="flex items-center gap-2">
         <label
           htmlFor={`amount-${draft.id}`}
-          className="text-xs text-neutral-400"
+          className="text-xs text-muted-foreground"
         >
           {SP.amountLabel(LAUNCH_CURRENCY)[locale]}
         </label>
-        <input
+        <Input
           id={`amount-${draft.id}`}
           type="number"
+          inputSize="sm"
           min={0}
           step={1000}
           value={amount}
@@ -201,8 +203,8 @@ function SignRowForm({
             setConfirming(false);
             setError(null);
           }}
-          className="w-40 rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/50"
-          placeholder="0"
+          className="w-40 font-mono"
+          placeholder={pickByLocale(locale, SP.amountPlaceholder)}
         />
       </div>
 
@@ -276,10 +278,10 @@ export default function RoyaltySignPage() {
       <div>
         <Link
           href="/finance"
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Finance
+          {pickByLocale(locale, SP.backToFinance)}
         </Link>
       </div>
 
@@ -287,69 +289,62 @@ export default function RoyaltySignPage() {
       <header className="space-y-1">
         <div className="flex items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
           <Calculator className="h-3.5 w-3.5" />
-          <span>Finance · Royalty</span>
+          <span>{pickByLocale(locale, SP.eyebrow)}</span>
         </div>
         <h1 className="font-display text-2xl font-medium text-foreground">
-          Batch royalty sign
+          {pickByLocale(locale, SP.pageTitle)}
         </h1>
-        <p className="text-sm text-neutral-400">
-          Review each draft, enter the royalty amount, and sign to file +
-          post the payment via the double-entry ledger.
+        <p className="text-sm text-muted-foreground">
+          {pickByLocale(locale, SP.pageIntro)}
         </p>
       </header>
 
       {/* Loading */}
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-neutral-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading drafts…
+        <div className="space-y-3" aria-busy="true">
+          <Skeleton className="h-24 rounded-2xl border border-border" />
+          <Skeleton className="h-24 rounded-2xl border border-border" />
         </div>
       ) : null}
 
       {/* Error */}
       {isError ? (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 p-5">
-          <p className="text-sm text-destructive">
-            Could not load royalty drafts from the gateway.
-          </p>
+        <Alert variant="error">
+          {pickByLocale(locale, SP.loadError)}
           <Button
             type="button"
             variant="link"
             size="sm"
             onClick={() => void refetch()}
-            className="mt-2 h-auto p-0 text-xs text-destructive underline hover:no-underline"
+            className="ml-2 h-auto p-0 text-xs underline hover:no-underline"
           >
-            Retry
+            {pickByLocale(locale, SP.retry)}
           </Button>
-        </div>
+        </Alert>
       ) : null}
 
       {/* Empty state */}
       {!isLoading && !isError && drafts.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface/40 p-8 text-center">
-          <CheckCircle2 className="mx-auto h-10 w-10 text-success" />
-          <p className="mt-3 text-sm font-medium text-foreground">
-            No royalty drafts pending
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">
-            New drafts appear here when Mr. Mwikila prepares the monthly royalty
-            return.
-          </p>
-          <Link
-            href="/ask?prompt=royalty+draft"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
-          >
-            <Sparkles className="h-3 w-3" />
-            Ask Mr. Mwikila to prepare a draft
-          </Link>
-        </div>
+        <ScreenEmptyState
+          icon={<CheckCircle2 className="h-6 w-6" />}
+          title={pickByLocale(locale, SP.emptyTitle)}
+          description={pickByLocale(locale, SP.emptyBody)}
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/ask?prompt=royalty+draft" className="gap-1.5">
+                <Sparkles className="h-3 w-3" />
+                {pickByLocale(locale, SP.emptyCta)}
+              </Link>
+            </Button>
+          }
+        />
       ) : null}
 
       {/* Unsigned drafts */}
       {unsignedDrafts.length > 0 ? (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-foreground">
-            Pending signature ({unsignedDrafts.length})
+            {SP.pendingSignature(unsignedDrafts.length)[locale]}
           </h2>
           <ul className="space-y-3">
             {unsignedDrafts.map((draft) => {
@@ -366,19 +361,26 @@ export default function RoyaltySignPage() {
                       <p className="text-sm font-semibold text-foreground">
                         {draft.mineral}
                       </p>
-                      <p className="mt-0.5 text-xs text-neutral-400">
+                      <p className="mt-0.5 text-xs text-muted-foreground">
                         {fmtPeriod(draft.periodStart, draft.periodEnd, locale)}
                         {draft.quantity !== null && draft.unit
                           ? ` · ${draft.quantity.toLocaleString()} ${draft.unit}`
                           : ''}
                       </p>
                     </div>
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pillClass}`}
+                    <Badge
+                      variant={justSigned ? 'success-soft' : tone.variant}
+                      className="gap-1.5"
                     >
-                      <Icon className="h-3 w-3" />
-                      {justSigned ? 'Signed' : tone.label}
-                    </span>
+                      {justSigned ? (
+                        <CheckCircle2 className="h-3 w-3" />
+                      ) : (
+                        <Icon className="h-3 w-3" />
+                      )}
+                      {justSigned
+                        ? pickByLocale(locale, SP.statusSigned)
+                        : pickByLocale(locale, tone.label)}
+                    </Badge>
                   </div>
 
                   {!justSigned ? (
@@ -402,8 +404,8 @@ export default function RoyaltySignPage() {
       {/* Signed drafts (read-only) */}
       {signedDrafts.length > 0 ? (
         <section>
-          <h2 className="mb-3 text-sm font-semibold text-neutral-400">
-            Already signed ({signedDrafts.length})
+          <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
+            {SP.alreadySigned(signedDrafts.length)[locale]}
           </h2>
           <ul className="space-y-2">
             {signedDrafts.map((draft) => (
@@ -412,20 +414,20 @@ export default function RoyaltySignPage() {
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/40 px-5 py-3"
               >
                 <div>
-                  <p className="text-sm font-medium text-neutral-300">
+                  <p className="text-sm font-medium text-foreground">
                     {draft.mineral}
                   </p>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-muted-foreground">
                     {fmtPeriod(draft.periodStart, draft.periodEnd, locale)}
                     {draft.royaltyAmount !== null
                       ? ` · ${formatMoney(draft.royaltyAmount, LAUNCH_CURRENCY, locale)}`
                       : ''}
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-badge font-medium text-success">
+                <Badge variant="success-soft" className="gap-1.5">
                   <CheckCircle2 className="h-3 w-3" />
                   {SP.submitted[locale]}
-                </span>
+                </Badge>
               </li>
             ))}
           </ul>

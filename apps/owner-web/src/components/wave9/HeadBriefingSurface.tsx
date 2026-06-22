@@ -63,7 +63,7 @@ function Card({
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">{title}</h2>
         {count !== undefined ? (
-          <span className="rounded-full border border-border px-2 py-0.5 text-xs text-neutral-400">
+          <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
             {count}
           </span>
         ) : null}
@@ -93,7 +93,7 @@ export function HeadBriefingSurface({
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
         <p className="text-sm text-destructive">{errorMessage}</p>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           {t('headBriefing.unavailable')}
         </p>
       </div>
@@ -102,7 +102,7 @@ export function HeadBriefingSurface({
   if (!doc) {
     return (
       <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-muted-foreground">
           {t('headBriefing.noContent')}
         </p>
       </div>
@@ -127,16 +127,16 @@ export function HeadBriefingSurface({
           count={overnight?.totalAutonomousActions}
         >
           {(overnight?.notableActions ?? []).length === 0 ? (
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {t('headBriefing.noAutonomousActions')}
             </p>
           ) : (
             <ul className="space-y-2">
               {(overnight?.notableActions ?? []).map((a, i) => (
-                <li key={i} className="text-xs text-neutral-300">
+                <li key={i} className="text-xs text-muted-foreground">
                   {a.summary}
                   {a.domain ? (
-                    <span className="ml-2 text-neutral-500">· {a.domain}</span>
+                    <span className="ml-2 text-muted-foreground">· {a.domain}</span>
                   ) : null}
                 </li>
               ))}
@@ -149,13 +149,13 @@ export function HeadBriefingSurface({
           count={pending?.count}
         >
           {(pending?.items ?? []).length === 0 ? (
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {t('headBriefing.nothingAwaiting')}
             </p>
           ) : (
             <ul className="space-y-2">
               {(pending?.items ?? []).map((it, i) => (
-                <li key={i} className="text-xs text-neutral-300">
+                <li key={i} className="text-xs text-muted-foreground">
                   {it.summary}
                   {it.urgency ? (
                     <span className="ml-2 text-warning">· {it.urgency}</span>
@@ -171,13 +171,13 @@ export function HeadBriefingSurface({
           count={escalations?.count}
         >
           {(escalations?.items ?? []).length === 0 ? (
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {t('headBriefing.noEscalations')}
             </p>
           ) : (
             <ul className="space-y-2">
               {(escalations?.items ?? []).map((it, i) => (
-                <li key={i} className="text-xs text-neutral-300">
+                <li key={i} className="text-xs text-muted-foreground">
                   {it.priority ? (
                     <span className="mr-2 text-destructive">{it.priority}</span>
                   ) : null}
@@ -190,13 +190,13 @@ export function HeadBriefingSurface({
 
         <Card title={t('headBriefing.recommendations')} count={recs.length}>
           {recs.length === 0 ? (
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {t('headBriefing.noRecommendations')}
             </p>
           ) : (
             <ul className="space-y-2">
               {recs.map((r, i) => (
-                <li key={i} className="text-xs text-neutral-300">
+                <li key={i} className="text-xs text-muted-foreground">
                   <span className="text-foreground">{r.topic}</span> — {r.summary}
                   {r.suggestedAction ? (
                     <span className="ml-1 text-signal-500">→ {r.suggestedAction}</span>
@@ -212,7 +212,7 @@ export function HeadBriefingSurface({
         <Card title={t('headBriefing.anomalies')} count={anomalies.length}>
           <ul className="space-y-2">
             {anomalies.map((a, i) => (
-              <li key={i} className="text-xs text-neutral-300">
+              <li key={i} className="text-xs text-muted-foreground">
                 <span className="text-foreground">{a.area}</span> — {a.observation}
               </li>
             ))}

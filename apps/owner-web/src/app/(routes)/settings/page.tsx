@@ -36,11 +36,11 @@ export default async function SettingsPage() {
               <h2 className="font-display text-lg text-foreground">
                 {pickByLocale(locale, S.jurisdictionTitle)}
               </h2>
-              <span className="text-xs text-neutral-400 group-hover:text-foreground">
+              <span className="text-xs text-muted-foreground group-hover:text-foreground">
                 →
               </span>
             </div>
-            <p className="mt-0.5 text-xs italic text-neutral-500">
+            <p className="mt-0.5 text-xs italic text-muted-foreground">
               {pickByLocale(locale, S.jurisdictionSubtitle)}
             </p>
           </Link>
@@ -52,11 +52,11 @@ export default async function SettingsPage() {
               <h2 className="font-display text-lg text-foreground">
                 {pickByLocale(locale, S.connectedAgentsTitle)}
               </h2>
-              <span className="text-xs text-neutral-400 group-hover:text-foreground">
+              <span className="text-xs text-muted-foreground group-hover:text-foreground">
                 →
               </span>
             </div>
-            <p className="mt-0.5 text-xs italic text-neutral-500">
+            <p className="mt-0.5 text-xs italic text-muted-foreground">
               {pickByLocale(locale, S.connectedAgentsSubtitle)}
             </p>
           </Link>

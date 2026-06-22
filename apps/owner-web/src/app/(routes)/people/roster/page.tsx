@@ -11,16 +11,25 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeft,
-  HardHat,
-  Loader2,
-  Sparkles,
-  Users,
-} from 'lucide-react';
+import { ArrowLeft, HardHat, Sparkles, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import {
+  Alert,
+  Skeleton,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
+import { peopleRosterStrings as S } from '@/i18n/strings/people-roster-page';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,10 +70,10 @@ type AttendanceRow = z.infer<typeof AttendanceRowSchema>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function fmtTime(iso: string | null): string {
+function fmtTime(iso: string | null, locale: Locale): string {
   if (!iso) return '—';
   try {
-    return new Date(iso).toLocaleTimeString('en-GB', {
+    return new Date(iso).toLocaleTimeString(bcp47For(locale), {
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -73,9 +82,9 @@ function fmtTime(iso: string | null): string {
   }
 }
 
-function fmtDate(iso: string): string {
+function fmtDate(iso: string, locale: Locale): string {
   try {
-    return new Date(iso).toLocaleDateString('en-GB', {
+    return new Date(iso).toLocaleDateString(bcp47For(locale), {
       day: 'numeric',
       month: 'short',
     });
@@ -92,10 +101,7 @@ function useHeadcount() {
   return useQuery({
     queryKey: ['people', 'headcount', 'today'],
     queryFn: ({ signal }) =>
-      apiRequest<unknown>(
-        '/api/v1/mining/attendance/headcount?groupBy=site',
-        { signal },
-      ),
+      apiRequest<unknown>('/api/v1/mining/attendance/headcount?groupBy=site', { signal }),
     select: (raw) => {
       const parsed = HeadcountResponseSchema.safeParse(raw);
       return parsed.success ? parsed.data : null;
@@ -107,11 +113,7 @@ function useHeadcount() {
 function useAttendanceHistory() {
   return useQuery({
     queryKey: ['people', 'attendance', 'history'],
-    queryFn: ({ signal }) =>
-      apiRequest<unknown>(
-        '/api/v1/mining/attendance?limit=50',
-        { signal },
-      ),
+    queryFn: ({ signal }) => apiRequest<unknown>('/api/v1/mining/attendance?limit=50', { signal }),
     select: (raw): ReadonlyArray<AttendanceRow> => {
       const parsed = AttendanceListSchema.safeParse(raw);
       return parsed.success ? parsed.data.data.records : [];
@@ -125,6 +127,7 @@ function useAttendanceHistory() {
 // ---------------------------------------------------------------------------
 
 export default function PeopleRosterPage() {
+  const locale = useLocale();
   const headcountQuery = useHeadcount();
   const attendanceQuery = useAttendanceHistory();
 
@@ -143,10 +146,10 @@ export default function PeopleRosterPage() {
       <div>
         <Link
           href="/people"
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to People
+          {pickByLocale(locale, S.back)}
         </Link>
       </div>
 
@@ -155,29 +158,31 @@ export default function PeopleRosterPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
             <Users className="h-3.5 w-3.5" />
-            <span>People · Roster</span>
+            <span>{pickByLocale(locale, S.eyebrow)}</span>
           </div>
           <h1 className="font-display text-2xl font-medium text-foreground">
-            Worker roster
+            {pickByLocale(locale, S.title)}
           </h1>
-          <p className="text-sm text-neutral-400">
-            Live per-site headcount and recent clock-in/out events.
-          </p>
+          <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.intro)}</p>
         </div>
         <Link
           href="/ask?prompt=roster"
           className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
         >
           <Sparkles className="h-3.5 w-3.5" />
-          Ask Mr. Mwikila
+          {pickByLocale(locale, S.askMwikila)}
         </Link>
       </header>
 
       {/* Loading */}
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-neutral-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading roster…
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-xl border border-border" />
+            ))}
+          </div>
+          <Skeleton className="h-48 rounded-2xl border border-border" />
         </div>
       ) : null}
 
@@ -185,17 +190,15 @@ export default function PeopleRosterPage() {
       {!isLoading && headcountQuery.data ? (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-foreground">
-            Today's headcount
+            {pickByLocale(locale, S.headcountTitle)}
             {totalOnShift !== null ? (
               <span className="ml-2 font-mono text-xs text-signal-500">
-                {totalOnShift} total
+                {totalOnShift} {pickByLocale(locale, S.totalSuffix)}
               </span>
             ) : null}
           </h2>
           {headcountQuery.data.perSite.length === 0 ? (
-            <p className="text-sm text-neutral-400">
-              No clock-in events recorded today.
-            </p>
+            <p className="text-sm text-muted-foreground">{pickByLocale(locale, S.noClockToday)}</p>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {headcountQuery.data.perSite.map((site) => (
@@ -205,14 +208,14 @@ export default function PeopleRosterPage() {
                 >
                   <div className="flex items-center gap-2">
                     <HardHat className="h-4 w-4 text-signal-500" />
-                    <span className="font-mono text-xs text-neutral-400">
-                      {site.siteId ?? 'Unknown site'}
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {site.siteId ?? pickByLocale(locale, S.unknownSite)}
                     </span>
                   </div>
                   <p className="mt-2 font-display text-2xl font-medium text-foreground">
                     {site.headcount}
                   </p>
-                  <p className="text-xs text-neutral-500">on shift</p>
+                  <p className="text-xs text-muted-foreground">{pickByLocale(locale, S.onShift)}</p>
                 </div>
               ))}
             </div>
@@ -222,102 +225,94 @@ export default function PeopleRosterPage() {
 
       {/* Headcount error */}
       {headcountQuery.isError ? (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-          <p className="text-xs text-destructive">
-            {headcountQuery.error instanceof ApiError
-              ? headcountQuery.error.message
-              : 'Could not load headcount data.'}
-          </p>
-        </div>
+        <Alert variant="error">
+          {headcountQuery.error instanceof ApiError
+            ? headcountQuery.error.message
+            : pickByLocale(locale, S.headcountError)}
+        </Alert>
       ) : null}
 
       {/* Attendance history */}
       {!isLoading ? (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-foreground">
-            Recent attendance
+            {pickByLocale(locale, S.recentTitle)}
           </h2>
 
           {attendanceQuery.isError ? (
-            <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-              <p className="text-xs text-destructive">
-                {attendanceQuery.error instanceof ApiError
-                  ? attendanceQuery.error.message
-                  : 'Could not load attendance history.'}
-              </p>
-            </div>
+            <Alert variant="error">
+              {attendanceQuery.error instanceof ApiError
+                ? attendanceQuery.error.message
+                : pickByLocale(locale, S.attendanceError)}
+            </Alert>
           ) : null}
 
           {!attendanceQuery.isError && records.length === 0 ? (
-            <div className="rounded-2xl border border-border bg-surface/40 p-6 text-center">
-              <Users className="mx-auto h-8 w-8 text-neutral-500" />
-              <p className="mt-2 text-sm text-neutral-400">
-                No attendance records found.
-              </p>
-              <Link
-                href="/ask?prompt=staff+roster"
-                className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
-              >
-                <Sparkles className="h-3 w-3" />
-                Ask Mr. Mwikila to show the roster
-              </Link>
-            </div>
+            <EmptyState
+              icon={<Users className="h-6 w-6" />}
+              title={pickByLocale(locale, S.emptyTitle)}
+              description={pickByLocale(locale, S.intro)}
+              action={
+                <Link
+                  href="/ask?prompt=staff+roster"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  {pickByLocale(locale, S.emptyCta)}
+                </Link>
+              }
+            />
           ) : null}
 
           {records.length > 0 ? (
-            <div className="overflow-hidden rounded-2xl border border-border">
-              <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-                <div className="col-span-3">Worker</div>
-                <div className="col-span-2">Site</div>
-                <div className="col-span-2">Date</div>
-                <div className="col-span-2">Clock in</div>
-                <div className="col-span-2">Clock out</div>
-                <div className="col-span-1">Event</div>
-              </div>
-              <ul className="divide-y divide-border/60">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{pickByLocale(locale, S.colWorker)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colSite)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colDate)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colClockIn)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colClockOut)}</TableHead>
+                  <TableHead>{pickByLocale(locale, S.colEvent)}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {records.map((row) => (
-                  <li
-                    key={row.id}
-                    className="grid grid-cols-1 gap-2 px-5 py-3 text-sm md:grid-cols-12 md:items-center md:gap-4"
-                  >
-                    <div className="col-span-3 font-mono text-xs text-neutral-300">
+                  <TableRow key={row.id}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
                       {row.userId.slice(0, 8)}…
-                    </div>
-                    <div className="col-span-2 text-xs text-neutral-400">
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {row.siteId ? row.siteId.slice(0, 12) : '—'}
-                    </div>
-                    <div className="col-span-2 text-xs text-neutral-400">
-                      {fmtDate(row.workDate)}
-                    </div>
-                    <div className="col-span-2 font-mono text-xs text-foreground">
-                      {fmtTime(row.clockIn)}
-                    </div>
-                    <div className="col-span-2 font-mono text-xs text-foreground">
-                      {fmtTime(row.clockOut)}
-                    </div>
-                    <div className="col-span-1 text-xs capitalize text-neutral-400">
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {fmtDate(row.workDate, locale)}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-foreground">
+                      {fmtTime(row.clockIn, locale)}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-foreground">
+                      {fmtTime(row.clockOut, locale)}
+                    </TableCell>
+                    <TableCell className="text-xs capitalize text-muted-foreground">
                       {row.eventType}
-                    </div>
-                  </li>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </ul>
-            </div>
+              </TableBody>
+            </Table>
           ) : null}
         </section>
       ) : null}
 
       {/* Brain delegation note */}
       <aside className="rounded-xl border border-border/60 bg-surface/30 p-4">
-        <p className="text-xs text-neutral-400">
-          Full per-worker details (contracts, payslips, disciplinary history)
-          are managed via{' '}
-          <Link
-            href="/mwikila"
-            className="text-signal-500 hover:underline"
-          >
+        <p className="text-xs text-muted-foreground">
+          {pickByLocale(locale, S.delegationNotePrefix)}{' '}
+          <Link href="/mwikila" className="text-signal-500 hover:underline">
             Mr. Mwikila
           </Link>{' '}
-          using the org-admin brain tools.
+          {pickByLocale(locale, S.delegationNoteSuffix)}
         </p>
       </aside>
     </div>

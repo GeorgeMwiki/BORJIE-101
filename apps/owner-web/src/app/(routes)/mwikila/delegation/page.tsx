@@ -11,24 +11,22 @@
  */
 
 import { DelegationMatrix } from './delegation-matrix';
-import { routesAStrings as S } from '@/i18n/strings/routes-a';
+import { pickByLocale } from '@/lib/locale-shared';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 export const dynamic = 'force-dynamic';
 
-export default function MwikilaDelegationPage() {
+export default async function MwikilaDelegationPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <main className="px-8 py-6">
       <header className="border-b border-border pb-4">
         <h1 className="font-display text-3xl text-foreground">
-          Mwikila delegation
+          {pickByLocale(locale, S.delegationPage.heading)}
         </h1>
-        <p className="mt-0.5 text-xs italic text-neutral-500">
-          {S.delegationPage.subhead.both}
-        </p>
-        <p className="mt-3 max-w-2xl text-sm text-neutral-300">
-          Set per-category delegation. T0 informs only, T1 drafts and
-          waits for your one-tap approval, T2 acts immediately with a
-          24-hour reversal window, T3 acts irrevocably (use sparingly).
+        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+          {pickByLocale(locale, S.delegationPage.body)}
         </p>
       </header>
       <DelegationMatrix />

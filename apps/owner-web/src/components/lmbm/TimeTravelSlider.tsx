@@ -23,8 +23,8 @@ export function TimeTravelSlider({ asOf, onChange }: TimeTravelSliderProps) {
     (current.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24),
   );
   return (
-    <div className="flex items-center gap-3 rounded-md border border-border bg-surface/40 px-4 py-3 text-xs text-neutral-300">
-      <span className="uppercase tracking-wide text-neutral-500">As-of</span>
+    <div className="flex items-center gap-3 rounded-md border border-border bg-surface/40 px-4 py-3 text-xs text-muted-foreground">
+      <span className="uppercase tracking-wide text-muted-foreground">As-of</span>
       <input
         type="range"
         min={0}

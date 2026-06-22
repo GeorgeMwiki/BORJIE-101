@@ -24,7 +24,7 @@ export default async function MarketPage() {
         <h1 className="text-xl font-semibold text-foreground">
           {isSw ? M.title.sw : M.title.en}
         </h1>
-        <p className="mt-1 max-w-2xl text-sm text-neutral-400">
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           {isSw ? M.subtitle.sw : M.subtitle.en}
         </p>
       </header>

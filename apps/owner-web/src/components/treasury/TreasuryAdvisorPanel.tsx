@@ -128,12 +128,12 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <header className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">{tr('title')}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-neutral-400">{tr('subtitle')}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tr('subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <label className="block text-xs">
-          <span className="mb-1 block text-neutral-400">{tr('base')}</span>
+          <span className="mb-1 block text-muted-foreground">{tr('base')}</span>
           <select
             className="w-full rounded-md border border-border bg-background px-2 py-1 text-foreground"
             value={baseCurrency}
@@ -147,7 +147,7 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
           </select>
         </label>
         <label className="block text-xs">
-          <span className="mb-1 block text-neutral-400">{tr('horizon')}</span>
+          <span className="mb-1 block text-muted-foreground">{tr('horizon')}</span>
           <input
             className="w-full rounded-md border border-border bg-background px-2 py-1 text-foreground"
             type="number"
@@ -185,7 +185,7 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
               value={b.balance}
               onChange={(e) => setBalances((rows) => rows.map((r) => (r.key === b.key ? { ...r, balance: Number(e.target.value) || 0 } : r)))}
             />
-            <button type="button" onClick={() => setBalances((rows) => rows.filter((r) => r.key !== b.key))} className="text-tiny text-neutral-500 hover:text-danger">
+            <button type="button" onClick={() => setBalances((rows) => rows.filter((r) => r.key !== b.key))} className="text-tiny text-muted-foreground hover:text-danger">
               {tr('remove')}
             </button>
           </div>
@@ -240,7 +240,7 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
                 </option>
               ))}
             </select>
-            <button type="button" onClick={() => setFlows((rows) => rows.filter((r) => r.key !== f.key))} className="text-tiny text-neutral-500 hover:text-danger">
+            <button type="button" onClick={() => setFlows((rows) => rows.filter((r) => r.key !== f.key))} className="text-tiny text-muted-foreground hover:text-danger">
               {tr('remove')}
             </button>
           </div>
@@ -292,11 +292,11 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
           </div>
 
           <div>
-            <div className="mb-1 text-tiny uppercase tracking-wide text-neutral-500">{tr('exposure')}</div>
+            <div className="mb-1 text-tiny uppercase tracking-wide text-muted-foreground">{tr('exposure')}</div>
             <div className="flex flex-wrap gap-2">
               {analysis.exposure.rows.map((row) => (
                 <div key={row.currency} className="rounded-md border border-border bg-background px-3 py-2">
-                  <div className="text-tiny uppercase tracking-wide text-neutral-500">{row.currency}</div>
+                  <div className="text-tiny uppercase tracking-wide text-muted-foreground">{row.currency}</div>
                   <div className={`mt-0.5 font-mono text-sm ${row.netPositionBase < 0 ? 'text-danger' : 'text-foreground'}`}>
                     {fmt(row.netPositionBase)}
                   </div>
@@ -309,9 +309,9 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
 
       {recommendations ? (
         <div className="mt-5">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">{tr('recommendations')}</h4>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr('recommendations')}</h4>
           {recommendations.length === 0 ? (
-            <p className="text-xs text-neutral-400">{tr('noRecs')}</p>
+            <p className="text-xs text-muted-foreground">{tr('noRecs')}</p>
           ) : (
             <ul className="space-y-2">
               {recommendations.map((rec) => (
@@ -372,7 +372,7 @@ function Section({
   return (
     <div className="mt-4">
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{title}</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</span>
         <button type="button" onClick={onAdd} className="text-xs font-semibold text-signal-400 hover:text-signal-300">
           {actionLabel}
         </button>
@@ -395,7 +395,7 @@ function Metric({
     tone === 'danger' ? 'text-danger' : tone === 'success' ? 'text-success' : 'text-foreground';
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">{label}</div>
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={`mt-0.5 font-mono text-sm ${toneClass}`}>{value}</div>
     </div>
   );

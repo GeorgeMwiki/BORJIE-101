@@ -214,6 +214,9 @@ export const sw = {
     "masterBrain": "Akili Kuu",
     "lmbm": "LMBM",
     "ask": "Uliza Borjie",
+    "headBriefing": "Mkutano wa viongozi",
+    "agentic": "Mipango ya agentic",
+    "training": "Mafunzo",
     "portfolioMap": "Ramani ya mkusanyiko",
     "sites": "Maeneo",
     "siteCockpit": "Kokpiti ya eneo",
@@ -223,6 +226,7 @@ export const sw = {
     "documentIntelligence": "Akili ya hati",
     "people": "Watu",
     "workforceTabs": "Vichupo vya wafanyakazi",
+    "flows": "Mtiririko",
     "fleet": "Magari",
     "inventory": "Hesabu ya mali",
     "geology": "Jiolojia",
@@ -232,6 +236,9 @@ export const sw = {
     "sales": "Mauzo",
     "treasury": "Hazina",
     "marketplace": "Soko",
+    "market": "Taarifa za soko",
+    "payroll": "Mishahara",
+    "livingPlan": "Mpango endelevu",
     "compliance": "Uzingatiaji",
     "safety": "Usalama",
     "regulatorCalendar": "Kalenda ya udhibiti",
@@ -245,14 +252,7 @@ export const sw = {
     "insurance": "Bima",
     "estate": "Shamba",
     "inbox": "Kisanduku",
-    "signOut": "Ondoka",
-    "headBriefing": "Mkutano wa viongozi",
-    "agentic": "Mipango ya agentic",
-    "training": "Mafunzo",
-    "flows": "Mtiririko",
-    "market": "Taarifa za soko",
-    "payroll": "Mishahara",
-    "livingPlan": "Mpango endelevu"
+    "signOut": "Ondoka"
   },
   "palette": {
     "placeholder": "Andika amri au tafuta...",
@@ -359,7 +359,8 @@ export const sw = {
     "commit": "Thibitisha (macho manne)",
     "rejectReason": "Sababu ya kukataa",
     "rejectPlaceholder": "Kwa nini unakataa andishi hili?",
-    "reject": "Kataa"
+    "reject": "Kataa",
+    "emptyTitle": "Hakuna maandishi yaliyowekwa tayari"
   },
   "headBriefing": {
     "unavailable": "Mkutano wa asubuhi haupatikani sasa hivi.",

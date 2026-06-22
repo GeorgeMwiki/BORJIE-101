@@ -72,7 +72,7 @@ export function SellSimulator({
 
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
-      <div className="text-xs uppercase tracking-wide text-neutral-500">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {S.sim.title[locale]}
       </div>
       <div className="mt-3 space-y-3">
@@ -147,7 +147,7 @@ function Slider({
   readonly onChange: (next: number) => void;
 }) {
   return (
-    <label className="block text-xs text-neutral-300">
+    <label className="block text-xs text-muted-foreground">
       <span className="mb-1 block">{label}</span>
       <input
         type="range"
@@ -165,7 +165,7 @@ function Slider({
 function Outcome({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">{label}</div>
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-mono text-foreground">{value}</div>
     </div>
   );

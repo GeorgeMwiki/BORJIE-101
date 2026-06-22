@@ -11,7 +11,16 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  FormField,
+  Input,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { shiftPlannerPanelStrings as M } from '@/i18n/strings/shift-planner-panel';
 import {
@@ -62,13 +71,13 @@ function severityTone(severity: string): string {
   switch (severity) {
     case 'critical':
     case 'high':
-      return 'border-destructive/40 bg-destructive/10 text-destructive';
+      return 'border-danger/40 bg-danger-subtle text-danger';
     case 'medium':
-      return 'border-warning/40 bg-warning/10 text-warning';
+      return 'border-warning/40 bg-warning-subtle text-warning';
     case 'low':
-      return 'border-info/40 bg-info/10 text-info';
+      return 'border-info/40 bg-info-subtle text-info';
     default:
-      return 'border-border bg-surface text-neutral-300';
+      return 'border-border bg-surface text-muted-foreground';
   }
 }
 
@@ -162,11 +171,11 @@ export function ShiftPlannerPanel({
       {/* Roster honesty flags */}
       {(roster.data?.flags?.length ?? 0) > 0 ? (
         <div className="rounded-2xl border border-border bg-surface/30 px-5 py-4">
-          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
+          <h3 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             <AlertTriangle className="h-3.5 w-3.5 text-warning" />
             {isSw ? M.provenance.title.sw : M.provenance.title.en}
           </h3>
-          <ul className="mt-2 space-y-1 text-xs text-neutral-500">
+          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             {(roster.data?.flags ?? []).map((flag, i) => (
               <li key={i} className="leading-relaxed">
                 {flag}
@@ -183,58 +192,58 @@ export function ShiftPlannerPanel({
           {isSw ? M.controls.title.sw : M.controls.title.en}
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? M.controls.site.sw : M.controls.site.en}
-            <select
-              value={siteId}
-              onChange={(e) => setSiteId(e.target.value)}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+          <FormField label={isSw ? M.controls.site.sw : M.controls.site.en}>
+            <Select
+              {...(siteId ? { value: siteId } : {})}
+              onValueChange={(value) => setSiteId(value)}
             >
-              <option value="">
-                {isSw ? M.controls.selectSite.sw : M.controls.selectSite.en}
-              </option>
-              {sites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.mineral})
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={isSw ? M.controls.selectSite.sw : M.controls.selectSite.en}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {sites.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} ({s.mineral})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
 
-          <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? M.controls.shiftKind.sw : M.controls.shiftKind.en}
-            <select
+          <FormField label={isSw ? M.controls.shiftKind.sw : M.controls.shiftKind.en}>
+            <Select
               value={shiftKind}
-              onChange={(e) => setShiftKind(e.target.value as ShiftKind)}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              onValueChange={(value) => setShiftKind(value as ShiftKind)}
             >
-              {SHIFT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {shiftKindLabel(k, isSw)}
-                </option>
-              ))}
-            </select>
-          </label>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SHIFT_KINDS.map((k) => (
+                  <SelectItem key={k} value={k}>
+                    {shiftKindLabel(k, isSw)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
 
-          <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? M.controls.duration.sw : M.controls.duration.en}
-            <input
+          <FormField label={isSw ? M.controls.duration.sw : M.controls.duration.en}>
+            <Input
               type="number"
               min={1}
               max={12}
               value={durationHours}
               onChange={(e) =>
-                setDurationHours(
-                  Math.min(12, Math.max(1, Number(e.target.value) || 1)),
-                )
+                setDurationHours(Math.min(12, Math.max(1, Number(e.target.value) || 1)))
               }
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
-          </label>
+          </FormField>
 
-          <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? M.controls.ambient.sw : M.controls.ambient.en}
-            <input
+          <FormField label={isSw ? M.controls.ambient.sw : M.controls.ambient.en}>
+            <Input
               type="number"
               min={0}
               max={60}
@@ -242,9 +251,8 @@ export function ShiftPlannerPanel({
               onChange={(e) =>
                 setAmbientC(Math.min(60, Math.max(0, Number(e.target.value) || 0)))
               }
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
-          </label>
+          </FormField>
         </div>
 
         <div className="mt-4 flex items-center gap-3">
@@ -260,7 +268,7 @@ export function ShiftPlannerPanel({
             {isSw ? M.controls.runPlan.sw : M.controls.runPlan.en}
           </Button>
           {!canPlan ? (
-            <span className="text-xs text-neutral-500">
+            <span className="text-xs text-muted-foreground">
               {isSw ? M.controls.pickSiteHint.sw : M.controls.pickSiteHint.en}
             </span>
           ) : null}
@@ -268,13 +276,13 @@ export function ShiftPlannerPanel({
       </div>
 
       {roster.isError ? (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-xs text-destructive">
+        <div className="rounded-2xl border border-danger/40 bg-danger-subtle px-5 py-4 text-xs text-danger">
           {isSw ? M.errors.rosterLoad.sw : M.errors.rosterLoad.en}
         </div>
       ) : null}
 
       {plan.isError ? (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-xs text-destructive">
+        <div className="rounded-2xl border border-danger/40 bg-danger-subtle px-5 py-4 text-xs text-danger">
           {isSw ? M.errors.planUnsat.sw : M.errors.planUnsat.en}
         </div>
       ) : null}
@@ -289,12 +297,12 @@ export function ShiftPlannerPanel({
                 <CheckCircle2 className="h-4 w-4 text-success" />
                 {isSw ? M.assignments.title.sw : M.assignments.title.en}
               </h2>
-              <span className="font-mono text-xs text-neutral-400">
+              <span className="font-mono text-xs text-muted-foreground">
                 {result.plan.assignments.length}
               </span>
             </header>
             {result.plan.assignments.length === 0 ? (
-              <div className="px-5 py-6 text-xs text-neutral-500">
+              <div className="px-5 py-6 text-xs text-muted-foreground">
                 {isSw ? M.assignments.none.sw : M.assignments.none.en}
               </div>
             ) : (
@@ -308,7 +316,7 @@ export function ShiftPlannerPanel({
                       <div className="font-medium text-foreground">
                         {a.taskId}
                       </div>
-                      <div className="mt-0.5 text-neutral-500">
+                      <div className="mt-0.5 text-muted-foreground">
                         {isSw ? M.assignments.worker.sw : M.assignments.worker.en}:{' '}
                         {a.workerId} ·{' '}
                         {isSw ? M.assignments.equip.sw : M.assignments.equip.en}:{' '}
@@ -319,8 +327,8 @@ export function ShiftPlannerPanel({
                     <span
                       className={`shrink-0 rounded-full border px-2 py-0.5 font-mono ${
                         a.fatigueAtAssignment > 0.6
-                          ? 'border-warning/40 bg-warning/10 text-warning'
-                          : 'border-success/40 bg-success/10 text-success'
+                          ? 'border-warning/40 bg-warning-subtle text-warning'
+                          : 'border-success/40 bg-success-subtle text-success'
                       }`}
                     >
                       {isSw ? M.assignments.fatigue.sw : M.assignments.fatigue.en}{' '}
@@ -337,10 +345,10 @@ export function ShiftPlannerPanel({
                   <XCircle className="h-3.5 w-3.5" />
                   {isSw ? M.assignments.unfilled.sw : M.assignments.unfilled.en}
                 </h3>
-                <ul className="mt-2 space-y-1 text-xs text-neutral-500">
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   {result.plan.unassignedTasks.map((t) => (
                     <li key={t.taskId}>
-                      <span className="font-medium text-neutral-300">
+                      <span className="font-medium text-muted-foreground">
                         {t.taskId}
                       </span>{' '}
                       — {t.reason}
@@ -356,7 +364,7 @@ export function ShiftPlannerPanel({
                   <AlertTriangle className="h-3.5 w-3.5" />
                   {isSw ? M.assignments.rotationAlerts.sw : M.assignments.rotationAlerts.en}
                 </h3>
-                <ul className="mt-2 space-y-1 text-xs text-neutral-500">
+                <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
                   {result.plan.rotationAlerts.map((r, i) => (
                     <li key={`${r.workerId}-${i}`}>{r.label}</li>
                   ))}
@@ -375,8 +383,8 @@ export function ShiftPlannerPanel({
               <span
                 className={`rounded-full border px-2 py-0.5 text-badge font-medium ${
                   result.compliance.pass
-                    ? 'border-success/40 bg-success/10 text-success'
-                    : 'border-destructive/40 bg-destructive/10 text-destructive'
+                    ? 'border-success/40 bg-success-subtle text-success'
+                    : 'border-danger/40 bg-danger-subtle text-danger'
                 }`}
               >
                 {result.compliance.pass
@@ -398,23 +406,23 @@ export function ShiftPlannerPanel({
                     <span
                       className={`shrink-0 rounded-full border px-2 py-0.5 font-mono ${
                         r.pass
-                          ? 'border-success/40 bg-success/10 text-success'
+                          ? 'border-success/40 bg-success-subtle text-success'
                           : severityTone(r.severity)
                       }`}
                     >
                       {r.pass ? 'ok' : r.severity}
                     </span>
                   </div>
-                  <div className="mt-1 text-neutral-500">{r.detail}</div>
+                  <div className="mt-1 text-muted-foreground">{r.detail}</div>
                 </li>
               ))}
             </ul>
             {result.compliance.blockingFailures.length > 0 ? (
               <div className="border-t border-border px-5 py-4">
-                <h3 className="text-xs font-semibold text-destructive">
+                <h3 className="text-xs font-semibold text-danger">
                   {isSw ? M.compliance.blocking.sw : M.compliance.blocking.en}
                 </h3>
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-neutral-500">
+                <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
                   {result.compliance.blockingFailures.map((f, i) => (
                     <li key={i}>{f}</li>
                   ))}

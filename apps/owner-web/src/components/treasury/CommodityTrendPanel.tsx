@@ -3,6 +3,7 @@
 import { useState, type ReactElement } from 'react';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '@borjie/genui';
+import { Skeleton, Alert } from '@borjie/design-system';
 import {
   useCommodityAdvice,
   COMMODITIES,
@@ -39,7 +40,7 @@ const SEVERITY_TONE: Record<IntelRecommendation['severity'], string> = {
 function DirectionIcon({ d }: { d: TrendWindow['direction'] }): ReactElement {
   if (d === 'up') return <TrendingUp className="h-4 w-4 text-success" />;
   if (d === 'down') return <TrendingDown className="h-4 w-4 text-destructive" />;
-  return <Minus className="h-4 w-4 text-neutral-400" />;
+  return <Minus className="h-4 w-4 text-muted-foreground" />;
 }
 
 export function CommodityTrendPanel(): ReactElement {
@@ -53,7 +54,7 @@ export function CommodityTrendPanel(): ReactElement {
           <h2 className="text-sm font-semibold text-foreground">
             Commodity Trend Advisor
           </h2>
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-muted-foreground">
             Benchmark price trend + lock / delay-sale signals
           </p>
         </div>
@@ -72,20 +73,22 @@ export function CommodityTrendPanel(): ReactElement {
       </header>
 
       {adviceQ.isLoading && (
-        <p className="text-xs text-neutral-400">Loading commodity trend…</p>
+        <Skeleton className="h-20 rounded-md border border-border" />
       )}
       {adviceQ.isError && (
-        <p className="flex items-center gap-2 text-xs text-destructive">
-          <AlertTriangle className="h-4 w-4" />
-          Advisor unavailable. Try again shortly.
-        </p>
+        <Alert variant="error" size="sm">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Advisor unavailable. Try again shortly.
+          </span>
+        </Alert>
       )}
 
       {adviceQ.data && (
         <div className="space-y-4">
           {adviceQ.data.snapshot ? (
             <>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 Latest:{' '}
                 <span className="font-semibold text-foreground">
                   {formatCurrency(
@@ -102,7 +105,7 @@ export function CommodityTrendPanel(): ReactElement {
                     className="rounded-xl border border-border bg-background/60 p-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] uppercase tracking-wide text-neutral-500">
+                      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                         {w.label}
                       </span>
                       <DirectionIcon d={w.direction} />
@@ -124,7 +127,7 @@ export function CommodityTrendPanel(): ReactElement {
               </ul>
             </>
           ) : (
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               {adviceQ.data.note ?? 'No ticker data for this commodity yet.'}
             </p>
           )}
@@ -137,8 +140,8 @@ export function CommodityTrendPanel(): ReactElement {
                   className={`rounded-xl border p-3 text-xs ${SEVERITY_TONE[r.severity]}`}
                 >
                   <p className="font-semibold">{r.title}</p>
-                  <p className="mt-1 text-neutral-300">{r.rationale}</p>
-                  <p className="mt-2 text-[10px] uppercase tracking-wide text-neutral-500">
+                  <p className="mt-1 text-muted-foreground">{r.rationale}</p>
+                  <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-foreground">
                     Evidence: {r.evidence.map((e) => e.id).join(', ')}
                   </p>
                 </li>
@@ -148,7 +151,7 @@ export function CommodityTrendPanel(): ReactElement {
 
           {adviceQ.data.snapshot &&
             adviceQ.data.recommendations.length === 0 && (
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 No price-action signals at current thresholds.
               </p>
             )}

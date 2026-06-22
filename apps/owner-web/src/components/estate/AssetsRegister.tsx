@@ -3,12 +3,29 @@
 import { useMemo, useState } from 'react';
 import { Boxes, Filter } from 'lucide-react';
 import {
+  Skeleton,
+  Alert,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
+import {
   useEstateAssets,
   type EstateAssetRow,
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { MetricStrip } from '@/components/shared/MetricStrip';
 import { formatMoney, formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { pickByLocale } from '@/lib/locale-shared';
 import type { Locale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
@@ -104,16 +121,21 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
 
   if (query.isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? S.assets.loading.sw : S.assets.loading.en}
+      <div className="space-y-6" aria-busy="true">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl border border-border" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl border border-border" />
       </div>
     );
   }
   if (query.isError) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? S.assets.loadError.sw : S.assets.loadError.en}
-      </div>
+      <Alert variant="error">
+        {pickByLocale(locale, S.assets.loadError)}
+      </Alert>
     );
   }
 
@@ -150,68 +172,67 @@ export function AssetsRegister({ locale }: AssetsRegisterProps) {
         }
         actions={
           <div className="inline-flex items-center gap-2">
-            <Filter className="h-4 w-4 text-neutral-500" />
-            <select
-              value={assetClass}
-              onChange={(e) => setAssetClass(e.target.value)}
-              className="rounded-md border border-border bg-surface px-2 py-1 text-xs text-foreground"
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select
+              value={assetClass || 'all'}
+              onValueChange={(v) => setAssetClass(v === 'all' ? '' : v)}
             >
-              {CLASS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {isSw ? opt.labelSw : opt.labelEn}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                className="h-8 w-auto min-w-[10rem] text-xs"
+                aria-label={pickByLocale(locale, S.assets.filterAria)}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CLASS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value || 'all'}>
+                    {isSw ? opt.labelSw : opt.labelEn}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         }
       >
         {rows.length === 0 ? (
-          <div className="px-5 py-8 text-sm text-neutral-500">
-            {isSw ? S.assets.emptyFilter.sw : S.assets.emptyFilter.en}
-          </div>
+          <ScreenEmptyState
+            icon={<Boxes className="h-6 w-6" />}
+            title={pickByLocale(locale, S.assets.emptyTitle)}
+            description={pickByLocale(locale, S.assets.emptyFilter)}
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-surface/60 text-tiny uppercase tracking-wider text-neutral-500">
-                <tr>
-                  <th className="px-5 py-2 text-left">
-                    {isSw ? S.assets.colDescriptor.sw : S.assets.colDescriptor.en}
-                  </th>
-                  <th className="px-5 py-2 text-left">
-                    {isSw ? S.assets.colClass.sw : S.assets.colClass.en}
-                  </th>
-                  <th className="px-5 py-2 text-right">
-                    {isSw ? S.assets.colValue.sw : S.assets.colValue.en}
-                  </th>
-                  <th className="px-5 py-2 text-left">
-                    {isSw ? S.assets.colMethod.sw : S.assets.colMethod.en}
-                  </th>
-                  <th className="px-5 py-2 text-left">
-                    {isSw ? S.assets.colValuedAt.sw : S.assets.colValuedAt.en}
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {rows.map((a) => (
-                  <tr key={a.id}>
-                    <td className="px-5 py-2 text-foreground">{a.descriptor}</td>
-                    <td className="px-5 py-2 text-neutral-300">
-                      {a.assetClass}
-                    </td>
-                    <td className="px-5 py-2 text-right font-medium text-foreground">
-                      {formatLargeMoney(Number(a.currentValueTzs), LAUNCH_CURRENCY, locale)}
-                    </td>
-                    <td className="px-5 py-2 text-neutral-300">
-                      {a.valuationMethod}
-                    </td>
-                    <td className="px-5 py-2 text-neutral-500">
-                      {new Date(a.valuationAt).toISOString().slice(0, 10)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{pickByLocale(locale, S.assets.colDescriptor)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.assets.colClass)}</TableHead>
+                <TableHead className="text-right">
+                  {pickByLocale(locale, S.assets.colValue)}
+                </TableHead>
+                <TableHead>{pickByLocale(locale, S.assets.colMethod)}</TableHead>
+                <TableHead>{pickByLocale(locale, S.assets.colValuedAt)}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="text-foreground">{a.descriptor}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {a.assetClass}
+                  </TableCell>
+                  <TableCell className="text-right font-medium text-foreground">
+                    {formatLargeMoney(Number(a.currentValueTzs), LAUNCH_CURRENCY, locale)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {a.valuationMethod}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(a.valuationAt).toISOString().slice(0, 10)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         )}
       </SectionCard>
     </div>

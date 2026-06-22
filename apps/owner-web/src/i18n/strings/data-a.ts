@@ -400,10 +400,12 @@ export const dataAStrings = {
       sw: 'Chuja kwa darasa la mali, fungua safu kuona historia ya thamani.',
       en: 'Filter by asset class, open a row for valuation history.',
     },
+    emptyTitle: { sw: 'Hakuna mali', en: 'No assets' },
     emptyFilter: {
       sw: 'Hakuna mali kwenye kichujio cha sasa.',
       en: 'No assets match the current filter.',
     },
+    filterAria: { sw: 'Chuja kwa darasa la mali', en: 'Filter by asset class' },
     colDescriptor: { sw: 'Maelezo', en: 'Descriptor' },
     colClass: { sw: 'Darasa', en: 'Class' },
     colValue: { sw: 'Thamani (TZS)', en: 'Value (TZS)' },
@@ -432,6 +434,7 @@ export const dataAStrings = {
       sw: `Jumla ya tukio ${n} katika kumbukumbu.`,
       en: `${n} events on record.`,
     }),
+    emptyTitle: { sw: 'Hakuna mtiririko bado', en: 'No flows yet' },
     empty: {
       sw: 'Hakuna mtiririko bado. Mtiririko wa kwanza utatengenezwa wakati LedgerService.post() inapozaa kumbukumbu ya kwanza ya kampuni-kati.',
       en: 'No flows yet. First entry appears when LedgerService.post() records an intercompany ledger row.',
@@ -448,6 +451,7 @@ export const dataAStrings = {
       sw: `Jumla: ${n} kampuni hai chini ya miliki.`,
       en: `Total: ${n} entities under the estate.`,
     }),
+    emptyTitle: { sw: 'Hakuna kampuni bado', en: 'No entities yet' },
     empty: {
       sw: 'Hakuna kampuni iliyosajiliwa bado. Anza kwa kuunda kikundi cha familia.',
       en: 'No entities registered yet. Start by creating a family-office group.',

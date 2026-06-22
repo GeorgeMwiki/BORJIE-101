@@ -25,7 +25,7 @@ export default async function LicenceRenewalPage({ params }: RouteProps) {
     <div className="space-y-6 px-8 py-8">
       <Link
         href="/compliance"
-        className="inline-flex items-center gap-2 text-xs font-medium text-slate-500 hover:text-slate-100"
+        className="inline-flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         {isSw ? S.renewalPage.backToCompliance.sw : S.renewalPage.backToCompliance.en}
@@ -34,10 +34,10 @@ export default async function LicenceRenewalPage({ params }: RouteProps) {
         <p className="text-xs uppercase tracking-wide text-signal-400">
           {isSw ? S.renewalPage.eyebrow.sw : S.renewalPage.eyebrow.en}
         </p>
-        <h1 className="mt-1 text-2xl font-semibold text-slate-50">
+        <h1 className="mt-1 text-2xl font-semibold text-foreground">
           {isSw ? S.renewalPage.heading.sw : S.renewalPage.heading.en}
         </h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           {isSw ? S.renewalPage.body.sw : S.renewalPage.body.en}
         </p>
       </header>

@@ -21,6 +21,7 @@ import type {
   CheckpointQuestion,
   ScenarioLanguage,
 } from '@borjie/api-client/training-types';
+import { Skeleton } from '@borjie/design-system';
 import { trainingT } from '@/i18n/strings/training';
 import { fetchCheckpoint, TrainingGatewayError } from './training-gateway';
 import { MasteryCheckpoint } from './MasteryCheckpoint';
@@ -77,7 +78,7 @@ function CheckpointClientInner({ locale }: CheckpointClientProps) {
       {loading ? <CheckpointSkeleton /> : null}
 
       {!loading && errorStatus !== null ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning">
           <ServerCrash className="h-5 w-5 shrink-0" aria-hidden="true" />
           <span>{errorStatus === 503 ? tr.t('errorUnavailable') : tr.t('errorLoad')}</span>
           <button
@@ -105,8 +106,8 @@ function CheckpointClientInner({ locale }: CheckpointClientProps) {
 function CheckpointSkeleton() {
   return (
     <div className="mx-auto max-w-2xl space-y-5" aria-busy="true">
-      <div className="h-16 w-full animate-pulse rounded-2xl bg-surface/40" />
-      <div className="h-64 w-full animate-pulse rounded-2xl bg-surface/40" />
+      <Skeleton className="h-16 w-full rounded-2xl" />
+      <Skeleton className="h-64 w-full rounded-2xl" />
     </div>
   );
 }

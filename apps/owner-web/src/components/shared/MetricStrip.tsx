@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react';
+import { Card } from '@borjie/design-system';
 
 export interface MetricTile {
   readonly label: string;
@@ -31,6 +32,12 @@ interface MetricStripProps {
  * 2. Each tile maintains its own colour token to keep the strip
  * visually quiet when most metrics are neutral and immediately
  * obvious when one slot is in alarm.
+ *
+ * CONVERGED (DS foundation wave): the DS `Card` family has no `tiles[]`
+ * + delta-chip equivalent for this strip, so the rich strip API is kept
+ * VERBATIM. The per-tile SHELL now delegates to the DS `Card` primitive
+ * (token-owned surface / radius), and every remaining raw `text-neutral-*`
+ * literal is aligned to the canonical `text-muted-foreground` token.
  */
 export function MetricStrip({ tiles, cols = 4 }: MetricStripProps) {
   const gridCols =
@@ -52,7 +59,7 @@ function Tile({ label, value, sub, icon: Icon, delta, tone = 'default' }: Metric
         ? 'border-success/40'
         : tone === 'danger'
           ? 'border-destructive/40'
-          : 'border-border';
+          : '';
 
   const iconTone =
     tone === 'warning'
@@ -64,15 +71,15 @@ function Tile({ label, value, sub, icon: Icon, delta, tone = 'default' }: Metric
           : 'bg-signal-500/10 text-signal-500';
 
   return (
-    <div
-      className={`flex items-start justify-between gap-4 rounded-2xl border ${borderTone} bg-surface/40 p-5`}
+    <Card
+      className={`flex items-start justify-between gap-4 rounded-2xl bg-surface/40 p-5 ${borderTone}`}
     >
       <div className="min-w-0 space-y-1">
-        <p className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
+        <p className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-muted-foreground">
           {label}
         </p>
         <p className="font-display text-3xl text-foreground">{value}</p>
-        {sub ? <p className="text-xs text-neutral-400">{sub}</p> : null}
+        {sub ? <p className="text-xs text-muted-foreground/80">{sub}</p> : null}
         {delta ? <DeltaChip {...delta} /> : null}
       </div>
       {Icon ? (
@@ -80,7 +87,7 @@ function Tile({ label, value, sub, icon: Icon, delta, tone = 'default' }: Metric
           <Icon className="h-5 w-5" />
         </div>
       ) : null}
-    </div>
+    </Card>
   );
 }
 
@@ -97,7 +104,7 @@ function DeltaChip({ value, direction, tone = 'neutral' }: DeltaChipProps) {
       ? 'text-success'
       : tone === 'negative'
         ? 'text-destructive'
-        : 'text-neutral-400';
+        : 'text-muted-foreground';
   return (
     <span className={`mt-2 inline-flex items-center gap-1 text-badge font-medium ${cls}`}>
       <Icon className="h-3 w-3" />

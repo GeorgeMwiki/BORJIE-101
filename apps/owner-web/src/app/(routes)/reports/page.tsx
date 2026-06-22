@@ -52,12 +52,12 @@ export default async function ReportsPage() {
             <h3 className="text-sm font-semibold text-foreground">
               {isSw ? S.reports.provenance.sw : S.reports.provenance.en}
             </h3>
-            <p className="mt-1 text-xs text-neutral-400">
+            <p className="mt-1 text-xs text-muted-foreground">
               {isSw
                 ? S.reports.provenanceTagline.sw
                 : S.reports.provenanceTagline.en}
             </p>
-            <p className="mt-4 text-sm leading-relaxed text-neutral-300">
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
               {isSw
                 ? S.reports.provenanceBody.sw
                 : S.reports.provenanceBody.en}

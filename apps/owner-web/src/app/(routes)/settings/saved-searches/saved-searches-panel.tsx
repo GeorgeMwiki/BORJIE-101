@@ -16,7 +16,19 @@ import { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { useLocale, pickByLocale } from '@/lib/locale';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Skeleton,
+  Input,
+  Textarea,
+  FormField,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 
 interface SavedSearch {
   readonly id: string;
@@ -145,78 +157,69 @@ export function SavedSearchesPanel() {
         <h2 className="font-display text-xl text-foreground">
           {pickByLocale(locale, { en: 'New saved search', sw: 'Utafutaji mpya' })}
         </h2>
-        <p className="text-xs italic text-neutral-500">
+        <p className="text-xs italic text-muted-foreground">
           {pickByLocale(locale, S.savedSearches.newSearchTagline)}
         </p>
-        <label className="block text-sm">
-          <span className="text-neutral-300">
-            {pickByLocale(locale, S.savedSearches.labelField)}
-          </span>
-          <input
-            className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+        <FormField label={pickByLocale(locale, S.savedSearches.labelField)}>
+          <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             required
             maxLength={120}
             placeholder="Gold 22k+ Geita"
           />
-        </label>
-        <label className="block text-sm">
-          <span className="text-neutral-300">
-            {pickByLocale(locale, S.savedSearches.queryField)}
-          </span>
-          <textarea
-            className="mt-1 h-24 w-full rounded border border-border bg-background px-3 py-2 font-mono text-xs text-foreground"
+        </FormField>
+        <FormField label={pickByLocale(locale, S.savedSearches.queryField)}>
+          <Textarea
+            className="h-24 font-mono text-xs"
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
             placeholder='{"commodity":"gold","minPurity":22,"region":"geita"}'
           />
-        </label>
+        </FormField>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
-            <span className="text-neutral-300">
-              {pickByLocale(locale, S.savedSearches.frequencyField)}
-            </span>
-            <select
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+          <FormField label={pickByLocale(locale, S.savedSearches.frequencyField)}>
+            <Select
               value={frequency}
-              onChange={(e) =>
-                setFrequency(e.target.value as SavedSearch['frequency'])
-              }
+              onValueChange={(v) => setFrequency(v as SavedSearch['frequency'])}
             >
-              <option value="hourly">
-                {pickByLocale(locale, S.savedSearches.frequencyHourly)}
-              </option>
-              <option value="daily">
-                {pickByLocale(locale, S.savedSearches.frequencyDaily)}
-              </option>
-              <option value="weekly">
-                {pickByLocale(locale, S.savedSearches.frequencyWeekly)}
-              </option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            <span className="text-neutral-300">
-              {pickByLocale(locale, S.savedSearches.sourceField)}
-            </span>
-            <select
-              className="mt-1 w-full rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hourly">
+                  {pickByLocale(locale, S.savedSearches.frequencyHourly)}
+                </SelectItem>
+                <SelectItem value="daily">
+                  {pickByLocale(locale, S.savedSearches.frequencyDaily)}
+                </SelectItem>
+                <SelectItem value="weekly">
+                  {pickByLocale(locale, S.savedSearches.frequencyWeekly)}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
+          <FormField label={pickByLocale(locale, S.savedSearches.sourceField)}>
+            <Select
               value={source}
-              onChange={(e) =>
-                setSource(e.target.value as SavedSearch['source'])
-              }
+              onValueChange={(v) => setSource(v as SavedSearch['source'])}
             >
-              <option value="marketplace">
-                {pickByLocale(locale, S.savedSearches.sourceMarketplace)}
-              </option>
-              <option value="opportunities">
-                {pickByLocale(locale, S.savedSearches.sourceOpportunities)}
-              </option>
-              <option value="regulatory">
-                {pickByLocale(locale, S.savedSearches.sourceRegulatory)}
-              </option>
-            </select>
-          </label>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="marketplace">
+                  {pickByLocale(locale, S.savedSearches.sourceMarketplace)}
+                </SelectItem>
+                <SelectItem value="opportunities">
+                  {pickByLocale(locale, S.savedSearches.sourceOpportunities)}
+                </SelectItem>
+                <SelectItem value="regulatory">
+                  {pickByLocale(locale, S.savedSearches.sourceRegulatory)}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
         </div>
         <Button
           type="submit"
@@ -242,17 +245,29 @@ export function SavedSearchesPanel() {
             sw: 'Utafutaji wako uliohifadhiwa',
           })}
         </h2>
-        <p className="text-xs italic text-neutral-500">
+        <p className="text-xs italic text-muted-foreground">
           {pickByLocale(locale, S.savedSearches.savedListTagline)}
         </p>
         {loading ? (
-          <p className="mt-4 text-sm text-neutral-400">
-            {pickByLocale(locale, { en: 'Loading…', sw: 'Inapakia…' })}
-          </p>
+          <div
+            className="mt-4 space-y-2"
+            role="status"
+            aria-label={pickByLocale(locale, { en: 'Loading…', sw: 'Inapakia…' })}
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-14 rounded-lg border border-border" />
+            ))}
+          </div>
         ) : items.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-400">
-            {pickByLocale(locale, S.savedSearches.emptyList)}
-          </p>
+          <div className="mt-4">
+            <ScreenEmptyState
+              title={pickByLocale(locale, {
+                en: 'Your saved searches',
+                sw: 'Utafutaji wako uliohifadhiwa',
+              })}
+              description={pickByLocale(locale, S.savedSearches.emptyList)}
+            />
+          </div>
         ) : (
           <ul className="mt-4 space-y-2">
             {items.map((item) => {
@@ -284,10 +299,10 @@ export function SavedSearchesPanel() {
                 >
                   <div>
                     <p className="font-medium text-foreground">{item.label}</p>
-                    <p className="text-xs text-neutral-400">
+                    <p className="text-xs text-muted-foreground">
                       {srcLabel} · {freqLabel} · {lastRunLabel} · {matchesLabel}
                     </p>
-                    <pre className="mt-1 max-w-md overflow-x-auto rounded bg-surface p-2 text-xxs text-neutral-500">
+                    <pre className="mt-1 max-w-md overflow-x-auto rounded bg-surface p-2 text-xxs text-muted-foreground">
                       {JSON.stringify(item.queryJson, null, 0)}
                     </pre>
                   </div>

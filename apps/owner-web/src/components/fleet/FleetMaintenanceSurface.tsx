@@ -2,10 +2,19 @@
 
 import { useMemo } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { Skeleton } from '@borjie/design-system';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { MaintenanceTable } from '@/components/fleet/MaintenanceTable';
 import { useMaintenanceList } from '@/lib/queries/maintenance';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import type { Locale } from '@/lib/locale-shared';
+import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
+
+interface FleetMaintenanceSurfaceProps {
+  /** Seeded by the server-resolved session so SSR + first paint agree. */
+  readonly locale?: Locale;
+}
 
 /**
  * Fleet & assets surface — wired to the LIVE maintenance feed
@@ -18,7 +27,8 @@ import { useMaintenanceList } from '@/lib/queries/maintenance';
  * (/api/v1/mining/fleet/units, /api/v1/mining/fleet/match-factor) — we do
  * NOT fabricate them. Real loading / empty / error states throughout.
  */
-export function FleetMaintenanceSurface() {
+export function FleetMaintenanceSurface({ locale: seeded }: FleetMaintenanceSurfaceProps) {
+  const locale = useLocale(seeded);
   const sinceIso = useMemo(
     () => new Date(Date.now() - 30 * 86_400_000).toISOString(),
     [],
@@ -28,14 +38,14 @@ export function FleetMaintenanceSurface() {
   return (
     <div className="space-y-4">
       <SectionCard
-        title="Asset maintenance — last 30 days"
-        subtitle="Live maintenance events grouped by asset, with predictive due-soon / overdue flags."
+        title={pickByLocale(locale, S.surfaceTitle)}
+        subtitle={pickByLocale(locale, S.surfaceSubtitle)}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void events.refetch()}
-            className="text-neutral-500 hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             <RefreshCw
               className={`h-4 w-4 ${events.isFetching ? 'animate-spin' : ''}`}
@@ -44,20 +54,20 @@ export function FleetMaintenanceSurface() {
         }
       >
         {events.isLoading ? (
-          <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
+          <Skeleton className="h-chart-sm rounded-lg border border-border" />
         ) : events.isError ? (
           <EmptyState
-            title="Could not load maintenance"
-            description={(events.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.loadErrorTitle)}
+            description={(events.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
             hint="GET /api/v1/mining/maintenance"
           />
         ) : (events.data ?? []).length === 0 ? (
           <EmptyState
-            title="No maintenance events yet"
-            description="Recorded maintenance for your assets will appear here, grouped by unit with predictive service flags."
+            title={pickByLocale(locale, S.emptyTitle)}
+            description={pickByLocale(locale, S.emptyBody)}
           />
         ) : (
-          <MaintenanceTable events={events.data ?? []} />
+          <MaintenanceTable events={events.data ?? []} locale={locale} />
         )}
       </SectionCard>
     </div>

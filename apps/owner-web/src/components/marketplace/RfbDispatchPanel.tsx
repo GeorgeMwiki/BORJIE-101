@@ -14,7 +14,18 @@
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, CheckCircle2, Send } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Skeleton,
+  Alert,
+  Input,
+  FormField,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
 import { useSitesList } from '@/lib/queries/sites';
 import {
   useDispatchRfbToManager,
@@ -82,27 +93,26 @@ export function RfbDispatchPanel({
 
   if (sitesQuery.isPending) {
     return (
-      <div className="rounded-2xl border border-border bg-surface/40 p-6">
-        <p className="text-sm text-neutral-400">
-          {isSw ? S.rfbLoadingSites.sw : S.rfbLoadingSites.en}
-        </p>
-      </div>
+      <Skeleton
+        className="h-40 rounded-2xl border border-border"
+        aria-label={isSw ? S.rfbLoadingSites.sw : S.rfbLoadingSites.en}
+      />
     );
   }
 
   if (sitesQuery.isError) {
     return (
-      <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+      <Alert variant="error">
         {isSw ? S.rfbSitesError.sw : S.rfbSitesError.en}
-      </div>
+      </Alert>
     );
   }
 
   if (dispatchableSites.length === 0) {
     return (
-      <div className="rounded-2xl border border-warning/40 bg-warning/5 p-6 text-sm text-warning">
+      <Alert variant="warning">
         {isSw ? S.rfbNoDispatchable.sw : S.rfbNoDispatchable.en}
-      </div>
+      </Alert>
     );
   }
 
@@ -112,51 +122,39 @@ export function RfbDispatchPanel({
         onSubmit={onSubmit}
         className="space-y-6 rounded-2xl border border-border bg-surface/40 p-6"
       >
-        <div className="space-y-2">
-          <label
-            htmlFor="rfb-dispatch-site"
-            className="block text-sm font-medium text-foreground"
-          >
-            {isSw ? S.rfbPickSite.sw : S.rfbPickSite.en}
-          </label>
-          <select
-            id="rfb-dispatch-site"
-            value={selectedSiteId}
-            onChange={(e) => setSelectedSiteId(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
-          >
-            <option value="">
-              {isSw ? S.rfbSelectSiteOption.sw : S.rfbSelectSiteOption.en}
-            </option>
-            {dispatchableSites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-neutral-500">
+        <FormField label={isSw ? S.rfbPickSite.sw : S.rfbPickSite.en}>
+          <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
+            <SelectTrigger id="rfb-dispatch-site">
+              <SelectValue
+                placeholder={
+                  isSw ? S.rfbSelectSiteOption.sw : S.rfbSelectSiteOption.en
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {dispatchableSites.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">
             {isSw ? S.rfbManagerHint.sw : S.rfbManagerHint.en}
           </p>
-        </div>
+        </FormField>
 
-        <div className="space-y-2">
-          <label
-            htmlFor="rfb-dispatch-due"
-            className="block text-sm font-medium text-foreground"
-          >
-            {isSw ? S.rfbDueLabel.sw : S.rfbDueLabel.en}
-          </label>
-          <input
+        <FormField label={isSw ? S.rfbDueLabel.sw : S.rfbDueLabel.en}>
+          <Input
             id="rfb-dispatch-due"
             type="datetime-local"
             value={dueAt}
             onChange={(e) => setDueAt(e.target.value)}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-signal-500 focus:outline-none focus:ring-1 focus:ring-signal-500"
           />
-        </div>
+        </FormField>
 
         {selectedSite ? (
-          <div className="rounded-md border border-border bg-background/40 p-3 text-xs text-neutral-400">
+          <div className="rounded-md border border-border bg-background/40 p-3 text-xs text-muted-foreground">
             <div>
               <span className="font-medium text-foreground">
                 {isSw ? S.rfbSiteLabel.sw : S.rfbSiteLabel.en}
@@ -173,16 +171,17 @@ export function RfbDispatchPanel({
         ) : null}
 
         {errorMsg ? (
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+          <Alert variant="error" size="sm">
             {errorMsg}
-          </div>
+          </Alert>
         ) : null}
 
         <div className="flex items-center gap-3">
           <Button
             type="submit"
+            variant="primary"
             disabled={!canSubmit}
-            className="gap-2 bg-signal-500 text-background hover:bg-signal-400 disabled:cursor-not-allowed"
+            className="gap-2"
           >
             <Send className="h-3.5 w-3.5" />
             {dispatch.isPending

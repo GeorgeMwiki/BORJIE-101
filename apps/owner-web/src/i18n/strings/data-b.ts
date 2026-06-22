@@ -245,6 +245,7 @@ export const dataBStrings = {
   mktChipNew: { sw: 'Mpya', en: 'New' },
   mktChipMatched: { sw: 'Imepatana', en: 'Matched' },
   mktChipOpen: { sw: 'Inasubiri', en: 'Open' },
+  mktChipCounter: { sw: 'Jibu pinzani', en: 'Counter' },
 
   // ── marketplace/RfbDispatchPanel ───────────────────────────────────
   rfbNoManager: {

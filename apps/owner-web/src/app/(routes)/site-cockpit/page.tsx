@@ -51,13 +51,13 @@ export default async function SiteCockpitPage({
         meta={
           activeSite ? (
             <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-surface/40 px-4 py-3 text-xs">
-              <span className="text-neutral-500">
+              <span className="text-muted-foreground">
                 {isSw ? S.siteCockpit.activeSite.sw : S.siteCockpit.activeSite.en}
               </span>
               <span className="font-medium text-foreground">
                 {activeSite.name}
               </span>
-              <span className="text-neutral-500">
+              <span className="text-muted-foreground">
                 {activeSite.region} - {activeSite.mineral} -{' '}
                 <span className="capitalize">{activeSite.status}</span>
               </span>

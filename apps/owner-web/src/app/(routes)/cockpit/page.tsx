@@ -34,7 +34,7 @@ export default async function CockpitPage() {
         <h1 className="font-display text-3xl text-foreground">
           {greeting}, {session.salutation}.
         </h1>
-        <p className="mt-1 text-sm text-neutral-400">
+        <p className="mt-1 text-sm text-muted-foreground">
           {session.tenant.legalName} · {session.tenant.region} ·{' '}
           {sitesLabel} · {planLabel}: {session.tenant.plan}
         </p>

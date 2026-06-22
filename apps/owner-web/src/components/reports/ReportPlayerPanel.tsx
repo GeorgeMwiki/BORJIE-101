@@ -44,7 +44,7 @@ export function ReportPlayerPanel({
               className={`rounded-full border px-3 py-1 text-xs transition-colors ${
                 active
                   ? 'border-warning bg-warning-subtle/30 text-warning'
-                  : 'border-border bg-surface text-neutral-300 hover:bg-warning-subtle/10'
+                  : 'border-border bg-surface text-muted-foreground hover:bg-warning-subtle/10'
               }`}
             >
               {report.title}
@@ -53,9 +53,9 @@ export function ReportPlayerPanel({
         })}
       </div>
       {isLoading ? (
-        <p className="text-sm text-neutral-500">{t.loading}</p>
+        <p className="text-sm text-muted-foreground">{t.loading}</p>
       ) : error || !data ? (
-        <p className="text-sm text-neutral-500">{t.noAudio}</p>
+        <p className="text-sm text-muted-foreground">{t.noAudio}</p>
       ) : (
         <ReportPlayer report={data} lang={lang} />
       )}

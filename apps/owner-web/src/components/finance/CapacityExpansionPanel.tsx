@@ -11,7 +11,23 @@ import {
   TrendingUp,
   Trophy,
 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Alert,
+  Input,
+  FormField,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import {
   useExpansionAnalyze,
   useExpansionRecommend,
@@ -20,6 +36,7 @@ import {
   type ExpansionScenarioInput,
   type ScenarioOutcome,
 } from '@/lib/queries/capacity-expansion';
+import { pickByLocale } from '@/lib/locale-shared';
 import { capacityExpansionPanelStrings as M } from '@/i18n/strings/capacity-expansion-panel';
 
 interface CapacityExpansionPanelProps {
@@ -198,36 +215,38 @@ export function CapacityExpansionPanel({
           {isSw ? M.analysisParams.sw : M.analysisParams.en}
         </h2>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? M.currency.sw : M.currency.en}
-            <select
+          <FormField label={pickByLocale(locale, M.currency)} className="space-y-1">
+            <Select
               value={currency}
-              onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
+              onValueChange={(v) => setCurrency(v as CurrencyCode)}
             >
-              {CURRENCIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-xs text-neutral-400">
-            {isSw ? M.discountRate.sw : M.discountRate.en}
-            <input
+              <SelectTrigger aria-label={pickByLocale(locale, M.currency)}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((c) => (
+                  <SelectItem key={c} value={c}>
+                    {c}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+          <FormField label={pickByLocale(locale, M.discountRate)} className="space-y-1">
+            <Input
               type="number"
               min={0}
               max={100}
               step={0.5}
               value={discountRatePct}
+              aria-label={pickByLocale(locale, M.discountRate)}
               onChange={(e) =>
                 setDiscountRatePct(
                   Math.min(100, Math.max(0, Number(e.target.value) || 0)),
                 )
               }
-              className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
             />
-          </label>
+          </FormField>
         </div>
       </div>
 
@@ -239,82 +258,94 @@ export function CapacityExpansionPanel({
             className="rounded-2xl border border-border bg-surface/30 p-5"
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-400">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {isSw ? M.scenario.sw : M.scenario.en} {i + 1}
               </h3>
               <button
                 type="button"
                 onClick={() => removeDraft(d.id)}
                 disabled={drafts.length <= 1}
-                className="inline-flex items-center gap-1 text-xs text-neutral-500 hover:text-destructive disabled:opacity-40"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive disabled:opacity-40"
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 {isSw ? M.remove.sw : M.remove.en}
               </button>
             </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? M.label.sw : M.label.en}
-                <input
+              <FormField label={pickByLocale(locale, M.label)} className="space-y-1">
+                <Input
                   type="text"
                   value={d.label}
-                  placeholder={isSw ? M.labelPlaceholder.sw : M.labelPlaceholder.en}
+                  placeholder={pickByLocale(locale, M.labelPlaceholder)}
+                  aria-label={pickByLocale(locale, M.label)}
                   onChange={(e) => updateDraft(d.id, { label: e.target.value })}
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? M.kind.sw : M.kind.en}
-                <select
+              </FormField>
+              <FormField label={pickByLocale(locale, M.kind)} className="space-y-1">
+                <Select
                   value={d.kind}
-                  onChange={(e) =>
-                    updateDraft(d.id, { kind: e.target.value as ExpansionKind })
+                  onValueChange={(v) =>
+                    updateDraft(d.id, { kind: v as ExpansionKind })
                   }
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 >
-                  {KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? M.upfrontCapex.sw(currency) : M.upfrontCapex.en(currency)}
-                <input
+                  <SelectTrigger aria-label={pickByLocale(locale, M.kind)}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {KINDS.map((k) => (
+                      <SelectItem key={k} value={k}>
+                        {k}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                label={
+                  isSw ? M.upfrontCapex.sw(currency) : M.upfrontCapex.en(currency)
+                }
+                className="space-y-1"
+              >
+                <Input
                   type="number"
                   min={0}
                   value={d.upfrontCapex}
+                  aria-label={
+                    isSw ? M.upfrontCapex.sw(currency) : M.upfrontCapex.en(currency)
+                  }
                   onChange={(e) =>
                     updateDraft(d.id, { upfrontCapex: e.target.value })
                   }
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-neutral-400 sm:col-span-2">
-                {isSw ? M.cashflows.sw : M.cashflows.en}
-                <input
+              </FormField>
+              <FormField
+                label={pickByLocale(locale, M.cashflows)}
+                className="space-y-1 sm:col-span-2"
+              >
+                <Input
                   type="text"
                   value={d.cashflows}
                   placeholder="120000, 140000, 160000"
+                  aria-label={pickByLocale(locale, M.cashflows)}
                   onChange={(e) =>
                     updateDraft(d.id, { cashflows: e.target.value })
                   }
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 />
-              </label>
-              <label className="flex flex-col gap-1 text-xs text-neutral-400">
-                {isSw ? M.tonnesPerYear.sw : M.tonnesPerYear.en}
-                <input
+              </FormField>
+              <FormField
+                label={pickByLocale(locale, M.tonnesPerYear)}
+                className="space-y-1"
+              >
+                <Input
                   type="number"
                   min={0}
                   value={d.tonnesPerYear}
+                  aria-label={pickByLocale(locale, M.tonnesPerYear)}
                   onChange={(e) =>
                     updateDraft(d.id, { tonnesPerYear: e.target.value })
                   }
-                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground"
                 />
-              </label>
+              </FormField>
             </div>
           </div>
         ))}
@@ -345,7 +376,7 @@ export function CapacityExpansionPanel({
             {isSw ? M.analyze.sw : M.analyze.en}
           </Button>
           {!canAnalyze ? (
-            <span className="text-xs text-neutral-500">
+            <span className="text-xs text-muted-foreground">
               {isSw ? M.enterCapexHint.sw : M.enterCapexHint.en}
             </span>
           ) : null}
@@ -353,9 +384,7 @@ export function CapacityExpansionPanel({
       </div>
 
       {analyze.isError ? (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/10 px-5 py-4 text-xs text-destructive">
-          {isSw ? M.analysisFailed.sw : M.analysisFailed.en}
-        </div>
+        <Alert variant="error">{pickByLocale(locale, M.analysisFailed)}</Alert>
       ) : null}
 
       {/* Outcomes */}
@@ -366,69 +395,58 @@ export function CapacityExpansionPanel({
               <TrendingUp className="h-4 w-4 text-signal-500" />
               {isSw ? M.outcomesRanked.sw : M.outcomesRanked.en}
             </h2>
-            <span className="font-mono text-xs text-neutral-400">
+            <span className="font-mono text-xs text-muted-foreground">
               {currency} · {(analysis.discountRate * 100).toFixed(1)}%
             </span>
           </header>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-border text-left text-neutral-500">
-                  <th className="px-5 py-3 font-medium">
-                    {isSw ? M.scenario.sw : M.scenario.en}
-                  </th>
-                  <th className="px-3 py-3 font-medium">NPV</th>
-                  <th className="px-3 py-3 font-medium">IRR</th>
-                  <th className="px-3 py-3 font-medium">
-                    {isSw ? M.payback.sw : M.payback.en}
-                  </th>
-                  <th className="px-3 py-3 font-medium">
-                    {isSw ? M.tonnes.sw : M.tonnes.en}
-                  </th>
-                  <th className="px-5 py-3 font-medium">CapEx</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orderedOutcomes(analysis.outcomes, analysis.rankedByNpv).map(
-                  (o: ScenarioOutcome) => (
-                    <tr
-                      key={o.id}
-                      className="border-b border-border/60 last:border-0"
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{isSw ? M.scenario.sw : M.scenario.en}</TableHead>
+                <TableHead>NPV</TableHead>
+                <TableHead>IRR</TableHead>
+                <TableHead>{isSw ? M.payback.sw : M.payback.en}</TableHead>
+                <TableHead>{isSw ? M.tonnes.sw : M.tonnes.en}</TableHead>
+                <TableHead>CapEx</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {orderedOutcomes(analysis.outcomes, analysis.rankedByNpv).map(
+                (o: ScenarioOutcome) => (
+                  <TableRow key={o.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-2 font-medium text-foreground">
+                        {o.id === topId ? (
+                          <Trophy className="h-3.5 w-3.5 text-warning" />
+                        ) : null}
+                        {o.label}
+                      </div>
+                      <div className="mt-0.5 text-muted-foreground">{o.kind}</div>
+                    </TableCell>
+                    <TableCell
+                      className={`font-mono ${
+                        o.npv >= 0 ? 'text-success' : 'text-destructive'
+                      }`}
                     >
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2 font-medium text-foreground">
-                          {o.id === topId ? (
-                            <Trophy className="h-3.5 w-3.5 text-warning" />
-                          ) : null}
-                          {o.label}
-                        </div>
-                        <div className="mt-0.5 text-neutral-500">{o.kind}</div>
-                      </td>
-                      <td
-                        className={`px-3 py-3 font-mono ${
-                          o.npv >= 0 ? 'text-success' : 'text-destructive'
-                        }`}
-                      >
-                        {fmtMoney(o.npv)}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-neutral-300">
-                        {fmtPct(o.irr)}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-neutral-300">
-                        {fmtPayback(o.paybackYears)}
-                      </td>
-                      <td className="px-3 py-3 font-mono text-neutral-300">
-                        {Math.round(o.totalIncrementalTonnes).toLocaleString()}
-                      </td>
-                      <td className="px-5 py-3 font-mono text-neutral-400">
-                        {fmtMoney(o.upfrontCapex)}
-                      </td>
-                    </tr>
-                  ),
-                )}
-              </tbody>
-            </table>
-          </div>
+                      {fmtMoney(o.npv)}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {fmtPct(o.irr)}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {fmtPayback(o.paybackYears)}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {Math.round(o.totalIncrementalTonnes).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="font-mono text-muted-foreground">
+                      {fmtMoney(o.upfrontCapex)}
+                    </TableCell>
+                  </TableRow>
+                ),
+              )}
+            </TableBody>
+          </Table>
           <div className="flex items-center gap-3 border-t border-border px-5 py-4">
             <Button
               type="button"
@@ -457,12 +475,12 @@ export function CapacityExpansionPanel({
               <Lightbulb className="h-4 w-4 text-signal-500" />
               {isSw ? M.recommendations.sw : M.recommendations.en}
             </h2>
-            <p className="mt-0.5 text-xs text-neutral-400">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {isSw ? M.recommendationsSubtitle.sw : M.recommendationsSubtitle.en}
             </p>
           </header>
           {recommend.data.recommendations.length === 0 ? (
-            <div className="px-5 py-6 text-xs text-neutral-500">
+            <div className="px-5 py-6 text-xs text-muted-foreground">
               {isSw ? M.noScenarioCleared.sw : M.noScenarioCleared.en}
             </div>
           ) : (
@@ -477,20 +495,20 @@ export function CapacityExpansionPanel({
                       className={`shrink-0 rounded-full border px-2 py-0.5 text-badge font-medium ${
                         r.severity === 'medium'
                           ? 'border-warning/40 bg-warning/10 text-warning'
-                          : 'border-border bg-surface text-neutral-300'
+                          : 'border-border bg-surface text-muted-foreground'
                       }`}
                     >
                       {r.severity}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs leading-relaxed text-neutral-400">
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                     {r.rationale}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {r.evidence.map((ev) => (
                       <span
                         key={ev.id}
-                        className="rounded-full border border-border bg-background px-2 py-0.5 font-mono text-spark text-neutral-500"
+                        className="rounded-full border border-border bg-background px-2 py-0.5 font-mono text-spark text-muted-foreground"
                       >
                         {ev.id}
                       </span>

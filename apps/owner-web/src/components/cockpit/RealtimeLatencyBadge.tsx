@@ -20,6 +20,8 @@
 import { useEffect, useState } from 'react';
 
 import { API_BASE } from '@/lib/api-client';
+import { pickByLocale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface LatencyStats {
   readonly count: number;
@@ -78,7 +80,7 @@ export function RealtimeLatencyBadge({
 
   if (!stats || stats.count === 0) return null;
 
-  const label = language === 'sw' ? 'Mawasiliano' : 'Live sync';
+  const label = pickByLocale(language, S.latency.label);
 
   return (
     <span

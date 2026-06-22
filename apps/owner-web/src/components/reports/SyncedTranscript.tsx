@@ -44,15 +44,15 @@ export function SyncedTranscript({
 
   return (
     <section aria-label={heading} className="rounded-md border border-border bg-background px-4 py-3">
-      <header className="mb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+      <header className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {heading}
       </header>
       <div
         data-testid="transcript-body"
-        className="max-h-72 overflow-y-auto text-sm leading-relaxed text-neutral-300"
+        className="max-h-72 overflow-y-auto text-sm leading-relaxed text-muted-foreground"
       >
         {cues === null ? (
-          <p className="text-xs text-neutral-500">…</p>
+          <p className="text-xs text-muted-foreground">…</p>
         ) : (
           cues.map((cue, cueIndex) => (
             <TranscriptCueLine

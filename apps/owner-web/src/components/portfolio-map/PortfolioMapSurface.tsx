@@ -61,7 +61,7 @@ export function PortfolioMapSurface() {
       </div>
       <div className="space-y-3">
         <div className="rounded-md border border-border bg-surface/40 px-3 py-3">
-          <div className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
+          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
             Layers
           </div>
           <LayerControls enabled={enabled} onToggle={toggle} />

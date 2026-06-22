@@ -31,7 +31,7 @@ export default async function TrainingCheckpointPage() {
         <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
           {tr.t('checkpointPageTitle')}
         </h1>
-        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-neutral-300">
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           {tr.t('checkpointPageSubtitle')}
         </p>
       </header>

@@ -22,7 +22,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Alert, Input, FormField } from '@borjie/design-system';
 
 import { notificationPreferencesPanelStrings as S } from '@/i18n/strings/notification-preferences-panel';
 import { useLocale, pickByLocale } from '@/lib/locale';
@@ -181,15 +181,13 @@ export function NotificationPreferencesPanel() {
   }, [buildBody, loadState, locale, quietStart, quietEnd, seedFrom]);
 
   if (loadState.kind === 'loading') {
-    return (
-      <div className="h-48 animate-pulse rounded-lg border border-border bg-surface/40" />
-    );
+    return <Skeleton className="h-48 rounded-lg border border-border" />;
   }
 
   if (loadState.kind === 'error') {
     return (
-      <div className="rounded-md border border-red-500/40 bg-red-500/10 p-4">
-        <p className="text-sm text-red-200">
+      <Alert variant="error">
+        <p className="text-sm">
           {pickByLocale(locale, S.loadError(loadState.message))}
         </p>
         <Button
@@ -197,11 +195,11 @@ export function NotificationPreferencesPanel() {
           variant="outline"
           size="sm"
           onClick={() => void load()}
-          className="mt-2 border-red-300/40 text-red-100 hover:bg-red-500/20"
+          className="mt-2"
         >
           {pickByLocale(locale, S.retry)}
         </Button>
-      </div>
+      </Alert>
     );
   }
 
@@ -211,14 +209,14 @@ export function NotificationPreferencesPanel() {
         <h2 className="font-display text-lg text-foreground">
           {pickByLocale(locale, S.deliveryHeading)}
         </h2>
-        <p className="mt-0.5 text-xs italic text-neutral-500">
+        <p className="mt-0.5 text-xs italic text-muted-foreground">
           {pickByLocale(locale, S.deliverySubtitle)}
         </p>
       </div>
 
       {/* Per-channel on/off */}
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, S.channelOnOffSection)}
         </p>
         <ul className="space-y-1.5">
@@ -240,12 +238,12 @@ export function NotificationPreferencesPanel() {
                   aria-checked={on}
                   aria-label={pickByLocale(locale, S.channelToggleAria(label))}
                   onClick={() => toggleChannel(ch)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                    on ? 'bg-success' : 'bg-neutral-600'
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                    on ? 'bg-success' : 'bg-muted'
                   }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
                       on ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
@@ -254,17 +252,17 @@ export function NotificationPreferencesPanel() {
             );
           })}
         </ul>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted-foreground">
           {pickByLocale(locale, S.channelInAppNote)}
         </p>
       </div>
 
       {/* Per-template opt-outs */}
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, S.templatesSection)}
         </p>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted-foreground">
           {pickByLocale(locale, S.templatesSubtitle)}
         </p>
         <ul className="space-y-1.5">
@@ -283,12 +281,12 @@ export function NotificationPreferencesPanel() {
                   aria-checked={on}
                   aria-label={pickByLocale(locale, S.templateToggleAria(label))}
                   onClick={() => toggleTemplate(key)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-                    on ? 'bg-success' : 'bg-neutral-600'
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
+                    on ? 'bg-success' : 'bg-muted'
                   }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    className={`inline-block h-4 w-4 transform rounded-full bg-card transition-transform ${
                       on ? 'translate-x-6' : 'translate-x-1'
                     }`}
                   />
@@ -301,41 +299,35 @@ export function NotificationPreferencesPanel() {
 
       {/* Quiet-hours window */}
       <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, S.quietHoursSection)}
         </p>
-        <p className="text-xs text-neutral-500">
+        <p className="text-xs text-muted-foreground">
           {pickByLocale(locale, S.quietHoursSubtitle)}
         </p>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="block text-sm">
-            <span className="text-neutral-300">
-              {pickByLocale(locale, S.quietHoursStartLabel)}
-            </span>
-            <input
+          <FormField label={pickByLocale(locale, S.quietHoursStartLabel)}>
+            <Input
               type="time"
-              className="mt-1 block rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="w-auto"
               value={quietStart}
               onChange={(e) => {
                 setSaved(false);
                 setQuietStart(e.target.value);
               }}
             />
-          </label>
-          <label className="block text-sm">
-            <span className="text-neutral-300">
-              {pickByLocale(locale, S.quietHoursEndLabel)}
-            </span>
-            <input
+          </FormField>
+          <FormField label={pickByLocale(locale, S.quietHoursEndLabel)}>
+            <Input
               type="time"
-              className="mt-1 block rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
+              className="w-auto"
               value={quietEnd}
               onChange={(e) => {
                 setSaved(false);
                 setQuietEnd(e.target.value);
               }}
             />
-          </label>
+          </FormField>
           {quietStart || quietEnd ? (
             <Button
               type="button"

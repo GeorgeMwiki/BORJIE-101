@@ -80,7 +80,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
         {messages.length === 0 && !ask.isPending ? (
-          <p className="text-neutral-500">
+          <p className="text-muted-foreground">
             Ask a question about {document.title}. Every answer is grounded in
             evidence drawn only from this document.
           </p>
@@ -90,7 +90,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
             key={m.id}
             className={`max-w-md ${m.role === 'owner' ? '' : 'ml-auto text-right'}`}
           >
-            <div className="text-tiny text-neutral-500">
+            <div className="text-tiny text-muted-foreground">
               {m.role === 'owner' ? 'Owner' : 'Document agent'}
             </div>
             <div
@@ -120,7 +120,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
           </div>
         ))}
         {ask.isPending ? (
-          <div className="ml-auto flex max-w-md items-center justify-end gap-2 text-tiny text-neutral-500">
+          <div className="ml-auto flex max-w-md items-center justify-end gap-2 text-tiny text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching this
             document…
           </div>

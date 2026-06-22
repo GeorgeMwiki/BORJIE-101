@@ -30,7 +30,7 @@ export function LayerControls({ enabled, onToggle }: LayerControlsProps) {
                 onChange={() => onToggle(layer.id)}
                 className="accent-warning"
               />
-              <span className={on ? 'text-foreground' : 'text-neutral-500'}>
+              <span className={on ? 'text-foreground' : 'text-muted-foreground'}>
                 {layer.label}
               </span>
             </label>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Skeleton } from '@borjie/design-system';
 import { useLmbmGraph } from '@/lib/queries/lmbm';
 import { GraphCanvas } from './GraphCanvas';
 import { NodeDetail } from './NodeDetail';
@@ -25,7 +26,7 @@ export function LmbmSurface() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {isLoading || !data ? (
-            <div className="h-chart-md animate-pulse rounded-lg border border-border bg-surface/40" />
+            <Skeleton className="h-chart-md rounded-lg border border-border" />
           ) : (
             <GraphCanvas
               graph={data}

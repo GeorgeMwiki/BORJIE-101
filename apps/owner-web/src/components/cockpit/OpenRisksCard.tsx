@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { Card } from '@borjie/design-system';
 import { dispatchMicroAction } from '@/lib/queries/chat-actions';
+import { StatusPill } from '@/components/shared/StatusPill';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface RiskItem {
   readonly title: string;
@@ -14,13 +17,14 @@ interface OpenRisksCardProps {
   readonly items: ReadonlyArray<RiskItem>;
 }
 
-const SEVERITY_PILL: Record<RiskItem['severity'], string> = {
-  low: 'pill-green',
-  medium: 'pill-amber',
-  high: 'pill-red',
+const SEVERITY_TONE: Record<RiskItem['severity'], 'green' | 'amber' | 'red'> = {
+  low: 'green',
+  medium: 'amber',
+  high: 'red',
 };
 
 function RiskRow({ item }: { readonly item: RiskItem }) {
+  const locale = useLocale();
   const [busy, setBusy] = useState(false);
 
   async function handleTap() {
@@ -43,22 +47,25 @@ function RiskRow({ item }: { readonly item: RiskItem }) {
         type="button"
         onClick={() => void handleTap()}
         disabled={busy}
-        className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-surface/60 disabled:opacity-60"
+        className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-surface/60 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
         data-testid={`open-risk-item-${item.site}-${item.severity}`}
-        aria-label={`Investigate risk: ${item.title} at ${item.site}`}
+        aria-label={pickByLocale(
+          locale,
+          S.risks.investigate(item.title, item.site),
+        )}
       >
-        <span className={`pill ${SEVERITY_PILL[item.severity]} mt-0.5 shrink-0`}>
-          {item.severity}
+        <span className="mt-0.5 shrink-0">
+          <StatusPill tone={SEVERITY_TONE[item.severity]} label={item.severity} />
         </span>
         <div className="flex-1">
           <div className="text-sm text-foreground">{item.title}</div>
-          <div className="text-xs text-neutral-500">{item.site}</div>
+          <div className="text-xs text-muted-foreground">{item.site}</div>
         </div>
         {busy ? (
-          <span className="shrink-0 text-xs text-neutral-400">…</span>
+          <span className="shrink-0 text-xs text-muted-foreground">…</span>
         ) : (
           <span
-            className="shrink-0 text-xs text-neutral-500 opacity-0 transition-opacity group-hover:opacity-100"
+            className="shrink-0 text-xs text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
             aria-hidden="true"
           >
             →
@@ -70,11 +77,16 @@ function RiskRow({ item }: { readonly item: RiskItem }) {
 }
 
 export function OpenRisksCard({ items }: OpenRisksCardProps) {
+  const locale = useLocale();
   return (
     <Card hoverable className="p-5">
-      <div className="cockpit-card-title">Open risks</div>
+      <div className="cockpit-card-title">
+        {pickByLocale(locale, S.risks.title)}
+      </div>
       {items.length === 0 ? (
-        <p className="text-xs text-neutral-500">No open risks</p>
+        <p className="text-xs text-muted-foreground">
+          {pickByLocale(locale, S.risks.none)}
+        </p>
       ) : (
         <ul className="flex flex-col gap-1">
           {items.map((item, index) => (

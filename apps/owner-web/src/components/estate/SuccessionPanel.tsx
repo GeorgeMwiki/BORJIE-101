@@ -1,13 +1,15 @@
 'use client';
 
 import { Scroll, ShieldCheck } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Alert } from '@borjie/design-system';
 import {
   useSuccessionPlans,
   type SuccessionPlanRow,
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { StatusPill } from '@/components/shared/StatusPill';
+import { pickByLocale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface SuccessionPanelProps {
@@ -27,16 +29,17 @@ export function SuccessionPanel({ locale }: SuccessionPanelProps) {
 
   if (query.isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? S.succession.loading.sw : S.succession.loading.en}
+      <div className="space-y-6" aria-busy="true">
+        <Skeleton className="h-48 rounded-xl border border-border" />
+        <Skeleton className="h-48 rounded-xl border border-border" />
       </div>
     );
   }
   if (query.isError) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? S.succession.loadError.sw : S.succession.loadError.en}
-      </div>
+      <Alert variant="error">
+        {pickByLocale(locale, S.succession.loadError)}
+      </Alert>
     );
   }
 
@@ -44,16 +47,14 @@ export function SuccessionPanel({ locale }: SuccessionPanelProps) {
   if (plans.length === 0) {
     return (
       <SectionCard
-        title={isSw ? S.succession.noPlanTitle.sw : S.succession.noPlanTitle.en}
-        subtitle={
-          isSw
-            ? S.succession.noPlanSubtitle.sw
-            : S.succession.noPlanSubtitle.en
-        }
+        title={pickByLocale(locale, S.succession.noPlanTitle)}
+        subtitle={pickByLocale(locale, S.succession.noPlanSubtitle)}
       >
-        <div className="px-5 py-8 text-sm text-neutral-500">
-          {isSw ? S.succession.noPlanBody.sw : S.succession.noPlanBody.en}
-        </div>
+        <ScreenEmptyState
+          icon={<Scroll className="h-6 w-6" />}
+          title={pickByLocale(locale, S.succession.noPlanTitle)}
+          description={pickByLocale(locale, S.succession.noPlanBody)}
+        />
       </SectionCard>
     );
   }
@@ -132,8 +133,8 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
           ) : null}
         </div>
         {plan.notes ? (
-          <div className="rounded-md border border-border bg-surface/60 px-4 py-3 text-xs text-neutral-300">
-            <div className="mb-1 inline-flex items-center gap-1 text-tiny font-semibold uppercase tracking-wide text-neutral-500">
+          <div className="rounded-md border border-border bg-surface/60 px-4 py-3 text-xs text-muted-foreground">
+            <div className="mb-1 inline-flex items-center gap-1 text-tiny font-semibold uppercase tracking-wide text-muted-foreground">
               <ShieldCheck className="h-3 w-3" />
               {isSw ? S.succession.notes.sw : S.succession.notes.en}
             </div>
@@ -148,7 +149,7 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
 function Stat({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div>
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <div className="mt-1 text-sm text-foreground">{value}</div>

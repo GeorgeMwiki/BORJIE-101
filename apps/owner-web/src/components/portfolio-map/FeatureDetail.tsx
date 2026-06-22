@@ -12,7 +12,7 @@ interface FeatureDetailProps {
 export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
   if (!feature) {
     return (
-      <div className="rounded-md border border-dashed border-border bg-surface/30 px-3 py-4 text-xs text-neutral-400">
+      <div className="rounded-md border border-dashed border-border bg-surface/30 px-3 py-4 text-xs text-muted-foreground">
         Click a feature to drill in.
       </div>
     );
@@ -21,7 +21,7 @@ export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
     <div className="rounded-md border border-border bg-surface px-3 py-3 text-sm">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="text-tiny uppercase tracking-wide text-neutral-500">
+          <div className="text-tiny uppercase tracking-wide text-muted-foreground">
             {feature.kind}
           </div>
           <div className="mt-0.5 font-medium text-foreground">{feature.name}</div>
@@ -30,7 +30,7 @@ export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="rounded-md p-1 text-neutral-400 hover:text-foreground"
+          className="rounded-md p-1 text-muted-foreground hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>
@@ -38,7 +38,7 @@ export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
       <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
         {Object.entries(feature.properties).map(([k, v]) => (
           <div key={k} className="contents">
-            <dt className="text-neutral-500">{k}</dt>
+            <dt className="text-muted-foreground">{k}</dt>
             <dd className="text-foreground">{String(v)}</dd>
           </div>
         ))}

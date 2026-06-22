@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Skeleton } from '@borjie/design-system';
 import { DocumentList } from '@/documents/DocumentList';
 import { DocumentUploadButton } from '@/documents/DocumentUploadButton';
 import { DocumentExplorer } from '@/documents/DocumentExplorer';
 import { listDocuments } from '@/documents/api';
 import type { UploadedDocument } from '@/documents/types';
-import { useLocale } from '@/lib/locale';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 /**
@@ -53,9 +55,11 @@ export default function DocumentIntelligencePage() {
     <main id="main-content" className="px-8 py-6">
       <header className="mb-6 flex items-end justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{S.documentIntelligence.title.both}</h1>
-          <p className="mt-1 text-sm text-neutral-400">
-            {S.documentIntelligence.subtitle.both}
+          <h1 className="text-2xl font-bold text-foreground">
+            {pickByLocale(locale, S.documentIntelligence.title)}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {pickByLocale(locale, S.documentIntelligence.subtitle)}
           </p>
         </div>
         <DocumentUploadButton
@@ -79,11 +83,11 @@ export default function DocumentIntelligencePage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <aside className="lg:col-span-4">
-          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-400">
-            Documents · {docs.length}
+          <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {pickByLocale(locale, S.documentIntelligence.documents)} · {docs.length}
           </h2>
           {loading ? (
-            <div className="h-64 animate-pulse rounded-lg border border-border bg-surface/40" />
+            <Skeleton className="h-64 rounded-lg border border-border" />
           ) : (
             <DocumentList
               documents={docs}
@@ -96,9 +100,10 @@ export default function DocumentIntelligencePage() {
           {selected ? (
             <DocumentExplorer document={selected} locale={locale} />
           ) : (
-            <div className="rounded-lg border border-border bg-surface/40 p-8 text-center text-sm text-neutral-400">
-              {S.documentIntelligence.emptyState.both}
-            </div>
+            <ScreenEmptyState
+              title={pickByLocale(locale, S.documentIntelligence.title)}
+              description={pickByLocale(locale, S.documentIntelligence.emptyState)}
+            />
           )}
         </section>
       </div>

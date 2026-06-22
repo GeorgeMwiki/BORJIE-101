@@ -24,6 +24,7 @@ export const notificationsInboxStrings = {
     sw: `${count} hazijasomwa`,
   }),
   markAllRead: { en: 'Mark all read', sw: 'Weka zote zimesomwa' },
+  emptyTitle: { en: 'No notifications yet', sw: 'Hakuna arifa bado' },
   empty: {
     en: 'No live events yet. We will show every decision, reminder, handoff and regulator request here as soon as it lands.',
     sw: 'Hakuna matukio bado. Tutaonyesha kila uamuzi, ukumbusho, uhamisho, na ombi la mdhibiti hapa mara inapofika.',

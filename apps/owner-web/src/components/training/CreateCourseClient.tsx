@@ -135,7 +135,7 @@ export function CreateCourseClient({ locale }: CreateCourseClientProps) {
       {errorKey ? (
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="flex items-start gap-2 rounded-2xl border border-danger/40 bg-danger-subtle px-4 py-3 text-sm text-danger"
         >
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
@@ -185,14 +185,14 @@ function StepIndicator({
                   ? 'bg-signal-500 text-background'
                   : done
                     ? 'bg-signal-500/20 text-signal-300'
-                    : 'bg-slate-800 text-neutral-500'
+                    : 'bg-surface text-muted-foreground'
               }`}
             >
               {i + 1}
             </span>
             <span
               className={`hidden text-xs sm:inline ${
-                active ? 'font-medium text-foreground' : 'text-neutral-500'
+                active ? 'font-medium text-foreground' : 'text-muted-foreground'
               }`}
             >
               {labels[key]}
@@ -225,7 +225,7 @@ function GeneratingOverlay({ locale }: { readonly locale: CourseLanguage }) {
           <h2 className="text-base font-semibold text-foreground">
             {tr.t('generatingTitle')}
           </h2>
-          <p className="mt-1 max-w-xs text-sm text-neutral-400">{tr.t('generatingBody')}</p>
+          <p className="mt-1 max-w-xs text-sm text-muted-foreground">{tr.t('generatingBody')}</p>
         </div>
       </div>
     </div>

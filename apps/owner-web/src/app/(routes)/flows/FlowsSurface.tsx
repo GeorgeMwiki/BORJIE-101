@@ -36,7 +36,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Textarea } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { useT } from '@/i18n/t.client';
 import type { TFn } from '@/i18n/resolve';
@@ -201,7 +201,7 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
         <h1 className="font-display text-2xl font-medium text-foreground">
           {t('flows.title')}
         </h1>
-        <p className="max-w-2xl text-sm text-neutral-400">{t('flows.intro')}</p>
+        <p className="max-w-2xl text-sm text-muted-foreground">{t('flows.intro')}</p>
       </header>
 
       {/* The golden flow card */}
@@ -213,14 +213,14 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
               <h2 className="text-sm font-semibold text-foreground">
                 {t('flows.goldenFlowTitle')}
               </h2>
-              <p className="mt-1 max-w-xl text-xs text-neutral-400">
+              <p className="mt-1 max-w-xl text-xs text-muted-foreground">
                 {t('flows.goldenFlowDesc')}
               </p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {actorChips.map((a, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-tiny text-neutral-400"
+                    className="inline-flex items-center rounded-full border border-border bg-surface px-2 py-0.5 text-tiny text-muted-foreground"
                   >
                     {a}
                   </span>
@@ -261,7 +261,7 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
               <p className="text-sm font-medium text-foreground">
                 {t('flows.autoToggleLabel')}
               </p>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 {isAuto ? t('flows.autoStateAuto') : t('flows.autoStateGated')}
               </p>
             </div>
@@ -291,7 +291,7 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
             <h2 className="text-sm font-semibold text-foreground">
               {t('flows.queueHeading')}
             </h2>
-            <p className="mt-0.5 text-xs text-neutral-400">{t('flows.queueSubtitle')}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{t('flows.queueSubtitle')}</p>
           </div>
           <Button
             type="button"
@@ -311,9 +311,9 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
           <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border" data-testid="inquiry-queue-skeleton">
             {[0, 1].map((i) => (
               <li key={i} className="space-y-3 px-5 py-4">
-                <div className="h-3.5 w-2/3 animate-pulse rounded bg-surface" />
-                <div className="h-3 w-1/3 animate-pulse rounded bg-surface" />
-                <div className="h-16 w-full animate-pulse rounded-xl bg-surface" />
+                <Skeleton className="h-3.5 w-2/3 rounded" />
+                <Skeleton className="h-3 w-1/3 rounded" />
+                <Skeleton className="h-16 w-full rounded-xl" />
               </li>
             ))}
           </ul>
@@ -342,9 +342,9 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
             className="rounded-2xl border border-border bg-surface/40 p-8 text-center"
             data-testid="inquiry-queue-empty"
           >
-            <Inbox className="mx-auto h-8 w-8 text-neutral-500" />
+            <Inbox className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-2 text-sm font-medium text-foreground">{t('flows.queueEmptyTitle')}</p>
-            <p className="mt-1 text-xs text-neutral-400">{t('flows.queueEmptyBody')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('flows.queueEmptyBody')}</p>
           </div>
         ) : (
           <ul className="space-y-3" data-testid="inquiry-queue-list">
@@ -377,7 +377,7 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
           {t('flows.pendingHeading')}
         </h2>
         {pending.isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> {t('flows.loading')}
           </div>
         ) : pending.isError ? (
@@ -388,9 +388,9 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
           </div>
         ) : pendingRuns.length === 0 ? (
           <div className="rounded-2xl border border-border bg-surface/40 p-8 text-center">
-            <CheckCircle2 className="mx-auto h-8 w-8 text-neutral-500" />
+            <CheckCircle2 className="mx-auto h-8 w-8 text-muted-foreground" />
             <p className="mt-2 text-sm font-medium text-foreground">{t('flows.pendingEmptyTitle')}</p>
-            <p className="mt-1 text-xs text-neutral-400">{t('flows.pendingEmptyBody')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('flows.pendingEmptyBody')}</p>
           </div>
         ) : (
           <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border">
@@ -401,12 +401,12 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
                     {String(run.payload?.message ?? t('flows.buyerInquiryFallback'))}
                   </p>
                   {run.response?.message ? (
-                    <p className="mt-1 text-xs text-neutral-400">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       {t('flows.draftedReply', { message: String(run.response.message) })}
                     </p>
                   ) : null}
                   {run.subjectRef ? (
-                    <p className="mt-0.5 font-mono text-tiny text-neutral-500">
+                    <p className="mt-0.5 font-mono text-tiny text-muted-foreground">
                       {t('flows.listingRef', { ref: run.subjectRef })}
                     </p>
                   ) : null}
@@ -465,32 +465,32 @@ function QueueRow({
             {String(run.payload?.message ?? t('flows.buyerInquiryFallback'))}
           </p>
           {run.payload?.listingTitle ? (
-            <p className="mt-0.5 text-xs text-neutral-400">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {t('flows.onListing', { title: String(run.payload.listingTitle) })}
             </p>
           ) : null}
           {run.subjectRef ? (
-            <p className="mt-0.5 font-mono text-tiny text-neutral-500">
+            <p className="mt-0.5 font-mono text-tiny text-muted-foreground">
               {t('flows.listingRef', { ref: run.subjectRef })}
             </p>
           ) : null}
         </div>
-        <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-tiny tabular-nums text-neutral-400">
+        <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-tiny tabular-nums text-muted-foreground">
           {run.id}
         </span>
       </div>
 
-      <label htmlFor={`reply-${run.id}`} className="mt-3 block text-tiny font-medium uppercase tracking-eyebrow-wide text-neutral-500">
+      <label htmlFor={`reply-${run.id}`} className="mt-3 block text-tiny font-medium uppercase tracking-eyebrow-wide text-muted-foreground">
         {t('flows.yourReply')}
       </label>
-      <textarea
+      <Textarea
         id={`reply-${run.id}`}
         value={draft}
         onChange={(e) => onDraftChange(e.target.value)}
         disabled={isSending}
         rows={3}
         placeholder={t('flows.replyPlaceholder')}
-        className="mt-1 w-full resize-y rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 disabled:opacity-50"
+        className="mt-1 resize-y"
       />
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">

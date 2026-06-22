@@ -43,7 +43,7 @@ export function BreakEvenSlider({
 
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
-      <div className="text-xs uppercase tracking-wide text-neutral-500">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {S.breakEven.title(LAUNCH_CURRENCY)[locale]}
       </div>
       <div className="mt-3 space-y-4">
@@ -116,7 +116,7 @@ function SliderRow({
   readonly onChange: (next: number) => void;
 }) {
   return (
-    <label className="block text-xs text-neutral-300">
+    <label className="block text-xs text-muted-foreground">
       <span className="block mb-1">{label}</span>
       <input
         type="range"

@@ -2,22 +2,23 @@
 
 import { useMemo, useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton } from '@borjie/design-system';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { MaintenanceTable } from '@/components/fleet/MaintenanceTable';
 import { NewMaintenanceModal } from '@/components/fleet/NewMaintenanceModal';
 import { useMaintenanceList } from '@/lib/queries/maintenance';
-import { routesAStrings as S } from '@/i18n/strings/routes-a';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
 
 /**
  * Fleet maintenance — last 30 days of maintenance events grouped by
  * asset with predictive flags. Powered by
  * GET /api/v1/mining/maintenance and the partner mutation in
- * lib/queries/maintenance.ts. Bilingual sw+en labels live inline so
- * the screen does not depend on the global locale toggle.
+ * lib/queries/maintenance.ts. Strict per-locale copy via pickByLocale.
  */
 export default function FleetMaintenancePage() {
+  const locale = useLocale();
   const sinceIso = useMemo(
     () => new Date(Date.now() - 30 * 86_400_000).toISOString(),
     [],
@@ -36,58 +37,60 @@ export default function FleetMaintenancePage() {
       <header className="border-b border-border px-8 py-6">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <span className="font-mono text-xs text-neutral-500">O-W-09 · maintenance</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {pickByLocale(locale, S.eyebrow)}
+            </span>
             <h1 className="mt-1 font-display text-3xl text-foreground">
-              Fleet maintenance
+              {pickByLocale(locale, S.title)}
             </h1>
-            <p className="mt-0.5 text-xs italic text-neutral-500">
-              {S.fleetMaintenance.subhead.both}
+            <p className="mt-0.5 text-xs italic text-muted-foreground">
+              {pickByLocale(locale, S.subhead)}
             </p>
-            <p className="mt-3 max-w-3xl text-sm text-neutral-300">
-              Last 30 days of maintenance events grouped by asset. Predictive
-              flags surface due-soon and overdue services. /{' '}
-              <span className="italic">{S.fleetMaintenance.intro.both}</span>
+            <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
+              {pickByLocale(locale, S.intro)}
             </p>
           </div>
           <Button
             type="button"
-            variant="outline"
+            variant="primary"
             size="sm"
             onClick={() => setModalOpen(true)}
-            className="gap-2 border-warning bg-warning-subtle/30 text-warning hover:bg-warning-subtle/50 hover:text-warning"
+            className="gap-2"
           >
             <Plus className="h-4 w-4" />
-            {S.fleetMaintenance.newMaintenanceCta.both}
+            {pickByLocale(locale, S.newMaintenanceCta)}
           </Button>
         </div>
       </header>
       <div className="px-8 py-6">
         <SectionCard
-          title="Recent events"
-          subtitle={S.fleetMaintenance.recentEventsSubtitle.both}
+          title={pickByLocale(locale, S.recentEventsTitle)}
+          subtitle={pickByLocale(locale, S.recentEventsSubtitle)}
           actions={
             <button
               type="button"
-              aria-label="Refresh"
+              aria-label={pickByLocale(locale, S.refresh)}
               onClick={() => void events.refetch()}
-              className="text-neutral-500 hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
             >
               <RefreshCw className={`h-4 w-4 ${events.isFetching ? 'animate-spin' : ''}`} />
             </button>
           }
         >
           {events.isLoading ? (
-            <p className="px-2 py-6 text-center text-xs text-neutral-500">
-              {S.fleetMaintenance.loading.both}
-            </p>
+            <div className="space-y-2">
+              <Skeleton className="h-9 rounded-md border border-border" />
+              <Skeleton className="h-9 rounded-md" />
+              <Skeleton className="h-9 rounded-md" />
+            </div>
           ) : events.isError ? (
             <EmptyState
-              title="Could not load maintenance"
-              description={(events.error as Error)?.message ?? 'unknown error'}
+              title={pickByLocale(locale, S.loadErrorTitle)}
+              description={(events.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
               hint="GET /api/v1/mining/maintenance"
             />
           ) : (
-            <MaintenanceTable events={events.data ?? []} />
+            <MaintenanceTable events={events.data ?? []} locale={locale} />
           )}
         </SectionCard>
       </div>
@@ -95,7 +98,8 @@ export default function FleetMaintenancePage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         onCreated={() => void events.refetch()}
-        assetOptions={assetOptions.length > 0 ? assetOptions : ['EXC-01', 'TRK-02', 'GEN-01']}
+        assetOptions={assetOptions}
+        locale={locale}
       />
     </>
   );

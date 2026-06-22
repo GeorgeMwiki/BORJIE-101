@@ -1,46 +1,73 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Building2, Search, ShieldCheck, X } from 'lucide-react';
+import { Building2, ShieldCheck } from 'lucide-react';
+import {
+  Skeleton,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Input,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  StatusBadge,
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+  DrawerBody,
+} from '@borjie/design-system';
 import {
   useCounterparties,
   useEngagements,
   type CounterpartyRow,
 } from '@/lib/queries/ops';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { counterpartiesStrings as S } from '@/i18n/strings/counterparties';
 
 const PARTY_TYPE_OPTIONS: ReadonlyArray<{
   readonly value: string;
   readonly labelEn: string;
+  readonly labelSw: string;
 }> = [
-  { value: '', labelEn: 'All' },
-  { value: 'licensing_office', labelEn: 'Licensing office' },
-  { value: 'survey_firm', labelEn: 'Survey firm' },
-  { value: 'transport_co', labelEn: 'Transport' },
-  { value: 'processor', labelEn: 'Processor' },
-  { value: 'smelter', labelEn: 'Smelter' },
-  { value: 'refiner', labelEn: 'Refiner' },
-  { value: 'assayer', labelEn: 'Assayer' },
-  { value: 'exporter', labelEn: 'Exporter' },
-  { value: 'bank', labelEn: 'Bank' },
-  { value: 'regulator', labelEn: 'Regulator' },
-  { value: 'off_taker', labelEn: 'Off-taker' },
-  { value: 'logistics_co', labelEn: 'Logistics' },
-  { value: 'csr_community', labelEn: 'CSR community' },
-  { value: 'env_monitor', labelEn: 'Env monitor' },
-  { value: 'gov_liaison', labelEn: 'Gov liaison' },
-  { value: 'legal_counsel', labelEn: 'Legal counsel' },
-  { value: 'insurance', labelEn: 'Insurance' },
-  { value: 'security_firm', labelEn: 'Security' },
+  { value: 'all', labelEn: 'All', labelSw: 'Zote' },
+  { value: 'licensing_office', labelEn: 'Licensing office', labelSw: 'Ofisi ya leseni' },
+  { value: 'survey_firm', labelEn: 'Survey firm', labelSw: 'Kampuni ya upimaji' },
+  { value: 'transport_co', labelEn: 'Transport', labelSw: 'Usafirishaji' },
+  { value: 'processor', labelEn: 'Processor', labelSw: 'Msindikaji' },
+  { value: 'smelter', labelEn: 'Smelter', labelSw: 'Kiyeyushaji' },
+  { value: 'refiner', labelEn: 'Refiner', labelSw: 'Kisafishaji' },
+  { value: 'assayer', labelEn: 'Assayer', labelSw: 'Mpima madini' },
+  { value: 'exporter', labelEn: 'Exporter', labelSw: 'Msafirishaji nje' },
+  { value: 'bank', labelEn: 'Bank', labelSw: 'Benki' },
+  { value: 'regulator', labelEn: 'Regulator', labelSw: 'Mdhibiti' },
+  { value: 'off_taker', labelEn: 'Off-taker', labelSw: 'Mnunuzi wa jumla' },
+  { value: 'logistics_co', labelEn: 'Logistics', labelSw: 'Usambazaji' },
+  { value: 'csr_community', labelEn: 'CSR community', labelSw: 'Jamii ya CSR' },
+  { value: 'env_monitor', labelEn: 'Env monitor', labelSw: 'Mfuatiliaji mazingira' },
+  { value: 'gov_liaison', labelEn: 'Gov liaison', labelSw: 'Mwakilishi wa serikali' },
+  { value: 'legal_counsel', labelEn: 'Legal counsel', labelSw: 'Mshauri wa sheria' },
+  { value: 'insurance', labelEn: 'Insurance', labelSw: 'Bima' },
+  { value: 'security_firm', labelEn: 'Security', labelSw: 'Usalama' },
 ];
 
 export function CounterpartiesShell() {
-  const [partyType, setPartyType] = useState<string>('');
+  const locale = useLocale();
+  const [partyType, setPartyType] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
   const [drawerPartyId, setDrawerPartyId] = useState<string | null>(null);
 
   const list = useCounterparties({
-    ...(partyType ? { partyType } : {}),
+    ...(partyType && partyType !== 'all' ? { partyType } : {}),
     ...(search ? { search } : {}),
   });
   const parties = list.data?.data?.parties ?? [];
@@ -64,12 +91,12 @@ export function CounterpartiesShell() {
       ].includes(p.partyType),
     ).length;
     return [
-      { label: 'Counterparties', value: String(total), icon: Building2 },
-      { label: 'Downstream', value: String(downstream) },
-      { label: 'Regulators', value: String(regulators) },
-      { label: 'Adjacent', value: String(adjacent) },
+      { label: pickByLocale(locale, S.tileCounterparties), value: String(total), icon: Building2 },
+      { label: pickByLocale(locale, S.tileDownstream), value: String(downstream) },
+      { label: pickByLocale(locale, S.tileRegulators), value: String(regulators) },
+      { label: pickByLocale(locale, S.tileAdjacent), value: String(adjacent) },
     ];
-  }, [parties]);
+  }, [parties, locale]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -77,199 +104,197 @@ export function CounterpartiesShell() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-column-sm">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-          <input
+          <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name"
-            className="w-full rounded-xl border border-border bg-surface/40 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-neutral-500"
+            placeholder={pickByLocale(locale, S.searchPlaceholder)}
           />
         </div>
-        <select
-          value={partyType}
-          onChange={(e) => setPartyType(e.target.value)}
-          className="rounded-xl border border-border bg-surface/40 px-3 py-2 text-sm text-foreground"
-        >
-          {PARTY_TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.labelEn}
-            </option>
+        <Select value={partyType} onValueChange={setPartyType}>
+          <SelectTrigger className="w-56">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PARTY_TYPE_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {locale === 'sw' ? opt.labelSw : opt.labelEn}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {list.isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 rounded-xl border border-border" />
           ))}
-        </select>
-      </div>
-
-      <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
-        <table className="w-full text-sm">
-          <thead className="bg-surface/60 text-tiny uppercase tracking-eyebrow-wide text-neutral-500">
-            <tr>
-              <th className="px-4 py-3 text-left">Name</th>
-              <th className="px-4 py-3 text-left">Type</th>
-              <th className="px-4 py-3 text-left">Country</th>
-              <th className="px-4 py-3 text-left">Scorecard</th>
-              <th className="px-4 py-3"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.isLoading ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">
-                  Loading
-                </td>
-              </tr>
-            ) : parties.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-neutral-500">
-                  No counterparties yet. Use the brain to add one.
-                </td>
-              </tr>
-            ) : (
-              parties.map((p) => (
-                <CounterpartyRowItem
-                  key={p.id}
-                  party={p}
-                  onOpen={() => setDrawerPartyId(p.id)}
-                />
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {drawerPartyId ? (
-        <CounterpartyDrawer
-          partyId={drawerPartyId}
-          party={parties.find((p) => p.id === drawerPartyId) ?? null}
-          onClose={() => setDrawerPartyId(null)}
+        </div>
+      ) : parties.length === 0 ? (
+        <ScreenEmptyState
+          icon={<Building2 className="h-6 w-6" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
         />
-      ) : null}
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{pickByLocale(locale, S.colName)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colType)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colCountry)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colScorecard)}</TableHead>
+              <TableHead className="text-right" aria-label={pickByLocale(locale, S.open)} />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {parties.map((p) => (
+              <CounterpartyRowItem
+                key={p.id}
+                party={p}
+                locale={locale}
+                onOpen={() => setDrawerPartyId(p.id)}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      <Drawer
+        open={drawerPartyId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDrawerPartyId(null);
+        }}
+      >
+        {drawerPartyId ? (
+          <CounterpartyDrawer
+            partyId={drawerPartyId}
+            party={parties.find((p) => p.id === drawerPartyId) ?? null}
+            locale={locale}
+          />
+        ) : null}
+      </Drawer>
     </section>
   );
 }
 
+function scoreTone(score: number): 'success' | 'warning' | 'error' {
+  if (score >= 75) return 'success';
+  if (score >= 40) return 'warning';
+  return 'error';
+}
+
 function CounterpartyRowItem({
   party,
+  locale,
   onOpen,
 }: {
   readonly party: CounterpartyRow;
+  readonly locale: Locale;
   readonly onOpen: () => void;
 }) {
   const score = Number(party.scorecardScore);
+  const tone = scoreTone(score);
   return (
-    <tr
+    <TableRow
       onClick={onOpen}
-      className="cursor-pointer border-t border-border/60 hover:bg-surface"
+      tabIndex={0}
+      role="button"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      <td className="px-4 py-3 font-medium text-foreground">{party.name}</td>
-      <td className="px-4 py-3 text-neutral-300">
+      <TableCell className="font-medium text-foreground">{party.name}</TableCell>
+      <TableCell className="text-muted-foreground">
         {party.partyType.replace(/_/g, ' ')}
-      </td>
-      <td className="px-4 py-3 text-neutral-300">{party.country}</td>
-      <td className="px-4 py-3 text-neutral-300">
-        <span
-          className={
-            score >= 75
-              ? 'text-success'
-              : score >= 40
-                ? 'text-warning'
-                : 'text-destructive'
-          }
-        >
-          {score.toFixed(1)}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right text-neutral-500">Open</td>
-    </tr>
+      </TableCell>
+      <TableCell className="text-muted-foreground">{party.country}</TableCell>
+      <TableCell>
+        <StatusBadge status={tone}>{score.toFixed(1)}</StatusBadge>
+      </TableCell>
+      <TableCell className="text-right text-muted-foreground">
+        {pickByLocale(locale, S.open)}
+      </TableCell>
+    </TableRow>
   );
 }
 
 function CounterpartyDrawer({
   partyId,
   party,
-  onClose,
+  locale,
 }: {
   readonly partyId: string;
   readonly party: CounterpartyRow | null;
-  readonly onClose: () => void;
+  readonly locale: Locale;
 }) {
   const engagements = useEngagements({ partyId });
   const items = engagements.data?.data?.engagements ?? [];
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-background/70 backdrop-blur-sm">
-      <button
-        type="button"
-        aria-label="Close drawer"
-        className="flex-1"
-        onClick={onClose}
-      />
-      <aside className="flex w-full max-w-md flex-col gap-5 border-l border-border bg-surface px-6 py-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 text-tiny uppercase tracking-eyebrow-wide text-signal-500">
-              <ShieldCheck className="h-3 w-3" />
-              Counterparty
-            </div>
-            <h2 className="mt-1 font-display text-xl text-foreground">
-              {party?.name ?? partyId}
-            </h2>
-            <p className="text-xs text-neutral-400">
-              {party?.partyType.replace(/_/g, ' ')} · {party?.country}
-            </p>
+    <DrawerContent side="right" size="md" className="flex flex-col">
+      <DrawerHeader>
+        <div className="flex items-center gap-2 text-tiny uppercase tracking-eyebrow-wide text-signal-500">
+          <ShieldCheck className="h-3 w-3" />
+          {pickByLocale(locale, S.drawerEyebrow)}
+        </div>
+        <DrawerTitle>{party?.name ?? partyId}</DrawerTitle>
+        <DrawerDescription>
+          {party ? `${party.partyType.replace(/_/g, ' ')} · ${party.country}` : null}
+        </DrawerDescription>
+      </DrawerHeader>
+      <DrawerBody>
+        <h3 className="mb-3 text-tiny uppercase tracking-eyebrow-wide text-muted-foreground">
+          {pickByLocale(locale, S.timeline)}
+        </h3>
+        {engagements.isLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-20 rounded-xl border border-border" />
+            ))}
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-lg p-2 text-neutral-400 hover:bg-surface/60"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          <h3 className="mb-3 text-tiny uppercase tracking-eyebrow-wide text-neutral-500">
-            Engagement timeline
-          </h3>
-          {engagements.isLoading ? (
-            <p className="text-sm text-neutral-500">Loading</p>
-          ) : items.length === 0 ? (
-            <p className="text-sm text-neutral-500">
-              No engagements logged yet.
-            </p>
-          ) : (
-            <ol className="flex flex-col gap-3">
-              {items.map((e) => (
-                <li
-                  key={e.id}
-                  className="rounded-xl border border-border/60 bg-surface/40 p-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
-                      {e.kind.replace(/_/g, ' ')}
-                    </span>
-                    <span
-                      className={
-                        e.status === 'completed'
-                          ? 'text-xs text-success'
-                          : e.status === 'cancelled'
-                            ? 'text-xs text-neutral-500'
-                            : 'text-xs text-warning'
-                      }
-                    >
-                      {e.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-foreground">{e.summary}</p>
-                  <p className="mt-1 text-tiny text-neutral-500">
-                    {new Date(e.openedAt).toLocaleString()}
-                    {e.auditHashId
-                      ? ` · audit ${e.auditHashId.slice(0, 8)}`
-                      : ''}
-                  </p>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      </aside>
-    </div>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {pickByLocale(locale, S.timelineEmpty)}
+          </p>
+        ) : (
+          <ol className="flex flex-col gap-3">
+            {items.map((e) => (
+              <li
+                key={e.id}
+                className="rounded-xl border border-border/60 bg-surface/40 p-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
+                    {e.kind.replace(/_/g, ' ')}
+                  </span>
+                  <span
+                    className={
+                      e.status === 'completed'
+                        ? 'text-xs text-success'
+                        : e.status === 'cancelled'
+                          ? 'text-xs text-muted-foreground'
+                          : 'text-xs text-warning'
+                    }
+                  >
+                    {e.status}
+                  </span>
+                </div>
+                <p className="mt-1 text-sm text-foreground">{e.summary}</p>
+                <p className="mt-1 text-tiny text-muted-foreground">
+                  {new Date(e.openedAt).toLocaleString()}
+                  {e.auditHashId
+                    ? ` · ${pickByLocale(locale, S.audit)} ${e.auditHashId.slice(0, 8)}`
+                    : ''}
+                </p>
+              </li>
+            ))}
+          </ol>
+        )}
+      </DrawerBody>
+    </DrawerContent>
   );
 }

@@ -324,11 +324,11 @@ export default function OnboardingPage() {
             <p className="text-sm font-semibold text-destructive">
               {pickByLocale(locale, S.onboarding.startFailedTitle)}
             </p>
-            <p className="mt-1 text-xs text-neutral-300">
+            <p className="mt-1 text-xs text-muted-foreground">
               {pickByLocale(locale, S.onboarding.startFailedBody)}
             </p>
             {startMutation.error instanceof Error ? (
-              <p className="mt-1 text-xs text-neutral-500">{startMutation.error.message}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{startMutation.error.message}</p>
             ) : null}
             <button
               type="button"
@@ -354,7 +354,7 @@ export default function OnboardingPage() {
             />
           ) : null}
           {step === 1 && licenceUploading ? (
-            <p className="mt-2 inline-flex items-center gap-2 text-xs text-neutral-400">
+            <p className="mt-2 inline-flex items-center gap-2 text-xs text-muted-foreground">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               {pickByLocale(locale, S.onboarding.uploadingLicences)}
             </p>
@@ -364,7 +364,7 @@ export default function OnboardingPage() {
               <p className="text-xs font-semibold text-warning">
                 {pickByLocale(locale, S.onboarding.uploadFailedTitle)}
               </p>
-              <ul className="mt-1 space-y-0.5 text-tiny text-neutral-400">
+              <ul className="mt-1 space-y-0.5 text-tiny text-muted-foreground">
                 {licenceUploads
                   .filter((u) => !u.ingested.ok)
                   .map((u, idx) =>

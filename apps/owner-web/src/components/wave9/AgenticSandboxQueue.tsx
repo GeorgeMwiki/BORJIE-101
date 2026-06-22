@@ -1,12 +1,15 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Inbox } from 'lucide-react';
+import { Skeleton, Alert } from '@borjie/design-system';
 import {
   useSandboxWrites,
   useCommitSandboxWrite,
   useRejectSandboxWrite,
   type SandboxWrite,
 } from '@/lib/queries/wave9';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { dictionaries } from '@/i18n/dictionaries';
 import { makeT } from '@/i18n/resolve';
 
@@ -82,7 +85,7 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
             className={`rounded-full border px-3 py-1 text-xs font-medium ${
               status === opt
                 ? 'border-signal-500 bg-signal-500/10 text-signal-500'
-                : 'border-border text-neutral-400 hover:bg-surface'
+                : 'border-border text-muted-foreground hover:bg-surface'
             }`}
           >
             {opt}
@@ -91,17 +94,23 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
       </div>
 
       {query.isPending ? (
-        <p className="text-sm text-neutral-500">
-          {t('sandboxQueue.loading')}
-        </p>
-      ) : query.isError ? (
-        <p className="text-sm text-destructive">{query.error.message}</p>
-      ) : writes.length === 0 ? (
-        <div className="rounded-lg border border-border bg-surface px-4 py-8 text-center">
-          <p className="text-sm text-neutral-400">
-            {t('sandboxQueue.empty')}
-          </p>
+        <div
+          className="space-y-3"
+          role="status"
+          aria-label={t('sandboxQueue.loading')}
+        >
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg border border-border" />
+          ))}
         </div>
+      ) : query.isError ? (
+        <Alert variant="error">{query.error.message}</Alert>
+      ) : writes.length === 0 ? (
+        <ScreenEmptyState
+          icon={<Inbox className="h-6 w-6" />}
+          title={t('sandboxQueue.emptyTitle')}
+          description={t('sandboxQueue.empty')}
+        />
       ) : (
         <div className="divide-y divide-border rounded-lg border border-border bg-surface">
           {writes.map((w) => (
@@ -109,27 +118,27 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs text-neutral-300">{tableOf(w)}</span>
+                    <span className="font-mono text-xs text-muted-foreground">{tableOf(w)}</span>
                     {w.operation ? (
-                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-neutral-400">
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                         {w.operation}
                       </span>
                     ) : null}
                     {w.status ? (
-                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-neutral-400">
+                      <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
                         {w.status}
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 font-mono text-xs text-neutral-500">{w.id}</p>
+                  <p className="mt-0.5 font-mono text-xs text-muted-foreground">{w.id}</p>
                   {w.summary ? (
                     <p className="mt-1 text-sm text-foreground">{w.summary}</p>
                   ) : null}
                   {w.rationale ? (
-                    <p className="mt-1 text-xs text-neutral-400">{w.rationale}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{w.rationale}</p>
                   ) : null}
                   {createdOf(w) ? (
-                    <p className="mt-1 text-xs text-neutral-500">{createdOf(w)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{createdOf(w)}</p>
                   ) : null}
                 </div>
               </div>
@@ -145,7 +154,7 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                     {t('sandboxQueue.commit')}
                   </button>
                   <label className="block flex-1 min-w-[14rem]">
-                    <span className="mb-1 block text-xs uppercase tracking-wider text-neutral-500">
+                    <span className="mb-1 block text-xs uppercase tracking-wider text-muted-foreground">
                       {t('sandboxQueue.rejectReason')}
                     </span>
                     <input
@@ -155,7 +164,7 @@ export function AgenticSandboxQueue({ isSw }: AgenticSandboxQueueProps): JSX.Ele
                         setReasonById((prev) => ({ ...prev, [w.id]: e.target.value }))
                       }
                       placeholder={t('sandboxQueue.rejectPlaceholder')}
-                      className="w-full rounded-md border border-border bg-surface/60 px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:border-signal-500 focus:outline-none"
+                      className="w-full rounded-md border border-border bg-surface/60 px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-signal-500 focus:outline-none"
                     />
                   </label>
                   <button

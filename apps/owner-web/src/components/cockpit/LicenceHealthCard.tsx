@@ -1,4 +1,10 @@
+'use client';
+
 import { Card } from '@borjie/design-system';
+
+import { StatusPill } from '@/components/shared/StatusPill';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface LicenceHealthCardProps {
   readonly active: number;
@@ -11,17 +17,26 @@ export function LicenceHealthCard({
   renewalsDue60d,
   dormancyFlags,
 }: LicenceHealthCardProps) {
+  const locale = useLocale();
   return (
     <Card hoverable className="p-5">
-      <div className="cockpit-card-title">Licence health</div>
+      <div className="cockpit-card-title">
+        {pickByLocale(locale, S.licence.title)}
+      </div>
       <div className="cockpit-card-value">{active}</div>
-      <div className="cockpit-card-meta">active mineral rights</div>
+      <div className="cockpit-card-meta">
+        {pickByLocale(locale, S.licence.activeRights)}
+      </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
-        <span className="pill pill-amber">
-          {renewalsDue60d} renewal{renewalsDue60d === 1 ? '' : 's'} &lt; 60d
-        </span>
+        <StatusPill
+          tone="amber"
+          label={pickByLocale(locale, S.licence.renewals(renewalsDue60d))}
+        />
         {dormancyFlags > 0 ? (
-          <span className="pill pill-red">{dormancyFlags} dormancy flag</span>
+          <StatusPill
+            tone="red"
+            label={pickByLocale(locale, S.licence.dormancy(dormancyFlags))}
+          />
         ) : null}
       </div>
     </Card>

@@ -29,7 +29,7 @@ export default async function WorkforceTabsPage() {
   return (
     <div className="space-y-8 px-8 py-8">
       <header className="space-y-2">
-        <p className="font-mono text-xs text-neutral-500">O-W-WORKFORCE-TABS</p>
+        <p className="font-mono text-xs text-muted-foreground">O-W-WORKFORCE-TABS</p>
         <h1 className="font-display text-2xl text-foreground">
           {isSw
             ? S.workforceTabs.title.sw.replace('{workforce}', SW.workforce)

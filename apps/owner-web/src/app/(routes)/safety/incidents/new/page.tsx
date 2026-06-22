@@ -23,10 +23,12 @@ import {
 } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Button } from '@borjie/design-system';
+import { Button, FormField, Input, Textarea, Alert } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import type { Locale } from '@/lib/locale-shared';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import { incidentNewStrings as N } from '@/i18n/strings/incident-new-page';
 import { INCIDENT_KINDS } from '@/safety/incidentKinds';
 
 // ---------------------------------------------------------------------------
@@ -35,8 +37,6 @@ import { INCIDENT_KINDS } from '@/safety/incidentKinds';
 
 // `INCIDENT_KINDS` is kept byte-aligned with the gateway IncidentKindEnum
 // (services/api-gateway/src/routes/mining/_openapi/sales-incidents-schemas.ts).
-// 'security' is NOT a server value (it 422'd); near_miss / equipment_failure /
-// fatality were previously missing.
 const IncidentCreateSchema = z.object({
   kind: z.enum(INCIDENT_KINDS),
   severity: z.enum(['low', 'medium', 'high', 'critical']),
@@ -50,12 +50,24 @@ const IncidentCreateSchema = z.object({
 
 type IncidentCreateInput = z.infer<typeof IncidentCreateSchema>;
 
-const SEVERITY_OPTIONS = [
-  { value: 'low', label: 'Low', class: 'text-neutral-300 border-border' },
-  { value: 'medium', label: 'Medium', class: 'text-info border-info/40' },
-  { value: 'high', label: 'High', class: 'text-warning border-warning/40' },
-  { value: 'critical', label: 'Critical', class: 'text-destructive border-destructive/40' },
-] as const;
+type Severity = IncidentCreateInput['severity'];
+
+/** Selected-state token classes per severity (semantic tokens only). */
+const SEVERITY_SELECTED: Readonly<Record<Severity, string>> = {
+  low: 'text-foreground border-border bg-surface font-semibold',
+  medium: 'text-info border-info/40 bg-info-subtle font-semibold',
+  high: 'text-warning border-warning/40 bg-warning-subtle font-semibold',
+  critical: 'text-danger border-danger/40 bg-danger-subtle font-semibold',
+};
+
+const SEVERITY_ORDER: ReadonlyArray<Severity> = ['low', 'medium', 'high', 'critical'];
+
+function severityLabel(value: Severity, locale: Locale): string {
+  if (value === 'medium') return pickByLocale(locale, N.severityMedium);
+  if (value === 'high') return pickByLocale(locale, N.severityHigh);
+  if (value === 'critical') return pickByLocale(locale, N.severityCritical);
+  return pickByLocale(locale, N.severityLow);
+}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -63,8 +75,6 @@ const SEVERITY_OPTIONS = [
 
 export default function NewIncidentPage() {
   const locale = useLocale();
-  // Locale-correct kind labels, sourced from the owner-web dict and kept in
-  // lock-step with the gateway IncidentKindEnum via INCIDENT_KINDS.
   const kindOptions = INCIDENT_KINDS.map((value) => ({
     value,
     label: pickByLocale(locale, S.safety.incidentKind[value]),
@@ -72,7 +82,7 @@ export default function NewIncidentPage() {
 
   const [form, setForm] = useState<{
     kind: IncidentCreateInput['kind'];
-    severity: IncidentCreateInput['severity'];
+    severity: Severity;
     occurredAt: string;
     description: string;
     siteId: string;
@@ -121,13 +131,10 @@ export default function NewIncidentPage() {
     },
   });
 
-  function handleChange<K extends keyof typeof form>(
-    key: K,
-    value: (typeof form)[K],
-  ) {
+  function handleChange<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setValidationErrors((prev) => {
-      const { [key as keyof IncidentCreateInput]: _, ...rest } = prev;
+      const { [key as keyof IncidentCreateInput]: _omit, ...rest } = prev;
       return rest;
     });
   }
@@ -139,9 +146,7 @@ export default function NewIncidentPage() {
     const parsed = IncidentCreateSchema.safeParse({
       kind: form.kind,
       severity: form.severity,
-      occurredAt: form.occurredAt
-        ? new Date(form.occurredAt).toISOString()
-        : '',
+      occurredAt: form.occurredAt ? new Date(form.occurredAt).toISOString() : '',
       description: form.description,
       siteId: form.siteId || undefined,
       location: form.location || undefined,
@@ -168,10 +173,10 @@ export default function NewIncidentPage() {
       <div>
         <Link
           href="/safety"
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Safety
+          {pickByLocale(locale, N.back)}
         </Link>
       </div>
 
@@ -179,48 +184,43 @@ export default function NewIncidentPage() {
       <header className="space-y-1">
         <div className="flex items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
           <AlertTriangle className="h-3.5 w-3.5" />
-          <span>Safety · New incident</span>
+          <span>{pickByLocale(locale, N.eyebrow)}</span>
         </div>
         <h1 className="font-display text-2xl font-medium text-foreground">
-          Log new incident
+          {pickByLocale(locale, N.title)}
         </h1>
-        <p className="text-sm text-neutral-400">
-          Critical and high-severity incidents trigger an immediate escalation
-          to managers and the owner cockpit.
-        </p>
+        <p className="text-sm text-muted-foreground">{pickByLocale(locale, N.intro)}</p>
       </header>
 
       {/* Success banner */}
       {submittedId ? (
-        <div className="flex items-center gap-3 rounded-2xl border border-success/40 bg-success/10 p-4">
+        <div className="flex items-center gap-3 rounded-2xl border border-success/40 bg-success-subtle p-4">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
           <div>
             <p className="text-sm font-semibold text-success">
-              Incident logged
+              {pickByLocale(locale, N.successTitle)}
             </p>
-            <p className="text-xs text-neutral-300">
-              ID: <span className="font-mono">{submittedId}</span>. The
-              escalation fan-out has been triggered.
+            <p className="text-xs text-muted-foreground">
+              {pickByLocale(locale, N.successIdLabel)}:{' '}
+              <span className="font-mono">{submittedId}</span>. {pickByLocale(locale, N.successBody)}
             </p>
           </div>
           <Link
             href="/safety"
-            className="ml-auto text-xs text-neutral-400 hover:text-foreground"
+            className="ml-auto text-xs text-muted-foreground hover:text-foreground"
           >
-            View safety board
+            {pickByLocale(locale, N.viewBoard)}
           </Link>
         </div>
       ) : null}
 
       {/* Gateway error */}
       {mutation.isError ? (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-          <p className="text-xs text-destructive">
-            {mutation.error instanceof ApiError
-              ? mutation.error.message
-              : 'Failed to log the incident. Please try again.'}
-          </p>
-        </div>
+        <Alert variant="error">
+          {mutation.error instanceof ApiError
+            ? mutation.error.message
+            : pickByLocale(locale, N.gatewayError)}
+        </Alert>
       ) : null}
 
       {/* Form */}
@@ -231,8 +231,8 @@ export default function NewIncidentPage() {
         {/* Row: kind + severity */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <fieldset>
-            <legend className="mb-2 text-xs font-medium text-neutral-300">
-              Incident kind
+            <legend className="mb-2 text-xs font-medium text-foreground">
+              {pickByLocale(locale, N.fieldKind)}
             </legend>
             <div className="flex flex-wrap gap-2">
               {kindOptions.map((opt) => (
@@ -243,7 +243,7 @@ export default function NewIncidentPage() {
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     form.kind === opt.value
                       ? 'border-signal-500/60 bg-signal-500/10 text-signal-500'
-                      : 'border-border text-neutral-300 hover:border-signal-500/40'
+                      : 'border-border text-muted-foreground hover:border-signal-500/40 hover:text-foreground'
                   }`}
                 >
                   {opt.label}
@@ -253,22 +253,22 @@ export default function NewIncidentPage() {
           </fieldset>
 
           <fieldset>
-            <legend className="mb-2 text-xs font-medium text-neutral-300">
-              Severity
+            <legend className="mb-2 text-xs font-medium text-foreground">
+              {pickByLocale(locale, N.fieldSeverity)}
             </legend>
             <div className="flex flex-wrap gap-2">
-              {SEVERITY_OPTIONS.map((opt) => (
+              {SEVERITY_ORDER.map((value) => (
                 <button
-                  key={opt.value}
+                  key={value}
                   type="button"
-                  onClick={() => handleChange('severity', opt.value)}
+                  onClick={() => handleChange('severity', value)}
                   className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                    form.severity === opt.value
-                      ? `${opt.class} bg-opacity-10 font-semibold`
-                      : 'border-border text-neutral-300 hover:border-border/80'
+                    form.severity === value
+                      ? SEVERITY_SELECTED[value]
+                      : 'border-border text-muted-foreground hover:border-border/80 hover:text-foreground'
                   }`}
                 >
-                  {opt.label}
+                  {severityLabel(value, locale)}
                 </button>
               ))}
             </div>
@@ -276,151 +276,114 @@ export default function NewIncidentPage() {
         </div>
 
         {/* Occurred at */}
-        <div className="space-y-1">
-          <label
-            htmlFor="inc-occurred-at"
-            className="text-xs font-medium text-neutral-300"
-          >
-            Date &amp; time of incident
-          </label>
-          <input
+        <FormField
+          label={pickByLocale(locale, N.fieldOccurredAt)}
+          htmlFor="inc-occurred-at"
+          {...(validationErrors.occurredAt !== undefined
+            ? { error: validationErrors.occurredAt }
+            : {})}
+        >
+          <Input
             id="inc-occurred-at"
             type="datetime-local"
             value={form.occurredAt}
             onChange={(e) => handleChange('occurredAt', e.target.value)}
             required
-            className="w-60 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+            className="w-60"
           />
-          {validationErrors.occurredAt ? (
-            <p className="text-xs text-destructive">
-              {validationErrors.occurredAt}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
 
         {/* Description */}
-        <div className="space-y-1">
-          <label
-            htmlFor="inc-description"
-            className="text-xs font-medium text-neutral-300"
-          >
-            Description
-          </label>
-          <textarea
+        <FormField
+          label={pickByLocale(locale, N.fieldDescription)}
+          htmlFor="inc-description"
+          {...(validationErrors.description !== undefined
+            ? { error: validationErrors.description }
+            : {})}
+        >
+          <Textarea
             id="inc-description"
             value={form.description}
             onChange={(e) => handleChange('description', e.target.value)}
             rows={4}
             maxLength={2000}
             required
-            placeholder="Describe what happened, where, and who was involved."
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+            placeholder={pickByLocale(locale, N.descriptionPlaceholder)}
           />
-          {validationErrors.description ? (
-            <p className="text-xs text-destructive">
-              {validationErrors.description}
-            </p>
-          ) : null}
-        </div>
+        </FormField>
 
         {/* Site + location */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label
-              htmlFor="inc-location"
-              className="text-xs font-medium text-neutral-300"
-            >
-              Location{' '}
-              <span className="text-neutral-500">(optional)</span>
-            </label>
-            <input
+          <FormField
+            htmlFor="inc-location"
+            label={`${pickByLocale(locale, N.fieldLocation)} ${pickByLocale(locale, N.optional)}`}
+          >
+            <Input
               id="inc-location"
               type="text"
               value={form.location}
               onChange={(e) => handleChange('location', e.target.value)}
-              placeholder="e.g. Level 3 south shaft"
+              placeholder={pickByLocale(locale, N.locationPlaceholder)}
               maxLength={200}
-              className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/50"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-1">
-            <label
-              htmlFor="inc-site-id"
-              className="text-xs font-medium text-neutral-300"
-            >
-              Site ID{' '}
-              <span className="text-neutral-500">(optional)</span>
-            </label>
-            <input
+          <FormField
+            htmlFor="inc-site-id"
+            label={`${pickByLocale(locale, N.fieldSiteId)} ${pickByLocale(locale, N.optional)}`}
+          >
+            <Input
               id="inc-site-id"
               type="text"
               value={form.siteId}
               onChange={(e) => handleChange('siteId', e.target.value)}
-              placeholder="UUID or site code"
-              className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+              placeholder={pickByLocale(locale, N.siteIdPlaceholder)}
             />
-          </div>
+          </FormField>
         </div>
 
         {/* Fatalities + injuries */}
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div className="space-y-1">
-            <label
-              htmlFor="inc-fatalities"
-              className="text-xs font-medium text-neutral-300"
-            >
-              Fatalities
-            </label>
-            <input
+          <FormField label={pickByLocale(locale, N.fieldFatalities)} htmlFor="inc-fatalities">
+            <Input
               id="inc-fatalities"
               type="number"
               min={0}
               max={999}
               value={form.fatalities}
               onChange={(e) => handleChange('fatalities', e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+              className="font-mono"
             />
-          </div>
-          <div className="space-y-1">
-            <label
-              htmlFor="inc-injuries"
-              className="text-xs font-medium text-neutral-300"
-            >
-              Injuries
-            </label>
-            <input
+          </FormField>
+          <FormField label={pickByLocale(locale, N.fieldInjuries)} htmlFor="inc-injuries">
+            <Input
               id="inc-injuries"
               type="number"
               min={0}
               max={9999}
               value={form.injuries}
               onChange={(e) => handleChange('injuries', e.target.value)}
-              className="w-full rounded-lg border border-border bg-background px-3 py-1.5 font-mono text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+              className="font-mono"
             />
-          </div>
+          </FormField>
         </div>
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3 border-t border-border pt-4">
-          <Button
-            type="submit"
-            disabled={mutation.isPending}
-            className="gap-2"
-          >
+          <Button type="submit" disabled={mutation.isPending} className="gap-2">
             {mutation.isPending ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <AlertTriangle className="h-3.5 w-3.5" />
             )}
-            Log incident
+            {pickByLocale(locale, N.submit)}
           </Button>
           <Link
             href="/ask?prompt=incident"
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Ask Mr. Mwikila
+            {pickByLocale(locale, N.askMwikila)}
           </Link>
         </div>
       </form>

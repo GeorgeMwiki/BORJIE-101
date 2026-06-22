@@ -14,6 +14,7 @@ import type {
   CourseLanguage,
   CourseDifficulty,
 } from '@borjie/api-client/courses-types';
+import { Textarea } from '@borjie/design-system';
 import { coursesT, COURSE_DIFFICULTIES } from '@/i18n/strings/courses';
 import { StepActions } from './StepActions';
 
@@ -57,8 +58,8 @@ export function ScenarioForm({
         <h2 className="text-base font-semibold text-foreground">
           {tr.t('scenarioTitle')}
         </h2>
-        <p className="mt-1 text-sm text-neutral-400">{tr.t('scenarioHint')}</p>
-        <p className="mt-2 inline-flex rounded-full border border-signal-500/40 bg-signal-500/10 px-2.5 py-0.5 text-tiny font-medium text-signal-300">
+        <p className="mt-1 text-sm text-muted-foreground">{tr.t('scenarioHint')}</p>
+        <p className="mt-2 inline-flex rounded-full border border-signal-500/40 bg-signal-500/10 px-2.5 py-0.5 text-tiny font-medium text-signal-500">
           {domainLabel}
         </p>
       </div>
@@ -66,11 +67,11 @@ export function ScenarioForm({
       <div className="space-y-1.5">
         <label
           htmlFor="course-scenario"
-          className="block text-xs font-medium text-neutral-400"
+          className="block text-xs font-medium text-muted-foreground"
         >
           {tr.t('scenarioLabel')}
         </label>
-        <textarea
+        <Textarea
           id="course-scenario"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
@@ -79,15 +80,15 @@ export function ScenarioForm({
           maxLength={4000}
           aria-invalid={touched && tooShort}
           placeholder={tr.t('scenarioPlaceholder')}
-          className="w-full resize-y rounded-xl border border-border bg-slate-950/40 px-3 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+          className="resize-y leading-relaxed"
         />
         {touched && tooShort ? (
-          <p className="text-xs text-destructive">{tr.t('scenarioTooShort')}</p>
+          <p className="text-xs text-danger">{tr.t('scenarioTooShort')}</p>
         ) : null}
       </div>
 
       <fieldset className="space-y-2">
-        <legend className="text-xs font-medium text-neutral-400">
+        <legend className="text-xs font-medium text-muted-foreground">
           {tr.t('difficultyLabel')}
         </legend>
         <div className="flex flex-wrap gap-2">
@@ -102,7 +103,7 @@ export function ScenarioForm({
                 className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 ${
                   active
                     ? 'border-signal-500 bg-signal-500 text-background'
-                    : 'border-border bg-slate-950/40 text-neutral-300 hover:bg-slate-900/40'
+                    : 'border-border bg-background text-muted-foreground hover:bg-surface'
                 }`}
               >
                 {tr.difficultyLabel(value)}

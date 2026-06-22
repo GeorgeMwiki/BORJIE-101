@@ -579,6 +579,78 @@
     "h": "b539db28606a1255",
     "sw": "Muhtasari wa moja kwa moja"
   },
+  "dashboard.summaryEmptyTitle": {
+    "h": "501de7c66a588b55",
+    "sw": "Dashibodi yako inajaa unavyoendesha shughuli"
+  },
+  "dashboard.summaryEmptyBody": {
+    "h": "52c2dea5d308b216",
+    "sw": "Sajili zamu, ongeza leseni, au uliza Borjie Brain na takwimu zako za kila siku zitaonekana hapa."
+  },
+  "dashboard.summaryOffline": {
+    "h": "9c69963b5e92b13d",
+    "sw": "Takwimu za moja kwa moja hazipo mtandaoni sasa hivi."
+  },
+  "dashboard.metricLicencesAtRiskSub": {
+    "h": "e16243bd7e296bde",
+    "sw": "{count} katika hatari ya kumalizika"
+  },
+  "dashboard.metricLicencesNoneSub": {
+    "h": "da063d293a3d9196",
+    "sw": "Hakuna leseni kwenye faili bado"
+  },
+  "dashboard.metricDecisionsLabel": {
+    "h": "0b19d229b053f7e3",
+    "sw": "Maamuzi yanayokaguliwa"
+  },
+  "dashboard.metricDecisionsValueNone": {
+    "h": "96ed94a7e3ac84bf",
+    "sw": "Safi kabisa"
+  },
+  "dashboard.metricDecisionsSub": {
+    "h": "5c73154ec1d9ab66",
+    "sw": "{count} zinasubiri uamuzi wako"
+  },
+  "dashboard.metricDecisionsNoneSub": {
+    "h": "477ffbd576cfac0b",
+    "sw": "Hakuna kinachosubiri sasa hivi"
+  },
+  "dashboard.metricWorkforceShiftsSub": {
+    "h": "96d81436366fdc83",
+    "sw": "{count} kwenye zamu leo"
+  },
+  "dashboard.metricWorkforceNoneSub": {
+    "h": "cf7d148be8dd6911",
+    "sw": "Hakuna zamu iliyosajiliwa bado"
+  },
+  "dashboard.actionsEmpty": {
+    "h": "6cd68f3783ed15c4",
+    "sw": "Hakuna vitendo vinavyokuhitaji sasa hivi."
+  },
+  "dashboard.actionReviewDecision": {
+    "h": "aff0766a5290e117",
+    "sw": "Kagua"
+  },
+  "dashboard.thisWeekEmpty": {
+    "h": "7f12409a9d711705",
+    "sw": "Hakuna tarehe za mwisho za leseni zinazoonekana."
+  },
+  "dashboard.eventLicenceExpiresInDays": {
+    "h": "3f8bb3af2fd7a92e",
+    "sw": "Inamalizika baada ya siku {count}"
+  },
+  "dashboard.eventLicenceExpirySoon": {
+    "h": "52ad328468d6dcc7",
+    "sw": "Inamalizika hivi karibuni"
+  },
+  "dashboard.brainStreamEmpty": {
+    "h": "9078fe40a2e914b6",
+    "sw": "Borjie Brain haina maamuzi yaliyosajiliwa bado."
+  },
+  "dashboard.brainAdvisorTitle": {
+    "h": "b59f3f21ae08c490",
+    "sw": "Maarifa ya mshauri"
+  },
   "nav.tenant": {
     "h": "e23969d284c3424c",
     "sw": "Mpangaji"
@@ -639,6 +711,18 @@
     "h": "56f69ae3d3b7c263",
     "sw": "Uliza Borjie"
   },
+  "nav.headBriefing": {
+    "h": "1d7097ef3cae4543",
+    "sw": "Mkutano wa viongozi"
+  },
+  "nav.agentic": {
+    "h": "34f310640676d09f",
+    "sw": "Mipango ya agentic"
+  },
+  "nav.training": {
+    "h": "36a798e3f39239cc",
+    "sw": "Mafunzo"
+  },
   "nav.portfolioMap": {
     "h": "ce6c68223de07c7e",
     "sw": "Ramani ya mkusanyiko"
@@ -675,6 +759,10 @@
     "h": "280e5e59c057d644",
     "sw": "Vichupo vya wafanyakazi"
   },
+  "nav.flows": {
+    "h": "53544e3114f26300",
+    "sw": "Mtiririko"
+  },
   "nav.fleet": {
     "h": "2bb4f92ced331c66",
     "sw": "Magari"
@@ -710,6 +798,18 @@
   "nav.marketplace": {
     "h": "c608981d8d68fa4f",
     "sw": "Soko"
+  },
+  "nav.market": {
+    "h": "8f5f5d1ed9150375",
+    "sw": "Taarifa za soko"
+  },
+  "nav.payroll": {
+    "h": "53fe8dfb6d9e1b03",
+    "sw": "Mishahara"
+  },
+  "nav.livingPlan": {
+    "h": "d233007e6f5aee02",
+    "sw": "Mpango endelevu"
   },
   "nav.compliance": {
     "h": "4a109cc49467be33",
@@ -814,106 +914,6 @@
   "palette.actionPinnedItems": {
     "h": "7bea6f240d98749a",
     "sw": "Onyesha vitu vilivyobandikwa"
-  },
-  "dashboard.summaryEmptyTitle": {
-    "h": "501de7c66a588b55",
-    "sw": "Dashibodi yako inajaa unavyoendesha shughuli"
-  },
-  "dashboard.summaryEmptyBody": {
-    "h": "52c2dea5d308b216",
-    "sw": "Sajili zamu, ongeza leseni, au uliza Borjie Brain na takwimu zako za kila siku zitaonekana hapa."
-  },
-  "dashboard.summaryOffline": {
-    "h": "9c69963b5e92b13d",
-    "sw": "Takwimu za moja kwa moja hazipo mtandaoni sasa hivi."
-  },
-  "dashboard.metricLicencesAtRiskSub": {
-    "h": "e16243bd7e296bde",
-    "sw": "{count} katika hatari ya kumalizika"
-  },
-  "dashboard.metricLicencesNoneSub": {
-    "h": "da063d293a3d9196",
-    "sw": "Hakuna leseni kwenye faili bado"
-  },
-  "dashboard.metricDecisionsLabel": {
-    "h": "0b19d229b053f7e3",
-    "sw": "Maamuzi yanayokaguliwa"
-  },
-  "dashboard.metricDecisionsValueNone": {
-    "h": "96ed94a7e3ac84bf",
-    "sw": "Safi kabisa"
-  },
-  "dashboard.metricDecisionsSub": {
-    "h": "5c73154ec1d9ab66",
-    "sw": "{count} zinasubiri uamuzi wako"
-  },
-  "dashboard.metricDecisionsNoneSub": {
-    "h": "477ffbd576cfac0b",
-    "sw": "Hakuna kinachosubiri sasa hivi"
-  },
-  "dashboard.metricWorkforceShiftsSub": {
-    "h": "96d81436366fdc83",
-    "sw": "{count} kwenye zamu leo"
-  },
-  "dashboard.metricWorkforceNoneSub": {
-    "h": "cf7d148be8dd6911",
-    "sw": "Hakuna zamu iliyosajiliwa bado"
-  },
-  "dashboard.actionsEmpty": {
-    "h": "6cd68f3783ed15c4",
-    "sw": "Hakuna vitendo vinavyokuhitaji sasa hivi."
-  },
-  "dashboard.actionReviewDecision": {
-    "h": "aff0766a5290e117",
-    "sw": "Kagua"
-  },
-  "dashboard.thisWeekEmpty": {
-    "h": "7f12409a9d711705",
-    "sw": "Hakuna tarehe za mwisho za leseni zinazoonekana."
-  },
-  "dashboard.eventLicenceExpiresInDays": {
-    "h": "3f8bb3af2fd7a92e",
-    "sw": "Inamalizika baada ya siku {count}"
-  },
-  "dashboard.eventLicenceExpirySoon": {
-    "h": "52ad328468d6dcc7",
-    "sw": "Inamalizika hivi karibuni"
-  },
-  "dashboard.brainStreamEmpty": {
-    "h": "9078fe40a2e914b6",
-    "sw": "Borjie Brain haina maamuzi yaliyosajiliwa bado."
-  },
-  "dashboard.brainAdvisorTitle": {
-    "h": "b59f3f21ae08c490",
-    "sw": "Maarifa ya mshauri"
-  },
-  "nav.headBriefing": {
-    "h": "1d7097ef3cae4543",
-    "sw": "Mkutano wa viongozi"
-  },
-  "nav.agentic": {
-    "h": "34f310640676d09f",
-    "sw": "Mipango ya agentic"
-  },
-  "nav.training": {
-    "h": "36a798e3f39239cc",
-    "sw": "Mafunzo"
-  },
-  "nav.flows": {
-    "h": "53544e3114f26300",
-    "sw": "Mtiririko"
-  },
-  "nav.market": {
-    "h": "8f5f5d1ed9150375",
-    "sw": "Taarifa za soko"
-  },
-  "nav.payroll": {
-    "h": "53fe8dfb6d9e1b03",
-    "sw": "Mishahara"
-  },
-  "nav.livingPlan": {
-    "h": "d233007e6f5aee02",
-    "sw": "Mpango endelevu"
   },
   "teach.trustVerified": {
     "h": "8b99f8b97a13ebc7",
@@ -1782,5 +1782,9 @@
   "masterBrain.needsHuman": {
     "h": "443dc6387d736492",
     "sw": "Mkaguzi ameiweka alama jibu hili kwa ukaguzi."
+  },
+  "sandboxQueue.emptyTitle": {
+    "h": "28dd5413ca47887a",
+    "sw": "Hakuna maandishi yaliyowekwa tayari"
   }
 }

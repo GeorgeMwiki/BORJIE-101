@@ -12,7 +12,7 @@
 
 import { useState } from 'react';
 import { Plus, X, FileText } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Input, Textarea } from '@borjie/design-system';
 import type { CourseLanguage } from '@borjie/api-client/courses-types';
 import { coursesT } from '@/i18n/strings/courses';
 import { StepActions } from './StepActions';
@@ -87,11 +87,11 @@ export function DocumentAttach({
         <h2 className="text-base font-semibold text-foreground">
           {tr.t('documentsTitle')}
         </h2>
-        <p className="mt-1 text-sm text-neutral-400">{tr.t('documentsHint')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{tr.t('documentsHint')}</p>
       </div>
 
       {rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border bg-slate-950/30 px-4 py-6 text-center text-sm text-neutral-500">
+        <p className="rounded-xl border border-dashed border-border bg-background px-4 py-6 text-center text-sm text-muted-foreground">
           {tr.t('noDocuments')}
         </p>
       ) : (
@@ -99,45 +99,44 @@ export function DocumentAttach({
           {rows.map((row) => (
             <li
               key={row.id}
-              className="space-y-2 rounded-xl border border-border bg-slate-950/40 p-3"
+              className="space-y-2 rounded-xl border border-border bg-background p-3"
             >
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4 text-neutral-500" aria-hidden="true" />
-                <input
+                <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                <Input
                   type="text"
                   value={row.name}
                   maxLength={300}
                   onChange={(e) => updateRow(row.id, { name: e.target.value })}
                   aria-label={tr.t('documentNameLabel')}
                   placeholder={tr.t('documentNamePlaceholder')}
-                  className="min-w-0 flex-1 rounded-md border border-border bg-slate-900/60 px-2.5 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+                  className="min-w-0 flex-1"
                 />
                 <button
                   type="button"
                   onClick={() => removeRow(row.id)}
                   aria-label={tr.t('removeDocument')}
-                  className="rounded-md p-1.5 text-neutral-500 transition-colors hover:bg-slate-800 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+                  className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-surface hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
-              <input
+              <Input
                 type="text"
                 value={row.type}
                 maxLength={200}
                 onChange={(e) => updateRow(row.id, { type: e.target.value })}
                 aria-label={tr.t('documentTypeLabel')}
                 placeholder={tr.t('documentTypePlaceholder')}
-                className="w-full rounded-md border border-border bg-slate-900/60 px-2.5 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
               />
-              <textarea
+              <Textarea
                 value={row.summary}
                 rows={2}
                 maxLength={4000}
                 onChange={(e) => updateRow(row.id, { summary: e.target.value })}
                 aria-label={tr.t('documentSummaryLabel')}
                 placeholder={tr.t('documentSummaryPlaceholder')}
-                className="w-full resize-y rounded-md border border-border bg-slate-900/60 px-2.5 py-1.5 text-sm text-foreground placeholder:text-neutral-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+                className="resize-y"
               />
             </li>
           ))}

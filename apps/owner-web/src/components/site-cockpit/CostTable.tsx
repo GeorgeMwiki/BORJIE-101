@@ -2,6 +2,15 @@
 
 import type { CostLine } from '@/lib/types/site-cockpit';
 import { ArrowDown, ArrowRight, ArrowUp } from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
 import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale } from '@/lib/locale';
 import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
@@ -30,58 +39,62 @@ export function CostTable({ costs }: CostTableProps) {
   const money = (value: number) => formatMoney(value, LAUNCH_CURRENCY, locale);
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
-      <div className="text-xs uppercase tracking-wide text-neutral-500">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {S.cost.title(LAUNCH_CURRENCY)[locale]}
       </div>
-      <table className="mt-3 w-full text-sm">
-        <thead>
-          <tr className="text-tiny uppercase tracking-wide text-neutral-500">
-            <th className="py-1 text-left">{S.cost.colLine[locale]}</th>
-            <th className="py-1 text-right">
+      <Table className="mt-3">
+        <TableHeader>
+          <TableRow>
+            <TableHead>{S.cost.colLine[locale]}</TableHead>
+            <TableHead className="text-right">
               {S.cost.colPerGramme(LAUNCH_CURRENCY)[locale]}
-            </th>
-            <th className="py-1 text-right">{S.cost.colPercent[locale]}</th>
-            <th className="py-1 text-right">{S.cost.colTrend[locale]}</th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableHead>
+            <TableHead className="text-right">{S.cost.colPercent[locale]}</TableHead>
+            <TableHead className="text-right">{S.cost.colTrend[locale]}</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {costs.map((c) => {
             const Icon = TREND_ICON[c.trend];
             return (
-              <tr key={c.category} className="border-t border-border">
-                <td className="py-1.5 text-foreground">{categoryLabel[c.category]}</td>
-                <td className="py-1.5 text-right font-mono text-foreground">
+              <TableRow key={c.category}>
+                <TableCell className="text-foreground">
+                  {categoryLabel[c.category]}
+                </TableCell>
+                <TableCell className="text-right font-mono text-foreground">
                   {money(c.tzsPerGramme)}
-                </td>
-                <td className="py-1.5 text-right text-neutral-400">
+                </TableCell>
+                <TableCell className="text-right text-muted-foreground">
                   {((c.tzsPerGramme / total) * 100).toFixed(0)}%
-                </td>
-                <td className="py-1.5 text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   <Icon
                     className={`ml-auto h-3.5 w-3.5 ${
                       c.trend === 'up'
-                        ? 'text-destructive'
+                        ? 'text-danger'
                         : c.trend === 'down'
                           ? 'text-success'
-                          : 'text-neutral-500'
+                          : 'text-muted-foreground'
                     }`}
                   />
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             );
           })}
-          <tr className="border-t border-border bg-surface/60">
-            <td className="py-2 font-medium text-foreground">
+        </TableBody>
+        <TableFooter>
+          <TableRow>
+            <TableCell className="font-medium text-foreground">
               {S.cost.allInCost[locale]}
-            </td>
-            <td className="py-2 text-right font-mono font-medium text-foreground">
+            </TableCell>
+            <TableCell className="text-right font-mono font-medium text-foreground">
               {money(total)}
-            </td>
-            <td />
-            <td />
-          </tr>
-        </tbody>
-      </table>
+            </TableCell>
+            <TableCell />
+            <TableCell />
+          </TableRow>
+        </TableFooter>
+      </Table>
     </article>
   );
 }

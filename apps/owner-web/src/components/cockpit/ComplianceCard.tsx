@@ -1,4 +1,10 @@
+'use client';
+
 import { Card } from '@borjie/design-system';
+
+import { StatusPill } from '@/components/shared/StatusPill';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface ComplianceCardProps {
   readonly green: number;
@@ -7,16 +13,21 @@ interface ComplianceCardProps {
 }
 
 export function ComplianceCard({ green, amber, red }: ComplianceCardProps) {
+  const locale = useLocale();
   const total = green + amber + red;
   return (
     <Card hoverable className="p-5">
-      <div className="cockpit-card-title">Compliance status</div>
+      <div className="cockpit-card-title">
+        {pickByLocale(locale, S.compliance.title)}
+      </div>
       <div className="cockpit-card-value">{total}</div>
-      <div className="cockpit-card-meta">obligations tracked</div>
+      <div className="cockpit-card-meta">
+        {pickByLocale(locale, S.compliance.obligations)}
+      </div>
       <div className="mt-3 flex gap-1.5">
-        <span className="pill pill-green">{green} green</span>
-        <span className="pill pill-amber">{amber} amber</span>
-        <span className="pill pill-red">{red} red</span>
+        <StatusPill tone="green" label={pickByLocale(locale, S.compliance.green(green))} />
+        <StatusPill tone="amber" label={pickByLocale(locale, S.compliance.amber(amber))} />
+        <StatusPill tone="red" label={pickByLocale(locale, S.compliance.red(red))} />
       </div>
     </Card>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton } from '@borjie/design-system';
 import { useTenantCurrent } from '@/lib/queries/tenant';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { useT } from '@/i18n/t.client';
@@ -40,9 +40,7 @@ export function PlanBillingPanel({ initialLocale }: PlanBillingPanelProps = {}) 
   const { data, isLoading, isError, error, refetch } = useTenantCurrent();
 
   if (isLoading) {
-    return (
-      <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
-    );
+    return <Skeleton className="h-chart-sm rounded-lg border border-border" />;
   }
   if (isError) {
     return (
@@ -88,7 +86,7 @@ export function PlanBillingPanel({ initialLocale }: PlanBillingPanelProps = {}) 
         <h2 className="font-display text-lg text-foreground">
           {t('planBilling.heading')}
         </h2>
-        <span className="text-xs text-neutral-500">{valueOrDash(data?.name)}</span>
+        <span className="text-xs text-muted-foreground">{valueOrDash(data?.name)}</span>
       </div>
       <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
         {rows.map((row) => (
@@ -96,12 +94,12 @@ export function PlanBillingPanel({ initialLocale }: PlanBillingPanelProps = {}) 
             key={row.label}
             className="flex items-center justify-between border-b border-border/60 py-1.5"
           >
-            <dt className="text-sm text-neutral-400">{row.label}</dt>
+            <dt className="text-sm text-muted-foreground">{row.label}</dt>
             <dd className="text-sm font-medium text-foreground">{row.value}</dd>
           </div>
         ))}
       </dl>
-      <p className="mt-4 text-xs text-neutral-500">{t('planBilling.rbacNote')}</p>
+      <p className="mt-4 text-xs text-muted-foreground">{t('planBilling.rbacNote')}</p>
     </section>
   );
 }

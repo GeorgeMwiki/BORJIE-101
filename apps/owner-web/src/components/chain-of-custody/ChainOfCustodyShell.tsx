@@ -7,8 +7,11 @@ import {
   Search,
   ShieldAlert,
 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Input, Skeleton } from '@borjie/design-system';
 import { useChainOfCustody, type ChainStep } from '@/lib/queries/ops';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { chainOfCustodyStrings as S } from '@/i18n/strings/chain-of-custody';
 
 /**
  * Chain-of-custody visualiser — owner enters a parcelId, sees the
@@ -19,6 +22,7 @@ import { useChainOfCustody, type ChainStep } from '@/lib/queries/ops';
  * any tamper is rendered as a red badge with the broken step index.
  */
 export function ChainOfCustodyShell() {
+  const locale = useLocale();
   const [input, setInput] = useState('');
   const [parcelId, setParcelId] = useState<string | null>(null);
   const { data, isLoading } = useChainOfCustody(parcelId);
@@ -36,35 +40,43 @@ export function ChainOfCustodyShell() {
         className="flex flex-wrap items-center gap-3"
       >
         <div className="relative flex-1 min-w-column-lg">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500" />
-          <input
+          <Search className="pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Parcel id (ore_parcels.id)"
-            className="w-full rounded-xl border border-border bg-surface/40 py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-neutral-500"
+            placeholder={pickByLocale(locale, S.parcelPlaceholder)}
+            className="pl-9"
           />
         </div>
-        <Button type="submit" size="sm" className="rounded-xl px-4 text-sm">
-          Trace
+        <Button type="submit" size="sm">
+          {pickByLocale(locale, S.trace)}
         </Button>
       </form>
 
       {parcelId === null ? (
-        <p className="rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-10 text-center text-sm text-neutral-400">
-          Enter a parcel id to replay its custody chain.
-        </p>
+        <ScreenEmptyState
+          icon={<Search className="h-6 w-6" />}
+          title={pickByLocale(locale, S.promptTitle)}
+          description={pickByLocale(locale, S.promptBody)}
+        />
       ) : isLoading ? (
-        <p className="text-sm text-neutral-500">Loading chain</p>
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl border border-border" />
+          ))}
+        </div>
       ) : steps.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-10 text-center text-sm text-neutral-400">
-          No custody steps yet for this parcel.
-        </p>
+        <ScreenEmptyState
+          icon={<ShieldAlert className="h-6 w-6" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+        />
       ) : (
         <>
-          <VerificationBadge verification={verification} />
+          <VerificationBadge verification={verification} locale={locale} />
           <ol className="flex flex-col gap-3">
             {steps.map((s) => (
-              <StepCard key={s.id} step={s} />
+              <StepCard key={s.id} step={s} locale={locale} />
             ))}
           </ol>
         </>
@@ -75,28 +87,31 @@ export function ChainOfCustodyShell() {
 
 function VerificationBadge({
   verification,
+  locale,
 }: {
   readonly verification: { readonly ok: boolean; readonly brokenAt: number | null } | null;
+  readonly locale: Locale;
 }) {
   if (!verification) return null;
   if (verification.ok) {
     return (
       <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/5 px-4 py-3 text-sm text-success">
         <CheckCircle2 className="h-4 w-4" />
-        Chain integrity verified — every step links to the previous hash.
+        {pickByLocale(locale, S.chainVerified)}
       </div>
     );
   }
   return (
     <div className="flex items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
       <ShieldAlert className="h-4 w-4" />
-      Chain broken at step {verification.brokenAt}. Investigate before
-      trusting any downstream filing.
+      {pickByLocale(locale, S.chainBrokenBefore)}
+      {verification.brokenAt}
+      {pickByLocale(locale, S.chainBrokenAfter)}
     </div>
   );
 }
 
-function StepCard({ step }: { readonly step: ChainStep }) {
+function StepCard({ step, locale }: { readonly step: ChainStep; readonly locale: Locale }) {
   return (
     <li className="flex items-start gap-4 rounded-2xl border border-border bg-surface/40 p-5">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-signal-500/10 text-xs font-semibold text-signal-500">
@@ -107,21 +122,23 @@ function StepCard({ step }: { readonly step: ChainStep }) {
           <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
             {step.action.replace(/_/g, ' ')}
           </span>
-          <span className="text-xs text-neutral-500">
+          <span className="text-xs text-muted-foreground">
             {new Date(step.happenedAt).toLocaleString()}
           </span>
         </div>
         <p className="mt-1 text-sm text-foreground">
-          {step.location ?? 'Location unrecorded'}
-          {step.containerSealNo ? ` · seal ${step.containerSealNo}` : ''}
+          {step.location ?? pickByLocale(locale, S.locationUnrecorded)}
+          {step.containerSealNo
+            ? ` · ${pickByLocale(locale, S.seal)} ${step.containerSealNo}`
+            : ''}
         </p>
         {step.weightGrams ? (
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-muted-foreground">
             {step.weightGrams} g
             {step.gradePct ? ` · ${step.gradePct}%` : ''}
           </p>
         ) : null}
-        <p className="mt-2 inline-flex items-center gap-1 text-tiny font-mono text-neutral-500">
+        <p className="mt-2 inline-flex items-center gap-1 text-tiny font-mono text-muted-foreground">
           <LinkIcon className="h-3 w-3" />
           {step.auditHashId.slice(0, 12)}
         </p>

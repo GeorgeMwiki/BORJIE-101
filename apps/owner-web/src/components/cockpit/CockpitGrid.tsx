@@ -11,10 +11,12 @@ import { ActiveSitesCard } from './ActiveSitesCard';
 import { ComplianceCard } from './ComplianceCard';
 import { MarketplaceCard } from './MarketplaceCard';
 import { FxGoldCard } from './FxGoldCard';
+import { Skeleton } from '@borjie/design-system';
 import { RefreshButton } from '@/components/shared/RefreshButton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtTime } from '@/lib/format';
-import type { Locale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface CockpitGridProps {
   /**
@@ -34,16 +36,17 @@ interface CockpitGridProps {
  * error state with retry (no fabricated data), and on success the cards.
  */
 export function CockpitGrid({ initialLocale }: CockpitGridProps = {}) {
+  const locale = useLocale(initialLocale);
   const query = useDailyBrief();
   const data = query.data;
   // Honest error state — no more infinite skeleton when the brief fails.
   if (query.isError && !data) {
     return (
       <EmptyState
-        title="Could not load your daily brief"
+        title={pickByLocale(locale, S.grid.errorTitle)}
         description={
           (query.error as Error)?.message ??
-          'The cockpit brief failed to load. Please try again.'
+          pickByLocale(locale, S.grid.errorBody)
         }
         hint="GET /api/v1/mining/cockpit/daily-brief"
         action={
@@ -59,9 +62,9 @@ export function CockpitGrid({ initialLocale }: CockpitGridProps = {}) {
     return (
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 10 }).map((_, i) => (
-          <div
+          <Skeleton
             key={i}
-            className="h-32 animate-pulse rounded-lg border border-border bg-surface/40"
+            className="h-32 rounded-lg border border-border"
           />
         ))}
       </div>
@@ -69,10 +72,12 @@ export function CockpitGrid({ initialLocale }: CockpitGridProps = {}) {
   }
   return (
     <>
-      <div className="mb-4 flex items-center justify-between text-xs text-neutral-500">
+      <div className="mb-4 flex items-center justify-between text-xs text-muted-foreground">
         <span>
-          Updated {fmtTime(data.updatedAt)}
-          {query.isFetching ? ' · refreshing…' : ''}
+          {pickByLocale(locale, S.grid.updatedAt(fmtTime(data.updatedAt)))}
+          {query.isFetching
+            ? ` · ${pickByLocale(locale, S.grid.refreshing)}`
+            : ''}
         </span>
         <RefreshButton onClick={() => query.refetch()} busy={query.isFetching} />
       </div>

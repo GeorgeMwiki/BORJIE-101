@@ -8,6 +8,8 @@ import {
   type CockpitEvent,
 } from '@/lib/cockpit-sse';
 import { Toast } from '@/components/shared/Toast';
+import { pickByLocale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 /**
  * Cockpit live pulse — Roadmap R6.
@@ -45,23 +47,19 @@ export function CockpitLivePulse({
 
   return (
     <>
-      <div className="mb-2 flex items-center gap-2 text-xs text-neutral-500">
+      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
         <span
           className={
             stream.connected
               ? 'inline-block h-2 w-2 rounded-full bg-success'
-              : 'inline-block h-2 w-2 rounded-full bg-neutral-500'
+              : 'inline-block h-2 w-2 rounded-full bg-muted-foreground'
           }
           aria-hidden
         />
         <span data-testid="cockpit-live-status">
           {stream.connected
-            ? language === 'sw'
-              ? 'Mawasiliano hai'
-              : 'Live'
-            : language === 'sw'
-              ? 'Inaunganisha…'
-              : 'Reconnecting…'}
+            ? pickByLocale(language, S.pulse.live)
+            : pickByLocale(language, S.pulse.reconnecting)}
         </span>
         {stream.events.length > 0 ? (
           <span data-testid="cockpit-live-count">· {stream.events.length}</span>

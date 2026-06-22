@@ -21,8 +21,9 @@ import {
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Button } from '@borjie/design-system';
+import { Button, FormField, Input, Skeleton, Alert } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { fmtDateForLocale } from '@/lib/format';
 import { useLocale, type Locale } from '@/lib/locale';
 import { compliancePackPageStrings as S } from '@/i18n/strings/compliance-pack-page';
@@ -95,10 +96,10 @@ function statusLabel(status: string, locale: Locale): string {
 }
 
 function statusClass(status: string): string {
-  if (status === 'generated') return 'text-success border-success/40 bg-success/10';
-  if (status === 'failed') return 'text-destructive border-destructive/40 bg-destructive/10';
-  if (status === 'generating') return 'text-info border-info/40 bg-info/10';
-  return 'text-neutral-300 border-border bg-surface';
+  if (status === 'generated') return 'text-success border-success/40 bg-success-subtle';
+  if (status === 'failed') return 'text-danger border-danger/40 bg-danger-subtle';
+  if (status === 'generating') return 'text-info border-info/40 bg-info-subtle';
+  return 'text-muted-foreground border-border bg-surface';
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +191,7 @@ export default function CompliancePackPage() {
       <div>
         <Link
           href="/compliance"
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
           {S.backToCompliance[locale]}
@@ -206,7 +207,7 @@ export default function CompliancePackPage() {
         <h1 className="font-display text-2xl font-medium text-foreground">
           {S.title[locale]}
         </h1>
-        <p className="text-sm text-neutral-400">{S.subtitle[locale]}</p>
+        <p className="text-sm text-muted-foreground">{S.subtitle[locale]}</p>
       </header>
 
       {/* Form */}
@@ -219,46 +220,36 @@ export default function CompliancePackPage() {
         </h2>
 
         {/* Period */}
-        <div className="space-y-1">
-          <label
-            htmlFor="pack-period"
-            className="text-xs font-medium text-neutral-300"
-          >
-            {S.periodLabel[locale]}
-          </label>
-          <input
+        <FormField label={S.periodLabel[locale]} htmlFor="pack-period">
+          <Input
             id="pack-period"
             type="month"
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
             required
-            className="w-48 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+            className="w-48"
           />
-        </div>
+        </FormField>
 
         {/* Label */}
-        <div className="space-y-1">
-          <label
-            htmlFor="pack-label"
-            className="text-xs font-medium text-neutral-300"
-          >
-            {S.labelLabel[locale]}{' '}
-            <span className="text-neutral-500">{S.optional[locale]}</span>
-          </label>
-          <input
+        <FormField
+          label={`${S.labelLabel[locale]} ${S.optional[locale]}`}
+          htmlFor="pack-label"
+        >
+          <Input
             id="pack-label"
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             placeholder={S.defaultPackLabel(period)[locale]}
             maxLength={120}
-            className="w-full max-w-sm rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/50"
+            className="max-w-sm"
           />
-        </div>
+        </FormField>
 
         {/* Regulators */}
         <fieldset>
-          <legend className="mb-2 text-xs font-medium text-neutral-300">
+          <legend className="mb-2 text-xs font-medium text-foreground">
             {S.includeRegulators[locale]}
           </legend>
           <div className="flex flex-wrap gap-2">
@@ -272,7 +263,7 @@ export default function CompliancePackPage() {
                   className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                     selected
                       ? 'border-signal-500/60 bg-signal-500/10 text-signal-500'
-                      : 'border-border text-neutral-300 hover:border-signal-500/40 hover:text-foreground'
+                      : 'border-border text-muted-foreground hover:border-signal-500/40 hover:text-foreground'
                   }`}
                 >
                   {opt.label}
@@ -288,11 +279,11 @@ export default function CompliancePackPage() {
         </fieldset>
 
         {formError ? (
-          <p className="text-xs text-destructive">{formError}</p>
+          <p className="text-xs text-danger">{formError}</p>
         ) : null}
 
         {successId ? (
-          <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-success">
+          <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success-subtle px-4 py-3 text-xs text-success">
             <Package className="h-4 w-4 shrink-0" />
             {S.packQueued[locale]}
           </div>
@@ -328,29 +319,33 @@ export default function CompliancePackPage() {
         </h2>
 
         {isLoading ? (
-          <div className="flex items-center gap-2 text-sm text-neutral-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {S.loading[locale]}
+          <div className="space-y-2">
+            <Skeleton className="h-14 rounded-xl border border-border" />
+            <Skeleton className="h-14 rounded-xl border border-border" />
           </div>
         ) : null}
 
         {isError ? (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-            <p className="text-xs text-destructive">{S.loadFailed[locale]}</p>
+          <Alert variant="error">
+            {S.loadFailed[locale]}
             <Button
               type="button"
               variant="link"
               size="sm"
               onClick={() => void refetch()}
-              className="mt-1 h-auto p-0 text-xs text-destructive underline hover:no-underline"
+              className="ml-2 h-auto p-0 text-xs underline hover:no-underline"
             >
               {S.retry[locale]}
             </Button>
-          </div>
+          </Alert>
         ) : null}
 
         {!isLoading && !isError && exports.length === 0 ? (
-          <p className="text-sm text-neutral-400">{S.noPacksYet[locale]}</p>
+          <ScreenEmptyState
+            icon={<Package className="h-6 w-6" />}
+            title={S.noPacksYet[locale]}
+            description={S.subtitle[locale]}
+          />
         ) : null}
 
         {exports.length > 0 ? (
@@ -364,7 +359,7 @@ export default function CompliancePackPage() {
                   <p className="text-sm font-medium text-foreground">
                     {row.label ?? S.defaultRowLabel[locale]}
                   </p>
-                  <p className="text-xs text-neutral-500">
+                  <p className="text-xs text-muted-foreground">
                     {fmtDate(row.createdAt, locale)}
                   </p>
                 </div>

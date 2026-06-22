@@ -409,6 +409,7 @@ export const en = {
     rejected: 'Rejected.',
     rejectFailed: 'Reject failed',
     loading: 'Loading staged writes…',
+    emptyTitle: 'No staged writes',
     empty: 'No staged writes in this view.',
     commit: 'Commit (four-eye)',
     rejectReason: 'Reject reason',

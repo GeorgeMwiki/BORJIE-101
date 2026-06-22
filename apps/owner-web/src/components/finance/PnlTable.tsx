@@ -1,5 +1,6 @@
 'use client';
 
+import { Table, TableBody, TableRow, TableCell } from '@borjie/design-system';
 import type { PnLRow } from '@/lib/types/finance';
 import { formatMoneyMillions, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale } from '@/lib/locale';
@@ -35,11 +36,11 @@ export function PnlTable({ rows }: PnlTableProps) {
 
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
-      <div className="text-xs uppercase tracking-wide text-neutral-500">
+      <div className="text-xs uppercase tracking-wide text-muted-foreground">
         {S.pnl.title(LAUNCH_CURRENCY)[locale]}
       </div>
-      <table className="mt-3 w-full text-sm">
-        <tbody>
+      <Table className="mt-3">
+        <TableBody>
           {groups.map((g) => (
             <Group
               key={g}
@@ -50,16 +51,16 @@ export function PnlTable({ rows }: PnlTableProps) {
               money={money}
             />
           ))}
-          <tr className="border-t-2 border-border bg-surface/60">
-            <td className="py-2 font-medium text-foreground">
+          <TableRow className="border-t-2 border-border bg-surface/60 hover:bg-surface/60">
+            <TableCell className="py-2 font-medium text-foreground">
               {S.pnl.ebitda[locale]}
-            </td>
-            <td className="py-2 text-right font-mono font-medium text-foreground">
+            </TableCell>
+            <TableCell className="py-2 text-right font-mono font-medium text-foreground">
               {money(ebitda)}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </article>
   );
 }
@@ -80,29 +81,34 @@ function Group({
   if (rows.length === 0) return null;
   return (
     <>
-      <tr className="bg-surface/40">
-        <td colSpan={2} className="py-1 text-tiny uppercase tracking-wide text-neutral-500">
+      <TableRow className="bg-surface/40 hover:bg-surface/40">
+        <TableCell
+          colSpan={2}
+          className="py-1 text-tiny uppercase tracking-wide text-muted-foreground"
+        >
           {label}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
       {rows.map((r, idx) => (
-        <tr key={idx} className="border-t border-border">
-          <td className="py-1.5 text-neutral-300">{r.label}</td>
-          <td
+        <TableRow key={idx}>
+          <TableCell className="py-1.5 text-muted-foreground">{r.label}</TableCell>
+          <TableCell
             className={`py-1.5 text-right font-mono ${
               r.tzsM < 0 ? 'text-destructive' : 'text-foreground'
             }`}
           >
             {money(r.tzsM)}
-          </td>
-        </tr>
+          </TableCell>
+        </TableRow>
       ))}
-      <tr className="border-t border-border bg-surface/30">
-        <td className="py-1 text-badge italic text-neutral-400">{subtotalLabel}</td>
-        <td className="py-1 text-right font-mono text-badge text-foreground">
+      <TableRow className="bg-surface/30 hover:bg-surface/30">
+        <TableCell className="py-1 text-badge italic text-muted-foreground">
+          {subtotalLabel}
+        </TableCell>
+        <TableCell className="py-1 text-right font-mono text-badge text-foreground">
           {money(subtotal)}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
     </>
   );
 }

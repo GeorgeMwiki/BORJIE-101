@@ -65,7 +65,7 @@ export default async function FinancePage() {
               ? S.finance.howPnlComposesHeading.sw
               : S.finance.howPnlComposesHeading.en}
           </h3>
-          <p className="mt-2 text-xs leading-relaxed text-neutral-300">
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {isSw
               ? S.finance.howPnlComposesBody.sw
               : S.finance.howPnlComposesBody.en}

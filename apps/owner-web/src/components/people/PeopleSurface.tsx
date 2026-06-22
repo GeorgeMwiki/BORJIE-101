@@ -9,6 +9,7 @@ import {
   HardHat,
   Users,
 } from 'lucide-react';
+import { Skeleton } from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useHeadcount } from '@/lib/queries/people';
 import { useIncidents } from '@/lib/queries/safety';
@@ -77,18 +78,18 @@ const FUEL_SPARK = [42, 45, 38, 50, 48, 44, 52]; // litres / day, last 7 days
 function statusTone(status: SupervisorRow['status']) {
   if (status === 'on-shift') {
     return {
-      pill: 'border-success/40 bg-success/10 text-success',
+      pill: 'border-success/40 bg-success-subtle text-success',
       label: S.peopleSurface.onShiftStatus,
     };
   }
   if (status === 'leave') {
     return {
-      pill: 'border-info/40 bg-info/10 text-info',
+      pill: 'border-info/40 bg-info-subtle text-info',
       label: S.peopleSurface.leaveStatus,
     };
   }
   return {
-    pill: 'border-border bg-surface text-neutral-300',
+    pill: 'border-border bg-surface text-muted-foreground',
     label: S.peopleSurface.offShiftStatus,
   };
 }
@@ -172,7 +173,7 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                 ? S.peopleSurface.supervisorsHeading.sw
                 : S.peopleSurface.supervisorsHeading.en}
             </h2>
-            <p className="mt-0.5 text-xs text-neutral-400">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               {isSw
                 ? S.peopleSurface.supervisorsCaption.sw
                 : S.peopleSurface.supervisorsCaption.en}
@@ -190,9 +191,9 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                     <div className="text-sm font-medium text-foreground">
                       {isSw ? sup.nameSw : sup.nameEn}
                     </div>
-                    <div className="mt-0.5 text-xs text-neutral-400">
+                    <div className="mt-0.5 text-xs text-muted-foreground">
                       {isSw ? sup.roleSw : sup.roleEn} -{' '}
-                      <span className="text-neutral-300">
+                      <span className="text-muted-foreground">
                         {isSw ? sup.siteSw : sup.siteEn}
                       </span>
                     </div>
@@ -219,11 +220,12 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
               </h2>
             </header>
             {incidents.isPending ? (
-              <div className="px-5 py-6 text-xs text-neutral-500">
-                {isSw ? S.peopleSurface.loading.sw : S.peopleSurface.loading.en}
+              <div className="space-y-2 px-5 py-4">
+                <Skeleton className="h-8 rounded-lg" />
+                <Skeleton className="h-8 rounded-lg" />
               </div>
             ) : (incidents.data ?? []).length === 0 ? (
-              <div className="px-5 py-6 text-xs text-neutral-500">
+              <div className="px-5 py-6 text-xs text-muted-foreground">
                 {isSw ? S.peopleSurface.noIncidents.sw : S.peopleSurface.noIncidents.en}
               </div>
             ) : (
@@ -238,7 +240,7 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                         {row.severity}
                       </span>
                     </div>
-                    <div className="mt-1 text-neutral-500">
+                    <div className="mt-1 text-muted-foreground">
                       {row.siteId ??
                         (isSw
                           ? S.peopleSurface.unassigned.sw
@@ -256,7 +258,7 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                 <Activity className="h-4 w-4 text-signal-500" />
                 {isSw ? S.peopleSurface.fuelHeading.sw : S.peopleSurface.fuelHeading.en}
               </h2>
-              <p className="mt-0.5 text-xs text-neutral-400">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 {isSw ? S.peopleSurface.fuelCaption.sw : S.peopleSurface.fuelCaption.en}
               </p>
             </header>
@@ -288,7 +290,7 @@ function FuelSparkline({ data }: FuelSparklineProps) {
               className="w-full rounded-sm bg-signal-500/60"
               style={{ height: `${Math.max(height, 8)}%` }}
             />
-            <span className="font-mono text-spark text-neutral-500">
+            <span className="font-mono text-spark text-muted-foreground">
               {value}
             </span>
           </div>

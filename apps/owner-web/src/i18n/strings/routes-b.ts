@@ -166,10 +166,15 @@ export const routesBStrings = {
     relDaysAgo: { sw: 'siku {n} zilizopita', en: '{n}d ago' },
     httpProblem: { sw: 'Tatizo (HTTP {status})', en: 'Problem (HTTP {status})' },
     networkError: { sw: 'Tatizo la mtandao', en: 'network error' },
+    revokeTitle: {
+      sw: 'Ondoa idhini ya wakala?',
+      en: 'Revoke agent access?',
+    },
     revokeConfirm: {
       sw: 'Ondoa idhini ya wakala "{label}"? Hatua hii haiwezi kutenduliwa.',
       en: 'Revoke agent "{label}"? This cannot be undone.',
     },
+    cancel: { sw: 'Ghairi', en: 'Cancel' },
     revokeFailed: {
       sw: 'Tatizo: {detail}. Jaribu tena.',
       en: 'Failed: {detail}. Try again.',

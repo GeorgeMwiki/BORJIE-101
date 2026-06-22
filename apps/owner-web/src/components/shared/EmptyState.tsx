@@ -1,23 +1,27 @@
 /**
- * Empty-state placeholder.
+ * Empty-state placeholder (CONVERGED onto the DS primitive).
  *
  * Rendered when a screen has no live data to show — typically because
  * the backing gateway endpoint is not yet wired or the session is
  * unauthenticated. Replaces what used to be a pre-rendered mock
  * dataset.
  *
- * LitFin-pattern shape:
- *   - Tinted-icon container (defaults to `Inbox`, lift via `icon` prop)
- *   - Display-medium title
- *   - Muted description, max 56ch
- *   - Optional mono hint chip below (for ops-facing "GET /api/..." breadcrumbs)
+ * This fork is now a THIN WRAPPER around `EmptyState` from
+ * `@borjie/design-system`. The DS primitive owns the structural shell
+ * (role="status", centred column, title + description + action layout,
+ * `border-border` token). This wrapper preserves owner-web's two
+ * extensions verbatim so all existing importers keep compiling:
+ *   - the tinted-icon container (signal-gold ring, defaults to `Inbox`)
+ *     passed into the DS `icon` slot pre-wrapped, and
+ *   - the optional ops-facing mono `hint` chip, folded under the body
+ *     through the DS `action` slot.
  *
- * Lives inside the cockpit's section cards, so the outer container is
- * intentionally borderless — the section card already supplies the
- * hairline.
+ * Public API ({ title, description, hint?, icon?, action? }) is
+ * UNCHANGED — do not alter the call signature.
  */
 import type { ReactNode } from 'react';
 import { Inbox } from 'lucide-react';
+import { EmptyState as DSEmptyState } from '@borjie/design-system';
 
 interface EmptyStateProps {
   readonly title: string;
@@ -37,29 +41,35 @@ export function EmptyState({
   icon,
   action,
 }: EmptyStateProps) {
-  return (
-    <div
-      role="status"
-      className="flex h-full flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-surface/40 px-6 py-12 text-center"
-    >
-      <div
-        aria-hidden="true"
-        className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card text-signal-500"
-      >
-        {icon ?? <Inbox className="h-6 w-6" />}
-      </div>
-      <h3 className="font-display text-base font-medium tracking-tight text-foreground">
-        {title}
-      </h3>
-      <p className="max-w-prose-narrow text-sm leading-relaxed text-muted-foreground">
-        {description}
-      </p>
-      {hint ? (
-        <p className="mt-1 font-mono text-tiny uppercase tracking-eyebrow-wide text-muted-foreground/70">
-          {hint.length > 96 ? `${hint.slice(0, 96)}…` : hint}
-        </p>
-      ) : null}
-      {action ? <div className="mt-2">{action}</div> : null}
+  // Preserve owner-web's tinted-icon container by pre-wrapping the glyph
+  // before handing it to the DS `icon` slot.
+  const iconNode = (
+    <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-card text-signal-500">
+      {icon ?? <Inbox className="h-6 w-6" />}
     </div>
+  );
+
+  // Fold the optional hint chip + CTA into the single DS `action` slot so
+  // both render below the description in the DS layout.
+  const trailing =
+    hint || action ? (
+      <div className="flex flex-col items-center gap-2">
+        {hint ? (
+          <p className="font-mono text-tiny uppercase tracking-eyebrow-wide text-muted-foreground/70">
+            {hint.length > 96 ? `${hint.slice(0, 96)}…` : hint}
+          </p>
+        ) : null}
+        {action ?? null}
+      </div>
+    ) : undefined;
+
+  return (
+    <DSEmptyState
+      className="h-full gap-3 rounded-2xl bg-surface/40 px-6 py-12"
+      icon={iconNode}
+      title={title}
+      description={description}
+      action={trailing}
+    />
   );
 }

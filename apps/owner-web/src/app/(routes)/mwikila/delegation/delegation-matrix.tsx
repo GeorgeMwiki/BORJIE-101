@@ -6,14 +6,29 @@
  * GET  /api/v1/owner/delegation       → effective matrix
  * PATCH /api/v1/owner/delegation      → upsert one (category,tier)
  *
- * Each cell click PATCHes the row server-side and refreshes the
- * matrix. Bilingual sw/en row labels.
+ * Each cell click PATCHes the row server-side and refreshes the matrix.
+ * Locale-PURE: row labels + tier descriptions resolve through
+ * `pickByLocale` against the guard-exempt string tables — never a
+ * combined EN/SW string.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 
+import {
+  Alert,
+  Skeleton,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@borjie/design-system';
+
 import { apiRequest } from '@/lib/api-client';
-import { routesAStrings as S } from '@/i18n/strings/routes-a';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { routesAStrings as RA } from '@/i18n/strings/routes-a';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
 interface MatrixEntry {
   readonly category: string;
@@ -28,21 +43,21 @@ const CATEGORIES_DISPLAY: ReadonlyArray<{
   readonly en: string;
   readonly sw: string;
 }> = [
-  { key: 'shifts', ...S.delegationMatrix.catShifts },
-  { key: 'payroll-prep', ...S.delegationMatrix.catPayrollPrep },
-  { key: 'royalty-filing', ...S.delegationMatrix.catRoyaltyFiling },
+  { key: 'shifts', ...RA.delegationMatrix.catShifts },
+  { key: 'payroll-prep', ...RA.delegationMatrix.catPayrollPrep },
+  { key: 'royalty-filing', ...RA.delegationMatrix.catRoyaltyFiling },
   {
     key: 'license-renewal-reminders',
-    ...S.delegationMatrix.catLicenceRenewalReminders,
+    ...RA.delegationMatrix.catLicenceRenewalReminders,
   },
-  { key: 'contract-followups', ...S.delegationMatrix.catContractFollowups },
-  { key: 'worker-hires', ...S.delegationMatrix.catWorkerHires },
-  { key: 'worker-discipline', ...S.delegationMatrix.catWorkerDiscipline },
-  { key: 'capex', ...S.delegationMatrix.catCapex },
-  { key: 'inventory-orders', ...S.delegationMatrix.catInventoryOrders },
-  { key: 'compliance-filings', ...S.delegationMatrix.catComplianceFilings },
-  { key: 'marketplace-bids', ...S.delegationMatrix.catMarketplaceBids },
-  { key: 'marketplace-counters', ...S.delegationMatrix.catMarketplaceCounters },
+  { key: 'contract-followups', ...RA.delegationMatrix.catContractFollowups },
+  { key: 'worker-hires', ...RA.delegationMatrix.catWorkerHires },
+  { key: 'worker-discipline', ...RA.delegationMatrix.catWorkerDiscipline },
+  { key: 'capex', ...RA.delegationMatrix.catCapex },
+  { key: 'inventory-orders', ...RA.delegationMatrix.catInventoryOrders },
+  { key: 'compliance-filings', ...RA.delegationMatrix.catComplianceFilings },
+  { key: 'marketplace-bids', ...RA.delegationMatrix.catMarketplaceBids },
+  { key: 'marketplace-counters', ...RA.delegationMatrix.catMarketplaceCounters },
 ];
 
 const TIERS: ReadonlyArray<'T0' | 'T1' | 'T2' | 'T3'> = [
@@ -52,14 +67,18 @@ const TIERS: ReadonlyArray<'T0' | 'T1' | 'T2' | 'T3'> = [
   'T3',
 ];
 
-const TIER_DESCRIPTION_EN: Record<'T0' | 'T1' | 'T2' | 'T3', string> = {
-  T0: 'Inform only',
-  T1: 'Propose',
-  T2: 'Act + reversal',
-  T3: 'Irrevocable',
+const TIER_DESCRIPTION: Record<
+  'T0' | 'T1' | 'T2' | 'T3',
+  { readonly en: string; readonly sw: string }
+> = {
+  T0: S.delegationMatrix.tierInformOnly,
+  T1: S.delegationMatrix.tierPropose,
+  T2: S.delegationMatrix.tierActReversal,
+  T3: S.delegationMatrix.tierIrrevocable,
 };
 
 export function DelegationMatrix() {
+  const locale = useLocale();
   const [matrix, setMatrix] = useState<ReadonlyArray<MatrixEntry>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -109,82 +128,70 @@ export function DelegationMatrix() {
   );
 
   return (
-    <section className="mt-6">
-      {error ? (
-        <p className="mb-4 rounded border border-destructive bg-destructive/5 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+    <section className="mt-6 space-y-4">
+      {error ? <Alert variant="error">{error}</Alert> : null}
 
       {loading ? (
-        <p className="text-sm text-neutral-400">
-          {S.delegationMatrix.loading.both}
-        </p>
+        <Skeleton className="h-72 rounded-lg border border-border" />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border bg-surface">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-border text-xs uppercase text-neutral-400">
-                <th className="px-4 py-3">
-                  {S.delegationMatrix.categoryHeader.both}
-                </th>
-                {TIERS.map((t) => (
-                  <th key={t} className="px-3 py-3 text-center">
-                    {t}
-                    <div className="text-[10px] normal-case text-neutral-500">
-                      {TIER_DESCRIPTION_EN[t]}
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>
+                {pickByLocale(locale, S.delegationMatrix.categoryHeader)}
+              </TableHead>
+              {TIERS.map((t) => (
+                <TableHead key={t} className="text-center">
+                  <span>{t}</span>
+                  <span className="mt-0.5 block text-[10px] font-normal normal-case text-muted-foreground">
+                    {pickByLocale(locale, TIER_DESCRIPTION[t])}
+                  </span>
+                </TableHead>
+              ))}
+              <TableHead className="text-center">
+                {pickByLocale(locale, S.delegationMatrix.sourceHeader)}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {CATEGORIES_DISPLAY.map((cat) => {
+              const entry = matrix.find((m) => m.category === cat.key);
+              return (
+                <TableRow key={cat.key}>
+                  <TableCell>
+                    <div className="text-foreground">
+                      {pickByLocale(locale, { en: cat.en, sw: cat.sw })}
                     </div>
-                  </th>
-                ))}
-                <th className="px-3 py-3 text-center">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {CATEGORIES_DISPLAY.map((cat) => {
-                const entry = matrix.find((m) => m.category === cat.key);
-                return (
-                  <tr
-                    key={cat.key}
-                    className="border-b border-border/50 last:border-b-0"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="text-foreground">{cat.en}</div>
-                      <div className="text-xs italic text-neutral-500">
-                        {cat.sw}
-                      </div>
-                    </td>
-                    {TIERS.map((tier) => {
-                      const active = entry?.tier === tier;
-                      const busy = saving === `${cat.key}:${tier}`;
-                      return (
-                        <td
-                          key={tier}
-                          className="px-3 py-3 text-center"
+                  </TableCell>
+                  {TIERS.map((tier) => {
+                    const active = entry?.tier === tier;
+                    const busy = saving === `${cat.key}:${tier}`;
+                    return (
+                      <TableCell key={tier} className="text-center">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          aria-pressed={active}
+                          onClick={() => void setTier(cat.key, tier)}
+                          className={`min-w-[3rem] rounded px-3 py-1.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
+                            active
+                              ? 'bg-foreground text-background'
+                              : 'border border-border text-muted-foreground hover:text-foreground'
+                          }`}
                         >
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void setTier(cat.key, tier)}
-                            className={`min-w-[3rem] rounded px-3 py-1.5 text-xs ${
-                              active
-                                ? 'bg-foreground text-background'
-                                : 'border border-border text-neutral-400 hover:text-foreground'
-                            }`}
-                          >
-                            {busy ? '…' : tier}
-                          </button>
-                        </td>
-                      );
-                    })}
-                    <td className="px-3 py-3 text-center text-xs text-neutral-500">
-                      {entry?.source ?? '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                          {busy ? '…' : tier}
+                        </button>
+                      </TableCell>
+                    );
+                  })}
+                  <TableCell className="text-center text-xs text-muted-foreground">
+                    {entry?.source ?? '—'}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
     </section>
   );

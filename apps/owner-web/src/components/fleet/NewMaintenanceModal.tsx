@@ -4,13 +4,29 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, X } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  FormField,
+  Input,
+  Textarea,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Alert,
+} from '@borjie/design-system';
 import {
   useCreateMaintenance,
   type UiMaintenanceKind,
 } from '@/lib/queries/maintenance';
-import { dataBStrings as S } from '@/i18n/strings/data-b';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import type { Locale } from '@/lib/locale-shared';
+import { fleetMaintenanceStrings as S } from '@/i18n/strings/fleet-maintenance-page';
 
 const schema = z.object({
   assetId: z.string().min(1, 'required'),
@@ -26,56 +42,54 @@ interface NewMaintenanceModalProps {
   readonly onClose: () => void;
   readonly onCreated: () => void;
   readonly assetOptions: ReadonlyArray<string>;
+  /** Seeded by the server-resolved session so SSR + first paint agree. */
+  readonly locale?: Locale;
 }
 
-const KIND_LABEL_SW: Readonly<Record<UiMaintenanceKind, string>> = {
-  preventive: S.newMaintKindPreventive.sw,
-  corrective: S.newMaintKindCorrective.sw,
-  inspection: S.newMaintKindInspection.sw,
-};
+const KIND_OPTIONS: ReadonlyArray<UiMaintenanceKind> = [
+  'preventive',
+  'corrective',
+  'inspection',
+];
 
-const KIND_LABEL_EN: Readonly<Record<UiMaintenanceKind, string>> = {
-  preventive: S.newMaintKindPreventive.en,
-  corrective: S.newMaintKindCorrective.en,
-  inspection: S.newMaintKindInspection.en,
-};
+function kindLabel(kind: UiMaintenanceKind, locale: Locale): string {
+  if (kind === 'corrective') return pickByLocale(locale, S.kindCorrective);
+  if (kind === 'inspection') return pickByLocale(locale, S.kindInspection);
+  return pickByLocale(locale, S.kindPreventive);
+}
 
 /**
  * Modal form for the "Open new maintenance" action on the fleet
  * maintenance page. Validated with Zod; submits via
  * useCreateMaintenance which invalidates the list query on success.
+ * Rendered with the DS Modal (focus trap + ESC) and DS form controls.
  */
 export function NewMaintenanceModal({
   open,
   onClose,
   onCreated,
   assetOptions,
+  locale: seeded,
 }: NewMaintenanceModalProps) {
+  const locale = useLocale(seeded);
   const mutation = useCreateMaintenance();
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { kind: 'preventive' },
   });
 
+  const kind = watch('kind');
+
   useEffect(() => {
     if (!open) reset();
   }, [open, reset]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [open, onClose]);
-
-  if (!open) return null;
 
   const onSubmit = (values: FormValues): void => {
     mutation.mutate(
@@ -95,130 +109,82 @@ export function NewMaintenanceModal({
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${S.newMaintDialogLabel.en} / ${S.newMaintDialogLabel.sw}`}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 px-4"
-    >
-      <div className="w-full max-w-md rounded-lg border border-border bg-surface shadow-xl">
-        <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              {S.newMaintTitle.en}
-            </h2>
-            <p className="text-xs text-neutral-500">{S.newMaintSubtitle.sw}</p>
-          </div>
-          <button
-            type="button"
-            aria-label="Close"
-            onClick={onClose}
-            className="text-neutral-500 hover:text-foreground"
+    <Modal open={open} onClose={onClose} showCloseButton={false} size="md">
+      <ModalHeader
+        showCloseButton
+        onClose={onClose}
+        title={pickByLocale(locale, S.modalTitle)}
+        description={pickByLocale(locale, S.modalSubtitle)}
+      />
+      <form onSubmit={(event) => void handleSubmit(onSubmit)(event)} noValidate>
+        <ModalBody className="space-y-4">
+          <FormField
+            label={pickByLocale(locale, S.fieldAsset)}
+            {...(errors.assetId ? { error: pickByLocale(locale, S.required) } : {})}
           >
-            <X className="h-4 w-4" />
-          </button>
-        </header>
-        <form
-          onSubmit={(event) => void handleSubmit(onSubmit)(event)}
-          className="space-y-3 px-5 py-4"
-          noValidate
-        >
-          <label className="block text-sm">
-            <span className="block text-xs uppercase tracking-wide text-neutral-500">
-              {S.newMaintFieldAsset.en} / {S.newMaintFieldAsset.sw}
-            </span>
-            <select
-              {...register('assetId')}
-              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-warning"
+            <Select
+              value={watch('assetId') ?? ''}
+              onValueChange={(value) =>
+                setValue('assetId', value, { shouldValidate: true })
+              }
             >
-              <option value="">
-                — {S.newMaintPickOption.en} / {S.newMaintPickOption.sw} —
-              </option>
-              {assetOptions.map((id) => (
-                <option key={id} value={id}>
-                  {id}
-                </option>
-              ))}
-            </select>
-            {errors.assetId ? (
-              <span className="mt-1 block text-xs text-destructive">
-                {errors.assetId.message}
-              </span>
-            ) : null}
-          </label>
-          <fieldset>
-            <legend className="text-xs uppercase tracking-wide text-neutral-500">
-              {S.newMaintFieldKind.en} / {S.newMaintFieldKind.sw}
-            </legend>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {(['preventive', 'corrective', 'inspection'] as const).map((kind) => (
-                <label
-                  key={kind}
-                  className="flex cursor-pointer items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground hover:bg-surface"
-                >
-                  <input
-                    {...register('kind')}
-                    type="radio"
-                    value={kind}
-                    className="accent-warning"
-                  />
-                  <span>
-                    {KIND_LABEL_EN[kind]}
-                    <span className="ml-1 text-neutral-500">/ {KIND_LABEL_SW[kind]}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <label className="block text-sm">
-            <span className="block text-xs uppercase tracking-wide text-neutral-500">
-              {S.newMaintFieldDescription.en} / {S.newMaintFieldDescription.sw}
-            </span>
-            <textarea
-              {...register('description')}
-              rows={3}
-              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-warning"
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="block text-xs uppercase tracking-wide text-neutral-500">
-              {S.newMaintFieldEta.en} / {S.newMaintFieldEta.sw}
-            </span>
-            <input
-              {...register('etaHours')}
-              type="number"
-              min={0}
-              step="0.5"
-              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-warning"
-            />
-          </label>
+              <SelectTrigger>
+                <SelectValue placeholder={pickByLocale(locale, S.pickAsset)} />
+              </SelectTrigger>
+              <SelectContent>
+                {assetOptions.map((id) => (
+                  <SelectItem key={id} value={id}>
+                    {id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField label={pickByLocale(locale, S.fieldKind)}>
+            <Select
+              value={kind}
+              onValueChange={(value) =>
+                setValue('kind', value as UiMaintenanceKind, { shouldValidate: true })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {KIND_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {kindLabel(option, locale)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField label={pickByLocale(locale, S.fieldDescription)}>
+            <Textarea {...register('description')} rows={3} />
+          </FormField>
+
+          <FormField label={pickByLocale(locale, S.fieldEta)}>
+            <Input {...register('etaHours')} type="number" min={0} step="0.5" />
+          </FormField>
+
           {mutation.isError ? (
-            <p className="text-xs text-destructive">
-              Failed: {(mutation.error as Error)?.message ?? 'unknown'}
-            </p>
+            <Alert variant="error">
+              {pickByLocale(locale, S.submitErrorPrefix)}:{' '}
+              {(mutation.error as Error)?.message ?? pickByLocale(locale, S.unknownError)}
+            </Alert>
           ) : null}
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-            >
-              {S.newMaintCancel.en} / {S.newMaintCancel.sw}
-            </Button>
-            <Button
-              type="submit"
-              variant="outline"
-              size="sm"
-              disabled={mutation.isPending}
-              className="gap-2 border-warning bg-warning-subtle/30 text-warning hover:bg-warning-subtle/50"
-            >
-              {mutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {S.newMaintSubmit.en} / {S.newMaintSubmit.sw}
-            </Button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>
+            {pickByLocale(locale, S.cancel)}
+          </Button>
+          <Button type="submit" variant="primary" size="sm" loading={mutation.isPending}>
+            {pickByLocale(locale, S.submit)}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   );
 }

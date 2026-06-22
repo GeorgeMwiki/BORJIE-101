@@ -67,7 +67,7 @@ export function ChapterList({
       aria-label={heading}
       className="flex w-full flex-col rounded-md border border-border bg-surface md:w-56"
     >
-      <header className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-neutral-400">
+      <header className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {heading}
       </header>
       <ul ref={listRef} className="max-h-56 space-y-1 overflow-y-auto px-2 py-2">
@@ -86,11 +86,11 @@ export function ChapterList({
                 className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warning ${
                   active
                     ? 'bg-warning-subtle/30 text-warning'
-                    : 'text-neutral-300 hover:bg-background'
+                    : 'text-muted-foreground hover:bg-background'
                 }`}
               >
                 <span className="truncate">{chapter.label}</span>
-                <span className="ml-2 font-mono text-badge text-neutral-500">
+                <span className="ml-2 font-mono text-badge text-muted-foreground">
                   {formatTimestamp(chapter.at)}
                 </span>
               </button>
@@ -98,7 +98,7 @@ export function ChapterList({
           );
         })}
       </ul>
-      <footer className="flex items-center justify-between border-t border-border px-3 py-1.5 text-tiny text-neutral-500">
+      <footer className="flex items-center justify-between border-t border-border px-3 py-1.5 text-tiny text-muted-foreground">
         <span>{previousLabel}: ←</span>
         <span>{nextLabel}: →</span>
       </footer>

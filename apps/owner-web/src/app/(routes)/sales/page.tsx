@@ -16,18 +16,31 @@ import Link from 'next/link';
 import {
   ArrowRight,
   Coins,
-  Loader2,
   Package,
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import {
+  Skeleton,
+  Alert,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Button,
+  StatusBadge,
+  type StatusType,
+} from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { formatMoney, fmtDateForLocale, LAUNCH_CURRENCY } from '@/lib/format';
 import { useLocale } from '@/lib/locale';
 import { salesPageStrings as S } from '@/i18n/strings/sales-page';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -51,11 +64,11 @@ type SaleRow = z.infer<typeof SaleRowSchema>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function paymentStatusTone(status: string): string {
-  if (status === 'paid') return 'border-success/40 bg-success/10 text-success';
-  if (status === 'pending') return 'border-warning/40 bg-warning/10 text-warning';
-  if (status === 'overdue') return 'border-destructive/40 bg-destructive/10 text-destructive';
-  return 'border-border bg-surface text-neutral-300';
+function paymentStatusType(status: string): StatusType {
+  if (status === 'paid') return 'success';
+  if (status === 'pending') return 'pending';
+  if (status === 'overdue') return 'error';
+  return 'inactive';
 }
 
 // ---------------------------------------------------------------------------
@@ -142,7 +155,7 @@ export default function SalesPage() {
           <h1 className="font-display text-2xl font-medium text-foreground">
             {S.title[locale]}
           </h1>
-          <p className="text-sm text-neutral-400">{S.subtitle[locale]}</p>
+          <p className="text-sm text-muted-foreground">{S.subtitle[locale]}</p>
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -164,19 +177,22 @@ export default function SalesPage() {
 
       {/* Loading */}
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-neutral-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {S.loading[locale]}
+        <div
+          className="space-y-3"
+          role="status"
+          aria-label={S.loading[locale]}
+        >
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-xl border border-border" />
+          ))}
         </div>
       ) : null}
 
       {/* Error */}
       {isError ? (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-          <p className="text-xs text-destructive">
-            {error instanceof ApiError ? error.message : S.loadFailed[locale]}
-          </p>
-        </div>
+        <Alert variant="error">
+          {error instanceof ApiError ? error.message : S.loadFailed[locale]}
+        </Alert>
       ) : null}
 
       {/* Metrics (always render if data present) */}
@@ -186,20 +202,19 @@ export default function SalesPage() {
 
       {/* Empty state */}
       {!isLoading && !isError && sales.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface/40 p-10 text-center">
-          <Package className="mx-auto h-10 w-10 text-neutral-500" />
-          <p className="mt-3 text-sm font-medium text-foreground">
-            {S.emptyTitle[locale]}
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">{S.emptyBody[locale]}</p>
-          <Link
-            href="/marketplace"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-surface"
-          >
-            <ArrowRight className="h-3 w-3" />
-            {S.openMarketplace[locale]}
-          </Link>
-        </div>
+        <ScreenEmptyState
+          icon={<Package className="h-6 w-6" />}
+          title={S.emptyTitle[locale]}
+          description={S.emptyBody[locale]}
+          action={
+            <Button asChild variant="outline" size="sm">
+              <Link href="/marketplace">
+                <ArrowRight className="mr-1.5 h-3 w-3" />
+                {S.openMarketplace[locale]}
+              </Link>
+            </Button>
+          }
+        />
       ) : null}
 
       {/* Transactions table */}
@@ -208,62 +223,59 @@ export default function SalesPage() {
           <h2 className="mb-3 text-sm font-semibold text-foreground">
             {S.allTransactions[locale]}
           </h2>
-          <div className="overflow-hidden rounded-2xl border border-border">
-            <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-              <div className="col-span-2">{S.colDate[locale]}</div>
-              <div className="col-span-3">{S.colParcel[locale]}</div>
-              <div className="col-span-2">{S.colRoute[locale]}</div>
-              <div className="col-span-2 text-right">
-                {S.colGross(LAUNCH_CURRENCY)[locale]}
-              </div>
-              <div className="col-span-2 text-right">
-                {S.colNet(LAUNCH_CURRENCY)[locale]}
-              </div>
-              <div className="col-span-1 text-right">{S.colStatus[locale]}</div>
-            </div>
-            <ul className="divide-y divide-border/60">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{S.colDate[locale]}</TableHead>
+                <TableHead>{S.colParcel[locale]}</TableHead>
+                <TableHead>{S.colRoute[locale]}</TableHead>
+                <TableHead className="text-right">
+                  {S.colGross(LAUNCH_CURRENCY)[locale]}
+                </TableHead>
+                <TableHead className="text-right">
+                  {S.colNet(LAUNCH_CURRENCY)[locale]}
+                </TableHead>
+                <TableHead className="text-right">{S.colStatus[locale]}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {sales.map((row) => (
-                <li
-                  key={row.id}
-                  className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4"
-                >
-                  <div className="col-span-2 text-xs text-neutral-400">
+                <TableRow key={row.id}>
+                  <TableCell className="text-xs text-muted-foreground">
                     {fmtDateForLocale(row.ts, locale)}
-                  </div>
-                  <div className="col-span-3">
+                  </TableCell>
+                  <TableCell>
                     <p className="font-mono text-xs text-foreground">
                       {row.parcelId.slice(0, 12)}…
                     </p>
                     {row.buyerId ? (
-                      <p className="mt-0.5 font-mono text-tiny text-neutral-500">
+                      <p className="mt-0.5 font-mono text-tiny text-muted-foreground">
                         {S.buyerPrefix[locale]}: {row.buyerId.slice(0, 8)}…
                       </p>
                     ) : null}
-                  </div>
-                  <div className="col-span-2 text-xs capitalize text-neutral-400">
+                  </TableCell>
+                  <TableCell className="text-xs capitalize text-muted-foreground">
                     {row.route}
-                  </div>
-                  <div className="col-span-2 text-right font-mono text-sm text-neutral-300">
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
                     {row.grossPriceTzs !== null
                       ? formatMoney(row.grossPriceTzs, LAUNCH_CURRENCY, locale)
                       : '—'}
-                  </div>
-                  <div className="col-span-2 text-right font-mono text-sm font-medium text-foreground">
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm font-medium text-foreground">
                     {row.netTzs !== null
                       ? formatMoney(row.netTzs, LAUNCH_CURRENCY, locale)
                       : '—'}
-                  </div>
-                  <div className="col-span-1 flex justify-start md:justify-end">
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-badge font-medium ${paymentStatusTone(row.paymentStatus)}`}
-                    >
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <StatusBadge status={paymentStatusType(row.paymentStatus)}>
                       {row.paymentStatus}
-                    </span>
-                  </div>
-                </li>
+                    </StatusBadge>
+                  </TableCell>
+                </TableRow>
               ))}
-            </ul>
-          </div>
+            </TableBody>
+          </Table>
         </section>
       ) : null}
     </div>

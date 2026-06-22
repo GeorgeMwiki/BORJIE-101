@@ -29,7 +29,15 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { ScenarioView, ScenarioLanguage } from '@borjie/api-client/training-types';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Skeleton,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
 import {
   listScenarios,
   generateScenarios,
@@ -133,7 +141,7 @@ export function ScenarioBrowser({
   // recoverable state — never a fabricated scenario.
   if (errorStatus !== null) {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+      <div className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning">
         <ServerCrash className="h-5 w-5 shrink-0" aria-hidden="true" />
         <span>{errorStatus === 503 ? tr.t('errorUnavailable') : tr.t('errorLoad')}</span>
         <Button
@@ -186,7 +194,7 @@ export function ScenarioBrowser({
       )}
 
       {generateFailed ? (
-        <div className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <div className="rounded-2xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning">
           {tr.t('generateFailed')}
         </div>
       ) : null}
@@ -218,9 +226,9 @@ function Filters({
   const tr = trainingT(locale);
   return (
     <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-border bg-surface/40 p-3">
-      <div className="flex items-center gap-2 text-sm text-neutral-500">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Filter className="h-4 w-4" aria-hidden="true" />
-        <span className="font-medium text-neutral-300">{tr.t('filters')}</span>
+        <span className="font-medium text-muted-foreground">{tr.t('filters')}</span>
       </div>
 
       <SelectField
@@ -228,23 +236,22 @@ function Filters({
         label={tr.t('difficulty')}
         value={difficulty}
         onChange={onDifficulty}
-      >
-        <option value="all">{tr.t('all')}</option>
-        {SCENARIO_DIFFICULTIES.map((d) => (
-          <option key={d} value={d}>
-            {tr.difficultyLabel(d)}
-          </option>
-        ))}
-      </SelectField>
+        options={[
+          { value: 'all', label: tr.t('all') },
+          ...SCENARIO_DIFFICULTIES.map((d) => ({ value: d, label: tr.difficultyLabel(d) })),
+        ]}
+      />
 
-      <SelectField id="filter-kind" label={tr.t('kind')} value={kind} onChange={onKind}>
-        <option value="all">{tr.t('all')}</option>
-        {SCENARIO_KINDS.map((k) => (
-          <option key={k} value={k}>
-            {tr.kindLabel(k)}
-          </option>
-        ))}
-      </SelectField>
+      <SelectField
+        id="filter-kind"
+        label={tr.t('kind')}
+        value={kind}
+        onChange={onKind}
+        options={[
+          { value: 'all', label: tr.t('all') },
+          ...SCENARIO_KINDS.map((k) => ({ value: k, label: tr.kindLabel(k) })),
+        ]}
+      />
 
       <SelectField
         id="filter-concept"
@@ -252,14 +259,11 @@ function Filters({
         value={concept}
         onChange={onConcept}
         disabled={conceptIds.length === 0}
-      >
-        <option value="all">{tr.t('all')}</option>
-        {conceptIds.map((id) => (
-          <option key={id} value={id}>
-            {id}
-          </option>
-        ))}
-      </SelectField>
+        options={[
+          { value: 'all', label: tr.t('all') },
+          ...conceptIds.map((id) => ({ value: id, label: id })),
+        ]}
+      />
     </div>
   );
 }
@@ -270,23 +274,28 @@ interface SelectFieldProps {
   readonly value: string;
   readonly onChange: (v: string) => void;
   readonly disabled?: boolean;
-  readonly children: React.ReactNode;
+  readonly options: ReadonlyArray<{ readonly value: string; readonly label: string }>;
 }
 
-function SelectField({ id, label, value, onChange, disabled, children }: SelectFieldProps) {
+function SelectField({ id, label, value, onChange, disabled, options }: SelectFieldProps) {
   return (
-    <label htmlFor={id} className="flex flex-col gap-1 text-xs text-neutral-500">
-      <span className="font-medium text-neutral-400">{label}</span>
-      <select
-        id={id}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        className="min-w-[10rem] rounded-md border border-border bg-slate-950/40 px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 disabled:opacity-50"
-      >
-        {children}
-      </select>
-    </label>
+    <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+      <label htmlFor={id} className="font-medium text-muted-foreground">
+        {label}
+      </label>
+      <Select value={value} onValueChange={onChange} {...(disabled !== undefined ? { disabled } : {})}>
+        <SelectTrigger id={id} className="min-w-[10rem]">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }
 
@@ -311,7 +320,7 @@ function ScenarioCard({ scenario, locale, onSelect }: ScenarioCardProps) {
         </div>
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-base font-semibold text-foreground">{title}</h3>
-          <p className="text-xs text-neutral-500">{tr.kindLabel(scenario.kind)}</p>
+          <p className="text-xs text-muted-foreground">{tr.kindLabel(scenario.kind)}</p>
         </div>
         <span
           className={`rounded-full border px-2 py-0.5 text-tiny font-medium ${difficultyChipClass(
@@ -322,9 +331,9 @@ function ScenarioCard({ scenario, locale, onSelect }: ScenarioCardProps) {
         </span>
       </div>
 
-      <p className="mt-3 line-clamp-2 text-sm text-neutral-400">{summary}</p>
+      <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{summary}</p>
 
-      <dl className="mt-4 flex items-center gap-4 text-xs text-neutral-500">
+      <dl className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
           <Clock className="h-3.5 w-3.5" aria-hidden="true" />
           <dt className="sr-only">{tr.t('estMinutes')}</dt>
@@ -353,10 +362,10 @@ function ScenarioCard({ scenario, locale, onSelect }: ScenarioCardProps) {
 function BrowserSkeleton() {
   return (
     <div className="space-y-5" aria-busy="true">
-      <div className="h-14 w-full animate-pulse rounded-2xl bg-surface/40" />
+      <Skeleton className="h-14 w-full rounded-2xl" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {[0, 1, 2, 3, 4, 5].map((i) => (
-          <div key={i} className="h-48 w-full animate-pulse rounded-2xl bg-surface/40" />
+          <Skeleton key={i} className="h-48 w-full rounded-2xl" />
         ))}
       </div>
     </div>
@@ -383,11 +392,11 @@ function ScenarioEmptyState({
   const tr = trainingT(locale);
   return (
     <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface/40 px-6 py-12 text-center">
-      <GraduationCap className="mb-3 h-8 w-8 text-neutral-600" aria-hidden="true" />
+      <GraduationCap className="mb-3 h-8 w-8 text-muted-foreground" aria-hidden="true" />
       <h2 className="text-base font-semibold text-foreground">
         {degraded ? tr.t('emptyDegradedTitle') : tr.t('emptyTitle')}
       </h2>
-      <p className="mt-1.5 max-w-md text-sm text-neutral-400">
+      <p className="mt-1.5 max-w-md text-sm text-muted-foreground">
         {degraded ? tr.t('emptyDegradedDesc') : tr.t('emptyDesc')}
       </p>
       {degraded ? (

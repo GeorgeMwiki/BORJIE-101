@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, ConfirmationModal } from '@borjie/design-system';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
@@ -66,6 +66,9 @@ export function ConnectedAgentsList() {
   const locale = useLocale();
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [revoking, setRevoking] = useState<string | null>(null);
+  // The token pending a revoke-confirmation (replaces window.confirm with
+  // the DS ConfirmationModal — focus-trapped, ESC-dismissable).
+  const [pendingRevoke, setPendingRevoke] = useState<AgentToken | null>(null);
   // In-app toast for revoke failures (replaces window.alert).
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
@@ -107,14 +110,8 @@ export function ConnectedAgentsList() {
     void load();
   }, [load]);
 
-  async function handleRevoke(token: AgentToken) {
-    const label = token.clientLabel ?? token.clientId;
-    const confirmMsg = pickByLocale(
-      locale,
-      S.connectedAgentsList.revokeConfirm,
-    ).replace('{label}', label);
-    const ok = window.confirm(confirmMsg);
-    if (!ok) return;
+  async function performRevoke(token: AgentToken) {
+    setPendingRevoke(null);
     setRevoking(token.id);
     try {
       // The revoke endpoint needs the cleartext token. We don't store
@@ -162,10 +159,7 @@ export function ConnectedAgentsList() {
         className="space-y-3"
       >
         {Array.from({ length: 3 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-16 animate-pulse rounded-md border border-border bg-surface/60"
-          />
+          <Skeleton key={i} className="h-16 rounded-md border border-border" />
         ))}
       </div>
     );
@@ -195,7 +189,7 @@ export function ConnectedAgentsList() {
         <p className="text-foreground">
           {pickByLocale(locale, S.connectedAgentsList.emptyTitle)}
         </p>
-        <p className="mt-1 italic text-neutral-400">
+        <p className="mt-1 italic text-muted-foreground">
           {pickByLocale(locale, S.connectedAgentsList.emptyBody)}{' '}
           <code className="text-foreground">/oauth/confirm</code>
           {pickByLocale(locale, S.connectedAgentsList.emptyBodySuffix)}
@@ -216,7 +210,7 @@ export function ConnectedAgentsList() {
               <div className="font-display text-lg text-foreground">
                 {token.clientLabel || token.clientId}
               </div>
-              <div className="text-xs font-mono text-neutral-400">
+              <div className="text-xs font-mono text-muted-foreground">
                 client_id: {token.clientId}
               </div>
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -229,19 +223,19 @@ export function ConnectedAgentsList() {
                   </span>
                 ))}
               </div>
-              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-neutral-400">
+              <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <dt>{pickByLocale(locale, S.connectedAgentsList.issued)}</dt>
-                <dd className="text-neutral-300">
+                <dd className="text-muted-foreground">
                   {formatRelative(token.issuedAt, locale)}
                 </dd>
                 <dt>{pickByLocale(locale, S.connectedAgentsList.lastUsed)}</dt>
-                <dd className="text-neutral-300">
+                <dd className="text-muted-foreground">
                   {formatRelative(token.lastUsedAt, locale)}
                 </dd>
                 {token.expiresAt && (
                   <>
                     <dt>{pickByLocale(locale, S.connectedAgentsList.expires)}</dt>
-                    <dd className="text-neutral-300">
+                    <dd className="text-muted-foreground">
                       {new Date(token.expiresAt).toLocaleString()}
                     </dd>
                   </>
@@ -250,11 +244,10 @@ export function ConnectedAgentsList() {
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="destructive"
               size="sm"
-              onClick={() => handleRevoke(token)}
+              onClick={() => setPendingRevoke(token)}
               loading={revoking === token.id}
-              className="border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               {revoking === token.id
                 ? pickByLocale(locale, S.connectedAgentsList.revoking)
@@ -264,6 +257,25 @@ export function ConnectedAgentsList() {
         </li>
       ))}
     </ul>
+    <ConfirmationModal
+      open={pendingRevoke !== null}
+      onClose={() => setPendingRevoke(null)}
+      onConfirm={() => {
+        if (pendingRevoke) void performRevoke(pendingRevoke);
+      }}
+      variant="danger"
+      title={pickByLocale(locale, S.connectedAgentsList.revokeTitle)}
+      {...(pendingRevoke
+        ? {
+            description: pickByLocale(locale, S.connectedAgentsList.revokeConfirm).replace(
+              '{label}',
+              pendingRevoke.clientLabel ?? pendingRevoke.clientId,
+            ),
+          }
+        : {})}
+      confirmLabel={pickByLocale(locale, S.connectedAgentsList.revoke)}
+      cancelLabel={pickByLocale(locale, S.connectedAgentsList.cancel)}
+    />
     {toastMsg ? (
       <Toast message={toastMsg} onDismiss={() => setToastMsg(null)} />
     ) : null}

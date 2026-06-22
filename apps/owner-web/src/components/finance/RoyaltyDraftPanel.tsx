@@ -6,15 +6,17 @@ import {
   Calculator,
   CheckCircle2,
   Clock,
-  Loader2,
   PenLine,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import { Skeleton, Alert, Badge, type BadgeProps } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import { formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { pickByLocale } from '@/lib/locale-shared';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
 import { routesBStrings as RB } from '@/i18n/strings/routes-b';
 
@@ -63,7 +65,7 @@ function resolveCutOff(status: string): CutOffKey {
 }
 
 type StatusTone = {
-  readonly pill: string;
+  readonly variant: BadgeProps['variant'];
   readonly label: { readonly sw: string; readonly en: string };
   readonly icon: React.ElementType;
 };
@@ -71,27 +73,27 @@ type StatusTone = {
 function statusTone(status: string): StatusTone {
   if (status === 'submitted') {
     return {
-      pill: 'border-success/40 bg-success/10 text-success',
+      variant: 'success-soft',
       label: S.royaltyStatusSubmitted,
       icon: CheckCircle2,
     };
   }
   if (status === 'signed') {
     return {
-      pill: 'border-info/40 bg-info/10 text-info',
+      variant: 'info-soft',
       label: S.royaltyStatusSigned,
       icon: PenLine,
     };
   }
   if (status === 'reviewing') {
     return {
-      pill: 'border-warning/40 bg-warning/10 text-warning',
+      variant: 'warning-soft',
       label: S.royaltyStatusReviewing,
       icon: Clock,
     };
   }
   return {
-    pill: 'border-border bg-surface text-neutral-300',
+    variant: 'secondary',
     label: S.royaltyStatusDraft,
     icon: PenLine,
   };
@@ -185,7 +187,7 @@ export function RoyaltyDraftPanel({
             <h2 className="text-sm font-semibold text-foreground">
               {isSw ? S.royaltyPanelTitle.sw : S.royaltyPanelTitle.en}
             </h2>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               {isSw ? S.royaltyPanelSubtitle.sw : S.royaltyPanelSubtitle.en}
             </p>
           </div>
@@ -200,43 +202,37 @@ export function RoyaltyDraftPanel({
 
         {/* Loading */}
         {isLoading ? (
-          <div className="flex items-center gap-2 px-5 py-6 text-sm text-neutral-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {isSw
-              ? RB.sharedClientStrings.loadingDrafts.sw
-              : RB.sharedClientStrings.loadingDrafts.en}
+          <div className="space-y-2 px-5 py-6" aria-busy="true">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 rounded-lg" />
+            ))}
           </div>
         ) : null}
 
         {/* Error */}
         {isError ? (
           <div className="px-5 py-6">
-            <p className="text-xs text-destructive">
+            <Alert variant="error">
               {error instanceof ApiError
                 ? error.message
-                : isSw
-                  ? RB.sharedClientStrings.couldNotLoadRoyaltyDrafts.sw
-                  : RB.sharedClientStrings.couldNotLoadRoyaltyDrafts.en}
-            </p>
+                : pickByLocale(locale, RB.sharedClientStrings.couldNotLoadRoyaltyDrafts)}
+            </Alert>
           </div>
         ) : null}
 
         {/* Empty */}
         {!isLoading && !isError && drafts.length === 0 ? (
-          <div className="px-5 py-6 text-center">
-            <CheckCircle2 className="mx-auto h-8 w-8 text-neutral-500" />
-            <p className="mt-2 text-sm text-neutral-400">
-              {isSw
-                ? RB.sharedClientStrings.noRoyaltyDrafts.sw
-                : RB.sharedClientStrings.noRoyaltyDrafts.en}
-            </p>
-          </div>
+          <ScreenEmptyState
+            icon={<CheckCircle2 className="h-6 w-6" />}
+            title={pickByLocale(locale, S.royaltyPanelTitle)}
+            description={pickByLocale(locale, RB.sharedClientStrings.noRoyaltyDrafts)}
+          />
         ) : null}
 
         {/* Table */}
         {drafts.length > 0 ? (
           <>
-            <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
+            <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-muted-foreground md:grid">
               <div className="col-span-4">
                 {isSw ? S.royaltyColMineral.sw : S.royaltyColMineral.en}
               </div>
@@ -264,11 +260,11 @@ export function RoyaltyDraftPanel({
                       <div className="text-sm font-medium text-foreground">
                         {row.mineral}
                       </div>
-                      <div className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-neutral-500">
+                      <div className="mt-0.5 text-tiny font-mono uppercase tracking-widest text-muted-foreground">
                         {isSw ? S[cutOff].sw : S[cutOff].en}
                       </div>
                     </div>
-                    <div className="col-span-2 text-xs text-neutral-300">
+                    <div className="col-span-2 text-xs text-muted-foreground">
                       {row.quantity !== null && row.unit
                         ? `${row.quantity.toLocaleString()} ${row.unit}`
                         : '—'}
@@ -279,12 +275,10 @@ export function RoyaltyDraftPanel({
                         : '—'}
                     </div>
                     <div className="col-span-3 flex justify-start md:justify-end">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
-                      >
+                      <Badge variant={tone.variant} className="gap-1.5">
                         <Icon className="h-3 w-3" />
                         {isSw ? tone.label.sw : tone.label.en}
-                      </span>
+                      </Badge>
                     </div>
                   </li>
                 );

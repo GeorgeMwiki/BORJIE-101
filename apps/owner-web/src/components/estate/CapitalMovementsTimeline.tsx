@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowRightLeft } from 'lucide-react';
+import { Skeleton, Alert } from '@borjie/design-system';
 import {
   useEstateCapitalMovements,
   useEstateEntities,
@@ -8,8 +9,10 @@ import {
   type EstateEntityRow,
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { MetricStrip } from '@/components/shared/MetricStrip';
 import { formatLargeMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { pickByLocale } from '@/lib/locale-shared';
 import type { Locale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
@@ -31,16 +34,21 @@ export function CapitalMovementsTimeline({
 
   if (movementsQuery.isLoading || entitiesQuery.isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? S.capitalMovements.loading.sw : S.capitalMovements.loading.en}
+      <div className="space-y-6" aria-busy="true">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl border border-border" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl border border-border" />
       </div>
     );
   }
   if (movementsQuery.isError) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? S.capitalMovements.loadError.sw : S.capitalMovements.loadError.en}
-      </div>
+      <Alert variant="error">
+        {pickByLocale(locale, S.capitalMovements.loadError)}
+      </Alert>
     );
   }
   const movements = movementsQuery.data?.data?.movements ?? [];
@@ -96,9 +104,11 @@ export function CapitalMovementsTimeline({
         }
       >
         {movements.length === 0 ? (
-          <div className="px-5 py-8 text-sm text-neutral-500">
-            {isSw ? S.capitalMovements.empty.sw : S.capitalMovements.empty.en}
-          </div>
+          <ScreenEmptyState
+            icon={<ArrowRightLeft className="h-6 w-6" />}
+            title={pickByLocale(locale, S.capitalMovements.emptyTitle)}
+            description={pickByLocale(locale, S.capitalMovements.empty)}
+          />
         ) : (
           <ul className="divide-y divide-border">
             {movements.map((m) => (
@@ -132,12 +142,12 @@ function FlowRow({ movement, nameById, locale }: FlowRowProps) {
   return (
     <li className="flex items-start justify-between gap-3 px-5 py-3">
       <div className="flex min-w-0 items-start gap-3">
-        <ArrowRightLeft className="mt-1 h-4 w-4 shrink-0 text-neutral-500" />
+        <ArrowRightLeft className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium text-foreground">
             {fromName} {locale === 'sw' ? S.capitalMovements.to.sw : S.capitalMovements.to.en} {toName}
           </div>
-          <div className="text-xs text-neutral-500">
+          <div className="text-xs text-muted-foreground">
             {movement.kind} · {new Date(movement.happenedAt).toISOString().slice(0, 10)}
             {movement.narrative ? ` · ${movement.narrative}` : ''}
           </div>

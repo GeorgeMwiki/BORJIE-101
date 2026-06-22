@@ -22,10 +22,10 @@ export default function SavedSearchesPage() {
         <h1 className="font-display text-3xl text-foreground">
           Saved searches
         </h1>
-        <p className="mt-0.5 text-xs italic text-neutral-500">
+        <p className="mt-0.5 text-xs italic text-muted-foreground">
           Utafutaji uliohifadhiwa — pata arifa zinapokuja
         </p>
-        <p className="mt-3 max-w-2xl text-sm text-neutral-300">
+        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
           Create alert rules: the worker re-runs each search on its
           chosen cadence and notifies you the moment new matches arrive.
         </p>

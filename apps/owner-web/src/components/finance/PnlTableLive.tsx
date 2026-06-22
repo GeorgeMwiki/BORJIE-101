@@ -15,9 +15,10 @@
  */
 
 import { useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Alert, Input } from '@borjie/design-system';
 import { PnlTable } from './PnlTable';
 import { usePnl, currentMonthYYYYMM } from '@/lib/queries/pnl';
+import { pickByLocale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface PnlTableLiveProps {
@@ -37,30 +38,25 @@ export function PnlTableLive({ locale, initialMonth }: PnlTableLiveProps) {
         <h3 className="text-sm font-semibold text-foreground">
           {locale === 'sw' ? S.pnl.monthlyTitle.sw : S.pnl.monthlyTitle.en}
         </h3>
-        <input
+        <Input
           type="month"
+          inputSize="sm"
           value={month}
           onChange={(e) => setMonth(e.target.value)}
-          className="rounded border border-border bg-background px-2 py-1 text-xs text-foreground"
-          aria-label={locale === 'sw' ? S.pnl.selectMonth.sw : S.pnl.selectMonth.en}
+          className="w-auto"
+          aria-label={pickByLocale(locale, S.pnl.selectMonth)}
         />
       </div>
       {isLoading && (
         <div className="space-y-2" data-testid="pnl-loading">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-6 animate-pulse rounded bg-surface-raised"
-            />
+            <Skeleton key={i} className="h-6 rounded" />
           ))}
         </div>
       )}
       {isError && (
-        <div
-          className="rounded border border-destructive/60 bg-destructive/10 p-3 text-xs text-destructive"
-          data-testid="pnl-error"
-        >
-          {locale === 'sw' ? S.pnl.loadError.sw : S.pnl.loadError.en}
+        <Alert variant="error" data-testid="pnl-error">
+          {pickByLocale(locale, S.pnl.loadError)}
           <Button
             type="button"
             variant="link"
@@ -68,9 +64,9 @@ export function PnlTableLive({ locale, initialMonth }: PnlTableLiveProps) {
             onClick={() => refetch()}
             className="ml-2"
           >
-            {locale === 'sw' ? S.pnl.retry.sw : S.pnl.retry.en}
+            {pickByLocale(locale, S.pnl.retry)}
           </Button>
-        </div>
+        </Alert>
       )}
       {data && !isLoading && !isError && (
         <PnlTable rows={data.rows} />

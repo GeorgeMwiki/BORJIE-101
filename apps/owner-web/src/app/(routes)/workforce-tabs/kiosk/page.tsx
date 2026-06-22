@@ -36,7 +36,7 @@ export default async function WorkforceKioskPage(): Promise<JSX.Element> {
   return (
     <div className="space-y-6 px-8 py-8">
       <header className="space-y-2">
-        <p className="font-mono text-xs text-neutral-500">O-W-WORKFORCE-KIOSK</p>
+        <p className="font-mono text-xs text-muted-foreground">O-W-WORKFORCE-KIOSK</p>
         <h1 className="font-display text-2xl text-foreground">
           {isSw
             ? S.kioskPage.title.sw.replace('{workforce}', SW.workforce)

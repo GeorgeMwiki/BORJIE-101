@@ -14,7 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, FormField, Input, Skeleton, Alert } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import {
   routesAStrings as S,
@@ -194,70 +194,66 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
   const stageLabel = isSwahili ? STAGE_LABEL_SW : STAGE_LABEL_EN;
 
   if (loading && !view) {
-    return (
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/40 p-8 text-sm text-slate-400">
-        {isSwahili ? S.renewalClient.loading.sw : S.renewalClient.loading.en}
-      </div>
-    );
+    return <Skeleton className="h-40 rounded-2xl border border-border" />;
   }
   if (!view) {
     return (
-      <div className="rounded-2xl border border-rose-700/40 bg-rose-950/30 p-6 text-sm text-rose-200">
+      <Alert variant="error">
         {error ??
           (isSwahili
             ? S.renewalClient.licenceNotFound.sw
             : S.renewalClient.licenceNotFound.en)}
-      </div>
+      </Alert>
     );
   }
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 rounded-2xl border border-slate-800 bg-slate-900/40 p-6 md:grid-cols-3">
+      <section className="grid gap-4 rounded-2xl border border-border bg-surface/40 p-6 md:grid-cols-3">
         <div>
-          <p className="text-xs uppercase text-slate-500">
+          <p className="text-xs uppercase text-muted-foreground">
             {isSwahili ? S.renewalClient.kind.sw : S.renewalClient.kind.en}
           </p>
-          <p className="text-lg font-semibold text-slate-100">
+          <p className="text-lg font-semibold text-foreground">
             {view.licence.kind}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase text-slate-500">
+          <p className="text-xs uppercase text-muted-foreground">
             {isSwahili ? S.renewalClient.number.sw : S.renewalClient.number.en}
           </p>
-          <p className="text-lg font-semibold text-slate-100">
+          <p className="text-lg font-semibold text-foreground">
             {view.licence.number}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase text-slate-500">
+          <p className="text-xs uppercase text-muted-foreground">
             {isSwahili ? S.renewalClient.mineral.sw : S.renewalClient.mineral.en}
           </p>
-          <p className="text-lg font-semibold text-slate-100">
+          <p className="text-lg font-semibold text-foreground">
             {view.licence.mineral}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase text-slate-500">
+          <p className="text-xs uppercase text-muted-foreground">
             {isSwahili ? S.renewalClient.expiry.sw : S.renewalClient.expiry.en}
           </p>
-          <p className="text-base font-medium text-slate-100">
+          <p className="text-base font-medium text-foreground">
             {view.licence.expiryDate ?? '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase text-slate-500">
+          <p className="text-xs uppercase text-muted-foreground">
             {isSwahili
               ? S.renewalClient.daysRemaining.sw
               : S.renewalClient.daysRemaining.en}
           </p>
-          <p className="text-base font-medium text-slate-100">
+          <p className="text-base font-medium text-foreground">
             {view.daysUntilExpiry ?? '—'}
           </p>
         </div>
         <div>
-          <p className="text-xs uppercase text-slate-500">
+          <p className="text-xs uppercase text-muted-foreground">
             {isSwahili ? S.renewalClient.stage.sw : S.renewalClient.stage.en}
           </p>
           <p className="text-base font-medium text-signal-300">
@@ -266,25 +262,17 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
         </div>
       </section>
 
-      {error && (
-        <div className="rounded-md border border-rose-700/40 bg-rose-950/30 px-4 py-2 text-sm text-rose-200">
-          {error}
-        </div>
-      )}
-      {message && (
-        <div className="rounded-md border border-emerald-700/40 bg-emerald-950/30 px-4 py-2 text-sm text-emerald-200">
-          {message}
-        </div>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
+      {message && <Alert variant="success">{message}</Alert>}
 
       {(view.stage === 'no_action' || view.stage === 'reminder') && (
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-          <h2 className="text-base font-semibold text-slate-100">
+        <section className="rounded-2xl border border-border bg-surface/40 p-6">
+          <h2 className="text-base font-semibold text-foreground">
             {isSwahili
               ? S.renewalClient.startDraftHeading.sw
               : S.renewalClient.startDraftHeading.en}
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-muted-foreground">
             {isSwahili
               ? S.renewalClient.startDraftBody.sw
               : S.renewalClient.startDraftBody.en}
@@ -303,40 +291,44 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       )}
 
       {(view.stage === 'drafting' || view.stage === 'awaiting_owner') && (
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/40 p-6">
-          <h2 className="text-base font-semibold text-slate-100">
+        <section className="rounded-2xl border border-border bg-surface/40 p-6">
+          <h2 className="text-base font-semibold text-foreground">
             {isSwahili
               ? S.renewalClient.submitToRegulatorHeading.sw
               : S.renewalClient.submitToRegulatorHeading.en}
           </h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <p className="mt-1 text-sm text-muted-foreground">
             {isSwahili
               ? S.renewalClient.submitToRegulatorBody.sw
               : S.renewalClient.submitToRegulatorBody.en}
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <label className="text-sm text-slate-300">
-              {isSwahili
-                ? S.renewalClient.submissionReferenceLabel.sw
-                : S.renewalClient.submissionReferenceLabel.en}
-              <input
+            <FormField
+              label={
+                isSwahili
+                  ? S.renewalClient.submissionReferenceLabel.sw
+                  : S.renewalClient.submissionReferenceLabel.en
+              }
+            >
+              <Input
                 value={submissionRef}
                 onChange={(e) => setSubmissionRef(e.target.value)}
                 placeholder="NEMC-REF-2026-…"
-                className="mt-1 w-full rounded-md border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
               />
-            </label>
-            <label className="text-sm text-slate-300">
-              {isSwahili
-                ? S.renewalClient.renewalDocUrlLabel.sw
-                : S.renewalClient.renewalDocUrlLabel.en}
-              <input
+            </FormField>
+            <FormField
+              label={
+                isSwahili
+                  ? S.renewalClient.renewalDocUrlLabel.sw
+                  : S.renewalClient.renewalDocUrlLabel.en
+              }
+            >
+              <Input
                 value={renewalDocUrl}
                 onChange={(e) => setRenewalDocUrl(e.target.value)}
                 placeholder="https://…"
-                className="mt-1 w-full rounded-md border-slate-700 bg-slate-950/40 px-3 py-2 text-sm text-slate-100"
               />
-            </label>
+            </FormField>
           </div>
           <div className="mt-4 flex justify-end">
             <Button
@@ -353,7 +345,7 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       )}
 
       {(view.stage === 'submitted' || view.stage === 'renewed') && (
-        <section className="rounded-2xl border border-emerald-800 bg-emerald-950/30 p-6 text-sm text-emerald-200">
+        <section className="rounded-2xl border border-success/40 bg-success-subtle p-6 text-sm text-success">
           {isSwahili
             ? S.renewalClient.renewalComplete.sw
             : S.renewalClient.renewalComplete.en}

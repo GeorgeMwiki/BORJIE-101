@@ -16,8 +16,8 @@ const TYPE_PILL: Record<DocumentRecord['type'], string> = {
   PML: 'border-warning/40 text-warning',
   EPP: 'border-success/40 text-success',
   assay: 'border-info/40 text-info',
-  invoice: 'border-border text-neutral-300',
-  MoU: 'border-border text-neutral-300',
+  invoice: 'border-border text-muted-foreground',
+  MoU: 'border-border text-muted-foreground',
   audit: 'border-destructive/40 text-destructive',
 };
 
@@ -63,7 +63,7 @@ export function DocumentList({
                     <ProvenancePill provenance={doc.provenance} />
                   ) : null}
                 </div>
-                <div className="mt-0.5 text-xs text-neutral-500">
+                <div className="mt-0.5 text-xs text-muted-foreground">
                   {doc.mineral} · {doc.pages}p · uploaded {fmtDate(doc.uploadedAt)}
                 </div>
               </button>
@@ -73,7 +73,7 @@ export function DocumentList({
                 className={`rounded-md border px-2 py-0.5 text-tiny ${
                   isCompare
                     ? 'border-warning text-warning'
-                    : 'border-border text-neutral-400 hover:text-foreground'
+                    : 'border-border text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {isCompare ? 'comparing' : 'compare'}

@@ -65,7 +65,7 @@ export function ReportForm() {
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <form onSubmit={(e) => void handleSubmit(submit)(e)} className="space-y-4" noValidate>
         <fieldset>
-          <legend className="text-xs uppercase tracking-wide text-neutral-500">
+          <legend className="text-xs uppercase tracking-wide text-muted-foreground">
             Report type
           </legend>
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
@@ -84,7 +84,7 @@ export function ReportForm() {
                   <span className="block font-medium text-foreground">
                     {report.title}
                   </span>
-                  <span className="block text-xs text-neutral-500">
+                  <span className="block text-xs text-muted-foreground">
                     {report.description}
                   </span>
                 </span>
@@ -139,7 +139,7 @@ function DateField({
 }) {
   return (
     <label className="block text-sm">
-      <span className="block text-xs uppercase tracking-wide text-neutral-500">
+      <span className="block text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <input

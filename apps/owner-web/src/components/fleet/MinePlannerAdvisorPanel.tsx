@@ -2,65 +2,75 @@
 
 import { useState, type ReactElement } from 'react';
 import { CalendarClock, AlertTriangle } from 'lucide-react';
-import { Card } from '@borjie/design-system';
+import {
+  Card,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
 import { formatCurrency } from '@borjie/genui';
 import { useSitesList } from '@/lib/queries/sites';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
+import type { Locale } from '@/lib/locale-shared';
 import {
   useMinePlannerAdvice,
   type PlanRecommendation,
 } from '@/lib/queries/mine-planner-advisor';
+import { minePlannerAdvisorStrings as S } from '@/i18n/strings/mine-planner-advisor';
 
 /**
  * Mine-planner-advisor recommendations panel (O-W-09 companion).
  *
  * Surfaces the REAL `@borjie/mine-planner-advisor` output — a 24h shift
  * plan (per-shift tonnage / hours / opex) + skill-gap recommendations
- * computed server-side from the tenant's live `ore_parcels` + `assets`
- * (see services/api-gateway/src/routes/mining/mine-planner.hono.ts). The
- * owner picks a site; the panel renders plan totals and each
+ * computed server-side from the tenant's live `ore_parcels` + `assets`.
+ * The owner picks a site; the panel renders plan totals and each
  * recommendation with its evidence chain (CLAUDE.md evidence-required).
  *
- * Mounted alongside the existing FleetMaintenanceSurface — it does NOT
- * touch the page nav. Opex is rendered through `formatCurrency` with the
- * tenant's display currency (passed in by the page); never hard-coded.
- * All states (loading / empty / degraded / error) render real copy.
+ * Opex is rendered through `formatCurrency` with the tenant's display
+ * currency (passed in by the page); never hard-coded. All states
+ * (loading / empty / degraded / error) render real per-locale copy.
  */
 
 const SEVERITY_TONE: Record<PlanRecommendation['severity'], string> = {
-  info: 'border-info/40 text-info bg-info/10',
-  low: 'border-info/40 text-info bg-info/10',
-  medium: 'border-warning/40 text-warning bg-warning/10',
-  high: 'border-destructive/40 text-destructive bg-destructive/10',
-  critical: 'border-destructive/60 text-destructive bg-destructive/15',
+  info: 'border-info/40 text-info bg-info-subtle',
+  low: 'border-info/40 text-info bg-info-subtle',
+  medium: 'border-warning/40 text-warning bg-warning-subtle',
+  high: 'border-danger/40 text-danger bg-danger-subtle',
+  critical: 'border-danger/60 text-danger bg-danger-subtle',
 };
 
-function fmt(n: number, digits = 1): string {
+function fmt(n: number, locale: Locale, digits = 1): string {
   return Number.isFinite(n)
-    ? n.toLocaleString(undefined, { maximumFractionDigits: digits })
+    ? n.toLocaleString(bcp47For(locale), { maximumFractionDigits: digits })
     : '—';
 }
 
 interface MinePlannerAdvisorPanelProps {
   /**
    * Tenant display currency (ISO-4217), supplied by the page so KE/UG/NG
-   * tenants render their own currency — never hard-coded here. When the
-   * page has no currency source the panel renders opex as a bare
-   * localized number (no invented currency symbol) rather than assuming
-   * one, honoring CLAUDE.md's "never hard-code currency in code paths".
+   * tenants render their own currency — never hard-coded here.
    */
   readonly currencyCode?: string;
+  /** Seeded by the server-resolved session so SSR + first paint agree. */
+  readonly locale?: Locale;
 }
 
-function formatOpex(value: number, currencyCode?: string): string {
+function formatOpex(value: number, locale: Locale, currencyCode?: string): string {
   const rounded = Math.round(value);
   return currencyCode
     ? formatCurrency(rounded, currencyCode)
-    : rounded.toLocaleString();
+    : rounded.toLocaleString(bcp47For(locale));
 }
 
 export function MinePlannerAdvisorPanel({
   currencyCode,
+  locale: seeded,
 }: MinePlannerAdvisorPanelProps): ReactElement {
+  const locale = useLocale(seeded);
   const sitesQ = useSitesList();
   const sites = sitesQ.data ?? [];
   const [siteId, setSiteId] = useState<string | undefined>(undefined);
@@ -71,48 +81,49 @@ export function MinePlannerAdvisorPanel({
     <Card className="rounded-2xl p-6">
       <header className="mb-4 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="rounded-xl border border-info/40 bg-info/10 p-2 text-info">
+          <span className="rounded-xl border border-info/40 bg-info-subtle p-2 text-info">
             <CalendarClock className="h-5 w-5" />
           </span>
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              Shift-Plan Advisor
+              {pickByLocale(locale, S.title)}
             </h2>
-            <p className="text-xs text-neutral-400">
-              24h polygon → equipment → crew plan + skill-gap advice
-            </p>
+            <p className="text-xs text-muted-foreground">{pickByLocale(locale, S.subtitle)}</p>
           </div>
         </div>
         {sites.length > 0 && (
-          <select
+          <Select
             value={activeSiteId ?? ''}
-            onChange={(e) => setSiteId(e.target.value)}
-            className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
-            aria-label="Select site"
+            onValueChange={(value) => setSiteId(value)}
           >
-            {sites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="h-8 w-44 text-xs" aria-label={pickByLocale(locale, S.selectSite)}>
+              <SelectValue placeholder={pickByLocale(locale, S.selectSite)} />
+            </SelectTrigger>
+            <SelectContent>
+              {sites.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </header>
 
-      {sitesQ.isLoading && <p className="text-xs text-neutral-400">Loading sites…</p>}
+      {sitesQ.isLoading && (
+        <p className="text-xs text-muted-foreground">{pickByLocale(locale, S.loadingSites)}</p>
+      )}
       {!sitesQ.isLoading && sites.length === 0 && (
-        <p className="text-xs text-neutral-400">
-          No sites yet — add a site to compute a shift plan.
-        </p>
+        <p className="text-xs text-muted-foreground">{pickByLocale(locale, S.noSites)}</p>
       )}
 
       {activeSiteId && adviceQ.isLoading && (
-        <p className="text-xs text-neutral-400">Computing shift plan…</p>
+        <p className="text-xs text-muted-foreground">{pickByLocale(locale, S.computing)}</p>
       )}
       {activeSiteId && adviceQ.isError && (
-        <p className="flex items-center gap-2 text-xs text-destructive">
+        <p className="flex items-center gap-2 text-xs text-danger">
           <AlertTriangle className="h-4 w-4" />
-          Advisor unavailable. Try again shortly.
+          {pickByLocale(locale, S.advisorUnavailable)}
         </p>
       )}
 
@@ -121,25 +132,25 @@ export function MinePlannerAdvisorPanel({
           {adviceQ.data.plan ? (
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <Stat
-                label="Planned tonnes"
-                value={fmt(adviceQ.data.plan.totalEstimatedTonnes, 0)}
+                label={pickByLocale(locale, S.statPlannedTonnes)}
+                value={fmt(adviceQ.data.plan.totalEstimatedTonnes, locale, 0)}
               />
               <Stat
-                label="Unmet tonnes"
-                value={fmt(adviceQ.data.plan.unmetTonnes, 0)}
+                label={pickByLocale(locale, S.statUnmetTonnes)}
+                value={fmt(adviceQ.data.plan.unmetTonnes, locale, 0)}
               />
               <Stat
-                label="Assignments"
-                value={fmt(adviceQ.data.plan.assignments.length, 0)}
+                label={pickByLocale(locale, S.statAssignments)}
+                value={fmt(adviceQ.data.plan.assignments.length, locale, 0)}
               />
               <Stat
-                label="Plan opex"
-                value={formatOpex(adviceQ.data.plan.totalEstimatedOpex, currencyCode)}
+                label={pickByLocale(locale, S.statPlanOpex)}
+                value={formatOpex(adviceQ.data.plan.totalEstimatedOpex, locale, currencyCode)}
               />
             </dl>
           ) : (
-            <p className="text-xs text-neutral-400">
-              {adviceQ.data.note ?? 'No parcels or fleet to plan for this site.'}
+            <p className="text-xs text-muted-foreground">
+              {adviceQ.data.note ?? pickByLocale(locale, S.noParcels)}
             </p>
           )}
 
@@ -151,9 +162,9 @@ export function MinePlannerAdvisorPanel({
                   className={`rounded-xl border p-3 text-xs ${SEVERITY_TONE[r.severity]}`}
                 >
                   <p className="font-semibold">{r.title}</p>
-                  <p className="mt-1 text-neutral-300">{r.rationale}</p>
-                  <p className="mt-2 text-[10px] uppercase tracking-wide text-neutral-500">
-                    Evidence: {r.evidence.map((e) => e.id).join(', ')}
+                  <p className="mt-1 text-muted-foreground">{r.rationale}</p>
+                  <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                    {pickByLocale(locale, S.evidence)}: {r.evidence.map((e) => e.id).join(', ')}
                   </p>
                 </li>
               ))}
@@ -161,9 +172,7 @@ export function MinePlannerAdvisorPanel({
           )}
 
           {adviceQ.data.plan && adviceQ.data.recommendations.length === 0 && (
-            <p className="text-xs text-success">
-              Plan meets target with no skill gaps.
-            </p>
+            <p className="text-xs text-success">{pickByLocale(locale, S.noGaps)}</p>
           )}
         </div>
       )}
@@ -174,7 +183,7 @@ export function MinePlannerAdvisorPanel({
 function Stat({ label, value }: { label: string; value: string }): ReactElement {
   return (
     <div className="rounded-xl border border-border bg-background/60 p-3">
-      <dt className="text-[10px] uppercase tracking-wide text-neutral-500">{label}</dt>
+      <dt className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-sm font-semibold text-foreground">{value}</dd>
     </div>
   );

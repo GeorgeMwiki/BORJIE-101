@@ -30,7 +30,7 @@ import {
   ServerCrash,
   Database,
 } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton } from '@borjie/design-system';
 import type {
   CourseLanguage,
   CourseWithLessons,
@@ -133,9 +133,9 @@ export function CourseViewClient({ locale, courseId }: CourseViewClientProps) {
 function CourseSkeleton() {
   return (
     <div className="space-y-3" aria-busy="true">
-      <div className="h-28 w-full animate-pulse rounded-2xl bg-surface/40" />
+      <Skeleton className="h-28 w-full rounded-2xl" />
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-14 w-full animate-pulse rounded-2xl bg-surface/40" />
+        <Skeleton key={i} className="h-14 w-full rounded-2xl" />
       ))}
     </div>
   );
@@ -149,7 +149,7 @@ function GeneratingPanel({ locale }: { readonly locale: CourseLanguage }) {
         <Sparkles className="h-10 w-10 text-signal-500/40" aria-hidden="true" />
         <Loader2 className="absolute inset-0 h-10 w-10 animate-spin text-signal-500" aria-hidden="true" />
       </div>
-      <p className="text-sm text-neutral-400">{tr.t('generating')}</p>
+      <p className="text-sm text-muted-foreground">{tr.t('generating')}</p>
     </div>
   );
 }
@@ -167,7 +167,7 @@ function ErrorPanel({
   return (
     <div
       role="alert"
-      className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning"
+      className="flex items-center gap-3 rounded-2xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning"
     >
       <ServerCrash className="h-5 w-5 shrink-0" aria-hidden="true" />
       <span>{unavailable ? tr.t('serviceUnavailable') : tr.t('loadError')}</span>
@@ -193,13 +193,13 @@ function FailedPanel({
 }) {
   const tr = coursesT(locale);
   return (
-    <div className="space-y-4 rounded-2xl border border-destructive/40 bg-destructive/10 p-6 text-center">
-      <AlertTriangle className="mx-auto h-9 w-9 text-destructive" aria-hidden="true" />
+    <div className="space-y-4 rounded-2xl border border-danger/40 bg-danger-subtle p-6 text-center">
+      <AlertTriangle className="mx-auto h-9 w-9 text-danger" aria-hidden="true" />
       <div>
         <h2 className="text-base font-semibold text-foreground">
           {tr.t('generationFailedTitle')}
         </h2>
-        <p className="mt-1 text-sm text-neutral-300">{message}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{message}</p>
       </div>
       <Link
         href="/training/create-course"
@@ -240,18 +240,18 @@ function ReadyCourse({
           >
             {tr.difficultyLabel(course.difficulty)}
           </span>
-          <span className="text-neutral-500">
+          <span className="text-muted-foreground">
             {tr.tp('lessonCount', { count: course.lessonCount })}
           </span>
           {totalMinutes > 0 ? (
-            <span className="text-neutral-500">
+            <span className="text-muted-foreground">
               {tr.tp('minutes', { count: totalMinutes })}
             </span>
           ) : null}
           <ProvenanceBadge locale={locale} via={course.generatedVia} />
         </div>
         <h1 className="mt-3 text-xl font-semibold text-foreground">{course.title}</h1>
-        <p className="mt-1.5 text-sm leading-relaxed text-neutral-400">
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           {course.summary}
         </p>
       </header>
@@ -284,7 +284,7 @@ function ProvenanceBadge({
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-slate-900/60 px-2 py-0.5 text-tiny font-medium text-neutral-400">
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-tiny font-medium text-muted-foreground">
       <Database className="h-3 w-3" aria-hidden="true" />
       {tr.t('viaDeterministic')}
     </span>
@@ -323,14 +323,14 @@ function LessonCard({
         </span>
         {lesson.status === 'completed' ? (
           <CheckCircle2
-            className="h-4 w-4 text-emerald-400"
+            className="h-4 w-4 text-success"
             aria-label={tr.t('completed')}
           />
         ) : null}
         {open ? (
-          <ChevronDown className="h-4 w-4 text-neutral-500" aria-hidden="true" />
+          <ChevronDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         ) : (
-          <ChevronRight className="h-4 w-4 text-neutral-500" aria-hidden="true" />
+          <ChevronRight className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
         )}
       </button>
 
@@ -338,10 +338,10 @@ function LessonCard({
         <div className="space-y-4 border-t border-border px-4 py-4">
           {objectives.length > 0 ? (
             <div>
-              <h3 className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500">
+              <h3 className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-muted-foreground">
                 {tr.t('objectives')}
               </h3>
-              <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-neutral-300">
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
                 {objectives.map((o, i) => (
                   <li key={i}>{o}</li>
                 ))}
@@ -350,7 +350,7 @@ function LessonCard({
           ) : null}
 
           {content.content ? (
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-200">
+            <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
               {content.content}
             </div>
           ) : null}
@@ -360,7 +360,7 @@ function LessonCard({
               <h3 className="text-tiny font-semibold uppercase tracking-eyebrow-wide text-signal-300">
                 {tr.t('keyTakeaways')}
               </h3>
-              <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-neutral-200">
+              <ul className="mt-1.5 list-disc space-y-0.5 pl-5 text-sm text-foreground">
                 {keyTakeaways.map((k, i) => (
                   <li key={i}>{k}</li>
                 ))}
@@ -369,7 +369,7 @@ function LessonCard({
           ) : null}
 
           {quiz.length > 0 ? (
-            <p className="text-xs text-neutral-500">
+            <p className="text-xs text-muted-foreground">
               {tr.tp('quizCount', { count: quiz.length })}
             </p>
           ) : null}

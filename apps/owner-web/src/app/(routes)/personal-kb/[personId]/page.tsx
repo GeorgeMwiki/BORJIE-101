@@ -23,17 +23,17 @@ export default async function PersonalKbDetailPage({ params }: PageProps) {
       <header className="border-b border-border pb-4">
         <Link
           href="/personal-kb"
-          className="text-xs text-neutral-400 hover:text-foreground"
+          className="text-xs text-muted-foreground hover:text-foreground"
         >
           ← All hats / Kofia zote
         </Link>
         <h1 className="mt-2 font-display text-3xl text-foreground">
           Personal memory cells
         </h1>
-        <p className="mt-0.5 text-xs italic text-neutral-500">
+        <p className="mt-0.5 text-xs italic text-muted-foreground">
           Vipande vya kumbukumbu — kila kitu ninachokujua kuhusu wewe
         </p>
-        <p className="mt-3 font-mono text-xs text-neutral-500">
+        <p className="mt-3 font-mono text-xs text-muted-foreground">
           person id: {personId}
         </p>
       </header>

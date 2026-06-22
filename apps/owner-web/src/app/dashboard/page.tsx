@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Brain, Sparkles } from 'lucide-react';
+import { Skeleton } from '@borjie/design-system';
 import { getOwnerSession } from '@/lib/session';
 import { getServerT } from '@/i18n/t.server';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
@@ -95,7 +96,7 @@ async function GreetingHero() {
       <h1 className="mt-3 font-display text-4xl font-medium tracking-tight text-foreground sm:text-5xl">
         {greeting}
       </h1>
-      <p className="mt-3 font-mono text-badge uppercase tracking-eyebrow-wide text-neutral-500">
+      <p className="mt-3 font-mono text-badge uppercase tracking-eyebrow-wide text-muted-foreground">
         {subline}
       </p>
       <div className="mt-6 flex flex-wrap gap-3">
@@ -170,7 +171,7 @@ async function OwnerOSRegion() {
     >
       <h2
         id="owner-os-heading"
-        className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
+        className="text-badge font-semibold uppercase tracking-eyebrow-wide text-muted-foreground"
       >
         {t('dashboard.ownerOsHeading')}
       </h2>
@@ -200,7 +201,7 @@ async function LiveSurfaceRegion() {
     <>
       <h2
         id="live-surface-heading"
-        className="text-badge font-semibold uppercase tracking-eyebrow-wide text-neutral-400"
+        className="text-badge font-semibold uppercase tracking-eyebrow-wide text-muted-foreground"
       >
         {t('dashboard.liveBrief')}
       </h2>
@@ -214,13 +215,13 @@ async function LiveSurfaceRegion() {
 function GreetingHeroSkeleton() {
   return (
     <header aria-hidden="true">
-      <div className="h-3 w-32 animate-pulse rounded-full bg-muted/40" />
-      <div className="mt-4 h-12 w-3/4 animate-pulse rounded-lg bg-muted/40" />
-      <div className="mt-3 h-3 w-1/2 animate-pulse rounded-full bg-muted/30" />
+      <Skeleton className="h-3 w-32 rounded-full" />
+      <Skeleton className="mt-4 h-12 w-3/4 rounded-lg" />
+      <Skeleton className="mt-3 h-3 w-1/2 rounded-full" />
       <div className="mt-6 flex flex-wrap gap-3">
-        <div className="h-9 w-32 animate-pulse rounded-full bg-muted/30" />
-        <div className="h-9 w-32 animate-pulse rounded-full bg-muted/20" />
-        <div className="h-9 w-36 animate-pulse rounded-full bg-muted/20" />
+        <Skeleton className="h-9 w-32 rounded-full" />
+        <Skeleton className="h-9 w-32 rounded-full" />
+        <Skeleton className="h-9 w-36 rounded-full" />
       </div>
     </header>
   );
@@ -228,8 +229,8 @@ function GreetingHeroSkeleton() {
 
 function BlockSkeleton({ heightClass }: { readonly heightClass: string }) {
   return (
-    <div
-      className={`${heightClass} animate-pulse rounded-xl border border-border bg-muted/30`}
+    <Skeleton
+      className={`${heightClass} rounded-xl border border-border`}
       aria-hidden="true"
     />
   );
@@ -242,10 +243,7 @@ function BriefSummarySkeleton() {
       aria-hidden="true"
     >
       {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-32 animate-pulse rounded-xl border border-border bg-muted/30"
-        />
+        <Skeleton key={i} className="h-32 rounded-xl border border-border" />
       ))}
     </div>
   );
@@ -254,8 +252,8 @@ function BriefSummarySkeleton() {
 function OwnerOsSkeleton() {
   return (
     <div className="space-y-3" aria-hidden="true">
-      <div className="h-3 w-28 animate-pulse rounded-full bg-muted/30" />
-      <div className="h-48 animate-pulse rounded-xl border border-border bg-muted/20" />
+      <Skeleton className="h-3 w-28 rounded-full" />
+      <Skeleton className="h-48 rounded-xl border border-border" />
     </div>
   );
 }
@@ -263,8 +261,8 @@ function OwnerOsSkeleton() {
 function LiveSurfaceSkeleton() {
   return (
     <div aria-hidden="true">
-      <div className="h-3 w-28 animate-pulse rounded-full bg-muted/30" />
-      <div className="mt-3 h-64 animate-pulse rounded-xl border border-border bg-muted/20" />
+      <Skeleton className="h-3 w-28 rounded-full" />
+      <Skeleton className="mt-3 h-64 rounded-xl border border-border" />
     </div>
   );
 }

@@ -3,19 +3,20 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import {
-  ArrowRight,
   CheckCircle2,
   Clock,
   Inbox,
   Star,
   TrendingUp,
 } from 'lucide-react';
+import { Skeleton, StatusBadge } from '@borjie/design-system';
 import {
   useInboundRfbs,
   useMarketplaceListings,
 } from '@/lib/queries/marketplace';
 import { formatMoney } from '@/lib/format';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
 
 interface MarketplaceBoardProps {
@@ -32,13 +33,6 @@ interface MarketplaceBoardProps {
 
 const GEITA_DEFAULT_LAT = -2.872;
 const GEITA_DEFAULT_LON = 32.158;
-
-function formatTzs(amount: number, isSw: boolean): string {
-  const fmt = new Intl.NumberFormat(isSw ? 'sw-TZ' : 'en-US', {
-    maximumFractionDigits: 0,
-  });
-  return `${fmt.format(amount)} TZS`;
-}
 
 /**
  * Marketplace board — outbound (sell) + inbound (buy) twin columns
@@ -107,15 +101,12 @@ export function MarketplaceBoard({
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-2xl border border-border bg-surface/40"
-            />
+            <Skeleton key={i} className="h-24 rounded-2xl border border-border" />
           ))}
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="h-48 animate-pulse rounded-2xl border border-border bg-surface/40" />
-          <div className="h-48 animate-pulse rounded-2xl border border-border bg-surface/40" />
+          <Skeleton className="h-48 rounded-2xl border border-border" />
+          <Skeleton className="h-48 rounded-2xl border border-border" />
         </div>
       </div>
     );
@@ -140,16 +131,20 @@ export function MarketplaceBoard({
               <h2 className="text-sm font-semibold text-foreground">
                 {isSw ? S.mktOutboundTitle.sw : S.mktOutboundTitle.en}
               </h2>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 {data.outbound.length}{' '}
                 {isSw ? S.mktOutboundSubtitle.sw : S.mktOutboundSubtitle.en}
               </p>
             </div>
           </header>
           {data.outbound.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw ? S.mktOutboundEmpty.sw : S.mktOutboundEmpty.en}
-            </p>
+            <div className="px-5 py-6">
+              <ScreenEmptyState
+                icon={<TrendingUp className="h-6 w-6" />}
+                title={isSw ? S.mktOutboundTitle.sw : S.mktOutboundTitle.en}
+                description={isSw ? S.mktOutboundEmpty.sw : S.mktOutboundEmpty.en}
+              />
+            </div>
           ) : (
             <ul className="divide-y divide-border/60">
               {data.outbound.map((o) => (
@@ -161,7 +156,7 @@ export function MarketplaceBoard({
                     <div className="truncate text-sm font-medium text-foreground">
                       {o.listing}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
+                    <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <span className="font-mono">{formatMoney(o.priceUsd, 'USD', locale)}</span>
                       <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                         LBMA
@@ -182,24 +177,30 @@ export function MarketplaceBoard({
                 <Inbox className="h-4 w-4 text-signal-500" />
                 {isSw ? S.mktInboundTitle.sw : S.mktInboundTitle.en}
               </h2>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 {inboundRfbs.length}{' '}
                 {isSw ? S.mktInboundSubtitle.sw : S.mktInboundSubtitle.en}
               </p>
             </div>
           </header>
           {inboundQuery.isPending ? (
-            <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw ? S.mktInboundLoading.sw : S.mktInboundLoading.en}
-            </p>
+            <div className="space-y-3 px-5 py-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 rounded-xl border border-border" />
+              ))}
+            </div>
           ) : inboundQuery.isError ? (
             <p className="px-5 py-6 text-sm text-destructive">
               {isSw ? S.mktInboundError.sw : S.mktInboundError.en}
             </p>
           ) : inboundRfbs.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-neutral-500">
-              {isSw ? S.mktInboundEmpty.sw : S.mktInboundEmpty.en}
-            </p>
+            <div className="px-5 py-6">
+              <ScreenEmptyState
+                icon={<Inbox className="h-6 w-6" />}
+                title={isSw ? S.mktInboundTitle.sw : S.mktInboundTitle.en}
+                description={isSw ? S.mktInboundEmpty.sw : S.mktInboundEmpty.en}
+              />
+            </div>
           ) : (
             <ul className="divide-y divide-border/60">
               {inboundRfbs.map((rfb) => {
@@ -224,14 +225,14 @@ export function MarketplaceBoard({
                         <div className="truncate text-sm font-medium text-foreground">
                           {rfb.mineralKind} · {tonnage} t
                         </div>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-neutral-400">
-                          <span className="font-mono">{formatTzs(totalTzs, isSw)}</span>
+                        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="font-mono">{formatMoney(totalTzs, 'TZS', locale)}</span>
                           <span className="rounded-full border border-border bg-background px-1.5 text-tiny">
                             {distance}
                           </span>
                         </div>
                         {rfb.notes ? (
-                          <p className="mt-1 line-clamp-1 text-xs text-neutral-500">
+                          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
                             {rfb.notes}
                           </p>
                         ) : null}
@@ -261,24 +262,21 @@ function StatusChip({ status, isSw }: StatusChipProps) {
   const lower = status.toLowerCase();
   if (lower === 'matched') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-2.5 py-0.5 text-badge font-medium text-success">
-        <CheckCircle2 className="h-3 w-3" />
+      <StatusBadge status="success">
         {isSw ? S.mktChipMatched.sw : S.mktChipMatched.en}
-      </span>
+      </StatusBadge>
     );
   }
   if (lower === 'counter') {
     return (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-warning/40 bg-warning/10 px-2.5 py-0.5 text-badge font-medium text-warning">
-        <ArrowRight className="h-3 w-3" />
-        Counter
-      </span>
+      <StatusBadge status="warning">
+        {isSw ? S.mktChipCounter.sw : S.mktChipCounter.en}
+      </StatusBadge>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-info/40 bg-info/10 px-2.5 py-0.5 text-badge font-medium text-info">
-      <Clock className="h-3 w-3" />
+    <StatusBadge status="pending">
       {isSw ? S.mktChipOpen.sw : S.mktChipOpen.en}
-    </span>
+    </StatusBadge>
   );
 }

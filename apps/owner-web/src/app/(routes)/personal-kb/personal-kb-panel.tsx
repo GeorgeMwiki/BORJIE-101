@@ -13,9 +13,10 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Input } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface PersonLink {
   readonly id: string;
@@ -40,15 +41,24 @@ interface MemoryCell {
   readonly capturedAt: string;
 }
 
-const ROLE_LABELS_SW: Record<string, string> = {
-  owner: S.personalKbPanel.roleOwner.both,
-  manager: S.personalKbPanel.roleManager.both,
-  employee: S.personalKbPanel.roleEmployee.both,
-  buyer: S.personalKbPanel.roleBuyer.both,
-  admin: S.personalKbPanel.roleAdmin.both,
-};
+function roleLabel(locale: Locale, role: string): string {
+  const map: Record<string, { readonly en: string; readonly sw: string }> = {
+    owner: S.personalKbPanel.roleOwner,
+    manager: S.personalKbPanel.roleManager,
+    employee: S.personalKbPanel.roleEmployee,
+    buyer: S.personalKbPanel.roleBuyer,
+    admin: S.personalKbPanel.roleAdmin,
+  };
+  const entry = map[role];
+  return entry ? pickByLocale(locale, entry) : role;
+}
 
-export function PersonalKbPanel() {
+export function PersonalKbPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
+  const locale = useLocale(initialLocale);
   const [links, setLinks] = useState<ReadonlyArray<PersonLink>>([]);
   const [loadingLinks, setLoadingLinks] = useState<boolean>(true);
   const [linkError, setLinkError] = useState<string | null>(null);
@@ -116,16 +126,16 @@ export function PersonalKbPanel() {
         }}
       >
         <h2 className="font-display text-xl text-foreground">
-          Search my knowledge base
+          {pickByLocale(locale, S.personalKbPanel.searchHeading)}
         </h2>
-        <p className="text-xs italic text-neutral-500">
-          {S.personalKbPanel.searchGloss.both}
+        <p className="text-xs italic text-muted-foreground">
+          {pickByLocale(locale, S.personalKbPanel.searchGloss)}
         </p>
         <div className="flex gap-2">
-          <input
+          <Input
             type="search"
-            className="flex-1 rounded border border-border bg-background px-3 py-2 text-sm text-foreground"
-            placeholder="e.g. mother / mama / payroll deadline"
+            className="flex-1"
+            placeholder={pickByLocale(locale, S.personalKbPanel.searchPlaceholder)}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             maxLength={200}
@@ -135,30 +145,34 @@ export function PersonalKbPanel() {
             disabled={!query.trim()}
             loading={searching}
           >
-            {S.personalKbPanel.searchButton.both}
+            {pickByLocale(locale, S.personalKbPanel.searchButton)}
           </Button>
         </div>
         {searchError ? (
-          <p className="text-sm text-destructive">Error: {searchError}</p>
+          <p className="text-sm text-destructive">
+            {pickByLocale(locale, S.personalKbPanel.errorPrefix)}
+            {searchError}
+          </p>
         ) : null}
       </form>
 
       {query.trim() ? (
         <div className="rounded-lg border border-border bg-surface p-4">
           <h2 className="font-display text-xl text-foreground">
-            Search results ({searchResults.length})
+            {pickByLocale(locale, S.personalKbPanel.resultsHeading)} (
+            {searchResults.length})
           </h2>
-          <p className="text-xs italic text-neutral-500">
-            {S.personalKbPanel.resultsGloss.both}
+          <p className="text-xs italic text-muted-foreground">
+            {pickByLocale(locale, S.personalKbPanel.resultsGloss)}
           </p>
           {searchResults.length === 0 ? (
-            <p className="mt-4 text-sm text-neutral-400">
-              {S.personalKbPanel.noMatches.both}
+            <p className="mt-4 text-sm text-muted-foreground">
+              {pickByLocale(locale, S.personalKbPanel.noMatches)}
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
               {searchResults.map((cell) => (
-                <MemoryCellRow key={cell.id} cell={cell} />
+                <MemoryCellRow key={cell.id} cell={cell} locale={locale} />
               ))}
             </ul>
           )}
@@ -167,18 +181,29 @@ export function PersonalKbPanel() {
 
       <div className="rounded-lg border border-border bg-surface p-4">
         <h2 className="font-display text-xl text-foreground">
-          Your hats ({links.length})
+          {pickByLocale(locale, S.personalKbPanel.hatsHeading)} ({links.length})
         </h2>
-        <p className="text-xs italic text-neutral-500">
-          {S.personalKbPanel.hatsGloss.both}
+        <p className="text-xs italic text-muted-foreground">
+          {pickByLocale(locale, S.personalKbPanel.hatsGloss)}
         </p>
         {loadingLinks ? (
-          <p className="mt-4 text-sm text-neutral-400">Loading…</p>
+          <div
+            className="mt-4 space-y-2"
+            role="status"
+            aria-label={pickByLocale(locale, S.personalKbPanel.loading)}
+          >
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 rounded border border-border" />
+            ))}
+          </div>
         ) : linkError ? (
-          <p className="mt-4 text-sm text-destructive">Error: {linkError}</p>
+          <p className="mt-4 text-sm text-destructive">
+            {pickByLocale(locale, S.personalKbPanel.errorPrefix)}
+            {linkError}
+          </p>
         ) : links.length === 0 ? (
-          <p className="mt-4 text-sm text-neutral-400">
-            {S.personalKbPanel.noHats.both}
+          <p className="mt-4 text-sm text-muted-foreground">
+            {pickByLocale(locale, S.personalKbPanel.noHats)}
           </p>
         ) : (
           <ul className="mt-4 space-y-2">
@@ -192,25 +217,26 @@ export function PersonalKbPanel() {
                     <p className="font-medium text-foreground">
                       {link.displayName}
                     </p>
-                    <p className="text-xs text-neutral-400">
-                      {(ROLE_LABELS_SW[link.roleInTenant] ?? link.roleInTenant)}
+                    <p className="text-xs text-muted-foreground">
+                      {roleLabel(locale, link.roleInTenant)}
                       {' · '}
-                      tenant {link.tenantId.slice(0, 8)}…
+                      {pickByLocale(locale, S.personalKbPanel.tenantWord)}{' '}
+                      {link.tenantId.slice(0, 8)}…
                       {' · '}
-                      linked {new Date(link.linkedAt).toLocaleDateString()}
+                      {pickByLocale(locale, S.personalKbPanel.linkedWord)}{' '}
+                      {new Date(link.linkedAt).toLocaleDateString()}
                     </p>
                     {!link.consentGranted ? (
-                      <p className="mt-1 text-xs text-amber-400">
-                        Consent not granted yet — open this hat to grant
-                        unified-KB consent.
+                      <p className="mt-1 text-xs text-warning">
+                        {pickByLocale(locale, S.personalKbPanel.consentPending)}
                       </p>
                     ) : null}
                   </div>
                   <Link
                     href={`/personal-kb/${link.personId}`}
-                    className="rounded border border-border px-3 py-1 text-xs text-neutral-200 hover:text-foreground"
+                    className="rounded border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground"
                   >
-                    {S.personalKbPanel.openButton.both}
+                    {pickByLocale(locale, S.personalKbPanel.openButton)}
                   </Link>
                 </div>
               </li>
@@ -222,7 +248,13 @@ export function PersonalKbPanel() {
   );
 }
 
-function MemoryCellRow({ cell }: { readonly cell: MemoryCell }) {
+function MemoryCellRow({
+  cell,
+  locale,
+}: {
+  readonly cell: MemoryCell;
+  readonly locale: Locale;
+}) {
   const valueText =
     typeof cell.value === 'string'
       ? cell.value
@@ -231,14 +263,15 @@ function MemoryCellRow({ cell }: { readonly cell: MemoryCell }) {
     <li className="rounded border border-border bg-background p-3">
       <div className="flex items-start justify-between gap-2">
         <p className="font-medium text-foreground">{cell.key}</p>
-        <span className="rounded-full border border-border px-2 py-0.5 text-xxs text-neutral-400">
+        <span className="rounded-full border border-border px-2 py-0.5 text-xxs text-muted-foreground">
           {cell.cellKind}
         </span>
       </div>
-      <p className="mt-1 text-sm text-neutral-300">{valueText}</p>
-      <p className="mt-1 text-xxs text-neutral-500">
-        captured {new Date(cell.capturedAt).toLocaleString()} · confidence{' '}
-        {cell.confidence}
+      <p className="mt-1 text-sm text-muted-foreground">{valueText}</p>
+      <p className="mt-1 text-xxs text-muted-foreground">
+        {pickByLocale(locale, S.personalKbPanel.captured)}{' '}
+        {new Date(cell.capturedAt).toLocaleString()} ·{' '}
+        {pickByLocale(locale, S.personalKbPanel.confidence)} {cell.confidence}
       </p>
     </li>
   );

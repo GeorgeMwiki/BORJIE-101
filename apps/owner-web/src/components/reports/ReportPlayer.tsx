@@ -137,7 +137,7 @@ export function ReportPlayer({ report, lang = 'sw', shareUrl }: ReportPlayerProp
       <header className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-base font-medium text-foreground">{validated.title}</h2>
-          <p className="text-badge text-neutral-500">{validated.id}</p>
+          <p className="text-badge text-muted-foreground">{validated.id}</p>
         </div>
         <div className="flex items-center gap-2">
           <SpeedSelector
@@ -150,7 +150,7 @@ export function ReportPlayer({ report, lang = 'sw', shareUrl }: ReportPlayerProp
             href={validated.audio_url}
             download
             aria-label={t.download}
-            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-neutral-300 hover:bg-warning-subtle/20 hover:text-warning"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground hover:bg-warning-subtle/20 hover:text-warning"
           >
             <Download className="h-3.5 w-3.5" />
             {t.download}
@@ -218,7 +218,7 @@ interface SpeedSelectorProps {
  */
 function SpeedSelector({ label, speeds, current, onChange }: SpeedSelectorProps) {
   return (
-    <label className="inline-flex items-center gap-1 text-xs text-neutral-400">
+    <label className="inline-flex items-center gap-1 text-xs text-muted-foreground">
       <span className="sr-only">{label}</span>
       <select
         data-testid="speed-selector"

@@ -14,12 +14,26 @@ import {
   ArrowLeft,
   ArrowRight,
   FileText,
-  Loader2,
   Sparkles,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import {
+  Skeleton,
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Alert,
+  Button,
+} from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { fmtDateForLocale } from '@/lib/format';
+import { reportsLibraryPageStrings as S } from '@/i18n/strings/reports-library-page';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,32 +54,19 @@ type ReportVersion = z.infer<typeof ReportVersionSchema>;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const KIND_LABELS: Record<string, string> = {
-  daily: 'Daily owner brief',
-  weekly: 'Weekly strategy memo',
-  monthly: 'Monthly business review',
-  investor: 'Investor / bank pack',
-  board: 'Board pack',
-  audit: 'Audit pack',
-  'community-update': 'Community update',
+const KIND_KEYS: Record<string, keyof typeof S> = {
+  daily: 'kindDaily',
+  weekly: 'kindWeekly',
+  monthly: 'kindMonthly',
+  investor: 'kindInvestor',
+  board: 'kindBoard',
+  audit: 'kindAudit',
+  'community-update': 'kindCommunity',
 };
 
-function kindLabel(kind: string): string {
-  return KIND_LABELS[kind] ?? kind;
-}
-
-function fmtDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
+function kindLabel(kind: string, locale: Locale): string {
+  const key = KIND_KEYS[kind];
+  return key ? pickByLocale(locale, S[key]) : kind;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,15 +77,11 @@ function useReportLibrary(limit = 50) {
   return useQuery({
     queryKey: ['mining', 'reports', 'library', limit],
     queryFn: ({ signal }) =>
-      apiRequest<unknown>(
-        `/api/v1/mining/reports?limit=${limit}`,
-        { signal },
-      ),
+      apiRequest<unknown>(`/api/v1/mining/reports?limit=${limit}`, { signal }),
     select: (raw): ReadonlyArray<ReportVersion> => {
       if (Array.isArray(raw)) {
         return z.array(ReportVersionSchema).parse(raw);
       }
-      // envelope shape
       const env = z
         .object({ success: z.literal(true), data: z.array(ReportVersionSchema) })
         .safeParse(raw);
@@ -99,6 +96,7 @@ function useReportLibrary(limit = 50) {
 // ---------------------------------------------------------------------------
 
 export default function ReportsLibraryPage() {
+  const locale = useLocale();
   const { data, isLoading, isError, error } = useReportLibrary();
   const versions = data ?? [];
 
@@ -108,10 +106,10 @@ export default function ReportsLibraryPage() {
       <div>
         <Link
           href="/reports"
-          className="inline-flex items-center gap-1.5 text-xs text-neutral-400 hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Reports
+          {pickByLocale(locale, S.back)}
         </Link>
       </div>
 
@@ -120,15 +118,13 @@ export default function ReportsLibraryPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 font-mono text-tiny uppercase tracking-eyebrow-wide text-signal-500">
             <FileText className="h-3.5 w-3.5" />
-            <span>Reports · Library</span>
+            <span>{pickByLocale(locale, S.eyebrow)}</span>
           </div>
           <h1 className="font-display text-2xl font-medium text-foreground">
-            Report library
+            {pickByLocale(locale, S.title)}
           </h1>
-          <p className="text-sm text-neutral-400">
-            All generated reports for your estate, newest first. Each report
-            includes a hash anchor for every figure — traceable to the source
-            ledger or document chunk.
+          <p className="text-sm text-muted-foreground">
+            {pickByLocale(locale, S.subtitle)}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -137,112 +133,111 @@ export default function ReportsLibraryPage() {
             className="inline-flex items-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
           >
             <FileText className="h-3.5 w-3.5" />
-            Generate new report
+            {pickByLocale(locale, S.generate)}
           </Link>
           <Link
             href="/ask?prompt=reports"
             className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Ask about analytics
+            {pickByLocale(locale, S.ask)}
           </Link>
         </div>
       </header>
 
       {/* Loading */}
       {isLoading ? (
-        <div className="flex items-center gap-2 text-sm text-neutral-400">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Loading report library…
+        <div
+          className="space-y-3"
+          role="status"
+          aria-label={pickByLocale(locale, S.loadingAria)}
+        >
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-xl border border-border" />
+          ))}
         </div>
       ) : null}
 
       {/* Error */}
       {isError ? (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
-          <p className="text-xs text-destructive">
-            {error instanceof ApiError
-              ? error.message
-              : 'Could not load the report library.'}
-          </p>
-        </div>
+        <Alert variant="error">
+          {error instanceof ApiError
+            ? error.message
+            : pickByLocale(locale, S.loadError)}
+        </Alert>
       ) : null}
 
       {/* Empty */}
       {!isLoading && !isError && versions.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface/40 p-10 text-center">
-          <FileText className="mx-auto h-10 w-10 text-neutral-500" />
-          <p className="mt-3 text-sm font-medium text-foreground">
-            No reports generated yet
-          </p>
-          <p className="mt-1 text-xs text-neutral-400">
-            Use the report generator to produce your first daily brief, monthly
-            review, or board pack.
-          </p>
-          <Link
-            href="/reports"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
-          >
-            <FileText className="h-3.5 w-3.5" />
-            Generate your first report
-          </Link>
-        </div>
+        <ScreenEmptyState
+          icon={<FileText className="h-6 w-6" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.emptyBody)}
+          action={
+            <Button asChild variant="primary" size="sm">
+              <Link href="/reports">{pickByLocale(locale, S.emptyCta)}</Link>
+            </Button>
+          }
+        />
       ) : null}
 
       {/* Report list */}
       {versions.length > 0 ? (
-        <div className="overflow-hidden rounded-2xl border border-border">
-          <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
-            <div className="col-span-4">Type</div>
-            <div className="col-span-3">Generated</div>
-            <div className="col-span-2">Version</div>
-            <div className="col-span-3 text-right">Actions</div>
-          </div>
-          <ul className="divide-y divide-border/60">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{pickByLocale(locale, S.colType)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colGenerated)}</TableHead>
+              <TableHead>{pickByLocale(locale, S.colVersion)}</TableHead>
+              <TableHead className="text-right">
+                {pickByLocale(locale, S.colActions)}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {versions.map((v) => (
-              <li
-                key={v.id}
-                className="grid grid-cols-1 gap-3 px-5 py-4 md:grid-cols-12 md:items-center md:gap-4"
-              >
-                <div className="col-span-4">
+              <TableRow key={v.id}>
+                <TableCell>
                   <p className="text-sm font-medium text-foreground">
-                    {kindLabel(v.renderKind)}
+                    {kindLabel(v.renderKind, locale)}
                   </p>
-                  <p className="mt-0.5 font-mono text-tiny text-neutral-500">
+                  <p className="mt-0.5 font-mono text-tiny text-muted-foreground">
                     {v.reportInstanceId.slice(0, 12)}…
                   </p>
-                </div>
-                <div className="col-span-3 text-xs text-neutral-400">
-                  {fmtDate(v.generatedAt)}
-                </div>
-                <div className="col-span-2 font-mono text-xs text-neutral-400">
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {fmtDateForLocale(v.generatedAt, locale)}
+                </TableCell>
+                <TableCell className="font-mono text-xs text-muted-foreground">
                   {v.version !== null ? `v${v.version}` : '—'}
-                </div>
-                <div className="col-span-3 flex justify-start gap-3 md:justify-end">
-                  {v.pdfUrl ? (
-                    <a
-                      href={v.pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs text-signal-500 hover:underline"
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-3">
+                    {v.pdfUrl ? (
+                      <a
+                        href={v.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-signal-500 hover:underline"
+                      >
+                        <FileText className="h-3 w-3" />
+                        PDF
+                      </a>
+                    ) : null}
+                    <Link
+                      href={`/ask?prompt=report+${v.reportInstanceId}`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      <FileText className="h-3 w-3" />
-                      PDF
-                    </a>
-                  ) : null}
-                  <Link
-                    href={`/ask?prompt=report+${v.reportInstanceId}`}
-                    className="inline-flex items-center gap-1 text-xs text-neutral-400 hover:text-foreground"
-                  >
-                    <Sparkles className="h-3 w-3" />
-                    Discuss
-                    <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </div>
-              </li>
+                      <Sparkles className="h-3 w-3" />
+                      {pickByLocale(locale, S.discuss)}
+                      <ArrowRight className="h-3 w-3" />
+                    </Link>
+                  </div>
+                </TableCell>
+              </TableRow>
             ))}
-          </ul>
-        </div>
+          </TableBody>
+        </Table>
       ) : null}
     </div>
   );

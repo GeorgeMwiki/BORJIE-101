@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, type ReactElement } from 'react';
-import { Network, AlertTriangle } from 'lucide-react';
+import { Network } from 'lucide-react';
+import { Skeleton, Alert } from '@borjie/design-system';
 import {
   GraphVizBlock,
   RoyaltyFlowSankey,
@@ -13,11 +14,13 @@ import {
   type EstateEntityTreeNode,
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import {
   entityTreeToGraph,
   capitalMovementsToRoyaltyFlows,
   nameLookupFromGraph,
 } from '@/lib/estate-graph';
+import { pickByLocale } from '@/lib/locale-shared';
 import { estateGraphPanelStrings as COPY } from '@/i18n/strings/estate-graph-panel';
 
 /**
@@ -103,9 +106,7 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
   if (isLoading) {
     return (
       <SectionCard title={isSw ? COPY.orgTitle.sw : COPY.orgTitle.en}>
-        <div className="px-5 py-8 text-sm text-neutral-400">
-          {isSw ? COPY.loading.sw : COPY.loading.en}
-        </div>
+        <Skeleton className="h-64 rounded-xl border border-border" />
       </SectionCard>
     );
   }
@@ -113,10 +114,7 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
   if (isError) {
     return (
       <SectionCard title={isSw ? COPY.orgTitle.sw : COPY.orgTitle.en}>
-        <div className="flex items-center gap-2 px-5 py-6 text-sm text-destructive">
-          <AlertTriangle className="h-4 w-4" />
-          {isSw ? COPY.loadError.sw : COPY.loadError.en}
-        </div>
+        <Alert variant="error">{pickByLocale(locale, COPY.loadError)}</Alert>
       </SectionCard>
     );
   }
@@ -126,13 +124,15 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
       <SectionCard
         title={isSw ? COPY.orgTitle.sw : COPY.orgTitle.en}
         subtitle={isSw ? COPY.orgSubtitle.sw : COPY.orgSubtitle.en}
-        actions={<Network className="h-4 w-4 text-neutral-400" />}
+        actions={<Network className="h-4 w-4 text-muted-foreground" />}
       >
         <div className="px-5 py-4">
           {orgGraph.nodes.length === 0 ? (
-            <p className="text-sm text-neutral-400">
-              {isSw ? COPY.noEntities.sw : COPY.noEntities.en}
-            </p>
+            <ScreenEmptyState
+              icon={<Network className="h-6 w-6" />}
+              title={pickByLocale(locale, COPY.orgTitle)}
+              description={pickByLocale(locale, COPY.noEntities)}
+            />
           ) : (
             <GraphVizBlock payload={graphPayload} testId="estate-org-graph" />
           )}
@@ -145,9 +145,11 @@ export function EstateGraphPanel({ locale }: EstateGraphPanelProps): ReactElemen
       >
         <div className="px-5 py-4">
           {royaltyFlows.length === 0 ? (
-            <p className="text-sm text-neutral-400">
-              {isSw ? COPY.noFlows.sw : COPY.noFlows.en}
-            </p>
+            <ScreenEmptyState
+              icon={<Network className="h-6 w-6" />}
+              title={pickByLocale(locale, COPY.flowTitle)}
+              description={pickByLocale(locale, COPY.noFlows)}
+            />
           ) : (
             <RoyaltyFlowSankey
               flows={royaltyFlows}

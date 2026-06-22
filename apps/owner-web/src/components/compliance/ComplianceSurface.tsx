@@ -7,13 +7,13 @@ import {
   Clock,
   FileCheck,
   Info,
-  Loader2,
   ScrollText,
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { z } from 'zod';
+import { Skeleton, Alert } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useDailyBrief } from '@/lib/queries/cockpit';
@@ -140,9 +140,9 @@ function useComplianceExports() {
 // ---------------------------------------------------------------------------
 
 function exportStatusClass(status: string): string {
-  if (status === 'generated') return 'text-success border-success/40 bg-success/10';
-  if (status === 'failed') return 'text-destructive border-destructive/40 bg-destructive/10';
-  return 'text-neutral-300 border-border bg-surface';
+  if (status === 'generated') return 'text-success border-success/40 bg-success-subtle';
+  if (status === 'failed') return 'text-danger border-danger/40 bg-danger-subtle';
+  return 'text-muted-foreground border-border bg-surface';
 }
 
 /**
@@ -221,7 +221,7 @@ export function ComplianceSurface({
       <MetricStrip tiles={metrics} cols={4} />
 
       {/* Honest provenance note for the KPI rollup. */}
-      <div className="flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 px-4 py-3 text-xs leading-relaxed text-neutral-300">
+      <div className="flex items-start gap-2 rounded-xl border border-info/30 bg-info-subtle px-4 py-3 text-xs leading-relaxed text-muted-foreground">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-info" />
         <p>
           {rollupReady
@@ -242,14 +242,14 @@ export function ComplianceSurface({
                 ? S.complianceSurface.cadenceTitle.sw
                 : S.complianceSurface.cadenceTitle.en}
             </h2>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               {isSw
                 ? S.complianceSurface.cadenceSubtitle.sw
                 : S.complianceSurface.cadenceSubtitle.en}
             </p>
           </div>
         </header>
-        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-neutral-500 md:grid">
+        <div className="hidden grid-cols-12 gap-4 border-b border-border bg-surface/60 px-5 py-3 text-tiny font-semibold uppercase tracking-eyebrow-wide text-muted-foreground md:grid">
           <div className="col-span-2">
             {isSw
               ? S.complianceSurface.colRegulator.sw
@@ -279,7 +279,7 @@ export function ComplianceSurface({
                 <div className="font-mono text-xs font-semibold uppercase tracking-widest text-foreground">
                   {row.regulator}
                 </div>
-                <div className="text-tiny text-neutral-500">
+                <div className="text-tiny text-muted-foreground">
                   {row.regulatorLong}
                 </div>
               </div>
@@ -288,12 +288,12 @@ export function ComplianceSurface({
                   {isSw ? row.obligationSw : row.obligationEn}
                 </div>
               </div>
-              <div className="col-span-2 text-xs capitalize text-neutral-300">
+              <div className="col-span-2 text-xs capitalize text-muted-foreground">
                 {row.cadence}
               </div>
               <div className="col-span-2 flex items-center justify-start md:justify-end">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-0.5 text-badge font-medium text-neutral-400">
-                  <span className="h-1.5 w-1.5 rounded-full bg-neutral-500" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-0.5 text-badge font-medium text-muted-foreground">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60" />
                   {isSw ? CS.statusPending.sw : CS.statusPending.en}
                 </span>
               </div>
@@ -320,24 +320,26 @@ export function ComplianceSurface({
         </header>
 
         {exportsQuery.isLoading ? (
-          <div className="flex items-center gap-2 px-5 py-4 text-sm text-neutral-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {isSw ? RB.compliance.loadingPacks.sw : RB.compliance.loadingPacks.en}
+          <div className="space-y-2 px-5 py-4">
+            <Skeleton className="h-10 rounded-lg" />
+            <Skeleton className="h-10 rounded-lg" />
           </div>
         ) : null}
 
         {exportsQuery.isError ? (
-          <p className="px-5 py-4 text-xs text-destructive">
-            {isSw
-              ? RB.compliance.loadPacksFailed.sw
-              : RB.compliance.loadPacksFailed.en}
-          </p>
+          <div className="px-5 py-4">
+            <Alert variant="error">
+              {isSw
+                ? RB.compliance.loadPacksFailed.sw
+                : RB.compliance.loadPacksFailed.en}
+            </Alert>
+          </div>
         ) : null}
 
         {!exportsQuery.isLoading &&
         !exportsQuery.isError &&
         (exportsQuery.data?.length ?? 0) === 0 ? (
-          <p className="px-5 py-4 text-xs text-neutral-400">
+          <p className="px-5 py-4 text-xs text-muted-foreground">
             {isSw ? RB.compliance.noPacksYet.sw : RB.compliance.noPacksYet.en}
           </p>
         ) : null}
@@ -353,7 +355,7 @@ export function ComplianceSurface({
                   <p className="text-xs font-medium text-foreground">
                     {exp.label ?? (isSw ? RB.compliance.defaultPackLabel.sw : RB.compliance.defaultPackLabel.en)}
                   </p>
-                  <p className="text-tiny text-neutral-500">
+                  <p className="text-tiny text-muted-foreground">
                     {fmtDateForLocale(exp.createdAt, locale)}
                   </p>
                 </div>
@@ -376,7 +378,7 @@ export function ComplianceSurface({
               ? S.complianceSurface.citationsTitle.sw
               : S.complianceSurface.citationsTitle.en}
           </h3>
-          <ul className="mt-3 space-y-2 text-xs text-neutral-300">
+          <ul className="mt-3 space-y-2 text-xs text-muted-foreground">
             <li className="flex items-start gap-2">
               <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-signal-500" />
               <span>
@@ -411,7 +413,7 @@ export function ComplianceSurface({
               ? S.complianceSurface.actionPlanTitle.sw
               : S.complianceSurface.actionPlanTitle.en}
           </h3>
-          <p className="mt-2 text-xs leading-relaxed text-neutral-300">
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             {isSw
               ? S.complianceSurface.actionPlanBody.sw
               : S.complianceSurface.actionPlanBody.en}

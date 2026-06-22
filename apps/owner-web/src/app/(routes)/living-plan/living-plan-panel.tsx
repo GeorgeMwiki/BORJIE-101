@@ -13,7 +13,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
-import { Button } from '@borjie/design-system';
+import { Button, Badge, Skeleton, type BadgeProps } from '@borjie/design-system';
 
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { fmtDateForLocale } from '@/lib/format';
@@ -223,8 +223,8 @@ function HealthMeter({
                 fill="none"
                 className={
                   health.hasOverdueWarning
-                    ? 'stroke-amber-500'
-                    : 'stroke-emerald-500'
+                    ? 'stroke-warning'
+                    : 'stroke-success'
                 }
                 strokeWidth="3"
                 strokeLinecap="round"
@@ -239,16 +239,16 @@ function HealthMeter({
             </div>
           </div>
           <div>
-            <p className="text-xs uppercase tracking-wide text-neutral-400">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
               {pickByLocale(locale, M.health)}
             </p>
-            <p className="mt-0.5 text-sm text-neutral-300">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {pickByLocale(locale, M.progressLabel)}
             </p>
             {nextDueAt ? (
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {pickByLocale(locale, M.nextDue)}:{' '}
-                <span className="text-neutral-300">
+                <span className="text-foreground">
                   {formatDate(nextDueAt, locale)}
                 </span>
               </p>
@@ -263,18 +263,18 @@ function HealthMeter({
               key={s.key}
               className={`rounded-xl border px-3 py-2.5 ${
                 s.warn
-                  ? 'border-amber-500/40 bg-amber-500/5'
+                  ? 'border-warning/40 bg-warning-subtle'
                   : 'border-border bg-background'
               }`}
             >
               <p
                 className={`font-display text-2xl tabular-nums ${
-                  s.warn ? 'text-amber-400' : 'text-foreground'
+                  s.warn ? 'text-warning' : 'text-foreground'
                 }`}
               >
                 {s.value}
               </p>
-              <p className="text-xs text-neutral-400">{s.label}</p>
+              <p className="text-xs text-muted-foreground">{s.label}</p>
             </div>
           ))}
         </div>
@@ -290,21 +290,15 @@ function StatusPill({
   status: CommitmentStatus;
   locale: Locale;
 }) {
-  const tone =
+  const variant: BadgeProps['variant'] =
     status === 'overdue'
-      ? 'border-amber-500/40 bg-amber-500/10 text-amber-400'
+      ? 'warning-soft'
       : status === 'blocked' || status === 'dead_letter'
-        ? 'border-destructive/40 bg-destructive/5 text-destructive'
+        ? 'error-soft'
         : status === 'done'
-          ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-400'
-          : 'border-border bg-foreground/5 text-neutral-300';
-  return (
-    <span
-      className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`}
-    >
-      {pickByLocale(locale, M.status[status])}
-    </span>
-  );
+          ? 'success-soft'
+          : 'secondary';
+  return <Badge variant={variant}>{pickByLocale(locale, M.status[status])}</Badge>;
 }
 
 function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
@@ -316,27 +310,27 @@ function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
         </h3>
         <div className="flex shrink-0 items-center gap-1.5">
           {item.sovereign ? (
-            <span className="rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-[11px] text-violet-300">
+            <Badge variant="info-soft">
               {pickByLocale(locale, M.sovereign)}
-            </span>
+            </Badge>
           ) : null}
           <StatusPill status={item.status} locale={locale} />
         </div>
       </div>
 
-      <p className="mt-1.5 text-xs leading-relaxed text-neutral-400">
+      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
         {item.rationale}
       </p>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
-          <span aria-hidden className="text-neutral-600">
+          <span aria-hidden className="text-muted-foreground/70">
             ◷
           </span>
           {triggerLine(item, locale)}
         </span>
         {item.confirmedAt ? (
-          <span className="inline-flex items-center gap-1 text-emerald-400/80">
+          <span className="inline-flex items-center gap-1 text-success">
             <Check className="h-3 w-3" aria-hidden />
             {pickByLocale(locale, M.proofClosed)}
             {item.confirmationKind ? ` · ${item.confirmationKind}` : ''}
@@ -366,17 +360,17 @@ function PlanSection({
       <div className="mb-3 flex items-center justify-between">
         <h2
           className={`text-sm font-semibold ${
-            accent === 'warning' ? 'text-amber-400' : 'text-foreground'
+            accent === 'warning' ? 'text-warning' : 'text-foreground'
           }`}
         >
           {title}
         </h2>
-        <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-xs tabular-nums text-neutral-400">
+        <span className="rounded-full bg-foreground/5 px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
           {items.length}
         </span>
       </div>
       {items.length === 0 ? (
-        <p className="py-6 text-center text-xs text-neutral-500">
+        <p className="py-6 text-center text-xs text-muted-foreground">
           {pickByLocale(locale, M.emptySection)}
         </p>
       ) : (
@@ -395,13 +389,10 @@ function PlanSection({
 function PlanSkeleton() {
   return (
     <div className="space-y-6" aria-hidden="true" data-testid="living-plan-skeleton">
-      <div className="h-32 animate-pulse rounded-2xl border border-border bg-muted/20" />
+      <Skeleton className="h-32 rounded-2xl border border-border" />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-48 animate-pulse rounded-2xl border border-border bg-muted/20"
-          />
+          <Skeleton key={i} className="h-48 rounded-2xl border border-border" />
         ))}
       </div>
     </div>
@@ -413,11 +404,11 @@ function EmptyState({ locale }: { locale: Locale }) {
     <div className="rounded-2xl border border-border bg-surface p-12 text-center">
       <div
         aria-hidden
-        className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-xl text-emerald-400"
+        className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-success/30 bg-success-subtle text-xl text-success"
       >
         ✓
       </div>
-      <p className="mx-auto max-w-md text-sm text-neutral-300">
+      <p className="mx-auto max-w-md text-sm text-muted-foreground">
         {pickByLocale(locale, M.emptyAllClear)}
       </p>
     </div>
@@ -456,13 +447,13 @@ export function LivingPlanPanel() {
   return (
     <div className="space-y-8">
       <header className="border-b border-border pb-6">
-        <p className="text-xs uppercase tracking-wide text-neutral-400">
+        <p className="text-xs uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, M.eyebrow)}
         </p>
         <h1 className="mt-2 font-display text-3xl text-foreground">
           {pickByLocale(locale, M.heading)}
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-400">
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           {pickByLocale(locale, M.gloss)}
         </p>
       </header>

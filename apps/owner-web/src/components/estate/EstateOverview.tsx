@@ -1,13 +1,16 @@
 'use client';
 
 import { ChevronRight, Building2 } from 'lucide-react';
+import { Skeleton, Alert } from '@borjie/design-system';
 import {
   useEstateGroups,
   useEstateEntities,
   type EstateEntityTreeNode,
 } from '@/lib/queries/estate';
 import { SectionCard } from '@/components/shared/SectionCard';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { StatusPill } from '@/components/shared/StatusPill';
+import { pickByLocale } from '@/lib/locale-shared';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface EstateOverviewProps {
@@ -25,21 +28,21 @@ interface EstateOverviewProps {
 export function EstateOverview({ locale }: EstateOverviewProps) {
   const groupsQuery = useEstateGroups();
   const entitiesQuery = useEstateEntities({ tree: true });
-  const isSw = locale === 'sw';
 
   if (groupsQuery.isLoading || entitiesQuery.isLoading) {
     return (
-      <div className="rounded-lg border border-border bg-surface px-6 py-10 text-sm text-neutral-400">
-        {isSw ? S.estateOverview.loading.sw : S.estateOverview.loading.en}
+      <div className="space-y-6" aria-busy="true">
+        <Skeleton className="h-48 rounded-xl border border-border" />
+        <Skeleton className="h-48 rounded-xl border border-border" />
       </div>
     );
   }
 
   if (groupsQuery.isError || entitiesQuery.isError) {
     return (
-      <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-6 py-6 text-sm text-destructive">
-        {isSw ? S.estateOverview.loadError.sw : S.estateOverview.loadError.en}
-      </div>
+      <Alert variant="error">
+        {pickByLocale(locale, S.estateOverview.loadError)}
+      </Alert>
     );
   }
 
@@ -52,16 +55,14 @@ export function EstateOverview({ locale }: EstateOverviewProps) {
   if (groups.length === 0) {
     return (
       <SectionCard
-        title={isSw ? S.estateOverview.noEstateTitle.sw : S.estateOverview.noEstateTitle.en}
-        subtitle={
-          isSw
-            ? S.estateOverview.noEstateSubtitle.sw
-            : S.estateOverview.noEstateSubtitle.en
-        }
+        title={pickByLocale(locale, S.estateOverview.noEstateTitle)}
+        subtitle={pickByLocale(locale, S.estateOverview.noEstateSubtitle)}
       >
-        <div className="px-5 py-6 text-sm text-neutral-400">
-          {isSw ? S.estateOverview.noEstateBody.sw : S.estateOverview.noEstateBody.en}
-        </div>
+        <ScreenEmptyState
+          icon={<Building2 className="h-6 w-6" />}
+          title={pickByLocale(locale, S.estateOverview.noEstateTitle)}
+          description={pickByLocale(locale, S.estateOverview.noEstateBody)}
+        />
       </SectionCard>
     );
   }
@@ -92,7 +93,7 @@ interface EntityTreeListProps {
 function EntityTreeList({ nodes, locale, depth = 0 }: EntityTreeListProps) {
   if (nodes.length === 0) {
     return (
-      <div className="text-sm text-neutral-500">
+      <div className="text-sm text-muted-foreground">
         {locale === 'sw' ? S.estateOverview.noEntities.sw : S.estateOverview.noEntities.en}
       </div>
     );
@@ -143,19 +144,19 @@ function EntityRow({ node, locale, depth }: EntityRowProps) {
       style={{ marginLeft: depth * 16 }}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <Building2 className="h-4 w-4 shrink-0 text-neutral-500" />
+        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
         <div className="min-w-0">
           <div className="truncate text-sm font-medium text-foreground">
             {e.name}
           </div>
-          <div className="text-xs text-neutral-500">
+          <div className="text-xs text-muted-foreground">
             {e.kind} · {Number(e.ownershipPct).toFixed(1)}%
           </div>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <StatusPill tone={tone as 'green' | 'amber' | 'red' | 'neutral'} label={e.status} />
-        <ChevronRight className="h-4 w-4 text-neutral-500" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
     </div>
   );

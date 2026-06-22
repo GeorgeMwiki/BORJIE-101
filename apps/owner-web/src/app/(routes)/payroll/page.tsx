@@ -11,6 +11,8 @@
 import Link from 'next/link';
 import { ArrowRight, Banknote } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { pickByLocale } from '@/lib/locale-shared';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 
 export default async function PayrollPage() {
@@ -56,9 +58,11 @@ export default async function PayrollPage() {
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           {isSw ? S.payroll.recentRunsHeading.sw : S.payroll.recentRunsHeading.en}
         </h2>
-        <div className="rounded-2xl border border-border bg-surface p-6 text-sm text-muted-foreground">
-          {isSw ? S.payroll.noRuns.sw : S.payroll.noRuns.en}
-        </div>
+        <ScreenEmptyState
+          icon={<Banknote className="h-6 w-6" />}
+          title={pickByLocale(session.languagePreference, S.payroll.noRunsTitle)}
+          description={pickByLocale(session.languagePreference, S.payroll.noRuns)}
+        />
       </section>
     </div>
   );

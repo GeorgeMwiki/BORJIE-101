@@ -15,7 +15,16 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import {
+  Button,
+  Input,
+  FormField,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
 import {
   useCostAnalyze,
@@ -122,7 +131,7 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <header className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">{tr('title')}</h3>
-        <p className="mt-1 text-xs leading-relaxed text-neutral-400">{tr('subtitle')}</p>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tr('subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -138,7 +147,7 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
 
       <div className="mt-4">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wide text-neutral-500">{tr('opex')}</span>
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr('opex')}</span>
           <button
             type="button"
             onClick={() => setOpex((rows) => [...rows, newOpexRow()])}
@@ -150,15 +159,19 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
         <div className="space-y-2">
           {opex.map((row) => (
             <div key={row.id} className="flex items-center gap-2">
-              <input
-                className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-                placeholder="label"
+              <Input
+                inputSize="sm"
+                className="flex-1"
+                placeholder={tr('opexLabelPlaceholder')}
+                aria-label={tr('opexLabelPlaceholder')}
                 value={row.label}
                 onChange={(e) => updateOpex(row.id, { label: e.target.value })}
               />
-              <input
-                className="w-40 rounded-md border border-border bg-background px-2 py-1 text-right text-xs text-foreground"
-                placeholder="amount"
+              <Input
+                inputSize="sm"
+                className="w-40 text-right"
+                placeholder={tr('opexAmountPlaceholder')}
+                aria-label={tr('opexAmountPlaceholder')}
                 type="number"
                 value={row.amount}
                 onChange={(e) => updateOpex(row.id, { amount: e.target.value })}
@@ -166,7 +179,7 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
               <button
                 type="button"
                 onClick={() => setOpex((rows) => rows.filter((r) => r.id !== row.id))}
-                className="text-tiny text-neutral-500 hover:text-danger"
+                className="text-tiny text-muted-foreground hover:text-danger"
               >
                 {tr('remove')}
               </button>
@@ -225,11 +238,11 @@ export function CostEngineerPanel({ locale, siteId }: CostEngineerPanelProps) {
 
       {recommendations ? (
         <div className="mt-5">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {tr('recommendations')}
           </h4>
           {recommendations.length === 0 ? (
-            <p className="text-xs text-neutral-400">{tr('noRecs')}</p>
+            <p className="text-xs text-muted-foreground">{tr('noRecs')}</p>
           ) : (
             <ul className="space-y-2">
               {recommendations.map((rec) => (
@@ -267,36 +280,37 @@ function Field({
   readonly options?: ReadonlyArray<string>;
 }) {
   return (
-    <label className="block text-xs">
-      <span className="mb-1 block text-neutral-400">{label}</span>
+    <FormField label={label} className="space-y-1">
       {as === 'select' ? (
-        <select
-          className="w-full rounded-md border border-border bg-background px-2 py-1 text-foreground"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-        >
-          {(options ?? []).map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
+        <Select value={value} onValueChange={onChange}>
+          <SelectTrigger className="h-9" aria-label={label}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(options ?? []).map((o) => (
+              <SelectItem key={o} value={o}>
+                {o}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       ) : (
-        <input
-          className="w-full rounded-md border border-border bg-background px-2 py-1 text-foreground"
+        <Input
+          inputSize="sm"
           type={type}
           value={value}
+          aria-label={label}
           onChange={(e) => onChange(e.target.value)}
         />
       )}
-    </label>
+    </FormField>
   );
 }
 
 function Metric({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">{label}</div>
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-mono text-sm text-foreground">{value}</div>
     </div>
   );
@@ -313,14 +327,14 @@ function SensitivityTable({
 }) {
   return (
     <div>
-      <div className="mb-1 text-tiny uppercase tracking-wide text-neutral-500">{title}</div>
+      <div className="mb-1 text-tiny uppercase tracking-wide text-muted-foreground">{title}</div>
       <div className="flex gap-1 overflow-x-auto">
         {rows.map((r) => (
           <div
             key={r.deltaPercent}
             className="min-w-[64px] rounded-md border border-border bg-background px-2 py-1 text-center"
           >
-            <div className={`text-tiny ${r.deltaPercent < 0 ? 'text-danger' : r.deltaPercent > 0 ? 'text-success' : 'text-neutral-400'}`}>
+            <div className={`text-tiny ${r.deltaPercent < 0 ? 'text-danger' : r.deltaPercent > 0 ? 'text-success' : 'text-muted-foreground'}`}>
               {r.deltaPercent > 0 ? '+' : ''}
               {r.deltaPercent}%
             </div>

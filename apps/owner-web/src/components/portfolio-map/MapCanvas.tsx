@@ -49,7 +49,7 @@ export function MapCanvas({ mapboxToken, features, enabled, onSelect }: MapCanva
 
   if (!mapModule) {
     return (
-      <div className="flex h-chart-lg items-center justify-center rounded-lg border border-dashed border-border bg-surface/30 text-sm text-neutral-400">
+      <div className="flex h-chart-lg items-center justify-center rounded-lg border border-dashed border-border bg-surface/30 text-sm text-muted-foreground">
         Loading map…
       </div>
     );

@@ -1,4 +1,20 @@
+/**
+ * Reusable section card (CONVERGED onto the DS `Card` family).
+ *
+ * Replaces the `PlaceholderCard` shape for screens that now hold real
+ * content. Title + optional subtitle on the left, action slot on the
+ * right (refresh, generate, export). The shell now delegates to `Card`,
+ * `CardHeader`, `CardTitle`, and `CardContent` from
+ * `@borjie/design-system` so the radius, hairline border, surface, and
+ * shadow come from ONE source of truth. The eyebrow-style title
+ * presentation (uppercase, tracking-wide, muted) is preserved via the
+ * DS `CardTitle` `className` + token utilities.
+ *
+ * Public API ({ title, subtitle?, actions?, children, className? }) is
+ * UNCHANGED — do not alter the call signature; 13 importers depend on it.
+ */
 import type { ReactNode } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@borjie/design-system';
 
 interface SectionCardProps {
   readonly title: string;
@@ -8,14 +24,6 @@ interface SectionCardProps {
   readonly className?: string;
 }
 
-/**
- * Reusable section card with a token-driven header strip.
- *
- * Replaces the `PlaceholderCard` shape for screens that now hold real
- * content. Title + optional subtitle on the left, action slot on the
- * right (refresh, generate, export). Keeps every section visually
- * aligned with the cockpit cards on the home page.
- */
 export function SectionCard({
   title,
   subtitle,
@@ -24,21 +32,25 @@ export function SectionCard({
   className,
 }: SectionCardProps) {
   return (
-    <section
-      className={`rounded-lg border border-border bg-surface shadow-sm ${className ?? ''}`}
-    >
-      <header className="flex items-start justify-between gap-3 border-b border-border px-5 py-3">
+    <Card className={className}>
+      <CardHeader
+        bordered
+        className="flex-row items-start justify-between gap-3 space-y-0 px-5 py-3"
+      >
         <div>
-          <div className="text-xs font-medium uppercase tracking-wide text-neutral-400">
+          <CardTitle
+            size="sm"
+            className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+          >
             {title}
-          </div>
+          </CardTitle>
           {subtitle ? (
-            <div className="mt-0.5 text-badge text-neutral-500">{subtitle}</div>
+            <p className="mt-0.5 text-badge text-muted-foreground/80">{subtitle}</p>
           ) : null}
         </div>
         {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-      </header>
-      <div className="px-5 py-4">{children}</div>
-    </section>
+      </CardHeader>
+      <CardContent className="px-5 py-4 pt-4">{children}</CardContent>
+    </Card>
   );
 }

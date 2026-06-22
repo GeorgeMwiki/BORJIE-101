@@ -30,13 +30,13 @@ export default async function InboundRfbDetailPage({ params }: PageProps) {
         actions={null}
       />
       <header className="space-y-1">
-        <p className="text-tiny font-medium uppercase tracking-wide text-neutral-400">
+        <p className="text-tiny font-medium uppercase tracking-wide text-muted-foreground">
           {isSw ? S.inboundRfb.eyebrow.sw : S.inboundRfb.eyebrow.en}
         </p>
         <h1 className="text-2xl font-semibold text-foreground">
           {isSw ? S.inboundRfb.heading.sw : S.inboundRfb.heading.en}
         </h1>
-        <p className="max-w-2xl text-sm text-neutral-400">
+        <p className="max-w-2xl text-sm text-muted-foreground">
           {isSw ? S.inboundRfb.body.sw : S.inboundRfb.body.en}
         </p>
       </header>

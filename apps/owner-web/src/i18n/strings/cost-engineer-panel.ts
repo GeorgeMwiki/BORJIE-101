@@ -30,6 +30,8 @@ export const costEngineerPanelStrings = {
   capex: { en: 'Capex amortisation', sw: 'Ustahimilishaji wa capex' },
   currency: { en: 'Currency', sw: 'Sarafu' },
   opex: { en: 'Opex buckets', sw: 'Mafungu ya gharama za uendeshaji' },
+  opexLabelPlaceholder: { en: 'Label', sw: 'Lebo' },
+  opexAmountPlaceholder: { en: 'Amount', sw: 'Kiasi' },
   addOpex: { en: '+ Add bucket', sw: '+ Ongeza fungu' },
   remove: { en: 'Remove', sw: 'Ondoa' },
   compute: { en: 'Compute analysis', sw: 'Kokotoa uchambuzi' },

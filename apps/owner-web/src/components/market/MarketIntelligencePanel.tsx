@@ -18,6 +18,7 @@
  */
 
 import { useState } from 'react';
+import { Skeleton } from '@borjie/design-system';
 import { formatCurrency } from '@borjie/api-client';
 import { marketIntelligencePanelStrings as T } from '@/i18n/strings/market-intelligence-panel';
 import {
@@ -67,10 +68,10 @@ export function MarketIntelligencePanel({ locale }: MarketIntelligencePanelProps
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-semibold text-foreground">{tr('title')}</h3>
-          <p className="mt-1 text-xs leading-relaxed text-neutral-400">{tr('subtitle')}</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{tr('subtitle')}</p>
         </div>
         <label className="block text-xs">
-          <span className="mb-1 block text-neutral-400">{tr('commodity')}</span>
+          <span className="mb-1 block text-muted-foreground">{tr('commodity')}</span>
           <select
             className="rounded-md border border-border bg-background px-2 py-1 text-foreground"
             value={commodity}
@@ -86,7 +87,7 @@ export function MarketIntelligencePanel({ locale }: MarketIntelligencePanelProps
       </header>
 
       {priceFeedDown ? (
-        <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-neutral-400">
+        <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
           {tr('feedUnavailable')}
         </p>
       ) : (
@@ -127,13 +128,13 @@ export function MarketIntelligencePanel({ locale }: MarketIntelligencePanelProps
 
       {/* Disruptions (tenant-wide, not commodity-gated) */}
       <div className="mt-5">
-        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">{tr('disruptions')}</h4>
+        <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr('disruptions')}</h4>
         {disruptions.isLoading ? (
-          <p className="text-xs text-neutral-400">{tr('loading')}</p>
+          <p className="text-xs text-muted-foreground">{tr('loading')}</p>
         ) : disruptions.isError ? (
           <p className="text-xs text-danger">{tr('error')}</p>
         ) : !disruptions.data || disruptions.data.length === 0 ? (
-          <p className="text-xs text-neutral-400">{tr('noDisruptions')}</p>
+          <p className="text-xs text-muted-foreground">{tr('noDisruptions')}</p>
         ) : (
           <ul className="space-y-2">
             {disruptions.data.map((d) => (
@@ -168,7 +169,7 @@ function SignalBlock({
   readonly signal?: SellSignal | undefined;
 }) {
   const tr = (k: keyof typeof T) => T[k][locale];
-  if (loading) return <p className="text-xs text-neutral-400">{tr('loading')}</p>;
+  if (loading) return <p className="text-xs text-muted-foreground">{tr('loading')}</p>;
   if (error) return <p className="text-xs text-danger">{tr('error')}</p>;
   if (!signal) return null;
   return (
@@ -211,12 +212,12 @@ function ForecastBlock({
   const tr = (k: keyof typeof T) => T[k][locale];
   if (insufficient) {
     return (
-      <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-neutral-400">
+      <p className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
         {tr('insufficientHistory')}
       </p>
     );
   }
-  if (loading) return <p className="text-xs text-neutral-400">{tr('loading')}</p>;
+  if (loading) return <p className="text-xs text-muted-foreground">{tr('loading')}</p>;
   if (error) return <p className="text-xs text-danger">{tr('error')}</p>;
   if (!forecast || forecast.points.length === 0) return null;
 
@@ -227,8 +228,8 @@ function ForecastBlock({
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-tiny uppercase tracking-wide text-neutral-500">{tr('forecast')}</span>
-        <span className="text-tiny text-neutral-500">
+        <span className="text-tiny uppercase tracking-wide text-muted-foreground">{tr('forecast')}</span>
+        <span className="text-tiny text-muted-foreground">
           {tr('forecastConfidence')}: {(forecast.confidence * 100).toFixed(0)}%
         </span>
       </div>
@@ -236,8 +237,8 @@ function ForecastBlock({
         <BandCol label={tr('now')} p5={fmt(first.p5)} p50={fmt(first.p50)} p95={fmt(first.p95)} />
         <BandCol label={tr('day90')} p5={fmt(last.p5)} p50={fmt(last.p50)} p95={fmt(last.p95)} />
       </div>
-      <div className="mt-2 text-tiny uppercase tracking-wide text-neutral-500">{tr('drivers')}</div>
-      <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-xs text-neutral-300">
+      <div className="mt-2 text-tiny uppercase tracking-wide text-muted-foreground">{tr('drivers')}</div>
+      <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
         {forecast.drivers.map((d, i) => (
           <li key={i}>{d}</li>
         ))}
@@ -259,10 +260,10 @@ function BandCol({
 }) {
   return (
     <div className="rounded-md border border-border bg-surface px-2 py-1">
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">{label}</div>
-      <div className="mt-0.5 font-mono text-tiny text-neutral-400">p5 {p5}</div>
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-mono text-tiny text-muted-foreground">p5 {p5}</div>
       <div className="font-mono text-xs text-foreground">p50 {p50}</div>
-      <div className="font-mono text-tiny text-neutral-400">p95 {p95}</div>
+      <div className="font-mono text-tiny text-muted-foreground">p95 {p95}</div>
     </div>
   );
 }
@@ -270,12 +271,12 @@ function BandCol({
 function Metric({ label, value }: { readonly label: string; readonly value: string }) {
   return (
     <div className="rounded-md border border-border bg-background px-3 py-2">
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">{label}</div>
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className="mt-0.5 font-mono text-sm text-foreground">{value}</div>
     </div>
   );
 }
 
 function SkeletonMetric() {
-  return <div className="h-14 animate-pulse rounded-md border border-border bg-background" />;
+  return <Skeleton className="h-14 rounded-md border border-border" />;
 }

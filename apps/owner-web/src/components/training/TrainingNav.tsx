@@ -46,7 +46,7 @@ export function TrainingNav({ locale }: TrainingNavProps) {
             className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500 ${
               isActive
                 ? 'bg-signal-500 text-background'
-                : 'text-neutral-400 hover:bg-surface hover:text-foreground'
+                : 'text-muted-foreground hover:bg-surface hover:text-foreground'
             }`}
           >
             <Icon className="h-3.5 w-3.5" aria-hidden="true" />

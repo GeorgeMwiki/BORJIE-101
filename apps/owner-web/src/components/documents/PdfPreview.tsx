@@ -70,9 +70,9 @@ function SyntheticPdf({
           return (
             <article
               key={page}
-              className="relative aspect-[3/4] w-full rounded-md border border-border bg-surface p-4 text-tiny text-neutral-400"
+              className="relative aspect-[3/4] w-full rounded-md border border-border bg-surface p-4 text-tiny text-muted-foreground"
             >
-              <div className="absolute right-2 top-2 text-spark text-neutral-500">
+              <div className="absolute right-2 top-2 text-spark text-muted-foreground">
                 page {page} of {document.pages}
               </div>
               <h3 className="mb-2 font-display text-sm text-foreground">
@@ -86,7 +86,7 @@ function SyntheticPdf({
                 />
               ))}
               {pageChunks.length === 0 ? (
-                <p className="italic text-neutral-500">
+                <p className="italic text-muted-foreground">
                   [page body — no extracted chunks shown for the preview]
                 </p>
               ) : null}
@@ -113,7 +113,7 @@ function ChunkPara({
           : 'bg-transparent'
       }`}
     >
-      <span className="text-neutral-300">{chunk.text}</span>
+      <span className="text-muted-foreground">{chunk.text}</span>
     </p>
   );
 }

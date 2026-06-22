@@ -23,6 +23,19 @@ import {
   defaultEnabledTabIdsForRole,
   type WorkforceRoleId,
 } from '@borjie/persona-runtime';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
@@ -200,24 +213,20 @@ export function WorkforceTabMatrix(props: MatrixProps): JSX.Element {
         <p className="mt-1 text-sm text-muted-foreground">{copy.description}</p>
       </header>
       <div className="overflow-x-auto">
-        <table className="min-w-full border-collapse text-xs">
-          <thead>
-            <tr className="border-b border-border text-left text-muted-foreground">
-              <th className="px-3 py-2 font-semibold">{copy.role}</th>
-              <th className="px-3 py-2 font-semibold">{copy.scope}</th>
+        <Table className="text-xs">
+          <TableHeader>
+            <TableRow>
+              <TableHead>{copy.role}</TableHead>
+              <TableHead>{copy.scope}</TableHead>
               {WORKFORCE_TAB_CATALOG.map((tab) => (
-                <th
-                  key={tab.id}
-                  className="px-2 py-2 font-semibold"
-                  title={tab.id}
-                >
+                <TableHead key={tab.id} className="text-center" title={tab.id}>
                   {props.isSw ? tab.label.sw : tab.label.en}
-                </th>
+                </TableHead>
               ))}
-              <th className="px-3 py-2 font-semibold">{copy.density}</th>
-            </tr>
-          </thead>
-          <tbody>
+              <TableHead>{copy.density}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {WORKFORCE_ROLE_IDS.map((role) =>
               props.siteScopes.map((scope) => {
                 const enabled = new Set(resolveEnabled(role, scope.id));
@@ -226,16 +235,13 @@ export function WorkforceTabMatrix(props: MatrixProps): JSX.Element {
                 );
                 const density = resolveDensity(role, scope.id);
                 return (
-                  <tr
-                    key={`${role}::${scope.id}`}
-                    className="border-b border-border/50 hover:bg-surface-muted/40"
-                  >
-                    <td className="px-3 py-2 font-medium text-foreground">
+                  <TableRow key={`${role}::${scope.id}`}>
+                    <TableCell className="font-medium text-foreground">
                       {role}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {scope.label}
-                    </td>
+                    </TableCell>
                     {WORKFORCE_TAB_CATALOG.map((tab) => {
                       const allowed = allowedForRole.has(tab.id);
                       const isChecked = enabled.has(tab.id);
@@ -245,21 +251,21 @@ export function WorkforceTabMatrix(props: MatrixProps): JSX.Element {
                       const saving = savingCell === cellKey;
                       if (!allowed) {
                         return (
-                          <td
+                          <TableCell
                             key={tab.id}
-                            className="px-2 py-2 text-center text-muted-foreground/40"
+                            className="text-center text-muted-foreground/40"
                             aria-label={copy.notAllowedForRole}
                           >
                             —
-                          </td>
+                          </TableCell>
                         );
                       }
                       return (
-                        <td key={tab.id} className="px-2 py-2 text-center">
+                        <TableCell key={tab.id} className="text-center">
                           <label className="inline-flex items-center justify-center gap-1">
                             <input
                               type="checkbox"
-                              className="h-4 w-4 cursor-pointer rounded border-border accent-signal-500"
+                              className="h-4 w-4 cursor-pointer rounded border-input accent-signal-500"
                               checked={isChecked}
                               disabled={isMandatory || saving}
                               onChange={() =>
@@ -277,34 +283,40 @@ export function WorkforceTabMatrix(props: MatrixProps): JSX.Element {
                               </span>
                             ) : null}
                           </label>
-                        </td>
+                        </TableCell>
                       );
                     })}
-                    <td className="px-3 py-2">
-                      <select
-                        className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+                    <TableCell>
+                      <Select
                         value={density}
                         disabled={savingCell === `${role}::${scope.id}::density`}
-                        onChange={(e) =>
+                        onValueChange={(v) =>
                           void onDensityChange(
                             role as WorkforceRoleId,
                             scope.id,
-                            e.target.value as 'comfortable' | 'compact',
+                            v as 'comfortable' | 'compact',
                           )
                         }
                       >
-                        <option value="comfortable">
-                          {copy.densityComfortable}
-                        </option>
-                        <option value="compact">{copy.densityCompact}</option>
-                      </select>
-                    </td>
-                  </tr>
+                        <SelectTrigger className="h-8 w-36 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="comfortable">
+                            {copy.densityComfortable}
+                          </SelectItem>
+                          <SelectItem value="compact">
+                            {copy.densityCompact}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                  </TableRow>
                 );
               }),
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {upsertMutation.isError ? (
         <p className="mt-3 text-xs text-destructive">{copy.error}</p>

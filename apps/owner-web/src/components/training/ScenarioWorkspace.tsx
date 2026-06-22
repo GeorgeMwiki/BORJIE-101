@@ -28,7 +28,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import type { ScenarioView, ScenarioRoleMode, ScenarioLanguage } from '@borjie/api-client/training-types';
-import { Button } from '@borjie/design-system';
+import { Button, Textarea } from '@borjie/design-system';
 import { useChatScroll, JumpToLatestPill } from '@borjie/chat-ui';
 import { trainingT } from '@/i18n/strings/training';
 import { useTraining } from './training-mode-context';
@@ -132,7 +132,7 @@ export function ScenarioWorkspace({
           </Button>
           <div>
             <h2 className="text-base font-semibold text-foreground">{title}</h2>
-            <p className="text-xs text-neutral-500">{tr.kindLabel(scenario.kind)}</p>
+            <p className="text-xs text-muted-foreground">{tr.kindLabel(scenario.kind)}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -143,12 +143,12 @@ export function ScenarioWorkspace({
             </span>
           ) : null}
           <div
-            className="flex items-center gap-1.5 text-sm text-neutral-300"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground"
             aria-label={tr.t('elapsedTime')}
           >
             <Clock className="h-4 w-4" aria-hidden="true" />
             <span className="font-mono tabular-nums">{formatElapsed(state.elapsedMs)}</span>
-            <span className="text-xs text-neutral-600">/ {scenario.estimatedMinutes}:00</span>
+            <span className="text-xs text-muted-foreground">/ {scenario.estimatedMinutes}:00</span>
           </div>
         </div>
       </header>
@@ -158,7 +158,7 @@ export function ScenarioWorkspace({
           aria-label={tr.t('objectiveCoverage')}
           className="rounded-2xl border border-border bg-surface/40 p-4"
         >
-          <div className="mb-2 flex items-center justify-between text-xs text-neutral-400">
+          <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5 font-medium">
               <Target className="h-3.5 w-3.5" aria-hidden="true" />
               {tr.t('objectiveCoverage')}
@@ -168,7 +168,7 @@ export function ScenarioWorkspace({
             </span>
           </div>
           <div
-            className="h-2 w-full overflow-hidden rounded-full bg-slate-800"
+            className="h-2 w-full overflow-hidden rounded-full bg-surface"
             role="progressbar"
             aria-valuenow={coveragePct}
             aria-valuemin={0}
@@ -183,7 +183,7 @@ export function ScenarioWorkspace({
       ) : null}
 
       {state.isStarting ? (
-        <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface/40 p-8 text-sm text-neutral-500">
+        <div className="flex items-center justify-center gap-2 rounded-2xl border border-border bg-surface/40 p-8 text-sm text-muted-foreground">
           {tr.t('startingRun')}
         </div>
       ) : (
@@ -193,7 +193,7 @@ export function ScenarioWorkspace({
       {state.phase === 'active' ? <Transcript scenario={scenario} locale={locale} /> : null}
 
       {state.error && state.errorStatus !== 403 ? (
-        <div className="rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-warning">
+        <div className="rounded-2xl border border-warning/40 bg-warning-subtle px-4 py-3 text-sm text-warning">
           {state.error}
         </div>
       ) : null}
@@ -231,20 +231,20 @@ function Briefing({
     <section className="rounded-2xl border border-border bg-surface/40 p-4">
       <h3 className="text-sm font-semibold text-foreground">{tr.t('briefingTitle')}</h3>
       {counterparty ? (
-        <p className="mt-2 text-sm text-neutral-300">
+        <p className="mt-2 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">{tr.t('counterparty')}: </span>
           {counterparty}
         </p>
       ) : null}
-      {situation ? <p className="mt-2 text-sm text-neutral-400">{situation}</p> : null}
+      {situation ? <p className="mt-2 text-sm text-muted-foreground">{situation}</p> : null}
       {objectives.length > 0 ? (
         <div className="mt-3">
-          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-neutral-500">
+          <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {tr.t('objectivesLabel')}
           </p>
           <ul className="space-y-1.5" role="list">
             {objectives.map((o) => (
-              <li key={o.conceptId} className="flex items-start gap-2 text-sm text-neutral-300">
+              <li key={o.conceptId} className="flex items-start gap-2 text-sm text-muted-foreground">
                 <Flag className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-400" aria-hidden="true" />
                 <span>{locale === 'sw' ? o.sw : o.en}</span>
               </li>
@@ -286,13 +286,13 @@ function Transcript({
     <div className="relative">
     <div
       ref={scrollRef}
-      className="flex max-h-[24rem] flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-slate-950/40 p-4"
+      className="flex max-h-[24rem] flex-col gap-3 overflow-y-auto rounded-2xl border border-border bg-background p-4"
       role="log"
       aria-label={tr.t('transcript')}
       aria-live="polite"
     >
       {state.transcript.length === 0 ? (
-        <p className="py-6 text-center text-sm text-neutral-600">{tr.t('transcriptEmpty')}</p>
+        <p className="py-6 text-center text-sm text-muted-foreground">{tr.t('transcriptEmpty')}</p>
       ) : null}
       {state.transcript.map((turn) => (
         <div key={turn.id} className="flex flex-col gap-2">
@@ -301,7 +301,7 @@ function Transcript({
           </div>
           {turn.reply ? (
             <div className="max-w-[85%] self-start">
-              <p className="mb-0.5 pl-1 text-tiny text-neutral-500">{counterpartyName}</p>
+              <p className="mb-0.5 pl-1 text-tiny text-muted-foreground">{counterpartyName}</p>
               <div className="rounded-2xl rounded-bl-sm border border-border bg-surface px-3 py-2 text-sm text-foreground">
                 {locale === 'sw' ? turn.reply.sw : turn.reply.en}
               </div>
@@ -310,7 +310,7 @@ function Transcript({
         </div>
       ))}
       {state.isSending ? (
-        <div className="flex items-center gap-2 pl-1 text-xs text-neutral-500">
+        <div className="flex items-center gap-2 pl-1 text-xs text-muted-foreground">
           {tr.t('counterpartyTyping')}
         </div>
       ) : null}
@@ -352,7 +352,7 @@ function Composer({
         {tr.t('inputLabel')}
       </label>
       <div className="flex items-end gap-2">
-        <textarea
+        <Textarea
           id="scenario-input"
           value={input}
           onChange={(e) => onChange(e.target.value)}
@@ -364,7 +364,7 @@ function Composer({
           }}
           rows={2}
           placeholder={tr.t('inputPlaceholder')}
-          className="flex-1 resize-none rounded-xl border border-border bg-slate-950/40 px-3 py-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+          className="flex-1 resize-none"
         />
         <Button
           type="button"
@@ -418,11 +418,11 @@ function RunResult({
     >
       <div
         className={`mb-4 flex h-16 w-16 items-center justify-center rounded-full ${
-          passed ? 'bg-emerald-950/40' : 'bg-warning/10'
+          passed ? 'bg-success-subtle' : 'bg-warning-subtle'
         }`}
       >
         {passed ? (
-          <CheckCircle2 className="h-8 w-8 text-emerald-400" aria-hidden="true" />
+          <CheckCircle2 className="h-8 w-8 text-success" aria-hidden="true" />
         ) : (
           <XCircle className="h-8 w-8 text-warning" aria-hidden="true" />
         )}
@@ -430,7 +430,7 @@ function RunResult({
       <h2 className="text-xl font-bold text-foreground">
         {passed ? tr.t('runPassedTitle') : tr.t('runMissedTitle')}
       </h2>
-      <p className="mt-1.5 text-sm text-neutral-400">
+      <p className="mt-1.5 text-sm text-muted-foreground">
         <span className="tabular-nums">{pct}%</span> · {objectivesCovered}/{objectivesTotal}
       </p>
       <Button type="button" size="sm" onClick={onExit} className="mt-6">
@@ -452,10 +452,10 @@ function WorkspaceError({
   readonly exitLabel: string;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-2xl border border-warning/40 bg-warning/10 px-6 py-12 text-center">
+    <div className="flex flex-col items-center justify-center rounded-2xl border border-warning/40 bg-warning-subtle px-6 py-12 text-center">
       <XCircle className="mb-3 h-10 w-10 text-warning" aria-hidden="true" />
       <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-      <p className="mt-1.5 max-w-md text-sm text-neutral-400">{message}</p>
+      <p className="mt-1.5 max-w-md text-sm text-muted-foreground">{message}</p>
       <Button type="button" variant="outline" size="sm" onClick={onExit} className="mt-6">
         {exitLabel}
       </Button>

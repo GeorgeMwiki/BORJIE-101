@@ -5,6 +5,7 @@ import { Card } from '@borjie/design-system';
 import type { BriefItem } from '@/lib/types/cockpit';
 import { useT } from '@/i18n/t.client';
 import { useLocale } from '@/lib/locale';
+import { StatusPill } from '@/components/shared/StatusPill';
 
 interface DailyBriefCardProps {
   readonly items: ReadonlyArray<BriefItem>;
@@ -17,10 +18,13 @@ interface DailyBriefCardProps {
   readonly language?: 'en' | 'sw' | undefined;
 }
 
-const SEVERITY_PILL: Record<BriefItem['severity'], string> = {
-  info: 'pill-green',
-  warn: 'pill-amber',
-  critical: 'pill-red',
+const SEVERITY_TONE: Record<
+  BriefItem['severity'],
+  'green' | 'amber' | 'red'
+> = {
+  info: 'green',
+  warn: 'amber',
+  critical: 'red',
 };
 
 export function DailyBriefCard({ items, language }: DailyBriefCardProps) {
@@ -40,8 +44,8 @@ export function DailyBriefCard({ items, language }: DailyBriefCardProps) {
       <ul className="flex flex-col gap-3">
         {items.map((item, index) => (
           <li key={index} className="flex items-start gap-3">
-            <span className={`pill ${SEVERITY_PILL[item.severity]} shrink-0`}>
-              {item.severity}
+            <span className="shrink-0">
+              <StatusPill tone={SEVERITY_TONE[item.severity]} label={item.severity} />
             </span>
             <p className="text-sm leading-snug text-foreground">
               {activeLocale === 'sw' ? item.textSw : item.text}

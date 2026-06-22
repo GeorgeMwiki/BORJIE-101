@@ -26,7 +26,7 @@ export default async function NotificationsPage() {
         <h1 className="font-display text-3xl text-foreground">
           {pickByLocale(locale, S.title)}
         </h1>
-        <p className="mt-3 max-w-3xl text-sm text-neutral-300">
+        <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
           {pickByLocale(locale, S.subtitle)}
         </p>
       </header>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Bell } from 'lucide-react';
 
 import { Button } from '@borjie/design-system';
 
@@ -11,6 +12,7 @@ import {
   type CockpitEventKind,
 } from '@/lib/cockpit-sse';
 import { useLocale, pickByLocale } from '@/lib/locale';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { notificationsInboxStrings as S } from '@/i18n/strings/notifications-inbox';
 
 const MAX_ITEMS = 200;
@@ -121,12 +123,12 @@ export function NotificationsInbox(): JSX.Element {
   return (
     <section>
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs text-neutral-500">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span
             className={
               stream.connected
                 ? 'inline-block h-2 w-2 rounded-full bg-success'
-                : 'inline-block h-2 w-2 rounded-full bg-neutral-500'
+                : 'inline-block h-2 w-2 rounded-full bg-muted-foreground'
             }
             aria-hidden
           />
@@ -148,9 +150,11 @@ export function NotificationsInbox(): JSX.Element {
         ) : null}
       </div>
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-surface p-8 text-sm text-neutral-400">
-          {pickByLocale(locale, S.empty)}
-        </div>
+        <ScreenEmptyState
+          icon={<Bell className="h-6 w-6" />}
+          title={pickByLocale(locale, S.emptyTitle)}
+          description={pickByLocale(locale, S.empty)}
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => {
@@ -181,13 +185,13 @@ export function NotificationsInbox(): JSX.Element {
                       </span>
                     </div>
                     <time
-                      className="text-xs text-neutral-500"
+                      className="text-xs text-muted-foreground"
                       dateTime={item.emittedAt}
                     >
                       {new Date(item.emittedAt).toLocaleString()}
                     </time>
                   </div>
-                  <p className="mt-1 text-sm text-neutral-300">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     {describeCockpitEvent(item.event, locale)}
                   </p>
                 </button>

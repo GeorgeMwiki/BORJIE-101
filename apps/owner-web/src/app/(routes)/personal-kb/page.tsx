@@ -7,30 +7,34 @@
  * detail page showing recent memory cells.
  *
  * Server component renders the heading; the client component drives
- * the list + search.
+ * the list + search. The locale resolves ONCE on the server so the
+ * heading + the seeded client panel render the same language (no
+ * EN-under-SW split-brain).
  */
 
 import { PersonalKbPanel } from './personal-kb-panel';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
+import { personalKbPageStrings as S } from '@/i18n/strings/personal-kb-page';
 
 export const dynamic = 'force-dynamic';
 
-export default function PersonalKbPage() {
+export default async function PersonalKbPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <main className="px-8 py-6">
       <header className="border-b border-border pb-4">
         <h1 className="font-display text-3xl text-foreground">
-          Personal knowledge base
+          {pickByLocale(locale, S.title)}
         </h1>
-        <p className="mt-0.5 text-xs italic text-neutral-500">
-          Maktaba yangu — vitu vyote nilivyokuelezea kuhusu mimi
+        <p className="mt-0.5 text-xs italic text-muted-foreground">
+          {pickByLocale(locale, S.subtitle)}
         </p>
-        <p className="mt-3 max-w-2xl text-sm text-neutral-300">
-          Every preference, recurring fact, and context you have shared
-          with Borjie. Crosses tenant boundaries — your assistant
-          remembers you, not the company you happen to be working with.
+        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+          {pickByLocale(locale, S.body)}
         </p>
       </header>
-      <PersonalKbPanel />
+      <PersonalKbPanel initialLocale={locale} />
     </main>
   );
 }

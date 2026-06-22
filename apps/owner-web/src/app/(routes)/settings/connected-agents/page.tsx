@@ -18,26 +18,26 @@ export default function ConnectedAgentsPage() {
     <>
       <header className="border-b border-border px-8 py-6">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-xs text-neutral-500">
+          <span className="font-mono text-xs text-muted-foreground">
             O-W-22.AGENTS
           </span>
-          <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-badge text-neutral-400">
+          <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-badge text-muted-foreground">
             Owner
           </span>
         </div>
         <h1 className="mt-1 font-display text-3xl text-foreground">
           Connected agents
         </h1>
-        <p className="mt-0.5 text-xs italic text-neutral-500">
+        <p className="mt-0.5 text-xs italic text-muted-foreground">
           {S.connectedAgentsPage.rosterTagline.sw}
         </p>
-        <p className="mt-3 max-w-3xl text-sm text-neutral-300">
+        <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
           External agents (Claude Code, Cursor, Windsurf, custom MCP /
           CLI / SDK clients) that hold an active access token for your
           account. Revoke any agent at any time — revocation is
           immediate.
         </p>
-        <p className="mt-1 max-w-3xl text-sm italic text-neutral-500">
+        <p className="mt-1 max-w-3xl text-sm italic text-muted-foreground">
           {S.connectedAgentsPage.rosterRevokeNote.sw}
         </p>
       </header>

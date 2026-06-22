@@ -8,6 +8,7 @@ import {
   HardHat,
   ShieldCheck,
 } from 'lucide-react';
+import { Skeleton } from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useIncidents, type IncidentRow } from '@/lib/queries/safety';
 import { tailStrings as S } from '@/i18n/strings/tail';
@@ -26,26 +27,26 @@ interface ToneTokens {
 const LOW_TONE: ToneTokens = {
   border: 'border-border',
   bg: 'bg-surface',
-  text: 'text-neutral-300',
-  dot: 'bg-neutral-500',
+  text: 'text-muted-foreground',
+  dot: 'bg-muted-foreground/60',
 };
 
 const SEVERITY_TONE: Record<string, ToneTokens> = {
   critical: {
-    border: 'border-destructive/40',
-    bg: 'bg-destructive/10',
-    text: 'text-destructive',
-    dot: 'bg-destructive',
+    border: 'border-danger/40',
+    bg: 'bg-danger-subtle',
+    text: 'text-danger',
+    dot: 'bg-danger',
   },
   high: {
     border: 'border-warning/40',
-    bg: 'bg-warning/10',
+    bg: 'bg-warning-subtle',
     text: 'text-warning',
     dot: 'bg-warning',
   },
   medium: {
     border: 'border-info/40',
-    bg: 'bg-info/10',
+    bg: 'bg-info-subtle',
     text: 'text-info',
     dot: 'bg-info',
   },
@@ -153,20 +154,17 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
       <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-24 animate-pulse rounded-2xl border border-border bg-surface/40"
-            />
+            <Skeleton key={i} className="h-24 rounded-2xl border border-border" />
           ))}
         </div>
-        <div className="h-64 animate-pulse rounded-2xl border border-border bg-surface/40" />
+        <Skeleton className="h-64 rounded-2xl border border-border" />
       </div>
     );
   }
 
   if (openQuery.isError) {
     return (
-      <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+      <div className="rounded-2xl border border-danger/40 bg-danger-subtle p-6 text-sm text-danger">
         {isSw ? S.safetySurface.loadError.sw : S.safetySurface.loadError.en}
       </div>
     );
@@ -183,7 +181,7 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
               <h2 className="text-sm font-semibold text-foreground">
                 {isSw ? S.safetySurface.incidentQueue.sw : S.safetySurface.incidentQueue.en}
               </h2>
-              <p className="text-xs text-neutral-400">
+              <p className="text-xs text-muted-foreground">
                 {isSw
                   ? `${rows.length} ${S.safetySurface.openCountSuffix.sw}`
                   : `${rows.length} ${S.safetySurface.openCountSuffix.en}`}
@@ -191,12 +189,12 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
             </div>
           </header>
           {rows.length === 0 ? (
-            <div className="px-5 py-10 text-center text-sm text-neutral-400">
+            <div className="px-5 py-10 text-center text-sm text-muted-foreground">
               <ShieldCheck className="mx-auto h-8 w-8 text-success" />
               <p className="mt-3 font-medium text-foreground">
                 {isSw ? S.safetySurface.zeroOpen.sw : S.safetySurface.zeroOpen.en}
               </p>
-              <p className="mt-1 text-xs text-neutral-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 {isSw ? S.safetySurface.cleanRecord.sw : S.safetySurface.cleanRecord.en}
               </p>
             </div>
@@ -220,18 +218,18 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
                           {row.severity}
                         </span>
                         {row.siteId ? (
-                          <span className="font-mono text-tiny text-neutral-500">
+                          <span className="font-mono text-tiny text-muted-foreground">
                             {row.siteId}
                           </span>
                         ) : null}
                       </div>
                       {row.description ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-neutral-400">
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                           {row.description}
                         </p>
                       ) : null}
                     </div>
-                    <span className="inline-flex shrink-0 items-center gap-1 text-xs text-neutral-500">
+                    <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       {formatRelative(row.occurredAt, isSw)}
                     </span>
@@ -247,7 +245,7 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
             <h2 className="text-sm font-semibold text-foreground">
               {isSw ? S.safetySurface.icaHeading.sw : S.safetySurface.icaHeading.en}
             </h2>
-            <p className="text-xs text-neutral-400">
+            <p className="text-xs text-muted-foreground">
               {isSw ? S.safetySurface.icaCaption.sw : S.safetySurface.icaCaption.en}
             </p>
           </header>
@@ -292,12 +290,12 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
                   {isSw ? control.sw : control.en}
                 </span>
                 {control.ok ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success/10 px-2 py-0.5 text-tiny font-medium text-success">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success-subtle px-2 py-0.5 text-tiny font-medium text-success">
                     <CheckCircle2 className="h-3 w-3" />
                     {isSw ? S.safetySurface.controlOk.sw : S.safetySurface.controlOk.en}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-2 py-0.5 text-tiny font-medium text-warning">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-subtle px-2 py-0.5 text-tiny font-medium text-warning">
                     <AlertTriangle className="h-3 w-3" />
                     {isSw ? S.safetySurface.controlRecert.sw : S.safetySurface.controlRecert.en}
                   </span>

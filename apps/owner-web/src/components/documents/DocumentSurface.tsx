@@ -1,11 +1,15 @@
 'use client';
 
 import { useState } from 'react';
+import { Skeleton } from '@borjie/design-system';
 import { useDocumentList } from '@/lib/queries/documents';
 import { DocumentList } from './DocumentList';
 import { PdfPreview } from './PdfPreview';
 import { DocChatPane } from './DocChatPane';
 import { OpenInChatButton } from '@/components/shared/OpenInChatButton';
+import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { documentsSurfaceStrings as S } from '@/i18n/strings/documents-surface';
 
 /**
  * Owner document workspace (O-W-04).
@@ -13,7 +17,8 @@ import { OpenInChatButton } from '@/components/shared/OpenInChatButton';
  * 3-column layout: list left, PDF + chat centre/right. Compare mode
  * splits the PDF column into two side-by-side panes.
  */
-export function DocumentSurface() {
+export function DocumentSurface({ initialLocale }: { readonly initialLocale?: Locale }) {
+  const locale = useLocale(initialLocale);
   const { data, isLoading } = useDocumentList();
   const documents = data ?? [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -27,24 +32,22 @@ export function DocumentSurface() {
     : null;
 
   if (isLoading) {
-    return (
-      <div className="h-chart-xl animate-pulse rounded-lg border border-border bg-surface/40" />
-    );
+    return <Skeleton className="h-chart-xl rounded-lg border border-border" />;
   }
   if (!selected) {
     return (
-      <div className="rounded-lg border border-border bg-surface/40 p-6 text-sm text-neutral-400">
-        No documents yet. Upload PMLs, EPP reports, assays and invoices on the
-        Onboarding surface to begin.
-      </div>
+      <ScreenEmptyState
+        title={pickByLocale(locale, S.emptyTitle)}
+        description={pickByLocale(locale, S.emptyBody)}
+      />
     );
   }
 
   return (
     <div className="grid h-chart-2xl grid-cols-12 gap-4">
       <aside className="col-span-3 overflow-y-auto rounded-lg border border-border bg-surface/40">
-        <header className="border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">
-          Documents · {documents.length}
+        <header className="border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground">
+          {pickByLocale(locale, S.documents)} · {documents.length}
         </header>
         <DocumentList
           documents={documents}
@@ -74,8 +77,8 @@ export function DocumentSurface() {
         )}
       </section>
       <section className="col-span-3 overflow-hidden rounded-lg border border-border bg-surface/40">
-        <header className="flex items-center justify-between border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">
-          <span>Chat · {selected.title}</span>
+        <header className="flex items-center justify-between border-b border-border px-3 py-2 text-xs uppercase tracking-wide text-muted-foreground">
+          <span>{pickByLocale(locale, S.chat)} · {selected.title}</span>
           <OpenInChatButton entityRef={`document-${selected.id}`} compact />
         </header>
         <DocChatPane document={selected} onAnchor={setAnchorChunkId} />

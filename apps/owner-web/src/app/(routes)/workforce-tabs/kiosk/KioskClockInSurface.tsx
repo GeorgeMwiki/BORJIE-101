@@ -53,7 +53,7 @@ export function KioskClockInSurface({
         <div>
           <label
             htmlFor="kiosk-site"
-            className="block text-xs uppercase tracking-wide text-neutral-500"
+            className="block text-xs uppercase tracking-wide text-muted-foreground"
           >
             {isSw ? S.kioskSurface.site.sw : S.kioskSurface.site.en}
           </label>
@@ -73,7 +73,7 @@ export function KioskClockInSurface({
         <div>
           <label
             htmlFor="kiosk-employee"
-            className="block text-xs uppercase tracking-wide text-neutral-500"
+            className="block text-xs uppercase tracking-wide text-muted-foreground"
           >
             {isSw ? S.kioskSurface.employeeId.sw : S.kioskSurface.employeeId.en}
           </label>
@@ -114,7 +114,7 @@ export function KioskClockInSurface({
 
       {recent.length > 0 ? (
         <div className="mt-6 border-t border-border pt-4">
-          <h2 className="mb-2 text-xs uppercase tracking-wide text-neutral-500">
+          <h2 className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">
             {isSw ? S.kioskSurface.recentCheckIns.sw : S.kioskSurface.recentCheckIns.en}
           </h2>
           <ul className="space-y-1 font-mono text-xs text-foreground">

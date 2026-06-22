@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Button } from '@borjie/design-system';
+import { Button, Skeleton, Alert } from '@borjie/design-system';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { jurisdictionSettingsStrings as JS } from '@/i18n/strings/jurisdiction-settings';
@@ -78,16 +78,21 @@ export function JurisdictionSettings() {
 
   if (state.kind === 'loading') {
     return (
-      <p className="text-sm text-neutral-400">
-        {pickByLocale(locale, S.jurisdictionSettings.loading)}
-      </p>
+      <div
+        role="status"
+        aria-label={pickByLocale(locale, S.jurisdictionSettings.loading)}
+        className="space-y-4"
+      >
+        <Skeleton className="h-40 rounded-lg border border-border" />
+        <Skeleton className="h-28 rounded-lg border border-border" />
+      </div>
     );
   }
 
   if (state.kind === 'error') {
     return (
-      <div className="rounded-md border border-red-500/40 bg-red-500/10 p-4">
-        <p className="text-sm text-red-200">
+      <Alert variant="error">
+        <p className="text-sm">
           {pickByLocale(locale, JS.loadError(state.message))}
         </p>
         <Button
@@ -95,11 +100,11 @@ export function JurisdictionSettings() {
           variant="outline"
           size="sm"
           onClick={load}
-          className="mt-2 border-red-300/40 bg-transparent text-red-100 hover:bg-red-500/20 hover:text-red-100"
+          className="mt-2"
         >
-          {pickByLocale(locale, { en: 'Retry', sw: S.connectedAgentsList.retry.sw })}
+          {pickByLocale(locale, S.connectedAgentsList.retry)}
         </Button>
-      </div>
+      </Alert>
     );
   }
 
@@ -125,7 +130,7 @@ function CurrentJurisdictionCard({
       <h2 className="font-display text-xl text-foreground">
         {pickByLocale(locale, JS.currentHeading)}
       </h2>
-      <p className="mt-0.5 text-xs italic text-neutral-500">
+      <p className="mt-0.5 text-xs italic text-muted-foreground">
         {pickByLocale(locale, S.jurisdictionSettings.currentTagline)}
       </p>
       <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -174,14 +179,14 @@ function LockedNoticeCard({
   locale: ReturnType<typeof useLocale>;
 }) {
   return (
-    <section className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-5">
-      <h2 className="font-display text-lg text-yellow-200">
+    <section className="rounded-md border border-warning/30 bg-warning-subtle p-5">
+      <h2 className="font-display text-lg text-warning">
         {pickByLocale(locale, JS.lockedHeading)}
       </h2>
-      <p className="mt-0.5 text-xs italic text-yellow-200/60">
+      <p className="mt-0.5 text-xs italic text-warning/70">
         {pickByLocale(locale, S.jurisdictionSettings.lockedTagline)}
       </p>
-      <p className="mt-3 text-sm text-yellow-100/80">
+      <p className="mt-3 text-sm text-foreground/80">
         {pickByLocale(locale, {
           en: (
             <>
@@ -202,7 +207,7 @@ function LockedNoticeCard({
       </p>
       <a
         href="mailto:support@borjie.app?subject=Jurisdiction%20change%20request"
-        className="mt-4 inline-flex items-center rounded border border-yellow-300/40 px-3 py-1.5 text-xs text-yellow-100 hover:bg-yellow-500/10"
+        className="mt-4 inline-flex items-center rounded border border-warning/40 px-3 py-1.5 text-xs text-warning hover:bg-warning-subtle"
       >
         {pickByLocale(locale, S.jurisdictionSettings.requestChange)}
       </a>
@@ -223,10 +228,10 @@ function PerTurnOverrideCard({
       <h2 className="font-display text-lg text-foreground">
         {pickByLocale(locale, JS.overrideHeading)}
       </h2>
-      <p className="mt-0.5 text-xs italic text-neutral-500">
+      <p className="mt-0.5 text-xs italic text-muted-foreground">
         {pickByLocale(locale, S.jurisdictionSettings.overrideTagline)}
       </p>
-      <p className="mt-3 text-sm text-neutral-300">
+      <p className="mt-3 text-sm text-muted-foreground">
         {pickByLocale(locale, {
           en: (
             <>
@@ -248,7 +253,7 @@ function PerTurnOverrideCard({
           ),
         })}
       </p>
-      <p className="mt-3 text-xs text-neutral-500">
+      <p className="mt-3 text-xs text-muted-foreground">
         {pickByLocale(locale, JS.seededFootnote)}
       </p>
     </section>
@@ -264,7 +269,7 @@ function Field({
 }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-neutral-500">
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
       <dd className="mt-0.5 text-sm text-foreground">{value}</dd>

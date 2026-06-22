@@ -59,7 +59,7 @@ export function DomainPicker({ locale, onSelect }: DomainPickerProps) {
         <h2 className="text-base font-semibold text-foreground">
           {tr.t('pickDomainTitle')}
         </h2>
-        <p className="mt-1 text-sm text-neutral-400">{tr.t('pickDomainHint')}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{tr.t('pickDomainHint')}</p>
       </div>
 
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3" role="list">
@@ -90,13 +90,13 @@ function DomainCard({
     <button
       type="button"
       onClick={() => onSelect({ domainId: option.id, label })}
-      className="flex h-full w-full flex-col gap-2 rounded-xl border border-border bg-slate-950/40 p-4 text-left transition-colors hover:border-signal-500/40 hover:bg-slate-900/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
+      className="flex h-full w-full flex-col gap-2 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-signal-500/40 hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-signal-500/10">
         <Icon className="h-5 w-5 text-signal-400" aria-hidden="true" />
       </span>
       <span className="text-sm font-semibold text-foreground">{label}</span>
-      <span className="text-xs leading-relaxed text-neutral-400">
+      <span className="text-xs leading-relaxed text-muted-foreground">
         {tr.domainDescription(option)}
       </span>
     </button>

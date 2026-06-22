@@ -46,7 +46,7 @@ export function FxChart({ locale }: FxChartProps): JSX.Element {
         className="rounded-md border border-dashed border-border bg-surface px-4 py-6 text-center"
         data-testid="fx-chart-loading"
       >
-        <div className="text-xs uppercase tracking-wide text-neutral-500">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, S.fx.sectionTitle)}
         </div>
         <p className="mt-4 text-sm font-medium text-foreground">
@@ -65,13 +65,13 @@ export function FxChart({ locale }: FxChartProps): JSX.Element {
         className="rounded-md border border-dashed border-border bg-surface px-4 py-6 text-center"
         data-testid="fx-chart-empty"
       >
-        <div className="text-xs uppercase tracking-wide text-neutral-500">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, S.fx.sectionTitle)}
         </div>
         <p className="mt-4 text-sm font-medium text-foreground">
           {pickByLocale(locale, degraded ? S.fx.feedWarming : S.fx.noRates)}
         </p>
-        <p className="mt-1 text-xs text-neutral-400">
+        <p className="mt-1 text-xs text-muted-foreground">
           {pickByLocale(locale, S.fx.feedHint)}
         </p>
       </article>
@@ -84,11 +84,11 @@ export function FxChart({ locale }: FxChartProps): JSX.Element {
       data-testid="fx-chart"
     >
       <div className="flex items-baseline justify-between">
-        <div className="text-xs uppercase tracking-wide text-neutral-500">
+        <div className="text-xs uppercase tracking-wide text-muted-foreground">
           {pickByLocale(locale, S.fx.sectionTitle)}
         </div>
         {rates[0] ? (
-          <span className="text-tiny text-neutral-400">
+          <span className="text-tiny text-muted-foreground">
             {
               S.fx.updatedAt(
                 new Date(rates[0].ts).toLocaleTimeString(bcp47For(locale)),
@@ -123,13 +123,13 @@ function RateCard({
       className="rounded-md border border-border bg-background p-3"
       data-testid={`fx-rate-${rate.pair}`}
     >
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">
         {label[locale]}
       </div>
       <div className="mt-1 font-display text-xl tabular-nums text-foreground">
         {formatRate(rate.rate, locale)}
       </div>
-      <div className="mt-0.5 text-tiny text-neutral-400">
+      <div className="mt-0.5 text-tiny text-muted-foreground">
         {label.unit} · {rate.source}
       </div>
     </div>
@@ -147,7 +147,7 @@ function Sparkline({
   if (points.length === 0 || !path) return null;
   return (
     <div className="mt-4" data-testid="fx-sparkline">
-      <div className="text-tiny uppercase tracking-wide text-neutral-500">
+      <div className="text-tiny uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <svg

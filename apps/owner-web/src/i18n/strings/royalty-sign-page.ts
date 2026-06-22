@@ -11,6 +11,46 @@ export const royaltySignPageStrings = {
     en: `Amount (${currency})`,
     sw: `Kiasi (${currency})`,
   }),
+  amountPlaceholder: { en: '0', sw: '0' },
+
+  // --- Page chrome (was hardcoded English; moved here to kill the
+  // split-brain so the whole surface renders one language per locale). ---
+  backToFinance: { en: 'Back to Finance', sw: 'Rudi kwenye Fedha' },
+  eyebrow: { en: 'Finance · Royalty', sw: 'Fedha · Mrabaha' },
+  pageTitle: { en: 'Batch royalty sign', sw: 'Saini mrabaha kwa wingi' },
+  pageIntro: {
+    en: 'Review each draft, enter the royalty amount, and sign to file + post the payment via the double-entry ledger.',
+    sw: 'Kagua kila rasimu, ingiza kiasi cha mrabaha, na saini ili kuwasilisha + kuweka malipo kupitia leja ya kuingiza-mara-mbili.',
+  },
+  loadingDrafts: { en: 'Loading drafts…', sw: 'Inapakia rasimu…' },
+  loadError: {
+    en: 'Could not load royalty drafts from the gateway.',
+    sw: 'Imeshindwa kupakia rasimu za mrabaha kutoka lango.',
+  },
+  retry: { en: 'Retry', sw: 'Jaribu tena' },
+
+  statusSigned: { en: 'Signed', sw: 'Imesainiwa' },
+  statusReviewing: { en: 'Reviewing', sw: 'Inakaguliwa' },
+  statusDraft: { en: 'Draft', sw: 'Rasimu' },
+
+  emptyTitle: { en: 'No royalty drafts pending', sw: 'Hakuna rasimu za mrabaha zinazosubiri' },
+  emptyBody: {
+    en: 'New drafts appear here when Mr. Mwikila prepares the monthly royalty return.',
+    sw: 'Rasimu mpya zinaonekana hapa Bw. Mwikila anapoandaa marejesho ya mrabaha ya mwezi.',
+  },
+  emptyCta: {
+    en: 'Ask Mr. Mwikila to prepare a draft',
+    sw: 'Mwombe Bw. Mwikila aandae rasimu',
+  },
+
+  pendingSignature: (n: number) => ({
+    en: `Pending signature (${n})`,
+    sw: `Inasubiri saini (${n})`,
+  }),
+  alreadySigned: (n: number) => ({
+    en: `Already signed (${n})`,
+    sw: `Tayari zimesainiwa (${n})`,
+  }),
   requestFourEye: {
     en: 'Request four-eye approval',
     sw: 'Omba idhini ya macho-mawili',
