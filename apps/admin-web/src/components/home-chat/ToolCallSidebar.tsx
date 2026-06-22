@@ -2,6 +2,7 @@
 
 import { Activity, Database, Shield, Wrench } from 'lucide-react';
 import type { BrainToolCall, BrainCitation } from '@/lib/brain-api';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
 
 /**
  * ToolCallSidebar — admin sees ALL data, not a single tenant slice. The
@@ -24,6 +25,13 @@ interface ToolCallSidebarProps {
   readonly toolCalls: ReadonlyArray<BrainToolCall>;
   readonly citations: ReadonlyArray<BrainCitation>;
   readonly isStreaming: boolean;
+  /**
+   * Active locale (server-resolved, threaded from HomeChat). Localizes the
+   * landmark name a screen-reader announces. The panel BODY (raw evidence
+   * ids, latency, orchestrator/junior class names) is an operator-only
+   * diagnostics surface kept in English-by-policy.
+   */
+  readonly locale?: Locale;
 }
 
 const ROUTING_LEGEND: ReadonlyArray<{
@@ -41,12 +49,16 @@ export function ToolCallSidebar({
   toolCalls,
   citations,
   isStreaming,
+  locale = 'en',
 }: ToolCallSidebarProps) {
   return (
     <aside
       data-testid="home-chat-sidebar"
       className="hidden w-thread-medium shrink-0 flex-col gap-6 overflow-y-auto border-l border-border bg-surface/30 px-5 py-6 lg:flex"
-      aria-label="Admin tool calls and evidence"
+      aria-label={pickByLocale(locale, {
+        en: 'Admin tool calls and evidence',
+        sw: 'Miito ya zana na ushahidi wa msimamizi',
+      })}
     >
       <section>
         <h2 className="text-caption uppercase tracking-widest text-neutral-500">

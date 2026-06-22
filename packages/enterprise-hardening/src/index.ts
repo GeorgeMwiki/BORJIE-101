@@ -196,6 +196,7 @@ export {
 export {
   safeHttpFetch,
   assertUrlSafe,
+  pinnedSafeDispatcher,
   SafeHttpFetchError,
   type SafeHttpFetchOptions,
   type SafeHttpFetchResult,

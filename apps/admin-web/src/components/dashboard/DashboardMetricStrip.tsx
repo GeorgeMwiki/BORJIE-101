@@ -70,7 +70,7 @@ export function DashboardMetricStrip({
     {
       icon: Building2,
       label: 'Total tenants',
-      labelSw: 'Wapangaji jumla',
+      labelSw: 'Wateja jumla',
       value: total.toLocaleString(numberLocale),
       footer: `${activeStr} active · ${otherStr} other`,
       footerSw: `${activeStr} hai · ${otherStr} wengine`,

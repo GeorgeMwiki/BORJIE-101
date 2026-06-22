@@ -42,7 +42,7 @@ export default async function CockpitPage() {
       {/* R6 — live cockpit SSE pulse. Opens an EventSource against
           /api/v1/cockpit/stream and toasts every push (6 event kinds). */}
       <CockpitLivePulse language={isSw ? 'sw' : 'en'} />
-      <CockpitGrid />
+      <CockpitGrid initialLocale={session.languagePreference} />
     </div>
   );
 }

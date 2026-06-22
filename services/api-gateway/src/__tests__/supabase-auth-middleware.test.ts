@@ -171,9 +171,22 @@ describe('mapSupabaseRolesToUserRole', () => {
       mapSupabaseRolesToUserRole(['resident', 'admin', 'maintenance']),
     ).toBe(UserRole.TENANT_ADMIN);
   });
-  it('falls back to TENANT_ADMIN for unrecognized roles', () => {
+  it('FAILS CLOSED to RESIDENT (least privilege) for unrecognized roles', () => {
+    // Regression: an unknown role must NEVER be silently elevated. A prior
+    // TENANT_ADMIN default let any actor with an unmapped mining_role satisfy
+    // every tenant-admin write gate.
     expect(mapSupabaseRolesToUserRole(['mystery_role'])).toBe(
-      UserRole.TENANT_ADMIN,
+      UserRole.RESIDENT,
+    );
+  });
+  it('maps the real buyer-signup roles to RESIDENT, not TENANT_ADMIN', () => {
+    // The buyer-signup app_metadata carries `buyer_org_admin` (NOT `buyer`);
+    // it must map to the read-only RESIDENT, never the fail-open admin default.
+    expect(mapSupabaseRolesToUserRole(['buyer_org_admin'])).toBe(
+      UserRole.RESIDENT,
+    );
+    expect(mapSupabaseRolesToUserRole(['buyer_org_member'])).toBe(
+      UserRole.RESIDENT,
     );
   });
 });

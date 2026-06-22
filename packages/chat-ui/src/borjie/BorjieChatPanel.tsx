@@ -117,6 +117,14 @@ interface BorjieChatPanelProps {
   readonly variant: 'floating' | 'bottom-sheet';
   readonly authenticated: boolean;
   readonly signInHref?: string | undefined;
+  /**
+   * Where the composer mic button navigates. The chat-ui package does not own
+   * the STT pipeline, so this is OFF by default: the mic button only renders
+   * when a host explicitly wires a real voice route/handler. Leaving it unset
+   * (the default in owner/admin, which have no `/voice` route) hides the
+   * button entirely so it can never dead-navigate to a 404.
+   */
+  readonly voiceHref?: string | undefined;
   readonly onSend: (text: string) => Promise<void>;
   readonly onOpenEvidence?: ((evidenceId: string) => void) | undefined;
   readonly reducedMotion?: boolean;
@@ -133,6 +141,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
     variant,
     authenticated,
     signInHref = '/sign-in',
+    voiceHref,
     onSend,
     onOpenEvidence,
     reducedMotion = false,
@@ -702,9 +711,11 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
         >
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
             {/* Mic ghost — matches LitFin's idle voice button. The chat-ui
-                package does not own the STT pipeline; the button is a
-                visual affordance that links to the standalone voice
-                page so the user can record there. */}
+                package does not own the STT pipeline, so the button only
+                renders when the host wires a real `voiceHref`. Owner/admin
+                leave it unset (no `/voice` route), so the button is absent
+                rather than dead-navigating to a 404. */}
+            {voiceHref ? (
             <button
               type="button"
               data-testid="borjie-mic"
@@ -712,7 +723,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
               title={micLabel}
               onClick={() => {
                 if (typeof window !== 'undefined') {
-                  window.location.href = '/voice';
+                  window.location.href = voiceHref;
                 }
               }}
               style={{
@@ -755,6 +766,7 @@ export function BorjieChatPanel(props: BorjieChatPanelProps): JSX.Element {
                 <line x1="12" y1="19" x2="12" y2="22" />
               </svg>
             </button>
+            ) : null}
             <textarea
               ref={inputRef}
               data-testid="borjie-input"

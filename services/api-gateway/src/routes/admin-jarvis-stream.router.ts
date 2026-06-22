@@ -155,6 +155,10 @@ const RequestBodySchema = z.object({
   threadId: z.string().min(1).max(120),
   message: z.string().min(1).max(8_000),
   presence: PresenceSchema,
+  // Active locale forwarded from the admin client (borjie_locale). Without
+  // it the kernel collapses to 'en' and a Swahili operator always gets
+  // English replies. Optional for back-compat; the kernel defaults to 'en'.
+  language: z.enum(['en', 'sw']).optional(),
 });
 
 // ─────────────────────────────────────────────────────────────────────
@@ -184,7 +188,11 @@ function platformScope(c: AnyCtx): ScopeContext {
     kind: 'platform',
     actorUserId: userId,
     roles,
-    personaId: 'sovereign-admin',
+    // The industry-observer surface (tier:'industry') must speak in the
+    // observer's institutional, cross-tenant-anonymised voice — its taboos
+    // (never name a single tenant) belong here, not the sovereign-admin
+    // persona this previously mis-selected.
+    personaId: 'industry-observer',
   };
 }
 
@@ -381,6 +389,8 @@ adminJarvisStreamRouter.post('/', withSecurityEvents({ action: 'admin.create', r
     tier: 'industry',
     stakes: 'medium',
     surface: 'platform-hq',
+    // Pin the reply to the operator's active locale (no English-only default).
+    ...(parsed.data.language ? { language: parsed.data.language } : {}),
   };
 
   // Personalise persona so the run's first TEXT_MESSAGE_CONTENT can

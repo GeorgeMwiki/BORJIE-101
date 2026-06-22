@@ -28,8 +28,9 @@ import { z } from 'zod';
 import { sql } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { CURRENCY_DECIMALS } from '@borjie/domain-models';
-import { authMiddleware } from '../../middleware/hono-auth';
+import { authMiddleware, requireRole } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
+import { UserRole } from '../../types/user-role';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { withSecurityEvents } from '@borjie/observability';
 import {
@@ -234,12 +235,26 @@ const app = new Hono();
 app.use('*', authMiddleware);
 app.use('*', databaseMiddleware);
 
+// Cooperative settlement money mutations (create / calculate / approve /
+// distribute) hit `LedgerService.post()` and move real funds. They are
+// restricted to the accounting/ownership tier — matching the sibling
+// proposal / tender / damage-claim write gates. Without this, ANY tenant
+// member (incl. a self-registered buyer) could calculate, approve, and
+// distribute below-threshold payouts. Reads (list/get) stay open to members.
+const SETTLEMENT_WRITE_ROLES = [
+  UserRole.OWNER,
+  UserRole.TENANT_ADMIN,
+  UserRole.ACCOUNTANT,
+  UserRole.SUPER_ADMIN,
+] as const;
+
 // ---------------------------------------------------------------------------
 // POST /settlement-periods - create
 // ---------------------------------------------------------------------------
 
 app.post(
   '/settlement-periods',
+  requireRole(...SETTLEMENT_WRITE_ROLES),
   zValidator('json', CreatePeriodSchema),
   withSecurityEvents(
     {
@@ -341,6 +356,7 @@ app.get('/settlement-periods', async (c) => {
 
 app.post(
   '/settlement-periods/:id/calculate',
+  requireRole(...SETTLEMENT_WRITE_ROLES),
   zValidator('json', CalculateSchema),
   withSecurityEvents(
     {
@@ -479,6 +495,7 @@ app.post(
 
 app.post(
   '/settlement-periods/:id/approve',
+  requireRole(...SETTLEMENT_WRITE_ROLES),
   zValidator('json', ApproveSchema),
   withSecurityEvents(
     {
@@ -543,20 +560,33 @@ app.post(
       }
 
       const approvedAt = new Date().toISOString();
-      await db.execute(sql`
+      // Compare-and-set: only flip a still-'calculated' period. Guards against
+      // a double-approve race (two callers past the status check above) — the
+      // loser sees zero affected rows and gets a 409, not a silent re-approve.
+      const updated = await db.execute(sql`
         UPDATE cooperative_settlement_periods
            SET status         = 'approved',
                approved_by_id = ${auth.userId}::uuid,
                approved_at    = ${approvedAt}::timestamptz,
                updated_at     = now()
-         WHERE id = ${id}::uuid AND tenant_id = ${auth.tenantId}::uuid
+         WHERE id = ${id}::uuid
+           AND tenant_id = ${auth.tenantId}::uuid
+           AND status = 'calculated'
+        RETURNING *
       `);
-      const fetched = await db.execute(sql`
-        SELECT * FROM cooperative_settlement_periods
-         WHERE id = ${id}::uuid AND tenant_id = ${auth.tenantId}::uuid
-         LIMIT 1
-      `);
-      const row = (fetched as unknown as Record<string, unknown>[])[0];
+      const row = (updated as unknown as Record<string, unknown>[])[0];
+      if (!row) {
+        return c.json(
+          {
+            success: false,
+            error: {
+              code: 'CONFLICT',
+              message: 'period is no longer in the calculated state',
+            },
+          },
+          409,
+        );
+      }
       return c.json({ success: true, data: row });
     },
   ),
@@ -568,6 +598,7 @@ app.post(
 
 app.post(
   '/settlement-periods/:id/distribute',
+  requireRole(...SETTLEMENT_WRITE_ROLES),
   zValidator('json', DistributeSchema),
   withSecurityEvents(
     {

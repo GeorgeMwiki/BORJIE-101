@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { ArrowRight, Brain, Calculator, FileCheck, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useT } from '@/i18n/t.client';
+import type { Locale } from '@/lib/locale';
 import { useOwnerBrief } from '@/lib/queries/owner-brief';
 import type {
   AdvisorSlot,
@@ -31,8 +32,13 @@ import {
  *
  * Locale-strict: all copy flows through `useT()`; zero hardcoded literals.
  */
-export function DashboardBriefSummary(): JSX.Element {
-  const t = useT();
+export function DashboardBriefSummary({
+  initialLocale,
+}: {
+  /** Server-resolved locale — seeds the hook so the first paint matches SSR. */
+  readonly initialLocale?: Locale | undefined;
+} = {}): JSX.Element {
+  const t = useT(initialLocale);
   const query = useOwnerBrief();
   const brief = query.data?.brief ?? null;
 

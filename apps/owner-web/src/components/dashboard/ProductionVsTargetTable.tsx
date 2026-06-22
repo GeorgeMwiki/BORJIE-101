@@ -3,12 +3,14 @@
 import { Card } from '@borjie/design-system';
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum } from '@/lib/format';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { ProductionSlot } from '@/lib/queries/owner-brief';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface ProductionVsTargetTableProps {
   readonly production: ProductionSlot;
+  /** Server-resolved locale — seeds the hook so the first paint matches SSR. */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -25,8 +27,9 @@ interface ProductionVsTargetTableProps {
  */
 export function ProductionVsTargetTable({
   production,
+  initialLocale,
 }: ProductionVsTargetTableProps): JSX.Element {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const P = S.productionVsTarget;
   const sparkData = production.perSite.map((s, i) => ({
     x: s.siteId ?? `site-${i}`,

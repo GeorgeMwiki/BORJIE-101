@@ -1,7 +1,7 @@
 'use client';
 
 import { Card } from '@borjie/design-system';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type {
   LicenceHealthSlot,
   OpenHighIncidentsSlot,
@@ -11,6 +11,8 @@ import { dataAStrings as S } from '@/i18n/strings/data-a';
 interface ComplianceSafetyPanelProps {
   readonly licenceHealth: LicenceHealthSlot;
   readonly incidents: OpenHighIncidentsSlot;
+  /** Server-resolved locale — seeds the hook so the first paint matches SSR. */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -29,8 +31,9 @@ interface ComplianceSafetyPanelProps {
 export function ComplianceSafetyPanel({
   licenceHealth,
   incidents,
+  initialLocale,
 }: ComplianceSafetyPanelProps): JSX.Element {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const C = S.complianceSafetyPanel;
   return (
     <section

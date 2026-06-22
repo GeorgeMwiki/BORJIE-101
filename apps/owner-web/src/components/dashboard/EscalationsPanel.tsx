@@ -39,7 +39,7 @@ export interface EscalationsPanelProps {
    * omitted the panel reads the active locale via `useLocale()`, matching
    * its dashboard sibling `NotificationsInbox`.
    */
-  readonly languagePreference?: 'sw' | 'en';
+  readonly languagePreference?: 'sw' | 'en' | undefined;
   /**
    * When false the panel does not query (e.g. signed-out / no tenant
    * resolved). Defaults to true; the gateway enforces tenant + user scope.
@@ -80,7 +80,10 @@ export function EscalationsPanel({
   languagePreference,
   enabled = true,
 }: EscalationsPanelProps): ReactElement {
-  const activeLocale = useLocale();
+  // Seed useLocale from the explicit prop so the panel renders the active
+  // language on the first client paint (no EN-under-SW split-brain frame);
+  // the prop also serves as the single-language override when supplied.
+  const activeLocale = useLocale(languagePreference);
   const locale = languagePreference ?? activeLocale;
   const t = useMemo(() => makeT(dictionaries[locale]), [locale]);
   const {

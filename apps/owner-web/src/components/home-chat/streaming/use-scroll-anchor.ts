@@ -95,8 +95,12 @@ export function useScrollAnchor(): ScrollAnchor {
 
     const maybeFollow = (): void => {
       if (!followRef.current) return;
-      // Re-check the gap so a tiny manual nudge under threshold still follows.
-      if (gapFromBottom(el) <= NEAR_BOTTOM_PX || followRef.current) {
+      // Re-check the gap so we only auto-follow while the reader is genuinely
+      // near the bottom. The `|| followRef.current` that used to be here made
+      // this check inert (we already early-returned unless following), so a
+      // reader who nudged up past the threshold got yanked back on every
+      // streaming growth tick — matches the shared use-chat-scroll hook now.
+      if (gapFromBottom(el) <= NEAR_BOTTOM_PX) {
         scrollToBottom();
       }
     };

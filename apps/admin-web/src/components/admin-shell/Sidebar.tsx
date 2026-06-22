@@ -46,7 +46,7 @@ interface NavItem {
 // destination and was dropped rather than left dead.
 const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { href: '/dashboard', icon: Home, label: 'Cockpit', labelSw: 'Dashibodi' },
-  { href: '/tenants', icon: Building2, label: 'Tenants', labelSw: 'Wapangaji' },
+  { href: '/tenants', icon: Building2, label: 'Tenants', labelSw: 'Wateja' },
   { href: '/audit', icon: ScrollText, label: 'Audit', labelSw: 'Ukaguzi' },
   { href: '/system-health', icon: Activity, label: 'Health', labelSw: 'Afya' },
   { href: '/jarvis', icon: Sparkles, label: 'Brain', labelSw: 'Akili' },
@@ -70,7 +70,10 @@ export function Sidebar({ locale = 'en' }: SidebarProps = {}): JSX.Element {
 
   return (
     <aside
-      aria-label="Admin primary navigation"
+      aria-label={pickByLocale(locale, {
+        en: 'Admin primary navigation',
+        sw: 'Urambazaji mkuu wa msimamizi',
+      })}
       className="hidden lg:flex w-60 shrink-0 flex-col border-r border-border bg-surface-sunken"
     >
       <Link
@@ -89,7 +92,10 @@ export function Sidebar({ locale = 'en' }: SidebarProps = {}): JSX.Element {
         </div>
       </Link>
 
-      <nav aria-label="Primary" className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      <nav
+        aria-label={pickByLocale(locale, { en: 'Primary', sw: 'Msingi' })}
+        className="flex-1 overflow-y-auto px-3 py-4 space-y-1"
+      >
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const active =

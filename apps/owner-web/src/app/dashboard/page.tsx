@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowRight, Brain, Sparkles } from 'lucide-react';
 import { getOwnerSession } from '@/lib/session';
 import { getServerT } from '@/i18n/t.server';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurface';
 import { DashboardBriefSummary } from '@/components/dashboard/DashboardBriefSummary';
 import { DailyBriefCard } from '@/components/dashboard/DailyBriefCard';
@@ -49,7 +50,7 @@ export default function OwnerDashboardPage() {
               week and the brain stream, all sourced from the live
               `/api/v1/owner/brief` BFF via its own client hook. */}
       <Suspense fallback={<BriefSummarySkeleton />}>
-        <DashboardBriefSummary />
+        <BriefSummaryRegion />
       </Suspense>
 
       {/* Owner operating system shell — needs session; streams in its
@@ -146,6 +147,16 @@ async function DailyBriefSection() {
 }
 
 /**
+ * Brief-summary region — resolves the borjie_locale cookie ONCE on the server
+ * and seeds the client island so its first paint matches the SSR `<html lang>`
+ * (no EN-under-SW split-brain on the metric tiles / today's actions).
+ */
+async function BriefSummaryRegion() {
+  const initialLocale = await readLocaleFromServerCookies();
+  return <DashboardBriefSummary initialLocale={initialLocale} />;
+}
+
+/**
  * Owner-OS region — session-derived props for the shell.
  */
 async function OwnerOSRegion() {
@@ -181,6 +192,10 @@ async function OwnerOSRegion() {
  */
 async function LiveSurfaceRegion() {
   const t = await getServerT();
+  // Resolve the borjie_locale cookie ONCE on the server and seed the client
+  // islands inside OwnerDashboardSurface so their first paint matches the
+  // SSR `<html lang>` language (no EN-under-SW split-brain).
+  const initialLocale = await readLocaleFromServerCookies();
   return (
     <>
       <h2
@@ -189,7 +204,7 @@ async function LiveSurfaceRegion() {
       >
         {t('dashboard.liveBrief')}
       </h2>
-      <OwnerDashboardSurface />
+      <OwnerDashboardSurface initialLocale={initialLocale} />
     </>
   );
 }

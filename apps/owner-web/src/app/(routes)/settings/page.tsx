@@ -62,7 +62,7 @@ export default async function SettingsPage() {
           </Link>
         </nav>
         <NotificationPreferencesPanel />
-        <PlanBillingPanel />
+        <PlanBillingPanel initialLocale={locale} />
       </div>
     </>
   );

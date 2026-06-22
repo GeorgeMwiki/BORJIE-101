@@ -54,6 +54,14 @@ interface AskChatProps {
   readonly threadId: string | null;
   readonly initialMessages?: ReadonlyArray<ChatMessage>;
   readonly initialArtifacts?: ReadonlyArray<Artifact>;
+  /**
+   * Server-resolved `borjie_locale` cookie, threaded from the route's
+   * Server Component. SEEDS the first paint so SSR + the first client
+   * render agree with the `<html lang>` the root layout stamped — without
+   * it `useLocale` defaults to `en` and renders an EN chat under SW chrome
+   * for one frame (the zero-mix split-brain the canon forbids).
+   */
+  readonly initialLocale?: Locale;
 }
 
 function newId(): string {
@@ -91,6 +99,7 @@ export function AskChat({
   threadId: initialThreadId,
   initialMessages = [],
   initialArtifacts = [],
+  initialLocale,
 }: AskChatProps) {
   const router = useRouter();
   const [threadId, setThreadId] = useState<string | null>(initialThreadId);
@@ -102,7 +111,7 @@ export function AskChat({
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<Failure>({ kind: 'none' });
   const abortRef = useRef<AbortController | null>(null);
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
 
   // Anchor-law scroll (shared hook): re-anchors on content growth only while
   // the user is at the bottom, so a tall streamed answer never yanks its own
@@ -241,6 +250,10 @@ export function AskChat({
             scope: 'platform',
             persona: 'industry-observer',
             message: body,
+            // Forward the active locale so the gateway pins the reply to it —
+            // without this the kernel collapses to 'en' and a Swahili operator
+            // always gets English back.
+            language: locale,
             extendedThinking,
             slice,
           }),
@@ -393,7 +406,7 @@ function EmptyState({ language }: { readonly language: Locale }) {
       <p className="text-sm text-neutral-400 leading-relaxed">
         {pickByLocale(language, {
           en: 'Ask across every tenant at once. Try:',
-          sw: 'Uliza katika kila mpangaji kwa mara moja. Jaribu:',
+          sw: 'Uliza katika kila mteja kwa mara moja. Jaribu:',
         })}{' '}
         <span className="text-foreground">
           {pickByLocale(language, {
@@ -412,7 +425,7 @@ function EmptyState({ language }: { readonly language: Locale }) {
       <p className="mt-4 text-xs text-neutral-500">
         {pickByLocale(language, {
           en: 'Privacy is preserved. You will never see a single tenant’s name.',
-          sw: 'Faragha inalindwa. Hutawahi kuona jina la mpangaji mmoja.',
+          sw: 'Faragha inalindwa. Hutawahi kuona jina la mteja mmoja.',
         })}
       </p>
     </div>

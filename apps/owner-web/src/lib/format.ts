@@ -50,6 +50,39 @@ export function fmtDate(iso: string): string {
   }).format(date);
 }
 
+/**
+ * Format a date strictly for the active locale — never a hardcoded
+ * 'en-GB'/'en-US'. The BCP-47 tag follows the user's locale (the
+ * locale-follows-the-user canon): `sw` renders `sw-TZ`, `en` renders
+ * `en-GB`. Numeric-leaning style so month rendering stays locale-correct.
+ * Single shared implementation reused by the living-plan, royalty-sign,
+ * and compliance-pack surfaces.
+ */
+export function fmtDateForLocale(iso: string, locale: 'en' | 'sw'): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const bcp47 = locale === 'sw' ? 'sw-TZ' : 'en-GB';
+  return new Intl.DateTimeFormat(bcp47, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+/**
+ * Locale-aware month + year (no day) — for period ranges. Follows the
+ * active locale's BCP-47 tag like `fmtDateForLocale`.
+ */
+export function fmtMonthYearForLocale(iso: string, locale: 'en' | 'sw'): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  const bcp47 = locale === 'sw' ? 'sw-TZ' : 'en-GB';
+  return new Intl.DateTimeFormat(bcp47, {
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
 export function fmtTime(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;

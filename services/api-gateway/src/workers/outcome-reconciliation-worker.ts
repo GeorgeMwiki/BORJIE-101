@@ -548,7 +548,12 @@ export function createOutcomeReconciliationWorker(
         ? scalarDrift(p.predictedValueTzs, res.observedValueTzs)
         : null;
     try {
-      await options.db.execute(sql`
+      // Bind the per-tenant RLS context: under FORCE RLS (BORJIE_ENFORCE_RLS)
+      // a bare cross-tenant write satisfies neither the tenant-isolation nor
+      // the service-role bypass policy and is silently filtered — the same
+      // darkness the rest of this worker already wraps against (see :425/:760).
+      await withWorkerTenantContext(options.db, p.tenantId, (tx) =>
+        tx.execute(sql`
         INSERT INTO outcome_observations (
           id, tenant_id, prediction_id, observed_outcome,
           observed_value_tzs, observed_at, gap_pct, calibrated, narrative
@@ -564,7 +569,8 @@ export function createOutcomeReconciliationWorker(
           ${res.narrative.slice(0, 4000)}
         )
         ON CONFLICT (tenant_id, prediction_id) DO NOTHING
-      `);
+      `),
+      );
       return observationId;
     } catch (err) {
       options.logger.warn(
@@ -589,7 +595,10 @@ export function createOutcomeReconciliationWorker(
     readonly auditHashId: string | null;
   }): Promise<boolean> {
     try {
-      await options.db.execute(sql`
+      // Per-tenant RLS context (see insertObservation) — bare cross-tenant
+      // writes go dark under FORCE RLS.
+      await withWorkerTenantContext(options.db, payload.tenantId, (tx) =>
+        tx.execute(sql`
         INSERT INTO outcome_reconciliations (
           id, tenant_id, prediction_id, observation_id, status,
           drift_score, learning_signal, audit_hash_id, reconciled_at
@@ -605,7 +614,8 @@ export function createOutcomeReconciliationWorker(
           ${now().toISOString()}
         )
         ON CONFLICT (tenant_id, prediction_id) DO NOTHING
-      `);
+      `),
+      );
       return true;
     } catch (err) {
       options.logger.warn(

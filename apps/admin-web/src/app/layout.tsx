@@ -36,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
   });
   const description = pickByLocale(locale, {
     en: 'Borjie Console — internal admin surfaces for tenants, intelligence corpus, prompt and model registry, compliance review, audit logs, and platform killswitch.',
-    sw: 'Konsoli ya Borjie — sehemu za usimamizi wa ndani za wapangaji, hifadhi ya akili, msajili wa miongozo na mifano, ukaguzi wa uzingatiaji, kumbukumbu za ukaguzi, na swichi ya kuzima ya jukwaa.',
+    sw: 'Konsoli ya Borjie — sehemu za usimamizi wa ndani za wateja, hifadhi ya akili, msajili wa miongozo na mifano, ukaguzi wa uzingatiaji, kumbukumbu za ukaguzi, na swichi ya kuzima ya jukwaa.',
   });
   return {
     title: {

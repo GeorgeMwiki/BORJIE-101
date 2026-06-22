@@ -30,7 +30,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { Button } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
-import { fmtTzs } from '@/lib/format';
+import { fmtTzs, fmtMonthYearForLocale } from '@/lib/format';
+import { useLocale, type Locale } from '@/lib/locale';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,10 +74,12 @@ const QUERY_KEY = ['mining', 'royalty', 'drafts'] as const;
 
 const FOUR_EYE_THRESHOLD = 5_000_000;
 
-function fmtPeriod(start: string, end: string): string {
+// Locale-aware period range — never a hardcoded 'en-GB'. The BCP-47 tag
+// follows the user's active locale (locale-follows-the-user canon).
+function fmtPeriod(start: string, end: string, locale: Locale): string {
   try {
-    const s = new Date(start).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-    const e = new Date(end).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+    const s = fmtMonthYearForLocale(start, locale);
+    const e = fmtMonthYearForLocale(end, locale);
     return s === e ? s : `${s} – ${e}`;
   } catch {
     return `${start} – ${end}`;
@@ -232,6 +235,7 @@ function SignRowForm({
 // ---------------------------------------------------------------------------
 
 export default function RoyaltySignPage() {
+  const locale = useLocale();
   const [signedIds, setSignedIds] = useState<ReadonlySet<string>>(new Set());
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -358,7 +362,7 @@ export default function RoyaltySignPage() {
                         {draft.mineral}
                       </p>
                       <p className="mt-0.5 text-xs text-neutral-400">
-                        {fmtPeriod(draft.periodStart, draft.periodEnd)}
+                        {fmtPeriod(draft.periodStart, draft.periodEnd, locale)}
                         {draft.quantity !== null && draft.unit
                           ? ` · ${draft.quantity.toLocaleString()} ${draft.unit}`
                           : ''}
@@ -406,7 +410,7 @@ export default function RoyaltySignPage() {
                     {draft.mineral}
                   </p>
                   <p className="text-xs text-neutral-500">
-                    {fmtPeriod(draft.periodStart, draft.periodEnd)}
+                    {fmtPeriod(draft.periodStart, draft.periodEnd, locale)}
                     {draft.royaltyAmount !== null
                       ? ` · ${fmtTzs(draft.royaltyAmount)}`
                       : ''}

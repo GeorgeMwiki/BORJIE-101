@@ -16,6 +16,7 @@ import { Check } from 'lucide-react';
 import { Button } from '@borjie/design-system';
 
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { fmtDateForLocale } from '@/lib/format';
 import { livingPlanPanelStrings as M } from '@/i18n/strings/living-plan-panel';
 
 // ── Wire shapes (mirror the api-gateway living-plan route) ───────────────────
@@ -100,18 +101,13 @@ function titleFor(item: PlanItem, locale: Locale): string {
 }
 
 /**
- * Format a date strictly for the active locale — never a hardcoded 'en-US'.
- * Uses a numeric-leaning style so month rendering stays locale-correct.
+ * Format a date strictly for the active locale — never a hardcoded
+ * 'en-US'/'en-GB'. Delegates to the shared `fmtDateForLocale` so the
+ * living-plan, royalty-sign, and compliance-pack surfaces all format dates
+ * through one locale-aware implementation.
  */
 function formatDate(iso: string, locale: Locale): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  const bcp47 = locale === 'sw' ? 'sw-TZ' : 'en-GB';
-  return new Intl.DateTimeFormat(bcp47, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(date);
+  return fmtDateForLocale(iso, locale);
 }
 
 /** The human trigger line: "Due 1 Jul 2026" / "When a payment lands". */

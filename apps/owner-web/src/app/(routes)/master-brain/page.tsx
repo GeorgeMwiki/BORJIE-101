@@ -1,5 +1,6 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { MasterBrainSurface } from '@/components/master-brain/MasterBrainSurface';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 /**
  * O-W-02 — Conversational Master Brain.
@@ -14,11 +15,14 @@ import { MasterBrainSurface } from '@/components/master-brain/MasterBrainSurface
  * often activating several at once (financial, regulatory, strategic, etc.).
  * The owner interacts through a single unified conversation surface.
  */
-export default function MasterBrainPage() {
+export default async function MasterBrainPage() {
+  // Resolve the borjie_locale cookie on the server and seed the client chat
+  // surface so its first paint matches the SSR `<html lang>` (no split-brain).
+  const initialLocale = await readLocaleFromServerCookies();
   return (
     <>
       <ScreenHeader slug="master-brain" />
-      <MasterBrainSurface />
+      <MasterBrainSurface initialLocale={initialLocale} />
     </>
   );
 }

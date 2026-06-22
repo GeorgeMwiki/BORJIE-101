@@ -80,6 +80,12 @@ const ROLE_PRIORITY: ReadonlyArray<{ match: string; mapped: UserRole }> = [
   { match: 'driver', mapped: UserRole.MAINTENANCE_STAFF },
   { match: 'resident', mapped: UserRole.RESIDENT },
   // Borjie marketplace buyer — read-only counterpart; map to RESIDENT.
+  // The buyer-signup app_metadata carries the SPECIFIC strings
+  // `buyer_org_admin` / `buyer_org_member` (see routes/buyers/signup.hono.ts),
+  // NOT the bare `buyer` — list every real value so a self-registered buyer
+  // never falls through to the fail-closed default below and gets over-mapped.
+  { match: 'buyer_org_admin', mapped: UserRole.RESIDENT },
+  { match: 'buyer_org_member', mapped: UserRole.RESIDENT },
   { match: 'buyer', mapped: UserRole.RESIDENT },
 ];
 
@@ -88,8 +94,13 @@ export function mapSupabaseRolesToUserRole(roles: readonly string[]): UserRole {
   for (const { match, mapped } of ROLE_PRIORITY) {
     if (lower.includes(match)) return mapped;
   }
-  // Default: tenant admin if unrecognized — never silently grant SUPER_ADMIN.
-  return UserRole.TENANT_ADMIN;
+  // Default: FAIL CLOSED to the least-privilege external role. An
+  // unrecognized `mining_role` must NEVER be silently elevated — the prior
+  // `TENANT_ADMIN` default let any actor whose role string was absent from the
+  // table above (e.g. a self-registered `buyer_org_admin`) satisfy every
+  // tenant-admin write gate (proposals/tenders/damage-claims/four-eye/
+  // break-glass). RESIDENT is in no WRITE_ROLES set, so the gates hold.
+  return UserRole.RESIDENT;
 }
 
 /**

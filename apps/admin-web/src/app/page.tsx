@@ -26,6 +26,7 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { HomeChat } from '@/components/home-chat/HomeChat';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export default async function HomePage() {
   const supabase = await createSupabaseServerClient();
@@ -35,5 +36,10 @@ export default async function HomePage() {
     redirect('/sign-in?next=/');
   }
 
-  return <HomeChat />;
+  // Seed the chat's first paint from the server-resolved `borjie_locale`
+  // cookie so SSR + the first client render agree with the `<html lang>`
+  // the root layout stamped (zero-mix canon — no EN-under-SW frame).
+  const initialLocale = await readLocaleFromServerCookies();
+
+  return <HomeChat initialLocale={initialLocale} />;
 }

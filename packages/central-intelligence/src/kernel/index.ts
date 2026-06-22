@@ -1046,4 +1046,9 @@ export {
   type DivergenceReporter,
   type ShadowDivergenceEvent,
   type ExistingDecisionOutcome,
+  createLocalePurePort,
+  isLocaleImpure,
+  LOCALE_PURE_PAYLOAD_TEXT_KEY,
+  LOCALE_PURE_PAYLOAD_LOCALE_KEY,
+  type ActiveLocale,
 } from './membrane/index.js';

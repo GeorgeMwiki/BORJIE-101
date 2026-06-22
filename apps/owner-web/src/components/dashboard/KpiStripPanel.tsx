@@ -2,12 +2,18 @@
 
 import { Sparkline } from '@/components/shared/Sparkline';
 import { fmtNum, fmtTzsM } from '@/lib/format';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { OwnerBriefPayload } from '@/lib/queries/owner-brief';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 interface KpiStripPanelProps {
   readonly brief: OwnerBriefPayload;
+  /**
+   * Server-resolved locale, threaded from the dashboard surface so
+   * `useLocale` SEEDS the first client render to the active language and
+   * the tile labels never flash EN under an SW page (split-brain).
+   */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -18,8 +24,11 @@ interface KpiStripPanelProps {
  * has enough trend points to justify it — never fake bars. The
  * production sparkline reads per-site tonnes from the 30-day window.
  */
-export function KpiStripPanel({ brief }: KpiStripPanelProps): JSX.Element {
-  const locale = useLocale();
+export function KpiStripPanel({
+  brief,
+  initialLocale,
+}: KpiStripPanelProps): JSX.Element {
+  const locale = useLocale(initialLocale);
   const productionTotal = brief.productionVsTarget.perSite.reduce(
     (sum, s) => sum + Number(s.tonnes ?? 0),
     0,

@@ -34,9 +34,9 @@ export function LitFinChatDisclaimer({
       <View style={styles.shield}>
         <View style={styles.shieldTick} />
       </View>
-      <Text style={styles.text} numberOfLines={2}>
-        {DISCLAIMER[language]}
-      </Text>
+      {/* Legal/compliance string — NEVER clip. No numberOfLines cap so the
+          longer Swahili copy fully renders; the row has no fixed height. */}
+      <Text style={styles.text}>{DISCLAIMER[language]}</Text>
     </View>
   )
 }
@@ -44,7 +44,9 @@ export function LitFinChatDisclaimer({
 const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
-    alignItems: 'center',
+    // flex-start (not center) so a wrapped multi-line disclaimer aligns its
+    // first line to the shield badge instead of floating mid-height.
+    alignItems: 'flex-start',
     gap: tokens.space.sm,
     borderTopWidth: 1,
     borderTopColor: tokens.color.border,

@@ -14,7 +14,7 @@ interface DailyBriefCardProps {
    * reads the active locale via `useLocale()` so it never requires callers to
    * thread a language prop.
    */
-  readonly language?: 'en' | 'sw';
+  readonly language?: 'en' | 'sw' | undefined;
 }
 
 const SEVERITY_PILL: Record<BriefItem['severity'], string> = {
@@ -24,11 +24,14 @@ const SEVERITY_PILL: Record<BriefItem['severity'], string> = {
 };
 
 export function DailyBriefCard({ items, language }: DailyBriefCardProps) {
-  const t = useT();
+  // Seed both hooks from the caller-supplied `language` so the title and
+  // body render the active language on the first client paint — without
+  // the seed they default to `en` and flash under an SW page (split-brain).
+  const t = useT(language);
   // Resolve locale: caller-supplied prop takes precedence; fall back to the
   // locale cookie so this card always renders in exactly one language without
   // requiring every parent to thread the prop.
-  const cookieLocale = useLocale();
+  const cookieLocale = useLocale(language);
   const activeLocale = language ?? cookieLocale;
 
   return (

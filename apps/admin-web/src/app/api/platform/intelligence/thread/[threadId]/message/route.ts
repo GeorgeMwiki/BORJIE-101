@@ -94,9 +94,12 @@ export async function POST(
     );
   }
 
+  const language = asString((body as { language?: unknown }).language);
   const upstreamBody = JSON.stringify({
     threadId,
     message,
+    // Forward the operator's active locale so the gateway pins the reply.
+    ...(language === 'en' || language === 'sw' ? { language } : {}),
     ...(body.presence && typeof body.presence === 'object'
       ? { presence: body.presence }
       : {}),

@@ -68,7 +68,11 @@ export const executiveBriefActions = pgTable(
     briefIdx: index('idx_executive_brief_actions_brief').on(t.briefId),
     statusCheck: check(
       'executive_brief_actions_status_chk',
-      sql`${t.status} IN ('pending','approved','executed','failed','rejected')`,
+      // 'dispatching' is the atomic-claim intermediate state (approved →
+      // dispatching → executed) added by migration 0363; the schema-of-record
+      // must list it or a drizzle-kit generate would re-narrow the live CHECK
+      // and reject the worker's claim UPDATE.
+      sql`${t.status} IN ('pending','approved','dispatching','executed','failed','rejected')`,
     ),
     attemptsCheck: check(
       'executive_brief_actions_attempts_chk',

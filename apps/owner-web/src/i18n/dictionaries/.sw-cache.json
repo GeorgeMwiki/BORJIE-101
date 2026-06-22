@@ -814,5 +814,973 @@
   "palette.actionPinnedItems": {
     "h": "7bea6f240d98749a",
     "sw": "Onyesha vitu vilivyobandikwa"
+  },
+  "dashboard.summaryEmptyTitle": {
+    "h": "501de7c66a588b55",
+    "sw": "Dashibodi yako inajaa unavyoendesha shughuli"
+  },
+  "dashboard.summaryEmptyBody": {
+    "h": "52c2dea5d308b216",
+    "sw": "Sajili zamu, ongeza leseni, au uliza Borjie Brain na takwimu zako za kila siku zitaonekana hapa."
+  },
+  "dashboard.summaryOffline": {
+    "h": "9c69963b5e92b13d",
+    "sw": "Takwimu za moja kwa moja hazipo mtandaoni sasa hivi."
+  },
+  "dashboard.metricLicencesAtRiskSub": {
+    "h": "e16243bd7e296bde",
+    "sw": "{count} katika hatari ya kumalizika"
+  },
+  "dashboard.metricLicencesNoneSub": {
+    "h": "da063d293a3d9196",
+    "sw": "Hakuna leseni kwenye faili bado"
+  },
+  "dashboard.metricDecisionsLabel": {
+    "h": "0b19d229b053f7e3",
+    "sw": "Maamuzi yanayokaguliwa"
+  },
+  "dashboard.metricDecisionsValueNone": {
+    "h": "96ed94a7e3ac84bf",
+    "sw": "Safi kabisa"
+  },
+  "dashboard.metricDecisionsSub": {
+    "h": "5c73154ec1d9ab66",
+    "sw": "{count} zinasubiri uamuzi wako"
+  },
+  "dashboard.metricDecisionsNoneSub": {
+    "h": "477ffbd576cfac0b",
+    "sw": "Hakuna kinachosubiri sasa hivi"
+  },
+  "dashboard.metricWorkforceShiftsSub": {
+    "h": "96d81436366fdc83",
+    "sw": "{count} kwenye zamu leo"
+  },
+  "dashboard.metricWorkforceNoneSub": {
+    "h": "cf7d148be8dd6911",
+    "sw": "Hakuna zamu iliyosajiliwa bado"
+  },
+  "dashboard.actionsEmpty": {
+    "h": "6cd68f3783ed15c4",
+    "sw": "Hakuna vitendo vinavyokuhitaji sasa hivi."
+  },
+  "dashboard.actionReviewDecision": {
+    "h": "aff0766a5290e117",
+    "sw": "Kagua"
+  },
+  "dashboard.thisWeekEmpty": {
+    "h": "7f12409a9d711705",
+    "sw": "Hakuna tarehe za mwisho za leseni zinazoonekana."
+  },
+  "dashboard.eventLicenceExpiresInDays": {
+    "h": "3f8bb3af2fd7a92e",
+    "sw": "Inamalizika baada ya siku {count}"
+  },
+  "dashboard.eventLicenceExpirySoon": {
+    "h": "52ad328468d6dcc7",
+    "sw": "Inamalizika hivi karibuni"
+  },
+  "dashboard.brainStreamEmpty": {
+    "h": "9078fe40a2e914b6",
+    "sw": "Borjie Brain haina maamuzi yaliyosajiliwa bado."
+  },
+  "dashboard.brainAdvisorTitle": {
+    "h": "b59f3f21ae08c490",
+    "sw": "Maarifa ya mshauri"
+  },
+  "nav.headBriefing": {
+    "h": "1d7097ef3cae4543",
+    "sw": "Mkutano wa viongozi"
+  },
+  "nav.agentic": {
+    "h": "34f310640676d09f",
+    "sw": "Mipango ya agentic"
+  },
+  "nav.training": {
+    "h": "36a798e3f39239cc",
+    "sw": "Mafunzo"
+  },
+  "nav.flows": {
+    "h": "53544e3114f26300",
+    "sw": "Mtiririko"
+  },
+  "nav.market": {
+    "h": "8f5f5d1ed9150375",
+    "sw": "Taarifa za soko"
+  },
+  "nav.payroll": {
+    "h": "53fe8dfb6d9e1b03",
+    "sw": "Mishahara"
+  },
+  "nav.livingPlan": {
+    "h": "d233007e6f5aee02",
+    "sw": "Mpango endelevu"
+  },
+  "teach.trustVerified": {
+    "h": "8b99f8b97a13ebc7",
+    "sw": "Imethibitishwa · Mjadala wa miundo {count}"
+  },
+  "teach.trustDebate": {
+    "h": "4a50f54b497d9222",
+    "sw": "Mjadala wa miundo {count}"
+  },
+  "teach.autoAuthorized": {
+    "h": "5a79c21c5b428991",
+    "sw": "Imeidhinishwa kiotomatiki"
+  },
+  "teach.hintHandoff": {
+    "h": "6b78e887a8b13553",
+    "sw": "Niunganishe na mshauri wa kibinadamu."
+  },
+  "teach.hintSimpler": {
+    "h": "e457d6935e4976a5",
+    "sw": "Eleza hivyo kwa urahisi zaidi."
+  },
+  "teach.hintCmdk": {
+    "h": "6480f332a0a36d94",
+    "sw": "Nionyeshe ninachoweza kufanya kutoka hapa."
+  },
+  "teach.microAction.executed": {
+    "h": "4e875a056c0bc1cc",
+    "sw": "✓ {summary}"
+  },
+  "teach.microAction.actionDone": {
+    "h": "d466be6feb6e54b2",
+    "sw": "Kitendo kimekamilika."
+  },
+  "teach.microAction.reminderSet": {
+    "h": "140980354f5f53cb",
+    "sw": "Kikumbusho kimewekwa — {title}"
+  },
+  "teach.microAction.reminderSetIn": {
+    "h": "66bf84b36f92d921",
+    "sw": "Kikumbusho kimewekwa — {title} baada ya siku {days}"
+  },
+  "teach.microAction.reminderSnoozed": {
+    "h": "9aba352363cd74db",
+    "sw": "Kikumbusho kimeahirishwa siku {days}"
+  },
+  "teach.microAction.needsConfirmation": {
+    "h": "92732b6d782b1472",
+    "sw": "Inahitaji uthibitisho wako — {reason}"
+  },
+  "teach.microAction.needsConfirmationBare": {
+    "h": "70342cede3f789e8",
+    "sw": "Kitendo hiki kinahitaji uthibitisho wako."
+  },
+  "teach.microAction.fulfill": {
+    "h": "febb2142713e3e92",
+    "sw": "Tafadhali endelea na: {action}."
+  },
+  "teach.microAction.fulfillDetail": {
+    "h": "651327da6051766a",
+    "sw": "Tafadhali endelea na: {action}. Maelezo — {detail}."
+  },
+  "teach.microAction.promoteTab": {
+    "h": "4d71bd6fd83dc754",
+    "sw": "Tafadhali jenga na fungua kichupo kamili cha {label}."
+  },
+  "teach.microAction.expandBlock": {
+    "h": "fc5037f625d9e7c7",
+    "sw": "Tafadhali nipanulie hii."
+  },
+  "teach.stream.stop": {
+    "h": "cae7d57bc067a514",
+    "sw": "Simamisha"
+  },
+  "teach.stream.stopAria": {
+    "h": "f6a74a2716d96439",
+    "sw": "Simamisha kuzalisha"
+  },
+  "teach.stream.stopped": {
+    "h": "349182551dbb1855",
+    "sw": "Jibu limesimamishwa"
+  },
+  "teach.stream.retry": {
+    "h": "942087cc2d41e013",
+    "sw": "Jaribu tena"
+  },
+  "teach.stream.attach": {
+    "h": "21298c62c8e5e476",
+    "sw": "Ambatisha faili"
+  },
+  "teach.stream.dropHere": {
+    "h": "1ab1b095c1ed143e",
+    "sw": "Dondosha faili kuambatisha"
+  },
+  "teach.selfModel.title": {
+    "h": "7c2b52c63a1012c5",
+    "sw": "Jinsi ninavyokuwa na uhakika"
+  },
+  "teach.selfModel.sureAbout": {
+    "h": "94d6e21722848bb3",
+    "sw": "Nina uhakika kuhusu"
+  },
+  "teach.selfModel.unsureAbout": {
+    "h": "fbbbcbdeaf62c2c2",
+    "sw": "Sina uhakika kuhusu"
+  },
+  "teach.selfModel.wouldNeed": {
+    "h": "4d59402223588006",
+    "sw": "Itasaidia"
+  },
+  "teach.selfModel.posture.answering": {
+    "h": "44bc0b54b85acdfc",
+    "sw": "Mwenye ujasiri"
+  },
+  "teach.selfModel.posture.reasoning": {
+    "h": "44bc0b54b85acdfc",
+    "sw": "Mwenye ujasiri"
+  },
+  "teach.selfModel.posture.clarifying": {
+    "h": "585a73eff945baba",
+    "sw": "Inahitaji maelezo"
+  },
+  "teach.selfModel.posture.softening": {
+    "h": "2ad48012d6afd5f9",
+    "sw": "Mwenye wasiwasi"
+  },
+  "teach.selfModel.posture.refusing": {
+    "h": "349d9d64fbee4472",
+    "sw": "Inazuia"
+  },
+  "teach.selfModel.posture.deferring": {
+    "h": "a33293c880157893",
+    "sw": "Inahitaji uamuzi wako"
+  },
+  "portal.owner": {
+    "h": "f9bbd2e991128909",
+    "sw": "Kokpiti ya Mmiliki"
+  },
+  "portal.admin": {
+    "h": "47913ab65b15d3fd",
+    "sw": "Dashibodi ya Borjie"
+  },
+  "portal.switch": {
+    "h": "855cd378d4314cf0",
+    "sw": "Badilisha lango"
+  },
+  "feedback.open": {
+    "h": "1d259a6513fc9020",
+    "sw": "Mwambie Borjie"
+  },
+  "feedback.title": {
+    "h": "7afc4ab53a6d62fc",
+    "sw": "Shiriki uzoefu wako"
+  },
+  "feedback.ratingPrompt": {
+    "h": "a0058cbb1682a472",
+    "sw": "Ilikuwaje?"
+  },
+  "feedback.noteLabel": {
+    "h": "5331e47d0d54681e",
+    "sw": "Maelezo yako"
+  },
+  "feedback.messagePlaceholder": {
+    "h": "302985fce70fdc64",
+    "sw": "Andika kwa Kiswahili au Kiingereza..."
+  },
+  "feedback.cancel": {
+    "h": "7d9eb7acb13e2462",
+    "sw": "Funga"
+  },
+  "feedback.send": {
+    "h": "f6f4688ff23d50c6",
+    "sw": "Tuma"
+  },
+  "feedback.error": {
+    "h": "5e58b2bd17860ad5",
+    "sw": "Haikuweza kutumwa — tafadhali jaribu tena"
+  },
+  "signOut.action": {
+    "h": "48f0d3d397d49f13",
+    "sw": "Toka"
+  },
+  "signOut.pending": {
+    "h": "08c6bd357b7d7b81",
+    "sw": "Inatoka…"
+  },
+  "signOut.error": {
+    "h": "e8e596ada1dca8f4",
+    "sw": "Haikuweza kutoka"
+  },
+  "reminders.heading": {
+    "h": "7971dd7526694c6a",
+    "sw": "Vikumbusho"
+  },
+  "reminders.channelHint": {
+    "h": "3151b49638ddb43f",
+    "sw": "Barua pepe chaguo-msingi · SMS / WhatsApp / Slack zinapatikana"
+  },
+  "reminders.title": {
+    "h": "7e8cd2056da73a7f",
+    "sw": "Kichwa"
+  },
+  "reminders.body": {
+    "h": "6ccaa6415b5ee449",
+    "sw": "Mwili"
+  },
+  "reminders.triggerAt": {
+    "h": "2b87b91b493aecda",
+    "sw": "Anzisha saa"
+  },
+  "reminders.channel": {
+    "h": "ce4683e7013a18cd",
+    "sw": "Njia"
+  },
+  "reminders.channelEmail": {
+    "h": "969ccbd3cf6300ec",
+    "sw": "Barua pepe"
+  },
+  "reminders.channelSms": {
+    "h": "40b601a10ca536c1",
+    "sw": "SMS"
+  },
+  "reminders.channelWhatsapp": {
+    "h": "6a40edf1fc87a29f",
+    "sw": "WhatsApp"
+  },
+  "reminders.channelSlack": {
+    "h": "b27fb38ba323745c",
+    "sw": "Slack"
+  },
+  "reminders.saving": {
+    "h": "23e39291d6135814",
+    "sw": "Inahifadhi…"
+  },
+  "reminders.schedule": {
+    "h": "413101284cd7f539",
+    "sw": "Panga kikumbusho"
+  },
+  "reminders.empty": {
+    "h": "057d33f4951222b9",
+    "sw": "Hakuna vikumbusho bado."
+  },
+  "reminders.cancelItem": {
+    "h": "19766ed6ccb2f4a3",
+    "sw": "Ghairi"
+  },
+  "reminders.acknowledge": {
+    "h": "f9236d9e87b6235e",
+    "sw": "Thibitisha"
+  },
+  "sandboxQueue.committed": {
+    "h": "31e27a6a30e4eaf4",
+    "sw": "Imethibitishwa kwenye mfumo hai."
+  },
+  "sandboxQueue.commitFailed": {
+    "h": "bfc0a9f879d7e451",
+    "sw": "Uthibitishaji umeshindwa"
+  },
+  "sandboxQueue.enterReasonFirst": {
+    "h": "e37b71ceddf584fd",
+    "sw": "Ingiza sababu kwanza."
+  },
+  "sandboxQueue.rejected": {
+    "h": "ac7b5115d2fb37cd",
+    "sw": "Imekataliwa."
+  },
+  "sandboxQueue.rejectFailed": {
+    "h": "8b1d9fa46b369481",
+    "sw": "Kukataa kumeshindwa"
+  },
+  "sandboxQueue.loading": {
+    "h": "ef3a8007ce95bc11",
+    "sw": "Inapakia maandishi yaliyohifadhiwa…"
+  },
+  "sandboxQueue.empty": {
+    "h": "65df98cad284afb0",
+    "sw": "Hakuna maandishi yaliyohifadhiwa katika muonekano huu."
+  },
+  "sandboxQueue.commit": {
+    "h": "bed688b78e9c60cb",
+    "sw": "Thibitisha (macho manne)"
+  },
+  "sandboxQueue.rejectReason": {
+    "h": "b810e78e017bae89",
+    "sw": "Sababu ya kukataa"
+  },
+  "sandboxQueue.rejectPlaceholder": {
+    "h": "8c9283790ad24f46",
+    "sw": "Kwa nini unakataa andishi hili?"
+  },
+  "sandboxQueue.reject": {
+    "h": "ab604a360777735f",
+    "sw": "Kataa"
+  },
+  "headBriefing.unavailable": {
+    "h": "aa2c7d4fa336c2ea",
+    "sw": "Mkutano wa asubuhi haupatikani sasa hivi."
+  },
+  "headBriefing.noContent": {
+    "h": "d6a919e97f4d390b",
+    "sw": "Hakuna maudhui ya mkutano."
+  },
+  "headBriefing.overnightActivity": {
+    "h": "5daf4d46ff66ad86",
+    "sw": "Shughuli za usiku"
+  },
+  "headBriefing.noAutonomousActions": {
+    "h": "6c60426aaa75d7aa",
+    "sw": "Hakuna vitendo vya kujitegemea."
+  },
+  "headBriefing.pendingApprovals": {
+    "h": "0405f4b67edd2784",
+    "sw": "Idhini zinazongoja"
+  },
+  "headBriefing.nothingAwaiting": {
+    "h": "26dff197bd080492",
+    "sw": "Hakuna kinachongoja uamuzi."
+  },
+  "headBriefing.escalations": {
+    "h": "1b2aba240e3ba90d",
+    "sw": "Masuala yaliyopandishwa"
+  },
+  "headBriefing.noEscalations": {
+    "h": "4210823b66ef816d",
+    "sw": "Hakuna masuala yaliyopandishwa."
+  },
+  "headBriefing.recommendations": {
+    "h": "0738ee00b61bc3af",
+    "sw": "Mapendekezo"
+  },
+  "headBriefing.noRecommendations": {
+    "h": "2e7b6c60e96e64df",
+    "sw": "Hakuna mapendekezo."
+  },
+  "headBriefing.anomalies": {
+    "h": "ac2064ecc29b9f28",
+    "sw": "Makosa"
+  },
+  "ownerOsShell.spawnNewTab": {
+    "h": "276e465497e9b6df",
+    "sw": "Fungua kichupo kipya"
+  },
+  "ownerOsShell.newTab": {
+    "h": "1e08fda9c966d3ba",
+    "sw": "Kichupo kipya"
+  },
+  "ownerOsShell.recentTabs": {
+    "h": "ea672533d38da10b",
+    "sw": "Vichupo vya hivi karibuni"
+  },
+  "ownerOsShell.recentlyClosed": {
+    "h": "5a975f7c807dcec8",
+    "sw": "Vilichofungwa hivi karibuni"
+  },
+  "ownerOsShell.open": {
+    "h": "ed077f3d8125d60d",
+    "sw": "Fungua"
+  },
+  "ownerOsShell.dismissProposal": {
+    "h": "3b72ea19589b3a18",
+    "sw": "Ondoa pendekezo"
+  },
+  "ownerOsShell.genuiOpened": {
+    "h": "d228e513da5b1987",
+    "sw": "Imefungua \"{title}\" kutoka mazungumzo yako"
+  },
+  "ownerOsShell.inTabStrip": {
+    "h": "856912d6d9c00c74",
+    "sw": "Iko kwenye vichupo vyako — endelea kuongea."
+  },
+  "ownerOsShell.openShort": {
+    "h": "ed077f3d8125d60d",
+    "sw": "Fungua"
+  },
+  "ownerOsShell.undo": {
+    "h": "a8283ade31856f71",
+    "sw": "Tendua"
+  },
+  "ownerOsShell.dismiss": {
+    "h": "48845bff334a50a5",
+    "sw": "Ondoa"
+  },
+  "ownerOsShell.artifactPrepared": {
+    "h": "becb3f02b18827db",
+    "sw": "Imeandaliwa \"{title}\" kutoka mazungumzo yako"
+  },
+  "ownerOsShell.artifactTitle.forecast": {
+    "h": "75205de8b342f506",
+    "sw": "Utabiri"
+  },
+  "ownerOsShell.artifactTitle.document": {
+    "h": "d6bd8c0aeee80fed",
+    "sw": "Hati"
+  },
+  "ownerOsShell.artifactTitle.media": {
+    "h": "d357175cfe8978d3",
+    "sw": "Media"
+  },
+  "genuiTab.submit": {
+    "h": "1509f561f2416598",
+    "sw": "Hifadhi"
+  },
+  "genuiTab.submitting": {
+    "h": "23e39291d6135814",
+    "sw": "Inahifadhi…"
+  },
+  "genuiTab.submitSuccess": {
+    "h": "fca046ccd586c67f",
+    "sw": "Imehifadhiwa."
+  },
+  "genuiTab.submitError": {
+    "h": "fcddff45b1442554",
+    "sw": "Imeshindwa kuhifadhi. Angalia maingizo yako na ujaribu tena."
+  },
+  "genuiTab.requiredHint": {
+    "h": "ebba12d991886bf6",
+    "sw": "Jaza sehemu zinazohitajika."
+  },
+  "genuiTab.recordsHeading": {
+    "h": "5fc24c8075486726",
+    "sw": "Rekodi zilizohifadhiwa"
+  },
+  "genuiTab.recordsEmpty": {
+    "h": "2e773abf86f47c38",
+    "sw": "Hakuna rekodi bado. Wasilisha fomu kuongeza ya kwanza."
+  },
+  "genuiTab.recordsLoading": {
+    "h": "c3b4579a87c9a744",
+    "sw": "Inapakia rekodi…"
+  },
+  "genuiTab.recordsError": {
+    "h": "d16f539c7d0e15a1",
+    "sw": "Imeshindwa kupakia rekodi."
+  },
+  "genuiTab.recordCreatedAt": {
+    "h": "432682a6ca5afea7",
+    "sw": "Imeongezwa {at}"
+  },
+  "genuiTab.recordsCreatedAtColumn": {
+    "h": "d70b9e24bca26b40",
+    "sw": "Iliyoundwa"
+  },
+  "genuiTab.widgetLoading": {
+    "h": "ba3bbbe10d8bef66",
+    "sw": "Inapakia…"
+  },
+  "genuiTab.widgetError": {
+    "h": "0fde3147143af3f2",
+    "sw": "Imeshindwa kupakia wijeti hii."
+  },
+  "genuiTab.widgetEmpty": {
+    "h": "bddd837f1a0ce8ce",
+    "sw": "Hakuna data bado."
+  },
+  "genuiTab.widgetPlaceholder": {
+    "h": "43294bb1ffabad59",
+    "sw": "Data ya moja kwa moja itaonekana hapa wijeti hii itakapounganishwa."
+  },
+  "genuiTab.widgetValueLabel": {
+    "h": "8e37953d23daca5f",
+    "sw": "Thamani"
+  },
+  "genuiTab.actionRunning": {
+    "h": "5474eef8d0f179c7",
+    "sw": "Inafanya kazi…"
+  },
+  "genuiTab.actionDone": {
+    "h": "ed251864987c367e",
+    "sw": "Imekamilika."
+  },
+  "genuiTab.actionDeclined": {
+    "h": "047f718049ba290a",
+    "sw": "Hiyo inahitaji uthibitisho: {reason}"
+  },
+  "genuiTab.actionHandlingIt": {
+    "h": "7f36240570ef89a5",
+    "sw": "Ninashughulikia — ninakushughulikiia hilo."
+  },
+  "genuiTab.actionFailed": {
+    "h": "d835dc23f42a2ad2",
+    "sw": "Kitendo hicho hakikuweza kufanywa."
+  },
+  "genuiTab.fieldUploading": {
+    "h": "5ce44dd77dae789f",
+    "sw": "Inapakia…"
+  },
+  "genuiTab.fieldUploaded": {
+    "h": "4e90d58eab8b9888",
+    "sw": "Imepakiwa."
+  },
+  "genuiTab.fieldReadingSignature": {
+    "h": "874bfa5bedd7464d",
+    "sw": "Inasoma…"
+  },
+  "genuiTab.fieldSignatureCaptured": {
+    "h": "22d249f73990ab09",
+    "sw": "Saini imenaswa."
+  },
+  "genuiTab.fieldSignatureReadError": {
+    "h": "f83f5a1ebd5b70d9",
+    "sw": "Imeshindwa kusoma picha ya saini. Tafadhali chagua faili halali ya picha."
+  },
+  "genuiTab.fieldUploadPreviewDisabled": {
+    "h": "c3e075582ce89c1e",
+    "sw": "onyesho la awali — upakiaji unahitaji kichupo kilichohifadhiwa"
+  },
+  "genuiTab.fieldUploadFailed": {
+    "h": "6efc5d27f30b20c1",
+    "sw": "Upakiaji umeshindwa"
+  },
+  "genuiTab.fieldAddressPlaceholder": {
+    "h": "8a386dd14cb9a70f",
+    "sw": "Anwani ya mtaa"
+  },
+  "genuiTab.fieldLatitude": {
+    "h": "238a676da45a2f9c",
+    "sw": "Latitudo"
+  },
+  "genuiTab.fieldLongitude": {
+    "h": "6d80458fd17d33fc",
+    "sw": "Longitudo"
+  },
+  "cockpit.dailyBriefTitle": {
+    "h": "ba6a6869f9fd39d8",
+    "sw": "Muhtasari wa kila siku"
+  },
+  "escalations.heading": {
+    "h": "1b2aba240e3ba90d",
+    "sw": "Kupandishwa"
+  },
+  "escalations.headerOpen": {
+    "h": "ece21297806b22d7",
+    "sw": "Kupandishwa kulicho wazi ({count})"
+  },
+  "escalations.liveHint": {
+    "h": "cbf2e8d4dd60a427",
+    "sw": "Ngazi halali · thibitisha au tatua kufunga"
+  },
+  "escalations.loading": {
+    "h": "acf6092d534861e6",
+    "sw": "Inapakia kupandishwa…"
+  },
+  "escalations.signInRequired": {
+    "h": "1ca5bc233670a6e4",
+    "sw": "Ingia ili kuona mapandisho."
+  },
+  "escalations.loadFailed": {
+    "h": "60b5759ffc0cb5ff",
+    "sw": "Imeshindwa kupakia mapandisho. Tafadhali jaribu tena."
+  },
+  "escalations.emptyTitle": {
+    "h": "4c9a7f1b9edd5974",
+    "sw": "Hakuna mapandisho wazi"
+  },
+  "escalations.emptyBody": {
+    "h": "4e10bfa72e0a0b87",
+    "sw": "Mfanyakazi, meneja, au MD anapopandisha jambo kwa binadamu, linaonekana hapa."
+  },
+  "escalations.acknowledge": {
+    "h": "f9236d9e87b6235e",
+    "sw": "Thibitisha"
+  },
+  "escalations.resolve": {
+    "h": "c8f193b315c86f3a",
+    "sw": "Tatua"
+  },
+  "escalations.acknowledging": {
+    "h": "c1a50fbae0d34d90",
+    "sw": "Inathibitisha…"
+  },
+  "escalations.resolving": {
+    "h": "6d2b99e1dbd546ea",
+    "sw": "Inatatua…"
+  },
+  "escalations.actionFailed": {
+    "h": "d64c555bee8d0353",
+    "sw": "Kitendo kimeshindwa. Tafadhali jaribu tena."
+  },
+  "escalations.openedPrefix": {
+    "h": "b19fb8d1b395b333",
+    "sw": "Ilifunguliwa"
+  },
+  "escalations.justNow": {
+    "h": "7ddb44d8a533a753",
+    "sw": "sasa hivi"
+  },
+  "escalations.minutesAgo": {
+    "h": "0a03167c208c5cd7",
+    "sw": "dakika {count} zilizopita"
+  },
+  "escalations.hoursAgo": {
+    "h": "520c737ea62430c4",
+    "sw": "saa {count} zilizopita"
+  },
+  "escalations.severityInfo": {
+    "h": "170322a32f3c35b2",
+    "sw": "Taarifa"
+  },
+  "escalations.severityWarning": {
+    "h": "e981ddae45d8f4ca",
+    "sw": "Onyo"
+  },
+  "escalations.severityCritical": {
+    "h": "427dd2969bd140be",
+    "sw": "Muhimu sana"
+  },
+  "escalations.statusOpen": {
+    "h": "ed077f3d8125d60d",
+    "sw": "Wazi"
+  },
+  "escalations.statusAcknowledged": {
+    "h": "d87cdf8aa30447b1",
+    "sw": "Imethibitishwa"
+  },
+  "escalations.statusResolved": {
+    "h": "5be3c2c8354e1eb9",
+    "sw": "Imetatuliwa"
+  },
+  "evidence.title": {
+    "h": "03867aea70acaf4c",
+    "sw": "Ushahidi"
+  },
+  "evidence.closeAria": {
+    "h": "57b016e77f85877d",
+    "sw": "Funga paneli ya ushahidi"
+  },
+  "evidence.unavailable": {
+    "h": "21832897ade7970c",
+    "sw": "Ushahidi haupatikani. Kipande kilichotajwa hakijapakiwa kutoka kwenye mkusanyiko hai bado."
+  },
+  "evidence.page": {
+    "h": "8b820e72398dff4f",
+    "sw": "ukurasa {page}"
+  },
+  "planBilling.heading": {
+    "h": "5878174a60bccd35",
+    "sw": "Mpango na malipo"
+  },
+  "planBilling.loadErrorTitle": {
+    "h": "243887180238c568",
+    "sw": "Imeshindwa kupakia mpango na malipo"
+  },
+  "planBilling.tryAgain": {
+    "h": "eea4fb33efd38283",
+    "sw": "Tafadhali jaribu tena."
+  },
+  "planBilling.retry": {
+    "h": "942087cc2d41e013",
+    "sw": "Jaribu tena"
+  },
+  "planBilling.plan": {
+    "h": "fa8ed0bdabdd6bcb",
+    "sw": "Mpango"
+  },
+  "planBilling.status": {
+    "h": "920e413c7d411b61",
+    "sw": "Hali"
+  },
+  "planBilling.maxUnits": {
+    "h": "b3216b64d92ee1b6",
+    "sw": "Vitengo vya juu zaidi"
+  },
+  "planBilling.maxUsers": {
+    "h": "e436c9807e946d4a",
+    "sw": "Watumiaji wa juu zaidi"
+  },
+  "planBilling.billingContact": {
+    "h": "f043e1fae91ffad2",
+    "sw": "Mawasiliano ya malipo"
+  },
+  "planBilling.rbacNote": {
+    "h": "b72d7c989f038c31",
+    "sw": "Ugawaji wa majukumu ya RBAC na udhibiti wa sera za uhuru unakuja katika wimbi lijalo."
+  },
+  "flows.eyebrow": {
+    "h": "7fadb5b3b16d6661",
+    "sw": "Mtiririko wa biashara · Process compiler"
+  },
+  "flows.title": {
+    "h": "dfbeec1ab34228df",
+    "sw": "Mtiririko unaojiendesha — kwa idhini yako"
+  },
+  "flows.intro": {
+    "h": "5fd17ca4a46b9f81",
+    "sw": "Sakinisha mtiririko uliosanidiwa na utadhihirisha kichupo kinachofanana kwenye uso wa kila mhusika — kichupo chako cha udhibiti, foleni ya mfanyakazi, mandhari ya uchunguzi ya mnunuzi — mara moja. Otomatiki imezuiwa na binadamu kwa chaguo-msingi; iwashe tu unapoiamini."
+  },
+  "flows.actorBuyer": {
+    "h": "a2a54d668c45a20d",
+    "sw": "Mnunuzi"
+  },
+  "flows.actorWorker": {
+    "h": "a67b04cd5c491d4d",
+    "sw": "Mfanyakazi"
+  },
+  "flows.actorOwner": {
+    "h": "4b1b8aa3608a26da",
+    "sw": "Mmiliki"
+  },
+  "flows.goldenFlowTitle": {
+    "h": "b7429be01607b344",
+    "sw": "Uchunguzi wa mnunuzi kwenye orodha"
+  },
+  "flows.goldenFlowDesc": {
+    "h": "4fe465aa3ecbfd48",
+    "sw": "Mnunuzi anauliza kuhusu orodha → kazi ya kujibu inaonekana kwenye foleni ya mfanyakazi → unakagua → jibu linapelekwa kwa mnunuzi."
+  },
+  "flows.installed": {
+    "h": "f8b32f4e92bd84ce",
+    "sw": "Imesakinishwa"
+  },
+  "flows.installedWithSurfaces": {
+    "h": "59762560f2e0e3ef",
+    "sw": "Imesakinishwa · nyuso {count}"
+  },
+  "flows.installFlow": {
+    "h": "aa641fd9efad1896",
+    "sw": "Sakinisha mtiririko"
+  },
+  "flows.autoToggleLabel": {
+    "h": "cd9457ad907ab69a",
+    "sw": "Jibu kiotomatiki maswali ya wanunuzi"
+  },
+  "flows.autoStateAuto": {
+    "h": "42902c2771fbaa22",
+    "sw": "KIOTOMATIKI — majibu ya wafanyakazi yanapelekwa kwa wanunuzi mara moja."
+  },
+  "flows.autoStateGated": {
+    "h": "e05896071c926a01",
+    "sw": "YALINDWA (chaguo-msingi) — kila jibu linasubiri idhini yako."
+  },
+  "flows.switchToGated": {
+    "h": "320329913680321d",
+    "sw": "Badili kwenda yalindwa"
+  },
+  "flows.enableAuto": {
+    "h": "b1babafdb00031e6",
+    "sw": "Washa kiotomatiki"
+  },
+  "flows.queueHeading": {
+    "h": "11d990ba4aa57166",
+    "sw": "Foleni ya maswali"
+  },
+  "flows.queueSubtitle": {
+    "h": "e3d68f996227fdfa",
+    "sw": "Maswali ya wanunuzi yaliyowazi yanayosubiri majibu. Tuma moja na itahamia kwenye foleni yako ya idhini hapa chini."
+  },
+  "flows.refresh": {
+    "h": "0e91610117029a62",
+    "sw": "Onyesha upya"
+  },
+  "flows.refreshQueueAria": {
+    "h": "4c5ebebdc6777d84",
+    "sw": "Onyesha upya foleni ya maswali"
+  },
+  "flows.queueLoadFailed": {
+    "h": "47cd0d1b10eba490",
+    "sw": "Imeshindwa kupakia foleni ya maswali."
+  },
+  "flows.retry": {
+    "h": "942087cc2d41e013",
+    "sw": "Jaribu tena"
+  },
+  "flows.queueEmptyTitle": {
+    "h": "7fca1492d7f1fad3",
+    "sw": "Hakuna maswali yanayosubiri majibu"
+  },
+  "flows.queueEmptyBody": {
+    "h": "3dd05cf27a44394b",
+    "sw": "Mnunuzi anapouliza kuhusu orodha, swali linakuja hapa ili ujibu."
+  },
+  "flows.buyerInquiryFallback": {
+    "h": "13004f86b313992f",
+    "sw": "Swali la mnunuzi"
+  },
+  "flows.onListing": {
+    "h": "91229555969ba9bb",
+    "sw": "kwenye {title}"
+  },
+  "flows.listingRef": {
+    "h": "8d9d4d53136a1ba0",
+    "sw": "orodha: {ref}"
+  },
+  "flows.yourReply": {
+    "h": "74a41190a3b48231",
+    "sw": "Jibu lako"
+  },
+  "flows.replyPlaceholder": {
+    "h": "89d216daab7fdd92",
+    "sw": "Andika jibu wazi na la kusaidia kwa mnunuzi…"
+  },
+  "flows.replySent": {
+    "h": "1d965c1095004ff3",
+    "sw": "Jibu limetumwa. Sasa linasubiri idhini yako hapa chini."
+  },
+  "flows.respondFailed": {
+    "h": "35e951fb09c38f51",
+    "sw": "Imeshindwa kutuma jibu."
+  },
+  "flows.sendReply": {
+    "h": "625aafc3a9bd3c32",
+    "sw": "Tuma jibu"
+  },
+  "flows.pendingHeading": {
+    "h": "6166c37614f13248",
+    "sw": "Majibu yanayosubiri idhini yako"
+  },
+  "flows.loading": {
+    "h": "ba3bbbe10d8bef66",
+    "sw": "Inapakia…"
+  },
+  "flows.pendingLoadFailed": {
+    "h": "c23c1705d1ad7ce2",
+    "sw": "Imeshindwa kupakia majibu yanayosubiri."
+  },
+  "flows.pendingEmptyTitle": {
+    "h": "c26cc71664beb87f",
+    "sw": "Hakuna kinachosubiri"
+  },
+  "flows.pendingEmptyBody": {
+    "h": "d7f392e9184ae050",
+    "sw": "Majibu yaliyoandikwa yanaonekana hapa kwa idhini yako kabla hayajafikia mnunuzi."
+  },
+  "flows.draftedReply": {
+    "h": "cc248a3ab1485a7e",
+    "sw": "Jibu lililoandikwa: {message}"
+  },
+  "flows.approveDeliver": {
+    "h": "303b0ad26878c455",
+    "sw": "Idhinisha na peleka"
+  },
+  "masterBrain.streaming": {
+    "h": "5e3f905a033b663e",
+    "sw": "Master Brain · inatiririka…"
+  },
+  "masterBrain.emptyState": {
+    "h": "2140187abc5d7dc4",
+    "sw": "Uliza Master Brain chochote kuhusu mkusanyiko wako. Majibu yanatiririka moja kwa moja na ushahidi uliotajwa."
+  },
+  "masterBrain.error": {
+    "h": "b04949ff83053a2e",
+    "sw": "Mtiririko wa mazungumzo umeshindwa: {error}. Angalia muunganisho wako na jaribu tena."
+  },
+  "masterBrain.roleOwner": {
+    "h": "4b1b8aa3608a26da",
+    "sw": "Mmiliki"
+  },
+  "masterBrain.roleBrain": {
+    "h": "445cb87a91cae895",
+    "sw": "Master Brain"
+  },
+  "masterBrain.juniorCalls": {
+    "h": "bfcb69710afec028",
+    "sw": "Simu za wadogo:"
+  },
+  "masterBrain.groundingFault": {
+    "h": "61aa2d9688958530",
+    "sw": "Ukaguzi wa msingi haupatikani. Tumia kwa tahadhari."
+  },
+  "masterBrain.noEvidence": {
+    "h": "5784ec01e9f50910",
+    "sw": "Haijathibitishwa: hakuna ushahidi uliotajwa."
+  },
+  "masterBrain.evidenceInvalid": {
+    "h": "2dbfebe94e477bcb",
+    "sw": "Ushahidi haukuweza kuthibitishwa."
+  },
+  "masterBrain.needsHuman": {
+    "h": "443dc6387d736492",
+    "sw": "Mkaguzi ameiweka alama jibu hili kwa ukaguzi."
   }
 }

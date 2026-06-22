@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useChatSession } from '@/lib/queries/chat';
-import { useLocale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
 import { useScrollAnchor } from '@/components/home-chat/streaming/use-scroll-anchor';
 import { IncrementalMarkdown } from '@/components/home-chat/streaming/incremental-markdown';
 import { JumpToLatestPill } from '@/components/home-chat/streaming/JumpToLatestPill';
@@ -19,13 +19,23 @@ import { EvidencePanel } from './EvidencePanel';
  * side-panel state. There is no mode — Mr. Mwikila picks the persona
  * lens(es) per message on its own.
  */
-export function ChatPanel() {
+interface ChatPanelProps {
+  /**
+   * Server-resolved locale, threaded from the master-brain page so useLocale
+   * and useT SEED the first client render to the SAME language the SSR
+   * `<html lang>` chrome used — without it both default to `en` and the
+   * empty-state / streaming labels flash under an SW page (split-brain).
+   */
+  readonly initialLocale?: Locale | undefined;
+}
+
+export function ChatPanel({ initialLocale }: ChatPanelProps = {}) {
   // Thread the owner's ACTIVE locale (borjie_locale cookie, the single
   // source of truth) into the chat hook so the gateway is told the real
-  // language. Default owner locale is `en`; `useLocale` also re-renders
-  // when the owner flips the toggle mid-session.
-  const locale = useLocale();
-  const t = useT();
+  // language. Seeded from the server-resolved `initialLocale`; `useLocale`
+  // also re-renders when the owner flips the toggle mid-session.
+  const locale = useLocale(initialLocale);
+  const t = useT(initialLocale);
   const { state, send, abort } = useChatSession(locale);
   const [selectedEvidence, setSelectedEvidence] = useState<string | null>(null);
   // Stick-to-bottom ONLY when the owner is near the bottom (follow-on-growth via
@@ -49,6 +59,7 @@ export function ChatPanel() {
               key={message.id}
               message={message}
               onSelectEvidence={setSelectedEvidence}
+              initialLocale={initialLocale}
             />
           ))}
           {state.streaming && state.streamingText ? (
@@ -97,6 +108,7 @@ export function ChatPanel() {
             : null
         }
         onClose={() => setSelectedEvidence(null)}
+        initialLocale={initialLocale}
       />
     </section>
   );

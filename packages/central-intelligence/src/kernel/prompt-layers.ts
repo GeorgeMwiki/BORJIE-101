@@ -78,6 +78,13 @@ export const DYNAMIC_FRAGMENT_SLOTS = [
   'grounding',
   'learnedSkills',
   'cohortMix',
+  // The ABSOLUTE single-language directive (CLAUDE.md: en default, sw
+  // toggle, zero EN/SW mixing). Placed LAST among the dynamic slots so it
+  // sits immediately before the terminal security layers and cannot be
+  // displaced by recalled memory, grounding, or tool output. The
+  // orchestrator path renders the same directive on its own request field;
+  // this slot brings the legacy persona paths to parity.
+  'languageDirective',
 ] as const;
 
 /**
@@ -119,8 +126,10 @@ export const STABLE_PREFIX_SLOT_COUNT = STABLE_PREFIX_SLOTS.length;
  * Bumped whenever {@link SYSTEM_FRAGMENT_SLOTS} ordering changes. Lets ops
  * correlate a prompt-cache hit-rate cliff with an ordering change in the
  * changelog. v2: stable-prefix-first reorder + cache breakpoint (BRAIN §5).
+ * v3: appended the terminal `languageDirective` dynamic slot so the legacy
+ * persona paths carry the active-locale pin (stable prefix unchanged).
  */
-export const SYSTEM_FRAGMENT_ORDER_VERSION = 2 as const;
+export const SYSTEM_FRAGMENT_ORDER_VERSION = 3 as const;
 
 /**
  * The fragment payloads the kernel produces each turn. Every value is the

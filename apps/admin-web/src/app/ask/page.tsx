@@ -11,12 +11,17 @@
 
 import { ThreadList } from '@/components/ask/ThreadList';
 import { AskChat } from '@/components/ask/AskChat';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export const metadata = {
   title: 'Talk to the industry · Borjie HQ',
 };
 
-export default function IndustryAskLandingPage() {
+export default async function IndustryAskLandingPage() {
+  // Seed the chat's first paint from the server-resolved `borjie_locale`
+  // cookie so SSR + the first client render agree with the `<html lang>`
+  // the root layout stamped (zero-mix canon — no EN-under-SW frame).
+  const initialLocale = await readLocaleFromServerCookies();
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-thread-narrow shrink-0 border-r border-border bg-surface-sunken lg:block">
@@ -40,7 +45,12 @@ export default function IndustryAskLandingPage() {
         </header>
 
         <div className="flex-1 overflow-hidden">
-          <AskChat threadId={null} initialMessages={[]} initialArtifacts={[]} />
+          <AskChat
+            threadId={null}
+            initialMessages={[]}
+            initialArtifacts={[]}
+            initialLocale={initialLocale}
+          />
         </div>
       </main>
 

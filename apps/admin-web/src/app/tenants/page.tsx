@@ -16,6 +16,11 @@ import { pickByLocale } from '@/lib/locale-shared';
  * SINGLE LANGUAGE PER LOCALE (canon): the header eyebrow + title +
  * subtitle resolve to the active locale via `pickByLocale`. The previous
  * eyebrow hard-rendered "Tenants · Wapangaji" (EN+SW together).
+ *
+ * GLOSSARY (canon, one term per concept): the SaaS "tenant" renders in
+ * Swahili as `Wateja` / `Mteja` (clients), NEVER `Wapangaji` / `Mpangaji`
+ * — the latter reads as property "renters" (real-estate residue) to a
+ * Tanzanian operator. The English copy keeps "tenant" (correct SaaS vocab).
  */
 export default async function TenantsPage(): Promise<JSX.Element> {
   const locale = await readLocaleFromServerCookies();
@@ -25,18 +30,18 @@ export default async function TenantsPage(): Promise<JSX.Element> {
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-6">
           <div>
             <p className="font-mono text-tiny uppercase tracking-widest text-signal-500">
-              {pickByLocale(locale, { en: 'Tenants', sw: 'Wapangaji' })}
+              {pickByLocale(locale, { en: 'Tenants', sw: 'Wateja' })}
             </p>
             <h1 className="mt-3 font-display text-3xl font-medium tracking-tight text-foreground sm:text-4xl">
               {pickByLocale(locale, {
                 en: 'Tenant directory',
-                sw: 'Orodha ya wapangaji',
+                sw: 'Orodha ya wateja',
               })}
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-400">
               {pickByLocale(locale, {
                 en: 'Every Borjie tenant — plan, status, ARR, last-active. Row click opens the tenant detail drawer. Filter by plan or status; search by name or primary commodity.',
-                sw: 'Kila tenant ya Borjie — mpango, hali, ARR, alipokuwa hai mwisho. Bonyeza safu kufungua dirisha la maelezo ya tenant. Chuja kwa mpango au hali; tafuta kwa jina au madini makuu.',
+                sw: 'Kila mteja wa Borjie — mpango, hali, ARR, alipokuwa hai mwisho. Bonyeza safu kufungua dirisha la maelezo ya mteja. Chuja kwa mpango au hali; tafuta kwa jina au madini makuu.',
               })}
             </p>
           </div>
@@ -46,10 +51,10 @@ export default async function TenantsPage(): Promise<JSX.Element> {
             disabled
             title={pickByLocale(locale, {
               en: 'Provisioning form lands with self-serve tenant onboarding',
-              sw: 'Fomu ya usajili itapatikana na ujiandikishaji wa tenant wa kujihudumia',
+              sw: 'Fomu ya usajili itapatikana na ujiandikishaji wa mteja wa kujihudumia',
             })}
           >
-            {pickByLocale(locale, { en: 'New tenant', sw: 'Tenant mpya' })}
+            {pickByLocale(locale, { en: 'New tenant', sw: 'Mteja mpya' })}
           </Button>
         </header>
 

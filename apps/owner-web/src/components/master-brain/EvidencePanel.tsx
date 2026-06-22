@@ -1,12 +1,20 @@
 'use client';
 
 import { X } from 'lucide-react';
+import { useT } from '@/i18n/t.client';
+import type { Locale } from '@/lib/locale';
 import type { ChatEvidence } from '@/lib/types/chat';
 
 interface EvidencePanelProps {
   readonly evidenceId: string | null;
   readonly evidence: ChatEvidence | null;
   readonly onClose: () => void;
+  /**
+   * Server-resolved locale, threaded from ChatPanel so `useT` SEEDS the
+   * first client render to the active language — without it the panel chrome
+   * ("Evidence", "page N") flashes EN under an SW page (split-brain).
+   */
+  readonly initialLocale?: Locale | undefined;
 }
 
 /**
@@ -15,7 +23,13 @@ interface EvidencePanelProps {
  * chip. The parent passes the resolved `evidence` payload (sourced
  * from the live chat stream).
  */
-export function EvidencePanel({ evidenceId, evidence, onClose }: EvidencePanelProps) {
+export function EvidencePanel({
+  evidenceId,
+  evidence,
+  onClose,
+  initialLocale,
+}: EvidencePanelProps) {
+  const t = useT(initialLocale);
   if (!evidenceId) return null;
   if (!evidence) {
     return (
@@ -23,7 +37,7 @@ export function EvidencePanel({ evidenceId, evidence, onClose }: EvidencePanelPr
         <header className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
             <div className="text-xs uppercase tracking-wide text-neutral-500">
-              Evidence
+              {t('evidence.title')}
             </div>
             <div className="mt-0.5 text-sm font-medium text-foreground">
               {evidenceId}
@@ -32,15 +46,14 @@ export function EvidencePanel({ evidenceId, evidence, onClose }: EvidencePanelPr
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close evidence panel"
+            aria-label={t('evidence.closeAria')}
             className="rounded-md p-1 text-neutral-400 hover:bg-surface hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </header>
         <div className="flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-neutral-400">
-          Evidence payload unavailable. The cited chunk has not been
-          loaded from the live corpus yet.
+          {t('evidence.unavailable')}
         </div>
       </aside>
     );
@@ -50,7 +63,7 @@ export function EvidencePanel({ evidenceId, evidence, onClose }: EvidencePanelPr
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div>
           <div className="text-xs uppercase tracking-wide text-neutral-500">
-            Evidence
+            {t('evidence.title')}
           </div>
           <div className="mt-0.5 text-sm font-medium text-foreground">
             {evidence.label}
@@ -59,7 +72,7 @@ export function EvidencePanel({ evidenceId, evidence, onClose }: EvidencePanelPr
         <button
           type="button"
           onClick={onClose}
-          aria-label="Close evidence panel"
+          aria-label={t('evidence.closeAria')}
           className="rounded-md p-1 text-neutral-400 hover:bg-surface hover:text-foreground"
         >
           <X className="h-4 w-4" />
@@ -68,7 +81,7 @@ export function EvidencePanel({ evidenceId, evidence, onClose }: EvidencePanelPr
       <div className="flex-1 overflow-y-auto px-4 py-4 text-sm leading-relaxed text-foreground">
         <div className="mb-3 text-xs text-neutral-400">
           {evidence.docTitle}
-          {evidence.page ? ` · page ${evidence.page}` : ''}
+          {evidence.page ? ` · ${t('evidence.page', { page: evidence.page })}` : ''}
         </div>
         <blockquote className="border-l-2 border-warning pl-3 text-neutral-200">
           {evidence.excerpt}

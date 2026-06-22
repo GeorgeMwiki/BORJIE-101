@@ -1,8 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { ArrowRight, BookOpen, Sparkles } from 'lucide-react';
+import {
+  ArrowRight,
+  BookOpen,
+  Sparkles,
+  CheckCircle2,
+  AlertTriangle,
+} from 'lucide-react';
 import { getLocale } from '@/lib/locale';
-import { getMessages } from '@/lib/i18n';
+import { getMessages, type Messages } from '@/lib/i18n';
 
 /**
  * /blog , LitFin-parity blog index.
@@ -24,9 +30,23 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function BlogIndexPage() {
+type SubscribeStatus = 'ok' | 'invalid' | 'error';
+
+function isSubscribeStatus(value: unknown): value is SubscribeStatus {
+  return value === 'ok' || value === 'invalid' || value === 'error';
+}
+
+export default async function BlogIndexPage({
+  searchParams,
+}: {
+  readonly searchParams: Promise<{ readonly subscribed?: string }>;
+}) {
   const locale = await getLocale();
   const t = getMessages(locale).blog;
+  const { subscribed } = await searchParams;
+  const subscribeStatus: SubscribeStatus | null = isSubscribeStatus(subscribed)
+    ? subscribed
+    : null;
 
   return (
     <>
@@ -109,6 +129,9 @@ export default async function BlogIndexPage() {
             <p className="mx-auto mt-3 max-w-prose-wider text-base leading-relaxed text-foreground/70">
               {t.subscribeSub}
             </p>
+            {subscribeStatus !== null && (
+              <SubscribeBanner status={subscribeStatus} t={t} />
+            )}
             <form
               action="/api/subscribe"
               method="post"
@@ -136,7 +159,42 @@ export default async function BlogIndexPage() {
           </div>
         </section>
       </div>
-      
+
     </>
+  );
+}
+
+function SubscribeBanner({
+  status,
+  t,
+}: {
+  readonly status: SubscribeStatus;
+  readonly t: Messages['blog'];
+}) {
+  if (status === 'ok') {
+    return (
+      <div
+        role="status"
+        className="mx-auto mt-8 flex max-w-md items-start gap-3 rounded-2xl border border-signal-500/40 bg-signal-500/5 p-4 text-left text-sm text-foreground"
+      >
+        <CheckCircle2
+          className="mt-0.5 h-5 w-5 shrink-0 text-signal-500"
+          aria-hidden="true"
+        />
+        <p>{t.subscribeSuccess}</p>
+      </div>
+    );
+  }
+
+  const message = status === 'invalid' ? t.subscribeInvalid : t.subscribeError;
+
+  return (
+    <div
+      role="alert"
+      className="mx-auto mt-8 flex max-w-md items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-left text-sm text-destructive"
+    >
+      <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+      <p>{message}</p>
+    </div>
   );
 }

@@ -168,6 +168,7 @@ export function PlaceBidSheet({ visible, onClose, listing }: PlaceBidSheetProps)
         <PrimaryButton
           label={t('bids.submit_bid')}
           onPress={onSubmit}
+          busy={submitMutation.isPending}
           disabled={submitMutation.isPending || !formState.isValid}
         />
       </View>

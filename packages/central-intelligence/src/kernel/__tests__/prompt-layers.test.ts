@@ -57,8 +57,9 @@ describe('LP-06 — deterministic megaprompt ordering', () => {
 
   it('order signature is stable + versioned', () => {
     const sig = systemFragmentOrderSignature();
-    // v2 — stable-prefix-first reorder + prompt-prefix cache breakpoint.
-    expect(sig.startsWith('v2:')).toBe(true);
+    // v3 — appended terminal `languageDirective` dynamic slot (active-locale
+    // pin on the legacy persona paths); stable prefix + breakpoint unchanged.
+    expect(sig.startsWith('v3:')).toBe(true);
     expect(sig).toContain(SYSTEM_FRAGMENT_SLOTS[0]);
     expect(sig).toContain(SYSTEM_FRAGMENT_SLOTS[SYSTEM_FRAGMENT_SLOTS.length - 1]);
   });
