@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { isBrainConfigured } from '@/lib/brain-api';
 import type { BrainToolCall } from '@/lib/brain-api';
 import { useAskBorjie } from '@/lib/queries/brain';
-import { ApiError } from '@/lib/api-client';
+import { ApiError, localizeError } from '@/lib/api-client';
 import { AskBubble } from '@/components/ask/AskBubble';
 import { AskComposer } from '@/components/ask/AskComposer';
 import {
@@ -240,7 +240,9 @@ export function HomeChat({
                 kind={emptyKind}
                 locale={languagePreference}
                 detail={
-                  emptyKind === 'error' && error ? error.message : null
+                  emptyKind === 'error' && error
+                    ? localizeError(error, languagePreference)
+                    : null
                 }
               />
             ) : (
@@ -264,7 +266,7 @@ export function HomeChat({
                 data-testid="home-chat-error-inline"
                 className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
               >
-                {error.message}
+                {localizeError(error, languagePreference)}
               </div>
             ) : null}
           </div>

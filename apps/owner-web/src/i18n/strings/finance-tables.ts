@@ -80,6 +80,11 @@ export const financeTablesStrings = {
     colDescription: { en: 'Description', sw: 'Maelezo' },
     colAmount: { en: 'Amount', sw: 'Kiasi' },
     colStatus: { en: 'Status', sw: 'Hali' },
+    status: {
+      paid: { en: 'Paid', sw: 'Imelipwa' },
+      due: { en: 'Due', sw: 'Inadaiwa' },
+      overdue: { en: 'Overdue', sw: 'Imechelewa' },
+    },
   },
 
   // ── components/cockpit/CashRunwayCard.tsx (cockpit summary card) ──

@@ -77,6 +77,11 @@ export const cockpitClusterStrings = {
       en: `Investigate risk: ${title} at ${site}`,
       sw: `Chunguza hatari: ${title} katika ${site}`,
     }),
+    sev: {
+      low: { en: 'low', sw: 'chini' },
+      medium: { en: 'medium', sw: 'wastani' },
+      high: { en: 'high', sw: 'juu' },
+    },
   },
 
   // ── components/cockpit/PendingDecisionsCard.tsx ────────────────────
@@ -92,6 +97,24 @@ export const cockpitClusterStrings = {
     statusOnTrack: { en: 'on-track', sw: 'kwenye mstari' },
     statusWatch: { en: 'watch', sw: 'angalia' },
     statusBehind: { en: 'behind', sw: 'nyuma' },
+  },
+
+  // ── estate / sites session-hydration FAILURE affordance ────────────
+  // Shown when `OwnerSession.estateLoadError` is true — the sites/estate
+  // read from the gateway FAILED (a degrade), as distinct from a genuinely
+  // EMPTY estate (estateLoadError false + zero sites). Never render a
+  // fake-empty "0 sites" on a failed load; surface this retry affordance
+  // instead so the owner knows the count could not be loaded.
+  estate: {
+    loadFailed: {
+      en: 'We could not load your sites right now.',
+      sw: 'Hatukuweza kupakia migodi yako kwa sasa.',
+    },
+    loadFailedHint: {
+      en: 'This is a temporary connection issue, not an empty estate.',
+      sw: 'Hili ni tatizo la muda la muunganisho, si mali tupu.',
+    },
+    retry: { en: 'Try again', sw: 'Jaribu tena' },
   },
 
   // ── components/cockpit/ComplianceCard.tsx ──────────────────────────
@@ -110,6 +133,12 @@ export const cockpitClusterStrings = {
       en: `open offers · ${inquiries} new inquiries (7d)`,
       sw: `ofa wazi · maswali ${inquiries} mapya (siku 7)`,
     }),
+    // Honest "feed not wired" meta — shown when the gateway sends null (no
+    // marketplace source in this deployment) instead of a fabricated count.
+    notWired: {
+      en: 'marketplace feed not connected',
+      sw: 'mlisho wa soko haujaunganishwa',
+    },
     topBuyer: { en: 'Top buyer', sw: 'Mnunuzi mkuu' },
   },
 
@@ -130,6 +159,15 @@ export const cockpitClusterStrings = {
       en: `27 Mar cliff in ${days}d`,
       sw: `mwisho wa 27 Mac baada ya siku ${days}`,
     }),
+  },
+
+  // ── components/cockpit/DailyBriefCard.tsx ──────────────────────────
+  dailyBrief: {
+    sev: {
+      info: { en: 'info', sw: 'taarifa' },
+      warn: { en: 'warn', sw: 'tahadhari' },
+      critical: { en: 'critical', sw: 'dharura' },
+    },
   },
 
   // ── components/cockpit/CockpitLivePulse.tsx ────────────────────────
@@ -194,6 +232,10 @@ export const cockpitClusterStrings = {
       en: `Photos · ${n}`,
       sw: `Picha · ${n}`,
     }),
+    photosEmpty: {
+      en: 'No shift photos uploaded yet.',
+      sw: 'Hakuna picha za zamu zilizopakiwa bado.',
+    },
     sevLow: { en: 'low', sw: 'chini' },
     sevMedium: { en: 'medium', sw: 'wastani' },
     sevHigh: { en: 'high', sw: 'juu' },

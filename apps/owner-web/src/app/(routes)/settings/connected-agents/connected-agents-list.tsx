@@ -5,6 +5,7 @@ import { Button, Skeleton, ConfirmationModal } from '@borjie/design-system';
 import { getCsrfHeaders } from '@/lib/csrf';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 import { Toast } from '@/components/shared/Toast';
 
@@ -62,8 +63,12 @@ function formatRelative(input: string | null, locale: Locale): string {
   );
 }
 
-export function ConnectedAgentsList() {
-  const locale = useLocale();
+export function ConnectedAgentsList({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [revoking, setRevoking] = useState<string | null>(null);
   // The token pending a revoke-confirmation (replaces window.confirm with
@@ -96,13 +101,9 @@ export function ConnectedAgentsList() {
       const tokens = json.data;
       setState(tokens.length === 0 ? { kind: 'empty' } : { kind: 'ready', tokens });
     } catch (err) {
-      setState({
-        kind: 'error',
-        message:
-          err instanceof Error
-            ? err.message
-            : pickByLocale(locale, S.connectedAgentsList.networkError),
-      });
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING).
+      setState({ kind: 'error', message: localizeError(err, locale) });
     }
   }, [locale]);
 
@@ -140,11 +141,8 @@ export function ConnectedAgentsList() {
       }
       await load();
     } catch (err) {
-      setToastMsg(
-        err instanceof Error
-          ? err.message
-          : pickByLocale(locale, S.connectedAgentsList.networkError),
-      );
+      // Localize by stable CODE — never the raw English `.message` under `sw`.
+      setToastMsg(localizeError(err, locale));
     } finally {
       setRevoking(null);
     }

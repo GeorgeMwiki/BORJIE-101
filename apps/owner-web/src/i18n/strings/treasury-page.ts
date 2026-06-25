@@ -93,10 +93,9 @@ export const treasuryPageStrings = {
       cliffDate: string;
       postCliffSales: number;
       usdDenominated: number;
-      note: string;
     }) => ({
-      en: `Cliff date ${args.cliffDate}. Post-cliff sales ${args.postCliffSales}; USD denominated ${args.usdDenominated}.${args.note ? ` ${args.note}` : ''}`,
-      sw: `Tarehe ya kikomo ${args.cliffDate}. Mauzo baada ya kikomo ${args.postCliffSales}; yaliyopimwa kwa USD ${args.usdDenominated}.${args.note ? ` ${args.note}` : ''}`,
+      en: `Cliff date ${args.cliffDate}. Post-cliff sales ${args.postCliffSales}; USD denominated ${args.usdDenominated}.`,
+      sw: `Tarehe ya kikomo ${args.cliffDate}. Mauzo baada ya kikomo ${args.postCliffSales}; yaliyopimwa kwa USD ${args.usdDenominated}.`,
     }),
     facilityNotification: { en: 'Facility notification', sw: 'Taarifa ya kituo' },
     statusSent: { en: 'sent', sw: 'imetumwa' },

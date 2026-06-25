@@ -75,7 +75,7 @@ export const routesAStrings = {
     stage: { sw: 'Hatua', en: 'Stage' },
     startDraftHeading: { sw: 'Anzisha rasimu', en: 'Start the renewal draft' },
     startDraftBody: {
-      sw: 'Mr. Mwikila ataandaa rasimu ya hati za upyaji kulingana na maelezo ya leseni.',
+      sw: 'Bw. Mwikila ataandaa rasimu ya hati za upyaji kulingana na maelezo ya leseni.',
       en: "Mr. Mwikila will assemble the renewal docs from the licence's profile.",
     },
     startRenewalCta: { sw: 'Anzisha upyaji', en: 'Start renewal' },
@@ -108,7 +108,7 @@ export const routesAStrings = {
     eyebrow: { sw: 'Upyaji wa leseni', en: 'Licence renewal' },
     heading: { sw: 'Mchakato wa upyaji', en: 'Renewal workflow' },
     body: {
-      sw: 'Anzisha rasimu, kagua, na uwasilishe kwa NEMC / PCCB / TMAA. Mr. Mwikila atatuma vikumbusho vya 90 / 60 / 30 / 14 / 7 / 1 siku.',
+      sw: 'Anzisha rasimu, kagua, na uwasilishe kwa NEMC / PCCB / TMAA. Bw. Mwikila atatuma vikumbusho vya 90 / 60 / 30 / 14 / 7 / 1 siku.',
       en: 'Start the draft, review, and submit to NEMC / PCCB / TMAA. Mr. Mwikila pulses reminders at 90 / 60 / 30 / 14 / 7 / 1 days.',
     },
   },
@@ -135,9 +135,9 @@ export const routesAStrings = {
       en: 'Active entities under the estate',
     },
     assetValueLabel: { sw: 'Thamani ya mali', en: 'Asset value' },
-    assetValueSub: { sw: 'TZS, jumla ya mali', en: 'TZS, total estate assets' },
+    assetValueSub: { sw: 'Jumla ya rasilimali za shamba', en: 'Total estate assets' },
     capitalFlowsLabel: { sw: 'Mtiririko (siku 30)', en: 'Capital flows (30d)' },
-    capitalFlowsSub: { sw: 'TZS, mtiririko wa siku 30', en: 'TZS, last 30 days' },
+    capitalFlowsSub: { sw: 'Wavu, siku 30 zilizopita', en: 'Net, last 30 days' },
     successionLabel: { sw: 'Hali ya urithi', en: 'Succession status' },
     successionSub: {
       sw: 'Hatua za mapitio yanayohitajika',
@@ -324,6 +324,13 @@ export const routesAStrings = {
 
   // app/(routes)/personal-kb/[personId]/personal-kb-detail-panel.tsx
   personalKbDetail: {
+    backToHats: { en: '← All hats', sw: '← Kofia zote' },
+    pageTitle: { en: 'Personal memory cells', sw: 'Kumbukumbu za kibinafsi' },
+    pageTagline: {
+      en: 'Memory cells — everything I know about you',
+      sw: 'Vipande vya kumbukumbu — kila kitu ninachokujua kuhusu wewe',
+    },
+    personIdLabel: { en: 'person id', sw: 'kitambulisho cha mtu' },
     kindPreference: { en: 'Preference', sw: 'Mapendekezo' },
     kindContext: { en: 'Current context', sw: 'Mazingira ya sasa' },
     kindRecurringFact: { en: 'Recurring fact', sw: 'Ukweli wa maisha' },

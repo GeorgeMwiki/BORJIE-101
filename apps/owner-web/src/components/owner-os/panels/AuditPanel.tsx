@@ -9,6 +9,7 @@ import {
 } from '@borjie/owner-os-tabs';
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
@@ -62,12 +63,14 @@ function auditColumns(isSw: boolean): ReadonlyArray<PanelColumn<AuditEntryRow>> 
     {
       key: 'actor',
       header: isSw ? P.audit.colActor.sw : P.audit.colActor.en,
-      render: (r) => r.actorDisplay ?? r.actorKind,
+      // `actorDisplay` is a free-text human/agent name when present; only the
+      // fallback `actorKind` is a bounded enum that needs localising.
+      render: (r) => r.actorDisplay ?? enumLabelSw('auditActorKind', r.actorKind, isSw),
     },
     {
       key: 'category',
       header: isSw ? P.audit.colCategory.sw : P.audit.colCategory.en,
-      render: (r) => r.actionCategory,
+      render: (r) => enumLabelSw('auditActionCategory', r.actionCategory, isSw),
     },
     {
       key: 'when',

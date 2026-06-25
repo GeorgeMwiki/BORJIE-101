@@ -1,8 +1,10 @@
 'use client';
 
-import type { Locale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 import { useOwnerBrief } from '@/lib/queries/owner-brief';
 import { fmtTime } from '@/lib/format';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 import { AiDailyBriefPanel } from './AiDailyBriefPanel';
 import { AlertQueuePanel } from './AlertQueuePanel';
 import { EscalationsPanel } from './EscalationsPanel';
@@ -36,23 +38,27 @@ interface OwnerDashboardSurfaceProps {
 export function OwnerDashboardSurface({
   initialLocale,
 }: OwnerDashboardSurfaceProps = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const query = useOwnerBrief();
+  const D = S.ownerDashboardSurface;
 
   if (query.isLoading) {
     return <DashboardSkeleton />;
   }
 
   if (query.error || !query.data) {
-    const message =
-      query.error instanceof Error
-        ? query.error.message
-        : 'Dashboard composition is offline.';
+    // Localize the gateway error by its stable CODE — never the raw English
+    // `.message` (rendering that under `sw` is language MIXING).
+    const message = query.error
+      ? localizeError(query.error, locale)
+      : pickByLocale(locale, D.offlineFallback);
     const status =
       query.error && 'status' in query.error
         ? (query.error as { status: number }).status
         : undefined;
     return (
       <DashboardErrorState
+        locale={locale}
         message={message}
         {...(status !== undefined ? { status } : {})}
       />
@@ -65,9 +71,10 @@ export function OwnerDashboardSurface({
     <div className="flex flex-col gap-6" data-testid="owner-dashboard-surface">
       <div className="flex items-center justify-between text-xs text-neutral-500">
         <span>
-          Updated {fmtTime(generatedAt)} · source: {source}
-          {cached ? ' (cached)' : ''}
-          {query.isFetching ? ' · refreshing…' : ''}
+          {pickByLocale(locale, D.updatedAt(fmtTime(generatedAt)))} ·{' '}
+          {pickByLocale(locale, D.source(source))}
+          {cached ? ` ${pickByLocale(locale, D.cached)}` : ''}
+          {query.isFetching ? ` · ${pickByLocale(locale, D.refreshing)}` : ''}
         </span>
         <QuickActionsBar />
       </div>
@@ -83,6 +90,7 @@ export function OwnerDashboardSurface({
         <AlertQueuePanel
           decisions={brief.decisions}
           incidents={brief.openHighIncidents}
+          initialLocale={initialLocale}
         />
       </section>
 
@@ -106,6 +114,7 @@ export function OwnerDashboardSurface({
         <CashRunwayCard
           cashRunway={brief.cashRunway}
           cliffStatus={brief.cliffStatus}
+          initialLocale={initialLocale}
         />
       </section>
 
@@ -135,32 +144,37 @@ function DashboardSkeleton(): JSX.Element {
 }
 
 interface DashboardErrorStateProps {
+  readonly locale: Locale;
   readonly message: string;
   readonly status?: number;
 }
 
 function DashboardErrorState({
+  locale,
   message,
   status,
 }: DashboardErrorStateProps): JSX.Element {
+  const D = S.ownerDashboardSurface;
   return (
     <div
       className="rounded-lg border border-warning/40 bg-warning-subtle/10 p-6"
       data-testid="owner-dashboard-error"
     >
       <h2 className="font-display text-xl text-foreground">
-        Dashboard data is offline
+        {pickByLocale(locale, D.errorTitle)}
       </h2>
       <p className="mt-2 text-sm text-neutral-300">{message}</p>
       {status ? (
-        <p className="mt-1 text-xs text-neutral-500">HTTP {status}</p>
+        <p className="mt-1 text-xs text-neutral-500">
+          {pickByLocale(locale, D.httpStatus(status))}
+        </p>
       ) : null}
       <p className="mt-3 text-sm text-neutral-400">
-        Ask Borjie Brain directly on the{' '}
+        {pickByLocale(locale, D.errorHelpBefore)}{' '}
         <a className="text-signal-500 underline" href="/">
-          home chat
+          {pickByLocale(locale, D.errorHelpLink)}
         </a>{' '}
-        — it can pull most of these signals on demand from the corpus.
+        {pickByLocale(locale, D.errorHelpAfter)}
       </p>
     </div>
   );

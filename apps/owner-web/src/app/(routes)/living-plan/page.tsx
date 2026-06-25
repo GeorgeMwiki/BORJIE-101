@@ -21,14 +21,16 @@
  * language for the active locale — never both, never a hardcoded 'en-US'.
  */
 
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { LivingPlanPanel } from './living-plan-panel';
 
 export const dynamic = 'force-dynamic';
 
-export default function LivingPlanPage() {
+export default async function LivingPlanPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <main className="px-8 py-8">
-      <LivingPlanPanel />
+      <LivingPlanPanel initialLocale={locale} />
     </main>
   );
 }

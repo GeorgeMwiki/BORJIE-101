@@ -14,9 +14,10 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import { Button, Skeleton, Input } from '@borjie/design-system';
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, localizeError } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 
 interface PersonLink {
   readonly id: string;
@@ -82,7 +83,9 @@ export function PersonalKbPanel({
         if (!cancelled) setLinks(data ?? []);
       } catch (err) {
         if (!cancelled) {
-          setLinkError(err instanceof Error ? err.message : String(err));
+          // Localise from the gateway CODE — raw `err.message` leaks English
+          // into the `sw` error row.
+          setLinkError(localizeError(err, locale));
         }
       } finally {
         if (!cancelled) setLoadingLinks(false);
@@ -92,7 +95,7 @@ export function PersonalKbPanel({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [locale]);
 
   const runSearch = useCallback(async () => {
     if (!query.trim()) {
@@ -110,11 +113,11 @@ export function PersonalKbPanel({
       );
       setSearchResults(data ?? []);
     } catch (err) {
-      setSearchError(err instanceof Error ? err.message : String(err));
+      setSearchError(localizeError(err, locale));
     } finally {
       setSearching(false);
     }
-  }, [query]);
+  }, [query, locale]);
 
   return (
     <section className="mt-6 space-y-6">
@@ -224,7 +227,9 @@ export function PersonalKbPanel({
                       {link.tenantId.slice(0, 8)}…
                       {' · '}
                       {pickByLocale(locale, S.personalKbPanel.linkedWord)}{' '}
-                      {new Date(link.linkedAt).toLocaleDateString()}
+                      {new Date(link.linkedAt).toLocaleDateString(
+                        bcp47For(locale),
+                      )}
                     </p>
                     {!link.consentGranted ? (
                       <p className="mt-1 text-xs text-warning">
@@ -270,7 +275,7 @@ function MemoryCellRow({
       <p className="mt-1 text-sm text-muted-foreground">{valueText}</p>
       <p className="mt-1 text-xxs text-muted-foreground">
         {pickByLocale(locale, S.personalKbPanel.captured)}{' '}
-        {new Date(cell.capturedAt).toLocaleString()} ·{' '}
+        {new Date(cell.capturedAt).toLocaleString(bcp47For(locale))} ·{' '}
         {pickByLocale(locale, S.personalKbPanel.confidence)} {cell.confidence}
       </p>
     </li>

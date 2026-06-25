@@ -23,6 +23,8 @@ import {
   DrawerTitle,
   DrawerDescription,
   DrawerBody,
+  Alert,
+  Button,
 } from '@borjie/design-system';
 import {
   useCounterparties,
@@ -32,36 +34,33 @@ import {
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
-import { counterpartiesStrings as S } from '@/i18n/strings/counterparties';
+import { fmtDateForLocale, fmtTimeForLocale } from '@/lib/format';
+import {
+  counterpartiesStrings as S,
+  partyTypeLabels,
+  partyTypeFilterOrder,
+  engagementKindLabels,
+  engagementStatusLabels,
+} from '@/i18n/strings/counterparties';
 
-const PARTY_TYPE_OPTIONS: ReadonlyArray<{
-  readonly value: string;
-  readonly labelEn: string;
-  readonly labelSw: string;
-}> = [
-  { value: 'all', labelEn: 'All', labelSw: 'Zote' },
-  { value: 'licensing_office', labelEn: 'Licensing office', labelSw: 'Ofisi ya leseni' },
-  { value: 'survey_firm', labelEn: 'Survey firm', labelSw: 'Kampuni ya upimaji' },
-  { value: 'transport_co', labelEn: 'Transport', labelSw: 'Usafirishaji' },
-  { value: 'processor', labelEn: 'Processor', labelSw: 'Msindikaji' },
-  { value: 'smelter', labelEn: 'Smelter', labelSw: 'Kiyeyushaji' },
-  { value: 'refiner', labelEn: 'Refiner', labelSw: 'Kisafishaji' },
-  { value: 'assayer', labelEn: 'Assayer', labelSw: 'Mpima madini' },
-  { value: 'exporter', labelEn: 'Exporter', labelSw: 'Msafirishaji nje' },
-  { value: 'bank', labelEn: 'Bank', labelSw: 'Benki' },
-  { value: 'regulator', labelEn: 'Regulator', labelSw: 'Mdhibiti' },
-  { value: 'off_taker', labelEn: 'Off-taker', labelSw: 'Mnunuzi wa jumla' },
-  { value: 'logistics_co', labelEn: 'Logistics', labelSw: 'Usambazaji' },
-  { value: 'csr_community', labelEn: 'CSR community', labelSw: 'Jamii ya CSR' },
-  { value: 'env_monitor', labelEn: 'Env monitor', labelSw: 'Mfuatiliaji mazingira' },
-  { value: 'gov_liaison', labelEn: 'Gov liaison', labelSw: 'Mwakilishi wa serikali' },
-  { value: 'legal_counsel', labelEn: 'Legal counsel', labelSw: 'Mshauri wa sheria' },
-  { value: 'insurance', labelEn: 'Insurance', labelSw: 'Bima' },
-  { value: 'security_firm', labelEn: 'Security', labelSw: 'Usalama' },
-];
+/** Localized party-type label, resolved from the i18n bundle (no inline literals). */
+function partyTypeLabel(partyType: string, locale: Locale): string {
+  const label = partyTypeLabels[partyType];
+  if (!label) return partyType.replace(/_/g, ' ');
+  return pickByLocale(locale, label);
+}
 
-export function CounterpartiesShell() {
-  const locale = useLocale();
+/** Locale-aware date + time for the engagement timeline. */
+function dateTime(iso: string, locale: Locale): string {
+  return `${fmtDateForLocale(iso, locale)} · ${fmtTimeForLocale(iso, locale)}`;
+}
+
+export function CounterpartiesShell({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const [partyType, setPartyType] = useState<string>('all');
   const [search, setSearch] = useState<string>('');
   const [drawerPartyId, setDrawerPartyId] = useState<string | null>(null);
@@ -115,9 +114,9 @@ export function CounterpartiesShell() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {PARTY_TYPE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {locale === 'sw' ? opt.labelSw : opt.labelEn}
+            {partyTypeFilterOrder.map((value) => (
+              <SelectItem key={value} value={value}>
+                {partyTypeLabel(value, locale)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -130,6 +129,24 @@ export function CounterpartiesShell() {
             <Skeleton key={i} className="h-12 rounded-xl border border-border" />
           ))}
         </div>
+      ) : list.isError ? (
+        <Alert variant="error">
+          <div className="flex flex-col gap-3">
+            <div>
+              <p className="font-medium">{pickByLocale(locale, S.loadFailedTitle)}</p>
+              <p className="text-sm">{pickByLocale(locale, S.loadFailedBody)}</p>
+            </div>
+            <div>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void list.refetch()}
+              >
+                {pickByLocale(locale, S.retry)}
+              </Button>
+            </div>
+          </div>
+        </Alert>
       ) : parties.length === 0 ? (
         <ScreenEmptyState
           icon={<Building2 className="h-6 w-6" />}
@@ -210,7 +227,7 @@ function CounterpartyRowItem({
     >
       <TableCell className="font-medium text-foreground">{party.name}</TableCell>
       <TableCell className="text-muted-foreground">
-        {party.partyType.replace(/_/g, ' ')}
+        {partyTypeLabel(party.partyType, locale)}
       </TableCell>
       <TableCell className="text-muted-foreground">{party.country}</TableCell>
       <TableCell>
@@ -243,7 +260,9 @@ function CounterpartyDrawer({
         </div>
         <DrawerTitle>{party?.name ?? partyId}</DrawerTitle>
         <DrawerDescription>
-          {party ? `${party.partyType.replace(/_/g, ' ')} · ${party.country}` : null}
+          {party
+            ? `${partyTypeLabel(party.partyType, locale)} · ${party.country}`
+            : null}
         </DrawerDescription>
       </DrawerHeader>
       <DrawerBody>
@@ -256,6 +275,21 @@ function CounterpartyDrawer({
               <Skeleton key={i} className="h-20 rounded-xl border border-border" />
             ))}
           </div>
+        ) : engagements.isError ? (
+          <Alert variant="error">
+            <div className="flex flex-col gap-3">
+              <p className="text-sm">{pickByLocale(locale, S.engagementsLoadFailed)}</p>
+              <div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void engagements.refetch()}
+                >
+                  {pickByLocale(locale, S.retry)}
+                </Button>
+              </div>
+            </div>
+          </Alert>
         ) : items.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {pickByLocale(locale, S.timelineEmpty)}
@@ -269,23 +303,27 @@ function CounterpartyDrawer({
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium uppercase tracking-eyebrow text-signal-500">
-                    {e.kind.replace(/_/g, ' ')}
+                    {engagementKindLabels[e.kind]
+                      ? pickByLocale(locale, engagementKindLabels[e.kind]!)
+                      : e.kind.replace(/_/g, ' ')}
                   </span>
                   <span
                     className={
-                      e.status === 'completed'
+                      e.status === 'closed'
                         ? 'text-xs text-success'
                         : e.status === 'cancelled'
                           ? 'text-xs text-muted-foreground'
                           : 'text-xs text-warning'
                     }
                   >
-                    {e.status}
+                    {engagementStatusLabels[e.status]
+                      ? pickByLocale(locale, engagementStatusLabels[e.status]!)
+                      : e.status}
                   </span>
                 </div>
                 <p className="mt-1 text-sm text-foreground">{e.summary}</p>
                 <p className="mt-1 text-tiny text-muted-foreground">
-                  {new Date(e.openedAt).toLocaleString()}
+                  {dateTime(e.openedAt, locale)}
                   {e.auditHashId
                     ? ` · ${pickByLocale(locale, S.audit)} ${e.auditHashId.slice(0, 8)}`
                     : ''}

@@ -16,8 +16,9 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtNum, fmtDate } from '@/lib/format';
 import { useLocale, pickByLocale } from '@/lib/locale';
 import type { Locale } from '@/lib/locale-shared';
-import { useFleetOpsTco, type VehicleTcoRow } from '@/lib/queries/fleet-ops';
+import { useFleetOpsTco, type FleetOpsTco, type VehicleTcoRow } from '@/lib/queries/fleet-ops';
 import { fleetOpsStrings as S } from '@/i18n/strings/fleet-ops-surface';
+import { advisorEnumLabel } from '@/components/treasury/advisor-enum-label';
 
 interface FleetOpsSurfaceProps {
   /** Seeded by the server-resolved session so SSR + first paint agree. */
@@ -44,6 +45,34 @@ function fmtMajor(cents: number): string {
   return fmtNum(Math.round(cents) / 100);
 }
 
+/**
+ * Resolve the backend's stable honesty-flag KEYS into owner-facing notes in
+ * the active locale. The wire stays locale-neutral (keys only); we localize
+ * here. Per the trust contract, a note is shown ONLY when its underlying
+ * figure is genuinely 0:
+ *   - distance_source_missing → every vehicle has distanceKm 0 (no trip source)
+ *   - depreciation_unmodelled → fleet depreciation total is 0
+ *   - vehicle_kind_scope      → always relevant (scope disclosure)
+ * Unknown keys are dropped rather than rendered raw.
+ */
+function resolveFleetFlagNotes(
+  data: FleetOpsTco,
+  locale: Locale,
+): ReadonlyArray<{ readonly key: string; readonly note: string }> {
+  const distanceMissing =
+    data.vehicles.length === 0 || data.vehicles.every((v) => v.distanceKm === 0);
+  const depreciationZero = data.fleetTotals.depreciationCents === 0;
+  const table = S.flags;
+
+  return data.flags.flatMap((key) => {
+    if (key === 'distance_source_missing' && !distanceMissing) return [];
+    if (key === 'depreciation_unmodelled' && !depreciationZero) return [];
+    const entry = table[key as keyof typeof table];
+    if (!entry) return [];
+    return [{ key, note: pickByLocale(locale, entry) }];
+  });
+}
+
 function VehicleTcoTable({
   rows,
   locale,
@@ -67,7 +96,9 @@ function VehicleTcoTable({
         {rows.map((r) => (
           <TableRow key={r.vehicleId}>
             <TableCell className="font-medium text-foreground">{r.label}</TableCell>
-            <TableCell className="text-muted-foreground">{r.type}</TableCell>
+            <TableCell className="text-muted-foreground">
+              {advisorEnumLabel('fleetVehicleType', r.type, locale)}
+            </TableCell>
             <TableCell className="text-right tabular-nums">{fmtMajor(r.fuelCostCents)}</TableCell>
             <TableCell className="text-right tabular-nums">
               {fmtMajor(r.maintenanceCostCents)}
@@ -150,17 +181,29 @@ export function FleetOpsSurface({ locale: seeded }: FleetOpsSurfaceProps) {
                 />
               </div>
             ) : null}
-            {(tco.data?.flags ?? []).length > 0 ? (
-              <ul className="space-y-1 rounded-lg border border-border bg-surface/40 p-3 text-xs text-muted-foreground">
-                {(tco.data?.flags ?? []).map((flag) => (
-                  <li key={flag}>{flag}</li>
-                ))}
-              </ul>
-            ) : null}
+            {tco.data ? <FleetFlagNotes data={tco.data} locale={locale} /> : null}
           </div>
         )}
       </SectionCard>
     </div>
+  );
+}
+
+function FleetFlagNotes({
+  data,
+  locale,
+}: {
+  readonly data: FleetOpsTco;
+  readonly locale: Locale;
+}) {
+  const notes = resolveFleetFlagNotes(data, locale);
+  if (notes.length === 0) return null;
+  return (
+    <ul className="space-y-1 rounded-lg border border-border bg-surface/40 p-3 text-xs text-muted-foreground">
+      {notes.map((n) => (
+        <li key={n.key}>{n.note}</li>
+      ))}
+    </ul>
   );
 }
 

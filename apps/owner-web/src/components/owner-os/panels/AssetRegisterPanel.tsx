@@ -10,6 +10,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
@@ -82,7 +83,7 @@ function assetColumns(
     {
       key: 'class',
       header: isSw ? P.assetRegister.colClass.sw : P.assetRegister.colClass.en,
-      render: (r) => r.assetClass,
+      render: (r) => enumLabelSw('assetClass', r.assetClass, isSw),
     },
     {
       key: 'value',
@@ -93,7 +94,7 @@ function assetColumns(
     {
       key: 'method',
       header: isSw ? P.assetRegister.colMethod.sw : P.assetRegister.colMethod.en,
-      render: (r) => r.valuationMethod,
+      render: (r) => enumLabelSw('valuationMethod', r.valuationMethod, isSw),
     },
   ];
 }

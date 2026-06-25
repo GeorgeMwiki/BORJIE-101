@@ -2,6 +2,7 @@ import { PageHero } from '@/components/shared/PageHero';
 import {
   HeadBriefingSurface,
   type BriefingDoc,
+  type BriefingErrorCode,
 } from '@/components/wave9/HeadBriefingSurface';
 import { getOwnerSession } from '@/lib/session';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
@@ -11,7 +12,9 @@ export const dynamic = 'force-dynamic';
 
 interface BriefingResult {
   readonly doc: BriefingDoc | null;
-  readonly errorMessage: string | null;
+  // A locale-NEUTRAL code (never a raw English sentence — that leaks under
+  // `sw`); the surface localises it at render.
+  readonly errorCode: BriefingErrorCode | null;
 }
 
 /**
@@ -28,7 +31,7 @@ async function fetchBriefing(): Promise<BriefingResult> {
     const supabase = await createSupabaseServerClient();
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    if (!token) return { doc: null, errorMessage: 'No active session.' };
+    if (!token) return { doc: null, errorCode: 'noSession' };
 
     const base = requirePublicBaseUrl(
       'NEXT_PUBLIC_API_GATEWAY_URL',
@@ -43,29 +46,25 @@ async function fetchBriefing(): Promise<BriefingResult> {
       | { success?: boolean; data?: BriefingDoc; error?: { message?: string } }
       | null;
     if (!res.ok || !body?.success || !body.data) {
-      return {
-        doc: null,
-        errorMessage: body?.error?.message ?? `Briefing unavailable (${res.status}).`,
-      };
+      // The gateway's English `error.message` is NOT surfaced (it would leak
+      // under `sw`); the surface renders the localised "unavailable" copy.
+      return { doc: null, errorCode: 'unavailable' };
     }
-    return { doc: body.data, errorMessage: null };
-  } catch (err) {
-    return {
-      doc: null,
-      errorMessage: err instanceof Error ? err.message : 'Briefing fetch failed.',
-    };
+    return { doc: body.data, errorCode: null };
+  } catch {
+    return { doc: null, errorCode: 'fetchFailed' };
   }
 }
 
 export default async function HeadBriefingPage() {
   const session = await getOwnerSession();
   const isSw = session.languagePreference === 'sw';
-  const { doc, errorMessage } = await fetchBriefing();
+  const { doc, errorCode } = await fetchBriefing();
 
   return (
     <div className="space-y-8 px-8 py-8">
       <PageHero slug="head-briefing" />
-      <HeadBriefingSurface doc={doc} errorMessage={errorMessage} isSw={isSw} />
+      <HeadBriefingSurface doc={doc} errorCode={errorCode} isSw={isSw} />
     </div>
   );
 }

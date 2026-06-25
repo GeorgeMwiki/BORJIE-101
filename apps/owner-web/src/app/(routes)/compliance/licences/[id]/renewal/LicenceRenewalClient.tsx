@@ -15,6 +15,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Button, FormField, Input, Skeleton, Alert } from '@borjie/design-system';
+import { localizeApiError } from '@borjie/error-catalog';
 import { apiRequest, ApiError } from '@/lib/api-client';
 import {
   routesAStrings as S,
@@ -69,7 +70,9 @@ const STAGE_LABEL_EN: Readonly<Record<LicenceRenewalView['stage'], string>> = {
 interface ApiResponse<T> {
   readonly success: boolean;
   readonly data?: T;
-  readonly error?: string;
+  // Locale-NEUTRAL gateway error code (never a raw English message — the
+  // component localises this through localizeApiError at render).
+  readonly code?: string;
 }
 
 async function gatewayFetch<T>(
@@ -89,16 +92,13 @@ async function gatewayFetch<T>(
     });
     return { success: true, data };
   } catch (err) {
-    // apiRequest throws ApiError (with .status) on any non-2xx; its message
-    // carries the gateway error body, matching the prior `res.error` surface.
+    // apiRequest throws ApiError carrying the stable gateway `code`. Surface
+    // the CODE (locale-neutral), never the raw English `message`; the
+    // component localises it. A non-ApiError leaves `code` undefined →
+    // localizeApiError returns the generic localised fallback.
     return {
       success: false,
-      error:
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Network error',
+      ...(err instanceof ApiError && err.code ? { code: err.code } : {}),
     };
   }
 }
@@ -109,6 +109,7 @@ interface Props {
 }
 
 export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
+  const locale = isSwahili ? 'sw' : 'en';
   const [view, setView] = useState<LicenceRenewalView | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,9 +128,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
     if (res.success && res.data) {
       setView(res.data);
     } else {
-      setError(res.error ?? 'Failed to load renewal status');
+      setError(localizeApiError(res.code, locale));
     }
-  }, [licenceId]);
+  }, [licenceId, locale]);
 
   useEffect(() => {
     void load();
@@ -151,9 +152,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       setMessage(isSwahili ? S.renewalClient.draftOpened.sw : S.renewalClient.draftOpened.en);
       await load();
     } else {
-      setError(res.error ?? 'Failed to start renewal');
+      setError(localizeApiError(res.code, locale));
     }
-  }, [licenceId, isSwahili, view?.licence.number, load]);
+  }, [licenceId, isSwahili, view?.licence.number, load, locale]);
 
   const submit = useCallback(async () => {
     if (!submissionRef.trim()) {
@@ -187,9 +188,9 @@ export function LicenceRenewalClient({ licenceId, isSwahili }: Props) {
       setRenewalDocUrl('');
       await load();
     } else {
-      setError(res.error ?? 'Failed to submit renewal');
+      setError(localizeApiError(res.code, locale));
     }
-  }, [licenceId, submissionRef, renewalDocUrl, isSwahili, load]);
+  }, [licenceId, submissionRef, renewalDocUrl, isSwahili, load, locale]);
 
   const stageLabel = isSwahili ? STAGE_LABEL_SW : STAGE_LABEL_EN;
 

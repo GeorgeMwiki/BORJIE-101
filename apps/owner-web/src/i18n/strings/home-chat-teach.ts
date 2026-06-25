@@ -26,11 +26,11 @@ export const homeChatTeachStrings = {
   },
   httpError: (status: number) => ({
     en: `Mr. Mwikila returned HTTP ${status}.`,
-    sw: `Mr. Mwikila amerudisha HTTP ${status}.`,
+    sw: `Bw. Mwikila amerudisha HTTP ${status}.`,
   }),
   streamError: {
     en: 'The Mr. Mwikila stream hit an error.',
-    sw: 'Mtiririko wa Mr. Mwikila umekosea.',
+    sw: 'Mtiririko wa Bw. Mwikila umekosea.',
   },
   connectionDropped: {
     en: 'The connection dropped. Please try again.',
@@ -47,7 +47,7 @@ export const homeChatTeachStrings = {
   newThread: { en: 'New thread', sw: 'Mazungumzo mapya' },
   conversationAria: {
     en: 'Conversation with Mr. Mwikila',
-    sw: 'Mazungumzo na Mr. Mwikila',
+    sw: 'Mazungumzo na Bw. Mwikila',
   },
   noContent: { en: '(no content)', sw: '(hakuna maudhui)' },
   noReply: { en: '(no content)', sw: '(hakuna jibu)' },
@@ -60,7 +60,7 @@ export const homeChatTeachStrings = {
   suggestedTabs: { en: 'Suggested tabs', sw: 'Tabs zinazopendekezwa' },
   personaLabel: {
     en: 'Mr. Mwikila · Teacher',
-    sw: 'Mr. Mwikila · Mwalimu',
+    sw: 'Bw. Mwikila · Mwalimu',
   },
   // KI-005 — Auditor grounding-verdict caution badges. Single-language per
   // locale; mirrors the master-brain ChatBubble warnings.

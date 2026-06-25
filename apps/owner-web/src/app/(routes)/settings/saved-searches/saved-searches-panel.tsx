@@ -13,9 +13,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { apiRequest } from '@/lib/api-client';
-import { routesBStrings as S } from '@/i18n/strings/routes-b';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { apiRequest, localizeError } from '@/lib/api-client';
+import {
+  savedSearchesStrings as S,
+  savedSearchLastRun,
+  savedSearchMatches,
+} from '@/i18n/strings/saved-searches-page';
+import { fmtNum, fmtDateForLocale } from '@/lib/format';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import {
   Button,
   Skeleton,
@@ -41,32 +46,30 @@ interface SavedSearch {
   readonly createdAt: string;
 }
 
-const FREQUENCY_LABELS_EN: Record<SavedSearch['frequency'], string> = {
-  hourly: S.savedSearches.frequencyHourly.en,
-  daily: S.savedSearches.frequencyDaily.en,
-  weekly: S.savedSearches.frequencyWeekly.en,
+const FREQUENCY_LABELS: Record<
+  SavedSearch['frequency'],
+  { readonly en: string; readonly sw: string }
+> = {
+  hourly: S.frequencyHourly,
+  daily: S.frequencyDaily,
+  weekly: S.frequencyWeekly,
 };
 
-const FREQUENCY_LABELS_SW: Record<SavedSearch['frequency'], string> = {
-  hourly: S.savedSearches.frequencyHourly.sw,
-  daily: S.savedSearches.frequencyDaily.sw,
-  weekly: S.savedSearches.frequencyWeekly.sw,
+const SOURCE_LABELS: Record<
+  SavedSearch['source'],
+  { readonly en: string; readonly sw: string }
+> = {
+  marketplace: S.sourceMarketplace,
+  opportunities: S.sourceOpportunities,
+  regulatory: S.sourceRegulatory,
 };
 
-const SOURCE_LABELS_EN: Record<SavedSearch['source'], string> = {
-  marketplace: S.savedSearches.sourceMarketplace.en,
-  opportunities: S.savedSearches.sourceOpportunities.en,
-  regulatory: S.savedSearches.sourceRegulatory.en,
-};
-
-const SOURCE_LABELS_SW: Record<SavedSearch['source'], string> = {
-  marketplace: S.savedSearches.sourceMarketplace.sw,
-  opportunities: S.savedSearches.sourceOpportunities.sw,
-  regulatory: S.savedSearches.sourceRegulatory.sw,
-};
-
-export function SavedSearchesPanel() {
-  const locale = useLocale();
+export function SavedSearchesPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const [items, setItems] = useState<ReadonlyArray<SavedSearch>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +91,13 @@ export function SavedSearchesPanel() {
       );
       setItems(data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // Localise from the gateway error CODE — raw `err.message` would leak
+      // English into the `sw` <Alert>.
+      setError(localizeError(err, locale));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void refresh();
@@ -105,7 +110,7 @@ export function SavedSearchesPanel() {
     try {
       parsedQuery = queryText.trim() ? JSON.parse(queryText) : {};
     } catch {
-      setError('Query JSON is invalid');
+      setError(pickByLocale(locale, S.invalidQueryJson));
       setCreating(false);
       return;
     }
@@ -125,11 +130,11 @@ export function SavedSearchesPanel() {
       setSource('marketplace');
       await refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(localizeError(err, locale));
     } finally {
       setCreating(false);
     }
-  }, [label, queryText, frequency, source, refresh]);
+  }, [label, queryText, frequency, source, refresh, locale]);
 
   const remove = useCallback(
     async (id: string) => {
@@ -139,10 +144,10 @@ export function SavedSearchesPanel() {
         });
         await refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(localizeError(err, locale));
       }
     },
-    [refresh],
+    [refresh, locale],
   );
 
   return (
@@ -155,30 +160,30 @@ export function SavedSearchesPanel() {
         }}
       >
         <h2 className="font-display text-xl text-foreground">
-          {pickByLocale(locale, { en: 'New saved search', sw: 'Utafutaji mpya' })}
+          {pickByLocale(locale, S.newSearchHeading)}
         </h2>
         <p className="text-xs italic text-muted-foreground">
-          {pickByLocale(locale, S.savedSearches.newSearchTagline)}
+          {pickByLocale(locale, S.newSearchTagline)}
         </p>
-        <FormField label={pickByLocale(locale, S.savedSearches.labelField)}>
+        <FormField label={pickByLocale(locale, S.labelField)}>
           <Input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
             required
             maxLength={120}
-            placeholder="Gold 22k+ Geita"
+            placeholder={pickByLocale(locale, S.labelPlaceholder)}
           />
         </FormField>
-        <FormField label={pickByLocale(locale, S.savedSearches.queryField)}>
+        <FormField label={pickByLocale(locale, S.queryField)}>
           <Textarea
             className="h-24 font-mono text-xs"
             value={queryText}
             onChange={(e) => setQueryText(e.target.value)}
-            placeholder='{"commodity":"gold","minPurity":22,"region":"geita"}'
+            placeholder={pickByLocale(locale, S.queryPlaceholder)}
           />
         </FormField>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <FormField label={pickByLocale(locale, S.savedSearches.frequencyField)}>
+          <FormField label={pickByLocale(locale, S.frequencyField)}>
             <Select
               value={frequency}
               onValueChange={(v) => setFrequency(v as SavedSearch['frequency'])}
@@ -188,18 +193,18 @@ export function SavedSearchesPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="hourly">
-                  {pickByLocale(locale, S.savedSearches.frequencyHourly)}
+                  {pickByLocale(locale, S.frequencyHourly)}
                 </SelectItem>
                 <SelectItem value="daily">
-                  {pickByLocale(locale, S.savedSearches.frequencyDaily)}
+                  {pickByLocale(locale, S.frequencyDaily)}
                 </SelectItem>
                 <SelectItem value="weekly">
-                  {pickByLocale(locale, S.savedSearches.frequencyWeekly)}
+                  {pickByLocale(locale, S.frequencyWeekly)}
                 </SelectItem>
               </SelectContent>
             </Select>
           </FormField>
-          <FormField label={pickByLocale(locale, S.savedSearches.sourceField)}>
+          <FormField label={pickByLocale(locale, S.sourceField)}>
             <Select
               value={source}
               onValueChange={(v) => setSource(v as SavedSearch['source'])}
@@ -209,13 +214,13 @@ export function SavedSearchesPanel() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="marketplace">
-                  {pickByLocale(locale, S.savedSearches.sourceMarketplace)}
+                  {pickByLocale(locale, S.sourceMarketplace)}
                 </SelectItem>
                 <SelectItem value="opportunities">
-                  {pickByLocale(locale, S.savedSearches.sourceOpportunities)}
+                  {pickByLocale(locale, S.sourceOpportunities)}
                 </SelectItem>
                 <SelectItem value="regulatory">
-                  {pickByLocale(locale, S.savedSearches.sourceRegulatory)}
+                  {pickByLocale(locale, S.sourceRegulatory)}
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -227,12 +232,12 @@ export function SavedSearchesPanel() {
           disabled={creating || !label.trim()}
         >
           {creating
-            ? pickByLocale(locale, { en: 'Saving…', sw: 'Inahifadhi…' })
-            : pickByLocale(locale, S.savedSearches.save)}
+            ? pickByLocale(locale, S.saving)
+            : pickByLocale(locale, S.save)}
         </Button>
         {error ? (
           <p className="text-sm text-destructive">
-            {pickByLocale(locale, { en: 'Error: ', sw: 'Hitilafu: ' })}
+            {pickByLocale(locale, S.errorPrefix)}
             {error}
           </p>
         ) : null}
@@ -240,19 +245,16 @@ export function SavedSearchesPanel() {
 
       <div className="rounded-lg border border-border bg-surface p-4">
         <h2 className="font-display text-xl text-foreground">
-          {pickByLocale(locale, {
-            en: 'Your saved searches',
-            sw: 'Utafutaji wako uliohifadhiwa',
-          })}
+          {pickByLocale(locale, S.savedListHeading)}
         </h2>
         <p className="text-xs italic text-muted-foreground">
-          {pickByLocale(locale, S.savedSearches.savedListTagline)}
+          {pickByLocale(locale, S.savedListTagline)}
         </p>
         {loading ? (
           <div
             className="mt-4 space-y-2"
             role="status"
-            aria-label={pickByLocale(locale, { en: 'Loading…', sw: 'Inapakia…' })}
+            aria-label={pickByLocale(locale, S.loading)}
           >
             {Array.from({ length: 3 }).map((_, i) => (
               <Skeleton key={i} className="h-14 rounded-lg border border-border" />
@@ -261,37 +263,25 @@ export function SavedSearchesPanel() {
         ) : items.length === 0 ? (
           <div className="mt-4">
             <ScreenEmptyState
-              title={pickByLocale(locale, {
-                en: 'Your saved searches',
-                sw: 'Utafutaji wako uliohifadhiwa',
-              })}
-              description={pickByLocale(locale, S.savedSearches.emptyList)}
+              title={pickByLocale(locale, S.savedListHeading)}
+              description={pickByLocale(locale, S.emptyList)}
             />
           </div>
         ) : (
           <ul className="mt-4 space-y-2">
             {items.map((item) => {
-              const freqLabel = pickByLocale(locale, {
-                en: FREQUENCY_LABELS_EN[item.frequency],
-                sw: FREQUENCY_LABELS_SW[item.frequency],
-              });
-              const srcLabel = pickByLocale(locale, {
-                en: SOURCE_LABELS_EN[item.source],
-                sw: SOURCE_LABELS_SW[item.source],
-              });
+              const freqLabel = pickByLocale(locale, FREQUENCY_LABELS[item.frequency]);
+              const srcLabel = pickByLocale(locale, SOURCE_LABELS[item.source]);
               const lastRunLabel = item.lastRunAt
-                ? pickByLocale(locale, {
-                    en: `last ${new Date(item.lastRunAt).toLocaleString()}`,
-                    sw: `mwisho ${new Date(item.lastRunAt).toLocaleString()}`,
-                  })
-                : pickByLocale(locale, {
-                    en: 'not yet run',
-                    sw: 'haijatekelezwa bado',
-                  });
-              const matchesLabel = pickByLocale(locale, {
-                en: `${item.lastMatchCount} matches`,
-                sw: `${item.lastMatchCount} mechi`,
-              });
+                ? pickByLocale(
+                    locale,
+                    savedSearchLastRun(fmtDateForLocale(item.lastRunAt, locale)),
+                  )
+                : pickByLocale(locale, S.notYetRun);
+              const matchesLabel = pickByLocale(
+                locale,
+                savedSearchMatches(fmtNum(item.lastMatchCount)),
+              );
               return (
                 <li
                   key={item.id}
@@ -312,7 +302,7 @@ export function SavedSearchesPanel() {
                     size="sm"
                     onClick={() => void remove(item.id)}
                   >
-                    {pickByLocale(locale, S.savedSearches.delete)}
+                    {pickByLocale(locale, S.delete)}
                   </Button>
                 </li>
               );

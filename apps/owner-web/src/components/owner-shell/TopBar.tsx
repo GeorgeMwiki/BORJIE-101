@@ -27,7 +27,7 @@ const ADMIN_URL = requirePublicBaseUrl(
 /**
  * TopBar — owner-portal sticky header.
  *
- * Mirrors LitFin's `BorrowerHeader` shape: breadcrumbs left, action
+ * Mirrors the reference portal-header shape: breadcrumbs left, action
  * cluster right (chat trigger / notifications / language / sign-out).
  * Breadcrumbs derive from the current pathname so every route gets a
  * spine without per-page wiring. The ask-Borjie button dispatches the

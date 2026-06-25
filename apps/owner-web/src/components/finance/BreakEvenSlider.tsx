@@ -4,21 +4,23 @@ import { useEffect, useRef, useState } from 'react';
 import { computeBreakEven } from '@/lib/types/finance';
 import { formatMoney, LAUNCH_CURRENCY, bcp47For } from '@/lib/format';
 import { useFxSeeds } from '@/lib/queries/fx';
-import { useLocale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
 import { financeTablesStrings as S } from '@/i18n/strings/finance-tables';
 
 interface BreakEvenSliderProps {
   readonly initialGoldUsdOz: number;
   readonly initialTzsUsd: number;
   readonly initialUnitCostTzsPerG: number;
+  readonly initialLocale?: Locale;
 }
 
 export function BreakEvenSlider({
   initialGoldUsdOz,
   initialTzsUsd,
   initialUnitCostTzsPerG,
+  initialLocale,
 }: BreakEvenSliderProps) {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const [goldUsd, setGoldUsd] = useState(initialGoldUsdOz);
   const [tzsUsd, setTzsUsd] = useState(initialTzsUsd);
   const [unitCost, setUnitCost] = useState(initialUnitCostTzsPerG);

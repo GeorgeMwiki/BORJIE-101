@@ -6,6 +6,7 @@ import { registerUpload } from './api';
 import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types';
 import type { Locale } from '@/lib/locale-shared';
 import { DEFAULT_LOCALE } from '@/lib/locale-shared';
+import { localizeError } from '@/lib/api-client';
 import { tailStrings as S } from '@/i18n/strings/tail';
 
 export interface DocumentUploadButtonProps {
@@ -65,9 +66,9 @@ export function DocumentUploadButton({
       });
       onUploaded?.(result);
     } catch (cause) {
-      const message =
-        cause instanceof Error ? cause.message : 'Upload failed.';
-      onError?.(message);
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING).
+      onError?.(localizeError(cause, locale));
     } finally {
       setBusy(false);
       if (inputRef.current) {

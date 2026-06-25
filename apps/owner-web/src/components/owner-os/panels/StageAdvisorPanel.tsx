@@ -12,6 +12,7 @@ import {
   type StageNudge,
 } from '@/lib/queries/stage-advisor';
 import { stageAdvisorPanelStrings as STR } from '@/i18n/strings/stage-advisor-panel';
+import { enumLabel } from './enum-label';
 
 /**
  * StageAdvisorPanel — the owner cockpit surface for the stage-aware
@@ -220,7 +221,7 @@ export function StageAdvisorPanel({
                       <div className="flex items-center gap-2">
                         <StatusPill
                           tone={urgencyTone(nudge.urgency)}
-                          label={nudge.urgency}
+                          label={enumLabel('alertSeverity', nudge.urgency, locale)}
                         />
                         <p className="text-sm font-medium text-foreground">
                           {nudge.title}

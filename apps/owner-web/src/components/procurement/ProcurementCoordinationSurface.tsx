@@ -4,6 +4,17 @@ import { RefreshCw } from 'lucide-react';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { fmtNum, fmtPct } from '@/lib/format';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import {
+  procurementSurfaceStrings as S,
+  budgetAlertLevelLabels,
+  kycStatusLabels,
+  preferredStatusLabels,
+  vendorStatusUnknown,
+  budgetScopeLabels,
+  budgetPeriodLabels,
+  budgetScopePeriodUnknown,
+} from '@/i18n/strings/procurement-surface';
 import {
   useProcurementVendors,
   useProcurementBudgets,
@@ -25,8 +36,10 @@ import {
  *   - Vendor registry (GET .../vendors)
  *
  * Each amount carries its own ISO-4217 currency; we render the amount with a
- * neutral "(ccy)" label and never a hard-coded symbol. Real loading / empty /
- * error states throughout.
+ * neutral code suffix and never a hard-coded symbol, and never sum across
+ * distinct currency codes. Real loading / empty / error states throughout.
+ * Every label is single-locale (zero-mix canon) via `pickByLocale`; the
+ * locale is SEEDED from the server so the first paint matches the SSR chrome.
  */
 
 const ALERT_STYLES: Readonly<Record<BudgetAvailability['alertLevel'], string>> = {
@@ -40,16 +53,77 @@ function fmtAmount(amount: number, currency: string): string {
   return `${fmtNum(amount)} ${currency}`;
 }
 
-function SpendByVendorTable({ rows }: { readonly rows: ReadonlyArray<SpendByVendor> }) {
+/**
+ * Resolve a vendor KYC status (free-form string off the wire, in practice the
+ * closed KYC_STATUSES enum) to a localized label — never the raw token.
+ */
+function kycStatusLabel(status: string, locale: Locale): string {
+  const entry =
+    status in kycStatusLabels
+      ? kycStatusLabels[status as keyof typeof kycStatusLabels]
+      : vendorStatusUnknown;
+  return pickByLocale(locale, entry);
+}
+
+/**
+ * Resolve a vendor preferred status (closed PREFERRED_STATUSES enum) to a
+ * localized label — never the raw token.
+ */
+function preferredStatusLabel(status: string, locale: Locale): string {
+  const entry =
+    status in preferredStatusLabels
+      ? preferredStatusLabels[status as keyof typeof preferredStatusLabels]
+      : vendorStatusUnknown;
+  return pickByLocale(locale, entry);
+}
+
+/**
+ * Resolve a budget scope (closed BUDGET_SCOPES enum) to a localized label —
+ * never the raw token. The `property` scope renders as a mining "Site" (see
+ * the label table); the DB enum value is unchanged.
+ */
+function budgetScopeLabel(scope: string, locale: Locale): string {
+  const entry =
+    scope in budgetScopeLabels
+      ? budgetScopeLabels[scope as keyof typeof budgetScopeLabels]
+      : budgetScopePeriodUnknown;
+  return pickByLocale(locale, entry);
+}
+
+/**
+ * Resolve a budget period (closed BUDGET_PERIODS enum) to a localized
+ * label — never the raw token.
+ */
+function budgetPeriodLabel(period: string, locale: Locale): string {
+  const entry =
+    period in budgetPeriodLabels
+      ? budgetPeriodLabels[period as keyof typeof budgetPeriodLabels]
+      : budgetScopePeriodUnknown;
+  return pickByLocale(locale, entry);
+}
+
+function SpendByVendorTable({
+  rows,
+  locale,
+}: {
+  readonly rows: ReadonlyArray<SpendByVendor>;
+  readonly locale: Locale;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-            <th className="px-3 py-2 font-medium">Vendor</th>
-            <th className="px-3 py-2 text-right font-medium">POs</th>
-            <th className="px-3 py-2 text-right font-medium">Avg PO</th>
-            <th className="px-3 py-2 text-right font-medium">Total spend</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colVendor)}</th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colPos)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colAvgPo)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colTotalSpend)}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -71,27 +145,41 @@ function SpendByVendorTable({ rows }: { readonly rows: ReadonlyArray<SpendByVend
   );
 }
 
-function BudgetsTable({ rows }: { readonly rows: ReadonlyArray<BudgetAvailability> }) {
+function BudgetsTable({
+  rows,
+  locale,
+}: {
+  readonly rows: ReadonlyArray<BudgetAvailability>;
+  readonly locale: Locale;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-            <th className="px-3 py-2 font-medium">Scope</th>
-            <th className="px-3 py-2 font-medium">Period</th>
-            <th className="px-3 py-2 text-right font-medium">Budget</th>
-            <th className="px-3 py-2 text-right font-medium">Available</th>
-            <th className="px-3 py-2 text-right font-medium">Utilisation</th>
-            <th className="px-3 py-2 font-medium">Status</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colScope)}</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colPeriod)}</th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colBudget)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colAvailable)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colUtilisation)}
+            </th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colStatus)}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.budget.id} className="border-b border-border/60">
               <td className="px-3 py-2 text-foreground">
-                {r.budget.scope} · {r.budget.scopeKey}
+                {budgetScopeLabel(r.budget.scope, locale)} · {r.budget.scopeKey}
               </td>
-              <td className="px-3 py-2 text-neutral-500">{r.budget.period}</td>
+              <td className="px-3 py-2 text-neutral-500">
+                {budgetPeriodLabel(r.budget.period, locale)}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {fmtAmount(r.budget.amount, r.budget.currency)}
               </td>
@@ -105,7 +193,7 @@ function BudgetsTable({ rows }: { readonly rows: ReadonlyArray<BudgetAvailabilit
                 <span
                   className={`rounded px-1.5 py-0.5 text-xs font-medium ${ALERT_STYLES[r.alertLevel]}`}
                 >
-                  {r.alertLevel}
+                  {pickByLocale(locale, budgetAlertLevelLabels[r.alertLevel])}
                 </span>
               </td>
             </tr>
@@ -116,17 +204,25 @@ function BudgetsTable({ rows }: { readonly rows: ReadonlyArray<BudgetAvailabilit
   );
 }
 
-function VendorsTable({ rows }: { readonly rows: ReadonlyArray<ProcurementVendor> }) {
+function VendorsTable({
+  rows,
+  locale,
+}: {
+  readonly rows: ReadonlyArray<ProcurementVendor>;
+  readonly locale: Locale;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-            <th className="px-3 py-2 font-medium">Vendor</th>
-            <th className="px-3 py-2 font-medium">Country</th>
-            <th className="px-3 py-2 font-medium">KYC</th>
-            <th className="px-3 py-2 font-medium">Status</th>
-            <th className="px-3 py-2 text-right font-medium">Rating</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colVendor)}</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colCountry)}</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colKyc)}</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colStatus)}</th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colRating)}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -134,8 +230,10 @@ function VendorsTable({ rows }: { readonly rows: ReadonlyArray<ProcurementVendor
             <tr key={r.id} className="border-b border-border/60">
               <td className="px-3 py-2 font-medium text-foreground">{r.companyName}</td>
               <td className="px-3 py-2 text-neutral-500">{r.country}</td>
-              <td className="px-3 py-2 text-neutral-500">{r.kycStatus}</td>
-              <td className="px-3 py-2 text-neutral-500">{r.preferredStatus}</td>
+              <td className="px-3 py-2 text-neutral-500">{kycStatusLabel(r.kycStatus, locale)}</td>
+              <td className="px-3 py-2 text-neutral-500">
+                {preferredStatusLabel(r.preferredStatus, locale)}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {r.rating !== null ? r.rating.toFixed(1) : '—'}
               </td>
@@ -147,7 +245,12 @@ function VendorsTable({ rows }: { readonly rows: ReadonlyArray<ProcurementVendor
   );
 }
 
-export function ProcurementCoordinationSurface() {
+export function ProcurementCoordinationSurface({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const spend = useProcurementSpendByVendor();
   const budgets = useProcurementBudgets();
   const vendors = useProcurementVendors();
@@ -155,12 +258,12 @@ export function ProcurementCoordinationSurface() {
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Spend by vendor"
-        subtitle="Issued + closed purchase orders aggregated per vendor."
+        title={pickByLocale(locale, S.spendTitle)}
+        subtitle={pickByLocale(locale, S.spendSubtitle)}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void spend.refetch()}
             className="text-neutral-500 hover:text-foreground"
           >
@@ -172,27 +275,29 @@ export function ProcurementCoordinationSurface() {
           <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
         ) : spend.isError ? (
           <EmptyState
-            title="Could not load spend analytics"
-            description={(spend.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.spendLoadFailedTitle)}
+            description={
+              (spend.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+            }
             hint="GET /api/v1/mining/procurement-coordination/analytics/spend-by-vendor"
           />
         ) : (spend.data?.vendors ?? []).length === 0 ? (
           <EmptyState
-            title="No spend yet"
-            description="Issue purchase orders to vendors to see real spend aggregated here by vendor and category."
+            title={pickByLocale(locale, S.spendEmptyTitle)}
+            description={pickByLocale(locale, S.spendEmptyBody)}
           />
         ) : (
-          <SpendByVendorTable rows={spend.data?.vendors ?? []} />
+          <SpendByVendorTable rows={spend.data?.vendors ?? []} locale={locale} />
         )}
       </SectionCard>
 
       <SectionCard
-        title="Budget availability"
-        subtitle="Amount less spent, committed and reserved — with alert level."
+        title={pickByLocale(locale, S.budgetsTitle)}
+        subtitle={pickByLocale(locale, S.budgetsSubtitle)}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void budgets.refetch()}
             className="text-neutral-500 hover:text-foreground"
           >
@@ -204,27 +309,29 @@ export function ProcurementCoordinationSurface() {
           <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
         ) : budgets.isError ? (
           <EmptyState
-            title="Could not load budgets"
-            description={(budgets.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.budgetsLoadFailedTitle)}
+            description={
+              (budgets.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+            }
             hint="GET /api/v1/mining/procurement-coordination/budgets"
           />
         ) : (budgets.data?.budgets ?? []).length === 0 ? (
           <EmptyState
-            title="No budgets set"
-            description="Create procurement budgets to track availability, commitments and overspend alerts."
+            title={pickByLocale(locale, S.budgetsEmptyTitle)}
+            description={pickByLocale(locale, S.budgetsEmptyBody)}
           />
         ) : (
-          <BudgetsTable rows={budgets.data?.budgets ?? []} />
+          <BudgetsTable rows={budgets.data?.budgets ?? []} locale={locale} />
         )}
       </SectionCard>
 
       <SectionCard
-        title="Vendor registry"
-        subtitle="Approved + pending vendors with KYC status and rating."
+        title={pickByLocale(locale, S.vendorsTitle)}
+        subtitle={pickByLocale(locale, S.vendorsSubtitle)}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void vendors.refetch()}
             className="text-neutral-500 hover:text-foreground"
           >
@@ -236,17 +343,19 @@ export function ProcurementCoordinationSurface() {
           <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
         ) : vendors.isError ? (
           <EmptyState
-            title="Could not load vendors"
-            description={(vendors.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.vendorsLoadFailedTitle)}
+            description={
+              (vendors.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+            }
             hint="GET /api/v1/mining/procurement-coordination/vendors"
           />
         ) : (vendors.data?.vendors ?? []).length === 0 ? (
           <EmptyState
-            title="No vendors registered"
-            description="Register suppliers to build the vendor registry that powers RFQs, purchase orders and spend analytics."
+            title={pickByLocale(locale, S.vendorsEmptyTitle)}
+            description={pickByLocale(locale, S.vendorsEmptyBody)}
           />
         ) : (
-          <VendorsTable rows={vendors.data?.vendors ?? []} />
+          <VendorsTable rows={vendors.data?.vendors ?? []} locale={locale} />
         )}
       </SectionCard>
     </div>

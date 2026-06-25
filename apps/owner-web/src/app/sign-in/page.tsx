@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Owner cockpit sign-in landing. LitFin-pattern: full-screen centered
+ * Owner cockpit sign-in landing. Pattern: full-screen centered
  * single-column card with subtle aurora + grid backdrop. The form
  * component owns its own visual rhythm (wordmark, heading, fields).
  */

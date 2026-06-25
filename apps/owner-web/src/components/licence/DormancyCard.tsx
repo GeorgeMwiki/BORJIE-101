@@ -1,11 +1,16 @@
 'use client';
 
+import { useLocale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
+import { licenceCockpitStrings as S } from '@/i18n/strings/licence-cockpit';
+
 interface DormancyCardProps {
   readonly score: number;
   readonly citation: string;
 }
 
 export function DormancyCard({ score, citation }: DormancyCardProps) {
+  const locale = useLocale();
   const tone: 'green' | 'amber' | 'red' =
     score <= 30 ? 'green' : score <= 60 ? 'amber' : 'red';
   const ringColor =
@@ -17,7 +22,7 @@ export function DormancyCard({ score, citation }: DormancyCardProps) {
   return (
     <article className="rounded-md border border-border bg-surface px-4 py-4">
       <div className="text-xs uppercase tracking-wide text-neutral-500">
-        Dormancy score (Mining Act 2010 §44)
+        {pickByLocale(locale, S.dormancy.title)}
       </div>
       <div className="mt-3 flex items-center gap-4">
         <div

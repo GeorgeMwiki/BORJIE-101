@@ -68,6 +68,12 @@ export function EmptyState({
       className="h-full gap-3 rounded-2xl bg-surface/40 px-6 py-12"
       icon={iconNode}
       title={title}
+      // Forward the (already single-locale) title as the a11y label so the
+      // status region speaks the caller's active language: no English
+      // "Empty state:" prefix glued onto a Swahili title (zero-mix canon).
+      // Passed as the native aria-label attribute (spread onto the status
+      // region by the DS primitive), so it stays single-locale.
+      aria-label={title}
       description={description}
       action={trailing}
     />

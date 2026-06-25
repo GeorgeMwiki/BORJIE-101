@@ -19,7 +19,7 @@ export default async function GeologyPage() {
           context={{}}
           locale={session.languagePreference}
         />
-        <GeologyAdvisorPanel />
+        <GeologyAdvisorPanel locale={session.languagePreference} />
       </div>
     </>
   );

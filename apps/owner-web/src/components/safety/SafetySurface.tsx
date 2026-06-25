@@ -12,6 +12,7 @@ import { Skeleton } from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useIncidents, type IncidentRow } from '@/lib/queries/safety';
 import { tailStrings as S } from '@/i18n/strings/tail';
+import { workforceSafetyStrings as W } from '@/i18n/strings/workforce-safety-surface';
 
 interface SafetySurfaceProps {
   readonly locale?: 'sw' | 'en';
@@ -57,6 +58,24 @@ function severityTone(severity: string): ToneTokens {
   return SEVERITY_TONE[severity.toLowerCase()] ?? LOW_TONE;
 }
 
+/**
+ * Localize the raw `kind` token returned by /api/v1/mining/incidents to
+ * the active locale. Unknown values fall back to a localized placeholder,
+ * never the raw English enum token (zero-mix canon).
+ */
+function incidentKindLabel(kind: string, isSw: boolean): string {
+  const map = S.incident.kind;
+  const leaf = map[kind.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return isSw ? leaf.sw : leaf.en;
+}
+
+/** Localize the raw incident `severity` token to the active locale. */
+function incidentSeverityLabel(severity: string, isSw: boolean): string {
+  const map = S.incident.severity;
+  const leaf = map[severity.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return isSw ? leaf.sw : leaf.en;
+}
+
 /** Fill the `{n}` token in a relative-time template. */
 function fillN(template: string, n: number): string {
   return template.replace('{n}', String(n));
@@ -82,8 +101,9 @@ function formatRelative(iso: string | null, isSw: boolean): string {
  * Pulls the live incidents queue from `/api/v1/mining/incidents`,
  * renders a 4-up KPI strip (open count, critical, high, closed-30d),
  * and a dense incident list with severity pills, kind chips, and
- * relative time stamps. ICA equipment certifications surface as a
- * static panel until the gateway exposes the equipment endpoint.
+ * relative time stamps. ICA equipment-certification statuses render an
+ * honest "not yet connected" state until the gateway exposes a real
+ * equipment-certification endpoint — never fabricated OK/recert rows.
  */
 export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Element {
   const isSw = locale === 'sw';
@@ -209,13 +229,13 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
                     />
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium text-foreground capitalize">
-                          {row.kind}
+                        <span className="text-sm font-medium text-foreground">
+                          {incidentKindLabel(row.kind, isSw)}
                         </span>
                         <span
                           className={`inline-flex items-center rounded-full border px-2 py-0.5 text-tiny font-medium uppercase tracking-widest ${tone.border} ${tone.bg} ${tone.text}`}
                         >
-                          {row.severity}
+                          {incidentSeverityLabel(row.severity, isSw)}
                         </span>
                         {row.siteId ? (
                           <span className="font-mono text-tiny text-muted-foreground">
@@ -249,60 +269,15 @@ export function SafetySurface({ locale = 'en' }: SafetySurfaceProps): JSX.Elemen
               {isSw ? S.safetySurface.icaCaption.sw : S.safetySurface.icaCaption.en}
             </p>
           </header>
-          <ul className="divide-y divide-border/60">
-            {[
-              {
-                key: 'fall-protection',
-                en: S.safetySurface.fallProtection.en,
-                sw: S.safetySurface.fallProtection.sw,
-                ok: true,
-              },
-              {
-                key: 'ground-control',
-                en: S.safetySurface.groundControl.en,
-                sw: S.safetySurface.groundControl.sw,
-                ok: true,
-              },
-              {
-                key: 'gas-detection',
-                en: S.safetySurface.gasDetection.en,
-                sw: S.safetySurface.gasDetection.sw,
-                ok: false,
-              },
-              {
-                key: 'lockout',
-                en: S.safetySurface.lockout.en,
-                sw: S.safetySurface.lockout.sw,
-                ok: true,
-              },
-              {
-                key: 'evacuation',
-                en: S.safetySurface.evacuation.en,
-                sw: S.safetySurface.evacuation.sw,
-                ok: true,
-              },
-            ].map((control) => (
-              <li
-                key={control.key}
-                className="flex items-center justify-between gap-3 px-5 py-3"
-              >
-                <span className="text-sm text-foreground">
-                  {isSw ? control.sw : control.en}
-                </span>
-                {control.ok ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-success/40 bg-success-subtle px-2 py-0.5 text-tiny font-medium text-success">
-                    <CheckCircle2 className="h-3 w-3" />
-                    {isSw ? S.safetySurface.controlOk.sw : S.safetySurface.controlOk.en}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-warning/40 bg-warning-subtle px-2 py-0.5 text-tiny font-medium text-warning">
-                    <AlertTriangle className="h-3 w-3" />
-                    {isSw ? S.safetySurface.controlRecert.sw : S.safetySurface.controlRecert.en}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="px-5 py-10 text-center">
+            <HardHat className="mx-auto h-8 w-8 text-muted-foreground/60" />
+            <p className="mt-3 text-sm font-medium text-foreground">
+              {isSw ? W.safety.icaPendingTitle.sw : W.safety.icaPendingTitle.en}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {isSw ? W.safety.icaPendingBody.sw : W.safety.icaPendingBody.en}
+            </p>
+          </div>
         </div>
       </div>
     </div>

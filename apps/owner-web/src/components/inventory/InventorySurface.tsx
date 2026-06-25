@@ -3,7 +3,9 @@
 import { RefreshCw } from 'lucide-react';
 import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { fmtNum } from '@/lib/format';
+import { fmtNum, formatMoney, LAUNCH_CURRENCY } from '@/lib/format';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { inventorySurfaceStrings as S } from '@/i18n/strings/inventory-surface';
 import {
   useInventoryReorder,
   useInventoryOnHandValue,
@@ -24,11 +26,20 @@ import {
  * On-hand is DERIVED by replaying the append-only movement log — never a
  * fabricated balance. Money figures are integer minor-units rendered in the
  * tenant's reporting currency (no hard-coded symbol). Real loading / empty /
- * error states throughout.
+ * error states throughout. Every label is single-locale (zero-mix canon)
+ * via `pickByLocale`; the locale is SEEDED from the server so the first
+ * paint matches the SSR chrome.
  */
 
-function fmtMajor(cents: number): string {
-  return fmtNum(Math.round(cents) / 100);
+/**
+ * Render integer minor-units (cents) as a currency-canon money string. The
+ * on-hand-value payload carries no currency code, so we self-label with the
+ * tenant LAUNCH_CURRENCY constant the other owner surfaces use — never a bare
+ * number or hardcoded symbol. (See residual: the gateway payload should carry
+ * an explicit ISO currency field for non-TZS tenants.)
+ */
+function fmtMajor(cents: number, locale: Locale): string {
+  return formatMoney(Math.round(cents) / 100, LAUNCH_CURRENCY, locale);
 }
 
 const BAND_STYLES: Readonly<Record<'A' | 'B' | 'C', string>> = {
@@ -37,19 +48,35 @@ const BAND_STYLES: Readonly<Record<'A' | 'B' | 'C', string>> = {
   C: 'bg-neutral-500/10 text-neutral-500',
 };
 
-function ReorderTable({ rows }: { readonly rows: ReadonlyArray<ReorderCandidate> }) {
+function ReorderTable({
+  rows,
+  locale,
+}: {
+  readonly rows: ReadonlyArray<ReorderCandidate>;
+  readonly locale: Locale;
+}) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-            <th className="px-3 py-2 font-medium">SKU</th>
-            <th className="px-3 py-2 font-medium">Band</th>
-            <th className="px-3 py-2 text-right font-medium">On hand</th>
-            <th className="px-3 py-2 text-right font-medium">Minimum</th>
-            <th className="px-3 py-2 text-right font-medium">Shortfall</th>
-            <th className="px-3 py-2 text-right font-medium">Suggested qty</th>
-            <th className="px-3 py-2 text-right font-medium">Lead (days)</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colSku)}</th>
+            <th className="px-3 py-2 font-medium">{pickByLocale(locale, S.colBand)}</th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colOnHand)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colMinimum)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colShortfall)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colSuggestedQty)}
+            </th>
+            <th className="px-3 py-2 text-right font-medium">
+              {pickByLocale(locale, S.colLeadDays)}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -84,19 +111,24 @@ function ReorderTable({ rows }: { readonly rows: ReadonlyArray<ReorderCandidate>
   );
 }
 
-export function InventorySurface() {
+export function InventorySurface({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const reorder = useInventoryReorder();
   const onHand = useInventoryOnHandValue();
 
   return (
     <div className="space-y-6">
       <SectionCard
-        title="Reorder candidates"
-        subtitle="SKUs at or below their minimum, banded by value (ABC) with suggested order quantities."
+        title={pickByLocale(locale, S.reorderTitle)}
+        subtitle={pickByLocale(locale, S.reorderSubtitle)}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void reorder.refetch()}
             className="text-neutral-500 hover:text-foreground"
           >
@@ -110,28 +142,30 @@ export function InventorySurface() {
           <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
         ) : reorder.isError ? (
           <EmptyState
-            title="Could not load reorder candidates"
-            description={(reorder.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.reorderLoadFailedTitle)}
+            description={
+              (reorder.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+            }
             hint="GET /api/v1/mining/inventory/reorder"
           />
         ) : (reorder.data?.candidates ?? []).length === 0 ? (
           <EmptyState
-            title="Nothing to reorder"
-            description="No SKU is at or below its minimum stock level. Add SKUs and record stock movements to drive replenishment."
+            title={pickByLocale(locale, S.reorderEmptyTitle)}
+            description={pickByLocale(locale, S.reorderEmptyBody)}
             hint="POST /api/v1/mining/inventory/skus + /movements"
           />
         ) : (
-          <ReorderTable rows={reorder.data?.candidates ?? []} />
+          <ReorderTable rows={reorder.data?.candidates ?? []} locale={locale} />
         )}
       </SectionCard>
 
       <SectionCard
-        title="Stock on-hand value"
-        subtitle="Σ quantity × unit cost by category — replayed from the movement log."
+        title={pickByLocale(locale, S.onHandTitle)}
+        subtitle={pickByLocale(locale, S.onHandSubtitle)}
         actions={
           <button
             type="button"
-            aria-label="Refresh"
+            aria-label={pickByLocale(locale, S.refresh)}
             onClick={() => void onHand.refetch()}
             className="text-neutral-500 hover:text-foreground"
           >
@@ -145,14 +179,16 @@ export function InventorySurface() {
           <div className="h-chart-sm animate-pulse rounded-lg border border-border bg-surface/40" />
         ) : onHand.isError ? (
           <EmptyState
-            title="Could not load on-hand value"
-            description={(onHand.error as Error)?.message ?? 'unknown error'}
+            title={pickByLocale(locale, S.onHandLoadFailedTitle)}
+            description={
+              (onHand.error as Error)?.message ?? pickByLocale(locale, S.unknownError)
+            }
             hint="GET /api/v1/mining/inventory/analytics/on-hand-value"
           />
         ) : Object.keys(onHand.data?.byCategoryValueCents ?? {}).length === 0 ? (
           <EmptyState
-            title="No stock on hand"
-            description="Recorded receipts will accumulate on-hand value here, grouped by category and valued at unit cost."
+            title={pickByLocale(locale, S.onHandEmptyTitle)}
+            description={pickByLocale(locale, S.onHandEmptyBody)}
           />
         ) : (
           <div className="space-y-3">
@@ -160,9 +196,11 @@ export function InventorySurface() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-neutral-400">
-                    <th className="px-3 py-2 font-medium">Category</th>
+                    <th className="px-3 py-2 font-medium">
+                      {pickByLocale(locale, S.colCategory)}
+                    </th>
                     <th className="px-3 py-2 text-right font-medium">
-                      Value (reporting ccy)
+                      {pickByLocale(locale, S.colReportingValue)}
                     </th>
                   </tr>
                 </thead>
@@ -172,7 +210,7 @@ export function InventorySurface() {
                       <tr key={category} className="border-b border-border/60">
                         <td className="px-3 py-2 text-foreground">{category}</td>
                         <td className="px-3 py-2 text-right tabular-nums">
-                          {fmtMajor(cents)}
+                          {fmtMajor(cents, locale)}
                         </td>
                       </tr>
                     ),
@@ -180,9 +218,9 @@ export function InventorySurface() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t border-border font-semibold">
-                    <td className="px-3 py-2">Total</td>
+                    <td className="px-3 py-2">{pickByLocale(locale, S.total)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {fmtMajor(onHand.data?.totalValueCents ?? 0)}
+                      {fmtMajor(onHand.data?.totalValueCents ?? 0, locale)}
                     </td>
                   </tr>
                 </tfoot>

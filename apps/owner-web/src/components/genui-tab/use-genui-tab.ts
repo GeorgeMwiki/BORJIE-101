@@ -16,7 +16,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { safeParsePortalTab, type PortalTab } from '@borjie/portal-genui';
 
-import { apiRequest, ApiError } from '@/lib/api-client';
+import { apiRequest, ApiError, localizeError } from '@/lib/api-client';
+import { useLocale } from '@/lib/locale';
 
 export type GenuiTabFetchState =
   | { readonly status: 'loading' }
@@ -40,6 +41,9 @@ export function useGenuiTab(tabId: string | null | undefined): GenuiTabFetchStat
   const [state, setState] = useState<GenuiTabFetchState>(
     tabId ? { status: 'loading' } : { status: 'not_found' },
   );
+  // Active locale — the error message is localized by the gateway's stable
+  // CODE (the raw English `.message` would be language MIXING under `sw`).
+  const locale = useLocale();
   // Guard against setState after unmount / id change.
   const activeId = useRef<string | null>(tabId ?? null);
 
@@ -75,15 +79,12 @@ export function useGenuiTab(tabId: string | null | undefined): GenuiTabFetchStat
           setState({ status: 'not_found' });
           return;
         }
-        setState({
-          status: 'error',
-          message: err instanceof Error ? err.message : 'failed to load tab',
-        });
+        setState({ status: 'error', message: localizeError(err, locale) });
       }
     })();
 
     return () => controller.abort();
-  }, [tabId]);
+  }, [tabId, locale]);
 
   return state;
 }

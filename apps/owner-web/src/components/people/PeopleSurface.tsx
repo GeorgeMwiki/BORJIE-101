@@ -1,116 +1,76 @@
 'use client';
 
 import { useMemo } from 'react';
-import {
-  Activity,
-  AlertOctagon,
-  Briefcase,
-  Fuel,
-  HardHat,
-  Users,
-} from 'lucide-react';
+import { AlertOctagon, Briefcase, HardHat, Users } from 'lucide-react';
 import { Skeleton } from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { useHeadcount } from '@/lib/queries/people';
 import { useIncidents } from '@/lib/queries/safety';
+import { useShiftRoster, type RosterWorker } from '@/lib/queries/shift-planner';
 import { tailStrings as S } from '@/i18n/strings/tail';
+import { workforceSafetyStrings as W } from '@/i18n/strings/workforce-safety-surface';
 
 interface PeopleSurfaceProps {
   readonly locale?: 'sw' | 'en';
 }
 
-interface SupervisorRow {
-  readonly id: string;
-  readonly nameEn: string;
-  readonly nameSw: string;
-  readonly siteEn: string;
-  readonly siteSw: string;
-  readonly roleEn: string;
-  readonly roleSw: string;
-  readonly status: 'on-shift' | 'off-shift' | 'leave';
+/**
+ * Localize the raw incident `kind` token to the active locale. Shares the
+ * canonical `S.incident.kind` map with the safety surface so the same enum
+ * value never renders two ways. Unknown values fall back to a localized
+ * placeholder, never the raw English token (zero-mix canon).
+ */
+function incidentKindLabel(kind: string, isSw: boolean): string {
+  const map = S.incident.kind;
+  const leaf = map[kind.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return isSw ? leaf.sw : leaf.en;
 }
 
-const SUPERVISORS: ReadonlyArray<SupervisorRow> = [
-  {
-    id: 'sup-001',
-    nameEn: 'James Mwakipesile',
-    nameSw: 'James Mwakipesile',
-    siteEn: 'Nyakabale Reef Block',
-    siteSw: 'Nyakabale Reef Block',
-    roleEn: 'Underground supervisor',
-    roleSw: S.peopleSurface.supRole1.sw,
-    status: 'on-shift',
-  },
-  {
-    id: 'sup-002',
-    nameEn: 'Joyce Ngowi',
-    nameSw: 'Joyce Ngowi',
-    siteEn: 'Kakola Alluvial Terraces',
-    siteSw: 'Kakola Alluvial Terraces',
-    roleEn: 'Processing line lead',
-    roleSw: S.peopleSurface.supRole2.sw,
-    status: 'on-shift',
-  },
-  {
-    id: 'sup-003',
-    nameEn: 'Hassan Mfaume',
-    nameSw: 'Hassan Mfaume',
-    siteEn: 'Mbeya Ridge Pit 2',
-    siteSw: 'Mbeya Ridge Pit 2',
-    roleEn: 'Equipment supervisor',
-    roleSw: S.peopleSurface.supRole3.sw,
-    status: 'off-shift',
-  },
-  {
-    id: 'sup-004',
-    nameEn: 'Christina Munisi',
-    nameSw: 'Christina Munisi',
-    siteEn: 'Nyakabale Reef Block',
-    siteSw: 'Nyakabale Reef Block',
-    roleEn: 'Geology supervisor',
-    roleSw: S.peopleSurface.supRole4.sw,
-    status: 'on-shift',
-  },
-];
+/** Localize the raw incident `severity` token to the active locale. */
+function incidentSeverityLabel(severity: string, isSw: boolean): string {
+  const map = S.incident.severity;
+  const leaf = map[severity.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return isSw ? leaf.sw : leaf.en;
+}
 
-const FUEL_SPARK = [42, 45, 38, 50, 48, 44, 52]; // litres / day, last 7 days
-
-function statusTone(status: SupervisorRow['status']) {
-  if (status === 'on-shift') {
-    return {
-      pill: 'border-success/40 bg-success-subtle text-success',
-      label: S.peopleSurface.onShiftStatus,
-    };
-  }
-  if (status === 'leave') {
-    return {
-      pill: 'border-info/40 bg-info-subtle text-info',
-      label: S.peopleSurface.leaveStatus,
-    };
-  }
-  return {
-    pill: 'border-border bg-surface text-muted-foreground',
-    label: S.peopleSurface.offShiftStatus,
-  };
+/**
+ * A worker is "on shift" when one of their trailing-72h shift records is
+ * currently in progress (started, not yet ended). Derived from the REAL
+ * roster projection — never a hardcoded status.
+ */
+function isWorkerOnShift(worker: RosterWorker, nowMs: number): boolean {
+  return worker.last72hShifts.some((shift) => {
+    const start = Date.parse(shift.startISO);
+    const end = Date.parse(shift.endISO);
+    if (Number.isNaN(start) || Number.isNaN(end)) return false;
+    return start <= nowMs && nowMs < end;
+  });
 }
 
 /**
  * People surface for the owner cockpit.
  *
- * Pulls live headcount from `/api/v1/mining/attendance/headcount` and
- * live incidents from `/api/v1/mining/incidents` to render the
- * KPI strip. Below the strip a supervisors list + incident feed +
- * fuel consumption sparkline give the owner the full workforce read.
+ * Pulls live headcount from `/api/v1/mining/attendance/headcount`, the
+ * live workforce roster from `/api/v1/mining/shift-planner/roster`, and
+ * live incidents from `/api/v1/mining/incidents`. Every figure and row is
+ * sourced from the gateway — no fabricated supervisors, no invented fuel
+ * trend. When a feed is empty the surface renders an honest empty state.
  */
 export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Element {
   const isSw = locale === 'sw';
   const headcount = useHeadcount();
   const incidents = useIncidents({ limit: 50 });
+  const roster = useShiftRoster();
 
   const onShift = useMemo(() => {
     const rows = headcount.data?.perSite ?? [];
     return rows.reduce((acc, row) => acc + row.headcount, 0);
   }, [headcount.data]);
+
+  const workers = useMemo<readonly RosterWorker[]>(
+    () => roster.data?.workers ?? [],
+    [roster.data],
+  );
 
   const openIncidents = useMemo(
     () =>
@@ -128,13 +88,9 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
         tone: 'default' as const,
       },
       {
-        label: isSw
-          ? S.peopleSurface.supervisorsLabel.sw
-          : S.peopleSurface.supervisorsLabel.en,
-        value: String(SUPERVISORS.filter((s) => s.status === 'on-shift').length),
-        sub: isSw
-          ? S.peopleSurface.supervisorsSub.sw
-          : S.peopleSurface.supervisorsSub.en,
+        label: isSw ? W.people.rosterLabel.sw : W.people.rosterLabel.en,
+        value: String(workers.length),
+        sub: isSw ? W.people.rosterSub.sw : W.people.rosterSub.en,
         icon: HardHat,
       },
       {
@@ -148,65 +104,92 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
         icon: AlertOctagon,
         tone: openIncidents > 0 ? ('warning' as const) : ('success' as const),
       },
-      {
-        label: isSw ? S.peopleSurface.fuelLabel.sw : S.peopleSurface.fuelLabel.en,
-        value: `${Math.round(
-          FUEL_SPARK.reduce((a, b) => a + b, 0) / FUEL_SPARK.length,
-        )} L`,
-        sub: isSw ? S.peopleSurface.fuelSub.sw : S.peopleSurface.fuelSub.en,
-        icon: Fuel,
-      },
     ],
-    [onShift, openIncidents, isSw],
+    [onShift, openIncidents, workers.length, isSw],
   );
 
   return (
     <div className="space-y-6">
-      <MetricStrip tiles={metrics} cols={4} />
+      <MetricStrip tiles={metrics} cols={3} />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="overflow-hidden rounded-2xl border border-border bg-surface/40 lg:col-span-2">
           <header className="border-b border-border px-5 py-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Briefcase className="h-4 w-4 text-signal-500" />
-              {isSw
-                ? S.peopleSurface.supervisorsHeading.sw
-                : S.peopleSurface.supervisorsHeading.en}
+              {isSw ? W.people.rosterHeading.sw : W.people.rosterHeading.en}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {isSw
-                ? S.peopleSurface.supervisorsCaption.sw
-                : S.peopleSurface.supervisorsCaption.en}
+              {isSw ? W.people.rosterCaption.sw : W.people.rosterCaption.en}
             </p>
           </header>
-          <ul className="divide-y divide-border/60">
-            {SUPERVISORS.map((sup) => {
-              const tone = statusTone(sup.status);
-              return (
-                <li
-                  key={sup.id}
-                  className="flex items-center justify-between gap-3 px-5 py-4"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-foreground">
-                      {isSw ? sup.nameSw : sup.nameEn}
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {isSw ? sup.roleSw : sup.roleEn} -{' '}
-                      <span className="text-muted-foreground">
-                        {isSw ? sup.siteSw : sup.siteEn}
-                      </span>
-                    </div>
-                  </div>
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${tone.pill}`}
+          {roster.isPending ? (
+            <div className="space-y-2 px-5 py-4">
+              <Skeleton className="h-10 rounded-lg" />
+              <Skeleton className="h-10 rounded-lg" />
+              <Skeleton className="h-10 rounded-lg" />
+            </div>
+          ) : roster.isError ? (
+            <div className="px-5 py-6 text-xs text-muted-foreground">
+              {isSw ? W.people.rosterLoadError.sw : W.people.rosterLoadError.en}
+            </div>
+          ) : workers.length === 0 ? (
+            <div className="px-5 py-10 text-center">
+              <HardHat className="mx-auto h-8 w-8 text-muted-foreground/60" />
+              <p className="mt-3 text-sm font-medium text-foreground">
+                {isSw ? W.people.rosterEmptyTitle.sw : W.people.rosterEmptyTitle.en}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {isSw ? W.people.rosterEmptyBody.sw : W.people.rosterEmptyBody.en}
+              </p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border/60">
+              {workers.map((worker) => {
+                const nowMs = Date.now();
+                const onShiftNow = isWorkerOnShift(worker, nowMs);
+                const certCount = worker.certifications.length;
+                const certWord =
+                  certCount === 1
+                    ? isSw
+                      ? W.people.certSuffixOne.sw
+                      : W.people.certSuffixOne.en
+                    : isSw
+                      ? W.people.certSuffix.sw
+                      : W.people.certSuffix.en;
+                return (
+                  <li
+                    key={worker.id}
+                    className="flex items-center justify-between gap-3 px-5 py-4"
                   >
-                    {isSw ? tone.label.sw : tone.label.en /* from tailStrings */}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {worker.name}
+                      </div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {certCount} {certWord}
+                      </div>
+                    </div>
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-badge font-medium ${
+                        onShiftNow
+                          ? 'border-success/40 bg-success-subtle text-success'
+                          : 'border-border bg-surface text-muted-foreground'
+                      }`}
+                    >
+                      {onShiftNow
+                        ? isSw
+                          ? W.people.onShiftBadge.sw
+                          : W.people.onShiftBadge.en
+                        : isSw
+                          ? W.people.offShiftBadge.sw
+                          : W.people.offShiftBadge.en}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -233,11 +216,11 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
                 {(incidents.data ?? []).slice(0, 5).map((row) => (
                   <li key={row.id} className="px-5 py-3 text-xs">
                     <div className="flex items-center justify-between">
-                      <span className="font-medium capitalize text-foreground">
-                        {row.kind}
+                      <span className="font-medium text-foreground">
+                        {incidentKindLabel(row.kind, isSw)}
                       </span>
                       <span className="font-mono uppercase text-warning">
-                        {row.severity}
+                        {incidentSeverityLabel(row.severity, isSw)}
                       </span>
                     </div>
                     <div className="mt-1 text-muted-foreground">
@@ -251,51 +234,8 @@ export function PeopleSurface({ locale = 'en' }: PeopleSurfaceProps): JSX.Elemen
               </ul>
             )}
           </div>
-
-          <div className="overflow-hidden rounded-2xl border border-border bg-surface/40">
-            <header className="border-b border-border px-5 py-4">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Activity className="h-4 w-4 text-signal-500" />
-                {isSw ? S.peopleSurface.fuelHeading.sw : S.peopleSurface.fuelHeading.en}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {isSw ? S.peopleSurface.fuelCaption.sw : S.peopleSurface.fuelCaption.en}
-              </p>
-            </header>
-            <div className="px-5 py-5">
-              <FuelSparkline data={FUEL_SPARK} />
-            </div>
-          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-interface FuelSparklineProps {
-  readonly data: ReadonlyArray<number>;
-}
-
-function FuelSparkline({ data }: FuelSparklineProps) {
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
-  const range = max - min || 1;
-  return (
-    <div className="flex items-end gap-1.5 h-16">
-      {data.map((value, index) => {
-        const height = ((value - min) / range) * 100;
-        return (
-          <div key={index} className="flex-1 flex flex-col items-center gap-1.5">
-            <div
-              className="w-full rounded-sm bg-signal-500/60"
-              style={{ height: `${Math.max(height, 8)}%` }}
-            />
-            <span className="font-mono text-spark text-muted-foreground">
-              {value}
-            </span>
-          </div>
-        );
-      })}
     </div>
   );
 }

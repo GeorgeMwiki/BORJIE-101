@@ -21,7 +21,7 @@ interface MetricStripProps {
 }
 
 /**
- * LitFin-rhythm metric strip — institutional KPI tiles.
+ * Institutional-rhythm metric strip — institutional KPI tiles.
  *
  * Used across every dashboard page (licences, royalties, treasury,
  * compliance, safety, marketplace). Each tile renders an eyebrow

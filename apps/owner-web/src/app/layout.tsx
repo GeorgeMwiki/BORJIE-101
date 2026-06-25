@@ -11,6 +11,7 @@ import { FeedbackButton } from '@/components/FeedbackButton';
 import { ThemeProvider, BORJIE_THEME_BOOTSTRAP_SCRIPT } from '@borjie/design-system';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { pickByLocale } from '@/lib/locale-shared';
+import { LocaleProvider } from '@/lib/locale-context';
 
 export const metadata: Metadata = {
   title: 'Borjie — Owner Cockpit',
@@ -40,7 +41,7 @@ export const viewport: Viewport = {
   themeColor: '#17100A',
   width: 'device-width',
   initialScale: 1,
-  colorScheme: 'dark',
+  colorScheme: 'light',
 };
 
 export default async function RootLayout({
@@ -76,7 +77,8 @@ export default async function RootLayout({
             sw: 'Ruka hadi maudhui makuu',
           })}
         </a>
-        <ThemeProvider defaultTheme="dark" enableSystem>
+        <ThemeProvider defaultTheme="light" enableSystem>
+          <LocaleProvider value={locale}>
           <AppProviders>
             {isAuthRoute ? (
               // Sign-in: bare page, NO session-gated shell/chrome (would loop).
@@ -107,6 +109,7 @@ export default async function RootLayout({
                 so the pill never leaks the inactive language. */}
             <FeedbackButton lang={locale} />
           </AppProviders>
+          </LocaleProvider>
         </ThemeProvider>
       </body>
     </html>

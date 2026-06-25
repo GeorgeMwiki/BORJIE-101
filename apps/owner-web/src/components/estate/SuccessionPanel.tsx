@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { Scroll, ShieldCheck } from 'lucide-react';
-import { Button, Skeleton, Alert } from '@borjie/design-system';
+import { Skeleton, Alert } from '@borjie/design-system';
 import {
   useSuccessionPlans,
   type SuccessionPlanRow,
@@ -10,7 +11,13 @@ import { SectionCard } from '@/components/shared/SectionCard';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { StatusPill } from '@/components/shared/StatusPill';
 import { pickByLocale } from '@/lib/locale-shared';
+import { fmtDateForLocale } from '@/lib/format';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
+import {
+  estateLabels,
+  labelFor,
+  successionExtra,
+} from '@/i18n/strings/estate-lmbm';
 
 interface SuccessionPanelProps {
   readonly locale: 'sw' | 'en';
@@ -95,29 +102,37 @@ function SuccessionCard({ plan, locale }: SuccessionCardProps) {
         )[lang]
       }
       actions={
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          leftIcon={<Scroll className="h-3.5 w-3.5" />}
+        <Link
+          href={`/ask?prompt=${encodeURIComponent(
+            successionExtra.draftWillPrompt(
+              plan.currentPrincipalName,
+              plan.designatedSuccessorName,
+              plan.designatedSuccessorRelation,
+            )[lang],
+          )}`}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium text-foreground transition-colors hover:bg-surface/60"
         >
+          <Scroll className="h-3.5 w-3.5" />
           {isSw ? S.succession.generateDraftWill.sw : S.succession.generateDraftWill.en}
-        </Button>
+        </Link>
       }
     >
       <div className="space-y-4 px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill tone={tone} label={chipLabel} />
-          <StatusPill tone="neutral" label={plan.status} />
+          <StatusPill
+            tone="neutral"
+            label={labelFor(estateLabels.successionStatus, plan.status, locale)}
+          />
         </div>
         <div className="grid gap-4 text-sm sm:grid-cols-2">
           <Stat
             label={isSw ? S.succession.lastReview.sw : S.succession.lastReview.en}
-            value={new Date(plan.lastReviewAt).toISOString().slice(0, 10)}
+            value={fmtDateForLocale(plan.lastReviewAt, locale)}
           />
           <Stat
             label={isSw ? S.succession.nextReview.sw : S.succession.nextReview.en}
-            value={new Date(plan.nextReviewDueAt).toISOString().slice(0, 10)}
+            value={fmtDateForLocale(plan.nextReviewDueAt, locale)}
           />
           {plan.contingencySuccessorName ? (
             <Stat

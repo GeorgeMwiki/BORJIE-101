@@ -147,6 +147,10 @@ export const en = {
     eyebrow: "Today's cockpit",
     greeting: 'Welcome back, {name}',
     subline: '{legalName} - {region} - {sites} sites, plan: {plan}',
+    // Subline WITHOUT the sites count — used when the estate/sites read
+    // FAILED, so we never paint a lying "0 sites". The retry affordance
+    // (EstateLoadErrorNotice) renders directly below it.
+    sublineNoSites: '{legalName} - {region} - plan: {plan}',
     ctaAsk: 'Ask Borjie',
     ctaCockpit: 'Cockpit view',
     ctaMasterBrain: 'Master Brain',
@@ -214,6 +218,7 @@ export const en = {
     metricWorkforceNoneSub: 'No shift logged yet',
     actionsEmpty: 'No actions need you right now.',
     actionReviewDecision: 'Review',
+    actionDecisionContext: 'Open decision awaiting review',
     thisWeekEmpty: 'No licence deadlines in view.',
     eventLicenceExpiresInDays: 'Expires in {count} days',
     eventLicenceExpirySoon: 'Expiring soon',
@@ -228,6 +233,7 @@ export const en = {
     sectionField: 'Field',
     sectionOperations: 'Operations',
     sectionMoney: 'Money',
+    sectionEstate: 'Estate',
     sectionCompliance: 'Compliance',
     sectionCommunity: 'Community',
     sectionSettings: 'Settings',
@@ -274,6 +280,10 @@ export const en = {
     cooperatives: 'Cooperatives',
     insurance: 'Insurance',
     estate: 'Estate',
+    estateAssets: 'Asset register',
+    estateSuccession: 'Succession',
+    estateEntities: 'Entities',
+    estateCapitalMovements: 'Capital flows',
     inbox: 'Inbox',
     signOut: 'Sign out',
   },
@@ -399,6 +409,16 @@ export const en = {
     empty: 'No reminders yet.',
     cancelItem: 'Cancel',
     acknowledge: 'Acknowledge',
+    loading: 'Loading…',
+    // Localised error states — the raw fetch detail is logged to the trace
+    // sink, never rendered into the panel chrome.
+    loadError: 'Could not load reminders. Try again shortly.',
+    createError: 'Could not schedule the reminder. Try again.',
+    cancelError: 'Could not cancel the reminder. Try again.',
+    acknowledgeError: 'Could not acknowledge the reminder. Try again.',
+    // Per-row delivery-failure marker — the raw provider error is NOT
+    // surfaced in the row chrome (it stays in the dispatch audit trail).
+    dispatchFailed: 'Delivery failed',
   },
 
   // MD-Agentic sandbox-writes review queue (O-W-33).
@@ -415,11 +435,23 @@ export const en = {
     rejectReason: 'Reject reason',
     rejectPlaceholder: 'Why reject this write?',
     reject: 'Reject',
+    // Localised list-load failure — the raw query error goes to the trace
+    // sink, never into the alert chrome.
+    loadError: 'Could not load staged writes. Try again shortly.',
+    // Status-filter chip for the "all" option (the status tokens themselves
+    // resolve through enumLabel/sandboxWriteStatus — never rendered raw).
+    filterAll: 'All',
   },
 
   // Head briefing surface (O-W-32, read-only).
   headBriefing: {
     unavailable: 'The morning briefing is unavailable right now.',
+    // Locale-pure load-failure copy keyed by the page's stable error code.
+    error: {
+      noSession: 'Your session has expired. Please sign in again.',
+      unavailable: 'The briefing could not be loaded right now.',
+      fetchFailed: 'We could not reach the briefing service.',
+    },
     noContent: 'No briefing content.',
     overnightActivity: 'Overnight activity',
     noAutonomousActions: 'No autonomous actions.',
@@ -530,6 +562,10 @@ export const en = {
     statusOpen: 'Open',
     statusAcknowledged: 'Acknowledged',
     statusResolved: 'Resolved',
+    // Shown when a (legacy) escalation has no narrative in the active locale.
+    // Per the zero-mix canon we render this visible placeholder rather than
+    // the other language's prose.
+    bodyUnavailable: 'No description available in this language.',
   },
 
   // Evidence side-panel (master-brain chat) — the cited corpus chunk.

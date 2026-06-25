@@ -6,7 +6,7 @@ import { readLocaleFromServerCookies } from '@/lib/locale.server';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 /**
- * Owner cockpit not-found surface. LitFin-pattern centred card with the
+ * Owner cockpit not-found surface. Centred-card pattern with the
  * cockpit's signal-gold aurora at the top of the canvas.
  *
  * LOCALE-PURE: both the metadata and the rendered copy read the active

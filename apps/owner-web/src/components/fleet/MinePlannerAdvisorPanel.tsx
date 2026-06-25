@@ -148,9 +148,17 @@ export function MinePlannerAdvisorPanel({
                 value={formatOpex(adviceQ.data.plan.totalEstimatedOpex, locale, currencyCode)}
               />
             </dl>
+          ) : adviceQ.data.note ? (
+            // The backend degraded-note is an English diagnostic string; mark
+            // the run as `en` so it is attributed honestly until the advisor
+            // pins output to the active locale (see residual). When there is
+            // no note we render the localized parity copy instead.
+            <p lang="en" className="text-xs text-muted-foreground">
+              {adviceQ.data.note}
+            </p>
           ) : (
             <p className="text-xs text-muted-foreground">
-              {adviceQ.data.note ?? pickByLocale(locale, S.noParcels)}
+              {pickByLocale(locale, S.noParcels)}
             </p>
           )}
 
@@ -161,8 +169,11 @@ export function MinePlannerAdvisorPanel({
                   key={r.id}
                   className={`rounded-xl border p-3 text-xs ${SEVERITY_TONE[r.severity]}`}
                 >
-                  <p className="font-semibold">{r.title}</p>
-                  <p className="mt-1 text-muted-foreground">{r.rationale}</p>
+                  {/* Advisor-engine recommendation strings are English; mark
+                      the run as `en` for honest attribution until the engine
+                      pins output to the active locale (see residual). */}
+                  <p lang="en" className="font-semibold">{r.title}</p>
+                  <p lang="en" className="mt-1 text-muted-foreground">{r.rationale}</p>
                   <p className="mt-2 text-[10px] uppercase tracking-wide text-muted-foreground/70">
                     {pickByLocale(locale, S.evidence)}: {r.evidence.map((e) => e.id).join(', ')}
                   </p>

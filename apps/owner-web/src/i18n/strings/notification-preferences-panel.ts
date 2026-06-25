@@ -53,10 +53,11 @@ export const notificationPreferencesPanelStrings = {
   saved: { en: 'Saved', sw: 'Imehifadhiwa' },
   errorPrefix: { en: 'Error: ', sw: 'Hitilafu: ' },
 
-  loadError: (message: string) => ({
-    en: `Could not load notification preferences. ${message}`,
-    sw: `Imeshindwa kupakia mapendeleo ya arifa. ${message}`,
-  }),
+  // Locale-pure load-failure copy. It MUST NOT interpolate a raw error
+  // string: appending an English `err.message` into BOTH templates is the
+  // language-mix-on-the-wire trap (English leaks under `sw`). The raw cause
+  // goes to Sentry; the user sees only this single-language sentence.
+  loadError: { en: 'Could not load notification preferences.', sw: 'Imeshindwa kupakia mapendeleo ya arifa.' },
   moveUpAria: (label: string) => ({
     en: `Move ${label} up`,
     sw: `Sogeza ${label} juu`,

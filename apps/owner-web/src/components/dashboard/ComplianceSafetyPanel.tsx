@@ -7,6 +7,27 @@ import type {
   OpenHighIncidentsSlot,
 } from '@/lib/queries/owner-brief';
 import { dataAStrings as S } from '@/i18n/strings/data-a';
+import { tailStrings as T } from '@/i18n/strings/tail';
+
+/**
+ * Localize the raw incident `severity` token to the active locale.
+ * Reuses the canonical incident-severity map (shared with the safety,
+ * people and alert-queue surfaces) so the same token never renders two
+ * different ways. Unknown values fall back to a localized placeholder,
+ * never the raw English enum (zero-mix canon).
+ */
+function incidentSeverityLabel(severity: string, locale: Locale): string {
+  const map = T.incident.severity;
+  const leaf = map[severity.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return pickByLocale(locale, leaf);
+}
+
+/** Localize the raw incident `kind` token through the canonical map. */
+function incidentKindLabel(kind: string, locale: Locale): string {
+  const map = T.incident.kind;
+  const leaf = map[kind.toLowerCase() as keyof typeof map] ?? map.unknown;
+  return pickByLocale(locale, leaf);
+}
 
 interface ComplianceSafetyPanelProps {
   readonly licenceHealth: LicenceHealthSlot;
@@ -144,11 +165,11 @@ export function ComplianceSafetyPanel({
                       : 'pill-amber'
                   }`}
                 >
-                  {item.severity}
+                  {incidentSeverityLabel(item.severity, locale)}
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="truncate text-sm text-foreground">
-                    {item.kind}
+                    {incidentKindLabel(item.kind, locale)}
                   </div>
                   <div className="text-xs text-neutral-500">
                     {item.occurredAt ?? pickByLocale(locale, C.timeUnknown)}

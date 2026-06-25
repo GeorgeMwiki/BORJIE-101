@@ -1,10 +1,19 @@
-import { routesBStrings as S } from '@/i18n/strings/routes-b';
+import type { Metadata } from 'next';
 import { JurisdictionSettings } from './jurisdiction-settings';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
+import { settingsPagesStrings as S } from '@/i18n/strings/settings-pages';
+
+const P = S.jurisdictionPage;
 
 export const dynamic = 'force-dynamic';
-export const metadata = {
-  title: `${S.jurisdictionPage.metaTitle.sw} — ${S.jurisdictionPage.metaTitle.en}`,
-};
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await readLocaleFromServerCookies();
+  return {
+    title: pickByLocale(locale, P.metaTitle),
+  };
+}
 
 /**
  * /settings/jurisdiction — JA-7.
@@ -19,7 +28,9 @@ export const metadata = {
  *     conversation" CTA — points the owner at the brain's
  *     per-turn override (JC-6 mwikila.jurisdiction.switch)
  */
-export default function JurisdictionSettingsPage() {
+export default async function JurisdictionSettingsPage() {
+  const locale = await readLocaleFromServerCookies();
+
   return (
     <>
       <header className="border-b border-border px-8 py-6">
@@ -28,28 +39,18 @@ export default function JurisdictionSettingsPage() {
             O-W-22.JURISDICTION
           </span>
           <span className="rounded-full border border-border bg-surface px-2 py-0.5 text-badge text-muted-foreground">
-            Owner
+            {pickByLocale(locale, P.ownerBadge)}
           </span>
         </div>
         <h1 className="mt-1 font-display text-3xl text-foreground">
-          Jurisdiction
+          {pickByLocale(locale, P.heading)}
         </h1>
-        <p className="mt-0.5 text-xs italic text-muted-foreground">
-          {S.jurisdictionPage.headerTagline.sw}
-        </p>
         <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
-          Your account's country, regulators, currency, and time zone
-          drive every royalty draft, licence reminder, and compliance
-          filing Mr. Mwikila produces for you. The jurisdiction is
-          locked at signup; ask in chat to answer for another country
-          for a single turn.
-        </p>
-        <p className="mt-1 max-w-3xl text-sm italic text-muted-foreground">
-          {S.jurisdictionPage.headerBodySw.sw}
+          {pickByLocale(locale, P.intro)}
         </p>
       </header>
       <div className="px-8 py-6">
-        <JurisdictionSettings />
+        <JurisdictionSettings initialLocale={locale} />
       </div>
     </>
   );

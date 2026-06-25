@@ -42,7 +42,7 @@ export const compliancePackPageStrings = {
     sw: 'Kifurushi kimepangwa. Kitaonekana kwenye orodha hapa chini kitakapotengenezwa.',
   },
   schedulePack: { en: 'Schedule pack', sw: 'Panga kifurushi' },
-  askCta: { en: 'Ask Mr. Mwikila', sw: 'Uliza Mr. Mwikila' },
+  askCta: { en: 'Ask Mr. Mwikila', sw: 'Uliza Bw. Mwikila' },
 
   // Previous packs
   previousPacks: { en: 'Previous packs', sw: 'Vifurushi vya awali' },

@@ -5,6 +5,8 @@ import { Upload } from 'lucide-react';
 import type { UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 import { dataBStrings as S } from '@/i18n/strings/data-b';
+import { onboardingStepsStrings as OS } from '@/i18n/strings/onboarding-steps';
+import { pickByLocale, type Locale } from '@/lib/locale';
 
 export const kybSchema = z.object({
   companyName: z.string().min(1, 'required'),
@@ -18,39 +20,40 @@ export type KybFormValues = z.infer<typeof kybSchema>;
 
 interface KybStepProps {
   readonly form: UseFormReturn<KybFormValues>;
+  readonly locale: Locale;
 }
 
-export function KybStep({ form }: KybStepProps) {
+export function KybStep({ form, locale }: KybStepProps) {
   const { register, formState } = form;
   return (
     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       <TextField
-        label={`${S.onbCompanyName.en} / ${S.onbCompanyName.sw}`}
+        label={pickByLocale(locale, S.onbCompanyName)}
         register={register('companyName')}
         error={formState.errors.companyName?.message}
       />
       <TextField
-        label={`${S.onbRegistrationNo.en} / ${S.onbRegistrationNo.sw}`}
+        label={pickByLocale(locale, S.onbRegistrationNo)}
         register={register('registrationNo')}
         error={formState.errors.registrationNo?.message}
       />
       <TextField
-        label="TIN"
+        label={pickByLocale(locale, OS.onbTin)}
         register={register('tin')}
         error={formState.errors.tin?.message}
       />
       <TextField
-        label={`${S.onbRegisteredAddress.en} / ${S.onbRegisteredAddress.sw}`}
+        label={pickByLocale(locale, S.onbRegisteredAddress)}
         register={register('registeredAddress')}
         error={formState.errors.registeredAddress?.message}
       />
       <TextField
-        label={`${S.onbDirectorName.en} / ${S.onbDirectorName.sw}`}
+        label={pickByLocale(locale, S.onbDirectorName)}
         register={register('directorFullName')}
         error={formState.errors.directorFullName?.message}
       />
       <TextField
-        label={`${S.onbDirectorNida.en} / ${S.onbDirectorNida.sw}`}
+        label={pickByLocale(locale, S.onbDirectorNida)}
         register={register('directorNidaId')}
         error={formState.errors.directorNidaId?.message}
       />
@@ -60,16 +63,17 @@ export function KybStep({ form }: KybStepProps) {
 
 interface FileUploadStepProps {
   readonly accept: string;
-  readonly hintEn: string;
-  readonly hintSw: string;
+  /** The hint copy for the ACTIVE locale only (already locale-resolved). */
+  readonly hint: string;
+  readonly locale: Locale;
   readonly files: ReadonlyArray<File>;
   readonly onChange: (files: ReadonlyArray<File>) => void;
 }
 
 export function FileUploadStep({
   accept,
-  hintEn,
-  hintSw,
+  hint,
+  locale,
   files,
   onChange,
 }: FileUploadStepProps) {
@@ -104,10 +108,9 @@ export function FileUploadStep({
         }`}
       >
         <Upload className="h-6 w-6" />
-        <p className="mt-2 text-sm">{hintEn}</p>
-        <p className="text-xs italic text-neutral-500">{hintSw}</p>
+        <p className="mt-2 text-sm">{hint}</p>
         <label className="mt-2 cursor-pointer text-xs text-warning underline">
-          {S.onbChooseFiles.en} / {S.onbChooseFiles.sw}
+          {pickByLocale(locale, S.onbChooseFiles)}
           <input
             type="file"
             multiple
@@ -130,20 +133,17 @@ export function FileUploadStep({
 
 interface CockpitSeedStepProps {
   readonly headline: string;
+  readonly locale: Locale;
   readonly onChange: (next: string) => void;
 }
 
-export function CockpitSeedStep({ headline, onChange }: CockpitSeedStepProps) {
+export function CockpitSeedStep({ headline, locale, onChange }: CockpitSeedStepProps) {
   return (
     <div className="space-y-3">
-      <p className="text-sm text-neutral-300">
-        Pick a one-line headline for your first daily brief. We'll seed your
-        cockpit so it's ready when you finish onboarding.
-      </p>
-      <p className="text-xs italic text-neutral-500">{S.onbSeedHintSw.sw}</p>
+      <p className="text-sm text-neutral-300">{pickByLocale(locale, OS.onbSeedIntro)}</p>
       <label className="block text-sm">
         <span className="block text-xs uppercase tracking-wide text-neutral-500">
-          {S.onbHeadline.en} / {S.onbHeadline.sw}
+          {pickByLocale(locale, S.onbHeadline)}
         </span>
         <input
           type="text"

@@ -1,6 +1,9 @@
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { LicenceSurface } from '@/components/licence/LicenceSurface';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
+import { licenceCockpitStrings as S } from '@/i18n/strings/licence-cockpit';
 
 interface LicencePageProps {
   readonly searchParams: Promise<{ readonly id?: string }>;
@@ -21,6 +24,7 @@ interface LicencePageProps {
 export default async function LicencePage({ searchParams }: LicencePageProps) {
   const { id } = await searchParams;
   const licenceId = id?.trim();
+  const locale = await readLocaleFromServerCookies();
   return (
     <>
       <ScreenHeader slug="licence" />
@@ -29,8 +33,8 @@ export default async function LicencePage({ searchParams }: LicencePageProps) {
           <LicenceSurface licenceId={licenceId} />
         ) : (
           <EmptyState
-            title="No licence selected"
-            description="Open a licence from your licences list to see its renewal window, dormancy score, and payment history."
+            title={pickByLocale(locale, S.page.noSelectionTitle)}
+            description={pickByLocale(locale, S.page.noSelectionBody)}
           />
         )}
       </div>

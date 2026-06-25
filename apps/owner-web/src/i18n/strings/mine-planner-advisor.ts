@@ -15,8 +15,8 @@ export const minePlannerAdvisorStrings = {
 
   loadingSites: { en: 'Loading sites…', sw: 'Inapakia tovuti…' },
   noSites: {
-    en: 'No sites yet — add a site to compute a shift plan.',
-    sw: 'Hakuna tovuti bado — ongeza tovuti ili kukokotoa mpango wa zamu.',
+    en: 'No sites yet. Add a site to compute a shift plan.',
+    sw: 'Hakuna tovuti bado. Ongeza tovuti ili kukokotoa mpango wa zamu.',
   },
   computing: { en: 'Computing shift plan…', sw: 'Inakokotoa mpango wa zamu…' },
   advisorUnavailable: {

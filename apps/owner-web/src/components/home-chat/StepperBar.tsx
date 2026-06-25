@@ -4,9 +4,9 @@
  * StepperBar — left rail with the 5-step mining literacy ladder
  * (ORIENT / LICENCE / ROYALTY / WORKFORCE / MARKETPLACE), each step
  * stamped with a `MasteryDial` SVG. Independent author against the
- * spec at Docs/DESIGN/LITFIN_STEPPER_LEARNING_SPEC.md §2 (Stepper bar)
- * — visual outcome is dimensionally identical to LitFin's
- * LearningSidebar, with Borjie navy/gold tokens substituted for LitFin
+ * spec at the owner-chat stepper/learning design spec §2 (Stepper bar)
+ * — visual outcome is dimensionally identical to the reference
+ * LearningSidebar, with Borjie navy/gold tokens substituted for the source kit's
  * copper/teal.
  *
  * Bilingual sw / en (sw default, EN never uses the SW greeting). Time-aware

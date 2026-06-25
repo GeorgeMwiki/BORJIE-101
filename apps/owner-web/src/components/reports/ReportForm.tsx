@@ -9,6 +9,8 @@ import { Button } from '@borjie/design-system';
 import { REPORT_CATALOGUE, type ReportKind } from '@/lib/types/reports';
 import { useGenerateReport } from '@/lib/queries/reports';
 import { Toast } from '@/components/shared/Toast';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { reportFormStrings as S } from '@/i18n/strings/report-form';
 
 const schema = z.object({
   kind: z.enum([
@@ -35,6 +37,7 @@ type FormValues = z.infer<typeof schema>;
  * download URL.
  */
 export function ReportForm() {
+  const locale = useLocale();
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
   const {
@@ -66,7 +69,7 @@ export function ReportForm() {
       <form onSubmit={(e) => void handleSubmit(submit)(e)} className="space-y-4" noValidate>
         <fieldset>
           <legend className="text-xs uppercase tracking-wide text-muted-foreground">
-            Report type
+            {pickByLocale(locale, S.reportTypeLegend)}
           </legend>
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
             {REPORT_CATALOGUE.map((report) => (
@@ -94,19 +97,21 @@ export function ReportForm() {
         </fieldset>
         <div className="grid grid-cols-2 gap-3">
           <DateField
-            label="Range start"
+            label={pickByLocale(locale, S.rangeStart)}
             register={register('rangeStart')}
             error={errors.rangeStart?.message}
           />
           <DateField
-            label="Range end"
+            label={pickByLocale(locale, S.rangeEnd)}
             register={register('rangeEnd')}
             error={errors.rangeEnd?.message}
           />
         </div>
         {mutation.isError ? (
           <p role="alert" aria-live="assertive" className="text-xs text-destructive">
-            Failed to generate report: {(mutation.error as Error)?.message ?? 'unknown'}
+            {pickByLocale(locale, S.errorPrefix)}{' '}
+            {(mutation.error as Error)?.message ??
+              pickByLocale(locale, S.errorUnknown)}
           </p>
         ) : null}
         <Button
@@ -115,12 +120,14 @@ export function ReportForm() {
           loading={mutation.isPending}
           leftIcon={<Download className="h-4 w-4" />}
         >
-          Generate {selected?.title ?? 'report'}
+          {pickByLocale(locale, S.generateCta)(
+            selected?.title ?? pickByLocale(locale, S.reportFallback),
+          )}
         </Button>
       </form>
       {queuedJobId ? (
         <Toast
-          message="Report queued. It will appear in your generated reports when the renderer finishes."
+          message={pickByLocale(locale, S.queuedToast)}
           onDismiss={() => setQueuedJobId(null)}
         />
       ) : null}

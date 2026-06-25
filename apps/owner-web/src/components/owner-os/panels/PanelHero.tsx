@@ -42,7 +42,7 @@ const CHIP_TONE: Record<NonNullable<NonNullable<PanelHeroProps['metaChips']>[num
   };
 
 /**
- * Compressed page-hero for tab bodies. Matches LitFin / Borjie rhythm
+ * Compressed page-hero for tab bodies. Matches the Borjie rhythm
  * (eyebrow + display + intent body + actions strip) but with tab-body
  * padding (no full-page padding) and an icon affordance to mirror the
  * tab pill the owner clicked to open it.

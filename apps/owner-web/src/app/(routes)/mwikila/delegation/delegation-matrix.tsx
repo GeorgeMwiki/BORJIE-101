@@ -25,8 +25,8 @@ import {
   TableCell,
 } from '@borjie/design-system';
 
-import { apiRequest } from '@/lib/api-client';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { apiRequest, localizeError } from '@/lib/api-client';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { routesAStrings as RA } from '@/i18n/strings/routes-a';
 import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 
@@ -77,8 +77,12 @@ const TIER_DESCRIPTION: Record<
   T3: S.delegationMatrix.tierIrrevocable,
 };
 
-export function DelegationMatrix() {
-  const locale = useLocale();
+export function DelegationMatrix({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
+  const locale = useLocale(initialLocale);
   const [matrix, setMatrix] = useState<ReadonlyArray<MatrixEntry>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,11 +100,13 @@ export function DelegationMatrix() {
       );
       setMatrix(data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // Localise from the gateway error CODE — never render `err.message`
+      // (raw English) into the `sw` <Alert>.
+      setError(localizeError(err, locale));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void refresh();
@@ -119,12 +125,12 @@ export function DelegationMatrix() {
         });
         await refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        setError(localizeError(err, locale));
       } finally {
         setSaving(null);
       }
     },
-    [refresh],
+    [refresh, locale],
   );
 
   return (

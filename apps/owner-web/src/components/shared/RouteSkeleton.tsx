@@ -3,8 +3,13 @@
  * route segment's `loading.tsx` while the server component for that
  * segment streams in.
  *
- * Shape mirrors the real owner-web route rhythm so there is zero layout
- * shift (CLS) when the content swaps in:
+ * The header band is layout-stable: it mirrors the real `PageHero` rhythm
+ * (eyebrow + headline + gloss, closed by the same `border-b border-border
+ * pb-6` hairline) so that region holds its box while content streams in.
+ * The body below is a GENERIC card-grid placeholder reused across every
+ * owner surface, so it does not match each route's exact final layout —
+ * expect some content shift there when a route's real body differs from
+ * this generic shape. (A per-route skeleton variant set is deferred.)
  *   1. A `PageHero`-shaped header band (eyebrow + headline + gloss),
  *      closed by the same `border-b border-border pb-6` hairline.
  *   2. A reserved content column (cards / panels) using the same
@@ -17,8 +22,9 @@
  * keeps its `(): ReactElement` signature and the
  * `data-testid="route-skeleton"` hook verbatim so `loading.tsx` and any
  * test importer compile unchanged. `aria-hidden` stays on the outer box
- * so screen readers skip the placeholder; DS `Skeleton` carries its own
- * `role="status"` but the hidden ancestor suppresses it here.
+ * so screen readers skip the placeholder; the DS `Skeleton` blocks are
+ * decorative by default (no `label` passed), so they add no announcement
+ * of their own.
  */
 import type { ReactElement } from 'react';
 import { Skeleton } from '@borjie/design-system';

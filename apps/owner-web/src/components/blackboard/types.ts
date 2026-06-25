@@ -4,8 +4,8 @@
  * `<board_add>{...payload}</board_add>` tag per element; the FE parses,
  * validates, and pushes into the store.
  *
- * Parity with LitFin's smartboard vocabulary (10 primitives) but
- * mining-estate tailored. See Docs/DESIGN/LITFIN_BLACKBOARD_SPEC.md
+ * Parity with the reference smartboard vocabulary (10 primitives) but
+ * mining-estate tailored. See the owner-chat blackboard design spec
  * for the structural reference and Docs/DESIGN/BORJIE_BLACKBOARD_
  * CURRICULUM.md for the corpus of canonical moves.
  */

@@ -2,15 +2,15 @@
 
 /**
  * ConceptCard — full-fidelity render of a brain-emitted concept_card
- * ui_block. Independent author against Docs/DESIGN/LITFIN_STEPPER_LEARNING_SPEC.md
- * §4 — visually matches LitFin's progressive-exploration concept card
+ * ui_block. Independent author against the owner-chat stepper/learning design spec
+ * §4 — visually matches the reference progressive-exploration concept card
  * (header + bloom bar + mastery progress + per-point exploration +
  * Deep dive / Go wider actions) using Borjie navy / gold tokens.
  *
  * No framer-motion (owner-web doesn't ship it); animation uses the
  * design-system's `animate-fade-up`, `animate-shimmer`, and pure CSS
  * `transition-all duration-X` utilities so the entry / hover micro
- * matches LitFin's vocabulary within the bounds of CSS animation.
+ * matches the reference vocabulary within the bounds of CSS animation.
  *
  * The `onDeepDive` / `onGoWider` callbacks emit a next-turn message
  * that the parent forwards to `/api/v1/brain/teach`. The renderer is

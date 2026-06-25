@@ -200,16 +200,6 @@ export const routesBStrings = {
     revoke: { sw: 'Ondoa', en: 'Revoke' },
   },
 
-  /** app/(routes)/settings/connected-agents/page.tsx. */
-  connectedAgentsPage: {
-    metaTitle: { sw: 'Wakala walioongezwa', en: 'Borjie' },
-    rosterTagline: { sw: 'Wakala walioongezwa', en: '' },
-    rosterRevokeNote: {
-      sw: 'Wakala wa nje wenye ruhusa hai kwa akaunti yako. Unaweza kuondoa idhini wakati wowote.',
-      en: '',
-    },
-  },
-
   /** app/(routes)/settings/jurisdiction/jurisdiction-settings.tsx. */
   jurisdictionSettings: {
     loading: {
@@ -253,16 +243,6 @@ export const routesBStrings = {
     overrideBodySwOr: { sw: 'au', en: '' },
   },
 
-  /** app/(routes)/settings/jurisdiction/page.tsx. */
-  jurisdictionPage: {
-    metaTitle: { sw: 'Eneo la sheria', en: 'Borjie' },
-    headerTagline: { sw: 'Eneo la sheria', en: '' },
-    headerBodySw: {
-      sw: 'Nchi ya akaunti yako, wadhibiti, sarafu, na eneo la saa huongoza kila rasimu ya mrabaha, kumbukumbu ya leseni, na ufaili wa utiifu. Eneo la sheria limefungwa wakati wa usajili; uliza katika mazungumzo kujibu kwa nchi nyingine kwa zamu moja.',
-      en: '',
-    },
-  },
-
   /** app/(routes)/settings/saved-searches/saved-searches-panel.tsx. */
   savedSearches: {
     frequencyHourly: { sw: 'Kila saa', en: 'Hourly' },
@@ -272,15 +252,15 @@ export const routesBStrings = {
     sourceOpportunities: { sw: 'Fursa', en: 'Opportunities' },
     sourceRegulatory: { sw: 'Kanuni', en: 'Regulatory' },
     newSearchTagline: {
-      sw: 'Utafutaji mpya — toa jina, andika maswali yako, chagua mzunguko',
-      en: '',
+      sw: 'Utafutaji mpya: toa jina, andika maswali yako, chagua mzunguko',
+      en: 'New search: give it a name, write your query, choose a cadence',
     },
     labelField: { sw: 'Jina', en: 'Label' },
     queryField: { sw: 'Maswali (JSON)', en: 'Query JSON' },
     frequencyField: { sw: 'Mzunguko', en: 'Frequency' },
     sourceField: { sw: 'Chanzo', en: 'Source' },
     save: { sw: 'Hifadhi', en: 'Save' },
-    savedListTagline: { sw: 'Utafutaji wako uliohifadhiwa', en: '' },
+    savedListTagline: { sw: 'Utafutaji wako uliohifadhiwa', en: 'Your saved searches' },
     emptyList: {
       sw: 'Hakuna utafutaji uliohifadhiwa.',
       en: 'No saved searches yet.',

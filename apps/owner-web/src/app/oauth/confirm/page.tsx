@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { OAuthConfirmPanel } from './confirm-panel';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
 
 export const dynamic = 'force-dynamic';
 export const metadata = {
@@ -14,7 +15,8 @@ export const metadata = {
  * scopes via GET /api/v1/oauth/device/details?code=USER_CODE and shows
  * an Approve / Deny choice in bilingual Swahili-English.
  */
-export default function OAuthConfirmPage() {
+export default async function OAuthConfirmPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <main
       className="relative min-h-screen overflow-hidden bg-background p-6"
@@ -34,7 +36,7 @@ export default function OAuthConfirmPage() {
             <div className="text-sm text-neutral-500">Inapakia…</div>
           }
         >
-          <OAuthConfirmPanel />
+          <OAuthConfirmPanel initialLocale={locale} />
         </Suspense>
       </div>
     </main>

@@ -1,8 +1,14 @@
 'use client';
 
 import { useLicenceCockpit } from '@/lib/queries/licence';
-import { ApiError } from '@/lib/api-client';
+import { ApiError, localizeError } from '@/lib/api-client';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { useLocale } from '@/lib/locale';
+import { pickByLocale } from '@/lib/locale-shared';
+import {
+  licenceCockpitStrings as S,
+  mineralLabel,
+} from '@/i18n/strings/licence-cockpit';
 import { CountdownCards } from './CountdownCards';
 import { DormancyCard } from './DormancyCard';
 import { PaymentHistory } from './PaymentHistory';
@@ -13,6 +19,7 @@ interface LicenceSurfaceProps {
 }
 
 export function LicenceSurface({ licenceId }: LicenceSurfaceProps) {
+  const locale = useLocale();
   const { data, isLoading, isError, error } = useLicenceCockpit(licenceId);
 
   if (isLoading) {
@@ -23,15 +30,21 @@ export function LicenceSurface({ licenceId }: LicenceSurfaceProps) {
   // Honest error states — no more infinite skeleton on a 404 / bad id.
   if (isError) {
     const notFound = error instanceof ApiError && error.status === 404;
+    // Localize the gateway error by its stable CODE — never the raw English
+    // `error.message` (rendering that under `sw` is language MIXING).
+    const detail = error
+      ? localizeError(error, locale)
+      : pickByLocale(locale, S.surface.loadErrorRetry);
     return (
       <EmptyState
-        title={notFound ? 'Licence not found' : 'Could not load this licence'}
+        title={pickByLocale(
+          locale,
+          notFound ? S.surface.notFoundTitle : S.surface.loadErrorTitle,
+        )}
         description={
           notFound
-            ? 'This licence does not exist for your account, or the link is stale. Open a licence from your licences list.'
-            : `The licence cockpit failed to load. ${
-                error instanceof Error ? error.message : 'Please try again.'
-              }`
+            ? pickByLocale(locale, S.surface.notFoundBody)
+            : pickByLocale(locale, S.surface.loadErrorBody(detail))
         }
       />
     );
@@ -39,8 +52,8 @@ export function LicenceSurface({ licenceId }: LicenceSurfaceProps) {
   if (!data) {
     return (
       <EmptyState
-        title="No licence data"
-        description="This licence has no renewal, dormancy, or payment data recorded yet."
+        title={pickByLocale(locale, S.surface.noDataTitle)}
+        description={pickByLocale(locale, S.surface.noDataBody)}
       />
     );
   }
@@ -61,14 +74,22 @@ export function LicenceSurface({ licenceId }: LicenceSurfaceProps) {
         <div className="lg:col-span-1">
           <article className="rounded-md border border-border bg-surface px-4 py-4">
             <div className="text-xs uppercase tracking-wide text-neutral-500">
-              Licence summary
+              {pickByLocale(locale, S.surface.summaryTitle)}
             </div>
             <dl className="mt-2 grid grid-cols-2 gap-y-1 text-sm">
-              <dt className="text-neutral-500">Reference</dt>
+              <dt className="text-neutral-500">
+                {pickByLocale(locale, S.surface.refLabel)}
+              </dt>
               <dd className="text-foreground">{data.reference}</dd>
-              <dt className="text-neutral-500">Mineral</dt>
-              <dd className="text-foreground">{data.mineral}</dd>
-              <dt className="text-neutral-500">Site</dt>
+              <dt className="text-neutral-500">
+                {pickByLocale(locale, S.surface.mineralLabel)}
+              </dt>
+              <dd className="text-foreground">
+                {mineralLabel(locale, data.mineral)}
+              </dd>
+              <dt className="text-neutral-500">
+                {pickByLocale(locale, S.surface.siteLabel)}
+              </dt>
               <dd className="text-foreground">{data.siteName}</dd>
             </dl>
           </article>

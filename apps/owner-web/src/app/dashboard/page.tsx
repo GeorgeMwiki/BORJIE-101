@@ -9,6 +9,7 @@ import { OwnerDashboardSurface } from '@/components/dashboard/OwnerDashboardSurf
 import { DashboardBriefSummary } from '@/components/dashboard/DashboardBriefSummary';
 import { DailyBriefCard } from '@/components/dashboard/DailyBriefCard';
 import { OwnerOSShell } from '@/components/owner-os/OwnerOSShell';
+import { EstateLoadErrorNotice } from '@/components/cockpit/EstateLoadErrorNotice';
 
 /**
  * D-W-01 — Owner dashboard.
@@ -81,12 +82,26 @@ async function GreetingHero() {
   const t = await getServerT();
 
   const greeting = t('dashboard.greeting', { name: session.salutation });
-  const subline = t('dashboard.subline', {
-    legalName: session.tenant.legalName ?? 'Borjie',
-    region: session.tenant.region ?? '',
-    sites: session.sites.length,
-    plan: session.tenant.plan ?? '',
-  });
+  // FAILURE vs EMPTINESS: when the estate/sites read FAILED, the count would
+  // lie as "0 sites" — render the sites-free subline and a retry affordance
+  // instead. A genuine empty estate (no error) keeps the honest count.
+  const subline = session.estateLoadError
+    ? t('dashboard.sublineNoSites', {
+        legalName: session.tenant.legalName ?? 'Borjie',
+        region: session.tenant.region ?? '',
+        plan: session.tenant.plan ?? '',
+      })
+    : t('dashboard.subline', {
+        legalName: session.tenant.legalName ?? 'Borjie',
+        region: session.tenant.region ?? '',
+        sites: session.sites.length,
+        plan: session.tenant.plan ?? '',
+      });
+  // Seed the failure-notice island with the server-resolved locale so its
+  // first client render matches the SSR language (no split-brain frame).
+  const initialLocale = session.estateLoadError
+    ? await readLocaleFromServerCookies()
+    : undefined;
 
   return (
     <header>
@@ -99,6 +114,9 @@ async function GreetingHero() {
       <p className="mt-3 font-mono text-badge uppercase tracking-eyebrow-wide text-muted-foreground">
         {subline}
       </p>
+      {session.estateLoadError ? (
+        <EstateLoadErrorNotice initialLocale={initialLocale} />
+      ) : null}
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href="/ask"

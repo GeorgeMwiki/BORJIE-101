@@ -2,6 +2,9 @@
 
 import Link from 'next/link';
 import { ProvenancePill, type ProvenanceEnvelope } from './ProvenancePill';
+import { bcp47For } from '@/lib/format';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
+import { dataAStrings as S } from '@/i18n/strings/data-a';
 
 /**
  * Unified per-entity timeline.
@@ -37,16 +40,24 @@ export interface TimelineEvent {
 
 interface EntityTimelineProps {
   readonly events: ReadonlyArray<TimelineEvent>;
-  /** Localised header (default 'Timeline'). */
+  /**
+   * Active locale — drives the timestamp BCP-47 tag (the WIRE is
+   * locale-neutral ISO; only the RENDER is localised) and the fallback
+   * header / empty-state copy. Required so the timeline is never blind to
+   * the user's language (it used to pin every timestamp to `sw-TZ`).
+   */
+  readonly locale: Locale;
+  /** Localised header. Defaults to the locale-correct "Timeline". */
   readonly title?: string;
   /** Hide rows with `via: 'legacy' | 'unknown'`. Default false. */
   readonly hideLegacy?: boolean;
 }
 
-function fmtTime(iso: string): string {
+function fmtTime(iso: string, locale: Locale): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleString('sw-TZ', {
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(bcp47For(locale), {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -68,9 +79,11 @@ const KIND_ICON: Record<TimelineEvent['kind'], string> = {
 
 export function EntityTimeline({
   events,
-  title = 'Timeline',
+  locale,
+  title,
   hideLegacy = false,
 }: EntityTimelineProps) {
+  const resolvedTitle = title ?? pickByLocale(locale, S.entityTimeline.defaultTitle);
   const filtered = hideLegacy
     ? events.filter((e) => e.provenance.via !== 'legacy' && e.provenance.via !== 'unknown')
     : events;
@@ -78,14 +91,14 @@ export function EntityTimeline({
   if (filtered.length === 0) {
     return (
       <div className="rounded-lg border border-border p-4 text-sm text-neutral-500">
-        No timeline events yet.
+        {pickByLocale(locale, S.entityTimeline.empty)}
       </div>
     );
   }
 
   return (
     <section className="space-y-2">
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
+      <h3 className="text-sm font-medium text-foreground">{resolvedTitle}</h3>
       <ol className="space-y-1.5 border-l border-border pl-3">
         {filtered.map((e) => {
           const inner = (
@@ -102,7 +115,7 @@ export function EntityTimeline({
                   <ProvenancePill provenance={e.provenance} />
                 </div>
                 <div className="mt-0.5 text-xs text-neutral-500">
-                  {e.actor} · {fmtTime(e.at)}
+                  {e.actor} · {fmtTime(e.at, locale)}
                 </div>
               </div>
             </div>

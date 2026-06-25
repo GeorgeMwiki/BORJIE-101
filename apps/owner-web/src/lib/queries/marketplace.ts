@@ -9,6 +9,10 @@ export const marketplaceKeys = {
     ['marketplace', 'inbound-rfbs', lat, lon] as const,
   rfbDetail: (rfbId: string) => ['marketplace', 'rfb', rfbId] as const,
   rfbMine: () => ['marketplace', 'rfb', 'mine'] as const,
+  incomingBids: (status?: string) =>
+    ['marketplace', 'bids', 'incoming', status ?? 'all'] as const,
+  offtakeAgreements: (status?: string) =>
+    ['marketplace', 'offtake-agreements', status ?? 'all'] as const,
 };
 
 /**
@@ -237,5 +241,236 @@ export function useDispatchRfbToManager() {
       // Refresh the inbound RFB column + marketplace listings.
       queryClient.invalidateQueries({ queryKey: ['marketplace'] });
     },
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// SELLER LEG — incoming bids inbox + accept / reject + offtake ledger.
+//
+// COMPLETION-LAW: the gateway already exposes the seller-side surface;
+// these hooks wire the owner cockpit to it.
+//   - GET  /api/v1/mining/bids/incoming               (bids on my listings)
+//   - POST /api/v1/mining/bids/:id/accept             (seller accepts)
+//   - POST /api/v1/mining/bids/:id/reject             (seller rejects)
+//   - GET  /api/v1/mining/bids/offtake-agreements     (binding contracts)
+// See services/api-gateway/src/routes/mining/bids.hono.ts.
+// ─────────────────────────────────────────────────────────────────────
+
+/** A bid placed by a buyer on one of the owner's listings (seller view). */
+export interface IncomingBid {
+  readonly id: string;
+  readonly listingId: string;
+  readonly buyerId: string;
+  /** Bid price in TZS (the `bid_price_tzs` column — numeric string on wire). */
+  readonly bidPriceTzs: number;
+  readonly status:
+    | 'pending'
+    | 'accepted'
+    | 'rejected'
+    | 'countered'
+    | 'withdrawn';
+  readonly paymentTerms: string | null;
+  readonly notes: string | null;
+  readonly createdAt: string;
+}
+
+/** Raw seller-bid row as the gateway returns it (snake_case DB columns). */
+interface RawIncomingBidRow {
+  readonly id?: string;
+  readonly listing_id?: string;
+  readonly buyer_id?: string;
+  readonly bid_price_tzs?: string | number | null;
+  readonly status?: string;
+  readonly payment_terms?: string | null;
+  readonly notes?: string | null;
+  readonly created_at?: string;
+}
+
+const INCOMING_BID_STATUSES = new Set<IncomingBid['status']>([
+  'pending',
+  'accepted',
+  'rejected',
+  'countered',
+  'withdrawn',
+]);
+
+function adaptIncomingBid(row: RawIncomingBidRow): IncomingBid | null {
+  if (typeof row.id !== 'string' || row.id.length === 0) return null;
+  const status =
+    typeof row.status === 'string' &&
+    INCOMING_BID_STATUSES.has(row.status as IncomingBid['status'])
+      ? (row.status as IncomingBid['status'])
+      : 'pending';
+  const priceRaw = row.bid_price_tzs;
+  const bidPriceTzs =
+    priceRaw == null
+      ? 0
+      : typeof priceRaw === 'number'
+        ? priceRaw
+        : Number(priceRaw);
+  return {
+    id: row.id,
+    listingId: row.listing_id ?? '',
+    buyerId: row.buyer_id ?? '',
+    bidPriceTzs: Number.isFinite(bidPriceTzs) ? bidPriceTzs : 0,
+    status,
+    paymentTerms: row.payment_terms ?? null,
+    notes: row.notes ?? null,
+    createdAt: row.created_at ?? '',
+  };
+}
+
+/**
+ * Incoming bids on the owner's marketplace listings (seller-side).
+ *
+ * `status` optionally narrows the server query (e.g. `'pending'` for the
+ * action inbox). The gateway returns raw `marketplace_bids` rows already
+ * scoped to the seller tenant by RLS.
+ */
+export function useIncomingBids(status?: IncomingBid['status']) {
+  return useQuery({
+    queryKey: marketplaceKeys.incomingBids(status),
+    queryFn: async ({ signal }): Promise<ReadonlyArray<IncomingBid>> => {
+      const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+      const rows = await apiRequest<ReadonlyArray<RawIncomingBidRow>>(
+        `/api/v1/mining/bids/incoming${qs}`,
+        { signal },
+      );
+      return (rows ?? [])
+        .map(adaptIncomingBid)
+        .filter((b): b is IncomingBid => b !== null);
+    },
+    // Bids land via the cockpit SSE `bid.placed` pulse — keep the cache tight
+    // so the inbox refreshes promptly on next focus after a new bid.
+    staleTime: 15_000,
+  });
+}
+
+/**
+ * Accept an incoming bid. The gateway flips the bid to `accepted` AND
+ * crystallizes the binding offtake agreement in one transaction, so on
+ * success we invalidate BOTH the bids inbox and the offtake ledger.
+ */
+export function useAcceptBid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (bidId: string): Promise<void> => {
+      await apiRequest<unknown>(
+        `/api/v1/mining/bids/${encodeURIComponent(bidId)}/accept`,
+        { method: 'POST' },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+/** Reject an incoming bid with a localized reason captured by the caller. */
+export function useRejectBid() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      readonly bidId: string;
+      readonly reason: string;
+    }): Promise<void> => {
+      await apiRequest<unknown>(
+        `/api/v1/mining/bids/${encodeURIComponent(input.bidId)}/reject`,
+        { method: 'POST', body: { reason: input.reason } },
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketplace'] });
+    },
+  });
+}
+
+/** A binding offtake agreement crystallized from an accepted bid. */
+export interface OfftakeAgreement {
+  readonly id: string;
+  readonly listingId: string;
+  readonly bidId: string;
+  readonly buyerId: string;
+  /** CONTRACT TERM — agreed price in TZS (never a ledger entry). */
+  readonly agreedPriceTzs: number;
+  /** CONTRACT TERM — agreed volume in kg. */
+  readonly quantityKg: number;
+  readonly paymentTerms: string | null;
+  readonly status:
+    | 'pending_signature'
+    | 'signed'
+    | 'cancelled'
+    | 'completed';
+  readonly signedAt: string | null;
+  readonly createdAt: string;
+}
+
+interface RawOfftakeRow {
+  readonly id?: string;
+  readonly listing_id?: string;
+  readonly bid_id?: string;
+  readonly buyer_id?: string;
+  readonly agreed_price_tzs?: string | number | null;
+  readonly quantity_kg?: string | number | null;
+  readonly payment_terms?: string | null;
+  readonly status?: string;
+  readonly signed_at?: string | null;
+  readonly created_at?: string;
+}
+
+const OFFTAKE_STATUSES = new Set<OfftakeAgreement['status']>([
+  'pending_signature',
+  'signed',
+  'cancelled',
+  'completed',
+]);
+
+function toFiniteNumber(value: string | number | null | undefined): number {
+  if (value == null) return 0;
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function adaptOfftake(row: RawOfftakeRow): OfftakeAgreement | null {
+  if (typeof row.id !== 'string' || row.id.length === 0) return null;
+  const status =
+    typeof row.status === 'string' &&
+    OFFTAKE_STATUSES.has(row.status as OfftakeAgreement['status'])
+      ? (row.status as OfftakeAgreement['status'])
+      : 'pending_signature';
+  return {
+    id: row.id,
+    listingId: row.listing_id ?? '',
+    bidId: row.bid_id ?? '',
+    buyerId: row.buyer_id ?? '',
+    agreedPriceTzs: toFiniteNumber(row.agreed_price_tzs),
+    quantityKg: toFiniteNumber(row.quantity_kg),
+    paymentTerms: row.payment_terms ?? null,
+    status,
+    signedAt: row.signed_at ?? null,
+    createdAt: row.created_at ?? '',
+  };
+}
+
+/**
+ * Seller-side binding offtake agreements — the contract ledger surfacing
+ * `pending_signature` vs `signed` (and terminal) states.
+ *
+ * Backing endpoint: GET /api/v1/mining/bids/offtake-agreements.
+ */
+export function useOfftakeAgreements(status?: OfftakeAgreement['status']) {
+  return useQuery({
+    queryKey: marketplaceKeys.offtakeAgreements(status),
+    queryFn: async ({ signal }): Promise<ReadonlyArray<OfftakeAgreement>> => {
+      const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+      const rows = await apiRequest<ReadonlyArray<RawOfftakeRow>>(
+        `/api/v1/mining/bids/offtake-agreements${qs}`,
+        { signal },
+      );
+      return (rows ?? [])
+        .map(adaptOfftake)
+        .filter((a): a is OfftakeAgreement => a !== null);
+    },
+    staleTime: 30_000,
   });
 }

@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import type { FeatureKind, MapFeature } from '@/lib/types/portfolio-map';
 import { MAP_INITIAL_VIEW } from '@/lib/types/portfolio-map';
+import { pickByLocale } from '@/lib/locale';
+import type { Locale } from '@/lib/locale-shared';
+import { portfolioMapStrings as S } from '@/i18n/strings/portfolio-map';
 
 interface MapCanvasProps {
   readonly mapboxToken: string;
   readonly features: ReadonlyArray<MapFeature>;
   readonly enabled: ReadonlyArray<FeatureKind>;
   readonly onSelect: (feature: MapFeature) => void;
+  readonly locale: Locale;
 }
 
 const KIND_COLOR: Record<FeatureKind, string> = {
@@ -26,7 +30,13 @@ const KIND_COLOR: Record<FeatureKind, string> = {
  * present. Falls back to the placeholder card when react-map-gl is
  * unavailable for any reason.
  */
-export function MapCanvas({ mapboxToken, features, enabled, onSelect }: MapCanvasProps) {
+export function MapCanvas({
+  mapboxToken,
+  features,
+  enabled,
+  onSelect,
+  locale,
+}: MapCanvasProps) {
   const [mapModule, setMapModule] = useState<typeof import('react-map-gl') | null>(
     null,
   );
@@ -50,7 +60,7 @@ export function MapCanvas({ mapboxToken, features, enabled, onSelect }: MapCanva
   if (!mapModule) {
     return (
       <div className="flex h-chart-lg items-center justify-center rounded-lg border border-dashed border-border bg-surface/30 text-sm text-muted-foreground">
-        Loading map…
+        {pickByLocale(locale, S.loadingMap)}
       </div>
     );
   }

@@ -27,10 +27,16 @@ import {
   type BadgeProps,
 } from '@borjie/design-system';
 
-import { apiRequest } from '@/lib/api-client';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { apiRequest, localizeError } from '@/lib/api-client';
+import { captureError } from '@/lib/sentry';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 import { EmptyState as ScreenEmptyState } from '@/components/shared/EmptyState';
 import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
+import {
+  mwikilaClusterStrings as M,
+  categoryLabel,
+} from '@/i18n/strings/mwikila-cluster';
 
 interface InboxRow {
   readonly id: string;
@@ -119,8 +125,12 @@ function formatCountdown(
   return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-export function MwikilaInboxPanel() {
-  const locale = useLocale();
+export function MwikilaInboxPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}) {
+  const locale = useLocale(initialLocale);
   const [items, setItems] = useState<ReadonlyArray<InboxRow>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,11 +164,15 @@ export function MwikilaInboxPanel() {
       );
       setItems(data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // Render the LOCALISED message (resolved from the gateway error CODE);
+      // the raw English body is dev-only → Sentry. Showing `err.message`
+      // here would leak English into an `sw` <Alert> (language mixing).
+      captureError(err, { route: 'mwikila-inbox.list' });
+      setError(localizeError(err, locale));
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, categoryFilter, locale]);
 
   useEffect(() => {
     void refresh();
@@ -177,10 +191,12 @@ export function MwikilaInboxPanel() {
         });
         await refresh();
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        // Same canon as refresh(): localise from the CODE, raw → Sentry.
+        captureError(err, { route: `mwikila-inbox.${verb}`, extra: { id } });
+        setError(localizeError(err, locale));
       }
     },
-    [refresh],
+    [refresh, locale],
   );
 
   const rowCount = useMemo(() => items.length, [items.length]);
@@ -217,7 +233,7 @@ export function MwikilaInboxPanel() {
             <SelectItem value="all">{allLabel}</SelectItem>
             {CATEGORIES.map((c) => (
               <SelectItem key={c} value={c}>
-                {c}
+                {categoryLabel(locale, c)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -256,7 +272,7 @@ export function MwikilaInboxPanel() {
                 <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Badge variant="secondary">{row.delegationTier}</Badge>
                   <span className="text-xs text-muted-foreground">
-                    {row.category}
+                    {categoryLabel(locale, row.category)}
                   </span>
                   <Badge variant={STATUS_BADGE[row.status]}>
                     {pickByLocale(locale, STATUS_LEAF[row.status])}
@@ -270,15 +286,21 @@ export function MwikilaInboxPanel() {
                 <h3 className="mt-2 text-sm font-medium text-foreground">
                   {pickByLocale(locale, { en: row.summary, sw: row.summarySw })}
                 </h3>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {row.rationale}
-                </p>
+                {row.rationale ? (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    <span className="mr-1 font-medium text-foreground/70">
+                      {pickByLocale(locale, M.reasoningLabel)}:
+                    </span>
+                    <span lang={bcp47For(locale)}>{row.rationale}</span>
+                  </p>
+                ) : null}
                 {row.blockedReason ? (
                   <p className="mt-2 rounded bg-danger-subtle p-2 text-xs text-danger">
-                    {pickByLocale(
-                      locale,
-                      S.inbox.blockedByRail(row.blockedReason),
-                    )}
+                    <span className="mr-1 font-medium">
+                      {pickByLocale(locale, M.whyBlockedLabel)}:
+                    </span>
+                    {pickByLocale(locale, M.blockedRail)}{' '}
+                    <span lang={bcp47For(locale)}>{row.blockedReason}</span>
                   </p>
                 ) : null}
                 <div className="mt-3 flex gap-2">

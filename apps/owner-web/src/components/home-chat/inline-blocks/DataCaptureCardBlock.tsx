@@ -8,7 +8,7 @@
  * bubble; on submit fires `onAction` with `{action: submitAction,
  * payload: {purpose, captured}}` so the host posts the next chat turn.
  *
- * LitFin rhythm: bordered card, labels above inputs, single primary
+ * Institutional rhythm: bordered card, labels above inputs, single primary
  * submit. Fields are typed text / number / date / select / amount-tzs /
  * pml-picker / site-picker.
  *
@@ -22,6 +22,7 @@
 
 import { useState, type ReactElement } from 'react';
 import { pickByLocale } from '@/lib/locale-shared';
+import { LAUNCH_CURRENCY } from '@/lib/format';
 import { dataCaptureCardBlockStrings as S } from '@/i18n/strings/data-capture-card-block';
 
 type FieldKind =
@@ -214,7 +215,9 @@ export function DataCaptureCardBlock({
               <span className="block text-tiny font-medium text-foreground/80">
                 {lab}
                 {kind === 'amount-tzs' ? (
-                  <span className="ml-1 text-neutral-500">(TZS)</span>
+                  <span className="ml-1 text-neutral-500">
+                    ({LAUNCH_CURRENCY})
+                  </span>
                 ) : null}
               </span>
               <input

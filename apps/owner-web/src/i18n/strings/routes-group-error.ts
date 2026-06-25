@@ -28,8 +28,8 @@ export const routesGroupErrorStrings = {
   },
   /** Alert body — reassuring, never accusatory. */
   body: {
-    sw: 'Tumeirekodi hitilafu. Jaribu tena — ikiendelea, timu yetu tayari inaichunguza.',
-    en: "We've logged the error. Try again — if it keeps happening, our team is already looking into it.",
+    sw: 'Tumeirekodi hitilafu. Jaribu tena. Ikiendelea, timu yetu tayari inaichunguza.',
+    en: "We've logged the error. Try again. If it keeps happening, our team is already looking into it.",
   },
   /** Primary retry CTA. */
   retry: { sw: 'Jaribu tena', en: 'Try again' },

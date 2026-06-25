@@ -36,7 +36,10 @@ import {
   type ExpansionScenarioInput,
   type ScenarioOutcome,
 } from '@/lib/queries/capacity-expansion';
+import { formatCurrency } from '@borjie/api-client';
 import { pickByLocale } from '@/lib/locale-shared';
+import { bcp47For } from '@/lib/format';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 import { capacityExpansionPanelStrings as M } from '@/i18n/strings/capacity-expansion-panel';
 
 interface CapacityExpansionPanelProps {
@@ -49,29 +52,6 @@ const KINDS: ReadonlyArray<ExpansionKind> = [
   'new-site',
   'processing-upgrade',
 ];
-
-/** Locale tag per currency — drives Intl grouping/symbol. Never hard-codes
- *  a single currency: the formatter is built from the supplied code. */
-function localeForCurrency(currency: CurrencyCode): string {
-  switch (currency) {
-    case 'TZS':
-      return 'en-TZ';
-    case 'EUR':
-      return 'de-DE';
-    case 'GBP':
-      return 'en-GB';
-    default:
-      return 'en-US';
-  }
-}
-
-function makeMoneyFmt(currency: CurrencyCode): Intl.NumberFormat {
-  return new Intl.NumberFormat(localeForCurrency(currency), {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  });
-}
 
 interface DraftScenario {
   readonly id: string;
@@ -126,7 +106,14 @@ export function CapacityExpansionPanel({
   const analyze = useExpansionAnalyze();
   const recommend = useExpansionRecommend();
 
-  const moneyFmt = useMemo(() => makeMoneyFmt(currency), [currency]);
+  // Money renders through `formatCurrency(amount, currency)` keyed on the
+  // SUPPLIED currency code, with the Intl tag resolved from the user's
+  // active locale via `bcp47For` — never a hard-coded per-currency literal.
+  const fmtMoney = useMemo(
+    () => (value: number) =>
+      formatCurrency(value, currency, { locale: bcp47For(locale) }),
+    [currency, locale],
+  );
 
   function updateDraft(id: string, patch: Partial<DraftScenario>) {
     setDrafts((prev) =>
@@ -188,9 +175,6 @@ export function CapacityExpansionPanel({
   const analysis = analyze.data?.analysis;
   const topId = analysis?.rankedByNpv[0];
 
-  function fmtMoney(n: number): string {
-    return moneyFmt.format(n);
-  }
   function fmtPct(ratio: number | null): string {
     return ratio === null
       ? isSw
@@ -421,7 +405,9 @@ export function CapacityExpansionPanel({
                         ) : null}
                         {o.label}
                       </div>
-                      <div className="mt-0.5 text-muted-foreground">{o.kind}</div>
+                      <div className="mt-0.5 text-muted-foreground">
+                        {enumLabel('expansionKind', o.kind, locale)}
+                      </div>
                     </TableCell>
                     <TableCell
                       className={`font-mono ${
@@ -498,7 +484,7 @@ export function CapacityExpansionPanel({
                           : 'border-border bg-surface text-muted-foreground'
                       }`}
                     >
-                      {r.severity}
+                      {enumLabel('alertSeverity', r.severity, locale)}
                     </span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

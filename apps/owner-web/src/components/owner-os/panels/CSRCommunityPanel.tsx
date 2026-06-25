@@ -10,6 +10,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
@@ -69,12 +70,12 @@ function csrColumns(isSw: boolean): ReadonlyArray<PanelColumn<CsrPlanRow>> {
     {
       key: 'category',
       header: isSw ? P.csrCommunity.colCategory.sw : P.csrCommunity.colCategory.en,
-      render: (r) => r.category,
+      render: (r) => enumLabelSw('csrCategory', r.category, isSw),
     },
     {
       key: 'status',
       header: isSw ? P.csrCommunity.colStatus.sw : P.csrCommunity.colStatus.en,
-      render: (r) => r.status,
+      render: (r) => enumLabelSw('csrStatus', r.status, isSw),
     },
   ];
 }

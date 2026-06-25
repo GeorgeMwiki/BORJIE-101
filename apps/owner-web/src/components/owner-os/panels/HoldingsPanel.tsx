@@ -13,6 +13,7 @@ import { useEstateGroups, type EstateGroupRow } from '@/lib/queries/estate';
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 
 const HOLDINGS_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -66,7 +67,7 @@ function holdingsColumns(isSw: boolean): ReadonlyArray<PanelColumn<EstateGroupRo
     {
       key: 'type',
       header: isSw ? P.holdings.colType.sw : P.holdings.colType.en,
-      render: (r) => r.holdingType,
+      render: (r) => enumLabelSw('holdingType', r.holdingType, isSw),
     },
     {
       key: 'country',

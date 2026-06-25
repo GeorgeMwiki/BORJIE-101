@@ -2,8 +2,8 @@
 
 /**
  * MessageBubble — single chat row (assistant or owner). Independent
- * author against Docs/DESIGN/LITFIN_STEPPER_LEARNING_SPEC.md §5 +
- * §6 — visually equivalent to LitFin's UnifiedChat MessageBubble,
+ * author against the owner-chat stepper/learning design spec §5 +
+ * §6 — visually equivalent to the reference UnifiedChat MessageBubble,
  * rendered with Borjie navy / gold tokens and design-system primitives.
  *
  * Single source of bubble chrome (avatar gutter, rounded asymmetric
@@ -39,7 +39,7 @@ export interface MessageBubbleProps {
 }
 
 function PersonaAvatar(): ReactElement {
-  // Inline mining mark — keep the LitFin pattern (always-on persona
+  // Inline mining mark — keep the reference pattern (always-on persona
   // glyph in the avatar gutter) without depending on the marketing
   // wordmark for an authenticated surface.
   return (

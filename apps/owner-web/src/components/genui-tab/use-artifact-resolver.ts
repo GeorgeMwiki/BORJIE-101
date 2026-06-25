@@ -29,7 +29,8 @@ import { useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 import { safeParsePortalTab, type PortalTab } from '@borjie/portal-genui';
 
-import { apiRequest, ApiError } from '@/lib/api-client';
+import { apiRequest, ApiError, localizeError } from '@/lib/api-client';
+import { useLocale } from '@/lib/locale';
 
 /** The artifact modalities a projected descriptor can carry. */
 export const ARTIFACT_DESCRIPTOR_KINDS = [
@@ -89,6 +90,9 @@ export function useArtifactResolver(
   const [state, setState] = useState<ArtifactResolveState>(
     proposalId ? { status: 'loading' } : { status: 'idle' },
   );
+  // Active locale — the error message is localized by the gateway's stable
+  // CODE (the raw English `.message` would be language MIXING under `sw`).
+  const locale = useLocale();
   const activeId = useRef<string | null>(proposalId ?? null);
 
   useEffect(() => {
@@ -139,16 +143,12 @@ export function useArtifactResolver(
           });
           return;
         }
-        setState({
-          status: 'error',
-          message:
-            err instanceof Error ? err.message : 'Failed to load artifact.',
-        });
+        setState({ status: 'error', message: localizeError(err, locale) });
       }
     })();
 
     return () => controller.abort();
-  }, [proposalId]);
+  }, [proposalId, locale]);
 
   return state;
 }

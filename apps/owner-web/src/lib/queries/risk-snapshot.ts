@@ -35,9 +35,41 @@ export interface CliffStatusSlice {
   readonly note: string;
 }
 
+/**
+ * Closed set of kill-switch levels this panel knows how to render. The wire
+ * advertises `'live' | 'degraded' | 'halt'`, but that is a COMPILE-TIME
+ * promise the gateway can break at runtime (a new level, a typo, a partial
+ * deploy). `'unknown'` is the explicit fail-SAFE sink for any value outside
+ * the known set — deliberately NOT `'live'`, because silently mapping an
+ * unrecognized level to "live" would be a false safety reassurance on a
+ * risk/safety read. Mirrors admin-web `clampKillswitchLevel`.
+ */
+export const KILLSWITCH_LEVELS = [
+  'live',
+  'degraded',
+  'halt',
+  'unknown',
+] as const;
+
+export type KillswitchLevel = (typeof KILLSWITCH_LEVELS)[number];
+
+/**
+ * Clamp an arbitrary runtime value to the known kill-switch enum at this
+ * adapter boundary. Any value outside the closed set — including
+ * `null`/`undefined`, an unexpected gateway string, or a non-string —
+ * collapses to the conservative `'unknown'` sentinel rather than passing
+ * through unvalidated (which would later `undefined`-deref a label lookup).
+ * Fail-safe, never fail-open: an unrecognized level NEVER becomes `'live'`.
+ */
+export function clampKillswitchLevel(value: unknown): KillswitchLevel {
+  return (KILLSWITCH_LEVELS as ReadonlyArray<string>).includes(value as string)
+    ? (value as KillswitchLevel)
+    : 'unknown';
+}
+
 export interface KillswitchStateRow {
   readonly scope: string;
-  readonly level: 'live' | 'degraded' | 'halt';
+  readonly level: KillswitchLevel;
   readonly setAt: string;
   readonly reasonCode: string;
 }
@@ -96,14 +128,24 @@ export function useOpenCriticalIncidentCount() {
 export function useKillswitchStatus() {
   return useQuery({
     queryKey: riskKeys.killswitch(),
-    queryFn: async ({ signal }) => {
-      const rows = await apiRequest<ReadonlyArray<KillswitchStateRow>>(
+    queryFn: async ({ signal }): Promise<KillswitchStateRow | null> => {
+      // The wire is typed as `KillswitchStateRow`, but the gateway can break
+      // that compile-time promise at runtime — so we read the raw shape and
+      // clamp `level` to the closed enum at this adapter boundary.
+      const rows = await apiRequest<ReadonlyArray<Record<string, unknown>>>(
         '/api/v1/mining/internal/killswitch',
         { signal },
       );
       // The most recent platform-scoped row is the authoritative state.
       const platform = rows.find((r) => r.scope === 'platform');
-      return platform ?? null;
+      if (!platform) return null;
+      return {
+        scope: typeof platform.scope === 'string' ? platform.scope : 'platform',
+        level: clampKillswitchLevel(platform.level),
+        setAt: typeof platform.setAt === 'string' ? platform.setAt : '',
+        reasonCode:
+          typeof platform.reasonCode === 'string' ? platform.reasonCode : '',
+      };
     },
     staleTime: 30_000,
     refetchInterval: 30_000,

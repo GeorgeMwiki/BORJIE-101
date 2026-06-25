@@ -43,4 +43,26 @@ export const fleetOpsStrings = {
 
   periodPrefix: { en: 'Period', sw: 'Kipindi' },
   vehicleCountSuffix: { en: 'vehicle(s).', sw: 'gari.' },
+
+  /**
+   * Honesty-flag notes. The backend emits stable locale-neutral KEYS on the
+   * TCO payload (services/api-gateway fleet-ops.hono.ts `trustFlags`); we map
+   * each key to an owner-facing note in the active locale here. Each is shown
+   * only when its underlying figure is genuinely 0 (no per-km source, no
+   * depreciation modelled) — see FleetOpsSurface. Unknown keys are skipped.
+   */
+  flags: {
+    distance_source_missing: {
+      en: 'Per-kilometre cost is not shown: no trip or odometer source is connected yet. Add one to unlock cost-per-km and utilisation — no distance is estimated.',
+      sw: 'Gharama kwa kilomita haijaonyeshwa: hakuna chanzo cha safari au odometa bado. Ongeza chanzo ili kupata gharama kwa kilomita na matumizi — hakuna umbali unaokadiriwa.',
+    },
+    depreciation_unmodelled: {
+      en: 'Depreciation is 0 until an annual depreciation figure is supplied; insurance and fines are not yet modelled.',
+      sw: 'Ushuka wa thamani ni 0 hadi kiasi cha mwaka kitolewe; bima na faini bado havijaingizwa kwenye mahesabu.',
+    },
+    vehicle_kind_scope: {
+      en: 'Only road vehicles (trucks, vehicles, pickups, vans) are counted in this fleet roll-up.',
+      sw: 'Magari ya barabarani pekee (malori, magari, pikipiki za mizigo, vana) ndiyo yanayohesabiwa kwenye muhtasari huu wa magari.',
+    },
+  },
 } as const;

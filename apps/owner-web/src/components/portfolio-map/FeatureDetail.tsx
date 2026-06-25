@@ -3,17 +3,23 @@
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import type { MapFeature } from '@/lib/types/portfolio-map';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
+import {
+  portfolioMapStrings as S,
+  featureKindLabels,
+} from '@/i18n/strings/portfolio-map';
 
 interface FeatureDetailProps {
   readonly feature: MapFeature | null;
   readonly onClose: () => void;
+  readonly locale: Locale;
 }
 
-export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
+export function FeatureDetail({ feature, onClose, locale }: FeatureDetailProps) {
   if (!feature) {
     return (
       <div className="rounded-md border border-dashed border-border bg-surface/30 px-3 py-4 text-xs text-muted-foreground">
-        Click a feature to drill in.
+        {pickByLocale(locale, S.detailEmpty)}
       </div>
     );
   }
@@ -22,13 +28,13 @@ export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-tiny uppercase tracking-wide text-muted-foreground">
-            {feature.kind}
+            {pickByLocale(locale, featureKindLabels[feature.kind])}
           </div>
           <div className="mt-0.5 font-medium text-foreground">{feature.name}</div>
         </div>
         <button
           type="button"
-          aria-label="Close"
+          aria-label={pickByLocale(locale, S.detailClose)}
           onClick={onClose}
           className="rounded-md p-1 text-muted-foreground hover:text-foreground"
         >
@@ -48,7 +54,7 @@ export function FeatureDetail({ feature, onClose }: FeatureDetailProps) {
           href="/site-cockpit"
           className="mt-3 inline-flex w-full justify-center rounded-md border border-warning bg-warning-subtle/30 px-3 py-1.5 text-xs text-warning"
         >
-          Open site cockpit
+          {pickByLocale(locale, S.openSiteCockpit)}
         </Link>
       ) : null}
     </div>

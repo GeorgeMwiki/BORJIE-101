@@ -15,9 +15,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Button, Badge, Skeleton, type BadgeProps } from '@borjie/design-system';
 
+import { localizeError } from '@/lib/api-client';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
-import { fmtDateForLocale } from '@/lib/format';
+import { fmtDateForLocale, bcp47For } from '@/lib/format';
 import { livingPlanPanelStrings as M } from '@/i18n/strings/living-plan-panel';
+import {
+  mwikilaClusterStrings as MX,
+  proofKindLabel,
+} from '@/i18n/strings/mwikila-cluster';
 
 // ── Wire shapes (mirror the api-gateway living-plan route) ───────────────────
 
@@ -318,9 +323,14 @@ function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
         </div>
       </div>
 
-      <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-        {item.rationale}
-      </p>
+      {item.rationale ? (
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+          <span className="mr-1 font-medium text-foreground/70">
+            {pickByLocale(locale, MX.reasoningLabel)}:
+          </span>
+          <span lang={bcp47For(locale)}>{item.rationale}</span>
+        </p>
+      ) : null}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">
@@ -333,11 +343,18 @@ function PlanItemRow({ item, locale }: { item: PlanItem; locale: Locale }) {
           <span className="inline-flex items-center gap-1 text-success">
             <Check className="h-3 w-3" aria-hidden />
             {pickByLocale(locale, M.proofClosed)}
-            {item.confirmationKind ? ` · ${item.confirmationKind}` : ''}
+            {item.confirmationKind
+              ? ` · ${proofKindLabel(locale, item.confirmationKind)}`
+              : ''}
           </span>
         ) : null}
         {item.blockedReason ? (
-          <span className="text-destructive">{item.blockedReason}</span>
+          <span className="text-destructive">
+            <span className="mr-1 font-medium">
+              {pickByLocale(locale, MX.whyBlockedLabel)}:
+            </span>
+            <span lang={bcp47For(locale)}>{item.blockedReason}</span>
+          </span>
         ) : null}
       </div>
     </li>
@@ -417,8 +434,12 @@ function EmptyState({ locale }: { locale: Locale }) {
 
 // ── Panel ────────────────────────────────────────────────────────────────────
 
-export function LivingPlanPanel() {
-  const locale = useLocale();
+export function LivingPlanPanel({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+}) {
+  const locale = useLocale(initialLocale);
   const [data, setData] = useState<PlanData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -429,11 +450,14 @@ export function LivingPlanPanel() {
     try {
       setData(await loadPlan());
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // Hold a LOCALISED string in error state (the surface renders
+      // M.errorTitle, but never let raw English `err.message` sit in a
+      // user-facing state slot — locale-pure by construction).
+      setError(localizeError(err, locale));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     void refresh();

@@ -51,4 +51,18 @@ export const incidentNewStrings = {
 
   submit: { en: 'Log incident', sw: 'Rekodi tukio' },
   askMwikila: { en: 'Ask Mr. Mwikila', sw: 'Uliza Bw. Mwikila' },
+
+  // Validation messages — resolved per active locale (zero-mix canon).
+  validationOccurredAt: {
+    en: 'Date and time required',
+    sw: 'Tarehe na saa zinahitajika',
+  },
+  validationDescription: {
+    en: 'Describe the incident (min 5 characters)',
+    sw: 'Eleza tukio (angalau herufi 5)',
+  },
+  validationGeneric: {
+    en: 'Check this field and try again.',
+    sw: 'Kagua sehemu hii na ujaribu tena.',
+  },
 } as const;

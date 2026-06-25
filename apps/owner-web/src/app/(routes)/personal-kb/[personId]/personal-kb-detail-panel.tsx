@@ -16,9 +16,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Skeleton, Alert } from '@borjie/design-system';
-import { apiRequest, ApiError } from '@/lib/api-client';
+import { apiRequest, ApiError, localizeError } from '@/lib/api-client';
 import { routesAStrings as S } from '@/i18n/strings/routes-a';
+import { personalKbClusterStrings as P } from '@/i18n/strings/personal-kb-cluster';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { bcp47For } from '@/lib/format';
 
 interface MemoryCell {
   readonly id: string;
@@ -52,10 +54,12 @@ function kindLabel(locale: Locale, kind: string): string {
 
 export function PersonalKbDetailPanel({
   personId,
+  initialLocale,
 }: {
   readonly personId: string;
+  readonly initialLocale?: Locale;
 }) {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<FetchState>({ kind: 'loading' });
 
   const load = useCallback(async () => {
@@ -90,12 +94,13 @@ export function PersonalKbDetailPanel({
         }
         return;
       }
-      setState({
-        kind: 'error',
-        message: err instanceof Error ? err.message : String(err),
-      });
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING). NOTE: the
+      // 403 branch above parses err.message as the raw JSON BODY (internal,
+      // not rendered) — that stays.
+      setState({ kind: 'error', message: localizeError(err, locale) });
     }
-  }, [personId]);
+  }, [personId, locale]);
 
   useEffect(() => {
     void load();
@@ -129,17 +134,20 @@ export function PersonalKbDetailPanel({
     );
   }
   if (state.kind === 'consent-required') {
+    // No consent-grant endpoint exists yet (the gateway personal-KB router
+    // is GET-only) and there is no "Share consent" settings screen — so we
+    // render an honest state instead of directing the owner to a phantom
+    // page or exposing a no-op grant button (no dead-end).
     return (
       <Alert variant="warning" className="mt-6">
         <h2 className="font-display text-xl text-foreground">
-          {pickByLocale(locale, S.personalKbDetail.consentRequiredTitle)}
+          {pickByLocale(locale, P.consentTitle)}
         </h2>
         <p className="mt-3 text-sm">
-          {pickByLocale(locale, S.personalKbDetail.consentBodyBefore)}
-          <strong>
-            {pickByLocale(locale, S.personalKbDetail.consentBodyStrong)}
-          </strong>
-          {pickByLocale(locale, S.personalKbDetail.consentBodyAfter)}
+          {pickByLocale(locale, P.consentBody)}
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {pickByLocale(locale, P.consentNotAvailable)}
         </p>
       </Alert>
     );
@@ -190,7 +198,7 @@ export function PersonalKbDetailPanel({
                 </p>
                 <p className="mt-1 text-xxs text-muted-foreground">
                   {pickByLocale(locale, S.personalKbDetail.captured)}{' '}
-                  {new Date(cell.capturedAt).toLocaleString()} ·{' '}
+                  {new Date(cell.capturedAt).toLocaleString(bcp47For(locale))} ·{' '}
                   {pickByLocale(locale, S.personalKbDetail.confidence)}{' '}
                   {cell.confidence}
                   {cell.sourceTenantId ? (

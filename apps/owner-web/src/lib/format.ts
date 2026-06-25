@@ -28,6 +28,14 @@ import { readLocaleFromDocument, type Locale } from './locale-shared';
 export const LAUNCH_CURRENCY = 'TZS';
 
 /**
+ * Placeholder rendered for a non-finite numeric input (NaN / Infinity /
+ * null / undefined). A formatter must never paint `TZS NaNM` or `NaN%` to
+ * an owner — a missing/bad number degrades to an em-dash, the same
+ * convention `formatCurrency` uses for non-finite amounts.
+ */
+const NON_FINITE_PLACEHOLDER = '—';
+
+/**
  * Resolve the Intl BCP-47 tag from the active locale — the
  * locale-follows-the-user canon. NEVER hardcode `'en-TZ'`/`'en-GB'` in a
  * component; resolve here from the user's chosen language.
@@ -64,6 +72,7 @@ export function formatLargeMoney(
   locale: Locale,
 ): string {
   const code = currencyCode.trim().toUpperCase();
+  if (!Number.isFinite(amount)) return `${code} ${NON_FINITE_PLACEHOLDER}`;
   const abs = Math.abs(amount);
   const sign = amount < 0 ? '-' : '';
   if (abs >= 1_000_000_000) {
@@ -83,14 +92,18 @@ export function formatMoneyMillions(
   valueInMillions: number,
   currencyCode: string,
 ): string {
-  return `${currencyCode.trim().toUpperCase()} ${NUM2.format(valueInMillions)}M`;
+  const code = currencyCode.trim().toUpperCase();
+  if (!Number.isFinite(valueInMillions)) return `${code} ${NON_FINITE_PLACEHOLDER}`;
+  return `${code} ${NUM2.format(valueInMillions)}M`;
 }
 
 export function fmtNum(value: number): string {
+  if (!Number.isFinite(value)) return NON_FINITE_PLACEHOLDER;
   return NUM0.format(value);
 }
 
 export function fmtPct(ratio: number): string {
+  if (!Number.isFinite(ratio)) return NON_FINITE_PLACEHOLDER;
   return `${(ratio * 100).toFixed(1)}%`;
 }
 

@@ -31,6 +31,7 @@ import {
   CURRENCY_CODES,
 } from '@/lib/queries/treasury-advisor';
 import { treasuryAdvisorPanelStrings as T } from '@/i18n/strings/treasury-advisor-panel';
+import { advisorEnumLabel } from './advisor-enum-label';
 
 interface TreasuryAdvisorPanelProps {
   readonly locale: 'sw' | 'en';
@@ -318,7 +319,9 @@ export function TreasuryAdvisorPanel({ locale }: TreasuryAdvisorPanelProps) {
                 <li key={rec.id} className={`rounded-md border px-3 py-2 ${SEVERITY_TONE[rec.severity]}`}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-semibold">{rec.title}</span>
-                    <span className="text-tiny uppercase tracking-wide opacity-70">{rec.kind}</span>
+                    <span className="text-tiny uppercase tracking-wide opacity-70">
+                      {advisorEnumLabel('treasuryRecKind', rec.kind, locale)}
+                    </span>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed opacity-90">{rec.rationale}</p>
                   <div className="mt-1.5 text-tiny uppercase tracking-wide opacity-70">

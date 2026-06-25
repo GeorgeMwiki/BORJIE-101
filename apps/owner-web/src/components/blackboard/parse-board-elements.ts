@@ -3,13 +3,13 @@
  * the brain's reply, validate each payload against the element zod
  * union, and return the body + validated elements.
  *
- * The contract intentionally mirrors LitFin's chat-artifact-stream
+ * The contract intentionally mirrors the reference chat-artifact-stream contract
  * approach (server-safe, framework-free, defensive) so the same
  * parser can run on both the FE (chunk-streamed) and the BE (before
  * the chat body is forwarded as SSE message_chunk events).
  *
  * Defensive policy:
- *  - Caps at 12 elements per turn (LitFin curriculum hits 10-15).
+ *  - Caps at 12 elements per turn (the reference curriculum hits 10-15).
  *  - Drops any payload that fails the discriminated-union schema.
  *  - Strips the tag from the body either way (so the chat bubble
  *    never shows raw XML to the owner).

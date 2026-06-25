@@ -10,6 +10,9 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { Sparkles, Clock } from 'lucide-react';
 import { apiRequest } from '@/lib/api-client';
+import { captureError } from '@/lib/sentry';
+import { pickByLocale } from '@/lib/locale-shared';
+import { bcp47For } from '@/lib/format';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 interface BriefShape {
@@ -19,6 +22,8 @@ interface BriefShape {
     readonly generatedAtIso: string;
     readonly provider: string;
     readonly latencyMs: number;
+    /** ZERO-MIX: locale the advisor prose was pinned to (en default). */
+    readonly lang?: 'en' | 'sw';
   } | null;
 }
 
@@ -38,10 +43,14 @@ export function OwnerOSInsightsPanel({
         const res = await apiRequest<{ brief: BriefShape }>(`/api/v1/owner/brief`);
         setBrief(res.brief ?? null);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Insights unavailable');
+        // Map the raw fetch error to a LOCALISED message — never render the
+        // raw `err.message` into the localised chrome. The detail is emitted
+        // to the trace sink for support.
+        captureError(e, { route: '/api/v1/owner/brief' });
+        setError(pickByLocale(languagePreference, S.insightsPanel.loadError));
       }
     })();
-  }, []);
+  }, [languagePreference]);
 
   return (
     <div className="flex flex-col gap-3" data-testid="owner-os-insights-panel">
@@ -58,15 +67,28 @@ export function OwnerOSInsightsPanel({
       {brief?.advisor ? (
         <article className="rounded border border-warning/40 bg-warning/5 p-3">
           <p className="flex items-center gap-1 text-tiny uppercase tracking-wide text-warning">
-            <Sparkles aria-hidden="true" className="h-3 w-3" /> Insight
+            <Sparkles aria-hidden="true" className="h-3 w-3" />{' '}
+            {pickByLocale(languagePreference, S.insightsPanel.insightLabel)}
           </p>
-          <p className="mt-1 text-sm leading-relaxed">{brief.advisor.insight}</p>
+          {/* ZERO-MIX: model-authored prose, PINNED server-side to the
+              advisor's locale. Attribute it with `lang` so it is honest and
+              matches the active locale (the gateway withholds a cached note
+              authored in another language). */}
+          <p lang={brief.advisor.lang ?? 'en'} className="mt-1 text-sm leading-relaxed">
+            {brief.advisor.insight}
+          </p>
           <p className="mt-3 flex items-center gap-1 text-tiny uppercase tracking-wide text-warning">
-            <Clock aria-hidden="true" className="h-3 w-3" /> Action
+            <Clock aria-hidden="true" className="h-3 w-3" />{' '}
+            {pickByLocale(languagePreference, S.insightsPanel.actionLabel)}
           </p>
-          <p className="mt-1 text-sm font-semibold">{brief.advisor.action}</p>
+          <p lang={brief.advisor.lang ?? 'en'} className="mt-1 text-sm font-semibold">
+            {brief.advisor.action}
+          </p>
           <p className="mt-3 text-tiny text-neutral-500">
-            {brief.advisor.provider} · {brief.advisor.latencyMs}ms · {new Date(brief.advisor.generatedAtIso).toLocaleString()}
+            {brief.advisor.provider} · {brief.advisor.latencyMs}ms ·{' '}
+            {new Date(brief.advisor.generatedAtIso).toLocaleString(
+              bcp47For(languagePreference),
+            )}
           </p>
         </article>
       ) : brief ? (
@@ -76,7 +98,9 @@ export function OwnerOSInsightsPanel({
             : S.insightsPanel.unavailable.en}
         </p>
       ) : (
-        <p className="text-tiny text-neutral-500">Loading…</p>
+        <p className="text-tiny text-neutral-500">
+          {pickByLocale(languagePreference, S.insightsPanel.loading)}
+        </p>
       )}
     </div>
   );

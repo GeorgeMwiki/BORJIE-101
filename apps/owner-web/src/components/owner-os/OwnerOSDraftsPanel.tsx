@@ -13,6 +13,8 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { FileSignature, Sparkles } from 'lucide-react';
 import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
+import { pickByLocale } from '@/lib/locale-shared';
+import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
 
 interface TemplateRow {
   readonly id: string;
@@ -51,8 +53,8 @@ export function OwnerOSDraftsPanel({
           `/api/v1/owner/forms/templates`,
         );
         setTemplates(res.templates ?? []);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Load failed');
+      } catch {
+        setError(pickByLocale(languagePreference, S.draftsPanel.loadFailed));
       }
     })();
   }, []);
@@ -70,8 +72,8 @@ export function OwnerOSDraftsPanel({
         },
       });
       setDraft(res);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Draft failed');
+    } catch {
+      setError(pickByLocale(languagePreference, S.draftsPanel.draftFailed));
     } finally {
       setDrafting(null);
     }

@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { Skeleton } from '@borjie/design-system';
 import { useSiteCockpit } from '@/lib/queries/site-cockpit';
-import { ApiError } from '@/lib/api-client';
+import { ApiError, localizeError } from '@/lib/api-client';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 import { Tabs, type TabId } from './Tabs';
 import { ShiftReportCard } from './ShiftReportCard';
@@ -14,10 +14,14 @@ import { CostTable } from './CostTable';
 
 interface SiteCockpitSurfaceProps {
   readonly siteId: string;
+  readonly initialLocale?: Locale;
 }
 
-export function SiteCockpitSurface({ siteId }: SiteCockpitSurfaceProps) {
-  const locale = useLocale();
+export function SiteCockpitSurface({
+  siteId,
+  initialLocale,
+}: SiteCockpitSurfaceProps) {
+  const locale = useLocale(initialLocale);
   const { data, isLoading, isError, error } = useSiteCockpit(siteId);
   const [tab, setTab] = useState<TabId>('shift');
 
@@ -39,11 +43,9 @@ export function SiteCockpitSurface({ siteId }: SiteCockpitSurfaceProps) {
             ? pickByLocale(locale, S.siteSurface.notFoundBody)
             : pickByLocale(
                 locale,
-                S.siteSurface.errorBody(
-                  error instanceof Error
-                    ? error.message
-                    : pickByLocale(locale, S.siteSurface.tryAgain),
-                ),
+                // Localize by stable CODE — never the raw English `.message`
+                // under `sw` (language MIXING).
+                S.siteSurface.errorBody(localizeError(error, locale)),
               )
         }
       />
@@ -64,12 +66,13 @@ export function SiteCockpitSurface({ siteId }: SiteCockpitSurfaceProps) {
           latest={data.latestShift}
           blockers={data.blockers}
           photos={data.photos}
+          initialLocale={locale}
         />
       ) : null}
       {tab === 'geology' ? (
         <GeologyGauge score={data.geologyScore} trend={data.geologyTrend} />
       ) : null}
-      {tab === 'cost' ? <CostTable costs={data.costs} /> : null}
+      {tab === 'cost' ? <CostTable costs={data.costs} initialLocale={locale} /> : null}
     </Tabs>
   );
 }

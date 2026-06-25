@@ -96,4 +96,11 @@ export const askEmptyStateStrings = {
     en: 'Loading thread history…',
     sw: 'Inapakia historia ya mazungumzo…',
   },
+  // — Suspense boundary fallback (ask/page.tsx). Server-rendered before the
+  //   client surface mounts; localized from the server-resolved session
+  //   locale so the first paint is single-language (no hardcoded English). —
+  surfaceSuspenseFallback: {
+    en: 'Loading Ask Borjie…',
+    sw: 'Inapakia Uliza Borjie…',
+  },
 } as const;

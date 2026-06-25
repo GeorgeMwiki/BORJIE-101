@@ -2,8 +2,11 @@ import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { MarketplaceBoard } from '@/components/marketplace/MarketplaceBoard';
+import { OfftakeContractsPanel } from '@/components/marketplace/OfftakeContractsPanel';
 import { RecommendationsPanel } from '@/components/recommendations/RecommendationsPanel';
 import { getOwnerSession } from '@/lib/session';
+import { pickByLocale } from '@/lib/locale-shared';
+import { marketplacePageStrings as S } from '@/i18n/strings/marketplace-page';
 
 /**
  * O-W-20 — Marketplace & external partners.
@@ -15,7 +18,7 @@ import { getOwnerSession } from '@/lib/session';
  */
 export default async function MarketplacePage() {
   const session = await getOwnerSession();
-  const isSw = session.languagePreference === 'sw';
+  const locale = session.languagePreference;
   return (
     <div className="space-y-8 px-8 py-8">
       <PageHero
@@ -26,7 +29,7 @@ export default async function MarketplacePage() {
               href="/sales"
               className="inline-flex items-center gap-2 rounded-full bg-signal-500 px-4 py-2 text-xs font-semibold text-background hover:bg-signal-400"
             >
-              {isSw ? 'Tangaza parcel mpya' : 'List new ore parcel'}
+              {pickByLocale(locale, S.listParcel)}
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
             <Link
@@ -34,16 +37,19 @@ export default async function MarketplacePage() {
               className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              {isSw ? 'Linganisha bei' : 'Compare prices'}
+              {pickByLocale(locale, S.comparePrices)}
             </Link>
           </>
         }
       />
       <MarketplaceBoard locale={session.languagePreference} />
+      {/* Offtake ledger — binding supply contracts crystallized when the
+          owner accepts a bid, split by signature lifecycle. */}
+      <OfftakeContractsPanel locale={session.languagePreference} />
       {/* Smart Matches — the REAL @borjie/recommendations engine ranks
           buyers↔mines / workers↔sites / suppliers↔mines over the tenant's
           live listings + reputation, server-side, with evidence rows. */}
-      <RecommendationsPanel />
+      <RecommendationsPanel locale={session.languagePreference} />
     </div>
   );
 }

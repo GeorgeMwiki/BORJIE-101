@@ -27,6 +27,7 @@ import {
   SelectItem,
 } from '@borjie/design-system';
 import { useSitesList } from '@/lib/queries/sites';
+import { localizeError } from '@/lib/api-client';
 import {
   useDispatchRfbToManager,
   type DispatchRfbResult,
@@ -86,8 +87,9 @@ export function RfbDispatchPanel({
       });
       setToast(result);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Dispatch failed';
-      setErrorMsg(msg);
+      // Localize the gateway error by its stable CODE — never the raw English
+      // `.message` (rendering that under `sw` is language MIXING).
+      setErrorMsg(localizeError(err, locale));
     }
   }
 

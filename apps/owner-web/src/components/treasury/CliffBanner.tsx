@@ -76,7 +76,6 @@ export function CliffBanner({ locale }: CliffBannerProps) {
                 cliffDate,
                 postCliffSales: live.postCliffSales,
                 usdDenominated: live.usdDenominated,
-                note: live.note ?? '',
               })[locale]
             }
           </div>

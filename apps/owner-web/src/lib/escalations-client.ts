@@ -33,9 +33,26 @@ export type EscalationSeverity = (typeof ESCALATION_SEVERITIES)[number];
 export type EscalationStatus = (typeof ESCALATION_STATUSES)[number];
 
 /**
- * Mirrors the camelCase keys Drizzle returns from
- * `db.select().from(miningEscalations)` in escalations.hono.ts. Timestamp
- * columns serialize to ISO strings over JSON.
+ * Locale-neutral escalation body. The gateway projects every row onto a
+ * `{ en, sw }` pair (English from the additive `context` jsonb side-channel,
+ * Swahili from the `context_sw` column) so the WIRE carries BOTH languages and
+ * the RENDER picks the active locale — no single-language prose crosses the
+ * wire. `en` is null for legacy rows that predate the locale-neutral writer
+ * (English was never captured); the panel renders a localized placeholder for
+ * those rather than the Swahili prose (which would be language-mixing).
+ */
+export const escalationContextSchema = z.object({
+  en: z.string().nullable(),
+  sw: z.string(),
+});
+
+export type EscalationContext = z.infer<typeof escalationContextSchema>;
+
+/**
+ * Mirrors the projected wire shape from `escalations.hono.ts`
+ * (`projectEscalation`): the raw `context_sw` column is replaced by a
+ * locale-neutral `context: { en, sw }` pair. Timestamp columns serialize to
+ * ISO strings over JSON.
  */
 export const miningEscalationRowSchema = z.object({
   id: z.string(),
@@ -45,7 +62,7 @@ export const miningEscalationRowSchema = z.object({
   toRole: z.string().nullable(),
   sourceKind: z.string(),
   sourceId: z.string().nullable(),
-  contextSw: z.string(),
+  context: escalationContextSchema,
   severity: z.enum(ESCALATION_SEVERITIES),
   status: z.enum(ESCALATION_STATUSES),
   acknowledgedAt: z.string().nullable(),

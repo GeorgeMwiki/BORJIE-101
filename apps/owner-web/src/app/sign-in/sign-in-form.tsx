@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useT } from '@/i18n/t.client';
-import type { Locale } from '@/lib/locale';
+import { useLocale, type Locale } from '@/lib/locale';
+import { localizeError } from '@/lib/api-client';
 
 interface FormState {
   readonly phase: 'idle' | 'submitting' | 'error';
@@ -38,6 +39,7 @@ export function SignInForm({ initialLocale }: SignInFormProps = {}) {
   const router = useRouter();
   const params = useSearchParams();
   const t = useT(initialLocale);
+  const locale = useLocale(initialLocale);
   const next = params.get('next') ?? '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -69,20 +71,20 @@ export function SignInForm({ initialLocale }: SignInFormProps = {}) {
         password: parsed.data.password,
       });
       if (error) {
+        // Supabase returns an English `error.message` ("Invalid login
+        // credentials") — rendering it under `sw` is language MIXING. Show the
+        // localized sign-in-failed copy instead (single-language per locale).
         setState({
           phase: 'error',
-          error: error.message ?? t('auth.signIn.errorSignInFailed'),
+          error: t('auth.signIn.errorSignInFailed'),
         });
         return;
       }
       router.replace(next);
       router.refresh();
     } catch (err) {
-      setState({
-        phase: 'error',
-        error:
-          err instanceof Error ? err.message : t('auth.signIn.errorNetwork'),
-      });
+      // Localize by stable CODE — never the raw English `.message` under `sw`.
+      setState({ phase: 'error', error: localizeError(err, locale) });
     }
   }
 

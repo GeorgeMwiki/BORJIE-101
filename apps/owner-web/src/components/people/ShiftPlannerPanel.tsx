@@ -23,14 +23,17 @@ import {
 } from '@borjie/design-system';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
 import { shiftPlannerPanelStrings as M } from '@/i18n/strings/shift-planner-panel';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
 import {
   useShiftPlan,
   useShiftRoster,
+  type Certification,
   type EquipmentKind,
   type RosterEquipment,
   type ShiftKind,
   type ShiftPlanRequest,
   type ShiftTaskInput,
+  type TaskZone,
 } from '@/lib/queries/shift-planner';
 
 interface ShiftPlannerPanelProps {
@@ -79,6 +82,222 @@ function severityTone(severity: string): string {
     default:
       return 'border-border bg-surface text-muted-foreground';
   }
+}
+
+/**
+ * Localized render of a compliance-rule status pill. A passing rule reads
+ * "OK"/"Sawa"; a failing rule renders its severity word in the active
+ * locale (never the raw English enum token), per the zero-mix canon.
+ */
+function complianceStatusLabel(
+  pass: boolean,
+  severity: string,
+  isSw: boolean,
+): string {
+  if (pass) return isSw ? M.compliance.statusOk.sw : M.compliance.statusOk.en;
+  const leaf = M.compliance.severity[severity as keyof typeof M.compliance.severity];
+  if (leaf) return isSw ? leaf.sw : leaf.en;
+  return isSw ? M.compliance.severityUnknown.sw : M.compliance.severityUnknown.en;
+}
+
+// ── Language-neutral planner projection (gateway `data.structured`) ─────
+// The gateway returns stable enum keys + numeric parts so the cockpit can
+// render these surfaces in the active locale (no English prose crosses the
+// wire). We resolve the {en,sw} copy here via `pickByLocale`, composing the
+// whole localized template (never concatenating across languages).
+
+type RuleKey = keyof typeof M.rule;
+
+interface StructuredUnassigned {
+  readonly taskId: string;
+  readonly reasonKey: 'no-certified-worker' | 'no-matching-equipment' | 'all-assigned';
+  readonly certifications?: ReadonlyArray<Certification>;
+  readonly equipmentKinds?: ReadonlyArray<EquipmentKind>;
+}
+
+interface StructuredRotationAlert {
+  readonly workerId: string;
+  readonly atISO: string;
+  readonly rotationHours: number;
+  readonly zone: TaskZone;
+}
+
+interface StructuredComplianceResult {
+  readonly ruleKey: string;
+  readonly pass: boolean;
+  readonly severity: string;
+  readonly affectedCount: number;
+  readonly affectedWorkerIds: ReadonlyArray<string>;
+}
+
+interface StructuredBlockingFailure {
+  readonly ruleKey: string;
+  readonly severity: string;
+  readonly affectedCount: number;
+}
+
+interface StructuredPlanner {
+  readonly unassignedTasks: ReadonlyArray<StructuredUnassigned>;
+  readonly rotationAlerts: ReadonlyArray<StructuredRotationAlert>;
+  readonly compliance: {
+    readonly results: ReadonlyArray<StructuredComplianceResult>;
+    readonly blockingFailures: ReadonlyArray<StructuredBlockingFailure>;
+  };
+  readonly labelContext: {
+    readonly ambientTemperatureC: number;
+    readonly thresholds: {
+      readonly maxShiftHours: number;
+      readonly minRestHours: number;
+      readonly maxConsecutiveDays: number;
+      readonly undergroundMaxWeeklyHours: number;
+      readonly hazardRotationHours: number;
+      readonly heatStressTempC: number;
+      readonly safetyBriefingMaxAgeHours: number;
+    };
+  };
+}
+
+/** Localized hazard-zone word (single-locale, never the raw enum token). */
+function zoneLabel(zone: TaskZone, locale: Locale): string {
+  const leaf = M.zone[zone];
+  return leaf ? pickByLocale(locale, leaf) : zone;
+}
+
+type RosterFlagKey = keyof typeof M.rosterFlag;
+
+/**
+ * Resolve a gateway roster-honesty flag CODE to its label in the active
+ * locale. The gateway emits stable UPPER_SNAKE codes (no English prose on the
+ * wire); an unrecognized future code falls back to a visible single-locale
+ * `unknown` label — never the other language's text (zero-mix canon).
+ */
+function rosterFlagLabel(code: string, locale: Locale): string {
+  const leaf =
+    code in M.rosterFlag
+      ? M.rosterFlag[code as RosterFlagKey]
+      : M.rosterFlag.unknown;
+  return pickByLocale(locale, leaf);
+}
+
+/** Comma-joined, fully-localized certification list for a reason template. */
+function certListLabel(
+  certifications: ReadonlyArray<Certification>,
+  locale: Locale,
+): string {
+  if (certifications.length === 0) {
+    return pickByLocale(locale, M.unassignedReason.listEmpty);
+  }
+  return certifications
+    .map((c) => {
+      const leaf = M.certification[c];
+      return leaf ? pickByLocale(locale, leaf) : c;
+    })
+    .join(', ');
+}
+
+/** Comma-joined, fully-localized equipment-kind list for a reason template. */
+function equipmentListLabel(
+  kinds: ReadonlyArray<EquipmentKind>,
+  locale: Locale,
+): string {
+  if (kinds.length === 0) {
+    return pickByLocale(locale, M.unassignedReason.listEmpty);
+  }
+  return kinds
+    .map((k) => {
+      const leaf = M.equipmentKind[k];
+      return leaf ? pickByLocale(locale, leaf) : k;
+    })
+    .join(', ');
+}
+
+/** Compose the unfilled-task reason in the active locale. */
+function unassignedReasonLabel(
+  u: StructuredUnassigned,
+  locale: Locale,
+): string {
+  if (u.reasonKey === 'no-certified-worker') {
+    return pickByLocale(locale, M.unassignedReason['no-certified-worker']).replace(
+      '{list}',
+      certListLabel(u.certifications ?? [], locale),
+    );
+  }
+  if (u.reasonKey === 'no-matching-equipment') {
+    return pickByLocale(locale, M.unassignedReason['no-matching-equipment']).replace(
+      '{list}',
+      equipmentListLabel(u.equipmentKinds ?? [], locale),
+    );
+  }
+  return pickByLocale(locale, M.unassignedReason['all-assigned']);
+}
+
+/** Compose the hazard-rotation alert line in the active locale. */
+function rotationAlertLabel(
+  r: StructuredRotationAlert,
+  locale: Locale,
+): string {
+  return pickByLocale(locale, M.rotationAlert.template)
+    .replace('{hours}', String(r.rotationHours))
+    .replace('{zone}', zoneLabel(r.zone, locale));
+}
+
+/** Compose the OSHA rule label in the active locale (interpolated thresholds). */
+function ruleLabelText(
+  ruleKey: string,
+  ctx: StructuredPlanner['labelContext'],
+  locale: Locale,
+): string {
+  const rule = M.rule[ruleKey as RuleKey];
+  if (!rule || !('label' in rule)) {
+    return pickByLocale(locale, M.rule.unknownLabel);
+  }
+  const t = ctx.thresholds;
+  return pickByLocale(locale, rule.label)
+    .replace('{h1}', String(t.maxShiftHours))
+    .replace('{h2}', String(t.minRestHours))
+    .replace('{days}', String(t.maxConsecutiveDays))
+    .replace('{wk}', String(t.undergroundMaxWeeklyHours))
+    .replace('{temp}', String(t.heatStressTempC));
+}
+
+/** Compose the OSHA rule detail in the active locale (pass/fail + counts). */
+function ruleDetailText(
+  r: StructuredComplianceResult,
+  ctx: StructuredPlanner['labelContext'],
+  locale: Locale,
+): string {
+  const rule = M.rule[r.ruleKey as RuleKey];
+  if (!rule || !('detailPass' in rule)) {
+    return pickByLocale(locale, M.rule.unknownDetail);
+  }
+  if (r.pass) return pickByLocale(locale, rule.detailPass);
+  return pickByLocale(locale, rule.detailFail)
+    .replace('{n}', String(r.affectedCount))
+    .replace('{ambient}', String(ctx.ambientTemperatureC));
+}
+
+/** Compose one blocking-failure line in the active locale. */
+function blockingFailureLabel(
+  f: StructuredBlockingFailure,
+  ctx: StructuredPlanner['labelContext'],
+  locale: Locale,
+): string {
+  const label = ruleLabelText(f.ruleKey, ctx, locale);
+  // A blocking failure is always a FAIL; reuse the fail-detail composer.
+  const detail = ruleDetailText(
+    {
+      ruleKey: f.ruleKey,
+      pass: false,
+      severity: f.severity,
+      affectedCount: f.affectedCount,
+      affectedWorkerIds: [],
+    },
+    ctx,
+    locale,
+  );
+  return pickByLocale(locale, M.blockingFailure.template)
+    .replace('{label}', label)
+    .replace('{detail}', detail);
 }
 
 /**
@@ -161,6 +380,13 @@ export function ShiftPlannerPanel({
   }
 
   const result = plan.data;
+  // The gateway attaches a language-neutral `structured` projection (stable
+  // keys + numeric parts) alongside the legacy English `plan` / `compliance`.
+  // It is not in the shared query type yet (out-of-scope file), so read it
+  // through a narrow local view — the cockpit renders ONLY from `structured`
+  // for the rule/severity/reason/rotation/blocking surfaces.
+  const structured = (result as unknown as { structured?: StructuredPlanner })
+    ?.structured;
   const canPlan =
     Boolean(siteId) && workers.length > 0 && equipment.length > 0;
 
@@ -178,7 +404,7 @@ export function ShiftPlannerPanel({
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             {(roster.data?.flags ?? []).map((flag, i) => (
               <li key={i} className="leading-relaxed">
-                {flag}
+                {rosterFlagLabel(flag, locale)}
               </li>
             ))}
           </ul>
@@ -339,34 +565,36 @@ export function ShiftPlannerPanel({
               </ul>
             )}
 
-            {result.plan.unassignedTasks.length > 0 ? (
+            {(structured?.unassignedTasks.length ?? 0) > 0 ? (
               <div className="border-t border-border px-5 py-4">
                 <h3 className="flex items-center gap-2 text-xs font-semibold text-warning">
                   <XCircle className="h-3.5 w-3.5" />
                   {isSw ? M.assignments.unfilled.sw : M.assignments.unfilled.en}
                 </h3>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {result.plan.unassignedTasks.map((t) => (
+                  {(structured?.unassignedTasks ?? []).map((t) => (
                     <li key={t.taskId}>
                       <span className="font-medium text-muted-foreground">
                         {t.taskId}
                       </span>{' '}
-                      — {t.reason}
+                      &mdash; {unassignedReasonLabel(t, locale)}
                     </li>
                   ))}
                 </ul>
               </div>
             ) : null}
 
-            {result.plan.rotationAlerts.length > 0 ? (
+            {(structured?.rotationAlerts.length ?? 0) > 0 ? (
               <div className="border-t border-border px-5 py-4">
                 <h3 className="flex items-center gap-2 text-xs font-semibold text-info">
                   <AlertTriangle className="h-3.5 w-3.5" />
                   {isSw ? M.assignments.rotationAlerts.sw : M.assignments.rotationAlerts.en}
                 </h3>
                 <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
-                  {result.plan.rotationAlerts.map((r, i) => (
-                    <li key={`${r.workerId}-${i}`}>{r.label}</li>
+                  {(structured?.rotationAlerts ?? []).map((r, i) => (
+                    <li key={`${r.workerId}-${i}`}>
+                      {rotationAlertLabel(r, locale)}
+                    </li>
                   ))}
                 </ul>
               </div>
@@ -397,11 +625,13 @@ export function ShiftPlannerPanel({
               </span>
             </header>
             <ul className="divide-y divide-border/60">
-              {result.compliance.results.map((r) => (
-                <li key={r.ruleId} className="px-5 py-3 text-xs">
+              {(structured?.compliance.results ?? []).map((r) => (
+                <li key={r.ruleKey} className="px-5 py-3 text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium text-foreground">
-                      {r.ruleLabel}
+                      {structured
+                        ? ruleLabelText(r.ruleKey, structured.labelContext, locale)
+                        : null}
                     </span>
                     <span
                       className={`shrink-0 rounded-full border px-2 py-0.5 font-mono ${
@@ -410,21 +640,29 @@ export function ShiftPlannerPanel({
                           : severityTone(r.severity)
                       }`}
                     >
-                      {r.pass ? 'ok' : r.severity}
+                      {complianceStatusLabel(r.pass, r.severity, isSw)}
                     </span>
                   </div>
-                  <div className="mt-1 text-muted-foreground">{r.detail}</div>
+                  <div className="mt-1 text-muted-foreground">
+                    {structured
+                      ? ruleDetailText(r, structured.labelContext, locale)
+                      : null}
+                  </div>
                 </li>
               ))}
             </ul>
-            {result.compliance.blockingFailures.length > 0 ? (
+            {(structured?.compliance.blockingFailures.length ?? 0) > 0 ? (
               <div className="border-t border-border px-5 py-4">
                 <h3 className="text-xs font-semibold text-danger">
                   {isSw ? M.compliance.blocking.sw : M.compliance.blocking.en}
                 </h3>
                 <ul className="mt-2 list-disc space-y-1 pl-4 text-xs text-muted-foreground">
-                  {result.compliance.blockingFailures.map((f, i) => (
-                    <li key={i}>{f}</li>
+                  {(structured?.compliance.blockingFailures ?? []).map((f, i) => (
+                    <li key={`${f.ruleKey}-${i}`}>
+                      {structured
+                        ? blockingFailureLabel(f, structured.labelContext, locale)
+                        : null}
+                    </li>
                   ))}
                 </ul>
               </div>

@@ -13,6 +13,7 @@ import { FileText, MessageSquare, Sparkles } from 'lucide-react';
 import { Button } from '@borjie/design-system';
 import { apiRequest } from '@/lib/api-client';
 import { ownerOsAStrings as S } from '@/i18n/strings/owner-os-a';
+import { pickByLocale } from '@/lib/locale-shared';
 
 interface DocRow {
   readonly id: string;
@@ -51,9 +52,9 @@ export function OwnerOSDocsPanel({
           `/api/v1/owner/docs?limit=50`,
         );
         if (!cancelled) setDocs(res.documents ?? []);
-      } catch (e) {
+      } catch {
         if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load docs');
+          setError(pickByLocale(languagePreference, S.docsPanel.loadFailed));
           setDocs([]);
         }
       }
@@ -82,8 +83,8 @@ export function OwnerOSDocsPanel({
         body: { language: languagePreference },
       });
       setExplanation({ documentId: res.documentId, summary: res.summary });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Explain failed');
+    } catch {
+      setError(pickByLocale(languagePreference, S.docsPanel.explainFailed));
     } finally {
       setExplaining(null);
     }
@@ -117,7 +118,11 @@ export function OwnerOSDocsPanel({
       ) : null}
 
       {docs === null ? (
-        <p className="text-tiny text-neutral-500">Loading…</p>
+        <p className="text-tiny text-neutral-500">
+          {languagePreference === 'sw'
+            ? S.docsPanel.loading.sw
+            : S.docsPanel.loading.en}
+        </p>
       ) : docs.length === 0 ? (
         <p className="text-tiny text-neutral-500">
           {languagePreference === 'sw'

@@ -8,10 +8,11 @@ import { useMutation } from '@tanstack/react-query';
 import { Send, Loader2 } from 'lucide-react';
 import type { DocumentRecord } from '@/lib/types/documents';
 import { askDocument, type DocChatAnswer } from '@/lib/queries/doc-chat';
-import { useLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { docChatStrings as S } from '@/i18n/strings/doc-chat';
 
 const schema = z.object({
-  question: z.string().min(2, 'Type at least 2 chars.'),
+  question: z.string().min(2),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -54,7 +55,10 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
     mutationFn: (question: string): Promise<DocChatAnswer> =>
       askDocument({ documentId: document.id, question, language: locale }),
     onSuccess: (result) => {
-      setMessages((prev) => [...prev, buildAgentMessage(document, result)]);
+      setMessages((prev) => [
+        ...prev,
+        buildAgentMessage(document, result, locale),
+      ]);
       // Anchor the PDF preview only when an evidence id maps to a known
       // local chunk; corpus chunk ids that don't match are listed, not
       // forced onto a wrong paragraph.
@@ -81,8 +85,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
       <div className="flex-1 space-y-3 overflow-y-auto px-4 py-3 text-sm">
         {messages.length === 0 && !ask.isPending ? (
           <p className="text-muted-foreground">
-            Ask a question about {document.title}. Every answer is grounded in
-            evidence drawn only from this document.
+            {pickByLocale(locale, S.intro(document.title))}
           </p>
         ) : null}
         {messages.map((m) => (
@@ -91,7 +94,9 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
             className={`max-w-md ${m.role === 'owner' ? '' : 'ml-auto text-right'}`}
           >
             <div className="text-tiny text-muted-foreground">
-              {m.role === 'owner' ? 'Owner' : 'Document agent'}
+              {m.role === 'owner'
+                ? pickByLocale(locale, S.roleOwner)
+                : pickByLocale(locale, S.roleAgent)}
             </div>
             <div
               className={`mt-0.5 rounded-md px-2 py-1.5 text-sm ${
@@ -109,7 +114,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
                       type="button"
                       onClick={() => onAnchor(eid)}
                       className="rounded-full border border-warning/40 px-2 py-0.5 font-mono text-tiny text-warning hover:underline"
-                      title="Evidence chunk"
+                      title={pickByLocale(locale, S.evidenceTitle)}
                     >
                       {eid.slice(0, 8)}
                     </button>
@@ -121,8 +126,8 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
         ))}
         {ask.isPending ? (
           <div className="ml-auto flex max-w-md items-center justify-end gap-2 text-tiny text-muted-foreground">
-            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching this
-            document…
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />{' '}
+            {pickByLocale(locale, S.searching)}
           </div>
         ) : null}
         {ask.isError ? (
@@ -130,8 +135,13 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
             role="alert"
             className="ml-auto max-w-md rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1.5 text-right text-sm text-destructive"
           >
-            Could not reach the document agent:{' '}
-            {(ask.error as Error)?.message ?? 'unknown error'}
+            {pickByLocale(
+              locale,
+              S.agentUnreachable(
+                (ask.error as Error)?.message ??
+                  pickByLocale(locale, S.unknownError),
+              ),
+            )}
           </div>
         ) : null}
       </div>
@@ -142,7 +152,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
         <input
           {...register('question')}
           disabled={ask.isPending}
-          placeholder="What does the licence say about the annual royalty?"
+          placeholder={pickByLocale(locale, S.inputPlaceholder)}
           className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-warning disabled:opacity-60"
         />
         <button
@@ -150,12 +160,12 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
           disabled={ask.isPending}
           className="inline-flex items-center gap-1 rounded-md border border-warning bg-warning-subtle/30 px-3 py-1.5 text-sm text-warning disabled:opacity-60"
         >
-          <Send className="h-4 w-4" /> Ask
+          <Send className="h-4 w-4" /> {pickByLocale(locale, S.ask)}
         </button>
       </form>
       {errors.question ? (
         <div className="px-3 pb-2 text-xs text-destructive">
-          {errors.question.message}
+          {pickByLocale(locale, S.validationMin)}
         </div>
       ) : null}
     </div>
@@ -171,6 +181,7 @@ export function DocChatPane({ document, onAnchor }: DocChatPaneProps) {
 function buildAgentMessage(
   doc: DocumentRecord,
   result: DocChatAnswer,
+  locale: Locale,
 ): DocMessage {
   const base: DocMessage = {
     id: `am_${Date.now()}`,
@@ -181,17 +192,19 @@ function buildAgentMessage(
   if (result.answer && result.answer.trim().length > 0) {
     return { ...base, content: result.answer };
   }
-  if (result.evidenceIds.length > 0) {
+  const count = result.evidenceIds.length;
+  if (count > 0) {
     return {
       ...base,
       pending: true,
-      content: `I found ${result.evidenceIds.length} relevant passage${
-        result.evidenceIds.length === 1 ? '' : 's'
-      } in ${doc.title}. The written answer is being generated — open a cited passage below to read the source.`,
+      content: pickByLocale(
+        locale,
+        count === 1 ? S.pendingOne(doc.title) : S.pendingMany(doc.title, count),
+      ),
     };
   }
   return {
     ...base,
-    content: `I could not find evidence in ${doc.title} for that question. Try rephrasing, or ask about a topic this document covers.`,
+    content: pickByLocale(locale, S.noEvidence(doc.title)),
   };
 }

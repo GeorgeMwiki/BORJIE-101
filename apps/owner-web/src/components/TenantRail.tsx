@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { apiRequest } from '@/lib/api-client';
+import { captureError } from '@/lib/sentry';
 
 interface TenantMembership {
   readonly tenantId: string;
@@ -45,12 +46,14 @@ function initials(name: string): string {
 export function TenantRail() {
   const [items, setItems] = useState<ReadonlyArray<TenantMembership>>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  // A boolean flag, NOT a raw English `err.message` — the rail has no locale
+  // wiring and must never paint a raw error string. The cause goes to Sentry.
+  const [hasError, setHasError] = useState<boolean>(false);
   const [switching, setSwitching] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setHasError(false);
     try {
       // apiRequest prepends the gateway base, attaches the Supabase Bearer,
       // and unwraps the {success,data} envelope — so this is the rows array.
@@ -60,7 +63,8 @@ export function TenantRail() {
       );
       setItems(data ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      captureError(err, { route: 'tenant-rail.list' });
+      setHasError(true);
     } finally {
       setLoading(false);
     }
@@ -82,7 +86,8 @@ export function TenantRail() {
         // active tenant on every component.
         window.location.reload();
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        captureError(err, { route: 'tenant-rail.switch', extra: { tenantId } });
+        setHasError(true);
         setSwitching(null);
       }
     },
@@ -100,12 +105,11 @@ export function TenantRail() {
     );
   }
 
-  if (error) {
+  if (hasError) {
     return (
       <aside
         aria-label="Tenant rail (error)"
         className="flex w-16 flex-col items-center gap-2 border-r border-border bg-surface py-3"
-        title={`Failed to load tenants: ${error}`}
       >
         <span className="text-xxs text-destructive">!</span>
       </aside>

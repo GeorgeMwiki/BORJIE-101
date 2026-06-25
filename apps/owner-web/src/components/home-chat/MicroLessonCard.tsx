@@ -4,7 +4,7 @@
  * MicroLessonCard — lightweight teaching pane rendered when the brain
  * emits a `micro_lesson` ui_block (image / illustration slot, body
  * paragraph, and footer CTAs). Independent author against
- * Docs/DESIGN/LITFIN_STEPPER_LEARNING_SPEC.md §4 + §12 — sits next to
+ * the owner-chat stepper/learning design spec §4 + §12 — sits next to
  * the heavier ConceptCard for short atomic explanations (BoT gold-
  * window timing, NEMC EIA cycle, LBMA fix mechanics, etc.).
  *

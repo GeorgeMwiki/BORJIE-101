@@ -38,7 +38,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Skeleton, Textarea } from '@borjie/design-system';
 import { apiRequest, ApiError } from '@/lib/api-client';
+import { localizeApiError } from '@borjie/error-catalog';
+
 import { useT } from '@/i18n/t.client';
+import { useLocale } from '@/lib/locale';
 import type { TFn } from '@/i18n/resolve';
 import type { Locale } from '@/lib/locale';
 
@@ -114,6 +117,9 @@ interface FlowsSurfaceProps {
 
 export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
   const t = useT(initialLocale);
+  // Active locale for localising gateway error CODES (never render err.message
+  // raw — that leaks English into an `sw` surface).
+  const locale = useLocale(initialLocale);
   const qc = useQueryClient();
   const flows = useFlows();
   const posture = usePosture();
@@ -324,7 +330,9 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
           >
             <p className="flex items-center gap-2 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              {queue.error instanceof ApiError ? queue.error.message : t('flows.queueLoadFailed')}
+              {queue.error instanceof ApiError
+                ? localizeApiError(queue.error, locale)
+                : t('flows.queueLoadFailed')}
             </p>
             <Button
               type="button"
@@ -359,7 +367,7 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
                 respondError={
                   respond.isError && respond.variables?.id === run.id
                     ? respond.error instanceof ApiError
-                      ? respond.error.message
+                      ? localizeApiError(respond.error, locale)
                       : t('flows.respondFailed')
                     : null
                 }
@@ -383,7 +391,9 @@ export function FlowsSurface({ initialLocale }: FlowsSurfaceProps = {}) {
         ) : pending.isError ? (
           <div className="rounded-xl border border-destructive/40 bg-destructive/10 p-4">
             <p className="text-xs text-destructive">
-              {pending.error instanceof ApiError ? pending.error.message : t('flows.pendingLoadFailed')}
+              {pending.error instanceof ApiError
+                ? localizeApiError(pending.error, locale)
+                : t('flows.pendingLoadFailed')}
             </p>
           </div>
         ) : pendingRuns.length === 0 ? (

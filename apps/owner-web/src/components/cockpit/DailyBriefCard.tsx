@@ -4,7 +4,8 @@ import { Card } from '@borjie/design-system';
 
 import type { BriefItem } from '@/lib/types/cockpit';
 import { useT } from '@/i18n/t.client';
-import { useLocale } from '@/lib/locale';
+import { useLocale, pickByLocale } from '@/lib/locale';
+import { cockpitClusterStrings as S } from '@/i18n/strings/cockpit-cluster';
 import { StatusPill } from '@/components/shared/StatusPill';
 
 interface DailyBriefCardProps {
@@ -45,7 +46,10 @@ export function DailyBriefCard({ items, language }: DailyBriefCardProps) {
         {items.map((item, index) => (
           <li key={index} className="flex items-start gap-3">
             <span className="shrink-0">
-              <StatusPill tone={SEVERITY_TONE[item.severity]} label={item.severity} />
+              <StatusPill
+                tone={SEVERITY_TONE[item.severity]}
+                label={pickByLocale(activeLocale, S.dailyBrief.sev[item.severity])}
+              />
             </span>
             <p className="text-sm leading-snug text-foreground">
               {activeLocale === 'sw' ? item.textSw : item.text}

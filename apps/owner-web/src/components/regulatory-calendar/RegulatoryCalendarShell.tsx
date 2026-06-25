@@ -7,22 +7,16 @@ import {
   type RegulatoryFilingRow,
 } from '@/lib/queries/ops';
 import { MetricStrip, type MetricTile } from '@/components/shared/MetricStrip';
-
-const REGULATOR_OPTIONS: ReadonlyArray<{
-  readonly value: string;
-  readonly labelEn: string;
-}> = [
-  { value: '', labelEn: 'All regulators' },
-  { value: 'mining_commission', labelEn: 'Mining Commission' },
-  { value: 'tra', labelEn: 'TRA' },
-  { value: 'nemc', labelEn: 'NEMC' },
-  { value: 'bot', labelEn: 'BoT' },
-  { value: 'brela', labelEn: 'BRELA' },
-  { value: 'osha', labelEn: 'OSHA' },
-  { value: 'tbs', labelEn: 'TBS' },
-  { value: 'tcra', labelEn: 'TCRA' },
-  { value: 'lhrc', labelEn: 'LHRC' },
-];
+import { useLocale } from '@/lib/locale';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
+import { fmtDateForLocale, fmtMonthYearForLocale } from '@/lib/format';
+import {
+  REGULATOR_OPTION_VALUES,
+  STATUS_OPTION_VALUES,
+  filingStatusLabel,
+  regulatorLabel,
+  regulatoryCalendarStrings as S,
+} from '@/i18n/strings/regulatory-calendar';
 
 const STATUS_TONE: Record<string, string> = {
   scheduled: 'border-info/40 bg-info/5 text-info',
@@ -33,7 +27,20 @@ const STATUS_TONE: Record<string, string> = {
   overdue: 'border-destructive/40 bg-destructive/10 text-destructive',
 };
 
-export function RegulatoryCalendarShell() {
+interface RegulatoryCalendarShellProps {
+  /**
+   * Active locale. Optional so the dynamic / page call sites that don't
+   * thread it still work — they fall back to `useLocale()`, which reads the
+   * server-seeded context + cookie. Pass it where it's already in scope
+   * (e.g. the owner-os panel) to keep SSR + first paint consistent.
+   */
+  readonly locale?: Locale;
+}
+
+export function RegulatoryCalendarShell({
+  locale: localeProp,
+}: RegulatoryCalendarShellProps = {}) {
+  const activeLocale = useLocale(localeProp);
   const [regulator, setRegulator] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const { data, isLoading } = useRegulatoryFilings({
@@ -50,18 +57,32 @@ export function RegulatoryCalendarShell() {
     ).length;
     const scheduled = filings.filter((f) => f.status === 'scheduled').length;
     return [
-      { label: 'Filings', value: String(total), icon: Scale },
       {
-        label: 'Overdue',
+        label: pickByLocale(activeLocale, S.metricFilings),
+        value: String(total),
+        icon: Scale,
+      },
+      {
+        label: pickByLocale(activeLocale, S.metricOverdue),
         value: String(overdue),
         tone: overdue > 0 ? 'danger' : 'default',
       },
-      { label: 'Submitted', value: String(submitted), tone: 'success' },
-      { label: 'Scheduled', value: String(scheduled) },
+      {
+        label: pickByLocale(activeLocale, S.metricSubmitted),
+        value: String(submitted),
+        tone: 'success',
+      },
+      {
+        label: pickByLocale(activeLocale, S.metricScheduled),
+        value: String(scheduled),
+      },
     ];
-  }, [filings]);
+  }, [filings, activeLocale]);
 
-  const grouped = useMemo(() => groupByMonth(filings), [filings]);
+  const grouped = useMemo(
+    () => groupByMonth(filings, activeLocale),
+    [filings, activeLocale],
+  );
 
   return (
     <section className="flex flex-col gap-6">
@@ -73,9 +94,9 @@ export function RegulatoryCalendarShell() {
           onChange={(e) => setRegulator(e.target.value)}
           className="rounded-xl border border-border bg-surface/40 px-3 py-2 text-sm text-foreground"
         >
-          {REGULATOR_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.labelEn}
+          {REGULATOR_OPTION_VALUES.map((value) => (
+            <option key={value || 'all'} value={value}>
+              {regulatorLabel(value, activeLocale)}
             </option>
           ))}
         </select>
@@ -84,21 +105,23 @@ export function RegulatoryCalendarShell() {
           onChange={(e) => setStatusFilter(e.target.value)}
           className="rounded-xl border border-border bg-surface/40 px-3 py-2 text-sm text-foreground"
         >
-          <option value="">All statuses</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="drafting">Drafting</option>
-          <option value="submitted">Submitted</option>
-          <option value="accepted">Accepted</option>
-          <option value="rejected">Rejected</option>
-          <option value="overdue">Overdue</option>
+          {STATUS_OPTION_VALUES.map((value) => (
+            <option key={value || 'all'} value={value}>
+              {value === ''
+                ? pickByLocale(activeLocale, S.allStatuses)
+                : filingStatusLabel(value, activeLocale)}
+            </option>
+          ))}
         </select>
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-neutral-500">Loading filings</p>
+        <p className="text-sm text-neutral-500">
+          {pickByLocale(activeLocale, S.loading)}
+        </p>
       ) : filings.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-10 text-center text-sm text-neutral-400">
-          No filings calendared yet. Ask the brain to add the next one.
+          {pickByLocale(activeLocale, S.empty)}
         </p>
       ) : (
         <div className="flex flex-col gap-6">
@@ -113,7 +136,7 @@ export function RegulatoryCalendarShell() {
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {items.map((f) => (
-                  <FilingCard key={f.id} filing={f} />
+                  <FilingCard key={f.id} filing={f} locale={activeLocale} />
                 ))}
               </div>
             </div>
@@ -124,42 +147,53 @@ export function RegulatoryCalendarShell() {
   );
 }
 
-function FilingCard({ filing }: { readonly filing: RegulatoryFilingRow }) {
+function FilingCard({
+  filing,
+  locale,
+}: {
+  readonly filing: RegulatoryFilingRow;
+  readonly locale: Locale;
+}) {
   const dueDate = new Date(filing.dueAt);
   const daysRemaining = Math.ceil(
     (dueDate.getTime() - Date.now()) / 86_400_000,
   );
   const tone =
     STATUS_TONE[filing.status] ?? 'border-border bg-surface text-neutral-300';
+  const countdown =
+    daysRemaining > 0
+      ? pickByLocale(locale, S.daysRemaining(daysRemaining))
+      : daysRemaining === 0
+        ? pickByLocale(locale, S.dueToday)
+        : pickByLocale(locale, S.daysLate(Math.abs(daysRemaining)));
   return (
     <article className={`flex flex-col gap-2 rounded-2xl border p-4 ${tone}`}>
       <div className="flex items-center justify-between">
         <span className="text-tiny font-semibold uppercase tracking-eyebrow-wide">
-          {filing.regulator.replace(/_/g, ' ')}
+          {regulatorLabel(filing.regulator, locale)}
         </span>
         <span className="text-tiny font-medium uppercase tracking-eyebrow">
-          {filing.status}
+          {filingStatusLabel(filing.status, locale)}
         </span>
       </div>
       <p className="text-sm font-medium text-foreground">{filing.filingType}</p>
       <p className="text-xs text-neutral-400">
-        Due {dueDate.toLocaleDateString()} ·{' '}
-        {daysRemaining > 0
-          ? `${daysRemaining} days`
-          : daysRemaining === 0
-            ? 'today'
-            : `${Math.abs(daysRemaining)} days late`}
+        {pickByLocale(locale, S.due)} {fmtDateForLocale(filing.dueAt, locale)} ·{' '}
+        {countdown}
       </p>
       {filing.referenceNo ? (
         <p className="text-tiny font-mono text-neutral-500">
-          ref {filing.referenceNo}
+          {pickByLocale(locale, S.ref)} {filing.referenceNo}
         </p>
       ) : null}
     </article>
   );
 }
 
-function groupByMonth(filings: ReadonlyArray<RegulatoryFilingRow>): ReadonlyArray<{
+function groupByMonth(
+  filings: ReadonlyArray<RegulatoryFilingRow>,
+  locale: Locale,
+): ReadonlyArray<{
   readonly key: string;
   readonly label: string;
   readonly items: ReadonlyArray<RegulatoryFilingRow>;
@@ -176,11 +210,11 @@ function groupByMonth(filings: ReadonlyArray<RegulatoryFilingRow>): ReadonlyArra
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, items]) => {
       const [year, month] = key.split('-');
-      const label = new Date(
+      const iso = new Date(
         Number(year),
         Number(month) - 1,
         1,
-      ).toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
-      return { key, label, items };
+      ).toISOString();
+      return { key, label: fmtMonthYearForLocale(iso, locale), items };
     });
 }

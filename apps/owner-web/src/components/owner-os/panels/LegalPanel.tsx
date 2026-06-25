@@ -10,6 +10,7 @@ import {
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 import { ownerOsPanelsStrings as P } from '@/i18n/strings/owner-os-panels';
 import { ownerOsBffStrings as B } from '@/i18n/strings/owner-os-bff';
@@ -71,7 +72,7 @@ function legalColumns(
     {
       key: 'status',
       header: isSw ? B.legal.colStatus.sw : B.legal.colStatus.en,
-      render: (r) => r.status ?? '—',
+      render: (r) => enumLabelSw('legalContractStatus', r.status, isSw),
     },
   ];
 }

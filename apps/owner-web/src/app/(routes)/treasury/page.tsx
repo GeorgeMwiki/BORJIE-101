@@ -59,7 +59,7 @@ export default async function TreasuryPage() {
           />
         </div>
       </div>
-      <CommodityTrendPanel />
+      <CommodityTrendPanel initialLocale={locale} />
       <TreasuryAdvisorPanel locale={session.languagePreference} />
     </div>
   );

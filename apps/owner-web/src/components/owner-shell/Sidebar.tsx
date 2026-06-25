@@ -34,6 +34,10 @@ import {
   Banknote,
   FileSearch,
   ListChecks,
+  Landmark,
+  Gem,
+  GitBranch,
+  ArrowLeftRight,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { BorjieLogo, Logomark } from '@borjie/design-system';
@@ -41,7 +45,7 @@ import { cn } from '@borjie/design-system';
 import { useT } from '@/i18n/t.client';
 
 /**
- * Owner-web sidebar — LitFin borrower-portal pattern adapted to Borjie.
+ * Owner-web sidebar — Portal pattern adapted to Borjie.
  *
  * Visual rules mirror `BorrowerSidebar` / `PortalSidebar`:
  *   1. Top: brand mark + tenant strapline.
@@ -120,6 +124,16 @@ const SECTIONS: ReadonlyArray<NavSection> = [
     ],
   },
   {
+    headingKey: 'nav.sectionEstate',
+    items: [
+      { labelKey: 'nav.estate', href: '/estate', icon: Landmark },
+      { labelKey: 'nav.estateEntities', href: '/estate/entities', icon: Building2 },
+      { labelKey: 'nav.estateAssets', href: '/estate/assets', icon: Gem },
+      { labelKey: 'nav.estateCapitalMovements', href: '/estate/capital-movements', icon: ArrowLeftRight },
+      { labelKey: 'nav.estateSuccession', href: '/estate/succession', icon: GitBranch },
+    ],
+  },
+  {
     headingKey: 'nav.sectionCompliance',
     items: [
       { labelKey: 'nav.compliance', href: '/compliance', icon: ShieldCheck },
@@ -144,10 +158,33 @@ const SECTIONS: ReadonlyArray<NavSection> = [
   },
 ];
 
-function isItemActive(href: string, pathname: string | null): boolean {
-  if (!pathname) return false;
+/** Does `href` cover `pathname` (exact or as a path-segment prefix)? */
+function hrefCovers(href: string, pathname: string): boolean {
   if (href === '/') return pathname === '/';
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/**
+ * The single most-specific nav href for the current path. With nested
+ * routes in the nav (e.g. `/estate` and `/estate/assets`), a bare prefix
+ * test would light BOTH the parent and the child — so the longest covering
+ * href wins and only that one renders active. For the flat, non-overlapping
+ * entries this is identical to a plain prefix match.
+ */
+function bestActiveHref(
+  pathname: string | null,
+  sections: ReadonlyArray<NavSection>,
+): string | null {
+  if (!pathname) return null;
+  let best: string | null = null;
+  for (const section of sections) {
+    for (const item of section.items) {
+      if (hrefCovers(item.href, pathname) && item.href.length > (best?.length ?? -1)) {
+        best = item.href;
+      }
+    }
+  }
+  return best;
 }
 
 interface SidebarProps {
@@ -165,6 +202,7 @@ interface SidebarProps {
 export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
   const pathname = usePathname();
   const t = useT(languagePreference);
+  const activeHref = bestActiveHref(pathname, SECTIONS);
 
   return (
     <aside
@@ -215,7 +253,7 @@ export function Sidebar({ tenantName, languagePreference }: SidebarProps) {
             <ul className="space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = isItemActive(item.href, pathname);
+                const active = item.href === activeHref;
                 return (
                   <li key={item.href}>
                     <Link

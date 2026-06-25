@@ -17,6 +17,7 @@ import { fmtDate } from '@/lib/format';
 import { PanelHero } from './PanelHero';
 import { PanelDataTable, type PanelColumn } from './PanelDataTable';
 import { AskMwikilaCta } from './AskMwikilaCta';
+import { enumLabelSw } from './enum-label';
 import type { OwnerOSPanelProps } from './types';
 
 const REPORTS_DESCRIPTOR: OwnerOSTabDescriptor = {
@@ -63,7 +64,7 @@ function reportColumns(
     {
       key: 'kind',
       header: isSw ? P.reports.colKind.sw : P.reports.colKind.en,
-      render: (r) => r.renderKind,
+      render: (r) => enumLabelSw('renderKind', r.renderKind, isSw),
     },
     {
       key: 'title',

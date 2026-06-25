@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { API_BASE } from './api-client';
 import { tailStrings as S } from '@/i18n/strings/tail';
+import { cockpitSseEventsStrings as E } from '@/i18n/strings/cockpit-sse-events';
 
 /** Fill `{token}` placeholders in a tailStrings template. */
 function fill(
@@ -21,15 +22,18 @@ function fill(
  * Cockpit live SSE hook (Roadmap R6).
  *
  * Opens an EventSource against `/api/v1/cockpit/stream` and emits a
- * typed CockpitEvent for every push the gateway delivers. Six event
- * kinds are multiplexed:
+ * typed CockpitEvent for every push the gateway delivers. The gateway
+ * broadcasts EVERY event published on the tenant channel to the owner
+ * stream (cockpit-stream.hono.ts does not filter by kind), so this hook's
+ * `COCKPIT_EVENT_KINDS` allowlist must be a SUPERSET of the owner-targeted
+ * emitted set in `services/api-gateway/src/services/cockpit-events/types.ts`
+ * — any kind missing here is a live pulse the owner silently drops. The
+ * `cockpit-sse.test.ts` contract test enforces the superset relationship.
  *
- *   - decision.recorded
- *   - reminder.fired
- *   - opportunity.scan_completed
- *   - risk.changed
- *   - workforce.shift_event
- *   - compliance.deadline_approaching
+ * Kinds span the original R6 six (decision / reminder / opportunity / risk /
+ * workforce-shift / compliance-deadline), the L6 production posting, the
+ * cross-actor pulses (safety / bids / payroll / Mr. Mwikila / regulator /
+ * task / settlement / licence-renewal), and the CT-5 dynamic-tab CRUD bus.
  *
  * The hook is fully cancellable: unmounting closes the EventSource and
  * the heartbeat ticker is recycled by the browser GC.
@@ -47,6 +51,24 @@ export const COCKPIT_EVENT_KINDS = [
   'workforce.shift_event',
   'compliance.deadline_approaching',
   'production.posted',
+  // ── Owner-relevant cross-actor pulses (RT-1 / #194 / commercial chain).
+  // The gateway broadcasts EVERY tenant-channel event to the owner stream
+  // (cockpit-stream.hono.ts does not filter by kind), so this allowlist
+  // MUST be a superset of the owner-targeted emitted set in
+  // cockpit-events/types.ts — otherwise the owner silently drops a live
+  // pulse the gateway pushed. Each kind below has EN+SW describer copy.
+  'safety.incident_reported',
+  'incident.escalated',
+  'bid.placed',
+  'bid.accepted',
+  'bid.rejected',
+  'payroll.committed',
+  'mwikila.acted',
+  'mwikila.proposes',
+  'regulator.request_received',
+  'task.assigned',
+  'settlement.initiated',
+  'licence.renewal_status_changed',
   // CT-5 — chat-driven dynamic tab CRUD cross-device sync.
   'cockpit.tab.spawned',
   'cockpit.tab.updated',
@@ -119,6 +141,129 @@ export interface ProductionPostedEvent extends BaseEvent {
 }
 
 /**
+ * Owner-relevant cross-actor pulses. These MIRROR the gateway wire types in
+ * `services/api-gateway/src/services/cockpit-events/types.ts` — only the
+ * fields the owner cockpit reads are declared here. The gateway pushes the
+ * full envelope; unread fields are simply ignored by `parseCockpitEvent`.
+ */
+
+/** Worker reported a safety incident — owner + manager pulse. */
+export interface SafetyIncidentReportedEvent extends BaseEvent {
+  readonly kind: 'safety.incident_reported';
+  readonly incidentId: string;
+  readonly siteId: string | null;
+  readonly severity: 'low' | 'medium' | 'high' | 'critical';
+  readonly reportedBy: string;
+  readonly summary: string;
+}
+
+/** Incident escalated up the chain — owner cockpit alert pulse. */
+export interface IncidentEscalatedEvent extends BaseEvent {
+  readonly kind: 'incident.escalated';
+  readonly incidentId: string;
+  readonly fromLevel: string;
+  readonly toLevel: string;
+  readonly escalatedBy: string;
+}
+
+/** Marketplace bid placed on one of the owner's listings — seller pulse. */
+export interface BidPlacedEvent extends BaseEvent {
+  readonly kind: 'bid.placed';
+  readonly bidId: string;
+  readonly parcelId: string | null;
+  readonly amountTzs: number;
+  readonly bidderId: string;
+}
+
+/** Seller accepted a bid — the binding offtake contract was crystallized. */
+export interface BidAcceptedEvent extends BaseEvent {
+  readonly kind: 'bid.accepted';
+  readonly bidId: string;
+  readonly listingId: string | null;
+  readonly offtakeAgreementId: string | null;
+  readonly buyerId: string;
+}
+
+/** Seller rejected a bid. */
+export interface BidRejectedEvent extends BaseEvent {
+  readonly kind: 'bid.rejected';
+  readonly bidId: string;
+  readonly listingId: string | null;
+  readonly buyerId: string;
+}
+
+/** Payroll run committed — owner cockpit treasury pulse. */
+export interface PayrollCommittedEvent extends BaseEvent {
+  readonly kind: 'payroll.committed';
+  readonly payrollRunId: string;
+  readonly periodEnd: string;
+  readonly netTotalTzs: number;
+  readonly headcount: number;
+  readonly committedBy: string;
+}
+
+/** Mr. Mwikila acted on the owner's behalf — "acting on your behalf" inbox. */
+export interface MwikilaActedEvent extends BaseEvent {
+  readonly kind: 'mwikila.acted';
+  readonly actionId: string;
+  readonly actionKind: string;
+  readonly category: string;
+  readonly delegationTier: 'T0' | 'T1' | 'T2' | 'T3';
+  readonly summary: string;
+}
+
+/** Mr. Mwikila drafted a proposal awaiting the owner's approval. */
+export interface MwikilaProposesEvent extends BaseEvent {
+  readonly kind: 'mwikila.proposes';
+  readonly actionId: string;
+  readonly actionKind: string;
+  readonly category: string;
+  readonly delegationTier: 'T0' | 'T1' | 'T2' | 'T3';
+  readonly summary: string;
+}
+
+/** Regulator DSR inbox received a new request — owner cockpit pulse. */
+export interface RegulatorRequestReceivedEvent extends BaseEvent {
+  readonly kind: 'regulator.request_received';
+  readonly requestId: string;
+  readonly regulator: 'pccb' | 'nemc' | 'eiti' | 'tmaa' | 'other';
+  readonly subjectKind: string;
+  readonly dueAt: string;
+  readonly summaryEn: string;
+  readonly summarySw: string;
+}
+
+/** Task assigned to a worker — owner visibility pulse. */
+export interface TaskAssignedEvent extends BaseEvent {
+  readonly kind: 'task.assigned';
+  readonly taskId: string;
+  readonly assigneeId: string;
+  readonly assignedBy: string;
+  readonly title: string;
+  readonly siteId: string | null;
+  readonly priority: 'low' | 'medium' | 'high' | 'urgent';
+}
+
+/** Settlement initiated — owner cockpit treasury pulse. */
+export interface SettlementInitiatedEvent extends BaseEvent {
+  readonly kind: 'settlement.initiated';
+  readonly settlementId: string;
+  readonly cooperativeId: string | null;
+  readonly amountTzs: number;
+  readonly initiatedBy: string;
+}
+
+/** Licence-renewal state transition — owner compliance pulse. */
+export interface LicenceRenewalStatusChangedEvent extends BaseEvent {
+  readonly kind: 'licence.renewal_status_changed';
+  readonly licenceId: string;
+  readonly licenceEventId: string;
+  readonly fromStatus: string;
+  readonly toStatus: string;
+  readonly daysUntilExpiry: number | null;
+}
+
+/**
  * CT-5 — chat-driven dynamic tab CRUD cross-device sync.
  *
  * Every brain-emitted `<tab_spawn>` / `<tab_update>` / `<tab_remove>` /
@@ -174,6 +319,18 @@ export type CockpitEvent =
   | WorkforceShiftEvent
   | ComplianceDeadlineApproachingEvent
   | ProductionPostedEvent
+  | SafetyIncidentReportedEvent
+  | IncidentEscalatedEvent
+  | BidPlacedEvent
+  | BidAcceptedEvent
+  | BidRejectedEvent
+  | PayrollCommittedEvent
+  | MwikilaActedEvent
+  | MwikilaProposesEvent
+  | RegulatorRequestReceivedEvent
+  | TaskAssignedEvent
+  | SettlementInitiatedEvent
+  | LicenceRenewalStatusChangedEvent
   | CockpitTabSpawnedEvent
   | CockpitTabUpdatedEvent
   | CockpitTabRemovedEvent
@@ -290,6 +447,92 @@ export const COCKPIT_EVENT_COPY: Record<
         date: ev.shiftDate,
       });
     },
+  },
+  'safety.incident_reported': {
+    en: (e) =>
+      fill(E.safetyIncident.en, {
+        severity: (e as SafetyIncidentReportedEvent).severity,
+      }),
+    sw: (e) =>
+      fill(E.safetyIncident.sw, {
+        severity: (e as SafetyIncidentReportedEvent).severity,
+      }),
+  },
+  'incident.escalated': {
+    en: (e) =>
+      fill(E.incidentEscalated.en, {
+        level: (e as IncidentEscalatedEvent).toLevel,
+      }),
+    sw: (e) =>
+      fill(E.incidentEscalated.sw, {
+        level: (e as IncidentEscalatedEvent).toLevel,
+      }),
+  },
+  'bid.placed': {
+    en: () => E.bidPlaced.en,
+    sw: () => E.bidPlaced.sw,
+  },
+  'bid.accepted': {
+    en: () => E.bidAccepted.en,
+    sw: () => E.bidAccepted.sw,
+  },
+  'bid.rejected': {
+    en: () => E.bidRejected.en,
+    sw: () => E.bidRejected.sw,
+  },
+  'payroll.committed': {
+    en: (e) =>
+      fill(E.payrollCommitted.en, {
+        headcount: (e as PayrollCommittedEvent).headcount,
+      }),
+    sw: (e) =>
+      fill(E.payrollCommitted.sw, {
+        headcount: (e as PayrollCommittedEvent).headcount,
+      }),
+  },
+  'mwikila.acted': {
+    en: (e) =>
+      fill(E.mwikilaActed.en, {
+        summary: (e as MwikilaActedEvent).summary,
+      }),
+    sw: (e) =>
+      fill(E.mwikilaActed.sw, {
+        summary: (e as MwikilaActedEvent).summary,
+      }),
+  },
+  'mwikila.proposes': {
+    en: (e) =>
+      fill(E.mwikilaProposes.en, {
+        summary: (e as MwikilaProposesEvent).summary,
+      }),
+    sw: (e) =>
+      fill(E.mwikilaProposes.sw, {
+        summary: (e as MwikilaProposesEvent).summary,
+      }),
+  },
+  'regulator.request_received': {
+    en: () => E.regulatorRequest.en,
+    sw: () => E.regulatorRequest.sw,
+  },
+  'task.assigned': {
+    en: (e) =>
+      fill(E.taskAssigned.en, { title: (e as TaskAssignedEvent).title }),
+    sw: (e) =>
+      fill(E.taskAssigned.sw, { title: (e as TaskAssignedEvent).title }),
+  },
+  'settlement.initiated': {
+    en: () => E.settlementInitiated.en,
+    sw: () => E.settlementInitiated.sw,
+  },
+  'licence.renewal_status_changed': {
+    en: (e) =>
+      fill(E.licenceRenewalStatus.en, {
+        status: (e as LicenceRenewalStatusChangedEvent).toStatus,
+      }),
+    sw: (e) =>
+      fill(E.licenceRenewalStatus.sw, {
+        status: (e as LicenceRenewalStatusChangedEvent).toStatus,
+      }),
   },
   'cockpit.tab.spawned': {
     en: (e) =>

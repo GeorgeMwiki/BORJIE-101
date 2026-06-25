@@ -2,7 +2,7 @@
 
 /**
  * Owner cockpit segment error boundary (Next.js convention).
- * LitFin-pattern centred card with a primary retry CTA + secondary
+ * Centred-card pattern with a primary retry CTA + secondary
  * "Back to cockpit". Suppresses digest in production.
  *
  * LOCALE-PURE: the active language is read from the `borjie_locale`

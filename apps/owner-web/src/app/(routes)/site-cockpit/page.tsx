@@ -3,6 +3,8 @@ import { MapPin, Sparkles } from 'lucide-react';
 import { PageHero } from '@/components/shared/PageHero';
 import { SiteCockpitSurface } from '@/components/site-cockpit/SiteCockpitSurface';
 import { getOwnerSession } from '@/lib/session';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { enumLabel } from '@/components/owner-os/panels/enum-label';
 import { routesBStrings as S } from '@/i18n/strings/routes-b';
 
 interface SiteCockpitPageProps {
@@ -23,6 +25,9 @@ export default async function SiteCockpitPage({
 }: SiteCockpitPageProps) {
   const session = await getOwnerSession();
   const isSw = session.languagePreference === 'sw';
+  // Seed the client island from the server-resolved `borjie_locale` cookie so
+  // its first paint matches the SSR `<html lang>` (no EN-under-SW split-brain).
+  const initialLocale = await readLocaleFromServerCookies();
   const { siteId: siteIdParam } = await searchParams;
   const siteId = siteIdParam?.trim() || session.activeSiteId;
   const activeSite = session.sites.find((s) => s.id === siteId);
@@ -59,14 +64,20 @@ export default async function SiteCockpitPage({
               </span>
               <span className="text-muted-foreground">
                 {activeSite.region} - {activeSite.mineral} -{' '}
-                <span className="capitalize">{activeSite.status}</span>
+                <span>
+                  {enumLabel(
+                    'siteStatus',
+                    activeSite.status,
+                    isSw ? 'sw' : 'en',
+                  )}
+                </span>
               </span>
             </div>
           ) : null
         }
       />
       {siteId ? (
-        <SiteCockpitSurface siteId={siteId} />
+        <SiteCockpitSurface siteId={siteId} initialLocale={initialLocale} />
       ) : (
         <div className="rounded-2xl border border-border bg-surface/40 px-6 py-12 text-center text-sm text-muted-foreground">
           {isSw ? S.siteCockpit.noSites.sw : S.siteCockpit.noSites.en}

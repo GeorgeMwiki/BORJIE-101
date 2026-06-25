@@ -4,7 +4,7 @@
  * HomeChatTeach — authenticated chat-first surface that talks to the
  * /api/v1/brain/teach SSE endpoint.
  *
- * SURPASSES LitFin's /api/chat/exploration register on five vectors —
+ * Surpasses the reference chat-exploration register on five vectors —
  * see services/api-gateway/src/routes/brain-teach.hono.ts for the
  * server-side discipline. This component is the client renderer:
  *

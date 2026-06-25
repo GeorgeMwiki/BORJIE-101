@@ -3,13 +3,13 @@
 /**
  * MasteryDial — SVG progress ring used by StepperBar (per step) and
  * MicroLessonCard (per concept). Independent author against the spec
- * at Docs/DESIGN/LITFIN_STEPPER_LEARNING_SPEC.md §2 (Mastery ring).
+ * at the owner-chat stepper/learning design spec §2 (Mastery ring).
  *
  * Pure CSS / inline SVG; no framer-motion (owner-web doesn't ship it).
  * Animation handled via the design-system's `transition-all
  * duration-500` utility for the dashOffset stroke change.
  *
- * Colour ladder (Borjie navy/gold tokens, NOT LitFin copper/teal):
+ * Colour ladder (Borjie navy/gold tokens, never the source kit's copper/teal):
  *   complete  → stroke-emerald-500
  *   ≥ 50%     → stroke-warning           (gold)
  *   > 0       → stroke-warning/60
@@ -25,7 +25,7 @@ import { cn } from '@borjie/design-system';
 export interface MasteryDialProps {
   /** Normalised mastery score in [0, 1]. */
   readonly score: number;
-  /** Diameter in px. Default 36, matches LitFin sidebar. */
+  /** Diameter in px. Default 36, matches the sidebar rhythm. */
   readonly size?: number;
   /** Ring thickness. Default 3. */
   readonly strokeWidth?: number;

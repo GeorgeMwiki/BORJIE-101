@@ -12,7 +12,7 @@ interface OwnerShellProps {
 /**
  * Owner-cockpit shell — sidebar + top bar + scrollable main.
  *
- * Mirrors LitFin's `(borrower)/layout.tsx` portal-shell layout:
+ * The portal-shell layout pattern:
  *   - Outer `flex h-screen` with a sidebar on the left and a flex
  *     column main region on the right.
  *   - Top bar is sticky and contains breadcrumbs + chat / bell /
