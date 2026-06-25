@@ -13,12 +13,6 @@ import {
   // maintenance
   triageMaintenance,
   rankAssignees,
-  // finance
-  draftOwnerStatement,
-  draftArrearsNotices,
-  // comms
-  draftTenantNotices,
-  buildCampaign,
   // hr
   assignToTeamMember,
   // migration
@@ -192,120 +186,6 @@ describe('maintenance.assign_work_order', () => {
   });
 });
 
-describe('finance.draft_owner_statement', () => {
-  it('computes management fee, M-Pesa fees, MRI-net', () => {
-    const r = draftOwnerStatement({
-      ownerId: 'O1',
-      ownerName: 'Mwangi',
-      period: '2026-03',
-      properties: [
-        {
-          propertyId: 'P1',
-          propertyName: 'Kilimani Heights',
-          grossCollectedKes: 100_000,
-          arrearsKes: 0,
-          expensesKes: 10_000,
-          mpesaFeesKes: 500,
-        },
-      ],
-      managementFeePct: 0.08,
-      mriWithheldKes: 7_500,
-    });
-    expect(r.total.managementFeeKes).toBe(8_000);
-    expect(r.total.mriWithheldKes).toBe(7_500);
-    expect(r.total.netDisbursementKes).toBe(74_000);
-    expect(r.rendered).toContain('KES 100,000');
-  });
-});
-
-describe('finance.draft_arrears_notice', () => {
-  it('stratifies by days overdue and escalates risk', () => {
-    const r = draftArrearsNotices({
-      tenants: [
-        { tenantId: 'T1', tenantName: 'Asha', unitLabel: 'A-1', amountKes: 25_000, daysOverdue: 7, locale: 'sw' },
-        { tenantId: 'T2', tenantName: 'Brian', unitLabel: 'B-2', amountKes: 40_000, daysOverdue: 30, locale: 'en' },
-        { tenantId: 'T3', tenantName: 'Carol', unitLabel: 'C-3', amountKes: 60_000, daysOverdue: 60, locale: 'en' },
-      ],
-      propertyName: 'Borjie',
-      thresholds: { gentleMaxDays: 14, firmMaxDays: 45 },
-    });
-    expect(r.summary).toEqual({ gentle: 1, firm: 1, legalWarn: 1, totalKes: 125_000 });
-    expect(r.drafts[0].riskLevel).toBe('MEDIUM');
-    expect(r.drafts[1].riskLevel).toBe('HIGH');
-    expect(r.drafts[2].riskLevel).toBe('CRITICAL');
-    expect(r.drafts[2].body.toLowerCase()).toMatch(/legal/);
-  });
-});
-
-describe('comms.draft_tenant_notice', () => {
-  it('routes to preferred channel and flags missing contact', () => {
-    const r = draftTenantNotices({
-      kind: 'rent_reminder_gentle',
-      locale: 'sw',
-      recipients: [
-        {
-          tenantId: 'T1',
-          tenantName: 'Asha',
-          unitLabel: 'A-1',
-          phone: '0712000001',
-          preferredChannel: 'whatsapp',
-        },
-        {
-          tenantId: 'T2',
-          tenantName: 'Brian',
-          unitLabel: 'B-2',
-          // no contacts
-        },
-      ],
-      defaults: { amountKes: 25_000, date: '2026-03-31', propertyName: 'Borjie' },
-      defaultChannel: 'whatsapp',
-    });
-    expect(r.drafts).toHaveLength(1);
-    expect(r.drafts[0].channel).toBe('whatsapp');
-    expect(r.recipientsWithoutContact).toEqual(['T2']);
-  });
-
-  it('truncates SMS to 160 chars', () => {
-    const r = draftTenantNotices({
-      kind: 'service_charge_notice',
-      locale: 'en',
-      recipients: [
-        {
-          tenantId: 'T1',
-          tenantName: 'Asha',
-          unitLabel: 'A-1',
-          phone: '0712000001',
-          preferredChannel: 'sms',
-        },
-      ],
-      defaults: {
-        amountKes: 5_000,
-        date: '2026-03-31',
-        propertyName: 'Kilimani Heights',
-      },
-      defaultChannel: 'sms',
-    });
-    expect(r.drafts[0].body.length).toBeLessThanOrEqual(160);
-    // Might not truncate if body was already short; this is fine.
-  });
-});
-
-describe('comms.draft_campaign', () => {
-  it('builds a vacancy_fill campaign with steps', () => {
-    const r = buildCampaign({
-      goal: 'vacancy_fill',
-      targetAudienceSize: 50,
-      channels: ['whatsapp', 'sms'],
-      propertyName: 'Kilimani',
-      locale: 'sw',
-      budgetKes: 0,
-    });
-    expect(r.steps.length).toBeGreaterThan(0);
-    expect(r.estimatedConversion).toBeGreaterThan(0);
-    expect(r.kpis.length).toBeGreaterThan(0);
-  });
-});
-
 describe('hr.assign_to_team_member', () => {
   it('ranks active team members with matching skills first', () => {
     const r = assignToTeamMember({
@@ -368,26 +248,18 @@ describe('migration.extract + diff', () => {
   it('extracts from well-named sheets', () => {
     const b = migrationExtract({
       sheets: {
-        properties: [
-          { name: 'Kilimani Heights', city: 'Nairobi', units: 40 },
-        ],
-        units: [
-          { property: 'Kilimani Heights', unit: 'A-1', bedrooms: 2, rent: 45000 },
-          { property: 'Kilimani Heights', unit: 'A-2', bedrooms: 3, rent: 60000 },
-        ],
-        tenants: [
-          { name: 'Asha', unit: 'A-1', phone: '0712000001', rent_kes: 45000 },
+        sites: [
+          { name: 'Geita North Pit', city: 'Geita', type: 'open_pit' },
+          { name: 'Mwanza Plant', city: 'Mwanza', type: 'processing' },
         ],
         employees: [
-          { first_name: 'John', last_name: 'Mwangi', title: 'Caretaker', phone: '0712000002' },
+          { first_name: 'John', last_name: 'Mwangi', title: 'Driller', phone: '0712000002' },
         ],
         departments: [{ code: 'OPS', name: 'Operations' }],
         teams: [{ code: 'MAINT', name: 'Maintenance', department: 'OPS', kind: 'maintenance' }],
       },
     });
-    expect(b.properties).toHaveLength(1);
-    expect(b.units).toHaveLength(2);
-    expect(b.tenants).toHaveLength(1);
+    expect(b.sites).toHaveLength(2);
     expect(b.employees).toHaveLength(1);
     expect(b.employees[0].firstName).toBe('John');
     expect(b.teams[0].kind).toBe('maintenance');
@@ -395,9 +267,7 @@ describe('migration.extract + diff', () => {
 
   it('diffs against existing state', () => {
     const bundle = {
-      properties: [{ name: 'Existing' }, { name: 'New One' }],
-      units: [],
-      tenants: [],
+      sites: [{ name: 'Existing' }, { name: 'New One' }],
       employees: [],
       departments: [],
       teams: [],
@@ -405,35 +275,33 @@ describe('migration.extract + diff', () => {
     const d = migrationDiff({
       bundle,
       existing: {
-        propertyNames: ['Existing'],
-        unitLabelsByProperty: {},
-        tenantNames: [],
+        siteNames: ['Existing'],
         employeeCodes: [],
         departmentCodes: [],
         teamCodes: [],
       },
     });
-    expect(d.toAdd.properties).toBe(1);
+    expect(d.toAdd.sites).toBe(1);
     expect(d.toSkip).toBe(1);
   });
 
-  it('warns about unit referencing unknown property', () => {
+  it('warns about team referencing unknown department', () => {
     const bundle = {
-      properties: [],
-      units: [{ propertyName: 'Ghost', label: 'Z-9' }],
-      tenants: [],
+      sites: [],
       employees: [],
       departments: [],
-      teams: [],
+      teams: [{ code: 'T-9', name: 'Ghost Team', departmentCode: 'GHOST', kind: 'custom' }],
     };
     const d = migrationDiff({ bundle });
-    expect(d.warnings.some((w) => w.includes('Ghost'))).toBe(true);
+    expect(d.warnings.some((w) => w.includes('GHOST'))).toBe(true);
   });
 });
 
 describe('eval scenario bundle', () => {
   it('exposes GOLDEN, EXTENDED, and ALL_SCENARIOS', () => {
-    expect(GOLDEN_SCENARIOS.length).toBeGreaterThanOrEqual(30);
+    // Floor lowered 30 -> 29: the property service-charge scenario was retired
+    // with skill.kenya.service_charge_reconcile (D24 domain purity).
+    expect(GOLDEN_SCENARIOS.length).toBeGreaterThanOrEqual(29);
     expect(EXTENDED_SCENARIOS.length).toBeGreaterThan(0);
     expect(ALL_SCENARIOS.length).toBe(
       GOLDEN_SCENARIOS.length + EXTENDED_SCENARIOS.length

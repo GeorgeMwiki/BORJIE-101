@@ -14,7 +14,7 @@
  *               more relaxed in EA markets because owners there expect
  *               a friendlier relationship tone than in (e.g.) Germany.
  *   tenant    — addresses a tenant. Warm, conversational, faster pace.
- *               Code-switches readily for EA/SA markets for rapport.
+ *               Single active locale only; never mixes languages.
  *   vendor    — addresses a vendor. Precise, professional. No slang; no
  *               "friend" talk; the scope and the price are what matter.
  *   regulator — addresses a tax / housing authority. Formal, precise,
@@ -39,15 +39,11 @@ export const HEAD_PROFILE: VoicePersonaProfile = Object.freeze({
   tone: 'formal',
   pace: { wordsPerMinute: 155, pausesAfterSentence: 'medium' },
   vocabularyRegister: 'professional',
-  codeSwitching: {
-    primary: 'en-KE',
-    allowedInserts: ['sw-KE', 'sw-TZ'],
-    triggerContexts: ['greeting', 'rapport', 'closing'],
-  },
+  // codeSwitching intentionally unset — zero-mix canon (single active locale).
   greetingPatterns: [
     'Good morning. Here is today\'s portfolio briefing.',
     'Good afternoon. Quick update on your estates.',
-    'Habari ya asubuhi. Briefing ya portfolio iko tayari.',
+    'Habari ya asubuhi. Taarifa ya kwingineko iko tayari.',
   ],
   closingPatterns: [
     'That concludes the briefing. Awaiting your direction.',
@@ -75,15 +71,11 @@ export const OWNER_PROFILE: VoicePersonaProfile = Object.freeze({
   tone: 'warm',
   pace: { wordsPerMinute: 160, pausesAfterSentence: 'medium' },
   vocabularyRegister: 'professional',
-  codeSwitching: {
-    primary: 'en-KE',
-    allowedInserts: ['sw-KE', 'sw-TZ'],
-    triggerContexts: ['greeting', 'rapport'],
-  },
+  // codeSwitching intentionally unset — zero-mix canon (single active locale).
   greetingPatterns: [
     'Hello — I have good news on your property.',
     'Hi there, quick update on your units.',
-    'Habari! Karibu update ya property yako.',
+    'Habari! Karibu taarifa mpya kuhusu mali yako.',
   ],
   closingPatterns: [
     'I\'ll keep you posted as things progress.',
@@ -111,11 +103,7 @@ export const TENANT_PROFILE: VoicePersonaProfile = Object.freeze({
   tone: 'warm',
   pace: { wordsPerMinute: 170, pausesAfterSentence: 'short' },
   vocabularyRegister: 'conversational',
-  codeSwitching: {
-    primary: 'en-KE',
-    allowedInserts: ['sw-KE', 'sw-TZ'],
-    triggerContexts: ['greeting', 'rapport', 'reassurance', 'closing'],
-  },
+  // codeSwitching intentionally unset — zero-mix canon (single active locale).
   greetingPatterns: [
     'Hi! Hope you\'re doing well.',
     'Hello — thanks for reaching out.',
@@ -210,11 +198,7 @@ export const APPLICANT_PROFILE: VoicePersonaProfile = Object.freeze({
   tone: 'warm',
   pace: { wordsPerMinute: 165, pausesAfterSentence: 'medium' },
   vocabularyRegister: 'conversational',
-  codeSwitching: {
-    primary: 'en-KE',
-    allowedInserts: ['sw-KE'],
-    triggerContexts: ['greeting', 'closing'],
-  },
+  // codeSwitching intentionally unset — zero-mix canon (single active locale).
   greetingPatterns: [
     'Hi — thanks for applying.',
     'Hello, congratulations on reaching this stage.',

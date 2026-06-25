@@ -42,12 +42,8 @@ const GRAPH_TOOLS = {
 
 const SKILLS = {
   MPESA_RECONCILE: 'skill.kenya.mpesa_reconcile',
-  TRA_ROYALTY_SUMMARY: 'skill.tanzania.tra_royalty_summary',
-  SERVICE_CHARGE_RECONCILE: 'skill.kenya.service_charge_reconcile',
-  SWAHILI_DRAFT: 'skill.kenya.swahili_draft',
+  TRA_ROYALTY_SUMMARY: 'skill.kenya.tra_royalty_summary',
   ASSIGN_TO_TEAM_MEMBER: 'skill.hr.assign_to_team_member',
-  DRAFT_OWNER_STATEMENT: 'skill.finance.draft_owner_statement',
-  DRAFT_ARREARS_NOTICE: 'skill.finance.draft_arrears_notice',
   OFFTAKE_ABSTRACT: 'skill.offtake.abstract',
   RENEWAL_PROPOSE: 'skill.offtake.renewal_propose',
   NEGOTIATION_OPEN: 'skill.offtake.negotiation_open',
@@ -55,8 +51,6 @@ const SKILLS = {
   NEGOTIATION_CLOSE: 'skill.offtake.negotiation_close',
   TRIAGE_MAINTENANCE: 'skill.maintenance.triage',
   ASSIGN_WORK_ORDER: 'skill.maintenance.assign_work_order',
-  DRAFT_TENANT_NOTICE: 'skill.comms.draft_tenant_notice',
-  DRAFT_CAMPAIGN: 'skill.comms.draft_campaign',
   MIGRATION_EXTRACT: 'skill.migration.extract',
   MIGRATION_DIFF: 'skill.migration.diff',
   MIGRATION_COMMIT: 'skill.migration.commit',
@@ -167,9 +161,6 @@ export const JUNIOR_FINANCE_TEMPLATE: Persona = {
     GRAPH_TOOLS.GET_COUNTERPARTY_RISK_DRIVERS,
     SKILLS.MPESA_RECONCILE,
     SKILLS.TRA_ROYALTY_SUMMARY,
-    SKILLS.SERVICE_CHARGE_RECONCILE,
-    SKILLS.DRAFT_OWNER_STATEMENT,
-    SKILLS.DRAFT_ARREARS_NOTICE,
     SKILLS.ASSIGN_TO_TEAM_MEMBER,
     SKILLS.ADVISE,
   ],
@@ -218,9 +209,6 @@ export const JUNIOR_COMMUNICATIONS_TEMPLATE: Persona = {
     'Domain expert for buyer/owner communications — notices, replies, campaigns, Swahili-first.',
   systemPrompt: JUNIOR_COMMUNICATIONS_PROMPT,
   allowedTools: [
-    SKILLS.DRAFT_TENANT_NOTICE,
-    SKILLS.DRAFT_CAMPAIGN,
-    SKILLS.SWAHILI_DRAFT,
     SKILLS.ASSIGN_TO_TEAM_MEMBER,
     SKILLS.ADVISE,
   ],
@@ -242,7 +230,6 @@ export const COWORKER_TEMPLATE: Persona = {
   allowedTools: [
     GRAPH_TOOLS.GET_PIT_HEALTH,
     GRAPH_TOOLS.GET_CASE_TIMELINE,
-    SKILLS.SWAHILI_DRAFT,
     SKILLS.ADVISE,
   ],
   visibilityBudget: 'team', // cannot publish wider than team
@@ -297,7 +284,7 @@ You can:
   - Explain the buyer's supply-agreement clauses in plain language.
   - Show settlement status, balance, and upcoming due dates.
   - Open consignment requests on the buyer's behalf.
-  - Translate notices into Swahili or Sheng.
+  - Translate a whole notice into the active locale (Swahili or English), never a mix of the two.
   - Walk the buyer through cooperative-levy or royalty calculations.
 
 You CANNOT:
@@ -314,7 +301,6 @@ Output rules:
   - Cite the buyer's own entities by id when relevant: (agreement:A-...).
 `.trim(),
   allowedTools: [
-    'skill.kenya.swahili_draft',
     'skill.core.advise',
   ],
   visibilityBudget: 'private',
@@ -365,7 +351,6 @@ End every action-oriented turn with:
     'get_site_rollup',
     'get_pit_health',
     'get_counterparty_risk_drivers',
-    'skill.finance.draft_owner_statement',
     'skill.core.advise',
   ],
   visibilityBudget: 'management',

@@ -79,16 +79,17 @@ describe('voice-persona-dna — scorePersonaFit', () => {
     expect(report.suggestions.length).toBeGreaterThan(0);
   });
 
-  it('permits code-switching for profiles that allow it', () => {
-    // Owner profile allows sw-KE inserts; Swahili rapport is NOT a violation.
-    const output = 'Habari! Update ya property yako iko tayari kwa leo.';
+  it('flags code-switching even on a profile that formerly allowed it (zero-mix canon)', () => {
+    // Owner profile no longer carries codeSwitching; a non-active-locale
+    // (non-Latin) insert is ALWAYS a violation regardless of any profile rule.
+    const output = 'Good afternoon. Here is your update. شكرا.';
     const report = scorePersonaFit(output, OWNER_PROFILE);
     expect(
       report.violations.some((v) => v.kind === 'code_switch_out_of_context'),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it('flags non-Latin script when persona has no code-switching rules', () => {
+  it('flags non-Latin script for any persona', () => {
     // Vendor profile has no codeSwitching — Arabic tokens must flag.
     const output = 'Hello vendor. شكرا لك على العمل.';
     const report = scorePersonaFit(output, VENDOR_PROFILE);

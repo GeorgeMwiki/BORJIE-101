@@ -164,7 +164,6 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [{ userText: 'Draft March 2026 statement for owner Mwita and email it.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.finance.draft_owner_statement'],
     },
   },
   {
@@ -193,18 +192,6 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'finance.cooperative_levy_overshoot',
-    name: 'Cooperative-levy overshoot alert',
-    category: 'finance',
-    turns: [
-      { userText: 'The security category went 20% over budget this month at the Chunya cooperative. Investigate.' },
-    ],
-    expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.kenya.service_charge_reconcile'],
-    },
-  },
-  {
     id: 'finance.tra_threshold_breach',
     name: 'TRA annual threshold check',
     category: 'finance',
@@ -225,7 +212,6 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.finance.draft_arrears_notice'],
       expectProposedAction: { riskAtLeast: 'HIGH' },
     },
   },
@@ -382,7 +368,6 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     turns: [{ userText: 'Build a 4-step buyer nurture campaign over 14 days.' }],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
-      expectToolCalls: ['skill.comms.draft_campaign'],
     },
   },
   {
@@ -502,7 +487,6 @@ export const EXTENDED_SCENARIOS: Scenario[] = [
     ],
     expect: {
       expectInitialPersona: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-002`,
-      expectToolCalls: ['skill.kenya.swahili_draft'],
     },
   },
   {

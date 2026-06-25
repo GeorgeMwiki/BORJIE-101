@@ -154,21 +154,6 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
     },
   },
   {
-    id: 'finance.cooperative_levy_reconcile',
-    name: 'Cooperative-levy variance for site',
-    category: 'finance',
-    turns: [
-      {
-        userText:
-          'Reconcile the Chunya cooperative levy for March against budget and show overruns.',
-      },
-    ],
-    expect: {
-      expectInitialPersona: PERSONA_IDS.JUNIOR_FINANCE,
-      expectToolCalls: ['skill.kenya.service_charge_reconcile'],
-    },
-  },
-  {
     id: 'finance.owner_statement',
     name: 'Owner statement for a portfolio',
     category: 'finance',
@@ -267,7 +252,6 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
     ],
     expect: {
       expectInitialPersona: PERSONA_IDS.JUNIOR_COMMUNICATIONS,
-      expectToolCalls: ['skill.kenya.swahili_draft'],
     },
   },
   {
@@ -386,7 +370,6 @@ export const GOLDEN_SCENARIOS: Scenario[] = [
     ],
     expect: {
       expectInitialPersona: `${PERSONA_IDS.COWORKER_FAMILY}.EMP-001`,
-      expectToolCalls: ['skill.kenya.swahili_draft'],
     },
   },
   {

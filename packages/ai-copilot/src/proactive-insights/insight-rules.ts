@@ -6,7 +6,7 @@
  * via the chat-ui proactive bubble.
  */
 
-import type { InsightContext, InsightRule, ProactiveInsight } from './types.js';
+import type { InsightRule, ProactiveInsight } from './types.js';
 
 function insight(
   id: string,
@@ -27,23 +27,6 @@ function insight(
 }
 
 export const INSIGHT_RULES: readonly InsightRule[] = [
-  {
-    id: 'arrears_60_day_crossing',
-    category: 'arrears_followup',
-    description: 'Nudges manager on arrears case crossing day 60',
-    evaluate(ctx: InsightContext): ProactiveInsight | null {
-      if (!ctx.openArrearsCases || ctx.openArrearsCases < 1) return null;
-      if (!ctx.currentPage.includes('arrears')) return null;
-      return insight(
-        'arrears_60_day_crossing',
-        'arrears_followup',
-        'high',
-        'Day-60 arrears case',
-        'A case in your current view just crossed day 60. Want me to draft the second notice?',
-        { label: 'Draft notice', action: 'draft_arrears_notice' },
-      );
-    },
-  },
   {
     id: 'renewal_window_90d',
     category: 'renewal_opportunity',

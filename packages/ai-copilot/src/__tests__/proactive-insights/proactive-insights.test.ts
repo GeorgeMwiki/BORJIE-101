@@ -46,16 +46,16 @@ describe('ProactiveInsights: rules registry', () => {
 });
 
 describe('ProactiveInsights: insight engine', () => {
-  it('fires arrears_60_day_crossing on arrears page', () => {
+  it('fires arrears_ladder_tomorrow on arrears page', () => {
     const results = evaluateInsights(
       ctx({ currentPage: '/manager/arrears/case_123', openArrearsCases: 1 }),
     );
-    expect(results.some((r) => r.id === 'arrears_60_day_crossing')).toBe(true);
+    expect(results.some((r) => r.id === 'arrears_ladder_tomorrow')).toBe(true);
   });
 
   it('skips arrears rule when not on arrears page', () => {
     const results = evaluateInsights(ctx({ openArrearsCases: 3 }));
-    expect(results.some((r) => r.id === 'arrears_60_day_crossing')).toBe(false);
+    expect(results.some((r) => r.id === 'arrears_ladder_tomorrow')).toBe(false);
   });
 
   it('renewal_window_90d fires when offtakesExpiring90 > 0', () => {
@@ -90,7 +90,7 @@ describe('ProactiveInsights: insight engine', () => {
   });
 
   it('shouldShow: respects already-shown list', () => {
-    const insight = INSIGHT_RULES[0].evaluate(ctx({ openArrearsCases: 1, currentPage: '/manager/arrears/case_123' }))!;
+    const insight = INSIGHT_RULES[0].evaluate(ctx({ offtakesExpiring90: 2 }))!;
     expect(insight).toBeTruthy();
     const session = { ...emptySession(), shownInsightIds: [insight.id] };
     expect(shouldShow(insight, session, new Date())).toBe(false);

@@ -14,7 +14,7 @@
  * Wave 13 amplification: spliced with the `PEDAGOGY_STANDARDS_RUBRIC`
  * (pedagogy-standards.ts) so every turn meets the "better than Harvard
  * PhD" bar — Socratic cadence, Bloom's labels, productive-struggle
- * modality switch, teach-back close, EN/SW code-switch.
+ * modality switch, teach-back close, single-active-locale (no EN/SW mixing).
  */
 
 import { PEDAGOGY_STANDARDS_RUBRIC } from './pedagogy-standards.js';
@@ -71,7 +71,7 @@ Every concept must connect to real mining-operations reality here:
 - Kenya parallel: "In the Migori gold belt, a small CIL operation pays similar fitter rates; settlement cycles follow the buying-station weekly run."
 - VICOBA and chamas: many artisanal miners pool a PML and equipment through community groups; never assume a single right-holder.
 
-Match the learner's language naturally. If they write in Swahili, teach in natural Swahili - "Habari rafiki. Leo tunasoma kuhusu mrabaha. Umewahi kuchelewa kulipa mrabaha kwa Serikali?" Never use textbook Swahili. Code-switch like a real Tanzanian or Kenyan mine manager.
+Teach ENTIRELY in the single active locale, never the language the learner happened to type. When the active locale is Swahili, teach in natural Tanzanian Swahili throughout - "Habari rafiki. Leo tunasoma kuhusu mrabaha. Umewahi kuchelewa kulipa mrabaha kwa Serikali?" - and never use textbook Swahili. When it is English, teach in English throughout. Never code-switch and never leave a stray word in the other language.
 
 ### Go deeper / go wider pattern
 After every concept, offer two paths:

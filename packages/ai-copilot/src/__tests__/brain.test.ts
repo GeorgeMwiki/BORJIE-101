@@ -19,8 +19,6 @@ import {
   classifyInitialTurn,
   reconcileMpesa,
   summarizeTraRoyalty,
-  reconcileServiceCharge,
-  draftNotice,
   canSee,
   promoteScope,
   normalizeAccountRef,
@@ -221,49 +219,6 @@ describe('TRA royalty summary', () => {
   });
 });
 
-describe('service charge reconciliation', () => {
-  it('flags categories over threshold and apportions by share', () => {
-    const r = reconcileServiceCharge({
-      propertyId: 'P1',
-      period: '2026-03',
-      lines: [
-        { id: 'L1', category: 'security', description: 'Guards', amountKes: 120_000, date: '2026-03-10' },
-      ],
-      budget: [{ category: 'security', budgetKes: 100_000 }],
-      units: [
-        { id: 'U1', label: 'A-1', shareFactor: 1 },
-        { id: 'U2', label: 'A-2', shareFactor: 2 },
-      ],
-      sinkingFundPct: 0.1,
-      overshootThresholdPct: 0.1,
-    });
-    expect(r.categories[0].flagged).toBe(true);
-    expect(r.apportionments).toHaveLength(2);
-    // Unit with shareFactor 2 pays 2x of unit with shareFactor 1
-    expect(r.apportionments[1].payableKes).toBeCloseTo(
-      r.apportionments[0].payableKes * 2
-    );
-  });
-});
-
-describe('swahili draft', () => {
-  it('fills rent reminder template in Swahili', () => {
-    const d = draftNotice({
-      kind: 'rent_reminder_gentle',
-      locale: 'sw',
-      tenantName: 'Asha',
-      unitLabel: 'A-1',
-      amountKes: 25_000,
-      date: '2026-03-31',
-      propertyName: 'Kilimani Heights',
-    });
-    expect(d.body).toContain('Asha');
-    expect(d.body).toContain('A-1');
-    expect(d.body).toContain('25,000');
-    expect(d.body).toContain('2026-03-31');
-  });
-});
-
 describe('Brain wiring', () => {
   it('creates a Brain with mock providers and registers default skills', () => {
     const brain = createBrainForTesting();
@@ -271,7 +226,6 @@ describe('Brain wiring', () => {
     expect(brain.personas.list()).toHaveLength(12); // 7 juniors + EM + 2 coworkers + migration + counterparty-assistant + owner-advisor
     expect(brain.tools.has('skill.kenya.mpesa_reconcile')).toBe(true);
     expect(brain.tools.has('skill.kenya.tra_royalty_summary')).toBe(true);
-    expect(brain.tools.has('skill.kenya.swahili_draft')).toBe(true);
   });
 
   it('starts a thread and returns a turn result (mock provider)', async () => {

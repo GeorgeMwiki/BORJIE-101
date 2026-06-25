@@ -13,12 +13,8 @@ import {
   HIGH_COST_THRESHOLD_KES,
 } from '../assign-work-order.js';
 import { approveOfftakeRenewalTool } from '../approve-lease-renewal.js';
-import { sendRentReminderTool } from '../send-rent-reminder.js';
-import { draftOwnerStatementAdminTool } from '../draft-owner-statement.js';
 import { approveTenderBidTool } from '../approve-tender-bid.js';
-import { resolveArrearsCaseTool } from '../resolve-arrears-case.js';
 import { reissueLetterTool } from '../reissue-letter.js';
-import { updatePropertyFieldsTool } from '../update-property-fields.js';
 import { assignTrainingTool } from '../assign-training.js';
 import { acknowledgeExceptionTool } from '../acknowledge-exception.js';
 import {
@@ -40,8 +36,8 @@ const TENANT_A = 'tenant_a';
 const TENANT_B = 'tenant_b';
 
 describe('admin skills registry', () => {
-  it('exports 12 tools', () => {
-    expect(ADMIN_SKILL_TOOLS).toHaveLength(12);
+  it('exports 8 tools', () => {
+    expect(ADMIN_SKILL_TOOLS).toHaveLength(8);
   });
 
   it('every tool has a skill.admin.* name and a description', () => {
@@ -180,83 +176,6 @@ describe('skill.admin.approve_offtake_renewal', () => {
   });
 });
 
-describe('skill.admin.send_rent_reminder', () => {
-  it('proposes (never claims a send) for a small batch — no delivery port in context', async () => {
-    const r = await sendRentReminderTool.execute(
-      {
-        recipients: [
-          {
-            tenantUserId: 'tu1',
-            unitId: 'unit1',
-            amountDueKes: 30_000,
-            dueDateIso: '2026-05-05T00:00:00.000Z',
-          },
-        ],
-      },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(true);
-    // Honest: it PROPOSES a plan, never a false-green "Queued"/"sent".
-    expect(r.evidenceSummary).toMatch(/^PROPOSED/);
-    expect(r.evidenceSummary).toContain('Prepared');
-    expect(r.evidenceSummary).not.toContain('Queued');
-  });
-
-  it('proposes a larger batch too (always a plan, never a fake completion)', async () => {
-    const recipients = Array.from(
-      { length: HIGH_RISK_THRESHOLDS.broadcastRecipients + 5 },
-      (_, i) => ({
-        tenantUserId: `tu${i}`,
-        unitId: `unit${i}`,
-        amountDueKes: 10_000,
-        dueDateIso: '2026-05-05T00:00:00.000Z',
-      })
-    );
-    const r = await sendRentReminderTool.execute({ recipients }, ctx(TENANT_A));
-    expect(r.ok).toBe(true);
-    expect(r.evidenceSummary).toMatch(/^PROPOSED/);
-  });
-});
-
-describe('skill.admin.draft_owner_statement', () => {
-  it('drafts statement with nets per property', async () => {
-    const r = await draftOwnerStatementAdminTool.execute(
-      {
-        ownerId: 'o1',
-        ownerName: 'Owner One',
-        period: '2026-03',
-        properties: [
-          {
-            propertyId: 'p1',
-            propertyName: 'Plot A',
-            grossCollectedKes: 200_000,
-            arrearsKes: 0,
-            expensesKes: 15_000,
-            mpesaFeesKes: 1_500,
-          },
-        ],
-      },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(true);
-    const data = r.data as { total: { netDisbursementKes: number } };
-    expect(data.total.netDisbursementKes).toBeGreaterThan(0);
-  });
-
-  it('rejects invalid period', async () => {
-    const r = await draftOwnerStatementAdminTool.execute(
-      {
-        ownerId: 'o1',
-        ownerName: 'Owner One',
-        period: 'march-2026',
-        properties: [],
-      },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(false);
-  });
-});
-
 describe('skill.admin.approve_tender_bid', () => {
   it('commits bids below high-value cap', async () => {
     const r = await approveTenderBidTool.execute(
@@ -304,36 +223,6 @@ describe('skill.admin.approve_tender_bid', () => {
   });
 });
 
-describe('skill.admin.resolve_arrears_case', () => {
-  it('commits small payment_plan adjustments', async () => {
-    const r = await resolveArrearsCaseTool.execute(
-      {
-        arrearsCaseId: 'ar1',
-        tenantUserId: 'tu1',
-        adjustmentKes: 5_000,
-        resolution: 'payment_plan',
-      },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(true);
-    expect(r.evidenceSummary).toContain('resolved');
-  });
-
-  it('proposes write_off regardless of amount', async () => {
-    const r = await resolveArrearsCaseTool.execute(
-      {
-        arrearsCaseId: 'ar1',
-        tenantUserId: 'tu1',
-        adjustmentKes: 100,
-        resolution: 'write_off',
-      },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(true);
-    expect(r.evidenceSummary).toMatch(/^PROPOSED/);
-  });
-});
-
 describe('skill.admin.reissue_letter', () => {
   it('returns PROPOSED by default', async () => {
     const r = await reissueLetterTool.execute(
@@ -351,25 +240,6 @@ describe('skill.admin.reissue_letter', () => {
     );
     expect(r.ok).toBe(true);
     expect(r.evidenceSummary).toContain('reissued');
-  });
-});
-
-describe('skill.admin.update_property_fields', () => {
-  it('patches allowed fields', async () => {
-    const r = await updatePropertyFieldsTool.execute(
-      { propertyId: 'p1', patch: { nickname: 'Sunrise Plaza', notes: 'New management notes' } },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(true);
-    expect(r.evidenceSummary).toContain('updated');
-  });
-
-  it('rejects empty patch', async () => {
-    const r = await updatePropertyFieldsTool.execute(
-      { propertyId: 'p1', patch: {} },
-      ctx(TENANT_A)
-    );
-    expect(r.ok).toBe(false);
   });
 });
 

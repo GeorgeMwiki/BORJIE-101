@@ -20,32 +20,17 @@ import { ToolHandler } from '../../orchestrator/tool-dispatcher.js';
 // Canonical entity schemas (subset — the ones migration cares about)
 // ---------------------------------------------------------------------------
 
-export const PropertyDraftSchema = z.object({
+/**
+ * A mining estate's physical location (mine, plant, camp, yard). Re-domained
+ * from the retired property-management `property` entity: a mining estate has
+ * sites, not rental properties — no units, no rent, no leases.
+ */
+export const SiteDraftSchema = z.object({
   externalId: z.string().optional(),
   name: z.string().min(1),
   addressLine1: z.string().optional(),
   city: z.string().optional(),
-  unitCount: z.number().int().nonnegative().optional(),
-  propertyType: z.string().optional(),
-});
-export const UnitDraftSchema = z.object({
-  externalId: z.string().optional(),
-  propertyName: z.string().min(1),
-  label: z.string().min(1),
-  bedrooms: z.number().int().nonnegative().optional(),
-  rentKes: z.number().nonnegative().optional(),
-  status: z.string().optional(),
-});
-export const TenantDraftSchema = z.object({
-  externalId: z.string().optional(),
-  name: z.string().min(1),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  unitLabel: z.string().optional(),
-  propertyName: z.string().optional(),
-  leaseStart: z.string().optional(),
-  leaseEnd: z.string().optional(),
-  rentKes: z.number().optional(),
+  siteType: z.string().optional(),
 });
 export const EmployeeDraftSchema = z.object({
   externalId: z.string().optional(),
@@ -71,23 +56,22 @@ export const TeamDraftSchema = z.object({
   departmentCode: z.string().optional(),
   kind: z
     .enum([
-      'leasing',
+      'extraction',
+      'processing',
       'maintenance',
       'finance',
       'compliance',
       'communications',
       'operations',
       'security',
-      'caretaking',
+      'logistics',
       'custom',
     ])
     .default('custom'),
 });
 
 export const ExtractionBundleSchema = z.object({
-  properties: z.array(PropertyDraftSchema).default([]),
-  units: z.array(UnitDraftSchema).default([]),
-  tenants: z.array(TenantDraftSchema).default([]),
+  sites: z.array(SiteDraftSchema).default([]),
   employees: z.array(EmployeeDraftSchema).default([]),
   departments: z.array(DepartmentDraftSchema).default([]),
   teams: z.array(TeamDraftSchema).default([]),
@@ -111,8 +95,8 @@ export const MigrationExtractParamsSchema = z.object({
   /** Optional hints from the admin. */
   hints: z
     .object({
-      propertyName: z.string().optional(),
-      defaultLocale: z.enum(['en', 'sw', 'sheng']).optional(),
+      siteName: z.string().optional(),
+      defaultLocale: z.enum(['en', 'sw']).optional(),
     })
     .optional(),
 });
@@ -144,17 +128,15 @@ function detectSheetKind(
   if (n.includes('team')) return 'teams';
   if (n.includes('employee') || n.includes('staff') || n.includes('payroll'))
     return 'employees';
-  if (n.includes('tenant') || n.includes('customer')) return 'tenants';
-  if (n.includes('unit')) return 'units';
-  if (n.includes('propert')) return 'properties';
+  if (n.includes('site') || n.includes('mine') || n.includes('plant'))
+    return 'sites';
 
   // Header-based fallback only when sheet name gives no signal.
   const h = headers.map((x) => x.toLowerCase()).join(' ');
   if (/dept/.test(h)) return 'departments';
   if (/team.code/.test(h)) return 'teams';
   if (/employee|payroll|job.title/.test(h)) return 'employees';
-  if (/bedroom|\brent\b/.test(h)) return 'units';
-  if (/propert/.test(h)) return 'properties';
+  if (/\bsite\b|\bmine\b|\bplant\b/.test(h)) return 'sites';
   return null;
 }
 
@@ -162,9 +144,7 @@ export function migrationExtract(
   params: z.infer<typeof MigrationExtractParamsSchema>
 ): ExtractionBundle {
   const bundle: ExtractionBundle = {
-    properties: [],
-    units: [],
-    tenants: [],
+    sites: [],
     employees: [],
     departments: [],
     teams: [],
@@ -178,46 +158,15 @@ export function migrationExtract(
 
     for (const row of rows) {
       switch (kind) {
-        case 'properties': {
-          const name = getString(row, 'name', 'property', 'property_name');
+        case 'sites': {
+          const name = getString(row, 'name', 'site', 'site_name');
           if (!name) continue;
-          bundle.properties.push({
+          bundle.sites.push({
             externalId: getString(row, 'id', 'external_id'),
             name,
             addressLine1: getString(row, 'address', 'address_line1', 'street'),
             city: getString(row, 'city', 'town'),
-            unitCount: getNumber(row, 'units', 'unit_count'),
-            propertyType: getString(row, 'type', 'property_type'),
-          });
-          break;
-        }
-        case 'units': {
-          const label = getString(row, 'unit', 'label', 'unit_label', 'unit_no');
-          const propertyName = getString(row, 'property', 'property_name');
-          if (!label || !propertyName) continue;
-          bundle.units.push({
-            externalId: getString(row, 'id', 'external_id'),
-            propertyName,
-            label,
-            bedrooms: getNumber(row, 'bedrooms', 'bed', 'br'),
-            rentKes: getNumber(row, 'rent', 'rent_kes', 'monthly_rent'),
-            status: getString(row, 'status', 'occupancy'),
-          });
-          break;
-        }
-        case 'tenants': {
-          const name = getString(row, 'name', 'tenant', 'tenant_name');
-          if (!name) continue;
-          bundle.tenants.push({
-            externalId: getString(row, 'id', 'external_id'),
-            name,
-            phone: getString(row, 'phone', 'mobile', 'msisdn'),
-            email: getString(row, 'email'),
-            unitLabel: getString(row, 'unit', 'unit_label'),
-            propertyName: getString(row, 'property'),
-            leaseStart: getString(row, 'lease_start', 'start_date'),
-            leaseEnd: getString(row, 'lease_end', 'end_date'),
-            rentKes: getNumber(row, 'rent', 'rent_kes'),
+            siteType: getString(row, 'type', 'site_type'),
           });
           break;
         }
@@ -271,14 +220,15 @@ export function migrationExtract(
             departmentCode: getString(row, 'department', 'dept_code'),
             kind:
               ((getString(row, 'kind', 'type') ?? 'custom').toLowerCase() as
-                | 'leasing'
+                | 'extraction'
+                | 'processing'
                 | 'maintenance'
                 | 'finance'
                 | 'compliance'
                 | 'communications'
                 | 'operations'
                 | 'security'
-                | 'caretaking'
+                | 'logistics'
                 | 'custom') ?? 'custom',
           });
           break;
@@ -287,21 +237,25 @@ export function migrationExtract(
     }
   }
 
-  // Plain-text transcribed ledgers: extract rent lines with a simple regex.
+  // Plain-text transcribed rosters: extract "Name — Job Title" staff lines so
+  // a handwritten employee register can be imported without a structured sheet.
   if (params.plainText) {
     const lines = params.plainText.split(/\r?\n/);
-    const rentRe = /([A-Z][A-Za-z \-']+)\s+(\w{1,8})\s+KES\s*([0-9,]+)/;
+    const staffRe = /^([A-Z][A-Za-z \-']+?)\s*[—\-:]\s*([A-Za-z][A-Za-z \-/]+)$/;
     for (const l of lines) {
-      const m = l.match(rentRe);
+      const m = l.trim().match(staffRe);
       if (!m) continue;
-      const name = m[1];
-      const unitLabel = m[2];
-      const rent = m[3];
-      if (name === undefined || unitLabel === undefined || rent === undefined) continue;
-      bundle.tenants.push({
-        name: name.trim(),
-        unitLabel: unitLabel.trim(),
-        rentKes: Number(rent.replace(/,/g, '')),
+      const fullName = m[1];
+      const jobTitle = m[2];
+      if (fullName === undefined || jobTitle === undefined) continue;
+      const parts = fullName.trim().split(/\s+/);
+      const firstName = parts[0] ?? '';
+      const lastName = parts.slice(1).join(' ') || firstName;
+      bundle.employees.push({
+        firstName,
+        lastName,
+        jobTitle: jobTitle.trim(),
+        employmentType: 'full_time',
       });
     }
   }
@@ -312,7 +266,7 @@ export function migrationExtract(
 export const migrationExtractTool: ToolHandler = {
   name: 'skill.migration.extract',
   description:
-    'Parse uploaded sheets and/or plain-text into canonical entity drafts (properties, units, tenants, employees, departments, teams).',
+    'Parse uploaded sheets and/or plain-text into canonical entity drafts (sites, employees, departments, teams).',
   parameters: {
     type: 'object',
     properties: {
@@ -328,7 +282,7 @@ export const migrationExtractTool: ToolHandler = {
     return {
       ok: true,
       data: result,
-      evidenceSummary: `Extracted: ${result.properties.length} properties, ${result.units.length} units, ${result.tenants.length} tenants, ${result.employees.length} employees, ${result.departments.length} departments, ${result.teams.length} teams.`,
+      evidenceSummary: `Extracted: ${result.sites.length} sites, ${result.employees.length} employees, ${result.departments.length} departments, ${result.teams.length} teams.`,
     };
   },
 };
@@ -342,9 +296,7 @@ export const MigrationDiffParamsSchema = z.object({
   /** Existing state (optional — if omitted, everything is ADD). */
   existing: z
     .object({
-      propertyNames: z.array(z.string()).default([]),
-      unitLabelsByProperty: z.record(z.string(), z.array(z.string())).default({}),
-      tenantNames: z.array(z.string()).default([]),
+      siteNames: z.array(z.string()).default([]),
       employeeCodes: z.array(z.string()).default([]),
       departmentCodes: z.array(z.string()).default([]),
       teamCodes: z.array(z.string()).default([]),
@@ -354,18 +306,14 @@ export const MigrationDiffParamsSchema = z.object({
 
 export interface MigrationDiffResult {
   toAdd: {
-    properties: number;
-    units: number;
-    tenants: number;
+    sites: number;
     employees: number;
     departments: number;
     teams: number;
   };
   toSkip: number;
   samples: {
-    properties: ExtractionBundle['properties'];
-    units: ExtractionBundle['units'];
-    tenants: ExtractionBundle['tenants'];
+    sites: ExtractionBundle['sites'];
     employees: ExtractionBundle['employees'];
   };
   warnings: string[];
@@ -375,63 +323,49 @@ export function migrationDiff(
   params: z.infer<typeof MigrationDiffParamsSchema>
 ): MigrationDiffResult {
   const existing = {
-    propertyNames: new Set(params.existing?.propertyNames ?? []),
-    unitLabelsByProperty: params.existing?.unitLabelsByProperty ?? {},
-    tenantNames: new Set(params.existing?.tenantNames ?? []),
+    siteNames: new Set(params.existing?.siteNames ?? []),
     employeeCodes: new Set(params.existing?.employeeCodes ?? []),
     departmentCodes: new Set(params.existing?.departmentCodes ?? []),
     teamCodes: new Set(params.existing?.teamCodes ?? []),
   };
   const warnings: string[] = [];
 
-  const newProps = params.bundle.properties.filter((p) => !existing.propertyNames.has(p.name));
-  const newUnits = params.bundle.units.filter((u) => {
-    const existingLabels = new Set(existing.unitLabelsByProperty[u.propertyName] ?? []);
-    return !existingLabels.has(u.label);
-  });
-  const newTenants = params.bundle.tenants.filter((t) => !existing.tenantNames.has(t.name));
+  const newSites = params.bundle.sites.filter((s) => !existing.siteNames.has(s.name));
   const newEmps = params.bundle.employees.filter(
     (e) => !e.employeeCode || !existing.employeeCodes.has(e.employeeCode)
   );
   const newDepts = params.bundle.departments.filter((d) => !existing.departmentCodes.has(d.code));
   const newTeams = params.bundle.teams.filter((tm) => !existing.teamCodes.has(tm.code));
 
-  // Integrity warnings
-  const propNames = new Set(
-    [
-      ...params.bundle.properties.map((p) => p.name),
-      ...Array.from(existing.propertyNames),
-    ]
-  );
-  for (const u of params.bundle.units) {
-    if (!propNames.has(u.propertyName)) {
-      warnings.push(`unit ${u.label}: references unknown property "${u.propertyName}"`);
+  // Integrity warnings: a team that references a department absent from both
+  // the bundle and existing state.
+  const deptCodes = new Set([
+    ...params.bundle.departments.map((d) => d.code),
+    ...Array.from(existing.departmentCodes),
+  ]);
+  for (const tm of params.bundle.teams) {
+    if (tm.departmentCode && !deptCodes.has(tm.departmentCode)) {
+      warnings.push(`team ${tm.code}: references unknown department "${tm.departmentCode}"`);
     }
   }
 
   const skipped =
-    params.bundle.properties.length -
-    newProps.length +
-    (params.bundle.units.length - newUnits.length) +
-    (params.bundle.tenants.length - newTenants.length) +
+    params.bundle.sites.length -
+    newSites.length +
     (params.bundle.employees.length - newEmps.length) +
     (params.bundle.departments.length - newDepts.length) +
     (params.bundle.teams.length - newTeams.length);
 
   return {
     toAdd: {
-      properties: newProps.length,
-      units: newUnits.length,
-      tenants: newTenants.length,
+      sites: newSites.length,
       employees: newEmps.length,
       departments: newDepts.length,
       teams: newTeams.length,
     },
     toSkip: skipped,
     samples: {
-      properties: newProps.slice(0, 3),
-      units: newUnits.slice(0, 3),
-      tenants: newTenants.slice(0, 3),
+      sites: newSites.slice(0, 3),
       employees: newEmps.slice(0, 3),
     },
     warnings,
@@ -457,7 +391,7 @@ export const migrationDiffTool: ToolHandler = {
     return {
       ok: true,
       data: result,
-      evidenceSummary: `Diff: +${result.toAdd.properties} properties / +${result.toAdd.units} units / +${result.toAdd.tenants} tenants / +${result.toAdd.employees} employees. ${result.warnings.length} warning(s). ${result.toSkip} skip (dedup).`,
+      evidenceSummary: `Diff: +${result.toAdd.sites} sites / +${result.toAdd.employees} employees / +${result.toAdd.departments} departments / +${result.toAdd.teams} teams. ${result.warnings.length} warning(s). ${result.toSkip} skip (dedup).`,
     };
   },
 };
@@ -476,9 +410,7 @@ export interface MigrationCommitResult {
   ok: boolean;
   mode: 'dry_run' | 'write';
   counts: {
-    properties: number;
-    units: number;
-    tenants: number;
+    sites: number;
     employees: number;
     departments: number;
     teams: number;
@@ -503,9 +435,7 @@ export const migrationCommitTool: ToolHandler = {
     if (!parsed.success) return { ok: false, error: parsed.error.message };
     const b = parsed.data.bundle;
     const counts = {
-      properties: b.properties.length,
-      units: b.units.length,
-      tenants: b.tenants.length,
+      sites: b.sites.length,
       employees: b.employees.length,
       departments: b.departments.length,
       teams: b.teams.length,
