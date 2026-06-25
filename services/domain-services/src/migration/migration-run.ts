@@ -13,9 +13,7 @@ export type MigrationRunStatus =
   | 'failed';
 
 export interface MigrationRunCounts {
-  readonly properties: number;
-  readonly units: number;
-  readonly tenants: number;
+  readonly sites: number;
   readonly employees: number;
   readonly departments: number;
   readonly teams: number;

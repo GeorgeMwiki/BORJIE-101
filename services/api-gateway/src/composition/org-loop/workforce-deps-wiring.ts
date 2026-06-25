@@ -59,6 +59,7 @@ import {
   createDegradedTickets,
 } from './workforce-degraded-deps.js';
 import { createWorkforceStore } from './workforce-store-adapter.js';
+import { resolveEscalationContextEn } from '../escalation-context.js';
 import {
   asNullableString,
   cryptoRandomId,
@@ -389,17 +390,23 @@ export function createWorkforceTicketCreator(args: {
           : input.severity === 'low'
             ? 'info'
             : 'warning';
+      const narrative = input.title + ' — ' + input.description;
+      // Born locale-complete: capture the English narrative in the additive
+      // `context` bag so the escalations GET serves a real body to EN owners.
+      const contextEn = await resolveEscalationContextEn(narrative, input.tenantId);
       try {
         await withCtx(db, async (tx) => {
           await (tx as unknown as DbExecLike).execute(sql`
             INSERT INTO mining_escalations (
               id, tenant_id, raised_by_user_id, to_user_id, to_role,
-              source_kind, source_id, context_sw, severity, status, created_at
+              source_kind, source_id, context_sw, severity, status, created_at,
+              context
             ) VALUES (
               ${id}, ${input.tenantId}, ${input.assigneeUserId},
               ${input.assigneeUserId}, NULL,
-              'task', NULL, ${input.title + ' — ' + input.description},
-              ${severity}, 'open', NOW()
+              'task', NULL, ${narrative},
+              ${severity}, 'open', NOW(),
+              ${JSON.stringify({ contextEn })}::jsonb
             )
             ON CONFLICT (id) DO NOTHING
           `);

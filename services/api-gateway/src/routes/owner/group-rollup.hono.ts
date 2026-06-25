@@ -47,6 +47,7 @@ import {
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { createLogger } from '../../utils/logger';
+import { requireEstateOwner } from '../estate/estate-authz';
 
 const moduleLogger = createLogger('owner-group-rollup');
 
@@ -59,6 +60,13 @@ interface CurrencyFlow {
 
 export const ownerGroupRollupRouter = new Hono();
 ownerGroupRollupRouter.use('*', authMiddleware);
+// Owner-only estate data (estate_groups / estate_entities /
+// estate_capital_movements): re-invoked, fail-CLOSED server-side role guard —
+// same boundary the estate routers (groups/entities/…) carry. Mounted AFTER
+// authMiddleware (so auth.role is populated) and BEFORE databaseMiddleware, so
+// a non-owner-class principal is rejected (403) before any tenant row is read.
+// Tenant scope still comes from the RLS GUC bound by databaseMiddleware.
+ownerGroupRollupRouter.use('*', requireEstateOwner());
 ownerGroupRollupRouter.use('*', databaseMiddleware);
 
 ownerGroupRollupRouter.get('/', async (c) => {

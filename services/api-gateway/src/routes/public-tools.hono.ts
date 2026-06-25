@@ -361,7 +361,7 @@ function regulationLookup(topic: string, language: 'en' | 'sw'): unknown {
     },
     tmaa: {
       en: 'TMAA (Tanzania Minerals Audit Agency) — verifies declared production at the smelter, refinery, and export gateways.',
-      sw: 'TMAA (Wakala wa Ukaguzi wa Madini Tanzania) — inathibitisha uzalishaji uliotangazwa kwenye smelter, refinery, na milango ya uagizaji nje.',
+      sw: 'TMAA (Wakala wa Ukaguzi wa Madini Tanzania) — inathibitisha uzalishaji uliotangazwa kwenye viwanda vya kuyeyusha madini, viwanda vya kusafisha madini, na milango ya uuzaji nje.',
     },
     'mining-commission': {
       en: 'Mining Commission — issues PML, ML, SML and receives the monthly royalty filing. Format is strict; Borjie pre-fills the exact layout.',
@@ -495,7 +495,7 @@ function caseStudyShow(slug: string, language: 'en' | 'sw'): unknown {
       message: pick(
         {
           en: `No case study wired for ${slug}.`,
-          sw: `Hakuna case study iliyowekwa kwa ${slug}.`,
+          sw: `Hakuna uchunguzi kifani uliowekwa kwa ${slug}.`,
         },
         language,
       ),
@@ -564,7 +564,7 @@ function conceptCardShow(conceptId: string, language: 'en' | 'sw'): unknown {
       title: { en: 'PML renewal cadence', sw: 'Mzunguko wa upyaji wa PML' },
       summary: {
         en: 'PML licences are annual. The Mining Commission requires the renewal form 60 days before expiry. Borjie pre-fills the form 47 days out, leaving a 13-day buffer.',
-        sw: 'Leseni za PML ni za kila mwaka. Tume ya Madini inahitaji fomu ya upyaji siku 60 kabla ya kuisha. Borjie inajazia siku 47 kabla, ikiacha buffer ya siku 13.',
+        sw: 'Leseni za PML ni za kila mwaka. Tume ya Madini inahitaji fomu ya upyaji siku 60 kabla ya kuisha. Borjie inajazia siku 47 kabla, ikiacha nafasi ya siku 13.',
       },
       bullets: [
         { en: 'Term: 12 months', sw: 'Muda: miezi 12' },

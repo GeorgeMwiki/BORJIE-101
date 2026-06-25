@@ -14,25 +14,6 @@
 import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { migrationRuns, employees } from '@borjie/database';
-// Mining-domain hard-fork drift: properties/units/customers/departments/teams
-// tables were retired by `0003_mining_domain.sql`. Migrations are still
-// served against the new mining-domain tables via a per-bundle adapter
-// (see api-gateway/.../migration.hono.ts); these placeholders keep the
-// dependency-resolution graph compiling and carry the minimal surface
-// (`id` accessor + unique identity) needed by the in-memory test fake.
-// Production never reaches a real insert through these symbols — callers
-// route through the per-bundle adapter — but a unique object per name
-// keeps the dependency graph + tests honest.
-type PlaceholderTable = { readonly _table: string; readonly id: { name: string } };
-const placeholderTable = (name: string): PlaceholderTable => ({
-  _table: name,
-  id: { name: 'id' },
-});
-const properties: PlaceholderTable = placeholderTable('properties');
-const units: PlaceholderTable = placeholderTable('units');
-const customers: PlaceholderTable = placeholderTable('customers');
-const departments: PlaceholderTable = placeholderTable('departments');
-const teams: PlaceholderTable = placeholderTable('teams');
 import type {
   IMigrationRepository,
   MigrationBundle,
@@ -212,90 +193,20 @@ export class PostgresMigrationRepository implements IMigrationRepository {
       // hard-fork — relax the type locally so the per-kind counters can be
       // incremented in-place.
       const counts: { -readonly [K in keyof MigrationRunCounts]: MigrationRunCounts[K] } = {
-        properties: 0,
-        units: 0,
-        tenants: 0,
+        sites: 0,
         employees: 0,
         departments: 0,
         teams: 0,
       };
       const skipped: Record<string, string[]> = {
-        properties: [],
-        units: [],
-        tenants: [],
+        sites: [],
         employees: [],
         departments: [],
         teams: [],
       };
 
-      // Properties: natural key (tenant_id, property_code)
-      counts.properties = await insertReturning(
-        tx,
-        bundle.properties,
-        (row) => ({
-          id: (row.id as string) ?? this.genId(),
-          tenantId,
-          ownerId: row.ownerId as string,
-          propertyCode:
-            (row.propertyCode as string) ?? (row.code as string) ?? '',
-          name: row.name as string,
-          type: row.type as string,
-          status: (row.status as string) ?? 'draft',
-          addressLine1:
-            (row.addressLine1 as string) ?? (row.address as string) ?? '',
-          city: (row.city as string) ?? '',
-          // No hardcoded country/currency — callers prepare rows with the
-          // tenant's region values already resolved. Empty string lets
-          // NOT NULL constraints surface bad inputs rather than masking.
-          country: (row.country as string) ?? '',
-          defaultCurrency:
-            (row.defaultCurrency as string) ?? (row.currency as string) ?? '',
-        }),
-        properties,
-        skipped.properties!,
-        'property.name'
-      );
-
-      // Units: natural key (property_id, unit_code)
-      counts.units = await insertReturning(
-        tx,
-        bundle.units,
-        (row) => ({
-          id: (row.id as string) ?? this.genId(),
-          tenantId,
-          propertyId: row.propertyId as string,
-          unitCode:
-            (row.unitCode as string) ?? (row.label as string) ?? '',
-          name: (row.name as string) ?? (row.label as string) ?? '',
-          type: (row.type as string) ?? 'studio',
-          status: (row.status as string) ?? 'vacant',
-          baseRentAmount: (row.baseRentAmount as number) ?? 0,
-          baseRentCurrency:
-            (row.baseRentCurrency as string) ?? (row.currency as string) ?? '',
-        }),
-        units,
-        skipped.units!,
-        'unit.(propertyId,unitCode)'
-      );
-
-      // Tenants (customers): natural key (tenant_id, phone)
-      counts.tenants = await insertReturning(
-        tx,
-        bundle.tenants,
-        (row) => ({
-          id: (row.id as string) ?? this.genId(),
-          tenantId,
-          phone: (row.phone as string) ?? '',
-          firstName: (row.firstName as string) ?? (row.name as string) ?? '',
-          lastName: (row.lastName as string) ?? '',
-          email: (row.email as string) ?? null,
-        }),
-        customers,
-        skipped.tenants!,
-        'tenant.phone'
-      );
-
-      // Employees: natural key (tenant_id, employee_code)
+      // Employees: natural key (tenant_id, employee_code). The only bundle
+      // kind with a real importable target table in the mining schema.
       counts.employees = await insertReturning(
         tx,
         bundle.employees,
@@ -313,40 +224,38 @@ export class PostgresMigrationRepository implements IMigrationRepository {
         'employee.employeeCode'
       );
 
-      // Departments: natural key (tenant_id, code)
-      counts.departments = await insertReturning(
-        tx,
+      // Sites, departments, and teams have no bulk-import target table in the
+      // mining schema yet (sites require a licenceId + mineral that a flat
+      // roster upload cannot supply; departments/teams are not yet first-class
+      // tables). Record them as honest skips rather than fabricating writes.
+      recordUnsupported(bundle.sites, skipped.sites!, 'site.name', 'sites');
+      recordUnsupported(
         bundle.departments,
-        (row) => ({
-          id: (row.id as string) ?? this.genId(),
-          tenantId,
-          code: (row.code as string) ?? '',
-          name: (row.name as string) ?? '',
-        }),
-        departments,
         skipped.departments!,
-        'department.code'
+        'department.code',
+        'departments'
       );
-
-      // Teams: natural key (tenant_id, code)
-      counts.teams = await insertReturning(
-        tx,
-        bundle.teams,
-        (row) => ({
-          id: (row.id as string) ?? this.genId(),
-          tenantId,
-          code: (row.code as string) ?? '',
-          name: (row.name as string) ?? '',
-          kind: (row.kind as string) ?? 'ops',
-        }),
-        teams,
-        skipped.teams!,
-        'team.code'
-      );
+      recordUnsupported(bundle.teams, skipped.teams!, 'team.code', 'teams');
 
       return { counts, skipped };
     });
   }
+}
+
+/**
+ * Record every row of an entity kind that has no bulk-import target table
+ * yet as a skip, so the commit result is honest about what was not written.
+ */
+function recordUnsupported(
+  rows: ReadonlyArray<Record<string, unknown>>,
+  skipBucket: string[],
+  naturalKey: string,
+  kind: string
+): void {
+  if (rows.length === 0) return;
+  skipBucket.push(
+    `${rows.length} ${kind} row(s) skipped: no bulk-import target table (natural key: ${naturalKey})`
+  );
 }
 
 /**

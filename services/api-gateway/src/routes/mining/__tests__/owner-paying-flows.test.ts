@@ -137,8 +137,10 @@ describe('licence-cockpit-projection (OW-5)', () => {
       // community_benefit + production_returns missing
     });
     expect(pack.renewalPackCompletePct).toBe(60); // 3 of 5
-    expect(pack.renewalPackMissing).toContain('Community benefit agreement');
-    expect(pack.renewalPackMissing).toContain('Production returns filed');
+    // renewalPackMissing now carries stable, locale-neutral KEYS (owner-web
+    // localizes them via renewalPackItemLabel) — never single-language labels.
+    expect(pack.renewalPackMissing).toContain('community_benefit');
+    expect(pack.renewalPackMissing).toContain('production_returns');
     expect(pack.renewalPackMissing).toHaveLength(2);
   });
 

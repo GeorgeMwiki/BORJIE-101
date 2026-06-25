@@ -56,8 +56,11 @@ import {
   workShiftRecordSchema,
   ShiftPlannerError,
   type Certification,
+  type ComplianceReport,
   type EquipmentKind,
   type ShiftKind,
+  type ShiftPlan,
+  type ShiftRequest,
   type TaskZone,
   type Worker,
   type WorkShiftRecord,
@@ -161,6 +164,153 @@ function attendanceZone(): TaskZone {
 }
 
 // ---------------------------------------------------------------------------
+// Roster-honesty flags — stable, locale-NEUTRAL codes.
+//
+// The roster projection defaults several planner-domain fields the assets /
+// attendance schemas do not store (operator cert, availability window, shift
+// zone) and excludes asset kinds the planner cannot model. Each provenance
+// note is emitted as an UPPER_SNAKE code rather than English prose so the
+// cockpit can render it in the active locale (the FE owns the {en,sw} copy).
+// These conditions hold for every roster projection, so the set is constant.
+// ---------------------------------------------------------------------------
+
+const ROSTER_HONESTY_FLAGS = [
+  'EQUIPMENT_CERT_IS_PLANNER_DEFAULT',
+  'EQUIPMENT_AVAILABILITY_DEFAULT_WINDOW',
+  'WORKER_SHIFTS_FROM_ATTENDANCE_ZONE_DEFAULTED',
+  'UNMAPPED_ASSET_KINDS_EXCLUDED',
+] as const;
+
+// ---------------------------------------------------------------------------
+// Language-neutral projection of the planner's English-prose output.
+//
+// The pure-compute package builds human-readable English sentences for the
+// unassigned-task reason, the rotation-alert label, the OSHA rule label /
+// detail, and the blocking-failure lines. Returning those raw would force
+// the owner cockpit to render English to Swahili users (zero-mix breach),
+// because the locale lives on the client and the package has no locale.
+//
+// Instead we project the SAME facts into stable enum keys + numeric /
+// identifier parts. The frontend owns the {en,sw} copy and composes the
+// final string in the active locale (whole-template interpolation), so no
+// English ever crosses the wire for these surfaces. The original prose is
+// dropped from `structured` (the FE never reads it) but kept on the legacy
+// `plan` / `compliance` fields for any non-localized consumer.
+// ---------------------------------------------------------------------------
+
+/** Re-derive the structured cause for an unfilled task (mirrors the solver). */
+function deriveUnassignedReason(
+  taskId: string,
+  request: ShiftRequest,
+):
+  | { taskId: string; reasonKey: 'no-certified-worker'; certifications: ReadonlyArray<Certification> }
+  | { taskId: string; reasonKey: 'no-matching-equipment'; equipmentKinds: ReadonlyArray<EquipmentKind> }
+  | { taskId: string; reasonKey: 'all-assigned' } {
+  const task = request.tasks.find((t) => t.id === taskId);
+  if (!task) return { taskId, reasonKey: 'all-assigned' };
+
+  const anyWorkerHasCerts = request.workers.some((w) =>
+    task.requiredCertifications.every((cert) => w.certifications.includes(cert)),
+  );
+  if (!anyWorkerHasCerts) {
+    return {
+      taskId,
+      reasonKey: 'no-certified-worker',
+      certifications: task.requiredCertifications,
+    };
+  }
+  const anyEqMatches = request.equipment.some((e) =>
+    task.requiredEquipment.includes(e.kind),
+  );
+  if (!anyEqMatches) {
+    return {
+      taskId,
+      reasonKey: 'no-matching-equipment',
+      equipmentKinds: task.requiredEquipment,
+    };
+  }
+  return { taskId, reasonKey: 'all-assigned' };
+}
+
+interface StructuredShiftPlanner {
+  readonly unassignedTasks: ReadonlyArray<ReturnType<typeof deriveUnassignedReason>>;
+  readonly rotationAlerts: ReadonlyArray<{
+    readonly workerId: string;
+    readonly atISO: string;
+    readonly rotationHours: number;
+    readonly zone: TaskZone;
+  }>;
+  readonly compliance: {
+    readonly results: ReadonlyArray<{
+      readonly ruleKey: string;
+      readonly pass: boolean;
+      readonly severity: ComplianceReport['results'][number]['severity'];
+      readonly affectedCount: number;
+      readonly affectedWorkerIds: ReadonlyArray<string>;
+    }>;
+    readonly blockingFailures: ReadonlyArray<{
+      readonly ruleKey: string;
+      readonly severity: ComplianceReport['results'][number]['severity'];
+      readonly affectedCount: number;
+    }>;
+  };
+  /** Threshold + ambient inputs the FE needs to compose localized labels. */
+  readonly labelContext: {
+    readonly ambientTemperatureC: number;
+    readonly thresholds: typeof DEFAULT_OSHA_THRESHOLDS;
+  };
+}
+
+function projectStructured(
+  request: ShiftRequest,
+  plan: ShiftPlan,
+  compliance: ComplianceReport,
+  thresholds: typeof DEFAULT_OSHA_THRESHOLDS,
+): StructuredShiftPlanner {
+  // Rotation alerts carry no zone of their own; recover it from the matching
+  // assignment (a worker is alerted for the hazard zone they were assigned).
+  const zoneByWorker = new Map<string, TaskZone>();
+  for (const a of plan.assignments) zoneByWorker.set(a.workerId, a.zone);
+
+  const failingByRule = new Map<string, ComplianceReport['results'][number]>();
+  for (const r of compliance.results) {
+    if (!r.pass && (r.severity === 'critical' || r.severity === 'high')) {
+      failingByRule.set(r.ruleId, r);
+    }
+  }
+
+  return {
+    unassignedTasks: plan.unassignedTasks.map((u) =>
+      deriveUnassignedReason(u.taskId, request),
+    ),
+    rotationAlerts: plan.rotationAlerts.map((r) => ({
+      workerId: r.workerId,
+      atISO: r.atISO,
+      rotationHours: thresholds.hazardRotationHours,
+      zone: zoneByWorker.get(r.workerId) ?? 'surface-pit',
+    })),
+    compliance: {
+      results: compliance.results.map((r) => ({
+        ruleKey: r.ruleId,
+        pass: r.pass,
+        severity: r.severity,
+        affectedCount: r.affectedWorkerIds.length,
+        affectedWorkerIds: r.affectedWorkerIds,
+      })),
+      blockingFailures: Array.from(failingByRule.values()).map((r) => ({
+        ruleKey: r.ruleId,
+        severity: r.severity,
+        affectedCount: r.affectedWorkerIds.length,
+      })),
+    },
+    labelContext: {
+      ambientTemperatureC: request.ambientTemperatureC,
+      thresholds,
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Router
 // ---------------------------------------------------------------------------
 
@@ -243,12 +393,23 @@ miningShiftPlannerRouter.post('/plan', async (c) => {
       plan,
       DEFAULT_OSHA_THRESHOLDS,
     );
+    // Language-neutral projection — stable keys + numeric parts so the owner
+    // cockpit renders these surfaces in the active locale (no English prose
+    // crosses the wire). `plan` / `compliance` keep the legacy prose for any
+    // non-localized consumer.
+    const structured = projectStructured(
+      parsed.data,
+      plan,
+      compliance,
+      DEFAULT_OSHA_THRESHOLDS,
+    );
     return c.json(
       {
         success: true as const,
         data: {
           plan,
           compliance,
+          structured,
           thresholds: DEFAULT_OSHA_THRESHOLDS,
         },
       },
@@ -560,21 +721,11 @@ miningShiftPlannerRouter.get('/roster', async (c) => {
             equipment: equipment.length,
             sites: siteRows.length,
           },
-          flags: [
-            'FLAG: equipment.requiredCertification is a planner-domain ' +
-              'DEFAULT per kind — the assets schema carries no operator ' +
-              'certification column.',
-            'FLAG: equipment availability window is a generous +/-24h band ' +
-              'around now() — the assets schema carries no per-shift ' +
-              'availability. Override availableFromISO/availableToISO before ' +
-              'POST /plan if you need tighter windows.',
-            'FLAG: worker.last72hShifts are derived from REAL attendance ' +
-              "rows; the zone is recorded as 'surface-pit' because " +
-              'attendance does not store a hazard zone.',
-            'FLAG: assets that are not excavator|truck|vehicle|drill_rig|' +
-              'loader|crusher|grader|lhd are excluded from the equipment ' +
-              'pool (the planner has no kind for them).',
-          ],
+          // Locale-neutral roster-honesty flags: stable UPPER_SNAKE codes
+          // (never English prose) so the owner cockpit renders each note in
+          // the ACTIVE locale via its {en,sw} flag-label table. The wire is
+          // locale-neutral; only the render is localized.
+          flags: ROSTER_HONESTY_FLAGS,
         },
       },
       200,

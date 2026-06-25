@@ -19,7 +19,7 @@ function fakeService() {
     },
     commit: async () => ({
       ok: true,
-      counts: { properties: 1, units: 0, tenants: 0, employees: 0, departments: 0, teams: 0 },
+      counts: { sites: 1, employees: 0, departments: 0, teams: 0 },
       skipped: {},
       run: { id: 'run_test' },
     }),

@@ -68,6 +68,38 @@ function dayKey(d: Date) {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Latest gold-spot (USD/oz) + TZS→USD from the `fx_rates` benchmark feed.
+ *
+ * Returns `null` for any pair the feed has not yet written, so a downstream
+ * card distinguishes "feed not wired / empty" from a real numeric quote.
+ * `fx_rates` is tenant-agnostic (global LBMA/BoT benchmarks) — the database
+ * middleware merely opens the session; no `app.current_tenant_id` is bound.
+ *
+ * `XAU_USD_PM` is the canonical afternoon gold fix; we fall back to the AM fix
+ * when PM is absent. Each rate is parsed through `Number.isFinite` so a NULL /
+ * non-numeric DB value can never reach the wire as `NaN`.
+ */
+async function getLatestFxQuotes(db: {
+  execute(q: unknown): Promise<{ rows: ReadonlyArray<{ pair: string; rate: string }> }>;
+}): Promise<{ goldSpotUsdOz: number | null; tzsUsd: number | null }> {
+  const result = await db.execute(sql`
+    SELECT DISTINCT ON (pair) pair, rate::text AS rate
+    FROM fx_rates
+    WHERE pair IN ('TZS_USD', 'XAU_USD_PM', 'XAU_USD_AM')
+    ORDER BY pair, ts DESC
+  `);
+  const byPair = new Map<string, number>();
+  for (const row of result.rows ?? []) {
+    const parsed = Number(row.rate);
+    if (Number.isFinite(parsed) && parsed > 0) byPair.set(row.pair, parsed);
+  }
+  return {
+    goldSpotUsdOz: byPair.get('XAU_USD_PM') ?? byPair.get('XAU_USD_AM') ?? null,
+    tzsUsd: byPair.get('TZS_USD') ?? null,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // GET /daily-brief — FULL DailyBriefResponse (owner-ceo-1 fix).
 //
@@ -100,6 +132,7 @@ app.get('/daily-brief', async (c) => {
     licenceResult,
     decisionsResult,
     todayProductionResult,
+    fxResult,
   ] = await Promise.allSettled([
     getCockpitDailyBrief(db, tenantId),
     getCockpitCashRunway(db, tenantId),
@@ -118,6 +151,12 @@ app.get('/daily-brief', async (c) => {
       .then((rows: ReadonlyArray<{ tonnes: number | string }>) => ({
         tonnesToday: Number((rows[0] as { tonnes: number | string } | undefined)?.tonnes ?? 0),
       })),
+    // FX & gold — REAL source. `fx_rates` is the tenant-agnostic LBMA/BoT
+    // benchmark feed the fx-feed cron appends to (see mining/fx.hono.ts).
+    // We read the latest TZS_USD + XAU_USD_PM rows. A missing/empty feed
+    // surfaces as `null` (feed-not-wired) — never a fabricated 0 that a card
+    // would render as a real quote (failure ≠ emptiness ≠ honest zero).
+    getLatestFxQuotes(db),
   ]);
 
   function slotOr<T>(result: PromiseSettledResult<T>, label: string, fallback: T): T {
@@ -252,8 +291,18 @@ app.get('/daily-brief', async (c) => {
     });
   }
 
-  // fxAndGold — marketplace & FX data is not in this endpoint's scope;
-  // return honest zero/defaults. The FX screen feeds these live separately.
+  // FX & gold come from the real `fx_rates` benchmark feed (fxResult slot).
+  // A missing feed yields `null` per pair — the card renders an honest
+  // em-dash, never a fabricated $0/oz or TZS/USD 0.
+  const fx = slotOr(
+    fxResult as PromiseSettledResult<{
+      goldSpotUsdOz: number | null;
+      tzsUsd: number | null;
+    }>,
+    'fxQuotes',
+    { goldSpotUsdOz: null, tzsUsd: null },
+  );
+
   const daysToCliff27Mar = Math.max(
     0,
     Math.round(
@@ -289,14 +338,21 @@ app.get('/daily-brief', async (c) => {
         pendingDecisions,
         activeSites,
         compliance: { green, amber, red },
+        // Marketplace activity has no backing table in this deployment yet
+        // (no listings / inquiries schema). Emitting `0`/`''` would render as
+        // a real "zero offers / no buyer" fact — a fabricated emptiness. We
+        // emit `null` so the card shows an honest "not wired" em-dash,
+        // distinguishing an absent feed from a genuine zero.
         marketplace: {
-          openOffers: 0,
-          newInquiries7d: 0,
-          topBuyer: '',
+          openOffers: null,
+          newInquiries7d: null,
+          topBuyer: null,
         },
+        // Gold spot + TZS/USD from the live `fx_rates` feed (null when the
+        // fx-feed cron has not yet written that pair).
         fxAndGold: {
-          goldSpotUsdOz: 0,
-          tzsUsd: 0,
+          goldSpotUsdOz: fx.goldSpotUsdOz,
+          tzsUsd: fx.tzsUsd,
           sellWindowOpen: cliff.remediationComplete,
           daysToCliff27Mar,
         },
@@ -400,7 +456,11 @@ app.openapi(cockpitCliffStatusRoute, async (c) => {
         postCliffSales: usdSales.length,
         usdDenominated: usdDenom,
         remediationComplete: usdDenom === 0,
-        note: 'Post-27-Mar-2026 domestic contracts must settle TZS-primary.',
+        // WIRE STAYS LOCALE-NEUTRAL: emit a stable key, never single-language
+        // prose. The owner-web CliffBanner renders the remediation guidance
+        // from its localized treasury-page string table (S.cliff.remediation)
+        // in the ACTIVE locale — the backend never ships English copy here.
+        note: 'tzs_primary_settlement_required',
       },
     },
     200,

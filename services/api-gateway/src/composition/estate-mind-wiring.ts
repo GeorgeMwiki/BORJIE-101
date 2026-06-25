@@ -67,6 +67,7 @@ import {
   type AutonomyCap,
 } from './md-commitments/reconcile-engine.js';
 import { createDurableConfirmationProbe } from './md-commitments/confirmation-probe.js';
+import { translate } from '@borjie/translation';
 import { createDrizzleSetPointStateStore } from './md-commitments/set-point-store.js';
 import {
   createWaitForEventSubscriber,
@@ -552,9 +553,63 @@ function createLiveLadderDispatchers(
     }
   }
 
-  function reminderRow(c: MdCommitment, channel: 'email' | 'sms'): unknown {
+  // Best-effort EN→SW translation of a narrative for the reminder/escalation
+  // SW surfaces. `MdCommitment` carries `titleSw` (clean SW title) but NO
+  // `rationaleSw`, so the SW body must be translated. Mirrors
+  // `resolveEscalationContextEn` (opposite direction): returns `null` on a
+  // passthrough / no-op / failure — NEVER the untranslated English source — so
+  // a caller falls back to a clean single-language path rather than mixing.
+  async function translateRationaleToSw(
+    enText: string,
+    tenantId: string,
+  ): Promise<string | null> {
+    const src = enText.trim();
+    if (src.length === 0) return null;
+    try {
+      const out = await translate({
+        text: src,
+        sourceLang: 'en',
+        targetLang: 'sw',
+        tenantId,
+        surface: 'md-commitment.reminder',
+      });
+      if (out.provider === 'passthrough') return null;
+      const sw = out.text.trim();
+      return sw.length > 0 && sw !== src ? sw : null;
+    } catch {
+      return null;
+    }
+  }
+
+  // Build the reminders INSERT, born locale-complete. The `reminders` table has
+  // single `title`/`body` columns the dispatch worker renders verbatim, so the
+  // bilingual copy rides in the payload under `__localized` (`{ en, sw }`). The
+  // worker resolves the recipient locale and renders the matching entry — one
+  // language per recipient, never a mixed body. The `title`/`body` COLUMNS hold
+  // the project-default (en) copy as the worker's fallback. The SW body is a
+  // best-effort translation of the (EN-only) rationale; when translation is
+  // unavailable we OMIT the sw entry rather than ship English under a `sw` key
+  // (the worker then falls back to the en columns — a clean single language).
+  async function reminderRow(
+    c: MdCommitment,
+    channel: 'email' | 'sms',
+  ): Promise<unknown> {
     const idem = `mdc:${c.id}:rung:${channel}:${c.attemptCount}`;
     const rowId = `mdc_${c.id}_${channel}_${c.attemptCount}`;
+    const swBody = await translateRationaleToSw(c.rationale, c.tenantId);
+    const localized: Record<string, { title: string; body: string }> = {
+      en: { title: c.title, body: c.rationale },
+    };
+    // Only add the sw entry when we have a REAL Swahili body — a SW title with
+    // an English body would itself be mixing.
+    if (swBody) {
+      localized.sw = { title: c.titleSw, body: swBody };
+    }
+    const payload = {
+      source: 'md-commitment',
+      commitmentId: c.id,
+      __localized: localized,
+    };
     return sql`
       INSERT INTO reminders
         (id, tenant_id, owner_id, title, body, trigger_at, channel, status,
@@ -562,7 +617,7 @@ function createLiveLadderDispatchers(
       VALUES
         (${rowId}, ${c.tenantId}, ${c.ownerId}, ${c.title}, ${c.rationale},
          now(), ${channel}, 'scheduled',
-         ${JSON.stringify({ source: 'md-commitment', commitmentId: c.id })}::jsonb,
+         ${JSON.stringify(payload)}::jsonb,
          ${idem})
       ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
     `;
@@ -591,10 +646,10 @@ function createLiveLadderDispatchers(
       }
     },
     async email(c) {
-      await exec(reminderRow(c, 'email'), 'email', c);
+      await exec(await reminderRow(c, 'email'), 'email', c);
     },
     async sms(c) {
-      await exec(reminderRow(c, 'sms'), 'sms', c);
+      await exec(await reminderRow(c, 'sms'), 'sms', c);
     },
     async ownerDirectSafeHalt(c) {
       // SAFE-HALT — surface to the mwikila_actions_inbox and WAIT. The row is
@@ -637,14 +692,27 @@ function createLiveLadderDispatchers(
       // 'task' escalation under the tenant owner. The SELECT resolves a real
       // owner uuid so the NOT NULL FK holds; if none resolves the write is a
       // no-op (swallowed) rather than a constraint error.
-      const summary = `${c.title} — ${c.rationale}`.slice(0, 1000);
+      //
+      // ZERO-MIX (the round-5 escalation pattern): `context_sw` is the SWAHILI
+      // column the GET serves to SW owners — it MUST hold a Swahili narrative,
+      // NOT the English `title`/`rationale`. So the SW narrative is built from
+      // `titleSw` plus a best-effort EN→SW translation of the (EN-only)
+      // rationale; if translation is unavailable it degrades to the clean SW
+      // title alone (still single-language). The English narrative rides in the
+      // additive `context.contextEn` bag (migration 0356) the GET serves to EN
+      // owners — no SW→EN round-trip needed since it is already English.
+      const contextEn = `${c.title} — ${c.rationale}`.slice(0, 1000);
+      const swRationale = await translateRationaleToSw(c.rationale, c.tenantId);
+      const contextSw = (
+        swRationale ? `${c.titleSw} — ${swRationale}` : c.titleSw
+      ).slice(0, 1000);
       await exec(
         sql`
           INSERT INTO mining_escalations
             (tenant_id, raised_by_user_id, to_role, source_kind, context_sw,
-             severity, status)
-          SELECT ${c.tenantId}::uuid, u.id, 'owner', 'task', ${summary},
-                 'critical', 'open'
+             severity, status, context)
+          SELECT ${c.tenantId}::uuid, u.id, 'owner', 'task', ${contextSw},
+                 'critical', 'open', ${JSON.stringify({ contextEn })}::jsonb
             FROM users u
            WHERE u.tenant_id = ${c.tenantId}
              AND u.id ~ '^[0-9a-fA-F-]{36}$'
@@ -652,7 +720,7 @@ function createLiveLadderDispatchers(
                SELECT 1 FROM mining_escalations e
                 WHERE e.tenant_id = ${c.tenantId}::uuid
                   AND e.status = 'open'
-                  AND e.context_sw = ${summary}
+                  AND e.context_sw = ${contextSw}
              )
            LIMIT 1
         `,

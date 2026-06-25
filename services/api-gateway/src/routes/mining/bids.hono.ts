@@ -22,19 +22,19 @@
 
 import { OpenAPIHono } from '@hono/zod-openapi';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import {
   buyers,
   marketplaceBids,
   marketplaceListings,
   offtakeAgreements,
-  eventOutbox,
 } from '@borjie/database';
 import { withSecurityEvents } from '@borjie/observability';
 import { authMiddleware } from '../../middleware/hono-auth';
 import { databaseMiddleware } from '../../middleware/database';
 import { publishCockpitEvent } from '../../services/cockpit-events';
 import { enqueueBidOutcomeNotification } from '../../services/buyer-notifications';
+import { enqueueSettlementRequested } from '../../services/offtake-settlement';
 import {
   bidsPlaceRoute,
   bidsListRoute,
@@ -50,6 +50,18 @@ app.use('*', databaseMiddleware);
 type DrizzleDb = any;
 
 const KYC_URL = '/api/v1/mining/buyers/kyc';
+
+/**
+ * Build the structured `{ en, sw }` error message the FE renders in the
+ * active locale. The WIRE IS LOCALE-NEUTRAL: the stable `code` is the
+ * primary; when prose must ride the wire it rides as this STRUCTURED pair
+ * so the FE picks one language and never mixes (the `marketplace/rfb`
+ * precedent the buyer/owner surfaces already consume). NEVER a
+ * concatenated bilingual string, NEVER bare single-language prose.
+ */
+function localizedMessage(en: string, sw: string): { en: string; sw: string } {
+  return { en, sw };
+}
 
 /**
  * Resolve the `buyers` row bound to the calling user via
@@ -438,7 +450,10 @@ app.openapi(
             success: false as const,
             error: {
               code: 'ACCEPT_FAILED',
-              message: 'Could not accept bid. Imeshindikana kukubali zabuni.',
+              message: localizedMessage(
+                'Could not accept bid.',
+                'Imeshindwa kukubali zabuni.',
+              ),
             },
           },
           500,
@@ -453,8 +468,11 @@ app.openapi(
             error: {
               code: result?.code ?? 'NOT_FOUND',
               message: conflict
-                ? 'Bid is no longer pending. Zabuni hii haisubiri tena.'
-                : 'Bid not found',
+                ? localizedMessage(
+                    'Bid is no longer pending.',
+                    'Zabuni hii haisubiri tena.',
+                  )
+                : localizedMessage('Bid not found.', 'Zabuni haijapatikana.'),
             },
           },
           conflict ? 409 : 404,
@@ -530,8 +548,11 @@ app.openapi(
             error: {
               code: result.code,
               message: conflict
-                ? 'Bid is no longer pending. Zabuni hii haisubiri tena.'
-                : 'Bid not found',
+                ? localizedMessage(
+                    'Bid is no longer pending.',
+                    'Zabuni hii haisubiri tena.',
+                  )
+                : localizedMessage('Bid not found.', 'Zabuni haijapatikana.'),
             },
           },
           conflict ? 409 : 404,
@@ -810,6 +831,11 @@ app.post('/offtake-agreements/:id/sign', async (c: any) => {
     );
   }
 
+  // Capture the narrowed values into `const` locals: TS preserves a `const`'s
+  // narrowing across the async transaction closure below, whereas the `auth.*`
+  // member accesses widen back to `string | undefined` inside the closure.
+  const tenantId = auth.tenantId;
+  const userId = auth.userId;
   let result:
     | { kind: 'ok'; row: Record<string, unknown>; enqueued: boolean }
     | { kind: 'not_found' };
@@ -849,45 +875,26 @@ app.post('/offtake-agreements/:id/sign', async (c: any) => {
         return { kind: 'ok' as const, row: existing, enqueued: false };
       }
 
-      // Next per-tenant outbox sequence number (monotonic ordering key).
-      const seqRow = (
-        await tx.execute(sql`
-          SELECT COALESCE(MAX(sequence_number), 0) + 1 AS next_seq
-            FROM event_outbox
-           WHERE tenant_id = ${auth.tenantId}
-        `)
-      );
-      const nextSeq = Number(
-        (Array.isArray(seqRow)
-          ? seqRow
-          : ((seqRow as { rows?: ReadonlyArray<Record<string, unknown>> }).rows ??
-            []))[0]?.next_seq ?? 1,
-      );
-
       // settlement.requested → durable outbox row consumed by the settlement
-      // worker. aggregateId is the agreement id so a retry is dedupable.
-      await tx.insert(eventOutbox).values({
-        id: randomUUID(),
-        tenantId: auth.tenantId,
-        eventType: 'settlement.requested',
-        aggregateType: 'offtake_agreement',
-        aggregateId: agreementId,
-        payload: {
-          offtakeAgreementId: agreementId,
-          bidId: updated.bidId,
-          listingId: updated.listingId,
-          buyerId: updated.buyerId,
-          buyerTenantId: updated.buyerTenantId ?? null,
-          agreedPriceTzs: updated.agreedPriceTzs,
-          quantityKg: updated.quantityKg,
-          tenantId: auth.tenantId,
-          signedBy: auth.userId,
+      // worker, written in THIS transaction. Shared with the buyer-sign
+      // surface so whichever party completes the signature first emits an
+      // identical event exactly once (the `eq(status, 'pending_signature')`
+      // CAS above is the once-only guard).
+      await enqueueSettlementRequested(tx, {
+        tenantId,
+        agreement: {
+          id: agreementId,
+          bidId: String(updated.bidId),
+          listingId: String(updated.listingId),
+          buyerId: String(updated.buyerId),
+          buyerTenantId:
+            (updated.buyerTenantId as string | null | undefined) ?? null,
+          agreedPriceTzs: String(updated.agreedPriceTzs),
+          quantityKg: String(updated.quantityKg),
         },
-        metadata: { source: 'offtake-sign', signedAt: now.toISOString() },
-        sequenceNumber: nextSeq,
-        priority: 'high',
-        status: 'pending',
-        createdAt: now,
+        signedBy: userId,
+        source: 'offtake-sign',
+        signedAt: now,
       });
 
       return { kind: 'ok' as const, row: updated, enqueued: true };
@@ -902,7 +909,10 @@ app.post('/offtake-agreements/:id/sign', async (c: any) => {
         success: false as const,
         error: {
           code: 'SIGN_FAILED',
-          message: 'Could not sign the agreement. Imeshindikana kusaini mkataba.',
+          message: localizedMessage(
+            'Could not sign the agreement.',
+            'Imeshindwa kusaini mkataba.',
+          ),
         },
       },
       500,
@@ -913,7 +923,13 @@ app.post('/offtake-agreements/:id/sign', async (c: any) => {
     return c.json(
       {
         success: false as const,
-        error: { code: 'NOT_FOUND', message: 'Offtake agreement not found' },
+        error: {
+          code: 'NOT_FOUND',
+          message: localizedMessage(
+            'Offtake agreement not found.',
+            'Mkataba wa ununuzi haujapatikana.',
+          ),
+        },
       },
       404,
     );

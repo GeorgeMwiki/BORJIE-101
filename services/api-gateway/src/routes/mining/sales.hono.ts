@@ -153,8 +153,7 @@ app.openapi(
             success: false as const,
             error: {
               code: 'SALE_POST_FAILED',
-              message:
-                'Could not record the sale. No money moved. Imeshindikana kurekodi mauzo.',
+              message: 'Could not record the sale. No money moved.',
             },
           },
           500,

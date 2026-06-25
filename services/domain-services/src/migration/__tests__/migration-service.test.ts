@@ -29,9 +29,7 @@ function makeRun(overrides: Partial<MigrationRun> = {}): MigrationRun {
     approvedAt: '2025-01-01T00:00:00Z',
     committedAt: null,
     bundle: {
-      properties: [{ name: 'Eden Heights' }],
-      units: [],
-      tenants: [],
+      sites: [{ name: 'Geita North Pit' }],
       employees: [],
       departments: [],
       teams: [],
@@ -69,14 +67,12 @@ class FakeRepo implements IMigrationRepository {
     if (this.shouldFail) throw new Error('boom');
     return {
       counts: {
-        properties: 1,
-        units: 0,
-        tenants: 0,
+        sites: 1,
         employees: 0,
         departments: 0,
         teams: 0,
       },
-      skipped: { properties: [], units: [], tenants: [], employees: [], departments: [], teams: [] },
+      skipped: { sites: [], employees: [], departments: [], teams: [] },
     };
   }
 }
