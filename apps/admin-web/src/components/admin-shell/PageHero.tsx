@@ -10,7 +10,7 @@ interface PageHeroProps {
 }
 
 /**
- * LitFin-rhythm page hero for admin-web — now routed through the
+ * Institutional-rhythm page hero for admin-web — now routed through the
  * design-system `PageHeader` for the title / subtitle / actions row.
  *
  * The public API (`eyebrow, title, subtitle, actions, meta`) is

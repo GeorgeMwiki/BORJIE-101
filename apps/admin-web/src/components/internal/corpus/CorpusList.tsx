@@ -7,6 +7,8 @@ import { useSupersedeCorpus } from '@/lib/internal/queries/corpus';
 import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { CorpusEntry } from '@/lib/internal/types';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, CORPUS_STATUS_LABELS } from '@/lib/internal/enum-labels';
 
 function tone(status: CorpusEntry['status']): 'success' | 'info' | 'neutral' {
   if (status === 'Indexed') return 'success';
@@ -65,7 +67,9 @@ export function CorpusList({ rows, initialLocale }: CorpusListProps): JSX.Elemen
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <StubBadge tone={tone(entry.status)}>{entry.status}</StubBadge>
+              <StubBadge tone={tone(entry.status)}>
+                {localizeEnumLabel(CORPUS_STATUS_LABELS, entry.status, locale)}
+              </StubBadge>
               <button
                 type="button"
                 disabled={entry.status === 'Superseded' || supersede.isPending}
@@ -76,7 +80,7 @@ export function CorpusList({ rows, initialLocale }: CorpusListProps): JSX.Elemen
                     onError: (e) =>
                       setToast(
                         `${pickByLocale(locale, S.failed)}: ${
-                          e instanceof Error ? e.message : pickByLocale(locale, S.unknown)
+                          localizeApiError(e, locale)
                         }`,
                       ),
                   })

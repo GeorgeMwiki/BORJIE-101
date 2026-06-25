@@ -9,7 +9,7 @@ import { requirePublicBaseUrl } from '@/lib/env-guard';
 /**
  * AdminShell — root chrome for every Borjie internal admin page.
  *
- * Mirrors the LitFin admin/officer shell shape:
+ * Mirrors the canonical admin/officer shell shape:
  *
  *   ┌──────────┬──────────────────────────────────────────────┐
  *   │          │ [EnvBadge]  [search]      [bell] [persona]   │

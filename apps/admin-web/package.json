@@ -18,6 +18,7 @@
     "@borjie/central-intelligence": "workspace:*",
     "@borjie/chat-ui": "workspace:*",
     "@borjie/design-system": "workspace:*",
+    "@borjie/error-catalog": "workspace:*",
     "@borjie/forecasting": "workspace:*",
     "@borjie/genui": "workspace:*",
     "@borjie/graph-privacy": "workspace:*",

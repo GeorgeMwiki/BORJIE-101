@@ -19,6 +19,8 @@ import { SessionReplayList } from './_filters';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
+import { localizeApiError } from '@borjie/error-catalog';
 
 interface RecentSession {
   readonly sessionId: string;
@@ -39,7 +41,13 @@ interface ApiEnvelope<T> {
 
 async function fetchRecentSessions(): Promise<{
   sessions: RecentSession[];
-  error: string | null;
+  /**
+   * Locale-NEUTRAL failure marker: the gateway error CODE when present, or a
+   * synthesized code, or `null` on success. The page localizes it through
+   * `localizeApiError` — the raw wire message never reaches the render (a raw
+   * English diagnostic under `sw` is language mixing).
+   */
+  errorCode: string | null;
 }> {
   try {
     const base = requirePublicBaseUrl(
@@ -61,38 +69,44 @@ async function fetchRecentSessions(): Promise<{
       },
     );
     if (!res.ok) {
-      return {
-        sessions: [],
-        error: `Recent-sessions fetch failed (${res.status})`,
-      };
+      return { sessions: [], errorCode: `HTTP_${res.status}` };
     }
     const body = (await res.json()) as ApiEnvelope<{
       sessions: RecentSession[];
     }>;
     if (!body.success || !body.data) {
-      return {
-        sessions: [],
-        error: body.error?.message ?? 'API returned an error envelope',
-      };
+      return { sessions: [], errorCode: body.error?.code ?? 'UNKNOWN' };
     }
-    return { sessions: body.data.sessions, error: null };
-  } catch (err) {
-    return {
-      sessions: [],
-      error: err instanceof Error ? err.message : String(err),
-    };
+    return { sessions: body.data.sessions, errorCode: null };
+  } catch {
+    // Network / parse failure — a sentinel code (not the raw English
+    // diagnostic) so the page still surfaces an error, localized via the
+    // catalog's generic fallback rather than leaking the wire message.
+    return { sessions: [], errorCode: 'NETWORK_ERROR' };
   }
 }
 
 export default async function SessionReplayLandingPage() {
-  const [{ sessions, error }, locale] = await Promise.all([
+  const [{ sessions, errorCode }, locale] = await Promise.all([
     fetchRecentSessions(),
     readLocaleFromServerCookies(),
   ]);
+  const error = errorCode ? localizeApiError(errorCode, locale) : null;
   return (
     <PageShell
-      title="Session replay"
-      subtitle="Cold-store playback of operator sessions. rrweb events are PII-masked at capture; the brain never sees the bytes."
+      title={pickByLocale(locale, {
+        en: 'Session replay',
+        sw: 'Uchezaji wa kipindi',
+      })}
+      subtitle={pickByLocale(locale, {
+        en:
+          'Cold-store playback of operator sessions. rrweb events are ' +
+          'PII-masked at capture; the brain never sees the bytes.',
+        sw:
+          'Uchezaji wa vipindi vya waendeshaji kutoka hifadhi baridi. ' +
+          'Matukio ya rrweb hufichwa PII wakati wa kunasa; ubongo ' +
+          'hauoni baiti hizo kamwe.',
+      })}
     >
       {error ? (
         <div className="mb-4 rounded-md border border-warning bg-warning-subtle p-4 text-sm text-warning">

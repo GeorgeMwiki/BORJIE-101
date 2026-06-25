@@ -6,6 +6,7 @@ import { ThreadList } from '@/components/ask/ThreadList';
 import { AskChat } from '@/components/ask/AskChat';
 import { AuditTrailPanel } from '@/components/ask/AuditTrailPanel';
 import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +18,13 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
   const { threadId } = await params;
   // Seed the chat's first paint from the server-resolved `borjie_locale`
   // cookie so SSR + the first client render agree with the `<html lang>`
-  // the root layout stamped (zero-mix canon — no EN-under-SW frame).
-  const initialLocale = await readLocaleFromServerCookies();
+  // the root layout stamped (zero-mix canon — no EN-under-SW frame). The
+  // header chrome + the audit panel title resolve through the SAME locale.
+  const locale = await readLocaleFromServerCookies();
+  const threadLabel = pickByLocale(locale, {
+    en: `Thread ${threadId.slice(0, 12)}`,
+    sw: `Mazungumzo ${threadId.slice(0, 12)}`,
+  });
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-thread-narrow shrink-0 border-r border-border bg-surface-sunken lg:block">
@@ -28,10 +34,13 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="border-b border-border px-8 py-5">
           <p className="font-mono text-meta uppercase tracking-widest text-signal-500">
-            Industry conversation
+            {pickByLocale(locale, {
+              en: 'Industry conversation',
+              sw: 'Mazungumzo ya sekta',
+            })}
           </p>
           <h1 className="mt-1 font-display text-2xl font-medium tracking-tight">
-            Thread {threadId.slice(0, 12)}
+            {threadLabel}
           </h1>
         </header>
 
@@ -40,7 +49,7 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
             threadId={threadId}
             initialMessages={[]}
             initialArtifacts={[]}
-            initialLocale={initialLocale}
+            initialLocale={locale}
           />
         </div>
       </main>
@@ -51,7 +60,8 @@ export default async function IndustryThreadPage({ params }: ThreadPageProps) {
             threadId={threadId}
             scope="platform"
             fetchUrl={buildAuditUrl(threadId)}
-            title={`Thread ${threadId.slice(0, 12)}`}
+            initialLocale={locale}
+            title={threadLabel}
           />
         </div>
       </aside>

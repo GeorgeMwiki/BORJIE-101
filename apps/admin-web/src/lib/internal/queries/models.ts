@@ -12,7 +12,7 @@
  * empty state (never fabricated spend).
  */
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const KEY = ['internal', 'models-overview'] as const;
 
@@ -36,7 +36,7 @@ export function useModelsOverviewQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<OverviewResult> => {
       const res = await apiClient.get<ReadonlyArray<ModelRollupRow>>('/models');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data ?? [], source: 'live' };
     },
   });

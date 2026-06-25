@@ -19,7 +19,7 @@ export async function generateMetadata() {
 }
 
 /**
- * Borjie internal HQ sign-in landing. LitFin-pattern: full-screen
+ * Borjie internal HQ sign-in landing. Pattern: full-screen
  * centered single-column card with subtle aurora backdrop. Form
  * component owns the editorial weight (wordmark, heading, fields).
  */

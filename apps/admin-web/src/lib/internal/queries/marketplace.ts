@@ -12,7 +12,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient, unwrap } from '@/lib/api-client';
+import { apiClient, toApiError, unwrap } from '@/lib/api-client';
 
 const MARKETPLACE_KEY = ['internal', 'marketplace-listings'] as const;
 
@@ -78,7 +78,7 @@ export function useMarketplaceListingsQuery() {
     queryKey: MARKETPLACE_KEY,
     queryFn: async (): Promise<MarketplaceResult> => {
       const res = await apiClient.get<ReadonlyArray<RawListing>>('/marketplace');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptListing), source: 'live' };
     },
   });

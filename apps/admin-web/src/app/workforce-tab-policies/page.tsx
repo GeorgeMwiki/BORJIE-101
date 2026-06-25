@@ -1,5 +1,17 @@
 import { PageShell } from '@/components/migrated/PageShell';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 import { WorkforceTabPoliciesClient } from './WorkforceTabPoliciesClient';
+
+// Header copy resolved server-side from the locale cookie so SSR and the
+// client's first paint render the same language (zero-mix canon).
+const HEADER = {
+  title: { en: 'Workforce tab policies', sw: 'Sera za vichupo vya wafanyakazi' },
+  subtitle: {
+    en: 'Cross-tenant distribution of enabled workforce tabs per role.',
+    sw: 'Usambazaji wa vichupo vya wafanyakazi vilivyowezeshwa kwa kila jukumu katika wateja wote.',
+  },
+} as const;
 
 /**
  * Borjie internal admin — workforce tab-policy fleet view.
@@ -9,13 +21,14 @@ import { WorkforceTabPoliciesClient } from './WorkforceTabPoliciesClient';
  * in the fleet. Helps the Borjie team spot pilot tenants who have not
  * enabled enough tabs for their workers yet and reach out proactively.
  */
-export default function WorkforceTabPoliciesPage() {
+export default async function WorkforceTabPoliciesPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <PageShell
-      title="Workforce tab policies"
-      subtitle="Cross-tenant distribution of enabled workforce tabs per role."
+      title={pickByLocale(locale, HEADER.title)}
+      subtitle={pickByLocale(locale, HEADER.subtitle)}
     >
-      <WorkforceTabPoliciesClient />
+      <WorkforceTabPoliciesClient initialLocale={locale} />
     </PageShell>
   );
 }

@@ -3,6 +3,29 @@
 import Link from 'next/link';
 import { Card } from '@borjie/design-system';
 import { useDashboardFeatureFlags } from '@/lib/internal/queries/dashboard';
+import { useLocale, pickByLocale } from '@/lib/locale';
+
+const S = {
+  unavailableTitle: {
+    en: 'Feature flags unavailable',
+    sw: 'Bendera za vipengele hazipatikani',
+  },
+  endpointUnreachable: { en: 'Endpoint unreachable', sw: 'Mwisho haufikiki' },
+  heading: { en: 'Feature flags', sw: 'Bendera za vipengele' },
+  unconfiguredBody: {
+    en: 'FeatureFlags service not yet wired into the api-gateway.',
+    sw: 'Huduma ya FeatureFlags bado haijaunganishwa kwenye api-gateway.',
+  },
+  servicePending: {
+    en: 'NEXT_PUBLIC_API_GATEWAY_URL · service slot pending',
+    sw: 'NEXT_PUBLIC_API_GATEWAY_URL · nafasi ya huduma inasubiri',
+  },
+  enabledOf: { en: 'enabled of {n}', sw: 'zimewashwa kati ya {n}' },
+  manage: { en: 'Manage →', sw: 'Simamia →' },
+  noFlags: { en: 'No flags registered.', sw: 'Hakuna bendera zilizosajiliwa.' },
+  on: { en: 'on', sw: 'imewashwa' },
+  off: { en: 'off', sw: 'imezimwa' },
+} as const;
 
 /**
  * Feature-flag rollouts panel — middle-centre.
@@ -13,6 +36,7 @@ import { useDashboardFeatureFlags } from '@/lib/internal/queries/dashboard';
  * the flag table is empty.
  */
 export function FeatureFlagRolloutsPanel(): JSX.Element {
+  const locale = useLocale();
   const query = useDashboardFeatureFlags();
 
   if (query.isLoading) {
@@ -32,10 +56,10 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
         data-testid="admin-dashboard-flags-error"
       >
         <h2 className="text-caption uppercase tracking-widest text-warning">
-          Feature flags unavailable
+          {pickByLocale(locale, S.unavailableTitle)}
         </h2>
         <p className="mt-2 text-sm text-neutral-300">
-          {data?.message ?? 'Endpoint unreachable'}
+          {data?.message ?? pickByLocale(locale, S.endpointUnreachable)}
         </p>
       </article>
     );
@@ -48,14 +72,13 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
         data-testid="admin-dashboard-flags-unconfigured"
       >
         <h2 className="font-mono text-mini font-semibold uppercase tracking-eyebrow text-neutral-500">
-          Feature flags
+          {pickByLocale(locale, S.heading)}
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          {data.message ??
-            'FeatureFlags service not yet wired into the api-gateway.'}
+          {data.message ?? pickByLocale(locale, S.unconfiguredBody)}
         </p>
         <p className="mt-2 font-mono text-tiny uppercase tracking-eyebrow text-muted-foreground/70">
-          NEXT_PUBLIC_API_GATEWAY_URL · service slot pending
+          {pickByLocale(locale, S.servicePending)}
         </p>
       </article>
     );
@@ -68,20 +91,23 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
       <header className="mb-3 flex items-start justify-between">
         <div>
           <h2 className="text-caption uppercase tracking-widest text-neutral-500">
-            Feature flags
+            {pickByLocale(locale, S.heading)}
           </h2>
           <p className="mt-1 font-display text-3xl text-foreground">
             {enabledCount}
           </p>
           <p className="text-xs text-neutral-500">
-            enabled of {data.rows.length}
+            {pickByLocale(locale, S.enabledOf).replace(
+              '{n}',
+              String(data.rows.length),
+            )}
           </p>
         </div>
         <Link
           href="/feature-flags"
           className="text-xs text-signal-500 underline underline-offset-4"
         >
-          Manage →
+          {pickByLocale(locale, S.manage)}
         </Link>
       </header>
       {data.rows.length === 0 ? (
@@ -89,7 +115,7 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
           className="text-sm text-neutral-400"
           data-testid="admin-dashboard-flags-empty"
         >
-          No flags registered.
+          {pickByLocale(locale, S.noFlags)}
         </p>
       ) : (
         <ul className="flex flex-col gap-2 text-sm">
@@ -107,7 +133,9 @@ export function FeatureFlagRolloutsPanel(): JSX.Element {
                     : 'border-border text-neutral-400'
                 }`}
               >
-                {row.enabled ? 'on' : 'off'}
+                {row.enabled
+                  ? pickByLocale(locale, S.on)
+                  : pickByLocale(locale, S.off)}
                 {row.rolloutPct !== null ? ` · ${row.rolloutPct}%` : ''}
               </span>
             </li>

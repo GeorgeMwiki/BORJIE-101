@@ -15,6 +15,8 @@
  */
 
 import { PageShell } from '@/components/migrated/PageShell';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 import { DecisionTraceDetailClient } from './DecisionTraceDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -31,10 +33,24 @@ export default async function DecisionTraceDetailPage({
   const { id } = await params;
   const { tenant } = await searchParams;
   const tenantId = tenant && tenant.trim().length > 0 ? tenant.trim() : null;
+  const locale = await readLocaleFromServerCookies();
 
   return (
-    <PageShell title="Decision Trace Replay" subtitle="Metadata header is always visible; decision content requires tenant-consented break-glass.">
-      <DecisionTraceDetailClient traceId={id} tenant={tenantId} />
+    <PageShell
+      title={pickByLocale(locale, {
+        en: 'Decision Trace Replay',
+        sw: 'Uchezaji wa Ufuatiliaji wa Maamuzi',
+      })}
+      subtitle={pickByLocale(locale, {
+        en:
+          'Metadata header is always visible; decision content requires ' +
+          'tenant-consented break-glass.',
+        sw:
+          'Kichwa cha metadata huonekana kila wakati; maudhui ya uamuzi ' +
+          'huhitaji idhini ya dharura iliyoridhiwa na mteja.',
+      })}
+    >
+      <DecisionTraceDetailClient traceId={id} tenant={tenantId} initialLocale={locale} />
     </PageShell>
   );
 }

@@ -11,6 +11,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Card } from '@borjie/design-system';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
 
 interface CounterSnapshot {
   name: string;
@@ -211,7 +213,7 @@ export function SystemHealthClient({
         setState((prev) => ({
           status: 'error',
           snapshot: prev.snapshot,
-          error: err instanceof Error ? err.message : 'unknown',
+          error: localizeApiError(toCatalogError(err), locale),
           lastFetchedAt: prev.lastFetchedAt,
         }));
       }

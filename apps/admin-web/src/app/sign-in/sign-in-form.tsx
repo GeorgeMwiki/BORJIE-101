@@ -29,7 +29,7 @@ export interface SignInFormProps {
 /**
  * Email + password sign-in form for the Borjie Console.
  *
- * LitFin-pattern single-column card: gradient wordmark above, kicker
+ * Single-column card pattern: gradient wordmark above, kicker
  * + declarative heading, generous spacing, full-width primary CTA in
  * signal-gold. Trust microcopy below.
  */
@@ -190,8 +190,8 @@ export function SignInForm({ initialLocale }: SignInFormProps = {}) {
 
       <p className="mt-8 text-center font-mono text-caption uppercase tracking-widest text-neutral-500">
         {pickByLocale(locale, {
-          en: 'Borjie internal · staff only · 2FA enforced',
-          sw: 'Borjie ya ndani · wafanyakazi pekee · 2FA inatekelezwa',
+          en: 'Borjie internal · staff only · encrypted in transit',
+          sw: 'Borjie ya ndani · wafanyakazi pekee · imesimbwa wakati wa usafirishaji',
         })}
       </p>
     </div>

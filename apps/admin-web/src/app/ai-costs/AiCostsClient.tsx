@@ -38,7 +38,7 @@ import {
   Empty,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface ModelBreakdownRow {
   readonly model: string;
@@ -120,8 +120,8 @@ function dollars(micro: number): string {
   return `$${(micro / 1_000_000).toFixed(2)}`;
 }
 
-export function AiCostsClient() {
-  const locale = useLocale();
+export function AiCostsClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [entries, setEntries] = useState<readonly Entry[]>([]);
   const [loading, setLoading] = useState(true);

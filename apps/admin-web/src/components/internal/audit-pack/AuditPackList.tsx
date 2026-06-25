@@ -17,6 +17,7 @@ import {
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const S = {
   emptyTitle: { en: 'No audit-packs issued yet', sw: 'Hakuna pakiti za ukaguzi bado' },
@@ -34,6 +35,21 @@ const S = {
   download: { en: 'Download', sw: 'Pakua' },
   pendingBundle: { en: 'Pending bundle', sw: 'Inasubiri kifurushi' },
 } as const;
+
+// Audit-pack status arrives as an open machine token. Map the known
+// lifecycle values to per-locale labels; an unknown token falls back to the
+// raw (locale-neutral) string rather than ever rendering a foreign word.
+const STATUS_LABEL: Record<string, { en: string; sw: string }> = {
+  ready: { en: 'ready', sw: 'tayari' },
+  pending: { en: 'pending', sw: 'inasubiri' },
+  revoked: { en: 'revoked', sw: 'imebatilishwa' },
+  expired: { en: 'expired', sw: 'imeisha' },
+};
+
+function statusLabel(status: string, locale: Locale): string {
+  const entry = STATUS_LABEL[status.toLowerCase()];
+  return entry ? pickByLocale(locale, entry) : status;
+}
 
 /**
  * Live issued audit-pack list.
@@ -75,7 +91,7 @@ export function AuditPackList({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   const rows = query.data ?? [];
@@ -87,7 +103,7 @@ export function AuditPackList({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source="live" />
+        <DataSourceBadge source="live" locale={locale} />
       </div>
     );
   }
@@ -124,7 +140,9 @@ export function AuditPackList({
                   {fmt(row.expiresAt)}
                 </TableCell>
                 <TableCell>
-                  <StubBadge tone={statusTone(row.status)}>{row.status}</StubBadge>
+                  <StubBadge tone={statusTone(row.status)}>
+                    {statusLabel(row.status, locale)}
+                  </StubBadge>
                 </TableCell>
                 <TableCell>
                   {row.signedUrl ? (
@@ -147,7 +165,7 @@ export function AuditPackList({
           </TableBody>
         </Table>
       </div>
-      <DataSourceBadge source="live" />
+      <DataSourceBadge source="live" locale={locale} />
     </div>
   );
 }

@@ -25,6 +25,7 @@ import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { pickByLocale, useLocale } from '@/lib/locale';
 import { postSuperpowerJson, ADMIN_SUPERPOWER_ENDPOINTS } from './api';
 import {
   HIGH_IMPACT_ADMIN_ACTIONS,
@@ -56,6 +57,7 @@ export function UndoChip({
   windowSeconds = 300,
   onUndone,
 }: UndoChipProps): ReactElement | null {
+  const locale = useLocale();
   const [secsLeft, setSecsLeft] = useState(windowSeconds);
   const [undone, setUndone] = useState(false);
 
@@ -78,7 +80,7 @@ export function UndoChip({
   if (undone) {
     return (
       <span className="inline-flex items-center gap-1 text-tiny text-success">
-        Undone
+        {pickByLocale(locale, { en: 'Undone', sw: 'Imebatilishwa' })}
       </span>
     );
   }
@@ -90,7 +92,8 @@ export function UndoChip({
       className="inline-flex items-center gap-1 rounded border border-border bg-surface/60 px-2 py-0.5 text-tiny text-neutral-300 hover:bg-surface"
       data-testid="admin-superpower-undo-chip"
     >
-      Undo ({formatCountdown(secsLeft)})
+      {pickByLocale(locale, { en: 'Undo', sw: 'Tengua' })} (
+      {formatCountdown(secsLeft)})
     </button>
   );
 }
@@ -117,6 +120,7 @@ interface BulkResponse {
 export function AdminSuperpowerChips(
   props: AdminSuperpowerChipsProps,
 ): ReactElement | null {
+  const locale = useLocale();
   const router = useRouter();
   const [activeUndoIds, setActiveUndoIds] = useState<ReadonlyArray<string>>(
     [],
@@ -210,7 +214,7 @@ export function AdminSuperpowerChips(
             data-testid="admin-superpower-chip-navigate"
             title={chip.reason}
           >
-            Open {chip.route}
+            {pickByLocale(locale, { en: 'Open', sw: 'Fungua' })} {chip.route}
             {chip.focus ? ` (${chip.focus})` : ''}
           </button>
         </li>
@@ -224,7 +228,11 @@ export function AdminSuperpowerChips(
             data-testid="admin-superpower-chip-prefill"
             title={chip.reason ?? ''}
           >
-            Pre-fill form ({chip.formId})
+            {pickByLocale(locale, {
+              en: 'Pre-fill form',
+              sw: 'Jaza fomu mapema',
+            })}{' '}
+            ({chip.formId})
           </button>
         </li>
       ))}
@@ -236,7 +244,7 @@ export function AdminSuperpowerChips(
             className="inline-flex items-center gap-1 rounded border border-border bg-surface/60 px-2.5 py-1 text-xs text-neutral-300 hover:bg-surface"
             data-testid="admin-superpower-chip-highlight"
           >
-            Show me
+            {pickByLocale(locale, { en: 'Show me', sw: 'Nionyeshe' })}
           </button>
         </li>
       ))}
@@ -249,7 +257,10 @@ export function AdminSuperpowerChips(
             data-testid="admin-superpower-chip-share"
             title={chip.reason ?? ''}
           >
-            Generate share link
+            {pickByLocale(locale, {
+              en: 'Generate share link',
+              sw: 'Tengeneza kiungo cha kushiriki',
+            })}
           </button>
         </li>
       ))}
@@ -269,7 +280,12 @@ export function AdminSuperpowerChips(
               title={chip.reason}
             >
               {chip.action} {chip.ids.length} {chip.entityType.replace(/_/g, ' ')}
-              {isHighImpact ? ' (needs 2nd-eye)' : ''}
+              {isHighImpact
+                ? pickByLocale(locale, {
+                    en: ' (needs 2nd-eye)',
+                    sw: ' (inahitaji jicho la pili)',
+                  })
+                : ''}
             </button>
           </li>
         );
@@ -283,7 +299,8 @@ export function AdminSuperpowerChips(
             data-testid="admin-superpower-chip-bookmark"
             title={chip.reason ?? ''}
           >
-            Pin {chip.label ?? chip.entityId}
+            {pickByLocale(locale, { en: 'Pin', sw: 'Bandika' })}{' '}
+            {chip.label ?? chip.entityId}
           </button>
         </li>
       ))}
@@ -293,7 +310,10 @@ export function AdminSuperpowerChips(
             className="inline-flex items-center gap-1 rounded border border-destructive/40 bg-destructive/5 px-2 py-0.5 text-tiny text-destructive"
             data-testid="admin-superpower-pending-approval-chip"
           >
-            {pendingApprovalCount} pending 2nd-eye approval
+            {pickByLocale(locale, {
+              en: `${pendingApprovalCount} pending 2nd-eye approval`,
+              sw: `${pendingApprovalCount} zinasubiri idhini ya jicho la pili`,
+            })}
           </span>
         </li>
       ) : null}

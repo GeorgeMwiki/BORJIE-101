@@ -11,6 +11,8 @@ import {
 } from '@/lib/internal/wave9/queries';
 import type { JuniorAi } from '@/lib/internal/wave9/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, JUNIOR_AI_STATUS_LABELS } from '@/lib/internal/enum-labels';
 
 function statusTone(status: string): 'success' | 'warn' | 'danger' | 'neutral' {
   if (status === 'active') return 'success';
@@ -103,7 +105,7 @@ export function JuniorAiFactory({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   const items = query.data ?? [];
@@ -132,7 +134,9 @@ export function JuniorAiFactory({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm text-foreground">{j.domain}</p>
-                    <StubBadge tone={statusTone(j.status)}>{j.status}</StubBadge>
+                    <StubBadge tone={statusTone(j.status)}>
+                      {localizeEnumLabel(JUNIOR_AI_STATUS_LABELS, j.status, locale)}
+                    </StubBadge>
                     {j.certificationRequired ? (
                       <StubBadge tone="neutral">{pickByLocale(locale, S.certRequired)}</StubBadge>
                     ) : null}

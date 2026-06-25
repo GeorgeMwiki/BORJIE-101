@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Skeleton, Alert } from '@borjie/design-system';
-import { useAuditLogQuery } from '@/lib/internal/queries/audit-log';
+import { useAuditLogPages } from '@/lib/internal/queries/audit-log';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface TenantAuditTabProps {
@@ -18,10 +18,12 @@ const S = {
 
 export function TenantAuditTab({ tenantId, initialLocale }: TenantAuditTabProps): JSX.Element {
   const locale = useLocale(initialLocale);
-  const { data, isPending, isError, error } = useAuditLogQuery();
+  // Server-scoped: the gateway filters by tenantId (?tenantId=) rather than
+  // streaming the whole global WORM log and filtering in the browser.
+  const { data, isPending, isError, error } = useAuditLogPages({ tenantId });
   const rows = useMemo(
-    () => (data?.rows ?? []).filter((r) => r.tenantId === tenantId).slice(0, 30),
-    [data, tenantId],
+    () => (data?.pages ?? []).flatMap((page) => page.rows).slice(0, 30),
+    [data],
   );
 
   if (isPending) {

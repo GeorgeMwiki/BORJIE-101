@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient, type ApiResult } from '@/lib/api-client';
+import { apiClient, toApiError, type ApiResult } from '@/lib/api-client';
 
 /**
  * react-query bindings for the admin-web `/dashboard` surface.
@@ -68,7 +68,7 @@ export function useDashboardTenants() {
       const res = await apiClient.get<ReadonlyArray<RawDashboardTenant>>(
         '/tenants',
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       const rows = res.data.map(adaptTenantRow);
       const sorted = [...rows].sort((a, b) =>
         b.createdAt.localeCompare(a.createdAt),
@@ -171,16 +171,48 @@ export function useDashboardPilotErrors() {
 // Kill-switch status — reuses /mining/internal/killswitch.
 // ----------------------------------------------------------------------------
 
+/**
+ * Closed set of kill-switch levels the FE knows how to render. The wire
+ * is typed `'live' | 'degraded' | 'halt'`, but that type is a COMPILE-TIME
+ * promise the gateway can break at runtime (a new level, a typo, a partial
+ * deploy). `'unknown'` is the explicit fail-SAFE sink for any value outside
+ * the known set — it is deliberately NOT `'live'`, because silently mapping
+ * an unrecognized level to "live" would falsely reassure on a safety panel.
+ */
+export const KILLSWITCH_LEVELS = [
+  'live',
+  'degraded',
+  'halt',
+  'unknown',
+] as const;
+
+export type KillswitchLevel = (typeof KILLSWITCH_LEVELS)[number];
+
+/**
+ * Clamp an arbitrary runtime value to the known kill-switch enum. Any value
+ * outside the closed set — including `null`/`undefined`, an unexpected
+ * gateway string, or a non-string — collapses to the conservative
+ * `'unknown'` sentinel rather than passing through unvalidated (which would
+ * later `undefined`-deref the locale-label lookup and blank the whole
+ * status mirror). Fail-safe, never fail-open: an unrecognized level NEVER
+ * becomes `'live'`.
+ */
+export function clampKillswitchLevel(value: unknown): KillswitchLevel {
+  return (KILLSWITCH_LEVELS as ReadonlyArray<string>).includes(value as string)
+    ? (value as KillswitchLevel)
+    : 'unknown';
+}
+
 export interface KillswitchRowSummary {
   readonly scope: string;
-  readonly level: 'live' | 'degraded' | 'halt';
+  readonly level: KillswitchLevel;
   readonly setBy: string;
   readonly setAt: string;
 }
 
 interface RawKillswitch {
   readonly scope?: string;
-  readonly level?: 'live' | 'degraded' | 'halt';
+  readonly level?: string;
   readonly setAt?: string;
   readonly setBy?: string;
 }
@@ -198,10 +230,10 @@ export function useDashboardKillswitch() {
     queryFn: async (): Promise<KillswitchStatus> => {
       const res: ApiResult<ReadonlyArray<RawKillswitch>> =
         await apiClient.get<ReadonlyArray<RawKillswitch>>('/killswitch');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       const rows = res.data.map((r) => ({
         scope: r.scope ?? 'platform',
-        level: r.level ?? 'live',
+        level: clampKillswitchLevel(r.level),
         setAt: r.setAt ?? new Date().toISOString(),
         setBy: r.setBy ?? 'system',
       }));
@@ -239,7 +271,7 @@ export function useDashboardCorpus() {
       const res = await apiClient.get<ReadonlyArray<RawCorpusVersion>>(
         '/corpus/versions',
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       const rows = res.data;
       const indexed = rows.filter((r) => !r.supersededById).length;
       const latest = rows

@@ -6,7 +6,7 @@ import { SystemHealthClient } from './SystemHealthClient';
 /**
  * System health — live operational gauges across the Borjie runtime.
  *
- * Mirrors LitFin's `/litfin-admin/system-health` composition: page
+ * Mirrors the reference admin system-health composition: page
  * hero with append-only badge in the actions slot, then the shared
  * live SystemHealthClient (api-gateway p99, brain ladder hit rates,
  * RLS deny counts, error budget burn, last 24h incidents).

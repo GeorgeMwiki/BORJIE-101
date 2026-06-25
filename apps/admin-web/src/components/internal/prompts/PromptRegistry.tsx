@@ -22,6 +22,7 @@ import { PromptDiff } from './PromptDiff';
 import { usePromptsQuery, useSetPromptStatus } from '@/lib/internal/queries/prompts';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { PromptRow, PromptStatus } from '@/lib/internal/types';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const S = {
   loading: { en: 'Loading prompts…', sw: 'Inapakia maagizo…' },
@@ -42,7 +43,26 @@ const S = {
   promoteConfirm: { en: 'Promote', sw: 'Pandisha' },
   rollbackConfirm: { en: 'Roll back', sw: 'Rejesha nyuma' },
   vs: { en: 'vs', sw: 'dhidi ya' },
+  promoteBody: {
+    en: 'Promote {junior} {version} to production?',
+    sw: 'Pandisha {junior} {version} hadi uzalishaji?',
+  },
+  archiveBody: {
+    en: 'Archive {junior} {version}? The previous production prompt will take over.',
+    sw: 'Hifadhi {junior} {version}? Agizo la awali la uzalishaji litachukua nafasi.',
+  },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
+  statusProduction: { en: 'Production', sw: 'Uzalishaji' },
+  statusCanary: { en: 'Canary', sw: 'Kanari' },
+  statusArchived: { en: 'Archived', sw: 'Kumbukumbu' },
 } as const;
+
+function statusLabel(status: PromptStatus, locale: Locale): string {
+  if (status === 'Production') return pickByLocale(locale, S.statusProduction);
+  if (status === 'Canary') return pickByLocale(locale, S.statusCanary);
+  return pickByLocale(locale, S.statusArchived);
+}
 
 function tone(status: PromptStatus): 'success' | 'info' | 'neutral' {
   if (status === 'Production') return 'success';
@@ -93,7 +113,7 @@ export function PromptRegistry({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   if (rows.length === 0) {
@@ -104,7 +124,7 @@ export function PromptRegistry({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
     );
   }
@@ -133,7 +153,9 @@ export function PromptRegistry({
                   {row.gepaScore.toFixed(3)}
                 </TableCell>
                 <TableCell>
-                  <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
+                  <StubBadge tone={tone(row.status)}>
+                    {statusLabel(row.status, locale)}
+                  </StubBadge>
                 </TableCell>
                 <TableCell className="text-right">
                   {row.status === 'Canary' ? (
@@ -172,13 +194,19 @@ export function PromptRegistry({
             {prod.junior} — {prod.version} {pickByLocale(locale, S.vs)} {canary.version}
           </h3>
           <PromptDiff
-            left={{ label: `Production · ${prod.version}`, body: prod.body }}
-            right={{ label: `Canary · ${canary.version}`, body: canary.body }}
+            left={{
+              label: `${pickByLocale(locale, S.statusProduction)} · ${prod.version}`,
+              body: prod.body,
+            }}
+            right={{
+              label: `${pickByLocale(locale, S.statusCanary)} · ${canary.version}`,
+              body: canary.body,
+            }}
           />
         </section>
       ))}
 
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
 
       <ConfirmModal
         open={Boolean(confirm)}
@@ -191,9 +219,12 @@ export function PromptRegistry({
         body={
           confirm ? (
             <>
-              {confirm.next === 'Production'
-                ? `Promote ${confirm.row.junior} ${confirm.row.version} to production?`
-                : `Archive ${confirm.row.junior} ${confirm.row.version}? The previous production prompt will take over.`}
+              {(confirm.next === 'Production'
+                ? pickByLocale(locale, S.promoteBody)
+                : pickByLocale(locale, S.archiveBody)
+              )
+                .replace('{junior}', confirm.row.junior)
+                .replace('{version}', confirm.row.version)}
             </>
           ) : null
         }
@@ -210,11 +241,15 @@ export function PromptRegistry({
             { id: confirm.row.id, status: confirm.next },
             {
               onSuccess: () => {
-                setToast(`${confirm.row.junior} ${confirm.row.version} → ${confirm.next}`);
+                setToast(
+                  `${confirm.row.junior} ${confirm.row.version} → ${statusLabel(confirm.next, locale)}`,
+                );
                 setConfirm(null);
               },
               onError: (err) =>
-                setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
+                setToast(
+                  `${pickByLocale(locale, S.failed)}: ${localizeApiError(err, locale)}`,
+                ),
             }
           );
         }}

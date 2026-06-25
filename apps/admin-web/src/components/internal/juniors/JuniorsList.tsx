@@ -5,6 +5,8 @@ import { useJuniorsQuery } from '@/lib/internal/queries/juniors';
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, JUNIOR_STATUS_LABELS } from '@/lib/internal/enum-labels';
 
 const S = {
   loading: { en: 'Loading juniors…', sw: 'Inapakia wadogo…' },
@@ -44,7 +46,7 @@ export function JuniorsList({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -56,7 +58,7 @@ export function JuniorsList({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'mock'} />
+        <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
       </div>
     );
   }
@@ -81,11 +83,13 @@ export function JuniorsList({
                   : ''}
               </p>
             </div>
-            <StubBadge tone="success">{junior.status}</StubBadge>
+            <StubBadge tone="success">
+              {localizeEnumLabel(JUNIOR_STATUS_LABELS, junior.status, locale)}
+            </StubBadge>
           </article>
         ))}
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
     </div>
   );
 }

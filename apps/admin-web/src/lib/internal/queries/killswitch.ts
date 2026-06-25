@@ -13,7 +13,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { KillswitchRow, SwitchState } from '@/lib/internal/types';
 
 const ROWS_KEY = ['internal', 'killswitch', 'rows'] as const;
@@ -55,7 +55,7 @@ export function useKillswitchQuery() {
     queryKey: ROWS_KEY,
     queryFn: async (): Promise<KillswitchResult> => {
       const res = await apiClient.get<ReadonlyArray<RawKillswitchRow>>('/killswitch');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptKillswitch), source: 'live' };
     },
   });
@@ -119,7 +119,7 @@ export function useInitiateKillswitch() {
         reasonCode: input.reasonCode ?? 'operator.manual',
         note: input.note,
       });
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data;
     },
     onSuccess: () => {
@@ -140,7 +140,7 @@ export function useConfirmKillswitch() {
         `/killswitch/${encodeURIComponent(pendingId)}/confirm`,
         {},
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data;
     },
     onSuccess: () => {

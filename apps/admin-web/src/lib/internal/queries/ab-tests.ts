@@ -10,7 +10,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const AB_KEY = ['internal', 'ab-tests'] as const;
 
@@ -58,7 +58,7 @@ export function useExperimentsQuery() {
     queryFn: async (): Promise<ReadonlyArray<Experiment>> => {
       const res =
         await apiClient.get<ReadonlyArray<RawExperiment>>('/ab-tests');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data.map(adaptExperiment);
     },
   });
@@ -78,7 +78,7 @@ export function useCreateExperiment() {
   return useMutation({
     mutationFn: async (input: CreateExperimentInput): Promise<Experiment> => {
       const res = await apiClient.post<RawExperiment>('/ab-tests', input);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptExperiment(res.data);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: AB_KEY }),
@@ -93,7 +93,7 @@ export function usePromoteWinner() {
         `/ab-tests/${encodeURIComponent(id)}/promote-winner`,
         {},
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptExperiment(res.data);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: AB_KEY }),

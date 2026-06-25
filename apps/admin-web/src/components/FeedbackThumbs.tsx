@@ -17,6 +17,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { pickByLocale, useLocale } from '@/lib/locale';
+
 export type FeedbackVerdict = 'up' | 'down';
 
 export interface FeedbackThumbsProps {
@@ -33,6 +35,7 @@ export function FeedbackThumbs({
   onFeedback,
   disabled = false,
 }: FeedbackThumbsProps): JSX.Element {
+  const locale = useLocale();
   const [submitting, setSubmitting] = useState(false);
   const [submittedVerdict, setSubmittedVerdict] = useState<FeedbackVerdict | null>(null);
   const [showReason, setShowReason] = useState(false);
@@ -55,13 +58,19 @@ export function FeedbackThumbs({
         setSubmittedVerdict(verdict);
         setShowReason(verdict === 'down');
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Feedback failed';
+        const msg =
+          err instanceof Error
+            ? err.message
+            : pickByLocale(locale, {
+                en: 'Feedback failed',
+                sw: 'Maoni yameshindwa',
+              });
         setError(msg);
       } finally {
         setSubmitting(false);
       }
     },
-    [submitting, disabled, onFeedback],
+    [submitting, disabled, onFeedback, locale],
   );
 
   const submitReason = useCallback(
@@ -85,10 +94,18 @@ export function FeedbackThumbs({
       data-testid={`feedback-thumbs-${turnId}`}
     >
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span>Was this helpful?</span>
+        <span>
+          {pickByLocale(locale, {
+            en: 'Was this helpful?',
+            sw: 'Je, hili lilisaidia?',
+          })}
+        </span>
         <button
           type="button"
-          aria-label="Thumbs up"
+          aria-label={pickByLocale(locale, {
+            en: 'Thumbs up',
+            sw: 'Kidole gumba juu',
+          })}
           aria-pressed={upChosen}
           disabled={buttonsDisabled}
           onClick={(): void => void submit('up')}
@@ -102,7 +119,10 @@ export function FeedbackThumbs({
         </button>
         <button
           type="button"
-          aria-label="Thumbs down"
+          aria-label={pickByLocale(locale, {
+            en: 'Thumbs down',
+            sw: 'Kidole gumba chini',
+          })}
           aria-pressed={downChosen}
           disabled={buttonsDisabled}
           onClick={(): void => void submit('down')}
@@ -124,8 +144,14 @@ export function FeedbackThumbs({
             onChange={(e): void =>
               setReason(e.target.value.slice(0, REASON_MAX_LEN))
             }
-            placeholder="Tell me what was wrong (optional)"
-            aria-label="Feedback reason"
+            placeholder={pickByLocale(locale, {
+              en: 'Tell me what was wrong (optional)',
+              sw: 'Niambie nini kilikosea (si lazima)',
+            })}
+            aria-label={pickByLocale(locale, {
+              en: 'Feedback reason',
+              sw: 'Sababu ya maoni',
+            })}
             disabled={buttonsDisabled}
             className="min-w-0 flex-1 rounded border border-border bg-surface px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground disabled:opacity-50"
             maxLength={REASON_MAX_LEN}
@@ -135,7 +161,7 @@ export function FeedbackThumbs({
             disabled={buttonsDisabled || reason.trim().length === 0}
             className="rounded border border-border bg-surface px-2 py-1 text-xs text-foreground disabled:opacity-50"
           >
-            Send
+            {pickByLocale(locale, { en: 'Send', sw: 'Tuma' })}
           </button>
         </form>
       ) : null}

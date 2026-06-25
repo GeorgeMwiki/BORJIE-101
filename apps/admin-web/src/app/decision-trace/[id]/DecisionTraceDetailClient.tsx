@@ -18,15 +18,16 @@
  *
  * Rendered on design-system primitives + semantic tokens. SINGLE LANGUAGE
  * PER LOCALE (canon): every user-facing string resolves to the active
- * locale via `pickByLocale`. Purely client surface — the hook falls back to
- * the project default and the post-mount effect corrects it.
+ * locale via `pickByLocale`. The locale is SEEDED from the server page via
+ * `initialLocale` so SSR + the first client paint render the same language.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import { Button, Card, Skeleton, Alert, FormField, Input } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface TraceMeta {
   readonly id: string;
@@ -69,7 +70,7 @@ const S = {
     en: 'Failed to file break-glass request',
     sw: 'Imeshindwa kuwasilisha ombi la ufikiaji wa dharura',
   },
-  back: { en: '← Back to list', sw: '← Rudi kwenye orodha' },
+  back: { en: 'Back to list', sw: 'Rudi kwenye orodha' },
   action: { en: 'Action', sw: 'Kitendo' },
   outcome: { en: 'Outcome', sw: 'Matokeo' },
   tenant: { en: 'Tenant', sw: 'Mteja' },
@@ -111,11 +112,13 @@ function json(value: unknown): string {
 export function DecisionTraceDetailClient({
   traceId,
   tenant,
+  initialLocale,
 }: {
   traceId: string;
   tenant: string | null;
+  readonly initialLocale?: Locale;
 }) {
-  const locale = useLocale();
+  const locale = useLocale(initialLocale);
   const [meta, setMeta] = useState<TraceMeta | null>(null);
   const [content, setContent] = useState<TraceContent | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
@@ -192,8 +195,9 @@ export function DecisionTraceDetailClient({
       <div className="text-xs">
         <Link
           href="/decision-trace"
-          className="text-info hover:underline"
+          className="inline-flex items-center gap-1 text-info hover:underline"
         >
+          <ArrowLeft aria-hidden="true" className="h-3 w-3" />
           {pickByLocale(locale, S.back)}
         </Link>
       </div>

@@ -11,7 +11,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const JUNIORS_KEY = ['internal', 'juniors'] as const;
 
@@ -50,7 +50,7 @@ export function useJuniorsQuery() {
     queryKey: JUNIORS_KEY,
     queryFn: async (): Promise<JuniorsResult> => {
       const res = await apiClient.get<ReadonlyArray<RawJunior>>('/juniors');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptJunior), source: 'live' };
     },
   });

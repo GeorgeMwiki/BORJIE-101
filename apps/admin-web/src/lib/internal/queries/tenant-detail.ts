@@ -36,7 +36,11 @@ export interface TenantInvoice {
   readonly issuedAt: string;
   readonly amount: number;
   readonly currency: string;
-  readonly status: 'Paid' | 'Open' | 'Overdue';
+  // money-core emits EXACTLY 'Posted' — each PLATFORM_FEE ledger leg renders
+  // once. The data cannot truthfully distinguish charged/paid/overdue
+  // (postedAt is NOT NULL DEFAULT now()), so the old
+  // 'Paid' | 'Open' | 'Overdue' union is gone.
+  readonly status: 'Posted';
   readonly description?: string;
 }
 

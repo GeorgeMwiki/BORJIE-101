@@ -26,6 +26,7 @@ import {
   type SetRoutingInput,
 } from '@/lib/internal/control-plane/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 interface RoutingPanelProps {
   /** Optional per-use-case map seeded from an applied AI-suggest proposal. */
@@ -249,7 +250,7 @@ export function RoutingPanel({
   }
 
   if (catalogQuery.isError) {
-    return <p className="text-sm text-danger">{catalogQuery.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(catalogQuery.error, locale)}</p>;
   }
 
   return (

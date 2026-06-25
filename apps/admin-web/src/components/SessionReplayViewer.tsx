@@ -26,6 +26,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
+import { pickByLocale, useLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
+
 interface ChunkRow {
   readonly id: string;
   readonly sessionId: string;
@@ -45,12 +49,16 @@ interface ApiEnvelope<T> {
 export interface SessionReplayViewerProps {
   readonly sessionId: string;
   readonly apiBaseUrl?: string;
+  /** Server-resolved locale seed so the first paint matches the page chrome. */
+  readonly initialLocale?: Locale;
 }
 
 export function SessionReplayViewer({
   sessionId,
   apiBaseUrl,
+  initialLocale,
 }: SessionReplayViewerProps) {
+  const locale = useLocale(initialLocale);
   const [chunks, setChunks] = useState<ChunkRow[]>([]);
   const [events, setEvents] = useState<unknown[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -117,7 +125,7 @@ export function SessionReplayViewer({
         if (!cancelled) setEvents(accumulated);
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
+          setError(localizeApiError(toCatalogError(err), locale));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -197,20 +205,32 @@ export function SessionReplayViewer({
 
   if (loading) {
     return (
-      <div className="text-sm text-neutral-400">Loading replay…</div>
+      <div className="text-sm text-neutral-400">
+        {pickByLocale(locale, {
+          en: 'Loading replay…',
+          sw: 'Inapakia uchezaji…',
+        })}
+      </div>
     );
   }
   if (error) {
     return (
       <div className="rounded-md border border-warning bg-warning/10 p-4 text-sm text-warning">
-        Replay load failed: {error}
+        {pickByLocale(locale, {
+          en: 'Replay load failed: ',
+          sw: 'Upakiaji wa uchezaji umeshindwa: ',
+        })}
+        {error}
       </div>
     );
   }
   if (chunks.length === 0) {
     return (
       <div className="text-sm text-neutral-400">
-        No chunks recorded for this session.
+        {pickByLocale(locale, {
+          en: 'No chunks recorded for this session.',
+          sw: 'Hakuna vipande vilivyorekodiwa kwa kipindi hiki.',
+        })}
       </div>
     );
   }
@@ -224,29 +244,42 @@ export function SessionReplayViewer({
     <div className="space-y-6">
       <header className="grid grid-cols-2 gap-4 text-sm text-neutral-300">
         <div>
-          <div className="text-xs uppercase tracking-wider text-neutral-500">Session</div>
+          <div className="text-xs uppercase tracking-wider text-neutral-500">
+            {pickByLocale(locale, { en: 'Session', sw: 'Kipindi' })}
+          </div>
           <div className="font-mono break-all">{sessionId}</div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wider text-neutral-500">Duration</div>
+          <div className="text-xs uppercase tracking-wider text-neutral-500">
+            {pickByLocale(locale, { en: 'Duration', sw: 'Muda' })}
+          </div>
           <div>
             {formatRange(firstCapturedAt, lastCapturedAt)}
           </div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wider text-neutral-500">Chunks</div>
+          <div className="text-xs uppercase tracking-wider text-neutral-500">
+            {pickByLocale(locale, { en: 'Chunks', sw: 'Vipande' })}
+          </div>
           <div>{chunks.length}</div>
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wider text-neutral-500">Events / bytes</div>
+          <div className="text-xs uppercase tracking-wider text-neutral-500">
+            {pickByLocale(locale, { en: 'Events / bytes', sw: 'Matukio / baiti' })}
+          </div>
           <div>
-            {totalEvents.toLocaleString()} events · {formatBytes(totalBytes)}
+            {totalEvents.toLocaleString()}{' '}
+            {pickByLocale(locale, { en: 'events', sw: 'matukio' })} ·{' '}
+            {formatBytes(totalBytes)}
           </div>
         </div>
       </header>
 
       <section
-        aria-label="rrweb replay player"
+        aria-label={pickByLocale(locale, {
+          en: 'rrweb replay player',
+          sw: 'Kichezaji cha uchezaji cha rrweb',
+        })}
         className="rounded-md border border-border bg-surface-sunken overflow-hidden"
         style={{ minHeight: 480 }}
       >
@@ -256,16 +289,23 @@ export function SessionReplayViewer({
             data-testid="session-replay-unavailable"
           >
             <p className="text-sm font-medium text-neutral-300">
-              Replay player unavailable
+              {pickByLocale(locale, {
+                en: 'Replay player unavailable',
+                sw: 'Kichezaji cha uchezaji hakipatikani',
+              })}
             </p>
             <p className="max-w-sm text-xs text-neutral-500">
-              The rrweb-player package is not installed in this environment.
-              Raw events are captured and the chunk inventory below is
-              accurate — playback requires{' '}
+              {pickByLocale(locale, {
+                en: 'The rrweb-player package is not installed in this environment. Raw events are captured and the chunk inventory below is accurate — playback requires ',
+                sw: 'Kifurushi cha rrweb-player hakijasakinishwa katika mazingira haya. Matukio ghafi yamenaswa na orodha ya vipande hapa chini ni sahihi — uchezaji unahitaji ',
+              })}
               <code className="rounded bg-neutral-800 px-1 py-0.5">
                 rrweb-player
               </code>{' '}
-              to be added to the admin-web dependencies.
+              {pickByLocale(locale, {
+                en: 'to be added to the admin-web dependencies.',
+                sw: 'kuongezwa kwenye tegemezi za admin-web.',
+              })}
             </p>
           </div>
         ) : (
@@ -273,16 +313,37 @@ export function SessionReplayViewer({
         )}
       </section>
 
-      <section aria-label="Chunk inventory" className="space-y-2">
-        <h2 className="text-sm font-semibold text-foreground">Chunk inventory</h2>
+      <section
+        aria-label={pickByLocale(locale, {
+          en: 'Chunk inventory',
+          sw: 'Orodha ya vipande',
+        })}
+        className="space-y-2"
+      >
+        <h2 className="text-sm font-semibold text-foreground">
+          {pickByLocale(locale, {
+            en: 'Chunk inventory',
+            sw: 'Orodha ya vipande',
+          })}
+        </h2>
         <table className="w-full text-xs text-neutral-300 border-collapse">
           <thead className="text-neutral-500 uppercase tracking-wider">
             <tr>
-              <th className="text-left py-1 pr-3">Seq</th>
-              <th className="text-left py-1 pr-3">Captured at</th>
-              <th className="text-left py-1 pr-3">Events</th>
-              <th className="text-left py-1 pr-3">Bytes</th>
-              <th className="text-left py-1 pr-3">Storage URI</th>
+              <th className="text-left py-1 pr-3">
+                {pickByLocale(locale, { en: 'Seq', sw: 'Mfululizo' })}
+              </th>
+              <th className="text-left py-1 pr-3">
+                {pickByLocale(locale, { en: 'Captured at', sw: 'Imenaswa saa' })}
+              </th>
+              <th className="text-left py-1 pr-3">
+                {pickByLocale(locale, { en: 'Events', sw: 'Matukio' })}
+              </th>
+              <th className="text-left py-1 pr-3">
+                {pickByLocale(locale, { en: 'Bytes', sw: 'Baiti' })}
+              </th>
+              <th className="text-left py-1 pr-3">
+                {pickByLocale(locale, { en: 'Storage URI', sw: 'URI ya hifadhi' })}
+              </th>
             </tr>
           </thead>
           <tbody>

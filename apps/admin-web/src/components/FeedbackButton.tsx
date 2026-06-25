@@ -15,7 +15,7 @@
  * Mounting policy: this file ONLY exports the component. Pages opt in
  * by importing and placing the button — there is no auto-mount.
  *
- * LitFin DNA: the trigger is the signal-gold CTA we use for any
+ * By design, the trigger is the signal-gold CTA we use for any
  * primary affordance (rounded-xl, primary text, ring-on-focus). The
  * modal uses our standard `bg-card border-border ring-inset` panel so
  * it sits inside the navy cockpit instead of breaking out into a
@@ -32,6 +32,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MessageSquarePlus, Star, X } from 'lucide-react';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
 
 export interface FeedbackButtonProps {
   readonly screenId?: string;
@@ -169,7 +171,7 @@ export function FeedbackButton({
       reset();
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : pick(LABELS.error, lang),
+        localizeApiError(toCatalogError(cause), lang),
       );
       setOpen(true);
     } finally {

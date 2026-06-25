@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { usePromoteWinner } from '@/lib/internal/queries/ab-tests';
 import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 interface AbTestActionsProps {
   readonly id: string;
@@ -40,7 +41,7 @@ export function AbTestActions({ id, variant, initialLocale }: AbTestActionsProps
             onError: (err) =>
               setToast(
                 `${pickByLocale(locale, S.failed)}: ${
-                  err instanceof Error ? err.message : pickByLocale(locale, S.unknown)
+                  localizeApiError(err, locale)
                 }`,
               ),
           })

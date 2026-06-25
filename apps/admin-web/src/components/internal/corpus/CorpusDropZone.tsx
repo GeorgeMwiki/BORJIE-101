@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { Button } from '@borjie/design-system';
 import { useUploadCorpus } from '@/lib/internal/queries/corpus';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const ACCEPTED = '.md,.markdown,.txt,.pdf';
 
@@ -44,7 +45,7 @@ export function CorpusDropZone({
         {
           onSuccess: () => onUploaded?.(),
           onError: (err) =>
-            setError(err instanceof Error ? err.message : pickByLocale(locale, S.uploadFailed)),
+            setError(localizeApiError(err, locale)),
         }
       );
     });

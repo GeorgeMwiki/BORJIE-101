@@ -10,7 +10,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { CorpusEntry } from '@/lib/internal/types';
 
 const KEY = ['internal', 'corpus'] as const;
@@ -52,7 +52,7 @@ export function useCorpusQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<CorpusResult> => {
       const res = await apiClient.get<ReadonlyArray<RawCorpusChunk>>('/corpus/versions');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptChunk), source: 'live' };
     },
   });
@@ -76,7 +76,7 @@ export function useSupersedeCorpus() {
     mutationFn: async (raw: SupersedeInput): Promise<CorpusEntry> => {
       const body = normaliseSupersede(raw);
       const res = await apiClient.post<RawCorpusChunk>('/corpus/supersede', body);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptChunk(res.data, 0);
     },
     onMutate: async (raw) => {
@@ -113,7 +113,7 @@ export function useUploadCorpus() {
         text: input.text ?? `Pending ingest of ${input.name} (${input.bytes} bytes).`,
         language: 'en',
       });
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptChunk(res.data, 0);
     },
     onSuccess: (entry) => {

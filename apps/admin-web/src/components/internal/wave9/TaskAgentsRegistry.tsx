@@ -8,6 +8,7 @@ import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { useTaskAgents, useRunTaskAgent } from '@/lib/internal/wave9/queries';
 import type { TaskAgent } from '@/lib/internal/wave9/api';
+import { localizeApiError } from '@borjie/error-catalog';
 
 /**
  * Task-Agents registry (I-W-24).
@@ -30,6 +31,8 @@ const S = {
   run: { en: 'Run', sw: 'Endesha' },
   payloadObject: { en: 'Payload must be a JSON object.', sw: 'Mzigo lazima uwe kitu cha JSON.' },
   payloadInvalid: { en: 'Payload is not valid JSON.', sw: 'Mzigo si JSON halali.' },
+  triggered: { en: 'triggered', sw: 'imeanzishwa' },
+  runFailed: { en: 'Run failed', sw: 'Kuendesha kumeshindwa' },
 } as const;
 
 export function TaskAgentsRegistry({
@@ -84,7 +87,7 @@ export function TaskAgentsRegistry({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const agents = query.data?.agents ?? [];

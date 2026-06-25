@@ -148,6 +148,14 @@ function fromBrainMessage(m: BrainMessage): AskBorjieMessage | null {
 interface UseAskBorjieArgs {
   readonly initialThreadId?: string | null;
   readonly onThreadCreated?: (threadId: string) => void;
+  /**
+   * Active operator locale (`'en' | 'sw'`). Forwarded to the brain on
+   * every turn so the AI reply is pinned to the operator's active
+   * language. Without it the gateway defaults to `en`, so a Swahili
+   * operator gets ENGLISH replies under a Swahili surface — the exact
+   * zero-mix split the language canon forbids. Defaults to `en`.
+   */
+  readonly language?: 'en' | 'sw';
 }
 
 /**
@@ -162,6 +170,8 @@ interface UseAskBorjieArgs {
  */
 export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
   const initial = args.initialThreadId ?? null;
+  // Active operator locale; pins the brain reply language per turn.
+  const language = args.language ?? 'en';
   const [threadId, setThreadId] = useState<string | null>(initial);
   const [messages, setMessages] = useState<ReadonlyArray<AskBorjieMessage>>(
     [],
@@ -248,6 +258,7 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
           message: trimmed,
           ...(threadId ? { threadId } : {}),
           forcePersonaId: ADMIN_PERSONA_ID,
+          language,
           signal: controller.signal,
         })) {
           setMessages((prev) =>
@@ -296,7 +307,7 @@ export function useAskBorjie(args: UseAskBorjieArgs = {}): UseAskBorjieResult {
         abortRef.current = null;
       }
     },
-    [isStreaming, threadId],
+    [isStreaming, threadId, language],
   );
 
   return {

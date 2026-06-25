@@ -11,6 +11,69 @@ import {
   Textarea,
 } from '@borjie/design-system';
 import { getCsrfHeaders } from '@/lib/csrf';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+
+// ─── Single language per locale (canon): every user-facing string below
+// resolves to the active locale via pickByLocale with full en/sw parity. ───
+
+const TARGET_COUNTRY_LABEL = { en: 'Target country', sw: 'Nchi lengwa' } as const;
+
+const STRINGS = {
+  currentJurisdiction: { en: 'Current jurisdiction', sw: 'Mamlaka ya sasa' },
+  country: { en: 'Country', sw: 'Nchi' },
+  lockedAt: { en: 'Locked at', sw: 'Ilifungwa' },
+  lockedBy: { en: 'Locked by', sw: 'Ilifungwa na' },
+  neverLocked: { en: '(never locked)', sw: '(haijawahi kufungwa)' },
+  systemBackfill: { en: '(system / backfill)', sw: '(mfumo / ujazo wa nyuma)' },
+  proposeChange: { en: 'Propose change', sw: 'Pendekeza mabadiliko' },
+  proposeIntro: {
+    en: 'A second Borjie internal admin must approve before the change applies. You cannot approve your own proposal.',
+    sw: 'Msimamizi wa pili wa ndani wa Borjie lazima aidhinishe kabla ya mabadiliko kuanza. Huwezi kuidhinisha pendekezo lako mwenyewe.',
+  },
+  reasonLabel: { en: 'Reason (min 8 chars)', sw: 'Sababu (herufi 8 au zaidi)' },
+  verifiedWithLabel: {
+    en: 'Verified with (call, ticket, in-person)',
+    sw: 'Imethibitishwa kwa (simu, tikiti, ana kwa ana)',
+  },
+  proposeFailed: { en: 'Propose failed', sw: 'Kupendekeza kumeshindwa' },
+  pendingProposals: { en: 'Pending proposals', sw: 'Mapendekezo yanayosubiri' },
+  noPendingTitle: { en: 'No pending proposals', sw: 'Hakuna mapendekezo yanayosubiri' },
+  noPendingBody: {
+    en: 'No pending jurisdiction changes for this tenant.',
+    sw: 'Hakuna mabadiliko ya mamlaka yanayosubiri kwa mteja huyu.',
+  },
+  proposedBy: { en: 'Proposed by', sw: 'Limependekezwa na' },
+  reason: { en: 'Reason', sw: 'Sababu' },
+  verifiedWith: { en: 'Verified with', sw: 'Imethibitishwa kwa' },
+  decisionNote: { en: 'Decision note (optional)', sw: 'Maelezo ya uamuzi (hiari)' },
+  approveFourEye: { en: 'Approve (four-eye)', sw: 'Idhinisha (macho-manne)' },
+  reject: { en: 'Reject', sw: 'Kataa' },
+  approveFailed: { en: 'Approve failed', sw: 'Kuidhinisha kumeshindwa' },
+  rejectFailed: { en: 'Reject failed', sw: 'Kukataa kumeshindwa' },
+  cannotApproveOwn: {
+    en: 'You cannot approve your own proposal. The API enforces four-eye.',
+    sw: 'Huwezi kuidhinisha pendekezo lako mwenyewe. API inatekeleza macho-manne.',
+  },
+  decisionHistory: { en: 'Decision history', sw: 'Historia ya maamuzi' },
+  noHistoryTitle: { en: 'No decision history', sw: 'Hakuna historia ya maamuzi' },
+  noHistoryBody: {
+    en: 'No prior jurisdiction changes recorded for this tenant.',
+    sw: 'Hakuna mabadiliko ya awali ya mamlaka yaliyorekodiwa kwa mteja huyu.',
+  },
+  by: { en: 'by', sw: 'na' },
+  on: { en: 'on', sw: 'tarehe' },
+  note: { en: 'Note', sw: 'Maelezo' },
+  tenantNotFound: {
+    en: 'Tenant not found or the admin token does not authorize this view.',
+    sw: 'Mteja hakupatikana au tokeni ya msimamizi hairuhusu mwonekano huu.',
+  },
+} as const;
+
+const STATUS_LABELS = {
+  pending: { en: 'pending', sw: 'inasubiri' },
+  approved: { en: 'approved', sw: 'imeidhinishwa' },
+  rejected: { en: 'rejected', sw: 'imekataliwa' },
+} as const;
 
 // ─── Allowed target countries (mirror of JC-7 route enum) ─────────────
 
@@ -59,6 +122,16 @@ interface JurisdictionState {
 
 // ─── Fetch helpers (api-gateway loopback through the BFF) ─────────────
 
+function isJurisdictionState(body: unknown): body is JurisdictionState {
+  return (
+    typeof body === 'object' &&
+    body !== null &&
+    'current' in body &&
+    typeof (body as { current?: unknown }).current === 'object' &&
+    (body as { current?: unknown }).current !== null
+  );
+}
+
 async function fetchJurisdiction(
   tenantId: string,
 ): Promise<JurisdictionState | null> {
@@ -67,7 +140,12 @@ async function fetchJurisdiction(
     { credentials: 'include' },
   );
   if (!res.ok) return null;
-  return (await res.json()) as JurisdictionState;
+  const body = (await res.json().catch(() => null)) as unknown;
+  // The BFF proxy returns a `{ success:false }` degraded envelope (HTTP 200)
+  // when the gateway is unreachable — guard so we render the honest error
+  // state instead of crashing on undefined `current`/`pending`/`history`.
+  if (!isJurisdictionState(body)) return null;
+  return body;
 }
 
 async function postPropose(
@@ -122,18 +200,20 @@ async function postDecision(
 
 function CurrentSnapshot({
   current,
+  locale,
 }: {
   readonly current: JurisdictionState['current'];
+  readonly locale: Locale;
 }): JSX.Element {
   return (
     <section className="rounded-lg border border-border bg-card p-6">
       <h2 className="font-display text-lg font-medium text-foreground">
-        Current jurisdiction
+        {pickByLocale(locale, STRINGS.currentJurisdiction)}
       </h2>
       <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
           <dt className="font-mono text-tiny uppercase text-muted-foreground">
-            Country
+            {pickByLocale(locale, STRINGS.country)}
           </dt>
           <dd className="mt-1 text-base font-medium text-foreground">
             {current.countryCode}
@@ -141,20 +221,20 @@ function CurrentSnapshot({
         </div>
         <div>
           <dt className="font-mono text-tiny uppercase text-muted-foreground">
-            Locked at
+            {pickByLocale(locale, STRINGS.lockedAt)}
           </dt>
           <dd className="mt-1 text-base text-foreground">
             {current.lockedAt
               ? new Date(current.lockedAt).toISOString()
-              : '— (never locked)'}
+              : pickByLocale(locale, STRINGS.neverLocked)}
           </dd>
         </div>
         <div>
           <dt className="font-mono text-tiny uppercase text-muted-foreground">
-            Locked by
+            {pickByLocale(locale, STRINGS.lockedBy)}
           </dt>
           <dd className="mt-1 text-base text-foreground">
-            {current.lockedByUserId ?? '— (system / backfill)'}
+            {current.lockedByUserId ?? pickByLocale(locale, STRINGS.systemBackfill)}
           </dd>
         </div>
       </dl>
@@ -166,10 +246,12 @@ function ProposeForm({
   tenantId,
   currentCountry,
   onProposed,
+  locale,
 }: {
   readonly tenantId: string;
   readonly currentCountry: string;
   readonly onProposed: () => void;
+  readonly locale: Locale;
 }): JSX.Element {
   const [newCountryCode, setNewCountryCode] = useState<string>(
     ALLOWED_TARGET_COUNTRIES.find((c) => c.code !== currentCountry)?.code ?? 'KE',
@@ -195,22 +277,23 @@ function ProposeForm({
     });
     setSubmitting(false);
     if (!res.ok) {
-      setError(`Propose failed (${res.status}). ${res.message ?? ''}`);
+      setError(
+        `${pickByLocale(locale, STRINGS.proposeFailed)} (${res.status}). ${res.message ?? ''}`,
+      );
       return;
     }
     setReason('');
     setVerifiedWith('');
     onProposed();
-  }, [tenantId, newCountryCode, reason, verifiedWith, onProposed]);
+  }, [tenantId, newCountryCode, reason, verifiedWith, onProposed, locale]);
 
   return (
     <section className="rounded-lg border border-border bg-card p-6">
       <h2 className="font-display text-lg font-medium text-foreground">
-        Propose change
+        {pickByLocale(locale, STRINGS.proposeChange)}
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        A second Borjie internal admin must approve before the change applies.
-        You cannot approve your own proposal.
+        {pickByLocale(locale, STRINGS.proposeIntro)}
       </p>
       <form
         className="mt-4 space-y-4"
@@ -219,12 +302,16 @@ function ProposeForm({
           if (canSubmit) void submit();
         }}
       >
-        <FormField label="Target country" name="new-country" htmlFor="new-country">
+        <FormField
+          label={pickByLocale(locale, TARGET_COUNTRY_LABEL)}
+          name="new-country"
+          htmlFor="new-country"
+        >
           <select
             id="new-country"
             value={newCountryCode}
             onChange={(e) => setNewCountryCode(e.target.value)}
-            aria-label="Target country"
+            aria-label={pickByLocale(locale, TARGET_COUNTRY_LABEL)}
             className="h-10 w-full rounded-md border border-border bg-surface-sunken px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {ALLOWED_TARGET_COUNTRIES.filter(
@@ -236,7 +323,12 @@ function ProposeForm({
             ))}
           </select>
         </FormField>
-        <FormField label="Reason (min 8 chars)" name="reason" htmlFor="reason" required>
+        <FormField
+          label={pickByLocale(locale, STRINGS.reasonLabel)}
+          name="reason"
+          htmlFor="reason"
+          required
+        >
           <Textarea
             id="reason"
             rows={3}
@@ -245,7 +337,7 @@ function ProposeForm({
           />
         </FormField>
         <FormField
-          label="Verified with (call, ticket, in-person)"
+          label={pickByLocale(locale, STRINGS.verifiedWithLabel)}
           name="verifiedWith"
           htmlFor="verifiedWith"
           required
@@ -259,7 +351,7 @@ function ProposeForm({
         </FormField>
         {error ? <Alert variant="error">{error}</Alert> : null}
         <Button type="submit" disabled={!canSubmit} loading={submitting}>
-          Propose change
+          {pickByLocale(locale, STRINGS.proposeChange)}
         </Button>
       </form>
     </section>
@@ -270,21 +362,23 @@ function PendingQueue({
   tenantId,
   pending,
   onDecided,
+  locale,
 }: {
   readonly tenantId: string;
   readonly pending: ReadonlyArray<ProposalRecord>;
   readonly onDecided: () => void;
+  readonly locale: Locale;
 }): JSX.Element {
   return (
     <section className="rounded-lg border border-border bg-card p-6">
       <h2 className="font-display text-lg font-medium text-foreground">
-        Pending proposals
+        {pickByLocale(locale, STRINGS.pendingProposals)}
       </h2>
       {pending.length === 0 ? (
         <div className="mt-3">
           <Empty
-            title="No pending proposals"
-            description="No pending jurisdiction changes for this tenant."
+            title={pickByLocale(locale, STRINGS.noPendingTitle)}
+            description={pickByLocale(locale, STRINGS.noPendingBody)}
           />
         </div>
       ) : (
@@ -298,6 +392,7 @@ function PendingQueue({
                 tenantId={tenantId}
                 proposal={p}
                 onDecided={onDecided}
+                locale={locale}
               />
             </li>
           ))}
@@ -311,10 +406,12 @@ function ProposalRow({
   tenantId,
   proposal,
   onDecided,
+  locale,
 }: {
   readonly tenantId: string;
   readonly proposal: ProposalRecord;
   readonly onDecided: () => void;
+  readonly locale: Locale;
 }): JSX.Element {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -332,12 +429,16 @@ function ProposalRow({
       );
       setBusy(false);
       if (!res.ok) {
-        setError(`${verdict} failed (${res.status}). ${res.message ?? ''}`);
+        const failed =
+          verdict === 'approve' ? STRINGS.approveFailed : STRINGS.rejectFailed;
+        setError(
+          `${pickByLocale(locale, failed)} (${res.status}). ${res.message ?? ''}`,
+        );
         return;
       }
       onDecided();
     },
-    [tenantId, proposal.proposalId, note, onDecided],
+    [tenantId, proposal.proposalId, note, onDecided, locale],
   );
 
   return (
@@ -347,7 +448,7 @@ function ProposalRow({
           {proposal.proposalId}
         </p>
         <p className="text-tiny text-muted-foreground">
-          Proposed by {proposal.proposedByUserId} ·{' '}
+          {pickByLocale(locale, STRINGS.proposedBy)} {proposal.proposedByUserId} ·{' '}
           {new Date(proposal.proposedAt).toISOString()}
         </p>
       </div>
@@ -357,18 +458,21 @@ function ProposalRow({
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
           <p className="font-mono text-tiny uppercase text-muted-foreground">
-            Reason
+            {pickByLocale(locale, STRINGS.reason)}
           </p>
           <p className="mt-1 whitespace-pre-line">{proposal.reason}</p>
         </div>
         <div>
           <p className="font-mono text-tiny uppercase text-muted-foreground">
-            Verified with
+            {pickByLocale(locale, STRINGS.verifiedWith)}
           </p>
           <p className="mt-1">{proposal.verifiedWith}</p>
         </div>
       </div>
-      <FormField label="Decision note (optional)" name="decisionNote">
+      <FormField
+        label={pickByLocale(locale, STRINGS.decisionNote)}
+        name="decisionNote"
+      >
         <Textarea
           rows={2}
           value={note}
@@ -382,7 +486,7 @@ function ProposalRow({
           disabled={busy}
           onClick={() => void decide('approve')}
         >
-          Approve (four-eye)
+          {pickByLocale(locale, STRINGS.approveFourEye)}
         </Button>
         <Button
           type="button"
@@ -390,11 +494,11 @@ function ProposalRow({
           disabled={busy}
           onClick={() => void decide('reject')}
         >
-          Reject
+          {pickByLocale(locale, STRINGS.reject)}
         </Button>
       </div>
       <p className="text-tiny text-muted-foreground">
-        You cannot approve your own proposal — the API enforces four-eye.
+        {pickByLocale(locale, STRINGS.cannotApproveOwn)}
       </p>
     </div>
   );
@@ -402,19 +506,21 @@ function ProposalRow({
 
 function HistoryList({
   history,
+  locale,
 }: {
   readonly history: ReadonlyArray<ProposalRecord>;
+  readonly locale: Locale;
 }): JSX.Element {
   if (history.length === 0) {
     return (
       <section className="rounded-lg border border-border bg-card p-6">
         <h2 className="font-display text-lg font-medium text-foreground">
-          Decision history
+          {pickByLocale(locale, STRINGS.decisionHistory)}
         </h2>
         <div className="mt-3">
           <Empty
-            title="No decision history"
-            description="No prior jurisdiction changes recorded for this tenant."
+            title={pickByLocale(locale, STRINGS.noHistoryTitle)}
+            description={pickByLocale(locale, STRINGS.noHistoryBody)}
           />
         </div>
       </section>
@@ -423,7 +529,7 @@ function HistoryList({
   return (
     <section className="rounded-lg border border-border bg-card p-6">
       <h2 className="font-display text-lg font-medium text-foreground">
-        Decision history
+        {pickByLocale(locale, STRINGS.decisionHistory)}
       </h2>
       <ul className="mt-4 space-y-3 text-sm">
         {history.map((p) => (
@@ -432,18 +538,21 @@ function HistoryList({
             className="rounded-md border border-border bg-background p-3"
           >
             <p className="font-mono text-tiny uppercase text-signal-500">
-              {p.proposalId} · {p.status}
+              {p.proposalId} · {pickByLocale(locale, STATUS_LABELS[p.status])}
             </p>
             <p className="mt-1 font-medium text-foreground">
               {p.fromCountryCode} → {p.toCountryCode}
             </p>
             <p className="mt-1 text-tiny text-muted-foreground">
-              Proposed by {p.proposedByUserId} on{' '}
+              {pickByLocale(locale, STRINGS.proposedBy)} {p.proposedByUserId}{' '}
+              {pickByLocale(locale, STRINGS.on)}{' '}
               {new Date(p.proposedAt).toISOString()}
               {p.decidedByUserId && p.decidedAt ? (
                 <>
                   {' '}
-                  · {p.status} by {p.decidedByUserId} on{' '}
+                  · {pickByLocale(locale, STATUS_LABELS[p.status])}{' '}
+                  {pickByLocale(locale, STRINGS.by)} {p.decidedByUserId}{' '}
+                  {pickByLocale(locale, STRINGS.on)}{' '}
                   {new Date(p.decidedAt).toISOString()}
                 </>
               ) : null}
@@ -451,7 +560,7 @@ function HistoryList({
             {p.decisionNote ? (
               <p className="mt-2 text-foreground">
                 <span className="font-mono text-tiny uppercase text-muted-foreground">
-                  Note
+                  {pickByLocale(locale, STRINGS.note)}
                 </span>
                 : {p.decisionNote}
               </p>
@@ -467,9 +576,15 @@ function HistoryList({
 
 export function TenantJurisdictionPanel({
   tenantId,
+  initialLocale,
 }: {
   readonly tenantId: string;
+  readonly initialLocale?: Locale;
 }): JSX.Element {
+  // Seed from the server-resolved cookie (passed by the page) to avoid the
+  // first-paint EN/SW split-brain; falls back to the cookie on mount when the
+  // page has not seeded it yet.
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<JurisdictionState | null | undefined>(
     undefined,
   );
@@ -494,25 +609,27 @@ export function TenantJurisdictionPanel({
   if (state === null) {
     return (
       <Alert variant="error">
-        Tenant not found or the admin token does not authorize this view.
+        {pickByLocale(locale, STRINGS.tenantNotFound)}
       </Alert>
     );
   }
 
   return (
     <div className="space-y-6">
-      <CurrentSnapshot current={state.current} />
+      <CurrentSnapshot current={state.current} locale={locale} />
       <ProposeForm
         tenantId={tenantId}
         currentCountry={state.current.countryCode}
         onProposed={reload}
+        locale={locale}
       />
       <PendingQueue
         tenantId={tenantId}
         pending={state.pending}
         onDecided={reload}
+        locale={locale}
       />
-      <HistoryList history={state.history} />
+      <HistoryList history={state.history} locale={locale} />
     </div>
   );
 }

@@ -30,7 +30,7 @@ import {
   TableCell,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface DlqEntry {
   readonly id: string;
@@ -78,8 +78,8 @@ const S = {
   },
 } as const;
 
-export function WebhookDLQClient() {
-  const locale = useLocale();
+export function WebhookDLQClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [entries, setEntries] = useState<readonly DlqEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

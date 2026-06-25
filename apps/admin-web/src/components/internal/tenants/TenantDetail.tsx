@@ -95,7 +95,7 @@ export function TenantDetail({ tenantId, initialLocale }: TenantDetailProps): JS
             {pickByLocale(locale, S.planSuffix)}
           </p>
         </div>
-        <TenantStatusBadge status={tenant.status} />
+        <TenantStatusBadge status={tenant.status} initialLocale={locale} />
       </div>
 
       <SimpleTabs tabs={tabs} value={tab} onChange={setTab} variant="underline" />

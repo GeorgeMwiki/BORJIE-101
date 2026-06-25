@@ -15,10 +15,25 @@ import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import { formatCurrency } from '@/lib/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { Tenant, TenantPlan, TenantStatus } from '@/lib/internal/types';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const PLANS: ReadonlyArray<TenantPlan> = ['Starter', 'Growth', 'Enterprise'];
 const STATUSES: ReadonlyArray<TenantStatus> = ['Active', 'Trial', 'Past due', 'Suspended'];
 const PAGE_SIZE = 10;
+
+/**
+ * Closed {en,sw} map for the Status filter chips. The `TenantStatus` union
+ * members are English carrier literals used as the filter VALUE; only the
+ * visible chip text is localized so the raw English key never renders under
+ * the sw locale (which would be language mixing). One canonical sw term each,
+ * mirroring TenantStatusBadge's STATUS_LABELS glossary (no term drift).
+ */
+const STATUS_LABELS: Record<TenantStatus, { readonly en: string; readonly sw: string }> = {
+  Active: { en: 'Active', sw: 'Hai' },
+  Trial: { en: 'Trial', sw: 'Jaribio' },
+  'Past due': { en: 'Past due', sw: 'Imepitwa na muda' },
+  Suspended: { en: 'Suspended', sw: 'Imesimamishwa' },
+};
 
 function formatRelative(
   iso: string,
@@ -89,12 +104,14 @@ export function TenantDirectory({
       {
         accessorKey: 'status',
         header: pickByLocale(locale, { en: 'Status', sw: 'Hali' }),
-        cell: (ctx) => <TenantStatusBadge status={ctx.row.original.status} />,
+        cell: (ctx) => (
+          <TenantStatusBadge status={ctx.row.original.status} initialLocale={locale} />
+        ),
         sortingFn: (a, b) => a.original.status.localeCompare(b.original.status),
       },
       {
         accessorKey: 'arr',
-        header: 'ARR',
+        header: pickByLocale(locale, { en: 'ARR', sw: 'Mapato ya mwaka' }),
         cell: (ctx) => (
           <span className="tabular-nums">
             {formatCurrency(ctx.row.original.arr, ctx.row.original.currency)}
@@ -119,7 +136,7 @@ export function TenantDirectory({
           </span>
         ),
         enableSorting: false,
-        cell: (ctx) => <TenantActions tenant={ctx.row.original} />,
+        cell: (ctx) => <TenantActions tenant={ctx.row.original} initialLocale={locale} />,
       },
     ],
     [locale]
@@ -150,8 +167,8 @@ export function TenantDirectory({
     return (
       <Alert variant="error">
         {pickByLocale(locale, {
-          en: `Failed to load tenants: ${query.error.message}`,
-          sw: `Imeshindwa kupakia wateja: ${query.error.message}`,
+          en: `Failed to load tenants: ${localizeApiError(query.error, locale)}`,
+          sw: `Imeshindwa kupakia wateja: ${localizeApiError(query.error, locale)}`,
         })}
       </Alert>
     );
@@ -184,12 +201,18 @@ export function TenantDirectory({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <FilterChips label="Plan" options={PLANS} active={planFilter} onToggle={toggle(setPlanFilter, planFilter)} />
         <FilterChips
-          label="Status"
+          label={pickByLocale(locale, { en: 'Plan', sw: 'Mpango' })}
+          options={PLANS}
+          active={planFilter}
+          onToggle={toggle(setPlanFilter, planFilter)}
+        />
+        <FilterChips
+          label={pickByLocale(locale, { en: 'Status', sw: 'Hali' })}
           options={STATUSES}
           active={statusFilter}
           onToggle={toggle(setStatusFilter, statusFilter)}
+          renderLabel={(value) => pickByLocale(locale, STATUS_LABELS[value])}
         />
       </div>
 
@@ -221,7 +244,10 @@ export function TenantDirectory({
       </div>
 
       <DataTable
-        ariaLabel="Tenant directory"
+        ariaLabel={pickByLocale(locale, {
+          en: 'Tenant directory',
+          sw: 'Orodha ya wateja',
+        })}
         columns={columns}
         rows={paged}
         initialSort={[{ id: 'lastActiveAt', desc: true }]}

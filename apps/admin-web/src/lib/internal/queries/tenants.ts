@@ -15,7 +15,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient, unwrap, type ApiResult } from '@/lib/api-client';
+import { apiClient, toApiError, unwrap, type ApiResult } from '@/lib/api-client';
 import type { Tenant, TenantPlan, TenantStatus } from '@/lib/internal/types';
 
 const TENANTS_KEY = ['internal', 'tenants'] as const;
@@ -34,13 +34,44 @@ interface RawTenant {
   readonly plan?: string;
   readonly country?: string;
   readonly region?: string;
-  readonly mineral?: string;
+  /**
+   * Canonical mineral slugs the tenant is licensed to handle, from the
+   * `tenants.allowed_minerals` JSONB column (the gateway list route
+   * `SELECT *`s the row, so this passes through). This is the REAL commodity
+   * source — the legacy single `mineral` field was never emitted by the
+   * backend, so reading it always yielded the fabricated 'Mixed'.
+   */
+  readonly allowedMinerals?: ReadonlyArray<string>;
   readonly createdAt?: string;
   readonly updatedAt?: string;
   readonly lastActiveAt?: string;
+  /**
+   * ARR is NOT a column on `tenants` and is NOT returned by the list route
+   * (see `TenantRowSchema`). It stays optional purely so a future enriched
+   * payload can supply a real figure; absent that, `adaptTenant` must NOT
+   * fabricate one. SaaS revenue truth lives in `tenant_subscriptions`
+   * (the `/admin/subscriptions` read-model), not here.
+   */
   readonly arr?: number;
-  readonly arrUsd?: number;
   readonly primaryCurrency?: string;
+}
+
+/**
+ * Build a single honest commodity label from the tenant's licensed minerals.
+ * Returns `null` (→ honest dash at the adapter) when the backend supplies no
+ * minerals — never the fabricated 'Mixed' the old code always rendered.
+ */
+function commodityFromMinerals(
+  minerals: ReadonlyArray<string> | undefined,
+): string | null {
+  if (!minerals || minerals.length === 0) return null;
+  const cleaned = minerals
+    .filter((m): m is string => typeof m === 'string' && m.trim().length > 0)
+    .map((m) => m.trim());
+  if (cleaned.length === 0) return null;
+  // One canonical mineral → render it; several → join the real set (no
+  // invented umbrella term).
+  return cleaned.join(', ');
 }
 
 function planFromTier(raw: string | undefined): TenantPlan {
@@ -56,18 +87,28 @@ function statusFromRaw(raw: string | undefined): TenantStatus {
   return 'Trial';
 }
 
+/** Honest-empty marker for a field the backend did not supply. */
+const NO_DATA = '—';
+
 function adaptTenant(raw: RawTenant): Tenant {
   return {
     id: raw.id,
     name: raw.name ?? raw.slug ?? raw.id,
-    commodity: raw.mineral ?? 'Mixed',
+    // Real commodity from `allowed_minerals`; honest dash when the backend
+    // supplies none (never the fabricated 'Mixed' shown as owner truth).
+    commodity: commodityFromMinerals(raw.allowedMinerals) ?? NO_DATA,
     region: raw.region ?? 'TZ',
     country: raw.country ?? 'TZ',
     plan: planFromTier(raw.subscriptionTier ?? raw.plan),
     status: statusFromRaw(raw.status),
-    // `arrUsd` kept as a legacy fallback for older payloads; the value is
-    // rendered in the tenant's own `currency`, never assumed to be USD.
-    arr: raw.arr ?? raw.arrUsd ?? 0,
+    // ARR is rendered in the tenant's own `currency`, never assumed USD. The
+    // tenants list route does NOT return ARR (no such column / schema field),
+    // so `raw.arr` is virtually always absent: we map the real value when a
+    // future enriched payload supplies one, and otherwise carry 0. RESIDUAL:
+    // a 0 here still renders as `<currency> 0` in the tenant tabs/directory —
+    // the fully honest fix is `Tenant.arr: number | null` + a dash render in
+    // the consumers (out of this file's scope); recorded in the run residual.
+    arr: typeof raw.arr === 'number' && Number.isFinite(raw.arr) ? raw.arr : 0,
     currency: raw.primaryCurrency ?? 'TZS',
     lastActiveAt: raw.lastActiveAt ?? raw.updatedAt ?? raw.createdAt ?? new Date().toISOString(),
     createdAt: raw.createdAt ?? new Date().toISOString(),
@@ -79,7 +120,7 @@ export function useTenantsQuery() {
     queryKey: TENANTS_KEY,
     queryFn: async (): Promise<TenantsResult> => {
       const res = await apiClient.get<ReadonlyArray<RawTenant>>('/tenants');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptTenant), source: 'live' };
     },
   });
@@ -94,6 +135,44 @@ export function useTenantQuery(id: string | undefined) {
       const data = unwrap(res);
       return adaptTenant(data);
     },
+  });
+}
+
+/**
+ * Provision (create) a tenant via `POST /api/v1/mining/internal/tenants`
+ * (SUPER_ADMIN / ADMIN gated upstream). Mirrors the gateway
+ * `ProvisionTenantSchema` shape; only the operator-supplied fields are sent —
+ * the gateway defaults country/plan/tier when omitted.
+ *
+ * On success the tenants list is invalidated so the new row appears without a
+ * manual refresh. The mutation surfaces ApiErr through react-query's `error`
+ * channel; the form MUST check the result before showing a success affordance
+ * (a write that returns an error must never read as "created").
+ */
+export interface ProvisionTenantInput {
+  readonly name: string;
+  readonly slug: string;
+  readonly primaryEmail: string;
+  readonly primaryPhone?: string;
+  readonly country?: string;
+  readonly plan?: 'mwanzo' | 'mkulima' | 'mfanyabiashara' | 'kampuni' | 'group';
+  readonly subscriptionTier?:
+    | 'starter'
+    | 'professional'
+    | 'enterprise'
+    | 'custom';
+}
+
+export function useProvisionTenant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ProvisionTenantInput): Promise<Tenant> => {
+      const res = await apiClient.post<RawTenant>('/tenants', input);
+      // unwrap throws on a non-ok envelope — the caller's catch turns it into a
+      // visible error, never a silent "created".
+      return adaptTenant(unwrap(res));
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: TENANTS_KEY }),
   });
 }
 

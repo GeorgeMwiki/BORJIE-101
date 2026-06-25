@@ -4,6 +4,8 @@ import { Card } from '@borjie/design-system';
 
 import { PLATFORM_SESSION_COOKIE } from '@/lib/session';
 import { requirePublicBaseUrl } from '@/lib/env-guard';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale, type Locale } from '@/lib/locale-shared';
 
 /**
  * PrivacyBudgetCard — right-pane budget readout for /ask.
@@ -26,7 +28,10 @@ type BudgetResult =
   | { readonly status: 'ok'; readonly data: BudgetPayload }
   | { readonly status: 'offline'; readonly reason: string };
 
-async function fetchBudget(cookieHeader: string): Promise<BudgetResult> {
+async function fetchBudget(
+  cookieHeader: string,
+  locale: Locale,
+): Promise<BudgetResult> {
   try {
     const base = requirePublicBaseUrl(
       'NEXT_PUBLIC_PLATFORM_PORTAL_BASE_URL',
@@ -39,20 +44,29 @@ async function fetchBudget(cookieHeader: string): Promise<BudgetResult> {
     if (res.status === 503) {
       return {
         status: 'offline',
-        reason: 'DP-accountant offline. No ε shown — rendering would be a lie.',
+        reason: pickByLocale(locale, {
+          en: 'DP-accountant offline. No ε shown — rendering would be a lie.',
+          sw: 'Mhasibu-DP hayuko mtandaoni. Hakuna ε iliyoonyeshwa — kuonyesha kungekuwa uongo.',
+        }),
       };
     }
     if (!res.ok) {
       return {
         status: 'offline',
-        reason: `Upstream returned ${res.status}. Budget unavailable.`,
+        reason: pickByLocale(locale, {
+          en: `Upstream returned ${res.status}. Budget unavailable.`,
+          sw: `Chanzo kilirudisha ${res.status}. Bajeti haipatikani.`,
+        }),
       };
     }
     const data = (await res.json()) as BudgetPayload;
     if (typeof data.remainingEpsilon !== 'number') {
       return {
         status: 'offline',
-        reason: 'DP-accountant did not return a numeric ε. Refusing to render.',
+        reason: pickByLocale(locale, {
+          en: 'DP-accountant did not return a numeric ε. Refusing to render.',
+          sw: 'Mhasibu-DP hakurudisha ε ya kinambari. Inakataa kuonyesha.',
+        }),
       };
     }
     return { status: 'ok', data };
@@ -60,7 +74,10 @@ async function fetchBudget(cookieHeader: string): Promise<BudgetResult> {
     console.error('PrivacyBudgetCard fetch failed:', error);
     return {
       status: 'offline',
-      reason: 'Network error reaching the DP-accountant.',
+      reason: pickByLocale(locale, {
+        en: 'Network error reaching the DP-accountant.',
+        sw: 'Hitilafu ya mtandao kufikia mhasibu-DP.',
+      }),
     };
   }
 }
@@ -71,10 +88,22 @@ export async function PrivacyBudgetCard() {
     .getAll()
     .map((c) => `${c.name}=${c.value}`)
     .join('; ');
+  const locale = await readLocaleFromServerCookies();
   const sessionPresent = Boolean(cookieStore.get(PLATFORM_SESSION_COOKIE)?.value);
   const result = sessionPresent
-    ? await fetchBudget(cookieHeader)
-    : ({ status: 'offline', reason: 'No staff session cookie present.' } as const);
+    ? await fetchBudget(cookieHeader, locale)
+    : ({
+        status: 'offline',
+        reason: pickByLocale(locale, {
+          en: 'No staff session cookie present.',
+          sw: 'Hakuna kuki ya kipindi cha wafanyakazi iliyopo.',
+        }),
+      } as const);
+
+  const budgetTitle = pickByLocale(locale, {
+    en: 'Privacy budget',
+    sw: 'Bajeti ya faragha',
+  });
 
   if (result.status === 'offline') {
     return (
@@ -82,10 +111,15 @@ export async function PrivacyBudgetCard() {
         <div className="flex items-center gap-2 mb-2">
           <ShieldAlert className="h-4 w-4 text-warning" />
           <span className="text-xs uppercase tracking-wider text-neutral-500">
-            Privacy budget
+            {budgetTitle}
           </span>
         </div>
-        <div className="text-sm text-warning mb-1">Budget service offline</div>
+        <div className="text-sm text-warning mb-1">
+          {pickByLocale(locale, {
+            en: 'Budget service offline',
+            sw: 'Huduma ya bajeti haiko mtandaoni',
+          })}
+        </div>
         <p className="text-xs text-neutral-500 leading-relaxed">{result.reason}</p>
       </Card>
     );
@@ -103,7 +137,7 @@ export async function PrivacyBudgetCard() {
       <div className="flex items-center gap-2 mb-3">
         <Sparkles className="h-4 w-4 text-signal-500" />
         <span className="text-xs uppercase tracking-wider text-neutral-500">
-          Privacy budget
+          {budgetTitle}
         </span>
       </div>
 
@@ -111,12 +145,20 @@ export async function PrivacyBudgetCard() {
         <span className="font-display text-3xl text-signal-500">
           {(remainingEpsilon ?? 0).toFixed(2)}
         </span>
-        <span className="text-xs text-neutral-500">ε remaining</span>
+        <span className="text-xs text-neutral-500">
+          {pickByLocale(locale, {
+            en: 'ε remaining',
+            sw: 'ε iliyobaki',
+          })}
+        </span>
       </div>
 
       {typeof totalEpsilon === 'number' ? (
         <div className="text-xs text-neutral-500 mb-3">
-          of {totalEpsilon.toFixed(2)} ε total
+          {pickByLocale(locale, {
+            en: `of ${totalEpsilon.toFixed(2)} ε total`,
+            sw: `kati ya jumla ya ${totalEpsilon.toFixed(2)} ε`,
+          })}
           {windowLabel ? ` · ${windowLabel}` : ''}
         </div>
       ) : null}
@@ -132,16 +174,24 @@ export async function PrivacyBudgetCard() {
 
       {typeof costPerQueryEpsilon === 'number' ? (
         <p className="text-xs text-neutral-500 leading-relaxed">
-          Each query against the observer costs{' '}
+          {pickByLocale(locale, {
+            en: 'Each query against the observer costs ',
+            sw: 'Kila ombi dhidi ya mtazamaji hugharimu ',
+          })}
           <span className="text-foreground">
             {costPerQueryEpsilon.toFixed(3)} ε
           </span>
-          . When the balance hits zero, the surface closes until the next window.
+          {pickByLocale(locale, {
+            en: '. When the balance hits zero, the surface closes until the next window.',
+            sw: '. Salio likifika sifuri, uso hufungwa hadi kipindi kijacho.',
+          })}
         </p>
       ) : (
         <p className="text-xs text-neutral-500 leading-relaxed">
-          Each query costs privacy budget. When the balance hits zero, the
-          surface closes until the next window.
+          {pickByLocale(locale, {
+            en: 'Each query costs privacy budget. When the balance hits zero, the surface closes until the next window.',
+            sw: 'Kila ombi hugharimu bajeti ya faragha. Salio likifika sifuri, uso hufungwa hadi kipindi kijacho.',
+          })}
         </p>
       )}
     </Card>

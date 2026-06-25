@@ -12,7 +12,7 @@
  * UI. Live-only: failures propagate to react-query's `error` channel.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { ComplianceItem, ComplianceSeverity } from '@/lib/internal/types';
 
 const KEY = ['internal', 'compliance-queue'] as const;
@@ -60,7 +60,7 @@ export function useComplianceQueueQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<QueueResult> => {
       const res = await apiClient.get<ReadonlyArray<RawEscalationRow>>('/compliance-queue');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptEscalation), source: 'live' };
     },
   });
@@ -79,7 +79,7 @@ export function useResolveCompliance() {
         `/compliance-queue/${id}/${decision}`,
         {},
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data;
     },
     onMutate: async ({ id }) => {

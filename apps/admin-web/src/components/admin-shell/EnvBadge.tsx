@@ -6,7 +6,7 @@
  *   - staging       -> amber  (caution)
  *   - dev / local   -> neutral slate
  *
- * Mirrors LitFin's admin top-bar env badge pattern — at-a-glance
+ * Mirrors the reference admin top-bar env-badge pattern — at-a-glance
  * confirmation of which database the operator is staring at.
  */
 

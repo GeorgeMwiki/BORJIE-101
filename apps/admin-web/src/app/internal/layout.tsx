@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 /**
  * Internal-admin route group layout.
  *
- * The legacy `<ConsoleTopNav />` was removed when the LitFin-parity
+ * The legacy `<ConsoleTopNav />` was removed when the parity
  * `AdminShell` (root layout) took over the top-level chrome. This
  * layout now only injects the react-query provider that every
  * internal screen depends on.

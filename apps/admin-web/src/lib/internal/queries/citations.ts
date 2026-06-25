@@ -11,7 +11,7 @@
  * citations panel.
  */
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { Citation, CitationSource } from '@/lib/internal/types';
 
 const KEY = ['internal', 'citations'] as const;
@@ -68,7 +68,7 @@ export function useCitationsQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<CitationsResult> => {
       const res = await apiClient.get<ReadonlyArray<RawCorpusChunk>>('/citations');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptChunk), source: 'live' };
     },
   });

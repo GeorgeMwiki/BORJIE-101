@@ -15,7 +15,7 @@
  * will reject with 404 until the route lands.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { PromotionKind, PromotionRow } from '@/lib/internal/types';
 
 const KEY = ['internal', 'promotions'] as const;
@@ -57,7 +57,7 @@ export function usePromotionsQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<PromotionsResult> => {
       const res = await apiClient.get<ReadonlyArray<RawPromotionRow>>('/promotions');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptPromotion), source: 'live' };
     },
   });
@@ -71,7 +71,7 @@ export function useRevertPromotion() {
         `/promotions/${id}/revert`,
         {},
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return res.data;
     },
     onMutate: async (id) => {

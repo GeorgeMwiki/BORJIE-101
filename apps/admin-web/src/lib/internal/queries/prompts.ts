@@ -9,7 +9,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 import type { PromptRow, PromptStatus } from '@/lib/internal/types';
 
 const KEY = ['internal', 'prompts'] as const;
@@ -53,7 +53,7 @@ export function usePromptsQuery() {
     queryKey: KEY,
     queryFn: async (): Promise<PromptsResult> => {
       const res = await apiClient.get<ReadonlyArray<RawPromptRow>>('/prompts');
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptPrompt), source: 'live' };
     },
   });
@@ -73,7 +73,7 @@ export function usePromotePrompt() {
   return useMutation({
     mutationFn: async (input: PromoteInput): Promise<PromptRow> => {
       const res = await apiClient.post<RawPromptRow>('/prompts/promote', input);
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return adaptPrompt(res.data);
     },
     onSuccess: (row) => {

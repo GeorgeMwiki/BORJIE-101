@@ -12,7 +12,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, toApiError } from '@/lib/api-client';
 
 const SUPPORT_KEY = ['internal', 'support-tickets'] as const;
 
@@ -64,7 +64,7 @@ export function useSupportTicketsQuery() {
       const res = await apiClient.get<ReadonlyArray<RawTicket>>(
         '/support/tickets',
       );
-      if (!res.ok) throw new Error(res.message);
+      if (!res.ok) throw toApiError(res);
       return { rows: res.data.map(adaptTicket), source: 'live' };
     },
   });

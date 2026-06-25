@@ -18,6 +18,8 @@
  */
 
 import { PageShell } from '@/components/migrated/PageShell';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 import { MissionEvalScenarioDrillDown } from './MissionEvalScenarioDrillDown';
 
 export const dynamic = 'force-dynamic';
@@ -30,12 +32,24 @@ export default async function MissionEvalScenarioPage({
   params,
 }: MissionEvalScenarioPageProps) {
   const { scenarioId } = await params;
+  const locale = await readLocaleFromServerCookies();
   return (
     <PageShell
-      title={`Scenario ${scenarioId}`}
-      subtitle="Per-scenario CoT samples with judge score, judge reason, and a re-judge action. CoT is PII-scrubbed at capture."
+      title={pickByLocale(locale, {
+        en: `Scenario ${scenarioId}`,
+        sw: `Hali ${scenarioId}`,
+      })}
+      subtitle={pickByLocale(locale, {
+        en:
+          'Per-scenario CoT samples with judge score, judge reason, and a ' +
+          're-judge action. CoT is PII-scrubbed at capture.',
+        sw:
+          'Sampuli za CoT kwa kila hali zenye alama ya mwamuzi, sababu ya ' +
+          'mwamuzi, na kitendo cha kuamua upya. CoT husafishwa PII wakati ' +
+          'wa kunasa.',
+      })}
     >
-      <MissionEvalScenarioDrillDown scenarioId={scenarioId} />
+      <MissionEvalScenarioDrillDown scenarioId={scenarioId} initialLocale={locale} />
     </PageShell>
   );
 }

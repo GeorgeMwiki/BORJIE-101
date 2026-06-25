@@ -4,6 +4,14 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@borjie/design-system';
 import { createSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
+
+const S = {
+  signOut: { en: 'Sign out', sw: 'Toka' },
+  signingOut: { en: 'Signing out…', sw: 'Inatoka…' },
+} as const;
 
 /**
  * Sign-out button for the Borjie Console top nav.
@@ -17,8 +25,10 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client';
 export function SignOutButton(props: {
   readonly className?: string;
   readonly label?: string;
+  readonly initialLocale?: Locale;
 }): JSX.Element {
   const router = useRouter();
+  const locale = useLocale(props.initialLocale);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -29,15 +39,13 @@ export function SignOutButton(props: {
         const supabase = createSupabaseBrowserClient();
         const { error: signOutError } = await supabase.auth.signOut();
         if (signOutError) {
-          setError(signOutError.message);
+          setError(localizeApiError(toCatalogError(signOutError), locale));
           return;
         }
         router.replace('/sign-in');
         router.refresh();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Sign-out failed',
-        );
+        setError(localizeApiError(toCatalogError(err), locale));
       }
     });
   }
@@ -59,7 +67,9 @@ export function SignOutButton(props: {
           'inline-flex items-center gap-1.5 rounded-md border border-border bg-card/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-border-strong hover:bg-muted/50 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-signal-500/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-60'
         }
       >
-        {pending ? 'Signing out…' : (props.label ?? 'Sign out')}
+        {pending
+          ? pickByLocale(locale, S.signingOut)
+          : (props.label ?? pickByLocale(locale, S.signOut))}
       </Button>
     </div>
   );

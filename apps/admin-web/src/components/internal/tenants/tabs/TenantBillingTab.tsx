@@ -31,21 +31,17 @@ const S = {
     en: 'No invoices for this tenant yet.',
     sw: 'Hakuna ankara kwa mteja huyu bado.',
   },
-  statusPaid: { en: 'Paid', sw: 'Imelipwa' },
-  statusOpen: { en: 'Open', sw: 'Wazi' },
-  statusOverdue: { en: 'Overdue', sw: 'Imechelewa' },
+  // money-core emits a single 'Posted' status (the canonical PLATFORM_FEE
+  // ledger leg). There are no charged/paid/overdue states to distinguish.
+  statusPosted: { en: 'Posted', sw: 'Imewekwa' },
 } as const;
 
-function statusLabel(status: TenantInvoice['status'], locale: Locale): string {
-  if (status === 'Paid') return pickByLocale(locale, S.statusPaid);
-  if (status === 'Overdue') return pickByLocale(locale, S.statusOverdue);
-  return pickByLocale(locale, S.statusOpen);
+function statusLabel(_status: TenantInvoice['status'], locale: Locale): string {
+  return pickByLocale(locale, S.statusPosted);
 }
 
-function statusTone(status: TenantInvoice['status']): string {
-  if (status === 'Paid') return 'text-success';
-  if (status === 'Overdue') return 'text-danger';
-  return 'text-warning';
+function statusTone(_status: TenantInvoice['status']): string {
+  return 'text-success';
 }
 
 /**

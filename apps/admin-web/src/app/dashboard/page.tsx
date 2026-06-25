@@ -10,7 +10,7 @@ import { pickByLocale } from '@/lib/locale-shared';
 /**
  * D-A-01 — Admin cockpit (read-only platform status).
  *
- * Mirrors LitFin's officer dashboard composition:
+ * Mirrors the reference officer dashboard composition:
  *   1. Eyebrow + hero title
  *   2. Metric strip (4 KPI cards) — tenants, sessions, latency, errors
  *   3. Two-column intelligence panels (audit, cases) plus six legacy
@@ -39,7 +39,7 @@ export default async function AdminDashboardPage() {
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           {pickByLocale(locale, {
             en: 'Read-only structured view across every Borjie tenant. For investigation drop into chat at ',
-            sw: 'Mwonekano uliopangwa wa kusoma-tu kwa kila tenant ya Borjie. Kwa uchunguzi, ingia kwenye gumzo ',
+            sw: 'Mwonekano uliopangwa wa kusoma-tu kwa kila shirika la Borjie. Kwa uchunguzi, ingia kwenye gumzo ',
           })}
           <a
             className="font-medium text-signal-500 underline-offset-4 hover:underline"

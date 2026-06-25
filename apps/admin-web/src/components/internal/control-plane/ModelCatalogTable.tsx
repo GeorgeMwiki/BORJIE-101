@@ -14,6 +14,7 @@ import { StubBadge } from '../StubBadge';
 import { useModelCatalogQuery } from '@/lib/internal/control-plane/queries';
 import type { CatalogModel } from '@/lib/internal/control-plane/api';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 function capabilityTone(rank: number): 'success' | 'info' | 'neutral' {
   if (rank >= 5) return 'success';
@@ -63,7 +64,7 @@ export function ModelCatalogTable({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   const models: ReadonlyArray<CatalogModel> = query.data?.models ?? [];

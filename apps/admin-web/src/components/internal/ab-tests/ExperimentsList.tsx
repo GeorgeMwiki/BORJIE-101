@@ -24,6 +24,8 @@ import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, EXPERIMENT_STATUS_LABELS } from '@/lib/internal/enum-labels';
 
 const S = {
   loading: { en: 'Loading experiments…', sw: 'Inapakia majaribio…' },
@@ -84,7 +86,7 @@ export function ExperimentsList({
           <Skeleton className="h-9 w-2/3 rounded-md" />
         </div>
       ) : query.isError ? (
-        <p className="text-sm text-danger">{query.error.message}</p>
+        <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>
       ) : experiments.length === 0 ? (
         <EmptyState
           title={pickByLocale(locale, S.emptyTitle)}
@@ -117,7 +119,9 @@ export function ExperimentsList({
                     {row.canaryTenants.length}
                   </TableCell>
                   <TableCell>
-                    <StubBadge tone={tone(row.status)}>{row.status}</StubBadge>
+                    <StubBadge tone={tone(row.status)}>
+                      {localizeEnumLabel(EXPERIMENT_STATUS_LABELS, row.status, locale)}
+                    </StubBadge>
                   </TableCell>
                   <TableCell className="text-right">
                     {row.status === 'promoted' ? (
@@ -135,7 +139,7 @@ export function ExperimentsList({
         </div>
       )}
 
-      <DataSourceBadge source="live" />
+      <DataSourceBadge source="live" locale={locale} />
     </div>
   );
 }
@@ -170,7 +174,7 @@ function NewExperimentForm({ locale }: { readonly locale: Locale }): JSX.Element
         onError: (err) =>
           setToast(
             `${pickByLocale(locale, S.failed)}: ${
-              err instanceof Error ? err.message : pickByLocale(locale, S.unknown)
+              localizeApiError(err, locale)
             }`,
           ),
       },

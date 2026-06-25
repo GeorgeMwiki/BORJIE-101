@@ -9,6 +9,8 @@ import {
 import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, SEVERITY_LABELS } from '@/lib/internal/enum-labels';
 
 /**
  * Live HQ support queue.
@@ -52,7 +54,7 @@ export function SupportTicketList({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -65,7 +67,7 @@ export function SupportTicketList({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
     );
   }
@@ -84,7 +86,7 @@ export function SupportTicketList({
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <StubBadge tone={severityTone(ticket.severity)}>
-                  {ticket.severity}
+                  {localizeEnumLabel(SEVERITY_LABELS, ticket.severity, locale)}
                 </StubBadge>
                 <span className="text-xs text-muted-foreground">
                   {ticket.waitingHours}h
@@ -94,7 +96,7 @@ export function SupportTicketList({
           </article>
         ))}
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
     </div>
   );
 }

@@ -57,29 +57,29 @@ export const ADMIN_SUGGESTIONS: ReadonlyArray<SuggestionChip> = [
   {
     id: 'killswitch',
     label: 'Kill-switch state',
-    labelSw: 'Kill-switch hali',
+    labelSw: 'Hali ya kizima-dharura',
     prompt:
       'What is the kill-switch state right now? Show the most recent change and who made it.',
     promptSw:
-      'Kill-switch iko hali gani sasa? Onyesha mabadiliko ya hivi karibuni na mtu aliyebadilisha.',
+      'Hali ya kizima-dharura ikoje sasa hivi? Onyesha mabadiliko ya hivi karibuni na aliyeyafanya.',
   },
   {
     id: 'sentry-pilot',
     label: 'Sentry pilot errors today',
-    labelSw: 'Sentry pilot errors leo',
+    labelSw: 'Hitilafu za Sentry za majaribio leo',
     prompt:
       'Sentry errors for pilot tenants today. Group by error code and show frequency.',
     promptSw:
-      'Sentry errors za pilot tenants leo. Group by error code na onyesha frequency.',
+      'Hitilafu za Sentry kwa wateja wa majaribio leo. Zipange kwa msimbo wa hitilafu na uonyeshe marudio.',
   },
   {
     id: 'audit-integrity',
     label: 'Audit chain integrity',
-    labelSw: 'Audit chain integrity',
+    labelSw: 'Uadilifu wa mnyororo wa ukaguzi',
     prompt:
       'Verify audit chain integrity. Are there any hash mismatches or gaps in today’s sequence?',
     promptSw:
-      'Hakikisha audit chain integrity. Je, kuna hash mismatches au gaps katika sequence ya leo?',
+      'Hakikisha uadilifu wa mnyororo wa ukaguzi. Je, kuna kutolingana kwa heshi au mapengo katika mfuatano wa leo?',
   },
 ];
 
@@ -183,7 +183,7 @@ export function PersonaGreeting({
         <p className="text-base text-neutral-400">
           {pickByLocale(locale, {
             en: 'Tell me what you need — cross-tenant rollups, audit queries, fleet health, kill-switch proposals. One chat, every tenant.',
-            sw: 'Niambie unahitaji nini — muhtasari wa tenants wote, maswali ya ukaguzi, afya ya jukwaa, mapendekezo ya kill-switch. Gumzo moja, kila tenant.',
+            sw: 'Niambie unahitaji nini — muhtasari wa mashirika yote, maswali ya ukaguzi, afya ya jukwaa, mapendekezo ya kizima-dharura. Gumzo moja, kila shirika.',
           })}
         </p>
       </div>
@@ -211,10 +211,6 @@ export function PersonaGreeting({
           </li>
         ))}
       </ul>
-
-      <p className="pt-4 text-tiny uppercase tracking-widest text-neutral-500">
-        Wire · POST /api/v1/brain/turn · persona T2_admin_strategist
-      </p>
     </section>
   );
 }

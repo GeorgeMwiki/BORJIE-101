@@ -12,6 +12,8 @@ import {
 } from '@/lib/internal/queries/killswitch';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import type { SwitchState } from '@/lib/internal/types';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, KILLSWITCH_STATE_LABELS } from '@/lib/internal/enum-labels';
 
 const STATES: ReadonlyArray<SwitchState> = ['OK', 'DEGRADED', 'HALT'];
 
@@ -27,6 +29,13 @@ const S = {
   perJuniorTitle: { en: 'Per-junior state', sw: 'Hali ya kila msaidizi' },
   updatedBy: { en: 'Updated', sw: 'Imesasishwa' },
   by: { en: 'by', sw: 'na' },
+  initiated: { en: 'initiated', sw: 'imeanzishwa' },
+  confirmWindow: {
+    en: 'second operator must confirm within 30s.',
+    sw: 'opereta wa pili lazima athibitishe ndani ya sekunde 30.',
+  },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
 } as const;
 
 function tone(state: SwitchState): 'success' | 'warn' | 'danger' {
@@ -54,7 +63,7 @@ export function KillswitchControls({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -65,11 +74,13 @@ export function KillswitchControls({
       {
         onSuccess: (res) => {
           setToast(
-            `${junior} → ${target} initiated (id ${res.pendingConfirmationId.slice(0, 8)}…) — second operator must confirm within 30s.`,
+            `${junior} → ${target} ${pickByLocale(locale, S.initiated)} (id ${res.pendingConfirmationId.slice(0, 8)}…) — ${pickByLocale(locale, S.confirmWindow)}`,
           );
         },
         onError: (err) => {
-          setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`);
+          setToast(
+            `${pickByLocale(locale, S.failed)}: ${localizeApiError(err, locale)}`,
+          );
         },
       },
     );
@@ -127,7 +138,9 @@ export function KillswitchControls({
                 </p>
               </div>
               <div className="flex items-center gap-3">
-                <StubBadge tone={tone(row.state)}>{row.state}</StubBadge>
+                <StubBadge tone={tone(row.state)}>
+                  {localizeEnumLabel(KILLSWITCH_STATE_LABELS, row.state, locale)}
+                </StubBadge>
                 <div className="flex gap-1">
                   {STATES.map((s) => (
                     <button
@@ -151,7 +164,7 @@ export function KillswitchControls({
         </ul>
       </section>
 
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
 
       <Toast
         message={toast}

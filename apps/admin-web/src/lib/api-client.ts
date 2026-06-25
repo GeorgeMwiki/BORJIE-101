@@ -31,10 +31,73 @@ export interface ApiOk<T> {
 export interface ApiErr {
   readonly ok: false;
   readonly status: number;
+  /**
+   * The gateway's stable, locale-NEUTRAL error CODE (`UPPER_SNAKE`, e.g.
+   * `LICENCE_EXPIRED`) when the response carried the canonical envelope
+   * `{ success: false, error: { code, message } }`. Render through
+   * `localizeApiError(err, locale)` from `@borjie/error-catalog` — NEVER show
+   * `message` to the user (a raw English body under `sw` is language mixing).
+   * `null` when the response had no parseable code (network / timeout / a bare
+   * non-envelope body).
+   */
+  readonly code: string | null;
+  /**
+   * The raw, locale-NEUTRAL body/diagnostic from the wire. DEV / log channel
+   * ONLY — never a user-facing render. Carried so a developer can inspect the
+   * gateway's diagnostic without it ever reaching a localized surface.
+   */
   readonly message: string;
 }
 
 export type ApiResult<T> = ApiOk<T> | ApiErr;
+
+/**
+ * A typed client error that CARRIES the gateway `code` so a render site can
+ * localize it via `localizeApiError(err, locale)`. `unwrap` (and the query
+ * layer, via `toApiError`) throw this so the thrown value satisfies the
+ * catalog's `ApiErrorLike` ({ code, message }) shape — the localized copy is
+ * resolved at the render site from `code`, NOT from this raw `message`.
+ */
+export class ApiClientError extends Error {
+  readonly code: string | null;
+  readonly status: number;
+  constructor(err: Pick<ApiErr, 'code' | 'status' | 'message'>) {
+    super(err.message);
+    this.name = 'ApiClientError';
+    this.code = err.code;
+    this.status = err.status;
+  }
+}
+
+/**
+ * Build a code-carrying `ApiClientError` from a failed `ApiResult`. The query
+ * layer throws THIS (not `new Error(res.message)`) so the gateway `code`
+ * survives into react-query's `error` channel and the render site can localize
+ * it. Replaces every `throw new Error(res.message)` in the query bindings.
+ */
+export function toApiError(err: ApiErr): ApiClientError {
+  return new ApiClientError(err);
+}
+
+/**
+ * Narrow ANY caught value (`unknown` in a `catch`, an `AuthError`, a thrown
+ * `ApiClientError`) into the catalog's accepted `{ code, message }` shape. Use
+ * at `catch (err)` render sites so `localizeApiError(toCatalogError(err), locale)`
+ * type-checks AND stays runtime-safe — the localized copy is resolved from the
+ * stable `code`, never this raw `message`. Returns `code: null` (→ the generic
+ * localized fallback) when the value carries no string code.
+ */
+export function toCatalogError(
+  err: unknown,
+): { readonly code: string | null; readonly message: string } {
+  if (err && typeof err === 'object') {
+    const rec = err as { code?: unknown; message?: unknown };
+    const code = typeof rec.code === 'string' && rec.code.trim() ? rec.code.trim() : null;
+    const message = typeof rec.message === 'string' ? rec.message : '';
+    return { code, message };
+  }
+  return { code: null, message: typeof err === 'string' ? err : '' };
+}
 
 export function resolveBase(): string {
   // requirePublicBaseUrl throws in production builds when the env var is
@@ -90,8 +153,12 @@ async function call<T>({ path, init, attempt = 0 }: CallOptions): Promise<ApiRes
         clearTimeout(timer);
         return call<T>({ path, ...(init !== undefined ? { init } : {}), attempt: attempt + 1 });
       }
-      const text = await res.text().catch(() => '');
-      return { ok: false, status: res.status, message: text || `HTTP ${res.status}` };
+      // Parse the canonical gateway envelope `{ error: { code, message } }`
+      // so the stable, locale-NEUTRAL CODE survives to the render site (the
+      // raw body stays dev-only). Falls back to the raw text when the body is
+      // not the envelope shape.
+      const { code, message } = await parseErrorBody(res);
+      return { ok: false, status: res.status, code, message };
     }
 
     const parsed = (await res.json().catch(() => null)) as
@@ -108,11 +175,45 @@ async function call<T>({ path, init, attempt = 0 }: CallOptions): Promise<ApiRes
     return {
       ok: false,
       status: 0,
+      code: null,
       message: error instanceof Error ? error.message : 'Network error',
     };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Pull `{ code, message }` from a non-ok response body. The gateway emits
+ * `c.json({ success: false, error: { code, message } }, status)`; we read the
+ * stable `error.code` so render sites can localize. Tolerant of a non-JSON or
+ * non-envelope body — falls back to the raw text (or `HTTP <status>`), with a
+ * `null` code that drives the catalog's generic localized fallback.
+ */
+async function parseErrorBody(
+  res: Response,
+): Promise<{ readonly code: string | null; readonly message: string }> {
+  const text = await res.text().catch(() => '');
+  if (text) {
+    try {
+      const body = JSON.parse(text) as {
+        readonly error?: { readonly code?: unknown; readonly message?: unknown };
+        readonly code?: unknown;
+        readonly message?: unknown;
+      };
+      const rawCode = body.error?.code ?? body.code;
+      const rawMessage = body.error?.message ?? body.message;
+      const code = typeof rawCode === 'string' && rawCode.trim() ? rawCode.trim() : null;
+      const message =
+        typeof rawMessage === 'string' && rawMessage.trim()
+          ? rawMessage.trim()
+          : text;
+      return { code, message };
+    } catch {
+      // Non-JSON body — keep the raw text as the dev diagnostic, no code.
+    }
+  }
+  return { code: null, message: text || `HTTP ${res.status}` };
 }
 
 export const apiClient = {
@@ -147,10 +248,13 @@ export const apiClient = {
 /**
  * Unwrap an ApiResult, throwing on failure. Used inside react-query
  * `queryFn`s where the hook's `error` state is the channel for failure.
+ * Throws a code-carrying `ApiClientError` so the render site can localize via
+ * `localizeApiError(err, locale)` — never a bare `Error(rawBody)` that would
+ * surface an English diagnostic under `sw`.
  */
 export function unwrap<T>(result: ApiResult<T>): T {
   if (!result.ok) {
-    throw new Error(result.message);
+    throw toApiError(result);
   }
   return result.data;
 }

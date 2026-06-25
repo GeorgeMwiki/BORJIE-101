@@ -32,7 +32,7 @@ import {
   Textarea,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface DeleteRequestRecord {
   readonly id: string;
@@ -81,6 +81,10 @@ const S = {
   newRequest: { en: 'New deletion request', sw: 'Ombi jipya la ufutaji' },
   customerId: { en: 'Customer ID', sw: 'Kitambulisho cha mteja' },
   targetTenant: { en: 'Target tenant id', sw: 'Kitambulisho cha mteja lengwa' },
+  targetTenantPlaceholder: {
+    en: 'tenant_… (required for break-glass execution)',
+    sw: 'tenant_… (inahitajika kwa utekelezaji wa dharura)',
+  },
   notes: { en: 'Notes', sw: 'Maelezo' },
   submitRequest: { en: 'Submit deletion request', sw: 'Wasilisha ombi la ufutaji' },
   lookup: { en: 'Look up request', sw: 'Tafuta ombi' },
@@ -98,8 +102,24 @@ const S = {
   },
 } as const;
 
-export function DataPrivacyClient() {
-  const locale = useLocale();
+// RTBF request status arrives as an open machine token. Map the known
+// lifecycle values to per-locale labels; an unknown token falls back to the
+// raw (locale-neutral) string rather than ever rendering a foreign word.
+const STATUS_LABEL: Record<string, { en: string; sw: string }> = {
+  pending: { en: 'pending', sw: 'inasubiri' },
+  approved: { en: 'approved', sw: 'imeidhinishwa' },
+  executed: { en: 'executed', sw: 'imetekelezwa' },
+  rejected: { en: 'rejected', sw: 'imekataliwa' },
+  failed: { en: 'failed', sw: 'imeshindwa' },
+};
+
+function statusLabel(status: string, locale: Locale): string {
+  const entry = STATUS_LABEL[status.toLowerCase()];
+  return entry ? pickByLocale(locale, entry) : status;
+}
+
+export function DataPrivacyClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [customerId, setCustomerId] = useState('');
   const [notes, setNotes] = useState('');
   const [targetTenantId, setTargetTenantId] = useState('');
@@ -122,7 +142,7 @@ export function DataPrivacyClient() {
     if (res.success && res.data) {
       setRecord(res.data);
       setMessage(
-        `${pickByLocale(locale, S.request)} ${res.data.id} — ${pickByLocale(locale, S.recorded)} ${res.data.status}.`,
+        `${pickByLocale(locale, S.request)} ${res.data.id} — ${pickByLocale(locale, S.recorded)} ${statusLabel(res.data.status, locale)}.`,
       );
     } else {
       setError(res.error ?? pickByLocale(locale, S.recordFailed));
@@ -229,7 +249,7 @@ export function DataPrivacyClient() {
             type="text"
             value={targetTenantId}
             onChange={(e) => setTargetTenantId(e.target.value)}
-            placeholder="tenant_… (required for break-glass execution)"
+            placeholder={pickByLocale(locale, S.targetTenantPlaceholder)}
             data-testid="gdpr-target-tenant"
           />
         </FormField>
@@ -292,7 +312,7 @@ export function DataPrivacyClient() {
             {pickByLocale(locale, S.customer)}: {record.customerId}
           </p>
           <p>
-            {pickByLocale(locale, S.status)}: {record.status}
+            {pickByLocale(locale, S.status)}: {statusLabel(record.status, locale)}
           </p>
           <p>
             {pickByLocale(locale, S.created)}: {record.createdAt}

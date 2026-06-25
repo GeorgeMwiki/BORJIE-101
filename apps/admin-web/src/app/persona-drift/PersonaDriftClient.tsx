@@ -36,7 +36,9 @@ import {
   TableCell,
   type BadgeProps,
 } from '@borjie/design-system';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { toCatalogError } from '@/lib/api-client';
 
 interface DriftEvent {
   readonly id: string;
@@ -87,14 +89,23 @@ const SEVERITY_VARIANT: Record<DriftEvent['severity'], BadgeProps['variant']> = 
   low: 'secondary',
 };
 
+// Closed-enum severity mapped to per-locale labels. The wire carries the
+// stable token (`low`/`medium`/`high`); the FE localizes at render so the
+// badge never shows a foreign-language word.
+const SEVERITY_LABEL: Record<DriftEvent['severity'], { en: string; sw: string }> = {
+  low: { en: 'low', sw: 'chini' },
+  medium: { en: 'medium', sw: 'wastani' },
+  high: { en: 'high', sw: 'juu' },
+};
+
 function endpoint(): string {
   const base = process.env.NEXT_PUBLIC_API_URL?.trim();
   const trimmed = base ? base.replace(/\/$/, '') : '';
   return `${trimmed}/api/v1/persona-drift/events`;
 }
 
-export function PersonaDriftClient() {
-  const locale = useLocale();
+export function PersonaDriftClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [state, setState] = useState<FetchState>({
     status: 'idle',
     events: [],
@@ -123,7 +134,7 @@ export function PersonaDriftClient() {
         setState((s) => ({
           ...s,
           status: 'error',
-          error: err instanceof Error ? err.message : String(err),
+          error: localizeApiError(toCatalogError(err), locale),
         }));
       }
     }
@@ -249,7 +260,7 @@ export function PersonaDriftClient() {
                   <TableCell className="text-foreground">{e.personaId}</TableCell>
                   <TableCell>
                     <Badge variant={SEVERITY_VARIANT[e.severity]} size="sm">
-                      {e.severity}
+                      {pickByLocale(locale, SEVERITY_LABEL[e.severity])}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">

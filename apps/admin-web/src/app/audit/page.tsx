@@ -6,7 +6,7 @@ import { pickByLocale } from '@/lib/locale-shared';
 /**
  * Audit log — sticky filter bar + virtualised event stream.
  *
- * Mirrors LitFin's `/litfin-admin/audit` composition: page header,
+ * Mirrors the reference admin audit composition: page header,
  * append-only badge in the actions slot, then the shared filterable
  * AuditLogViewer (tenant + actor + date-range filters, virtualised
  * VirtualList for tens-of-thousands of events without jank).
@@ -34,7 +34,7 @@ export default async function AuditPage(): Promise<JSX.Element> {
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
               {pickByLocale(locale, {
                 en: 'Append-only, hash-chained activity stream. Filter by tenant, actor, or date range; export NDJSON ships with the audit-log export endpoint.',
-                sw: 'Mtiririko wa shughuli wa kuongeza-tu, uliofungamanishwa kwa hash. Chuja kwa tenant, mhusika, au kipindi cha tarehe; usafirishaji wa NDJSON unapatikana na kituo cha kusafirisha kumbukumbu ya ukaguzi.',
+                sw: 'Mtiririko wa shughuli wa kuongeza-tu, uliofungamanishwa kwa hashi. Chuja kwa shirika, mhusika, au kipindi cha tarehe; usafirishaji wa NDJSON unapatikana na kituo cha kusafirisha kumbukumbu ya ukaguzi.',
               })}
             </p>
           </div>

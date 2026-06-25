@@ -3,13 +3,14 @@
 import { Search } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { ThemeToggle } from '@borjie/design-system';
-import { PortalSwitcher } from '@borjie/app-shell';
+import { PortalSwitcher, type PortalSwitcherLabels } from '@borjie/app-shell';
+import { useLocale, pickByLocale } from '@/lib/locale';
 import { EnvBadge } from './EnvBadge';
 
 /**
  * TopBar — slim workspace header for the admin console.
  *
- * Layout mirrors LitFin's PortalWorkspaceHeader pattern:
+ * Layout follows the reference portal-workspace-header pattern:
  *   [ env badge ] [ portal switcher ] [ search ]      [ alerts ] [ persona ]
  *
  * The cross-portal switcher (from `@borjie/app-shell`) lets Borjie staff
@@ -23,10 +24,12 @@ import { EnvBadge } from './EnvBadge';
  * field and notification bell only. Keeps the file small and avoids
  * pulling Supabase calls into a client boundary.
  *
- * Locale: admin-web chrome is English-only (no Swahili dictionary ships
- * for the console), so the switcher's built-in English `labels` are used
- * — no Swahili literal is hard-coded here, keeping the locale-purity
- * guard green.
+ * Locale: the chrome follows the operator's ACTIVE locale, not a hardcoded
+ * English. `useLocale()` reads the root server-seeded `LocaleProvider` (set
+ * from the `borjie_locale` cookie in the layout), so SSR and the first
+ * client paint agree — no EN-under-SW split. Every visible string (theme
+ * toggle, search placeholder, sr-only label, portal-switcher labels) is
+ * resolved through `pickByLocale`, single-language per locale, never both.
  */
 
 export interface TopBarProps {
@@ -44,6 +47,19 @@ export interface TopBarProps {
 
 export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.Element {
   const [query, setQuery] = useState('');
+  // Active locale from the root server-seeded provider — first paint already
+  // matches SSR, so threading it here introduces no split-brain frame.
+  const locale = useLocale();
+
+  // Localized portal-switcher copy. The package ships English defaults and
+  // requires the consumer to inject `sw` strings when the active locale is
+  // `sw` — otherwise the switcher would render English chrome under a Swahili
+  // console (the mixing the canon forbids).
+  const portalLabels: PortalSwitcherLabels = {
+    owner: pickByLocale(locale, { en: 'Owner Cockpit', sw: 'Kifaa cha Mmiliki' }),
+    admin: pickByLocale(locale, { en: 'Borjie Console', sw: 'Konsoli ya Borjie' }),
+    switch: pickByLocale(locale, { en: 'Switch portal', sw: 'Badilisha mlango' }),
+  };
 
   // The admin chrome has no dedicated search route; the universal Cmd-K
   // palette IS the search surface. Submitting the header field opens it
@@ -64,7 +80,12 @@ export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.
     >
       <EnvBadge {...(env ? { env } : {})} />
 
-      <PortalSwitcher current="admin" ownerUrl={ownerUrl} adminUrl={adminUrl} />
+      <PortalSwitcher
+        current="admin"
+        ownerUrl={ownerUrl}
+        adminUrl={adminUrl}
+        labels={portalLabels}
+      />
 
       <form
         role="search"
@@ -75,7 +96,10 @@ export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.
         }}
       >
         <label htmlFor="admin-search" className="sr-only">
-          Search tenants, audit, cases
+          {pickByLocale(locale, {
+            en: 'Search tenants, audit, cases',
+            sw: 'Tafuta wateja, ukaguzi, kesi',
+          })}
         </label>
         <Search
           className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-500"
@@ -86,12 +110,15 @@ export function TopBar({ identity, env, ownerUrl, adminUrl }: TopBarProps): JSX.
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search (press Enter for ⌘K)…"
+          placeholder={pickByLocale(locale, {
+            en: 'Search (press Enter for ⌘K)…',
+            sw: 'Tafuta (bonyeza Enter kwa ⌘K)…',
+          })}
           className="w-full rounded-md border border-border bg-surface-sunken pl-9 pr-3 py-1.5 text-sm text-foreground placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-signal-500/30"
         />
       </form>
 
-      <ThemeToggle locale="en" />
+      <ThemeToggle locale={locale} />
 
       {identity ? <div className="ml-2 shrink-0">{identity}</div> : null}
     </header>

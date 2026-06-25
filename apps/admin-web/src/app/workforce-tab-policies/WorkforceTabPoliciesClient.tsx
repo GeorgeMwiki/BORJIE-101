@@ -38,7 +38,7 @@ import {
   TableCell,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface PolicyDistribution {
   readonly role: string;
@@ -69,8 +69,12 @@ const S = {
   colRole: { en: 'Role', sw: 'Jukumu' },
 } as const;
 
-export function WorkforceTabPoliciesClient(): JSX.Element {
-  const locale = useLocale();
+export function WorkforceTabPoliciesClient({
+  initialLocale,
+}: {
+  readonly initialLocale?: Locale;
+} = {}): JSX.Element {
+  const locale = useLocale(initialLocale);
   const [summary, setSummary] = useState<PolicySummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

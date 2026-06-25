@@ -7,6 +7,7 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { useCitationsQuery } from '@/lib/internal/queries/citations';
 import type { Citation, CitationSource } from '@/lib/internal/types';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const SOURCES: ReadonlyArray<CitationSource> = ['Gazette', 'NEMC', 'BoT', 'TMAA', 'TRA', 'Mining Commission'];
 
@@ -68,7 +69,7 @@ export function CitationLibrary({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   return (
@@ -116,7 +117,7 @@ export function CitationLibrary({
         </ul>
       )}
 
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
 
       {open ? (
         <Modal open={open !== null} onClose={() => setOpen(null)} title={open.statute} size="lg">

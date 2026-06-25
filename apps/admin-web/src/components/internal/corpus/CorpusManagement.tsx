@@ -6,6 +6,7 @@ import { CorpusList } from './CorpusList';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { useCorpusQuery } from '@/lib/internal/queries/corpus';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const S = {
   unavailable: { en: 'Corpus unavailable', sw: 'Hifadhi haipatikani' },
@@ -30,7 +31,7 @@ export function CorpusManagement({
   if (query.isError) {
     return (
       <p className="text-sm text-danger">
-        {pickByLocale(locale, S.unavailable)}: {query.error.message}
+        {pickByLocale(locale, S.unavailable)}: {localizeApiError(query.error, locale)}
       </p>
     );
   }
@@ -40,7 +41,7 @@ export function CorpusManagement({
       <CorpusDropZone initialLocale={locale} />
       <CorpusList rows={query.data.rows} initialLocale={locale} />
       <div>
-        <DataSourceBadge source={query.data.source} />
+        <DataSourceBadge source={query.data.source} locale={locale} />
       </div>
     </div>
   );

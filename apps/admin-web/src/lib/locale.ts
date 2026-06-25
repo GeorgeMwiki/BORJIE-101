@@ -15,8 +15,9 @@
  * DEFAULT_LOCALE, same polling strategy.
  */
 
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 
+import { LocaleSeedContext } from './locale-context';
 import {
   DEFAULT_LOCALE,
   LOCALE_COOKIE,
@@ -50,7 +51,13 @@ export {
  * effect below corrects it on mount.
  */
 export function useLocale(initialLocale?: Locale): Locale {
-  const [locale, setLocale] = useState<Locale>(initialLocale ?? DEFAULT_LOCALE);
+  // Seed precedence: explicit prop > root server-seeded LocaleProvider
+  // context > project default. The context seed makes an UNSEEDED
+  // `useLocale()` paint the correct language on the first frame, app-wide.
+  const seededLocale = useContext(LocaleSeedContext);
+  const [locale, setLocale] = useState<Locale>(
+    initialLocale ?? seededLocale ?? DEFAULT_LOCALE,
+  );
   useEffect(() => {
     setLocale(readLocaleFromDocument());
     const interval = window.setInterval(() => {

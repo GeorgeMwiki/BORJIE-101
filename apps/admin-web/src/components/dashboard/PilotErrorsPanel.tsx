@@ -2,6 +2,16 @@
 
 import { Card } from '@borjie/design-system';
 import { useDashboardPilotErrors } from '@/lib/internal/queries/dashboard';
+import { useLocale, type Locale } from '@/lib/locale';
+
+/**
+ * Resolve the Intl BCP-47 tag from the active locale — the
+ * locale-follows-the-user canon. NEVER hardcode `'en-GB'` in a time
+ * formatter; the operator's chosen language drives the rendered format.
+ */
+function bcp47For(locale: Locale): string {
+  return locale === 'sw' ? 'sw-TZ' : 'en-GB';
+}
 
 /**
  * Pilot errors panel — top-centre.
@@ -13,6 +23,7 @@ import { useDashboardPilotErrors } from '@/lib/internal/queries/dashboard';
  */
 export function PilotErrorsPanel(): JSX.Element {
   const query = useDashboardPilotErrors();
+  const locale = useLocale();
 
   if (query.isLoading) {
     return (
@@ -86,7 +97,7 @@ export function PilotErrorsPanel(): JSX.Element {
               <div className="truncate text-foreground">{row.message}</div>
               <div className="text-xs text-neutral-500">
                 {row.cohort} ·{' '}
-                {new Date(row.capturedAt).toLocaleTimeString('en-GB', {
+                {new Date(row.capturedAt).toLocaleTimeString(bcp47For(locale), {
                   hour: '2-digit',
                   minute: '2-digit',
                 })}

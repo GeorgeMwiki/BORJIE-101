@@ -15,17 +15,31 @@
  */
 
 import { PageShell } from '@/components/migrated/PageShell';
+import { readLocaleFromServerCookies } from '@/lib/locale.server';
+import { pickByLocale } from '@/lib/locale-shared';
 import { DecisionTraceListClient } from './DecisionTraceListClient';
 
 export const dynamic = 'force-dynamic';
 
-export default function DecisionTraceListPage() {
+// Header copy is resolved on the SERVER from the same cookie that seeds the
+// client locale, so SSR and the client's first paint render the SAME language
+// (zero-mix canon — never an English header over a Swahili AdminShell).
+const HEADER = {
+  title: { en: 'Decision Trace Replay', sw: 'Urejeshaji wa Ufuatiliaji wa Maamuzi' },
+  subtitle: {
+    en: 'Structured audit replay for brain decisions, four-eye approvals, payouts, and tenant resolution. Metadata-only; content requires break-glass consent.',
+    sw: 'Urejeshaji wa ukaguzi uliopangwa kwa maamuzi ya ubongo, idhini za macho-manne, malipo, na utatuzi wa mteja. Metadata-tu; maudhui yanahitaji idhini ya dharura.',
+  },
+} as const;
+
+export default async function DecisionTraceListPage() {
+  const locale = await readLocaleFromServerCookies();
   return (
     <PageShell
-      title="Decision Trace Replay"
-      subtitle="Structured audit replay for brain decisions, four-eye approvals, payouts, and tenant resolution. Metadata-only; content requires break-glass consent."
+      title={pickByLocale(locale, HEADER.title)}
+      subtitle={pickByLocale(locale, HEADER.subtitle)}
     >
-      <DecisionTraceListClient />
+      <DecisionTraceListClient initialLocale={locale} />
     </PageShell>
   );
 }

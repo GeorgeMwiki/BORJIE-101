@@ -19,6 +19,7 @@
 import type { ReactElement } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@borjie/design-system';
+import { pickByLocale, useLocale } from '@/lib/locale';
 import { postSuperpowerJson, ADMIN_SUPERPOWER_ENDPOINTS } from './api';
 import {
   ADMIN_BULK_ACTIONS,
@@ -43,6 +44,7 @@ const SHORTCUT_MATCH = (e: KeyboardEvent): boolean => {
 };
 
 export function AdminBulkActionDrawer(): ReactElement | null {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [entityType, setEntityType] = useState<
     (typeof ADMIN_BULK_ENTITY_TYPES)[number]
@@ -89,11 +91,21 @@ export function AdminBulkActionDrawer(): ReactElement | null {
         .map((s) => s.trim())
         .filter(Boolean);
       if (ids.length === 0) {
-        setError('Provide at least one id (comma/space separated).');
+        setError(
+          pickByLocale(locale, {
+            en: 'Provide at least one id (comma/space separated).',
+            sw: 'Toa angalau kitambulisho kimoja (vimetenganishwa kwa koma/nafasi).',
+          }),
+        );
         return;
       }
       if (reason.trim().length < 8) {
-        setError('Reason must be at least 8 characters.');
+        setError(
+          pickByLocale(locale, {
+            en: 'Reason must be at least 8 characters.',
+            sw: 'Sababu lazima iwe na angalau herufi 8.',
+          }),
+        );
         return;
       }
       setSubmitting(true);
@@ -109,12 +121,17 @@ export function AdminBulkActionDrawer(): ReactElement | null {
       );
       setSubmitting(false);
       if (!data) {
-        setError('Bulk action failed. Check console + retry.');
+        setError(
+          pickByLocale(locale, {
+            en: 'Bulk action failed. Check console + retry.',
+            sw: 'Kitendo cha wingi kimeshindwa. Angalia console + jaribu tena.',
+          }),
+        );
         return;
       }
       setResult(data);
     },
-    [action, entityType, idsRaw, reason],
+    [action, entityType, idsRaw, reason, locale],
   );
 
   if (!open) return null;
@@ -125,7 +142,10 @@ export function AdminBulkActionDrawer(): ReactElement | null {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Admin bulk action"
+      aria-label={pickByLocale(locale, {
+        en: 'Admin bulk action',
+        sw: 'Kitendo cha wingi cha msimamizi',
+      })}
       data-testid="admin-bulk-drawer"
       className="fixed inset-0 z-50 flex items-end justify-end bg-black/30 backdrop-blur-sm"
       onClick={close}
@@ -137,10 +157,16 @@ export function AdminBulkActionDrawer(): ReactElement | null {
         <header className="flex items-start justify-between gap-2">
           <div>
             <h2 className="text-lg font-semibold text-foreground">
-              Admin bulk action
+              {pickByLocale(locale, {
+                en: 'Admin bulk action',
+                sw: 'Kitendo cha wingi cha msimamizi',
+              })}
             </h2>
             <p className="text-xs text-neutral-400">
-              Cmd+Shift+B · admin-only verbs against cross-tenant entities
+              {pickByLocale(locale, {
+                en: 'Cmd+Shift+B · admin-only verbs against cross-tenant entities',
+                sw: 'Cmd+Shift+B · vitendo vya msimamizi pekee dhidi ya huluki za wateja mbalimbali',
+              })}
             </p>
           </div>
           <button
@@ -148,7 +174,7 @@ export function AdminBulkActionDrawer(): ReactElement | null {
             onClick={close}
             className="rounded border border-border bg-surface px-2 py-1 text-xs text-neutral-400 hover:bg-surface/60"
           >
-            Close
+            {pickByLocale(locale, { en: 'Close', sw: 'Funga' })}
           </button>
         </header>
 
@@ -162,11 +188,25 @@ export function AdminBulkActionDrawer(): ReactElement | null {
                 : 'border-success/40 bg-success/10 text-success'
             }`}
           >
-            <strong>{result.status === 'applied' ? 'Applied' : 'Pending 2nd-eye'}.</strong>{' '}
-            {result.processed} processed · {result.failed} failed.
+            <strong>
+              {result.status === 'applied'
+                ? pickByLocale(locale, { en: 'Applied', sw: 'Imetekelezwa' })
+                : pickByLocale(locale, {
+                    en: 'Pending 2nd-eye',
+                    sw: 'Inasubiri jicho la pili',
+                  })}
+              .
+            </strong>{' '}
+            {pickByLocale(locale, {
+              en: `${result.processed} processed · ${result.failed} failed.`,
+              sw: `${result.processed} zimechakatwa · ${result.failed} zimeshindwa.`,
+            })}
             {result.requiresFourEye ? (
               <p className="mt-1 text-tiny">
-                A second admin must approve before this action takes effect.
+                {pickByLocale(locale, {
+                  en: 'A second admin must approve before this action takes effect.',
+                  sw: 'Msimamizi wa pili lazima aidhinishe kabla kitendo hiki hakijaanza kufanya kazi.',
+                })}
               </p>
             ) : null}
           </div>
@@ -174,7 +214,9 @@ export function AdminBulkActionDrawer(): ReactElement | null {
 
         <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
           <label className="block">
-            <span className="text-xs text-neutral-400">Entity type</span>
+            <span className="text-xs text-neutral-400">
+              {pickByLocale(locale, { en: 'Entity type', sw: 'Aina ya huluki' })}
+            </span>
             <select
               value={entityType}
               onChange={(e) =>
@@ -194,7 +236,9 @@ export function AdminBulkActionDrawer(): ReactElement | null {
           </label>
 
           <label className="block">
-            <span className="text-xs text-neutral-400">Action</span>
+            <span className="text-xs text-neutral-400">
+              {pickByLocale(locale, { en: 'Action', sw: 'Kitendo' })}
+            </span>
             <select
               value={action}
               onChange={(e) =>
@@ -214,14 +258,20 @@ export function AdminBulkActionDrawer(): ReactElement | null {
                 data-testid="admin-bulk-drawer-high-impact-badge"
                 className="mt-1 inline-block rounded bg-destructive/10 px-1.5 py-0.5 text-tiny text-destructive"
               >
-                HIGH-impact · 4-eye approval required
+                {pickByLocale(locale, {
+                  en: 'HIGH-impact · 4-eye approval required',
+                  sw: 'Athari-KUBWA · idhini ya macho-4 inahitajika',
+                })}
               </span>
             ) : null}
           </label>
 
           <label className="block">
             <span className="text-xs text-neutral-400">
-              Entity ids (comma or space separated, max 100)
+              {pickByLocale(locale, {
+                en: 'Entity ids (comma or space separated, max 100)',
+                sw: 'Vitambulisho vya huluki (vimetenganishwa kwa koma au nafasi, max 100)',
+              })}
             </span>
             <textarea
               value={idsRaw}
@@ -234,7 +284,10 @@ export function AdminBulkActionDrawer(): ReactElement | null {
 
           <label className="block">
             <span className="text-xs text-neutral-400">
-              Reason (min 8 chars, captured in audit chain)
+              {pickByLocale(locale, {
+                en: 'Reason (min 8 chars, captured in audit chain)',
+                sw: 'Sababu (chini 8 herufi, hunaswa katika mnyororo wa ukaguzi)',
+              })}
             </span>
             <textarea
               value={reason}
@@ -261,7 +314,15 @@ export function AdminBulkActionDrawer(): ReactElement | null {
             fullWidth
             data-testid="admin-bulk-drawer-submit"
           >
-            {submitting ? 'Dispatching…' : 'Dispatch bulk action'}
+            {submitting
+              ? pickByLocale(locale, {
+                  en: 'Dispatching…',
+                  sw: 'Inatuma…',
+                })
+              : pickByLocale(locale, {
+                  en: 'Dispatch bulk action',
+                  sw: 'Tuma kitendo cha wingi',
+                })}
           </Button>
         </form>
       </aside>

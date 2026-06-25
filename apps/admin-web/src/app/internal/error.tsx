@@ -24,8 +24,8 @@ const STRINGS = {
   eyebrow: { en: 'Console error', sw: 'Hitilafu ya konsoli' },
   title: { en: 'This screen failed to load.', sw: 'Skrini hii imeshindwa kupakia.' },
   body: {
-    en: 'The error has been captured. Retry this screen — if it persists, escalate via the HQ incident channel.',
-    sw: 'Hitilafu imenaswa. Jaribu tena skrini hii — ikiendelea, ipeleke kupitia njia ya matukio ya makao makuu.',
+    en: 'The error has been captured. Retry this screen. If it persists, escalate via the HQ incident channel.',
+    sw: 'Hitilafu imenaswa. Jaribu tena skrini hii. Ikiendelea, ipeleke kupitia njia ya matukio ya makao makuu.',
   },
   retry: { en: 'Try again', sw: 'Jaribu tena' },
   ref: { en: 'ref', sw: 'kumb' },

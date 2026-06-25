@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Mission-eval interactive client — Wave-K parity-litfin.
+ * Mission-eval interactive client — Wave-K portal-parity.
  *
  * Calls:
  *   GET  /api/v1/parity/capability/dashboard         — rollup tile
@@ -45,7 +45,7 @@ import {
   type BadgeProps,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 // NOTE: `id` values are the wire contract consumed by the gateway's
 // parity-capability-dashboard factory (services/api-gateway/src/routes/
@@ -54,12 +54,21 @@ import { useLocale, pickByLocale } from '@/lib/locale';
 // enum verbatim. `offtake-renewal` is the mining-domain id for licence
 // renewal; the label surfaces the mining-coherent wording to operators.
 const CAPABILITIES = [
-  { id: 'rent-reconciliation', label: 'Royalty reconciliation' },
-  { id: 'offtake-renewal', label: 'Licence renewal' },
-  { id: 'kra-mri', label: 'TRA royalty return' },
-  { id: 'gepg', label: 'GePG' },
-  { id: 'maintenance-triage', label: 'Maintenance triage' },
-  { id: 'voice-agent', label: 'Voice agent' },
+  {
+    id: 'rent-reconciliation',
+    label: { en: 'Royalty reconciliation', sw: 'Upatanishi wa mrabaha' },
+  },
+  {
+    id: 'offtake-renewal',
+    label: { en: 'Licence renewal', sw: 'Uhuishaji wa leseni' },
+  },
+  { id: 'kra-mri', label: { en: 'TRA royalty return', sw: 'Marejesho ya mrabaha ya TRA' } },
+  { id: 'gepg', label: { en: 'GePG', sw: 'GePG' } },
+  {
+    id: 'maintenance-triage',
+    label: { en: 'Maintenance triage', sw: 'Upangaji wa matengenezo' },
+  },
+  { id: 'voice-agent', label: { en: 'Voice agent', sw: 'Wakala wa sauti' } },
 ] as const;
 
 type CapabilityId = (typeof CAPABILITIES)[number]['id'];
@@ -187,6 +196,19 @@ const S = {
   },
 } as const;
 
+// Closed-enum stakes mapped to per-locale labels. The wire carries the
+// stable token (`low`/`medium`/`high`/`critical`); the FE localizes at
+// render so the cell never shows a foreign-language word.
+const STAKES_LABEL: Record<
+  'low' | 'medium' | 'high' | 'critical',
+  { en: string; sw: string }
+> = {
+  low: { en: 'low', sw: 'chini' },
+  medium: { en: 'medium', sw: 'wastani' },
+  high: { en: 'high', sw: 'juu' },
+  critical: { en: 'critical', sw: 'muhimu sana' },
+};
+
 function cotQueryPath(producedAt: string): string {
   const center = Date.parse(producedAt);
   const params = new URLSearchParams();
@@ -209,8 +231,8 @@ function scoreVariant(score: number | null): BadgeProps['variant'] {
   return 'success-soft';
 }
 
-export function MissionEvalClient() {
-  const locale = useLocale();
+export function MissionEvalClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [rollup, setRollup] = useState<DashboardRollup | null>(null);
   const [rows, setRows] = useState<ReadonlyArray<EvalRunRow>>([]);
   const [total, setTotal] = useState<number>(0);
@@ -356,7 +378,10 @@ export function MissionEvalClient() {
             >
               <header className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground">
-                  {CAPABILITIES.find((c) => c.id === tile.id)?.label ?? tile.id}
+                  {(() => {
+                    const cap = CAPABILITIES.find((c) => c.id === tile.id);
+                    return cap ? pickByLocale(locale, cap.label) : tile.id;
+                  })()}
                 </h3>
                 <ShieldCheck className="h-4 w-4 text-info" />
               </header>
@@ -414,7 +439,7 @@ export function MissionEvalClient() {
             <option value="">{pickByLocale(locale, S.all)}</option>
             {CAPABILITIES.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.label}
+                {pickByLocale(locale, c.label)}
               </option>
             ))}
           </select>
@@ -523,7 +548,9 @@ export function MissionEvalClient() {
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {r.thoughtId.slice(0, 12)}…
                   </TableCell>
-                  <TableCell className="text-xs">{r.stakes}</TableCell>
+                  <TableCell className="text-xs">
+                    {pickByLocale(locale, STAKES_LABEL[r.stakes])}
+                  </TableCell>
                   <TableCell className="text-xs">{r.capability ?? '—'}</TableCell>
                   <TableCell className="text-xs">{r.category ?? '—'}</TableCell>
                   <TableCell>
@@ -616,7 +643,9 @@ export function MissionEvalClient() {
                   <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                     <div>
                       <dt>{pickByLocale(locale, S.colStakes)}</dt>
-                      <dd className="text-foreground">{selected.stakes}</dd>
+                      <dd className="text-foreground">
+                        {pickByLocale(locale, STAKES_LABEL[selected.stakes])}
+                      </dd>
                     </div>
                     <div>
                       <dt>{pickByLocale(locale, S.model)}</dt>

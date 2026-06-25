@@ -8,6 +8,8 @@ import { Toast } from '../Toast';
 import { useComplianceQueueQuery, useResolveCompliance } from '@/lib/internal/queries/compliance';
 import type { ComplianceItem, ComplianceSeverity } from '@/lib/internal/types';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
+import { localizeEnumLabel, SEVERITY_LABELS } from '@/lib/internal/enum-labels';
 
 function severityTone(sev: ComplianceSeverity): 'danger' | 'warn' | 'neutral' {
   if (sev === 'High') return 'danger';
@@ -51,7 +53,7 @@ export function ComplianceQueue({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -71,7 +73,7 @@ export function ComplianceQueue({
         onError: (err) =>
           setToast(
             `${pickByLocale(locale, S.failed)}: ${
-              err instanceof Error ? err.message : pickByLocale(locale, S.unknown)
+              localizeApiError(err, locale)
             }`,
           ),
       }
@@ -85,7 +87,7 @@ export function ComplianceQueue({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'mock'} />
+        <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
       </div>
     );
   }
@@ -101,7 +103,9 @@ export function ComplianceQueue({
                 <p className="text-xs text-muted-foreground">{item.summary}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <StubBadge tone={severityTone(item.severity)}>{item.severity}</StubBadge>
+                <StubBadge tone={severityTone(item.severity)}>
+                  {localizeEnumLabel(SEVERITY_LABELS, item.severity, locale)}
+                </StubBadge>
                 <span className="text-xs text-muted-foreground">
                   {item.waitingHours}
                   {pickByLocale(locale, S.hours)}
@@ -140,7 +144,7 @@ export function ComplianceQueue({
           </article>
         ))}
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'mock'} />
+      <DataSourceBadge source={query.data?.source ?? 'mock'} locale={locale} />
       <Toast message={toast} tone={resolve.isError ? 'danger' : 'success'} onDismiss={() => setToast(null)} />
     </div>
   );

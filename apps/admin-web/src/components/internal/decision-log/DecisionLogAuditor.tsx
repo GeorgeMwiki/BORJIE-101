@@ -10,6 +10,7 @@ import { useDecisionLogQuery } from '@/lib/internal/queries/decision-log';
 import { useTenantsQuery } from '@/lib/internal/queries/tenants';
 import type { DecisionLogRow } from '@/lib/internal/types';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const INITIAL: DecisionFiltersState = { tenantId: '', juniorId: '', from: '', to: '' };
 
@@ -76,7 +77,7 @@ export function DecisionLogAuditor({
     );
   }
   if (query.isError) {
-    return <p className="text-sm text-danger">{query.error.message}</p>;
+    return <p className="text-sm text-danger">{localizeApiError(query.error, locale)}</p>;
   }
 
   return (
@@ -93,7 +94,7 @@ export function DecisionLogAuditor({
         <span>
           {filtered.length.toLocaleString()} {pickByLocale(locale, S.inRange)}
         </span>
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
 
       {filtered.length === 0 ? (

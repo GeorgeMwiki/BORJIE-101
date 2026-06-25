@@ -6,6 +6,7 @@ import { DataSourceBadge } from '../DataSourceBadge';
 import { SloCard } from './SloCard';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 import { useSloQuery } from '@/lib/internal/queries/slo';
+import { localizeApiError } from '@borjie/error-catalog';
 
 const S = {
   loading: { en: 'Loading SLOs…', sw: 'Inapakia SLO…' },
@@ -49,7 +50,7 @@ export function SloDashboard({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -62,7 +63,7 @@ export function SloDashboard({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
     );
   }
@@ -89,7 +90,7 @@ export function SloDashboard({
           </div>
         </section>
       ))}
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
     </div>
   );
 }

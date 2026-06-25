@@ -31,7 +31,7 @@ import {
   ModalFooter,
 } from '@borjie/design-system';
 import { api } from '@/lib/api';
-import { useLocale, pickByLocale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 interface Certification {
   readonly id: string;
@@ -86,8 +86,8 @@ const S = {
   cert: { en: 'Cert', sw: 'Cheti' },
 } as const;
 
-export function IntegrationsClient() {
-  const locale = useLocale();
+export function IntegrationsClient({ initialLocale }: { readonly initialLocale?: Locale } = {}) {
+  const locale = useLocale(initialLocale);
   const [certs, setCerts] = useState<readonly Certification[]>([]);
   const [revocations, setRevocations] = useState<readonly Revocation[]>([]);
   const [loading, setLoading] = useState(true);

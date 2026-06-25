@@ -24,7 +24,7 @@
 @tailwind utilities;
 
 @layer components {
-  /* LitFin-pattern surface cards for the HQ console. Hairline border,
+  /* Surface cards pattern for the HQ console. Hairline border,
      tinted-card bg, generous padding, no heavy shadows in dark. The
      `-degraded` variant tints with warning at 10% with an inset ring
      so it reads as "muted alert" not "broken panel". */

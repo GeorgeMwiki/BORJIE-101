@@ -24,6 +24,7 @@ import { StubBadge } from '../StubBadge';
 import { DataSourceBadge } from '../DataSourceBadge';
 import { Toast } from '../Toast';
 import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
+import { localizeApiError } from '@borjie/error-catalog';
 
 /**
  * Live HQ marketplace moderation queue (AD-3).
@@ -47,7 +48,24 @@ const S = {
   colActions: { en: 'Actions', sw: 'Vitendo' },
   hide: { en: 'Hide listing', sw: 'Ficha tangazo' },
   restore: { en: 'Restore listing', sw: 'Rejesha tangazo' },
+  hidden: { en: 'hidden', sw: 'imefichwa' },
+  restored: { en: 'restored', sw: 'imerejeshwa' },
+  failed: { en: 'Failed', sw: 'Imeshindwa' },
+  unknown: { en: 'unknown', sw: 'haijulikani' },
+  statusLive: { en: 'Live', sw: 'Hai' },
+  statusPaused: { en: 'Paused', sw: 'Imesitishwa' },
+  statusHidden: { en: 'Hidden', sw: 'Imefichwa' },
+  statusSold: { en: 'Sold', sw: 'Imeuzwa' },
+  statusExpired: { en: 'Expired', sw: 'Imekwisha muda' },
 } as const;
+
+function statusLabel(status: ListingStatus, locale: Locale): string {
+  if (status === 'Live') return pickByLocale(locale, S.statusLive);
+  if (status === 'Paused') return pickByLocale(locale, S.statusPaused);
+  if (status === 'Hidden') return pickByLocale(locale, S.statusHidden);
+  if (status === 'Sold') return pickByLocale(locale, S.statusSold);
+  return pickByLocale(locale, S.statusExpired);
+}
 
 function statusTone(status: ListingStatus): 'success' | 'warn' | 'danger' | 'neutral' {
   if (status === 'Live') return 'success';
@@ -76,7 +94,7 @@ export function MarketplaceModerationList({
     );
   }
   if (query.isError) {
-    return <Alert variant="error">{query.error.message}</Alert>;
+    return <Alert variant="error">{localizeApiError(query.error, locale)}</Alert>;
   }
 
   const rows = query.data?.rows ?? [];
@@ -89,7 +107,7 @@ export function MarketplaceModerationList({
           title={pickByLocale(locale, S.emptyTitle)}
           description={pickByLocale(locale, S.emptyBody)}
         />
-        <DataSourceBadge source={query.data?.source ?? 'live'} />
+        <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       </div>
     );
   }
@@ -100,9 +118,14 @@ export function MarketplaceModerationList({
     moderate.mutate(
       { id: listing.id, action },
       {
-        onSuccess: () => setToast(`${listing.title}: ${action}d`),
+        onSuccess: () =>
+          setToast(
+            `${listing.title}: ${action === 'restore' ? pickByLocale(locale, S.restored) : pickByLocale(locale, S.hidden)}`,
+          ),
         onError: (err) =>
-          setToast(`Failed: ${err instanceof Error ? err.message : 'unknown'}`),
+          setToast(
+            `${pickByLocale(locale, S.failed)}: ${localizeApiError(err, locale)}`,
+          ),
         onSettled: () => setPendingId(null),
       },
     );
@@ -132,7 +155,9 @@ export function MarketplaceModerationList({
                   {row.tenantId}
                 </TableCell>
                 <TableCell>
-                  <StubBadge tone={statusTone(row.status)}>{row.status}</StubBadge>
+                  <StubBadge tone={statusTone(row.status)}>
+                    {statusLabel(row.status, locale)}
+                  </StubBadge>
                 </TableCell>
                 <TableCell className="text-right">
                   <Button
@@ -154,7 +179,7 @@ export function MarketplaceModerationList({
           </TableBody>
         </Table>
       </div>
-      <DataSourceBadge source={query.data?.source ?? 'live'} />
+      <DataSourceBadge source={query.data?.source ?? 'live'} locale={locale} />
       <Toast
         message={toast}
         tone={moderate.isError ? 'danger' : 'success'}
