@@ -27,6 +27,10 @@ const S = {
   approve: { en: 'Approve', sw: 'Idhinisha' },
   reject: { en: 'Reject', sw: 'Kataa' },
   requestEvidence: { en: 'Request more evidence', sw: 'Omba ushahidi zaidi' },
+  requestEvidenceTooltip: {
+    en: 'Evidence-request workflow lands with the regulator-pipeline expansion (SCRUB-4: needs POST /compliance-queue/:id/request-evidence)',
+    sw: 'Mtiririko wa kuomba ushahidi utakuja na upanuzi wa bomba-la-mdhibiti (SCRUB-4: unahitaji POST /compliance-queue/:id/request-evidence)',
+  },
   approved: { en: 'approved', sw: 'imeidhinishwa' },
   rejected: { en: 'rejected', sw: 'imekataliwa' },
   failed: { en: 'Failed', sw: 'Imeshindwa' },
@@ -136,7 +140,7 @@ export function ComplianceQueue({
                 variant="outline"
                 size="sm"
                 disabled
-                title="Evidence-request workflow lands with the regulator-pipeline expansion (SCRUB-4: needs POST /compliance-queue/:id/request-evidence)"
+                title={pickByLocale(locale, S.requestEvidenceTooltip)}
               >
                 {pickByLocale(locale, S.requestEvidence)}
               </Button>

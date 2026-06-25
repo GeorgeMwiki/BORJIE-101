@@ -12,13 +12,40 @@
  *   string is bilingual). The zero-mix canon forbids it just the same: one
  *   language per rendered context, matching the active locale.
  *
- * What this flags (a file is an offender when ALL hold):
+ * What this flags (a file is an offender when 1 + 3 hold AND EITHER 2a or 2b):
  *   1. It is a component / page `.tsx` that RENDERS user-facing English —
  *      either a JSX text node of >= 2 English words, or one of the
  *      user-facing attributes (`title=` / `label=` / `placeholder=` /
  *      `aria-label=` / `eyebrow=` / `subtitle=`) carrying English prose; AND
- *   2. it has ZERO `pickByLocale` / `useLocale` token in the file (it cannot
- *      be selecting a per-locale branch); AND
+ *   2a. (NO-LOCALE shape) it has ZERO `pickByLocale` / `useLocale` token in the
+ *      file (it cannot be selecting a per-locale branch); OR
+ *   2b. (USES-LOCALE-BUT-HARDCODES-ENGLISH shape — the round-13 widening) it
+ *      RESOLVES the active locale (`useLocale()` / a `bcp47For(locale)` date
+ *      formatter) but has ZERO `pickByLocale` — so it localizes the DATE/number
+ *      yet emits its prose as hardcoded title-case English. Under `sw` the
+ *      timestamps read Swahili-formatted while the surrounding copy stays
+ *      English: the same surface-level mix, hidden from the original rule
+ *      because the bare `useLocale` token tripped its locale-aware exemption.
+ *      Only `pickByLocale` (a per-locale STRING branch) clears prose; resolving
+ *      the locale for formatting alone does not; OR
+ *   2c. (PER-STRING-LEAK shape — the round-14 widening) the file DOES localize
+ *      most of its surface with `pickByLocale`, but a FEW rendered prose runs
+ *      escaped the i18n layer (a hardcoded JSX text node, or a string-literal
+ *      `title=` / `placeholder=` value). The round-13 rule cleared the WHOLE
+ *      file the instant it saw `pickByLocale` ANYWHERE — so a single hardcoded
+ *      sentence inside an otherwise-localized component was invisible. This
+ *      widening removes the whole-file exemption: clearing is now decided
+ *      PER RENDERED STRING. A prose run clears ONLY when it is itself wrapped in
+ *      the i18n layer — a localized render reaches the screen as `{pickByLocale(
+ *      …)}` (a JSX expression) or `attr={pickByLocale(…)}` (an expression
+ *      attribute), and the render scanners below structurally skip BOTH the
+ *      `{ … }` text-node form and the `={ … }` expression-attribute form. What
+ *      remains visible to the scanner is exactly the prose that bypassed i18n:
+ *      a bare `>English run<` text node or a `="English run"` string-literal
+ *      attribute. The `en:` / `sw:` literals inside a `pickByLocale` argument
+ *      object are object-property values — neither a `> <` text node nor a
+ *      matched attribute value — so a correctly localized string is never
+ *      flagged; AND
  *   3. it is not i18n tooling / a test / a type-only `.ts` module.
  *
  * What it deliberately IGNORES (to keep the false-positive rate at zero):
@@ -138,9 +165,25 @@ function hasEnglishUserFacingAttr(src: string): boolean {
   return false;
 }
 
-/** A file is locale-aware if it selects a per-locale branch anywhere. */
-function isLocaleAware(src: string): boolean {
-  return /\b(pickByLocale|useLocale)\b/.test(src);
+/**
+ * A file CLEARS the prose check only if it selects a per-locale STRING branch
+ * (`pickByLocale`). Resolving the locale for date/number formatting alone
+ * (`useLocale()` / `bcp47For(locale)`) does NOT clear prose — that is exactly
+ * the round-13 "uses-locale-but-hardcodes-English" shape this guard now bites.
+ */
+function selectsPerLocaleString(src: string): boolean {
+  return /\bpickByLocale\b/.test(src);
+}
+
+/**
+ * A file merely RESOLVES the active locale (for formatting) when it touches
+ * `useLocale` / `bcp47For` but has no `pickByLocale`. Used only to classify a
+ * caught file's shape for the failure message; both shapes fail the build.
+ */
+function resolvesLocaleForFormattingOnly(src: string): boolean {
+  return (
+    !selectsPerLocaleString(src) && /\b(useLocale|bcp47For)\b/.test(src)
+  );
 }
 
 function listComponentFiles(dir: string, root: string, acc: string[]): void {
@@ -161,19 +204,83 @@ function listComponentFiles(dir: string, root: string, acc: string[]): void {
 }
 
 /**
- * Return the sorted list of component / page files (relative to `srcRoot`)
- * that render user-facing English prose yet have ZERO locale awareness — the
- * surface-level EN/SW mix under the `sw` toggle.
+ * The shape of a caught hardcoded-EN file:
+ *   - `no-locale`: zero `pickByLocale`/`useLocale`/`bcp47For` — the original
+ *     round-9/10 class (a wholly locale-unaware component).
+ *   - `uses-locale-but-hardcodes-english`: resolves the locale for date/number
+ *     formatting (`useLocale`/`bcp47For`) yet has no `pickByLocale` to localize
+ *     its prose — the round-13 widening.
+ *   - `per-string-leak`: localizes MOST of its surface with `pickByLocale` but
+ *     leaks a few rendered prose runs straight to the screen (a hardcoded JSX
+ *     text node or a string-literal `title=`/`placeholder=`) — the round-14
+ *     widening. The whole-file `pickByLocale` exemption no longer hides it.
  */
-export function findHardcodedEnComponents(srcRoot: string): string[] {
+export type HardcodedEnShape =
+  | 'no-locale'
+  | 'uses-locale-but-hardcodes-english'
+  | 'per-string-leak';
+
+export interface HardcodedEnOffender {
+  readonly file: string;
+  readonly shape: HardcodedEnShape;
+}
+
+/**
+ * Classify a CAUGHT file's shape. A file reaches here only after a rendered
+ * prose run escaped the i18n layer (a bare text node or a string-literal
+ * attribute). The distinction is in how much locale machinery the file already
+ * carries around that leak:
+ *   - it selects a per-locale string branch elsewhere (`pickByLocale`) yet still
+ *     leaked one → `per-string-leak` (round-14);
+ *   - it resolves the locale only for formatting (`useLocale`/`bcp47For`) with
+ *     no `pickByLocale` at all → `uses-locale-but-hardcodes-english` (round-13);
+ *   - it has no locale awareness whatsoever → `no-locale` (round-9/10).
+ */
+function classifyShape(raw: string): HardcodedEnShape {
+  if (selectsPerLocaleString(raw)) return 'per-string-leak';
+  if (resolvesLocaleForFormattingOnly(raw)) {
+    return 'uses-locale-but-hardcodes-english';
+  }
+  return 'no-locale';
+}
+
+/**
+ * Return every component / page file (relative to `srcRoot`) that renders a
+ * user-facing English prose run OUTSIDE the i18n layer — tagged with its shape.
+ *
+ * Clearing is decided PER RENDERED STRING, not per file: the presence of
+ * `pickByLocale` somewhere no longer exempts a file. A localized render reaches
+ * the screen as `{pickByLocale(…)}` or `attr={pickByLocale(…)}`, and the two
+ * render scanners structurally skip both the `{ … }` text-node and the `={ … }`
+ * expression-attribute forms — so they only ever SEE prose that bypassed i18n
+ * (a bare `>run<` text node or a `="run"` string-literal attribute). The
+ * `en:`/`sw:` literals inside a `pickByLocale` argument object are object
+ * property values (neither shape the scanners match), so a correctly localized
+ * string is never flagged. This makes the per-string-leak inside an otherwise
+ * localized component (round-14) visible without re-flagging clean files.
+ */
+export function findHardcodedEnOffenders(srcRoot: string): HardcodedEnOffender[] {
   const files: string[] = [];
   listComponentFiles(srcRoot, srcRoot, files);
-  const offenders = files.filter((rel) => {
+  const offenders: HardcodedEnOffender[] = [];
+  for (const rel of files) {
     // eslint-disable-next-line security/detect-non-literal-fs-filename -- trusted build-time scanner over the repo's own src tree (no user input)
     const raw = readFileSync(join(srcRoot, rel), 'utf8');
-    if (isLocaleAware(raw)) return false;
     const code = stripNonRenderLines(raw);
-    return hasEnglishJsxTextNode(code) || hasEnglishUserFacingAttr(code);
-  });
-  return offenders.sort();
+    if (!hasEnglishJsxTextNode(code) && !hasEnglishUserFacingAttr(code)) {
+      continue;
+    }
+    offenders.push({ file: rel, shape: classifyShape(raw) });
+  }
+  return offenders.sort((a, b) => a.file.localeCompare(b.file));
+}
+
+/**
+ * Return the sorted list of component / page files (relative to `srcRoot`)
+ * that render user-facing English prose yet do not localize that prose — the
+ * surface-level EN/SW mix under the `sw` toggle. Covers BOTH the no-locale and
+ * the uses-locale-but-hardcodes-English shapes.
+ */
+export function findHardcodedEnComponents(srcRoot: string): string[] {
+  return findHardcodedEnOffenders(srcRoot).map((o) => o.file);
 }

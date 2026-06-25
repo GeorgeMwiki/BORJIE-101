@@ -96,6 +96,10 @@ const S = {
     en: 'Operational reason (min 8 chars — recorded on the audit trail)',
     sw: 'Sababu ya kiutendaji (herufi 8+ — inarekodiwa kwenye njia ya ukaguzi)',
   },
+  opReasonPlaceholder: {
+    en: 'e.g. active incident #4821 — pausing all inference',
+    sw: 'mfano tukio hai #4821 — kusitisha utambuzi wote',
+  },
   cancel: { en: 'Cancel', sw: 'Ghairi' },
   applyChange: { en: 'Apply change', sw: 'Tekeleza mabadiliko' },
   awaitingTitle: {
@@ -609,7 +613,7 @@ function FourEyeModal({ control, locale, onClose, onApplied }: FourEyeModalProps
             type="text"
             value={reason}
             onChange={(event) => setReason(event.target.value)}
-            placeholder="e.g. active incident #4821 — pausing all inference"
+            placeholder={pickByLocale(locale, S.opReasonPlaceholder)}
           />
         </FormField>
         {error ? (

@@ -3,7 +3,7 @@
 import { Card } from '@borjie/design-system';
 
 import { useDashboardAuditIntegrity } from '@/lib/internal/queries/dashboard';
-import { useLocale, type Locale } from '@/lib/locale';
+import { useLocale, pickByLocale, type Locale } from '@/lib/locale';
 
 /**
  * Resolve the Intl BCP-47 tag from the active locale — the
@@ -13,6 +13,34 @@ import { useLocale, type Locale } from '@/lib/locale';
 function bcp47For(locale: Locale): string {
   return locale === 'sw' ? 'sw-TZ' : 'en-GB';
 }
+
+// Every rendered string in BOTH locales — one language per active locale,
+// never English-under-sw. The wire carries machine state tokens
+// (`failed`/`unconfigured`/`unauthorized`/`valid`); the FE localizes the
+// prose at render so the default console landing is single-locale.
+const S = {
+  unavailableTitle: {
+    en: 'Audit chain integrity unavailable',
+    sw: 'Uadilifu wa mnyororo wa ukaguzi haupatikani',
+  },
+  endpointUnreachable: { en: 'Endpoint unreachable', sw: 'Mwisho haufikiki' },
+  heading: { en: 'Audit chain integrity', sw: 'Uadilifu wa mnyororo wa ukaguzi' },
+  unconfigured: {
+    en: 'Audit-trail verifier not configured on this gateway. Set AUDIT_TRAIL_SIGNING_SECRET and a pipeline slot to enable 24h hash-chain checks.',
+    sw: 'Mthibitishaji wa njia-ya-ukaguzi haujasanidiwa kwenye lango hili. Weka AUDIT_TRAIL_SIGNING_SECRET na nafasi ya bomba ili kuwezesha ukaguzi wa mnyororo-mseto wa saa 24.',
+  },
+  unauthorized: {
+    en: 'Sign in as tenant-admin or super-admin to verify the hash chain.',
+    sw: 'Ingia kama msimamizi-pangaji au msimamizi-mkuu ili kuthibitisha mnyororo-mseto.',
+  },
+  headingWindow: { en: 'Audit chain · last 24h', sw: 'Mnyororo wa ukaguzi · saa 24 za mwisho' },
+  entriesChecked: { en: 'entries checked', sw: 'maingizo yaliyokaguliwa' },
+  firstBroken: { en: 'First broken entry:', sw: 'Ingizo la kwanza lililovunjika:' },
+  verifiesOk: {
+    en: 'Hash chain verifies end-to-end for the last 24 hours.',
+    sw: 'Mnyororo-mseto unathibitika mwanzo-mwisho kwa saa 24 zilizopita.',
+  },
+} as const;
 
 /**
  * Audit-chain integrity panel — bottom-right.
@@ -43,13 +71,13 @@ export function AuditChainIntegrityPanel(): JSX.Element {
         data-testid="admin-dashboard-audit-error"
       >
         <h2 className="text-caption uppercase tracking-widest text-warning">
-          Audit chain integrity unavailable
+          {pickByLocale(locale, S.unavailableTitle)}
         </h2>
         <p className="mt-2 text-sm text-neutral-300">
           {data?.reason ??
             (query.error instanceof Error
               ? query.error.message
-              : 'Endpoint unreachable')}
+              : pickByLocale(locale, S.endpointUnreachable))}
         </p>
       </article>
     );
@@ -62,12 +90,10 @@ export function AuditChainIntegrityPanel(): JSX.Element {
         data-testid="admin-dashboard-audit-unconfigured"
       >
         <h2 className="font-mono text-mini font-semibold uppercase tracking-eyebrow text-neutral-500">
-          Audit chain integrity
+          {pickByLocale(locale, S.heading)}
         </h2>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Audit-trail verifier not configured on this gateway. Set
-          AUDIT_TRAIL_SIGNING_SECRET and a pipeline slot to enable
-          24h hash-chain checks.
+          {pickByLocale(locale, S.unconfigured)}
         </p>
       </Card>
     );
@@ -80,10 +106,10 @@ export function AuditChainIntegrityPanel(): JSX.Element {
         data-testid="admin-dashboard-audit-unauth"
       >
         <h2 className="text-caption uppercase tracking-widest text-neutral-500">
-          Audit chain integrity
+          {pickByLocale(locale, S.heading)}
         </h2>
         <p className="mt-3 text-sm text-neutral-400">
-          Sign in as tenant-admin or super-admin to verify the hash chain.
+          {pickByLocale(locale, S.unauthorized)}
         </p>
       </Card>
     );
@@ -101,7 +127,7 @@ export function AuditChainIntegrityPanel(): JSX.Element {
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <h2 className="text-caption uppercase tracking-widest text-neutral-500">
-            Audit chain · last 24h
+            {pickByLocale(locale, S.headingWindow)}
           </h2>
           <p
             className={`mt-1 font-display text-3xl ${
@@ -112,7 +138,8 @@ export function AuditChainIntegrityPanel(): JSX.Element {
             {data.valid ? 'OK' : 'BROKEN'}
           </p>
           <p className="text-xs text-neutral-500">
-            {data.entriesChecked.toLocaleString()} entries checked
+            {data.entriesChecked.toLocaleString(bcp47For(locale))}{' '}
+            {pickByLocale(locale, S.entriesChecked)}
           </p>
         </div>
         <div className="text-xs text-neutral-500">
@@ -121,7 +148,7 @@ export function AuditChainIntegrityPanel(): JSX.Element {
       </header>
       {!data.valid && data.firstBrokenEntryId ? (
         <p className="text-sm text-destructive">
-          First broken entry:{' '}
+          {pickByLocale(locale, S.firstBroken)}{' '}
           <code className="rounded bg-destructive/10 px-1 py-0.5 font-mono text-xs">
             {data.firstBrokenEntryId}
           </code>
@@ -130,7 +157,7 @@ export function AuditChainIntegrityPanel(): JSX.Element {
       ) : null}
       {data.valid ? (
         <p className="text-sm text-neutral-400">
-          Hash chain verifies end-to-end for the last 24 hours.
+          {pickByLocale(locale, S.verifiesOk)}
         </p>
       ) : null}
     </article>
