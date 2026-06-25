@@ -48,8 +48,16 @@ export const miningEscalations = pgTable(
     sourceKind: text('source_kind').notNull(),
     /** Originating domain object id when known. */
     sourceId: text('source_id'),
-    /** Swahili-first narrative (English may follow). */
+    /** Swahili narrative (NOT NULL, migration 0081). */
     contextSw: text('context_sw').notNull(),
+    /**
+     * Additive lossless side-channel (migration 0356). Carries `contextEn`
+     * (the English narrative) so the escalations GET projects a locale-pure
+     * `context: { en, sw }` pair; org-path writers also stash their richer
+     * payload here. Nullable — legacy rows + writers that cannot resolve an
+     * English narrative leave it absent (the reader renders a placeholder).
+     */
+    context: jsonb('context'),
     /** info|warning|critical. */
     severity: text('severity').notNull().default('warning'),
     /** open|acknowledged|resolved. */

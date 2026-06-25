@@ -187,7 +187,11 @@
     "status_queued": "Imepangwa",
     "status_processing": "Inachakatwa",
     "status_ready": "Tayari",
-    "status_failed": "Imeshindwa"
+    "status_failed": "Imeshindwa",
+    "upload_document": "Pakia hati",
+    "attach_document": "Ambatisha hati",
+    "upload_no_file": "Hakuna faili lililochaguliwa.",
+    "upload_failed": "Imeshindwa kupakia hati. Tafadhali jaribu tena."
   },
   "documents_intel": {
     "tab_title": "Hati hai",
@@ -281,6 +285,19 @@
     "load_failed": "Imeshindwa kupakia mazungumzo",
     "assistant_thinking": "Bw. Mwikila anajibu",
     "no_thread": "Zabuni hii bado haina mazungumzo. Mazungumzo yatafunguka pindi muuzaji atakapojibu ofa yako."
+  },
+  "entity": {
+    "kind": {
+      "site": "Eneo",
+      "licence": "Leseni",
+      "parcel": "Kifurushi",
+      "counterparty": "Mhusika",
+      "document": "Hati",
+      "scope": "Eneo-kazi",
+      "employee": "Mfanyakazi",
+      "subsidiary": "Kampuni tanzu",
+      "custom": "Kipengele"
+    }
   },
   "auth": {
     "login_title": "Karibu Borjie Buyers",

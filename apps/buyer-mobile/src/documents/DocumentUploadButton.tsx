@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import * as DocumentPicker from 'expo-document-picker'
+import { localizeApiError } from '@borjie/error-catalog'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
+import { useTranslation } from '@/hooks/useTranslation'
 import { registerUpload } from './api'
 import { ALLOWED_MIMES, validateUpload, type UploadResult } from './types'
 
@@ -24,6 +26,7 @@ export function DocumentUploadButton({
   onError,
   variant = 'button',
 }: DocumentUploadButtonProps) {
+  const { t, lang } = useTranslation()
   const [busy, setBusy] = useState(false)
 
   async function handlePress(): Promise<void> {
@@ -44,7 +47,7 @@ export function DocumentUploadButton({
       const asset = picked.assets[0]
       if (!asset) {
         setBusy(false)
-        onError?.('No file selected.')
+        onError?.(t('documents.upload_no_file'))
         return
       }
       const validation = validateUpload({
@@ -54,7 +57,9 @@ export function DocumentUploadButton({
       })
       if (!validation.ok) {
         setBusy(false)
-        onError?.(validation.message)
+        // Localize via the validation CODE — never surface the raw English
+        // `validation.message` (under `sw` that is language mixing).
+        onError?.(localizeApiError(validation.code, lang))
         return
       }
       const result = await registerUpload({
@@ -64,8 +69,16 @@ export function DocumentUploadButton({
       })
       onUploaded?.(result)
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : 'Upload failed.'
-      onError?.(message)
+      // Never render a raw English `error.message` off the wire. Route the
+      // ApiError code through the shared catalog; unknown codes fall back to
+      // the active-locale generic message.
+      if (__DEV__ && cause instanceof Error) {
+        console.warn('[DocumentUploadButton] upload failed:', cause.message) // eslint-disable-line no-console -- reason: DEV-only mobile diagnostic per CLAUDE.md mobile-console rule
+      }
+      onError?.(
+        localizeApiError(cause instanceof Error ? cause : undefined, lang) ||
+          t('documents.upload_failed'),
+      )
     } finally {
       setBusy(false)
     }
@@ -75,7 +88,7 @@ export function DocumentUploadButton({
     return (
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={label ?? 'Attach document'}
+        accessibilityLabel={label ?? t('documents.attach_document')}
         accessibilityState={{ busy }}
         disabled={busy}
         onPress={handlePress}
@@ -93,7 +106,7 @@ export function DocumentUploadButton({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label ?? 'Upload document'}
+      accessibilityLabel={label ?? t('documents.upload_document')}
       accessibilityState={{ busy }}
       disabled={busy}
       onPress={handlePress}
@@ -101,7 +114,7 @@ export function DocumentUploadButton({
     >
       <View style={styles.buttonInner}>
         <Text style={styles.buttonGlyph}>{'📎'}</Text>
-        <Text style={styles.buttonLabel}>{label ?? 'Upload document'}</Text>
+        <Text style={styles.buttonLabel}>{label ?? t('documents.upload_document')}</Text>
         {busy ? <ActivityIndicator color={colors.bone} /> : null}
       </View>
     </Pressable>

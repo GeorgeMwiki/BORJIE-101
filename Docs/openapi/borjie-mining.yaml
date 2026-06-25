@@ -126,6 +126,18 @@ components:
       required:
         - success
         - data
+    LocalizedMessage:
+      type: object
+      properties:
+        en:
+          type: string
+          example: Resource not found
+        sw:
+          type: string
+          example: Rasilimali haijapatikana
+      required:
+        - en
+        - sw
     ApiErrorEnvelope:
       type: object
       properties:
@@ -141,7 +153,9 @@ components:
               type: string
               example: NOT_FOUND
             message:
-              type: string
+              anyOf:
+                - type: string
+                - "$ref": '#/components/schemas/LocalizedMessage'
               example: Resource not found
             details:
               type: object
@@ -297,6 +311,74 @@ components:
         - obligations
         - createdAt
         - updatedAt
+    LicenceCockpitPayment:
+      type: object
+      properties:
+        date:
+          type: string
+        description:
+          type: string
+        amountTzs:
+          type: number
+        status:
+          type: string
+          enum:
+            - paid
+            - overdue
+            - due
+      required:
+        - date
+        - description
+        - amountTzs
+        - status
+    LicenceCockpit:
+      type: object
+      properties:
+        id:
+          type: string
+        reference:
+          type: string
+        mineral:
+          type: string
+          enum:
+            - gold
+            - coltan
+            - tanzanite
+        siteName:
+          type: string
+        windowOpensAt:
+          type: string
+        windowClosesAt:
+          type: string
+        daysToWindow:
+          type: integer
+        dormancyScore:
+          type: number
+        dormancyCitation:
+          type: string
+        payments:
+          type: array
+          items:
+            "$ref": '#/components/schemas/LicenceCockpitPayment'
+        renewalPackCompletePct:
+          type: number
+        renewalPackMissing:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - reference
+        - mineral
+        - siteName
+        - windowOpensAt
+        - windowClosesAt
+        - daysToWindow
+        - dormancyScore
+        - dormancyCitation
+        - payments
+        - renewalPackCompletePct
+        - renewalPackMissing
     CreateLicenceRequest:
       type: object
       properties:
@@ -532,7 +614,7 @@ components:
         - usdDenominated
         - remediationComplete
         - note
-    ChatMode:
+    LensId:
       type: string
       enum:
         - build
@@ -541,7 +623,7 @@ components:
         - document
         - finance
         - risk
-        - board-investor
+        - board
         - compliance
     ChatLanguage:
       type: string
@@ -563,8 +645,10 @@ components:
                   type: string
                 userId:
                   type: string
-                mode:
-                  "$ref": '#/components/schemas/ChatMode'
+                lenses:
+                  type: array
+                  items:
+                    "$ref": '#/components/schemas/LensId'
                 language:
                   "$ref": '#/components/schemas/ChatLanguage'
                 sessionId:
@@ -577,7 +661,7 @@ components:
               required:
                 - tenantId
                 - userId
-                - mode
+                - lenses
                 - language
                 - sessionId
                 - at
@@ -699,13 +783,11 @@ components:
         sessionId:
           type: string
         mode:
-          allOf:
-            - "$ref": '#/components/schemas/ChatMode'
-            - default: build
+          type: string
         language:
           allOf:
             - "$ref": '#/components/schemas/ChatLanguage'
-            - default: sw
+            - default: en
       required:
         - message
     MarketplaceCategory:
@@ -749,6 +831,12 @@ components:
         updatedAt:
           type: string
           format: date-time
+        sellerTenantId:
+          type: string
+        sellerName:
+          type:
+            - string
+            - 'null'
       required:
         - id
         - tenantId
@@ -759,6 +847,22 @@ components:
         - attributes
         - createdAt
         - updatedAt
+    MarketplaceSeller:
+      type: object
+      properties:
+        sellerTenantId:
+          type: string
+        sellerName:
+          type:
+            - string
+            - 'null'
+        listingCount:
+          type: integer
+          minimum: 0
+      required:
+        - sellerTenantId
+        - sellerName
+        - listingCount
     PaymentTerms:
       type: string
       enum:
@@ -7039,7 +7143,8 @@ paths:
     get:
       tags:
         - licences
-      summary: Fetch one licence by id.
+      summary: Fetch the per-licence COCKPIT projection by id (OW-5).
+      description: Returns the computed LicenceCockpitData projection (renewal window, dormancy, payments from licence_events + ledger, renewal-pack progress) the owner-web licence surface consumes — not the raw row.
       security:
         - BearerAuth: []
       parameters:
@@ -7051,7 +7156,7 @@ paths:
           in: path
       responses:
         200:
-          description: Licence row.
+          description: Licence cockpit projection.
           content:
             application/json:
               schema:
@@ -7064,7 +7169,7 @@ paths:
                           - true
                         example: true
                       data:
-                        "$ref": '#/components/schemas/Licence'
+                        "$ref": '#/components/schemas/LicenceCockpit'
                       meta:
                         type: object
                         properties:
@@ -7465,6 +7570,12 @@ paths:
           name: visibility
           in: query
         - schema:
+            type: string
+            minLength: 1
+          required: false
+          name: sellerTenantId
+          in: query
+        - schema:
             type: integer
             exclusiveMinimum: 0
             maximum: 200
@@ -7490,6 +7601,55 @@ paths:
                         type: array
                         items:
                           "$ref": '#/components/schemas/MarketplaceListing'
+                      meta:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                            minimum: 0
+                          page:
+                            type: integer
+                            minimum: 0
+                          limit:
+                            type: integer
+                            exclusiveMinimum: 0
+        401:
+          description: Auth missing or invalid.
+          content:
+            application/json:
+              schema:
+                "$ref": '#/components/schemas/ApiErrorEnvelope'
+        500:
+          description: Unhandled server error.
+          content:
+            application/json:
+              schema:
+                "$ref": '#/components/schemas/ApiErrorEnvelope'
+  /api/v1/mining/marketplace/listings/sellers:
+    get:
+      tags:
+        - marketplace
+      summary: Distinct seller orgs with buyer-visible active listings.
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Seller orgs (id + name + buyer-visible active listing count).
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - "$ref": '#/components/schemas/ApiSuccessEnvelope'
+                  - properties:
+                      success:
+                        type: boolean
+                        enum:
+                          - true
+                        example: true
+                      data:
+                        type: array
+                        items:
+                          "$ref": '#/components/schemas/MarketplaceSeller'
                       meta:
                         type: object
                         properties:

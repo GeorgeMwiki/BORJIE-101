@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { localizeApiError } from '@borjie/error-catalog'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
 import { useTranslation } from '@/hooks/useTranslation'
@@ -80,8 +81,13 @@ export function DocumentExplorer({ document, initialPrompt }: DocumentExplorerPr
       }
       setTurns((prev) => [...prev, assistantTurn])
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : t('documents_intel.ask_failed')
-      setError(message)
+      // Never render a raw English `error.message` off the wire — under `sw`
+      // that is language mixing. Localize through the shared catalog (falls
+      // back to the active-locale generic message for unknown / infra codes).
+      if (__DEV__ && cause instanceof Error) {
+        console.warn('[DocumentExplorer] askSession failed:', cause.message) // eslint-disable-line no-console -- reason: DEV-only mobile diagnostic per CLAUDE.md mobile-console rule
+      }
+      setError(localizeApiError(cause instanceof Error ? cause : undefined, lang))
     } finally {
       setBusy(false)
     }

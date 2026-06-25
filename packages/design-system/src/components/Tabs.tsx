@@ -18,7 +18,12 @@ const TabsList = React.forwardRef<
   const variantClasses = {
     default: 'bg-muted p-1 rounded-md',
     pills: 'gap-1',
-    underline: 'border-b border-border gap-4',
+    // `max-w-full overflow-x-auto` turns the underline strip into a
+    // horizontal-scroll rail so a long tab row (e.g. admin tenant-detail,
+    // incl. Impersonate) scrolls instead of clipping on narrow viewports
+    // (~360px). Triggers keep their `whitespace-nowrap`, so each label stays
+    // on one line and remains reachable by scrolling.
+    underline: 'border-b border-border gap-4 max-w-full overflow-x-auto',
     boxed: 'border border-border rounded-lg p-1 gap-1',
   };
 

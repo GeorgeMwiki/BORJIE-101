@@ -16,8 +16,8 @@ export const BORJIE_THEME_BOOTSTRAP_SCRIPT = `
     var dark;
     if (stored === 'light') dark = false;
     else if (stored === 'dark') dark = true;
-    else if (stored === 'system' || !stored) dark = media.matches;
-    else dark = true;
+    else if (stored === 'system') dark = media.matches;
+    else dark = false;
     var root = document.documentElement;
     root.classList.remove('light','dark');
     root.classList.add(dark ? 'dark' : 'light');

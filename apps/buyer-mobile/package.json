@@ -13,6 +13,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@borjie/error-catalog": "workspace:*",
     "@borjie/observability": "workspace:^",
     "@borjie/persona-runtime": "workspace:*",
     "@hookform/resolvers": "^3.9.0",

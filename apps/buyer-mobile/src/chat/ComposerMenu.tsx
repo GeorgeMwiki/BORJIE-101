@@ -10,6 +10,8 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { colors } from '@/theme/colors'
 import { radius, spacing, typography } from '@/theme/spacing'
+import { translate } from '@/i18n'
+import { entityKindLabel } from './entity-kind-label'
 import type {
   EntityItem,
   SlashCommandItem
@@ -94,7 +96,7 @@ export function AtMenu({ entities, locale, onSelect }: AtMenuProps) {
             >
               <Text style={styles.label}>{entity.label[locale]}</Text>
               <Text style={styles.hint}>
-                {entity.kind}
+                {entityKindLabel(entity.kind, (path) => translate(locale, path))}
                 {entity.hint ? ` · ${entity.hint[locale]}` : ''}
               </Text>
             </Pressable>
